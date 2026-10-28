@@ -2,8 +2,10 @@ node_modules/
 dist/
 .DS_Store
 
-# 教材 PDF 和由它生成的书页贴图：仅供本机使用，不入库
-pdf/
+# 教材：pdf/ 里只收三本 PDF 和章节目录；原版备份、调研资料不入库。由 PDF 生成的书页贴图不入库
+pdf/*
+!pdf/*.pdf
+!pdf/*.目录树.json
 public/books/*/hi/
 public/books/*/lo/
 tools/*.private.txt

@@ -1,0 +1,591 @@
+[
+  {
+    "id": "2e606375-db31-43e8-900e-502f1719a8b4",
+    "title": "绪言",
+    "rich_title": "绪言",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials",
+      "hidden": false,
+      "change_source": "other",
+      "change_remark": ""
+    },
+    "node_path": "2e606375-db31-43e8-900e-502f1719a8b4",
+    "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+    "create_time": "2024-09-10T16:05:12.337+0800",
+    "update_time": "2024-09-10T16:05:12.337+0800",
+    "child_nodes": [
+      {
+        "id": "1241ed3b-3d8d-41dc-a14b-42defcd061af",
+        "title": "开启科学探索之旅",
+        "rich_title": "开启科学探索之旅",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false,
+          "change_source": "other",
+          "change_remark": ""
+        },
+        "node_path": "2e606375-db31-43e8-900e-502f1719a8b4/1241ed3b-3d8d-41dc-a14b-42defcd061af",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-09-10T16:05:19.876+0800",
+        "update_time": "2024-09-10T16:05:19.876+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "d41838dd-0dc3-4199-a35e-8a7c75c16439",
+    "title": "第一章 机械运动",
+    "rich_title": "第一章 机械运动",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "d41838dd-0dc3-4199-a35e-8a7c75c16439",
+    "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+    "create_time": "2024-08-06T15:51:37.374+0800",
+    "update_time": "2024-08-06T15:51:37.374+0800",
+    "child_nodes": [
+      {
+        "id": "8dcaba4b-e01c-4ad7-aeb7-bfde61941f7a",
+        "title": "第一节 长度和时间的测量",
+        "rich_title": "第一节 长度和时间的测量",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d41838dd-0dc3-4199-a35e-8a7c75c16439/8dcaba4b-e01c-4ad7-aeb7-bfde61941f7a",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.395+0800",
+        "update_time": "2024-08-06T15:51:37.395+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0e1a9abe-9b64-4905-bf44-aea877cafc07",
+        "title": "第二节 运动的描述",
+        "rich_title": "第二节 运动的描述",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d41838dd-0dc3-4199-a35e-8a7c75c16439/0e1a9abe-9b64-4905-bf44-aea877cafc07",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.415+0800",
+        "update_time": "2024-08-06T15:51:37.415+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "963e56cc-f85c-42ea-be06-43af6f4a2301",
+        "title": "第三节 运动的快慢",
+        "rich_title": "第三节 运动的快慢",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d41838dd-0dc3-4199-a35e-8a7c75c16439/963e56cc-f85c-42ea-be06-43af6f4a2301",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.435+0800",
+        "update_time": "2024-08-06T15:51:37.435+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "18dc650d-eed9-4522-951a-06edc1524e2b",
+        "title": "第四节 速度的测量",
+        "rich_title": "第四节 速度的测量",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d41838dd-0dc3-4199-a35e-8a7c75c16439/18dc650d-eed9-4522-951a-06edc1524e2b",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.454+0800",
+        "update_time": "2024-08-06T15:51:37.454+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "2bf8e109-3466-4b91-8dd3-e43eb9673013",
+    "title": "第二章 声现象",
+    "rich_title": "第二章 声现象",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "2bf8e109-3466-4b91-8dd3-e43eb9673013",
+    "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+    "create_time": "2024-08-06T15:51:37.472+0800",
+    "update_time": "2024-08-06T15:51:37.472+0800",
+    "child_nodes": [
+      {
+        "id": "5d5547fc-7443-4172-89dd-f40137abf5e9",
+        "title": "第一节 声音的产生与传播",
+        "rich_title": "第一节 声音的产生与传播",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "2bf8e109-3466-4b91-8dd3-e43eb9673013/5d5547fc-7443-4172-89dd-f40137abf5e9",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.492+0800",
+        "update_time": "2024-08-06T15:51:37.492+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3dd46eb6-83a5-4776-b7d3-101b83248917",
+        "title": "第二节 声音的特性",
+        "rich_title": "第二节 声音的特性",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "2bf8e109-3466-4b91-8dd3-e43eb9673013/3dd46eb6-83a5-4776-b7d3-101b83248917",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.511+0800",
+        "update_time": "2024-08-06T15:51:37.511+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "7211b2cb-6622-4f06-9fe6-69fed5ef1308",
+        "title": "第三节 声的利用",
+        "rich_title": "第三节 声的利用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "2bf8e109-3466-4b91-8dd3-e43eb9673013/7211b2cb-6622-4f06-9fe6-69fed5ef1308",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.531+0800",
+        "update_time": "2024-08-06T15:51:37.531+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "03288653-9f40-462c-a269-cc25c82f4a59",
+        "title": "第四节 噪声的危害和控制",
+        "rich_title": "第四节 噪声的危害和控制",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "2bf8e109-3466-4b91-8dd3-e43eb9673013/03288653-9f40-462c-a269-cc25c82f4a59",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.549+0800",
+        "update_time": "2024-08-06T15:51:37.549+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a668413a-d390-4141-a29f-8cbb5c3d4604",
+        "title": "第五节 跨学科实践：制作隔音房间模型",
+        "rich_title": "第五节 跨学科实践：制作隔音房间模型",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "2bf8e109-3466-4b91-8dd3-e43eb9673013/a668413a-d390-4141-a29f-8cbb5c3d4604",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.568+0800",
+        "update_time": "2024-08-06T15:51:37.568+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "94b8cbbc-201f-4e96-93ff-d8811fbec7e2",
+    "title": "第三章 物态变化",
+    "rich_title": "第三章 物态变化",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "94b8cbbc-201f-4e96-93ff-d8811fbec7e2",
+    "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+    "create_time": "2024-08-06T15:51:37.589+0800",
+    "update_time": "2024-08-06T15:51:37.589+0800",
+    "child_nodes": [
+      {
+        "id": "7696a4a2-62dd-4ae9-821a-7841b76b6369",
+        "title": "第一节 温度",
+        "rich_title": "第一节 温度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "94b8cbbc-201f-4e96-93ff-d8811fbec7e2/7696a4a2-62dd-4ae9-821a-7841b76b6369",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.611+0800",
+        "update_time": "2024-08-06T15:51:37.611+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "db68b91d-9b0e-483e-946c-edbc1846796e",
+        "title": "第二节 熔化和凝固",
+        "rich_title": "第二节 熔化和凝固",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "94b8cbbc-201f-4e96-93ff-d8811fbec7e2/db68b91d-9b0e-483e-946c-edbc1846796e",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.630+0800",
+        "update_time": "2024-08-06T15:51:37.630+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6d73ea08-9ba6-4593-8da8-e3055f70481c",
+        "title": "第三节 汽化和液化",
+        "rich_title": "第三节 汽化和液化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "94b8cbbc-201f-4e96-93ff-d8811fbec7e2/6d73ea08-9ba6-4593-8da8-e3055f70481c",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.649+0800",
+        "update_time": "2024-08-06T15:51:37.649+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "15292e39-0328-4dcb-9a9d-041cb1aab2c1",
+        "title": "第四节 升华和凝华",
+        "rich_title": "第四节 升华和凝华",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "94b8cbbc-201f-4e96-93ff-d8811fbec7e2/15292e39-0328-4dcb-9a9d-041cb1aab2c1",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.668+0800",
+        "update_time": "2024-08-06T15:51:37.668+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4a51e03a-9bbe-462e-8e06-c88be493701a",
+        "title": "第五节 跨学科实践：探索厨房中的物态变化问题",
+        "rich_title": "第五节 跨学科实践：探索厨房中的物态变化问题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "94b8cbbc-201f-4e96-93ff-d8811fbec7e2/4a51e03a-9bbe-462e-8e06-c88be493701a",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.691+0800",
+        "update_time": "2024-08-06T15:51:37.691+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "bfc985ce-f7a3-462d-9ee8-50bf9e0dadbf",
+    "title": "第四章 光现象",
+    "rich_title": "第四章 光现象",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "bfc985ce-f7a3-462d-9ee8-50bf9e0dadbf",
+    "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+    "create_time": "2024-08-06T15:51:37.710+0800",
+    "update_time": "2024-08-06T15:51:37.710+0800",
+    "child_nodes": [
+      {
+        "id": "a2b6a24e-16db-40b5-86fd-0cce09f51eaa",
+        "title": "第一节 光的直线传播",
+        "rich_title": "第一节 光的直线传播",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfc985ce-f7a3-462d-9ee8-50bf9e0dadbf/a2b6a24e-16db-40b5-86fd-0cce09f51eaa",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.730+0800",
+        "update_time": "2024-08-06T15:51:37.730+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "bacca7fe-22be-49fe-8e78-c876658449bd",
+        "title": "第二节 光的反射",
+        "rich_title": "第二节 光的反射",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfc985ce-f7a3-462d-9ee8-50bf9e0dadbf/bacca7fe-22be-49fe-8e78-c876658449bd",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.751+0800",
+        "update_time": "2024-08-06T15:51:37.751+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cb40b940-286c-47b4-b4b7-76f38fb39ce0",
+        "title": "第三节 平面镜成像",
+        "rich_title": "第三节 平面镜成像",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfc985ce-f7a3-462d-9ee8-50bf9e0dadbf/cb40b940-286c-47b4-b4b7-76f38fb39ce0",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.769+0800",
+        "update_time": "2024-08-06T15:51:37.769+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e901a848-97fe-4b99-855f-6c0a9c871a5f",
+        "title": "第四节 光的折射",
+        "rich_title": "第四节 光的折射",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfc985ce-f7a3-462d-9ee8-50bf9e0dadbf/e901a848-97fe-4b99-855f-6c0a9c871a5f",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.787+0800",
+        "update_time": "2024-08-06T15:51:37.787+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9fd78239-6bd6-436e-a66f-9f90f520a4a6",
+        "title": "第五节 光的色散",
+        "rich_title": "第五节 光的色散",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfc985ce-f7a3-462d-9ee8-50bf9e0dadbf/9fd78239-6bd6-436e-a66f-9f90f520a4a6",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.806+0800",
+        "update_time": "2024-08-06T15:51:37.806+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "beb52a84-e9d2-4de4-9524-a4366a214529",
+    "title": "第五章 透镜及其应用",
+    "rich_title": "第五章 透镜及其应用",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "beb52a84-e9d2-4de4-9524-a4366a214529",
+    "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+    "create_time": "2024-08-06T15:51:37.825+0800",
+    "update_time": "2024-08-06T15:51:37.825+0800",
+    "child_nodes": [
+      {
+        "id": "ee200902-74cf-46c8-b96a-1d8289f808a7",
+        "title": "第一节 透镜",
+        "rich_title": "第一节 透镜",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "beb52a84-e9d2-4de4-9524-a4366a214529/ee200902-74cf-46c8-b96a-1d8289f808a7",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.846+0800",
+        "update_time": "2024-08-06T15:51:37.846+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f5847407-da52-476e-91a8-a51a371008ab",
+        "title": "第二节 生活中的透镜",
+        "rich_title": "第二节 生活中的透镜",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "beb52a84-e9d2-4de4-9524-a4366a214529/f5847407-da52-476e-91a8-a51a371008ab",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.867+0800",
+        "update_time": "2024-08-06T15:51:37.867+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a12b3786-86f9-472e-ae71-bc5b3ef7c8e5",
+        "title": "第三节 凸透镜成像的规律",
+        "rich_title": "第三节 凸透镜成像的规律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "beb52a84-e9d2-4de4-9524-a4366a214529/a12b3786-86f9-472e-ae71-bc5b3ef7c8e5",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.886+0800",
+        "update_time": "2024-08-06T15:51:37.886+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f481a720-39bf-498d-9709-502d6304e692",
+        "title": "第四节 眼睛和眼镜",
+        "rich_title": "第四节 眼睛和眼镜",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "beb52a84-e9d2-4de4-9524-a4366a214529/f481a720-39bf-498d-9709-502d6304e692",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.905+0800",
+        "update_time": "2024-08-06T15:51:37.905+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1f01d87f-4f36-4c06-aa93-e15c58ae8061",
+        "title": "第五节 跨学科实践：制作望远镜",
+        "rich_title": "第五节 跨学科实践：制作望远镜",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "beb52a84-e9d2-4de4-9524-a4366a214529/1f01d87f-4f36-4c06-aa93-e15c58ae8061",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.922+0800",
+        "update_time": "2024-08-06T15:51:37.922+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "69d185de-3e4d-4dbc-9414-4a1cfc5d6326",
+    "title": "第六章 质量与密度",
+    "rich_title": "第六章 质量与密度",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "69d185de-3e4d-4dbc-9414-4a1cfc5d6326",
+    "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+    "create_time": "2024-08-06T15:51:37.942+0800",
+    "update_time": "2024-08-06T15:51:37.942+0800",
+    "child_nodes": [
+      {
+        "id": "e088fabb-f445-4f57-9844-0b6409f705b3",
+        "title": "第一节 质量",
+        "rich_title": "第一节 质量",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "69d185de-3e4d-4dbc-9414-4a1cfc5d6326/e088fabb-f445-4f57-9844-0b6409f705b3",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.961+0800",
+        "update_time": "2024-08-06T15:51:37.961+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9a5387a7-8b95-4d82-aad3-bfeffbc919c6",
+        "title": "第二节 密度",
+        "rich_title": "第二节 密度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "69d185de-3e4d-4dbc-9414-4a1cfc5d6326/9a5387a7-8b95-4d82-aad3-bfeffbc919c6",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.978+0800",
+        "update_time": "2024-08-06T15:51:37.978+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "54c683c8-0c7e-4fd1-9f16-ffb00083a40e",
+        "title": "第三节 测量液体和固体的密度",
+        "rich_title": "第三节 测量液体和固体的密度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "69d185de-3e4d-4dbc-9414-4a1cfc5d6326/54c683c8-0c7e-4fd1-9f16-ffb00083a40e",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:37.997+0800",
+        "update_time": "2024-08-06T15:51:37.997+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0d99cd05-a602-4bc6-bc67-2b3622e11754",
+        "title": "第四节 密度的应用",
+        "rich_title": "第四节 密度的应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "69d185de-3e4d-4dbc-9414-4a1cfc5d6326/0d99cd05-a602-4bc6-bc67-2b3622e11754",
+        "tree_id": "5370d999-5dd2-4c64-a9ed-089ec2694300",
+        "create_time": "2024-08-06T15:51:38.014+0800",
+        "update_time": "2024-08-06T15:51:38.014+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

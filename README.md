@@ -16,18 +16,16 @@
 
 ## 运行
 
-仓库里**不含教材**。教材 PDF 请自己从[国家中小学智慧教育平台](https://basic.smartedu.cn/tchMaterial)等渠道下载（人教版 · 初中物理），只供个人学习使用。
+`pdf/` 里附带了三本教材的 PDF 和章节目录，克隆下来就能跑：
 
 ```bash
 npm install
 pip3 install pymupdf
-
-# 把三本 PDF 放进 pdf/（或者设环境变量 LIVEBOOK_PDF_DIR 指向它们所在的目录）：
-#   pdf/八年级上册.pdf  pdf/八年级下册.pdf  pdf/九年级全一册.pdf
-#   以及各自的章节目录 pdf/<书名>.目录树.json
-npm run pages      # 把 PDF 渲染成书页贴图，写到 public/books/<书>/{hi,lo}/
+npm run pages      # 把 pdf/ 里的教材渲染成书页贴图，写到 public/books/<书>/{hi,lo}/（约 20 秒）
 npm run dev        # http://127.0.0.1:5188
 ```
+
+想用别的目录里的 PDF，设环境变量 `LIVEBOOK_PDF_DIR` 指向它。部署：`./tools/deploy.sh`（Cloudflare Pages）。
 
 深链接：`?book=wuli-8x` 打开某本书，`#p=23` 翻到 PDF 第 23 页，`#live=lever` 直接打开某个实验。
 键盘：← → 翻页，T 目录，Esc 合上实验。
@@ -59,5 +57,4 @@ QUALITY.md                一个实验算“做好了”的标准
 ## 版权
 
 - 代码以 MIT 许可证开源，见 [LICENSE](LICENSE)。
-- 教材内容（书页、插图、文字）版权归人民教育出版社所有，不在本仓库内。实验的结论部分引用了课本原文，并注明了页码出处。
-- 由 `npm run pages` 生成的书页贴图只适合本机个人学习使用，请不要公开部署或再分发。
+- 教材内容（`pdf/` 里的课本、书页、插图、文字）版权归人民教育出版社所有，不在 MIT 许可范围内，仅供学习研究使用。实验的结论部分引用了课本原文，并注明了页码出处。如有侵权，请联系删除。

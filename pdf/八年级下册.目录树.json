@@ -1,0 +1,488 @@
+[
+  {
+    "id": "a32c929a-6c3a-47af-902a-94c6855f9159",
+    "title": "第七章 力",
+    "rich_title": "第七章 力",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "a32c929a-6c3a-47af-902a-94c6855f9159",
+    "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+    "create_time": "2025-01-26T10:28:10.362+0800",
+    "update_time": "2025-01-26T10:28:10.362+0800",
+    "child_nodes": [
+      {
+        "id": "dac72d8a-a7ed-4725-a376-6487c1e22935",
+        "title": "第1节 力",
+        "rich_title": "第1节 力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a32c929a-6c3a-47af-902a-94c6855f9159/dac72d8a-a7ed-4725-a376-6487c1e22935",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.595+0800",
+        "update_time": "2025-01-26T10:28:10.595+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e3c959b6-d983-4696-b36a-a863fb85aaa1",
+        "title": "第2节 弹力",
+        "rich_title": "第2节 弹力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a32c929a-6c3a-47af-902a-94c6855f9159/e3c959b6-d983-4696-b36a-a863fb85aaa1",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.623+0800",
+        "update_time": "2025-01-26T10:28:10.623+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1a8c201c-7236-4b88-9107-c3bfc0c871ae",
+        "title": "第3节 重力",
+        "rich_title": "第3节 重力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a32c929a-6c3a-47af-902a-94c6855f9159/1a8c201c-7236-4b88-9107-c3bfc0c871ae",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.661+0800",
+        "update_time": "2025-01-26T10:28:10.661+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "083f4021-b9de-4363-8300-8d909511ff61",
+    "title": "第八章 运动和力",
+    "rich_title": "第八章 运动和力",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "083f4021-b9de-4363-8300-8d909511ff61",
+    "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+    "create_time": "2025-01-26T10:28:10.690+0800",
+    "update_time": "2025-01-26T10:28:10.690+0800",
+    "child_nodes": [
+      {
+        "id": "f9d344f4-9b4f-4d71-8bbf-a42f3213d0d4",
+        "title": "第1节 牛顿第一定律",
+        "rich_title": "第1节 牛顿第一定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "083f4021-b9de-4363-8300-8d909511ff61/f9d344f4-9b4f-4d71-8bbf-a42f3213d0d4",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.706+0800",
+        "update_time": "2025-01-26T10:28:10.706+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a528770e-6d96-45b2-800f-e6155492d8fe",
+        "title": "第2节 二力平衡",
+        "rich_title": "第2节 二力平衡",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "083f4021-b9de-4363-8300-8d909511ff61/a528770e-6d96-45b2-800f-e6155492d8fe",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.727+0800",
+        "update_time": "2025-01-26T10:28:10.727+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "56720deb-ba0a-490e-9046-89cb563c8d38",
+        "title": "第3节 摩擦力",
+        "rich_title": "第3节 摩擦力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "083f4021-b9de-4363-8300-8d909511ff61/56720deb-ba0a-490e-9046-89cb563c8d38",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.755+0800",
+        "update_time": "2025-01-26T10:28:10.755+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c0539c9e-f5ec-4d52-b26b-da1f1ca64419",
+        "title": "第4节 同一直线上二力的合成",
+        "rich_title": "第4节 同一直线上二力的合成",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "083f4021-b9de-4363-8300-8d909511ff61/c0539c9e-f5ec-4d52-b26b-da1f1ca64419",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.783+0800",
+        "update_time": "2025-01-26T10:28:10.783+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "c2513aac-db62-4c1b-a7c3-cbb043deed94",
+    "title": "第九章 压强",
+    "rich_title": "第九章 压强",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "c2513aac-db62-4c1b-a7c3-cbb043deed94",
+    "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+    "create_time": "2025-01-26T10:28:10.809+0800",
+    "update_time": "2025-01-26T10:28:10.809+0800",
+    "child_nodes": [
+      {
+        "id": "38624d6d-68c0-4b50-905d-9b25950210e9",
+        "title": "第1节 压强",
+        "rich_title": "第1节 压强",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "c2513aac-db62-4c1b-a7c3-cbb043deed94/38624d6d-68c0-4b50-905d-9b25950210e9",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.826+0800",
+        "update_time": "2025-01-26T10:28:10.826+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "99a76c5d-7ba9-4183-86dc-0393479e7022",
+        "title": "第2节 液体的压强",
+        "rich_title": "第2节 液体的压强",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "c2513aac-db62-4c1b-a7c3-cbb043deed94/99a76c5d-7ba9-4183-86dc-0393479e7022",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.846+0800",
+        "update_time": "2025-01-26T10:28:10.846+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5dd3c3e9-2310-4449-9e83-fb7e99e53e04",
+        "title": "第3节 大气压强",
+        "rich_title": "第3节 大气压强",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "c2513aac-db62-4c1b-a7c3-cbb043deed94/5dd3c3e9-2310-4449-9e83-fb7e99e53e04",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.887+0800",
+        "update_time": "2025-01-26T10:28:10.887+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fa6d2a54-77d4-47a4-9280-e6c79efc36bf",
+        "title": "第4节 跨学科实践：制作简易活塞式抽水机",
+        "rich_title": "第4节 跨学科实践：制作简易活塞式抽水机",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "c2513aac-db62-4c1b-a7c3-cbb043deed94/fa6d2a54-77d4-47a4-9280-e6c79efc36bf",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.905+0800",
+        "update_time": "2025-01-26T10:28:10.905+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "80b8b93e-8215-41dd-bb14-55c77c72e0b9",
+        "title": "第5节 流体压强与流速的关系",
+        "rich_title": "第5节 流体压强与流速的关系",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "c2513aac-db62-4c1b-a7c3-cbb043deed94/80b8b93e-8215-41dd-bb14-55c77c72e0b9",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.929+0800",
+        "update_time": "2025-01-26T10:28:10.929+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "6538bbbe-04ae-4c98-a4d3-905cc524fc5a",
+    "title": "第十章 浮力",
+    "rich_title": "第十章 浮力",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "6538bbbe-04ae-4c98-a4d3-905cc524fc5a",
+    "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+    "create_time": "2025-01-26T10:28:10.948+0800",
+    "update_time": "2025-01-26T10:28:10.948+0800",
+    "child_nodes": [
+      {
+        "id": "828a8547-cd1f-4a9c-83cd-bc975c794b67",
+        "title": "第1节 浮力",
+        "rich_title": "第1节 浮力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "6538bbbe-04ae-4c98-a4d3-905cc524fc5a/828a8547-cd1f-4a9c-83cd-bc975c794b67",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.965+0800",
+        "update_time": "2025-01-26T10:28:10.965+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "906c6484-1066-4c29-9df7-21778773f8b9",
+        "title": "第2节 阿基米德原理",
+        "rich_title": "第2节 阿基米德原理",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "6538bbbe-04ae-4c98-a4d3-905cc524fc5a/906c6484-1066-4c29-9df7-21778773f8b9",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:10.989+0800",
+        "update_time": "2025-01-26T10:28:10.989+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "67f89657-9e06-42f3-822f-8864221597d2",
+        "title": "第3节 物体的浮沉条件及应用",
+        "rich_title": "第3节 物体的浮沉条件及应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "6538bbbe-04ae-4c98-a4d3-905cc524fc5a/67f89657-9e06-42f3-822f-8864221597d2",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.006+0800",
+        "update_time": "2025-01-26T10:28:11.006+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a617d530-5b6e-455e-b8a9-82a25ae09dc5",
+        "title": "第4节 跨学科实践：制作微型密度计",
+        "rich_title": "第4节 跨学科实践：制作微型密度计",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "6538bbbe-04ae-4c98-a4d3-905cc524fc5a/a617d530-5b6e-455e-b8a9-82a25ae09dc5",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.022+0800",
+        "update_time": "2025-01-26T10:28:11.022+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "f181a3e6-4120-4017-b2a4-890505ff4f8a",
+    "title": "第十一章 功和机械能",
+    "rich_title": "第十一章 功和机械能",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "f181a3e6-4120-4017-b2a4-890505ff4f8a",
+    "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+    "create_time": "2025-01-26T10:28:11.040+0800",
+    "update_time": "2025-01-26T10:28:11.040+0800",
+    "child_nodes": [
+      {
+        "id": "5130bc06-e828-4572-9f24-a1d955019f66",
+        "title": "第1节 功",
+        "rich_title": "第1节 功",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f181a3e6-4120-4017-b2a4-890505ff4f8a/5130bc06-e828-4572-9f24-a1d955019f66",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.058+0800",
+        "update_time": "2025-01-26T10:28:11.058+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "dad06cd9-7d67-4412-b065-99a6e4372820",
+        "title": "第2节 功率",
+        "rich_title": "第2节 功率",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f181a3e6-4120-4017-b2a4-890505ff4f8a/dad06cd9-7d67-4412-b065-99a6e4372820",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.076+0800",
+        "update_time": "2025-01-26T10:28:11.076+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "416224c4-9af6-49c8-99fa-137c899103b5",
+        "title": "第3节 动能和势能",
+        "rich_title": "第3节 动能和势能",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f181a3e6-4120-4017-b2a4-890505ff4f8a/416224c4-9af6-49c8-99fa-137c899103b5",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.094+0800",
+        "update_time": "2025-01-26T10:28:11.094+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "29eff9f9-6844-464e-95c0-19a00b5ca02f",
+        "title": "第4节 机械能及其转化",
+        "rich_title": "第4节 机械能及其转化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f181a3e6-4120-4017-b2a4-890505ff4f8a/29eff9f9-6844-464e-95c0-19a00b5ca02f",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.111+0800",
+        "update_time": "2025-01-26T10:28:11.111+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "be04417f-082a-4674-80b9-c516ca1669ac",
+    "title": "第十二章 简单机械",
+    "rich_title": "第十二章 简单机械",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "be04417f-082a-4674-80b9-c516ca1669ac",
+    "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+    "create_time": "2025-01-26T10:28:11.130+0800",
+    "update_time": "2025-01-26T10:28:11.130+0800",
+    "child_nodes": [
+      {
+        "id": "72e4cf7b-5886-4269-867f-59b602b26fec",
+        "title": "第1节 杠杆",
+        "rich_title": "第1节 杠杆",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "be04417f-082a-4674-80b9-c516ca1669ac/72e4cf7b-5886-4269-867f-59b602b26fec",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.148+0800",
+        "update_time": "2025-01-26T10:28:11.148+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cfa1d2f1-a9e5-4e54-90c3-f958d476cebe",
+        "title": "第2节 跨学科实践：制作简易杆秤",
+        "rich_title": "第2节 跨学科实践：制作简易杆秤",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "be04417f-082a-4674-80b9-c516ca1669ac/cfa1d2f1-a9e5-4e54-90c3-f958d476cebe",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.166+0800",
+        "update_time": "2025-01-26T10:28:11.166+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "123100fa-dbbd-4d68-a7d6-4fd801114af9",
+        "title": "第3节 滑轮",
+        "rich_title": "第3节 滑轮",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "be04417f-082a-4674-80b9-c516ca1669ac/123100fa-dbbd-4d68-a7d6-4fd801114af9",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.184+0800",
+        "update_time": "2025-01-26T10:28:11.184+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "96d6f517-9db2-404e-8c9e-cb0c14c5333e",
+        "title": "第4节 机械效率",
+        "rich_title": "第4节 机械效率",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "be04417f-082a-4674-80b9-c516ca1669ac/96d6f517-9db2-404e-8c9e-cb0c14c5333e",
+        "tree_id": "d31ed57a-d283-498c-84d8-c587fe349b22",
+        "create_time": "2025-01-26T10:28:11.202+0800",
+        "update_time": "2025-01-26T10:28:11.202+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]
