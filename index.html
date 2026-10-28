@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>活页课本 · 物理 八年级下册</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M3 7q6-2 13 2v18q-7-4-13-2z%22 fill=%22%23f4ead8%22/%3E%3Cpath d=%22M29 7q-6-2-13 2v18q7-4 13-2z%22 fill=%22%23ff6a3d%22/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <canvas id="c" tabindex="0" aria-label="3D 课本"></canvas>
+
+  <div id="loader">
+    <div class="loader-book"><i></i><i></i><i></i></div>
+    <p class="loader-title">活页课本</p>
+    <p class="loader-msg">正在翻开书本…</p>
+    <div class="loader-bar"><i></i></div>
+  </div>
+
+  <header id="hud-top">
+    <div class="brand"><b>活页课本</b><span id="book-title">物理 八年级下册</span></div>
+    <div class="hud-actions">
+      <button id="btn-shelf" class="chip" title="回到书桌，换一本书">‹ 书桌</button>
+      <button id="btn-toc" class="chip" title="目录 (T)">目录</button>
+      <button id="btn-live" class="chip chip-live" title="会动的图">✦ 会动的图 <em id="stamp-count">0/0</em></button>
+    </div>
+  </header>
+
+  <nav id="hud-pager">
+    <button id="btn-prev" class="round" title="上一页 (←)" aria-label="上一页">‹</button>
+    <span id="page-label">封面</span>
+    <button id="btn-next" class="round" title="下一页 (→)" aria-label="下一页">›</button>
+  </nav>
+
+  <p id="hint">点击或拖动书页翻页 · 发光的图可以“动起来”</p>
+
+  <aside id="drawer" hidden>
+    <div class="drawer-head"><h2 id="drawer-title">目录</h2><button class="x" data-close>×</button></div>
+    <div id="drawer-body"></div>
+  </aside>
+
+  <section id="panel" hidden></section>
+
+  <footer id="copy">课本页面来自本地教材文件，仅供个人学习使用</footer>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
