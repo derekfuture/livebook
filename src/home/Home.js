@@ -67,6 +67,7 @@ export async function bootHome(stage) {
     h('section', { class: 'home-notes' },
       last ? h('a', { class: 'note-card', href: last.href }, h('small', {}, '继续上次'), h('b', {}, last.title), h('span', {}, last.where)) : null,
       next ? h('a', { class: 'note-card next', href: next.href }, h('small', {}, last ? '接着学' : '从这里开始'), h('b', {}, next.title), h('span', {}, next.where)) : null),
+    authorCard(),
     h('footer', { class: 'home-foot' },
       h('button', { class: 'paper-btn', onclick: () => openOverview(books, manifests) }, '⊞ 实验总览'),
       h('span', { class: 'home-copy' }, '课本页面来自本地教材文件，仅供个人学习使用')));
@@ -195,3 +196,23 @@ function openOverview(books, manifests) {
   document.body.append(sheet);
   show(books[0].id);
 }
+
+// 书桌左下角的作者小签：公众号头像 + 名字；悬停（手机上点一下）展开二维码。只放在书桌上，书里和实验里不打扰。
+function authorCard() {
+  const base = import.meta.env.BASE_URL;
+  const card = h('div', { class: 'home-author' },
+    h('div', { class: 'author-qr', role: 'dialog', 'aria-label': '公众号二维码' },
+      h('img', { src: `${base}brand/gzh-qr.jpg`, width: 132, height: 132, alt: '德里克的 AI 教学实验室 公众号二维码' }),
+      h('p', {}, '微信扫一扫，关注更新'),
+      h('small', {}, '在微信里打开可长按识别')),
+    h('button', { class: 'author-chip', 'aria-expanded': 'false', onclick: (e) => { e.stopPropagation(); toggle(); } },
+      h('img', { src: `${base}brand/gzh-avatar.jpg`, width: 30, height: 30, alt: '' }),
+      h('span', {}, h('b', {}, '德里克的 AI 教学实验室'), h('small', {}, '公众号 · 扫码关注'))));
+  const toggle = (open = !card.classList.contains('open')) => {
+    card.classList.toggle('open', open);
+    card.querySelector('.author-chip').setAttribute('aria-expanded', String(open));
+  };
+  addEventListener('pointerdown', (e) => { if (!card.contains(e.target)) toggle(false); });
+  return card;
+}
+

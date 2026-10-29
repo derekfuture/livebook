@@ -388,6 +388,20 @@ body.home #hud-top, body.home #hud-pager, body.home #hint, body.home #copy, body
 .paper-btn { border: 0; padding: 12px 22px; font: 600 15px/1 var(--song); letter-spacing: .1em; color: #1f4f8f; background: #fdfaf1; border-radius: 2px; box-shadow: 0 3px 10px rgba(90,70,40,.2), inset 0 0 0 1.5px rgba(31,79,143,.5); cursor: pointer; }
 .paper-btn:hover { background: #fff; }
 .home-copy { position: absolute; right: 20px; bottom: 0; font: 11px/1 var(--sans); color: rgba(60,50,35,.45); }
+/* 作者小签（书桌左下角）：平时一张小纸条，悬停 / 点一下展开二维码 */
+.home-author { position: absolute; z-index: 2; left: max(20px, env(safe-area-inset-left)); bottom: max(18px, env(safe-area-inset-bottom)); }
+.author-chip { display: flex; align-items: center; gap: 9px; border: 0; padding: 7px 14px 7px 7px; background: #fdfaf1; border-radius: 2px; cursor: pointer; text-align: left;
+  box-shadow: 0 3px 10px rgba(90,70,40,.18); color: #2c3245; }
+.author-chip img { width: 30px; height: 30px; border-radius: 50%; display: block; }
+.author-chip b { display: block; font: 600 13px/1.25 var(--song); letter-spacing: .03em; }
+.author-chip small { display: block; margin-top: 2px; font: 11px/1.2 var(--sans); color: #8a7d64; }
+.author-qr { position: absolute; left: 0; bottom: calc(100% + 10px); width: 168px; padding: 14px 14px 12px; box-sizing: border-box; background: #fdfaf1; border-radius: 2px; text-align: center;
+  box-shadow: 0 8px 22px rgba(90,70,40,.25); opacity: 0; transform: translateY(6px); pointer-events: none; transition: opacity .2s, transform .2s; }
+.author-qr img { width: 132px; height: 132px; display: block; margin: 0 auto; background: #fff; padding: 4px; box-sizing: content-box; margin-left: -4px; }
+.author-qr p { margin: 10px 0 0; font: 600 13px/1.3 var(--song); color: #2c3245; }
+.author-qr small { display: block; margin-top: 4px; font: 11px/1.3 var(--sans); color: #8a7d64; }
+.home-author.open .author-qr { opacity: 1; transform: none; pointer-events: auto; }
+@media (hover: hover) { .home-author:hover .author-qr { opacity: 1; transform: none; pointer-events: auto; } }
 /* 实验总览：一大张纸 */
 #overview { position: fixed; inset: 0; z-index: 30; background: rgba(60,45,30,.28); display: grid; place-items: center; animation: ovin .4s ease; }
 @keyframes ovin { from { opacity: 0; } }
@@ -418,6 +432,11 @@ body.home #hud-top, body.home #hud-pager, body.home #hint, body.home #copy, body
   .tag3d.sticky b { font-size: 13.5px; }
   .home-foot { flex-direction: column; gap: 6px; bottom: max(8px, env(safe-area-inset-bottom)); }
   .home-copy { position: static; }
+  /* 手机：收成右上角一个小头像，点开二维码 */
+  .home-author { left: auto; right: 14px; top: max(18px, env(safe-area-inset-top)); bottom: auto; }
+  .author-chip { padding: 4px; border-radius: 50%; }
+  .author-chip span { display: none; }
+  .author-qr { left: auto; right: 0; top: calc(100% + 8px); bottom: auto; }
 }
 body.predicting .tag3d:not(.sticky) { visibility: hidden !important; }
 #panel.board.folded > *:not(.p-spine) { visibility: hidden; }
