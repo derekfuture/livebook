@@ -12,14 +12,14 @@ import fitz
 ROOT = Path(__file__).resolve().parent.parent
 # 教材 PDF 所在目录：设环境变量 LIVEBOOK_PDF_DIR，里面放 八年级上册.pdf、八年级下册.pdf、九年级全一册.pdf（及 *.目录树.json）
 LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
-PDF = {"wuli-8s": "八年级上册", "wuli-8x": "八年级下册", "wuli-9": "九年级全一册", "huaxue-9s": "化学/九年级上册", "huaxue-9x": "化学/九年级下册"}
+PDF = {"wuli-8s": "八年级上册", "wuli-8x": "八年级下册", "wuli-9": "九年级全一册", "huaxue-9s": "化学/九年级上册", "huaxue-9x": "化学/九年级下册", "dili-7s": "地理/七年级上册"}
 OVERRIDE = ROOT / "tools" / "bbox-overrides.json"   # 自动框不准时手工改这里
 
 
 def plan_rows():
     book, rows = None, []
     for line in (ROOT / "PLAN.md").read_text(encoding="utf-8").splitlines():
-        m = re.search(r"\b((?:wuli|huaxue)-\w+)（", line)
+        m = re.search(r"\b((?:wuli|huaxue|dili)-\w+)（", line)
         if line.startswith("## ") and m:
             book = m.group(1)
         cells = [c.strip() for c in line.strip().strip("|").split("|")]

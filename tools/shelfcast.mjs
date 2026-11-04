@@ -12,7 +12,7 @@ const b = await chromium.launch({ executablePath: exe, headless: true, args: ['-
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 const errs = []; p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
 await p.addInitScript(() => { window.WebSocket = class { constructor() {} addEventListener() {} removeEventListener() {} send() {} close() {} }; });
-await p.goto('http://127.0.0.1:5188/');
+await p.goto(`http://127.0.0.1:${process.env.LB_PORT || 5188}/`);
 if (bookmark) { await p.evaluate((bm) => { const [id, pg] = bm.split(':'); localStorage.setItem('livebook.bookmark.' + id, pg); }, bookmark); await p.reload(); }
 await p.waitForTimeout(3500);
 const cdp = await p.context().newCDPSession(p);

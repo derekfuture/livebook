@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 dist/
 .DS_Store
 
@@ -8,11 +8,17 @@ pdf/*
 !pdf/化学/
 pdf/化学/*
 !pdf/化学/*.目录树.json
-public/books/*/hi/
-public/books/*/lo/
+!pdf/地理/
+pdf/地理/*
+!pdf/地理/*.目录树.json
+public/books/*/hi
+public/books/*/lo
 tools/*.private.txt
 tools/figures.json
 
 # 本地评审记录（大量带书页的截图）、浏览器调试
 review/
 tools/.browser-ws
+
+# 样子用的课本页渲染图（有版权，不进仓库）
+public/mock/

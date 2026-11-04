@@ -25,7 +25,7 @@ fs.mkdirSync('/tmp/lbqa/fs', { recursive: true });
 const b = await chromium.launch({ executablePath: exe, headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 await p.addInitScript(() => { window.WebSocket = class { constructor() {} addEventListener() {} removeEventListener() {} send() {} close() {} }; });     // 别人改文件不刷新这个页面
-await p.goto(`http://127.0.0.1:5188/?book=${book}#live=${id}`);
+await p.goto(`http://127.0.0.1:${process.env.LB_PORT || 5188}/?book=${book}#live=${id}`);
 for (let i = 0; i < 60; i++) { if (await p.evaluate(() => !!window.__lb?.live?.active?.inst && !window.__lb.live.opening)) break; await p.waitForTimeout(150); }
 await p.evaluate(() => [...document.querySelectorAll('button')].find((x) => x.textContent.includes('不猜了'))?.click());
 await p.waitForTimeout(2200);

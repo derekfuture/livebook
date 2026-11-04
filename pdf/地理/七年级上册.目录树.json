@@ -1,0 +1,391 @@
+[
+  {
+    "id": "a8467a70-e17b-413a-9b5f-e5c18c99632f",
+    "title": "第一章 地球",
+    "rich_title": "第一章 地球",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "a8467a70-e17b-413a-9b5f-e5c18c99632f",
+    "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+    "create_time": "2024-08-06T17:05:15.295+0800",
+    "update_time": "2024-08-06T17:05:15.295+0800",
+    "child_nodes": [
+      {
+        "id": "fdb6dd24-ff6a-4956-ae2a-f6a53f0c50bf",
+        "title": "第一节 地球的宇宙环境",
+        "rich_title": "第一节 地球的宇宙环境",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a8467a70-e17b-413a-9b5f-e5c18c99632f/fdb6dd24-ff6a-4956-ae2a-f6a53f0c50bf",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.315+0800",
+        "update_time": "2024-08-06T17:05:15.315+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e03eeb85-9114-45c5-b06d-073f2abe2dd7",
+        "title": "第二节 地球与地球仪",
+        "rich_title": "第二节 地球与地球仪",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a8467a70-e17b-413a-9b5f-e5c18c99632f/e03eeb85-9114-45c5-b06d-073f2abe2dd7",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.334+0800",
+        "update_time": "2024-08-06T17:05:15.334+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "641a98f3-ded4-4c28-a3fb-d1f12a211d5f",
+        "title": "第三节 地球的运动",
+        "rich_title": "第三节 地球的运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a8467a70-e17b-413a-9b5f-e5c18c99632f/641a98f3-ded4-4c28-a3fb-d1f12a211d5f",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.355+0800",
+        "update_time": "2024-08-06T17:05:15.355+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "a3f84e4c-5542-4037-b172-9a327717c6d1",
+    "title": "第二章 地图",
+    "rich_title": "第二章 地图",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "a3f84e4c-5542-4037-b172-9a327717c6d1",
+    "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+    "create_time": "2024-08-06T17:05:15.376+0800",
+    "update_time": "2024-08-06T17:05:15.376+0800",
+    "child_nodes": [
+      {
+        "id": "5e16f2e3-fd40-4f32-ad35-0cc8080f1735",
+        "title": "第一节 地图的阅读",
+        "rich_title": "第一节 地图的阅读",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a3f84e4c-5542-4037-b172-9a327717c6d1/5e16f2e3-fd40-4f32-ad35-0cc8080f1735",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.396+0800",
+        "update_time": "2024-08-06T17:05:15.396+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e585878e-5a3c-45a8-ae86-5ec0e8b92544",
+        "title": "第二节 地形图的判读",
+        "rich_title": "第二节 地形图的判读",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a3f84e4c-5542-4037-b172-9a327717c6d1/e585878e-5a3c-45a8-ae86-5ec0e8b92544",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.416+0800",
+        "update_time": "2024-08-06T17:05:15.416+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b151f561-7217-4624-ac2a-01e4a488910b",
+        "title": "第三节 地图的选择和应用",
+        "rich_title": "第三节 地图的选择和应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a3f84e4c-5542-4037-b172-9a327717c6d1/b151f561-7217-4624-ac2a-01e4a488910b",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.434+0800",
+        "update_time": "2024-08-06T17:05:15.434+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "953ffb28-ee75-4de0-9588-b8d389daa327",
+    "title": "【跨学科主题学习】美化校园",
+    "rich_title": "【跨学科主题学习】美化校园",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "953ffb28-ee75-4de0-9588-b8d389daa327",
+    "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+    "create_time": "2024-08-06T17:05:15.453+0800",
+    "update_time": "2024-08-06T17:05:15.453+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "873b0096-adcf-4a1a-a007-ee1966536b2e",
+    "title": "第三章 陆地和海洋",
+    "rich_title": "第三章 陆地和海洋",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "873b0096-adcf-4a1a-a007-ee1966536b2e",
+    "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+    "create_time": "2024-08-06T17:05:15.476+0800",
+    "update_time": "2024-08-06T17:05:15.476+0800",
+    "child_nodes": [
+      {
+        "id": "6e10ff07-146b-4371-b378-280fddc56929",
+        "title": "第一节 大洲和大洋",
+        "rich_title": "第一节 大洲和大洋",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "873b0096-adcf-4a1a-a007-ee1966536b2e/6e10ff07-146b-4371-b378-280fddc56929",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.495+0800",
+        "update_time": "2024-08-06T17:05:15.495+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3eec4ce1-8965-4688-af75-cf0f00fd0c5b",
+        "title": "第二节 世界的地形",
+        "rich_title": "第二节 世界的地形",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "873b0096-adcf-4a1a-a007-ee1966536b2e/3eec4ce1-8965-4688-af75-cf0f00fd0c5b",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.515+0800",
+        "update_time": "2024-08-06T17:05:15.515+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2402e2a5-b71c-43bf-8838-c131184c7fba",
+        "title": "第三节 海陆的变迁",
+        "rich_title": "第三节 海陆的变迁",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "873b0096-adcf-4a1a-a007-ee1966536b2e/2402e2a5-b71c-43bf-8838-c131184c7fba",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.535+0800",
+        "update_time": "2024-08-06T17:05:15.535+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "afa05e53-3910-4713-b555-5a0c9f57fd1d",
+    "title": "第四章 天气与气候",
+    "rich_title": "第四章 天气与气候",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "afa05e53-3910-4713-b555-5a0c9f57fd1d",
+    "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+    "create_time": "2024-08-06T17:05:15.555+0800",
+    "update_time": "2024-08-06T17:05:15.555+0800",
+    "child_nodes": [
+      {
+        "id": "9f8d982b-155f-4f0a-a0dd-6a135f41a6db",
+        "title": "第一节 多变的天气",
+        "rich_title": "第一节 多变的天气",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "afa05e53-3910-4713-b555-5a0c9f57fd1d/9f8d982b-155f-4f0a-a0dd-6a135f41a6db",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.576+0800",
+        "update_time": "2024-08-06T17:05:15.576+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1eb97776-82a2-4ae0-a041-850a716ab754",
+        "title": "第二节 气温的变化与分布",
+        "rich_title": "第二节 气温的变化与分布",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "afa05e53-3910-4713-b555-5a0c9f57fd1d/1eb97776-82a2-4ae0-a041-850a716ab754",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.595+0800",
+        "update_time": "2024-08-06T17:05:15.595+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "10add6d5-baa5-4c7f-a326-3a62c52d4473",
+        "title": "第三节 降水的变化与分布",
+        "rich_title": "第三节 降水的变化与分布",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "afa05e53-3910-4713-b555-5a0c9f57fd1d/10add6d5-baa5-4c7f-a326-3a62c52d4473",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.613+0800",
+        "update_time": "2024-08-06T17:05:15.613+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a8cdfb36-fc0f-40a9-a48b-fa7f0ec73c9c",
+        "title": "第四节 世界的气候",
+        "rich_title": "第四节 世界的气候",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "afa05e53-3910-4713-b555-5a0c9f57fd1d/a8cdfb36-fc0f-40a9-a48b-fa7f0ec73c9c",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.632+0800",
+        "update_time": "2024-08-06T17:05:15.632+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "658fb5cf-717a-44eb-9159-3fe662f150bf",
+    "title": "第五章 居民与文化",
+    "rich_title": "第五章 居民与文化",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "658fb5cf-717a-44eb-9159-3fe662f150bf",
+    "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+    "create_time": "2024-08-06T17:05:15.650+0800",
+    "update_time": "2024-08-06T17:05:15.650+0800",
+    "child_nodes": [
+      {
+        "id": "7c990b54-e90d-4c77-9ad6-f6893af1d72c",
+        "title": "第一节 人口与人种",
+        "rich_title": "第一节 人口与人种",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "658fb5cf-717a-44eb-9159-3fe662f150bf/7c990b54-e90d-4c77-9ad6-f6893af1d72c",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.668+0800",
+        "update_time": "2024-08-06T17:05:15.668+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "71eb86ae-402d-4d3b-9fd7-d979115f90d5",
+        "title": "第二节 城镇与乡村",
+        "rich_title": "第二节 城镇与乡村",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "658fb5cf-717a-44eb-9159-3fe662f150bf/71eb86ae-402d-4d3b-9fd7-d979115f90d5",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.686+0800",
+        "update_time": "2024-08-06T17:05:15.686+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "380bb80a-2b60-42ac-bb92-42694cedcb41",
+        "title": "第三节 多样的文化",
+        "rich_title": "第三节 多样的文化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "658fb5cf-717a-44eb-9159-3fe662f150bf/380bb80a-2b60-42ac-bb92-42694cedcb41",
+        "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+        "create_time": "2024-08-06T17:05:15.705+0800",
+        "update_time": "2024-08-06T17:05:15.705+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "9e19188e-0ad4-4d14-8538-252eb5adbbff",
+    "title": "第六章 发展与合作",
+    "rich_title": "第六章 发展与合作",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "9e19188e-0ad4-4d14-8538-252eb5adbbff",
+    "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+    "create_time": "2024-08-06T17:05:15.723+0800",
+    "update_time": "2024-08-06T17:05:15.723+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "db12523a-03d7-4511-bb1d-db2b18fccb5d",
+    "title": "【跨学科主题学习】探索外来食料作物传播史",
+    "rich_title": "【跨学科主题学习】探索外来食料作物传播史",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "db12523a-03d7-4511-bb1d-db2b18fccb5d",
+    "tree_id": "98cb9cc4-4806-4ee5-882c-129f43285bf3",
+    "create_time": "2024-08-06T17:05:15.742+0800",
+    "update_time": "2024-08-06T17:05:15.742+0800",
+    "child_nodes": null
+  }
+]

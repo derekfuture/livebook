@@ -2118,5 +2118,62 @@
     "label": "实验活动8 · 翻开活页"
    }
   ]
+ },
+ "dili-7s": {
+  "id": "dili-7s",
+  "title": "地理 七年级上册",
+  "base": "/books/dili-7s/",
+  "lessons": {
+   "revolution": {
+    "title": "地球公转演示",
+    "fig": "图1.24",
+    "sec": "第三节 地球的运动"
+   },
+   "contour": {
+    "title": "等高线地形图",
+    "fig": "图2.13",
+    "sec": "第二节 地形图的判读"
+   },
+   "sandwater": {
+    "title": "水和沙的温度变化实验示意",
+    "fig": "图4.16",
+    "sec": "第二节 气温的变化与分布"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "revolution",
+    "page": 30,
+    "bbox": [
+     92,
+     264,
+     405,
+     550
+    ],
+    "label": "图1.24 · 翻开活页"
+   },
+   {
+    "lesson": "contour",
+    "page": 38,
+    "bbox": [
+     146,
+     242,
+     396,
+     390
+    ],
+    "label": "图2.13 · 翻开活页"
+   },
+   {
+    "lesson": "sandwater",
+    "page": 82,
+    "bbox": [
+     110,
+     292,
+     345,
+     482
+    ],
+    "label": "图4.16 · 翻开活页"
+   }
+  ]
  }
 }

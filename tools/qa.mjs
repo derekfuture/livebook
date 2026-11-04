@@ -154,7 +154,7 @@ async function check(browser, id) {
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|WebGL: INVALID/.test(m.text())) errs.push(m.text()); });
-  await p.goto(`http://127.0.0.1:5188/?book=${book}#live=${id}`);
+  await p.goto(`http://127.0.0.1:${process.env.LB_PORT || 5188}/?book=${book}#live=${id}`);
   // 等到实验真的打开（不是固定等几秒）
   for (let i = 0; i < 60; i++) { if (await p.evaluate(() => !!window.__lb?.live?.active?.inst && !window.__lb.live.opening)) break; await p.waitForTimeout(150); }
   await p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('不猜了'))?.click());

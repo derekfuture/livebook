@@ -1,0 +1,278 @@
+[
+  {
+    "id": "68248678-36eb-4b8e-8bf8-1e14e10c0a83",
+    "title": "第七章 我们生活的大洲——亚洲",
+    "rich_title": "第七章 我们生活的大洲——亚洲",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "68248678-36eb-4b8e-8bf8-1e14e10c0a83",
+    "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+    "create_time": "2025-01-26T10:09:32.292+0800",
+    "update_time": "2025-01-26T10:09:32.292+0800",
+    "child_nodes": [
+      {
+        "id": "e714c665-07ce-48d1-94ed-184c0b098dcb",
+        "title": "第一节 自然环境",
+        "rich_title": "第一节 自然环境",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "68248678-36eb-4b8e-8bf8-1e14e10c0a83/e714c665-07ce-48d1-94ed-184c0b098dcb",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.308+0800",
+        "update_time": "2025-01-26T10:09:32.308+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c581867e-f9f3-4621-8d74-eeedc4f8fe17",
+        "title": "第二节 人文环境",
+        "rich_title": "第二节 人文环境",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "68248678-36eb-4b8e-8bf8-1e14e10c0a83/c581867e-f9f3-4621-8d74-eeedc4f8fe17",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.328+0800",
+        "update_time": "2025-01-26T10:09:32.328+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "baff430c-8a08-4a17-a94e-c410f6af17b8",
+    "title": "第八章 我们邻近的地区和国家",
+    "rich_title": "第八章 我们邻近的地区和国家",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "baff430c-8a08-4a17-a94e-c410f6af17b8",
+    "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+    "create_time": "2025-01-26T10:09:32.348+0800",
+    "update_time": "2025-01-26T10:09:32.348+0800",
+    "child_nodes": [
+      {
+        "id": "0153aa1c-5373-4b92-b40e-61a128d6b62d",
+        "title": "第一节 日本",
+        "rich_title": "第一节 日本",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "baff430c-8a08-4a17-a94e-c410f6af17b8/0153aa1c-5373-4b92-b40e-61a128d6b62d",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.364+0800",
+        "update_time": "2025-01-26T10:09:32.364+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "715a8d0b-89d7-4147-a33b-36f4aba6b024",
+        "title": "第二节 东南亚",
+        "rich_title": "第二节 东南亚",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "baff430c-8a08-4a17-a94e-c410f6af17b8/715a8d0b-89d7-4147-a33b-36f4aba6b024",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.382+0800",
+        "update_time": "2025-01-26T10:09:32.382+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9e298593-f35b-4736-bbc0-7e850928086f",
+        "title": "第三节 印度",
+        "rich_title": "第三节 印度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "baff430c-8a08-4a17-a94e-c410f6af17b8/9e298593-f35b-4736-bbc0-7e850928086f",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.402+0800",
+        "update_time": "2025-01-26T10:09:32.402+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9455fcd8-4e06-4dd0-80f6-489c87b57d3e",
+        "title": "第四节 俄罗斯",
+        "rich_title": "第四节 俄罗斯",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "baff430c-8a08-4a17-a94e-c410f6af17b8/9455fcd8-4e06-4dd0-80f6-489c87b57d3e",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.420+0800",
+        "update_time": "2025-01-26T10:09:32.420+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "e856141c-84ea-42b2-8df6-d4073aad30b3",
+    "title": "第九章 东半球其他的地区和国家",
+    "rich_title": "第九章 东半球其他的地区和国家",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "e856141c-84ea-42b2-8df6-d4073aad30b3",
+    "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+    "create_time": "2025-01-26T10:09:32.438+0800",
+    "update_time": "2025-01-26T10:09:32.438+0800",
+    "child_nodes": [
+      {
+        "id": "4ec5f6f2-fc12-43b6-a589-91703109cb47",
+        "title": "第一节 西亚",
+        "rich_title": "第一节 西亚",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e856141c-84ea-42b2-8df6-d4073aad30b3/4ec5f6f2-fc12-43b6-a589-91703109cb47",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.454+0800",
+        "update_time": "2025-01-26T10:09:32.454+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1c2dc588-36e7-4944-919b-5014c848f944",
+        "title": "第二节 欧洲西部",
+        "rich_title": "第二节 欧洲西部",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e856141c-84ea-42b2-8df6-d4073aad30b3/1c2dc588-36e7-4944-919b-5014c848f944",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.473+0800",
+        "update_time": "2025-01-26T10:09:32.473+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c3c133d2-b282-4db9-b404-5708c56a78f9",
+        "title": "第三节 撒哈拉以南非洲",
+        "rich_title": "第三节 撒哈拉以南非洲",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e856141c-84ea-42b2-8df6-d4073aad30b3/c3c133d2-b282-4db9-b404-5708c56a78f9",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.492+0800",
+        "update_time": "2025-01-26T10:09:32.492+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5cadf5f5-76e4-43a3-907c-63c59bcd11ba",
+        "title": "第四节 澳大利亚",
+        "rich_title": "第四节 澳大利亚",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e856141c-84ea-42b2-8df6-d4073aad30b3/5cadf5f5-76e4-43a3-907c-63c59bcd11ba",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.513+0800",
+        "update_time": "2025-01-26T10:09:32.513+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "e3c292de-fab5-4de8-9085-49f85b5e1718",
+    "title": "第十章 西半球的国家",
+    "rich_title": "第十章 西半球的国家",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "e3c292de-fab5-4de8-9085-49f85b5e1718",
+    "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+    "create_time": "2025-01-26T10:09:32.531+0800",
+    "update_time": "2025-01-26T10:09:32.531+0800",
+    "child_nodes": [
+      {
+        "id": "03740f47-1c56-44f4-b32e-0ffd2a063df9",
+        "title": "第一节 美国",
+        "rich_title": "第一节 美国",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e3c292de-fab5-4de8-9085-49f85b5e1718/03740f47-1c56-44f4-b32e-0ffd2a063df9",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.548+0800",
+        "update_time": "2025-01-26T10:09:32.548+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "89def248-0db3-4919-b366-dc4c729f9f0c",
+        "title": "第二节 巴西",
+        "rich_title": "第二节 巴西",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e3c292de-fab5-4de8-9085-49f85b5e1718/89def248-0db3-4919-b366-dc4c729f9f0c",
+        "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+        "create_time": "2025-01-26T10:09:32.565+0800",
+        "update_time": "2025-01-26T10:09:32.565+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "749ce688-04ae-4d3d-85f5-95cac93afd45",
+    "title": "第十一章 极地地区",
+    "rich_title": "第十一章 极地地区",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "749ce688-04ae-4d3d-85f5-95cac93afd45",
+    "tree_id": "49ded37e-2914-47be-9dee-93bf492e66c5",
+    "create_time": "2025-01-26T10:09:32.584+0800",
+    "update_time": "2025-01-26T10:09:32.584+0800",
+    "child_nodes": null
+  }
+]

@@ -1,0 +1,326 @@
+[
+  {
+    "id": "8398bc77-2199-4f24-b7f2-533d422daffc",
+    "title": "第六章 中国的地理差异",
+    "rich_title": "第六章 中国的地理差异",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "8398bc77-2199-4f24-b7f2-533d422daffc",
+    "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+    "create_time": "2026-03-03T10:30:09.549+0800",
+    "update_time": "2026-03-03T10:30:09.549+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "04b87dbb-a4e8-4d01-a603-52c9c0dc0401",
+    "title": "【跨学科主题学习】了解二十四节气",
+    "rich_title": "【跨学科主题学习】了解二十四节气",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "04b87dbb-a4e8-4d01-a603-52c9c0dc0401",
+    "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+    "create_time": "2026-03-03T10:30:09.573+0800",
+    "update_time": "2026-03-03T10:30:09.573+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "a75d1462-edb9-4ad4-8927-d863f11a853b",
+    "title": "第七章 北方地区",
+    "rich_title": "第七章 北方地区",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "a75d1462-edb9-4ad4-8927-d863f11a853b",
+    "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+    "create_time": "2026-03-03T10:30:09.598+0800",
+    "update_time": "2026-03-03T10:30:09.598+0800",
+    "child_nodes": [
+      {
+        "id": "9a92fc46-2c5a-419d-a792-abeb3d116d12",
+        "title": "第一节 自然特征与农业",
+        "rich_title": "第一节 自然特征与农业",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a75d1462-edb9-4ad4-8927-d863f11a853b/9a92fc46-2c5a-419d-a792-abeb3d116d12",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.637+0800",
+        "update_time": "2026-03-03T10:30:09.637+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "731ccc4f-f4ca-47dc-a214-d04638e3748b",
+        "title": "第二节 “白山黑水”——东北三省",
+        "rich_title": "第二节 “白山黑水”——东北三省",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a75d1462-edb9-4ad4-8927-d863f11a853b/731ccc4f-f4ca-47dc-a214-d04638e3748b",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.659+0800",
+        "update_time": "2026-03-03T10:30:09.659+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "92191a7f-a1b7-436c-821b-733cea67b250",
+        "title": "第三节 世界最大的黄土堆积区——黄土高原",
+        "rich_title": "第三节 世界最大的黄土堆积区——黄土高原",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a75d1462-edb9-4ad4-8927-d863f11a853b/92191a7f-a1b7-436c-821b-733cea67b250",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.682+0800",
+        "update_time": "2026-03-03T10:30:09.682+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "035d72e5-daa9-45d0-9251-e0069c2c4ffe",
+        "title": "第四节 祖国的首都——北京",
+        "rich_title": "第四节 祖国的首都——北京",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a75d1462-edb9-4ad4-8927-d863f11a853b/035d72e5-daa9-45d0-9251-e0069c2c4ffe",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.722+0800",
+        "update_time": "2026-03-03T10:30:09.722+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "5bec9b38-0a0e-471a-8b23-bd533898953e",
+    "title": "第八章 南方地区",
+    "rich_title": "第八章 南方地区",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "5bec9b38-0a0e-471a-8b23-bd533898953e",
+    "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+    "create_time": "2026-03-03T10:30:09.796+0800",
+    "update_time": "2026-03-03T10:30:09.796+0800",
+    "child_nodes": [
+      {
+        "id": "de880d17-8c78-4210-ac67-b003c86fdf59",
+        "title": "第一节 自然特征与农业",
+        "rich_title": "第一节 自然特征与农业",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5bec9b38-0a0e-471a-8b23-bd533898953e/de880d17-8c78-4210-ac67-b003c86fdf59",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.814+0800",
+        "update_time": "2026-03-03T10:30:09.814+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a2674e44-2e3b-4998-a987-9f0d3f094b92",
+        "title": "第二节 “鱼米之乡”——长江三角洲地区",
+        "rich_title": "第二节 “鱼米之乡”——长江三角洲地区",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5bec9b38-0a0e-471a-8b23-bd533898953e/a2674e44-2e3b-4998-a987-9f0d3f094b92",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.842+0800",
+        "update_time": "2026-03-03T10:30:09.842+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9a7ca8c0-9647-443f-89fd-a1a6b278ee0e",
+        "title": "第三节 特别行政区——香港和澳门",
+        "rich_title": "第三节 特别行政区——香港和澳门",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5bec9b38-0a0e-471a-8b23-bd533898953e/9a7ca8c0-9647-443f-89fd-a1a6b278ee0e",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.908+0800",
+        "update_time": "2026-03-03T10:30:09.908+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f1915c41-32e4-402f-9a5f-6c6655ecf60d",
+        "title": "第四节 祖国的神圣领土——台湾省",
+        "rich_title": "第四节 祖国的神圣领土——台湾省",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5bec9b38-0a0e-471a-8b23-bd533898953e/f1915c41-32e4-402f-9a5f-6c6655ecf60d",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.925+0800",
+        "update_time": "2026-03-03T10:30:09.925+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "7e57571b-9334-49eb-9f9d-8aae0d29b86c",
+    "title": "【跨学科主题学习】认识地名的由来和演变",
+    "rich_title": "【跨学科主题学习】认识地名的由来和演变",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "7e57571b-9334-49eb-9f9d-8aae0d29b86c",
+    "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+    "create_time": "2026-03-03T10:30:09.947+0800",
+    "update_time": "2026-03-03T10:30:09.947+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "e021625c-ede6-464d-ab3c-5ec94db2600f",
+    "title": "第九章 西北地区",
+    "rich_title": "第九章 西北地区",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "e021625c-ede6-464d-ab3c-5ec94db2600f",
+    "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+    "create_time": "2026-03-03T10:30:09.964+0800",
+    "update_time": "2026-03-03T10:30:09.964+0800",
+    "child_nodes": [
+      {
+        "id": "8c4cbc35-e610-4b0c-a49b-281e120aea86",
+        "title": "第一节 自然特征与农业",
+        "rich_title": "第一节 自然特征与农业",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e021625c-ede6-464d-ab3c-5ec94db2600f/8c4cbc35-e610-4b0c-a49b-281e120aea86",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:09.984+0800",
+        "update_time": "2026-03-03T10:30:09.984+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4982323a-e9f8-4398-8986-c74d76ceaa8c",
+        "title": "第二节 干旱的宝地——塔里木盆地",
+        "rich_title": "第二节 干旱的宝地——塔里木盆地",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e021625c-ede6-464d-ab3c-5ec94db2600f/4982323a-e9f8-4398-8986-c74d76ceaa8c",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:10.008+0800",
+        "update_time": "2026-03-03T10:30:10.008+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "e13d58ea-220b-4d72-a070-eae0617ed4f0",
+    "title": "第十章 青藏地区",
+    "rich_title": "第十章 青藏地区",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "e13d58ea-220b-4d72-a070-eae0617ed4f0",
+    "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+    "create_time": "2026-03-03T10:30:10.030+0800",
+    "update_time": "2026-03-03T10:30:10.030+0800",
+    "child_nodes": [
+      {
+        "id": "0747fbc6-63ab-49bb-a580-151abcde5cd9",
+        "title": "第一节 自然特征与农业",
+        "rich_title": "第一节 自然特征与农业",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e13d58ea-220b-4d72-a070-eae0617ed4f0/0747fbc6-63ab-49bb-a580-151abcde5cd9",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:10.047+0800",
+        "update_time": "2026-03-03T10:30:10.047+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "bb2fbaf8-0951-4776-a18a-f0f30222e51b",
+        "title": "第二节 “中华水塔”——三江源地区",
+        "rich_title": "第二节 “中华水塔”——三江源地区",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e13d58ea-220b-4d72-a070-eae0617ed4f0/bb2fbaf8-0951-4776-a18a-f0f30222e51b",
+        "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+        "create_time": "2026-03-03T10:30:10.070+0800",
+        "update_time": "2026-03-03T10:30:10.070+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "646951ae-995c-4616-a16a-4275ecead036",
+    "title": "第十一章 奋进中的中国",
+    "rich_title": "第十一章 奋进中的中国",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "646951ae-995c-4616-a16a-4275ecead036",
+    "tree_id": "a63434a7-b64b-4d7e-bc5d-4ace542f4fa9",
+    "create_time": "2026-03-03T10:30:10.097+0800",
+    "update_time": "2026-03-03T10:30:10.097+0800",
+    "child_nodes": null
+  }
+]

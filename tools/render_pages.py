@@ -66,6 +66,17 @@ BOOKS = {
         "first_body_index": 4,
         "page_offset": 4,
     },
+    "dili-7s": {
+        "code": "g7a",
+        "title": "地理 七年级上册",
+        "publisher": "人民教育出版社",
+        "pdf": LIB / "地理" / "七年级上册.pdf",
+        "toc": LIB / "地理" / "七年级上册.目录树.json",
+        "first_body_index": 5,
+        "page_offset": 4,
+        # 自动查找找错 / 找不到的（印刷页码，取自课本目录页）
+        "toc_printed": {"第一章 地球": 5, "第一节 地球的宇宙环境": 6, "【跨学科主题学习】美化校园": 41, "【跨学科主题学习】探索外来食料作物传播史": 117},
+    },
 }
 
 HI_HEIGHT = 2048
@@ -120,6 +131,17 @@ def apply_verified(chapters, code, offset):
     return chapters
 
 
+def apply_printed(chapters, fixed, offset):
+    """BOOKS 里写明的印刷页码（课本目录页上的），覆盖自动查找的结果。"""
+    for c in chapters:
+        if c["title"] in fixed:
+            c["page"] = fixed[c["title"]] + offset
+        for sec in c["sections"]:
+            if sec["title"] in fixed:
+                sec["page"] = fixed[sec["title"]] + offset
+    return chapters
+
+
 def main(book_id):
     cfg = BOOKS[book_id]
     out = ROOT / "public" / "books" / book_id
@@ -146,7 +168,7 @@ def main(book_id):
         "pageCount": doc.page_count,
         "pageSize": [round(rect.width, 3), round(rect.height, 3)],
         "pageOffset": cfg["page_offset"],
-        "chapters": apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"]),
+        "chapters": apply_printed(apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"]), cfg.get("toc_printed", {}), cfg["page_offset"]),
     }
     (out / "book.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print("写入", out / "book.json")
