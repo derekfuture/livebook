@@ -9,6 +9,7 @@ const WIDTH = 0.36,
   DEPTH = 0.155,
   Z = 0.145,
   Y = 0.009;
+const WINDOW_MM = 100; // 固定放大倍率；看远处的点只平移，从不重画成另一种分度。
 const W = 1440,
   H = 420,
   LEFT = 60,
@@ -19,8 +20,42 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
   paper.rotation.x = -Math.PI / 2;
   paper.position.set(0, Y, Z);
   group.add(paper);
-  paper.visible = false;
+  const bench = canvasTex(W, H, () => {});
+  const benchInk = bench.canvas.getContext('2d');
+  paper.material.transparent = true;
+  function showBench(marks = []) {
+    const ctx = benchInk,
+      x = (mm) => LEFT + (mm * W) / (WIDTH * 1000);
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#ead7af';
+    ctx.fillRect(x(-4), 194, x(340) - x(-4), 60);
+    for (let mm = 0; mm <= 340; mm++) {
+      ctx.fillStyle = '#615747';
+      ctx.fillRect(x(mm), 194, 1.5, mm % 10 === 0 ? 19 : mm % 5 === 0 ? 12 : 7);
+      if (mm % 10 === 0) {
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(String(mm), x(mm), 236);
+      }
+    }
+    ctx.font = '14px sans-serif';
+    ctx.fillText('mm', x(5), 250);
+    if (marks.length) {
+      ctx.fillStyle = '#fff6dd';
+      ctx.fillRect(x(-4), 147, x(340) - x(-4), 46);
+      ctx.fillStyle = '#343a40';
+      for (const mark of marks) {
+        ctx.beginPath();
+        ctx.arc(x((mark.x - marks[0].x) * 1000), 172, 2.6, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+    bench.needsUpdate = true;
+    paper.material.map = bench;
+  }
+  showBench();
   const g = texture.canvas.getContext('2d');
+  let benchHasTape = false;
   const sheets = [];
   const archive = document.createElement('select');
   archive.setAttribute('aria-label', '选纸带');
@@ -30,8 +65,9 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     probe,
     inspecting = false,
     handle = -1,
-    low = 0,
-    high = 1;
+    low = -5,
+    panStart = null,
+    animation = 0;
   let readings = [0, 0],
     placed = [false, false],
     message = '';
@@ -81,24 +117,32 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     if (inspecting) {
       back();
       inspecting = false;
+      showBench(probe ?? sheet?.run.marks);
+      stopPan();
       bar.near(false);
       onViewChange();
     }
   }
   function inspect() {
-    if (!paper.visible && sheet) choose(sheets.indexOf(sheet));
-    if (!paper.visible) return;
+    if (el.hidden && !probe) return;
+    if (!benchHasTape && sheet && !probe) {
+      choose(sheets.indexOf(sheet));
+      benchHasTape = true;
+    }
+    paper.material.map = texture;
     inspecting = true;
     bar.near(true);
     onViewChange();
     look([0, Y, Z], [0, 1, 0.16], 0.56, () => {
       inspecting = false;
+      showBench(probe ?? sheet?.run.marks);
+      stopPan();
       bar.near(false);
       onViewChange();
     });
   }
-  const mm = (i) => (sheet.run.marks[i].x - sheet.run.marks[sheet.origin].x) * 1000;
-  const px = (v) => LEFT + ((v - low) / (high - low)) * (RIGHT - LEFT);
+  const mm = (i) => (sheet.run.marks[i].x - sheet.run.marks[0].x) * 1000;
+  const px = (v) => LEFT + ((v - low) / WINDOW_MM) * (RIGHT - LEFT);
   function label(text, x, y, size = 45, color = '#34404a', align = 'left') {
     g.fillStyle = color;
     g.font = size + 'px sans-serif';
@@ -122,91 +166,147 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
   function canContinue() {
     return sheet.used.size === 1 && sheet.used.has(slots[slot]) && nextUnmeasured() >= 0;
   }
+  function stopPan() {
+    cancelAnimationFrame(animation);
+    animation = 0;
+  }
+  function panTo(value) {
+    stopPan();
+    const to = clamp(value, -5, Math.max(-5, mm(sheet.run.marks.length - 1) - WINDOW_MM + 5));
+    const from = low,
+      start = performance.now();
+    if (Math.abs(to - from) < 0.01) return;
+    function frame(now) {
+      const u = Math.min(1, (now - start) / 350);
+      low = from + (to - from) * u * (2 - u);
+      draw();
+      animation = u < 1 ? requestAnimationFrame(frame) : 0;
+    }
+    animation = requestAnimationFrame(frame);
+  }
+  function reveal(i) {
+    const x = mm(i);
+    if (x < low + 2 || x > low + WINDOW_MM - 2) panTo(x - WINDOW_MM * 0.35);
+  }
   function draw() {
     if (!sheet || probe) return;
     clearPaper();
     const marks = sheet.run.marks,
-      start = marks[0].x,
-      span = marks.at(-1).x - start;
-    label(sheet.run.load * 1000 + ' g · 第 ' + sheet.trial + ' 条', LEFT, 38);
-    label('整条纸带 · 红点是 0 s · 每隔 0.02 s 一点', RIGHT, 38, 38, '#575247', 'right');
-    const c = slots[slot];
-    const wholeX = (i) => LEFT + ((marks[i].x - start) / span) * (RIGHT - LEFT);
-    g.fillStyle = '#dfd7b6';
-    g.fillRect(wholeX(c - 5) - 4, 51, wholeX(c + 5) - wholeX(c - 5) + 8, 25);
-    for (const [i] of marks.entries())
-      dot(
-        wholeX(i),
-        64,
-        i === c || i === sheet.origin ? 8 : 3,
-        i === c ? '#286a71' : i === sheet.origin ? '#a24b32' : '#343a40',
-      );
-    label('放大所选段 · 测起点后 ' + timeAt(c) + ' s 的速度', LEFT, 115, 40);
-    for (let i = c - 5; i <= c + 5; i++) {
+      c = slots[slot],
+      a = c - 5,
+      b = c + 5;
+    label(sheet.run.load * 1000 + ' g · 第 ' + sheet.trial + ' 条纸带', LEFT, 46, 43);
+    label('相邻两点相隔 0.02 s', RIGHT, 46, 39, '#575247', 'right');
+    g.fillStyle = '#f5ead2';
+    g.fillRect(LEFT, 77, RIGHT - LEFT, 105);
+    g.save();
+    g.beginPath();
+    g.rect(LEFT, 69, RIGHT - LEFT, 120);
+    g.clip();
+    g.fillStyle = '#e6dab9';
+    g.fillRect(px(mm(a)), 130, px(mm(b)) - px(mm(a)), 39);
+    for (let i = 0; i < marks.length; i++) {
       const x = px(mm(i));
-      dot(x, 177, i === c ? 9 : 6, i === c ? '#286a71' : '#303940');
-      if (i === c - 5 || i === c + 5) {
-        const left = i < c;
-        label((left ? 'A ' : 'B ') + timeAt(i) + ' s', x, 155, 34, left ? '#286a71' : '#a44730', 'center');
-      }
+      if (x < LEFT - 8 || x > RIGHT + 8) continue;
+      dot(x, 159, i === c ? 8 : i === a || i === b ? 6 : 3.5, i === c ? '#286a71' : '#343a40');
     }
+    g.restore();
+    if (px(mm(a)) >= LEFT && px(mm(a)) <= RIGHT)
+      label('A ' + timeAt(a) + ' s', Math.max(180, px(mm(a))), 120, 32, '#286a71', 'right');
+    if (px(mm(b)) >= LEFT && px(mm(b)) <= RIGHT)
+      label('B ' + timeAt(b) + ' s', Math.min(RIGHT - 125, px(mm(b))), 120, 32, '#a44730', 'left');
     g.fillStyle = '#ead7af';
-    g.fillRect(0, 190, W, 90);
-    for (let v = Math.ceil(low); v <= high; v++) {
+    g.fillRect(LEFT, 189, RIGHT - LEFT, 79);
+    for (let v = Math.max(0, Math.ceil(low)); v <= low + WINDOW_MM; v++) {
       const x = px(v);
       g.fillStyle = '#615747';
-      g.fillRect(x, 190, 2, v % 10 === 0 ? 34 : v % 5 === 0 ? 24 : 12);
-      if (v % 10 === 0) label(String(v), x, 260, 37, '#554d42', 'center');
+      g.fillRect(x, 189, 2, v % 10 === 0 ? 31 : v % 5 === 0 ? 22 : 10);
+      if (v % 10 === 0) label(String(v), x, 251, 33, '#554d42', 'center');
     }
-    label('mm', W - 10, 276, 33, '#554d42', 'right');
+    label('mm', W - 4, 251, 28, '#554d42', 'right');
+    // 已读的两处在原位留短线，学生换测量时刻仍能找到上一段。
+    g.fillStyle = '#867b68';
+    for (const values of sheet.used.values()) {
+      for (const value of values) {
+        const x = px(value);
+        if (x >= LEFT && x <= RIGHT) g.fillRect(x - 1, 168, 2, 19);
+      }
+    }
     readings.forEach((v, k) => {
+      if (!placed[k] && handle !== k) return;
       const x = px(v),
         color = k ? '#a44730' : '#286a71';
-      g.fillStyle = color;
-      g.fillRect(x - 2, 157, 4, 124);
-      g.beginPath();
-      g.moveTo(x, 265);
-      g.lineTo(x - 14, 290);
-      g.lineTo(x + 14, 290);
-      g.fill();
-      label(v.toFixed(1), clamp(x, 60, W - 60), 316, 39, color, 'center');
+      if (x >= LEFT && x <= RIGHT) {
+        g.fillStyle = color;
+        g.fillRect(x - 2, 151, 4, 100);
+      }
     });
-    label(message || '尺上读 A、B 的位置；两点相隔 0.20 s', W / 2, 358, 39, '#34404a', 'center');
-    if (canContinue()) label('量下个时刻 ' + timeAt(slots[nextUnmeasured()]) + ' s ›', LEFT, 409, 38, '#286a71');
+    label('测起点后 ' + timeAt(c) + ' s 的速度', LEFT, 313, 40);
+    const reading = (k) => (placed[k] || handle === k ? readings[k].toFixed(1) : '—');
+    label('A ' + reading(0) + '    B ' + reading(1) + ' mm', RIGHT, 313, 37, '#554d42', 'right');
+    label(
+      message || (placed[0] ? '已读 A。在 B 点正下方读尺。' : '在 A 点正下方读尺。'),
+      W / 2,
+      362,
+      40,
+      '#34404a',
+      'center',
+    );
+    if (!sheet.complete && sheet.points.length > 1) {
+      const first = sheet.points[0],
+        last = sheet.points.at(-1);
+      label(
+        first[0].toFixed(2) +
+          ' s：' +
+          first[1].toFixed(3) +
+          ' → ' +
+          last[0].toFixed(2) +
+          ' s：' +
+          last[1].toFixed(3) +
+          ' m/s',
+        LEFT,
+        409,
+        34,
+        '#286a71',
+      );
+    }
+    if (canContinue()) label('沿纸带量 ' + timeAt(slots[nextUnmeasured()]) + ' s ›', LEFT, 409, 38, '#286a71');
     label('回实验台', RIGHT, 409, 38, '#575247', 'right');
     texture.needsUpdate = true;
     controls.btns[1].disabled = slot === 0;
     controls.btns[2].disabled = slot === slots.length - 1;
     controls.btns[3].disabled = sheet.run.mode ? !sheet.complete : !sheet.used.size;
     fields.forEach((f, i) => {
-      f.value = readings[i].toFixed(1);
+      f.value = placed[i] ? readings[i].toFixed(1) : '';
       f.disabled = sheet.complete || sheet.used.has(c);
     });
     record.btns[0].disabled = fields[0].disabled;
   }
   function aim() {
     const c = slots[slot],
-      a = mm(c - 5),
-      b = mm(c + 5);
-    const margin = Math.max(4, (b - a) * 0.18);
-    low = Math.floor(a - margin);
-    high = Math.ceil(b + margin);
-    const previous = sheet.used.get(c);
-    readings = previous ? [...previous] : [low + 1, high - 1];
-    placed = [false, false];
-    message = previous ? '此点已记录' : sheet.complete ? '本条加速度已记录' : '';
+      previous = sheet.used.get(c);
+    readings = previous ? [...previous] : [0, 0];
+    placed = [!!previous, !!previous];
+    message = previous ? '这组读数已记录' : sheet.complete ? '本条加速度已记录' : '';
+    reveal(c - 5);
     draw();
     if (inspecting) onViewChange();
   }
   function move(delta) {
     if (!sheet) return;
-    if (probe || !paper.visible) choose(sheets.indexOf(sheet));
+    if (probe || !benchHasTape) choose(sheets.indexOf(sheet));
     slot = clamp(slot + delta, 0, slots.length - 1);
     aim();
   }
   function choose(i) {
     probe = null;
+    stopPan();
+    handle = -1;
+    panStart = null;
     sheet = sheets[i];
+    benchHasTape = true;
+    if (!inspecting) showBench(sheet.run.marks);
+    low = -5;
     archive.value = String(i);
     slots = centers(sheet.run.marks, sheet.origin);
     slot = 0;
@@ -218,18 +318,33 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     inspect();
   };
   function place(x) {
-    readings[handle] = Math.round(10 * clamp(low + ((x - LEFT) / (RIGHT - LEFT)) * (high - low), low, high)) / 10;
+    readings[handle] =
+      Math.round(10 * clamp(low + ((x - LEFT) / (RIGHT - LEFT)) * WINDOW_MM, Math.max(0, low), low + WINDOW_MM)) / 10;
     draw();
   }
   function finish() {
     if (handle < 0) return;
-    placed[handle] = true;
-    handle = -1;
-    if (!placed.every(Boolean)) return;
     const c = slots[slot],
-      [a, b] = readings;
-    if (Math.abs(a - mm(c - 5)) > 1 || Math.abs(b - mm(c + 5)) > 1 || b <= a) {
-      message = '游标还没对准点心，可继续拖动';
+      k = handle;
+    handle = -1;
+    const [a, b] = readings;
+    if (Math.abs(readings[k] - mm(c + (k ? 5 : -5))) > 1 || (k && b <= a)) {
+      placed[k] = false;
+      message = '再看 ' + (k ? 'B' : 'A') + ' 点正下方的尺刻，用毫米读数。';
+      draw();
+      return;
+    }
+    placed[k] = true;
+    if (!placed.every(Boolean)) {
+      message = 'A = ' + a.toFixed(1) + ' mm。沿同一把尺读 B。';
+      reveal(c + 5);
+      draw();
+      if (inspecting) onViewChange();
+      return;
+    }
+    if (Math.abs(a - mm(c - 5)) > 1) {
+      placed = [false, false];
+      message = '请重新读 A 的位置。';
       draw();
       return;
     }
@@ -247,8 +362,8 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     obj: paper,
     plane: 'xz',
     offset: Y,
-    enabled: () => paper.visible,
-    hint: '点纸带近看，拖游标量点距',
+    enabled: () => paper.material.map === texture || (!el.hidden && !!sheet && benchHasTape),
+    hint: '点纸带近看，沿同一把尺读 A、B',
     onStart(p) {
       handle = -1;
       if (!p) return;
@@ -267,42 +382,57 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
           aim();
           return;
         }
-        leave();
+        if (x > W * 0.7) leave();
         return;
       }
-      if (y < 96) {
-        const marks = sheet.run.marks,
-          target = marks[0].x + clamp((x - LEFT) / (RIGHT - LEFT), 0, 1) * (marks.at(-1).x - marks[0].x);
-        if (sheet.used.size) {
-          slot = slots.reduce(
-            (best, c, j) => (Math.abs(marks[c].x - target) < Math.abs(marks[slots[best]].x - target) ? j : best),
-            0,
-          );
-          aim();
-          return;
-        }
-        let i = 0;
-        for (let j = 1; j < marks.length; j++) if (Math.abs(marks[j].x - target) < Math.abs(marks[i].x - target)) i = j;
-        const available = centers(marks, i);
-        if (available.length) {
-          sheet.origin = i;
-          slots = available;
-          slot = 0;
-          aim();
-        } else {
-          message = '起点后需有连续十个间隔，请向左选';
-          draw();
-        }
+      if (y < 184) {
+        stopPan();
+        panStart = { x, low };
         return;
       }
-      if (y < 132 || y > 325 || sheet.complete || sheet.used.has(slots[slot])) return;
-      handle = Math.abs(x - px(readings[0])) <= Math.abs(x - px(readings[1])) ? 0 : 1;
+      if (y > 278 || sheet.complete || sheet.used.has(slots[slot])) return;
+      handle = placed[0] ? 1 : 0;
+      stopPan();
       place(x);
     },
     onDrag(p) {
-      if (handle >= 0) place(pixel(p)[0]);
+      const x = pixel(p)[0];
+      if (panStart) {
+        low = clamp(
+          panStart.low - ((x - panStart.x) / (RIGHT - LEFT)) * WINDOW_MM,
+          -5,
+          Math.max(-5, mm(sheet.run.marks.length - 1) - WINDOW_MM + 5),
+        );
+        draw();
+      } else if (handle >= 0) place(x);
     },
-    onEnd: finish,
+    onEnd(moved) {
+      if (!panStart) {
+        finish();
+        return;
+      }
+      const at = low + ((panStart.x - LEFT) / (RIGHT - LEFT)) * WINDOW_MM;
+      panStart = null;
+      if (moved) return;
+      if (sheet.used.size) {
+        slot = slots.reduce((best, c, j) => (Math.abs(mm(c) - at) < Math.abs(mm(slots[best]) - at) ? j : best), 0);
+      } else {
+        const nearest = sheet.run.marks.reduce(
+          (best, _, i) => (Math.abs(mm(i) - at) < Math.abs(mm(best) - at) ? i : best),
+          0,
+        );
+        const available = centers(sheet.run.marks, nearest);
+        if (available.length < 2) {
+          message = '这个起点后没有足够的点量两个时刻，请向左选。';
+          draw();
+          return;
+        }
+        sheet.origin = nearest;
+        slots = available;
+        slot = 0;
+      }
+      aim();
+    },
   };
   return {
     el,
@@ -318,10 +448,10 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     },
     get instruction() {
       if (probe) return '看这条纸带的实际点距，再回到全景。';
-      if (canContinue()) return '已测 ' + timeAt(slots[slot]) + ' s。点纸带左下「量下个时刻」，再测一次。';
+      if (canContinue()) return '已测 ' + timeAt(slots[slot]) + ' s。点纸带左下的下一时刻，沿同一把尺再读一次。';
       if (sheet.used.size >= 2) return '这条纸带已量两个时刻，回到实验台。';
       if (slots.length === 1) return '这条纸带只能量一个时刻。回实验台，换新带，先通电再放车。';
-      return '从纸带起点算时间。把青色游标拖到 A、红色拖到 B，用这段的平均速度估计中间时刻的速度。';
+      return placed[0] ? '沿尺读 B 点的位置；B 减 A 就是这段距离。' : '在 A 点正下方点尺刻，记下第一个位置。';
     },
     leave,
     drag,
@@ -330,6 +460,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       onGraph = graph;
     },
     add(run, trial) {
+      benchHasTape = true;
       const origin = run.marks.findIndex((_, i) => centers(run.marks, i).length);
       if (origin < 0) {
         leave();
@@ -349,11 +480,13 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       archive.add(new Option('第 ' + trial + ' 条 · ' + run.load * 1000 + ' g', String(sheets.length - 1)));
       el.hidden = false;
       choose(sheets.length - 1);
-      inspect();
       return true;
     },
     trialStrip(marks) {
       leave();
+      stopPan();
+      panStart = null;
+      handle = -1;
       probe = marks;
       el.hidden = true;
       paper.visible = true;
@@ -380,20 +513,27 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       inspect();
     },
     stow() {
+      stopPan();
+      panStart = null;
+      handle = -1;
       leave();
       probe = null;
-      paper.visible = false;
+      benchHasTape = false;
+      showBench();
       el.hidden = !sheets.length;
     },
     clear() {
       this.stow();
+      stopPan();
       sheet = null;
       sheets.length = 0;
       archive.replaceChildren();
       el.hidden = true;
     },
     dispose() {
+      stopPan();
       texture.dispose();
+      bench.dispose();
     },
   };
 }

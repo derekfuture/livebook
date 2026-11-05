@@ -44,6 +44,7 @@ export default {
       if (moving || bar.finished) return null;
       if (mode === 'balance')
         return observed ? (Math.abs(run.a) < 1e-8 ? rack.drags[0].obj : rig.board) : finished ? rig.strip : rig.cart;
+      if (taken && reader.canMeasureMore && reader.count < 2) return reader.paper;
       return taken ? rig.cart : finished ? (powered ? rig.timer : rig.strip) : powered ? rig.cart : rig.timer;
     }
     const bar = lessonBar({
@@ -110,7 +111,9 @@ export default {
                       : '取下试滑纸带，比较三段点距。'
                   : '向左轻推小车，松手后比较点距。'
                 : taken
-                  ? '向右拖回小车。换槽码比较力，把台上的 250 g 砝码拖上车比较质量。'
+                  ? reader.canMeasureMore && reader.count < 2
+                    ? '点台面上刚取下的纸带，沿尺量两个时刻。'
+                    : '向右拖回小车。换槽码比较力，把台上的 250 g 砝码拖上车比较质量。'
                   : finished
                     ? powered
                       ? '关计时器，再取纸带。'
