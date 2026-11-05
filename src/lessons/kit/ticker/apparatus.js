@@ -3,6 +3,7 @@ import { paint, inked, polyline } from '../../../live/ink.js';
 import { canvasTex } from '../props.js';
 import { stampMass } from './loadRack.js';
 import { PERIOD, TRAVEL } from './motion.js';
+import { tickerHead } from './head.js';
 
 const TOP = 0.42,
   START = 0.14,
@@ -114,15 +115,9 @@ export function apparatus({ adjustable = false } = {}) {
   const timer = new THREE.Group();
   timer.position.x = TIMER;
   group.add(timer);
-  box(timer, [0.077, 0.039, 0.072], [0, TOP + 0.0195, 0], 0x394b57, true);
-  for (const z of [-0.024, 0.024]) box(timer, [0.05, 0.015, 0.009], [0, PAPER_Y + 0.003, z], metal);
-  box(timer, [0.034, 0.011, 0.055], [0, PAPER_Y + 0.014, 0], teal, true);
-  const striker = cyl(timer, 0.003, 0.009, [0, PAPER_Y + 0.006, 0], 0x34414a);
-  const light = cyl(timer, 0.004, 0.002, [0.007, PAPER_Y + 0.021, 0], 0xa64836);
-  // 线圈驱动弹片，纸带穿过线圈前方的压纸桥。
-  cyl(timer, 0.008, 0.028, [-0.019, PAPER_Y + 0.012, 0], 0x97522c, true);
-  for (let i = -3; i <= 3; i++) cyl(timer, 0.0085, 0.0012, [-0.019, PAPER_Y + 0.012, i * 0.0035], 0xc07844, true);
-  box(timer, [0.025, 0.002, 0.006], [-0.009, PAPER_Y + 0.013, 0], metal);
+  const head = tickerHead();
+  head.group.position.y = TOP;
+  timer.add(head.group);
   const adaptor = new THREE.Group();
   group.add(adaptor);
   box(adaptor, [0.078, 0.042, 0.057], [0.347, TOP + 0.021, -0.094], teal, true);
@@ -151,7 +146,6 @@ export function apparatus({ adjustable = false } = {}) {
       0x454344,
       1.5,
     );
-  light.material = light.material.clone();
 
   // 纸带先沿板面滑动，余下部分垂在右端，纸张总长守恒。
   const paperMat = paint(0xfff2ce, { side: THREE.DoubleSide });
@@ -261,8 +255,7 @@ export function apparatus({ adjustable = false } = {}) {
       dots.setMatrixAt(i, marker.matrix);
     });
     dots.instanceMatrix.needsUpdate = true;
-    light.material.color.setHex(run.recording ? 0xe5653d : 0x5b4138);
-    striker.position.y = PAPER_Y + 0.006 + (run.recording ? 0.0015 * Math.sin((run.t / PERIOD) * Math.PI * 2) : 0);
+    head.update(run.recording, run.t);
   }
   return {
     group: base,

@@ -2124,6 +2124,11 @@
   "title": "物理 高中必修第一册",
   "base": "/books/wuli-hs1/",
   "lessons": {
+   "handtape": {
+    "title": "手拉纸带测速度",
+    "fig": "图1.3-2",
+    "sec": "位置变化快慢的描述——速度"
+   },
    "tickertape": {
     "title": "探究小车速度随时间变化的规律",
     "fig": "图2.1-1",
@@ -2136,6 +2141,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "handtape",
+    "page": 27,
+    "bbox": [
+     63,
+     78,
+     537,
+     149
+    ],
+    "label": "图1.3-2 · 翻开活页"
+   },
    {
     "lesson": "tickertape",
     "page": 40,
