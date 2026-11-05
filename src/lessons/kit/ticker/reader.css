@@ -1,0 +1,69 @@
+.tape-reader {
+  margin: 12px 0;
+  padding: 12px 10px;
+  background: #faf6eb;
+  border: 1px solid #c8c0ae;
+  border-radius: 5px;
+  color: #33464a;
+}
+.tape-reader[hidden] {
+  display: none;
+}
+.tape-reader h4 {
+  margin: 0 0 7px;
+}
+.tape-reader canvas {
+  display: block;
+  width: 100%;
+  touch-action: none;
+}
+.whole-tape {
+  height: 68px;
+  cursor: crosshair;
+}
+.detail-tape {
+  height: 108px;
+  cursor: ew-resize;
+}
+.tape-reader select,
+.tape-reader input {
+  font: inherit;
+  color: inherit;
+  border: 1px solid #bdb59f;
+  background: #fffdf6;
+  border-radius: 3px;
+}
+.tape-reader p {
+  font-size: 13px;
+  margin: 7px 0;
+}
+.tape-nav,
+.tape-values {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.tape-values {
+  margin: 7px 0;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.tape-values input {
+  width: 60px;
+  margin-left: 4px;
+}
+.tape-reader button {
+  color: #255e60;
+  border: 1px solid #b8c9c4;
+  border-radius: 4px;
+  background: #f7faf4;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.tape-reader button:disabled {
+  opacity: 0.45;
+}
+.tape-reader > button {
+  width: 100%;
+}

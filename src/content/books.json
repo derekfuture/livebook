@@ -2118,5 +2118,30 @@
     "label": "实验活动8 · 翻开活页"
    }
   ]
+ },
+ "wuli-hs1": {
+  "id": "wuli-hs1",
+  "title": "物理 高中必修第一册",
+  "base": "/books/wuli-hs1/",
+  "lessons": {
+   "tickertape": {
+    "title": "探究小车速度随时间变化的规律",
+    "fig": "图2.1-1",
+    "sec": "探究小车速度随时间变化的规律"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "tickertape",
+    "page": 40,
+    "bbox": [
+     12,
+     690,
+     586,
+     810
+    ],
+    "label": "图2.1-1 · 翻开活页"
+   }
+  ]
  }
 }

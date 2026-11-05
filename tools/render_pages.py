@@ -21,6 +21,14 @@ LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
 VERIFIED_TOC = Path(os.environ.get("LIVEBOOK_VERIFIED_TOC", ROOT / "pdf" / "章节与选点.tsv")).expanduser()
 
 BOOKS = {
+    "wuli-hs1": {
+        "code": "hs1", "title": "物理 高中必修第一册", "publisher": "人民教育出版社",
+        "pdf": LIB / "必修第一册.pdf", "toc": LIB / "必修第一册.目录树.json",
+        "first_body_index": 5, "page_offset": 4,
+        # 此版目录的印刷页码，依次为章首页和各节首页。
+        "printed_pages": [[2], [10, 11, 15, 21, 27], [35, 36, 39, 42, 47],
+                          [56, 57, 63, 68, 72, 76], [82, 83, 88, 94, 99, 104, 109], [116], [121]],
+    },
     "wuli-8s": {
         "code": "8a",
         "title": "物理 八年级上册",
@@ -139,6 +147,12 @@ def main(book_id):
         print(f"\r渲染 {i + 1}/{doc.page_count}", end="", flush=True)
     print()
 
+    chapters = apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"])
+    if "printed_pages" in cfg:
+        for chapter, pages in zip(chapters, cfg["printed_pages"]):
+            chapter["page"] = pages[0] + cfg["page_offset"]
+            for section, page in zip(chapter["sections"], pages[1:]):
+                section["page"] = page + cfg["page_offset"]
     manifest = {
         "id": book_id,
         "title": cfg["title"],
@@ -146,13 +160,15 @@ def main(book_id):
         "pageCount": doc.page_count,
         "pageSize": [round(rect.width, 3), round(rect.height, 3)],
         "pageOffset": cfg["page_offset"],
-        "chapters": apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"]),
+        "chapters": chapters,
     }
     (out / "book.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print("写入", out / "book.json")
 
 
 if __name__ == "__main__":
-    ids = sys.argv[1:] or list(BOOKS)
+    ids = sys.argv[1:] or [key for key, cfg in BOOKS.items() if cfg["pdf"].is_file()]
+    if not ids:
+        sys.exit(f"没有找到教材 PDF：{LIB}")
     for book_id in ids:
         main(book_id)

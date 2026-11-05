@@ -12,14 +12,14 @@ import fitz
 ROOT = Path(__file__).resolve().parent.parent
 # 教材 PDF 所在目录：设环境变量 LIVEBOOK_PDF_DIR，里面放 八年级上册.pdf、八年级下册.pdf、九年级全一册.pdf（及 *.目录树.json）
 LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
-PDF = {"wuli-8s": "八年级上册", "wuli-8x": "八年级下册", "wuli-9": "九年级全一册", "huaxue-9s": "化学/九年级上册", "huaxue-9x": "化学/九年级下册"}
+PDF = {"wuli-hs1": "必修第一册", "wuli-8s": "八年级上册", "wuli-8x": "八年级下册", "wuli-9": "九年级全一册", "huaxue-9s": "化学/九年级上册", "huaxue-9x": "化学/九年级下册"}
 OVERRIDE = ROOT / "tools" / "bbox-overrides.json"   # 自动框不准时手工改这里
 
 
 def plan_rows():
     book, rows = None, []
-    for line in (ROOT / "PLAN.md").read_text(encoding="utf-8").splitlines():
-        m = re.search(r"\b((?:wuli|huaxue)-\w+)（", line)
+    for line in ("\n".join((ROOT / name).read_text(encoding="utf-8") for name in ("PLAN.md", "PLAN-senior-physics.md"))).splitlines():
+        m = re.search(r"\b((?:wuli|huaxue)-[\w-]+)（", line)
         if line.startswith("## ") and m:
             book = m.group(1)
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
@@ -72,19 +72,19 @@ def figure_bbox(page, fig_label):
 def main():
     sheet = "--sheet" in sys.argv
     overrides = json.loads(OVERRIDE.read_text()) if OVERRIDE.exists() else {}
-    docs = {b: fitz.open(LIB / f"{p}.pdf") for b, p in PDF.items()}
+    docs = {b: fitz.open(LIB / f"{p}.pdf") for b, p in PDF.items() if (LIB / f"{p}.pdf").is_file()}
     out = {}
     for row in plan_rows():
-        page = docs[row["book"]][row["page"]]
-        bbox, cap = figure_bbox(page, row["fig"])
-        if row["id"] in overrides:
-            bbox = overrides[row["id"]]
+        bbox = overrides.get(row["id"])
+        if bbox is None:
+            page = docs[row["book"]][row["page"]]
+            bbox, _ = figure_bbox(page, row["fig"])
         out[row["id"]] = {**row, "bbox": bbox}
         flag = "" if bbox else "  <-- 没找到图注"
         print(f'{row["id"]:15} {row["book"]} p{row["page"]:<4} {bbox}{flag}')
     (ROOT / "tools" / "bboxes.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
     if sheet:
-        ids = list(out)
+        ids = [key for key, row in out.items() if row["book"] in docs]
         for k in range(0, len(ids), 12):
             chunk = ids[k:k + 12]
             cols, tw, th = 4, 260, 368
