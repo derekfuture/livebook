@@ -14,7 +14,7 @@ const srgb = (v) => Math.round(255 * (v <= 0.00313 ? 12.92 * v : 1.055 * v ** (1
 
 export function fringeScreen() {
   const group = new THREE.Group();
-  const tex = canvasTex(1024, 8, () => {});
+  const tex = canvasTex(1024, 256, () => {});
   const screen = new THREE.Mesh(new THREE.CircleGeometry(FIELD_WIDTH / 2, 96), new THREE.MeshBasicMaterial({ map: tex }));
   group.add(screen);
   const ink = new THREE.MeshBasicMaterial({ color: 0x262726 });
@@ -36,6 +36,20 @@ export function fringeScreen() {
   function expose({ lit, single, double, separation, filter, length, offset = 0 }) {
     // offset 是未调正时光束中心在毛玻璃上的横向错位（m）。
     const g = tex.canvas.getContext('2d'), w = tex.canvas.width;
+    if (!single && !double && !filter) {
+      // 未插片时用毛玻璃上的二维光斑校轴。光斑随灯的横移越过十字线。
+      const h = tex.canvas.height;
+      g.save();
+      g.scale(w, h);
+      const center = 0.5 + offset / FIELD_WIDTH;
+      const spot = g.createRadialGradient(center, 0.5, 0.05, center, 0.5, 0.72);
+      spot.addColorStop(0, '#fff5de'); spot.addColorStop(0.55, '#bcae98'); spot.addColorStop(1, '#252529');
+      g.fillStyle = lit ? spot : '#17171a';
+      g.fillRect(0, 0, 1, 1);
+      g.restore();
+      tex.needsUpdate = true;
+      return;
+    }
     for (let i = 0; i < w; i++) {
       const x = ((i + 0.5) / w - 0.5) * FIELD_WIDTH - offset;
       const light = lit ? 0.96 * Math.exp(-((x / (FIELD_WIDTH * 0.6)) ** 2)) : 0;

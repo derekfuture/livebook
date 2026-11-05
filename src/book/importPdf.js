@@ -53,7 +53,7 @@ export function mountImport({ content, manifest, source }) {
   };
 
   btn.onclick = () => {
-    if (!tip.hidden) return hide();
+    if (!tip.hidden && tip.getClientRects().length) return hide();
     if (!imported) return offer(false);
     if (bundled) return show(false, el('p', { textContent: `用的是离线包里带的教材 PDF：${short}。` }), acts(['换一份', () => input.click()], ['关闭', hide, true]));
     show(false, el('p', { textContent: `用的是导入的教材 PDF：${short}。只在本机使用。` }),
@@ -63,5 +63,5 @@ export function mountImport({ content, manifest, source }) {
   addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.items || [])].some((x) => x.kind === 'file')) e.preventDefault(); });
   addEventListener('drop', (e) => { const f = [...(e.dataTransfer?.files || [])][0]; if (!f) return; e.preventDefault(); doImport(f); });
   // 没导入、也没有本地书页（线上）：进书以后冒出来、闪几下；点过“不用了”就不再自动出现
-  if (source.kind === 'placeholder' && !localStorage.getItem(QUIET)) setTimeout(() => offer(true), 1200);
+  if (source.kind === 'placeholder' && !localStorage.getItem(QUIET)) setTimeout(() => { if (tip.hidden && !document.body.classList.contains('lesson-on')) offer(true); }, 1200);
 }

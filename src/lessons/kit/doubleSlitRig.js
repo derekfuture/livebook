@@ -52,6 +52,11 @@ export function doubleSlitRig() {
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.012, 24, 16), new THREE.MeshBasicMaterial({ color: 0xb3aca0 }));
   bulb.position.x = 0.013;
   lamp.add(bulb);
+  // 底座的轴线用于低头粗调，再透过目镜检查光屏。
+  block(group, -0.535, 0.0484, 0, 0.079, 0.0007, 0.0012, 0xdfc695);
+  for (const x of [DOUBLE_X, SCREEN_X]) {
+    block(group, x, 0.0405, 0.030, 0.001, 0.001, 0.029, 0xe1c390);
+  }
   const power = block(group, -0.577, 0.051, 0.034, 0.034, 0.01, 0.019, 0x96634c);
   const optics = new THREE.Group();
   optics.position.y = AXIS;
@@ -82,11 +87,18 @@ export function doubleSlitRig() {
   head.add(new THREE.Mesh(new THREE.ShapeGeometry(frame, 64), paint(0x323940)));
   const scope = fringeScreen();
   head.add(scope.group);
-  scope.group.position.z = 0.0001;
-  const eyepiece = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.008, 0.018, 48, 1, true),
+  // 目镜放大同一分划板和毛玻璃的像。测量面的位置仍是 SCREEN_X。
+  scope.group.position.z = 0.0181;
+  scope.group.scale.setScalar(1.85);
+  const eyepiece = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.008, 0.018, 48, 1, true),
     paint(0x293138, { side: THREE.DoubleSide }));
   eyepiece.rotation.x = Math.PI / 2;
   eyepiece.position.z = 0.009;
+  const opening = new THREE.Mesh(new THREE.CircleGeometry(0.015, 48), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+  opening.rotation.x = -Math.PI / 2;
+  opening.position.y = 0.009;
+  opening.userData.pick = true;
+  eyepiece.add(opening);
   head.add(eyepiece);
   const screwFrame = new THREE.Group();
   screwFrame.position.set(0.023, 0, 0.004);
@@ -108,6 +120,9 @@ export function doubleSlitRig() {
     const x = -0.435 + i * 0.127, z = 0.127;
     block(group, x, 0.011, z, 0.053, 0.022, 0.068, 0xae9875);
     const pos = new THREE.Vector3(x, 0.044, z);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.059, 0.055), new THREE.MeshBasicMaterial({ visible: false }));
+    handle.userData.pick = true;
+    card.add(handle);
     card.position.copy(pos);
     group.add(card);
     const label = textPlate(labels[i], { w: 0.068, h: 0.019, bg: '#eee4cf' });
