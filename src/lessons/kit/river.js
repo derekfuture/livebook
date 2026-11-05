@@ -23,13 +23,22 @@ export function floorY(x, t) { const s = stage(t); return topY(x) - 0.003 - (top
 /** 落差：河床从上游到下游降了多少（示意） */
 export function drop(t) { return floorY(XL, t) - floorY(XR, t); }
 export function centerZ(x, t) { const s = stage(t); return s.amp * Math.sin((2 * Math.PI / LAM) * (x - APEX) - Math.PI / 2); }          // APEX 处 = −amp（向北凸）
-/** 地面高度 */
-export function heightAt(x, z, t) {
+const hash = (n) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+/** 谷壁上的冲沟：沿着河谷一条条切进谷壁，越往后越深（示意） */
+export function gullyAt(x, z, t) {
+  const s = stage(t), az = Math.abs(z), q = az - s.floorHalf; if (q < -0.001) return 0;
+  const side = z > 0 ? 1 : 0, u = x * 52 + side * 0.37, c = Math.floor(u), f = u - c - 0.5 - (hash(c + side * 50) - 0.5) * 0.4;
+  const reach = (topY(x) - floorY(x, t)) / s.wall + 0.004 + 0.014 * hash(c * 3 + side), w = Math.exp(-((f / 0.16) ** 2));
+  return 0.0065 * hash(c * 7 + side * 13 + 1) * w * Math.max(0, 1 - q / reach) * sm(0.12, 0.55, t);
+}
+/** 地面高度（gully = false：不算冲沟，核对横剖面时用） */
+export function heightAt(x, z, t, gully = true) {
   const s = stage(t), top = topY(x) + 0.0012 * Math.sin(x * 90 + z * 40) * Math.sin(z * 70 - x * 20);
   const f = sm(s.head, s.head + 0.04, x);          // 源头往上游还没有河谷
   if (f <= 0) return top;
   const fl = top - (top - floorY(x, t)) * f, az = Math.abs(z);
   let y = az <= s.floorHalf ? fl : Math.min(top, fl + (az - s.floorHalf) * s.wall);
+  if (gully && az > s.floorHalf) y = Math.max(fl, y - gullyAt(x, z, t) * f);
   const zc = centerZ(x, t), u = (z - zc) / (WC / 2);
   if (Math.abs(u) < 1 && y <= fl + 1e-6) {          // 河道：凹岸那边深、陡，凸岸那边浅、缓
     const k = 2 * Math.PI / LAM, curv = s.amp * k * k * Math.sin(k * (x - APEX) - Math.PI / 2), o = Math.max(-1, Math.min(1, curv / (0.037 * k * k)));          // curv ＝ −z″：o > 0 表示凹岸在 +z（南）

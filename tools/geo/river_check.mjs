@@ -2,7 +2,7 @@
 import { stage, heightAt, floorY, drop, centerZ, topY, WC, APEX, LAM, ZD } from '../../src/lessons/kit/river.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const X = 0.12;          // 下游一处直一点的河段量横剖面
-const section = (t) => { const fl = floorY(X, t), top = topY(X); let wTop = 0; for (let z = 0; z < ZD; z += 0.0005) if (heightAt(X, z, t) < top - 0.003) wTop = z; return { depth: top - fl, width: 2 * wTop, floor: 2 * stage(t).floorHalf }; };
+const section = (t) => { const fl = floorY(X, t), top = topY(X); let wTop = 0; for (let z = 0; z < ZD; z += 0.0005) if (heightAt(X, z, t, false) < top - 0.003) wTop = z; return { depth: top - fl, width: 2 * wTop, floor: 2 * stage(t).floorHalf }; };
 const a = section(0.35), c = section(1);
 ok(a.depth / a.width > 0.45, `早期：深而窄（深/宽 = ${(a.depth / a.width).toFixed(2)}，谷底宽 ${a.floor.toFixed(3)}）——“V”形`);
 ok(c.depth / c.width < 0.35 && c.floor > 4 * a.floor, `后来：宽而浅的槽形（深/宽 = ${(c.depth / c.width).toFixed(2)}，谷底宽 ${c.floor.toFixed(3)}）`);

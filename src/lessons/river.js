@@ -12,10 +12,10 @@ import * as THREE from 'three';
 import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, ZD, WC, APEX, LAM, smooth, stage, heightAt, waterY, floorY, drop, centerZ, gapAt, topY } from './kit/river.js';
+import { XL, XR, ZD, WC, DC, APEX, LAM, smooth, stage, heightAt, gullyAt, waterY, floorY, drop, centerZ, gapAt, topY } from './kit/river.js';
 
 const LIFT = 0.04;
-const NX = 170, NZ = 110;
+const NX = 220, NZ = 140;
 const ASK = ['先猜一下（可以不猜）：在这个情境里，再过很久，原来建在南岸（凸岸）的渡口会——', ['被江水冲掉', '离江越来越远', '一直在江边']];
 const DOCK_T = 0.62;          // 河道变弯以后，两岸建起渡口
 
@@ -48,54 +48,98 @@ export default {
     const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.085, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     frameBox.position.y = LIFT + 0.0425; frameBox.raycast = () => {}; group.add(frameBox);
 
-    // ---- 地面：一张高度网格（高地、谷壁、谷底、河道），颜色跟着地形走 ----
+    // ---- 地面：一张高度网格（高地、谷壁、谷底、河道）。颜色按坡度和位置上色，再叠一层细细的笔触纹理（草、砂砾、岩面） ----
     const topGeo = new THREE.BufferGeometry();
-    const tPos = new Float32Array((NX + 1) * (NZ + 1) * 3), tCol = new Float32Array((NX + 1) * (NZ + 1) * 3), idx = [];
+    const NV = (NX + 1) * (NZ + 1), tPos = new Float32Array(NV * 3), tCol = new Float32Array(NV * 3), tUV = new Float32Array(NV * 2), idx = [];
     for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) { const a = i * (NZ + 1) + j, b = a + NZ + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
-    topGeo.setIndex(idx); topGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3)); topGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
-    const topMesh = new THREE.Mesh(topGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, emissive: 0x222222, emissiveIntensity: 0.25 })); block.add(topMesh);
-    const wPos = new Float32Array((NX + 1) * (NZ + 1) * 3), wCol = new Float32Array((NX + 1) * (NZ + 1) * 4), waterGeo = new THREE.BufferGeometry();
-    waterGeo.setIndex(idx); waterGeo.setAttribute('position', new THREE.BufferAttribute(wPos, 3)); waterGeo.setAttribute('color', new THREE.BufferAttribute(wCol, 4));
-    const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, roughness: 0.25, metalness: 0, depthWrite: false })); water.renderOrder = 3; block.add(water);
-    const C = { grass: new THREE.Color(0x8db866), grass2: new THREE.Color(0x76a356), rock: new THREE.Color(0xa98452), rock2: new THREE.Color(0x8a6a45), sand: new THREE.Color(0xe2cf93), bed: new THREE.Color(0xb9a274), flat: new THREE.Color(0xb7cf86) };
+    topGeo.setIndex(idx); topGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3)); topGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3)); topGeo.setAttribute('uv', new THREE.BufferAttribute(tUV, 2));
+    const grain = canvasTex(512, 512, (g, w) => {          // 笔触：浅底上撒小点、短划，乘到地面颜色上
+      g.fillStyle = '#f4f4f4'; g.fillRect(0, 0, w, w);
+      for (let i = 0; i < 9000; i++) { const v = 150 + Math.random() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.25 + Math.random() * 0.4})`; const x = Math.random() * w, y = Math.random() * w; if (i % 3) g.fillRect(x, y, 1.6, 1.6); else { g.fillRect(x, y, 1, 3.5); } }
+    });
+    grain.wrapS = grain.wrapT = THREE.RepeatWrapping;
+    const topMesh = new THREE.Mesh(topGeo, new THREE.MeshBasicMaterial({ vertexColors: true, map: grain })); block.add(topMesh);          // 光影直接算进颜色里（像晕渲地图：统一从西北上方来的光，谷底压暗一点），不受书桌灯光的影响
+    const LIGHT = new THREE.Vector3(-0.6, 0.9, -0.5).normalize();
+    const C = { grass: new THREE.Color(0x86b45c), grass2: new THREE.Color(0x5f9447), grass3: new THREE.Color(0xa9c46e), rock: new THREE.Color(0xc29a64), rock2: new THREE.Color(0x8c6840), gully: new THREE.Color(0x4f7a3a), sand: new THREE.Color(0xe7d49a), sand2: new THREE.Color(0xd2b97c), bed: new THREE.Color(0xa8916a), flat: new THREE.Color(0xb3cc80) };
     const tmp = new THREE.Color();
+    const noise = (x, z) => 0.5 + 0.25 * Math.sin(x * 61 + Math.sin(z * 37) * 2) + 0.25 * Math.sin(z * 83 - x * 29 + Math.sin(x * 17));          // 成片的深浅
+
+    // ---- 水：沿河道的一条水带（边缘平滑），上面一层慢慢流动的波纹 ----
+    const ripple = canvasTex(256, 64, (g, w, hh) => {
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, hh);
+      for (let i = 0; i < 70; i++) { const y = Math.random() * hh, x = Math.random() * w, l = 10 + Math.random() * 30; g.strokeStyle = `rgba(210,232,245,${0.4 + Math.random() * 0.4})`; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x, y); g.lineTo(x + l, y + (Math.random() - 0.5) * 2); g.stroke(); }
+    });
+    ripple.wrapS = ripple.wrapT = THREE.RepeatWrapping;
+    const waterGeo = new THREE.BufferGeometry(), WQ = 4;
+    const water = new THREE.Mesh(waterGeo, new THREE.MeshBasicMaterial({ map: ripple, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false })); water.renderOrder = 3; water.raycast = () => {}; block.add(water);
+    const cDeep = new THREE.Color(0x3f86b8), cShallow = new THREE.Color(0x8cc4de);
+    const placeWater = (x1, t) => {
+      const st = stage(t), P = [], Cc = [], U = [], I = [], x0 = st.head + 0.012; let acc = 0, prev = null, row = 0;
+      for (let i = 0; i <= NX; i++) {
+        const x = x0 + (x1 - x0) * (i / NX); if (x1 <= x0) break;
+        const f = smooth(st.head, st.head + 0.04, x), dc = DC * f * (0.6 + 0.4 * st.inc), hw = (WC / 2) * Math.sqrt(Math.max(0, 1 - 0.0016 / Math.max(1e-5, dc))) * smooth(x0, x0 + 0.03, x);
+        const zc = centerZ(x, t), wy = waterY(x, t);
+        if (prev) acc += Math.hypot(x - prev[0], zc - prev[1]); prev = [x, zc];
+        const outerS = Math.sign(-zc) || 0;          // 凹岸在哪一边（−1：北，+1：南）：那边水深、颜色深；凸岸那边水浅，透出沙底
+        for (let q = 0; q <= WQ; q++) { const v = q / WQ, z = zc - hw + 2 * hw * v, side = (v - 0.5) * 2, deep = Math.max(0, Math.min(1, 0.55 + 0.45 * (outerS ? -side * outerS : 0) - Math.abs(side) * 0.25)); P.push(x, wy, z); tmp.copy(cShallow).lerp(cDeep, deep * Math.sin(v * Math.PI) ** 0.5); if (q === 0 || q === WQ) tmp.lerp(new THREE.Color(0xe6f2f7), 0.55); Cc.push(tmp.r, tmp.g, tmp.b); U.push(acc * 26, v); }
+        if (row) { const a = (row - 1) * (WQ + 1); for (let q = 0; q < WQ; q++) I.push(a + q, a + q + 1, a + q + WQ + 1, a + q + 1, a + q + WQ + 2, a + q + WQ + 1); }
+        row++;
+      }
+      waterGeo.dispose(); waterGeo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); waterGeo.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); waterGeo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); waterGeo.setIndex(I); waterGeo.computeVertexNormals(); waterGeo.computeBoundingSphere();
+    };
+
+    // ---- 树：高地上一丛丛的小树；那里被河谷冲掉了，树就跟着没了 ----
+    const NT = 170, trees = new THREE.InstancedMesh(new THREE.ConeGeometry(0.0026, 0.0075, 7).translate(0, 0.0037, 0), new THREE.MeshStandardMaterial({ color: 0x3f6f35, roughness: 0.9, emissive: 0x1d3318, emissiveIntensity: 0.4 }), NT);
+    trees.raycast = () => {}; block.add(trees);
+    const treeAt = Array.from({ length: NT }, (_, k) => { const cl = Math.floor(k / 5), cx = XL + 0.01 + ((cl * 0.618) % 1) * (XR - XL - 0.02), cz = (((cl * 0.377) % 1) * 2 - 1) * (ZD - 0.008); return [cx + (Math.random() - 0.5) * 0.012, Math.max(-ZD + 0.004, Math.min(ZD - 0.004, cz + (Math.random() - 0.5) * 0.012)), 0.7 + Math.random() * 0.6]; });
+    const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), v4 = new THREE.Vector3(), s4 = new THREE.Vector3();
+    const placeTrees = (x1, t) => {
+      treeAt.forEach(([x, z, sc], k) => {
+        const y = heightAt(x, z, t), keep = x < x1 - 0.003 ? smooth(topY(x) - 0.004, topY(x) - 0.0015, y) : 0;          // 只长在原来的高地面上
+        m4.compose(v4.set(x, y - 0.0004, z), q4, s4.setScalar(Math.max(1e-4, sc * keep))); trees.setMatrixAt(k, m4);
+      });
+      trees.instanceMatrix.needsUpdate = true;
+    };
 
     // ---- 侧面：一层层的岩层（切面就是横剖面） ----
-    const strata = canvasTex(512, 256, (g, w, hh) => {
-      const bands = ['#c9a877', '#b8915f', '#d4b98a', '#a07a52', '#c2a06c', '#b08659', '#d0b282'];
-      let y = 0, i = 0; while (y < hh) { const t = 18 + ((i * 13) % 20); g.fillStyle = bands[i % bands.length]; g.fillRect(0, y, w, t); y += t; i++; }
-      g.strokeStyle = 'rgba(70,50,30,0.25)'; g.lineWidth = 1; for (let k = 0; k < hh; k += 9) { g.beginPath(); g.moveTo(0, k); g.lineTo(w, k + ((k * 7) % 5) - 2); g.stroke(); }
+    const strata = canvasTex(512, 512, (g, w, hh) => {          // 细细的一层层岩层（像课本图上那样画线）
+      const bands = ['#d8bf8e', '#cdb07c', '#e0caa0', '#c4a372', '#d3b886', '#bf9c6a'];
+      let y = 0, i = 0; while (y < hh) { const t = 10 + ((i * 7) % 12); g.fillStyle = bands[i % bands.length]; g.fillRect(0, y, w, t); y += t; i++; g.fillStyle = 'rgba(90,62,35,0.55)'; g.fillRect(0, y - 1, w, 1.2); }
+      for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(90,62,35,${Math.random() * 0.25})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 1); }
     });
-    const sideMat = new THREE.MeshStandardMaterial({ map: strata, roughness: 1, emissive: 0xffffff, emissiveMap: strata, emissiveIntensity: 0.2, side: THREE.DoubleSide });
-    const sides = [0, 1, 2, 3].map(() => { const m = new THREE.Mesh(new THREE.BufferGeometry(), sideMat); block.add(m); return m; });
-    const outline = new THREE.LineSegments(new THREE.BufferGeometry(), LINE); outline.raycast = () => {}; block.add(outline);
+    const sides = [0.8, 0.86, 0.74, 0.97].map((c) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: strata, color: new THREE.Color(c, c, c), side: THREE.DoubleSide })); block.add(m); return m; });          // 四个侧面明暗不同；切面最亮
+    const outline = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); outline.raycast = () => {}; block.add(outline);
     const side = (m, pts) => {          // pts：沿着边的顶面点 [x, y, z]；从顶面一直到底（y = 0）
       const P = [], U = [], I = [];
-      pts.forEach(([x, y, z], k) => { P.push(x, y, z, x, 0, z); const s = k / (pts.length - 1); U.push(s * 3, y / 0.08, s * 3, 0); if (k) { const a = (k - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } });
+      pts.forEach(([x, y, z], k) => { P.push(x, y, z, x, 0, z); const s = k / (pts.length - 1); U.push(s * 3, y / 0.06, s * 3, 0); if (k) { const a = (k - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } });
       m.geometry.dispose(); m.geometry = new THREE.BufferGeometry(); m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); m.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); m.geometry.setIndex(I); m.geometry.computeVertexNormals();
     };
 
     const build = () => {
       const t = S.t, x1 = S.cut, st = stage(t);
       for (let i = 0; i <= NX; i++) {
-        const x = XL + (x1 - XL) * (i / NX), fy = floorY(x, t), wy = waterY(x, t), zc = centerZ(x, t);
+        const x = XL + (x1 - XL) * (i / NX);
+        for (let j = 0; j <= NZ; j++) { const z = -ZD + 2 * ZD * (j / NZ), k = i * (NZ + 1) + j; tPos.set([x, heightAt(x, z, t), z], k * 3); tUV.set([x * 9, z * 9], k * 2); }
+      }
+      topGeo.attributes.position.needsUpdate = true; topGeo.attributes.uv.needsUpdate = true; topGeo.computeVertexNormals(); topGeo.computeBoundingSphere(); topGeo.computeBoundingBox();
+      const nrm = topGeo.attributes.normal;
+      for (let i = 0; i <= NX; i++) {
+        const x = XL + (x1 - XL) * (i / NX), fy = floorY(x, t), zc = centerZ(x, t), ty = topY(x);
         for (let j = 0; j <= NZ; j++) {
-          const z = -ZD + 2 * ZD * (j / NZ), y = heightAt(x, z, t), k = i * (NZ + 1) + j;
-          tPos.set([x, y, z], k * 3);
-          // 颜色：高地绿、谷壁岩石、谷底（河漫滩）是沙和草，河道里是河床
-          const top = y > topY(x) - 0.0035, inCh = Math.abs(z - zc) < WC / 2 && y < fy - 0.0004;
-          const n = 0.5 + 0.5 * Math.sin(x * 310 + z * 170) * Math.sin(z * 260 - x * 90);
+          const k = i * (NZ + 1) + j, z = tPos[k * 3 + 2], y = tPos[k * 3 + 1], ny = nrm.getY(k), n = noise(x, z), gl = gullyAt(x, z, t);
+          const steep = smooth(0.93, 0.7, ny), onFloor = y < fy + 0.0012 && st.floorHalf > WC * 0.8, inCh = Math.abs(z - zc) < WC / 2 && y < fy - 0.0004;
+          const o = Math.sign(z - zc) === Math.sign(-centerZ(x, t)) || Math.abs(centerZ(x, t)) < 0.004 ? 1 : 0;          // 1：这一边是凸岸（河湾内侧）
           if (inCh) tmp.copy(C.bed);
-          else if (y < fy + 0.0015 && st.floorHalf > WC) { tmp.copy(C.sand).lerp(C.flat, smooth(0.004, 0.02, Math.abs(z - zc) - WC / 2) * 0.6); if (n > 0.8) tmp.multiplyScalar(0.9); }          // 谷底：靠河是沙（点点砂砾），远一点长了草
-          else if (top) tmp.copy(C.grass).lerp(C.grass2, n * 0.6);
-          else tmp.copy(C.rock).lerp(C.rock2, n * 0.5);
+          else if (onFloor && o && Math.abs(z - zc) - WC / 2 < 0.012 && st.amp > 0.008) tmp.copy(C.sand).lerp(new THREE.Color(0xf0e2b4), 0.5);          // 凸岸：一片浅色的沙洲（堆积）
+          else if (onFloor) { tmp.copy(C.sand).lerp(C.sand2, n * 0.5).lerp(C.flat, smooth(0.006, 0.03, Math.abs(z - zc) - WC / 2) * 0.55 * smooth(0.7, 1, t)); }          // 谷底：靠河是沙和砂砾，离河远、年代久的地方长了草
+          else { tmp.copy(C.grass).lerp(n > 0.55 ? C.grass2 : C.grass3, Math.abs(n - 0.55) * 1.4); const rk = tmp.clone().copy(C.rock).lerp(C.rock2, n * 0.6); tmp.lerp(rk, steep * (0.45 + 0.55 * smooth(0.35, 0.75, n))); if (gl > 0.0012 && y < ty - 0.002) tmp.lerp(C.gully, 0.5); }          // 高地：成片深浅的草；谷壁：岩面；冲沟里长着树丛          // 谷坡上一片片还长着草，露岩的地方是岩面
+          const lam = 0.66 + 0.46 * Math.max(0, nrm.getX(k) * LIGHT.x + nrm.getY(k) * LIGHT.y + nrm.getZ(k) * LIGHT.z), ao = 1 - 0.2 * smooth(0, 0.045, ty - y);
+          tmp.multiplyScalar(lam * ao);
           tCol.set([tmp.r, tmp.g, tmp.b], k * 3);
-          const wet = y < wy && Math.abs(z - zc) < WC / 2 + 0.002 && x > st.head + 0.01;
-          wPos.set([x, wet ? wy : y - 0.002, z], k * 3); wCol.set([0.42, 0.68, 0.82, wet ? 0.88 : 0], k * 4);
         }
       }
-      topGeo.attributes.position.needsUpdate = true; topGeo.attributes.color.needsUpdate = true; topGeo.computeVertexNormals(); topGeo.computeBoundingSphere(); topGeo.computeBoundingBox();
-      waterGeo.attributes.position.needsUpdate = true; waterGeo.attributes.color.needsUpdate = true; waterGeo.computeVertexNormals(); waterGeo.computeBoundingSphere();
+      topGeo.attributes.color.needsUpdate = true;
+      placeWater(x1, t); placeTrees(x1, t);
       const along = (z) => Array.from({ length: NX + 1 }, (_, i) => { const x = XL + (x1 - XL) * (i / NX); return [x, heightAt(x, z, t), z]; });
       const across = (x) => Array.from({ length: NZ + 1 }, (_, j) => { const z = -ZD + 2 * ZD * (j / NZ); return [x, heightAt(x, z, t), z]; });
       const cutPts = across(x1);
@@ -114,10 +158,10 @@ export default {
         const X = x1 + 0.0003; A.push(X, ya, za, X, ya - th, za, X, yb - th, zb, X, ya, za, X, yb - th, zb, X, yb, zb);
       }
       alluv.geometry.dispose(); alluv.geometry = new THREE.BufferGeometry(); alluv.geometry.setAttribute('position', new THREE.Float32BufferAttribute(A, 3)); alluv.visible = A.length > 0;
-      knife.position.set(x1 + 0.006, 0, 0);
+      knife.position.set(x1, 0, 0);
     };
     const alluvTex = canvasTex(128, 32, (g, w, hh) => { g.fillStyle = '#e2cf93'; g.fillRect(0, 0, w, hh); for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(120,95,55,${0.25 + Math.random() * 0.35})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.5, 1.5); } });
-    const alluv = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xe2cf93, side: THREE.DoubleSide })); alluv.raycast = () => {}; block.add(alluv);
+    const alluv = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: alluvTex, side: THREE.DoubleSide })); alluv.raycast = () => {}; block.add(alluv);
     const cutWaterGeo = new THREE.BufferGeometry(), cutWater = new THREE.Mesh(cutWaterGeo, new THREE.MeshBasicMaterial({ color: 0x5aa3cc, transparent: true, opacity: 0.85, side: THREE.DoubleSide })); cutWater.raycast = () => {}; block.add(cutWater);
     const placeCutWater = (x, t) => {
       const zc = centerZ(x, t), wy = waterY(x, t), P = [];
@@ -125,11 +169,16 @@ export default {
       cutWaterGeo.dispose(); cutWaterGeo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); cutWater.visible = P.length > 0;
     };
 
-    // ---- 刀：拖它，地块从刀口切开 ----
+    // ---- 切刀：挂在地块前沿的一根导轨上，拖着它沿导轨走，地块就从刀口切开 ----
+    const steel = new THREE.MeshStandardMaterial({ color: 0xc9ced6, emissive: 0x6b7280, emissiveIntensity: 0.35, metalness: 0.5, roughness: 0.35 });
+    const RY = 0.084, RZ = ZD + 0.007;
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, XR - XL - 0.06, 10), steel); rail.rotation.z = Math.PI / 2; rail.position.set((XL + 0.06 + XR) / 2, RY, RZ); rail.raycast = () => {}; block.add(rail);
+    for (const x of [XL + 0.06, XR]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.0008, 0.0008, RY - topY(x) + 0.002, 8), steel); post.position.set(x, (RY + topY(x)) / 2, RZ); post.raycast = () => {}; block.add(post); }
     const knife = new THREE.Group(); block.add(knife);
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.01, 0.05), new THREE.MeshStandardMaterial({ color: 0xb0412a, emissive: 0xb0412a, emissiveIntensity: 0.3 })); handle.position.y = 0.1; knife.add(handle);
-    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.0012, 0.012, 0.05), new THREE.MeshStandardMaterial({ color: 0xd9dde3, emissive: 0x8a9099, emissiveIntensity: 0.3, metalness: 0.5, roughness: 0.3 })); edge.position.y = 0.089; knife.add(edge);          // 刀刃：只露一小截在切口正上方，不挡切面
-    const knifePick = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.03, 0.07), new THREE.MeshBasicMaterial({ visible: false })); knifePick.position.y = 0.098; knifePick.userData.pick = true; knife.add(knifePick);          // 只包住红把手，不挡渡口
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.0042, 20, 14), new THREE.MeshStandardMaterial({ color: 0xc0462e, emissive: 0x7a2416, emissiveIntensity: 0.35, roughness: 0.45 })); knob.position.set(0, RY, RZ); knife.add(knob);
+    const pointerGeo = new THREE.ConeGeometry(0.0022, 0.006, 3); pointerGeo.rotateX(Math.PI);
+    const ptr = new THREE.Mesh(pointerGeo, knob.material); ptr.position.set(0, RY - 0.0068, RZ); knife.add(ptr);          // 小尖头指着刀口
+    const knifePick = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), new THREE.MeshBasicMaterial({ visible: false })); knifePick.position.set(0, RY - 0.002, RZ); knifePick.userData.pick = true; knife.add(knifePick);
 
     // ---- 渡口：一段木栈桥 + 一间小屋。挪到哪儿，就在哪儿的河岸上 ----
     const makeDock = (south) => {
@@ -159,12 +208,12 @@ export default {
         if (f === 'fell' || (f === 'far' && d.seen !== 'fell')) d.seen = f;          // 这一轮看到过的结局（记录里写）
         const fallen = f === 'fell';
         d.g.position.set(d.x, fallen ? Math.max(y, waterY(d.x, S.t)) - 0.004 : y, d.z); d.g.rotation.x = fallen ? (d.south ? -0.6 : 0.6) : 0;
-        d.tag.loc(block, d.x, y + (d.south ? 0.016 : 0.03), d.z).text(`<b>${name}</b> · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : ''}`);
+        d.tag.loc(block, d.x, y + (d.south ? 0.004 : 0.03), d.z + (d.south ? 0.03 : -0.01)).text(`<b>${name}</b> · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : ''}`);
       }
     };
 
     // ---- 标签 ----
-    const tStage = tag('', 'pill'), tKnife = tag('拖这把刀往上游切，看横剖面', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间大大加快', 'pill');
+    const tStage = tag('', 'pill'), tKnife = tag('拖这个红球往上游走，切开看横剖面', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间大大加快', 'pill');
     const tOuter = tag('凹岸', 'pill'), tInner = tag('凸岸', 'pill'), tPlain = tag('河漫滩（凸岸堆积的泥沙）', 'pill');
     const stageOf = (t) => (t < 0.08 ? 0 : t < 0.35 ? 1 : t < 0.6 ? 2 : t < 0.93 ? 3 : 4);
     const STAGE = [
@@ -177,10 +226,10 @@ export default {
     const placeTags = () => {
       const t = S.t, x1 = S.cut, s = stageOf(t), st = stage(t);
       tStage.loc(block, x1, 0.095, -ZD + 0.02).text(STAGE[s][1] || '横剖面').show(s > 0);
-      tKnife.loc(block, x1 + 0.006, 0.12, 0).show(!S.cutMoved && t > 0.15);
+      tKnife.loc(block, x1 - 0.045, RY + 0.01, RZ + 0.004).show(!S.cutMoved && t > 0.15);          // 写在导轨上方、红球的上游那边
       const xb = APEX - LAM / 2, bend = st.amp > 0.012 && x1 > xb + 0.02, zc = centerZ(xb, t);          // 另一个湾（向南凸）标上凹岸、凸岸；有渡口的那个湾看渡口的牌子
       tOuter.loc(block, xb, waterY(xb, t) + 0.006, zc + WC / 2 + 0.004).show(bend); tInner.loc(block, xb, waterY(xb, t) + 0.006, zc - WC / 2 - 0.014).show(bend);
-      tPlain.loc(block, xb + 0.03, floorY(xb, t) + 0.004, centerZ(xb, t) - WC / 2 - 0.03).show(t > 0.75 && x1 > xb + 0.04);
+      tPlain.loc(block, xb - 0.045, floorY(xb, t) + 0.004, centerZ(xb - 0.045, t) - WC / 2 - 0.022).show(t > 0.75 && x1 > xb + 0.02);          // 离凹岸、凸岸的牌子远一点
       tScale.loc(block, XL + 0.07, -0.006, ZD + 0.01);
     };
 
@@ -245,6 +294,7 @@ export default {
         S.said = -1; record();
       },
       update(dt) {
+        ripple.offset.x -= dt * 0.35;          // 水往下游流（+x）
         if (S.play) { setT(S.t + dt / 24); if (S.t >= 1) { S.play = false; if (W) W.play.textContent = '流下去'; } }
       },
     };
