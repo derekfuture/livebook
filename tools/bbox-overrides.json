@@ -793,6 +793,7 @@
   "doubleslit": [66, 456, 376, 542],
   "glasspins": [381, 515, 537, 658],
   "pendulumgravity": [393, 467, 541, 667],
+  "ballrange": [299, 508, 537, 718],
   "momentum": [66, 522, 521, 696],
   "capacitor": [55, 578, 200, 681],
   "multimeter": [214, 339, 413, 602],
