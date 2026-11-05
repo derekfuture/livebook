@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { paint, inked } from '../../live/ink.js';
+import { paint } from '../../live/ink.js';
 import { battery, switchPart } from './circuit.js';
-import { textPlate } from './props.js';
+import { block, caption, wireGeometry, wire } from './electronicsBench.js';
 import { relayMechanism } from './relayMechanism.js';
 
 export const HINGE = -0.218,
@@ -11,33 +11,6 @@ export const HINGE = -0.218,
 export const MOUNT_Z = 0.012;
 const reedY = MOUNT_Y + 0.0105;
 const vec = (x, y, z) => new THREE.Vector3(x, y, z);
-function block(parent, w, h, d, x, y, z, c) {
-  const obj = inked(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), paint(c)), { width: 0.65 });
-  obj.position.set(x, y, z);
-  parent.add(obj);
-  return obj;
-}
-function caption(parent, text, x, y, z, w = 0.034, h = 0.011) {
-  const tag = textPlate(text, { w, h, bg: '#e4d9bd', color: '#383b3b' });
-  tag.rotation.x = -Math.PI / 2;
-  tag.position.set(x, y, z);
-  parent.add(tag);
-}
-function wireGeometry(points, r = 0.0012) {
-  return new THREE.TubeGeometry(
-    new THREE.CatmullRomCurve3(points.map((p) => (Array.isArray(p) ? vec(...p) : p))),
-    Math.max(22, points.length * 6),
-    r,
-    7,
-    false,
-  );
-}
-function wire(parent, points, color, r) {
-  const obj = new THREE.Mesh(wireGeometry(points, r), paint(color));
-  parent.add(obj);
-  obj.raycast = () => {};
-  return obj;
-}
 export function alarmRig() {
   const group = new THREE.Group();
   block(group, 0.153, 0.009, 0.088, HINGE + 0.055, 0.0045, DOOR_Z, 0x9c7756);
@@ -89,7 +62,7 @@ export function alarmRig() {
   relay.group.scale.setScalar(0.8);
   group.add(relay.group);
   const board = block(group, 0.257, 0.007, 0.159, 0.085, 0.0035, 0.034, 0xc9ae84);
-  board.position.y = -0.0035;
+  board.position.y = -0.0031;
   const E = battery('E', { cells: 4 }),
     S = switchPart('S');
   E.group.scale.setScalar(0.75);

@@ -781,6 +781,7 @@
   "centripetal": [62, 56, 303, 239],
   "fallenergy": [376, 405, 522, 619],
   "projectile": [416, 621, 507, 736],
+  "lightswitch": [65, 500, 190, 617],
   "dooralarm": [412, 479, 538, 578],
   "transformer": [115, 147, 488, 288],
   "lenzcoil": [114, 126, 485, 249],
