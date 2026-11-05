@@ -21,6 +21,16 @@ LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
 VERIFIED_TOC = Path(os.environ.get("LIVEBOOK_VERIFIED_TOC", ROOT / "pdf" / "章节与选点.tsv")).expanduser()
 
 BOOKS = {
+    "wuli-hsx3": {
+        "code": "hsx3", "title": "物理 高中选择性必修第三册", "publisher": "人民教育出版社",
+        "pdf": LIB / "选择性必修第三册.pdf", "toc": LIB / "选择性必修第三册.目录树.json",
+        "first_body_index": 5, "page_offset": 4,
+        "printed_pages": [[1, 2, 7, 10, 14], [18, 19, 23, 26, 31, 36], [45, 46, 50, 54, 59],
+                          [66, 67, 71, 78, 84, 92], [100, 101, 108, 115, 119, 126], [132]],
+        "appendices": [("索引", 136)],
+        # 平台目录另附的复习资料不在本版 143 页教材中。
+        "exclude_chapters": ["高考复习"],
+    },
     "wuli-hsx2": {
         "code": "hsx2", "title": "物理 高中选择性必修第二册", "publisher": "人民教育出版社",
         "pdf": LIB / "选择性必修第二册.pdf", "toc": LIB / "选择性必修第二册.目录树.json",
@@ -178,6 +188,8 @@ def main(book_id):
     print()
 
     chapters = apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"])
+    if "exclude_chapters" in cfg:
+        chapters = [c for c in chapters if c["title"] not in cfg["exclude_chapters"]]
     if "printed_pages" in cfg:
         for chapter, pages in zip(chapters, cfg["printed_pages"]):
             chapter["page"] = pages[0] + cfg["page_offset"]
