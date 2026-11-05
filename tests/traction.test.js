@@ -31,3 +31,19 @@ test('补偿后小车受绳张力，悬挂物受重力减张力；纸带独立�
   const stuck = record({ lift: 0 }, 30);
   assert.equal(stuck.x, 0);
 });
+
+test('手推试滑从松手位置开始，纸带记录离手后的位移', () => {
+  const run = tractionRun({
+    mode: 'balance',
+    lift: 15,
+    cartIndex: 0,
+    hangerIndex: 0,
+    pushSpeed: 0.2,
+    startOffset: 0.04,
+  });
+  power(run, true);
+  advance(run, 0.3);
+  assert.ok(Math.abs(run.marks[15].x - 0.06) < 1e-10);
+  advance(run, run.end);
+  assert.ok(Math.abs(run.startOffset + run.x - TRAVEL) < 1e-10);
+});

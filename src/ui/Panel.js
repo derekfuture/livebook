@@ -110,7 +110,7 @@ export class Panel {
 
     this.steps = [s1, s2, s3];
     el.append(
-      foldable ? h('div', { class: 'p-spine', onclick: () => this.fold(false) }, def.title) : null,
+      foldable ? h('div', { class: 'p-spine', onclick: () => this.fold(false) }, def.sceneFirst ? '实验记录 · ' + def.title : def.title) : null,
       h('div', { class: 'p-head' },
         foldable ? h('span', { class: 'p-tuck', title: '收起', onclick: () => this.fold(true) }, '‹') : null,
         h('div', { class: 'p-fig' }, `${def.fig} · ${pageLabel}`),
@@ -120,6 +120,7 @@ export class Panel {
       h('div', { class: 'p-tabs' }, tabs),
       h('div', { class: 'p-body' }, s1, s2, s3));
     this.go(0);
+    if (def.sceneFirst && foldable && el.classList.contains("board")) this.fold(true);
     this.need(def.need || '');
     // 上次的记录：只读地放在数据区下面；盖过章的可以直接掀开结论
     const prev = JSON.parse(localStorage.getItem(`livebook.record.${def.id}`) || 'null');
@@ -140,6 +141,7 @@ export class Panel {
       now: this.nowEl,
       el: this.el,
       go: (i) => this.go(i),
+      fold: (on) => this.fold(on),
     };
   }
 
@@ -150,6 +152,11 @@ export class Panel {
   }
 
   go(i) {
+    if (i === 1 && this.step !== 1 && this.def.sceneFirst && this.el.classList.contains('board')) this.fold(true);
+    if (this.def.sceneFirst) {
+      const spine = this.el.querySelector('.p-spine');
+      if (spine) spine.textContent = i === 0 ? '先猜一猜 · 实验记录' : '实验记录 · ' + this.def.title;
+    }
     this.step = i;
     this.steps.forEach((s, k) => (s.hidden = k !== i));
     this.tabs.forEach((t, k) => t.classList.toggle('on', k === i));

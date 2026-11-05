@@ -1,11 +1,22 @@
 import { PERIOD, centers } from './motion.js';
 import './reader.css';
+import { paperDesk } from './bench.js';
 
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const button = (text) => Object.assign(document.createElement('button'), { type: 'button', textContent: text });
 
 // 整条纸带选起点，放大镜下用两条游标量相隔十个打点间隔的距离。
-export function tapeReader(onRecord, status) {
+export function tapeReader(onRecord, status, showGraph) {
+  const desk = paperDesk('量纸带');
+  const launcher = button('再看纸带');
+  launcher.hidden = true;
+  launcher.onclick = () => {
+    desk.open();
+    render();
+  };
+  const result = document.createElement('p');
+  result.className = 'paper-result';
+  result.setAttribute('aria-live', 'polite');
   const el = document.createElement('section');
   el.className = 'tape-reader';
   el.hidden = true;
@@ -30,7 +41,17 @@ export function tapeReader(onRecord, status) {
     el.querySelector('.tape-values').append(node);
     return input;
   });
-  el.append(stamp);
+  const graphButton = button('看这次的图表');
+  graphButton.onclick = () => {
+    desk.dialog.close();
+    showGraph(sheet);
+  };
+  const fields = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = '用数字微调游标';
+  fields.append(summary, el.querySelector('.tape-values'));
+  el.append(fields, stamp, result, graphButton);
+  desk.dialog.append(el);
   const sheets = [];
   let sheet = null,
     origin = 0,
@@ -107,8 +128,16 @@ export function tapeReader(onRecord, status) {
       const x = px(Number(input.value));
       ctx.fillStyle = k ? '#b64c28' : '#176e74';
       ctx.fillRect(x - 1, 21, 2, 57);
-      ctx.fillRect(x - 7, 92, 14, 5);
+      ctx.beginPath();
+      ctx.moveTo(x, 78);
+      ctx.lineTo(x - 9, 91);
+      ctx.lineTo(x + 9, 91);
+      ctx.closePath();
+      ctx.fill();
+      ctx.font = '11px sans-serif';
+      ctx.fillText(Number(input.value).toFixed(1), clamp(x - 8, 1, W - 25), 105);
     }
+    graphButton.hidden = !sheet.used.size;
     stamp.disabled = sheet.used.has(c) || !!sheet.complete;
     stamp.textContent = sheet.used.has(c) ? '这个点已记录' : sheet.complete ? '本条加速度已记录' : '把测量点记入图表';
   }
@@ -133,6 +162,7 @@ export function tapeReader(onRecord, status) {
   }
   function choose(i) {
     sheet = sheets[i];
+    result.textContent = '';
     select.value = String(i);
     origin = sheet.origin;
     indices = centers(t(), origin);
@@ -198,24 +228,39 @@ export function tapeReader(onRecord, status) {
       Math.abs(b - (xMM(c + 5) - base)) > 1 ||
       b <= a
     ) {
-      status('把左、右游标分别对准 A、B 的点心。尺上每小格 1 mm。');
+      result.textContent = '左、右游标分别对准 A、B 的点心。尺上每小格 1 mm。';
+      status(result.textContent);
       return;
     }
     sheet.used.set(c, [a, b]);
-    onRecord(sheet, (c - origin) * PERIOD, (b - a) / 1000 / (10 * PERIOD), a, b);
+    const velocity = (b - a) / 1000 / (10 * PERIOD);
+    onRecord(sheet, (c - origin) * PERIOD, velocity, a, b);
+    result.textContent =
+      '已记录 ' +
+      label.textContent +
+      ' 的速度 ' +
+      velocity.toFixed(3) +
+      ' m/s。' +
+      (sheet.complete
+        ? '由这两次速度读数算得加速度 ' + sheet.acceleration.toFixed(3) + ' m/s²。'
+        : sheet.used.size < 2
+          ? '点「下一点」再量一次。'
+          : '可以放回实验台，换一条纸带。');
     render();
   };
   const observer = new ResizeObserver(render);
   observer.observe(el);
   return {
-    el,
+    el: launcher,
     add(run, trial) {
       const first = run.marks.findIndex((_, i) => centers(run.marks, i).length);
       if (first < 0) return false;
       const sheet = { run, trial, origin: first, used: new Map(), points: [] };
       sheets.push(sheet);
       select.add(new Option('第 ' + trial + ' 条 · ' + run.load * 1000 + ' g', String(sheets.length - 1)));
-      el.hidden = false;
+      el.hidden = launcher.hidden = false;
+      result.textContent = '';
+      desk.open();
       choose(sheets.length - 1);
       return true;
     },
@@ -223,10 +268,12 @@ export function tapeReader(onRecord, status) {
       sheet = null;
       sheets.length = 0;
       select.replaceChildren();
-      el.hidden = true;
+      el.hidden = launcher.hidden = true;
+      desk.dialog.close();
     },
     dispose() {
       observer.disconnect();
+      desk.dispose();
     },
   };
 }

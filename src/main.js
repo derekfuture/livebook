@@ -332,7 +332,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   stage.updaters.add(() => { if (stage._interacting) updateViewCtl(); });
 
   addEventListener('keydown', (e) => {
-    if (e.target.closest?.('input, textarea')) return;
+    if (document.querySelector('dialog:modal') || e.target.closest?.('input, textarea')) return;
     if (e.key === 'Escape') { if (live.isOpen) live.close(); else drawer.hidden = true; }
     if (live.isOpen) return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); book.next(); hideHint(); }

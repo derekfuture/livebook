@@ -41,7 +41,7 @@ export function apparatus({ adjustable = false } = {}) {
     return line;
   }
   // 木板下面留出真实下落空间；桌沿不得挡住槽码。
-  box(group, [0.72, 0.018, 0.115], [0.08, TOP - 0.009, 0], wood, true);
+  const board = box(group, [0.72, 0.018, 0.115], [0.08, TOP - 0.009, 0], wood, true);
   const stand = new THREE.Group();
   group.add(stand);
   for (const x of [-0.235, 0.398]) {
@@ -79,7 +79,7 @@ export function apparatus({ adjustable = false } = {}) {
   const cart = new THREE.Group();
   group.add(cart);
   box(cart, [0.104, 0.023, 0.059], [0, 0.03, 0], teal, true);
-  box(cart, [0.086, 0.006, 0.049], [0, 0.044, 0], 0xb9d2cd);
+  const cartTop = box(cart, [0.086, 0.006, 0.049], [0, 0.044, 0], 0xb9d2cd);
   const tires = [];
   for (const x of [-0.033, 0.033])
     for (const z of [-0.032, 0.032]) {
@@ -209,8 +209,9 @@ export function apparatus({ adjustable = false } = {}) {
       ballast.forEach((w, i) => (w.visible = i < (run.ballast || 0)));
       pan.visible = vertical.visible = horizontal.visible = wrappedCord.visible = run.load > 0;
     }
-    const x = START - run.x,
-      drop = TRAVEL + (adjustable ? 0.046 : 0.04) - run.x;
+    const travel = (run.startOffset || 0) + run.x;
+    const x = START - travel,
+      drop = TRAVEL + (adjustable ? 0.046 : 0.04) - travel;
     cart.position.set(x, TOP, 0);
     pan.position.set(PX - R, drop, 0);
     const heavy = adjustable && run.load === 0.15;
@@ -225,8 +226,8 @@ export function apparatus({ adjustable = false } = {}) {
       pan.rotation.z = vertical.rotation.z = -angle;
       heavyWeight.visible = heavy;
     }
-    wheel.rotation.z = run.x / R;
-    tires.forEach((w) => (w.rotation.y = run.x / 0.011));
+    wheel.rotation.z = travel / R;
+    tires.forEach((w) => (w.rotation.y = travel / 0.011));
     const h = x - 0.052 - PX;
     horizontal.position.set(PX + h / 2, LINE, 0);
     horizontal.scale.y = h;
@@ -238,7 +239,7 @@ export function apparatus({ adjustable = false } = {}) {
     const from = x + 0.055;
     strip.position.set((from + EDGE) / 2, PAPER_Y, 0);
     strip.scale.x = EDGE - from;
-    const remain = TRAVEL + 0.024 - run.x;
+    const remain = TRAVEL + 0.024 - travel;
     tail.position.set(EDGE, PAPER_Y - remain / 2, 0);
     tail.scale.x = remain;
     dots.count = run.marks.length;
@@ -253,6 +254,9 @@ export function apparatus({ adjustable = false } = {}) {
   }
   return {
     group: base,
+    board,
+    cartTop,
+    support,
     cart,
     pan,
     timer,
