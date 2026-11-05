@@ -2248,5 +2248,30 @@
     "label": "图3.6 · 翻开活页"
    }
   ]
+ },
+ "dili-bx1": {
+  "id": "dili-bx1",
+  "title": "地理 必修第一册",
+  "base": "/books/dili-bx1/",
+  "lessons": {
+   "thermal": {
+    "title": "热力环流的形成示意",
+    "fig": "图2.11",
+    "sec": "第二章第二节 大气受热过程和大气运动"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "thermal",
+    "page": 40,
+    "bbox": [
+     41,
+     241,
+     214,
+     490
+    ],
+    "label": "图2.11 · 翻开活页"
+   }
+  ]
  }
 }
