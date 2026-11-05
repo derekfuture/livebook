@@ -101,6 +101,12 @@ export class LiveLayer {
         stage.shot({ target: tgt, dir: new THREE.Vector3(...localDir).applyQuaternion(q), dist: dist * this.active.s * lookFit(stage), minEl: Math.abs(localDir[1]) < 0.05 ? 0 : 0.17 });     // 方向几乎水平：就是要平视（读量筒、温度计）
         tagFocus(tgt, dist * this.active.s * 0.35);
       },
+      // 插针法等实验需要固定眼位，不能随屏宽改变眼睛到玻璃的距离。
+      lookFrom: (eye, target, onExit) => {
+        const dir = new THREE.Vector3(...eye).sub(new THREE.Vector3(...target));
+        const dist = dir.length();
+        ctx.look(target, dir.normalize().toArray(), dist / lookFit(stage), onExit);
+      },
       // 实验换了一套器材（场景）以后，按新器材重新取景
       reframe: () => requestAnimationFrame(() => this._reframe?.()),
       back: () => this._back(),
