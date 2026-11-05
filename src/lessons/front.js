@@ -8,9 +8,9 @@ import * as THREE from 'three';
 import { goals, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 
-const G = 0.006;                       // 地面顶面
-const XL = -0.17, XR = 0.17, ZD = 0.09; // 地面范围
-const HC = 0.068, LAM = 0.085;            // 冷锋锋面的形状：h(s) = HC·(1 − e^(−s/λ))，s 是离锋线往后（冷气团一侧）的距离；近地面陡、高处缓
+const G = 0.022;                       // 地面顶面（地块有厚度，侧面露出土层）
+const XL = -0.17, XR = 0.17, ZD = 0.062; // 地面范围（窄一些：像从地上切下来的一块）
+const HC = 0.13, LAM = 0.12;            // 冷锋锋面的形状：h(s) = HC·(1 − e^(−s/λ))，s 是离锋线往后（冷气团一侧）的距离；近地面陡、高处缓
 const X0 = -0.02, X1 = 0.115;          // 锋线从哪推到哪
 const front = (s) => HC * (1 - Math.exp(-Math.max(0, s) / LAM));
 const rnd = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
@@ -40,10 +40,17 @@ export default {
 
     // 光用舞台自己的（加灯会把整本书照白）：线稿时颜色自己发光（平涂），推起来以后才受光
 
+    // 镜头取景用：整块地加上云塔长到最高的范围（看不见；打开时云还没长出来，镜头也要把它算进去）
+    const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.2, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    frameBox.position.y = 0.1; frameBox.raycast = () => {}; group.add(frameBox);
     // ---- 地面（图 3.2 那块绿色的板） ----
     const groundMat = lit(0x9cc98a);
-    const ground = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, G, ZD * 2), groundMat));
-    ground.position.y = G / 2; ground.receiveShadow = true; group.add(ground);
+    const ground = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.004, ZD * 2), groundMat));
+    ground.position.y = G - 0.002; ground.receiveShadow = true; group.add(ground);
+    // 地块的土层（侧面看得见）：表土、心土、底土
+    const soil = [[0xa07a52, 0.006], [0xb8915f, 0.006], [0xc9a877, G - 0.016]];
+    let yy = G - 0.004;
+    for (const [c, t] of soil) { const m = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, t, ZD * 2), lit(c))); m.position.y = yy - t / 2; yy -= t; group.add(m); }
     // 真实的地面：田野、小路（推起来以后盖上来）
     const fields = canvasTex(1024, 540, (g, w, h) => {
       g.fillStyle = '#86b06a'; g.fillRect(0, 0, w, h);
@@ -138,13 +145,13 @@ export default {
       g.globalCompositeOperation = 'destination-out';
       for (let i = 0; i < 260; i++) { const a = Math.random() * Math.PI * 2, r = (0.3 + Math.random() * 0.7) * w / 2; g.fillStyle = `rgba(0,0,0,${Math.random() * 0.25})`; g.beginPath(); g.arc(w / 2 + Math.cos(a) * r, w / 2 + Math.sin(a) * r, 4 + Math.random() * 14, 0, 7); g.fill(); }
     });
-    for (let i = 0; i < 90; i++) {          // 一座云塔：骑在锋线上、长在锋面上方的暖空气里，越往上越窄，顶上摊开一点（积雨云）
-      const s = -0.012 + Math.pow(rnd(), 1.3) * 0.05, base = Math.max(0.02, front(s) + 0.004), hgt = 0.052 * Math.exp(-Math.abs(s - 0.006) / 0.026);
-      const y = base + Math.pow(rnd(), 0.8) * hgt, k = (y - base) / Math.max(hgt, 1e-3), top = k > 0.82, r = (0.012 + rnd() * 0.009) * (top ? 1.5 : 1);          // 云底平（凝结的高度），顶上摊开、往暖空气那边伸（砧状云顶）
+    for (let i = 0; i < 130; i++) {          // 一座云塔：骑在锋线上、长在锋面上方的暖空气里，越往上越窄，顶上摊开一点（积雨云）
+      const s = -0.014 + Math.pow(rnd(), 1.3) * 0.055, base = Math.max(0.026, front(s) + 0.004), hgt = 0.12 * Math.exp(-Math.abs(s - 0.004) / 0.03);
+      const y = base + Math.pow(rnd(), 0.8) * hgt, k = (y - base) / Math.max(hgt, 1e-3), top = k > 0.82, r = (0.013 + rnd() * 0.01) * (top ? 1.6 : 1);          // 云底平（凝结的高度），顶上摊开、往暖空气那边伸（砧状云顶）
       const shade = 0.72 + 0.28 * Math.min(1, k * 1.3);          // 云底灰、云顶白
       const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(shade, shade, shade * 1.02), transparent: true, depthWrite: false, opacity: 0.9 }));
       m.renderOrder = 8; m.raycast = () => {};
-      m.userData = { s: s - (top ? 0.03 * rnd() : 0), y, r, z: -ZD * 0.85 + rnd() * ZD * 1.7, born: 0.12 + k * 0.55 + rnd() * 0.12 };
+      m.userData = { s: s - (top ? 0.045 * rnd() : 0), y, r, z: -ZD * 0.85 + rnd() * ZD * 1.7, born: 0.12 + k * 0.55 + rnd() * 0.12 };
       puffs.push(m); group.add(m);
     }
     const placeClouds = () => {
@@ -161,15 +168,15 @@ export default {
     rain.geometry.setAttribute('position', new THREE.BufferAttribute(rainPos, 3)); rain.raycast = () => {}; group.add(rain);
     // 雨幕：云底下一道灰蓝色、往下变淡的帘子
     const curtainTex = canvasTex(64, 128, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(80,100,130,0.9)'); gr.addColorStop(1, 'rgba(80,100,130,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
-    const curtain = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.018, ZD * 1.7), new THREE.MeshBasicMaterial({ map: curtainTex, transparent: true, depthWrite: false, opacity: 0 })); curtain.visible = false; curtain.renderOrder = 4; curtain.raycast = () => {}; group.add(curtain);
+    const curtain = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.024, ZD * 1.7), new THREE.MeshBasicMaterial({ map: curtainTex, transparent: true, depthWrite: false, opacity: 0 })); curtain.visible = false; curtain.renderOrder = 4; curtain.raycast = () => {}; group.add(curtain);
     const placeRain = () => {
       const on = smooth(0.55, 0.8, S.pushed) * S.rise; rain.visible = on > 0.02; if (!rain.visible) { curtain.visible = false; return; }
       for (let i = 0; i < NR; i++) {
-        const [a, b, c] = rainSeed[i], x = S.xf - 0.002 - a * 0.045, base = 0.018, y = G + base - (((c + S.t * 1.1) % 1) * base);
+        const [a, b, c] = rainSeed[i], x = S.xf - 0.002 - a * 0.045, base = 0.024, y = G + base - (((c + S.t * 1.1) % 1) * base);
         rainPos.set([x, y, -ZD * 0.85 + b * ZD * 1.7, x - 0.0015, y - 0.008, -ZD * 0.85 + b * ZD * 1.7], i * 6);
       }
       rain.geometry.attributes.position.needsUpdate = true; rain.material.opacity = 0.85 * on;
-      curtain.visible = true; curtain.position.set(S.xf - 0.024, G + 0.009, 0); curtain.material.opacity = 0.32 * on;
+      curtain.visible = true; curtain.position.set(S.xf - 0.024, G + 0.012, 0); curtain.material.opacity = 0.32 * on;
     };
 
     // ---- 冷锋符号：地上锋线一排蓝三角，尖朝前进方向（天气图上的画法） ----
@@ -237,8 +244,9 @@ export default {
     layout();
     return {
       group,
-      size: { w: 0.4, d: 0.3, h: 0.13 },          // 台板比地面大一圈：盖住书页上印着的图 3.3，免得从后面透出来
-      view: { elev: 16, azim: 24, lookY: 0.38, frameMargin: 0.92 },          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面
+      card: false,          // 和化学一样：直接立在书页上，不垫台板
+      size: { w: 0.36, d: 0.13, h: 0.22 },
+      view: { elev: 10, azim: 20, lookY: 0.42, frameMargin: 1.02 },          // 镜头放低：锋面、云塔往上长，看得出高          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面
       pointer,
       mount(ui) {
         W = { ui, goal: goals(ui, [['push', '按住冷气团往右推，看云和雨出现在哪里']]) };
