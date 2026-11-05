@@ -2270,6 +2270,11 @@
   "title": "物理 高中必修第三册",
   "base": "/books/wuli-hs3/",
   "lessons": {
+   "capacitor": {
+    "title": "观察电容器的充、放电现象",
+    "fig": "图10.4-1",
+    "sec": "电容器的电容"
+   },
    "caliper": {
     "title": "游标卡尺测圆管的外径与内径",
     "fig": "图11.3-1",
@@ -2297,6 +2302,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "capacitor",
+    "page": 42,
+    "bbox": [
+     55,
+     578,
+     200,
+     681
+    ],
+    "label": "图10.4-1 · 翻开活页"
+   },
    {
     "lesson": "caliper",
     "page": 66,
