@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { paint, inked, polyline } from '../../../live/ink.js';
 import { canvasTex } from '../props.js';
+import { stampMass } from './loadRack.js';
 import { PERIOD, TRAVEL } from './motion.js';
 
 const TOP = 0.42,
@@ -92,10 +93,6 @@ export function apparatus({ adjustable = false } = {}) {
   group.add(pan);
   cyl(pan, 0.019, 0.005, [0, -0.037, 0], gold);
   cyl(pan, 0.0015, 0.037, [0, -0.0185, 0], metal);
-  const weights = Array.from({ length: 4 }, (_, i) =>
-    cyl(pan, 0.017, 0.0058, [0, -0.031 + i * 0.006, 0], i % 2 ? 0xb99250 : 0xd8b775),
-  );
-
   const cordMat = paint(0x393936);
   const cord = (vertical) => {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, 1, 8), cordMat);
@@ -187,16 +184,17 @@ export function apparatus({ adjustable = false } = {}) {
   const marker = new THREE.Object3D();
   marker.rotation.x = -Math.PI / 2;
   const base = adjustable ? new THREE.Group() : group;
-  let support, ballast, heavyWeight;
+  let support, ballast;
+  const markings = [];
   if (adjustable) {
     base.add(stand, group);
-    heavyWeight = cyl(pan, 0.034, 0.0218, [0, -0.0236, 0], gold);
     // 挡块接触车头两侧，中央留出牵引绳通道。
     for (const z of [-0.022, 0.022])
       box(group, [0.009, 0.034, 0.014], [START - TRAVEL - 0.052 - 0.0045, TOP + 0.017, z], metal);
     support = box(base, [0.052, 1, 0.11], [0.398, TOP - 0.018, 0], wood);
     ballast = [0.23, 0.32].map((x) => {
       const weight = box(base, [0.068, 0.009, 0.043], [x, 0.0045, 0.12], gold, true);
+      markings.push(stampMass(weight, 250, 0.052, 0.026, 0.0045));
       weight.userData.home = weight.position.clone();
       return weight;
     });
@@ -225,16 +223,13 @@ export function apparatus({ adjustable = false } = {}) {
         else w.position.copy(w.userData.home);
         w.quaternion.identity();
       });
-      vertical.visible = horizontal.visible = wrappedCord.visible = run.load > 0;
+      horizontal.visible = wrappedCord.visible = run.load > 0;
     }
     const travel = (run.startOffset || 0) + run.x;
     const x = START - travel,
-      drop = TRAVEL + (adjustable ? 0.046 : 0.04) - travel;
+      drop = adjustable && !run.load ? 0.381 : TRAVEL + (adjustable ? 0.046 : 0.04) - travel;
     cart.position.set(x, TOP, 0);
     pan.position.set(PX - R, drop, 0);
-    const heavy = adjustable && run.load === 0.15;
-    const count = adjustable ? run.discs : Math.round(run.load / 0.025);
-    weights.forEach((w, i) => (w.visible = !heavy && i < count));
     if (adjustable) {
       // 槽码及下垂绳段在世界坐标系中铅直。
       const v = LINE - R - drop;
@@ -242,11 +237,6 @@ export function apparatus({ adjustable = false } = {}) {
         anchorY = LINE - R + R * Math.sin(angle);
       pan.position.set(anchorX - v * Math.sin(angle), anchorY - v * Math.cos(angle), 0);
       pan.rotation.z = vertical.rotation.z = -angle;
-      heavyWeight.visible = heavy;
-      if (!run.load) {
-        group.updateMatrix();
-        pan.position.set(-0.32, 0.04, 0.072).applyMatrix4(group.matrix.clone().invert());
-      }
     }
     wheel.rotation.z = travel / R;
     tires.forEach((w) => (w.rotation.y = travel / 0.011));
@@ -284,6 +274,9 @@ export function apparatus({ adjustable = false } = {}) {
     timer,
     strip,
     draw,
+    dispose() {
+      for (const texture of markings) texture.dispose();
+    },
     setPaperVisible(visible) {
       strip.visible = tail.visible = dots.visible = visible;
     },

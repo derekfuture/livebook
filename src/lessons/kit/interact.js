@@ -65,7 +65,10 @@ export function draggable(root, drags, { onClick, taps = [], tip, highlight = fa
   };
   const all = () => [...drags, ...taps];
   let hovered = null;
+  const leave = () => { hovered = null; canvas().style.cursor = ''; if(halo)showHint(null); };
+  if(highlight)canvas().addEventListener('pointerleave', leave);
   return {
+    dispose() { if(highlight)canvas().removeEventListener('pointerleave', leave); },
     items: all,          // 给测试脚本用：列出能拖 / 能点的东西
     hovered: () => hovered,      // 给测试脚本用：鼠标现在停在哪件东西上
     down(ray, e) {

@@ -492,6 +492,13 @@ canvas.chart { cursor: zoom-in; }
   width: min(820px, calc(100vw - 470px)); padding: 8px 12px 8px 10px; background: #fffdf7; border: 1px solid rgba(43,49,66,.22); border-top: 2px solid var(--pep);
   box-shadow: 0 6px 20px rgba(60,40,10,.14); font: 16px/1.45 var(--kai); color: var(--ink); transition: background .35s, color .35s, border-color .35s; }
 body:not(.lesson-on) .lbar, body.predicting .lbar { display: none; }
+body.predicting:not(.hide-steps):has(#panel.folded) .lbar.do { display:flex; }
+@media (min-width:761px) { body:has(#panel.folded) .lbar { left:50%; width:min(820px,calc(100vw - 140px)); } }
+@media (max-width:760px) {
+  .lbar { left:50%; width:calc(100vw - 24px); bottom:calc(52vh + 12px); gap:6px; font-size:14px; }
+  body:has(#panel.folded) .lbar { bottom:46px; }
+  .lb-steps { flex-wrap:wrap; max-width:35%; }
+}
 .lbar button { border: 0; background: none; font: 13px/1 var(--song); color: var(--ink2); cursor: pointer; padding: 6px 4px; white-space: nowrap; }
 .lbar button:hover { color: var(--pep); }
 .lb-seal { flex: none; font: 700 13px/1 var(--song); color: var(--pep); border: 1.6px solid currentColor; border-radius: 2px; padding: 4px 3px; writing-mode: vertical-rl; letter-spacing: .15em; transform: rotate(-4deg); }

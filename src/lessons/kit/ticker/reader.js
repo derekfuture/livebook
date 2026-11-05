@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { canvasTex } from '../props.js';
 import { clamp } from '../interact.js';
 import { buttons } from '../ui.js';
-import { PERIOD, centers } from './motion.js';
+import { PERIOD, TRAVEL, centers } from './motion.js';
 
 const WIDTH = 0.36,
   DEPTH = 0.155,
@@ -13,7 +13,7 @@ const W = 1440,
   H = 420,
   LEFT = 60,
   RIGHT = W - LEFT;
-export function tapeReader(group, { look, back }) {
+export function tapeReader(group, { look, back }, bar, onViewChange) {
   const texture = canvasTex(W, H, () => {});
   const paper = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH, DEPTH), new THREE.MeshBasicMaterial({ map: texture }));
   paper.rotation.x = -Math.PI / 2;
@@ -81,14 +81,20 @@ export function tapeReader(group, { look, back }) {
     if (inspecting) {
       back();
       inspecting = false;
+      bar.near(false);
+      onViewChange();
     }
   }
   function inspect() {
     if (!paper.visible && sheet) choose(sheets.indexOf(sheet));
     if (!paper.visible) return;
     inspecting = true;
+    bar.near(true);
+    onViewChange();
     look([0, Y, Z], [0, 1, 0.16], 0.56, () => {
       inspecting = false;
+      bar.near(false);
+      onViewChange();
     });
   }
   const mm = (i) => (sheet.run.marks[i].x - sheet.run.marks[sheet.origin].x) * 1000;
@@ -285,6 +291,15 @@ export function tapeReader(group, { look, back }) {
   };
   return {
     el,
+    paper,
+    get inspecting() {
+      return inspecting;
+    },
+    get instruction() {
+      if (probe) return '看这条纸带的实际点距，再回到全景。';
+      return sheet?.used.size ? '比较不同时刻的读数；量好后回到全景。' : '把两个游标分别拖到 A、B 的点心，记下速度。';
+    },
+    leave,
     drag,
     bind(record, graph) {
       onRecord = record;
@@ -292,7 +307,20 @@ export function tapeReader(group, { look, back }) {
     },
     add(run, trial) {
       const origin = run.marks.findIndex((_, i) => centers(run.marks, i).length);
-      if (origin < 0) return false;
+      if (origin < 0) {
+        leave();
+        probe = run.marks;
+        el.hidden = true;
+        paper.visible = true;
+        clearPaper();
+        label('第 ' + trial + ' 条纸带', LEFT, 62, 37);
+        for (const mark of run.marks) dot(LEFT + (mark.x / TRAVEL) * (RIGHT - LEFT), 154, 5);
+        label(run.marks.length ? '连续打点不足十个间隔' : '纸带上没有点', W / 2, 235, 48, '#34404a', 'center');
+        label('点纸带返回，换新带；先通电再放车', W / 2, 360, 34, '#34404a', 'center');
+        texture.needsUpdate = true;
+        inspect();
+        return false;
+      }
       sheets.push({ run, trial, origin, points: [], used: new Map() });
       archive.add(new Option('第 ' + trial + ' 条 · ' + run.load * 1000 + ' g', String(sheets.length - 1)));
       el.hidden = false;

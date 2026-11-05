@@ -1,4 +1,6 @@
-import { buttons, chart, goals, note, seg, table } from './kit/ui.js';
+import { lessonBar } from './kit/lessonbar.js';
+import { loadRack } from './kit/ticker/loadRack.js';
+import { buttons, chart, note, seg, table } from './kit/ui.js';
 import { draggable } from './kit/interact.js';
 import { apparatus } from './kit/ticker/apparatus.js';
 import { advance, power } from './kit/ticker/motion.js';
@@ -35,12 +37,38 @@ export default {
       moving = false,
       finished = false,
       trial = 1;
-    let ui, modeSeg, liftSeg, cartSeg, hangerSeg, actions, goal;
-    const reader = tapeReader(rig.group, ctx);
-    const blockLabel = tag('', 'pill').loc(rig.board, 0.31, 0.032, 0.05);
-    const panLabel = tag('', 'pill').loc(rig.pan, 0, -0.055, 0);
-    const paperLabel = tag('', 'pill');
-    const timerLabel = tag('计时器（点开关）', 'pill').loc(rig.timer, 0, 0.515, 0);
+    let ui, modeSeg, liftSeg, cartSeg, hangerSeg, actions;
+    const valueLabel = tag('', 'pill');
+    function target() {
+      if (reader.inspecting) return null;
+      if (moving || bar.finished) return null;
+      if (mode === 'balance')
+        return observed ? (Math.abs(run.a) < 1e-8 ? rack.drags[0].obj : rig.board) : finished ? rig.strip : rig.cart;
+      return taken ? rig.cart : finished ? (powered ? rig.timer : rig.strip) : powered ? rig.cart : rig.timer;
+    }
+    const bar = lessonBar({
+      look: ctx.look,
+      back: () => reader.leave(),
+      group: rig.group,
+      steps: [
+        { id: 'balanced', title: '补偿阻力', todo: '轻推小车，观察纸带上的点距。', target },
+        { id: 'force', title: '固定车质量', todo: '保持车质量，改变悬挂槽码，比较三条纸带。', target },
+        { id: 'mass', title: '固定槽码', todo: '保持槽码不变，增减车载砝码，比较加速度。', target },
+      ],
+    });
+    const reader = tapeReader(rig.group, ctx, bar, refresh);
+    const rack = loadRack(
+      rig,
+      HANGERS,
+      () => !moving && (!finished || mode === 'balance') && !cartIndex,
+      (i) => {
+        enter();
+        if (mode !== 'force') {
+          modeSeg.set(1, true);
+        }
+        hangerSeg.set(i, true);
+      },
+    );
     let taken = false,
       powered = false,
       observed = false;
@@ -52,28 +80,45 @@ export default {
       enter();
       liftSeg.set(index, true);
     }
-    function changeLoad() {
-      if (moving || finished) return;
-      if (mode === 'force') hangerSeg.set((hangerIndex + 1) % HANGERS.length, true);
-      if (mode === 'mass') cartSeg.set((cartIndex + 1) % CARTS.length, true);
-    }
     const status = (text) => ui?.status(text);
     const settings = () => ({ mode, lift, cartIndex, hangerIndex, balanced });
     let run = tractionRun(settings());
     function refresh() {
       rig.draw(run);
-      blockLabel.text('垫高 ' + lift + ' mm').show(mode === 'balance' && !moving);
-      panLabel
-        .loc(rig.pan, 0, mode === 'balance' ? 0.028 : -0.055, 0)
-        .text(mode === 'balance' ? '槽码（点挂上）' : HANGERS[hangerIndex] * 1000 + ' g')
-        .show(!moving);
-      timerLabel.text(powered ? '计时器 · 已通电' : '计时器（点开关）').show(mode !== 'balance' && !taken);
-      if (taken) paperLabel.loc(rig.cart, 0, 0.067, 0).text('小车（点放回起点）').show(true);
+      rack.draw(run.load);
+      if (mode === 'balance') valueLabel.loc(rig.board, 0.31, 0.032, 0.05).text('垫高 ' + lift + ' mm');
       else
-        paperLabel
-          .loc(rig.strip, 0, 0, 0.025)
-          .text('纸带（点近看）')
-          .show(finished && !powered);
+        valueLabel
+          .loc(rig.cart, 0, 0.08, 0)
+          .text('车 ' + CARTS[cartIndex] * 1000 + ' g · 悬挂 ' + HANGERS[hangerIndex] * 1000 + ' g');
+      valueLabel.show(!moving);
+      bar.say(
+        bar.finished
+          ? null
+          : reader.inspecting
+            ? reader.instruction
+            : moving
+              ? '观察小车和纸带。'
+              : mode === 'balance'
+                ? finished
+                  ? run.marks.length < 16
+                    ? '试滑太短，拖回小车再推一次。'
+                    : observed
+                      ? Math.abs(run.a) < 1e-8
+                        ? '点距相等，把一组槽码拖到左端挂钩。'
+                        : '点距在变化，调整木板右端再试滑。'
+                      : '取下试滑纸带，比较三段点距。'
+                  : '向左轻推小车，松手后比较点距。'
+                : taken
+                  ? '向右拖回小车。换槽码比较力，把台上的 250 g 砝码拖上车比较质量。'
+                  : finished
+                    ? powered
+                      ? '关计时器，再取纸带。'
+                      : '取下纸带，测两个时刻的速度。'
+                    : powered
+                      ? '计时器已通电，松开小车。'
+                      : '开计时器，再松开小车。',
+      );
       if (!actions) return;
       const locked = moving || finished;
       MODES.forEach((_, i) => modeSeg.disable(i, moving));
@@ -107,7 +152,7 @@ export default {
     function switchMode(index, fixedHanger = 1) {
       if (mode === 'balance' && index !== 0 && observed) {
         balanced = Math.abs(run.a) < 1e-8;
-        if (balanced) goal.done('balanced');
+        if (balanced) bar.done('balanced');
       }
       mode = MODES[index];
       cartIndex = 0;
@@ -166,6 +211,13 @@ export default {
         if (run.marks.length >= 16) {
           observed = true;
           reader.trialStrip(run.marks);
+          bar.say(
+            Math.abs(run.a) < 1e-8
+              ? '点距相等。返回后，把槽码拖到左端挂钩。'
+              : run.a < 0
+                ? '点距减小。返回后，把木板右端往上拖，再试滑。'
+                : '点距增大。返回后，把木板右端往下拖，再试滑。',
+          );
         } else prepare();
         return;
       }
@@ -179,7 +231,8 @@ export default {
     }
     let dragLift = 0,
       pushStart = 0,
-      stroke = 0;
+      stroke = 0,
+      returnPosition = 0;
     // 砝码和车身分别拾取。落在车顶才装车，落回台面才卸下。
     const weightDrags = rig.ballast.map((weight) => {
       let loaded;
@@ -210,13 +263,15 @@ export default {
           weight.position.set(p.x, Math.max(0.0045, p.y), 0.12 * (1 - Math.min(1, Math.max(0, p.y) / 0.47)));
         },
         onEnd: (moved) => {
-          if (!moved) return;
+          if (!moved) {
+            refresh();
+            return;
+          }
           const car = rig.group.worldToLocal(rig.cart.getWorldPosition(rig.cart.position.clone()));
           const onCar = Math.abs(weight.position.x - car.x) < 0.07 && Math.abs(weight.position.y - car.y - 0.05) < 0.07;
           if ((!loaded && onCar) || (loaded && weight.position.y < 0.08)) transfer();
           else refresh();
         },
-        onTap: transfer,
       };
     });
     const pointer = draggable(
@@ -224,25 +279,44 @@ export default {
       [
         reader.drag,
         ...weightDrags,
+        ...rack.drags,
         {
           obj: rig.cart,
           plane: 'xy',
           offset: 0,
           enabled: () => !moving && (!finished || taken || (mode === 'balance' && run.marks.length < 16)),
-          hint: () => (finished ? '装新纸带' : mode === 'balance' ? '沿木板向左推，松手后观察点距' : '点车身松开小车'),
+          hint: () =>
+            finished
+              ? '把小车向右拖回起点，装上新纸带'
+              : mode === 'balance'
+                ? '沿木板向左推，松手后观察点距'
+                : '点车身松开小车',
           onStart: () => {
             enter();
             pushStart = performance.now();
             stroke = 0;
+            returnPosition = run.x;
           },
           onDrag: (point, from) => {
-            if (!from || mode !== 'balance' || finished) return;
+            if (!from) return;
+            if (finished) {
+              returnPosition = Math.max(0, Math.min(run.x, run.x - (point.x - from.x)));
+              rig.draw({ ...run, x: returnPosition });
+              return;
+            }
+            if (mode !== 'balance') return;
             stroke = Math.max(0, Math.min(0.055, from.x - point.x));
             run.startOffset = stroke;
             rig.draw(run);
           },
           onEnd: (moved) => {
-            if (!moved || mode !== 'balance' || finished) return;
+            if (!moved) return;
+            if (finished) {
+              if (returnPosition < 0.04) prepare();
+              else refresh();
+              return;
+            }
+            if (mode !== 'balance') return;
             if (stroke < 0.002) {
               prepare();
               return;
@@ -251,14 +325,16 @@ export default {
             run = tractionRun({ ...settings(), pushSpeed: speed, startOffset: stroke });
             start();
           },
-          onTap: () => (finished ? prepare() : start()),
+          onTap: () => {
+            if (!finished && mode !== 'balance') start();
+          },
         },
         {
           obj: rig.board,
           plane: 'xy',
           offset: 0,
           enabled: () => mode === 'balance' && !moving,
-          hint: '拖木板右端上下调整垫高量，或点一下换一档',
+          hint: '上下拖木板右端，调整垫高量',
           onStart: () => {
             dragLift = lift;
           },
@@ -268,12 +344,10 @@ export default {
               if (LIFTS[i] !== lift) adjustLift(i);
             }
           },
-          onTap: () => adjustLift((LIFTS.indexOf(lift) + 1) % 3),
         },
       ],
       {
         highlight: true,
-        tip: tag('', 'pill'),
         taps: [
           {
             obj: rig.timer,
@@ -282,24 +356,6 @@ export default {
             onTap: timer,
           },
           { obj: rig.strip, enabled: () => finished && !taken, hint: '点纸带近看', onTap: take },
-          {
-            obj: rig.pan,
-            enabled: () => !moving && (mode === 'balance' || !finished || taken),
-            hint: () => (mode === 'balance' ? '把槽码挂到绳端' : '换槽码，保持小车质量'),
-            onTap: () => {
-              enter();
-              if (mode === 'balance') {
-                balanced = observed && Math.abs(run.a) < 1e-8;
-                if (balanced) goal.done('balanced');
-                modeSeg.set(1, true);
-                status(balanced ? '点距相等，已挂上槽码。点计时器通电，再松开小车。' : '未验证匀速，测量会标为对照。');
-              } else {
-                if (mode === 'mass') modeSeg.set(1, true);
-                else if (taken) prepare();
-                changeLoad();
-              }
-            },
-          },
         ],
       },
     );
@@ -309,13 +365,10 @@ export default {
       size: { w: 0.94, d: 0.42, h: 0.55 },
       view: { elev: 18, azim: -10, lookY: 0.55, margin: 1.02 },
       pointer,
+      toggles: ['steps'],
       mount(panel) {
         ui = panel;
-        goal = goals(ui, [
-          ['balanced', '无牵引试滑得到相等点距'],
-          ['force', '量三种轻槽码，比较力改变时的加速度'],
-          ['mass', '量三种车质量，比较加速度的变化'],
-        ]);
+        bar.attach(ui);
         const logs = table(['带号', 'M / kg', 'mg / N', 't₁→t₂ / s', 'v₁→v₂ / (m/s)', 'a / (m/s²)', '条件']);
         logs.el.style.overflowX = 'auto';
         logs.el.hidden = true;
@@ -368,7 +421,7 @@ export default {
                     return status('这两次读数的比值偏离较大。换纸带重测这两个条件，选相距更远的计数点以减小读尺误差。');
                   if (ratio !== expected) return status('用第二个条件的实测加速度除以第一个，再对照选项。');
                   question.hidden = true;
-                  goal.done(key);
+                  bar.done(key);
                   status(
                     '你的实测比值约为 ' +
                       observed.toFixed(2) +
@@ -429,8 +482,13 @@ export default {
                 questions.mass.firstElementChild.textContent =
                   '固定 ' + r.load * 1000 + ' g 槽码，小车从 500 g 加至 1000 g，加速度接近原来的多少？';
               }
-              goal.undo(r.mode);
+              bar.undo(r.mode);
               questions[r.mode].hidden = false;
+              bar.say(
+                r.mode === 'force'
+                  ? '已测三种悬挂质量。展开笔记本读图，或拖回小车，保持槽码不变再加车载砝码。'
+                  : '已测三种车质量。展开笔记本，比较加速度图上的点。',
+              );
             }
             status(
               '纸带 ' +
@@ -511,14 +569,14 @@ export default {
                 plots[key].series.forEach((s) => (s.points.length = 0));
                 plots[key].draw();
               }
-              goal.undo('balanced', 'force', 'mass');
+              bar.undo('balanced', 'force', 'mass');
               modeSeg.set(0, true);
             },
           },
         ]);
         ui.controls.append(modeSeg.el);
         ui.notes.append(
-          note('向左推小车，点纸带比较点距。拖木板右端调整高度；点槽码挂上，把台上的砝码拖到车顶。'),
+          note('向左推小车，点纸带比较点距。拖木板右端调整高度；把槽码拖到滑轮下方，把台上的砝码拖到车顶。'),
           liftSeg.el,
           cartSeg.el,
           hangerSeg.el,
@@ -538,13 +596,18 @@ export default {
         switchMode(0);
       },
       update(dt) {
+        bar.update(dt);
         if (!moving) return;
         advance(run, dt);
         rig.draw(run);
         if (run.t >= run.end) stop();
       },
       dispose() {
-        reader?.dispose();
+        rig.dispose();
+        rack.dispose();
+        pointer.dispose();
+        bar.dispose();
+        reader.dispose();
       },
     };
   },
