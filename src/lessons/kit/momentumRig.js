@@ -5,10 +5,11 @@ import { canvasTex } from './props.js';
 import { GATES, FLAG_WIDTH } from './momentum.js';
 
 export const TRACK_Y = 0.107;
-export function momentumRig() {
+export function momentumRig({ incline = false } = {}) {
   const group = new THREE.Group(),
     rail = new THREE.Group(),
-    textures = [];
+    textures = [],
+    flexibleLines = [];
   group.add(rail);
   function box(parent, w, h, d, x, y, z, color) {
     const o = inked(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), paint(color)), { width: 0.65 });
@@ -73,11 +74,12 @@ export function momentumRig() {
     1.24,
     0x859c99,
   );
+  const feet = [];
   for (const x of [-0.48, 0.48]) {
     box(group, 0.1, 0.015, 0.18, x, 0.0075, 0.02, 0x647071);
-    cyl(group, 0.016, 0.052, x, 0.039, 0, 0x65726e);
+    feet.push(cyl(group, 0.016, 0.052, x, 0.039, 0, 0x65726e));
   }
-  cyl(group, 0.009, 0.05, -0.48, 0.035, 0.077, 0x66736a);
+  const jack = cyl(group, 0.009, 0.05, -0.48, 0.035, 0.077, 0x66736a);
   box(rail, 0.036, 0.008, 0.092, -0.48, 0.062, 0.039, 0x6b7772);
   const screw = cyl(group, 0.028, 0.012, -0.48, 0.047, 0.077, 0xba9962);
   for (let j = 0; j < 12; j++) {
@@ -116,8 +118,11 @@ export function momentumRig() {
     new THREE.Vector3(-0.66, 0.044, 0.062),
     new THREE.Vector3(-0.615, 0.079, 0),
   ]);
-  group.add(new THREE.Mesh(new THREE.TubeGeometry(hosePath, 32, 0.006, 12, false), paint(0x393f44)));
-  const colors = [0xac6449, 0x467d82];
+  const hose = new THREE.Mesh(new THREE.TubeGeometry(hosePath, 32, 0.006, 12, false), paint(0x393f44));
+  group.add(hose);
+  if (incline)
+    flexibleLines.push({ mesh: hose, points: hosePath.points, anchor: 3, steps: 32, radius: 0.006, sides: 12 });
+  const colors = incline ? [0xac6449] : [0xac6449, 0x467d82];
   const carts = colors.map((color, i) => {
     const cart = new THREE.Group();
     rail.add(cart);
@@ -137,12 +142,13 @@ export function momentumRig() {
     );
     box(cart, 0.023, 0.008, 0.019, 0.026, 0.016, 0.001, color);
     box(cart, FLAG_WIDTH, 0.034, 0.0025, 0, 0.031, -0.008, 0x433e39);
-    label(cart, (i ? '乙' : '甲') + ' 200 g', 0, 0.013, 0.002, 0.072, 0.019);
+    label(cart, incline ? '滑块' : (i ? '乙' : '甲') + ' 200 g', 0, 0.013, 0.002, 0.072, 0.019);
     const spring = new THREE.Group();
     cart.add(spring);
     const sign = i ? -1 : 1;
     for (const z of [-0.011, 0.011]) box(spring, 0.01, 0.004, 0.003, sign * 0.0495, 0.005, z, 0x78684b);
     box(spring, 0.002, 0.005, 0.025, sign * 0.054, 0.005, 0, 0xc4a361);
+    spring.visible = !incline;
     cart.userData.spring = spring;
     cart.position.set(i ? 0 : -0.46, TRACK_Y, 0);
     return cart;
@@ -174,14 +180,21 @@ export function momentumRig() {
       c.fillStyle = '#e8dcbc';
       c.font = 'bold 66px sans-serif';
       c.fillText((i ? '右门' : '左门') + '   Δt / ms', 34, 63);
-      c.font = 'bold 72px sans-serif';
       c.fillStyle = '#f7a37d';
-      if (!entries.length) c.fillText('—', 44, 212);
-      entries
-        .slice(-3)
-        .forEach((e, j) =>
-          c.fillText(String(j + 1) + '   ' + ((e.exit - e.enter) * 1000).toFixed(1), 44, 164 + j * 99),
-        );
+      if (incline) {
+        const e = entries.at(-1);
+        c.textAlign = 'center';
+        c.font = 'bold 152px sans-serif';
+        c.fillText(e ? String(Math.round((e.exit - e.enter) * 1000)) : '—', 512, 274);
+      } else {
+        c.font = 'bold 72px sans-serif';
+        if (!entries.length) c.fillText('—', 44, 212);
+        entries
+          .slice(-3)
+          .forEach((e, j) =>
+            c.fillText(String(j + 1) + '   ' + ((e.exit - e.enter) * 1000).toFixed(1), 44, 164 + j * 99),
+          );
+      }
       tex.needsUpdate = true;
     }
     const cable = new THREE.CatmullRomCurve3([
@@ -190,20 +203,25 @@ export function momentumRig() {
       new THREE.Vector3(x + 0.04, 0.005, 0.122),
       new THREE.Vector3(x + 0.047, 0.018, 0.13),
     ]);
-    group.add(new THREE.Mesh(new THREE.TubeGeometry(cable, 20, 0.0018, 8, false), paint(0x424c4e)));
+    const lead = new THREE.Mesh(new THREE.TubeGeometry(cable, 20, 0.0018, 8, false), paint(0x424c4e));
+    group.add(lead);
+    if (incline)
+      flexibleLines.push({ mesh: lead, points: cable.points, anchor: 0, steps: 20, radius: 0.0018, sides: 8 });
     draw([]);
     return { screen, draw };
   });
   box(rail, 0.19, 0.006, 0.024, 0, 0.063, 0.052, 0x778580);
   label(rail, '10 mm 遮光片   +x →', 0, 0.067, 0.052, 0.18, 0.02);
-  const weight = box(group, 0.037, 0.015, 0.027, 0, 0, 0, 0x9c8060);
-  label(weight, '100 g', 0, 0.0077, 0, 0.034, 0.02);
-  const rack = box(group, 0.16, 0.009, 0.074, 0.49, 0.0045, 0.16, 0x997c5a);
-  const sleeves = colors.map((_, i) => {
-    const o = box(group, 0.011, 0.02, 0.035, 0, 0, 0, i ? 0x839189 : 0x9b9684);
-    label(o, i ? '乙' : '甲', 0, 0.0102, 0, 0.009, 0.016);
-    return o;
-  });
+  const weight = incline ? null : box(group, 0.037, 0.015, 0.027, 0, 0, 0, 0x9c8060);
+  if (weight) label(weight, '100 g', 0, 0.0077, 0, 0.034, 0.02);
+  if (!incline) box(group, 0.16, 0.009, 0.074, 0.49, 0.0045, 0.16, 0x997c5a);
+  const sleeves = incline
+    ? []
+    : colors.map((_, i) => {
+        const o = box(group, 0.011, 0.02, 0.035, 0, 0, 0, i ? 0x839189 : 0x9b9684);
+        label(o, i ? '乙' : '甲', 0, 0.0102, 0, 0.009, 0.016);
+        return o;
+      });
   function massAt(index) {
     if (index === null) {
       group.attach(weight);
@@ -228,6 +246,22 @@ export function momentumRig() {
     // 右端为支点。左调平脚升降，导轨和门共同倾斜。
     rail.rotation.z = Math.atan(slope);
     rail.position.y = -0.48 * Math.sin(rail.rotation.z);
+    if (incline) {
+      rail.updateMatrix();
+      for (const foot of feet) {
+        const top = new THREE.Vector3(foot.position.x, 0.065, 0).applyMatrix4(rail.matrix).y;
+        foot.scale.y = (top - 0.013) / 0.052;
+        foot.position.y = (top + 0.013) / 2;
+      }
+      const jackTop = new THREE.Vector3(-0.48, 0.062, 0.077).applyMatrix4(rail.matrix).y;
+      jack.scale.y = (jackTop - 0.01) / 0.05;
+      jack.position.y = (jackTop + 0.01) / 2;
+      for (const { mesh, points, anchor, steps, radius, sides } of flexibleLines) {
+        const updated = points.map((p, i) => (i === anchor ? p.clone().applyMatrix4(rail.matrix) : p));
+        mesh.geometry.dispose();
+        mesh.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(updated), steps, radius, sides, false);
+      }
+    }
     screw.rotation.y = -slope * 185;
     bubble.position.x = Math.max(-0.037, Math.min(0.037, slope * 5.5));
   }
