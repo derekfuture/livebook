@@ -318,7 +318,8 @@ export default {
         const kindSeg = seg('推哪一种锋', ['冷锋', '暖锋'], (_, i) => { setKind(i ? 'warm' : 'cold'); layout(); }, { value: 0 });
         const guess = seg('先猜一下（可以不猜）：冷锋来了，你家会——', ['先降温', '先下雨', '差不多一起'], () => {}, { value: -1 });
         const logs = h('div', { class: 'timeline' });
-        const again = buttons([{ text: '把锋面推回去重来', ghost: true, onClick: () => { S.xf = K().x0; S.logs[S.kind] = []; S.done.delete(S.kind); last = ''; record(); layout(); } }]);
+        // 重来：这一种锋回到开头的样子——锋面、你家和邻城的位置、猜的选项、提示、这一种锋的时间线（另一种锋的时间线留着，好对比）
+        const again = buttons([{ text: '重来', ghost: true, onClick: () => { S.home = 0.05; S.town = 0.13; S.logs[S.kind] = []; S.done.delete(S.kind); setKind(S.kind); layout(); } }]);
         ui.controls.append(kindSeg.el, guess.el, again.el, note('你家和邻城都可以拖到别处。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你家经历了什么'), logs);
         W = { ui, logs, guess };
