@@ -43,10 +43,13 @@ export default {
     const post = inked(new THREE.Mesh(new THREE.BoxGeometry(0.012, HMAX, 0.04), paint(0x9aa3b2)), { width: 1.1 });
     post.position.set(-Math.cos(ANG) * RL + 0.006, HMAX / 2, 0);
     rampG.add(plank, ...rail, post);
+    // 沿斜槽方向收回末端，使底部接桌；斜面所在直线不变。
+    for (const m of [plank, ...rail]) m.position.add(new THREE.Vector3(-0.014 / Math.tan(ANG), 0.014, 0));
     group.add(rampG);
     // 水平面顶面和实验台板顶面同高：画的时候略微靠前，免得两者重合闪烁
     const floor = inked(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.006, 0.08), paint(0xe9dcc0, { unique: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 })), { width: 1.2 });
     floor.position.set(0.3, -0.003, 0);
+    floor.userData.qaSupport = true;
     group.add(floor);
     const ruler = rulerMesh({ length: 0.5, width: 0.026, divisions: 500, every: 10, labelEvery: 50 });
     ruler.position.set(BX - BS / 2 + 0.25, 0.0015, 0.05);     // 0 刻度对着木块原来的左边

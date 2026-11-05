@@ -1,6 +1,7 @@
 // 课题2 常见的酸和碱 · 实验 10-6 稀释浓硫酸（课本下册第 67 页图 10-7、10-8；教师演示）。
 //
 // 正确操作（图 10-7）：把浓硫酸沿烧杯内壁缓慢地注入盛有水的烧杯，用玻璃棒不断搅拌，用温度计测量温度变化。
+//   先把玻璃棒放进水里，一边缓慢注入一边搅拌。倾倒照上册第 17 页：瓶塞拿下来倒放在桌上，标签朝向手心（瓶子倾斜方向的另一侧），倒完盖好瓶塞、放回原处。
 // 错误操作（图 10-8）：把水倒进浓硫酸——这里可以安全地看一次后果。
 // 模型（近似，界面上写明）：10 mL 98% 浓硫酸（18.4 g，约 0.184 mol H₂SO₄）注入 50 mL 水，稀释放热约 75 kJ/mol → 约 13.8 kJ；
 //   溶液约 68 g、比热约 3.6 J/(g·℃) → 温度升高约 56 ℃（不计散热，真实略低）。浓硫酸密度 1.84 g/cm³，比水重：
@@ -16,6 +17,7 @@ import { chemBeaker, glassMat, CHEM } from './kit/chem.js';
 import { water2, glass2 } from './kit/chemfx.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs } from './kit/chemlesson.js';
+import { bottleCap } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -25,6 +27,7 @@ const BA = new THREE.Vector3(-0.07, 0, 0), BR = 0.03, BH = 0.075;           // �
 const BB = new THREE.Vector3(0.1, 0, 0), BBR = 0.022, BBH = 0.055;         // 错误操作：盛浓硫酸的烧杯
 const BOT_HOME = new THREE.Vector3(0.0, 0, -0.04), CUP_HOME = new THREE.Vector3(0.16, 0, 0.05);
 const ROD_HOME = new THREE.Vector3(-0.07, 0.004, 0.08);
+const CAP_REST = new THREE.Vector3(0.035, 0, -0.045);        // 瓶塞倒放在桌上的位置（瓶子右边）
 const LV = (mL, r) => (mL * 1e-6) / (Math.PI * (r - 0.0012) ** 2);
 
 function acidBottle() {
@@ -34,7 +37,12 @@ function acidBottle() {
   const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.0165, 0.0165, 1, 24), water2({ color: 0xece6c8, base: 0.42 })); liq.geometry.translate(0, 0.5, 0); liq.position.y = 0.002; liq.scale.y = 0.03; liq.renderOrder = 7; g.add(liq);
   const lab = textPlate('浓硫酸', { w: 0.024, h: 0.009, color: '#c23a3a', bg: '#fffaf0', font: 'bold 90px "Songti SC", serif' }); lab.position.set(0, 0.026, 0.0183); g.add(lab);
   const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.07, 10), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.035; pick.userData.pick = true; g.add(pick);
-  return Object.assign(g, { liq, pick });
+  // 磨口玻璃瓶塞：下面一段塞进瓶颈，上面一个扁圆的塞头（原点在正中，倒放时塞头贴着桌面）
+  const cap = new THREE.Group(), capM = paint(0xe3ecef, { transparent: true, opacity: 0.85 });
+  const plug = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0058, 0.0047, 0.01, 16), capM), { width: 0.5 }); plug.position.y = -0.00175;
+  const head = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.0035, 20), capM), { width: 0.5 }); head.position.y = 0.005;
+  cap.add(plug, head); cap.position.y = 0.067 - 0.00325; g.add(cap);
+  return Object.assign(g, { liq, pick, cap });
 }
 
 export default {
@@ -76,6 +84,10 @@ export default {
     const sink = new Particles({ max: 120, sprite: true, color: 0xd9c98a, size: 0.004, opacity: 0.6 }); group.add(sink.mesh);        // 沉下去的浓硫酸（像一缕缕“油纹”）
     const bottle = acidBottle(); const BOT_PIV = BOT_HOME.clone().add(new THREE.Vector3(0, 0.067, 0));
     const botPiv = new THREE.Group(); bottle.position.y = -0.067; botPiv.add(bottle); botPiv.position.copy(BOT_PIV); group.add(botPiv);
+    const capCtl = bottleCap(group, bottle, bottle.cap, { rest: CAP_REST });
+    const CAP_ON = BOT_HOME.clone().setY(bottle.cap.position.y);       // 瓶塞盖着时的位置（瓶子在原处）
+    // 瓶塞拿下来了（已经提起来、离开瓶口）：这时才拿起瓶子
+    const capOff = () => !capCtl.on && (bottle.cap.position.y > CAP_ON.y + 0.008 || Math.hypot(bottle.cap.position.x - CAP_ON.x, bottle.cap.position.z - CAP_ON.z) > 0.004);
     const rod = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.11, 10), paint(0xe8f2f6, { transparent: true, opacity: 0.85 })), { width: 0.5 });
     rod.geometry.translate(0, 0.055, 0); group.add(rod);
     const rodPick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.11, 8), new THREE.MeshBasicMaterial({ visible: false })); rodPick.position.y = 0.055; rodPick.userData.pick = true; rod.add(rodPick);
@@ -120,7 +132,11 @@ export default {
     const act = demoActs(drag, group);
     const botToRim = () => BA.clone().add(new THREE.Vector3(BR + 0.004, BH - 0.032, 0));
     const cupToB = () => BB.clone().add(new THREE.Vector3(BBR + 0.004, BBH - 0.02, 0));
-    const stirPts = () => [null, new THREE.Vector3(BA.x - 0.01, 0.1, 0), ...Array.from({ length: 14 }, (_, j) => new THREE.Vector3(BA.x - 0.008 + (j % 2 ? 0.01 : -0.01), 0.03, (j % 4 < 2 ? 0.01 : -0.01)))];
+    const stirAt = (j) => new THREE.Vector3(BA.x - 0.008 + (j % 2 ? 0.01 : -0.01), 0.03, (j % 4 < 2 ? 0.01 : -0.01));
+    const stirOn = (n) => [() => (S.rodCarry ? S.rodCarry.clone() : stirAt(0)), ...Array.from({ length: n }, (_, j) => stirAt(j + 1))];      // 接着手里的玻璃棒继续搅拌
+    const upto = (f, t) => (k) => { if (k <= t) f(k); };          // 只做到 k = t：玻璃棒还拿在手里，接下来交给后面的动作
+    // 质检用：一直搅拌到 done()（每几帧把玻璃棒在水里挪一下，像学生来回拖）；中途放演示时停下来等
+    const stirUntil = (done) => { const me = S; let j = 0; const go = () => { if (S === me) { if (done()) return; if (me.rodCarry) A.rodDrag(stirAt(Math.floor(j++ / 6))); } requestAnimationFrame(go); }; requestAnimationFrame(go); };
 
     const bar = lessonBar({
       look, back, group,
@@ -134,8 +150,11 @@ export default {
           seal: '演示', label: '老师演示',
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sink.clear(); spat.clear(); steam.clear(); drops.clear(); xMark.visible = false; } }),
           shots: [
-            { cap: '把浓硫酸沿烧杯内壁缓慢地注入盛有水的烧杯，用玻璃棒不断搅拌。', dur: 10, cam: [[BA.x + 0.01, 0.07, 0], [0.05, 0.25, 1], 0.3],
-              during: act.seq(act.drag(bottle.pick, botToRim, { t0: 0.03, t1: 0.2, release: 0.97, until: () => S.poured >= V_ACID }), act.path(rodPick, stirPts(), { t0: 0.05, t1: 0.97, release: 0.99 })) },
+            // 玻璃棒先放进水里，一直搅拌；拿下瓶塞（倒放），拿起浓硫酸（标签朝向手心），沿内壁缓慢注入，倒满 10 mL；瓶子放回原处，盖好瓶塞
+            { cap: '把浓硫酸沿烧杯内壁缓慢地注入盛有水的烧杯，用玻璃棒不断搅拌。', dur: 16, cam: [[BA.x + 0.035, 0.07, 0], [0.05, 0.25, 1], 0.34],
+              during: act.seq(upto(act.path(rodPick, [null, new THREE.Vector3(BA.x - 0.01, 0.1, 0), stirAt(0)], { t0: 0.02, t1: 0.08, release: 2 }), 0.08),
+                act.path(rodPick, stirOn(32), { t0: 0.08, t1: 0.98, release: 0.99, start: false }),
+                act.drag(bottle.pick, botToRim, { t0: 0.13, t1: 0.25, release: 0.97, until: () => S.poured >= V_ACID })) },
             { cap: '温度计示数明显升高：浓硫酸溶于水时放出大量的热。', dur: 4, cam: [[BA.x, 0.07, 0], [0.05, 0.22, 1], 0.26] },
             { cap: '如果把水倒进浓硫酸里：水浮在浓硫酸上面，放出的热使水立刻沸腾，酸液飞溅——切不可这样做！演示完了，下面换你自己做。', dur: 7, cam: [[BB.x, 0.07, 0], [0.05, 0.25, 1], 0.34],
               during: act.drag(cupPick, cupToB, { t0: 0.04, t1: 0.25, release: 0.5 }) },
@@ -146,9 +165,36 @@ export default {
     const pointer = wrapPointer(drag, bar);
 
     // ================= 每帧 =================
+    // 玻璃棒（原点在下端）：拿着时，在烧杯外举在杯口以上，到了杯口正上方再竖着放进去；往一边斜靠，但不穿过杯壁。
+    //   松手：先竖着提出烧杯，再拿到原处上方，边放低边放倒，平放在桌上。（中和反应那一课是同样的做法——建议进 kit）
+    const RIN = BR - 0.0012 - 0.0016 - 0.0004, ABOVE = BH + 0.006, LEAN = 0.25;          // RIN：玻璃棒中心离杯中心最远多少还碰不到杯壁
+    const leanMax = (b) => { if (b.y >= BH) return LEAN; const bx = b.x - BA.x, r2 = RIN * RIN - (b.z - BA.z) ** 2; return r2 <= 0 ? 0 : clamp(Math.atan((bx + Math.sqrt(r2)) / (BH - b.y)), 0, LEAN); };
+    const rodStep = () => {
+      const b = rod.position, off = Math.hypot(b.x - BA.x, b.z - BA.z), inside = off < RIN + 0.001 && b.y < BH + 0.004;
+      let to = null, lean = LEAN, a = 0.5;
+      if (S.rodCarry) {
+        const p = S.rodCarry;
+        if (inside) to = S.rodIn ? new THREE.Vector3(p.x, 0.004, p.z) : new THREE.Vector3(b.x, ABOVE + 0.002, b.z);        // 在烧杯里搅拌；拿出来时先竖着提出来
+        else if (b.y < ABOVE - 0.002) to = new THREE.Vector3(b.x, ABOVE, b.z);                                              // 先举起来，高过杯口
+        else to = S.rodIn && off < RIN ? new THREE.Vector3(p.x, 0.004, p.z) : new THREE.Vector3(p.x, ABOVE, p.z);            // 到了杯口正上方才放下去
+      } else {
+        a = 0.2;
+        if (inside) to = new THREE.Vector3(b.x, ABOVE + 0.004, b.z);
+        else if (Math.hypot(b.x - ROD_REST.x, b.z - ROD_REST.z) > 0.003) to = new THREE.Vector3(ROD_REST.x, Math.max(b.y, ABOVE), ROD_REST.z);
+        else { to = ROD_REST; a = 0.15; lean = Math.PI / 2 - (Math.PI / 2 - LEAN) * clamp((b.y - ROD_REST.y) / (ABOVE - ROD_REST.y), 0, 1); }      // 到了原处上方：边放低边放倒，平放在桌上
+      }
+      if (to) b.lerp(to, a);
+      rod.rotation.z += (lean - rod.rotation.z) * 0.3;
+      if (b.y < BH && Math.hypot(b.x - BA.x, b.z - BA.z) < RIN + 0.002) rod.rotation.z = Math.min(rod.rotation.z, leanMax(b));
+    };
     const step = (h) => {
-      // 浓硫酸注入水中：瓶口靠在烧杯内壁，约 1 mL/s（慢慢倒）
-      if (S.botCarry) {
+      // 浓硫酸注入水中：先拿下瓶塞（倒放在桌上），再拿起瓶子，转一下让标签朝向手心（倾斜时在上面）；瓶口靠在烧杯内壁，约 1 mL/s（慢慢倒）；
+      //   放回原处以后盖好瓶塞
+      const away = !!S.botCarry || botPiv.position.distanceTo(BOT_PIV) > 0.003 || S.tilt > 0.02;
+      capCtl.update(0.3, away);
+      const holding = !!S.botCarry && capOff();
+      bottle.rotation.y += ((holding ? Math.PI / 2 : 0) - bottle.rotation.y) * 0.2;
+      if (holding) {
         const mouth = S.botCarry.clone().add(new THREE.Vector3(0, 0.032, 0)), at = Math.hypot(mouth.x - (BA.x + BR), mouth.y - BH) < 0.035 && S.poured < V_ACID;
         botPiv.position.lerp(at ? BA.clone().add(new THREE.Vector3(BR + 0.002, BH + 0.002, 0)) : mouth, at ? 0.25 : 0.5);
         S.tilt += ((at ? 1.75 : 0) - S.tilt) * Math.min(1, h * 2.5); botPiv.rotation.z = S.tilt;
@@ -158,9 +204,10 @@ export default {
           if (Math.random() < h * 25) drops.spawn({ p: BA.clone().add(new THREE.Vector3(BR - 0.003, BH - 0.004, 0)), v: new THREE.Vector3(0, -0.04, 0), size: 0.0009, life: 1.2 });
           if (Math.random() < h * 20) sink.spawn({ p: BA.clone().add(new THREE.Vector3(BR - 0.006 - Math.random() * 0.006, LV(50, BR), (Math.random() - 0.5) * 0.01)), v: new THREE.Vector3(-0.004, -0.012, 0), size: 0.004, alpha: 0.6, life: 3 });
           if (S.stir < 0.2) { S.unstir += h; if (S.unstir > 2 && !S.said.stir) { S.said.stir = true; status('浓硫酸比水重，沉到杯底，热都集中在那里——要用<b>玻璃棒不断搅拌</b>，把热散开。'); } } else S.unstir = 0;
-          if (S.poured >= V_ACID && !S.said.full) { S.said.full = true; log(['浓硫酸沿内壁慢慢注入 50 mL 水中，不断搅拌', `温度从 20 ℃ 升到约 <b>${Math.round(S.T)} ℃</b>`, '浓硫酸溶于水<b>放出大量的热</b>']); done('pour'); status(`10 mL 浓硫酸全部注入了：温度从 20 ℃ 升到了约 <b>${Math.round(S.T)} ℃</b>——浓硫酸溶于水放出大量的热。接着看看<b>错误操作</b>会怎样。`); }
+          if (S.poured >= V_ACID && !S.said.full) { S.said.full = true; log([S.said.stir ? '浓硫酸沿内壁慢慢注入 50 mL 水中（中间有一段没有搅拌）' : '浓硫酸沿内壁慢慢注入 50 mL 水中，不断搅拌', `温度从 20 ℃ 升到约 <b>${Math.round(S.T)} ℃</b>`, '浓硫酸溶于水<b>放出大量的热</b>']); done('pour'); status(`10 mL 浓硫酸全部注入了：温度从 20 ℃ 升到了约 <b>${Math.round(S.T)} ℃</b>——浓硫酸溶于水放出大量的热。接着看看<b>错误操作</b>会怎样。`); }
         }
-      } else { botPiv.position.lerp(BOT_PIV, 0.25); S.tilt *= 0.8; botPiv.rotation.z = S.tilt; }
+      } else if (!S.botCarry) { botPiv.position.lerp(BOT_PIV, 0.25); S.tilt *= 0.8; botPiv.rotation.z = S.tilt; }       // 拿着、瓶塞还没拿开：瓶子先不动
+      botPiv.position.y = Math.max(botPiv.position.y, 0.067 * Math.cos(S.tilt) + 0.018 * Math.abs(Math.sin(S.tilt)));     // 瓶底不碰到桌面（放回去时边扶正边落下）
       bottle.liq.scale.y = Math.max(0.0005, 0.03 * (1 - S.poured / V_ACID));
       drops.update(h, (p, d) => { p.v.y -= 0.4 * d; p.p.addScaledVector(p.v, d); return p.p.y > LV(50, BR); });
       sink.update(h, (p, d) => { p.p.addScaledVector(p.v, d); p.v.x *= 0.98; p.alpha = 0.6 * (1 - p.age / p.life) * (S.stir > 0.3 ? 0.4 : 1); if (p.p.y < 0.004) p.v.y = 0; });
@@ -169,8 +216,7 @@ export default {
       S.stir = Math.max(0, S.stir - h * 1.2);
       th.setTemp(S.T);
       heatA.material.opacity = clamp((S.T - 25) / 60, 0, 0.6); heatA.position.y = S.stir > 0.3 ? LV(30, BR) : 0.006;       // 不搅拌：热集中在杯底
-      if (S.rodCarry) { rod.position.lerp(S.rodIn ? new THREE.Vector3(S.rodCarry.x, 0.004, S.rodCarry.z) : new THREE.Vector3(S.rodCarry.x, 0.03, S.rodCarry.z), 0.5); rod.rotation.z += (0.25 - rod.rotation.z) * 0.3; }
-      else { rod.position.lerp(ROD_REST, 0.2); rod.rotation.z += (Math.PI / 2 - rod.rotation.z) * 0.2; }
+      rodStep();
       // 错误操作：水倒进浓硫酸
       if (S.cupCarry) {
         const spout = S.cupCarry.clone().add(new THREE.Vector3(-0.019, 0.02, 0)), at = Math.hypot(spout.x - (BB.x + BBR), spout.y - BBH) < 0.035;
@@ -236,12 +282,13 @@ export default {
       dispose() { bar.dispose(); sink.dispose(); spat.dispose(); steam.dispose(); drops.dispose(); },
       debug: { get S() { return S; }, A, bar, picks: { bottle: bottle.pick, rod: rodPick, cup: cupPick },
         qa: qaFlow(drag, [
-          { name: '拿起浓硫酸', hold: bottle.pick },
-          { name: '拖到烧杯口', run: () => A.botDrag(botToRim()), wait: 0.5 },
+          // 课本的做法：玻璃棒先放进水里；浓硫酸沿内壁缓慢注入，一边倒一边不断搅拌，倒满 10 mL；放回浓硫酸（盖好瓶塞），再拿出玻璃棒
           { name: '拿起玻璃棒', hold: rodPick },
-          ...Array.from({ length: 6 }, (_, j) => ({ name: `搅拌 ${j + 1}`, run: () => A.rodDrag(new THREE.Vector3(BA.x - 0.008 + (j % 2 ? 0.01 : -0.01), 0.03, j % 3 ? 0.01 : -0.01)), wait: 0.4 })),
-          { name: '放下玻璃棒', release: rodPick, wait: 0.3 },
-          { name: '放下浓硫酸', release: bottle.pick, wait: 0.5 },
+          { name: '玻璃棒放进水里', run: () => A.rodDrag(stirAt(0)), wait: 0.6 },
+          { name: '拿起浓硫酸', hold: bottle.pick },
+          { name: '一边注入一边搅拌', run: () => { A.botDrag(botToRim()); stirUntil(() => S.poured >= V_ACID); }, wait: 11 },
+          { name: '放下浓硫酸', release: bottle.pick, wait: 0.8 },
+          { name: '放下玻璃棒', release: rodPick, wait: 0.5 },
           { name: '拿起水', hold: cupPick },
           { name: '倒进浓硫酸', run: () => A.cupDrag(cupToB()), wait: 1.5 },
           { name: '放下水', release: cupPick, wait: 1 },

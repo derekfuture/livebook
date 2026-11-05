@@ -3,7 +3,7 @@
 // 学生总结出燃烧的条件以后，纸签翻过来，变成三枚条件签：可燃物 · 氧气 · 着火点——缺哪一个，一眼看出来。
 import { sfx } from './audio.js';
 
-const O2_OBS = { air: '接触空气', none: '在水下', pure: '通入氧气', less: '罩住了 · 氧气越来越少', gone: '罩住了 · 氧气用完了' };
+const O2_OBS = { air: '接触空气', none: '在水下', pure: '通入氧气', less: '罩住了 · 氧气越来越少', gone: '罩住了 · 氧气不足' };
 const O2_OK = { air: true, pure: true, less: true, none: false, gone: false };
 
 /**

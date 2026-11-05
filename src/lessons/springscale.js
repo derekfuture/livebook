@@ -60,14 +60,14 @@ export default {
         sc.rotation.z = 0;
         sc.position.set(0, TOPY, -0.03);
         S.F = S.bag ? BAG : S.pull;
-        sc.set(S.F, S.zero + (S.broken ? 0.6 : 0), S.broken);
+        sc.set(S.F, S.zero + (S.broken ? 0.6 : 0), S.broken, S.zero);
         if (S.bag) { bag.visible = true; bag.rotation.set(0, 0, 0); bag.position.set(0, TOPY + sc.hookEnd - 0.036, -0.03); loop.position.set(0, 0.038, 0); }
         else bag.visible = false;
         handTag.loc(group, 0, TOPY + sc.hookEnd - 0.012, -0.012).text(S.bag ? '' : '拖挂钩');
       } else {
         // 测力计横放在桌面上（侧立，刻度朝着你），挂钩钩住文具袋，手拉圆环
         sc.rotation.z = -Math.PI / 2;
-        sc.set(S.F, S.zero + (S.broken ? 0.6 : 0), S.broken);
+        sc.set(S.F, S.zero + (S.broken ? 0.6 : 0), S.broken, S.zero);
         sc.position.set(S.xr, 0.026, 0.1);
         bag.visible = true;
         bag.position.set(S.xb, 0, 0.1);
@@ -80,8 +80,13 @@ export default {
     const pickHook = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), new THREE.MeshBasicMaterial({ visible: false }));
     pickHook.userData.pick = true;
     group.add(pickHook);
+    // 调零螺母：左右拖就是拧（往右拧，弹簧上端升高，指针往上走）
+    const pickNut = new THREE.Mesh(new THREE.SphereGeometry(0.008, 10, 8), new THREE.MeshBasicMaterial({ visible: false }));
+    pickNut.userData.pick = true;
+    group.add(pickNut);
+    let setZero = () => {}, nut0 = null;
 
-    const pointer = draggable(group, [{ obj: pickHook, plane: 'xy', offset: -0.03, onStart: () => { S.drag = true; }, onEnd: () => { S.drag = false; if (S.mode === 'hang' && !S.bag) S.pull = 0; }, onDrag: (p) => {
+    const pointer = draggable(group, [{ obj: pickNut, plane: 'xy', offset: 0, hint: '左右拖：拧调零螺母', enabled: () => S.mode === 'hang', onStart: (p) => { nut0 = p ? { x: p.x, v: S.zero } : null; }, onDrag: (p) => { if (nut0) setZero(clamp(nut0.v - (p.x - nut0.x) / 0.05 * 0.2, -0.4, 0.4)); } }, { obj: pickHook, plane: 'xy', offset: -0.03, onStart: () => { S.drag = true; }, onEnd: () => { S.drag = false; if (S.mode === 'hang' && !S.bag) S.pull = 0; }, onDrag: (p) => {
       if (S.mode === 'hang') {
         if (S.bag) return;
         // 手往下拉：拉力 = 伸长 / 每牛伸长
@@ -100,7 +105,15 @@ export default {
       pointer,
       mount(ui) {
         const out = readout([{ key: 'r', label: '指针指的刻度', unit: 'N', secret: true }, { key: 'm', label: '' }]);
-        const zero = slider('调零（旋动顶上的调零螺丝）', { min: -40, max: 40, value: 20, fmt: () => '看指针是否对准零刻度线', onInput: (v) => { if (S.bag || S.pull > 0.05 || S.mode !== 'hang') { zero.set(Math.round(S.zero * 100)); return status('调零要在<b>不受力</b>的时候：先取下挂着的东西，竖直挂好再调。'); } S.zero = v / 100; if (Math.abs(S.zero) < 0.025) { S.zero = 0; zero.set(0); W.goal.done('zero'); status('指针和零刻度线重合了。现在拖住下面的挂钩往下拉，分别拉到 1 N、3 N、5 N，感受一下这几个力。'); } } });
+        const zero = slider('调零（旋动顶上的调零螺母，也可以直接拖螺母）', { min: -40, max: 40, value: 20, fmt: () => '看指针是否对准零刻度线', onInput: (v) => setZero(v / 100, true) });
+        // 调零：面板滑块和拖螺母都走这里
+        setZero = (v, fromSlider) => {
+          if (S.bag || S.pull > 0.05 || S.mode !== 'hang') { zero.set(Math.round(S.zero * 100)); status('调零要在<b>不受力</b>的时候：先取下挂着的东西，竖直挂好再调。'); return; }
+          const was = S.zero;
+          S.zero = Math.abs(v) < 0.025 ? 0 : Math.round(v * 100) / 100;
+          if (!fromSlider || S.zero === 0) zero.set(Math.round(S.zero * 100));
+          if (S.zero === 0 && was !== 0) { W.goal.done('zero'); status('指针和零刻度线重合了。现在拖住下面的挂钩往下拉，分别拉到 1 N、3 N、5 N，感受一下这几个力。'); }
+        };
         const choices = buttons([0, 1, 2].map((j) => ({ text: '', ghost: true, onClick: () => answer(j) })));
         choices.el.hidden = true;
         ask = (id, q, opts0, right0, ok, hint) => { const order = opts0.map((_, i) => i).sort(() => Math.random() - 0.5); const opts = order.map((i) => opts0[i]), right = order.indexOf(right0); asked = { id, opts, right, ok, hint }; status(q); choices.btns.forEach((b, j) => (b.textContent = opts[j])); choices.el.hidden = false; };
@@ -121,7 +134,7 @@ export default {
           { text: '挂回铁架台', ghost: true, onClick: () => { S.mode = 'hang'; S.bag = false; S.pull = 0; layout(); back(); status('测力计竖直挂在铁架台上。'); } },
           { text: '换一个新的测力计', ghost: true, onClick: () => { S.broken = false; S.zero = 0.2; zero.set(20); if (S.mode !== 'hang') back(); S.mode = 'hang'; S.bag = false; layout(); status('换了一个新的测力计——它的指针也没有对准零刻度线，记得先调零。'); } },
         ]);
-        ui.controls.append(acts.el, zero.el, out.el, choices.el, note('拖动<b>挂钩</b>可以用手往下拉；水平拖动时拖<b>圆环</b>。'));
+        ui.controls.append(acts.el, zero.el, out.el, choices.el, note('左右拖顶上的<b>调零螺母</b>可以调零；拖动<b>挂钩</b>可以用手往下拉；水平拖动时拖<b>圆环</b>。'));
         W = { out, status: (m) => ui.status(m), goal: goals(ui, [['div', '认清测量范围和分度值'], ['zero', '检查指针是否对准零刻度线，调零'], ['feel', '用手拉挂钩，分别拉到 1 N、3 N、5 N'], ['f1', '挂上文具袋，读出 F₁'], ['f2', '沿水平方向匀速拖动文具袋，读出 F₂']]) };
         layout();
         ask('div', '先看清这个弹簧测力计：最大测量值 5 N。<b>每一小格表示多少牛？</b>', ['0.1 N', '0.2 N', '0.5 N'], 1, '对：1 N 之间有 5 小格，每小格 0.2 N。再看看指针——它指在零刻度线上吗？', '数一数 0 和 1.0 之间有几小格。');
@@ -154,6 +167,7 @@ export default {
           if (S.pull > 6 && !S.broken) { S.broken = true; status('<b>弹簧被拉坏了：</b>松手后指针回不到零刻度线了。加在弹簧测力计上的力不能超过它的最大测量值。点“换一个新的测力计”。'); }
         }
         layout();
+        group.worldToLocal(sc.nut.getWorldPosition(pickNut.position));
         pickHook.position.set(S.mode === 'hang' ? 0 : S.xr, S.mode === 'hang' ? TOPY + sc.hookEnd : 0.026, S.mode === 'hang' ? -0.03 : 0.1);
         W?.out.set('r', Math.max(0, reading()).toFixed(1));
         W?.out.set('m', S.broken ? '弹簧被拉坏了' : S.mode === 'flat' ? (S.vb > 0.005 ? '文具袋在动' : '文具袋没动') : S.bag ? '挂着文具袋' : S.pull > 0.05 ? '手在拉' : '');

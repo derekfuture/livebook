@@ -23,6 +23,7 @@ import { bubble2, water2, milky } from './kit/chemfx.js';
 import { micro, cuoScene } from './kit/microworld.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, guards, think, mountXuean, moreBox, varyBox, paperSheet, demoActs } from './kit/chemlesson.js';
+import { lampCap } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked, hull } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -100,8 +101,7 @@ export default {
     const jack = labJack({ w: 0.06, d: 0.044, h: JACK_H }); jack.position.set(LAMP_X, 0, 0); group.add(jack);
     const lamp = chemLamp(); lamp.position.set(LAMP_X, JACK_H, 0); group.add(lamp);
     const lampPick = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.056, 0.072), new THREE.MeshBasicMaterial({ visible: false })); lampPick.position.y = 0.028; lampPick.userData.pick = true; lamp.add(lampPick);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.015, 0.03, 18), paint(0xcfd6dc, { unique: true, transparent: true, opacity: 0.55 })); group.add(cap);
-    const CAP_ON = new THREE.Vector3(LAMP_X, JACK_H + 0.072, 0), CAP_OFF = new THREE.Vector3(-0.2, 0.015, 0.058);
+    const capper = lampCap(group, lamp, { off: new THREE.Vector3(-0.2, 0, 0.058) });
     // 网罩：金属丝网卷成的圆筒，套在灯芯外面
     const gauzeTex = canvasTex(256, 128, (g, Wd, Ht) => { g.clearRect(0, 0, Wd, Ht); g.strokeStyle = 'rgba(70,76,88,0.85)'; g.lineWidth = 2; for (let i = 0; i <= Wd; i += 9) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, Ht); g.stroke(); } for (let j = 0; j <= Ht; j += 9) { g.beginPath(); g.moveTo(0, j); g.lineTo(Wd, j); g.stroke(); } });
     const coverG = new THREE.Group(); group.add(coverG);
@@ -216,7 +216,7 @@ export default {
       suck: 0, limeCO2: 0, lime: 0, airIn: 0, popped: false, broken: '', wet: false, heatT: 0, coolT: 0, bareHint: false, slowT: 0,
       lampFirst: false, rightOrder: false, pourK: -1, poured: false, result: null, seq: [], seen: {}, limeAt: null, redAt: null,
       outCO2: 0, flowV: 0, anim: null, demo: false, near: false,
-      plugK: 0, capK: 0, mixK: 0, scooped: false,      // 画面：塞子拔出了多少（0 塞着 → 1 在桌上）、灯帽取下了多少、木炭粉倒进去了多少；纸槽取上粉末了没有
+      plugK: 0, mixK: 0, scooped: false,      // 画面：塞子拔出了多少（0 塞着 → 1 在桌上）、木炭粉倒进去了多少；纸槽取上粉末了没有
     });
     S = fresh();
     const FX = { bubAcc: 0, lastOut: 0, drift: 0 };          // 只管画面的小东西（不算实验状态）
@@ -265,7 +265,7 @@ export default {
           status(S.clampOpen ? '导管插进了澄清石灰水里。' : '导管插进了澄清石灰水里。现在点一下乳胶管上的<b>弹簧夹</b>，把它打开。');
         } else {
           seq('撤出导管');
-          if (S.lit) status('导管撤出了石灰水。现在<b>停止加热</b>：点一下酒精灯，盖上灯帽。');
+          if (S.lit) status('导管撤出了石灰水。现在<b>停止加热</b>：' + (S.cover ? '先拿开网罩，再' : '') + '点一下酒精灯，盖上灯帽。');
           else if (S.lampFirst && !S.broken) {
             if (S.suck < V_LINE) { S.rightOrder = true; done('stop'); status('及时把导管撤出了石灰水，倒吸的石灰水没有流进试管。记住顺序：<b>先撤导管，再停止加热</b>。'); log(['赶紧撤出导管', '倒吸停住了', '差一点流进热试管']); }
           } else status('导管撤出了石灰水。');
@@ -274,7 +274,7 @@ export default {
       clamp() {
         if (S.broken) return;
         S.clampOpen = !S.clampOpen; sfx.clink({ freq: 1300, gain: 0.03 });
-        if (S.clampOpen) { seq('打开弹簧夹'); if (!S.lit && S.heatT === 0) { done('open'); status('打开了弹簧夹：试管里的气体可以通过导管跑出去。现在把<b>网罩</b>套在酒精灯上，再<b>点燃</b>酒精灯。'); } else status('打开了弹簧夹。'); return; }
+        if (S.clampOpen) { seq('打开弹簧夹'); if (!S.lit && S.heatT === 0) { done('open'); status('打开了弹簧夹：试管里的气体可以通过导管跑出去。现在<b>点燃</b>酒精灯，再把<b>网罩</b>罩在火焰上。'); } else status('打开了弹簧夹。'); return; }
         seq('夹紧乳胶管');
         if (S.heatT > 0 && !S.lit) {
           done('close'); far();
@@ -287,15 +287,18 @@ export default {
       cover(on) {
         if (S.cover === on) return;
         S.cover = on; sfx.clink({ freq: 1700, gain: 0.025 });
-        status(on ? '酒精灯加上了<b>网罩</b>：火焰集中，温度更高。' + (S.lit ? '' : '点一下酒精灯点燃。') : '拿掉了网罩。');
+        if (on && S.lit) { seq('罩上网罩'); done('heat'); return status('罩上了<b>网罩</b>：火焰集中，温度更高。加热几分钟：盯着试管里的<b>黑色粉末</b>和右边的<b>石灰水</b>。' + (S.clampOpen ? '' : '（弹簧夹还<b>夹着</b>呢……）') + (S.end === 'lime' ? '' : '（导管还没插进石灰水里。）')); }
+        status(on ? '酒精灯加上了<b>网罩</b>：火焰集中，温度更高。' : '拿掉了网罩。');
       },
       light() {
         if (S.broken) return status('试管已经炸裂了。点“更多”里的“全部重来”。');
         if (!S.lit) {
           if (!S.loaded || S.plug !== 'in') return status('先装好药品、塞紧橡胶塞，再加热。');
           if (S.pourK >= 0 || S.poured) return status('粉末已经倒出来了。');
-          S.lit = true; seq(S.cover ? '加网罩加热' : '加热（没加网罩）'); done('heat');
-          status((S.cover ? '点燃了酒精灯（加了网罩）。' : '点燃了酒精灯——<b>没加网罩</b>。') + '加热几分钟：盯着试管里的<b>黑色粉末</b>和右边的<b>石灰水</b>。' + (S.clampOpen ? '' : '（弹簧夹还<b>夹着</b>呢……）') + (S.end === 'lime' ? '' : '（导管还没插进石灰水里。）'));
+          S.lit = true; seq('点燃酒精灯');
+          if (!S.cover) return status('点燃了酒精灯。再把<b>网罩</b>罩在火焰上：火焰集中，温度更高。');
+          done('heat');
+          status('点燃了酒精灯（加了网罩）。加热几分钟：盯着试管里的<b>黑色粉末</b>和右边的<b>石灰水</b>。' + (S.clampOpen ? '' : '（弹簧夹还<b>夹着</b>呢……）') + (S.end === 'lime' ? '' : '（导管还没插进石灰水里。）'));
           return;
         }
         S.lit = false; seq('停止加热');
@@ -373,9 +376,9 @@ export default {
         { id: 'load', title: '装药品', todo: '把<b>木炭粉</b>拖进<b>氧化铜</b>里混匀；点<b>橡胶塞</b>拔出来，把<b>纸槽</b>拖到试管口铺进粉末，再点橡胶塞塞紧。', target: () => (!S.mixed ? cDish : !S.loaded ? (S.plug === 'in' ? plug : trough) : S.plug !== 'in' ? plug : null) },
         { id: 'lime', title: '导管插入石灰水', todo: '把<b>导管</b>往下拖，插进右边的<b>澄清石灰水</b>里。', target: () => (S.end === 'lime' ? null : endPiece) },
         { id: 'open', title: '打开弹簧夹', todo: '点一下乳胶管上的<b>弹簧夹</b>，把它打开（气体才能通过）。', target: () => (S.clampOpen ? null : clampG) },
-        { id: 'heat', title: '加网罩，加热', todo: '把<b>网罩</b>套在酒精灯上（火焰集中、温度更高），再点一下<b>酒精灯</b>点燃。', target: () => (S.lit ? null : !S.cover ? coverG : lamp) },
+        { id: 'heat', title: '点燃酒精灯，加网罩', todo: '先点一下<b>酒精灯</b>点燃，再把<b>网罩</b>罩在火焰上（火焰集中、温度更高）。', target: () => (!S.lit ? lamp : !S.cover ? coverG : null) },
         { id: 'watch', title: '观察', todo: '加热几分钟：盯着试管里的<b>黑色粉末</b>和右边的<b>石灰水</b>。（时间加快了 8 倍）' },
-        { id: 'stop', title: '先撤导管，再停止加热', todo: '先把<b>导管</b>从石灰水里拖出来，再点<b>酒精灯</b>熄灭它。', target: () => (S.end === 'lime' ? endPiece : S.lit ? lamp : null) },
+        { id: 'stop', title: '先撤导管，再停止加热', todo: '先把<b>导管</b>从石灰水里拖出来，再停止加热：拿开<b>网罩</b>，点<b>酒精灯</b>盖上灯帽。', target: () => (S.end === 'lime' ? endPiece : S.lit ? (S.cover ? coverG : lamp) : null) },
         { id: 'close', title: '夹紧乳胶管', todo: '用<b>弹簧夹</b>夹紧乳胶管（点一下弹簧夹），不让空气进去。', target: () => (S.clampOpen ? clampG : null) },
         { id: 'pour', title: '冷却后倒出', todo: '等试管<b>冷却</b>（看试管旁的温度），再点一下<b>试管</b>，把粉末倒在<b>纸</b>上。', target: () => (S.poured ? null : tube) },
         { id: 'why', title: '想一想', todo: '红色物质是什么？为什么要先撤导管？在左边作答。' },
@@ -397,13 +400,14 @@ export default {
                 act.tap(plugPick, 0.84)) },
             { cap: '试管固定在铁架台上，管口略向下倾斜；导管插入澄清石灰水，打开弹簧夹。', dur: 3.4, cam: [P(0.07, 0.1), [0.1, 0.25, 1], 0.36],
               during: act.seq(dragPath(endPick, [tipGrab, TIP.lime.clone().add(V(0, 0.075, 0))], { t0: 0.04, t1: 0.38, release: 0.4 }), act.tap(clampPick, 0.6)) },
-            { cap: '酒精灯加上网罩，使火焰集中、温度更高。点燃，加热混合物。', dur: 3.6, cam: [P(LAMP_X, 0.11), [0.1, 0.25, 1], 0.3],
-              during: act.seq(dragPath(coverPick, [() => coverG.position.clone(), V(COVER_OFF.x, COVER_UP, 0), V(LAMP_X, COVER_UP, 0), COVER_ON], { t0: 0.03, t1: 0.42, release: 0.44 }), act.tap(lampPick, 0.62)) },
+            { cap: '点燃酒精灯，再罩上网罩，使火焰集中、温度更高，加热混合物。', dur: 3.8, cam: [P(LAMP_X, 0.11), [0.1, 0.25, 1], 0.3],
+              during: act.seq(act.tap(lampPick, 0.05), dragPath(coverPick, [() => coverG.position.clone(), V(COVER_OFF.x, COVER_UP, 0), V(LAMP_X, COVER_UP, 0), COVER_ON], { t0: 0.36, t1: 0.76, release: 0.78 })) },
             { cap: '刚开始冒出的气泡，是试管里受热膨胀的空气——石灰水不变浑浊。', dur: 3.4, speed: 0.7, cam: [P(LIME.x, 0.05), [0.1, 0.2, 1], 0.24] },
             { cap: '温度够高了：黑色粉末从受热最强的地方开始变红。钻进粉末里看：碳原子把氧化铜里的氧原子拉走，生成二氧化碳；铜原子留下。', dur: 11, speed: 2.5, cam: [P(POWDER_C.x, POWDER_C.y + 0.04), [0.05, 0.3, 1], 0.24], during: act.at(0.02, () => mic.open(true)) },
             { cap: '二氧化碳通进石灰水，石灰水变浑浊。', dur: 2.6, speed: 2, cam: [P(LIME.x, 0.05), [0.1, 0.2, 1], 0.24], enter: () => mic.close() },
-            { cap: '停止时：先把导管撤出石灰水，再停止加热。', dur: 3.4, cam: [P(0.0, 0.1), [0.1, 0.22, 1], 0.5],
-              during: act.seq(dragPath(endPick, [tipGrab, TIP.up.clone().add(V(0, 0.075, 0))], { t0: 0.04, t1: 0.3, release: 0.32 }), act.tap(lampPick, 0.55)) },
+            { cap: '停止时：先把导管撤出石灰水，再停止加热——拿开网罩，盖上灯帽熄灭酒精灯。', dur: 4.6, cam: [P(0.0, 0.1), [0.1, 0.22, 1], 0.5],
+              during: act.seq(dragPath(endPick, [tipGrab, TIP.up.clone().add(V(0, 0.075, 0))], { t0: 0.03, t1: 0.24, release: 0.26 }),
+                dragPath(coverPick, [() => coverG.position.clone(), V(LAMP_X, COVER_UP, 0), V(COVER_OFF.x, COVER_UP, 0), COVER_OFF.clone().add(V(0, 0.002, 0))], { t0: 0.34, t1: 0.66, release: 0.68 }), act.tap(lampPick, 0.78)) },
             { cap: '用弹簧夹夹紧乳胶管，不让空气进去；等试管冷却。', dur: 3.4, speed: 7, cam: [P(0.03, 0.13), [0.1, 0.3, 1], 0.3], during: act.tap(clampPick, 0.03) },
             { cap: '冷却后把粉末倒在纸上：黑色的粉末里有了红色的铜。演示完了，下面换你自己做。', dur: 4.8, cam: [P(PAPER.x, 0.05, PAPER.z), [0.05, 0.6, 1], 0.26], enter: () => { S.T = S.T.map((t) => Math.min(t, 40)); },
               during: act.tap(tubePick, 0.04) },
@@ -552,13 +556,8 @@ export default {
       rebuildHose(base, axis);
       jA.position.y += ((S.clampOpen ? 0.0072 : 0.0042) - jA.position.y) * 0.25; jB.position.y = -jA.position.y;
       // 酒精灯、灯帽、网罩
-      lamp.flame.setOn(S.lit); lamp.flame.setSize(S.cover ? 1.1 : 1);
+      lamp.flame.setOn(capper.update(dt, S.lit)); lamp.flame.setSize(S.cover ? 1.1 : 1);        // 灯帽：点燃前取下放到桌上；熄灭时盖上，再轻提一下、重新盖好
       lamp.flame.setColors(S.cover ? { mid: 0xffd27a, edge: 0xff8a3a, blue: 0.6 } : { mid: 0xffdc8a, edge: 0xffa24a, blue: 0.85 });
-      // 灯帽：点燃时先竖直提起，再拿到桌上；熄灭时反过来盖回去
-      S.capK = clamp(S.capK + clamp((S.lit ? 1 : 0) - S.capK, -dt * 1.6, dt * 1.6), 0, 1);
-      { const K = S.capK, UP = CAP_ON.clone().add(new THREE.Vector3(0, 0.015, 0));
-        if (K < 0.3) cap.position.lerpVectors(CAP_ON, UP, ease(K / 0.3));
-        else { const u = ease((K - 0.3) / 0.7); cap.position.lerpVectors(UP, CAP_OFF, u); cap.position.y += Math.sin(Math.PI * u) * 0.015; } }
       // 网罩：拖着时跟手；松手 / 点一下以后先抬到灯颈以上，横着移过去，再放下
       if (S.coverDrag) coverG.position.copy(S.coverDrag);
       else {
@@ -709,11 +708,12 @@ export default {
           { name: '塞紧橡胶塞', tap: plugPick },
           { name: '导管插入石灰水', drag: endPick, to: () => TIP.lime.clone().add(new THREE.Vector3(0, 0.075, 0)) },
           { name: '打开弹簧夹', tap: clampPick },
-          { name: '套上网罩', drag: coverPick, to: () => COVER_ON.clone().add(new THREE.Vector3(0, 0.02, 0)) },
-          { name: '点燃酒精灯', tap: lampPick, wait: 6 },
+          { name: '点燃酒精灯', tap: lampPick, wait: 1 },
+          { name: '罩上网罩', drag: coverPick, to: () => COVER_ON.clone().add(new THREE.Vector3(0, 0.02, 0)), wait: 6 },
           { name: '钻进粉末里看', run: () => mic.open(), wait: 14 },
           { name: '回到桌上', run: () => mic.close(), wait: 8 },
           { name: '撤出导管', drag: endPick, to: () => TIP.up.clone().add(new THREE.Vector3(0, 0.075, 0)) },
+          { name: '拿开网罩', drag: coverPick, to: () => COVER_OFF.clone().add(new THREE.Vector3(0, 0.02, 0)) },
           { name: '熄灭酒精灯', tap: lampPick },
           { name: '夹紧乳胶管', tap: clampPick, wait: 22 },
           { name: '倒在纸上', tap: tubePick, wait: 4 },

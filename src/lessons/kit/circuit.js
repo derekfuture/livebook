@@ -165,10 +165,27 @@ export class Circuit {
       // 接电表的导线贴着桌面走，不从表盘前面拱过去挡住刻度
       const meter = [w.a, w.b].some((t) => ['ammeter', 'voltmeter'].includes(this.parts.get(splitId(t)[0])?.kind));
       const lift = w.lift ?? (meter ? 0.004 : Math.min(0.028, 0.008 + a.distanceTo(b) * 0.1));
-      const mid = a.clone().lerp(b, 0.5);
-      mid.y = Math.max(a.y, b.y) + lift;
+      const mid = new THREE.Vector3();
+      const exit = (id, at, other) => {
+        const [pn, tn] = splitId(id), p = this.parts.get(pn);
+        const isMeter = ['ammeter', 'voltmeter'].includes(p.kind);
+        if (!isMeter && !['switch', 'lamp'].includes(p.kind) && !(p.kind === 'rheostat' && ['A', 'B'].includes(tn))) return [at.clone().add(new THREE.Vector3(0, lift * 0.6, 0))];
+        const local = new THREE.Vector3(...p.terminals[tn]);
+        const toLocal = p.group.worldToLocal(this.group.localToWorld(other.clone()));
+        const pts = [local.clone().add(new THREE.Vector3(0, 0.003, isMeter ? 0.023 : 0.018))];
+        if ((isMeter || p.kind === 'switch') && toLocal.z < 0.025) {
+          const x = isMeter ? (toLocal.x < local.x ? -1 : 1) * 0.052 : Math.sign(local.x) * 0.04;
+          const z = isMeter ? 0.035 : 0.018;
+          pts.push(new THREE.Vector3(x, local.y + 0.003, z), new THREE.Vector3(x, local.y + 0.003, -0.035));
+        }
+        return pts.map((v) => this.group.worldToLocal(p.group.localToWorld(v)));
+      };
+      const ap = exit(w.a, a, b), bp = exit(w.b, b, a);
+      mid.copy(ap.at(-1)).lerp(bp.at(-1), 0.5);
+      mid.y = Math.max(ap.at(-1).y, bp.at(-1).y) + lift;
       if (w.via) mid.add(new THREE.Vector3(...w.via));
-      const curve = new THREE.CatmullRomCurve3([a, a.clone().add(new THREE.Vector3(0, lift * 0.6, 0)), mid, b.clone().add(new THREE.Vector3(0, lift * 0.6, 0)), b], false, 'centripetal');
+      const points = w.points ? [a, ...w.points.map((p) => new THREE.Vector3(...p)), b] : [a, ...ap, mid, ...bp.reverse(), b];
+      const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
       const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 40, 0.0018, 6, false), w.color ? paint(w.color) : copper);
       tube.castShadow = true;
       tube.raycast = () => {};

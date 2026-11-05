@@ -8,6 +8,8 @@
 //   水：20 ℃ 时 1 体积水约溶解 0.88 体积二氧化碳。
 //   氢氧化钠溶液按约 0.5 mol/L（约 2%）计：每毫升最多吸收约 6.1 mL 二氧化碳（生成碳酸钠）——110 mL 能吸收约 670 mL，
 //   比瓶里的二氧化碳多得多，所以几乎全被吸收（氢氧化钠还有剩）。振荡时吸收得快（几秒），静置时慢。瓶盖没旋紧：空气补进来，瓶子不瘪。
+// 顺序（同上册第 136 页实验 6-4“加入约 1/3 容积的水，立即旋紧瓶盖，振荡”）：向瓶 A 倒水 → 立即旋紧瓶 A；向瓶 B 倒氢氧化钠溶液 → 立即旋紧瓶 B；再振荡。
+// 滴管（上册第 17 页）：平时竖着插在滴瓶里；拿起来一直竖着（橡胶帽在上），到点滴板孔上方悬空滴；用完插回原滴瓶。
 import * as THREE from 'three';
 import { buttons, table } from './kit/ui.js';
 import { draggable, clamp, lerp } from './kit/interact.js';
@@ -15,11 +17,12 @@ import { canvasTex, textPlate } from './kit/props.js';
 import { Particles } from './kit/fx.js';
 import { chemBeaker, glassMat, CHEM } from './kit/chem.js';
 import { water2 } from './kit/chemfx.js';
+import { dropBottle, homeLift } from './kit/labops.js';
 import { micro, naohScene } from './kit/microworld.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs } from './kit/chemlesson.js';
 import { sfx } from './kit/audio.js';
-import { paint, inked } from '../live/ink.js';
+import { paint, inked, glassEdge } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
 
 const DARK = 0x3d4350, LIGHT = 0xb9bec8;
@@ -27,7 +30,9 @@ const DARK = 0x3d4350, LIGHT = 0xb9bec8;
 const PLATE = new THREE.Vector3(-0.145, 0, -0.005);
 const WELLS = [[-0.022, -0.012, 'NaOH'], [0.0, -0.012, 'NaOH'], [-0.022, 0.012, 'CaOH'], [0.0, 0.012, 'CaOH']];
 const BASE = { NaOH: '氢氧化钠溶液', CaOH: '石灰水' };
-const IND = [{ key: 'lit', name: '石蕊溶液', color: 0x8b5fb0, base: 0x3d6fd2, home: new THREE.Vector3(-0.118, 0.006, 0.05) }, { key: 'ph', name: '酚酞溶液', color: 0xf2f2ee, base: 0xe0307a, home: new THREE.Vector3(-0.118, 0.006, 0.076) }];
+// 两个滴瓶放在点滴板后面的左右两边（不挡住孔；滴管在孔上方时也不和滴瓶叠在一起）；drop：滴下去的液滴（酚酞溶液是无色的）
+const IND = [{ key: 'lit', name: '石蕊溶液', color: 0x8b5fb0, base: 0x3d6fd2, drop: 0x9a7fc0, bottle: new THREE.Vector3(-0.2, 0, -0.05) }, { key: 'ph', name: '酚酞溶液', color: 0xf2f2ee, base: 0xe0307a, drop: 0xd6eaf2, liq: 0xe0ecef, bottle: new THREE.Vector3(-0.112, 0, -0.05) }];
+const CARRY_Y = 0.055, DRIP_Y = 0.017;                                            // 拿着滴管走时滴管尖的高度（高过滴瓶口）；在孔上方悬空滴时滴管尖的高度（离板面约 1 cm）
 // 两个软塑料瓶（集满二氧化碳）：瓶 A 加水，瓶 B 加氢氧化钠溶液；各自右边一杯液体，前面一个瓶盖
 const BR = 0.031;
 const BOT_PTS = [[0.0003, 0], [BR - 0.003, 0], [BR, 0.004], ...Array.from({ length: 20 }, (_, i) => [BR, 0.008 + i * 0.0046]), [0.029, 0.102], [0.026, 0.11], [0.02, 0.118], [0.014, 0.125], [0.011, 0.128], [0.011, 0.14]];
@@ -72,7 +77,7 @@ export default {
 
     paperSheet(group, { w: 0.42, d: 0.2, x: -0.005, z: 0.02 });
 
-    // ================= 点滴板、两支滴管 =================
+    // ================= 点滴板、两个滴瓶 =================
     const plate = inked(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.008, 0.05), paint(0xf8f8f6)), { width: 0.7 }); plate.position.copy(PLATE).add(new THREE.Vector3(-0.011, 0.004, 0)); group.add(plate);
     const wells = WELLS.map(([dx, dz, b]) => {
       const x = PLATE.x + dx, z = PLATE.z + dz;
@@ -85,17 +90,32 @@ export default {
       const pl = textPlate(txt, { w: txt.length * 0.0042, h: 0.007, color: '#23293a', bg: 'rgba(0,0,0,0)', font: 'bold 84px "Songti SC", serif' });
       pl.rotation.x = -Math.PI / 2; pl.position.set(PLATE.x + 0.012 + txt.length * 0.0021, 0.0082, PLATE.z + dz); group.add(pl);
     }
-    const droppers = IND.map((I) => {
-      const g = new THREE.Group(); g.position.copy(I.home); group.add(g);
-      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0024, 0.042, 10), glassMat({ opacity: 0.35 })); tube.position.y = 0.021; tube.renderOrder = 9; g.add(tube);
-      const inside = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0018, 0.02, 8), paint(I.color, { keep: true })); inside.position.y = 0.012; g.add(inside);
-      const bulb = inked(new THREE.Mesh(new THREE.SphereGeometry(0.0052, 12, 8), paint(0xc23a3a, { keep: true })), { width: 0.4 }); bulb.scale.y = 1.6; bulb.position.y = 0.048; g.add(bulb);
-      const lab = plate2(I.name, 0.026); lab.rotation.x = -Math.PI / 2; lab.position.set(I.home.x + 0.02, 0.0004, I.home.z); group.add(lab);      // 标签平贴在桌上，滴管右边
-      const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.06, 8), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.03; pick.userData.pick = true; g.add(pick);
-      g.rotation.z = Math.PI / 2; g.position.y = 0.0055;
-      return Object.assign(g, { pick });
-    });
-    const dropsP = new Particles({ max: 40, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: 0x9a7fc0, base: 0.6 }) }); group.add(dropsP.mesh);
+    // 滴瓶（kit 的 dropBottle）+ 竖着插在瓶里的滴管；标签贴在滴瓶上（字多时字号缩小，免得被裁掉）。滴管的原点在滴管尖。
+    // ——dropper / follow / putBack 和 indicator、basereact、acidprop 里的一样，建议进 kit
+    const bottleLabel = (B, text) => { const lab = textPlate(text, { w: 0.024, h: 0.008, bg: 'rgba(253,251,245,0.95)', font: `bold ${Math.min(120, Math.floor(470 / text.length))}px "Songti SC", serif` }); lab.position.set(0, 0.022, 0.0135); B.add(lab); B.label = lab; };
+    const dropper = (B, inside) => {
+      const g = new THREE.Group(); group.add(g);
+      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.0024, 0.0011, 0.046, 14), glassMat({ opacity: 0.3 })); glass.geometry.translate(0, 0.023, 0); glass.renderOrder = 9; glassEdge(glass, 0.0005);
+      const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.0014, 0.0008, 0.018, 10), paint(inside, { keep: true })); liq.position.y = 0.0095;
+      const collar = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0068, 0.0068, 0.005, 18), paint(0xc23a3a, { keep: true })), { width: 0.6 }); collar.position.y = 0.0435;
+      const bulb = inked(new THREE.Mesh(new THREE.SphereGeometry(0.0055, 16, 12), paint(0xc23a3a, { keep: true })), { width: 0.6 }); bulb.scale.set(1, 1.55, 1); bulb.position.y = 0.0545;
+      const pick = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.075, 0.018), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.035; pick.userData.pick = true;
+      g.add(glass, liq, collar, bulb, pick); g.position.copy(B.tipHome);
+      return Object.assign(g, { pick, B });
+    };
+    // 拿着滴管走（to：滴管尖要去的地方）：还在滴瓶这儿时先竖直往上提，提出瓶口再移过去
+    const follow = (d, to, a) => {
+      const B = d.B, p = d.position, off = Math.hypot(p.x - B.position.x, p.z - B.position.z), up = Math.max(B.mouthY + 0.008, to.y);
+      p.lerp(off < 0.02 && p.y < up - 0.002 ? new THREE.Vector3(off < 0.003 ? B.position.x : p.x, up, off < 0.003 ? B.position.z : p.z) : to, a);
+    };
+    // 插回原滴瓶：先竖直提到 rise 那么高（不碰别的器材），再挪到瓶口正上方，竖直插回去
+    const putBack = (d, a, rise) => {
+      const p = d.position, off = Math.hypot(p.x - d.B.position.x, p.z - d.B.position.z);
+      if (off > 0.004 && p.y < rise - 0.002) p.lerp(new THREE.Vector3(p.x, rise, p.z), a);
+      else homeLift(d, d.B.tipHome, a);
+    };
+    const droppers = IND.map((I) => { const B = dropBottle(group, I.bottle, { liq: I.liq ?? I.color }); bottleLabel(B, I.name); return dropper(B, I.color); });
+    const dropsP = IND.map((I) => { const p = new Particles({ max: 40, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: I.drop, base: 0.6 }) }); group.add(p.mesh); return p; });
 
     // ================= 两个软塑料瓶、两杯液体、两个瓶盖 =================
     const bottles = BX.map((x, i) => {
@@ -129,7 +149,7 @@ export default {
     const solDots = Array.from({ length: 28 }, () => ({ u: Math.sqrt(Math.random()) * 0.8, th: Math.random() * Math.PI * 2, y: Math.random(), ph: Math.random() * 6, p: new THREE.Vector3(), size: 0.0022, alpha: 0.75 }));
 
     const botCards = BX.map((x, i) => { const c = tag('', 'cond'); c.px = [i ? 74 : -74, -64]; return c; });
-    const plateCard = tag('', 'cond'); plateCard.px = [-60, -70];
+    const plateCard = tag('', 'cond'); plateCard.px = [0, 44];          // 点滴板前面（后面是两个滴瓶，卡片不挡住它们）
 
     // ================= 状态 =================
     const freshB = () => ({ vw: 0, capOn: false, capT: 0, abs: 0, abs0: 0, air: 0, shakeE: 0, offX: 0, lastX: null, pourLogged: false, logged: false, openLogged: false });
@@ -170,11 +190,11 @@ export default {
       dropDrag(i, p) { if (!p) return; S.dCarry[i] = p.clone(); },
       dropDrop(i) {
         const p = S.dCarry[i]; S.dCarry[i] = null; if (!p) return;
-        const w = wells.findIndex((w) => Math.hypot(p.x - w.x, p.z - w.z) < 0.009);
+        const w = wells.indexOf(wellAt(p));
         if (w < 0) return;
         if (S.well[w]) return status('这个孔里已经滴过指示剂了。换一个孔。');
         S.well[w] = IND[i].key; sfx.clink({ freq: 2600, gain: 0.02 });
-        for (let j = 0; j < 4; j++) dropsP.spawn({ p: new THREE.Vector3(wells[w].x, 0.03, wells[w].z), v: new THREE.Vector3(0, -0.06 - j * 0.01, 0), size: 0.0012, life: 0.6 });
+        for (let j = 0; j < 4; j++) dropsP[i].spawn({ p: new THREE.Vector3(wells[w].x, DRIP_Y - 0.0015, wells[w].z), v: new THREE.Vector3(0, -0.03 - j * 0.012, 0), size: 0.0012, life: 1 });      // 从滴管尖滴下去
         const b = BASE[wells[w].base];
         status(i === 0 ? `往${b}里滴了紫色石蕊溶液：变成了<b>蓝色</b>。` : `往${b}里滴了无色酚酞溶液：变成了<b>红色</b>。`);
         const key = `${wells[w].base}|${IND[i].key}`;
@@ -189,9 +209,8 @@ export default {
           B.pourLogged = true;
           const f = B.vw / V_BOT;
           log([`往瓶 ${i ? 'B' : 'A'} 里倒${LIQ[i].name}`, `约 ${Math.round(B.vw)} mL（${f < 0.27 ? '不到 1/3' : f > 0.42 ? '一半左右' : '约 1/3'}容积）`, '']);
-          status(`瓶 ${i ? 'B' : 'A'} 里倒了约 <b>${Math.round(B.vw)} mL</b> ${LIQ[i].name}。<b>立即</b>旋紧瓶盖（点一下它前面的<b>瓶盖</b>）。${S.b[1 - i].vw > 5 ? '' : `再往另一个瓶里倒<b>同样多</b>的${LIQ[1 - i].name}。`}`);
+          status(`瓶 ${i ? 'B' : 'A'} 里倒了约 <b>${Math.round(B.vw)} mL</b> ${LIQ[i].name}。<b>立即</b>旋紧瓶 ${i ? 'B' : 'A'} 的瓶盖（点一下它前面的<b>瓶盖</b>）。`);
           if (S.b.every((o) => o.vw > 5)) {
-            done('pour');
             const d = Math.abs(S.b[0].vw - S.b[1].vw);
             if (d > 30) status(`两个瓶里的液体差了约 ${Math.round(d)} mL——要比较，两瓶加的液体要<b>一样多</b>（控制变量）。可以“全部重来”再倒一次，也可以先接着做，看看结果。`);
           }
@@ -202,8 +221,9 @@ export default {
         if (B.capOn) return status(`瓶 ${i ? 'B' : 'A'} 的瓶盖已经旋紧了。按住瓶子，左右来回拖几下：振荡。`);
         if (B.vw < 5) return status(`先往瓶 ${i ? 'B' : 'A'} 里倒约 1/3 容积的${LIQ[i].name}，再旋紧瓶盖。`);
         B.capOn = true; B.capT = 0; B.air = 0; B.abs0 = B.abs; sfx.clink({ freq: 1400, gain: 0.04 });
-        if (S.b.every((o) => o.capOn)) done('cap');
-        status(`旋紧了瓶 ${i ? 'B' : 'A'} 的瓶盖。${S.b.every((o) => o.capOn) ? '现在分别<b>振荡</b>两个瓶子：按住瓶子，左右来回拖几下。' : ''}`);
+        done(i ? 'botB' : 'botA');
+        const O = S.b[1 - i];
+        status(`旋紧了瓶 ${i ? 'B' : 'A'} 的瓶盖。${O.vw < 5 ? `再往瓶 ${i ? 'A' : 'B'} 里倒<b>同样多</b>的${LIQ[1 - i].name}，倒好<b>立即</b>旋紧。` : O.capOn ? '现在分别<b>振荡</b>两个瓶子：按住瓶子，左右来回拖几下。' : ''}`);
       },
       shake(i, p) {
         if (!p) return;
@@ -214,45 +234,53 @@ export default {
       },
       shakeEnd(i) { S.b[i].lastX = null; },
       reset() {
-        S = fresh(); mic.close(); drops.clear(); dropsP.clear(); W?.tbl.clear();
+        S = fresh(); mic.close(); drops.clear(); for (const p of dropsP) p.clear(); W?.tbl.clear();
         if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; }
-        bar.undo('ind', 'pour', 'cap', 'shake', 'why');
+        bar.undo('ind', 'botA', 'botB', 'shake', 'why');
         status('全部重新摆好了，记录也清空了。两个软塑料瓶里又集满了二氧化碳。');
       },
     };
 
     const drag = draggable(group, [
-      ...IND.map((I, i) => ({ obj: droppers[i].pick, plane: 'xz', offset: 0.03, hint: `${I.name}：拖到点滴板的一个孔上方，滴几滴`, onStart: (p) => A.dropDrag(i, p), onDrag: (p) => A.dropDrag(i, p), onEnd: () => A.dropDrop(i) })),
+      ...IND.map((I, i) => ({ obj: droppers[i].pick, plane: 'xz', offset: CARRY_Y, hint: `${I.name}：拖到点滴板的一个孔上方，滴几滴`, onStart: (p) => A.dropDrag(i, p), onDrag: (p) => A.dropDrag(i, p), onEnd: () => A.dropDrop(i) })),
       ...cups.map((c, i) => ({ obj: c.pick, plane: 'xy', offset: 0, hint: () => (S.b[i].capOn ? '' : `${LIQ[i].name}：拖到瓶 ${i ? 'B' : 'A'} 口，按住倒；松手停`), onStart: (p) => A.cupDrag(i, p), onDrag: (p) => A.cupDrag(i, p), onEnd: () => A.cupDrop(i) })),
       ...bottles.map((bt, i) => ({ obj: bt.capPick, plane: 'xy', offset: 0, hint: () => (S.b[i].capOn ? '' : `点一下：旋紧瓶 ${i ? 'B' : 'A'} 的瓶盖`), onTap: () => A.capTap(i), onStart: () => {}, onDrag: () => {}, onEnd: () => {} })),
       ...bottles.map((bt, i) => ({ obj: bt.pick, plane: 'xy', offset: 0, hint: () => (S.b[i].capOn ? '按住，左右来回拖：振荡' : '按住，左右来回拖：振荡（瓶盖还没旋紧）'), onStart: (p) => { S.b[i].lastX = p ? p.x : null; }, onDrag: (p) => A.shake(i, p), onEnd: () => A.shakeEnd(i) })),
     ], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
-    const overWell = (w) => () => new THREE.Vector3(wells[w].x, 0.03, wells[w].z);
+    const overWell = (w) => () => new THREE.Vector3(wells[w].x, CARRY_Y, wells[w].z);
+    const wellAt = (p) => wells.find((w) => Math.hypot(p.x - w.x, p.z - w.z) < 0.009);
+    // 演示：从滴瓶里竖直提出滴管，移到孔上方，降到孔上方悬空，松手滴下去（滴管插回滴瓶）
+    const dripTo = (i, w, t0, t1, release) => act.path(droppers[i].pick, [null, () => droppers[i].B.position.clone().setY(CARRY_Y), overWell(w)], { t0, t1, release });
     const spoutAt = (i) => () => mouthOf(i).add(new THREE.Vector3(0.012, 0.004, 0)).sub(SPOUT);          // 手要到的地方：杯嘴正好在瓶口
     const wiggleShot = (i, t0, t1, dur) => act.wiggle(bottles[i].pick, { t0, t1, amp: 0.016, hz: 2.2, dur });
+    // 演示：倒到约 1/3 容积松手；杯子一拿开，马上点这个瓶的瓶盖——立即旋紧（走学生点瓶盖的同一个处理函数）
+    const pourShot = (i) => act.drag(cups[i].pick, spoutAt(i), { t0: 0.03, t1: 0.16, release: 0.9, until: () => S.b[i].vw >= V_BOT / 3 });
+    const capWhenPoured = (i, gap) => { let at = null; const tap = act.tap(bottles[i].capPick, 0); return (k) => { if (k < 0.02) { at = null; tap(-1); return; } if (at == null && k > 0.1 && !S.cup[i].carry && S.b[i].vw > 5) at = k; if (at != null && k >= at + gap) tap(k); }; };
+    const botTarget = (i) => (S.b[i].vw < 5 ? (S.cup[i].carry ? null : cups[i].cup) : !S.b[i].capOn ? bottles[i].cap : null);
 
     const bar = lessonBar({
       look, back, group,
       steps: [
         { id: 'ind', title: '滴指示剂', todo: '把<b>石蕊溶液</b>、<b>酚酞溶液</b>分别滴进点滴板上的氢氧化钠溶液、石灰水里（四个孔各滴一种）。', target: () => (S.dCarry[0] || S.dCarry[1] ? null : droppers[['NaOH|lit', 'CaOH|lit'].every((k) => S.logged[k]) ? 1 : 0]) },
-        { id: 'pour', title: '倒进等量的液体', todo: '两个软塑料瓶里都集满了二氧化碳。把<b>水</b>倒进瓶 A、把<b>氢氧化钠溶液</b>倒进瓶 B，各约 <b>1/3</b> 容积（两瓶一样多）。', target: () => { const i = S.b.findIndex((o) => o.vw < 5); return i >= 0 && !S.cup[i].carry ? cups[i].cup : null; } },
-        { id: 'cap', title: '旋紧瓶盖', todo: '<b>立即</b>点一下两个瓶前面的<b>瓶盖</b>，旋紧。', target: () => { const i = S.b.findIndex((o) => !o.capOn); return i >= 0 ? bottles[i].cap : null; } },
+        { id: 'botA', title: '瓶 A：倒水，立即旋紧', todo: '两个软塑料瓶里都集满了二氧化碳。把<b>水</b>倒进瓶 A，约 <b>1/3</b> 容积；倒好<b>立即</b>点一下瓶 A 前面的<b>瓶盖</b>，旋紧。', target: () => botTarget(0) },
+        { id: 'botB', title: '瓶 B：倒氢氧化钠溶液，立即旋紧', todo: '把<b>氢氧化钠溶液</b>倒进瓶 B，和瓶 A 里的水<b>一样多</b>；倒好<b>立即</b>点一下瓶 B 前面的<b>瓶盖</b>，旋紧。', target: () => botTarget(1) },
         { id: 'shake', title: '振荡、比较', todo: '按住<b>塑料瓶</b>左右来回拖几下（振荡），两个瓶子都振荡。比一比哪个瘪得多。', target: () => { const i = S.b.findIndex((o) => !o.logged); return i >= 0 ? bottles[i].g : null; } },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
       ],
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { drops.clear(); dropsP.clear(); mic.close(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { drops.clear(); for (const p of dropsP) p.clear(); mic.close(); } }),
           shots: [
-            { cap: '在白色点滴板上，向氢氧化钠溶液、石灰水里分别滴加紫色石蕊溶液：都变蓝。', dur: 6, cam: [[PLATE.x, 0.03, 0], [0.04, 0.6, 1], 0.24],
-              during: act.seq(act.drag(droppers[0].pick, overWell(0), { t0: 0.05, t1: 0.3, release: 0.38 }), act.drag(droppers[0].pick, overWell(2), { t0: 0.5, t1: 0.75, release: 0.82 })) },
-            { cap: '再分别滴加无色酚酞溶液：都变红。', dur: 6, cam: [[PLATE.x, 0.03, 0], [0.04, 0.6, 1], 0.24],
-              during: act.seq(act.drag(droppers[1].pick, overWell(1), { t0: 0.05, t1: 0.3, release: 0.38 }), act.drag(droppers[1].pick, overWell(3), { t0: 0.5, t1: 0.75, release: 0.82 })) },
-            { cap: '两个软塑料瓶里都集满了二氧化碳。往瓶 A 里倒约 1/3 容积的水，往瓶 B 里倒同样多的氢氧化钠溶液。', dur: 13, cam: [[0.015, 0.1, 0], [0.08, 0.22, 1], 0.5],
-              during: act.seq(act.drag(cups[0].pick, spoutAt(0), { t0: 0.03, t1: 0.15, release: 0.47, until: () => S.b[0].vw >= V_BOT / 3 }), act.drag(cups[1].pick, spoutAt(1), { t0: 0.52, t1: 0.64, release: 0.98, until: () => S.b[1].vw >= V_BOT / 3 })) },
-            { cap: '立即旋紧两个瓶盖。', dur: 3.4, cam: [[0.015, 0.11, 0], [0.08, 0.25, 1], 0.42], during: act.seq(act.tap(bottles[0].capPick, 0.1), act.tap(bottles[1].capPick, 0.45)) },
+            { cap: '在白色点滴板上，向氢氧化钠溶液、石灰水里分别滴加紫色石蕊溶液：都变蓝。', dur: 6, cam: [[PLATE.x - 0.012, 0.04, -0.012], [0.04, 0.6, 1], 0.28],
+              during: act.seq(dripTo(0, 0, 0.05, 0.3, 0.4), dripTo(0, 2, 0.52, 0.77, 0.87)) },
+            { cap: '再分别滴加无色酚酞溶液：都变红。', dur: 6, cam: [[PLATE.x - 0.012, 0.04, -0.012], [0.04, 0.6, 1], 0.28],
+              during: act.seq(dripTo(1, 1, 0.05, 0.3, 0.4), dripTo(1, 3, 0.52, 0.77, 0.87)) },
+            { cap: '两个软塑料瓶里都集满了二氧化碳。往瓶 A 里倒约 1/3 容积的水，立即旋紧瓶盖。', dur: 9, cam: [[0.015, 0.1, 0], [0.08, 0.22, 1], 0.5],
+              during: act.seq(pourShot(0), capWhenPoured(0, 0.04)) },
+            { cap: '往瓶 B 里倒同样多的氢氧化钠溶液，立即旋紧瓶盖。', dur: 9, cam: [[0.015, 0.1, 0], [0.08, 0.22, 1], 0.5],
+              during: act.seq(pourShot(1), capWhenPoured(1, 0.04)) },
             { cap: '分别振荡两个瓶子：瓶 A（水）稍微瘪了一点，瓶 B（氢氧化钠溶液）瘪得多得多。', dur: 8, speed: 2, cam: [[0.015, 0.07, 0], [0.08, 0.25, 1], 0.42], during: act.seq(wiggleShot(0, 0.04, 0.42, 8), wiggleShot(1, 0.5, 0.9, 8)) },
             { cap: '钻进瓶 B 的溶液里看：CO₂ 碰上两个 OH⁻，变成 CO₃²⁻ 和水——生成了碳酸钠。', dur: 11, cam: [[BX[1], 0.066, 0], [0.05, 0.22, 1], 0.3], during: act.at(0.02, () => mic.open(true)) },
             { cap: '瓶 B 比瓶 A 瘪得多：氢氧化钠和二氧化碳发生了反应。演示完了，下面换你自己做。', enter: () => mic.close(), dur: 4, cam: [[0.015, 0.07, 0], [0.08, 0.25, 1], 0.42] },
@@ -265,11 +293,13 @@ export default {
     // ================= 每帧 =================
     const step = (h, t) => {
       // 滴管
+      // 滴管一直竖着：拿着时跟着手走（高过滴瓶口）；到了孔上方，降下去悬空（不碰点滴板）；松手滴下去，插回原滴瓶
       droppers.forEach((d, i) => {
-        if (S.dCarry[i]) { d.position.lerp(new THREE.Vector3(S.dCarry[i].x, 0.014, S.dCarry[i].z), 0.4); d.rotation.z += (0 - d.rotation.z) * 0.3; }
-        else { d.position.lerp(IND[i].home.clone().setY(0.0055), 0.25); d.rotation.z += (Math.PI / 2 - d.rotation.z) * 0.25; }
+        const p = S.dCarry[i];
+        if (p) { const w = wellAt(p); follow(d, w ? new THREE.Vector3(w.x, DRIP_Y, w.z) : new THREE.Vector3(p.x, CARRY_Y, p.z), 0.4); }
+        else putBack(d, 0.25, CARRY_Y);
       });
-      dropsP.update(h, (p, d) => { p.p.addScaledVector(p.v, d); return p.p.y > 0.007; });
+      for (const P of dropsP) P.update(h, (q, dd) => { q.p.addScaledVector(q.v, dd); return q.p.y > 0.0083; });
       wells.forEach((w, k) => { const c = S.well[k]; w.liq.material.color.lerp(new THREE.Color(c ? IND.find((I) => I.key === c).base : 0xe8eef2), Math.min(1, h * 3)); });
 
       // 倒液体：杯嘴到了瓶口就倾斜着倒（约 22 mL/s），松手停
@@ -355,7 +385,7 @@ export default {
         status('两个瓶子比一比：加<b>氢氧化钠溶液</b>的瓶 B 比加水的瓶 A <b>瘪得多得多</b>。回答左边的问题。（也可以点瓶 B 上方的“钻进瓶 B 里看”。）');
         if (W && !S.demo) W.t1.open();
       }
-      plateCard.text('<div class="cc"><div class="cc-t"><span class="cc-name">点滴板</span></div><div class="cc-more"><div class="cc-obs"><small>上排：氢氧化钠溶液　下排：石灰水</small></div></div></div>').loc(group, PLATE.x - 0.011, 0.01, -0.025).show(true);
+      plateCard.text('<div class="cc"><div class="cc-t"><span class="cc-name">点滴板</span></div><div class="cc-more"><div class="cc-obs"><small>上排：氢氧化钠溶液　下排：石灰水</small></div></div></div>').loc(group, PLATE.x - 0.011, 0.008, 0.025).show(true);
     };
 
     return {
@@ -400,10 +430,10 @@ export default {
         const dt = ui.data.previousElementSibling; if (dt?.classList.contains('bar-title')) dt.textContent = '观察记录';
         W = { tbl, t1, t2, t3, next, status: (m) => ui.status(m) };
         bar.attach(ui);
-        ui.status('碱的化学性质：左边白色点滴板上，上排两个孔是<b>氢氧化钠溶液</b>，下排两个孔是<b>石灰水</b>；前面石蕊溶液、酚酞溶液两支滴管。右边两个集满二氧化碳的软塑料瓶，旁边一杯水、一杯氢氧化钠溶液。');
+        ui.status('碱的化学性质：左边白色点滴板上，上排两个孔是<b>氢氧化钠溶液</b>，下排两个孔是<b>石灰水</b>；点滴板后面是石蕊溶液、酚酞溶液两个滴瓶。右边两个集满二氧化碳的软塑料瓶，旁边一杯水、一杯氢氧化钠溶液。');
       },
       update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); mic.update(dt, k); },
-      dispose() { mic.dispose(); bar.dispose(); drops.dispose(); dropsP.dispose(); darkP.dispose(); lightP.dispose(); for (const bt of bottles) { bt.geo.dispose(); bt.water?.geometry.dispose(); } },
+      dispose() { mic.dispose(); bar.dispose(); drops.dispose(); for (const p of dropsP) p.dispose(); darkP.dispose(); lightP.dispose(); for (const bt of bottles) { bt.geo.dispose(); bt.water?.geometry.dispose(); } },
       debug: { get S() { return S; }, A, bar, picks: { lit: droppers[0].pick, ph: droppers[1].pick, cupA: cups[0].pick, cupB: cups[1].pick, capA: bottles[0].capPick, capB: bottles[1].capPick, botA: bottles[0].pick, botB: bottles[1].pick },
         qa: qaFlow(drag, [
           { name: '石蕊滴氢氧化钠', drag: droppers[0].pick, to: overWell(0), wait: 0.5 },
@@ -413,10 +443,10 @@ export default {
           { name: '拿起水', hold: cups[0].pick },
           { name: '往瓶 A 倒水', run: () => A.cupDrag(0, spoutAt(0)()), wait: 1.6 },
           { name: '放下水', release: cups[0].pick, wait: 0.5 },
+          { name: '旋紧瓶 A', tap: bottles[0].capPick, wait: 1 },
           { name: '拿起氢氧化钠溶液', hold: cups[1].pick },
           { name: '往瓶 B 倒', run: () => A.cupDrag(1, spoutAt(1)()), wait: 1.6 },
           { name: '放下氢氧化钠溶液', release: cups[1].pick, wait: 0.5 },
-          { name: '旋紧瓶 A', tap: bottles[0].capPick, wait: 1 },
           { name: '旋紧瓶 B', tap: bottles[1].capPick, wait: 1 },
           ...[0, 1].flatMap((i) => [1, 2, 3].map((k) => ({ name: `振荡瓶 ${i ? 'B' : 'A'} ${k}`, run: () => { for (let j = 0; j < 6; j++) A.shake(i, new THREE.Vector3(BX[i] + (j % 2 ? 0.02 : -0.02), 0.07, 0)); if (k === 3) A.shakeEnd(i); }, wait: 1.2 }))),
           { name: '答第一题', run: () => W.t1.el.querySelector('button').click() },

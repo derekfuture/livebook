@@ -69,7 +69,7 @@ export default {
     th.scale.setScalar(0.85);
     group.add(th);
     const lamp = alcoholLamp();
-    lamp.position.set(0, -0.012, 0);
+    lamp.position.set(0, 0.002, 0);
     lamp.scale.setScalar(0.85);
     group.add(lamp);
     const tT = tag('', 'pill');

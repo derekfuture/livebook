@@ -3,10 +3,12 @@
 // 这一课是“纸本”画风的样板：器材画成课本插图那样的白纸线稿，物质（磷、木块、煤、蜡烛）保留本色，
 // 看不见的两样东西用发光的颜色——热（橙）和氧气（蓝）。
 // 三处各管一件事：底部步骤栏说“现在做什么”，器材旁的卡片说“看到了什么”，左边的学案记“记下了什么、想一想、结论”。
-// 流程（底部 ①–⑤）：盖铜片 → 给水里的白磷通氧气 → 火上加热木块、煤块、碎石 → 罩住一支蜡烛 → 想一想；
+// 流程（底部 ①–⑤）：盖铜片 → 给水里的白磷通氧气 → 用两把坩埚钳把木块、煤块同时放到火焰上加热，再加热碎石 → 罩住一支蜡烛 → 想一想；
 //   答对以后放一段总结镜头，卡片一张张翻过来，变成三枚条件签（可燃物 · 氧气 · 着火点），缺哪一个一眼看出来。
 // 老师的演示是独立的一段：随时能看，换上一套干净的器材演完整个探究，看完器材和记录都回到学生原来的样子。
 // 着火点（课本表 7-1）：白磷 40 ℃、红磷 260 ℃、木材 240–270 ℃、木炭 320–400 ℃、无烟煤 600–700 ℃。酒精灯外焰温度取约 500 ℃。
+// 酒精灯有灯帽（kit/labops.js 的 lampCap）：点燃前取下放在桌上，用完用灯帽盖灭，再轻提一下、重新盖好。
+// 罩住的蜡烛：氧气减少到一定程度就熄灭了——这时罩子里的氧气约为原来的 3/4（体积分数约 16%），还剩不少。
 import * as THREE from 'three';
 import { buttons, seg, table } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
@@ -16,6 +18,7 @@ import { glassMat, rubberTube, crucibleTongs, chemLamp, chemBeaker, chemCandle, 
 import { bubble2, flame2, smoke2, glass2 } from './kit/chemfx.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, demoActs } from './kit/chemlesson.js';
+import { lampCap } from './kit/labops.js';
 import { condCard } from './kit/condcard.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
@@ -29,6 +32,8 @@ const FLAME_Y = 0.098;                              // 外焰
 const C1 = new THREE.Vector3(-0.1, 0, -0.07), C2 = new THREE.Vector3(-0.145, 0, -0.07);
 const BAG = new THREE.Vector3(0.07, 0.014, -0.085);
 const HEAT = 0xe8672a, O2C = 0x2f7fd8, LIVE = 0xff6a3d;
+const O2_OUT = 0.75;                                // 罩住的蜡烛熄灭时，罩子里的氧气还剩原来的约 3/4（体积分数约 16%）
+const O2_USE = 0.06;                                // 蜡烛每秒用掉罩子里原有氧气的约 6%（约 4 秒熄灭）
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const backOut = (t) => { const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
@@ -132,9 +137,12 @@ export default {
     };
     nozHome(true); nozStep();
 
-    // ================= 右：酒精灯、坩埚钳夹着的木块 / 煤块 / 碎石 =================
+    // ================= 右：酒精灯（带灯帽）、坩埚钳夹着的木块 / 煤块 / 碎石 =================
     const lamp = chemLamp(); lamp.position.copy(LAMP); group.add(lamp);
     const lampPick = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.07), new THREE.MeshBasicMaterial({ visible: false })); lampPick.position.y = 0.045; lampPick.userData.pick = true; lamp.add(lampPick);
+    // 灯帽（课本第 18 页）：点燃前取下，放在灯的右后方桌上；熄灭时用灯帽盖灭，再轻提一下、重新盖好
+    const capper = lampCap(group, lamp, { off: new THREE.Vector3(0.2, 0, -0.06) });
+    let flameOn = false;                    // 火焰真的亮着：灯帽拿开了才亮，盖上了才灭
     const tile = inked(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.002, 0.085), paint(0xe6ded0)), { width: 0.8 }); tile.position.set(0.205, 0.001, 0.085); tile.rotation.y = -0.45; group.add(tile);
     const tongs = (color, shape) => {
       const g = new THREE.Group();
@@ -153,10 +161,31 @@ export default {
     };
     const wood = tongs(0xc99a5f, 'wood'), coal = tongs(0x2a2a30, 'coal'), stone = tongs(0x9a978f, 'stone');
     const HOME = { wood: new THREE.Vector3(0.165, 0.008, 0.05), coal: new THREE.Vector3(0.18, 0.008, 0.085), stone: new THREE.Vector3(0.195, 0.008, 0.12) };
-    const HOLD = { wood: new THREE.Vector3(LAMP.x - 0.007, FLAME_Y, LAMP.z), coal: new THREE.Vector3(LAMP.x + 0.007, FLAME_Y, LAMP.z), stone: new THREE.Vector3(LAMP.x, FLAME_Y - 0.004, LAMP.z + 0.012) };
+    // 实验活动 4：小木块、小煤块分别用坩埚钳夹住，同时放到火焰上加热——两把钳子平行，一前一后夹在火焰两边（煤块在前，木块在后）
+    const SIDE = new THREE.Vector3(-Math.sin(0.45), 0, Math.cos(0.45)), MID = new THREE.Vector3(LAMP.x, FLAME_Y, LAMP.z);      // SIDE：和钳柄垂直、朝左前的方向
+    const HOLD = { wood: MID.clone().addScaledVector(SIDE, -0.011), coal: MID.clone().addScaledVector(SIDE, 0.011), stone: new THREE.Vector3(LAMP.x, FLAME_Y - 0.004, LAMP.z + 0.012) };
     const PIECES = { wood, coal, stone };
     for (const k in PIECES) { PIECES[k].position.copy(HOME[k]); group.add(PIECES[k]); }
     const inFlame = (g) => Math.abs(g.position.x - LAMP.x) < 0.02 && Math.abs(g.position.y - FLAME_Y) < 0.026;
+    // 拿着钳子走：木块和煤块是一对（两把钳子一起拿、一起放），碎石单独。x、y 跟着手；抬高的同时往灯那边（往后）挪；
+    // 离灯近的时候不低于灯和灯帽——不从灯上穿过去（dome：离灯轴 r 处钳子最低能到的高度，从灯帽顶上方平滑地降到桌面）
+    const CREW = { pair: ['wood', 'coal'], stone: ['stone'] };
+    const crewOf = (k) => (k === 'stone' ? 'stone' : 'pair');
+    const dome = (r) => 0.094 * smooth((0.06 - r) / 0.0365);
+    const placeTongs = (lead, x, y) => {
+      const ks = CREW[crewOf(lead)], u = smooth((y - 0.035) / 0.055), P = {};
+      for (const k of ks) P[k] = new THREE.Vector3(x + (HOME[k].x - HOME[lead].x) * (1 - u) + (HOLD[k].x - HOLD[lead].x) * u, 0, HOME[k].z + (HOLD[k].z - HOME[k].z) * u);
+      const xs = ks.map((k) => P[k].x), dx = Math.max(0, 0.112 - Math.min(...xs)) + Math.min(0, 0.235 - Math.max(...xs));
+      let yy = Math.max(0.008, y);
+      for (const k of ks) { P[k].x += dx; yy = Math.max(yy, dome(Math.hypot(P[k].x - LAMP.x, P[k].z - LAMP.z))); }
+      for (const k of ks) PIECES[k].position.set(P[k].x, yy, P[k].z);
+    };
+    // 松手以后：钳子从现在的位置滑到火焰上 / 滑回桌上（按“手”的位置滑，路线和拿着走时一样）
+    const glide = { pair: null, stone: null };
+    let pendingCrew = null;                  // “更多”按钮：等另一组钳子放回桌上，再把这一组放到火焰上
+    const glideTo = (lead, to) => { const g = PIECES[lead]; glide[crewOf(lead)] = { lead, at: new THREE.Vector2(g.position.x, g.position.y), to: new THREE.Vector2(to.x, to.y) }; };
+    const out = (c) => CREW[c].some((k) => PIECES[k].position.distanceTo(HOME[k]) > 0.002);        // 这一组钳子不在桌上
+    const overLamp = () => Object.values(PIECES).some((g) => Math.hypot(g.position.x - LAMP.x, g.position.z - LAMP.z) < 0.03 && g.position.y > 0.05);     // 钳子正在灯上方：这时不能取下 / 盖上灯帽
 
     // ================= 左后：两支蜡烛和一只小烧杯 =================
     const c1 = chemCandle({ height: 0.05 }), c2 = chemCandle({ height: 0.05 });
@@ -209,16 +238,26 @@ export default {
       bubs.clear(); smoke.clear(); smokeIn.clear(); smokeC.clear(); o2dots.clear();
       if (S.o2) nozAt(NOZ_IN, true); else nozHome(true);
       plateSnap = true;
+      glide.pair = glide.stone = null; pendingCrew = null;
       for (const k in PIECES) {
         const g = PIECES[k];
         g.position.copy(S[k].hold ? HOLD[k] : HOME[k]);
         g.piece.material.color.copy(g.base);
         if (k === 'wood' && S.wood.burn > 0) g.piece.material.color.lerpColors(g.base, new THREE.Color(0x3b2a1e), Math.min(1, S.wood.burn / 6));
       }
-      if (S.cov) { const c = S.cov === 2 ? C2 : C1; cup.position.set(c.x, 0.0765, c.z); cup.rotation.x = Math.PI; if (S['c' + S.cov]) fillCup(c, Math.round(40 * (S.cupO2 - 0.12) / 0.88)); }
+      capper.snap(S.lit); flameOn = S.lit;          // 换一套器材：灯帽直接摆好（点着的放在桌上，没点的盖在灯上）
+      if (S.cov) { const c = S.cov === 2 ? C2 : C1; cup.position.set(c.x, 0.0765, c.z); cup.rotation.x = Math.PI; fillCup(c, Math.round(40 * S.cupO2)); }      // 蜡烛熄灭以后，罩子里也还剩不少氧气
       else { cup.position.copy(CUP_HOME); cup.rotation.x = 0; }
     };
-    const fillCup = (c, n) => { o2dots.clear(); for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, r = 0.004 + Math.random() * 0.014; o2dots.spawn({ p: new THREE.Vector3(c.x + Math.cos(a) * r, 0.012 + Math.random() * 0.058, c.z + Math.sin(a) * r), v: new THREE.Vector3(), life: 1e9, size: 0.0042, alpha: 0.9, ph: Math.random() * 6 }); } };
+    // 罩子里的氧气：蓝点，摆在蜡烛四周和上方的空处，各自在原地附近轻轻晃（±3.5 mm）——熄灭以后还剩约 3/4，一直留在杯里，不会飘出杯外
+    const fillCup = (c, n) => {
+      o2dots.clear();
+      for (let i = 0; i < n; i++) {
+        const top = i % 10 < 3, a = Math.random() * Math.PI * 2, r = top ? Math.random() * 0.016 : 0.0125 + Math.random() * 0.0035, y = top ? 0.058 + Math.random() * 0.008 : 0.012 + Math.random() * 0.044;
+        const b = new THREE.Vector3(c.x + Math.cos(a) * r, y, c.z + Math.sin(a) * r);
+        o2dots.spawn({ p: b.clone(), b, v: new THREE.Vector3(), life: 1e9, size: 0.0042, alpha: 0.9, ph: Math.random() * 6 });
+      }
+    };
 
     const A = {
       /** 换水 / 重新摆好烧杯这一边（木块、蜡烛那边的进度保留） */
@@ -242,8 +281,22 @@ export default {
         }
       },
       oxygen(on = !S.o2) { S.o2 = on; if (on) status('导管口对准热水中的白磷，通入<b>氧气</b>。'); },
-      lamp() { S.lit = !S.lit; status(S.lit ? '点燃了酒精灯。' : '盖上灯帽，熄灭了酒精灯。'); },
-      hold(k) { const g = PIECES[k]; g.position.copy(HOLD[k]); S[k].hold = true; if (!S.lit) bar.say('酒精灯还没点燃：先<b>点一下酒精灯</b>。'); },
+      lamp() { S.lit = !S.lit; status(S.lit ? '取下灯帽，点燃了酒精灯。' : '用灯帽盖灭了酒精灯。'); },
+      /** 一组钳子（木块和煤块一对；碎石）在火焰上松手：放在火焰上加热。酒精灯没点着就放回桌上 */
+      hold(lead) {
+        const ks = CREW[crewOf(lead)];
+        if (!S.lit) { for (const k of ks) S[k].hold = false; glideTo(lead, HOME[lead]); bar.say('酒精灯还没点燃：先<b>点一下酒精灯</b>。'); return; }
+        for (const k of ks) S[k].hold = true; glideTo(lead, HOLD[lead]);
+      },
+      /** 放回桌上 */
+      putBack(lead) { for (const k of CREW[crewOf(lead)]) S[k].hold = false; glideTo(lead, HOME[lead]); },
+      /** “更多”里的按钮：另一组钳子还在外面，先放回桌上，再把这一组放到火焰上 */
+      toFlame(c) {
+        if (!S.lit) return bar.say('酒精灯还没点燃：先<b>点一下酒精灯</b>。');
+        const other = c === 'pair' ? 'stone' : 'pair';
+        if (out(other) || glide[other]) { A.putBack(CREW[other][0]); pendingCrew = c; return; }
+        A.hold(CREW[c][0]);
+      },
       cover(which) {
         const c = which === 2 ? C2 : C1;
         if (!S['c' + which]) return bar.say('这支蜡烛已经灭了，罩另一支，或者在左边“更多”里全部重来。');
@@ -269,10 +322,16 @@ export default {
       { obj: nzPick, plane: 'xy', offset: 0.004, hint: () => (S.o2 ? '拖出水面：停止通氧气' : '拖到热水中的白磷上：通入氧气'),
         onDrag: (p) => { nozAt(new THREE.Vector3(clamp(p.x, -0.06, 0.12), clamp(p.y, 0.012, 0.2), p.z)); },      // 学生拖的时候 p.z = 0.004；演示里从烧杯前沿（铜片没盖住的地方）伸下去
         onEnd: () => { if (noz.p.distanceTo(NOZ_IN) < 0.03) { nozAt(NOZ_IN); A.oxygen(true); } else { A.oxygen(false); nozHome(); } } },
-      { obj: lampPick, plane: 'xy', offset: 0, hint: () => (S.lit ? '点一下：熄灭' : '点一下：点燃酒精灯'), onTap: () => A.lamp(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
-      ...Object.entries(PIECES).map(([k, g]) => ({ obj: g.pick, anchor: g, keepOffset: true, plane: 'xy', offset: LAMP.z, hint: `拖到酒精灯火焰上：加热${k === 'wood' ? '小木块' : k === 'coal' ? '小煤块' : '碎石'}`,
-        onDrag: (p) => { g.position.set(p.x, Math.max(0.008, p.y), LAMP.z); S[k].hold = inFlame(g); },
-        onEnd: () => { if (inFlame(g)) A.hold(k); else { S[k].hold = false; g.position.copy(HOME[k]); } } })),
+      { obj: lampPick, plane: 'xy', offset: 0, enabled: () => !overLamp(), hint: () => (overLamp() ? '' : S.lit ? '点一下：盖上灯帽，熄灭酒精灯' : '点一下：点燃酒精灯'), onTap: () => A.lamp(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
+      // 坩埚钳：拿木块、煤块中的任一把，两把一起走（同时放到火焰上）；碎石单独。另一组还在外面的时候拿不了（火焰上放不下两组）
+      ...Object.entries(PIECES).map(([k, g]) => {
+        const c = crewOf(k), other = c === 'pair' ? 'stone' : 'pair', busy = () => out(other) || !!glide[other];
+        return { obj: g.pick, anchor: g, keepOffset: true, plane: 'xy', offset: LAMP.z, enabled: () => !busy(),
+          hint: () => (busy() ? '' : S[k].hold ? (c === 'pair' ? '拖开：把木块和煤块从火焰上拿开' : '拖开：把碎石从火焰上拿开') : c === 'pair' ? '拖到酒精灯火焰上：同时加热小木块和小煤块' : '拖到酒精灯火焰上：加热碎石'),
+          onStart: () => { glide[c] = null; },
+          onDrag: (p) => { glide[c] = null; placeTongs(k, p.x, p.y); for (const j of CREW[c]) S[j].hold = inFlame(PIECES[j]); },
+          onEnd: () => { if (inFlame(g)) A.hold(k); else A.putBack(k); } };
+      }),
       { obj: cupPick, anchor: cup, plane: 'xy', offset: CUP_HOME.z, keepOffset: true, hint: () => (S.cov ? '拖开：拿掉烧杯' : '拖到一支蜡烛上：倒扣罩住'),
         onStart: () => { if (S.cov) { S.cov = 0; o2dots.clear(); } },
         onDrag: (p) => { cup.position.set(p.x, Math.max(0, p.y), CUP_HOME.z); cup.rotation.x = Math.PI * clamp((p.x - CUP_HOME.x) / 0.04, 0, 1); },
@@ -300,8 +359,13 @@ export default {
       steps: [
         { id: 'plate', title: '盖上铜片', todo: '把桌上的<b>薄铜片</b>拖到烧杯上盖好，看看哪一处的磷会燃烧。', target: () => (S.plateOn ? null : plate) },
         { id: 'oxygen', title: '通入氧气', todo: '热水中的白磷够热，却不燃烧——它缺什么？把<b>导管</b>拖进水里，对准它。', target: () => (S.o2 ? null : nozzle) },
-        { id: 'heat', title: '加热木块、煤块、碎石', todo: '点一下<b>酒精灯</b>点燃它，再用坩埚钳把木块、煤块、碎石分别夹到火焰上。',
-          target: () => { if (!S.lit) return lamp; const k = ['wood', 'coal', 'stone'].find((x) => !S.seen.has(x) && !S[x].hold); return k ? PIECES[k].piece : null; } },
+        { id: 'heat', title: '加热木块、煤块、碎石', todo: '点一下<b>酒精灯</b>点燃它。用两把坩埚钳分别夹住<b>小木块和小煤块</b>，<b>同时</b>放到火焰上加热；再加热<b>碎石</b>。',
+          target: () => {
+            if (!S.lit) return lamp;
+            if (!S.seen.has('wood') || !S.seen.has('coal')) return out('stone') ? stone.piece : S.wood.hold ? null : wood.piece;       // 碎石在外面：先放回去
+            if (!S.seen.has('stone')) return out('pair') ? wood.piece : S.stone.hold ? null : stone.piece;                              // 木块、煤块还在外面：先放回去
+            return null;
+          } },
         { id: 'candle', title: '罩住一支蜡烛', todo: '把<b>小烧杯</b>倒过来，扣在一支蜡烛上，比较两支蜡烛。', target: () => (S.cov ? null : cup) },
         { id: 'sum', title: '想一想', todo: '对照每一处的卡片想一想：燃烧需要哪些条件？在左边作答。' },
       ],
@@ -330,7 +394,17 @@ export default {
             { cap: '白磷燃烧起来，冒出大量白烟——同一块铜片上的红磷却不燃烧。', dur: 4.2, cam: [[0, 0.13, 0], [0.4, 0.38, 1], 0.36] },
             { cap: '水里的白磷：一样热，却不燃烧。', dur: 3.0, cam: [[0, 0.03, 0], [0.12, 0.02, 1], 0.24] },
             { cap: '用导管给它通入氧气——', dur: 4.6, cam: [[0.02, 0.07, 0.02], [0.35, 0.3, 1], 0.4], during: carry(nzPick, NOZ_PATH, { t0: 0.04, t1: 0.78 }) },
-            { cap: '白磷在水里燃烧起来了。演示完了，下面换你自己做。', dur: 3.4, cam: [[0, 0.03, 0], [0.2, 0.1, 1], 0.26] },
+            { cap: '白磷在水里燃烧起来了。', dur: 3.4, cam: [[0, 0.03, 0], [0.2, 0.1, 1], 0.26] },
+            // 实验活动 4（第 181 页）：取下灯帽点燃酒精灯；两把坩埚钳夹住木块、煤块，同时放到火焰上；再加热碎石；用完用灯帽盖灭
+            { cap: '取下灯帽，点燃酒精灯。', dur: 2.6, cam: [[LAMP.x, 0.075, LAMP.z], [0.12, 0.3, 1], 0.3], during: act.tap(lampPick, 0.12) },
+            { cap: '用两把坩埚钳分别夹住小木块和小煤块，同时放到酒精灯火焰上加热。', dur: 4.2, cam: [[LAMP.x + 0.015, 0.075, LAMP.z + 0.03], [0.15, 0.3, 1], 0.34],
+              during: carry(wood.pick, [() => wood.position.clone(), V(HOME.wood.x, 0.115, 0), V(HOLD.wood.x, 0.115, 0), HOLD.wood], { t0: 0.05, t1: 0.7 }) },
+            { cap: '小木块很快燃烧起来；同时加热的小煤块烧得发红，却不燃烧。', dur: 5, speed: 2, cam: [[LAMP.x, 0.095, LAMP.z], [0.1, 0.25, 1], 0.22] },
+            { cap: '把木块、煤块放回桌上，再用坩埚钳把碎石放到火焰上加热：碎石烧热了，也不燃烧。', dur: 7, speed: 1.5, cam: [[LAMP.x + 0.02, 0.07, LAMP.z + 0.04], [0.15, 0.3, 1], 0.36],
+              during: act.seq(carry(wood.pick, [() => wood.position.clone(), V(HOLD.wood.x, 0.115, 0), V(HOME.wood.x, 0.115, 0), HOME.wood], { t0: 0.03, t1: 0.28 }),
+                carry(stone.pick, [() => stone.position.clone(), V(HOME.stone.x, 0.115, 0), V(HOLD.stone.x, 0.115, 0), HOLD.stone], { t0: 0.34, t1: 0.6 })) },
+            { cap: '把碎石放回桌上。用灯帽盖灭酒精灯，再轻提一下灯帽，重新盖好。演示完了，下面换你自己做。', dur: 5, cam: [[LAMP.x + 0.02, 0.07, LAMP.z + 0.04], [0.15, 0.3, 1], 0.36],
+              during: act.seq(carry(stone.pick, [() => stone.position.clone(), V(HOLD.stone.x, 0.115, 0), V(HOME.stone.x, 0.115, 0), HOME.stone], { t0: 0.03, t1: 0.35 }), act.tap(lampPick, 0.45)) },
           ],
         },
         tour: {
@@ -341,7 +415,7 @@ export default {
             { cap: '铜片上：白磷三个条件都满足，燃烧；红磷温度没到它的着火点（260 ℃）。', dur: 3.6, cam: [[0, 0.13, 0], [0.15, 0.45, 1], 0.42], enter: () => tourFlip(['wt', 'rt']) },
             { cap: '热水中的白磷：缺氧气就不燃烧，通入氧气就在水里燃烧。', dur: 3.2, cam: [[0, 0.03, 0], [0.25, 0.18, 1], 0.36], enter: () => tourFlip(['wi']) },
             { cap: '同样在火上加热：木块达到着火点燃烧；煤块的着火点高，没达到；碎石不是可燃物。', dur: 4.2, cam: [[LAMP.x + 0.02, 0.09, LAMP.z], [0.1, 0.35, 1], 0.42], enter: () => tourFlip(['wood', 'coal', 'stone']) },
-            { cap: '罩住的蜡烛：氧气用完就熄灭了。灭火，只要去掉其中一个条件。', dur: 3.6, cam: [[(C1.x + C2.x) / 2, 0.05, C1.z], [0.05, 0.3, 1], 0.38], enter: () => tourFlip(['c1', 'c2']) },
+            { cap: '罩住的蜡烛：氧气减少到一定程度（氧气不足），就熄灭了。灭火，只要破坏其中一个条件。', dur: 3.6, cam: [[(C1.x + C2.x) / 2, 0.05, C1.z], [0.05, 0.3, 1], 0.38], enter: () => tourFlip(['c1', 'c2']) },
             { cap: '燃烧需要三个条件：可燃物、氧气（或空气）、温度达到着火点，缺一不可。', dur: 3.4 },
           ],
         },
@@ -399,10 +473,20 @@ export default {
       wIn.visible = Q.state !== 'done';
       smokeIn.update(h, { rate: qb ? 18 : 0, origin: tmp.set(0, WATER_H + 0.004, 0), spread: 0.02, up: 0.05, size: 0.018 });
       bubs.update(h, (p, d) => { p.v.y += 0.2 * d; p.p.addScaledVector(p.v, d); return p.p.y < WATER_H; });
-      // 木块、煤块、碎石
+      // 坩埚钳：松手以后滑到火焰上 / 滑回桌上
+      for (const c of ['pair', 'stone']) {
+        const G = glide[c]; if (!G) continue;
+        G.at.lerp(G.to, 1 - Math.exp(-h * 14));
+        if (G.at.distanceTo(G.to) < 0.0004) { G.at.copy(G.to); glide[c] = null; }
+        placeTongs(G.lead, G.at.x, G.at.y);
+      }
+      if (pendingCrew && !glide.pair && !glide.stone && !out(pendingCrew === 'pair' ? 'stone' : 'pair')) { const c = pendingCrew; pendingCrew = null; A.toFlame(c); }
+      flameOn = capper.update(h, S.lit);        // 灯帽：点燃前取下放到桌上；熄灭时盖上，再轻提一下、重新盖好
+      lamp.flame.setOn(flameOn); lamp.flame.update(t);
+      // 木块、煤块、碎石：火焰真的亮着、夹在火焰上才受热
       for (const [k, g] of Object.entries(PIECES)) {
         const o = S[k];
-        const hot = o.hold && S.lit && inFlame(g);
+        const hot = o.hold && flameOn && inFlame(g);
         if (hot) S.heldOnce[k] = true;
         o.T += ((hot ? FLAME_T : 25) - o.T) * Math.min(1, h * (hot ? (k === 'wood' ? 0.35 : 0.22) : 0.15));
         if (IGN[k] && o.T >= IGN[k] && hot && o.burn === 0) { o.burn = 0.01; sfx.whoosh({ freq: 420, gain: 0.14, dur: 0.6 }); }      // 碎石没有着火点：不是可燃物
@@ -411,17 +495,18 @@ export default {
         g.glow.material.opacity = clamp((o.T - 300) / 300, 0, 0.7) * (o.burn > 0 ? 0 : 1);
         if (k === 'wood' && o.burn > 0) g.piece.material.color.lerpColors(g.base, new THREE.Color(0x3b2a1e), Math.min(1, o.burn / 6));      // 慢慢烧黑
       }
-      lamp.flame.setOn(S.lit); lamp.flame.update(t);
       cupLip.visible = Math.abs(cup.rotation.x) < 1.6;      // 倒扣时杯嘴那段翻边（往上翘 7 mm）不画：否则会戳进桌面
-      // 蜡烛：罩住以后罩子里的氧气越来越少（蓝点一颗颗消失），火焰变小、熄灭，冒出一缕烟
+      // 蜡烛：罩住以后罩子里的氧气越来越少（蓝点一颗颗消失），火焰变小；氧气减少到原来的约 3/4（体积分数约 16%）就熄灭了，
+      // 冒出一缕烟——罩子里还剩不少氧气（蓝点还剩约 3/4）
       if (S.cov && S['c' + S.cov]) {
-        S.cupO2 -= h * 0.2;
-        const want = Math.max(0, Math.round(40 * (S.cupO2 - 0.12) / 0.88));
+        S.cupO2 = Math.max(O2_OUT, S.cupO2 - h * O2_USE);
+        const want = Math.round(40 * S.cupO2);
         while (o2dots.list.length > want) o2dots.list.splice((Math.random() * o2dots.list.length) | 0, 1);
-        if (S.cupO2 < 0.15) { S['c' + S.cov] = false; S.cOut = 2.5; S.outAt = S.cov === 2 ? C2 : C1; }
+        if (S.cupO2 <= O2_OUT) { S['c' + S.cov] = false; S.cOut = 2.5; S.outAt = S.cov === 2 ? C2 : C1; }
       }
-      o2dots.update(h, (p) => { p.p.x += Math.sin(t * 1.3 + p.ph) * 0.0009 * h * 10; p.p.y += Math.cos(t * 1.1 + p.ph * 1.7) * 0.0007 * h * 10; p.alpha = 0.9; });
-      const k1 = S.cov === 1 ? clamp(0.25 + S.cupO2, 0, 1) : 1, k2 = S.cov === 2 ? clamp(0.25 + S.cupO2, 0, 1) : 1;
+      o2dots.update(h, (p) => { p.p.set(p.b.x + Math.sin(t * 1.3 + p.ph) * 0.0035, p.b.y + Math.cos(t * 1.1 + p.ph * 1.7) * 0.0035, p.b.z); p.alpha = 0.9; });
+      const fk = (n) => (S.cov === n ? 0.3 + 0.7 * smooth((S.cupO2 - O2_OUT) / (1 - O2_OUT)) : 1);      // 罩住的那支：氧气越少火焰越小
+      const k1 = fk(1), k2 = fk(2);
       c1.flame.setOn(S.c1); c1.flame.setSize(k1); c1.flame.update(t);
       c2.flame.setOn(S.c2); c2.flame.setSize(k2); c2.flame.update(t + 1.3);
       if (S.cOut > 0) S.cOut -= h;
@@ -447,19 +532,21 @@ export default {
       }
       if (S.cold && S.Tc < 30 && S.o2 && !S.seen.has('coldO2')) { S.seen.add('coldO2'); S.snap.wi = { T: S.Tw, o2: 'pure', burn: false }; row('coldO2', '冷水中的白磷', `${T(S.Tw)}，通入氧气`, '不燃烧'); status('冷水里，通了氧气，白磷也<b>不燃烧</b>——温度太低了。'); }
       if (S.cold && S.plateOn && !S.seen.has('coldTop') && S.Tc < 30 && (S.coldT = (S.coldT || 0) + h) > 4) { S.seen.add('coldTop'); S.snap.wt = { T: S.Tc, o2: 'air', burn: false }; row('coldTop', '冷水上方铜片上的白磷', `${T(S.Tc)}，有空气`, '不燃烧'); status('冷水上方的铜片只有二十几摄氏度，铜片上的白磷<b>不燃烧</b>。'); }
-      if (S.wood.burn > 0.5 && !S.seen.has('wood')) { S.seen.add('wood'); S.snap.wood = { T: S.wood.T, o2: 'air', burn: true }; row('wood', '小木块（酒精灯上加热）', '有空气，在火焰上加热', '<b>很快燃烧</b>'); status('小木块很快就<b>燃烧</b>起来了。'); }
-      if (S.coal.hold && S.lit) S.coalT = (S.coalT || 0) + h;
-      if (S.coal.hold && S.lit && S.coal.T > 420 && S.coalT > 6 && !S.seen.has('coal')) { S.seen.add('coal'); S.snap.coal = { T: S.coal.T, o2: 'air', burn: false }; row('coal', '小煤块（同样加热）', '有空气，在火焰上加热同样长时间', '发红，<b>不燃烧</b>'); status('小煤块烧得发红，却<b>没有燃烧</b>。'); }
-      if (S.stone.hold && S.lit) S.stoneT = (S.stoneT || 0) + h;
-      if (S.stone.hold && S.lit && S.stoneT > 5 && !S.seen.has('stone')) { S.seen.add('stone'); S.snap.stone = { T: S.stone.T, o2: 'air', burn: false }; row('stone', '碎石（同样加热）', '有空气，在火焰上加热', '烧热了，<b>不燃烧</b>'); status('碎石怎么加热也<b>不燃烧</b>。'); }
+      if (S.wood.burn > 0.5 && !S.seen.has('wood')) { S.seen.add('wood'); S.snap.wood = { T: S.wood.T, o2: 'air', burn: true }; row('wood', '小木块（和煤块同时加热）', '有空气，在火焰上加热', '<b>很快燃烧</b>'); status('小木块很快就<b>燃烧</b>起来了。'); }
+      if (S.coal.hold && flameOn) S.coalT = (S.coalT || 0) + h;
+      if (S.coal.hold && flameOn && S.coal.T > 420 && S.coalT > 6 && !S.seen.has('coal')) { S.seen.add('coal'); S.snap.coal = { T: S.coal.T, o2: 'air', burn: false }; row('coal', '小煤块（和木块同时加热）', '有空气，在火焰上加热同样长时间', '发红，<b>不燃烧</b>'); status('同时加热的小煤块烧得发红，却<b>没有燃烧</b>。'); }
+      if (S.stone.hold && flameOn) S.stoneT = (S.stoneT || 0) + h;
+      if (S.stone.hold && flameOn && S.stoneT > 5 && !S.seen.has('stone')) { S.seen.add('stone'); S.snap.stone = { T: S.stone.T, o2: 'air', burn: false }; row('stone', '碎石（同样加热）', '有空气，在火焰上加热', '烧热了，<b>不燃烧</b>'); status('碎石怎么加热也<b>不燃烧</b>。'); }
       if (bar.current === 'heat') {
-        const left = [['wood', '木块'], ['coal', '煤块'], ['stone', '碎石']].filter(([k]) => !S.seen.has(k)).map(([, n]) => n);
-        const msg = !S.lit ? null : left.length ? `酒精灯点着了。用坩埚钳把<b>${left.join('、')}</b>夹到火焰上${left.length < 3 ? '（还差这几样）' : ''}。` : null;
+        const pairDone = S.seen.has('wood') && S.seen.has('coal');
+        const msg = !S.lit ? null
+          : !pairDone ? (out('stone') ? '先把<b>碎石</b>放回桌上，再用两把坩埚钳夹住<b>小木块和小煤块</b>，同时放到火焰上加热。' : S.wood.hold ? null : '酒精灯点着了。用两把坩埚钳夹住<b>小木块和小煤块</b>，同时放到火焰上加热。')
+            : !S.seen.has('stone') ? (out('pair') ? '把木块、煤块放回桌上，再用坩埚钳把<b>碎石</b>夹到火焰上加热。' : S.stone.hold ? null : '再用坩埚钳把<b>碎石</b>夹到火焰上加热。') : null;
         if (msg !== S.heatMsg) { S.heatMsg = msg; bar.say(msg); }
       }
       if (S.seen.has('wood') && S.seen.has('coal') && S.seen.has('stone')) bar.done('heat');
       const outK = !S.c1 ? 1 : !S.c2 ? 2 : 0;
-      if (outK && !S.seen.has('candle')) { S.seen.add('candle'); row('candle', '用烧杯罩住的蜡烛', '烧杯里的氧气越来越少', '<b>熄灭</b>'); row('candle2', '没罩的蜡烛', '有空气', '继续燃烧'); bar.done('candle'); status('罩住的蜡烛<b>熄灭</b>了，旁边那支照样燃烧——罩子里的氧气用完了。'); }
+      if (outK && !S.seen.has('candle')) { S.seen.add('candle'); row('candle', '用烧杯罩住的蜡烛', '烧杯里的氧气减少到一定程度（氧气不足）', '<b>熄灭</b>'); row('candle2', '没罩的蜡烛', '有空气', '继续燃烧'); bar.done('candle'); status('罩住的蜡烛<b>熄灭</b>了，旁边那支照样燃烧。罩子里的氧气减少到一定程度（<b>氧气不足</b>），蜡烛就熄灭了。'); }
       if (bar.current === 'sum' && W.q.hidden && !S.asked) { S.asked = true; far(); W.ask(); }
     };
 
@@ -526,9 +613,8 @@ export default {
             { text: '向水中的白磷通氧气', ghost: true, onClick: () => { nozAt(NOZ_IN, true); A.oxygen(true); } },
             { text: '停止通氧气', ghost: true, onClick: () => { nozHome(true); A.oxygen(false); } },
             { text: '点燃酒精灯', ghost: true, onClick: () => { if (!S.lit) A.lamp(); } },
-            { text: '加热小木块', ghost: true, onClick: () => A.hold('wood') },
-            { text: '加热小煤块', ghost: true, onClick: () => A.hold('coal') },
-            { text: '加热碎石', ghost: true, onClick: () => A.hold('stone') },
+            { text: '同时加热小木块和小煤块', ghost: true, onClick: () => A.toFlame('pair') },
+            { text: '加热碎石', ghost: true, onClick: () => A.toFlame('stone') },
             { text: '用烧杯罩住一支蜡烛', ghost: true, onClick: () => A.cover(1) },
           ]).el,
           buttons([{ text: '全部重来（清空记录）', ghost: true, onClick: () => A.reset() }]).el);
@@ -547,12 +633,11 @@ export default {
           { name: '盖上铜片', drag: platePick, to: PLATE_OVER, wait: 12 },
           { name: '导管伸进水里通氧气', drag: nzPick, to: NOZ_IN, wait: 3 },
           { name: '点燃酒精灯', tap: lampPick },
-          { name: '加热小木块', drag: wood.pick, to: HOLD.wood, wait: 4 },
-          { name: '木块放回去', drag: wood.pick, to: HOME.wood },
-          { name: '加热小煤块', drag: coal.pick, to: HOLD.coal, wait: 8 },
-          { name: '煤块放回去', drag: coal.pick, to: HOME.coal },
+          { name: '同时加热木块和煤块', drag: wood.pick, to: HOLD.wood, wait: 7 },
+          { name: '木块和煤块放回去', drag: coal.pick, to: HOME.coal },
           { name: '加热碎石', drag: stone.pick, to: HOLD.stone, wait: 7 },
           { name: '碎石放回去', drag: stone.pick, to: HOME.stone },
+          { name: '盖灭酒精灯', tap: lampPick },
           { name: '烧杯罩住一支蜡烛', drag: cupPick, to: V(C1.x, 0.075, CUP_HOME.z), wait: 7 },
           { name: '想一想', run: () => W.q.querySelector('button').click(), wait: 2 },
         ]) },

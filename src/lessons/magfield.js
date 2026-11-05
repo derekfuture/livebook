@@ -42,6 +42,11 @@ export default {
     const mags = { bar: barMagnet({ L: 0.1, w: 0.022, h: 0.012 }), shoe: horseshoe({ L: 0.08, gap: 0.04 }) };
     for (const m of Object.values(mags)) { m.position.y = 0.001; group.add(m); }
     let M = mags.bar; mags.shoe.visible = false;
+    const plateRaycast = plate.raycast;
+    plate.raycast = function (ray, hits) {
+      if (ray.intersectObject(M, true).length) return;
+      plateRaycast.call(this, ray, hits);
+    };
     // 小磁针（在玻璃板上面）
     const ring = [];
     for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + Math.PI / 8; ring.push([Math.cos(a) * 0.085, Math.sin(a) * 0.06]); }

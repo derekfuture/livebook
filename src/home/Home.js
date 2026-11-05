@@ -5,7 +5,9 @@
 // 屏幕上还有：继续上次 / 接着学（贴在墙上的两张便签）、搜一节课或一张活页、活页总览。
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { getBook, bookList } from '../content/index.js';
+import { getBook, bookList, getManifest, fileUrl, OFFLINE } from '../content/index.js';
+import { offlineButton } from './offlinePack.js';
+import { FEATURES } from '../features.js';
 import { stamps, h } from '../ui/Panel.js';
 import { tag, updateTags } from '../ui/tags.js';
 import { progress, bookmark } from './progress.js';
@@ -30,14 +32,16 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   document.body.classList.add('home');
   document.title = '活页课本';
   const books = bookList().filter((b) => Object.keys(getBook(b.id).lessons).length);     // 还没有做好活页的书先不上架
-  const manifests = Object.fromEntries(await Promise.all(books.map(async (b) => [b.id, await (await fetch(`${getBook(b.id).base}book.json`)).json()])));
+  const manifests = Object.fromEntries(await Promise.all(books.map(async (b) => [b.id, await getManifest(b.id)])));
+  // 有没有书页图片（只在开发时用；线上只放封面，缓存里留着的旧图也不用）：没有的话，活页总览里的缩略图只写图号
+  const pagesOk = Object.fromEntries(await Promise.all(books.map(async (b) => { if (OFFLINE || !import.meta.env.DEV) return [b.id, false]; try { const r = await fetch(`${getBook(b.id).base}lo/001.jpg`, { method: 'HEAD' }); return [b.id, r.ok && (r.headers.get('content-type') || '').startsWith('image/')]; } catch (e) { return [b.id, false]; } })));
   const loader = new THREE.TextureLoader();
 
   // ---- 按科目分层（顺序照 books.json），第一科在最上面 ----
   const subjects = [];
   for (const b of books) {
-    let s = subjects.find((x) => x.name === b.subject);
-    if (!s) subjects.push((s = { name: b.subject, color: b.color, books: [] }));
+    let s = subjects.find((x) => x.name === b.subject && x.publisher === b.publisher);          // 同一科不同版本分开放
+    if (!s) subjects.push((s = { name: b.subject, publisher: b.publisher, color: b.color, books: [] }));
     s.books.push(b);
   }
   const n = subjects.length;
@@ -84,9 +88,9 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   const wall = new THREE.Mesh(new THREE.PlaneGeometry(14, 7), new THREE.MeshLambertMaterial({ color: 0xf3ece2, emissive: 0xf3ece2, emissiveIntensity: 0.42 }));
   wall.position.set(0, 3.5, ZF - DEPTH - 0.014); wall.receiveShadow = true; group.add(wall);
 
-  // 每层前沿的小铜框标签：科目，几册 · 几张活页
+  // 每层前沿的小铜框标签：科目，版本 · 几册 · 几张活页
   subjects.forEach((s, i) => {
-    const k = n - 1 - i, card = labelCard(s.name, `${s.books.length} 册 · ${s.leaves} 张活页`, s.color);
+    const k = n - 1 - i, card = labelCard(s.name, `${s.publisher} · ${s.books.length} 册 · ${s.leaves} 张活页`, s.color);
     card.position.set(0, yRest(k) - APRON / 2 + 0.002, ZF + 0.0012); group.add(card);
   });
 
@@ -97,7 +101,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     let x = -s.rowW / 2;
     s.items.forEach((it, j) => {
       const { b, W, T } = it, g = new THREE.Group();
-      const cover = loader.load(`${getBook(b.id).base}hi/000.jpg`, () => { g.userData.coverReady = true; });
+      const cover = loader.load(fileUrl(`${getBook(b.id).base}hi/000.jpg`), () => { g.userData.coverReady = true; });
       cover.colorSpace = THREE.SRGBColorSpace; cover.anisotropy = 8;
       const pages = new THREE.MeshLambertMaterial({ color: 0xf1ebde }), back = new THREE.MeshLambertMaterial({ color: b.side });
       const front = new THREE.MeshLambertMaterial({ map: cover });
@@ -154,8 +158,9 @@ export async function bootHome(stage, { enterBook = null } = {}) {
       next ? h('a', { class: 'note-card next', href: next.href }, h('small', {}, last ? '接着学' : '从这里开始'), h('b', {}, next.title), h('span', {}, next.where)) : null),
     authorCard(),
     h('footer', { class: 'home-foot' },
-      h('button', { class: 'paper-btn', onclick: () => openOverview(books, manifests, subjects) }, '⊞ 活页总览'),
-      h('span', { class: 'home-copy' }, '课本页面来自本地教材文件，仅供个人学习使用')));
+      h('button', { class: 'paper-btn', onclick: () => openOverview(books, manifests, subjects, pagesOk) }, '⊞ 活页总览'),
+      !OFFLINE && (FEATURES.offline || import.meta.env.DEV) ? offlineButton() : null,          // 开关在 src/features.js；离线版里不用再下载
+      h('span', { class: 'home-copy' }, '书里可以导入你自己下载的课本 PDF，文件只在这台电脑上使用')));
   document.body.append(ui);
   document.querySelector('#loader')?.classList.add('done');
 
@@ -165,7 +170,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   const showSlip = (g) => {
     if (!g) { slip.show(false); return; }
     const u = g.userData, p = progress(u.id, manifests[u.id]);
-    slip.text(`<b>${u.b.title}</b><br>${p.where} · <span>活页 ${p.done}/${p.total}</span>`).loc(g, u.W * 0.28, u.T / 2 + 0.01, COVER_H * 0.36).show(true);
+    slip.text(`<b>${u.b.full}</b><br>${p.where} · <span>活页 ${p.done}/${p.total}</span>`).loc(g, u.W * 0.28, u.T / 2 + 0.01, COVER_H * 0.36).show(true);
   };
 
   // ---- 指针：悬停抽出一点，点击拿下来 ----
@@ -304,7 +309,7 @@ function nextLesson(books, last) {
     const s = after.find((x) => !stamps.has(x.lesson)) || spots.find((x) => !stamps.has(x.lesson));
     if (s) {
       const L = c.lessons[s.lesson];
-      return { href: `?book=${bid}#live=${s.lesson}`, title: L.title, where: `${c.title} · ${L.fig} · ${L.sec}` };
+      return { href: `?book=${bid}#live=${s.lesson}`, title: L.title, where: `${c.full} · ${L.fig} · ${L.sec}` };
     }
   }
   return null;
@@ -316,10 +321,10 @@ function searchBox(books, manifests) {
   for (const b of books) {
     const c = getBook(b.id), man = manifests[b.id];
     for (const ch of man.chapters) {
-      if (ch.page != null) entries.push({ kind: '章', title: ch.title, where: b.title, href: `?book=${b.id}#p=${ch.page}` });
-      for (const s of ch.sections) if (s.page != null) entries.push({ kind: '节', title: s.title.replace(/^第.节\s*/, ''), where: `${b.title} · ${ch.title}`, href: `?book=${b.id}#p=${s.page}` });
+      if (ch.page != null) entries.push({ kind: '章', title: ch.title, where: b.full, href: `?book=${b.id}#p=${ch.page}` });
+      for (const s of ch.sections) if (s.page != null) entries.push({ kind: '节', title: s.title.replace(/^第.节\s*/, ''), where: `${b.full} · ${ch.title}`, href: `?book=${b.id}#p=${s.page}` });
     }
-    for (const [id, L] of Object.entries(c.lessons)) entries.push({ kind: '活页', title: L.title, where: `${b.title} · ${L.fig} · ${L.sec}`, href: `?book=${b.id}#live=${id}`, done: stamps.has(id) });
+    for (const [id, L] of Object.entries(c.lessons)) entries.push({ kind: '活页', title: L.title, where: `${b.full} · ${L.fig} · ${L.sec}`, href: `?book=${b.id}#live=${id}`, done: stamps.has(id) });
   }
   const input = h('input', { type: 'search', placeholder: '搜一节课或一张活页，比如“凸透镜”“电解水”' });
   const list = h('div', { class: 'search-list', hidden: true });
@@ -337,7 +342,7 @@ function searchBox(books, manifests) {
 }
 
 /** 活页总览：按科目、按书、按章节排的活页卡片，缩略图截取课本上的原图 */
-function openOverview(books, manifests, subjects) {
+function openOverview(books, manifests, subjects, pagesOk) {
   const body = h('div', { class: 'ov-body' });
   const tabs = h('div', { class: 'ov-tabs' });
   const show = (bid) => {
@@ -353,8 +358,8 @@ function openOverview(books, manifests, subjects) {
       body.append(h('h3', {}, ch.title));
       body.append(h('div', { class: 'ov-grid' }, spots.map((s) => {
         const L = c.lessons[s.lesson], [x0, y0, x1, y1] = s.bbox, PW = man.pageSize[0], PH = man.pageSize[1];
-        const thumb = h('div', { class: 'ov-thumb' });
-        Object.assign(thumb.style, {
+        const thumb = h('div', { class: pagesOk[bid] ? 'ov-thumb' : 'ov-thumb nopage' }, pagesOk[bid] ? null : L.fig);
+        if (pagesOk[bid]) Object.assign(thumb.style, {
           backgroundImage: `url(${c.base}hi/${String(s.page).padStart(3, '0')}.jpg)`,
           backgroundSize: `${(PW / (x1 - x0)) * 100}% auto`,
           backgroundPosition: `${(x0 / (PW - (x1 - x0))) * 100}% ${(y0 / (PH - (y1 - y0))) * 100}%`,
@@ -365,9 +370,9 @@ function openOverview(books, manifests, subjects) {
       })));
     }
   };
-  // 标签按科目分组：物理［八年级上册 八年级下册 九年级全一册］ 化学［九年级上册 九年级下册］
+  // 标签按科目分组：人教版 物理［八年级上册 八年级下册 九年级全一册］ 人教版 化学［九年级上册 九年级下册］
   for (const s of subjects) {
-    tabs.append(h('span', { class: 'ov-subj', style: `--c:${s.color}` }, s.name));
+    tabs.append(h('span', { class: 'ov-subj', style: `--c:${s.color}` }, `${s.publisher} ${s.name}`));
     for (const b of s.books) tabs.append(h('button', { 'data-id': b.id, style: `--c:${s.color}`, onclick: () => show(b.id) }, b.vol));
   }
   const sheet = h('div', { id: 'overview' },
@@ -382,14 +387,13 @@ function openOverview(books, manifests, subjects) {
 
 // 左下角的作者小签：公众号头像 + 名字；悬停（手机上点一下）展开二维码。只放在首页，书里和活页里不打扰。
 function authorCard() {
-  const base = import.meta.env.BASE_URL;
   const card = h('div', { class: 'home-author' },
     h('div', { class: 'author-qr', role: 'dialog', 'aria-label': '公众号二维码' },
-      h('img', { src: `${base}brand/gzh-qr.jpg`, width: 132, height: 132, alt: '德里克的 AI 教学实验室 公众号二维码' }),
+      h('img', { src: fileUrl('/brand/gzh-qr.jpg'), width: 132, height: 132, alt: '德里克的 AI 教学实验室 公众号二维码' }),
       h('p', {}, '新的活页做好了，先在这里说'),
       h('small', {}, '微信扫一扫，或在微信里长按识别')),
     h('button', { class: 'author-chip', 'aria-expanded': 'false', onclick: (e) => { e.stopPropagation(); toggle(); } },
-      h('img', { src: `${base}brand/gzh-avatar.jpg`, width: 30, height: 30, alt: '' }),
+      h('img', { src: fileUrl('/brand/gzh-avatar.jpg'), width: 30, height: 30, alt: '' }),
       h('span', {}, h('b', {}, '德里克的 AI 教学实验室'), h('small', {}, '公众号 · 用 AI 做真实的教学实践'))));
   const toggle = (open = !card.classList.contains('open')) => {
     card.classList.toggle('open', open);

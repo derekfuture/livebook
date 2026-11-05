@@ -115,6 +115,7 @@ export default {
     });
     const board = inked(new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.008, 0.2), [paint(0xcfae7c), paint(0xcfae7c), new THREE.MeshLambertMaterial({ map: woodTex }), paint(0xcfae7c), paint(0xcfae7c), paint(0xcfae7c)]), { width: 1.2 });
     board.position.y = -0.004;
+    board.userData.qaSupport = true;
     group.add(board);
 
     let C, bench, E, sw, L, N, T, spot;
@@ -151,7 +152,13 @@ export default {
       L.group.scale.setScalar(0.4);
       group.add(C.group);
       // 穿过塑料管的两根导线（固定），活动夹子接到接线块
-      C.wire('L.a', 'T.ia', { lift: 0.0005, color: 0xd9483b, locked: true }).wire('L.b', 'T.ib', { lift: 0.0005, color: 0xf2f2f2, locked: true }).wire('N.P', 'T.b', { locked: true });
+      const down = (s) => [
+        [TUBE.x + s * 0.008, TUBE.h + 0.008, TUBE.z + 0.014],
+        [TUBE.x + s * 0.008, TUBE.h - 0.008, TUBE.z + 0.014],
+        [TUBE.x + s * 0.005, TUBE.h - 0.02, TUBE.z + 0.002],
+        [TUBE.x + s * 0.005, 0.02, TUBE.z + 0.002],
+      ];
+      C.wire('L.a', 'T.ia', { points: down(-1), color: 0xd9483b, locked: true }).wire('L.b', 'T.ib', { points: down(1), color: 0xf2f2f2, locked: true }).wire('N.P', 'T.b', { locked: true });
       for (const [a, b] of keep || []) C.wire(a, b);
       C.solve();
       bench = new Bench(C, group, { onChange: judge, unscrew: false, locked: [['L.a', 'T.ia'], ['L.b', 'T.ib'], ['N.P', 'T.b']] });

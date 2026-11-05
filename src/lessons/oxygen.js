@@ -12,13 +12,32 @@ import { buttons, seg, table } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
 import { canvasTex, glowTexture } from './kit/props.js';
 import { Particles } from './kit/fx.js';
-import { gasJar, splint, ironWire, crucibleTongs, chemLamp, reagentBottle, CHEM } from './kit/chem.js';
+import { gasJar, splint, ironWire, crucibleTongs, chemLamp, glassMat, CHEM } from './kit/chem.js';
 import { flame2, Sparks, smoke2, milky, water2 } from './kit/chemfx.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, demoActs } from './kit/chemlesson.js';
 import { sfx } from './kit/audio.js';
-import { paint, inked, hull } from '../live/ink.js';
+import { paint, inked, hull, glassEdge } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
+
+/**
+ * 细口瓶（课本第 17 页：液体试剂盛放在细口瓶里），装澄清石灰水，瓶口塞着玻璃塞。瓶底是原点。
+ * .stopper：瓶塞（瓶子的子物体，原点在塞子正中：倒放在桌上时翻过来还是一样高）；.mouthY：瓶口的高度。——建议进 kit
+ */
+function narrowBottle({ r = 0.012, color = 0xe7eef0 } = {}) {
+  const g = new THREE.Group();
+  const NECK = 0.0042, TOP = 0.0455;
+  const pts = [[0.0003, 0], [r - 0.001, 0], [r, 0.002], [r, 0.028], [r * 0.45, 0.036], [NECK, 0.038], [NECK, TOP - 0.001], [NECK + 0.0007, TOP - 0.0003], [NECK + 0.0007, TOP], [NECK - 0.0004, TOP]].map(([x, y]) => new THREE.Vector2(x, y));
+  const body = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), glassMat({ opacity: 0.3 })); body.renderOrder = 9; glassEdge(body, 0.0006);
+  const liq = new THREE.Mesh(new THREE.CylinderGeometry(r - 0.0012, r - 0.0012, 0.022, 24), water2({ color, base: 0.34 })); liq.position.y = 0.0122; liq.renderOrder = 7;
+  const stopper = new THREE.Group();
+  const plugM = new THREE.Mesh(new THREE.CylinderGeometry(NECK - 0.0003, NECK - 0.0008, 0.006, 16), paint(0xeef1f3)); plugM.position.y = -0.0015;      // 塞进瓶颈的那一段（磨砂）
+  const headM = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0062, 0.0062, 0.003, 18), paint(0xeef1f3)), { width: 0.5 }); headM.position.y = 0.003;      // 塞头
+  stopper.add(plugM, headM); stopper.position.y = TOP - 0.0015;
+  g.add(body, liq, stopper);
+  Object.assign(g, { stopper, mouthY: TOP, half: 0.0045 });
+  return g;
+}
 
 const X_JAR = 0.9;                    // 一瓶氧气（排水法）里氧气的体积分数
 const RELIGHT = 0.45, IRON = 0.57;
@@ -26,6 +45,7 @@ const JR = 0.024, JH = 0.09;          // 集气瓶
 const JARS = [-0.21, -0.11, 0.11, 0.21].map((x) => new THREE.Vector3(x, 0, 0));
 const LAMP = new THREE.Vector3(0, 0, 0), FLAME_Y = 0.1;
 const NAMES = ['带火星的木条', '木炭', '硫', '细铁丝'];
+const SLOW_IN = 0.015;               // 木炭由瓶口向下缓慢插入（实验活动 1，第 53 页）：在瓶口以下每秒约往下 1.5 cm
 const BLUE = 0x2f7fd8, GRAY = 0x9aa1ad;
 
 export default {
@@ -97,12 +117,12 @@ export default {
     const wireA = mkWire(false), wire = mkWire(true);
     const TOOLS = [stick, coal, sul, wireA, wire];
     group.add(...TOOLS);
-    // 澄清石灰水
-    const lime = reagentBottle({ r: 0.012, h: 0.035, color: 0xe7eef0 }); const LIME_HOME = new THREE.Vector3(-0.05, 0, 0.11); lime.position.copy(LIME_HOME); group.add(lime);
+    // 澄清石灰水（细口瓶）
+    const lime = narrowBottle({ r: 0.012, color: 0xe7eef0 }); const LIME_HOME = new THREE.Vector3(-0.05, 0, 0.11); lime.position.copy(LIME_HOME); group.add(lime);
     const limePick = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.05, 10), new THREE.MeshBasicMaterial({ visible: false })); limePick.position.y = 0.022; limePick.userData.pick = true; lime.add(limePick);
-    // 倒石灰水：瓶盖先拿下来倒放在桌上；瓶口对着第 2 瓶的瓶口斜着倒（瓶底是原点）；一股细流
-    const limeCap = lime.children[2], CAP_ON = limeCap.position.clone(), CAP_REST = new THREE.Vector3(-0.022, 0.004, 0.118);
-    const LIME_POUR = new THREE.Vector3(JARS[1].x + 0.033, JH + 0.031, 0), LIME_TILT = 1.9;
+    // 倒石灰水：瓶塞先拔出来倒放在桌上；瓶口对着第 2 瓶的瓶口斜着倒（瓶底是原点）；一股细流
+    const limeCap = lime.stopper, CAP_ON = limeCap.position.clone(), CAP_REST = new THREE.Vector3(-0.022, lime.half, 0.118);
+    const LIME_TILT = 1.9, LIME_POUR = new THREE.Vector3(JARS[1].x - 0.001, JH + 0.0194, 0).add(new THREE.Vector3(Math.sin(LIME_TILT) * lime.mouthY, -Math.cos(LIME_TILT) * lime.mouthY, 0));      // 瓶口在第 2 瓶瓶口正上方约 2 cm
     const limeStream = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, 1, 8), water2({ color: 0xe7eef0, base: 0.5 })); limeStream.geometry.translate(0, -0.5, 0); limeStream.renderOrder = 8; limeStream.visible = false; group.add(limeStream);
 
     // ================= 火星、白光、烟；瓶里的气体小点 =================
@@ -174,6 +194,9 @@ export default {
       release(k) {
         const tp = tipGoal(k), j = jarAtP(tp);
         if (j >= 0) return A.intoJar(k, j);
+        // 木炭拿到瓶口上方松手：由瓶口向下缓慢插进去
+        const jm = k === 1 ? JARS.findIndex((J) => Math.hypot(tp.x - J.x, tp.z - J.z) < JR * 0.72 && tp.y >= JH - 0.004 && tp.y < JH + 0.035) : -1;
+        if (jm >= 0) return A.intoJar(k, jm);
         if (flameAt(tp)) return;                         // 留在火焰上继续烧
         ret[k] = true; goal[k].copy(HOME[k]); rotG[k].copy(homeRot(k));
         if (k === 0) stick.setState('none');
@@ -215,7 +238,7 @@ export default {
     // ================= 拖放（演示里也走这一套：器材沿路线移过去） =================
     const drag = draggable(group, [
       ...TOOLS.map((t, k) => ({ obj: [stickPick, coalPick, sPick, wireA.pick, wire.pick][k], plane: 'xy', offset: 0,
-        hint: () => (S.inJar[k] >= 0 ? '' : ['拖进第 1 瓶氧气里', '拖到火焰上加热，再拖进第 2 瓶氧气', '拖到火焰上加热，再拖进第 3 瓶氧气', '拖到火焰上烧：看它在空气中能不能燃烧', '拖到火焰上点燃火柴，快燃尽时拖进第 4 瓶氧气'][k]),
+        hint: () => (S.inJar[k] >= 0 ? '' : ['拖进第 1 瓶氧气里', '拖到火焰上加热，再拖到第 2 瓶瓶口：由瓶口向下缓慢插入', '拖到火焰上加热，再拖进第 3 瓶氧气', '拖到火焰上烧：看它在空气中能不能燃烧', '拖到火焰上点燃火柴，快燃尽时拖进第 4 瓶氧气'][k]),
         onStart: () => { if (S.test?.k === k) S.test = null; S.inJar[k] = -1; S.hold = k; holdPose(k); },
         onDrag: (p) => A.place(k, new THREE.Vector3(clamp(p.x, -0.28, 0.28), clamp(p.y, 0.02, 0.2), p.z || 0)),
         onEnd: () => { S.hold = -1; A.release(k); } })),
@@ -247,7 +270,7 @@ export default {
       steps: [
         { id: 'stick', title: '带火星的木条', todo: '把<b>带火星的木条</b>伸进第 1 瓶氧气里，看它能不能复燃。', target: () => (S.test ? null : stick) },
         { id: 'coalAir', title: '木炭在空气中', todo: '用坩埚钳夹着<b>木炭</b>，放到酒精灯火焰上加热，看它在空气中怎样燃烧。', target: () => (S.hold === 1 ? null : coal) },
-        { id: 'coalO2', title: '木炭在氧气中', todo: '把烧红的木炭伸进第 2 瓶氧气里，比一比。（烧完以后，还可以把<b>澄清石灰水</b>倒进这瓶里看看。）', target: () => (S.hold === 1 || S.test ? null : coal) },
+        { id: 'coalO2', title: '木炭在氧气中', todo: '把烧红的木炭拖到第 2 瓶瓶口，<b>由瓶口向下缓慢插入</b>氧气中，比一比。（烧完以后，还可以把<b>澄清石灰水</b>倒进这瓶里看看。）', target: () => (S.hold === 1 || S.test ? null : coal) },
         { id: 'sAir', title: '硫在空气中', todo: '把燃烧匙里的<b>硫</b>放到火焰上加热，直到燃烧，看它的火焰。（课本上这个实验由老师在通风橱里演示。）', target: () => (S.hold === 2 ? null : sul) },
         { id: 'sO2', title: '硫在氧气中', todo: '把燃着的硫伸进第 3 瓶氧气里，比一比火焰。', target: () => (S.hold === 2 || S.test ? null : sul) },
         { id: 'feAir', title: '铁丝在空气中', todo: '把一根<b>细铁丝</b>（没系火柴的那根）放到火焰上烧，看它在空气中能不能燃烧。', target: () => (S.hold === 3 ? null : wireA) },
@@ -263,7 +286,7 @@ export default {
             { cap: '四瓶氧气，一盏点着的酒精灯。蓝点是氧气：瓶里几乎全是，空气里只有约 1/5。', dur: 3.6, cam: [[0, 0.06, 0], [0.08, 0.22, 1], 0.7] },
             { cap: '带火星的木条伸进氧气里——复燃了。', dur: 4.6, cam: [[JARS[0].x, 0.07, 0.03], [0.05, 0.25, 1], 0.4], during: carry(0, JT(0), { t0: 0.04, t1: 0.42, release: 0.44 }) },
             { cap: '木炭在酒精灯上加热：在空气中只是红热。', dur: 3.8, cam: [[-0.05, 0.09, 0.04], [0.05, 0.22, 1], 0.4], during: carry(1, FL, { t0: 0.03, t1: 0.4, release: 0.42 }), speed: 2 },
-            { cap: '伸进氧气里：剧烈燃烧，发出白光。', dur: 4.4, cam: [[JARS[1].x + 0.04, 0.07, 0], [0.05, 0.25, 1], 0.4], during: carry(1, JT(1), { t0: 0.04, t1: 0.36, release: 0.38 }) },
+            { cap: '由瓶口向下缓慢插入氧气中：木炭剧烈燃烧，发出白光。', dur: 5.2, cam: [[JARS[1].x + 0.04, 0.07, 0], [0.05, 0.25, 1], 0.4], during: carry(1, V3(JARS[1].x, JH + 0.012, 0), { t0: 0.04, t1: 0.3, release: 0.32 }) },      // 拿到瓶口松手：木炭由瓶口向下慢慢插进去（和学生用的是同一套）
             { cap: '木炭烧完以后，向这瓶里倒入澄清石灰水，振荡：石灰水变浑浊——生成了二氧化碳。', dur: 7.5, cam: [[JARS[1].x + 0.04, 0.06, 0.04], [0.05, 0.25, 1], 0.38],
               during: path(limePick, [() => lime.position.clone().setY(0.022), V3(LIME_HOME.x, 0.15, LIME_HOME.z), V3(JARS[1].x + 0.03, 0.15, 0), V3(JARS[1].x + 0.03, JH + 0.02, 0)], { t0: 0.43, t1: 0.62, release: 0.64 }) },
             { cap: '硫在空气中：微弱的淡蓝色火焰。', dur: 3.8, cam: [[0.03, 0.09, 0.04], [0.05, 0.22, 1], 0.4], during: carry(2, FL, { t0: 0.03, t1: 0.4, release: 0.42 }), speed: 2 },
@@ -292,39 +315,53 @@ export default {
     const turn = (o, e, a) => o.rotation.set(o.rotation.x + (e.x - o.rotation.x) * a, o.rotation.y + (e.y - o.rotation.y) * a, o.rotation.z + (e.z - o.rotation.z) * a);
     // 放回桌上：先水平挪到原处的上方，再放下去（不斜着穿过别的器材）
     const carryHome = (o, p, a) => { const d = Math.hypot(o.position.x - p.x, o.position.z - p.z); o.position.lerp(d > 0.004 ? new THREE.Vector3(p.x, Math.max(o.position.y, p.y), p.z) : p, a); };
+    // 跟着手滑过去，但不超过每秒 0.4 m（石灰水瓶：等瓶塞拔开以后才动，不会一下子蹿过去）
+    const follow = (o, to, a, h) => { const d = to.clone().sub(o.position).multiplyScalar(a); if (d.length() > 0.4 * h) d.setLength(0.4 * h); o.position.add(d); };
     const moveTools = (h) => {
       const aF = 1 - Math.exp(-h * 22), aS = 1 - Math.exp(-h * 6);
       TOOLS.forEach((t, k) => {
-        if (!ret[k]) { t.position.lerp(goal[k], aF); turn(t, rotG[k], aF); return; }
+        if (!ret[k]) {
+          const y0 = t.position.y;
+          t.position.lerp(goal[k], aF); turn(t, rotG[k], aF);
+          // 木炭（钳口就是原点）：到了瓶口以下，只能由瓶口向下慢慢插进去
+          if (k === 1 && JARS.some((J) => Math.hypot(t.position.x - J.x, t.position.z - J.z) < JR * 0.72 && t.position.y < JH + 0.004) && t.position.y < y0 - SLOW_IN * h) t.position.y = y0 - SLOW_IN * h;
+          return;
+        }
         // 放回桌上：工作端还在瓶里（或瓶口下面）就先竖直提出来
         const tp = tipOf(k), inJar = JARS.some((J) => Math.hypot(tp.x - J.x, tp.z - J.z) < JR + 0.008 && tp.y < JH + 0.012);
         if (inJar) t.position.y += (JH + 0.03 - tp.y) * aF * 0.6;
         else { carryHome(t, HOME[k], aS); turn(t, rotG[k], aS); if (t.position.distanceTo(HOME[k]) < 0.0005) ret[k] = false; }
       });
-      // 澄清石灰水：拿起来时瓶盖倒放在桌上；拿着跟手；倒（瓶口对着第 2 瓶，一股细流）；放回去再盖上瓶盖
+      // 澄清石灰水：拿起来时先拔出瓶塞，倒放在桌上（瓶塞离开瓶口以前，瓶子先不动）；拿着跟手；倒（瓶口对着第 2 瓶，一股细流）；放回去再塞好瓶塞
       const J = S.jars[1];
+      const away = S.limeT >= 0 || !!limeGo || lime.position.distanceTo(LIME_HOME) > 0.003;
+      if (away && limeCap.parent === lime) group.attach(limeCap);
+      let capClear = true;
+      if (limeCap.parent === group) {
+        // 拔：先竖直拔出瓶颈，再横着挪开、翻过来，放到桌上倒放；塞回去：先抬到瓶口上方，横着挪过去、翻正，再竖直塞进瓶颈
+        const cp = limeCap.position, ON = LIME_HOME.clone().add(CAP_ON), UP = ON.y + 0.012, off = Math.hypot(cp.x - ON.x, cp.z - ON.z);
+        capClear = off > 0.02;
+        let tgt, flip;
+        if (away) { const atRest = Math.hypot(cp.x - CAP_REST.x, cp.z - CAP_REST.z) < 0.003; tgt = off < 0.003 && cp.y < UP - 0.001 ? new THREE.Vector3(cp.x, UP, cp.z) : !atRest ? new THREE.Vector3(CAP_REST.x, Math.max(cp.y, CAP_REST.y + 0.008), CAP_REST.z) : Math.abs(limeCap.rotation.x - Math.PI) < 0.1 ? CAP_REST : new THREE.Vector3(CAP_REST.x, cp.y, CAP_REST.z); flip = off > 0.008 ? Math.PI : 0; }
+        else { tgt = off > 0.003 ? (cp.y < UP - 0.001 ? new THREE.Vector3(cp.x, UP, cp.z) : new THREE.Vector3(ON.x, UP, ON.z)) : Math.abs(limeCap.rotation.x) < 0.05 ? ON : new THREE.Vector3(ON.x, UP, ON.z); flip = 0; }
+        cp.lerp(tgt, aF * 0.8);
+        limeCap.rotation.x += (flip - limeCap.rotation.x) * aF * 0.5; limeCap.rotation.z += (0 - limeCap.rotation.z) * aF * 0.5;
+        if (!away && cp.distanceTo(ON) < 0.0006 && Math.abs(limeCap.rotation.x) < 0.02) { lime.attach(limeCap); limeCap.position.copy(CAP_ON); limeCap.rotation.set(0, 0, 0); }
+      }
       limeStream.visible = false;
       if (S.limeT >= 0) {
-        S.limeT += h; const lt = S.limeT;
-        lime.position.lerp(LIME_POUR, aF * 0.7); lime.rotation.z += (LIME_TILT - lime.rotation.z) * aF * 0.7;
+        if (capClear) { follow(lime, LIME_POUR, aF * 0.7, h); const near = lime.position.distanceTo(LIME_POUR) < 0.03; lime.rotation.z += ((near ? LIME_TILT : 0) - lime.rotation.z) * aF * 0.7; }      // 竖着拿过去，到了瓶口上方再斜过来
+        const there = lime.position.distanceTo(LIME_POUR) < 0.004 && Math.abs(lime.rotation.z - LIME_TILT) < 0.08;
+        if (capClear && (there || S.limeT > 0)) S.limeT += h;          // 瓶口对好了才开始倒
+        const lt = S.limeT;
         if (lt > 0.35 && lt < 1.35) {
           J.water = 0.14 * clamp((lt - 0.35) / 0.95, 0, 1);
-          lime.updateMatrixWorld(true); const m = group.worldToLocal(lime.localToWorld(new THREE.Vector3(0, 0.036, 0)));
+          lime.updateMatrixWorld(true); const m = group.worldToLocal(lime.localToWorld(new THREE.Vector3(0, lime.mouthY, 0)));
           limeStream.visible = true; limeStream.position.copy(m); limeStream.scale.y = Math.max(0.001, m.y - JH * J.water);
         }
         if (lt > 1.6) A.limed();
-      } else if (limeGo) { lime.position.lerp(limeGo, aF); lime.rotation.z += (0 - lime.rotation.z) * aF; }          // 拿着走时竖着（到了瓶口上方松手，再斜过来倒）
+      } else if (limeGo) { if (capClear) { follow(lime, limeGo, aF, h); lime.rotation.z += (0 - lime.rotation.z) * aF; } }          // 拿着走时竖着（到了瓶口上方松手，再斜过来倒）
       else { carryHome(lime, LIME_HOME, aS); lime.rotation.z += (0 - lime.rotation.z) * aS; }
-      const away = S.limeT >= 0 || limeGo || lime.position.distanceTo(LIME_HOME) > 0.003;
-      if (away && limeCap.parent === lime) group.attach(limeCap);
-      if (limeCap.parent === group) {
-        // 拿下来：先横着挪开，再放到桌上倒放；盖回去：先抬到瓶口高度以上，横着挪过去，再放下去
-        const to = away ? CAP_REST : LIME_HOME.clone().add(CAP_ON), cp = limeCap.position, far = Math.hypot(cp.x - to.x, cp.z - to.z) > 0.003;
-        const tgt = !far ? to : away ? new THREE.Vector3(to.x, cp.y, to.z) : cp.y < CAP_ON.y + 0.008 ? new THREE.Vector3(cp.x, CAP_ON.y + 0.012, cp.z) : new THREE.Vector3(to.x, cp.y, to.z);
-        cp.lerp(tgt, aF * 0.8);
-        limeCap.rotation.x += ((away ? Math.PI : 0) - limeCap.rotation.x) * aF * 0.5; limeCap.rotation.z += (0 - limeCap.rotation.z) * aF * 0.5;
-        if (!away && cp.distanceTo(to) < 0.0006 && Math.abs(limeCap.rotation.x) < 0.02) { lime.attach(limeCap); limeCap.position.copy(CAP_ON); limeCap.rotation.set(0, 0, 0); }
-      }
     };
     const step = (h, t) => {
       lamp.flame.setOn(true); lamp.flame.update(t);
@@ -487,7 +524,7 @@ export default {
         qa: qaFlow(drag, [
           { name: '带火星的木条伸进第 1 瓶', drag: stickPick, to: () => JT(0), wait: 6 },
           { name: '木炭在火焰上加热', drag: coalPick, to: () => FL, wait: 3 },
-          { name: '木炭伸进第 2 瓶', drag: coalPick, to: () => JT(1), wait: 6 },
+          { name: '木炭由瓶口缓慢插入第 2 瓶', drag: coalPick, to: () => V3(JARS[1].x, JH + 0.012, 0), wait: 6 },      // 拿到瓶口松手，木炭自己慢慢插下去
           { name: '倒入澄清石灰水', drag: limePick, to: () => V3(JARS[1].x + 0.03, JH + 0.02, 0), wait: 12 },      // 倒完镜头要停一会儿让人看清变浑浊（约 2 秒后才拉远）
           { name: '硫在火焰上加热', drag: sPick, to: () => FL, wait: 3 },
           { name: '硫伸进第 3 瓶', drag: sPick, to: () => JT(2), wait: 6 },

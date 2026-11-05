@@ -49,7 +49,7 @@ export default {
     group.add(th);
     st.clamp(0.29, 0.09);
     const lamp = alcoholLamp();
-    lamp.position.y = -0.012;
+    lamp.position.y = 0.002;
     lamp.scale.setScalar(0.85);
     group.add(lamp);
     const bub = bubbles({ r: 0.04 });

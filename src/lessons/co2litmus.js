@@ -26,7 +26,15 @@ const JARS = [new THREE.Vector3(-0.03, 0, -0.035), new THREE.Vector3(0.03, 0, -0
 const SPRAY_HOME = new THREE.Vector3(-0.088, 0, 0.055), DRYER_HOME = new THREE.Vector3(0.092, 0, 0.045);
 const ROMAN = ['I', 'II', 'III'];
 const SPRAY_OFF = new THREE.Vector3(0, 0, 0.034), DRY_OFF = new THREE.Vector3(-0.05, 0, 0);        // 工具相对纸花站在哪：喷壶在花后面朝前喷，吹风机在右边
-const SPRAY_POSE = new THREE.Vector3(-0.03, 0.016, -0.024);       // 喷壶 / 吹风机放在纸花右边多远就能对着它
+const SPRAY_POSE = new THREE.Vector3(-0.03, 0.016, -0.024);       // 喷水时喷壶举到纸花的左后上方（相对纸花）
+// 纸花放进 / 拿出集气瓶：从瓶口进出（课本图 6-12：放着纸花的集气瓶盖着玻璃片）
+const FLOWER_R = 0.018;                          // 纸花半径（约 1.8 cm）
+const NECK_R = CJ_R * 0.72;                      // 集气瓶口的半径
+const RIM = CJ_H + 0.0058;                       // 瓶口加玻璃片的高度：纸花要高过它，才能越过瓶口
+const LIFT_Y = CJ_H + 0.014;                     // 拿着纸花越过瓶口的高度
+const KEEP_R = CJ_R + 0.0012 + FLOWER_R + 0.002; // 纸花中心离瓶轴比这近、又低于瓶口，就碰到瓶壁了
+const PLATE_OPEN = 0.044, PLATE_DIR = [-1, 1];   // 放纸花时玻璃片推开多少（推到瓶口外面）；两个瓶的玻璃片各往外侧推
+const sm = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
 
 /** 纸花：两圈花瓣 + 花心。.mat 是这朵花自己的材质（颜色会变） */
 function paperFlower() {
@@ -190,7 +198,7 @@ export default {
     const drag = draggable(group, [
       ...flowers.map((f, i) => ({ obj: f.pick, plane: 'xz', offset: 0.035, hint: () => (S.fl[i].at === 'tray' ? `纸花 ${ROMAN[i]}：拖进集气瓶` : `纸花 ${ROMAN[i]}：拖回托盘`),
         onStart: (p) => A.flowerDrag(i, p), onDrag: (p) => A.flowerDrag(i, p), onEnd: () => A.flowerDrop(i) })),
-      { obj: sprayPick, plane: 'xz', offset: 0, hint: '拖到一朵纸花右边：喷水', onStart: (p) => A.sprayAt(p), onDrag: (p) => A.sprayAt(p), onEnd: () => A.sprayDrop() },
+      { obj: sprayPick, plane: 'xz', offset: 0, hint: '拖到一朵纸花后面：喷水', onStart: (p) => A.sprayAt(p), onDrag: (p) => A.sprayAt(p), onEnd: () => A.sprayDrop() },
       { obj: dryerPick, plane: 'xz', offset: 0, hint: '拖到纸花右边，按住：吹干', onStart: (p) => A.dryerAt(p), onDrag: (p) => A.dryerAt(p), onEnd: () => A.dryerDrop() },
     ], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
@@ -202,7 +210,7 @@ export default {
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'f1', title: '纸花 I：喷水', todo: '把<b>喷壶</b>拖到一朵纸花右边，给它喷水。看它变不变色。', target: () => spray },
+        { id: 'f1', title: '纸花 I：喷水', todo: '把<b>喷壶</b>拖到一朵纸花后面，给它喷水。看它变不变色。', target: () => spray },
         { id: 'f2', title: '纸花 II：放进二氧化碳', todo: '把一朵<b>干燥的</b>纸花拖进集气瓶（瓶里是二氧化碳）。', target: () => { const i = flowerFor((f) => f.at === 'tray' && f.wet < 0.1); return i >= 0 ? flowers[i] : null; } },
         { id: 'f3', title: '纸花 III：喷水后放进二氧化碳', todo: '给另一朵纸花<b>喷上水</b>，再把它拖进另一个集气瓶。', target: () => { const i = flowerFor((f, j) => f.at === 'tray' && f.wet > 0.5 && j !== S.logged.wetOnly - 1); return i >= 0 ? flowers[i] : spray; } },
         { id: 'dry', title: '吹干', todo: '把变红的纸花<b>拿出来</b>放回托盘，用<b>吹风机</b>对着它吹。', target: () => { const i = flowerFor((f) => f.acid > 0.5); if (i < 0) return null; return S.fl[i].at === 'tray' ? dryer : flowers[i]; } },
@@ -229,6 +237,41 @@ export default {
     const pointer = wrapPointer(drag, bar);
 
     // ================= 每帧 =================
+    // 纸花挪到该去的地方（每帧滑过去）。放进集气瓶：先抬到瓶口以上，挪到瓶口正上方，等玻璃片推开，再从瓶口放下去；
+    // 拿出来：先竖直提出瓶口，再挪开。低于瓶口时不从瓶壁穿过去。
+    const hyp = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+    const plateOpen = (k) => Math.abs(cjars[k].plate.position.x) > PLATE_OPEN - 0.0008;
+    const moveFlower = (i) => {
+      const f = S.fl[i], P = flowers[i].position, tgt = flowerPos(f).clone();
+      const inside = JARS.findIndex((q) => P.y < RIM && hyp(P, q) < NECK_R);
+      let next;
+      if (f.carry) {
+        // 拿着走：靠近集气瓶就抬高，越过瓶口；在瓶里时先竖直提出瓶口（玻璃片推开以前，先提到瓶口下面等着）
+        const near = Math.max(...JARS.map((q) => sm((0.075 - hyp(f.carry, q)) / 0.025)), ...JARS.map((q) => sm((KEEP_R + 0.02 - hyp(P, q)) / 0.02)));
+        if (inside >= 0) next = P.clone().lerp(new THREE.Vector3(P.x, plateOpen(inside) ? LIFT_Y : CJ_H - 0.012, P.z), 0.15);
+        else { tgt.y = 0.035 + (LIFT_Y - 0.035) * near; next = P.clone().lerp(tgt, 0.5); }
+      } else {
+        // 放下：在瓶里、瓶口上方，或者要放进瓶里——先抬到瓶口以上，横着挪过去，再（等玻璃片推开）从瓶口慢慢放下去
+        const d = hyp(P, tgt), top = inside >= 0 || P.y > RIM - 0.002 || f.at !== 'tray' ? LIFT_Y : P.y, k = JARS.findIndex((q) => hyp(P, q) < NECK_R);
+        if (d > 0.004 && P.y < top - 0.003) next = P.clone().lerp(new THREE.Vector3(P.x, inside >= 0 && !plateOpen(inside) ? CJ_H - 0.012 : top, P.z), inside >= 0 ? 0.15 : 0.3);
+        else if (d > 0.004) next = P.clone().lerp(new THREE.Vector3(tgt.x, Math.max(P.y, tgt.y), tgt.z), 0.3);
+        else next = P.clone().lerp(k >= 0 && !plateOpen(k) && P.y > RIM - 0.001 ? new THREE.Vector3(tgt.x, Math.max(P.y, RIM + 0.002), tgt.z) : tgt, k >= 0 ? 0.15 : 0.3);
+      }
+      JARS.forEach((q, k) => {
+        const d0 = hyp(P, q), d1 = hyp(next, q);
+        if (P.y < RIM && d0 < NECK_R) { if (d1 > d0) { next.x = P.x; next.z = P.z; } }                      // 在瓶里：先竖直提出瓶口
+        else if (P.y < RIM) { if (d1 < KEEP_R && d1 < d0) { next.x = P.x; next.z = P.z; } }                  // 在瓶外、低于瓶口：不往瓶壁里挪
+        else if (d1 < KEEP_R && next.y < RIM && !(d0 < 0.004 && plateOpen(k))) next.y = RIM;                  // 在瓶口上方：对准瓶口、玻璃片推开了才放下去
+        if (d1 < NECK_R + 0.002 && !plateOpen(k)) { if (P.y >= RIM - 1e-4 && next.y < RIM) next.y = RIM; if (P.y <= CJ_H - 0.008 && next.y > CJ_H - 0.008) next.y = CJ_H - 0.008; }      // 玻璃片还没推开：等一等
+      });
+      P.copy(next);
+    };
+    // 玻璃片：纸花正从这个瓶口进出时推开（推到瓶口外面）；纸花落到瓶底、或者没有纸花时盖好（课本图 6-12）
+    const wantsOpen = (k) => S.fl.some((f, i) => {
+      const P = flowers[i].position;
+      if (f.carry && hyp(f.carry, JARS[k]) < 0.05 && hyp(f.carry, JARS[k]) <= hyp(f.carry, JARS[1 - k])) return true;
+      return hyp(P, JARS[k]) < KEEP_R && P.y < LIFT_Y + 0.01 && P.distanceTo(flowerPos(f)) > 0.002 && (P.y > 0.012 || f.at !== 'jar' + k);
+    });
     const step = (h, t) => {
       // 喷壶、吹风机：对着最近的那朵纸花
       // 松手后喷壶举到花的左后上方、喷头斜朝下对着花喷，侧面看得见水雾
@@ -265,7 +308,7 @@ export default {
         else { f.outT += h; if (f.wet > 0) f.wet = Math.max(0, f.wet - h * 0.004); }                          // 放着慢慢变干（很慢）
         f.peak = Math.max(f.peak, f.acid);
         const fl = flowers[i];
-        fl.position.lerp(flowerPos(f), f.carry ? 0.5 : 0.3);        // 拿起来时也是滑上去的，不是一下跳到手里
+        moveFlower(i);        // 拿起来时也是滑上去的，不是一下跳到手里
         fl.mat.color.copy(PURPLE).lerp(RED, clamp(f.acid * 1.15, 0, 1)).lerp(WETK, f.wet * 0.38);        // 湿了颜色明显深一些
         fl.beads.children.forEach((b) => { b.visible = b.userData.k < f.wet; });
         fLabels[i].loc(group, fl.position.x, fl.position.y + 0.016, fl.position.z).show(f.at === 'tray' || !!f.carry);
@@ -275,8 +318,8 @@ export default {
         if (inJar && f.acid > 0.6 && !L.red) { L.red = 1; log([`纸花 ${ROMAN[i]}：喷水后放进二氧化碳`, '<b>变红</b>', '二氧化碳和水<b>反应</b>，生成了能使石蕊变红的物质']); done('f3'); status(`喷过水的纸花 ${ROMAN[i]} 在二氧化碳里<b>变红</b>了。把它拿出来放回托盘，用<b>吹风机</b>吹干。`); }
         if (f.peak > 0.6 && f.acid < 0.08 && !inJar && !L.back) { L.back = 1; log([`纸花 ${ROMAN[i]}：取出吹干`, '又变成<b>紫色</b>', '生成的物质（碳酸）不稳定，受热分解了']); done('dry'); status(`吹干以后，纸花 ${ROMAN[i]} 又变回了<b>紫色</b>。看看左边的问题。`); if (W && !S.demo) W.t1.open(); }
       });
-      // 集气瓶的玻璃片：有纸花在里面时推开一半
-      cjars.forEach((j, k) => { j.plate.position.x += ((S.fl.some((f) => f.at === 'jar' + k || (f.carry && Math.hypot(f.carry.x - JARS[k].x, f.carry.z - JARS[k].z) < 0.04)) ? 0.014 : 0) - j.plate.position.x) * 0.2; });
+      // 集气瓶的玻璃片：纸花从瓶口进出时推开，放好以后盖上
+      cjars.forEach((j, k) => { j.plate.position.x += ((wantsOpen(k) ? PLATE_DIR[k] * PLATE_OPEN : 0) - j.plate.position.x) * 0.2; });
       for (let i = leaving.length - 1; i >= 0; i--) { const d = leaving[i]; d.age += h; d.p.y += h * 0.03; d.alpha = Math.max(0, 0.9 - d.age * 0.6); if (d.age > 1.5) leaving.splice(i, 1); }
       const dark = [];
       cjars.forEach((j, k) => { for (const d of cjDots[k]) { const th = d.th + Math.sin(t * 0.4 + d.ph) * 0.15, rr = (CJ_R - 0.004) * d.u; d.p.set(j.position.x + Math.cos(th) * rr, CJ_H * d.y, j.position.z + Math.sin(th) * rr); dark.push(d); } });

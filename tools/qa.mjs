@@ -37,7 +37,7 @@ fs.mkdirSync('/tmp/lbqa', { recursive: true });
 // ---------- 在页面里跑的检查 ----------
 const inPage = () => {
   const A = window.__lb?.live?.active; if (!A) return { open: false };
-  const inst = A.inst, g = inst.group.children[0], cam = __lb.stage.camera, V = cam.position.constructor;
+  const inst = A.inst, g = inst.group, cam = __lb.stage.camera, V = cam.position.constructor;          // 实验自己的坐标：台板顶面 y = 0（以前取 children[0]，取到第一个零件时会按它自己的坐标量，误报）
   g.updateMatrixWorld(true);
   const inv = g.matrixWorld.clone().invert();
   const shown = (o) => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
@@ -46,6 +46,7 @@ const inPage = () => {
   // 3a 低于桌面
   const v = new V();
   for (const o of meshes) {
+    if (o.userData.qaSupport) continue;          // 台板
     const pos = o.geometry.attributes.position; if (!pos) continue;
     let minY = Infinity; const step = Math.max(1, Math.floor(pos.count / 400));
     for (let i = 0; i < pos.count; i += step) { v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(inv); minY = Math.min(minY, v.y); }

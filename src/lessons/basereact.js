@@ -9,6 +9,9 @@
 //   氢氧化钙一“挑”约 0.02 g（0.27 mmol）；20 ℃ 时溶解度约 0.165 g / 100 g 水——1 mL 水只能溶约 1.7 mg，绝大部分沉在下面（浑浊）。
 //   饱和石灰水 pH 约 12.4，酚酞变红；加 1 mL 稀盐酸（1 mmol H⁺）足够把 0.27 mmol 氢氧化钙全部反应掉（Ca(OH)₂ + 2HCl ══ CaCl₂ + 2H₂O）：变澄清、酚酞褪色。
 //   溶解、反应的快慢：振荡时快（一两秒），静置时慢；沉淀不振荡会慢慢沉到管底。
+// 装粉末（上册第 16 页）：“可先将试管横放，把盛有试剂的药匙……小心地送至试管底部，然后把试管竖立起来。”——试管从架子上拿起来、横放，
+//   药匙柄挑着粉末的那一端送到试管底部，翻一下把粉末留在管底，抽出药匙，再把试管竖起来、放回试管架。广口瓶取完粉末就盖好瓶塞。
+// 滴管（上册第 17 页）：平时竖着插在滴瓶里；拿起来一直竖着（橡胶帽在上），到试管口上方悬空滴，不伸进试管；用完插回原滴瓶。
 import * as THREE from 'three';
 import { buttons, table } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
@@ -16,25 +19,32 @@ import { textPlate } from './kit/props.js';
 import { Particles } from './kit/fx.js';
 import { testTube, glassMat, spatula, reagentBottle } from './kit/chem.js';
 import { water2, tubeLiquid } from './kit/chemfx.js';
+import { dropBottle, homeLift, bottleCap } from './kit/labops.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs } from './kit/chemlesson.js';
 import { sfx } from './kit/audio.js';
-import { paint, inked } from '../live/ink.js';
+import { paint, inked, glassEdge } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
 
 const XS = [-0.06, 0.014, 0.048], T_R = 0.0085, T_LEN = 0.1, T_Y = 0.012, R_IN = T_R - 0.0008;
 const DROP = 0.05;                                          // 一滴 mL
 const CU0 = 0.66, OH_DROP = 0.125, H_DROP = 0.05;          // mmol：2 mL 硫酸铜溶液里的 Cu²⁺；一滴氢氧化钠溶液的 OH⁻；一滴稀盐酸的 H⁺
 const CA_SCOOP = 0.27, CA_SAT = 0.0223;                    // mmol：一挑氢氧化钙；每毫升水最多溶解的氢氧化钙
-// 四支滴管（平放在前面）：氢氧化钠溶液、稀盐酸、酚酞溶液、水
+// 四个滴瓶（滴管插在瓶里）：氢氧化钠溶液、稀盐酸、酚酞溶液、水。放在不挡住试管、广口瓶的地方
 const DR = [
-  { key: 'naoh', name: '氢氧化钠溶液', inside: 0xeef2f4, home: new THREE.Vector3(-0.052, 0.006, 0.062), per: 0.5 },
-  { key: 'hcl', name: '稀盐酸', inside: 0xeef2f4, home: new THREE.Vector3(0.004, 0.006, 0.062), per: 0.2 },
-  { key: 'ph', name: '酚酞溶液', inside: 0xf2f2ee, home: new THREE.Vector3(0.06, 0.006, 0.062), per: 0.5 },
-  { key: 'water', name: '水', inside: 0xcfe7f3, home: new THREE.Vector3(0.114, 0.006, 0.062), per: 0.2 },
+  { key: 'naoh', name: '氢氧化钠溶液', inside: 0xeef2f4, bottle: new THREE.Vector3(-0.115, 0, 0.045), per: 0.5 },
+  { key: 'hcl', name: '稀盐酸', inside: 0xeef2f4, bottle: new THREE.Vector3(-0.087, 0, 0.045), per: 0.2 },
+  { key: 'ph', name: '酚酞溶液', inside: 0xf2f2ee, bottle: new THREE.Vector3(-0.023, 0, 0.045), per: 0.5 },
+  { key: 'water', name: '水', inside: 0xcfe7f3, bottle: new THREE.Vector3(0.16, 0, 0.03), per: 0.2 },        // 在广口瓶、药匙的右边（不挡住广口瓶）
 ];
+const HIGH = 0.012 + 0.1 + 0.012;                           // 滴管尖在试管口上方 1.2 cm 悬空滴；拿着滴管走、插回滴瓶之前也先提到这么高
 const JAR = new THREE.Vector3(0.096, 0, -0.012), JAR_R = 0.016, JAR_H = 0.04;
 const SPOON_HOME = new THREE.Vector3(0.128, 0.004, 0.042);            // 药匙平放在广口瓶右边，柄朝后
+const SP_TILT = 0.95;                                                 // 拿着药匙时柄斜着往左下伸（挑粉末的那一端在左下，勺在右上）
+// 装粉末时试管怎么动：C 是试管中点（离管底 T_LEN/2），th 是倾斜角（负：管口朝右，-π/2 横放）。每一段多长（秒）：
+//   药匙移开 | 试管竖直拿起来 | 移到前面 | 放低一点 | 横放 | 药匙移到管口 | 小心地送到管底 | 翻一下，粉末留在管底 | 抽出来 | 移开 | 试管竖起来 | 抬起来 | 移回试管架上方 | 放回去
+const LOAD = [['clear', 0.35], ['lift', 0.4], ['fwd', 0.35], ['down', 0.2], ['tilt', 0.45], ['in', 0.3], ['push', 0.7], ['tip', 0.45], ['out', 0.4], ['away', 0.2], ['up', 0.45], ['rise', 0.2], ['back', 0.35], ['set', 0.4]];
+const LOAD_END = LOAD.reduce((a, [, d]) => a + d, 0);
 const CUSO4 = new THREE.Color(0x3f9fe0), PALE = new THREE.Color(0xe6eef2), RED = new THREE.Color(0xe0307a), CUOH = 0x4a86d6;
 // 试管里的液体：半球形的底（半径 R_IN，球心和试管底的球心一样高）+ 圆柱；体积 → 液面高度
 const YC = T_R + 0.0008, YB = YC - R_IN, V_HEMI = (2 / 3) * Math.PI * R_IN ** 3 * 1e6;      // 半球的体积（mL）
@@ -99,28 +109,44 @@ export default {
     });
     const stepLab = [['步骤 4', XS[0]], ['步骤 6', (XS[1] + XS[2]) / 2]].map(([t, x]) => { const l = textPlate(t, { w: 0.018, h: 0.0068, color: '#5a6070', bg: 'rgba(0,0,0,0)', font: 'bold 78px "Songti SC", serif' }); l.rotation.x = -Math.PI / 2; l.position.set(x, 0.0005, 0.03); group.add(l); return l; });
 
-    // ================= 四支滴管 =================
-    const droppers = DR.map((D) => {
+    // ================= 四个滴瓶和胶头滴管 =================
+    // 滴瓶（kit 的 dropBottle）+ 竖着插在瓶里的滴管；标签贴在滴瓶上（字多时字号缩小，免得被裁掉）。滴管的原点在滴管尖。
+    // ——dropper / follow / putBack 和 indicator、baseprop、acidprop 里的一样，建议进 kit
+    const bottleLabel = (B, text) => { const lab = textPlate(text, { w: 0.024, h: 0.008, bg: 'rgba(253,251,245,0.95)', font: `bold ${Math.min(120, Math.floor(470 / text.length))}px "Songti SC", serif` }); lab.position.set(0, 0.022, 0.0135); B.add(lab); B.label = lab; };
+    const dropper = (B, inside) => {
       const g = new THREE.Group(); group.add(g);
-      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0024, 0.042, 10), glassMat({ opacity: 0.35 })); tube.position.y = 0.021; tube.renderOrder = 9; g.add(tube);
-      const inside = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0018, 0.02, 8), paint(D.inside, { keep: true })); inside.position.y = 0.012; g.add(inside);
-      const bulb = inked(new THREE.Mesh(new THREE.SphereGeometry(0.0052, 12, 8), paint(0xc23a3a, { keep: true })), { width: 0.4 }); bulb.scale.y = 1.6; bulb.position.y = 0.048; g.add(bulb);
-      const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.06, 8), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.03; pick.userData.pick = true; g.add(pick);
-      const l = plateTxt(D.name, D.name.length * 0.0045 + 0.004); l.position.set(D.home.x - 0.026, 0.0004, D.home.z + 0.013); group.add(l);
-      g.position.copy(D.home); g.rotation.z = Math.PI / 2;
-      return Object.assign(g, { pick });
-    });
+      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.0024, 0.0011, 0.046, 14), glassMat({ opacity: 0.3 })); glass.geometry.translate(0, 0.023, 0); glass.renderOrder = 9; glassEdge(glass, 0.0005);
+      const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.0014, 0.0008, 0.018, 10), paint(inside, { keep: true })); liq.position.y = 0.0095;
+      const collar = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0068, 0.0068, 0.005, 18), paint(0xc23a3a, { keep: true })), { width: 0.6 }); collar.position.y = 0.0435;
+      const bulb = inked(new THREE.Mesh(new THREE.SphereGeometry(0.0055, 16, 12), paint(0xc23a3a, { keep: true })), { width: 0.6 }); bulb.scale.set(1, 1.55, 1); bulb.position.y = 0.0545;
+      const pick = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.075, 0.018), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.035; pick.userData.pick = true;
+      g.add(glass, liq, collar, bulb, pick); g.position.copy(B.tipHome);
+      return Object.assign(g, { pick, B });
+    };
+    // 拿着滴管走（to：滴管尖要去的地方）：还在滴瓶这儿时先竖直往上提，提出瓶口再移过去
+    const follow = (d, to, a) => {
+      const B = d.B, p = d.position, off = Math.hypot(p.x - B.position.x, p.z - B.position.z), up = Math.max(B.mouthY + 0.008, to.y);
+      p.lerp(off < 0.02 && p.y < up - 0.002 ? new THREE.Vector3(off < 0.003 ? B.position.x : p.x, up, off < 0.003 ? B.position.z : p.z) : to, a);
+    };
+    // 插回原滴瓶：先竖直提到 rise 那么高（不碰别的器材），再挪到瓶口正上方，竖直插回去
+    const putBack = (d, a, rise) => {
+      const p = d.position, off = Math.hypot(p.x - d.B.position.x, p.z - d.B.position.z);
+      if (off > 0.004 && p.y < rise - 0.002) p.lerp(new THREE.Vector3(p.x, rise, p.z), a);
+      else homeLift(d, d.B.tipHome, a);
+    };
+    const droppers = DR.map((D) => { const B = dropBottle(group, D.bottle); bottleLabel(B, D.name); return dropper(B, D.inside); });
     const drops = new Particles({ max: 60, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: 0xbfd8e6, base: 0.6 }) }); group.add(drops.mesh);
 
-    // ================= 氢氧化钙粉末（广口瓶，瓶塞倒放）和药匙 =================
+    // ================= 氢氧化钙粉末（广口瓶，瓶塞盖着）和药匙 =================
     const jar = reagentBottle({ r: JAR_R, h: JAR_H, color: 0xf4f2ec }); jar.position.copy(JAR); group.add(jar);
-    const jarCap = jar.children[2]; jar.remove(jarCap); jarCap.position.set(JAR.x + 0.002, 0.004, JAR.z + 0.03); jarCap.rotation.x = Math.PI; group.add(jarCap);      // 瓶塞倒放在桌上
+    const jarCap = jar.children[2];
+    const lid = bottleCap(group, jar, jarCap, { rest: new THREE.Vector3(JAR.x + 0.002, 0.004, JAR.z + 0.066) });      // 取粉末时瓶塞拔下来倒放在桌上（广口瓶前面），取完盖好
+    const capOff = () => jarCap.parent !== jar && Math.hypot(jarCap.position.x - JAR.x, jarCap.position.z - JAR.z) > JAR_R + 0.008;      // 瓶塞已经从瓶口拿开了
     const jl = plateTxt('氢氧化钙', 0.02); jl.position.set(JAR.x - 0.004, 0.0004, JAR.z + 0.046); group.add(jl);
     const spoon = spatula({ color: 0xf4f2ec }); spoon.heap.visible = false; spoon.position.copy(SPOON_HOME); spoon.rotation.y = Math.PI / 2; group.add(spoon);
     const tipHeap = new THREE.Mesh(new THREE.SphereGeometry(0.0028, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), paint(0xf4f2ec)); tipHeap.position.set(0.108, 0.0014, 0); tipHeap.scale.set(1.3, 0.7, 1); tipHeap.visible = false; spoon.add(tipHeap);      // 柄的那一端挑起的一点粉末
     const spoonPick = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.012, 0.016), new THREE.MeshBasicMaterial({ visible: false })); spoonPick.position.x = 0.055; spoonPick.userData.pick = true; spoon.add(spoonPick);
     const TIP = new THREE.Vector3(0.112, 0, 0);
-    const powderP = new Particles({ max: 40, geometry: new THREE.IcosahedronGeometry(1, 0), material: paint(0xf4f2ec, { unique: true }) }); group.add(powderP.mesh);
 
     const cards = XS.map((x, k) => { const c = tag('', 'cond'); c.px = [k === 2 ? 66 : k === 1 ? -66 : 0, -72]; return c; });
 
@@ -129,7 +155,7 @@ export default {
       demo: false,
       cu: { cu: CU0, cuoh: 0, oh: 0, h: 0, vol: 2, settle: 0, shakeE: 0, offX: 0, lastX: null, naoh: 0, hcl: 0, maxPpt: 0 },
       ca: [0, 1].map(() => ({ sol: 0, aq: 0, h: 0, vol: 0, ind: 0, settle: 1, shakeE: 0, offX: 0, lastX: null, w1: 0, w2: 0, hcl: 0, shaken1: false, shaken2: false })),
-      carry: DR.map(() => null), drip: 0, spoon: { carry: null, loaded: false }, logged: {}, nearK: null, idle: 0,
+      carry: DR.map(() => null), drip: 0, spoon: { carry: null, loaded: false }, anim: null, logged: {}, nearK: null, idle: 0,
     });
     S = fresh();
     const tubeState = (k) => (k ? S.ca[k - 1] : S.cu);
@@ -139,8 +165,8 @@ export default {
       const key = DR[i].key, T = tubeState(k);
       if (key === 'ph' && k === 0) return status('步骤 4 不用酚酞。');
       if (key === 'naoh' && k) return status('步骤 6 里不加氢氧化钠溶液。');
-      if (k && T.sol + T.aq <= 0 && key !== 'water') return status(`试管${k === 1 ? '甲' : '乙'}里还没有东西：先用药匙的柄挑一点<b>氢氧化钙粉末</b>放进去，再加 1 mL 水。`);
-      drops.spawn({ p: overT(k)().add(new THREE.Vector3(0, -0.012, 0)), v: new THREE.Vector3(0, -0.08, 0), size: 0.0012, life: 1.2, k });
+      if (k && T.sol + T.aq <= 0) return status(`试管${k === 1 ? '甲' : '乙'}里还没有东西：先用药匙的柄挑一点<b>氢氧化钙粉末</b>放进去，再加 1 mL 水。`);      // 先放粉末（试管要横放），再加水
+      drops.spawn({ p: droppers[i].position.clone().add(new THREE.Vector3(0, -0.0015, 0)), v: new THREE.Vector3(0, -0.08, 0), size: 0.0012, life: 1.6, k });      // 从滴管尖滴下去
       if (key !== 'ph') T.vol = Math.min(6, T.vol + DROP);
       if (k === 0) {
         if (key === 'naoh') {
@@ -160,25 +186,62 @@ export default {
       sfx.clink({ freq: 2600, gain: 0.012 });
     };
 
+    // ================= 装粉末：试管横放，药匙送到试管底部，再把试管竖起来 =================
+    const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+    const ease = (u) => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+    const loadAt = (t) => { let a = 0; for (const [nm, d] of LOAD) { if (t < a + d) return [nm, ease((t - a) / d), t - a]; a += d; } return ['end', 1, 0]; };
+    const HT = T_LEN / 2, AXIS = 0.1, WZ = 0.08;                     // 横放时试管的中心在 (x, AXIS, WZ)：拿到试管架前面，高过滴瓶
+    const C0 = (k) => V3(XS[k], T_Y + HT, 0), C1 = (k) => V3(XS[k], 0.072 + HT, 0), C2 = (k) => V3(XS[k], 0.072 + HT, WZ), C3 = (k) => V3(XS[k], AXIS, WZ);
+    const tubePose = (k, t) => {
+      const [nm, u] = loadAt(t), L = (a, b) => a.lerp(b, u);
+      switch (nm) {
+        case 'clear': return [C0(k), 0];
+        case 'lift': return [L(C0(k), C1(k)), 0];
+        case 'fwd': return [L(C1(k), C2(k)), 0];
+        case 'down': return [L(C2(k), C3(k)), 0];
+        case 'tilt': return [C3(k), -Math.PI / 2 * u];
+        case 'in': case 'push': case 'tip': case 'out': case 'away': return [C3(k), -Math.PI / 2];
+        case 'up': return [C3(k), -Math.PI / 2 * (1 - u)];
+        case 'rise': return [L(C3(k), C2(k)), 0];
+        case 'back': return [L(C2(k), C1(k)), 0];
+        case 'set': return [L(C1(k), C0(k)), 0];
+        default: return [C0(k), 0];
+      }
+    };
+    const setHolder = (tb, [C, th]) => { tb.holder.rotation.set(0, 0, th); tb.holder.position.set(C.x + HT * Math.sin(th), C.y - HT * Math.cos(th), C.z); };
+    // 药匙（柄的那一端 TIP）在哪：移开（在管口外面等着）→ 管口 → 送到管底（挨着管壁下面一点）→ 翻一下 → 抽出来 → 移开
+    const spoonPose = (k, t) => {
+      const [nm, u] = loadAt(t), x = XS[k];
+      const WAIT = V3(x + HT + 0.015, AXIS + 0.035, WZ), MOUTH = V3(x + HT + 0.006, AXIS - 0.0025, WZ), BOTTOM = V3(x - HT + 0.012, AXIS - 0.0025, WZ), AWAY = V3(x + HT + 0.025, AXIS + 0.02, WZ);
+      if (nm === 'clear') return null;                                // 从手里的位置移到 WAIT（见每帧）
+      if (['lift', 'fwd', 'down', 'tilt'].includes(nm)) return [WAIT, 0];
+      if (nm === 'in') return [WAIT.lerp(MOUTH, u), 0];
+      if (nm === 'push') return [MOUTH.lerp(BOTTOM, u), 0];
+      if (nm === 'tip') return [BOTTOM, Math.sin(Math.PI * u) * 1.1];
+      if (nm === 'out') return [BOTTOM.lerp(MOUTH, u), 0];
+      if (nm === 'away') return [MOUTH.lerp(AWAY, u), 0];
+      return undefined;                                               // 放开了：回到桌上
+    };
     // ================= 操作 =================
     const A = {
       dDrag(i, p) { if (!p) return; S.carry[i] = p.clone(); },
       dDrop(i) { S.carry[i] = null; },
+      spoonGrab(p) { A.spoonDrag(p); },
       spoonDrag(p) {
-        if (!p) return;
+        if (!p || S.anim) return;
         const sp = S.spoon; sp.carry = p.clone();
-        // 柄的那一端伸进广口瓶：挑起一点粉末；到了试管甲 / 乙口上方：粉末落进去
-        if (!sp.loaded && Math.hypot(p.x - JAR.x, p.z - JAR.z) < JAR_R - 0.004 && p.y < JAR_H + 0.012) { sp.loaded = true; sfx.clink({ freq: 1800, gain: 0.02 }); }
-        const k = [1, 2].find((kk) => Math.abs(p.x - XS[kk]) < 0.01 && Math.abs(p.z) < 0.012 && p.y > T_Y + T_LEN - 0.015 && p.y < T_Y + T_LEN + 0.03);
-        if (sp.loaded && k) {
-          sp.loaded = false; const T = S.ca[k - 1]; T.sol += CA_SCOOP; T.settle = 1;
-          for (let j = 0; j < 10; j++) powderP.spawn({ p: new THREE.Vector3(XS[k] + (Math.random() - 0.5) * 0.004, T_Y + T_LEN, (Math.random() - 0.5) * 0.004), v: new THREE.Vector3(0, -0.12 - Math.random() * 0.05, 0), size: 0.0006 + Math.random() * 0.0004, life: 1.4, k });
-          status(`试管${k === 1 ? '甲' : '乙'}里放了一点<b>氢氧化钙粉末</b>（白色）。${S.ca.every((o) => o.sol + o.aq > 0) ? '两支都放好了。再用<b>水</b>的滴管各加 1 mL 水（按住滴，看卡片上的毫升数）。' : '另一支也放同样多。'}`);
-        }
+        // 柄的那一端伸进广口瓶（瓶塞已经拿下来了），碰到粉末：挑起一点
+        if (!sp.loaded && capOff() && Math.hypot(p.x - JAR.x, p.z - JAR.z) < JAR_R - 0.004 && p.y < 0.026) { sp.loaded = true; sfx.clink({ freq: 1800, gain: 0.02 }); }
       },
-      spoonDrop() { S.spoon.carry = null; },
+      spoonDrop() {
+        const sp = S.spoon, p = sp.carry; sp.carry = null;
+        if (!p || S.anim || !sp.loaded) return;
+        // 挑着粉末，拿到了试管甲 / 乙口上方（试管里还没有水）：试管横放，药匙送到管底，再竖起来
+        const k = [1, 2].find((kk) => Math.abs(p.x - XS[kk]) < 0.015 && Math.abs(p.z) < 0.02 && p.y > T_Y + T_LEN - 0.012 && p.y < T_Y + T_LEN + 0.04 && S.ca[kk - 1].vol < 0.02);
+        if (k) { S.anim = { k: 'load', tube: k, t: 0, p0: spoon.position.clone(), r0: [spoon.rotation.x, spoon.rotation.y, spoon.rotation.z] }; }
+      },
       shake(k, p) {
-        if (!p) return;
+        if (!p || S.anim?.tube === k) return;
         const T = tubeState(k), last = T.lastX; T.lastX = p.x;
         if (last == null) return;
         T.shakeE = Math.min(1, T.shakeE + Math.min(0.5, Math.abs(p.x - last) * 22));
@@ -186,7 +249,7 @@ export default {
       },
       shakeEnd(k) { tubeState(k).lastX = null; },
       reset() {
-        S = fresh(); drops.clear(); powderP.clear(); W?.tbl.clear();
+        S = fresh(); drops.clear(); W?.tbl.clear();
         if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; }
         bar.undo('cu', 'cuhcl', 'ca1', 'ca2', 'why');
         status('全部重新摆好了，记录也清空了。');
@@ -195,44 +258,59 @@ export default {
 
     const drag = draggable(group, [
       ...DR.map((D, i) => ({ obj: droppers[i].pick, plane: 'xy', offset: 0, hint: `${D.name}：拖到试管口上方，按住——一滴一滴地滴`, onStart: (p) => A.dDrag(i, p), onDrag: (p) => A.dDrag(i, p), onEnd: () => A.dDrop(i) })),
-      { obj: spoonPick, plane: 'xy', offset: -0.012, hint: () => (S.spoon.loaded ? '拖到试管甲或乙的口上方：把粉末放进去' : '药匙：用柄的那一端伸进广口瓶，挑一点氢氧化钙粉末'), onStart: (p) => A.spoonDrag(p), onDrag: (p) => A.spoonDrag(p), onEnd: () => A.spoonDrop() },
+      { obj: spoonPick, plane: 'xy', offset: -0.012, hint: () => (S.anim ? '' : S.spoon.loaded ? '拖到试管甲或乙的口上方，松手：试管横放，药匙送到试管底部' : '药匙：用柄的那一端伸进广口瓶，挑一点氢氧化钙粉末'), onStart: (p) => A.spoonGrab(p), onDrag: (p) => A.spoonDrag(p), onEnd: () => A.spoonDrop() },
       ...tubes.map((t, k) => ({ obj: t.pick, plane: 'xy', offset: 0, hint: '按住，左右来回拖：振荡', onStart: (p) => { tubeState(k).lastX = p ? p.x : null; }, onDrag: (p) => A.shake(k, p), onEnd: () => A.shakeEnd(k) })),
     ], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
-    const overT = (k) => () => new THREE.Vector3(XS[k], T_Y + T_LEN + 0.012, 0);
-    const toJar = () => new THREE.Vector3(JAR.x, JAR_H - 0.004, JAR.z);
-    const toTube = (k) => () => new THREE.Vector3(XS[k], T_Y + T_LEN + 0.006, 0);
+    const overT = (k) => () => new THREE.Vector3(XS[k], HIGH, 0);
+    const toJar = () => new THREE.Vector3(JAR.x, 0.022, JAR.z);                           // 柄的那一端伸进广口瓶，碰到粉末
+    const toTube = (k) => () => new THREE.Vector3(XS[k], T_Y + T_LEN + 0.006, -0.012);       // 拿到试管口上方
     const wig = (k, t0, t1, dur) => act.wiggle(tubes[k].pick, { t0, t1, amp: 0.012, hz: 3, dur });
-    const dripFor = (i, k, t0, t1, release, until) => act.drag(droppers[i].pick, overT(k), { t0, t1, release, until });
+    // 演示：拿起滴管（竖直提出滴瓶，提到试管口那么高），依次移到 stops 里每支试管口上方，滴到 until() 为真再去下一支，最后松手插回滴瓶。
+    //   走的是学生拖滴管的同一套处理函数；tMax 时还没滴够也松手
+    const dripSeq = (i, stops, t0, tMax) => {
+      const d = drag.items().find((x) => x.obj === droppers[i].pick), SPD = 0.16;      // 手移动的速度（米/秒）
+      let st = null;
+      return (k, dt) => {
+        if (k < t0) { st = null; return; }
+        if (st?.ended) return;
+        if (!st) { const c = droppers[i].position.clone().add(new THREE.Vector3(0, 0.035, 0)); st = { p: c, pts: [droppers[i].B.position.clone().setY(HIGH), ...stops.map(([kk]) => overT(kk)())], j: 0 }; d.onStart?.(c.clone()); }
+        const tgt = st.pts[st.j];
+        st.p.add(tgt.clone().sub(st.p).clampLength(0, SPD * (dt || 1 / 30)));
+        d.onDrag?.(st.p.clone(), st.p.clone());
+        if (st.p.distanceTo(tgt) < 1e-5 && (st.j === 0 || stops[st.j - 1][1]())) { if (st.j + 1 < st.pts.length) st.j++; else { st.ended = true; d.onEnd?.(true); } }
+        if (k >= tMax && !st.ended) { st.ended = true; d.onEnd?.(true); }
+      };
+    };
+    // 演示：药匙从桌上拿起来，移到广口瓶上方等瓶塞拿开，柄的那一端伸进去挑一点粉末，提出来，拿到试管口上方松手（试管横放、药匙送到管底……）
+    const scoopTo = (k, t0, t1) => act.path(spoonPick, [null, [new THREE.Vector3(JAR.x, 0.1, JAR.z), 0.05], [toJar(), 0.02], new THREE.Vector3(JAR.x, 0.125, JAR.z), new THREE.Vector3(XS[k] + 0.02, 0.135, -0.012), toTube(k)], { t0, t1, release: t1 + 0.005 });
 
     const bar = lessonBar({
       look, back, group,
       steps: [
         { id: 'cu', title: '滴氢氧化钠溶液', todo: '步骤 4：把<b>氢氧化钠溶液</b>的滴管拖到<b>硫酸铜溶液</b>那支试管口上方，按住，滴几滴。', target: () => (S.carry[0] ? null : droppers[0]) },
         { id: 'cuhcl', title: '再加稀盐酸', todo: '再把<b>稀盐酸</b>拖到这支试管口上方，按住滴加，振荡（左右拖试管）。看沉淀。', target: () => (S.carry[1] ? null : S.cu.h > 0.05 && S.cu.cuoh > 0.02 ? tubes[0] : droppers[1]) },
-        { id: 'ca1', title: '氢氧化钙加水、滴酚酞', todo: '步骤 6：用药匙的柄挑一点<b>氢氧化钙粉末</b>，分别放进试管甲、乙；各加 1 mL <b>水</b>，振荡；再各滴两滴<b>酚酞溶液</b>。', target: () => ca1Target() },
+        { id: 'ca1', title: '氢氧化钙加水、滴酚酞', todo: '步骤 6：用药匙的柄挑一点<b>氢氧化钙粉末</b>，拖到试管口上方松手——试管横放，药匙送到试管底部，再把试管竖起来。甲、乙各放一次；再各加 1 mL <b>水</b>，振荡；再各滴两滴<b>酚酞溶液</b>。', target: () => ca1Target() },
         { id: 'ca2', title: '一支加水，一支加稀盐酸', todo: '再向一支试管加 1 mL <b>水</b>、另一支加 1 mL <b>稀盐酸</b>，都振荡。比较两支试管。', target: () => ca2Target() },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
       ],
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { drops.clear(); powderP.clear(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { drops.clear(); } }),
           shots: [
-            { cap: '步骤 4：试管里是 2 mL 硫酸铜溶液。滴入几滴氢氧化钠溶液——生成蓝色沉淀。', dur: 6, cam: [[XS[0], 0.07, 0], [0.04, 0.25, 1], 0.24],
-              during: dripFor(0, 0, 0.05, 0.25, 0.95, () => S.cu.naoh >= 5) },
-            { cap: '再加入稀盐酸，振荡：蓝色沉淀溶解了，溶液又变成蓝色。', dur: 9, cam: [[XS[0], 0.07, 0], [0.04, 0.25, 1], 0.24],
-              during: act.seq(dripFor(1, 0, 0.04, 0.18, 0.62, () => S.cu.hcl >= 22), wig(0, 0.66, 0.95, 9)) },
-            { cap: '步骤 6：用药匙的柄挑一点氢氧化钙粉末，分别放进试管甲、乙。', dur: 8, cam: [[0.07, 0.08, 0], [0.04, 0.25, 1], 0.34],
-              during: act.seq(
-                act.path(spoonPick, [null, new THREE.Vector3(JAR.x, 0.09, JAR.z), toJar(), new THREE.Vector3(JAR.x, 0.12, JAR.z), new THREE.Vector3(XS[1], 0.13, 0), toTube(1)()], { t0: 0.03, t1: 0.45, release: 0.47 }),
-                act.path(spoonPick, [null, new THREE.Vector3(JAR.x, 0.12, JAR.z), toJar(), new THREE.Vector3(JAR.x, 0.12, JAR.z), new THREE.Vector3(XS[2], 0.13, 0), toTube(2)()], { t0: 0.52, t1: 0.95, release: 0.97 })) },
-            { cap: '各加入 1 mL 水，振荡：白色浑浊——氢氧化钙微溶于水。', dur: 10, speed: 1.6, cam: [[0.04, 0.07, 0], [0.04, 0.25, 1], 0.28],
-              during: act.seq(dripFor(3, 1, 0.03, 0.12, 0.42, () => S.ca[0].w1 >= 1), dripFor(3, 2, 0.45, 0.52, 0.8, () => S.ca[1].w1 >= 1), wig(1, 0.82, 0.9, 12), wig(2, 0.91, 0.99, 12)) },
-            { cap: '各滴入两滴酚酞溶液：都变红——溶解的那一点氢氧化钙使溶液显碱性。', dur: 7, cam: [[0.04, 0.07, 0], [0.04, 0.25, 1], 0.28],
-              during: act.seq(dripFor(2, 1, 0.04, 0.2, 0.42, () => S.ca[0].ind >= 2), dripFor(2, 2, 0.48, 0.62, 0.86, () => S.ca[1].ind >= 2)) },
-            { cap: '向试管甲加 1 mL 水、向试管乙加 1 mL 稀盐酸，振荡：甲还是浑浊、红色；乙变澄清，红色消失。', dur: 12, speed: 1.6, cam: [[0.04, 0.07, 0], [0.04, 0.25, 1], 0.28],
-              during: act.seq(dripFor(3, 1, 0.03, 0.1, 0.36, () => S.ca[0].w2 >= 1), dripFor(1, 2, 0.4, 0.47, 0.74, () => S.ca[1].hcl >= 1), wig(1, 0.76, 0.86, 14), wig(2, 0.88, 0.98, 14)) },
+            { cap: '步骤 4：试管里是 2 mL 硫酸铜溶液。滴入几滴氢氧化钠溶液——生成蓝色沉淀。', dur: 6, cam: [[XS[0] - 0.01, 0.092, 0.01], [0.04, 0.25, 1], 0.31],
+              during: dripSeq(0, [[0, () => S.cu.naoh >= 5]], 0.04, 0.95) },
+            { cap: '再加入稀盐酸，振荡：蓝色沉淀溶解了，溶液又变成蓝色。', dur: 9, cam: [[XS[0] - 0.01, 0.092, 0.01], [0.04, 0.25, 1], 0.31],
+              during: act.seq(dripSeq(1, [[0, () => S.cu.hcl >= 22]], 0.03, 0.64), wig(0, 0.68, 0.96, 9)) },
+            { cap: '步骤 6：用药匙的柄挑一点氢氧化钙粉末。把试管横放，药匙送到试管底部，再把试管竖起来。试管甲、乙各放一次。', dur: 12, speed: 1.5, cam: [[0.05, 0.085, 0.035], [0.04, 0.25, 1], 0.42],
+              during: act.seq(scoopTo(1, 0.01, 0.17), scoopTo(2, 0.48, 0.64)) },
+            { cap: '各加入 1 mL 水，振荡：白色浑浊——氢氧化钙微溶于水。', dur: 10, speed: 1.6, cam: [[0.04, 0.092, 0.01], [0.04, 0.25, 1], 0.35],
+              during: act.seq(dripSeq(3, [[1, () => S.ca[0].w1 >= 1], [2, () => S.ca[1].w1 >= 1]], 0.03, 0.8), wig(1, 0.82, 0.9, 12), wig(2, 0.91, 0.99, 12)) },
+            { cap: '各滴入两滴酚酞溶液：都变红——溶解的那一点氢氧化钙使溶液显碱性。', dur: 5.5, cam: [[0.04, 0.092, 0.01], [0.04, 0.25, 1], 0.35],
+              during: dripSeq(2, [[1, () => S.ca[0].ind >= 2], [2, () => S.ca[1].ind >= 2]], 0.04, 0.9) },
+            { cap: '向试管甲加 1 mL 水、向试管乙加 1 mL 稀盐酸，振荡：甲还是浑浊、红色；乙变澄清，红色消失。', dur: 12, speed: 1.6, cam: [[0.04, 0.092, 0.01], [0.04, 0.25, 1], 0.35],
+              during: act.seq(dripSeq(3, [[1, () => S.ca[0].w2 >= 1]], 0.03, 0.38), dripSeq(1, [[2, () => S.ca[1].hcl >= 1]], 0.4, 0.75), wig(1, 0.77, 0.86, 14), wig(2, 0.88, 0.98, 14)) },
             { cap: '氢氧化钙微溶于水，溶液显碱性，能和酸反应。演示完了，下面换你自己做。', dur: 4, cam: [[0.01, 0.07, 0], [0.04, 0.25, 1], 0.36] },
           ],
         },
@@ -240,7 +318,7 @@ export default {
     });
     const pointer = wrapPointer(drag, bar);
     function ca1Target() {
-      if (S.spoon.carry) return null;
+      if (S.spoon.carry || S.anim) return null;
       const i = S.ca.findIndex((o) => o.sol + o.aq <= 0); if (i >= 0) return spoon;
       if (S.ca.some((o) => o.w1 < 0.9)) return S.carry[3] ? null : droppers[3];
       const j = S.ca.findIndex((o) => !o.shaken1); if (j >= 0) return tubes[j + 1];
@@ -256,26 +334,57 @@ export default {
 
     // ================= 每帧 =================
     const step = (h, t) => {
-      // 滴管：拖到哪支试管口上方，按住就一滴一滴地滴
+      // 滴管一直竖着：拿着时跟着手走，到了试管口上方（悬空，不伸进试管）才一滴一滴地滴；松手就插回原滴瓶
+      const an = S.anim;
+      if (an?.k === 'load') an.t += h;
       droppers.forEach((d, i) => {
         if (S.carry[i]) {
-          const k = XS.findIndex((x) => Math.abs(S.carry[i].x - x) < 0.011 && S.carry[i].y > T_Y + T_LEN - 0.01);
-          d.position.lerp(k >= 0 ? overT(k)().add(new THREE.Vector3(tubeState(k).offX, 0, 0)) : S.carry[i], 0.4); d.rotation.z += (0 - d.rotation.z) * 0.3;
-          if (k >= 0) { near(k); S.idle = 0; S.drip += h; if (S.drip > DR[i].per) { S.drip = 0; dripInto(i, k); } }
+          const k = XS.findIndex((x, kk) => Math.abs(S.carry[i].x - x) < 0.011 && S.carry[i].y > T_Y + T_LEN - 0.01 && an?.tube !== kk);
+          const to = k >= 0 ? overT(k)().add(new THREE.Vector3(tubeState(k).offX, 0, 0)) : S.carry[i];
+          follow(d, to, 0.4);
+          if (k >= 0) { near(k); S.idle = 0; if (d.position.distanceTo(to) < 0.003) { S.drip += h; if (S.drip > DR[i].per) { S.drip = 0; dripInto(i, k); } } }
           else S.drip = DR[i].per * 0.6;
-        } else { d.position.lerp(DR[i].home, 0.25); d.rotation.z += (Math.PI / 2 - d.rotation.z) * 0.25; }
+        } else putBack(d, 0.25, HIGH);
       });
       drops.update(h, (p, d) => { p.p.addScaledVector(p.v, d); return p.p.y > T_Y + levelY(tubeState(p.k).vol); });
-      // 药匙：柄的那一端在手上（斜着往下伸）
+      // 药匙：拿着时柄的那一端（TIP）在手上，斜着往左下伸；装粉末时由下面的动画摆；放开了就回到桌上
       const sp = S.spoon;
-      if (sp.carry) { spoon.rotation.set(0, 0, -0.55); spoon.updateMatrix(); const tipW = TIP.clone().applyEuler(spoon.rotation); spoon.position.lerp(sp.carry.clone().sub(tipW), 0.45); }
-      else { spoon.position.lerp(SPOON_HOME, 0.25); spoon.rotation.z += (0 - spoon.rotation.z) * 0.25; spoon.rotation.y += (Math.PI / 2 - spoon.rotation.y) * 0.25; }
+      const rotTo = (rx, ry, rz, a) => { spoon.rotation.set(spoon.rotation.x + (rx - spoon.rotation.x) * a, spoon.rotation.y + (ry - spoon.rotation.y) * a, spoon.rotation.z + (rz - spoon.rotation.z) * a); };
+      const tipAt = (p, a) => { spoon.updateMatrix(); spoon.position.lerp(p.clone().sub(TIP.clone().applyEuler(spoon.rotation)), a); };
+      const sPose = an?.k === 'load' ? spoonPose(an.tube, an.t) : undefined;
+      if (an?.k === 'load' && sPose !== undefined) {
+        if (sPose === null) {                                    // 先移开：从手里的位置移到管口外面等着，转平
+          const [, u] = loadAt(an.t), x = XS[an.tube];
+          spoon.rotation.set(an.r0[0] * (1 - u), an.r0[1] + (Math.PI - an.r0[1]) * u, an.r0[2] * (1 - u));
+          const tip0 = an.p0.clone().add(TIP.clone().applyEuler(new THREE.Euler(...an.r0))), tip = tip0.lerp(V3(x + HT + 0.015, AXIS + 0.035, WZ), u);
+          tipAt(tip, 1);
+        } else { spoon.rotation.set(sPose[1], Math.PI, 0); tipAt(sPose[0], 1); }
+      } else if (sp.carry) {
+        const p = sp.carry.clone(), dj = Math.hypot(p.x - JAR.x, p.z - JAR.z);
+        if (dj < JAR_R + 0.012 && !capOff()) p.y = Math.max(p.y, JAR_H + 0.03);      // 瓶塞还没拿开：在瓶口上方等着
+        if (dj < JAR_R) p.y = Math.max(p.y, 0.012);                                   // 不穿过瓶底
+        rotTo(0, Math.PI, -SP_TILT, 0.25); tipAt(p, 0.45);
+      } else {
+        homeLift(spoon, SPOON_HOME, 0.25, 0.06);                                     // 先抬高过广口瓶，再平放回桌上
+        rotTo(0, Math.PI / 2, 0, 0.25);
+      }
       tipHeap.visible = sp.loaded;
+      // 广口瓶的瓶塞：拿起药匙去挑粉末时拔下来倒放在桌上；挑完、药匙离开瓶口就盖好
+      const tipW = spoon.position.clone().add(TIP.clone().applyEuler(spoon.rotation));
+      lid.update(0.3, (!!sp.carry && !sp.loaded) || (Math.hypot(tipW.x - JAR.x, tipW.z - JAR.z) < JAR_R + 0.01 && tipW.y < JAR_H + 0.03));
+      // 装粉末的动画：试管横放，药匙送到管底，翻一下，粉末留在管底；抽出药匙，试管竖起来，放回试管架
+      if (an?.k === 'load') {
+        const [nm, u] = loadAt(an.t), T = S.ca[an.tube - 1];
+        if (nm === 'tip' && u >= 0.5 && !an.dep) { an.dep = true; sp.loaded = false; T.sol += CA_SCOOP; T.settle = 1; sfx.clink({ freq: 1800, gain: 0.015 }); }
+        if (an.t >= LOAD_END) {
+          S.anim = null;
+          status(`试管${an.tube === 1 ? '甲' : '乙'}里放了一点<b>氢氧化钙粉末</b>（白色）。${S.ca.every((o) => o.sol + o.aq > 0) ? '两支都放好了。再用<b>水</b>的滴管各加 1 mL 水（按住滴，看卡片上的毫升数）。' : '另一支也放同样多。'}`);
+        }
+      }
       // 手里没有滴管、药匙了：过一会儿镜头退回去（振荡试管时不退）
       const busy = S.carry.some(Boolean) || sp.carry || [S.cu, ...S.ca].some((T) => T.shakeE > 0.1);
       S.idle = busy ? Math.min(0, S.idle) : (S.idle || 0) + h;
       if (S.idle > 1.2) far();
-      powderP.update(h, (p, d) => { p.p.addScaledVector(p.v, d); return p.p.y > T_Y + Math.max(0.003, levelY(tubeState(p.k).vol)); });
 
       // ---- 步骤 4：硫酸铜 + 氢氧化钠 → 氢氧化铜沉淀；再加盐酸，沉淀溶解 ----
       const C = S.cu;
@@ -297,7 +406,10 @@ export default {
       tubes.forEach((tb, k) => {
         const T = tubeState(k);
         tb.liq.setLevel(T.vol > 0.02 ? levelY(T.vol) : 0);
-        tb.holder.position.x = XS[k] + T.offX; tb.holder.rotation.z = -T.offX * 8; T.offX *= Math.max(0, 1 - h * 6);
+        if (S.anim?.k === 'load' && S.anim.tube === k) setHolder(tb, tubePose(k, S.anim.t));      // 装粉末：试管拿起来横放
+        else { tb.holder.position.set(XS[k] + T.offX, T_Y, 0); tb.holder.rotation.z = -T.offX * 8; }
+        T.offX *= Math.max(0, 1 - h * 6);
+        tb.powder.rotation.z = -tb.holder.rotation.z;             // 管底的粉末一直平着（试管横放时堆在下面的管壁上）
         if (k === 0) {
           tb.liq.setColor(PALE.clone().lerp(CUSO4, clamp((T.cu / T.vol) / (CU0 / 2), 0, 1) * 0.95));
           const amt = clamp(T.cuoh / 0.3, 0, 1);
@@ -336,7 +448,7 @@ export default {
       S.ca.forEach((T, j) => {
         const cloudy = T.sol > 0.01, red = T.ind >= 1 && T.aq > 0.0004 && T.h < 1e-6;
         cards[j + 1].text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管${j ? '乙' : '甲'}</span>${cloudy ? '<span class="cc-res">浑浊</span>' : T.sol + T.aq > 0 || T.hcl > 0 ? '<span class="cc-res">澄清</span>' : ''}</div><div class="cc-more"><div class="cc-obs"><small>水 ${(T.w1 + T.w2).toFixed(1)} mL${T.hcl ? ` · 稀盐酸 ${T.hcl.toFixed(1)} mL` : ''}${T.ind ? ` · 酚酞 ${T.ind} 滴${red ? '（红）' : '（无色）'}` : ''}</small></div></div></div>`)
-          .loc(group, XS[j + 1], T_Y + T_LEN, 0).show(T.sol + T.aq > 0 || T.vol > 0.02);
+          .loc(group, XS[j + 1], T_Y + T_LEN, 0).show((T.sol + T.aq > 0 || T.vol > 0.02) && S.anim?.tube !== j + 1);
       });
     };
 
@@ -373,22 +485,28 @@ export default {
         const dt = ui.data.previousElementSibling; if (dt?.classList.contains('bar-title')) dt.textContent = '观察记录';
         W = { tbl, t1, t2, next, status: (m) => ui.status(m) };
         bar.attach(ui);
-        ui.status('实验活动 8（碱的部分）：左边一支试管里是 2 mL <b>硫酸铜溶液</b>（步骤 4）；右边试管甲、乙是空的（步骤 6），旁边是装<b>氢氧化钙粉末</b>的广口瓶和药匙；前面四支滴管。');
+        ui.status('实验活动 8（碱的部分）：左边一支试管里是 2 mL <b>硫酸铜溶液</b>（步骤 4）；右边试管甲、乙是空的（步骤 6），旁边是装<b>氢氧化钙粉末</b>的广口瓶（盖着瓶塞）和药匙；前面是四个滴瓶。');
       },
       update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); },
-      dispose() { bar.dispose(); drops.dispose(); powderP.dispose(); for (const tb of tubes) tb.liq.dispose(); },
+      dispose() { bar.dispose(); drops.dispose(); for (const tb of tubes) tb.liq.dispose(); },
       debug: { get S() { return S; }, A, bar, picks: { naoh: droppers[0].pick, hcl: droppers[1].pick, ph: droppers[2].pick, water: droppers[3].pick, spoon: spoonPick, t0: tubes[0].pick, t1: tubes[1].pick, t2: tubes[2].pick },
         qa: (() => {
           const dripSteps = (i, k, wait, name) => [{ name: `拿起${name}`, hold: droppers[i].pick }, { name: `滴${name}`, run: () => A.dDrag(i, overT(k)()), wait }, { name: `放下${name}`, release: droppers[i].pick, wait: 0.3 }];
+          // 拿起药匙 → 移到广口瓶上方（瓶塞拿下来）→ 柄的那一端伸进去挑粉末 → 提出来（瓶塞盖好）→ 拿到试管口上方松手：试管横放、药匙送到管底……
+          const scoopSteps = (k, nm) => [
+            { name: `拿起药匙（${nm}）`, hold: spoonPick },
+            { name: `药匙到瓶口上方（${nm}）`, run: () => A.spoonDrag(new THREE.Vector3(JAR.x, 0.1, JAR.z)), wait: 1.2 },
+            { name: `挑粉末（${nm}）`, run: () => A.spoonDrag(toJar()), wait: 0.6 },
+            { name: `药匙提出来（${nm}）`, run: () => A.spoonDrag(new THREE.Vector3(JAR.x, 0.125, JAR.z)), wait: 0.8 },
+            { name: `拿到试管${nm}口`, run: () => A.spoonDrag(toTube(k)()), wait: 0.6 },
+            { name: `放进${nm}`, release: spoonPick, wait: LOAD_END + 1 },
+          ];
           const shakeSteps = (k, name) => [{ name, run: () => { for (let j = 0; j < 8; j++) A.shake(k, new THREE.Vector3(XS[k] + (j % 2 ? 0.012 : -0.012), 0.07, 0)); A.shakeEnd(k); }, wait: 1.2 }];
           return qaFlow(drag, [
             ...dripSteps(0, 0, 2.6, '氢氧化钠溶液'),
             ...dripSteps(1, 0, 4.6, '稀盐酸'),
             ...shakeSteps(0, '振荡硫酸铜那支'),
-            { name: '药匙挑粉末', drag: spoonPick, to: toJar },
-            { name: '放进甲', drag: spoonPick, to: toTube(1) },
-            { name: '再挑', drag: spoonPick, to: toJar },
-            { name: '放进乙', drag: spoonPick, to: toTube(2) },
+            ...scoopSteps(1, '甲'), ...scoopSteps(2, '乙'),
             ...dripSteps(3, 1, 4.6, '水到甲'),
             ...dripSteps(3, 2, 4.6, '水到乙'),
             ...shakeSteps(1, '振荡甲'), ...shakeSteps(2, '振荡乙'),

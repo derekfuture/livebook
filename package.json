@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "pages": "python3 tools/render_pages.py",
+    "predev": "node tools/copy_pdfjs.mjs",
     "dev": "vite",
+    "prebuild": "node tools/copy_pdfjs.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "n8ao": "^2.0.1",
+    "pdfjs-dist": "^6.5.438",
     "three": "^0.186.1"
   },
   "devDependencies": {

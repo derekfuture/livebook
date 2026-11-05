@@ -12,6 +12,15 @@ const R = 0.045, L = 0.15;          // 罐子半径、长度（小孔在 x = 0�
 const AXIS = 0.085;                  // 罐子轴线的高度 = 烛焰中部的高度
 const FLAME_TOP = 0.022, FLAME_BOT = -0.008;   // 烛焰上下沿（相对轴线）
 const HOLES = [{ label: '针尖那么小', r: 0.0008 }, { label: '黄豆那么大', r: 0.0035 }, { label: '手指那么粗', r: 0.008 }];
+const SHAPES = ['圆形', '方形', '三角形'];
+// 小孔的形状：圆 / 方 / 正三角形，r 是“半径”（方孔边长 1.8r，三角孔外接圆半径 1.25r，看起来差不多大）
+const holePath = (g, cx, cy, r, shape) => {
+  g.beginPath();
+  if (shape === 0) g.arc(cx, cy, r, 0, Math.PI * 2);
+  else if (shape === 1) g.rect(cx - 0.9 * r, cy - 0.9 * r, 1.8 * r, 1.8 * r);
+  else for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 3; g[i ? 'lineTo' : 'moveTo'](cx + Math.cos(a) * 1.25 * r, cy + Math.sin(a) * 1.25 * r); }
+  g.closePath();
+};
 
 export default {
   id: 'pinhole',
@@ -27,7 +36,7 @@ export default {
   conclusion: {
     page: 95, rect: [60, 596, 470, 662],      // 课本第 89 页：“……光在同种均匀介质中沿直线传播。”
     quote: '光在同种均匀介质中沿直线传播。',
-    why: '烛焰上部发出的光沿直线穿过小孔，落到薄膜的下部；下部发出的光落到上部——所以薄膜上的像是<b>倒立</b>的。烛焰离小孔越近，像越大；越远，像越小。小孔要足够小，像才清楚；孔开大了，像就模糊成一团光。',
+    why: '烛焰上部发出的光沿直线穿过小孔，落到薄膜的下部；下部发出的光落到上部——所以薄膜上的像是<b>倒立</b>的。烛焰离小孔越近，像越大；越远，像越小。小孔要足够小，像才清楚；孔开大了，像就模糊成一团光。<br>像的形状和小孔的形状<b>无关</b>：孔足够小时，换成方孔、三角孔，薄膜上还是烛焰的像。孔开大了，烛焰上每一点都落成一个小孔形状的光斑，叠成一团模糊的光；蜡烛离得越远，这团光越像小孔的形状。',
     src: '课本第 89–90 页 · 第四章 第1节 光的直线传播',
   },
 
@@ -50,6 +59,7 @@ export default {
     can.add(bottom);
     // 罐口的薄膜（像画在上面，两面都看得见）
     const filmTex = canvasTex(512, 512, () => {});
+    const spotCanvas = Object.assign(document.createElement('canvas'), { width: 512, height: 512 });
     const film = new THREE.Mesh(new THREE.CircleGeometry(R * 0.98, 48), new THREE.MeshBasicMaterial({ map: filmTex, transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
     film.userData.noInk = true;
     film.rotation.y = Math.PI / 2;
@@ -85,7 +95,7 @@ export default {
     group.add(rays.group);
 
     const tU = tag('', 'pill'), tImg = tag('', 'pill'), tHole = tag('小孔', 'pill');
-    const S = { u: 0.12, hole: 0, mMax: 0, mMin: 9, lean: 0, blowT: 0, pred: true };
+    const S = { u: 0.12, hole: 0, shape: 0, shapes: new Set([0]), mMax: 0, mMin: 9, lean: 0, blowT: 0, pred: true };
     let G = null;
 
     const drawBottom = () => {
@@ -94,7 +104,7 @@ export default {
       g.strokeStyle = 'rgba(80,90,100,.35)'; g.lineWidth = 2;
       for (let r = 30; r < 128; r += 22) { g.beginPath(); g.arc(W / 2, W / 2, r, 0, Math.PI * 2); g.stroke(); }
       g.fillStyle = '#15161b';
-      g.beginPath(); g.arc(W / 2, W / 2, Math.max(2, (HOLES[S.hole].r / R) * 128), 0, Math.PI * 2); g.fill();
+      holePath(g, W / 2, W / 2, Math.max(2.5, (HOLES[S.hole].r / R) * 128), S.shape); g.fill();
       bottomTex.needsUpdate = true;
     };
 
@@ -127,8 +137,18 @@ export default {
       // 烛焰往一边歪，像就往另一边歪。（薄膜上从外面看，水平方向和真实的左右正好对应好了，见注释）
       const baseY = W / 2 + FLAME_BOT * m * px;
       const lean = S.lean;                      // 真实烛焰向 +z 歪的角度
-      drawFlame(g, W / 2, baseY, size, { invert: true, rot: -lean, blur: Math.max(0.6, blurPx), alpha: bright, wick: true });
-      if (hr > 0.004) { const gr = g.createRadialGradient(W / 2, W / 2, 0, W / 2, W / 2, W * 0.45); gr.addColorStop(0, `rgba(255,190,90,${0.35 * bright})`); gr.addColorStop(1, 'rgba(255,190,90,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, W); }
+      if (hr <= 0.004) drawFlame(g, W / 2, baseY, size, { invert: true, rot: -lean, blur: Math.max(0.6, blurPx), alpha: bright, wick: true });
+      if (hr > 0.004) {          // 孔开大了：烛焰上每一点都在薄膜上落成一个和小孔一样形状的光斑（放大 1 + m 倍），许多光斑叠成一团
+        const o = spotCanvas.getContext('2d'); o.clearRect(0, 0, W, W); o.globalCompositeOperation = 'lighter';
+        const NA = 8, NB = 16, pts = [];          // 点不要太多：每个光斑的透明度太低时，8 位颜色取整会让颜色发红
+        for (let a = 0; a < NA; a++) for (let b = 0; b < NB; b++) {
+          const fy = FLAME_BOT + (FLAME_TOP - FLAME_BOT) * ((b + 0.5) / NB), hw = 0.0055 * Math.sin(Math.PI * Math.min(1, ((b + 0.5) / NB) * 1.15));      // 烛焰：下宽上尖
+          pts.push([(((a + 0.5) / NA) * 2 - 1) * hw, fy]);
+        }
+        o.fillStyle = `rgba(255,186,96,${Math.min(0.2, (2.6 * bright) / pts.length)})`;
+        for (const [fx, fy] of pts) { holePath(o, W / 2 - fx * m * px, W / 2 + fy * m * px, hr * (1 + m) * px, S.shape); o.fill(); }
+        g.filter = 'blur(4px)'; g.drawImage(spotCanvas, 0, 0); g.filter = 'none';
+      }
       g.restore();
       filmTex.needsUpdate = true;
     };
@@ -145,6 +165,7 @@ export default {
       if (S.mMax > 1.6) G.goal.done('big');
       if (S.mMin < 0.75) G.goal.done('small');
       if (S.hole === 2) G.goal.done('blur');
+      if (S.shapes.size > 1) G.goal.done('shape');
       G.status(hr > 0.004 ? '孔开大了：烛焰上每一点都在薄膜上变成一个光斑，许多光斑叠在一起，像就模糊了。' : m > 1.15 ? `烛焰离小孔近，薄膜上的像比烛焰还大${S.saw ? '，而且是倒立的' : ''}。` : m < 0.87 ? `烛焰离小孔远，像变小了${S.saw ? '，还是倒立的' : ''}。` : '');
     };
 
@@ -161,6 +182,7 @@ export default {
         const out = readout([{ key: 'u', label: '烛焰到小孔的距离', unit: 'cm' }, { key: 'm', label: '像是烛焰的' }]);
         const su = slider('移动蜡烛（也可以直接拖蜡烛）', { min: 5, max: 32, value: 12, fmt: (v) => `${v} cm`, onInput: (v) => { S.u = v / 100; layout(); } });
         const hole = seg('小孔有多大', HOLES.map((x) => x.label), (_, k) => { S.hole = k; drawBottom(); layout(); });
+        const shape = seg('小孔的形状', SHAPES, (_, k) => { S.shape = k; S.shapes.add(k); drawBottom(); layout(); ui.status(HOLES[S.hole].r > 0.004 ? `孔开大了：烛焰上每一点在薄膜上都落成一个<b>${SHAPES[k]}</b>的光斑，许多光斑叠成一团模糊的光。` : `换成了${SHAPES[k]}的小孔。看看薄膜上的像变了没有。`); });
         let close = false;
         const setClose = (on) => { close = on; rays.group.visible = !on; for (const t of [tU, tImg, tHole]) t.show(!on); peek.btns[0].textContent = on ? '↩ 回到整个实验' : '凑近看薄膜'; };
         const peek = buttons([{ text: '凑近看薄膜', ghost: true, onClick: () => {
@@ -176,24 +198,24 @@ export default {
           ui.status('烛焰被吹得歪向一边，薄膜上的像却歪向<b>另一边</b>，而且上下颠倒——像相当于烛焰绕小孔转了半圈。');
         } }]);
         // 观察记录：学生自己判断“正倒”，程序只填测得的距离和倍数
-        const tb = table(['烛焰到小孔/cm', '像是烛焰的', '正立还是倒立', '清楚吗'], { note: '每记一次，先自己判断像是正立还是倒立。' });
+        const tb = table(['小孔', '烛焰到小孔/cm', '像是烛焰的', '正立还是倒立', '清楚吗'], { note: '每记一次，先自己判断像是正立还是倒立。' });
         const rows = [];
         const rec = (upright) => {
           const m = L / S.u, hr = HOLES[S.hole].r;
-          const key = `${Math.round(S.u * 100)}|${S.hole}`;
+          const key = `${Math.round(S.u * 100)}|${S.hole}|${S.shape}`;
           if (rows.includes(key)) return ui.status('这一组已经记过了。挪一挪蜡烛，或换一个小孔。');
           const right = upright === false;
           if (!right) return ui.status('再凑近看看薄膜：烛焰尖朝哪边？灯芯在哪边？');
           rows.push(key);
           S.saw = true; layout();
-          tb.add([Math.round(S.u * 100), `${m.toFixed(1)} 倍`, '倒立', hr > 0.004 ? '模糊' : '清楚']);
+          tb.add([`${SHAPES[S.shape]}，${['针尖', '黄豆', '手指'][S.hole]}大`, Math.round(S.u * 100), `${m.toFixed(1)} 倍`, '倒立', hr > 0.004 ? '模糊' : '清楚']);
           if (rows.length >= 3) G.goal.done('rec');
           ui.status(`记下了第 ${rows.length} 组。${rows.length < 3 ? '换个距离（或换个孔）再记一组。' : ''}`);
         };
         const recBtns = buttons([{ text: '记下：像是正立的', ghost: true, onClick: () => rec(true) }, { text: '记下：像是倒立的', ghost: true, onClick: () => rec(false) }]);
-        ui.controls.append(su.el, hole.el, peek.el, blow.el, out.el, recBtns.el, note(`罐子长 ${L * 100} cm：像高 ÷ 烛焰高 = 罐长 ÷ 烛焰到小孔的距离。`));
+        ui.controls.append(su.el, hole.el, shape.el, peek.el, blow.el, out.el, recBtns.el, note(`罐子长 ${L * 100} cm：像高 ÷ 烛焰高 = 罐长 ÷ 烛焰到小孔的距离。`));
         ui.data.append(tb.el);
-        G = { out, status: (m) => m && ui.status(m), goal: goals(ui, [['look', '凑近看看薄膜上的像是正还是倒'], ['rec', '换不同的距离或小孔，记 3 组观察'], ['blow', '吹一口气，看烛焰和像各往哪边歪'], ['big', '把蜡烛移近，让像比烛焰大'], ['small', '把蜡烛移远，让像比烛焰小'], ['blur', '把小孔开到“手指那么粗”']]), sync: () => su.set(Math.round(S.u * 100)) };
+        G = { out, status: (m) => m && ui.status(m), goal: goals(ui, [['look', '凑近看看薄膜上的像是正还是倒'], ['rec', '换不同的距离或小孔，记 3 组观察'], ['blow', '吹一口气，看烛焰和像各往哪边歪'], ['big', '把蜡烛移近，让像比烛焰大'], ['small', '把蜡烛移远，让像比烛焰小'], ['blur', '把小孔开到“手指那么粗”'], ['shape', '换一个形状的小孔，看像变不变']]), sync: () => su.set(Math.round(S.u * 100)) };
         ui.status('薄膜上的烛焰是正立还是倒立的？');
         layout();
       },

@@ -16,6 +16,7 @@ import { testTube, stopper, glassTube, rubberTube, gasJar, trough, splint, ironW
 import { bubble2, Sparks, molecules } from './kit/chemfx.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, demoActs } from './kit/chemlesson.js';
+import { lampCap } from './kit/labops.js';
 import { canvasTex } from './kit/props.js';
 import { paint, inked, hull } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -86,8 +87,9 @@ export default {
     jack.position.set(-0.255, 0, 0); group.add(jack);
     const lamp = chemLamp();
     lamp.position.set(-0.262, 0.028, 0);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.015, 0.03, 18), paint(0xcfd6dc, { unique: true, transparent: true, opacity: 0.55 }));
-    group.add(lamp, cap);
+    group.add(lamp);
+    const capper = lampCap(group, lamp, { off: new THREE.Vector3(-0.212, 0, 0.045) });
+    let flameOn = false;
     const lampPick = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.1, 0.075), new THREE.MeshBasicMaterial({ visible: false }));
     lampPick.position.y = 0.045; lampPick.userData.pick = true; lamp.add(lampPick);
 
@@ -151,7 +153,7 @@ export default {
       jars: [0, 1].map(() => ({ where: 'table', water: 1, air: 0, o2: 0, startX: null, tested: '', cracked: false })),
       seal: '', sealBubbles: 0, sealColumn: false, flow: 0, bubAcc: 0, x: 0.21, steady: 0, firstBubbleT: null,
       stoppedRight: null, removedFirst: false, seen: new Set(), test: null, view: false, t: 0, heatT: 0, demo: false, firstX: null, steadyX: null,
-      plugK: 0, capK: 0, spoonHeld: false, stickCarry: null,      // 画面：塞子拔出了多少（0 塞着 → 1 在桌上）、灯帽取下了多少；药匙、木条在不在手里
+      plugK: 0, spoonHeld: false, stickCarry: null,      // 画面：塞子拔出了多少（0 塞着 → 1 在桌上）；药匙、木条在不在手里
     });
     let S = fresh();
     let W = null;
@@ -236,11 +238,7 @@ export default {
       });
       // 酒精灯和灯帽
       lamp.position.x = S.lampX;
-      // 灯帽：点燃时先竖直提起，再放到桌上；熄灭时反过来盖回灯芯上
-      S.capK = clamp(S.capK + clamp((S.lit ? 1 : 0) - S.capK, -h * 1.6, h * 1.6), 0, 1);
-      { const ON = new THREE.Vector3(S.lampX, 0.028 + 0.072, 0), UP = ON.clone().add(new THREE.Vector3(0, 0.014, 0)), OFF = new THREE.Vector3(S.lampX + 0.05, 0.015, 0.035), K = S.capK;
-        if (K < 0.3) cap.position.lerpVectors(ON, UP, ease(K / 0.3));
-        else { const u = ease((K - 0.3) / 0.7); cap.position.lerpVectors(UP, OFF, u); cap.position.y += Math.sin(Math.PI * u) * 0.01; } }
+      flameOn = capper.update(h, S.lit);        // 灯帽：点燃前取下放到桌上；熄灭时盖上，再轻提一下、重新盖好
       // 药匙、棉花：松手后滑回桌上；药匙拿在手里时顺着试管的方向
       if (S.spoonHeld) { spoon.rotation.y *= 0.8; spoon.rotation.z += (Math.atan2(dir().y, dir().x) - spoon.rotation.z) * 0.2; }
       else { spoon.position.lerp(SPOON_HOME, 0.2); spoon.rotation.y += (-0.3 - spoon.rotation.y) * 0.2; spoon.rotation.z *= 0.8; }
@@ -442,7 +440,7 @@ export default {
         onStart: () => { stick.setState('ember', 0.2); S.stickCarry = stick.position.clone(); },
         onDrag: (p) => { S.stickCarry = new THREE.Vector3(p.x, Math.max(0.03, p.y), p.z); },      // 学生拖时 p.z = HOME[0].z      // 木条跟着手走（每帧滑过去一半，拿起来时不跳）
         onEnd: () => { const c = S.stickCarry || stick.position; S.stickCarry = null; const k = HOME.findIndex((H) => Math.abs(c.x - H.x) < 0.03 && c.y < 0.2); if (k >= 0) A.test('splint', k); else if (c.y > 0.06) { stick.position.copy(c); A.airTest('splint'); } else stick.setState('none'); } },
-      { obj: wirePick, plane: 'xy', offset: HOME[0].z, hint: '拖到集气瓶口：点燃火柴，伸进去',
+      { obj: wirePick, plane: 'xy', offset: HOME[0].z, hint: '拖到集气瓶口：点燃火柴，待火柴快燃尽时插入',
         onStart: () => { wire.rotation.z = 0; wire.flame.setOn(true); },
         onDrag: (p) => { wire.position.set(p.x, Math.max(0.03, p.y), HOME[0].z); },
         onEnd: () => { const k = HOME.findIndex((H) => Math.abs(wire.position.x - H.x) < 0.03 && wire.position.y < 0.2); if (k >= 0) A.test('wire', k); else if (S.lit && Math.abs(wire.position.x - S.lampX) < 0.03 && wire.position.y > 0.06 && wire.position.y < 0.16) A.airTest('wire'); else { wire.flame.setOn(false); wire.position.copy(WIRE_HOME); wire.rotation.z = Math.PI / 2; } } },
@@ -474,7 +472,7 @@ export default {
         { id: 'wait', title: '等气泡均匀', todo: '刚开始的气泡断断续续——先别收集。等导管口的气泡<b>连续、均匀</b>。' },
         { id: 'collect', title: '收集一瓶', todo: '把<b>导管口</b>拖进集气瓶。集满（瓶口冒出大气泡）后把导管移开，点<b>集气瓶</b>盖上玻璃片取出、正放。', target: () => (S.end.startsWith('jar') ? null : endPiece) },
         { id: 'stop', title: '停止加热', todo: '先把<b>导管</b>移出水面，再点<b>酒精灯</b>熄灭它。', target: () => (S.end !== 'air' ? endPiece : S.lit ? lamp : null) },
-        { id: 'test', title: '检验', todo: '把<b>带火星的木条</b>伸进集好的集气瓶（也可以试试<b>细铁丝</b>）。', target: () => (S.test ? null : stick) },
+        { id: 'test', title: '检验', todo: '把<b>带火星的木条</b>伸进集好的集气瓶。（也可以试试<b>细铁丝</b>：点燃系在铁丝下端的火柴，待火柴<b>快燃尽</b>时，插入瓶中<b>预留少量水</b>的集气瓶。）', target: () => (S.test ? null : stick) },
         { id: 'why', title: '想一想', todo: '为什么刚开始有气泡放出时，不宜立即收集？在左边作答。' },
       ],
       reels: {
@@ -731,7 +729,7 @@ export default {
         const k = bar.update(dt), h = Math.min(dt, 1 / 30) * k;
         placeAll(h);
         step(h);
-        lamp.flame.setOn(S.lit); lamp.flame.update(t);
+        lamp.flame.setOn(flameOn); lamp.flame.update(t);
         stick.update(t); wire.flame.update(t);
         bar.near(S.near);
         if (!W || S.demo) return;

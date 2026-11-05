@@ -60,7 +60,7 @@ export default {
       group.add(C.group);
       C.wire('E.+', 'S.a');
       if (ser) C.wire('S.b', 'L2.b').wire('L2.a', 'L1.b').wire('L1.a', 'E.-');
-      else C.wire('S.b', 'L2.a').wire('L2.a', 'L1.b').wire('E.-', 'L1.a', { via: [-0.015, 0, 0] }).wire('L1.a', 'L2.b');
+      else C.wire('S.b', 'L2.a').wire('L2.a', 'L1.b').wire('E.-', 'L1.a', { points: [[-0.125, 0.025, -0.06], [-0.105, 0.025, 0.005], [-0.055, 0.024, 0.005]] }).wire('L1.a', 'L2.b');
       const [hi, lo] = PAIRS[S.mode][S.at];
       C.wire('V.3', hi).wire('V.-', lo, lo === 'E.-' ? { via: [-0.035, 0, 0] } : {});
       C.solve();

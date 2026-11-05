@@ -56,7 +56,7 @@ export default {
     const iron = hull(new THREE.Mesh(new THREE.CylinderGeometry(CR * 0.5, CR * 0.5, CL + 0.03, 16), paint(0x6b7280)), 0.001);
     iron.rotation.z = Math.PI / 2;
     group.add(coil, iron);
-    const ironHome = new THREE.Vector3(0, 0.005, -PD / 2 - 0.03), ironIn = new THREE.Vector3(0, CR + 0.004, 0);
+    const ironHome = new THREE.Vector3(0, CR * 0.5 + 0.001, -PD / 2 - 0.03), ironIn = new THREE.Vector3(0, CR + 0.004, 0);
     iron.position.copy(ironHome);
     const ironTag = tag('铁棒', 'pill');
     // 电流点：沿螺旋线流动

@@ -40,7 +40,7 @@ export default {
       bk.position.set(x, 0, 0);
       group.add(bk);
       const th = thermometer({ min: 0, max: 100, length: 0.18 });
-      th.position.set(x - 0.012, 0.012, 0.005);
+      th.position.set(x - 0.006, 0.012, 0.005);
       group.add(th);
       // 电加热器：一根弯成螺旋的金属管 + 木柄 + 电线插头
       const heater = new THREE.Group();
@@ -81,7 +81,7 @@ export default {
     let askStop = () => {};
     const pointer = draggable(group, [], { tip: tag('', 'pill'), taps: [
       ...cups.map((c) => ({ obj: c.plug, hint: () => (c.on ? '点一下：断电（停止计时）' : '点一下：给加热器通电'), onTap: () => toggle(c) })),
-      ...cups.map((c) => ({ obj: c.th, hint: '点一下：凑近看温度计', onTap: () => look([c.x - 0.012, 0.012 + c.th.yOf(c.T), 0.005], [0, 0.1, 1], 0.12, () => back()) })),
+      ...cups.map((c) => ({ obj: c.th, hint: '点一下：凑近看温度计', onTap: () => look([c.x - 0.006, 0.012 + c.th.yOf(c.T), 0.005], [0, 0.1, 1], 0.12, () => back()) })),
     ] });
 
     return {

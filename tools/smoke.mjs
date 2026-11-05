@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 //   node tools/smoke.mjs --changed       只测上次通过以后改过的课：课文件改了测那一课；kit / live / ui 里的文件改了，测所有用到它的课
 //   --par=6                              同时开几个页面（默认 6）
 // 截图在 /tmp/lb/smoke/<id>.png。
+// 测离线版：LB_URL=file:///…/dist-offline/活页课本.html node tools/smoke.mjs
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
@@ -62,7 +63,7 @@ await Promise.all(Array.from({ length: Math.min(PAR, queue.length) }, async () =
     const errs = [];
     page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.text()); });
     page.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
-    await page.goto(`http://127.0.0.1:${process.env.LB_PORT || 5188}/?book=${bid}#live=${id}`);
+    await page.goto(`${process.env.LB_URL || `http://127.0.0.1:${process.env.LB_PORT || 5188}/`}?book=${bid}#live=${id}`);
     // 等实验真的打开，再多等一会儿让前几帧跑起来（每帧的 update 出错也能抓到）
     let open = false;
     for (let i = 0; i < 80 && !open; i++) { open = await page.evaluate(() => !!window.__lb?.live?.active?.inst && !window.__lb.live.opening); if (!open) await page.waitForTimeout(100); }

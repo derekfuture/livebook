@@ -65,7 +65,7 @@ export default {
 
     const S = { eye: 'normal', near: false, accommodate: 0, accT: 0, glasses: 0, seen: new Set(), drag: null, dragPos: new THREE.Vector3() };
     // 桌上的两副“眼镜片”：拖到眼睛前面就戴上，拖开就摘下
-    const tray = [1, 2].map((k) => { const g = new THREE.Group(); g.add(lensMesh({ r: 0.022, convex: k === 2, thick: 0.01, color: 0xcfe8f5 })); g.userData.home = new THREE.Vector3(k === 1 ? -0.2 : -0.14, Y - 0.07, 0); g.position.copy(g.userData.home); group.add(g); return g; });
+    const tray = [1, 2].map((k) => { const g = new THREE.Group(); g.add(lensMesh({ r: 0.022, convex: k === 2, thick: 0.01, color: 0xcfe8f5 })); g.userData.home = new THREE.Vector3(k === 1 ? -0.2 : -0.14, Y - 0.067, 0); g.position.copy(g.userData.home); group.add(g); return g; });
     tag('凹透镜', 'pill').loc(group, -0.2, Y - 0.1, 0); tag('凸透镜', 'pill').loc(group, -0.14, Y - 0.1, 0);
     let G = null;
     const sc = new OpticsScene();

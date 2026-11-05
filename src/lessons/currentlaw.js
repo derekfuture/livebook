@@ -54,7 +54,7 @@ export default {
       A = C.add(meterPart('A', { type: 'A' }), AP[P]);
       A.group.scale.setScalar(0.85);
       group.add(C.group);
-      const via = (x, y, p) => { if (P === p) C.wire(x, 'A.0.6').wire('A.-', y); else C.wire(x, y); };
+      const via = (x, y, p) => { if (P === p) C.wire(x, 'A.0.6').wire('A.-', y); else C.wire(x, y, !ser && P === 'B' && p === 'A' ? { via: [0.04, 0, 0] } : {}); };
       if (ser) {
         // 电流从正极出发：E.+ → (C) → L₂ → (B) → L₁ → (A) → S → E.-
         via('E.+', 'L2.b', 'C');

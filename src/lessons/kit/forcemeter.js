@@ -1,5 +1,7 @@
 // 板式弹簧测力计（课本图7.2-2 丙）：绿色刻度板，中间槽里一根弹簧，红色指针，0~max N，分度值 0.2 N。
-// 原点在顶上的圆环；挂钩朝 −y。set(F, zeroErr, broken) 设置拉力；hookEnd 是挂钩下端（局部 y）。
+// 原点在顶上的圆环；挂钩朝 −y。set(F, zeroErr, broken, screw) 设置拉力；hookEnd 是挂钩下端（局部 y）。
+// 调零：弹簧上端挂在一根螺杆上，螺杆穿过刻度板顶上的小支架，支架上面是滚花的调零螺母。拧螺母，螺杆带着弹簧上端升降，指针跟着走。
+// screw 是螺母调出来的那部分零点偏差（N），nut 是螺母（给实验做拖动）。
 import * as THREE from 'three';
 import { canvasTex } from './props.js';
 import { paint, inked } from '../../live/ink.js';
@@ -33,22 +35,36 @@ export function forceMeter({ max = FM.MAX, perN = FM.PER_N, length = FM.L } = {}
   // 弹簧（一条螺旋线，跟着伸长）
   const N = 220, coil = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x5a6070 }));
   coil.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
-  coil.position.z = 0.0048;
+  coil.position.z = 0;          // 弹簧在槽里（z ≈ 0.0048），最上面一圈往前弯，挂在螺杆上
   const pointer = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.0016, 0.0018), new THREE.MeshBasicMaterial({ color: 0xd23b2b }));
   pointer.position.z = 0.0055;
   const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0014, 0.0014, 1, 8), paint(0x8f99a8));
   rod.geometry.translate(0, -0.5, 0);
   const hook = new THREE.Mesh(new THREE.TorusGeometry(0.0065, 0.0016, 6, 16, Math.PI * 1.4), paint(0x8f99a8));
   hook.rotation.z = Math.PI * 0.8;
-  g.add(plate, ring, cap, coil, pointer, rod, hook);
+  // 调零：支架（横在槽上）、螺杆、滚花螺母
+  const FZ = 0.0095, BRK = -0.022, TOP0 = -0.028;          // 螺杆离板面多远（板面在 z = 0.004）；支架高度；螺母拧到中间时弹簧上端的位置
+  const bracket = inked(new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.0025, 0.008), paint(0x8f99a8)), { width: 1 });          // 从板面伸出来的小支架
+  bracket.position.set(0, BRK, 0.004 + 0.004);
+  const screwRod = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, 0.02, 8), paint(0x9aa3b0));
+  const nut = new THREE.Group();
+  const nutBody = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.004, 14), paint(0xb08a3e)), { angle: 20, width: 1 });          // 14 条棱看着像滚花
+  const mark = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.0041, 0.001), new THREE.MeshBasicMaterial({ color: 0xf3e2b0 }));          // 一道亮线：拧的时候看得出在转
+  mark.position.z = 0.0045;
+  nut.add(nutBody, mark);
+  nut.position.set(0, BRK + 0.00125 + 0.002, FZ);
+  g.add(plate, ring, cap, coil, pointer, rod, hook, bracket, screwRod, nut);
   g.pointer = pointer;          // 给“凑近看指针”用
-  g.set = (F, zeroErr = 0, broken = false) => {
+  g.nut = nut;
+  g.set = (F, zeroErr = 0, broken = false, screw = 0) => {
     const ext = clamp(F + zeroErr, -0.3, MAX * 1.35) * PER_N;
     const py = -0.012 - ZERO - ext;
     pointer.position.y = py;
-    const top = -0.016, len = py - top, turns = 14;
+    const top = TOP0 - screw * PER_N, len = py - top, turns = 14;          // 螺母拧得越松，弹簧上端越低，指针越低
+    screwRod.position.set(0, top + 0.01, FZ);
+    nut.rotation.y = -screw * 40;
     const pos = coil.geometry.attributes.position;
-    for (let i = 0; i < N; i++) { const t = i / (N - 1); pos.setXYZ(i, Math.sin(t * turns * Math.PI * 2) * 0.007 * (broken ? 0.6 + 0.4 * Math.sin(t * 9) : 1), top + len * t, Math.cos(t * turns * Math.PI * 2) * 0.001); }
+    for (let i = 0; i < N; i++) { const t = i / (N - 1); pos.setXYZ(i, Math.sin(t * turns * Math.PI * 2) * 0.007 * (broken ? 0.6 + 0.4 * Math.sin(t * 9) : 1), top + len * t, 0.0048 + (FZ - 0.0048) * Math.max(0, 1 - t * 8) + Math.cos(t * turns * Math.PI * 2) * 0.001); }
     pos.needsUpdate = true;
     rod.position.y = py; rod.scale.y = L - ZERO - ext + 0.006 + 0.012 + ext;
     hook.position.y = -0.012 - L - 0.012 - ext + 0.0;

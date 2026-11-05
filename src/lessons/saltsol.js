@@ -2,7 +2,8 @@
 //
 // 配制 50 g 质量分数为 6% 的氯化钠溶液：计算（3 g 氯化钠、47 g 水）→ 托盘天平称量 → 量筒量取 47 mL 水 → 倒入烧杯、玻璃棒搅拌溶解 → 装瓶贴标签。
 // 托盘天平：两边先各放一张称量纸，游码拨到 3 g，左盘加氯化钠到指针指在正中（按住药匙不放，轻轻抖出来）。
-// 量筒：先倒水到接近 47 mL，再用胶头滴管滴加；读数时视线要和凹液面最低处相平。“换个条件再试”可以选仰视 / 俯视读数——
+// 量筒：先倒水到接近 47 mL，再用胶头滴管滴加（滴管平时竖着插在盛蒸馏水的滴瓶里，用的时候竖着拿到量筒口上方悬空滴，读数到刻度就停，用完插回滴瓶）；
+//   读数时视线要和凹液面最低处相平。“换个条件再试”可以选仰视 / 俯视读数——
 //   俯视：读数偏大，量到的水偏少，浓度偏大；仰视相反。偏差按视线角度和量筒的刻度间距算（10 mL 量筒刻度约 2.6 mm / mL，眼睛离刻度约 25 cm、高低差 10 cm 时，偏约 1.5 mL）。
 // 最后装瓶：标签上写“氯化钠溶液 6%”，卡片上是按你实际称的、量的算出来的浓度。
 import * as THREE from 'three';
@@ -15,6 +16,7 @@ import { water2 } from './kit/chemfx.js';
 import { micro, dissolveScene } from './kit/microworld.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs } from './kit/chemlesson.js';
+import { dropBottle, homeLift, bottleCap } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -23,7 +25,10 @@ const SALT = 3, WATER = 47;
 const BAL = new THREE.Vector3(-0.1, 0, 0), PAN_DX = 0.045, PAN_Y = 0.07;
 const SPOON_HOME = new THREE.Vector3(-0.19, 0.006, 0.05), JAR = new THREE.Vector3(-0.19, 0, -0.02);
 const CYL = new THREE.Vector3(0.05, 0, 0), CYL_R = 0.011, CYL_H = 0.15, ML_H = (CYL_H - 0.012) / 55;      // 50 mL 量筒（刻到 55）
-const WB_HOME = new THREE.Vector3(0.105, 0, -0.01), DROP_HOME = new THREE.Vector3(0.1, 0.0095, 0.06);
+const WB_HOME = new THREE.Vector3(0.105, 0, -0.01), DROP_BOT = new THREE.Vector3(0.1, 0, 0.06);        // DROP_BOT：盛蒸馏水的滴瓶（瓶底中心）
+// 蒸馏水：细口瓶（瓶口在 WB_H 高处），约 75 mL；倒水时绕瓶口倾斜，瓶身在量筒右边，瓶口下沿紧挨量筒口内侧
+const WB_R = 0.024, WB_H = 0.09, WB_V = 75, WB_HAND = 0.045, WB_TILT = 1.75, WB_RATE = 5;        // 手握在瓶口下 4.5 cm；倒水约 5 mL/s（缓慢地倒）
+const WB_CAP_REST = new THREE.Vector3(0.145, 0, -0.025);        // 瓶塞倒放在桌上（瓶子右边）
 const BK = new THREE.Vector3(-0.02, 0, 0.06), BR = 0.028, BH = 0.065;
 const BOT = new THREE.Vector3(0.16, 0, 0.06), ROD_HOME = new THREE.Vector3(-0.02, 0.004, 0.115);
 const VIEWS = { flat: 0, up: -1, down: 1 };           // 平视 / 仰视 / 俯视
@@ -53,7 +58,7 @@ export default {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
     let S = null, W = null;
-    const status = (m) => { if (!S.demo) W?.status(m); else bar.caption(m); };
+    const status = (m) => { if (!S.demo) W?.status(m); };          // 演示里只显示每个镜头的字幕（这些提示是对学生说的，不盖住镜头字幕）
     const done = (id) => { if (!S.demo) bar.done(id); };
     const log = (row) => { if (!S.demo) W?.tbl.add(row); };
     let nearK = '';
@@ -107,18 +112,34 @@ export default {
       const ticks = new THREE.Mesh(new THREE.PlaneGeometry(0.008, CYL_H), new THREE.MeshBasicMaterial({ map: mk, transparent: true, depthWrite: false })); ticks.position.set(0.002, CYL_H / 2 + 0.004, CYL_R + 0.0003); ticks.renderOrder = 10; cyl.add(ticks); }
     const cylLiq = new THREE.Mesh(new THREE.CylinderGeometry(CYL_R - 0.0008, CYL_R - 0.0008, 1, 18), water2({ color: CHEM.water })); cylLiq.geometry.translate(0, 0.5, 0); cylLiq.position.y = 0.005; cylLiq.renderOrder = 7; cyl.add(cylLiq);
     const cylPick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, CYL_H, 10), new THREE.MeshBasicMaterial({ visible: false })); cylPick.position.y = CYL_H / 2; cylPick.userData.pick = true; cyl.add(cylPick);
-    const wb = new THREE.Group(); group.add(wb);
-    { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.06, 24), glassMat({ opacity: 0.28 })); b.position.y = 0.03; b.renderOrder = 9; wb.add(b);
-      const l = new THREE.Mesh(new THREE.CylinderGeometry(0.0185, 0.0185, 0.045, 20), water2({ color: CHEM.water })); l.position.y = 0.024; l.renderOrder = 7; wb.add(l);
-      const lab = textPlate('蒸馏水', { w: 0.022, h: 0.008, color: '#23293a', bg: '#fffaf0', font: 'bold 84px "Songti SC", serif' }); lab.position.set(0, 0.035, 0.0205); wb.add(lab); }
-    const wbPick = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.06, 10), new THREE.MeshBasicMaterial({ visible: false })); wbPick.position.y = 0.03; wbPick.userData.pick = true; wb.add(wbPick);
-    const WB_PIV = WB_HOME.clone();
-    wb.position.copy(WB_PIV);
+    // 蒸馏水细口瓶：wbPiv 的原点在瓶口（倒水时绕瓶口倾斜），瓶子挂在它下面；瓶口塞着磨口玻璃瓶塞，标签贴在正面
+    const wbPiv = new THREE.Group(), wb = new THREE.Group(); wb.position.y = -WB_H; wbPiv.add(wb); group.add(wbPiv);
+    const WB_LIQ = (WB_V * 1e-6) / (Math.PI * (WB_R - 0.0015) ** 2);          // 瓶里水的高度（装满 75 mL 时）
+    const wbLiq = new THREE.Mesh(new THREE.CylinderGeometry(WB_R - 0.0015, WB_R - 0.0015, 1, 24), water2({ color: CHEM.water })); wbLiq.geometry.translate(0, 0.5, 0); wbLiq.position.y = 0.0015; wbLiq.scale.y = WB_LIQ; wbLiq.renderOrder = 7;
+    { const pts = [[0.0003, 0], [WB_R - 0.001, 0], [WB_R, 0.003], [WB_R, 0.062], [0.012, 0.076], [0.0065, 0.082], [0.0065, WB_H]].map(([r, y]) => new THREE.Vector2(r, y));
+      const b = new THREE.Mesh(new THREE.LatheGeometry(pts, 32), glassMat({ opacity: 0.28 })); b.renderOrder = 9; wb.add(b, wbLiq);
+      const lab = textPlate('蒸馏水', { w: 0.024, h: 0.009, color: '#23293a', bg: '#fffaf0', font: 'bold 84px "Songti SC", serif' }); lab.position.set(0, 0.035, WB_R + 0.0005); wb.add(lab); }
+    const wbStop = new THREE.Group();
+    { const capM = paint(0xe3ecef, { transparent: true, opacity: 0.85 });
+      const plug = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0062, 0.0052, 0.01, 16), capM), { width: 0.5 }); plug.position.y = -0.00175;
+      const head = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.0035, 20), capM), { width: 0.5 }); head.position.y = 0.005;
+      wbStop.add(plug, head); wbStop.position.y = WB_H - 0.00325; wb.add(wbStop); }
+    const wbPick = new THREE.Mesh(new THREE.CylinderGeometry(WB_R + 0.004, WB_R + 0.004, WB_H, 10), new THREE.MeshBasicMaterial({ visible: false })); wbPick.position.y = WB_H / 2; wbPick.userData.pick = true; wb.add(wbPick);
+    const WB_PIV = WB_HOME.clone().setY(WB_H);          // 瓶子在原处时瓶口的位置
+    wbPiv.position.copy(WB_PIV);
+    const wbCap = bottleCap(group, wb, wbStop, { rest: WB_CAP_REST });
+    const wbCapOff = () => !wbCap.on && Math.hypot(wbStop.position.x - WB_CAP_REST.x, wbStop.position.z - WB_CAP_REST.z) < 0.004 && wbStop.position.y < 0.012;      // 瓶塞已经倒放在桌上了
+    // 倒水的位置：瓶口下沿在量筒口内侧 2.5 mm、比杯口高 0.5 mm；靠近时边倾斜边移过去（WB_DOCK：还没倾斜时瓶口在右上方），瓶身一直在量筒外面
+    const WB_POUR = CYL.clone().add(new THREE.Vector3(0.0073, 0.1609, 0)), WB_DOCK = new THREE.Vector3(0.04, 0.02, 0);
+    const wbDock = (tilt) => WB_POUR.clone().addScaledVector(WB_DOCK, 1 - clamp(tilt / WB_TILT, 0, 1) ** 2);
+    // 胶头滴管（原点在滴管尖）：平时竖着插在盛蒸馏水的滴瓶里
+    const dBot = dropBottle(group, DROP_BOT, { label: '蒸馏水' });
     const dropper = new THREE.Group(); group.add(dropper);
     { const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0028, 0.045, 10), glassMat({ opacity: 0.35 })); tube.position.y = 0.0225; tube.renderOrder = 9; dropper.add(tube);
       const bulb = inked(new THREE.Mesh(new THREE.SphereGeometry(0.0055, 12, 8), paint(0xc23a3a, { keep: true })), { width: 0.4 }); bulb.scale.y = 1.6; bulb.position.y = 0.05; dropper.add(bulb); }
     const dropPick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.065, 8), new THREE.MeshBasicMaterial({ visible: false })); dropPick.position.y = 0.032; dropPick.userData.pick = true; dropper.add(dropPick);
-    dropper.position.copy(DROP_HOME); dropper.rotation.z = Math.PI / 2;
+    dropper.position.copy(dBot.tipHome);
+    const DROP_AT = CYL.clone().add(new THREE.Vector3(0, CYL_H + 0.004 + 0.008, 0));          // 滴加时滴管尖在量筒口正上方 8 mm（悬空，不伸进量筒）
 
     // ================= 烧杯、玻璃棒、试剂瓶 =================
     const bk = chemBeaker({ r: BR, h: BH, level: 0, color: CHEM.water, marks: true }); bk.position.copy(BK); group.add(bk);
@@ -141,7 +162,7 @@ export default {
     const bkCard = tag('', 'cond'); bkCard.px = [-60, -70];
 
     // ================= 状态 =================
-    const fresh = () => ({ demo: false, paperL: false, paperR: false, rider: 0, panSalt: 0, pouring: false, spoonAt: false, saltInBk: 0, water: 0, wbCarry: null, cylCarry: null, inBk: 0, stir: 0, dis: 0, inBottle: false, view: S ? S.view : 'flat', said: {} });
+    const fresh = () => ({ demo: false, paperL: false, paperR: false, rider: 0, panSalt: 0, pouring: false, spoonAt: false, saltInBk: 0, water: 0, wbCarry: null, wbTilt: 0, wbOut: 0, cylCarry: null, dropUse: false, squeeze: 0, sqT: 0, measured: false, inBk: 0, stir: 0, dis: 0, inBottle: false, view: S ? S.view : 'flat', said: {} });
     S = null; S = fresh();
     const tilt = () => clamp((S.panSalt - S.rider + (S.paperL ? 0.6 : 0) - (S.paperR ? 0.6 : 0)) * 0.12, -0.25, 0.25);      // 横梁的倾斜（左重为正）
     const readOf = () => S.water + VIEWS[S.view] * 1.5;          // 读到的数（俯视偏大、仰视偏小）
@@ -168,7 +189,17 @@ export default {
       },
       wbDrag(p) { if (!p) return; S.wbCarry = p.clone(); },
       wbDrop() { S.wbCarry = null; if (S.water > 0) status(`量筒里约 ${readOf().toFixed(1)} mL（${S.view === 'flat' ? '平视' : S.view === 'up' ? '仰视' : '俯视'}读数）。快到 47 mL 时改用<b>胶头滴管</b>滴加。`); },
-      drop() { if (S.water <= 0) return status('先用蒸馏水瓶往量筒里倒水，快到刻度时再用滴管。'); S.water += 0.4; sfx.clink({ freq: 2600, gain: 0.015 }); for (let i = 0; i < 4; i++) drops.spawn({ p: CYL.clone().add(new THREE.Vector3(0, CYL_H + 0.01, 0)), v: new THREE.Vector3(0, -0.06 - i * 0.01, 0), size: 0.0012, life: 1.5 }); const r = readOf(); status(`滴了几滴：读数 <b>${r.toFixed(1)} mL</b>。`); if (Math.abs(r - WATER) < 0.25) { done('measure'); status(`读数正好 <b>47 mL</b>（${S.view === 'flat' ? '视线和凹液面最低处相平' : S.view === 'up' ? '仰视读的' : '俯视读的'}）。把量筒里的水倒进烧杯。`); } },
+      // 点一下胶头滴管：竖着从滴瓶里拿出来，到量筒口上方挤几滴（到了才滴）
+      drop() { if (S.water <= 0) return status('先用蒸馏水瓶往量筒里倒水，快到刻度时再用滴管。'); S.dropUse = true; S.squeeze++; },
+      // 挤一下：滴几滴（一次最多约 0.4 mL），看着读数，到 47 mL 就停（读数是按你的视线读的）
+      squeeze() {
+        const want = WATER - readOf(), add = want > 1e-6 ? Math.min(0.4, want) : 0.4;
+        S.water += add; sfx.clink({ freq: 2600, gain: 0.015 });
+        const n = Math.max(1, Math.round(add / 0.1)), lv = 0.005 + S.water * ML_H;
+        for (let i = 0; i < n; i++) drops.spawn({ p: dropper.position.clone().add(new THREE.Vector3(0, -0.0015, 0)), v: new THREE.Vector3(0, -0.06 - i * 0.012, 0), size: 0.0012, life: 1.5, floor: lv });      // 从滴管尖滴下去，落到液面
+        const r = readOf(); status(`滴了几滴：读数 <b>${r.toFixed(1)} mL</b>。`);
+        if (Math.abs(r - WATER) < 0.05) { S.measured = true; S.dropUse = false; S.squeeze = 0; done('measure'); status(`读数正好 <b>47 mL</b>（${S.view === 'flat' ? '视线和凹液面最低处相平' : S.view === 'up' ? '仰视读的' : '俯视读的'}）。把量筒里的水倒进烧杯。`); }
+      },
       cylDrag(p) { if (!p) return; S.cylCarry = p.clone(); },
       cylDrop() { S.cylCarry = null; },
       rodDrag(p) { if (!p) return; const last = S.lastRod; S.lastRod = p.clone(); S.rodCarry = p.clone(); S.rodIn = Math.hypot(p.x - BK.x, p.z - BK.z) < BR - 0.004; if (S.rodIn && last) S.stir = Math.min(1, S.stir + (Math.abs(p.x - last.x) + Math.abs(p.z - last.z)) * 40); },
@@ -201,7 +232,15 @@ export default {
     ], tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const cylToBk = () => BK.clone().add(new THREE.Vector3(BR + 0.004, BH - 0.066, 0));        // 手抓在量筒中下部：筒口在手上方 7 cm
-    const wbToCyl = () => CYL.clone().add(new THREE.Vector3(0.02, CYL_H - 0.02, -0.01));
+    const wbToCyl = () => wbDock(0).add(new THREE.Vector3(0, -WB_HAND, -0.01));          // 手拿到这里：瓶口在量筒口右上方，边倾斜边靠过去
+    const onlyIf = (ok, f) => (k) => { if (ok()) f(k); };          // 演示：读数还没到 47 mL 才再滴
+    // 质检用：按住一件东西，等 done() 成立就松手（称到 3 g、倒到接近 47 mL 就停，像学生看着天平、刻度松手）；中途放演示时等演示放完
+    const holdUntil = (obj, done, to) => {
+      const me = S, d = drag.items().find((x) => x.obj === obj);
+      d.onStart?.(to?.()); if (to) d.onDrag?.(to(), to());
+      const go = () => { if (S === me && done()) { d.onEnd?.(true); return; } requestAnimationFrame(go); };
+      requestAnimationFrame(go);
+    };
 
     const bar = lessonBar({
       look, back, group,
@@ -222,10 +261,13 @@ export default {
           shots: [
             { cap: '计算：50 g × 6% = 3 g 氯化钠，水 50 g − 3 g = 47 g（47 mL）。两个托盘上各放一张称量纸，游码拨到 3 g。', dur: 6, cam: [[BAL.x, 0.07, 0], [0.04, 0.2, 1], 0.26],
               during: act.seq(act.tap(papersPick, 0.15), act.drag(riderPick, () => new THREE.Vector3(BAL.x - 0.0375 + 0.075 * 0.6, 0.056, 0.012), { t0: 0.45, t1: 0.85, release: 0.9 })) },
-            { cap: '左盘加氯化钠，加到指针指在正中——3 g。倒进烧杯。', dur: 8, cam: [[BAL.x, 0.07, 0], [0.04, 0.2, 1], 0.26],
-              during: act.seq(act.hold(spoonPick, 0.05, 0.05 + SALT / 0.45 / 8), act.at(0.86, () => { S.panSalt = SALT; }), act.tap(panPick, 0.9)) },
-            { cap: '用量筒量取 47 mL 水：先倒到接近刻度，再用胶头滴管滴加。读数时视线和凹液面的最低处相平。', dur: 9, cam: [[CYL.x, 0.12, 0], [0.0, 0.02, 1], 0.24],
-              during: act.seq(act.drag(wbPick, wbToCyl, { t0: 0.04, t1: 0.2, release: 0.98, until: () => S.water >= 45 }), act.at(0.7, () => { S.water = 46.2; }), act.tap(dropPick, 0.78), act.tap(dropPick, 0.88)) },
+            // 按住药匙加氯化钠，加到 3 g（指针指在正中）就停；等横梁停稳，再倒进烧杯
+            { cap: '左盘加氯化钠，加到指针指在正中——3 g。倒进烧杯。', dur: 9, cam: [[BAL.x, 0.07, 0], [0.04, 0.2, 1], 0.26],
+              during: act.seq(act.drag(spoonPick, () => spoon.position.clone(), { t0: 0.04, t1: 0.05, release: 0.97, until: () => S.panSalt >= SALT - 0.005 }), act.tap(panPick, 0.93)) },
+            // 蒸馏水倒到接近 47 mL；再用胶头滴管一次滴几滴，读数到 47.0 mL 就停
+            { cap: '用量筒量取 47 mL 水：先倒到接近刻度，再用胶头滴管滴加。读数时视线和凹液面的最低处相平。', dur: 15, speed: 1.5, cam: [[CYL.x + 0.02, 0.12, 0], [0.0, 0.08, 1], 0.32],
+              during: act.seq(act.drag(wbPick, wbToCyl, { t0: 0.03, t1: 0.15, release: 0.9, until: () => S.water >= 45.6 }),
+                ...[0.7, 0.75, 0.8, 0.85].map((k) => onlyIf(() => readOf() < WATER - 1e-6, act.tap(dropPick, k)))) },
             { cap: '把水倒进盛有氯化钠的烧杯。', dur: 4.5, cam: [[BK.x, 0.06, BK.z], [0.04, 0.3, 1], 0.28],
               during: act.drag(cylPick, cylToBk, { t0: 0.05, t1: 0.45, release: 0.95, until: () => S.water < 0.3 }) },
             { cap: '钻进烧杯里看：水分子把晶体表面的 Na⁺、Cl⁻ 一个个拉进水里；用玻璃棒搅拌，溶解得更快。', dur: 13, cam: [[BK.x, 0.06, BK.z], [0.04, 0.25, 1], 0.3],
@@ -238,6 +280,28 @@ export default {
     const pointer = wrapPointer(drag, bar);
 
     // ================= 每帧 =================
+    // 玻璃棒（原点在下端）：拿着时，在烧杯外举在杯口以上，到了杯口正上方再竖着放进去；往一边斜靠，但不穿过杯壁。
+    //   松手：先竖着提出烧杯，再拿到原处上方，边放低边放倒，平放在桌上。（和中和反应、稀释浓硫酸两课同样的做法——建议进 kit）
+    const RIN = BR - 0.0012 - 0.0017 - 0.0004, ABOVE = BH + 0.006, LEAN = 0.25;          // RIN：玻璃棒中心离杯中心最远多少还碰不到杯壁
+    const leanMax = (b) => { if (b.y >= BH) return LEAN; const bx = b.x - BK.x, r2 = RIN * RIN - (b.z - BK.z) ** 2; return r2 <= 0 ? 0 : clamp(Math.atan((bx + Math.sqrt(r2)) / (BH - b.y)), 0, LEAN); };
+    const rodStep = () => {
+      const b = rod.position, off = Math.hypot(b.x - BK.x, b.z - BK.z), inside = off < RIN + 0.001 && b.y < BH + 0.004;
+      let to = null, lean = LEAN, a = 0.5;
+      if (S.rodCarry) {
+        const p = S.rodCarry;
+        if (inside) to = S.rodIn ? new THREE.Vector3(p.x, 0.004, p.z) : new THREE.Vector3(b.x, ABOVE + 0.002, b.z);        // 在烧杯里搅拌；拿出来时先竖着提出来
+        else if (b.y < ABOVE - 0.002) to = new THREE.Vector3(b.x, ABOVE, b.z);                                              // 先举起来，高过杯口
+        else to = S.rodIn && off < RIN ? new THREE.Vector3(p.x, 0.004, p.z) : new THREE.Vector3(p.x, ABOVE, p.z);            // 到了杯口正上方才放下去
+      } else {
+        a = 0.2;
+        if (inside) to = new THREE.Vector3(b.x, ABOVE + 0.004, b.z);
+        else if (Math.hypot(b.x - ROD_REST.x, b.z - ROD_REST.z) > 0.003) to = new THREE.Vector3(ROD_REST.x, Math.max(b.y, ABOVE), ROD_REST.z);
+        else { to = ROD_REST; a = 0.15; lean = Math.PI / 2 - (Math.PI / 2 - LEAN) * clamp((b.y - ROD_REST.y) / (ABOVE - ROD_REST.y), 0, 1); }      // 到了原处上方：边放低边放倒，平放在桌上
+      }
+      if (to) b.lerp(to, a);
+      rod.rotation.z += (lean - rod.rotation.z) * 0.3;
+      if (b.y < BH && Math.hypot(b.x - BK.x, b.z - BK.z) < RIN + 0.002) rod.rotation.z = Math.min(rod.rotation.z, leanMax(b));
+    };
     const step = (h) => {
       // 天平
       if (S.pouring && S.spoonAt) { S.panSalt += 0.45 * h; if (Math.random() < h * 30) salts.spawn({ p: pans[0].position.clone().add(new THREE.Vector3(0, 0.03, 0)), v: new THREE.Vector3((Math.random() - 0.5) * 0.01, -0.03, (Math.random() - 0.5) * 0.01), size: 0.0009, life: 0.8 }); }
@@ -249,14 +313,32 @@ export default {
       saltHeap.visible = S.panSalt > 0.05; saltHeap.scale.setScalar(Math.cbrt(S.panSalt / 3) || 0.01); saltHeap.scale.y *= 0.5;
       rider.position.x = -0.0375 + 0.075 * (S.rider / 5);
       salts.update(h, (p, d) => { p.v.y -= 0.4 * d; p.p.addScaledVector(p.v, d); return p.p.y > 0.004; });
-      // 量筒：蒸馏水瓶倒进来
-      if (S.wbCarry) {
-        const spout = S.wbCarry.clone().add(new THREE.Vector3(-0.02, 0.03, 0));
-        const at = Math.abs(spout.x - CYL.x) < 0.02 && Math.abs(spout.y - (CYL_H + 0.004)) < 0.03;
-        wb.position.lerp(at ? CYL.clone().add(new THREE.Vector3(0.021, CYL_H - 0.026, -0.01)) : S.wbCarry.clone().add(new THREE.Vector3(0, -0.03, 0)), 0.3);
-        wb.rotation.z += ((at ? 1.3 : 0) - wb.rotation.z) * Math.min(1, h * 4);
-        if (at && wb.rotation.z > 1.0) { S.water = Math.min(55, S.water + 8 * h); if (Math.random() < h * 25) drops.spawn({ p: CYL.clone().add(new THREE.Vector3(0.003, CYL_H + 0.006, 0)), v: new THREE.Vector3(0, -0.07, 0), size: 0.0014, life: 1.5 }); }
-      } else { wb.position.lerp(WB_PIV, 0.25); wb.rotation.z *= 0.8; }
+      // 量筒：蒸馏水用倾倒法倒进来（上册第 17 页）：先拿下瓶塞，倒放在桌上；拿起瓶子，转一下让标签朝向手心；瓶口紧挨量筒口，缓慢地倒；
+      //   倒完放回原处，盖好瓶塞。靠近量筒口时边倾斜边移过去、离开时边扶正边移开，瓶身一直在量筒外面
+      const wbAway = !!S.wbCarry || wbPiv.position.distanceTo(WB_PIV) > 0.003 || S.wbTilt > 0.02;
+      wbCap.update(0.3, wbAway);
+      const wbHold = !!S.wbCarry && wbCapOff() && dropper.position.distanceTo(dBot.tipHome) < 0.006;          // 瓶塞倒放好了、胶头滴管插回滴瓶了，才拿起瓶子
+      wb.rotation.y += ((wbHold ? Math.PI / 2 : 0) - wb.rotation.y) * 0.2;
+      const nearDock = wbPiv.position.distanceTo(WB_POUR) < 0.07;
+      if (wbHold) {
+        const mouth = S.wbCarry.clone().add(new THREE.Vector3(0, WB_HAND, 0)), at = mouth.distanceTo(wbDock(0)) < 0.04 && S.water < 55 && S.wbOut < WB_V;
+        S.wbTilt += ((at ? WB_TILT : 0) - S.wbTilt) * Math.min(1, h * 3);
+        wbPiv.position.lerp(at || (S.wbTilt > 0.05 && nearDock) ? wbDock(S.wbTilt) : mouth, 0.25);
+        if (at && S.wbTilt > WB_TILT - 0.15 && wbPiv.position.distanceTo(WB_POUR) < 0.002) {
+          const dv = Math.min(WB_RATE * h, 55 - S.water, WB_V - S.wbOut); S.water += dv; S.wbOut += dv;
+          if (Math.random() < h * 25) drops.spawn({ p: CYL.clone().add(new THREE.Vector3(0.0075, CYL_H + 0.002, 0)), v: new THREE.Vector3(0, -0.07, 0), size: 0.0014, life: 1.5, floor: 0.005 + S.water * ML_H });      // 从瓶口下沿沿着量筒内壁流下去
+        }
+      } else if (!S.wbCarry) {
+        if (S.wbTilt > 0.02 && nearDock) { S.wbTilt += (0 - S.wbTilt) * Math.min(1, h * 3); wbPiv.position.lerp(wbDock(S.wbTilt), 0.3); }      // 先边扶正边从量筒口移开
+        else { S.wbTilt *= 0.8; homeLift(wbPiv, WB_PIV, 0.25); }                                                                            // 再挪到原处上方，放下去
+      }
+      if (S.wbTilt < 0.3) {          // 瓶子扶正着离量筒太近（瓶身会碰到量筒）：往外让开
+        const dx = wbPiv.position.x - CYL.x, dz = wbPiv.position.z - CYL.z, d = Math.hypot(dx, dz), need = WB_R + (wbPiv.position.y - WB_H < 0.006 ? 0.02 : CYL_R) + 0.002;
+        if (d < need && wbPiv.position.y - WB_H < CYL_H + 0.004) { const k = need / Math.max(d, 1e-4); wbPiv.position.x = CYL.x + (d > 1e-4 ? dx * k : need); wbPiv.position.z = CYL.z + (d > 1e-4 ? dz * k : 0); }
+      }
+      wbPiv.position.y = Math.max(wbPiv.position.y, WB_H * Math.cos(S.wbTilt) + WB_R * Math.abs(Math.sin(S.wbTilt)));      // 瓶底不碰到桌面
+      wbPiv.rotation.z = S.wbTilt;
+      wbLiq.scale.y = Math.max(0.0005, WB_LIQ * (1 - S.wbOut / WB_V));
       if (S.water > 0 && !S.said.near && S.water > 42 && !S.demo) { S.said.near = true; }
       // 量筒倒进烧杯
       if (S.cylCarry) {
@@ -266,19 +348,25 @@ export default {
         if (at && cyl.rotation.z > 1.5 && S.water > 0) { const dv = Math.min(S.water, 25 * h); S.water -= dv; S.inBk += dv; if (Math.random() < h * 30) drops.spawn({ p: BK.clone().add(new THREE.Vector3(BR - 0.004, BH, 0)), v: new THREE.Vector3(-0.01, -0.05, 0), size: 0.0015, life: 1 }); if (S.water <= 0.01 && !bar.has('pour')) { done('pour'); status(`把 ${S.inBk.toFixed(1)} mL 水倒进了烧杯。用<b>玻璃棒</b>搅拌，使氯化钠溶解。`); } }
       } else { cyl.position.lerp(CYL, 0.25); cyl.rotation.z *= 0.8; }
       cylLiq.visible = S.water > 0.05; cylLiq.scale.y = Math.max(0.0001, S.water * ML_H);
-      drops.update(h, (p, d) => { p.v.y -= 0.5 * d; p.p.addScaledVector(p.v, d); return p.p.y > 0.01; });
-      // 滴管：靠近量筒口时竖起来
-      dropper.position.lerp(bar.current === 'measure' && S.water > 40 ? CYL.clone().add(new THREE.Vector3(0, CYL_H + 0.012, 0)) : DROP_HOME, 0.15);
-      dropper.rotation.z += ((bar.current === 'measure' && S.water > 40 ? 0 : Math.PI / 2) - dropper.rotation.z) * 0.15;
+      drops.update(h, (p, d) => { p.v.y -= 0.5 * d; p.p.addScaledVector(p.v, d); return p.p.y > (p.floor ?? 0.01); });
+      // 胶头滴管：一直竖着。要用时先竖直提出滴瓶，再横着移到量筒口上方；拿起蒸馏水瓶、量筒时，或者滴到刻度了，先抬到滴瓶上方，再竖直插回去
+      const wbBack = wbPiv.position.distanceTo(WB_PIV) < 0.01 && S.wbTilt < 0.05;          // 蒸馏水瓶放回原处了（量筒口上方空出来了）
+      if (!S.measured && S.water > 40 && !S.wbCarry && !S.cylCarry) S.dropUse = true;          // 倒到快 47 mL 了：拿起胶头滴管，准备滴加
+      if (S.wbCarry || S.cylCarry) { S.dropUse = false; S.squeeze = 0; }
+      if (S.dropUse && wbBack) {
+        const home = dBot.tipHome, inBottle = Math.hypot(dropper.position.x - home.x, dropper.position.z - home.z) < 0.004 && dropper.position.y < DROP_AT.y - 0.002;
+        dropper.position.lerp(inBottle ? new THREE.Vector3(home.x, DROP_AT.y, home.z) : DROP_AT, 0.25);
+        S.sqT = Math.max(0, S.sqT - h);
+        if (S.squeeze > 0 && S.sqT <= 0 && dropper.position.distanceTo(DROP_AT) < 0.002) { S.squeeze--; S.sqT = 0.35; A.squeeze(); }
+      } else homeLift(dropper, dBot.tipHome, 0.25);
       // 烧杯：水、溶解
       const lv = (S.inBk * 1e-6) / (Math.PI * (BR - 0.0012) ** 2);
       bk.setLevel(lv);
       S.stir = Math.max(0, S.stir - h * 1.2);
       if (S.inBk > 1 && S.saltInBk > 0 && S.dis < 1) S.dis = Math.min(1, S.dis + (0.01 + 0.3 * S.stir) * h * 2);
-      if (S.dis >= 0.98 && !bar.has('stir') && S.inBk > 1) { done('stir'); status('氯化钠全部溶解了。点一下<b>试剂瓶</b>，装瓶、贴标签。'); }
+      if (S.dis >= 0.98 && S.inBk > 1 && !S.said.dis) { S.said.dis = true; done('stir'); if (!S.demo) status('氯化钠全部溶解了。点一下<b>试剂瓶</b>，装瓶、贴标签。'); }      // 只说一次；演示时不说（不盖住镜头的字幕）
       bkSalt.visible = S.saltInBk > 0.1 && S.dis < 0.98; bkSalt.scale.setScalar(Math.max(0.2, (1 - S.dis) * Math.cbrt(S.saltInBk / 3))); bkSalt.scale.y *= 0.45;
-      if (S.rodCarry) { rod.position.lerp(S.rodIn ? new THREE.Vector3(S.rodCarry.x, 0.004, S.rodCarry.z) : new THREE.Vector3(S.rodCarry.x, 0.02, S.rodCarry.z), 0.5); rod.rotation.z += (0.25 - rod.rotation.z) * 0.3; }
-      else { rod.position.lerp(ROD_REST, 0.2); rod.rotation.z += (Math.PI / 2 - rod.rotation.z) * 0.2; }
+      rodStep();
       bk.visible = true; botLiq.scale.y = S.inBottle ? 0.03 : 0.0001; if (S.inBottle) bk.setLevel(0);
       // 读数时凑近量筒看
       if (bar.current === 'measure' && S.water > 38 && !S.wbCarry) near('cyl', [CYL.x, (0.005 + S.water * ML_H + CYL_H + 0.03) / 2, 0], [0.0, VIEWS[S.view] * 0.4, 1], 0.2);        // 凹液面和上面的滴管都在画面里
@@ -330,19 +418,15 @@ export default {
       },
       update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); mic.update(dt, k); },
       dispose() { mic.dispose(); bar.dispose(); salts.dispose(); drops.dispose(); },
-      debug: { get S() { return S; }, A, bar, picks: { rider: riderPick, spoon: spoonPick, wb: wbPick, cyl: cylPick, rod: rodPick },
+      debug: { get S() { return S; }, A, bar, picks: { rider: riderPick, spoon: spoonPick, wb: wbPick, cyl: cylPick, rod: rodPick, drop: dropPick },
         qa: qaFlow(drag, [
           { name: '放称量纸', tap: papersPick },
           { name: '拨游码', drag: riderPick, to: () => new THREE.Vector3(BAL.x - 0.0375 + 0.075 * 0.6, 0.056, 0.012) },
-          { name: '按住药匙', hold: spoonPick, wait: SALT / 0.45 },
-          { name: '松开药匙', release: spoonPick, wait: 0.5 },
-          { name: '调成 3 g', run: () => { S.panSalt = SALT; }, wait: 1 },
+          { name: '加氯化钠到 3 g', run: () => holdUntil(spoonPick, () => S.panSalt >= SALT - 0.005), wait: SALT / 0.45 + 1 },
           { name: '倒进烧杯', tap: panPick, wait: 0.5 },
-          { name: '拿起蒸馏水', hold: wbPick },
-          { name: '倒进量筒', run: () => A.wbDrag(wbToCyl()), wait: 6.5 },
-          { name: '放下蒸馏水', release: wbPick, wait: 0.5 },
-          { name: '调到 46.2', run: () => { S.water = 46.2; } },
-          { name: '滴 1', tap: dropPick, wait: 0.3 }, { name: '滴 2', tap: dropPick, wait: 1 },
+          { name: '倒水到接近 47 mL', run: () => holdUntil(wbPick, () => S.water >= 45.6, wbToCyl), wait: 11 },
+          { name: '滴 1', tap: dropPick, wait: 0.5 }, { name: '滴 2', tap: dropPick, wait: 0.5 },
+          ...[3, 4].map((j) => ({ name: `滴 ${j}`, run: () => { if (readOf() < WATER - 1e-6) A.drop(); }, wait: 0.5 })),
           { name: '拿起量筒', hold: cylPick },
           { name: '倒进烧杯', run: () => A.cylDrag(cylToBk()), wait: 3 },
           { name: '放下量筒', release: cylPick, wait: 0.5 },

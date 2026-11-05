@@ -3,6 +3,8 @@
 // 铁架台夹着试管，单孔橡胶塞连着导管，导管伸到集气瓶底部（向上排空气法）。
 // 步骤（课本）：检查气密性 → 试管里放几小块石灰石 → 注入 15 mL 稀盐酸，立即塞紧 → 收集 → 验满（燃着的木条放在瓶口）
 //   → 盖上玻璃片备用；另外把气体通入澄清石灰水检验（图 6-20）。
+// 放石灰石（第 16 页）：把试管从铁夹上取下来横放，石灰石放在试管口，再把试管慢慢地竖立起来，让石灰石沿管壁缓缓滑到管底，放回铁夹上。
+// 倒稀盐酸：量筒口挨着试管口倒。
 // 化学：CaCO₃ + 2HCl → CaCl₂ + CO₂↑ + H₂O。15 mL 稀盐酸按约 2 mol/L 计 → 约 0.015 mol CO₂，室温下约 370 mL（石灰石过量）。
 //   反应速率随盐酸消耗变慢（时间加快了 5 倍，界面上标明）。集气瓶按 60 mL 计。
 // 看不见的东西：二氧化碳画成深灰色的点，空气是浅灰点加蓝点（氧气约 1/5）。二氧化碳比空气重：从瓶底一层层往上堆，把空气从瓶口挤出去；
@@ -32,6 +34,14 @@ const LIME = new THREE.Vector3(0.15, 0, 0.06);      // 澄清石灰水（试管�
 const JOINT = new THREE.Vector3(0.0, 0.22, 0);      // 导管从橡胶塞出来、横过来以后的接口
 const AIR_O2 = 0.21;
 const DARK = 0x3d4350, LIGHT = 0xb9bec8, BLUE = 0x2f7fd8;
+// 放石灰石时试管的样子：layK 0 夹在铁夹上 → 0.35 竖直提出铁夹（管底高过铁夹） → 1 横放（管口朝右；边倒下边往上、往右挪一点：不压在铁夹上方，高过乳胶管）
+const LIFT = 0.12, LIFT2 = 0.05, LAY_X = 0.015, K_OUT = 0.35;
+const CHIP_WALL = T_R - 0.0034 - 0.0004;           // 石灰石贴着管壁时离管轴多远（横放时贴着下面的管壁，在试管的局部 +x 一侧）
+// 量筒：口在局部 y = 0.08，半径 0.009。倒的时候斜过来 POUR_TH，量筒口的下沿搭在试管口的边上（口挨着口）
+const CYL_L = 0.08, POUR_TH = 1.75;
+const POUR_LIP = new THREE.Vector3(TUBE.x + 0.0088, TUBE.y + T_LEN + 0.0006, 0);
+const POUR_BASE = POUR_LIP.clone().sub(new THREE.Vector3(-0.0085 * Math.cos(POUR_TH) - CYL_L * Math.sin(POUR_TH), -0.0085 * Math.sin(POUR_TH) + CYL_L * Math.cos(POUR_TH), 0));
+const ease3 = (x) => x * x * (3 - 2 * x);
 
 export default {
   id: 'co2prep',
@@ -73,9 +83,9 @@ export default {
     // ================= 铁架台、试管、橡胶塞、导管 =================
     const st = stand({ height: 0.3, baseW: 0.12, baseD: 0.07 });
     st.position.set(TUBE.x - 0.065, 0, -0.03); group.add(st);
-    const arm = st.clamp(TUBE.y + 0.1, 0.055);
+    const arm = st.clamp(TUBE.y + 0.1, 0.086);         // 横杆一直伸到铁夹上（试管取下来时，铁夹还留在横杆上）
     const tube = testTube({ r: T_R, len: T_LEN }); tube.position.copy(TUBE); group.add(tube);
-    const jaw = tubeClamp(T_R + 0.001); jaw.position.y = 0.1; tube.add(jaw);
+    const jaw = tubeClamp(T_R + 0.001); jaw.position.set(TUBE.x, TUBE.y + 0.1, 0); group.add(jaw);      // 铁夹固定在铁架台上，夹着试管的中上部
     const tubePick = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.11, 10), new THREE.MeshBasicMaterial({ visible: false })); tubePick.position.y = 0.055; tubePick.userData.pick = true; tube.add(tubePick);
     const MOUTH = TUBE.clone().add(new THREE.Vector3(0, T_LEN, 0));
     const plug = stopper({ r1: T_R - 0.0004, r2: T_R + 0.0016, h: 0.016 }); group.add(plug);
@@ -85,7 +95,7 @@ export default {
     const plugTube = glassTube([new THREE.Vector3(0, 0.006, 0), new THREE.Vector3(0, 0.05, 0), new THREE.Vector3(0.012, 0.064, 0), new THREE.Vector3(0.05, 0.066, 0)]); plug.add(plugTube);
     // 石灰石（试管底）、稀盐酸（试管里的液面）、气泡
     const chips = new THREE.Group(); tube.add(chips);
-    for (let i = 0; i < 5; i++) { const c = inked(new THREE.Mesh(new THREE.DodecahedronGeometry(0.0034, 0), paint(0xe4ddd0, { keep: true })), { width: 0.5 }); c.position.set((Math.random() - 0.5) * 0.008, 0.005 + i * 0.0035, (Math.random() - 0.5) * 0.006); c.rotation.set(i, i * 2, i * 3); c.visible = false; chips.add(c); }
+    for (let i = 0; i < 5; i++) { const c = inked(new THREE.Mesh(new THREE.DodecahedronGeometry(0.0034, 0), paint(0xe4ddd0, { keep: true })), { width: 0.5 }); c.position.set((Math.random() - 0.5) * 0.008, 0.005 + i * 0.0035, (Math.random() - 0.5) * 0.006); c.userData.x0 = c.position.x; c.userData.z0 = c.position.z; c.rotation.set(i, i * 2, i * 3); c.visible = false; chips.add(c); }
     const acid = new THREE.Mesh(new THREE.CylinderGeometry(T_R - 0.0008, T_R - 0.0008, 1, 18), water2({ color: 0xdbe9ee, base: 0.38 })); acid.geometry.translate(0, 0.5, 0); acid.position.y = 0.0012; acid.scale.y = 0.0001; acid.visible = false; acid.renderOrder = 7; tube.add(acid);
 
     // 伸出去的那截导管（原点在导管口）：可以拖到水里、集气瓶底、石灰水里
@@ -142,9 +152,7 @@ export default {
     const jarDots = Array.from({ length: N_JAR }, (_, i) => ({ i, u: Math.sqrt(Math.random()) * 0.85, th: Math.random() * Math.PI * 2, rank: Math.random(), ph: Math.random() * 6, blue: i % 5 === 0, p: new THREE.Vector3(), size: 0.0036, alpha: 0.92, age: 0, life: 1e9 }));
     const falling = [];         // 向下排空气法：从瓶口掉出去的二氧化碳
     const drops = new Particles({ max: 60, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: 0xdbe9ee, base: 0.5 }) }); group.add(drops.mesh);      // 从量筒口流进试管的稀盐酸
-    const chipFall = Array(chips.children.length).fill(0);      // 石灰石放进去以后沿试管滑到底（还差多高）
     chips.children.forEach((c) => { c.userData.y0 = c.position.y; });
-    let seenChips = 0;
 
     // ================= 卡片 =================
     const jarCard = tag('', 'cond'); jarCard.px = [96, -50];
@@ -156,6 +164,9 @@ export default {
       hold: false, holdT: 0, sealBub: 0, sealWait: false, seal: '', suck: 0,
       x: 0, covered: false, lime: 0, limeGas: 0, test: null, splintIn: false, fullOK: false, demo: false, near: false, earlyOut: false,
       plugK: 0, pourV: 0, twHeld: false, cylHeld: false, stickCarry: null,      // 塞子拔出了多少（0 塞着 → 1 在桌上）、倒进去了多少盐酸（画面）；镊子、量筒、木条在不在手里
+      lay: 0, layK: 0, loadLogged: false, twOut: false,          // 试管：要不要横放、横放到哪一步（见 LIFT）；镊子放完石灰石，先顺着试管抽出来
+      chipUp: [0, 0, 0, 0, 0], chipDrop: [1, 1, 1, 1, 1],         // 每块石灰石：离管底还有多远（顺着管壁量）；刚放下时从镊子尖落到管壁上（0 → 1）
+      cylP: null, cylGo: null, cylAuto: false,                    // 量筒：手在哪、竖着拿到哪；松手以后接着倒完
     });
     S = fresh();
     let W = null;
@@ -167,28 +178,41 @@ export default {
       plug() {
         if (S.plug === 'in') {
           if (S.acid > 0 && S.acidLeft > 0.05) return status('正在反应，不要拔塞子。');
-          S.plug = 'out'; status(S.seal === 'ok' ? '拔出了橡胶塞。用<b>镊子</b>夹几小块石灰石放进试管。' : '拔出了橡胶塞。');
+          S.plug = 'out'; status(S.seal === 'ok' ? '拔出了橡胶塞。点一下<b>试管</b>，把它从铁夹上取下来<b>横放</b>。' : '拔出了橡胶塞。');
         } else {
+          if (S.lay || S.layK > 0) return status('试管还没竖起来、放回铁夹上。');
           S.plug = 'in';
           if (S.acid > 0) { status(S.openT > 3 ? `塞紧了——不过注入盐酸以后过了 ${S.openT.toFixed(0)} 秒才塞，跑掉了一些二氧化碳。` : '注入盐酸后<b>立即</b>塞紧了橡胶塞。看试管里的现象。'); done('acid'); }
           else status('塞上了橡胶塞。');
         }
       },
+      /** 试管从铁夹上取下来横放 / 慢慢竖起来放回铁夹上 */
+      lay() {
+        if (S.plug === 'in' || S.acid) return;
+        if (S.layK > 0 && S.layK < 1) return;          // 正在横放 / 竖起来
+        S.lay = S.lay ? 0 : 1;
+        if (S.lay) status('把试管从铁夹上取下来，<b>横放</b>。用<b>镊子</b>夹几小块石灰石，放在<b>试管口</b>。');
+        else status(S.chips ? '把试管<b>慢慢地竖起来</b>：石灰石沿着管壁缓缓地滑到试管底部。' : '把试管竖起来，放回了铁夹上。');
+      },
       chip() {
         if (S.plug === 'in') return status('先拔出橡胶塞（点一下橡胶塞）。');
+        if (!S.lay || S.layK < 1) return status('先把试管<b>横放</b>（点一下试管），再把石灰石放在试管口。');
         if (S.chips >= 5) return status('几小块就够了。');
-        S.chips++; sfx.clink({ freq: 2200, gain: 0.04 });
-        if (S.chips >= 3) { done('load'); status(`试管里放了 ${S.chips} 小块石灰石。现在把<b>量筒</b>里的 15 mL 稀盐酸倒进试管，然后<b>立即</b>塞紧。`); }
+        const i = S.chips++, k = S.chipUp.filter((u, j) => j < i && u > 0.03).length;      // 管口已经有几块了：这一块放在它们旁边
+        S.chipUp[i] = T_LEN - 0.009 - 0.007 * k - chips.children[i].userData.y0; S.chipDrop[i] = 0;
+        sfx.clink({ freq: 2200, gain: 0.04 });
+        if (S.chips >= 3) status(`试管口放了 ${S.chips} 小块石灰石。点一下<b>试管</b>，把它<b>慢慢地竖起来</b>。`);
         else status(`放了 ${S.chips} 小块。再放几块。`);
       },
       pour() {
         if (S.plug === 'in') return status('先拔出橡胶塞。');
+        if (S.lay || S.layK > 0) return status('试管还没竖起来、放回铁夹上。');
         if (!S.chips) return status('先放石灰石，再注入稀盐酸。');
         if (S.acid) return;
         S.acid = 15; S.acidLeft = 1; S.openT = 0;
         status('注入了 15 mL 稀盐酸：石灰石表面产生<b>大量气泡</b>。<b>立即</b>塞紧橡胶塞！（点一下橡胶塞或试管）');
       },
-      hold(on) { if (S.acid) return; S.hold = on; if (on && S.seal !== 'ok') near(TIPS.water.clone().add(new THREE.Vector3(-0.04, 0.05, 0)), [0.1, 0.25, 1], 0.3); },
+      hold(on) { if (S.acid) return; S.hold = on; if (on && S.seal !== 'ok' && S.plug === 'in') near(TIPS.water.clone().add(new THREE.Vector3(-0.04, 0.05, 0)), [0.1, 0.25, 1], 0.3); },
       moveEnd(where) {
         S.end = where;
         if (where === 'jar' && S.jarDown) S.end = 'jarDown';
@@ -210,24 +234,42 @@ export default {
         status(on ? '换成了<b>瓶口朝下</b>的集气瓶（向下排空气法）。看二氧化碳会不会留在瓶里。' : '换回了瓶口朝上的集气瓶。');
       },
       reset() {
-        S = fresh(); bubs.clear(); limeBubs.clear(); drops.clear(); falling.length = 0; stick.setState('none'); seenChips = 0; chipFall.fill(0); W?.tbl.clear(); far();
+        S = fresh(); bubs.clear(); limeBubs.clear(); drops.clear(); falling.length = 0; stick.setState('none'); W?.tbl.clear(); far();
         if (W) { W.q1.hidden = true; W.q2.hidden = true; W.next.hidden = true; W.downSeg.set(0); }
         bar.undo('seal', 'load', 'acid', 'collect', 'full', 'cover', 'test', 'why');
         status('全部重新摆好了，记录也清空了。');
       },
     };
 
-    const nearMouth = (p) => p.distanceTo(MOUTH) < 0.03;
+    // 试管现在的样子（layK 见 LIFT）：管底在哪、绕 z 转了多少；管口在哪
+    const tubePose = (K) => { const u1 = ease3(clamp(K / K_OUT, 0, 1)), u2 = ease3(clamp((K - K_OUT) / (1 - K_OUT), 0, 1)); return { pos: new THREE.Vector3(TUBE.x + LAY_X * u2, TUBE.y + LIFT * u1 + LIFT2 * u2, 0), rz: -Math.PI / 2 * u2 }; };
+    const mouthAt = (K) => { const q = tubePose(K); return q.pos.add(new THREE.Vector3(-Math.sin(q.rz) * T_LEN, Math.cos(q.rz) * T_LEN, 0)); };
+    const mouthNow = () => mouthAt(S.layK);
+    const MOUTH_FLAT = mouthAt(1);                                // 横放时的管口
+    const tubeIn = () => !S.lay && S.layK === 0;                 // 试管夹在铁夹上
+    // 量筒：拿到试管口上方、能倒的时候，斜过来倒；竖着拿着走的时候，在试管上方要高过试管口
+    const CYL_AIM = MOUTH.clone().add(new THREE.Vector3(0.02, 0.01, 0));
+    const canPour = () => S.plug === 'out' && S.chips > 0 && tubeIn() && (!S.acid || S.pourV < 15);
+    const cylNear = () => !!S.cylP && S.cylP.distanceTo(CYL_AIM) < 0.05;
+    const cylFloor = (x) => (Math.abs(x - MOUTH.x) < 0.03 ? MOUTH.y + 0.02 : 0);
     const drag = draggable(group, [
-      { obj: tubePick, plane: 'xy', offset: 0, hint: () => (S.plug === 'out' && S.acid ? '点一下：塞紧橡胶塞' : S.acid ? '' : '按住：用手握住试管'),
-        onStart: () => A.hold(true), onDrag: () => {}, onEnd: () => A.hold(false), onTap: () => { if (S.plug === 'out' && S.acid) A.plug(); } },      // 倒进盐酸以后：点一下试管就塞紧（不用去桌上找塞子）
+      { obj: tubePick, plane: 'xy', offset: 0, hint: () => (S.plug === 'out' && S.acid ? '点一下：塞紧橡胶塞' : S.acid ? '' : S.plug === 'out' ? (S.lay ? '点一下：慢慢竖起来，放回铁夹上' : '点一下：从铁夹上取下来，横放') : '按住：用手握住试管'),
+        onStart: () => A.hold(true), onDrag: () => {}, onEnd: () => A.hold(false), onTap: () => { if (S.plug === 'out' && S.acid) A.plug(); else if (S.plug === 'out') A.lay(); } },      // 倒进盐酸以后：点一下试管就塞紧（不用去桌上找塞子）
       { obj: plugPick, plane: 'xy', offset: 0, hint: () => (S.plug === 'in' ? '点一下：拔出橡胶塞' : '点一下：塞紧橡胶塞'), onTap: () => A.plug(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
       { obj: twPick, plane: 'xy', offset: 0, hint: '拖到试管口：放一小块石灰石', onStart: () => { held.visible = true; S.twHeld = true; },
         onDrag: (p) => { tweez.position.set(p.x - 0.045, Math.max(0.004, p.y), p.z); },          // 在试管所在的竖直面里拖：手抓的是把手中间（学生拖时 p.z = 0；演示里从桌上一路移过来）
-        // 镊子尖（原点）到了管口，或者手里抓的地方到了管口，都算放进去了；松手后镊子滑回桌上
-        onEnd: () => { const tip = tweez.position.clone(), grab = tip.clone().add(new THREE.Vector3(0.045, 0, 0)); if (nearMouth(tip) || nearMouth(grab) || Math.abs(tip.x - MOUTH.x) < 0.02 && Math.abs(tip.y - MOUTH.y) < 0.05) A.chip(); held.visible = false; S.twHeld = false; } },
-      { obj: cylPick, plane: 'xy', offset: 0, hint: '拖到试管口：倒入稀盐酸', onStart: () => { S.cylHeld = true; }, onDrag: (p) => { cyl.position.set(p.x, Math.max(0, p.y - 0.05), p.z); cyl.rotation.z = clamp((p.y - 0.12) * 12, 0, 1.9); },
-        onEnd: () => { if (cylAtMouth()) A.pour(); S.cylHeld = false; } },
+        // 镊子尖（原点）到了管口、伸进了横放的管口，或者手里抓的地方到了管口，都算放进去了；松手后镊子先顺着试管抽出来，再滑回桌上
+        onEnd: () => {
+          const tip = tweez.position.clone(), grab = tip.clone().add(new THREE.Vector3(0.045, 0, 0)), M = mouthNow();
+          const inMouth = S.layK === 1 && Math.abs(tip.y - M.y) < 0.012 && Math.abs(tip.z - M.z) < 0.012 && tip.x > M.x - 0.07 && tip.x < M.x + 0.015;
+          if (inMouth || tip.distanceTo(M) < 0.03 || grab.distanceTo(M) < 0.03) A.chip();
+          S.twOut = S.layK === 1 && (inMouth || tip.distanceTo(M) < 0.02);
+          held.visible = false; S.twHeld = false; } },
+      { obj: cylPick, plane: 'xy', offset: 0, hint: '拖到试管口：倒入稀盐酸', onStart: () => { S.cylHeld = true; S.cylAuto = false; S.cylP = null; S.cylGo = cyl.position.clone(); },
+        onDrag: (p) => { S.cylP = p.clone(); S.cylGo = new THREE.Vector3(p.x, Math.max(cylFloor(p.x), p.y - 0.05), p.z); },      // 竖着拿着走（手抓在量筒中间）
+        onEnd: () => {       // 在试管口上方松手：倒完再放回桌上；不能倒的时候说一声为什么
+          const near = cylNear(); S.cylHeld = false; S.cylP = null; S.cylAuto = near && canPour();
+          if (near && !S.cylAuto && !S.acid) A.pour(); } },
       { obj: endPick, plane: 'xy', offset: 0, hint: '拖动导管口：伸进水里 / 集气瓶底部 / 澄清石灰水里',
         onDrag: (p) => { S.dragTip = new THREE.Vector3(clamp(p.x, -0.06, 0.2), clamp(p.y - 0.06, 0.006, 0.12), p.z); },
         onEnd: () => { const p = S.dragTip; S.dragTip = null; if (!p) return; const d = (q) => Math.hypot(p.x - q.x, p.y - q.y); const near1 = Object.entries({ water: TIPS.water, jar: TIPS.jar, lime: TIPS.lime }).sort((a, b) => d(a[1]) - d(b[1]))[0]; A.moveEnd(d(near1[1]) < 0.05 ? near1[0] : 'air'); } },
@@ -243,14 +285,14 @@ export default {
           else stick.setState('none');
         } },
     ], { tip: tag('', 'pill') });
-    const cylAtMouth = () => cyl.position.distanceTo(MOUTH.clone().add(new THREE.Vector3(0.02, -0.04, 0))) < 0.05;
 
     // 演示：沿折线拖过去（先抬起来、再移过去、再放下；kit 的 act.drag 只走直线）。pts 里可以有函数（开始时取值）
     const dragPath = (obj, pts, o) => act.path(obj, pts, o);      // 沿几个点拿过去（kit/chemlesson.js 的 act.path）
     const act = demoActs(drag, group);
     const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
     const twGrab = () => tweez.position.clone().add(V(0.045, 0, 0));          // 镊子：手抓的地方（尖在它左边 4.5 cm）
-    const chipTrip = (a) => dragPath(twPick, [twGrab, V(0.015, 0.008, 0.13), V(0.015, 0.2, 0.13), V(MOUTH.x + 0.045, MOUTH.y + 0.028, 0), V(MOUTH.x + 0.045, MOUTH.y + 0.008, 0)], { t0: a, t1: a + 0.13, release: a + 0.14 });
+    // 镊子：到表面皿里夹一小块石灰石，抬高，移到横放的试管口右边，顺着试管把石灰石送到管口里
+    const chipTrip = (a) => dragPath(twPick, [twGrab, V(0.015, 0.008, 0.13), V(0.015, 0.2, 0.13), MOUTH_FLAT.clone().add(V(0.075, 0, 0)), MOUTH_FLAT.clone().add(V(0.039, 0, 0))], { t0: a, t1: a + 0.13, release: a + 0.14 });
     const tipGrab = () => endPiece.position.clone().add(V(0, 0.06, 0));      // 导管：手抓的地方（导管口往上 6 cm）
 
     // ================= 底部步骤栏 + 老师的演示 =================
@@ -258,7 +300,8 @@ export default {
       look, back, group,
       steps: [
         { id: 'seal', title: '检查气密性', todo: '导管口浸在水里。<b>按住试管</b>（用手握住），看导管口；再松开手看导管里。', target: () => (S.seal === 'ok' ? null : tube) },
-        { id: 'load', title: '放石灰石', todo: '点<b>橡胶塞</b>拔出来，用<b>镊子</b>从表面皿里夹几小块石灰石，拖到试管口放进去。', target: () => (S.chips >= 3 ? null : S.plug === 'in' ? plug : tweez) },
+        { id: 'load', title: '放石灰石', todo: '点<b>橡胶塞</b>拔出来；点<b>试管</b>，把它从铁夹上取下来<b>横放</b>；用<b>镊子</b>从表面皿里夹几小块石灰石，放在<b>试管口</b>；再点<b>试管</b>，把它<b>慢慢地竖起来</b>，放回铁夹上。',
+          target: () => (S.loadLogged ? null : S.plug === 'in' ? plug : S.layK > 0 && S.layK < 1 ? null : !S.lay ? (S.chips >= 3 ? null : tube) : S.chips < 3 ? tweez : tube) },
         { id: 'acid', title: '注入盐酸，塞紧', todo: '把<b>量筒</b>里的 15 mL 稀盐酸倒进试管，然后<b>立即</b>点一下橡胶塞塞紧。', target: () => (!S.acid ? cyl : S.plug !== 'in' ? plug : null) },
         { id: 'collect', title: '向上排空气法收集', todo: '把<b>导管口</b>拖到集气瓶<b>底部</b>。看瓶里的灰点。', target: () => (S.end === 'jar' || S.end === 'jarDown' ? null : endPiece) },
         { id: 'full', title: '验满', todo: '把燃着的<b>木条</b>拖到集气瓶<b>口</b>（不要伸进去），木条熄灭说明集满了。', target: () => (S.test ? null : stick) },
@@ -270,16 +313,17 @@ export default {
         demo: {
           seal: '演示', label: '老师演示',
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar,
-            apply: () => { bubs.clear(); limeBubs.clear(); drops.clear(); falling.length = 0; stick.setState('none'); stick.position.copy(STICK_HOME); stick.rotation.z = -Math.PI / 2; seenChips = S.chips; chipFall.fill(0); } }),
+            apply: () => { bubs.clear(); limeBubs.clear(); drops.clear(); falling.length = 0; stick.setState('none'); stick.position.copy(STICK_HOME); stick.rotation.z = -Math.PI / 2; } }),
           shots: [
             { cap: '先检查气密性：导管口浸在水里，手握试管，导管口冒出气泡。', dur: 3.2, cam: [[-0.07, 0.08, 0.03], [0.1, 0.25, 1], 0.4], during: act.hold(tubePick, 0.04, 0.55) },
-            { cap: '拔出橡胶塞，用镊子放进几小块石灰石，再注入 15 mL 稀盐酸。', dur: 11, cam: [[TUBE.x + 0.07, 0.1, 0.09], [0.1, 0.4, 1], 0.56], enter: () => { S.seal = 'ok'; },
+            { cap: '拔出橡胶塞，把试管从铁夹上取下来横放，用镊子把几小块石灰石放在试管口。', dur: 9.5, cam: [[TUBE.x + 0.08, 0.15, 0.05], [0.1, 0.35, 1], 0.62], enter: () => { S.seal = 'ok'; },
+              during: act.seq(act.tap(plugPick, 0.02), act.tap(tubePick, 0.09), chipTrip(0.32), chipTrip(0.52), chipTrip(0.72)) },
+            { cap: '把试管慢慢地竖起来，石灰石沿着管壁缓缓地滑到管底；放回铁夹上，用量筒注入 15 mL 稀盐酸。', dur: 7.6, cam: [[TUBE.x + 0.06, 0.13, 0.05], [0.1, 0.35, 1], 0.58],
               during: act.seq(
-                act.tap(plugPick, 0.02),
-                chipTrip(0.09), chipTrip(0.26), chipTrip(0.43),
-                // 量筒：拿起来，移到试管口右上方，抬高、倾斜着倒（倒完再放回去）
-                dragPath(cylPick, [() => cyl.position.clone().add(V(0, 0.05, 0)), V(CYL_HOME.x, 0.14, CYL_HOME.z), V(MOUTH.x + 0.06, 0.15, 0), V(MOUTH.x + 0.06, MOUTH.y + 0.02, 0)], { t0: 0.61, t1: 0.8, release: 0.94 })) },
-            { cap: '立即塞紧橡胶塞：试管里产生大量气泡。', dur: 2.6, cam: [[TUBE.x, 0.08, 0], [0.1, 0.15, 1], 0.26], during: act.tap(plugPick, 0.2) },
+                act.tap(tubePick, 0.02),
+                // 量筒：竖着拿起来，移到试管口右上方，斜过来，量筒口挨着试管口倒（倒完再放回去）
+                dragPath(cylPick, [() => cyl.position.clone().add(V(0, 0.05, 0)), V(CYL_HOME.x, 0.14, CYL_HOME.z), V(MOUTH.x + 0.06, 0.15, 0), V(MOUTH.x + 0.06, MOUTH.y + 0.02, 0)], { t0: 0.5, t1: 0.75, release: 0.77 })) },
+            { cap: '立即塞紧橡胶塞：试管里产生大量气泡。', dur: 2.6, cam: [[TUBE.x, 0.08, 0], [0.1, 0.15, 1], 0.26], during: act.tap(plugPick, 0.08) },
             { cap: '导管口伸到集气瓶底部：二氧化碳比空气重，从下往上把空气挤出去。', dur: 4.4, cam: [[JAR.x, 0.05, 0], [0.12, 0.2, 1], 0.32], speed: 2,
               during: dragPath(endPick, [tipGrab, V(BEAKER.x, 0.14, BEAKER.z), V(TIPS.jar.x, JH + 0.08, 0), TIPS.jar.clone().add(V(0, 0.06, 0))], { t0: 0.02, t1: 0.3, release: 0.32 }) },
             { cap: '把燃着的木条放在瓶口：木条熄灭，说明集满了。', dur: 3.6, cam: [[JAR.x, 0.09, 0], [0.1, 0.25, 1], 0.28], speed: 2, enter: () => { S.x = Math.max(S.x, 0.92); },
@@ -302,13 +346,27 @@ export default {
         if (K < 0.3) plug.position.lerpVectors(IN, UP, e(K / 0.3));
         else { const u = e((K - 0.3) / 0.7); plug.position.lerpVectors(UP, PLUG_TABLE, u); plug.position.y += Math.sin(Math.PI * u) * 0.03; }
         plug.rotation.set(0, 0, 0); }
-      // 镊子、量筒、木条：松手以后滑回桌上
-      if (!S.twHeld) tweez.position.lerp(TW_HOME, 0.2);
-      if (!S.cylHeld) { cyl.position.lerp(CYL_HOME, 0.2); cyl.rotation.z *= 0.8; }
-      else if (cylAtMouth() && cyl.rotation.z > 0.7) {
-        if (S.plug === 'out' && S.chips && !S.acid) A.pour();          // 量筒口到了试管口、倾斜着：倒进去
-        if (S.acid && S.pourV < 15 && Math.random() < h * 40) { const r = cyl.rotation.z; drops.spawn({ p: cyl.position.clone().add(new THREE.Vector3(-0.08 * Math.sin(r) + 0.003, 0.08 * Math.cos(r), (Math.random() - 0.5) * 0.003)), v: new THREE.Vector3(0.01, -0.02, 0), size: 0.0013, life: 1 }); }
+      // 试管：从铁夹上取下来横放（等塞子放到桌上以后），竖起来时慢慢地（石灰石沿管壁滑下去），再放回铁夹上
+      { const v = S.lay ? 0.75 : S.layK > K_OUT ? 0.25 : 0.64;
+        if (!S.lay || S.plugK > 0.95) S.layK = clamp(S.layK + clamp((S.lay ? 1 : 0) - S.layK, -h * v, h * v), 0, 1);
+        const q = tubePose(S.layK); tube.position.copy(q.pos); tube.rotation.set(0, 0, q.rz); }
+      // 镊子、量筒、木条：松手以后滑回桌上（镊子先顺着横放的试管抽出来）
+      if (!S.twHeld) {
+        const M = mouthNow();
+        if (S.twOut && tweez.position.x < M.x + 0.012) tweez.position.lerp(new THREE.Vector3(M.x + 0.018, tweez.position.y, tweez.position.z), 0.3);
+        else { S.twOut = false; tweez.position.lerp(TW_HOME, 0.2); }
       }
+      // 量筒：竖着拿着走；拿到试管口上方（能倒的时候）斜过来，量筒口挨着试管口倒；倒完才放回桌上
+      { const pouring = S.acid > 0 && S.pourV < 15;
+        const aim = (S.cylAuto || (S.cylHeld && cylNear())) && canPour();
+        if (aim) {
+          cyl.position.lerp(POUR_BASE, 0.25); cyl.rotation.z += (POUR_TH - cyl.rotation.z) * 0.25;
+          const there = cyl.position.distanceTo(POUR_BASE) < 0.002 && Math.abs(cyl.rotation.z - POUR_TH) < 0.04;
+          if (there && !S.acid) A.pour();
+          if (there && pouring && Math.random() < h * 40) { const r = cyl.rotation.z; drops.spawn({ p: cyl.position.clone().add(new THREE.Vector3(-0.0085 * Math.cos(r) - CYL_L * Math.sin(r), -0.0085 * Math.sin(r) + CYL_L * Math.cos(r), (Math.random() - 0.5) * 0.003)), v: new THREE.Vector3(-0.004, -0.02, 0), size: 0.0013, life: 1 }); }      // 从量筒口的下沿流进试管
+        } else if (S.cylHeld && S.cylGo) { cyl.position.lerp(S.cylGo, 0.5); cyl.rotation.z *= 0.75; }
+        else { cyl.position.lerp(CYL_HOME, 0.2); cyl.rotation.z *= 0.8; }
+        if (S.cylAuto && (!aim || (S.acid && S.pourV >= 15))) S.cylAuto = false; }
       if (S.acid && S.pourV < 15) S.pourV = Math.min(15, S.pourV + h * 15);      // 倒进去约 1 秒
       drops.update(h, (p, d) => { p.v.y -= 0.8 * d; p.p.addScaledVector(p.v, d); p.p.x += (MOUTH.x - p.p.x) * Math.min(1, d * 6); return p.p.y > TUBE.y + 0.006 + 0.03 * (S.pourV / 15); });
       if (S.test) stick.rotation.z += (-0.6 - stick.rotation.z) * 0.2;
@@ -321,10 +379,16 @@ export default {
       // 集气瓶：正放 / 倒放（向下排空气法）；玻璃片
       jar.rotation.x = S.jarDown ? Math.PI : 0; jar.position.y = S.jarDown ? JH + 0.03 : 0;
       jar.plate.visible = S.covered || !S.jarDown; jar.plate.position.x += ((S.covered ? 0 : 0.022) - jar.plate.position.x) * 0.15; jar.setWater(0);      // 玻璃片推过去盖住瓶口
-      // 试管里的东西
-      if (S.chips > seenChips) for (let i = seenChips; i < S.chips; i++) chipFall[i] = MOUTH.y - TUBE.y - chips.children[i].userData.y0;      // 刚放进去的一块：从管口滑下去
-      seenChips = S.chips;
-      chips.children.forEach((c, i) => { c.visible = i < S.chips; chipFall[i] = Math.max(0, chipFall[i] - h * 0.45); c.position.y = c.userData.y0 + chipFall[i]; });
+      // 试管里的东西。石灰石：放在横放的试管口；试管离水平超过约 12° 后，沿着管壁慢慢往下滑（越竖越快），滑到管底；横放时都贴着下面的管壁
+      const tilt = Math.PI / 2 + tube.rotation.z;           // 0 横放，π/2 竖直
+      chips.children.forEach((c, i) => {
+        c.visible = i < S.chips; if (!c.visible) return;
+        if (S.chipUp[i] > 0 && tilt > 0.21) S.chipUp[i] = Math.max(0, S.chipUp[i] - h * 0.09 * (Math.sin(tilt) - 0.2) / 0.8);
+        S.chipDrop[i] = Math.min(1, S.chipDrop[i] + h * 6);          // 刚松开镊子：从镊子尖落到管壁上
+        const { x0, y0, z0 } = c.userData, lie = Math.max(clamp(S.chipUp[i] / 0.008, 0, 1), Math.cos(tilt));
+        c.position.set(x0 + (CHIP_WALL * S.chipDrop[i] - x0) * lie, y0 + S.chipUp[i], z0 * (1 - lie));
+      });
+      if (S.chips >= 3 && tubeIn() && S.chipUp.every((u) => u === 0) && !S.loadLogged) { S.loadLogged = true; done('load'); status('石灰石沿着管壁缓缓地滑到了<b>试管底部</b>，试管放回了铁夹上。现在把<b>量筒</b>里的 15 mL 稀盐酸倒进试管，然后<b>立即</b>塞紧。'); }
       acid.visible = S.acid > 0 && S.pourV > 0.2; acid.scale.y = Math.max(0.0001, 0.03 * Math.max(0.3, S.acidLeft) * (S.pourV / 15));
       cylLiq.visible = S.pourV < 14.8; cylLiq.scale.y = Math.max(0.0001, 0.05 * (1 - S.pourV / 15));
       // 气密性：握住试管，导管口在水里冒泡；松手后导管里形成一段水柱
@@ -422,6 +486,7 @@ export default {
           buttons([
             { text: '手握试管（检查气密性）', ghost: true, onClick: () => { A.hold(true); setTimeout(() => A.hold(false), 1400); } },
             { text: '拔出 / 塞紧橡胶塞', ghost: true, onClick: () => A.plug() },
+            { text: '试管横放 / 慢慢竖起来', ghost: true, onClick: () => A.lay() },
             { text: '放一小块石灰石', ghost: true, onClick: () => A.chip() },
             { text: '注入 15 mL 稀盐酸', ghost: true, onClick: () => A.pour() },
             { text: '导管口伸到集气瓶底部', ghost: true, onClick: () => A.moveEnd('jar') },
@@ -445,8 +510,10 @@ export default {
         qa: qaFlow(drag, [
           { name: '握住试管', hold: tubePick, wait: 2 }, { name: '松手', release: tubePick, wait: 2.5 },
           { name: '拔塞子', tap: plugPick },
-          ...[1, 2, 3].map((i) => ({ name: `放第 ${i} 块石灰石`, drag: twPick, to: MOUTH, wait: 0.3 })),
-          { name: '倒盐酸', drag: cylPick, to: () => MOUTH.clone().add(new THREE.Vector3(0.02, 0.01, 0)) },
+          { name: '试管横放', tap: tubePick, wait: 2.5 },
+          ...[1, 2, 3].map((i) => ({ name: `放第 ${i} 块石灰石`, drag: twPick, to: () => MOUTH_FLAT.clone().add(new THREE.Vector3(0.039, 0, 0)), wait: 0.8 })),      // 手抓在镊子尖右边 4.5 cm：镊子尖伸进管口 6 mm
+          { name: '试管竖起来', tap: tubePick, wait: 5 },
+          { name: '倒盐酸', drag: cylPick, to: () => CYL_AIM.clone(), wait: 2 },
           { name: '塞紧', tap: plugPick },
           { name: '导管伸到瓶底', drag: endPick, to: () => TIPS.jar.clone().add(new THREE.Vector3(0, 0.06, 0)), wait: 40 },
           { name: '木条放在瓶口', drag: stickPick, to: () => new THREE.Vector3(JAR.x, JH + 0.006, 0), wait: 3 },

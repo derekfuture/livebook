@@ -105,7 +105,7 @@ export default {
       waxDrop() { const p = S.waxCarry; S.waxCarry = null; if (!p) return; if (Math.hypot(p.x - WB.x, p.z - WB.z) < 0.024) { S.waxAt = 'water'; sfx.clink({ freq: 1200, gain: 0.02 }); done('wax'); log(['(1) 观察石蜡，切一块放进水里', '白色固体；用小刀能切下（质软）；<b>浮在水面上</b>', '石蜡密度比水小']); status('石蜡<b>浮在水面上</b>：石蜡的密度比水小。接着点燃蜡烛。'); } },
       candleTap() {
         if (!S.lit && !S.out) { S.lit = true; done('light'); sfx.whoosh?.({ freq: 500, gain: 0.06, dur: 0.3 }); status('点燃了蜡烛。看火焰：分成三层。把<b>火柴梗</b>平放进火焰里，约 1 秒后取出。'); return; }
-        if (S.lit) { if (!bar.has('cover')) return status('先做完火柴梗、两个烧杯的观察，再熄灭蜡烛。'); S.lit = false; S.out = true; S.smokeT = 10; done("blow"); status('熄灭蜡烛：烛芯上冒出一缕<b>白烟</b>。快！把<b>燃着的火柴</b>凑到白烟上。'); }
+        if (S.lit) { if (!S.demo && !bar.has('cover')) return status('先做完火柴梗、两个烧杯的观察，再熄灭蜡烛。'); S.lit = false; S.out = true; S.smokeT = 10; done("blow"); status('熄灭蜡烛：烛芯上冒出一缕<b>白烟</b>。快！把<b>燃着的火柴</b>凑到白烟上。'); }
       },
       stickDrag(p) { if (!p) return; S.stickCarry = p.clone(); },
       stickDrop() {
@@ -188,7 +188,7 @@ export default {
           b.position.lerp(at ? over() : S.bCarry[k].clone(), 0.35); b.rotation.z += (Math.PI - b.rotation.z) * 0.25;
           if (at && S.lit) {
             if (k === 0) { S.mist = Math.min(1, S.mist + h * 0.3); if (S.mist > 0.4 && !S.logged.mist) { S.logged.mist = true; log(['(2) 罩一个干燥的烧杯', '烧杯内壁出现<b>水雾</b>', '蜡烛燃烧生成了<b>水</b>']); status('干燥的烧杯内壁出现了<b>水雾</b>：蜡烛燃烧生成了水。再罩<b>润湿了澄清石灰水</b>的烧杯。'); } }
-            else { S.milk = Math.min(1, S.milk + h * 0.3); if (S.milk > 0.4 && !S.logged.milk) { S.logged.milk = true; done('cover'); log(['(2) 罩一个润湿了澄清石灰水的烧杯', '石灰水<b>变浑浊</b>', '蜡烛燃烧生成了<b>二氧化碳</b>']); status('石灰水<b>变浑浊</b>了：蜡烛燃烧生成了二氧化碳。最后，点一下蜡烛<b>熄灭</b>它。'); far(); } }
+            else { S.milk = Math.min(1, S.milk + h * 0.3); if (S.milk > 0.4 && !S.logged.milk) { S.logged.milk = true; done('cover'); log(['(2) 罩一个润湿了澄清石灰水的烧杯', '石灰水<b>变浑浊</b>', '蜡烛燃烧生成了<b>二氧化碳</b>']); status('石灰水<b>变浑浊</b>了：蜡烛燃烧生成了二氧化碳。' + (S.demo ? '' : '最后，点一下蜡烛<b>熄灭</b>它。')); far(); } }
             if (!S.logged.milk) near('cover', [C.x, FY + 0.03, 0], [0.04, 0.12, 1], 0.2);
           }
         } else { b.position.lerp(b.HOME, 0.25); b.rotation.z += (0 - b.rotation.z) * 0.25; }

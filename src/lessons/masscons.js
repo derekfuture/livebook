@@ -1,12 +1,15 @@
 // 课题1 质量守恒定律（课本第 110–115 页）：探究 化学反应前后物质的质量关系（方案一 图 5-1）、实验 5-1、实验 5-2（建议教师演示）。
 //
 // 中间一台电子天平（读到 0.01 g），三套装置轮流放上去称：
-//   ① 方案一（密闭）：锥形瓶底铺铜粉，塞子上的导管系着小气球。放到陶土网上加热：铜粉变黑，气球鼓起；冷却后再称——质量不变。
-//      照实建模：还热的时候称，鼓起的气球排开空气，受到浮力，读数偏小（课本：“待装置冷却后再次称量”）。
-//   ② 实验 5-1（敞口）：烧杯里的碳酸钠，和盛盐酸的小试管。点一下烧杯——倾斜，盐酸流进去，冒出大量气泡：天平读数越来越小。
-//      可以改在塞紧的锥形瓶里做：读数不变。
-//   ③ 实验 5-2：用坩埚钳夹着镁条在酒精灯上点燃，在陶土网上方燃烧，生成的白色固体落在陶土网上；燃烧后连同陶土网一起称。
+//   ① 方案一（密闭）：锥形瓶底铺铜粉，塞子上的导管系着小气球。先称 m₁；放到陶土网上，点燃酒精灯加热：铜粉变黑，气球鼓起；
+//      停止加热（灯帽盖灭），锥形瓶在陶土网上（或桌上）冷却到室温，再放到天平上称 m₂——质量不变（课本：“待装置冷却后再次称量”）。
+//      照实建模：还热的时候称，鼓起的气球排开空气，受到浮力，读数偏小。
+//   ② 实验 5-1（敞口）：烧杯里的碳酸钠，和盛盐酸的小试管。先称；取下烧杯，点一下——倾斜，盐酸流进去，冒出大量气泡；
+//      反应一段时间后再放到天平上称：变轻了。可以改在塞紧的锥形瓶里做：读数不变。
+//   ③ 实验 5-2：镁条（已用砂纸打磨干净）和陶土网一起称；取下来放到桌上，点燃酒精灯，用坩埚钳夹着镁条在火焰上点燃，
+//      在陶土网上方燃烧，生成的白色固体落在陶土网上；燃烧后连同陶土网一起放回天平上称。
 //      空气里的氧气加了进来（变重），白烟又跑掉一些（变轻）——这里按白烟跑掉约 35% 计，所以略重一点；实际可能重也可能轻。
+// 两盏酒精灯都有灯帽（kit/labops.js 的 lampCap）：点燃前取下放在桌上，用完盖灭。
 // 看不见的东西：原子进出——蓝点 = 氧原子，灰点 = 其他原子。
 //
 // 数据：铜粉 2.00 g（过量），锥形瓶里约 250 mL 空气（氧气约 0.07 g）；碳酸钠 1.06 g（0.01 mol）→ 二氧化碳 0.44 g；
@@ -20,14 +23,17 @@ import { chemLamp, chemBeaker, testTube, stopper, glassTube, crucibleTongs, CHEM
 import { glass2, water2, flame2, smoke2, bubble2 } from './kit/chemfx.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, demoActs } from './kit/chemlesson.js';
+import { lampCap } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked, hull } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
 
 const T0 = 25;
 const BAL = new THREE.Vector3(0.0, 0, 0), PAN_Y = 0.034;
-const HEAT = new THREE.Vector3(-0.19, 0, 0), NET_Y = 0.098;      // 三脚架上的陶土网（下面是酒精灯）
+// 三脚架上的陶土网（下面是酒精灯）。网比灯帽取下时抬到的最高处（约 10.2 cm）高一点；火焰调小到外焰刚好顶到网的下面，不穿过网
+const HEAT = new THREE.Vector3(-0.19, 0, 0), NET_Y = 0.106, FLAME_UNDER_NET = 0.64;
 const LAMP2 = new THREE.Vector3(0.26, 0, 0.11);                  // 点镁条的酒精灯
+const CAP1_OFF = new THREE.Vector3(HEAT.x, 0, 0.09), CAP2_OFF = new THREE.Vector3(0.318, 0, 0.066);   // 灯帽取下后放在桌上的地方（灯帽 1 从三脚架前面两条腿之间拿出来）
 const HOME = { A: new THREE.Vector3(0.13, 0, -0.06), B: new THREE.Vector3(0.2, 0, -0.01), C: new THREE.Vector3(0.16, 0, 0.1) };
 const RHO_AIR = 1.2;          // g/L
 const M = {                    // 各套装置反应前的总质量（g）
@@ -99,6 +105,13 @@ export default {
     const netTex = canvasTex(128, 128, (g, W) => { g.fillStyle = '#bfc3c8'; g.fillRect(0, 0, W, W); g.strokeStyle = '#8b9098'; g.lineWidth = 1.2; for (let i = 0; i < W; i += 6) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, W); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(W, i); g.stroke(); } g.fillStyle = '#f1ece2'; g.beginPath(); g.arc(W / 2, W / 2, W * 0.3, 0, 7); g.fill(); });
     const net = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.002, 0.1), new THREE.MeshLambertMaterial({ map: netTex })); net.position.y = NET_Y; tri.add(net);
     const lamp2 = chemLamp(); lamp2.position.copy(LAMP2); group.add(lamp2);
+    // 灯帽：点燃前取下放在桌上，熄灭时盖上（kit/labops.js）；点一下酒精灯：点燃 / 盖灭
+    const capper1 = lampCap(group, lamp, { off: CAP1_OFF }), capper2 = lampCap(group, lamp2, { off: CAP2_OFF });
+    let flameOn1 = false, flameOn2 = false;                 // 火焰真的亮着（灯帽拿开了才亮，盖上了才灭）
+    const snapCaps = () => { capper1.snap(S.lit1); capper2.snap(S.lit2); flameOn1 = S.lit1; flameOn2 = S.lit2; };     // 换一套状态（演示开始、结束，全部重来）时直接摆好
+    const mkLampPick = (l) => { const p = new THREE.Mesh(new THREE.BoxGeometry(0.072, 0.07, 0.072), new THREE.MeshBasicMaterial({ visible: false })); p.position.y = 0.035; p.userData.pick = true; l.add(p); return p; };
+    const lampPick1 = mkLampPick(lamp), lampPick2 = mkLampPick(lamp2);
+    lamp.flame.setSize(FLAME_UNDER_NET);
 
     // ================= ① 方案一：锥形瓶 + 铜粉 + 橡胶塞、导管、小气球 =================
     const flask = (withBalloon) => {
@@ -153,6 +166,7 @@ export default {
     // ================= 卡片 =================
     const balCard = tag('', 'cond'); balCard.px = [-150, -30];
     const atomCard = tag('', 'cond'); atomCard.px = [130, -40];
+    const flaskCard = tag('', 'cond'); flaskCard.px = [-120, -50];        // 方案一：锥形瓶加热、冷却时的温度
 
     // ================= 状态 =================
     const fresh = () => ({
@@ -161,6 +175,7 @@ export default {
       A: { k: 0, T: T0, vb: 0, m1: null, m2: null, hot: false },
       B: { k: 0, tilted: false, sealed: false, m1: null, m2: null },
       C: { lit: false, burn: 0, done: false, m1: null, m2: null },
+      lit1: false, lit2: false,  // 两盏酒精灯：加热锥形瓶的、点镁条的
       reading: 0, show: 0, stable: 0, demo: false, near: false, flyO: [], flyX: [],
     });
     S = fresh();
@@ -199,26 +214,41 @@ export default {
       put(k, where) {
         if (where === 'bal' && S.on && S.on !== k) return status('天平上已经有东西了，先拿下来。');
         if (where === 'heat' && k !== 'A') return status(k === 'C' ? '镁条要用坩埚钳夹着，在酒精灯上点燃。' : '这个实验不用加热。');
+        if (k === 'C' && S.C.lit) return;     // 镁条正在陶土网上方燃烧
+        const was = S.at[k];
         if (S.on === k && where !== 'bal') S.on = null;
         S.at[k] = where; if (where === 'bal') { S.on = k; S.stable = 0; sfx.clink({ freq: 1600 }); }
         if (where !== 'heat') far();          // 从加热台拿开：镜头退回整套器材
-        if (where === 'heat') { S.A.hot = true; status('锥形瓶放在陶土网上，用酒精灯加热。看铜粉和小气球。'); near(HEAT.clone().setY(NET_Y + 0.05), [0.1, 0.2, 1], 0.32); }
-        if (where === 'home' && k === 'A' && S.A.k > 0.3) status('停止加热。等锥形瓶冷却下来，再放回天平上称。');
+        if (where === 'heat') { status(S.lit1 ? '锥形瓶放在陶土网上，用酒精灯加热。看铜粉和小气球。' : '锥形瓶放在陶土网上了。点一下<b>酒精灯</b>：取下灯帽，点燃，加热。'); near(HEAT.clone().setY(0.125), [0.1, 0.2, 1], 0.58); }      // 镜头里有酒精灯（要点它）和整个锥形瓶
+        if (where === 'home' && k === 'A' && was === 'heat' && S.A.k > 0.3) status('锥形瓶拿下来了。等它冷却到室温，再放到天平上称。');
+      },
+      // 方案一的酒精灯：点燃（先取下灯帽）/ 盖灭（停止加热）
+      lamp1() {
+        S.lit1 = !S.lit1; sfx.clink({ freq: 900, gain: 0.03 });
+        if (S.lit1) status(S.at.A === 'heat' ? '点燃了酒精灯，加热锥形瓶。看铜粉和小气球。' : '点燃了酒精灯。');
+        else status(S.A.k > 0.3 && S.A.m2 == null ? '用灯帽盖灭了酒精灯，<b>停止加热</b>。等锥形瓶冷却到室温，再放到天平上称。' : '用灯帽盖灭了酒精灯。');
+      },
+      // 实验 5-2 的酒精灯
+      lamp2() {
+        S.lit2 = !S.lit2; sfx.clink({ freq: 900, gain: 0.03 });
+        if (S.lit2) status(S.C.m1 != null && S.at.C === 'home' && !S.C.lit && !S.C.done ? '点燃了酒精灯。用<b>坩埚钳</b>夹起镁条，伸到火焰上点燃。' : '点燃了酒精灯。');
+        else status('用灯帽盖灭了酒精灯。');
       },
       tilt() {
         const B = S.B;
         if (B.tilted) return;
         if (B.m1 == null) return status('先把装置放在天平上，称一下反应前的质量。');
+        if (S.on === 'B') return;              // 课本：取下烧杯再倾斜
         B.tilted = true; sfx.clink({ freq: 1200 });
-        status(B.sealed ? '倾斜锥形瓶，盐酸流进去，产生大量气泡——这一次瓶口塞紧了。看天平的读数。' : '倾斜烧杯，盐酸流进烧杯，产生大量<b>气泡</b>。看天平的读数。');
-        if (S.on === 'B') near(BAL.clone().setY(0.06), [0.15, 0.22, 1], 0.36);
+        status(B.sealed ? '倾斜锥形瓶，盐酸流进去，产生大量气泡——这一次瓶口塞紧了。反应一段时间后，再放到天平上称。' : '倾斜烧杯，盐酸流进烧杯，产生大量<b>气泡</b>。反应一段时间后，再放到天平上称。');
+        near(getObj('B').position.clone().setY(0.06), [-0.2, 0.3, 1], 0.36);      // 从左前方看（右前方有酒精灯挡着）
       },
       light() {
         if (S.C.m1 == null) return status('先把镁条和陶土网一起放在天平上，称一下反应前的质量。');
-        if (S.C.lit || S.C.done) return;
+        if (S.C.lit || S.C.done || S.at.C !== 'home' || !flameOn2) return;      // 陶土网放在桌上、酒精灯点着了才点镁条
         S.C.lit = true; S.C.burn = 0; ribbonOnNet.visible = false; ribbon.visible = true; ribbon.scale.y = 1; sfx.whoosh({ freq: 700, gain: 0.18 });
         status('镁条在陶土网上方<b>剧烈燃烧，发出耀眼的白光</b>，生成白色固体，冒出白烟。');
-        near(S.at.C === 'bal' ? BAL.clone().setY(0.08) : HOME.C.clone().setY(0.08), [0.1, 0.2, 1], 0.36);
+        near(HOME.C.clone().setY(0.08), [-0.12, 0.25, 1], 0.38);
       },
       seal(on) {
         if (S.B.tilted) return status('这一次已经做完了。点“更多”里的“再做一次”。');
@@ -226,7 +256,7 @@ export default {
         S.B.sealed = on; S.B.m1 = null; S.B.m2 = null; status(on ? '换成了<b>塞紧的锥形瓶</b>：碳酸钠在瓶底，小试管里装着盐酸。' : '换回了敞口的烧杯。');
       },
       reset() {
-        S = fresh(); snapPos = true; W?.tbl.clear(); far(); bubs.clear(); drips.clear(); smoke.clear(); ribbon.visible = false; ribbon.scale.y = 1; ribbon.position.y = -0.025; ribbonOnNet.visible = true; tongs.position.copy(TONGS_HOME);
+        S = fresh(); snapPos = true; W?.tbl.clear(); far(); bubs.clear(); drips.clear(); smoke.clear(); ribbon.visible = false; ribbon.scale.y = 1; ribbon.position.y = -0.025; ribbonOnNet.visible = true; tongs.position.copy(TONGS_HOME); snapCaps();
         if (W) for (const b of [W.q1, W.q2, W.q3, W.next]) b.hidden = true;
         bar.undo('a', 'b', 'c', 'why'); W?.sealSeg.set(0);
         status('全部重新摆好了，记录也清空了。');
@@ -245,7 +275,8 @@ export default {
     const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
     const drag = draggable(group, [
       ...['A', 'B', 'C'].map((k) => ({ obj: k === 'A' ? fA.pick : k === 'B' ? bkPick : netPick, plane: 'xy', offset: 0, keepOffset: true, anchor: k === 'A' ? fA : k === 'B' ? bk : netSet,
-        hint: () => (k === 'B' && S.B.m1 != null && !S.B.tilted ? '点一下：倾斜烧杯；拖动：放到天平上 / 拿下来' : '拖到天平上称量' + (k === 'A' ? '；拖到陶土网上加热' : '')),
+        enabled: () => !(k === 'C' && S.C.lit),          // 镁条在陶土网上方燃烧时，陶土网不挪
+        hint: () => (k === 'B' && S.B.m1 != null && !S.B.tilted ? (S.on === 'B' ? '拖到桌上：取下烧杯' : '点一下：倾斜烧杯；拖动：放到天平上') : k === 'C' && S.C.lit ? '' : '拖到天平上称量' + (k === 'A' ? '；拖到陶土网上加热' : '')),
         onStart: () => { S.drag = { k, p0: null }; },
         onDrag: (p) => { S.drag.moved = true; const o = getObj(k); o.position.set(clamp(p.x, -0.26, 0.3), Math.max(0, p.y), o.position.z * 0.8); },      // 前后（z）慢慢挪到天平那一排，不跳
         onEnd: () => {
@@ -255,71 +286,91 @@ export default {
           else A.put(k, 'home');
         },
         onTap: () => { if (k === 'B') A.tilt(); } })),
-      { obj: fB.pick, plane: 'xy', offset: 0, keepOffset: true, anchor: fB, hint: () => (S.B.m1 != null && !S.B.tilted ? '点一下：倾斜锥形瓶' : '拖到天平上称量'),
+      { obj: fB.pick, plane: 'xy', offset: 0, keepOffset: true, anchor: fB, hint: () => (S.B.m1 != null && !S.B.tilted ? (S.on === 'B' ? '拖到桌上：取下锥形瓶' : '点一下：倾斜锥形瓶；拖动：放到天平上') : '拖到天平上称量'),
         onStart: () => { S.drag = { k: 'B' }; }, onDrag: (p) => { fB.position.set(clamp(p.x, -0.26, 0.3), Math.max(0, p.y), fB.position.z * 0.8); },
         onEnd: () => { const p = fB.position; S.drag = null; A.put('B', Math.abs(p.x - BAL.x) < 0.05 ? 'bal' : 'home'); }, onTap: () => A.tilt() },
-      { obj: tPick, plane: 'xy', offset: LAMP2.z, keepOffset: true, anchor: tongs, hint: () => (S.C.lit || S.C.done ? '' : S.C.m1 == null ? '先把陶土网（上面放着镁条）放到天平上称' : '夹起镁条，拖到右边的酒精灯火焰上：点燃'),
-        onStart: () => { if (S.C.m1 == null) { status('先把陶土网（上面放着镁条）放到天平上，称一下反应前的质量。'); S.noPick = true; return; } S.noPick = false; S.C.grab = !S.C.lit && !S.C.done; },
+      { obj: tPick, plane: 'xy', offset: LAMP2.z, keepOffset: true, anchor: tongs, hint: () => (S.C.lit || S.C.done ? '' : S.C.m1 == null ? '先把陶土网（上面放着镁条）放到天平上称' : S.at.C !== 'home' ? '' : '夹起镁条，拖到右边的酒精灯火焰上：点燃'),
+        onStart: () => { if (S.C.m1 == null) { status('先把陶土网（上面放着镁条）放到天平上，称一下反应前的质量。'); S.noPick = true; return; } S.noPick = S.at.C !== 'home'; S.C.grab = !S.noPick && !S.C.lit && !S.C.done; },      // 陶土网从天平上取下来、放在桌上以后，才夹镁条
         onDrag: (p) => {
           if (S.noPick) return; if (S.C.lit || S.C.done) return;
           if (S.C.grab && !ribbon.visible) { ribbonOnNet.visible = false; ribbon.visible = true; }      // 夹起镁条（垂在钳子下面 5 cm，钳子不低于 5.6 cm，镁条不碰桌面）
-          tongs.position.set(clamp(p.x, -0.1, 0.32), Math.max(ribbon.visible ? 0.056 : 0.006, p.y), tongs.position.z + (p.z - tongs.position.z) * 0.25); const tip = tongs.position.clone().add(new THREE.Vector3(0, -0.05, 0)); S.C.inFlame = Math.abs(tip.x - LAMP2.x) < 0.02 && Math.abs(tip.y - 0.1) < 0.03; },      // 在火焰里停一会儿（约半秒）才点着
+          tongs.position.set(clamp(p.x, -0.1, 0.32), Math.max(ribbon.visible ? 0.056 : 0.006, p.y), tongs.position.z + (p.z - tongs.position.z) * 0.25); const tip = tongs.position.clone().add(new THREE.Vector3(0, -0.05, 0)); S.C.inFlame = flameOn2 && Math.abs(tip.x - LAMP2.x) < 0.02 && Math.abs(tip.y - 0.1) < 0.03; },      // 酒精灯点着了，在火焰里停一会儿（约半秒）才点着
         onEnd: () => { S.C.inFlame = false; S.C.grab = false; if (!S.C.lit) { tongs.position.copy(TONGS_HOME); if (!S.C.done) { ribbon.visible = false; ribbonOnNet.visible = true; } } } },      // 没点着：镁条放回陶土网上
-    ], { tip: tag('', 'pill') });
+    ], { taps: [
+      { obj: lampPick1, hint: () => (S.lit1 ? '点一下：盖上灯帽，熄灭酒精灯' : '点一下：取下灯帽，点燃酒精灯'), onTap: () => A.lamp1() },
+      { obj: lampPick2, hint: () => (S.lit2 ? '点一下：盖上灯帽，熄灭酒精灯' : '点一下：取下灯帽，点燃酒精灯'), onTap: () => A.lamp2() },
+    ], tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     // 演示：沿折线拖过去（先抬起来、再平移、再放下——demoActs.drag 只走直线，会从天平、三脚架上穿过去）。
     // pts 里可以放函数（这一段开始时再取）；start: false 不调用 onStart（坩埚钳先空着伸过去）；release > 1：这个镜头里不松手
     const carry = (obj, pts, o = {}) => act.path(obj, pts, { release: (o.t1 ?? 0.5) + 0.02, ...o });      // 沿几个点拿过去（kit/chemlesson.js 的 act.path；这一课默认走到就松手）
     const at = (k) => () => getObj(k).position.clone();
     const PAN = V(BAL.x, PAN_Y), ON_NET = V(HEAT.x, NET_Y + 0.001);
-    const TONGS_AT_NET = V(BAL.x, PAN_Y + 0.055), TONGS_AT_FLAME = V(LAMP2.x, 0.142, LAMP2.z);
+    const TONGS_AT_NET = V(HOME.C.x, 0.058, HOME.C.z), TONGS_AT_FLAME = V(LAMP2.x, 0.142, LAMP2.z);      // 坩埚钳：桌上陶土网里的镁条正上方 / 酒精灯火焰上
+    let kNow = 0;                                    // 演示：这个镜头放到哪儿了（0–1），给 speed 用
+    const track = (f) => (k) => { kNow = k; f(k); };
+    const onBal = (k) => S.on === k && !S.drag;      // 放稳在天平上了（等读数稳定的那一会儿时间加快）
 
     // ================= 底部步骤栏 + 老师的演示 =================
     let saved = null;
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'a', title: '方案一：密闭加热铜粉', todo: '把<b>锥形瓶</b>（铜粉、系着小气球）拖到天平上称一下；再拖到<b>陶土网</b>上加热；冷却后再放回天平上称。',
-          target: () => (S.A.m1 == null ? (S.on && S.on !== 'A' ? null : fA) : S.A.k < 0.6 ? fA : S.A.m2 == null ? fA : null) },
-        { id: 'b', title: '实验 5-1：盐酸和碳酸钠', todo: '把<b>烧杯</b>拖到天平上称一下；再点一下烧杯，让它倾斜，小试管里的盐酸流进去；看天平的读数。',
-          target: () => (S.on && S.on !== 'B' && S.B.m1 == null ? null : getObj('B')) },
-        { id: 'c', title: '实验 5-2：镁条燃烧', todo: '把<b>陶土网</b>（上面放着镁条）拖到天平上称；再用<b>坩埚钳</b>夹起镁条，拖到右边的酒精灯上点燃；燃烧后连同陶土网再称。',
-          target: () => (S.C.m1 == null ? netSet : !S.C.lit && !S.C.done ? tongs : S.C.done && S.C.m2 == null ? netSet : null) },
+        { id: 'a', title: '方案一：密闭加热铜粉', todo: '<b>锥形瓶</b>先放到天平上称；再放到<b>陶土网</b>上，点<b>酒精灯</b>加热；铜粉变黑后盖灭酒精灯，等锥形瓶冷却到室温，再放到天平上称。',
+          target: () => { const a = S.A; if (a.m2 != null) return null; if (a.m1 == null) return S.on && S.on !== 'A' ? null : fA; if (a.k < 0.6) return S.at.A !== 'heat' ? fA : S.lit1 ? null : lamp; if (S.lit1) return lamp; return a.T > T0 + 1 || (S.on && S.on !== 'A') ? null : fA; } },
+        { id: 'b', title: '实验 5-1：盐酸和碳酸钠', todo: '<b>烧杯</b>先放到天平上称；<b>取下</b>烧杯，点一下让它倾斜，小试管里的盐酸流进去；反应一段时间后，再放到天平上称。',
+          target: () => (S.B.m2 != null || (S.on && S.on !== 'B') ? null : getObj('B')) },
+        { id: 'c', title: '实验 5-2：镁条燃烧', todo: '<b>陶土网</b>（上面放着镁条）先放到天平上称；<b>取下</b>来放在桌上，点燃右边的<b>酒精灯</b>，用<b>坩埚钳</b>夹起镁条点燃；燃烧后连同陶土网再称。',
+          target: () => { const c = S.C; if (c.m2 != null) return null; if (c.m1 == null) return S.on && S.on !== 'C' ? null : netSet; if (!c.lit && !c.done) return S.at.C !== 'home' ? netSet : !S.lit2 ? lamp2 : tongs; if (c.lit) return null; return S.lit2 ? lamp2 : S.on && S.on !== 'C' ? null : netSet; } },
         { id: 'why', title: '想一想', todo: '对照你称得的数据想一想，在左边作答。' },
       ],
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          onStart: () => { if (!saved) saved = S; S = fresh(); S.demo = true; snapPos = true; bubs.clear(); drips.clear(); smoke.clear(); syncMg(); },
-          onEnd: () => { if (!saved) return; S = saved; saved = null; S.near = false; snapPos = true; bubs.clear(); drips.clear(); smoke.clear(); syncMg(); bar.say('演示看完了。桌上的器材和记录还是你自己的那一套——接着往下做。', bar.current || 'end'); setTimeout(() => bar.say(null), 4000); },
+          onStart: () => { if (!saved) saved = S; S = fresh(); S.demo = true; snapPos = true; bubs.clear(); drips.clear(); smoke.clear(); syncMg(); snapCaps(); },
+          onEnd: () => { if (!saved) return; S = saved; saved = null; S.near = false; snapPos = true; bubs.clear(); drips.clear(); smoke.clear(); syncMg(); snapCaps(); bar.say('演示看完了。桌上的器材和记录还是你自己的那一套——接着往下做。', bar.current || 'end'); setTimeout(() => bar.say(null), 4000); },
+          // 演示和学生走同一套流程：称 m₁、反应、称 m₂ 都是真的放上天平、等读数稳定后记下（record 在演示里也跑，只是不写进学生的记录表）
           shots: [
-            // 拿起锥形瓶，抬过天平的边，放到托盘上
-            { cap: '方案一：锥形瓶底铺着铜粉，塞子上的导管系着小气球。先放在天平上称量。', dur: 4.2, cam: [[0.04, 0.06, 0], [0.1, 0.2, 1], 0.46],
+            // 1 拿起锥形瓶，抬过天平的边，放到托盘上
+            { cap: '方案一：锥形瓶底铺着铜粉，塞子上的导管系着小气球。先放在天平上称量。', dur: 3.8, cam: [[0.04, 0.06, 0], [0.1, 0.2, 1], 0.46], get speed() { return onBal('A') ? 3 : 1; },
               during: carry(fA.pick, [at('A'), V(HOME.A.x, 0.07, HOME.A.z), V(BAL.x, 0.07), PAN], { t0: 0.04, t1: 0.42 }) },
-            // 从天平上拿起来，抬过三脚架，放到陶土网上；放上去以后实验时间加快（加热要好一会儿）
-            { cap: '放在陶土网上加热：红色的铜粉变黑，小气球鼓了起来。', dur: 5.5, cam: [[HEAT.x * 0.6, NET_Y + 0.02, 0], [0.1, 0.2, 1], 0.46], get speed() { return S.at.A === 'heat' ? 3.5 : 1; },
-              enter: () => { S.A.m1 = M.A; },
-              during: carry(fA.pick, [at('A'), V(BAL.x, 0.15), V(HEAT.x, 0.15), ON_NET], { t0: 0.03, t1: 0.3 }) },
-            // 停止加热：从陶土网上拿下来，放回天平上，等它冷却
-            { cap: '冷却后再称：读数和反应前一样。', dur: 5.0, cam: [[-0.05, 0.06, 0], [0.1, 0.2, 1], 0.5], get speed() { return S.at.A === 'bal' ? 4 : 1; },
-              during: carry(fA.pick, [at('A'), V(HEAT.x, 0.16), V(BAL.x, 0.16), PAN], { t0: 0.03, t1: 0.36 }) },
-            // 锥形瓶拿下来放回桌上；拿烧杯放上天平；点一下烧杯：倾斜（倾斜的那一会儿按真实速度放，之后加快看读数）
-            { cap: '实验 5-1：烧杯敞着口。倾斜，盐酸流进碳酸钠——产生大量气泡，天平读数变小了。', dur: 9.0, cam: [[0.06, 0.06, 0], [0.15, 0.22, 1], 0.46], get speed() { return (S.B.tt || 0) > TILT_END ? 2.5 : 1; },
+            // 2 从天平上拿起来，抬过三脚架，放到陶土网上；点燃酒精灯（灯帽取下、火焰亮了以后实验时间加快：加热要好一会儿）
+            { cap: '放在陶土网上，点燃酒精灯加热：红色的铜粉变黑，小气球鼓了起来。', dur: 6.0, cam: [[HEAT.x * 0.6, 0.13, 0], [0.1, 0.2, 1], 0.56], get speed() { return S.at.A === 'heat' && flameOn1 && capper1.k >= 1 ? 4 : 1; },
+              during: act.seq(carry(fA.pick, [at('A'), V(BAL.x, 0.16), V(HEAT.x, 0.16), ON_NET], { t0: 0.03, t1: 0.28 }), act.tap(lampPick1, 0.33)) },
+            // 3 停止加热：点一下酒精灯，盖上灯帽（盖灭、轻提、再盖好按真实速度放）；锥形瓶留在陶土网上冷却到室温（卡片上的温度降到 25 ℃）
+            { cap: '停止加热：用灯帽盖灭酒精灯。锥形瓶留在陶土网上，冷却到室温。', dur: 4.6, cam: [[HEAT.x * 0.6, 0.13, 0], [0.1, 0.2, 1], 0.56], get speed() { return kNow > 0.34 ? 6.5 : 1; },
+              during: track(act.tap(lampPick1, 0.04)) },
+            // 4 冷却以后再放到天平上
+            { cap: '冷却到室温后，再放到天平上称：读数和反应前一样。', dur: 3.8, cam: [[-0.05, 0.06, 0], [0.1, 0.2, 1], 0.5], get speed() { return onBal('A') ? 3 : 1; },
+              during: carry(fA.pick, [at('A'), V(HEAT.x, 0.17), V(BAL.x, 0.17), PAN], { t0: 0.03, t1: 0.4 }) },
+            // 5 锥形瓶放回桌上；烧杯放上天平称
+            { cap: '实验 5-1：烧杯里放着碳酸钠和盛有盐酸的小试管，敞着口。先放在天平上称量。', dur: 4.6, cam: [[0.08, 0.06, 0], [0.15, 0.22, 1], 0.46], get speed() { return onBal('B') ? 3 : 1; },
               during: act.seq(
-                carry(fA.pick, [at('A'), V(BAL.x, 0.07), V(HOME.A.x, 0.07, HOME.A.z), HOME.A], { t0: 0.02, t1: 0.17 }),
-                carry(bkPick, [at('B'), V(HOME.B.x, 0.065, HOME.B.z), V(BAL.x, 0.065), PAN], { t0: 0.2, t1: 0.37 }),
-                act.at(0.41, () => { S.B.m1 = M.B; }),
-                act.tap(bkPick, 0.44)) },
-            // 烧杯拿回桌上；陶土网（上面放着镁条）放上天平；坩埚钳伸过去夹起镁条，到右边的酒精灯上点燃，拿回陶土网上方燃烧
-            { cap: '实验 5-2：镁条在陶土网上方燃烧，发出耀眼的白光，生成白色固体，冒出白烟。', dur: 11.0, cam: [[0.12, 0.11, 0.05], [0.1, 0.25, 1], 0.66], get speed() { return S.C.lit || S.C.done ? 1.5 : 1; },
+                carry(fA.pick, [at('A'), V(BAL.x, 0.07), V(HOME.A.x, 0.07, HOME.A.z), HOME.A], { t0: 0.02, t1: 0.24 }),
+                carry(bkPick, [at('B'), V(HOME.B.x, 0.065, HOME.B.z), V(BAL.x, 0.065), PAN], { t0: 0.28, t1: 0.52 })) },
+            // 6 取下烧杯，点一下：倾斜（倾斜的那一会儿按真实速度放，之后加快：反应一段时间）
+            { cap: '取下烧杯，将它倾斜：小试管里的盐酸流进烧杯，和碳酸钠反应，产生大量气泡。', dur: 6.2, cam: [[0.17, 0.05, -0.01], [-0.2, 0.3, 1], 0.4], get speed() { return (S.B.tt || 0) > TILT_END ? 3.5 : 1; },
+              during: act.seq(carry(bkPick, [at('B'), V(BAL.x, 0.07), V(HOME.B.x, 0.07, HOME.B.z), HOME.B], { t0: 0.02, t1: 0.24 }), act.tap(bkPick, 0.29)) },
+            // 7 反应一段时间后，再放回天平上
+            { cap: '反应一段时间后，再放到天平上称：读数比反应前小了。', dur: 3.8, cam: [[0.06, 0.06, 0], [0.15, 0.22, 1], 0.46], get speed() { return onBal('B') ? 3 : 1; },
+              during: carry(bkPick, [at('B'), V(HOME.B.x, 0.065, HOME.B.z), V(BAL.x, 0.065), PAN], { t0: 0.03, t1: 0.4 }) },
+            // 8 烧杯放回桌上；镁条和陶土网一起放上天平称
+            { cap: '实验 5-2：取一根用砂纸打磨干净的镁条，和陶土网一起放在天平上称量。', dur: 4.6, cam: [[0.08, 0.06, 0.05], [0.1, 0.25, 1], 0.5], get speed() { return onBal('C') ? 3 : 1; },
               during: act.seq(
-                carry(bkPick, [at('B'), V(BAL.x, 0.07), V(HOME.B.x, 0.07, HOME.B.z), HOME.B], { t0: 0.02, t1: 0.13 }),
-                carry(netPick, [at('C'), V(HOME.C.x, 0.075, HOME.C.z), V(BAL.x, 0.075), PAN], { t0: 0.16, t1: 0.27 }),
-                act.at(0.29, () => { S.C.m1 = M.C; }),
-                carry(tPick, [() => tongs.position.clone(), V(TONGS_HOME.x, 0.12, TONGS_HOME.z), V(BAL.x, 0.12), TONGS_AT_NET], { t0: 0.3, t1: 0.39, release: 2, start: false }),
-                act.at(0.4, () => drag.items().find((x) => x.obj === tPick).onStart()),
-                carry(tPick, [TONGS_AT_NET, V(BAL.x, 0.17), V(LAMP2.x, 0.17, LAMP2.z), TONGS_AT_FLAME], { t0: 0.41, t1: 0.53, start: false, release: 2 })) },
-            { cap: '为什么有的变了、有的没变？想一想：反应前后，所有的物质都称到了吗？演示完了，下面换你自己做。', dur: 4.0, cam: [[0.02, 0.06, 0.02], [0.1, 0.25, 1], 0.7] },
+                carry(bkPick, [at('B'), V(BAL.x, 0.07), V(HOME.B.x, 0.07, HOME.B.z), HOME.B], { t0: 0.02, t1: 0.24 }),
+                carry(netPick, [at('C'), V(HOME.C.x, 0.075, HOME.C.z), V(BAL.x, 0.075), PAN], { t0: 0.28, t1: 0.52 })) },
+            // 9 陶土网取下来放在桌上；点燃酒精灯；坩埚钳伸过去夹起镁条，到火焰上点燃，拿到陶土网上方燃烧
+            { cap: '取下来放在桌上。点燃酒精灯，用坩埚钳夹起镁条在火焰上点燃，拿到陶土网上方：剧烈燃烧，发出耀眼的白光，白色固体落在陶土网上。', dur: 9.2, cam: [[0.17, 0.09, 0.08], [0.1, 0.25, 1], 0.5], get speed() { return S.C.lit || S.C.done ? 1.5 : 1; },
+              during: act.seq(
+                carry(netPick, [at('C'), V(BAL.x, 0.075), V(HOME.C.x, 0.075, HOME.C.z), HOME.C], { t0: 0.02, t1: 0.17 }),
+                act.tap(lampPick2, 0.2),
+                carry(tPick, [() => tongs.position.clone(), V(TONGS_HOME.x, 0.12, TONGS_HOME.z), V(HOME.C.x, 0.12, HOME.C.z), TONGS_AT_NET], { t0: 0.25, t1: 0.35, release: 2, start: false }),
+                act.at(0.36, () => drag.items().find((x) => x.obj === tPick).onStart()),
+                carry(tPick, [TONGS_AT_NET, V(HOME.C.x, 0.17, HOME.C.z), V(LAMP2.x, 0.17, LAMP2.z), TONGS_AT_FLAME], { t0: 0.37, t1: 0.5, start: false, release: 0.98 })) },
+            // 10 盖灭酒精灯；燃烧后的固体连同陶土网放回天平上称
+            { cap: '用灯帽盖灭酒精灯。燃烧后得到的白色固体连同陶土网，放到天平上称：比反应前重了一点。', dur: 4.4, cam: [[0.1, 0.06, 0.05], [0.1, 0.25, 1], 0.5], get speed() { return onBal('C') ? 3 : 1; },
+              during: act.seq(act.tap(lampPick2, 0.03), carry(netPick, [at('C'), V(HOME.C.x, 0.075, HOME.C.z), V(BAL.x, 0.075), PAN], { t0: 0.12, t1: 0.45 })) },
+            { cap: '为什么有的变了、有的没变？想一想：反应前后，所有的物质都称到了吗？演示完了，下面换你自己做。', dur: 3.5, cam: [[0.02, 0.06, 0.02], [0.1, 0.25, 1], 0.7] },
           ],
         },
       },
@@ -335,13 +386,18 @@ export default {
     const tmp = new THREE.Vector3();
     const spawnFly = (list, from, n, to) => { for (let i = 0; i < n; i++) list.push({ p: from.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.02, 0, (Math.random() - 0.5) * 0.02)), v: (to ? to.clone().sub(from).multiplyScalar(0.6) : new THREE.Vector3((Math.random() - 0.5) * 0.02, 0.05 + Math.random() * 0.03, (Math.random() - 0.5) * 0.02)), life: to ? 1.6 : 3, age: 0, size: 0.0034, alpha: 0.9 }); };
     const step = (h, t) => {
-      lamp.flame.setOn(true); lamp.flame.update(t); lamp2.flame.setOn(true); lamp2.flame.update(t + 0.7);
+      // 酒精灯：点燃时灯帽先取下放到桌上，火焰才亮；熄灭时灯帽盖上，火焰才灭（盖灭后轻提一下，再盖好）
+      flameOn1 = capper1.update(h, S.lit1); flameOn2 = capper2.update(h, S.lit2);
+      lamp.flame.setOn(flameOn1); lamp.flame.update(t); lamp2.flame.setOn(flameOn2); lamp2.flame.update(t + 0.7);
       place();
-      // ① 铜粉加热：在陶土网上才加热；铜和瓶里的氧气生成氧化铜（变黑）；气体受热膨胀，小气球鼓起
+      // ① 铜粉加热：锥形瓶在陶土网上、酒精灯点着才加热；铜和瓶里的氧气生成氧化铜（变黑）；气体受热膨胀，小气球鼓起
       const a = S.A;
-      // 加热：瓶里气体的平均温度升到约 130 ℃（铜粉那里更热）
-      if (S.at.A === 'heat') { a.T += (130 - a.T) * Math.min(1, h * 0.25); if (a.T > 90 && a.k < 1) a.k = Math.min(1, a.k + h * 0.08); }
+      // 加热：瓶里气体的平均温度升到约 130 ℃（铜粉那里更热）；停止加热以后慢慢冷却到室温
+      const heating = S.at.A === 'heat' && flameOn1;
+      if (heating) { a.hot = true; a.T += (130 - a.T) * Math.min(1, h * 0.25); if (a.T > 90 && a.k < 1) a.k = Math.min(1, a.k + h * 0.08); }
       else a.T += (T0 - a.T) * Math.min(1, h * 0.25);
+      if (heating && a.k >= 0.6 && !S.saidBlack) { S.saidBlack = true; status('铜粉变黑了，小气球鼓了起来。点一下<b>酒精灯</b>，盖上灯帽，停止加热。'); }
+      if (!heating && a.hot && a.k >= 0.6 && a.m2 == null && a.T < T0 + 1 && S.on !== 'A' && !S.saidCool) { S.saidCool = true; status('锥形瓶冷却到室温了。把它放到天平上称。'); }
       const gasL = 0.25 * (1 - 0.21 * a.k);                                    // 瓶里的气体（室温下的体积，升）：氧气被铜用掉
       a.vb = Math.max(0, gasL * (a.T + 273) / (T0 + 273) - 0.25);            // 比原来多出来的体积进了小气球
       const bR = 0.006 + Math.cbrt(Math.max(0, a.vb) * 1e-3 * 3 / (4 * Math.PI)) * 1.0;
@@ -387,7 +443,7 @@ export default {
         ribbon.scale.y = Math.max(0.05, 1 - c.burn); ribbon.position.y = -0.025 * ribbon.scale.y;
         mgGlow.material.opacity = 0.9 + Math.sin(t * 40) * 0.1; mgGlow.position.y = -0.05 * ribbon.scale.y;
         if (Math.random() < h * 10) spawnFly(S.flyO, over.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.02, (Math.random() - 0.5) * 0.08)), 1, over);
-        if (c.burn >= 1) { c.lit = false; c.done = true; mgGlow.material.opacity = 0; ribbon.visible = false; status('镁条烧完了。生成的白色固体落在陶土网上，还有一些变成白烟跑掉了。现在把陶土网连同上面的固体放到天平上称。'); }
+        if (c.burn >= 1) { c.lit = false; c.done = true; mgGlow.material.opacity = 0; ribbon.visible = false; status('镁条烧完了。生成的白色固体落在陶土网上，还有一些变成白烟跑掉了。' + (S.lit2 ? '用灯帽盖灭酒精灯；' : '') + '把陶土网连同上面的固体放到天平上称。'); }
       } else if (c.done) tongs.position.lerp(TONGS_HOME, 0.1);          // 没点燃时：位置由拖动决定（松手回到桌上）
       ash.visible = c.burn > 0.05; ash.scale.set(0.4 + 0.6 * c.burn, 0.25 * (0.4 + 0.6 * c.burn), 0.4 + 0.6 * c.burn);
       smoke.update(h, { rate: c.lit ? 40 : 0, origin: over.clone().add(new THREE.Vector3(0, 0.0, 0)), spread: 0.01, up: 0.06, size: 0.02 });
@@ -411,11 +467,15 @@ export default {
       S.show += (target - S.show) * Math.min(1, h * 6);
       drawDisp(S.show.toFixed(2));
       if (k && Math.abs(S.show - target) < 0.005) S.stable += h; else S.stable = 0;
-      if (W && !S.demo) record(k, h);
+      if (W) record(k, h);          // 演示里也照样称（只是不写进学生的记录表、不算学生的步骤）
       // 卡片
-      const atomTxt = !k ? '' : k === 'A' ? '瓶塞紧了：氧原子从空气里进到铜粉里，<b>一个也没出瓶</b>' : k === 'B' ? (S.B.sealed ? '瓶塞紧了：生成的二氧化碳<b>留在瓶里</b>' : '敞着口：二氧化碳带着碳原子、氧原子<b>从杯口跑掉了</b>') : '空气里的氧原子<b>加了进来</b>，白烟又<b>带走了</b>一部分';
+      const fk = k || (S.C.lit ? 'C' : S.B.tilted && S.B.k < 1 ? 'B' : S.at.A === 'heat' ? 'A' : null);      // 天平上的那一套；没有就是正在桌上反应的那一套
+      const atomTxt = !fk ? '' : fk === 'A' ? '瓶塞紧了：氧原子从空气里进到铜粉里，<b>一个也没出瓶</b>' : fk === 'B' ? (S.B.sealed ? '瓶塞紧了：生成的二氧化碳<b>留在瓶里</b>' : '敞着口：二氧化碳带着碳原子、氧原子<b>从杯口跑掉了</b>') : '空气里的氧原子<b>加了进来</b>，白烟又<b>带走了</b>一部分';
+      const fo = k || !fk ? new THREE.Vector3(BAL.x, 0, 0) : getObj(fk).position;
       balCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">电子天平</span></div><div class="cc-more"><div class="cc-obs"><b style="color:#1d2b23">${S.show.toFixed(2)}</b><small>g</small>${k && k === 'A' && S.A.T > 30 ? '<span class="cc-air">还热着</span>' : ''}</div></div></div>`).loc(group, BAL.x, PAN_Y, 0.06).show(!!k);
-      atomCard.text(atomTxt ? `<div class="cc"><div class="cc-t"><span class="cc-name">原子去哪儿了</span></div><div class="cc-more"><div class="cc-obs">${atomTxt}</div></div></div>` : '').loc(group, BAL.x, 0.1, 0).show(!!atomTxt && (k === 'A' ? S.A.k > 0.2 : k === 'B' ? S.B.tilted : k === 'C' ? S.C.burn > 0.05 : false));
+      atomCard.text(atomTxt ? `<div class="cc"><div class="cc-t"><span class="cc-name">原子去哪儿了</span></div><div class="cc-more"><div class="cc-obs">${atomTxt}</div></div></div>` : '').loc(group, fo.x, k || !fk ? 0.1 : fo.y + 0.1, fo.z).show(!!atomTxt && (fk === 'A' ? S.A.k > 0.2 : fk === 'B' ? S.B.tilted : fk === 'C' ? S.C.burn > 0.05 : false));
+      // 方案一：锥形瓶加热、冷却时的温度（放到天平上以后看天平的卡片）
+      flaskCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">锥形瓶里</span></div><div class="cc-more"><div class="cc-obs"><b>约 ${Math.round(S.A.T)}</b><small>℃</small></div></div></div>`).loc(group, fA.position.x, fA.position.y + 0.07, fA.position.z).show(S.A.hot && S.A.m2 == null && k !== 'A');
       bar.near(S.near);
     };
 
@@ -424,36 +484,38 @@ export default {
       const m = Number(S.show.toFixed(2));
       if (k === 'A') {
         const a = S.A;
-        if (a.m1 == null && a.k === 0) { a.m1 = m; status(`方案一，反应前：m₁ = <b>${m.toFixed(2)} g</b>。现在把锥形瓶拖到左边的<b>陶土网</b>上加热。`); }
+        if (a.m1 == null && a.k === 0) { a.m1 = m; status(`方案一，反应前：m₁ = <b>${m.toFixed(2)} g</b>。现在把锥形瓶拖到左边的<b>陶土网</b>上，点燃酒精灯加热。`); }
         else if (a.m1 == null && a.k > 0) { if (!S.noM1A) { S.noM1A = true; status('还没称反应前的质量就加热了——这一组的 m₁ 不知道了。点左边“更多”里的<b>全部重来</b>，先称、再加热。'); } }
         else if (a.k > 0.6 && a.m2 == null) {
-          if (a.T > 30) { if (!S.hotWarn) { S.hotWarn = true; status(`锥形瓶还热着，读数是 ${m.toFixed(2)} g——比反应前少了一点：鼓起的小气球排开空气，受到了浮力。课本要求<b>待装置冷却后</b>再称量。等它凉下来。`); } return; }
-          a.m2 = m; W.tbl.add(['方案一：铜粉在密闭的锥形瓶里加热', a.m1.toFixed(2), m.toFixed(2), Math.abs(m - a.m1) < 0.015 ? '<b>不变</b>' : (m - a.m1).toFixed(2)]);
+          if (a.T > 30) { if (!S.hotWarn) { S.hotWarn = true; status(`锥形瓶还热着（约 ${Math.round(a.T)} ℃），读数是 ${m.toFixed(2)} g${m < a.m1 - 0.005 ? '——比反应前少了一点：鼓起的小气球排开空气，受到了浮力' : ''}。课本要求<b>待装置冷却后</b>再称量。`); } return; }
+          a.m2 = m; log(['方案一：铜粉在密闭的锥形瓶里加热', a.m1.toFixed(2), m.toFixed(2), Math.abs(m - a.m1) < 0.015 ? '<b>不变</b>' : (m - a.m1).toFixed(2)]);
           done('a'); status(`冷却后：m₂ = <b>${m.toFixed(2)} g</b>，和反应前<b>一样</b>。铜粉变黑了（生成了氧化铜），可总质量没变。`);
+          maybeAsk();
         }
       }
       if (k === 'B') {
         const b = S.B;
-        if (b.m1 == null && !b.tilted) { b.m1 = m; status(`反应前：m₁ = <b>${m.toFixed(2)} g</b>。现在<b>点一下</b>${b.sealed ? '锥形瓶' : '烧杯'}，让它倾斜，盐酸流进去。`); }
+        if (b.m1 == null && !b.tilted) { b.m1 = m; status(`反应前：m₁ = <b>${m.toFixed(2)} g</b>。把${b.sealed ? '锥形瓶' : '烧杯'}从天平上<b>取下来</b>，点一下它，让它倾斜，盐酸流进去。`); }
         else if (b.m1 != null && b.tilted && b.k >= 1 && b.m2 == null) {
           b.m2 = m; const d = m - b.m1;
-          W.tbl.add([b.sealed ? '实验 5-1：改在塞紧的锥形瓶里' : '实验 5-1：盐酸和碳酸钠（敞口烧杯）', b.m1.toFixed(2), m.toFixed(2), Math.abs(d) < 0.015 ? '<b>不变</b>' : `<b>少了 ${(-d).toFixed(2)} g</b>`]);
+          log([b.sealed ? '实验 5-1：改在塞紧的锥形瓶里' : '实验 5-1：盐酸和碳酸钠（敞口烧杯）', b.m1.toFixed(2), m.toFixed(2), Math.abs(d) < 0.015 ? '<b>不变</b>' : `<b>少了 ${(-d).toFixed(2)} g</b>`]);
           done('b'); far(); status(b.sealed ? '塞紧的锥形瓶里，反应前后读数<b>不变</b>。' : `反应后：m₂ = <b>${m.toFixed(2)} g</b>，比反应前<b>少了 ${(-d).toFixed(2)} g</b>。`);
           maybeAsk();
         }
       }
       if (k === 'C') {
         const c = S.C;
-        if (c.m1 == null && !c.lit && !c.done) { c.m1 = m; status(`镁条和陶土网：m₁ = <b>${m.toFixed(2)} g</b>。现在用<b>坩埚钳</b>夹起镁条，拖到右边的酒精灯上点燃。`); }
+        if (c.m1 == null && !c.lit && !c.done) { c.m1 = m; status(`镁条和陶土网：m₁ = <b>${m.toFixed(2)} g</b>。把陶土网<b>取下来</b>放在桌上；点燃右边的<b>酒精灯</b>，再用<b>坩埚钳</b>夹起镁条，伸到火焰上点燃。`); }
         else if (c.m1 != null && c.done && c.m2 == null) {
           c.m2 = m; const d = m - c.m1;
-          W.tbl.add(['实验 5-2：镁条燃烧（在陶土网上方）', c.m1.toFixed(2), m.toFixed(2), Math.abs(d) < 0.015 ? '<b>不变</b>' : d > 0 ? `<b>多了 ${d.toFixed(2)} g</b>` : `<b>少了 ${(-d).toFixed(2)} g</b>`]);
+          log(['实验 5-2：镁条燃烧（在陶土网上方）', c.m1.toFixed(2), m.toFixed(2), Math.abs(d) < 0.015 ? '<b>不变</b>' : d > 0 ? `<b>多了 ${d.toFixed(2)} g</b>` : `<b>少了 ${(-d).toFixed(2)} g</b>`]);
           done('c'); status(`燃烧后：m₂ = <b>${m.toFixed(2)} g</b>，${d > 0 ? '比反应前<b>重</b>了一点' : '比反应前<b>轻</b>了一点'}。`);
           maybeAsk();
         }
       }
     };
-    const maybeAsk = () => { if (bar.has('a') && bar.has('b') && bar.has('c') && W.q1.hidden && !bar.has('why')) { W.q1.hidden = false; far(); status('三组数据都有了。看看下面的记录，回答问题。'); } };
+    const log = (row) => { if (!S.demo) W?.tbl.add(row); };
+    const maybeAsk = () => { if (S.demo) return; if (bar.has('a') && bar.has('b') && bar.has('c') && W.q1.hidden && !bar.has('why')) { W.q1.hidden = false; far(); status('三组数据都有了。看看下面的记录，回答问题。'); } };
 
     return {
       group: root,
@@ -486,11 +548,15 @@ export default {
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'),
           buttons([
             { text: '方案一：放到天平上', ghost: true, onClick: () => A.put('A', 'bal') },
-            { text: '方案一：放到陶土网上加热', ghost: true, onClick: () => A.put('A', 'heat') },
-            { text: '方案一：拿下来冷却', ghost: true, onClick: () => A.put('A', 'home') },
+            { text: '方案一：放到陶土网上', ghost: true, onClick: () => A.put('A', 'heat') },
+            { text: '方案一：点燃 / 盖灭酒精灯', ghost: true, onClick: () => A.lamp1() },
+            { text: '方案一：拿下来', ghost: true, onClick: () => A.put('A', 'home') },
             { text: '实验 5-1：放到天平上', ghost: true, onClick: () => { if (S.on && S.on !== 'B') A.put(S.on, 'home'); A.put('B', 'bal'); } },
+            { text: '实验 5-1：拿下来', ghost: true, onClick: () => A.put('B', 'home') },
             { text: '实验 5-1：倾斜', ghost: true, onClick: () => A.tilt() },
             { text: '实验 5-2：放到天平上', ghost: true, onClick: () => { if (S.on && S.on !== 'C') A.put(S.on, 'home'); A.put('C', 'bal'); } },
+            { text: '实验 5-2：拿下来', ghost: true, onClick: () => A.put('C', 'home') },
+            { text: '实验 5-2：点燃 / 盖灭酒精灯', ghost: true, onClick: () => A.lamp2() },
             { text: '实验 5-2：点燃镁条', ghost: true, onClick: () => A.light() },
           ]).el,
           buttons([{ text: '全部重来（清空记录）', ghost: true, onClick: () => A.reset() }]).el);
@@ -505,19 +571,28 @@ export default {
       },
       update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); },
       dispose() { bar.dispose(); bubs.dispose(); smoke.dispose(); oP.dispose(); xP.dispose(); dispTex.dispose(); },
-      debug: { get S() { return S; }, A, bar, massOf, picks: { flaskA: fA.pick, beaker: bkPick, flaskB: fB.pick, net: netPick, tongs: tPick },
+      debug: { get S() { return S; }, A, bar, massOf, picks: { flaskA: fA.pick, beaker: bkPick, flaskB: fB.pick, net: netPick, tongs: tPick, lamp1: lampPick1, lamp2: lampPick2 },
         qa: qaFlow(drag, [
-          { name: '锥形瓶放到天平上', drag: fA.pick, to: PAN, wait: 2 },
-          { name: '放到陶土网上加热', drag: fA.pick, to: ON_NET, wait: 14 },
-          { name: '拿回天平上，等它冷却', drag: fA.pick, to: PAN, wait: 16 },
+          { name: '锥形瓶放到天平上', drag: fA.pick, to: PAN, wait: 3 },
+          { name: '放到陶土网上', drag: fA.pick, to: ON_NET },
+          { name: '点燃酒精灯，加热', tap: lampPick1, wait: 14 },
+          { name: '盖灭酒精灯，停止加热', tap: lampPick1, wait: 2 },
+          { name: '在陶土网上冷却到室温', run: () => {}, wait: 18 },
+          { name: '冷却后放到天平上', drag: fA.pick, to: PAN, wait: 3 },
           { name: '锥形瓶拿下来', drag: fA.pick, to: HOME.A },
-          { name: '烧杯放到天平上', drag: bkPick, to: PAN, wait: 2 },
+          { name: '烧杯放到天平上', drag: bkPick, to: PAN, wait: 3 },
+          { name: '取下烧杯', drag: bkPick, to: HOME.B },
           { name: '倾斜烧杯', tap: bkPick, wait: 10 },
+          { name: '再放到天平上', drag: bkPick, to: PAN, wait: 3 },
           { name: '烧杯拿下来', drag: bkPick, to: HOME.B },
-          { name: '陶土网放到天平上', drag: netPick, to: PAN, wait: 2 },
+          { name: '陶土网放到天平上', drag: netPick, to: PAN, wait: 3 },
+          { name: '取下陶土网', drag: netPick, to: HOME.C },
+          { name: '点燃酒精灯（实验 5-2）', tap: lampPick2, wait: 1 },
           { name: '夹起镁条', hold: tPick },
           { name: '伸到酒精灯火焰上', run: () => drag.items().find((x) => x.obj === tPick).onDrag(TONGS_AT_FLAME.clone()), wait: 1.5 },
-          { name: '松开（镁条在燃烧）', release: tPick, wait: 8 },
+          { name: '松开（镁条在燃烧）', release: tPick, wait: 6 },
+          { name: '盖灭酒精灯（实验 5-2）', tap: lampPick2, wait: 3 },
+          { name: '连同陶土网放到天平上', drag: netPick, to: PAN, wait: 3 },
           { name: '想一想 1', run: () => W.q1.querySelector('button').click() },
           { name: '想一想 2', run: () => W.q2.querySelector('button').click() },
           { name: '想一想 3', run: () => W.q3.querySelector('button').click() },

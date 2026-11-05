@@ -9,11 +9,12 @@ import { buttons, table } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
 import { textPlate } from './kit/props.js';
 import { Particles } from './kit/fx.js';
-import { glassTube, chemBeaker, reagentBottle, CHEM } from './kit/chem.js';
+import { glassTube, chemBeaker, glassMat, CHEM } from './kit/chem.js';
 import { water2, flame2, milky } from './kit/chemfx.js';
 import { microWorld, methaneScene } from './kit/microworld.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs } from './kit/chemlesson.js';
+import { bottleCap, homeLift } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -21,6 +22,18 @@ import { h } from '../ui/Panel.js';
 const JET = new THREE.Vector3(-0.02, 0.12, 0);
 const BK_HOME = new THREE.Vector3(0.07, 0, 0.05), LIME_HOME = new THREE.Vector3(0.12, 0, 0.03);
 const BR = 0.022, BH = 0.05;
+const LH = 0.05;                     // 石灰水细口瓶的高度（瓶底到瓶口）
+
+/** 细口瓶（液体试剂放在细口瓶里，课本上册第 17 页）：透明玻璃，装澄清石灰水，瓶塞塞着。原点在瓶底；.plug 瓶塞 */
+function limeBottle() {
+  const g = new THREE.Group();
+  const pts = [[0.0003, 0], [0.013, 0], [0.014, 0.003], [0.014, 0.032], [0.0075, 0.041], [0.005, 0.044], [0.005, LH]].map(([r, y]) => new THREE.Vector2(r, y));
+  const body = new THREE.Mesh(new THREE.LatheGeometry(pts, 28), glassMat({ opacity: 0.3 })); body.renderOrder = 9; g.add(body);
+  const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.0128, 0.0128, 0.024, 22), water2({ color: 0xe6f0f2, base: 0.35 })); liq.position.y = 0.0135; liq.renderOrder = 7; g.add(liq);
+  const plug = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0057, 0.005, 0.007, 16), paint(0xeef1f3)), { width: 0.5 }); plug.position.y = LH + 0.0025; g.add(plug);
+  g.plug = plug;
+  return g;
+}
 
 export default {
   id: 'methane',
@@ -69,14 +82,20 @@ export default {
     const milk = milky(bk.liq);
     const bkPick = new THREE.Mesh(new THREE.CylinderGeometry(BR + 0.004, BR + 0.004, BH, 10), new THREE.MeshBasicMaterial({ visible: false })); bkPick.position.y = BH / 2; bkPick.userData.pick = true; bk.add(bkPick);
     const PIV_HOME = BK_HOME.clone().add(new THREE.Vector3(0, BH / 2, 0)); piv.position.copy(PIV_HOME);
-    const lime = reagentBottle({ r: 0.013, h: 0.04, color: 0xe6f0f2 }); lime.position.copy(LIME_HOME); group.add(lime);
-    const limeLab = textPlate('澄清石灰水', { w: 0.026, h: 0.0075, color: '#23293a', bg: '#fffaf0', font: 'bold 70px "Songti SC", serif' }); limeLab.position.set(0, 0.022, 0.0135); lime.add(limeLab);
+    // 澄清石灰水装在细口瓶里。转轴在瓶口：倒的时候绕瓶口转，瓶口一直挨着烧杯口
+    const limePiv = new THREE.Group(), lime = limeBottle(); lime.position.y = -LH; limePiv.add(lime); group.add(limePiv);
+    const LIME_PIV = LIME_HOME.clone().add(new THREE.Vector3(0, LH, 0)); limePiv.position.copy(LIME_PIV);
+    const limeLab = textPlate('澄清石灰水', { w: 0.024, h: 0.0075, color: '#23293a', bg: '#fffaf0', font: 'bold 70px "Songti SC", serif' }); limeLab.position.set(0, 0.018, 0.0145); lime.add(limeLab);
     const limePick = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.05, 10), new THREE.MeshBasicMaterial({ visible: false })); limePick.position.y = 0.025; limePick.userData.pick = true; lime.add(limePick);
+    const limePlug = bottleCap(group, lime, lime.plug, { rest: LIME_HOME.clone().add(new THREE.Vector3(0.004, 0, 0.034)) });      // 瓶塞倒放在瓶前
+    // 倒石灰水的两个位置（瓶口）：POUR 瓶口挨着烧杯口（右边的杯沿）；HOVER 在它右上方，瓶子竖着时瓶底也高过杯沿
+    const L_POUR = BK_HOME.clone().add(new THREE.Vector3(BR - 0.0036, BH + 0.0057, 0)), L_HOVER = L_POUR.clone().add(new THREE.Vector3(0.012, 0.05, 0)), L_TILT = 1.9;
     const drops = new Particles({ max: 40, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: 0xe6f0f2, base: 0.5 }) }); group.add(drops.mesh);
     const card = tag('', 'cond'); card.px = [80, -60];
 
     // ================= 状态 =================
-    const fresh = () => ({ demo: false, lit: false, bkCarry: null, covered: 0, water: 0, co2: 0, up: false, lime: 0, limeCarry: null, shake: 0, lastX: null, turbid: 0, logged: {} });
+    // limePh：石灰水瓶在做什么（carry 拿着走 / tilt 在杯口上方斜过来 / down 落到瓶口挨着杯口 / pour 慢慢倒 / up 抬起来 / level 摆正）
+    const fresh = () => ({ demo: false, lit: false, bkCarry: null, covered: 0, water: 0, co2: 0, up: false, lime: 0, limeCarry: null, limePh: 'carry', shake: 0, lastX: null, turbid: 0, logged: {} });
     S = fresh();
 
     // 微观次元：钻进火焰里看，CH₄ 和 O₂ 拆成原子、重新组合成 CO₂ 和 H₂O
@@ -98,7 +117,7 @@ export default {
       },
       bkDrop() {
         S.bkCarry = null; S.lastX = null;
-        if (S.covered > 0 && !S.up && S.water > 0.4) { S.up = true; done('cover'); status('迅速把烧杯<b>倒过来</b>，放在桌上（二氧化碳比空气重，留在杯里）。把<b>澄清石灰水</b>倒进去一点，再按住烧杯左右晃（振荡）。'); }
+        if (S.covered > 0 && !S.up && S.water > 0.4) { S.up = true; done('cover'); status('迅速把烧杯<b>倒过来</b>，放在桌上（二氧化碳比空气重，留在杯里）。'); }
       },
       limeDrag(p) { if (!p) return; S.limeCarry = p.clone(); },
       limeDrop() { S.limeCarry = null; },
@@ -106,7 +125,7 @@ export default {
     };
     const drag = draggable(group, [
       { obj: bkPick, plane: 'xy', offset: 0, hint: () => (S.up ? (S.lime > 0.5 ? '按住，左右来回拖：振荡' : '') : '干燥的烧杯：倒扣着罩在火焰上方'), onStart: (p) => A.bkDrag(p), onDrag: (p) => A.bkDrag(p), onEnd: () => A.bkDrop() },
-      { obj: limePick, plane: 'xy', offset: 0, hint: () => (S.up && S.lime < 0.5 ? '澄清石灰水：拖到烧杯口倒一点' : ''), onStart: (p) => A.limeDrag(p), onDrag: (p) => A.limeDrag(p), onEnd: () => A.limeDrop() },
+      { obj: limePick, plane: 'xy', offset: LIME_HOME.z, hint: () => (S.up && S.lime < 0.5 ? '澄清石灰水：拖到烧杯口倒一点' : ''), onStart: (p) => A.limeDrag(p), onDrag: (p) => A.limeDrag(p), onEnd: () => A.limeDrop() },
     ], { taps: [{ obj: jetPick, hint: () => (S.lit ? '' : '点一下：点燃甲烷'), onTap: () => A.light() }], tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const over = () => JET.clone().add(new THREE.Vector3(0, 0.055, 0));
@@ -117,7 +136,7 @@ export default {
       steps: [
         { id: 'light', title: '点燃甲烷', todo: '点一下<b>尖嘴</b>，点燃甲烷。', target: () => jetPick },
         { id: 'cover', title: '罩干燥的烧杯', todo: '把<b>干燥的烧杯</b>倒扣着罩在火焰上方，过一会儿看内壁；然后松手（烧杯会倒过来放在桌上）。', target: () => (S.bkCarry ? null : piv) },
-        { id: 'lime', title: '注入澄清石灰水', todo: '把<b>澄清石灰水</b>拖到烧杯口，倒进去一点。', target: () => (S.limeCarry ? null : lime) },
+        { id: 'lime', title: '注入澄清石灰水', todo: '把<b>澄清石灰水</b>拖到烧杯口，倒进去一点。', target: () => (S.limeCarry ? null : limePiv) },
         { id: 'shake', title: '振荡', todo: '按住<b>烧杯</b>，左右来回拖（振荡），看石灰水。', target: () => (S.bkCarry ? null : piv) },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
       ],
@@ -126,12 +145,13 @@ export default {
           seal: '演示', label: '老师演示',
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { drops.clear(); mw.close(); } }),
           shots: [
-            { cap: '点燃从导管放出的甲烷（已验纯）：明亮的蓝色火焰。罩一个干燥的烧杯：内壁出现水雾。', dur: 8, cam: [[JET.x, 0.15, 0], [0.05, 0.2, 1], 0.26],
-              during: act.seq(act.tap(jetPick, 0.05), act.drag(bkPick, over, { t0: 0.2, t1: 0.4, release: 0.95 })) },
+            { cap: '点燃从导管放出的甲烷（已验纯）：明亮的蓝色火焰。罩一个干燥的烧杯：过一会儿，内壁出现水雾。', dur: 8, cam: [[JET.x, 0.15, 0], [0.05, 0.2, 1], 0.26],
+              during: act.seq(act.tap(jetPick, 0.05), act.drag(bkPick, over, { t0: 0.2, t1: 0.4, release: 1 })) },
+            // 烧杯在上一个镜头的最后一帧松手、倒过来；这个镜头一开始就拿石灰水（迅速）
+            { cap: '迅速把烧杯倒过来，注入少量澄清石灰水，振荡：石灰水变浑浊。', dur: 11, cam: [[BK_HOME.x + 0.02, 0.05, BK_HOME.z], [0.05, 0.3, 1], 0.26],
+              during: act.seq(act.path(limePick, [null, new THREE.Vector3(LIME_HOME.x, 0.11, LIME_HOME.z), limeTo()], { t0: 0.03, t1: 0.2, release: 0.43 }), act.wiggle(bkPick, { t0: 0.53, t1: 0.93, amp: 0.015, hz: 2.5, dur: 11 })) },
             { cap: '钻进火焰里看：一个 CH₄ 和两个 O₂ 拆成原子，碳原子进了 CO₂，氢原子进了 H₂O。', dur: 11, cam: [[MW_AT.x, MW_AT.y + 0.05, MW_AT.z], [0.05, 0.2, 1], 0.3], during: act.at(0.02, () => openMicro(true)) },
-            { cap: '迅速把烧杯倒过来，注入少量澄清石灰水，振荡：石灰水变浑浊。', enter: () => mw.close(), dur: 9, cam: [[BK_HOME.x, 0.05, BK_HOME.z], [0.05, 0.3, 1], 0.24],
-              during: act.seq(act.drag(limePick, limeTo, { t0: 0.05, t1: 0.3, release: 0.45 }), act.wiggle(bkPick, { t0: 0.5, t1: 0.95, amp: 0.015, hz: 2.5, dur: 9 })) },
-            { cap: '甲烷燃烧生成了水和二氧化碳：甲烷里含有氢元素和碳元素。演示完了，下面换你自己做。', dur: 4 },
+            { cap: '甲烷燃烧生成了水和二氧化碳：甲烷里含有氢元素和碳元素。演示完了，下面换你自己做。', enter: () => mw.close(), dur: 4 },
           ],
         },
       },
@@ -153,12 +173,32 @@ export default {
       } else { piv.position.lerp(PIV_HOME, 0.25); piv.rotation.z += (0 - piv.rotation.z) * 0.25; }
       mist.material.opacity = S.water * 0.5 * (S.lime > 0.5 ? 0.4 : 1);
       // 石灰水
-      if (S.limeCarry) {
-        const at = S.up && Math.abs(S.limeCarry.x - (BK_HOME.x + 0.02)) < 0.03 && S.limeCarry.y > BH;
-        lime.position.lerp(S.limeCarry.clone().add(new THREE.Vector3(0, -0.02, 0)), 0.4);
-        lime.rotation.z += ((at ? 1.9 : 0) - lime.rotation.z) * 0.2;
-        if (at && lime.rotation.z > 1.5 && S.lime < 1) { S.lime = Math.min(1, S.lime + h); if (Math.random() < h * 20) drops.spawn({ p: BK_HOME.clone().add(new THREE.Vector3(0.008, BH, 0)), v: new THREE.Vector3(0, -0.05, 0), size: 0.0012, life: 1 }); if (S.lime >= 1 && !bar.has('lime')) { done('lime'); status('注入了少量澄清石灰水。按住烧杯，左右来回拖：<b>振荡</b>。'); } }
-      } else { lime.position.lerp(LIME_HOME, 0.25); lime.rotation.z *= 0.8; }
+      // 拿起瓶子：瓶塞先拔下来倒放在桌上，拿开了瓶子才跟着手走。到了烧杯口上方：先在上方斜过来，再落下去让瓶口挨着杯沿，
+      // 慢慢倒进去少量；倒好了先抬起来再摆正。放回原处以后塞好瓶塞（课本上册第 17 页）
+      const held = !!S.limeCarry, lp = limePiv.position;
+      const atHome = !held && S.limePh === 'carry' && lp.distanceTo(LIME_PIV) < 0.0015 && Math.abs(limePiv.rotation.z) < 0.02;
+      limePlug.update(1 - Math.exp(-h * 10), !atHome);
+      const plugAway = lime.plug.parent === group && Math.hypot(lime.plug.position.x - lp.x, lime.plug.position.z - lp.z) > 0.012;
+      const aL = 1 - Math.exp(-h * 9), near = (p, d = 0.002) => lp.distanceTo(p) < d;
+      const overBk = held && S.up && Math.abs(S.limeCarry.x - (BK_HOME.x + 0.02)) < 0.03 && S.limeCarry.y > BH;
+      let goal = null, tilt = 0;
+      if (S.limePh === 'carry') {
+        if (overBk && S.lime < 1 && plugAway) S.limePh = 'tilt';
+        goal = !held ? null : !plugAway ? LIME_PIV : overBk ? L_HOVER : S.limeCarry.clone().add(new THREE.Vector3(0, LH - 0.025, 0));
+      }
+      if (S.limePh === 'tilt') { goal = L_HOVER; tilt = L_TILT; if (!overBk) S.limePh = 'level'; else if (limePiv.rotation.z > L_TILT - 0.1 && near(L_HOVER, 0.003)) S.limePh = 'down'; }
+      if (S.limePh === 'down') { goal = L_POUR; tilt = L_TILT; if (!overBk) S.limePh = 'up'; else if (near(L_POUR)) S.limePh = 'pour'; }
+      if (S.limePh === 'pour') {
+        goal = L_POUR; tilt = L_TILT;
+        S.lime = Math.min(1, S.lime + h / 1.6);
+        if (Math.random() < h * 22) { limePiv.updateMatrixWorld(true); const m = group.worldToLocal(lime.localToWorld(new THREE.Vector3(-0.0045, LH, 0))); drops.spawn({ p: m, v: new THREE.Vector3(-0.01, -0.04, 0), size: 0.0011, life: 1 }); }
+        if (S.lime >= 1 && !bar.has('lime')) { done('lime'); status('注入了少量澄清石灰水。按住烧杯，左右来回拖：<b>振荡</b>。'); }
+        if (S.lime >= 1 || !overBk) S.limePh = 'up';
+      }
+      if (S.limePh === 'up') { goal = L_HOVER; tilt = L_TILT; if (near(L_HOVER, 0.003)) S.limePh = 'level'; }
+      if (S.limePh === 'level') { goal = L_HOVER; tilt = 0; if (Math.abs(limePiv.rotation.z) < 0.05) S.limePh = 'carry'; }
+      if (goal) lp.lerp(goal, aL); else homeLift(limePiv, LIME_PIV, aL);
+      limePiv.rotation.z += (tilt - limePiv.rotation.z) * Math.min(1, h * (S.limePh === 'pour' || S.limePh === 'down' ? 3 : 5));
       drops.update(h, (p, d) => { p.v.y -= 0.5 * d; p.p.addScaledVector(p.v, d); return p.p.y > 0.008; });
       bk.setLevel(S.lime * 0.008);
       // 振荡：二氧化碳和石灰水反应
@@ -221,7 +261,7 @@ export default {
           { name: '罩上', run: () => A.bkDrag(over()), wait: 2.5 },
           { name: '松手倒过来', release: bkPick, wait: 0.8 },
           { name: '拿起石灰水', hold: limePick },
-          { name: '倒', run: () => A.limeDrag(limeTo()), wait: 1.5 },
+          { name: '倒', run: () => A.limeDrag(limeTo()), wait: 3 },
           { name: '放下石灰水', release: limePick, wait: 0.3 },
           { name: '按住烧杯', hold: bkPick },
           ...Array.from({ length: 10 }, (_, j) => ({ name: `振荡 ${j + 1}`, run: () => A.bkDrag(BK_HOME.clone().add(new THREE.Vector3(j % 2 ? 0.015 : -0.015, 0.03, 0))), wait: 0.2 })),

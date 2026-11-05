@@ -13,6 +13,7 @@ import { testTube, glassMat, CHEM } from './kit/chem.js';
 import { water2 } from './kit/chemfx.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs } from './kit/chemlesson.js';
+import { bottleCap } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -70,7 +71,7 @@ export default {
       return Object.assign(g, { grain, liq, pick });
     });
     const MOUTH = (k) => new THREE.Vector3(XS[k], T_Y + T_LEN, 0);
-    // 两个细口瓶（水、汽油）——转轴在瓶口
+    // 两个细口瓶（水、汽油）——转轴在瓶口；瓶塞塞着，倒的时候拿下来倒放在瓶前的桌上，放回原处后再塞好（课本上册第 17 页）
     const BH = 0.06, bottles = {};
     for (const nm of ['水', '汽油']) {
       const piv = new THREE.Group(); group.add(piv);
@@ -79,9 +80,13 @@ export default {
       const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.0145, 0.0145, 0.028, 22), water2({ color: LIQ0[nm], base: 0.35 })); liq.position.y = 0.016; liq.renderOrder = 7; b.add(liq);
       const lab = textPlate(nm, { w: nm === '水' ? 0.01 : 0.016, h: 0.0085, color: '#23293a', bg: '#fffaf0', font: 'bold 96px "Songti SC", serif' }); lab.position.set(0, 0.024, 0.0163); b.add(lab);
       const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, BH, 10), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = BH / 2; pick.userData.pick = true; b.add(pick);
-      piv.HOME = BOT[nm].clone().add(new THREE.Vector3(0, BH, 0)); piv.position.copy(piv.HOME); piv.pick = pick;
+      const plug = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0062, 0.0055, 0.008, 16), paint(0xeef1f3)), { width: 0.5 }); plug.position.y = BH + 0.003; b.add(plug);
+      piv.HOME = BOT[nm].clone().add(new THREE.Vector3(0, BH, 0)); piv.position.copy(piv.HOME); piv.pick = pick; piv.plug = plug;
+      piv.cap = bottleCap(group, b, plug, { rest: BOT[nm].clone().add(new THREE.Vector3(0, 0, 0.036)) });
       bottles[nm] = piv;
     }
+    // 瓶塞拔出来、挪开了（离瓶口 1.2 cm 以上）：瓶子这才跟着手走、才能倒
+    const plugClear = (piv) => piv.plug.parent === group && Math.hypot(piv.plug.position.x - piv.position.x, piv.plug.position.z - piv.position.z) > 0.012;
     const drops = new Particles({ max: 60, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: 0xe4eef2, base: 0.5 }) }); group.add(drops.mesh);
     const cards = XS.map(() => { const c = tag('', 'cond'); c.px = [0, -64]; return c; });
 
@@ -112,9 +117,9 @@ export default {
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => drops.clear() }),
           shots: [
             { cap: '两支试管各加一小粒碘，两支各加一小粒高锰酸钾。往第 1、3 支加 5 mL 水。', dur: 7, cam: [[0.02, 0.08, 0], [0.05, 0.22, 1], 0.36],
-              during: act.seq(act.drag(bottles['水'].pick, pourAt(0), { t0: 0.04, t1: 0.25, release: 0.45 }), act.drag(bottles['水'].pick, pourAt(2), { t0: 0.5, t1: 0.7, release: 0.92 })) },
+              during: act.seq(act.drag(bottles['水'].pick, pourAt(0), { t0: 0.04, t1: 0.25, release: 0.48 }), act.drag(bottles['水'].pick, pourAt(2), { t0: 0.52, t1: 0.72, release: 0.96 })) },
             { cap: '往第 2、4 支加 5 mL 汽油。', dur: 7, cam: [[0.02, 0.08, 0], [0.05, 0.22, 1], 0.36],
-              during: act.seq(act.drag(bottles['汽油'].pick, pourAt(1), { t0: 0.04, t1: 0.25, release: 0.45 }), act.drag(bottles['汽油'].pick, pourAt(3), { t0: 0.5, t1: 0.7, release: 0.92 })) },
+              during: act.seq(act.drag(bottles['汽油'].pick, pourAt(1), { t0: 0.04, t1: 0.25, release: 0.48 }), act.drag(bottles['汽油'].pick, pourAt(3), { t0: 0.52, t1: 0.72, release: 0.96 })) },
             { cap: '振荡：碘溶于汽油（紫红色），几乎不溶于水；高锰酸钾溶于水（紫色），几乎不溶于汽油。演示完了，下面换你自己做。', dur: 8, cam: [[0, 0.06, 0], [0.05, 0.2, 1], 0.3], during: act.seq(...[0, 1, 2, 3].map((k) => act.tap(tubes[k].pick, 0.05 + k * 0.1))) },
           ],
         },
@@ -125,13 +130,18 @@ export default {
     const step = (h, t) => {
       for (const nm of ['水', '汽油']) {
         const piv = bottles[nm];
-        if (S.carry && S.carryN === nm) {
+        // 瓶塞：拿起瓶子时拔下来倒放在桌上；瓶子放回原处、摆正以后再塞好
+        const held = S.carry && S.carryN === nm, atHome = !held && piv.position.distanceTo(piv.HOME) < 0.0015 && Math.abs(piv.rotation.z) < 0.02;
+        piv.cap.update(1 - Math.exp(-h * 10), !atHome);
+        if (held && !plugClear(piv)) { piv.position.lerp(piv.HOME, 0.25); piv.rotation.z *= 0.8; S.tilt *= 0.8; }          // 瓶塞还没拿开：瓶子先留在桌上
+        else if (held) {
           const mouth = S.carry.clone().add(new THREE.Vector3(0, BH - 0.03, 0));
           const k = XS.findIndex((x) => Math.abs(mouth.x - x) < 0.02 && Math.abs(mouth.y - (T_Y + T_LEN)) < 0.03);
           const ok = k >= 0 && S.t[k].v < 5 && (!S.t[k].solv || S.t[k].solv === nm);
           piv.position.lerp(ok ? MOUTH(k).add(S.tilt > 1.3 ? new THREE.Vector3(0.005, 0.004, 0) : new THREE.Vector3(0.014, 0.035, 0)) : k >= 0 ? MOUTH(k).add(new THREE.Vector3(0.014, 0.07, 0)) : mouth, 0.3);
           S.tilt += ((ok ? 1.85 : 0) - S.tilt) * Math.min(1, h * 4); piv.rotation.z = S.tilt;
-          if (ok && S.tilt > 1.5) { const T = S.t[k]; T.solv = nm; T.v = Math.min(5, T.v + 4 * h); if (Math.random() < h * 25) drops.spawn({ p: MOUTH(k).add(new THREE.Vector3(0.003, 0, 0)), v: new THREE.Vector3(0, -0.05, 0), size: 0.0011, life: 0.8 }); if (S.t.every((x, j) => x.v >= 4.9 && x.solv === SOLV[j])) done('add'); }
+          // 瓶口真到了这支试管口才倒（拿着从别的试管上方经过时不倒）
+          if (ok && S.tilt > 1.5 && piv.position.distanceTo(MOUTH(k).add(new THREE.Vector3(0.005, 0.004, 0))) < 0.005) { const T = S.t[k]; T.solv = nm; T.v = Math.min(5, T.v + 4 * h); if (Math.random() < h * 25) drops.spawn({ p: MOUTH(k).add(new THREE.Vector3(0.003, 0, 0)), v: new THREE.Vector3(0, -0.05, 0), size: 0.0011, life: 0.8 }); if (S.t.every((x, j) => x.v >= 4.9 && x.solv === SOLV[j])) done('add'); }
         } else { piv.position.lerp(piv.HOME, 0.25); if (S.carryN !== nm || !S.carry) { piv.rotation.z *= 0.8; } }
       }
       if (!S.carry) S.tilt *= 0.8;
@@ -193,7 +203,7 @@ export default {
       },
       update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); },
       dispose() { bar.dispose(); drops.dispose(); },
-      debug: { get S() { return S; }, A, bar, picks: { w: bottles['水'].pick, g: bottles['汽油'].pick },
+      debug: { get S() { return S; }, A, bar, picks: { w: bottles['水'].pick, g: bottles['汽油'].pick }, plugW: bottles['水'].plug, plugG: bottles['汽油'].plug,
         qa: qaFlow(drag, [
           ...[[0, '水'], [2, '水'], [1, '汽油'], [3, '汽油']].flatMap(([k, nm]) => [{ name: `拿${nm} ${k}`, hold: bottles[nm].pick }, { name: `倒 ${k}`, run: () => A.bDrag(nm, pourAt(k)()), wait: 2.2 }, { name: `放 ${k}`, release: bottles[nm].pick, wait: 0.4 }]),
           ...[0, 1, 2, 3].map((k) => ({ name: `振荡 ${k}`, tap: tubes[k].pick, wait: 0.3 })),

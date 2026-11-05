@@ -27,10 +27,10 @@ function pageCrop(book, page, [x0, y0, x1, y1]) {
   const el = h('div', { class: 'page-crop', title: '课本原文' });
   Object.assign(el.style, {
     aspectRatio: `${x1 - x0} / ${y1 - y0}`,
-    backgroundImage: `url(${book.base}hi/${String(page).padStart(3, '0')}.jpg)`,
     backgroundSize: `${(book.PW / (x1 - x0)) * 100}% auto`,
     backgroundPosition: `${(x0 / (book.PW - (x1 - x0))) * 100}% ${(y0 / (PH - (y1 - y0))) * 100}%`,
   });
+  (book.pageUrl ? book.pageUrl(page) : Promise.resolve(`${book.base}hi/${String(page).padStart(3, '0')}.jpg`)).then((u) => { if (u) el.style.backgroundImage = `url(${u})`; });
   return el;
 }
 
@@ -95,7 +95,7 @@ export class Panel {
     const answer = h('div', { class: 'answer' },
       this.verdictEl,
       // 课本原文：标了在书页上的位置，就直接截取那一块书页（最忠实）；否则用文字
-      c.crops && book ? h('div', {}, c.crops.map((x) => pageCrop(book, x.page, x.rect))) : c.page != null && c.rect && book ? pageCrop(book, c.page, c.rect) : h('blockquote', {}, c.quote),
+      c.crops && book?.real !== false && book ? h('div', {}, c.crops.map((x) => pageCrop(book, x.page, x.rect))) : c.page != null && c.rect && book && book.real !== false ? pageCrop(book, c.page, c.rect) : h('blockquote', {}, c.quote),          // 没有真书页（占位页）时用我们排版的原文
       c.formula ? h('div', { class: 'formula', html: c.formula }) : null,
       c.why ? h('p', { class: 'why', html: c.why }) : null,
       h('p', { class: 'src' }, c.src),

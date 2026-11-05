@@ -16,6 +16,7 @@ import { bubble2, water2, flame2 } from './kit/chemfx.js';
 import { microWorld, metalScene } from './kit/microworld.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs } from './kit/chemlesson.js';
+import { bottleCap } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -115,7 +116,10 @@ export default {
     const bottles = {};
     // 转轴放在瓶口：倒的时候绕瓶口转，瓶口一直对着试管口
     const BH = 0.068, HOME = (a) => BOT[a].clone().add(new THREE.Vector3(0, BH, 0));
-    for (const a of ['HCl', 'H2SO4']) { const b = acidBottle(ACIDNAME[a]), piv = new THREE.Group(); b.position.y = -BH; piv.add(b); piv.pick = b.pick; piv.position.copy(HOME(a)); group.add(piv); bottles[a] = piv; }
+    for (const a of ['HCl', 'H2SO4']) {
+      const b = acidBottle(ACIDNAME[a]), piv = new THREE.Group(); b.position.y = -BH; piv.add(b); piv.pick = b.pick; piv.bottle = b; piv.stopper = b.stopper; piv.position.copy(HOME(a)); group.add(piv); bottles[a] = piv;
+      piv.cap = bottleCap(group, b, b.stopper, { rest: BOT[a].clone().add(new THREE.Vector3(0, 0, 0.034)) });      // 瓶塞拔下来倒放在瓶前的桌上（课本上册第 17 页）
+    }
     const stick = splint({ len: 0.1 });
     const stickPick = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.11, 0.02), new THREE.MeshBasicMaterial({ visible: false })); stickPick.position.y = 0.05; stickPick.userData.pick = true; stick.add(stickPick);
     stick.position.copy(STICK_HOME); stick.rotation.z = Math.PI / 2; group.add(stick);
@@ -126,14 +130,15 @@ export default {
 
     // ================= 状态 =================
     const freshTube = () => ({ acid: null, vol: 0, metal: 1, h2: 0, rate: 0, heat: 0, green: 0, top: 0, logged: false, pop: 0 });
-    const fresh = () => ({ demo: false, acid: 'HCl', t: METALS.map(freshTube), carry: null, carryAt: null, tilt: 0, pourInto: -1, stickCarry: null, test: null, round: 1, popped: { HCl: false, H2SO4: false } });
+    // pour：正在用的那瓶酸在做什么（carry 拿着走 / tilt 到试管口正前方斜过来 / in 往里挪，瓶口挨着试管口 / pour 慢慢倒 / out 退回前面 / level 摆正），k 是哪支试管
+    const fresh = () => ({ demo: false, acid: 'HCl', t: METALS.map(freshTube), carry: null, pour: { ph: 'carry', k: -1 }, stickCarry: null, test: null, round: 1, popped: { HCl: false, H2SO4: false } });
     S = fresh();
 
     // ================= 操作 =================
     const A = {
       bottleDrag(p) { if (!p) return; S.carry = p.clone(); },
-      bottleDrop() { S.carry = null; S.pourInto = -1; },
-      stickDrag(p) { if (!p) return; S.stickCarry = new THREE.Vector3(p.x, Math.max(0.03, p.y), 0); },
+      bottleDrop() { S.carry = null; },
+      stickDrag(p) { if (!p) return; S.stickCarry = new THREE.Vector3(p.x, Math.max(0.03, p.y), p.z ?? 0); },
       stickDrop() {
         const p = S.stickCarry; S.stickCarry = null; if (!p) return;
         const k = XS.findIndex((x) => Math.abs(p.x - x) < 0.018 && Math.abs(p.y - (T_Y + T_LEN + 0.01)) < 0.03);
@@ -145,10 +150,10 @@ export default {
           T.pop = 1; T.top = 0; sfx.clink({ freq: 520, gain: 0.12 });
           status(`燃着的木条凑到${METALS[k].name}的试管口：<b>“噗”</b>的一声，冒出淡蓝色的火焰——生成的气体是<b>氢气</b>。`);
           if (!S.popped[S.acid]) { S.popped[S.acid] = true; log([`燃着的木条放在${METALS[k].name}的试管口（${ACIDNAME[S.acid]}）`, '“噗”的一声，淡蓝色火焰', '生成的气体是<b>氢气</b>']); done(S.acid === 'HCl' ? 'test' : 'h2so4'); }
-        } else status(T.rate > 0 ? `${METALS[k].name}的试管口还没积够氢气，木条照常燃烧。等它多冒一会儿再试。` : `${METALS[k].name}的试管口没有气体冒出来，木条照常燃烧。`);
+        } else status(T.rate > 0 ? `燃着的木条放在${METALS[k].name}的试管口：冒出的气体很少，木条照常燃烧。` : `${METALS[k].name}的试管口没有气体冒出来，木条照常燃烧。`);
       },
       nextAcid() {
-        S.acid = 'H2SO4'; S.round = 2; S.t = METALS.map(freshTube); bubs.clear(); far();
+        S.acid = 'H2SO4'; S.round = 2; S.t = METALS.map(freshTube); S.pour = { ph: 'carry', k: -1 }; bubs.clear(); far();
         for (const t of tubes) { t.liq.visible = false; t.piece.scale.setScalar(1); t.flame.setOn(false); }
         status('换了四支新试管（同样的镁、锌、铁、铜）。这次倒<b>稀硫酸</b>。');
       },
@@ -156,7 +161,7 @@ export default {
         S = fresh(); bubs.clear(); drops.clear(); mw.close(); W?.tbl.clear(); far();
         for (const t of tubes) { t.liq.visible = false; t.piece.scale.setScalar(1); }
         if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; W.again.hidden = true; }
-        bar.undo('acid', 'test', 'h2so4', 'why');
+        bar.undo('mg', 'test', 'acid', 'h2so4', 'why');
         status('全部重新摆好了，记录也清空了。');
       },
     };
@@ -181,15 +186,19 @@ export default {
     };
     mw.onClose = () => { if (!bar.playing) back(); };
     const pourAt = (k) => () => new THREE.Vector3(XS[k] + 0.004, T_Y + T_LEN - (BH - 0.035) + 0.004, BOT[S.acid].z);
+    // 演示里拿瓶子的路线（手的位置，瓶口在手上方 BH - 0.035；瓶子一直在试管那一排的前面）：先在原处竖着举起来，挪到这支试管前面，再到试管口的高度
+    const handUp = (a) => () => new THREE.Vector3(BOT[a].x, 0.12, BOT[a].z), handOver = (k) => () => new THREE.Vector3(XS[k] + 0.004, 0.12, BOT[S.acid].z);
     const stickAt = (k) => () => new THREE.Vector3(XS[k] + 0.004, T_Y + T_LEN + 0.008, 0);
     const nextEmpty = () => S.t.findIndex((T) => !T.full);
 
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'acid', title: '加入稀盐酸', todo: '把<b>稀盐酸</b>拖到每支试管口，各倒 5 mL。看四支试管。', target: () => (S.carry ? null : bottles.HCl) },
-        { id: 'test', title: '检验气体', todo: '把燃着的<b>木条</b>放在冒气泡最多的试管口。', target: () => (S.stickCarry ? null : stick) },
-        { id: 'h2so4', title: '换稀硫酸', todo: '在左边点“换稀硫酸再做一遍”，用<b>稀硫酸</b>做一遍，同样用木条检验。', target: () => (S.acid === 'H2SO4' && !S.carry ? (nextEmpty() >= 0 ? bottles.H2SO4 : stick) : null) },
+        { id: 'mg', title: '镁加稀盐酸', todo: '把<b>稀盐酸</b>拖到<b>镁</b>的试管口，倒 5 mL。', target: () => (S.carry ? null : bottles.HCl) },
+        { id: 'test', title: '检验气体', todo: '立即把燃着的<b>木条</b>放在镁的试管口，观察现象，判断生成了什么气体。', target: () => (S.stickCarry ? null : stick) },
+        { id: 'acid', title: '锌、铁、铜加稀盐酸', todo: '再把<b>稀盐酸</b>分别倒进锌、铁、铜的试管里，各 5 mL。观察现象。', target: () => (S.carry ? null : bottles.HCl) },
+        { id: 'h2so4', title: '换稀硫酸', todo: '在左边点“换稀硫酸再做一遍”，用<b>稀硫酸</b>按同样的步骤做：先给镁加 5 mL，立即用燃着的木条检验，再给锌、铁、铜各加 5 mL。',
+          target: () => (S.acid !== 'H2SO4' || S.carry || S.stickCarry ? null : !S.t[0].full ? bottles.H2SO4 : !S.popped.H2SO4 ? stick : nextEmpty() >= 0 ? bottles.H2SO4 : null) },
         { id: 'why', title: '想一想', todo: '哪些金属能和酸反应？在左边作答。' },
       ],
       reels: {
@@ -197,14 +206,19 @@ export default {
           seal: '演示', label: '老师演示',
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { bubs.clear(); drops.clear(); mw.close(); for (const t of tubes) { t.liq.visible = false; t.piece.scale.setScalar(1); t.flame.setOn(false); } stick.setState('none'); } }),
           shots: [
-            { cap: '四支试管里分别放了少量镁、锌、铁、铜。拿起稀盐酸，往每支试管里倒 5 mL。', dur: 10, speed: 1, cam: [[0.02, 0.09, 0], [0.06, 0.25, 1], 0.36],
-              during: act.seq(...[0, 1, 2, 3].map((k) => act.drag(bottles.HCl.pick, pourAt(k), { t0: 0.04 + k * 0.23, t1: 0.04 + k * 0.23 + 0.12, release: 0.04 + k * 0.23 + 0.2 }))) },
-            { cap: '镁剧烈地冒气泡，试管发烫；锌较快；铁很慢；铜不反应。', dur: 5, speed: 2, cam: [[0, 0.06, 0], [0.06, 0.22, 1], 0.3] },
+            // (1) 镁：拿起稀盐酸（瓶塞倒放在桌上），从试管那一排的前面挪到镁的试管口，倒 5 mL，放回原处、塞好瓶塞
+            { cap: '在试管里放入少量镁，加入 5 mL 稀盐酸：镁剧烈反应，冒出大量气泡。', dur: 7.2, speed: 1, cam: [[0.02, 0.09, 0], [0.06, 0.25, 1], 0.36],
+              during: act.path(bottles.HCl.pick, [null, handUp('HCl'), handOver(0), pourAt(0)], { t0: 0.03, t1: 0.32, release: 0.83 }) },
+            // 紧接着：燃着的木条从前面举高、绕到镁的试管口上方，再放到试管口
+            { cap: '立即把燃着的木条放在试管口：“噗”的一声，淡蓝色火焰——生成的气体是氢气。', dur: 5, cam: [[XS[0], 0.12, 0], [0.06, 0.2, 1], 0.26],
+              during: act.path(stickPick, [STICK_HOME.clone().setY(0.03), new THREE.Vector3(STICK_HOME.x, 0.2, STICK_HOME.z), new THREE.Vector3(XS[0] + 0.004, 0.2, 0), stickAt(0)], { t0: 0.06, t1: 0.42, release: 0.46 }) },
             { cap: '钻进镁的表面看：镁原子变成 Mg²⁺ 进入溶液，两个 H⁺ 在表面结合成一个氢分子冒出去——这就是气泡。', dur: 8, cam: [[XS[0], T_Y + 0.06, 0], [0.05, 0.22, 1], 0.28], during: act.at(0.02, () => openMicro(0, true)) },
+            // 再给锌、铁、铜各倒 5 mL：一次拿着瓶子，挨个倒，倒完放回原处
+            { cap: '再分别向锌、铁、铜的试管里加入 5 mL 稀盐酸。', enter: () => mw.close(), dur: 12, speed: 1.5, cam: [[0.02, 0.09, 0], [0.06, 0.25, 1], 0.36],
+              during: act.path(bottles.HCl.pick, [null, handUp('HCl'), handOver(1), [pourAt(1), 0.22], [pourAt(2), 0.22], [pourAt(3), 0.22]], { t0: 0.02, t1: 0.9, release: 0.92 }) },
+            { cap: '锌冒气泡较快，铁很慢，铜不反应。', dur: 5, speed: 2, cam: [[0, 0.06, 0], [0.06, 0.22, 1], 0.3] },
             { cap: '再看铜的表面：H⁺ 撞上去又弹开了——铜排在氢后面，不和稀酸反应。', dur: 7, cam: [[XS[3], T_Y + 0.06, 0], [0.05, 0.22, 1], 0.28], during: act.at(0.02, () => openMicro(3, true)) },
-            { cap: '燃着的木条放在镁的试管口：“噗”的一声，淡蓝色火焰——生成的气体是氢气。', enter: () => mw.close(), dur: 5, cam: [[XS[0], 0.12, 0], [0.06, 0.2, 1], 0.24],
-              during: act.drag(stickPick, stickAt(0), { t0: 0.05, t1: 0.4, release: 0.45 }) },
-            { cap: '换成稀硫酸，现象一样：镁、锌、铁能反应，放出氢气；铜不反应。演示完了，下面换你自己做。', dur: 4, cam: [[0.02, 0.08, 0], [0.06, 0.25, 1], 0.4] },
+            { cap: '接下来用稀硫酸代替稀盐酸，照同样的步骤再做一遍——这一轮留给你自己做。演示完了，下面换你自己做。', enter: () => mw.close(), dur: 5, cam: [[0.02, 0.08, 0], [0.06, 0.25, 1], 0.4] },
           ],
         },
       },
@@ -213,27 +227,44 @@ export default {
 
     // ================= 每帧 =================
     const step = (h, t) => {
-      // 倒酸：瓶口到了某支试管口就倾斜着倒（约 1 秒倒满 5 mL）
-      const b = bottles[S.acid];
-      let at = -1;
-      if (S.carry) {
-        const mouth = S.carry.clone().add(new THREE.Vector3(0, BH - 0.035, 0));          // 手抓在瓶身中间，瓶口在手上方
-        at = XS.findIndex((x, k) => Math.abs(mouth.x - x) < 0.025 && Math.abs(mouth.y - (T_Y + T_LEN)) < 0.03 && !S.t[k].full);
-        // 先在试管口上方倾斜好，再落下去倒（竖着直接落下去，瓶身会插进试管和架子）
-        const over = XS.findIndex((x) => Math.abs(mouth.x - x) < 0.025 && Math.abs(mouth.y - (T_Y + T_LEN)) < 0.03);          // 手停在哪支试管上方（倒满了的也算）
-        const goal = at >= 0 ? MOUTH(at).add(S.tilt > 1.4 ? new THREE.Vector3(0.006, 0.004, 0) : new THREE.Vector3(0.016, 0.04, 0))
-          : over >= 0 ? MOUTH(over).add(new THREE.Vector3(0.016, 0.075, 0))        // 这支已经倒满了：瓶子竖起来悬在上方，不落下去
-          : mouth;
-        b.position.lerp(goal, at >= 0 || over >= 0 ? 0.25 : 0.5);
-      } else b.position.lerp(HOME(S.acid), 0.25);
-      for (const a of ['HCl', 'H2SO4']) if (a !== S.acid) { bottles[a].position.lerp(HOME(a), 0.25); bottles[a].rotation.z *= 0.8; }        // 不用的那瓶摆正放好
-      S.tilt += ((at >= 0 ? 1.9 : 0) - S.tilt) * Math.min(1, h * 5);
-      b.rotation.z = S.tilt;
-      if (at >= 0 && S.tilt > 1.4) {
-        const T = S.t[at];
-        T.vol = Math.min(V_ACID, T.vol + 6 * h); T.acid = S.acid;
-        if (Math.random() < h * 25) drops.spawn({ p: MOUTH(at).add(new THREE.Vector3(0.004, 0.004, 0)), v: new THREE.Vector3(0, -0.05, 0), size: 0.0012, life: 0.6 });
-        if (T.vol >= V_ACID && !T.full) { T.full = true; status(`${METALS[at].name}的试管里倒了 5 mL ${ACIDNAME[S.acid]}。${nextEmpty() >= 0 ? '接着倒下一支。' : '四支都倒好了——看看哪支冒气泡。'}`); if (nextEmpty() < 0 && S.acid === 'HCl') done('acid'); }
+      // 倒酸（转轴在瓶口）：拿起瓶子时瓶塞先拔下来倒放在桌上，拿开了瓶子才跟着手走（瓶子拿在试管那一排的前面）。手到了某支试管口：
+      // 瓶子在这支试管口的正前方斜过来，再往里挪，让瓶口挨着试管口，慢慢倒 5 mL；倒够了先退回前面，再摆正（课本上册第 17 页）。
+      // 松手以后先挪到原处上方，再放下去，塞好瓶塞。
+      const TILT = 2.1, RATE = 2.5;          // RATE：每秒倒 2.5 mL
+      const LIP = (k) => MOUTH(k).add(new THREE.Vector3(0.002, 0.005, 0)), FRONT = (k) => LIP(k).setZ(BOT[S.acid].z);
+      for (const a of ['HCl', 'H2SO4']) {
+        const b = bottles[a], bp = b.position, mine = S.acid === a, P = S.pour, held = mine && !!S.carry;
+        const idle = !mine || P.ph === 'carry';
+        b.cap.update(1 - Math.exp(-h * 10), !(idle && !held && bp.distanceTo(HOME(a)) < 0.0015 && Math.abs(b.rotation.z) < 0.02));
+        const plugAway = b.stopper.parent === group && Math.hypot(b.stopper.position.x - bp.x, b.stopper.position.z - bp.z) > 0.012;
+        const mouth = held ? S.carry.clone().add(new THREE.Vector3(0, BH - 0.035, 0)) : null;          // 手抓在瓶身中间，瓶口在手上方
+        const overK = mouth ? XS.findIndex((x) => Math.abs(mouth.x - x) < 0.025 && Math.abs(mouth.y - (T_Y + T_LEN)) < 0.03) : -1;
+        const a2 = 1 - Math.exp(-h * 9), near = (q, d) => bp.distanceTo(q) < d;
+        let goal = null, tilt = 0;
+        if (mine) {
+          if (P.ph === 'carry' && held && plugAway && overK >= 0 && !S.t[overK].full) { P.ph = 'tilt'; P.k = overK; }
+          if (P.ph === 'carry' && held) goal = plugAway ? mouth : HOME(a);
+          if (P.ph === 'tilt') { goal = FRONT(P.k); tilt = near(FRONT(P.k), 0.01) ? TILT : 0; if (overK !== P.k) P.ph = 'level'; else if (b.rotation.z > TILT - 0.08 && near(FRONT(P.k), 0.003)) P.ph = 'in'; }      // 竖着挪到试管口正前方，再斜过来
+          if (P.ph === 'in') { goal = LIP(P.k); tilt = TILT; if (overK !== P.k) P.ph = 'out'; else if (near(LIP(P.k), 0.0015)) P.ph = 'pour'; }
+          if (P.ph === 'pour') {
+            goal = LIP(P.k); tilt = TILT;
+            const T = S.t[P.k], k = P.k;
+            T.vol = Math.min(V_ACID, T.vol + RATE * h); T.acid = S.acid;
+            if (Math.random() < h * 25) { b.updateMatrixWorld(true); drops.spawn({ p: group.worldToLocal(b.bottle.localToWorld(new THREE.Vector3(-0.003, 0.0645, 0))), v: new THREE.Vector3(-0.005, -0.05, 0), size: 0.0012, life: 0.6 }); }
+            if (T.vol >= V_ACID && !T.full) {
+              T.full = true; P.ph = 'out';
+              status(`${METALS[k].name}的试管里倒了 5 mL ${ACIDNAME[S.acid]}。${nextEmpty() < 0 ? '四支都倒好了——看看哪支冒气泡。' : ''}`);
+              if (S.acid === 'HCl' && k === 0) done('mg');
+              if (S.acid === 'HCl' && nextEmpty() < 0) done('acid');
+            } else if (overK !== P.k) P.ph = 'out';
+          }
+          if (P.ph === 'out') { goal = FRONT(P.k); tilt = TILT; if (near(FRONT(P.k), 0.003)) P.ph = 'level'; }
+          if (P.ph === 'level') { goal = FRONT(P.k); tilt = 0; if (Math.abs(b.rotation.z) < 0.05) { P.ph = 'carry'; P.k = -1; } }
+        }
+        // 滑过去（一帧不超过 0.45 m/s）；放回原处：先水平挪到原处上方（不低于现在的高度），再放下去
+        if (!goal) { const H = HOME(a); goal = Math.hypot(bp.x - H.x, bp.z - H.z) > 0.004 ? new THREE.Vector3(H.x, Math.max(bp.y, H.y), H.z) : H; }
+        { const d = goal.clone().sub(bp).multiplyScalar(a2), m = 0.45 * h; if (d.length() > m) d.setLength(m); bp.add(d); }
+        b.rotation.z += (tilt - b.rotation.z) * Math.min(1, h * 5);
       }
       drops.update(h, (p, d) => { p.v.y -= 0.5 * d; p.p.addScaledVector(p.v, d); return p.p.y > T_Y + 0.01; });
       // 反应：放氢气、放热、铁的溶液变浅绿
@@ -329,14 +360,14 @@ export default {
         goBtns.forEach((g, i) => g.loc(group, XS[i], T_Y + LIQ_H + 0.014, 0.012).show(S.t[i].vol >= V_ACID && !mw.isOpen && !bar.playing));
       },
       dispose() { mw.dispose(); bar.dispose(); bubs.dispose(); drops.dispose(); },
-      debug: { get S() { return S; }, A, bar, picks: { hcl: bottles.HCl.pick, h2so4: bottles.H2SO4.pick, stick: stickPick, mg: tubes[0].pick, zn: tubes[1].pick },
+      debug: { get S() { return S; }, A, bar, picks: { hcl: bottles.HCl.pick, h2so4: bottles.H2SO4.pick, stick: stickPick, mg: tubes[0].pick, zn: tubes[1].pick }, plugHCl: bottles.HCl.stopper, plugH2SO4: bottles.H2SO4.stopper,
         qa: qaFlow(drag, [
-          ...[0, 1, 2, 3].map((k) => ({ name: `倒稀盐酸 ${k + 1}`, hold: bottles.HCl.pick })).flatMap((s, k) => [s, { name: `拖到试管 ${k + 1}`, run: () => A.bottleDrag(pourAt(k)()), wait: 1.4 }, { name: `松手 ${k + 1}`, release: bottles.HCl.pick, wait: 0.3 },
-            ...(k === 0 ? [{ name: '木条放在镁的试管口', drag: stickPick, to: stickAt(0), wait: 2 }] : [])]),
-          { name: '等一会儿', run: () => {}, wait: 3 },
-          { name: '换稀硫酸', run: () => W.again.click() },
-          ...[0, 1, 2, 3].map((k) => ({ name: `倒稀硫酸 ${k + 1}`, hold: bottles.H2SO4.pick })).flatMap((s, k) => [s, { name: `拖到 ${k + 1}`, run: () => A.bottleDrag(pourAt(k)()), wait: 1.4 }, { name: `放下 ${k + 1}`, release: bottles.H2SO4.pick, wait: 0.3 },
-            ...(k === 0 ? [{ name: '木条放在镁的试管口（硫酸）', drag: stickPick, to: stickAt(0), wait: 2 }] : [])]),
+          ...['HCl', 'H2SO4'].flatMap((a) => [
+            ...(a === 'H2SO4' ? [{ name: '等一会儿', run: () => {}, wait: 3 }, { name: '换稀硫酸', run: () => W.again.click() }] : []),
+            { name: `${a} 拿起瓶子 镁`, hold: bottles[a].pick }, { name: `${a} 倒进镁的试管`, run: () => A.bottleDrag(pourAt(0)()), wait: 3 }, { name: `${a} 放回 镁`, release: bottles[a].pick, wait: 0.3 },
+            { name: a === 'HCl' ? '木条放在镁的试管口' : '木条放在镁的试管口（硫酸）', drag: stickPick, to: stickAt(0), wait: 2 },
+            ...[1, 2, 3].flatMap((k) => [{ name: `${a} 拿起瓶子 ${k + 1}`, hold: bottles[a].pick }, { name: `${a} 倒进试管 ${k + 1}`, run: () => A.bottleDrag(pourAt(k)()), wait: 3 }, { name: `${a} 放回 ${k + 1}`, release: bottles[a].pick, wait: 0.3 }]),
+          ]),
           { name: '再等一会儿', run: () => {}, wait: 3 },
           { name: '答第一题', run: () => W.t1.el.querySelector('button').click() },
           { name: '答第二题', run: () => W.t2.el.querySelector('button').click() },

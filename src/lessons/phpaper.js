@@ -14,8 +14,8 @@ import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
 
-// 比色卡（pH 1–14），照课本图 10-2 的颜色
-const CHART = ['#c22b3c', '#d8343a', '#e1503c', '#ea7040', '#f08b3a', '#f2a63a', '#d8b43a', '#a9a640', '#7a9a48', '#4f7a52', '#3a4a5a', '#3a3456', '#4a2a5a', '#4a2850'];
+// 比色卡（pH 1–14），照课本图 10-2 的颜色：9 橄榄褐、10 深灰紫、11 近黑、12–14 紫色（从课本扫描图取色，饱和度比扫描略高一点，和 1–8 一样）
+const CHART = ['#c22b3c', '#d8343a', '#e1503c', '#ea7040', '#f08b3a', '#f2a63a', '#d8b43a', '#a9a640', '#81783d', '#463951', '#342d34', '#60305c', '#5c2b54', '#572a51'];
 const PAPER0 = '#f0c64a';
 const SOLS = [{ name: '白醋', pH: 3, x: -0.06 }, { name: '食盐水', pH: 7, x: 0 }, { name: '肥皂水', pH: 10, x: 0.06 }];
 const TILE = new THREE.Vector3(0, 0, 0.06), STRIP_X = [-0.035, 0, 0.035];
@@ -122,7 +122,10 @@ export default {
     ], { taps: [{ obj: chartPick, hint: '点一下：把试纸的颜色和标准比色卡比较，读出 pH', onTap: () => A.readChart() }], tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const P = (x, y, z) => new THREE.Vector3(x, y, z);
-    const route = (c, k) => [null, P(SOLS[c].x, 0.06, -0.02), P(SOLS[c].x, 0.01, -0.02), P(SOLS[c].x, 0.06, -0.02), P(TILE.x + STRIP_X[k], 0.03, TILE.z), P(TILE.x + STRIP_X[k], 0.006, TILE.z), P(TILE.x + STRIP_X[k], 0.03, TILE.z), P(WASH.x, 0.06, WASH.z), P(WASH.x, 0.01, WASH.z), P(WASH.x, 0.06, WASH.z), P(CLOTH.x, 0.015, CLOTH.z), P(CLOTH.x, 0.005, CLOTH.z)];
+    // 课本的顺序：蘸取 → 点到试纸上 → 立即和比色卡比较、读出 pH → 再在蒸馏水里洗净、用滤纸擦干，换下一种
+    const dipRoute = (c, k) => [null, P(SOLS[c].x, 0.06, -0.02), P(SOLS[c].x, 0.01, -0.02), P(SOLS[c].x, 0.06, -0.02), P(TILE.x + STRIP_X[k], 0.03, TILE.z), P(TILE.x + STRIP_X[k], 0.006, TILE.z), P(TILE.x + STRIP_X[k], 0.03, TILE.z)];
+    const washRoute = () => [() => (S.rodCarry ? S.rodCarry.clone() : rod.position.clone()), P(WASH.x, 0.06, WASH.z), P(WASH.x, 0.01, WASH.z), P(WASH.x, 0.06, WASH.z), P(CLOTH.x, 0.015, CLOTH.z), P(CLOTH.x, 0.005, CLOTH.z)];
+    const upto = (f, t) => (k) => { if (k <= t) f(k); };          // 只做到 k = t：玻璃棒还拿在手里，接下来交给后面的动作
 
     const bar = lessonBar({
       look, back, group,
@@ -135,7 +138,8 @@ export default {
           seal: '演示', label: '老师演示',
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar }),
           shots: SOLS.map((s, c) => ({ cap: c === 0 ? '用干燥、洁净的玻璃棒蘸取白醋，点到 pH 试纸上，和标准比色卡比较：pH 约为 3。洗净、擦干玻璃棒。' : c === 1 ? '同样测食盐水：pH 为 7。' : '再测肥皂水：pH 约为 10。演示完了，下面换你自己做。', dur: 9, cam: [[0.02, 0.03, 0.04], [0.04, 0.6, 1], 0.3],
-            during: act.seq(act.path(rodPick, route(c, c), { t0: 0.03, t1: 0.85, release: 0.87 }), act.tap(chartPick, 0.92)) })),
+            during: act.seq(upto(act.path(rodPick, dipRoute(c, c), { t0: 0.03, t1: 0.4, release: 2 }), 0.4), act.tap(chartPick, 0.45),
+              act.path(rodPick, washRoute(), { t0: 0.52, t1: 0.92, release: 0.94, start: false })) })),
         },
       },
     });
@@ -185,7 +189,10 @@ export default {
       dispose() { bar.dispose(); },
       debug: { get S() { return S; }, A, bar, picks: { rod: rodPick, chart: chartPick },
         qa: qaFlow(drag, [
-          ...[0, 1, 2].flatMap((c) => [{ name: `拿起玻璃棒 ${c}`, hold: rodPick }, ...route(c, c).slice(1).map((p, j) => ({ name: `走 ${c}-${j}`, run: () => A.rodDrag(p), wait: 0.15 })), { name: `放下 ${c}`, release: rodPick, wait: 0.3 }, { name: `读 ${c}`, tap: chartPick, wait: 0.3 }]),
+          ...[0, 1, 2].flatMap((c) => [
+            { name: `拿起玻璃棒 ${c}`, hold: rodPick }, ...dipRoute(c, c).slice(1).map((p, j) => ({ name: `蘸取、点试纸 ${c}-${j}`, run: () => A.rodDrag(p), wait: 0.15 })), { name: `放下 ${c}`, release: rodPick, wait: 0.3 },
+            { name: `读 ${c}`, tap: chartPick, wait: 0.3 },
+            { name: `再拿起玻璃棒 ${c}`, hold: rodPick }, ...washRoute().slice(1).map((p, j) => ({ name: `洗净、擦干 ${c}-${j}`, run: () => A.rodDrag(p), wait: 0.15 })), { name: `放下（洗净擦干）${c}`, release: rodPick, wait: 0.3 }]),
           { name: '答', run: () => W.t1.el.querySelector('button').click() },
         ]) },
     };

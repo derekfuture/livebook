@@ -200,7 +200,7 @@ export default {
         const t2 = think({ title: '想一想', ctx, status: (m) => ui.status(m),
           q: '刚开始放出的气体为什么不纯？',
           options: ['装置里原来有空气，刚放出的氢气混着这些空气', '刚开始锌粒放出的是氧气', '稀硫酸会挥发出来'],
-          wrong: ['锌和稀硫酸反应只生成氢气。', '看卡片：尖嘴放出的气体里，其余的是什么？'],
+          wrong: ['锌和稀硫酸反应放出的气体只有氢气。', '看卡片：尖嘴放出的气体里，其余的是什么？'],
           ok: '对：氢气要把装置里的空气赶干净才纯。所以要<b>验纯</b>，而且可能要验好几次。可以掀开结论看看。',
           onOk: () => { next.hidden = false; done('why'); } });
         const t1 = think({ title: '想一想', ctx, status: (m) => ui.status(m),

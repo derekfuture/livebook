@@ -139,6 +139,8 @@ export default {
     const tPink = new THREE.Mesh(new THREE.CylinderGeometry(T_R - 0.0009, T_R - 0.0009, 1, 18), new THREE.MeshBasicMaterial({ color: new THREE.Color(`rgb(${PINK.join(',')})`), transparent: true, opacity: 0, depthWrite: false })); tPink.geometry.translate(0, 0.5, 0); tPink.position.y = 0.002; tPink.renderOrder = 8; tube.add(tPink);
     const T_MOUTH = TUBE.clone().add(new THREE.Vector3(0, T_LEN, 0));
     const tubeLevel = (mL) => 0.002 + (mL * 1e-6) / (Math.PI * (T_R - 0.0006) ** 2);
+    // 烧杯 A 往试管里倒：杯嘴（aHolder 的原点）从试管口左上方 A_SAFE 一边斜过来一边挪到 A_POUR——杯嘴挨着试管口，杯身不碰试管
+    const A_SAFE = T_MOUTH.clone().add(new THREE.Vector3(-0.013, 0.019, 0)), A_POUR = T_MOUTH.clone().add(new THREE.Vector3(-0.004, 0.0005, 0)), A_TILT = 1.25;
 
     // ================= 滴瓶（酚酞溶液、浓氨水）和滴管 =================
     const dropBottle = (pos, { brown, text }) => {
@@ -269,7 +271,7 @@ export default {
         if (S.tube.vol) return status('试管里已经有溶液了。');
         if (!S.A.ind) return status('A 里还没有滴酚酞。先往 A 里滴 5~6 滴<b>酚酞溶液</b>。');
         if (!S.A.stirred) return status('先用<b>玻璃棒</b>把 A 搅拌均匀，再取溶液。');
-        S.anim = { k: 'pourA', t: 0 };
+        S.anim = { k: 'pourA', t: 0, p0: aHolder.position.clone(), r0: aHolder.rotation.z };      // 从松手的地方开始
         near(TUBE.clone().setY(0.09), [0.05, 0.38, 1], 0.34);
       },
       pourB() {
@@ -404,10 +406,14 @@ export default {
         if (Math.hypot(rod.position.x - AX, rod.position.z) < RI && rod.position.y < BH + 0.005) glide(rod, new THREE.Vector3(rod.position.x, BH + 0.012, rod.position.z), 0, 0, 0, 0.25);
         else { carryHome(rod, ROD_HOME, 0.2); glide(rod, null, 0, 0, Math.PI / 2, 0.15); }
       }
-      // 烧杯 A：倒进试管
+      // 烧杯 A：倒进试管——先到试管口左上方，再一边斜过来一边挪过去，杯嘴挨着试管口倒；倒完照原路直起来，再拿回去
       if (dragging !== 'A') {
-        if (an?.k === 'pourA') { const k = clamp(an.t / 0.5, 0, 1) * clamp((2.0 - an.t) / 0.5, 0, 1); aHolder.position.lerp(T_MOUTH.clone().add(new THREE.Vector3(-0.003, 0.008, 0)), 0.25); aHolder.rotation.z += (-1.25 * k - aHolder.rotation.z) * 0.3; }
-        else { aHolder.position.lerp(A_HOME, 0.3); aHolder.rotation.z *= 0.7; }
+        if (an?.k === 'pourA') {
+          const t = an.t, s = t < 0.35 ? 0.4 : t < 0.8 ? 0.4 + 0.6 * ease((t - 0.35) / 0.45) : t < 1.7 ? 1 : 1 - 0.6 * ease((t - 1.7) / 0.45);
+          const P = A_SAFE.clone().lerp(A_POUR, s), rz = -A_TILT * s;
+          if (t < 0.35) { const e = ease(t / 0.35); aHolder.position.lerpVectors(an.p0 || P, P, e); aHolder.rotation.z = (an.r0 ?? rz) + (rz - (an.r0 ?? rz)) * e; }
+          else { aHolder.position.copy(P); aHolder.rotation.z = rz; }
+        } else { aHolder.position.lerp(A_HOME, 0.3); aHolder.rotation.z *= 0.7; }
       }
       // 量筒：倒进 B
       if (dragging !== 'cyl') {
@@ -462,8 +468,8 @@ export default {
           } else if (S.A.abs) status('搅拌以后，液面的红色混进了整杯溶液：颜色变均匀了。');
         }
       } else if (an.k === 'pourA') {
-        if (an.t > 0.6 && an.t < 1.5) { stream.visible = true; stream.position.copy(T_MOUTH).add(new THREE.Vector3(0, 0.008, 0)); stream.scale.y = 0.008 + T_LEN - tubeLevel(S.tube.vol); const take = Math.min(h * 2.2, 2 - S.tube.vol); if (take > 0) { S.tube.vol += take; S.A.vol -= take; S.tube.ind = S.A.ind * 0.1; } }
-        if (an.t > 2.1) { S.anim = null; S.tube.vol = 2; S.A.vol = 18; far(); status('试管里有了约 2 mL A 中的溶液。把<b>浓氨水</b>的滴管拖到<b>试管</b>口，慢慢滴加，看颜色。'); }
+        if (an.t > 0.8 && an.t < 1.7) { stream.visible = true; stream.position.copy(T_MOUTH).add(new THREE.Vector3(-0.0025, 0.0005, 0)); stream.scale.y = 0.0005 + T_LEN - tubeLevel(S.tube.vol); const take = Math.min(h * 2.2, 2 - S.tube.vol); if (take > 0) { S.tube.vol += take; S.A.vol -= take; S.tube.ind = S.A.ind * 0.1; } }      // 从杯嘴沿着试管口流进去
+        if (an.t > 2.25) { S.anim = null; S.tube.vol = 2; S.A.vol = 18; far(); status('试管里有了约 2 mL A 中的溶液。把<b>浓氨水</b>的滴管拖到<b>试管</b>口，慢慢滴加，看颜色。'); }
       } else if (an.k === 'pourB') {
         const v0 = S.B.vol;
         if (an.t > 0.6 && an.t < 1.5) { stream.visible = true; stream.position.set(BX - 0.006 + 0.004, BH + 0.004, 0); stream.scale.y = BH + 0.004 - levelOf(S.B.vol); S.B.vol = Math.min(5, v0 + h * 5.6); }

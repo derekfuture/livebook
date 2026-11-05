@@ -83,6 +83,8 @@ export default {
     const stoneMat = paint(0x7d756b, { unique: true });
     const stone = hull(new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), stoneMat), 0.08);
     group.add(stone);
+    stone.geometry.computeBoundingBox();
+    const stoneBottom = -stone.geometry.boundingBox.min.y;
     const thread = new THREE.Mesh(new THREE.CylinderGeometry(0.0003, 0.0003, 1, 4), new THREE.MeshBasicMaterial({ color: 0x444444 }));
     thread.geometry.translate(0, 0.5, 0);
     group.add(thread);
@@ -106,8 +108,8 @@ export default {
       water.scale.y = Math.max(0.0005, ly - Y0 + RI * 0.99 * 0.35 * (0.98 + Math.cos(Math.PI * 0.82)));     // 水柱一直到凹液面的边沿（贴着筒壁的那一圈），中间最低处正好在读数位置
       men.position.y = ly + RI * 0.99 * 0.35 * 0.98;
       if (S.where === 'drag') stone.position.copy(S.dragPos);
-      else if (S.where === 'table') stone.position.set(-0.03, r * 0.72, 0.035);
-      else if (S.where === 'scale') stone.position.set(SX, 0.018 + r * 0.72, -0.005);
+      else if (S.where === 'table') stone.position.set(-0.03, r * 1.5 * stoneBottom + 0.001, 0.035);
+      else if (S.where === 'scale') stone.position.set(SX, 0.018 + r * 1.5 * stoneBottom + 0.001, -0.005);
       else stone.position.set(0, S.y, 0);
       thread.visible = S.where === 'in' || S.where === 'drag';
       thread.position.set(0, S.y + r * 1.5, 0); thread.scale.y = Math.max(0.001, H + 0.04 - (S.y + r * 1.5));

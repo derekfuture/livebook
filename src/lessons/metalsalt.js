@@ -234,7 +234,7 @@ export default {
           g.position.lerp(new THREE.Vector3(XS[w.tube], T_Y + 0.004, 0), 0.3); g.rotation.z += (0 - g.rotation.z) * 0.3;
         } else if (w.carry) { const q = w.carry.clone().add(new THREE.Vector3(0, -0.05, 0)); q.y = Math.max(0.002, q.y); g.position.lerp(q, 0.45); g.rotation.z += (0 - g.rotation.z) * 0.25; }        // 最低只到桌面
         else { g.position.lerp(W0.home, 0.2); g.rotation.z += (0 - g.rotation.z) * 0.2; }
-        if (W0.key === 'al' && w.polish >= 1 && !bar.has('sand')) { done('sand'); status('铝丝打磨好了，表面发亮。把它浸入<b>硫酸铜溶液</b>。'); }
+        if (W0.key === 'al' && w.polish >= 1 && !S.demo && !bar.has('sand')) { done('sand'); status('铝丝打磨好了，表面发亮。把它浸入<b>硫酸铜溶液</b>。'); }
         // 打磨过的铝丝发亮
         // 打磨过的铝丝发亮；表面盖上一层红色的铜以后变成红褐色
         if (W0.key === 'al') g.mat.color.setHex(0xc7ccd3).lerp(new THREE.Color(0xf2f5f8), w.polish).lerp(new THREE.Color(0xa8442c), w.depKind === 'cu' ? Math.min(1, w.dep * 1.3) : 0);

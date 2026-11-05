@@ -32,6 +32,7 @@ export default {
     // 平面镜（镜面和实验台板顶面同高：画的时候让镜面略微靠前，免得两者重合闪烁）
     const mirror = inked(new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.006, 0.16), [paint(0x9aa8b8), paint(0x9aa8b8), new THREE.MeshPhongMaterial({ color: 0xcfe3f2, shininess: 120, specular: 0xffffff, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }), paint(0x9aa8b8), paint(0x9aa8b8), paint(0x9aa8b8)]));
     mirror.position.y = -0.003;
+    mirror.userData.qaSupport = true;
     group.add(mirror);
 
     // 纸板（两半，各一张画布：量角刻度 + 笔迹）
@@ -106,7 +107,7 @@ export default {
       pen.position.set(start.x, start.y, 0.003);
       pen.rotation.z = Math.atan2(-start.y, -start.x);
       const outEnd = { x: -inSide * Math.sin(i) * R * 1.12, y: Math.cos(i) * R * 1.12 };
-      F.pivot.rotation.y = -S.fold * deg;
+      F.pivot.rotation.y = S.fold * deg;          // 向后折：纸板 NOF 绕 ON 往后（离开看的人）转
       const folded = S.fold > 2;
       const toW = (x, y) => new THREE.Vector3(x, y, 0.0015);
       // 入射光总在不动的那半张纸上能看到（除非反向时入射在 F 上且 F 折了）

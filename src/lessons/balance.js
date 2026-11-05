@@ -8,6 +8,8 @@ import { draggable, rayToLocal } from './kit/interact.js';
 
 const ARM = 0.09;                                  // 横梁半长
 const WEIGHTS = [100, 50, 20, 20, 10, 5];          // 砝码盒（g）
+const PAN_UP = 0.035, NEEDLE = 0.06;               // 托盘架高（托盘在横梁端上方多高）、指针长
+const NUT_C = 0.012, NUT_TRAVEL = 0.008, NUT_ROD = 0.026;     // 平衡螺母：中间位置离横梁端 12 mm，左右各走 8 mm（最靠里时刚好贴着横梁端），螺杆长 26 mm
 const DIV = 0.2;                                   // 标尺的分度值（g）
 const TICK = 0.1;                                  // 分度盘上一小格对应左右两盘相差多少克
 const THETA_PER_G = 0.024 / TICK;                  // 相差 1 g，横梁稳定后转多少（弧度），超过就碰到限位
@@ -44,11 +46,11 @@ export default {
     const dialTex = canvasTex(256, 128, (g, W, H) => {
       g.fillStyle = '#f6f4ec'; g.fillRect(0, 0, W, H);
       g.strokeStyle = '#1d2433'; g.lineWidth = 3;
-      const step = (0.065 * 0.024 / 0.05) * W;        // 指针长 6.5 cm，一格 = 相差 0.1 g 时指针尖移动的距离
+      const step = ((NEEDLE - 0.008) * 0.024 / 0.05) * W;        // 刻线在指针上离转轴约 5 cm 处：一格 = 相差 0.1 g 时指针在那里移动的距离
       for (let i = -15; i <= 15; i++) { const x = W / 2 + i * step; g.lineWidth = i === 0 ? 4 : i % 5 === 0 ? 3 : 2; g.beginPath(); g.moveTo(x, 10); g.lineTo(x, i === 0 ? 76 : i % 5 === 0 ? 58 : 40); g.stroke(); }
     });
     const dial = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.025), new THREE.MeshBasicMaterial({ map: dialTex }));
-    dial.position.set(0, 0.03, 0.036);
+    dial.position.set(0, 0.1 + NEEDLE - 0.008, 0.008); dial.rotation.z = Math.PI;        // 课本图 6.1-4：分度盘在横梁上方正中间，指针从下面指上来
     group.add(dial);
     // 横梁（可转动）
     const beam = new THREE.Group();
@@ -86,18 +88,23 @@ export default {
     rider.add(riderBox, riderEdge);
     rider.position.set(gToX(0), -0.012, 0.007);
     beam.add(rider);
-    const needle = new THREE.Mesh(new THREE.BoxGeometry(0.0016, 0.065, 0.001), new THREE.MeshBasicMaterial({ color: 0x1d2433 }));
-    needle.geometry.translate(0, -0.0325, 0);
-    needle.position.set(0, 0, 0.037);
+    const needle = new THREE.Mesh(new THREE.BoxGeometry(0.0016, NEEDLE, 0.001), new THREE.MeshBasicMaterial({ color: 0x1d2433 }));
+    needle.geometry.translate(0, NEEDLE / 2, 0);        // 指针固定在横梁中间，朝上，跟着横梁一起转：哪边重，指针就偏向哪边
+    needle.position.set(0, 0, 0.0095);
     beam.add(needle);
     const nuts = [];
-    for (const s of [-1, 1]) { const n = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.008, 10), paint(0xc9a347)), 0.001); n.rotation.z = Math.PI / 2; n.position.x = s * (ARM + 0.006); beam.add(n); nuts.push(n); }
-    // 两个托盘（挂在横梁两端，始终保持水平）
+    for (const s of [-1, 1]) {
+      // 横梁两端各伸出一小段螺杆，平衡螺母套在螺杆上左右旋动（不会旋进横梁里）
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0013, 0.0013, NUT_ROD, 8), paint(0xc8ced8)); rod.rotation.z = Math.PI / 2; rod.position.x = s * (ARM + NUT_ROD / 2); beam.add(rod);
+      const n = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.008, 10), paint(0xc9a347)), 0.001); n.rotation.z = Math.PI / 2; n.position.x = s * (ARM + NUT_C); beam.add(n); nuts.push(n);
+      const pk = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.014, 0.014), new THREE.MeshBasicMaterial({ visible: false })); pk.userData.pick = true; n.add(pk);       // 螺母只有 8 mm，加一圈看不见的拿取区
+    }
+    // 两个托盘：放在横梁两端的托盘架上（在横梁上方，始终保持水平；课本图 6.1-4）
     const pans = [-1, 1].map((s) => {
       const g = new THREE.Group();
       const pan = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.004, 32), paint(0xd5d9de)), 0.0012);
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.05, 8), paint(0x9aa3b2));
-      stem.position.y = -0.026;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, PAN_UP, 8), paint(0x9aa3b2));        // 托盘架：从横梁端竖直托起托盘
+      stem.position.y = -PAN_UP / 2;
       g.add(pan, stem);
       group.add(g);
       g.side = s;
@@ -177,7 +184,7 @@ export default {
         const g = Math.round(Math.max(0, Math.min(5, ((p.x - X0) / SPAN) * 5)) / DIV) * DIV;
         if (g !== S.rider) { S.rider = +g.toFixed(1); onRider?.(S.rider); }
       } },
-      ...nuts.map((n) => ({ obj: n, plane: 'xy', offset: 0, hint: '左右拖：旋动平衡螺母', onStart: (p) => { nut0 = p ? { x: p.x, v: S.nut } : null; }, onDrag: (p) => { if (nut0) A.nut?.(Math.round(Math.max(-1, Math.min(1, nut0.v + (p.x - nut0.x) / 0.1)) * 20) / 20); } })),     // 拧一下走 0.05（一小格的一半）
+      ...nuts.map((n) => ({ obj: n, plane: 'xy', offset: 0, hint: '左右拖：旋动平衡螺母', onStart: (p) => { nut0 = p ? { x: p.x, v: S.nut } : null; }, onDrag: (p) => { if (nut0) A.nut?.(Math.round(Math.max(-1, Math.min(1, nut0.v + (p.x - nut0.x) / 0.2)) * 20) / 20); } })),     // 拧一下走 0.05（一小格的一半）；拖 1 cm 走 0.05，拖得准
     ], { tip: tag('', 'pill') });
     const pickIn = (ray, objs) => { const hit = ray.intersectObjects(objs.filter((o) => o.visible), true)[0]; if (!hit) return null; for (let o = hit.object; o; o = o.parent) if (objs.includes(o)) return o; return null; };
     const tablePtr = draggable(group, [], { tip: tag('', 'pill'), taps: [
@@ -196,11 +203,11 @@ export default {
     return {
       group,
       pointer,
-      size: { w: 0.32, d: 0.16, h: 0.14 },
+      size: { w: 0.32, d: 0.16, h: 0.18 },
       view: { elev: 14, azim: -10, lookY: 0.45, margin: 1.06 },
       mount(ui) {
         const out = readout([{ key: 'p', label: '指针' }, { key: 'm', label: '砝码 + 游码', unit: 'g', secret: '自己数砝码、读游码' }]);
-        A.nut = (v, fromSlider) => { S.nut = Math.round(v * 100) / 100; if (!fromSlider) nut.set(Math.round(S.nut * 100)); if (S.obj >= 0 || S.onRight.length) { S.nutAfterLoad = true; ui.status('<b>称量过程中不能调节平衡螺母！</b>只能加减砝码、移动游码。'); } };
+        A.nut = (v, fromSlider) => { S.nut = Math.round(v * 100) / 100; if (!fromSlider) nut.set(Math.round(S.nut * 100)); if (S.calibrated && S.obj < 0 && !S.onRight.length && Math.abs(imbal()) > TICK / 2) { S.calibrated = false; G?.goal.undo('cal'); } if (S.obj >= 0 || S.onRight.length) { S.nutAfterLoad = true; ui.status('<b>称量过程中不能调节平衡螺母！</b>只能加减砝码、移动游码。'); } };
         const nut = slider('平衡螺母（也可以直接拖横梁两端的螺母）', { min: -100, max: 100, value: 60, fmt: (v) => (v > 0 ? `向右 ${v}` : v < 0 ? `向左 ${-v}` : '中间'), onInput: (v) => A.nut(v / 100, true) });
         const rid = slider(`游码（分度值 ${DIV} g，读游码左端；也可以直接拖游码）`, { min: 0, max: 5, step: DIV, value: 0, fmt: (v) => (v ? '已移动' : '零刻度'), onInput: (v) => { S.rider = Math.round(v / DIV) * DIV; } });
         onRider = (g) => rid.set(g);
@@ -267,14 +274,13 @@ export default {
         S.angle += S.w * dt;
         if (Math.abs(S.angle) > 0.2) { S.angle = Math.sign(S.angle) * 0.2; S.w = 0; }   // 碰到限位
         beam.rotation.z = S.angle;
-        needle.rotation.z = -2 * S.angle;     // 指针偏向重的一边
         for (const p of pans) {
           const x = p.side * ARM * Math.cos(S.angle), y = 0.1 + p.side * ARM * Math.sin(S.angle);
-          p.position.set(x, y + 0.05 - 0.07, 0);
+          p.position.set(x, y + PAN_UP, 0);
         }
         rider.position.x = gToX(S.rider);     // 游码左端对准读数
-        nuts.forEach((n) => (n.position.x = n.position.x > 0 ? ARM + 0.006 + S.nut * 0.004 : -(ARM + 0.006) + S.nut * 0.004));
-        tN.loc(group, 0, 0.06, 0.05).text(`指针${pointerDir()}`);
+        nuts.forEach((n) => (n.position.x = n.position.x > 0 ? ARM + NUT_C + S.nut * NUT_TRAVEL : -(ARM + NUT_C) + S.nut * NUT_TRAVEL));
+        tN.loc(group, 0, 0.1 + NEEDLE + 0.012, 0.01).text(`指针${pointerDir()}`);
         const G = this._G;
         if (!G) return;
         G.out.set('p', pointerDir());

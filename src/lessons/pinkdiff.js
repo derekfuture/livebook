@@ -12,6 +12,7 @@ import { water2, glass2 } from './kit/chemfx.js';
 import { microWorld, diffuseScene } from './kit/microworld.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs } from './kit/chemlesson.js';
+import { bottleCap } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -65,11 +66,15 @@ export default {
       const pick = new THREE.Mesh(new THREE.CylinderGeometry(BR + 0.004, BR + 0.004, BH, 12), new THREE.MeshBasicMaterial({ visible: false })); pick.position.set(B.x, BH / 2, 0); pick.userData.pick = true; group.add(pick);
       return { layers, bottom, surf, streak, pick };
     });
-    // 品红（广口瓶）和药匙
+    // 品红（广口瓶）和药匙。瓶口敞着（瓶盖盖上时盖住），瓶里是品红；取用时瓶盖拿下来倒放在桌上，取完盖好（课本上册第 16–17 页）
     const jar = new THREE.Group(); jar.position.copy(JAR); group.add(jar);
-    { const body = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.03, 20), paint(0xeceef0)), { width: 0.6 }); body.position.y = 0.015; jar.add(body);
-      const cap = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.007, 18), paint(0x3d4352)), { width: 0.5 }); cap.position.y = 0.034; jar.add(cap);
+    const jarCap = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.007, 18), paint(0x3d4352)), { width: 0.5 }); jarCap.position.y = 0.034;
+    { const body = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.03, 20, 1, true), paint(0xeceef0, { side: THREE.DoubleSide })), { width: 0.6 }); body.position.y = 0.015; jar.add(body);
+      const shoulder = inked(new THREE.Mesh(new THREE.RingGeometry(0.0105, 0.014, 24), paint(0xeceef0, { side: THREE.DoubleSide })), { width: 0.5 }); shoulder.rotation.x = -Math.PI / 2; shoulder.position.y = 0.03; jar.add(shoulder);
+      const dye = new THREE.Mesh(new THREE.CircleGeometry(0.0136, 24), paint(0x7a1a3a, { keep: true })); dye.rotation.x = -Math.PI / 2; dye.position.y = 0.021; jar.add(dye);
+      jar.add(jarCap);
       const lab = textPlate('品红', { w: 0.014, h: 0.008, color: '#c2205a', bg: '#fffaf0', font: 'bold 96px "Songti SC", serif' }); lab.position.set(0, 0.016, 0.0142); jar.add(lab); }
+    const jarLid = bottleCap(group, jar, jarCap, { rest: new THREE.Vector3(JAR.x, 0, JAR.z + 0.028) });      // 瓶盖倒放在瓶前（两杯水中间）
     const spoon = new THREE.Group(); group.add(spoon);
     { const handle = inked(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.002, 0.004), paint(0xd9dde3)), { width: 0.5 }); handle.position.x = 0.03; spoon.add(handle);
       const bowl = inked(new THREE.Mesh(new THREE.SphereGeometry(0.005, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), paint(0xd9dde3)), { width: 0.4 }); bowl.rotation.x = Math.PI; bowl.scale.y = 0.4; spoon.add(bowl);
@@ -79,7 +84,8 @@ export default {
     const cards = BKS.map(() => { const c = tag('', 'cond'); c.px = [0, -70]; return c; });
 
     // ================= 状态 =================
-    const fresh = () => ({ demo: false, b: BKS.map(() => ({ added: false, t: 0, fall: 0, c: new Array(NL).fill(0), undis: 0, logged: {} })), spoonCarry: null, firstDone: -1 });
+    // sp：药匙在做什么。ph = home 放在桌上 / take 去瓶里取品红 / carry 跟着手 / go 松手后去烧杯上方 / back 放回原处；i 是路线上的第几个点
+    const fresh = () => ({ demo: false, b: BKS.map(() => ({ added: false, t: 0, fall: 0, c: new Array(NL).fill(0), undis: 0, logged: {} })), spoonCarry: null, firstDone: -1, sp: { ph: 'home', i: 0, t: 0, load: false, go: -1, from: null } });
     S = fresh();
     // 微观次元：钻进冷水 / 热水里，看品红分子在水分子之间运动
     let mwFor = 0;
@@ -96,12 +102,23 @@ export default {
     mw.onClose = () => { if (!bar.playing) back(); };
 
     const A = {
-      spoonDrag(p) { if (!p) return; S.spoonCarry = p.clone(); },
+      spoonDrag(p) {
+        if (!p) return; S.spoonCarry = p.clone();
+        const sp = S.sp;
+        if (sp.ph === 'take' || sp.ph === 'go') return;           // 正在取 / 正往烧杯里加：做完再说
+        if (!sp.load) { sp.ph = 'take'; sp.i = 0; sp.t = 0; sp.go = -1; sp.from = spoon.position.toArray(); }      // 拿起空药匙：先去瓶里取品红
+        else { sp.ph = 'carry'; sp.go = -1; }
+      },
       spoonDrop() {
         const p = S.spoonCarry; S.spoonCarry = null; if (!p) return;
-        const k = BKS.findIndex((B) => Math.abs(p.x - B.x) < BR && p.y > BH - 0.02);
-        if (k < 0) return;
-        const Bs = S.b[k]; if (Bs.added) return status(`${BKS[k].name}里已经加过品红了。`);
+        const sp = S.sp, k = BKS.findIndex((B) => Math.abs(p.x - B.x) < BR && p.y > BH - 0.02);
+        if (k >= 0 && S.b[k].added) { status(`${BKS[k].name}里已经加过品红了。`); if (sp.ph === 'carry') { sp.ph = 'back'; sp.i = 0; sp.from = spoon.position.toArray(); } return; }
+        sp.go = k;                                    // 正在取品红的话，取完再去这杯；拿在手里的话，现在就去
+        if (sp.ph === 'carry') { if (k >= 0) sp.ph = 'go'; else { sp.ph = 'back'; sp.i = 0; sp.from = spoon.position.toArray(); } }
+      },
+      // 药匙到了烧杯上方：把品红加进去
+      addTo(k) {
+        const Bs = S.b[k]; S.sp.load = false;
         Bs.added = true; Bs.fall = 0; Bs.undis = 1; sfx.clink({ freq: 2400, gain: 0.02 });
         status(`往${BKS[k].name}里加了少量品红。不要搅拌，<b>静置</b>观察。`);
         done(k === 0 ? 'cold' : 'hot');
@@ -127,8 +144,9 @@ export default {
           seal: '演示', label: '老师演示',
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => mw.close() }),
           shots: [
-            { cap: '向冷水、热水里分别加入少量品红，静置，不搅拌。', dur: 7, cam: [[0, 0.06, 0], [0.04, 0.25, 1], 0.32],
-              during: act.seq(act.path(spoonPick, [null, new THREE.Vector3(SPOON_HOME.x, 0.13, 0), over(0)()], { t0: 0.04, t1: 0.35, release: 0.38 }), act.path(spoonPick, [null, new THREE.Vector3(SPOON_HOME.x, 0.13, 0), over(1)()], { t0: 0.5, t1: 0.82, release: 0.85 })) },
+            // 药匙拿起来先去瓶里取品红（瓶盖倒放在桌上，取完盖好），再拿到烧杯上方加进去
+            { cap: '向冷水、热水里分别加入少量品红，静置，不搅拌。', dur: 9, cam: [[0, 0.06, 0], [0.04, 0.25, 1], 0.32],
+              during: act.seq(act.path(spoonPick, [null, new THREE.Vector3(SPOON_HOME.x, 0.13, 0), over(0)()], { t0: 0.03, t1: 0.3, release: 0.33 }), act.path(spoonPick, [null, new THREE.Vector3(SPOON_HOME.x, 0.13, 0), over(1)()], { t0: 0.52, t1: 0.8, release: 0.83 })) },
             { cap: '品红先沉到杯底，再慢慢往上散开——热水里散得快得多。', dur: 14, speed: 1, cam: [[0, 0.05, 0], [0.04, 0.2, 1], 0.3] },
             { cap: '钻进冷水里看：没有人搅拌，品红分子自己在水分子之间钻来钻去。', dur: 7, cam: [[BKS[0].x, 0.065, 0], [0.04, 0.22, 1], 0.3], during: act.at(0.02, () => openMicro(0, true)) },
             { cap: '再钻进热水里看：水分子、品红分子都动得快多了——温度越高，分子运动越快。', dur: 7, cam: [[BKS[1].x, 0.065, 0], [0.04, 0.22, 1], 0.3], during: act.at(0.02, () => openMicro(1, true)) },
@@ -140,9 +158,42 @@ export default {
     const pointer = wrapPointer(drag, bar);
 
     // ================= 每帧 =================
+    // 药匙沿路线走：匀速，快到了放慢（不跳）。到了返回 true
+    const moveTo = (o, p, v, h) => {
+      const d = p.clone().sub(o.position), L = d.length(), s = Math.min(L, Math.max(0.0003, v * h * Math.min(1, L / (2.5 * v * h))));
+      if (L < 0.0004) { o.position.copy(p); return true; }
+      o.position.addScaledVector(d, s / L); return false;
+    };
+    // 取品红的路线：升高到 HIGH（高过烧杯口；勺柄斜着翘起，绕开热水里的温度计）→ 瓶口正上方 →（瓶盖拿开了）伸进瓶里 → 取一点 → 升起来（瓶盖盖回去）→ 回到身前
+    const HIGH = 0.1, DIP = JAR.clone().setY(0.024), TILT_IN = 0.8, V_SP = 0.45;
+    const takePath = (from) => [new THREE.Vector3(from[0], HIGH, from[2]), JAR.clone().setY(HIGH), DIP, JAR.clone().setY(HIGH), new THREE.Vector3(JAR.x, HIGH, 0)];
+    const lidClear = () => jarCap.parent === group && Math.hypot(jarCap.position.x - JAR.x, jarCap.position.z - JAR.z) > 0.016;
+    const stepSpoon = (h) => {
+      const sp = S.sp, P = sp.from ? new THREE.Vector3(...sp.from) : SPOON_HOME;
+      let tilt = 0;
+      if (sp.ph === 'take') {
+        tilt = TILT_IN;
+        const path = takePath(sp.from || SPOON_HOME.toArray());
+        if (sp.i === 2 && !lidClear()) { /* 瓶盖还没拿开：在瓶口上方等一下 */ }
+        else if (moveTo(spoon, path[sp.i], V_SP, h)) {
+          if (sp.i === 2) { sp.t += h; if (sp.t > 0.3) { sp.load = true; sp.i++; } }     // 伸进瓶里，取一点
+          else if (sp.i < path.length - 1) sp.i++;
+          else { sp.ph = S.spoonCarry ? 'carry' : sp.go >= 0 ? 'go' : 'back'; sp.i = 0; sp.from = spoon.position.toArray(); }
+        }
+      } else if (sp.ph === 'carry') { if (S.spoonCarry) spoon.position.lerp(S.spoonCarry.clone().add(new THREE.Vector3(-0.01, 0, 0)), 0.45); else { sp.ph = 'back'; sp.i = 0; sp.from = spoon.position.toArray(); } }
+      else if (sp.ph === 'go') { if (moveTo(spoon, over(sp.go)().add(new THREE.Vector3(-0.01, 0, 0)), V_SP, h)) { A.addTo(sp.go); sp.go = -1; sp.ph = 'back'; sp.i = 0; sp.from = spoon.position.toArray(); } }
+      else if (sp.ph === 'back') {
+        // 放回原处：先升到烧杯口以上，挪到原处上方，再放下去
+        const path = [new THREE.Vector3(P.x, Math.max(P.y, 0.1), P.z), SPOON_HOME.clone().setY(0.1), SPOON_HOME];
+        if (moveTo(spoon, path[sp.i], V_SP, h)) { if (sp.i < path.length - 1) sp.i++; else { sp.ph = 'home'; sp.from = null; } }
+      } else spoon.position.lerp(SPOON_HOME, 0.2);
+      spoon.rotation.z += (tilt - spoon.rotation.z) * Math.min(1, h * 8);
+      spoon.getObjectByName('load').visible = sp.load;
+      // 瓶盖：去取品红时拿下来倒放在桌上；取完、药匙从瓶里出来以后盖好
+      jarLid.update(1 - Math.exp(-h * 10), sp.ph === 'take' && sp.i <= 3);
+    };
     const step = (h) => {
-      spoon.position.lerp(S.spoonCarry ? S.spoonCarry.clone().add(new THREE.Vector3(-0.01, 0, 0)) : SPOON_HOME, S.spoonCarry ? 0.45 : 0.2);
-      spoon.getObjectByName('load').visible = !!S.spoonCarry;
+      stepSpoon(h);
       S.b.forEach((Bs, k) => {
         const B = BKS[k], view = beakers[k];
         if (Bs.added) {
@@ -208,7 +259,7 @@ export default {
         goBtns.forEach((g, i) => g.loc(group, BKS[i].x, BH + 0.012, 0).show(!mw.isOpen && !bar.playing));
       },
       dispose() { mw.dispose(); bar.dispose(); },
-      debug: { get S() { return S; }, A, bar, picks: { spoon: spoonPick },
+      debug: { get S() { return S; }, A, bar, picks: { spoon: spoonPick }, lid: jarCap,
         qa: qaFlow(drag, [
           { name: '冷水里加品红', drag: spoonPick, to: over(0), wait: 1 },
           { name: '热水里加品红', drag: spoonPick, to: over(1), wait: 30 },

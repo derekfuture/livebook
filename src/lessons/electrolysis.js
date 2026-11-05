@@ -18,6 +18,7 @@ import { bubble2, water2, flame2 } from './kit/chemfx.js';
 import { microWorld, electrolysisScene } from './kit/microworld.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, demoActs } from './kit/chemlesson.js';
+import { bottleCap } from './kit/labops.js';
 import { paint, inked, hull, glassEdge } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
 
@@ -168,14 +169,18 @@ export default {
     // ---------------- 桌上：硫酸钠溶液、木条 ----------------
     const dropper = new THREE.Group();
     const dbody = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.04, 18), glassMat({ opacity: 0.25, color: 0xa9774f })); dbody.position.y = 0.02; dbody.renderOrder = 8;
+    const dneck = new THREE.Mesh(new THREE.CylinderGeometry(0.0048, 0.0052, 0.007, 14, 1, true), glassMat({ opacity: 0.25, color: 0xa9774f })); dneck.position.y = 0.0435; dneck.renderOrder = 8; glassEdge(dneck, 0.0004);      // 瓶颈（瓶盖拿下来以后看得见瓶口）
     const dliq = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.0105, 0.026, 16), paint(0xdbe8ee, { unique: true, transparent: true, opacity: 0.7 })); dliq.position.y = 0.014;
     const dcap = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.006, 0.02, 12), paint(0xb8432f)), { width: 0.7 }); dcap.position.y = 0.05;
     const dPick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.07, 10), new THREE.MeshBasicMaterial({ visible: false })); dPick.position.y = 0.03; dPick.userData.pick = true;
-    dropper.add(dbody, dliq, dcap, dPick);
+    dropper.add(dbody, dneck, dliq, dcap, dPick);
     const DROP_HOME = new THREE.Vector3(-0.07, 0, 0.115);      // 放在导线前面，不挡着导线
     dropper.position.copy(DROP_HOME); group.add(dropper);
-    // 往漏斗里倒的姿势：瓶身朝右下斜，瓶口对着漏斗（瓶底是原点）；倒出来的液滴
-    const POUR_AT = new THREE.Vector3(-0.052, 0.352, 0), POUR_TILT = -1.75;
+    // 瓶盖：拿起瓶子时取下来倒放在瓶子右边的桌上；瓶子放回原处以后盖好（课本上册第 17 页）
+    const dLid = bottleCap(group, dropper, dcap, { rest: DROP_HOME.clone().add(new THREE.Vector3(0.032, 0, 0.004)) });
+    const lidAway = () => dcap.parent === group && Math.hypot(dcap.position.x - dropper.position.x, dcap.position.z - dropper.position.z) > 0.014;
+    // 往漏斗里倒的姿势（瓶底是原点）：瓶身朝右下斜，瓶口挨着漏斗口左边的沿；POUR_UP 是它正上方（先在这里斜过来，再落下去）
+    const POUR_AT = new THREE.Vector3(-0.068, 0.332, 0), POUR_UP = new THREE.Vector3(-0.068, 0.345, 0), POUR_TILT = -1.75, SAFE_Y = 0.34;
     const saltDrops = new Particles({ max: 30, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: 0xdbe8ee, base: 0.5 }) }); group.add(saltDrops.mesh);
     const stick = splint({ len: 0.12 }); const STICK_HOME = new THREE.Vector3(0.0, 0.006, 0.09); stick.position.copy(STICK_HOME); stick.rotation.z = Math.PI / 2; group.add(stick);
     const stickPick = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.13, 0.02), new THREE.MeshBasicMaterial({ visible: false })); stickPick.position.y = 0.06; stickPick.userData.pick = true; stick.add(stickPick);
@@ -230,7 +235,7 @@ export default {
       power(v = !S.on) {
         if (v && (S.cock.neg || S.cock.pos)) return status('先关上玻璃管上的活塞，再通电。');
         S.on = v;
-        if (v) { done('power'); status(S.salt ? '通电了。看两个电极上的气泡，和两根玻璃管里的液面。（时间加快 10 倍）' : '通电了……电极上几乎没有气泡：<b>纯水几乎不导电</b>。'); }
+        if (v) { done('power'); status('通电了。看两个电极上的气泡，和两根玻璃管里的液面。（时间加快 10 倍）'); }
         else { if (bar.has('ratio')) done('off'); status('切断了电源。' + (S.gas.neg > 2 && S.gas.pos > 1 ? '现在可以检验两种气体。' : '')); }
       },
       cock(side) {
@@ -258,13 +263,14 @@ export default {
     // ================= 拖放（演示里也走这一套：器材沿路线移过去） =================
     const drag = draggable(group, [
       { obj: swPick, plane: 'xy', offset: 0.05, hint: () => (S.on ? '点一下：切断电源' : '点一下：接通电源'), onTap: () => A.power(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
-      { obj: dPick, plane: 'xy', offset: 0, hint: '拖到漏斗里：加少量硫酸钠溶液', enabled: () => !S.salt,
+      { obj: dPick, plane: 'xy', offset: 0, hint: '拖到漏斗里：加少量硫酸钠溶液', enabled: () => !S.salt && !pour,
         onStart: () => { if (!pour) dropTo = dropper.position.clone(); },
         onDrag: (p) => { if (!pour) dropTo = new THREE.Vector3(p.x, Math.max(0, p.y), p.z || 0); },
         onEnd: () => {
           if (pour || !dropTo) return;
           const over = Math.abs(dropTo.x) < 0.04 && dropTo.y > BASE_Y + 0.17;
-          if (over && !S.salt) { A.salt(); pour = { t: 0 }; } else if (over) A.salt();
+          if (over && !S.salt) pour = { ph: 'up', t: 0 };          // 先升高、到漏斗左上方斜过来，再落下去让瓶口挨着漏斗口，倒进去（倒的时候才算加进去）
+          else if (over) A.salt();
           dropTo = null;
         } },
       ...['neg', 'pos'].map((side) => ({ obj: tubes[side].cockPick, plane: 'xy', offset: 0, hint: () => (S.cock[side] ? '点一下：关上活塞' : '点一下：打开活塞，放出气体'), onTap: () => A.cock(side), onStart: () => {}, onDrag: () => {}, onEnd: () => {} })),
@@ -292,8 +298,8 @@ export default {
     const bar = lessonBar({
       look, back, group,         // group：提示光圈画在这一组里
       steps: [
-        { id: 'power', title: '接通电源', todo: '先点一下<b>电源</b>接通它，看看电极上有没有气泡。', target: () => (S.on ? null : box) },
-        { id: 'salt', title: '加硫酸钠', todo: '把桌上的<b>硫酸钠溶液</b>拖到电解器上面的漏斗里，增强水的导电性。', target: () => (S.salt ? null : dropper) },
+        { id: 'salt', title: '加硫酸钠', todo: '把桌上的<b>硫酸钠溶液</b>拖到电解器上面的漏斗里，加少量，增强水的导电性。', target: () => (S.salt || pour ? null : dropper) },
+        { id: 'power', title: '接通电源', todo: '点一下<b>电源</b>，接通直流电源，观察两根玻璃管里的现象。', target: () => (S.on ? null : box) },
         { id: 'read', title: '读刻度', todo: '两根管里聚了一些气体以后，点左边的<b>读刻度</b>，自己读两根管的刻度、记一组。负极管里有 8 mL 以上时再记一组。' },
         { id: 'ratio', title: '比体积', todo: '比一比你记下的数据：负极管和正极管里气体的体积比大约是多少？在左边作答。' },
         { id: 'off', title: '切断电源', todo: '点一下<b>电源</b>切断它，准备检验两种气体。', target: () => (S.on ? box : null) },
@@ -308,9 +314,9 @@ export default {
           onStart: () => { if (!saved) saved = S; S = fresh(); S.demo = true; bubs.clear(); home(); mw.close(); },
           onEnd: () => { mw.close(); if (!saved) return; S = saved; saved = null; S.near = false; bubs.clear(); home(); bar.say('演示看完了。桌上的器材和记录还是你自己的那一套——接着往下做。', bar.current || 'end'); setTimeout(() => bar.say(null), 4000); },
           shots: [
-            { cap: '电解器里加满了水。接通直流电源——纯水几乎不导电，电极上几乎没有气泡。', dur: 3.6, cam: [[-0.06, BASE_Y + 0.08, 0], [0.12, 0.12, 1], 0.62], during: act.tap(swPick, 0.25) },
-            { cap: '向漏斗里加少量硫酸钠溶液，增强水的导电性。', dur: 6, cam: [[-0.03, BASE_Y + 0.2, 0.04], [0.1, 0.12, 1], 0.68],
-              during: path(dPick, [null, new THREE.Vector3(-0.07, 0.38, 0.115), new THREE.Vector3(-0.02, 0.37, 0)], { t0: 0.05, t1: 0.4, release: 0.43 }) },
+            { cap: '电解器里加满了水。向漏斗里加少量硫酸钠溶液，增强水的导电性。', dur: 9, cam: [[-0.03, BASE_Y + 0.2, 0.04], [0.1, 0.12, 1], 0.68],
+              during: path(dPick, [null, new THREE.Vector3(-0.07, 0.35, 0.115), new THREE.Vector3(-0.02, 0.35, 0)], { t0: 0.04, t1: 0.3, release: 0.33 }) },
+            { cap: '接通直流电源。', dur: 2.4, cam: [[-0.06, BASE_Y + 0.08, 0], [0.12, 0.12, 1], 0.62], during: act.tap(swPick, 0.3) },
             { cap: '两个电极上都冒出气泡，气体聚在玻璃管顶端，管里的液面下降。', dur: 3.4, cam: [[0, BASE_Y + 0.12, 0], [0.08, 0.1, 1], 0.42], speed: 3 },
             { cap: '钻进水里看：两个水分子拆成原子，重新组合成两个氢分子和一个氧分子。', dur: 9, cam: [[MW_AT.x, MW_AT.y + 0.075, MW_AT.z], [0.03, 0.22, 1], 0.36], during: act.at(0.04, () => openMicro(true)) },
             { cap: '与负极相连的管里气体多，大约是正极的 2 倍。', dur: 3.4, enter: () => mw.close(), cam: [[0, BASE_Y + TUBE_H - 0.05, 0], [0.02, 0.05, 1], 0.3], speed: 3 },
@@ -353,19 +359,34 @@ export default {
         while (S['acc' + side] > 1) { S['acc' + side] -= 1; bubs.spawn({ p: new THREE.Vector3(X[side] + (Math.random() - 0.5) * 0.005, BASE_Y + 0.008 + Math.random() * 0.016, (Math.random() - 0.5) * 0.002), v: new THREE.Vector3(0, 0.04, 0), size: side === 'neg' ? 0.0007 : 0.0009, life: 8, side }); }
       }
       bubs.update(h, (p, d) => { p.v.y += 0.3 * d; p.p.addScaledVector(p.v, d); const lvl = BASE_Y + TUBE_H - S.gas[p.side] * ML_LEN; return p.p.y < lvl; });
-      // 硫酸钠溶液：拿着的时候跟着走；倒进漏斗（瓶口对着漏斗，滴进去几滴）；放回桌上
-      const ar = 1 - Math.exp(-h * 22), ah = 1 - Math.exp(-h * 6);
+      // 硫酸钠溶液：拿起瓶子时瓶盖先取下来倒放在桌上（拿开了瓶子才跟着手走）；在漏斗上方松手：先升高，挪到漏斗左上方斜过来，
+      // 再落下去让瓶口挨着漏斗口，倒进去少量；倒好了抬起来、摆正，放回原处，盖好瓶盖（课本上册第 17 页）
+      const ar = 1 - Math.exp(-h * 22), ah = 1 - Math.exp(-h * 6), ap = 1 - Math.exp(-h * 9);
+      const dp = dropper.position, rotTo = (want, a) => { dropper.rotation.z += (want - dropper.rotation.z) * a; };
+      dLid.update(1 - Math.exp(-h * 10), !!(pour || dropTo) || dp.distanceTo(DROP_HOME) > 0.0015 || Math.abs(dropper.rotation.z) > 0.02);
+      // 滑过去：每帧靠近一部分，但一帧不超过 vmax·h（离得远时匀速走，不跳）
+      const glide = (p, a, v = 0.4) => { const d = p.clone().sub(dp).multiplyScalar(a), m = v * h; if (d.length() > m) d.setLength(m); dp.add(d); };
       if (pour) {
-        pour.t += h;
-        dropper.position.lerp(POUR_AT, ar * 0.6); dropper.rotation.z += (POUR_TILT - dropper.rotation.z) * ar * 0.6;
-        if (pour.t > 0.5 && pour.t < 1.4 && Math.random() < h * 9) {
-          dropper.updateMatrixWorld(true);
-          const m = group.worldToLocal(dropper.localToWorld(new THREE.Vector3(0, 0.06, 0)));
-          saltDrops.spawn({ p: m, v: new THREE.Vector3(0, -0.02, 0), size: 0.0017, life: 2 });
+        const P = pour, tr = Math.min(1, h * 5);
+        if (P.ph === 'up' && !lidAway()) { glide(DROP_HOME.clone().setY(dp.y), ap); }          // 瓶盖还没拿开：瓶子先不动
+        else if (P.ph === 'up') { glide(new THREE.Vector3(dp.x, Math.max(dp.y, SAFE_Y), dp.z), ap); rotTo(0, ap); if (dp.y > SAFE_Y - 0.003) P.ph = 'over'; }
+        else if (P.ph === 'over') { glide(POUR_UP, ap); rotTo(0, ap); if (dp.distanceTo(POUR_UP) < 0.003) P.ph = 'tilt'; }
+        else if (P.ph === 'tilt') { glide(POUR_UP, ap); rotTo(POUR_TILT, tr); if (Math.abs(dropper.rotation.z - POUR_TILT) < 0.06) P.ph = 'in'; }
+        else if (P.ph === 'in') { glide(POUR_AT, ap); rotTo(POUR_TILT, tr); if (dp.distanceTo(POUR_AT) < 0.0015) { P.ph = 'pour'; P.t = 0; if (!S.salt) A.salt(); } }
+        else if (P.ph === 'pour') {
+          P.t += h; glide(POUR_AT, ap); rotTo(POUR_TILT, tr);
+          if (P.t < 1.2 && Math.random() < h * 9) {
+            dropper.updateMatrixWorld(true);
+            const m = group.worldToLocal(dropper.localToWorld(new THREE.Vector3(0, 0.048, 0)));
+            saltDrops.spawn({ p: m, v: new THREE.Vector3(0, -0.02, 0), size: 0.0017, life: 2 });
+          }
+          if (P.t > 1.5) P.ph = 'out';
         }
-        if (pour.t > 1.8) pour = null;
-      } else if (dropTo) { dropper.position.lerp(dropTo, ar); dropper.rotation.z += (0 - dropper.rotation.z) * ar; }
-      else { carryHome(dropper, DROP_HOME, ah); dropper.rotation.z += (0 - dropper.rotation.z) * ah; }
+        else if (P.ph === 'out') { glide(POUR_UP, ap); rotTo(POUR_TILT, tr); if (dp.distanceTo(POUR_UP) < 0.003) P.ph = 'level'; }
+        else if (P.ph === 'level') { glide(POUR_UP, ap); rotTo(0, tr); if (Math.abs(dropper.rotation.z) < 0.03) pour = null; }
+      } else if (dropTo && !lidAway()) { dp.lerp(DROP_HOME, ar); rotTo(0, ar); }          // 瓶盖还没拿开：瓶子先留在桌上
+      else if (dropTo) { dp.lerp(dropTo, ar); rotTo(0, ar); }
+      else { const far = Math.hypot(dp.x - DROP_HOME.x, dp.z - DROP_HOME.z) > 0.004; glide(far ? new THREE.Vector3(DROP_HOME.x, Math.max(dp.y, DROP_HOME.y), DROP_HOME.z) : DROP_HOME, Math.min(1, ah * 1.5)); rotTo(0, ah); }      // 放回原处：先挪到原处上方，再放下去
       const bulbTop = BASE_Y + 0.238 + bulbWater.scale.y;
       saltDrops.update(h, (q, d) => { q.v.y -= 0.8 * d; q.p.addScaledVector(q.v, d); return q.p.y > bulbTop; });
       // 木条：拿着的时候跟着走，朝外斜着；放下就拿回桌上
@@ -510,7 +531,7 @@ export default {
         const dt = ui.data.previousElementSibling; if (dt?.classList.contains('bar-title')) dt.textContent = '观察记录';
         W = { tbl, rows, readBox, qBox, q2Box, q3Box, next, qg, readB, inPos, inNeg, okBtn, status: (m) => ui.status(m) };
         bar.attach(ui);
-        ui.status('电解器里已经加满了水。可以先看<b>老师演示</b>，也可以直接动手：先接通电源，看看电极上有没有气泡。');
+        ui.status('电解器里已经加满了水。可以先看<b>老师演示</b>，也可以直接动手：先向漏斗里加少量<b>硫酸钠溶液</b>。');
       },
       update(dt, t) {
         const k = bar.update(dt);
@@ -521,12 +542,12 @@ export default {
         if (!S.demo && S.on && S.salt && S.gas.neg > 1 && !S.seen.has('run')) { S.seen.add('run'); status('两个电极上都有<b>气泡</b>冒出，气体聚在玻璃管顶端，管里的液面在下降。比一比：<b>哪边的气体多？</b>'); }
       },
       dispose() { mw.dispose(); bar.dispose(); bubs.dispose(); saltDrops.dispose?.(); },
-      debug: { get S() { return S; }, A, bar, tubes, picks: { power: swPick, salt: dPick, stick: stickPick, cockPos: tubes.pos.cockPick, cockNeg: tubes.neg.cockPick },
+      debug: { get S() { return S; }, A, bar, tubes, lid: dcap, picks: { power: swPick, salt: dPick, stick: stickPick, cockPos: tubes.pos.cockPick, cockNeg: tubes.neg.cockPick },
         qa: (() => {
           const read = () => { W.readB.el.querySelector('button').click(); W.inPos.value = (Math.round(S.gas.pos * 2) / 2).toFixed(1); W.inNeg.value = (Math.round(S.gas.neg * 2) / 2).toFixed(1); W.okBtn.click(); };
           return qaFlow(drag, [
+            { name: '加硫酸钠溶液', drag: dPick, to: () => new THREE.Vector3(-0.02, 0.35, 0), wait: 4.5 },
             { name: '接通电源', tap: swPick },
-            { name: '加硫酸钠溶液', drag: dPick, to: () => new THREE.Vector3(-0.02, 0.37, 0), wait: 2.5 },
             { name: '通电一会儿', run: () => {}, wait: 6 },
             { name: '读刻度（一）', run: read },
             { name: '再通电一会儿', run: () => {}, wait: 16 },

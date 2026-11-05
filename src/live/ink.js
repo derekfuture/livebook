@@ -200,6 +200,7 @@ export function labBase(w, d, t = 0.008) {
   const m = inked(new THREE.Mesh(new THREE.BoxGeometry(w, t, d), [side, side, top, side, side, side]), { width: 1.4, opacity: 0.85 });
   m.position.y = -t / 2;
   m.receiveShadow = true;
+  m.userData.qaSupport = true;          // 台板本身在 y = 0 以下，质检的“低于桌面”不查它
   g.add(m);
   return g;
 }

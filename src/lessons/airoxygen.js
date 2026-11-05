@@ -23,6 +23,7 @@ import { glass2, water2, waterSurface, flame2, smoke2, bubble2 } from './kit/che
 import { microWorld, airScene } from './kit/microworld.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, demoActs } from './kit/chemlesson.js';
+import { lampCap } from './kit/labops.js';
 import { sfx } from './kit/audio.js';
 import { paint, inked, hull } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
@@ -156,6 +157,9 @@ export default {
     // ================= 酒精灯、红磷试剂瓶 =================
     const lamp = chemLamp(); lamp.position.copy(LAMP); group.add(lamp);
     const lampPick = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.07), new THREE.MeshBasicMaterial({ visible: false })); lampPick.position.y = 0.045; lampPick.userData.pick = true; lamp.add(lampPick);
+    // 灯帽（课本第 18 页）：点燃前取下，放在灯的左前方桌上；熄灭时用灯帽盖灭，再轻提一下、重新盖好
+    const capper = lampCap(group, lamp, { off: new THREE.Vector3(-0.2, 0, 0.045) });
+    let flameOn = false;                    // 火焰真的亮着：灯帽拿开了才亮，盖上了才灭
     const bottle = reagentBottle({ color: 0xb5432f }); bottle.position.copy(BOTTLE); group.add(bottle);
     const bLabel = textPlate('红磷', { w: 0.026, h: 0.01, color: '#8a2a1a', bg: '#fffaf0', font: 'bold 160px "Songti SC", serif' }); bLabel.position.set(BOTTLE.x, 0.028, BOTTLE.z + 0.0185); group.add(bLabel);
     // 药匙：点一下试剂瓶，打开瓶盖，用药匙取一勺红磷，倒进燃烧匙里，再放回去（学生点的和演示里一样）
@@ -195,6 +199,7 @@ export default {
     };
     S = fresh();
     let W = null, runs = 0, snapSp = true;        // snapSp：换一套器材时燃烧匙直接摆好（平时松手以后滑过去）
+    const snapCap = () => { capper.snap(S.lit); flameOn = S.lit; };      // 换一套器材（演示开始、结束，再做一次）时灯帽直接摆好
     const status = (m) => { if (!S.demo) W?.status(m); };
     const done = (id) => { if (!S.demo) bar.done(id); };      // 演示里的操作不算学生的步骤
     const o2pct = () => (100 * S.nO) / (S.nO + S.nN);
@@ -228,7 +233,7 @@ export default {
         status(S.amount === 1 ? '往燃烧匙里放了<b>一小勺</b>红磷。要“足量”，可以再加一勺。' : `燃烧匙里有 <b>${S.amount} 勺</b>红磷了（足量）。`);
         if (S.amount >= 2) done('load'); else if (bar.current === 'load') bar.say('只有一小勺。课本要求放<b>足量</b>的红磷——再点一下试剂瓶，或者就这样试试看。');
       },
-      lamp() { S.lit = !S.lit; status(S.lit ? '点燃了酒精灯。把燃烧匙伸到火焰上，点燃红磷。' : '盖上灯帽，熄灭了酒精灯。'); },
+      lamp() { S.lit = !S.lit; status(S.lit ? '取下灯帽，点燃了酒精灯。把燃烧匙伸到火焰上，点燃红磷。' : '用灯帽盖灭了酒精灯。'); },
       seat() {
         S.seated = true; S.sp.set(0, SEAT, 0); S.lying = false; sfx.clink({ freq: 1500 });
         S.runFlags.slow = S.openT > 1.4; S.runFlags.unclamped = !S.clamp; S.runFlags.little = S.amount < 2;
@@ -238,7 +243,7 @@ export default {
       home() { S.lying = true; S.seated = false; S.sp.copy(SP_HOME); },
       /** 再做一次：换一瓶新的空气，器材摆回去；记录保留 */
       again() {
-        const keepLeak = S.leak; S = fresh(); S.leak = keepLeak; snapSp = true;
+        const keepLeak = S.leak; S = fresh(); S.leak = keepLeak; snapSp = true; snapCap();
         bubs.clear(); smokeOut.clear(); far();
         bar.undo('clamp', 'load', 'light', 'insert', 'cool', 'open', 'read');
         if (W) { W.readBox.hidden = true; }
@@ -254,7 +259,7 @@ export default {
         onDrag: (p) => { S.sp.set(clamp(p.x, -0.24, 0.12), clamp(p.y + 0.03, CUP + 0.006, 0.26), 0); },      // 前后（z）由下面每帧慢慢挪过来，不跳
         onEnd: () => { S.spDrag = false; if (inJar()) A.seat(); else A.home(); } },
       { obj: clampPick, plane: 'xy', offset: 0, hint: () => (S.clamp ? '点一下：打开弹簧夹' : '点一下：夹紧弹簧夹'), onTap: () => A.clamp(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
-      { obj: lampPick, plane: 'xy', offset: 0, hint: () => (S.lit ? '点一下：熄灭' : '点一下：点燃酒精灯'), onTap: () => A.lamp(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
+      { obj: lampPick, plane: 'xy', offset: 0, hint: () => (S.lit ? '点一下：盖上灯帽，熄灭酒精灯' : '点一下：点燃酒精灯'), onTap: () => A.lamp(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
       { obj: bottlePick, plane: 'xy', offset: 0, hint: '点一下：往燃烧匙里放一勺红磷', onTap: () => A.scoop(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
     ], { tip: tag('', 'pill') });
     const pointer = {
@@ -286,8 +291,8 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          onStart: () => { if (!saved) saved = S; S = fresh(); S.demo = true; snapSp = true; bubs.clear(); smokeOut.clear(); mw.close(); },
-          onEnd: () => { mw.close(); if (!saved) return; S = saved; saved = null; S.near = false; snapSp = true; bubs.clear(); smokeOut.clear(); bar.say('演示看完了。桌上的器材和记录还是你自己的那一套——接着往下做。', bar.current || 'end'); setTimeout(() => bar.say(null), 4000); },
+          onStart: () => { if (!saved) saved = S; S = fresh(); S.demo = true; snapSp = true; snapCap(); bubs.clear(); smokeOut.clear(); mw.close(); },
+          onEnd: () => { mw.close(); if (!saved) return; S = saved; saved = null; S.near = false; snapSp = true; snapCap(); bubs.clear(); smokeOut.clear(); bar.say('演示看完了。桌上的器材和记录还是你自己的那一套——接着往下做。', bar.current || 'end'); setTimeout(() => bar.say(null), 4000); },
           shots: [
             { cap: '集气瓶里加了少量水，水面上方分成 5 等份。蓝点是瓶里的氧气——大约每 5 个点里有 1 个。', dur: 4.0, cam: [[0, 0.07, 0], [0.2, 0.15, 1], 0.34] },
             { cap: '用弹簧夹夹紧乳胶管。', dur: 2.4, cam: [[0.1, 0.16, 0], [0.1, 0.35, 1], 0.3], during: act.tap(clampPick, 0.25) },
@@ -349,10 +354,12 @@ export default {
       // 弹簧夹：两片夹子慢慢合上 / 张开（点一下也看得见夹的动作）
       jawA.position.y += ((S.clamp ? 0.0042 : 0.007) - jawA.position.y) * 0.25; jawB.position.y = -jawA.position.y;
       scoopStep(h);
-      lamp.flame.setOn(S.lit); lamp.flame.update(t);
+      flameOn = capper.update(h, S.lit);        // 灯帽：点燃前取下放到桌上；熄灭时盖上，再轻提一下、重新盖好
+      lamp.flame.setOn(flameOn); lamp.flame.update(t);
+      if (S.toFlame && flameOn) { S.toFlame = false; S.lying = false; S.sp.set(LAMP.x + 0.004, FLAME_Y + CUP - 0.004, 0); }
       const c = cupPos();
-      // 在酒精灯火焰上点燃红磷
-      const inFlame = S.lit && !S.lying && Math.abs(c.x - LAMP.x) < 0.016 && Math.abs(c.y - FLAME_Y) < 0.025 && Math.abs(c.z - LAMP.z) < 0.02;
+      // 在酒精灯火焰上点燃红磷（火焰真的亮着才行）
+      const inFlame = flameOn && !S.lying && Math.abs(c.x - LAMP.x) < 0.016 && Math.abs(c.y - FLAME_Y) < 0.025 && Math.abs(c.z - LAMP.z) < 0.02;
       if (inFlame && S.amount > 0 && !S.burning) { S.inFlameT += h; if (S.inFlameT > 0.6) { S.burning = true; sfx.whoosh(); done('light'); status('红磷<b>燃烧</b>起来了，发出黄白色的火焰和大量白烟。<b>立即</b>把燃烧匙伸进集气瓶，塞紧橡胶塞！'); } }
       if (!inFlame) S.inFlameT = 0;
       // 瓶口敞着、燃烧匙已经伸进去了（还没塞紧）：计时
@@ -515,7 +522,7 @@ export default {
             { text: '夹紧 / 打开弹簧夹', ghost: true, onClick: () => A.clamp() },
             { text: '放一勺红磷', ghost: true, onClick: () => A.scoop() },
             { text: '点燃酒精灯', ghost: true, onClick: () => { if (!S.lit) A.lamp(); } },
-            { text: '在火焰上点燃红磷', ghost: true, onClick: () => { if (!S.lit) A.lamp(); S.lying = false; S.sp.set(LAMP.x + 0.004, FLAME_Y + CUP - 0.004, 0); } },
+            { text: '在火焰上点燃红磷', ghost: true, onClick: () => { if (!S.lit) A.lamp(); S.toFlame = true; } },      // 灯帽拿开、火焰亮了再把燃烧匙伸过去
             { text: '立即伸入瓶中、塞紧', ghost: true, onClick: () => { S.lying = false; S.auto = { from: S.sp.clone(), t: 0 }; } },
           ]).el,
           buttons([{ text: '再做一次（保留记录）', ghost: true, onClick: () => A.again() }, { text: '全部重来（清空记录）', ghost: true, onClick: () => A.reset() }]).el);

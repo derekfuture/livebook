@@ -4,12 +4,10 @@ import * as THREE from 'three';
 const MAX_HI = 10;
 
 export class PageTextures {
-  constructor(base, count, renderer) {
-    this.base = base;
+  constructor(source, count, renderer) {
+    this.source = source;          // 书页从哪来：导入的 PDF / 本地书页图片 / 占位页（见 PageSource.js）
     this.count = count;
     this.aniso = renderer.capabilities.getMaxAnisotropy();
-    this.loader = new THREE.ImageBitmapLoader();
-    this.loader.setOptions({ imageOrientation: 'flipY' });
     this.lo = new Array(count).fill(null);
     this.hi = new Map();          // 页序 -> 纹理（Map 的插入顺序当 LRU 用）
     this.pendingHi = new Set();
@@ -27,18 +25,14 @@ export class PageTextures {
     return t;
   }
 
-  _url(kind, i) { return `${this.base}${kind}/${String(i).padStart(3, '0')}.jpg`; }
-
   _load(kind, i) {
-    return new Promise((resolve, reject) => {
-      this.loader.load(this._url(kind, i), (bitmap) => {
-        const t = new THREE.Texture(bitmap);
-        t.colorSpace = THREE.SRGBColorSpace;
-        t.anisotropy = kind === 'hi' ? this.aniso : 4;
-        t.flipY = false;            // ImageBitmap 已在解码时翻转
-        t.needsUpdate = true;
-        resolve(t);
-      }, undefined, reject);
+    return this.source.image(kind, i).then((bitmap) => {
+      const t = new THREE.Texture(bitmap);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = kind === 'hi' ? this.aniso : 4;
+      t.flipY = false;            // ImageBitmap 已经上下翻转过
+      t.needsUpdate = true;
+      return t;
     });
   }
 

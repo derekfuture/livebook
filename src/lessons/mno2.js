@@ -312,7 +312,9 @@ export default {
       else y = Math.max(y, floorAt(x - 0.003, x + 0.003));
       return new V(x, y, p.z || 0);
     };
-    const cylPour = () => { const th = 1.75, L = CYL_H + 0.004; return { th, base: new V(TX + 0.004 + Math.sin(th) * L, MY + 0.008 - Math.cos(th) * L, 0) }; };
+    // 倒的时候：量筒斜过来，量筒口的下沿搭在试管口上（口挨着口，下沿在管口内壁里面一点）
+    const POUR_LIP = new V(TX + 0.0078, MY + 0.0003, 0);
+    const cylPour = () => { const th = 1.75, L = CYL_H + 0.004, c = POUR_LIP.clone().add(new V(Math.cos(th) * CYL_R, Math.sin(th) * CYL_R, 0)); return { th, base: new V(c.x + Math.sin(th) * L, c.y - Math.cos(th) * L, 0) }; };
     const drag = draggable(group, [
       { obj: cylPick, plane: 'xy', offset: 0, hint: () => (S.pours >= MAX_POURS ? '' : '拖到试管口：倒入 5 mL 过氧化氢溶液'),
         onStart: () => { if (S.pouring) return; S.cylPose = 'drag'; A.splintOut(); },
@@ -379,11 +381,15 @@ export default {
             { cap: '钻进试管底看：两个 H₂O₂ 分子在二氧化锰表面拆开，变成水和氧气；二氧化锰自己一个原子也没少。', dur: 11, cam: [[MW_AT.x, MW_AT.y + 0.05, MW_AT.z], [0.06, 0.2, 1], 0.3], during: act.at(0.02, () => openMicro(true)) },
             { cap: '再插入带火星的木条：复燃了。', enter: () => mw.close(), dur: 5, cam: [[TX + 0.04, 0.11, 0.03], [0.12, 0.16, 1], 0.46],
               during: path(stickPick, stickRoute, { t0: 0.04, t1: 0.42, release: 0.45 }) },
-            { cap: '没有现象时，重新加入过氧化氢溶液，插入带火星的木条：又复燃。二氧化锰没有再加，还在管底。', dur: 10, cam: [[TX + 0.04, 0.12, 0.03], [0.12, 0.16, 1], 0.5],
-              enter: () => { S.n = 0; S.flow = 0; S.x = AIR; },          // 过了一会儿：这一次的过氧化氢分解完了，试管上部又和空气差不多
-              during: act.seq(path(cylPick, cylRoute, { t0: 0.03, t1: 0.22, release: 0.25 }), path(stickPick, stickRoute, { t0: 0.4, t1: 0.6, release: 0.62 })) },
-            { cap: '反应后把二氧化锰滤出、洗净、干燥再称：还是 0.50 g。演示完了，下面换你自己做。', dur: 5, cam: [[BAL.x + 0.02, 0.04, 0.02], [0.1, 0.3, 1], 0.32],
-              enter: () => { S.n = 0; S.flow = 0; }, during: act.at(0.08, () => A.weigh(true)) },
+            // 实验（3）：待试管中没有现象时重新加入过氧化氢溶液、插入木条；又没有现象时，再重复一次（课本第 45 页）。等的时间用 speed 压短
+            { cap: '待试管中没有现象发生时，重新加入过氧化氢溶液，插入带火星的木条：又复燃。二氧化锰没有再加，还在管底。', dur: 7, speed: 1.5, cam: [[TX + 0.04, 0.12, 0.03], [0.12, 0.16, 1], 0.5],
+              during: act.seq(path(cylPick, cylRoute, { t0: 0.03, t1: 0.25, release: 0.28 }), path(stickPick, stickRoute, { t0: 0.46, t1: 0.68, release: 0.7 })) },
+            { cap: '过了一会儿，试管中又没有现象了：不再冒出气泡。', dur: 1.8, speed: 7, cam: [[TX + 0.04, 0.12, 0.03], [0.12, 0.16, 1], 0.5] },
+            { cap: '再重复上述操作：重新加入过氧化氢溶液，插入带火星的木条——还是复燃。二氧化锰好像永远用不完。', dur: 5.5, speed: 2, cam: [[TX + 0.04, 0.12, 0.03], [0.12, 0.16, 1], 0.5],
+              during: act.seq(path(cylPick, cylRoute, { t0: 0.03, t1: 0.28, release: 0.3 }), path(stickPick, stickRoute, { t0: 0.45, t1: 0.68, release: 0.7 })) },
+            { cap: '过了一会儿，反应停止了：试管中又没有现象了。', dur: 1.8, speed: 7, cam: [[TX + 0.04, 0.12, 0.03], [0.12, 0.16, 1], 0.5] },
+            { cap: '反应后把二氧化锰滤出、洗净、干燥再称：还是 0.50 g。演示完了，下面换你自己做。', dur: 4.5, cam: [[BAL.x + 0.02, 0.04, 0.02], [0.1, 0.3, 1], 0.32],
+              during: act.at(0.08, () => A.weigh(true)) },
           ],
         },
       },
@@ -419,7 +425,7 @@ export default {
       cylLiq.scale.y = CYL_LIQ * (S.pouring ? Math.max(0.02, 1 - S.pouring.t / 0.8) : 1);
       cylLiq.visible = S.pours < MAX_POURS || !!S.pouring;
       stream.visible = !!S.pouring;
-      if (S.pouring) { const y0 = MY + 0.006, y1 = liquidTop(); stream.position.set(TX + 0.003, y0, 0); stream.scale.y = Math.max(0.001, y0 - y1); }
+      if (S.pouring) { const y0 = POUR_LIP.y + 0.0006, y1 = liquidTop(); stream.position.set(POUR_LIP.x - 0.0012, y0, 0); stream.scale.y = Math.max(0.001, y0 - y1); }      // 从量筒口的下沿流进试管
       // ---- 药匙：表面皿 → 试管口，翻过来倒进去 ----
       if (S.dumping) {
         S.dumping.t += h;

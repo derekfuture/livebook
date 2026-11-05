@@ -210,7 +210,7 @@ export class LiveLayer {
       this.panel.home.classList.remove('folded');
       // 预测阶段：隐藏标签和会泄露答案的现象（实验自己实现 predicting(on)）
       const onStep = (i) => { const on = i === 0; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
-      api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW }, onStep, onClose: () => this.close(), foldable: MODE === 'float' || stand,
+      api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => this.close(), foldable: MODE === 'float' || stand,
         onFold: (folded) => { if (!stand) stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8; } });
     }
     ctx.ui = api;

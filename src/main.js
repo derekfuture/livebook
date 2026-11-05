@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { Stage } from './stage/Stage.js';
 import { PageTextures } from './book/PageTextures.js';
+import { createPageSource } from './book/PageSource.js';
+import { mountImport } from './book/importPdf.js';
 import { Book } from './book/Book.js';
 import { Hotspots } from './book/Hotspots.js';
 import { LiveLayer } from './live/LiveLayer.js';
 import { Panel, stamps, h } from './ui/Panel.js';
 import { updateTags } from './ui/tags.js';
-import { getBook, bookList } from './content/index.js';
+import { getBook, bookList, getManifest } from './content/index.js';
 import { bootHome } from './home/Home.js';
 import { bookmark, rememberLast } from './home/progress.js';
 
@@ -22,12 +24,14 @@ const BOOK_ID = params.get('book');
  */
 async function bootBook(id, { stage = null, handoff = null } = {}) {
   const content = getBook(id);
-  const manifest = await (await fetch(`${content.base}book.json`)).json();
-  $('#book-title').textContent = manifest.title;
-  document.title = `活页课本 · ${manifest.title}`;
+  const manifest = await getManifest(content.id);
+  $('#book-title').textContent = content.full;
+  document.title = `活页课本 · ${content.full}`;
 
   stage ||= new Stage($('#c'));
-  const textures = new PageTextures(content.base, manifest.pageCount, stage.renderer);
+  const source = await createPageSource(content, manifest);
+  const textures = new PageTextures(source, manifest.pageCount, stage.renderer);
+  mountImport({ content, manifest, source });
   const book = new Book(stage, manifest, textures);
   if (handoff) book.group.visible = false;
   const hotspots = new Hotspots(stage, book, content.spots);
@@ -35,7 +39,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   const live = new LiveLayer({ stage, book, textures, hotspots, panel, content, onChange: (open) => {
     updateUI();
     const a = live.active;
-    if (open && a) { const L = content.lessons[a.spot.lesson]; rememberLast({ book: content.id, page: a.spot.page, lesson: a.spot.lesson, title: L.title, where: `${manifest.title} · ${L.fig} · ${L.sec}` }); bookmark.set(content.id, a.spot.page); }
+    if (open && a) { const L = content.lessons[a.spot.lesson]; rememberLast({ book: content.id, page: a.spot.page, lesson: a.spot.lesson, title: L.title, where: `${content.full} · ${L.fig} · ${L.sec}` }); bookmark.set(content.id, a.spot.page); }
   } });
   stage.updaters.add(() => updateTags(stage.camera));
 
@@ -61,7 +65,10 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   // ---------- 加载：先要封面和前几页 ----------
   // 先要封面和前几页；一打开就要翻过去的（书签页、链接里指定的页），连同翻页动画里会露出来的那几张纸一起先加载——不然翻的时候露出白纸
   const q0 = new URLSearchParams(location.hash.slice(1));
-  const startPage = q0.has('live') ? content.spots.find((x) => x.lesson === q0.get('live'))?.page : q0.has('p') ? Number(q0.get('p')) : bookmark.get(content.id);
+  // 没有原书页（占位页）时，不停在封面：直接翻开一张活页（有书签就翻开书签那里或之后的第一张，没有就第一张）
+  const spotsInOrder = [...content.spots].sort((a, b) => a.page - b.page);
+  const autoSpot = source.kind === 'placeholder' ? (spotsInOrder.find((x) => x.page >= (bookmark.get(content.id) ?? 0)) || spotsInOrder[0]) : null;
+  const startPage = q0.has('live') ? content.spots.find((x) => x.lesson === q0.get('live'))?.page : q0.has('p') ? Number(q0.get('p')) : autoSpot ? autoSpot.page : bookmark.get(content.id);
   const firstPages = [...new Set([0, 1, 2, 3, 4, ...(startPage != null ? book.turnPages(book.leafForPage(startPage), 0) : [])])];
   if (startPage != null) textures.want(book.turnPages(book.leafForPage(startPage), 0).slice(-2));          // 目的地那个跨页的高清图也先要
   let started = false;
@@ -100,7 +107,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     if (type === 'turned' && book.current > 0) {
       const pg = book.spread[1] ?? book.spread[0];
       bookmark.set(content.id, pg);
-      if (!live.isOpen) rememberLast({ book: content.id, page: pg, title: `${manifest.title} ${pageLabel()}`, where: '接着往下翻' });
+      if (!live.isOpen) rememberLast({ book: content.id, page: pg, title: `${content.full} ${pageLabel()}`, where: '接着往下翻' });
     }
     if (type === 'turned' && pendingLesson) {
       const s = pendingLesson; pendingLesson = null;
@@ -147,7 +154,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
         const done = Object.keys(c.lessons).filter((id) => stamps.has(id)).length;
         body.append(h('div', { class: `live-item ${b.id === content.id ? 'cur' : ''}`, onclick: () => { location.href = `?book=${b.id}`; } },
           h('div', { class: 'seal book' }, b.vol.replace('年级', '').replace('全一册', '全')),
-          h('div', {}, h('h4', {}, b.title), h('p', {}, `活页 ${Object.keys(c.lessons).length} 张 · 已盖章 ${done}`))));
+          h('div', {}, h('h4', {}, b.full), h('p', {}, `活页 ${Object.keys(c.lessons).length} 张 · 已盖章 ${done}`))));
       }
     } else {
       $('#drawer-title').textContent = '这本书的活页';
@@ -332,7 +339,8 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   // ---------- 深链接：#p=23 翻到 PDF 第 23 页，#live=lever 直接打开实验 ----------
   function handleHash() {
     const q = new URLSearchParams(location.hash.slice(1));
-    if (!q.has('live') && !q.has('p')) {      // 没指定：翻到上次的书签页
+    if (!q.has('live') && !q.has('p')) {      // 没指定：翻到上次的书签页（没有原书页时直接翻开活页）
+      if (autoSpot) { hideHint(); setTimeout(() => gotoPage(autoSpot.page, autoSpot), 420); return; }
       const bm = bookmark.get(content.id);
       if (bm) { hideHint(); setTimeout(() => gotoPage(bm), 420); }
       return;
