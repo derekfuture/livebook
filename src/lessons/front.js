@@ -1,267 +1,335 @@
-// 高中地理 选择性必修1 第三章第一节 常见天气系统 · 锋（课本第 42–44 页，图 3.2 锋的形成、图 3.3 冷锋及其天气）。
+// 高中地理 选择性必修1 第三章第一节 常见天气系统 · 锋与天气（课本第 42–44 页，图 3.2 锋的形成、图 3.3 冷锋、图 3.4 暖锋）。
 //
-// 课本的图就是模型（讲同一件事，不还原插图）：地块上冷、暖两种气团，交界面是锋面，锋面和地面交成锋线。
-// 学生第一次按住冷气团往右推：锋面随之立起，冷空气（密度较大）楔入暖空气下面，暖湿空气被迫沿锋面抬升、冷却，
-// 达到饱和后凝结成云；本例暖空气湿润，具备降水条件，雨从云底落下，穿过锋面落进下面的冷空气（图 3.3 的情形：降水主要在锋后、紧挨锋线）。
-// 形成以后再推，就是整个锋面系统在移动（云雨跟着锋走，往回拖也不会消失）；“重看形成过程”才回到开头。
-// 教学示意：竖直方向夸大了（真实锋面很平缓，冷锋通常比暖锋陡），只表示冷暖空气的关系，不是天气预报。
+// 课本的图就是模型（讲同一件事，不还原插图）：一块从地上切下来的地块，浮在书页上方；上面是冷、暖两种气团，交界面是锋面。
+// 核心：“你家”。地块上有你家和一座邻城，都可以拖到别处。学生按住后面的气团往前推，锋面一路扫过来，
+// 你家的天气跟着变，旁边的时间线记下你家依次经历了什么。冷锋、暖锋各推一次，两条时间线一比：
+//   冷锋——锋线到了才大风、降温、下雨，过后转晴；暖锋——锋线还没到就开始连续下雨（地面还冷），锋线过后才变暖。
+// 同一时刻，邻城和你家的天气不一样：看的是各自离锋线多远、在哪一侧。
+// 开头的问题只是轻轻问一句，点不点都行，不挡路、不判对错（这是一件作品，不是一套题）。
+// 教学示意：竖直方向夸大了（真实锋面很平缓，冷锋通常比暖锋陡）；雨区画的是课本图 3.3、3.4 的情形
+// （冷锋降水主要在锋后、紧挨锋线；暖锋降水在锋前、范围宽）。实际的锋，降水也可能在别的位置，或者没有降水。
 import * as THREE from 'three';
-import { goals, note, buttons } from './kit/ui.js';
+import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { h } from '../ui/Panel.js';
 
-const G = 0.022;                       // 地面顶面（地块有厚度，侧面露出土层）
-const XL = -0.17, XR = 0.17, ZD = 0.062; // 地面范围（窄一些：像从地上切下来的一块）
-const HC = 0.13, LAM = 0.12;            // 冷锋锋面的形状：h(s) = HC·(1 − e^(−s/λ))，s 是离锋线往后（冷气团一侧）的距离；近地面陡、高处缓
-const X0 = -0.02, X1 = 0.09, FORM = 0.07;          // 锋线从哪推到哪；推过 FORM 这一段，云雨就形成了
-const front = (s) => HC * (1 - Math.exp(-Math.max(0, s) / LAM));
+const LIFT = 0.05;                      // 整块地浮在书页上方多高
+const G = 0.022;                        // 地面顶面（地块有厚度，侧面露出土层）
+const XL = -0.17, XR = 0.17, ZD = 0.062;
+// 两种锋：锋面的形状 h(s) = H·(1 − e^(−s/λ))，s 是从锋线往冷空气那边量的距离。冷锋陡，冷空气在后面（锋线左边）；暖锋缓，冷空气在前面（右边）
+const KIND = {
+  cold: { H: 0.11, L: 0.1, side: -1, x0: -0.12, x1: 0.15, rain: [0, 0.045], name: '冷锋' },
+  warm: { H: 0.07, L: 0.2, side: 1, x0: -0.15, x1: 0.13, rain: [0, 0.095], name: '暖锋' },
+};
 const rnd = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/** 某地离锋线 d（正数＝在锋线前面，锋还没到）时的天气（教学示意，按课本图 3.3、3.4） */
+export function weatherAt(kind, d) {
+  if (kind === 'cold') {
+    if (d > 0.065) return { k: 'w0', text: '晴，较暖' };
+    if (d > 0) return { k: 'w1', text: '云变厚，风渐大' };
+    if (d >= -0.045) return { k: 'w2', text: '大风、降温、下雨' };
+    return { k: 'w3', text: '转晴，较冷，气压升高' };
+  }
+  if (d > 0.14) return { k: 'w0', text: '晴，较冷' };
+  if (d > 0.095) return { k: 'w1', text: '云一层层变厚' };
+  if (d >= 0) return { k: 'w2', text: '连续下雨，地面还冷' };
+  return { k: 'w3', text: '雨停，变暖，气压降低' };
+}
 
 export default {
   id: 'front',
   fig: '图3.2',
   title: '锋与天气',
   flow: 'explore',
-  ask: '天气预报说“冷空气明天到”。冷空气来的时候，天上的云和雨是从哪儿来的？',
-  need: '按住冷气团往右推，看暖空气怎样被抬起来、云和雨出现在哪里',
+  ask: '天气预报说“冷空气明天到”。冷空气来的时候，你家的天气会怎么变？',
+  need: '冷锋、暖锋各推过你家一次，比一比你家的天气是按什么顺序变的',
   conclusion: {
     page: 47,
-    quote: '冷锋是冷气团主动向暖气团移动的锋。冷气团的前缘插入暖气团下面，使暖气团被迫抬升（图3.3）。暖气团在抬升过程中冷却，其中水汽容易凝结成云和雨。当冷锋过境时，常出现较大的风，云层增厚，并出现雨、雪天气。冷锋过境后，冷气团占据原来暖气团的位置，气温下降，气压上升，天气转晴。',
-    why: '冷空气密度较大，前缘贴着地面楔入暖空气下面，把暖空气抬起来。暖湿空气被抬升、冷却，达到饱和后凝结成云；具备降水条件时形成降水。本图演示的是冷锋降水主要落在锋后、紧挨锋线的冷空气一侧的情形（实际的冷锋，降水也可能在锋前，或者没有降水）。',
+    quote: '冷锋是冷气团主动向暖气团移动的锋。冷气团的前缘插入暖气团下面，使暖气团被迫抬升（图3.3）。……当冷锋过境时，常出现较大的风，云层增厚，并出现雨、雪天气。冷锋过境后，冷气团占据原来暖气团的位置，气温下降，气压上升，天气转晴。暖锋是暖气团主动向冷气团移动的锋。暖气团沿冷气团徐徐爬升，冷却凝结产生云、雨（图3.4）。当暖锋过境时，云层加厚，多形成连续性降水。暖锋过境后，暖气团占据原来冷气团的位置，气温升高，气压降低，天气转晴。',
+    why: '两种锋都是暖湿空气沿锋面被抬升、冷却，达到饱和后成云；具备降水条件时形成降水。冷锋的锋面陡，云雨集中在锋线附近，本图降水主要在锋后：锋线一到，大风、降温、下雨几乎一起来，过后转晴。暖锋的锋面缓，暖空气爬升的范围很宽，雨下在锋前：锋线还没到就开始连续下雨，地面还是冷的，锋线过后才变暖。实际的锋，降水也可能在别的位置，或者没有降水。',
     src: '课本第 43 页 · 第三章 第一节 常见天气系统',
   },
 
   create({ tag }) {
     const group = new THREE.Group();
-    const S = { xf: X0, rise: 0, open: 0, form: 0, real: 0, drag: false, t: 0, going: false };          // open：打开时立到 0.25；form：形成过程（0→1，立起、抬升、成云、降水）
+    const S = { kind: 'cold', xf: KIND.cold.x0, rise: 0, real: 0, going: false, hintFor: null, drag: null, t: 0, home: 0.05, town: 0.13, logs: { cold: [], warm: [] }, done: new Set() };
     let W = null;
+    const K = () => KIND[S.kind];
+    const front = (s) => K().H * (1 - Math.exp(-Math.max(0, s) / K().L));
     const LINE = new THREE.LineBasicMaterial({ color: 0x2a3140, transparent: true, opacity: 0.9 });
     const lit = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1, roughness: 0.9, metalness: 0, ...o });
     const edges = (m, ang = 25) => { const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, ang), LINE); e.raycast = () => {}; m.add(e); return m; };
+    const block = new THREE.Group(); block.position.y = LIFT; group.add(block);          // 浮起来的那一整块
 
-    // 光用舞台自己的（加灯会把整本书照白）：线稿时颜色自己发光（平涂），推起来以后才受光
+    // ---- 书页上的影子（地块浮在上面） ----
+    const shadowTex = canvasTex(256, 128, (g, w, hh) => { const gr = g.createRadialGradient(w / 2, hh / 2, 0, w / 2, hh / 2, w / 2); gr.addColorStop(0, 'rgba(60,45,30,0.5)'); gr.addColorStop(0.6, 'rgba(60,45,30,0.2)'); gr.addColorStop(1, 'rgba(60,45,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); });
+    const shadow = new THREE.Mesh(new THREE.PlaneGeometry((XR - XL) * 1.25, ZD * 2 * 1.9), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+    shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.0006; shadow.raycast = () => {}; group.add(shadow);
+    // 镜头取景用：整块地加上云长到最高的范围（看不见）
+    const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL + 0.04, 0.17, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    frameBox.position.y = LIFT + 0.085; frameBox.raycast = () => {}; group.add(frameBox);
 
-    // 镜头取景用：整块地加上云塔长到最高的范围（看不见；打开时云还没长出来，镜头也要把它算进去）
-    const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL + 0.05, 0.2, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-    frameBox.position.y = 0.1; frameBox.raycast = () => {}; group.add(frameBox);
-    // ---- 地面（图 3.2 那块绿色的板） ----
+    // ---- 地块：草地 + 三层土 ----
     const groundMat = lit(0x9cc98a);
-    const ground = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.004, ZD * 2), groundMat));
-    ground.position.y = G - 0.002; ground.receiveShadow = true; group.add(ground);
-    // 地块的土层（侧面看得见）：表土、心土、底土
-    const soil = [[0xa07a52, 0.006], [0xb8915f, 0.006], [0xc9a877, G - 0.016]];
+    const ground = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.004, ZD * 2), groundMat)); ground.position.y = G - 0.002; block.add(ground);
     let yy = G - 0.004;
-    for (const [c, t] of soil) { const m = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, t, ZD * 2), lit(c))); m.position.y = yy - t / 2; yy -= t; group.add(m); }
-    // 真实的地面：田野、小路（推起来以后盖上来）
-    const fields = canvasTex(1024, 540, (g, w, h) => {
-      g.fillStyle = '#86b06a'; g.fillRect(0, 0, w, h);
-      const cols = ['#8fbb6e', '#7aa65c', '#a3c47a', '#6f9a52', '#b5c98a'];
-      g.globalAlpha = 0.55; for (let i = 0; i < 46; i++) { g.fillStyle = cols[i % cols.length]; const x = (i * 97) % w, y = ((i * 53) % h), ww = 90 + ((i * 37) % 120), hh = 60 + ((i * 29) % 90); g.save(); g.translate(x, y); g.rotate(((i % 5) - 2) * 0.05); g.fillRect(0, 0, ww, hh); g.restore(); }
-      for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(40,70,30,${Math.random() * 0.12})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
-      g.strokeStyle = 'rgba(235,225,200,0.8)'; g.lineWidth = 5; g.beginPath(); g.moveTo(0, h * 0.62); g.bezierCurveTo(w * 0.3, h * 0.5, w * 0.6, h * 0.75, w, h * 0.58); g.stroke();
+    for (const [c, t] of [[0xa07a52, 0.006], [0xb8915f, 0.006], [0xc9a877, G - 0.016]]) { const m = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, t, ZD * 2), lit(c))); m.position.y = yy - t / 2; yy -= t; block.add(m); }
+    const fields = canvasTex(1024, 380, (g, w, hh) => {
+      g.fillStyle = '#86b06a'; g.fillRect(0, 0, w, hh);
+      const cols = ['#8fbb6e', '#7aa65c', '#9fc277', '#78a35a'];
+      g.globalAlpha = 0.4; for (let i = 0; i < 30; i++) { g.fillStyle = cols[i % cols.length]; g.fillRect((i * 131) % w, (i * 67) % hh, 120 + ((i * 37) % 90), 70 + ((i * 29) % 60)); }
+      g.globalAlpha = 1; for (let i = 0; i < 3000; i++) { g.fillStyle = `rgba(40,70,30,${Math.random() * 0.1})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 2); }
     });
     const fieldMat = new THREE.MeshStandardMaterial({ map: fields, roughness: 1, transparent: true, opacity: 0 });
-    const field = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2), fieldMat); fields.wrapS = THREE.ClampToEdgeWrapping; field.rotation.x = -Math.PI / 2; field.position.y = G + 0.0002; field.receiveShadow = true; group.add(field);
+    const field = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2), fieldMat); field.rotation.x = -Math.PI / 2; field.position.y = G + 0.0002; block.add(field);
 
-    // ---- 锋面（橙色的曲面）和冷气团（锋面下面那一块） ----
-    const NS = 48, NZ = 2;
-    const frontGeo = new THREE.PlaneGeometry(1, 1, NS, NZ);
-    const frontMat = lit(0xf2a35e, { transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
-    const frontMesh = new THREE.Mesh(frontGeo, frontMat); frontMesh.renderOrder = 6; group.add(frontMesh);
-    const frontEdge = new THREE.LineSegments(new THREE.BufferGeometry(), LINE); group.add(frontEdge);
-    const coldGeo = new THREE.BufferGeometry();
-    const coldMat = lit(0x6f9fd6, { transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
-    const cold = new THREE.Mesh(coldGeo, coldMat); cold.renderOrder = 5; group.add(cold);
+    // ---- 锋面和冷空气（锋面下面那一块） ----
+    const NS = 48;
+    const frontGeo = new THREE.PlaneGeometry(1, 1, NS, 2);
+    const frontMat = lit(0xf2a35e, { transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false });
+    const frontMesh = new THREE.Mesh(frontGeo, frontMat); frontMesh.renderOrder = 6; block.add(frontMesh);
+    const frontEdge = new THREE.LineSegments(new THREE.BufferGeometry(), LINE); block.add(frontEdge);
+    const coldGeo = new THREE.BufferGeometry(), coldMat = lit(0x6f9fd6, { transparent: true, opacity: 0.24, depthWrite: false, side: THREE.DoubleSide });
+    const cold = new THREE.Mesh(coldGeo, coldMat); cold.renderOrder = 5; block.add(cold);
+    const run = () => (K().side < 0 ? S.xf - XL : XR - S.xf);          // 锋面往冷空气那边伸多远（到地块边上）
+    const xAt = (s) => S.xf + K().side * s;
+    const hAt = (s) => G + front(s) * S.rise;
     const shapeFront = () => {
-      const h = (s) => G + front(s) * S.rise;
-      const run = S.xf - XL, pos = frontGeo.attributes.position;
-      for (let j = 0; j <= NZ; j++) for (let i = 0; i <= NS; i++) {
-        const s = (i / NS) * run, k = j * (NS + 1) + i;
-        pos.setXYZ(k, S.xf - s, h(s), -ZD + (j / NZ) * ZD * 2);
-      }
+      const R = run(), pos = frontGeo.attributes.position;
+      for (let j = 0; j <= 2; j++) for (let i = 0; i <= NS; i++) { const s = (i / NS) * R; pos.setXYZ(j * (NS + 1) + i, xAt(s), hAt(s), -ZD + j * ZD); }
       pos.needsUpdate = true; frontGeo.computeVertexNormals(); frontGeo.computeBoundingSphere();
-      // 锋面的轮廓线（课本那样的墨线）：两侧的曲线 + 顶上的边
       const L = [];
-      for (const z of [-ZD, ZD]) for (let i = 0; i < NS; i++) { const a = (i / NS) * run, b = ((i + 1) / NS) * run; L.push(S.xf - a, h(a), z, S.xf - b, h(b), z); }
-      L.push(XL, h(run), -ZD, XL, h(run), ZD, S.xf, G, -ZD, S.xf, G, ZD);
+      for (const z of [-ZD, ZD]) for (let i = 0; i < NS; i++) { const a = (i / NS) * R, b = ((i + 1) / NS) * R; L.push(xAt(a), hAt(a), z, xAt(b), hAt(b), z); }
+      L.push(xAt(R), hAt(R), -ZD, xAt(R), hAt(R), ZD, S.xf, G, -ZD, S.xf, G, ZD);
       frontEdge.geometry.dispose(); frontEdge.geometry = new THREE.BufferGeometry(); frontEdge.geometry.setAttribute('position', new THREE.Float32BufferAttribute(L, 3));
-      // 冷气团：锋面和地面之间（两个侧面 + 后面一面 + 锋面下侧）
-      const P = [];
-      const quad = (a, b, c, d) => P.push(...a, ...b, ...c, ...a, ...c, ...d);
-      for (let i = 0; i < NS; i++) {
-        const a = (i / NS) * run, b = ((i + 1) / NS) * run, xa = S.xf - a, xb = S.xf - b, ha = h(a), hb = h(b);
-        for (const z of [-ZD, ZD]) quad([xa, G, z], [xb, G, z], [xb, hb, z], [xa, ha, z]);
-      }
-      quad([XL, G, -ZD], [XL, G, ZD], [XL, h(run), ZD], [XL, h(run), -ZD]);
+      const P = [], quad = (a, b, c, d) => P.push(...a, ...b, ...c, ...a, ...c, ...d);
+      for (let i = 0; i < NS; i++) { const a = (i / NS) * R, b = ((i + 1) / NS) * R; for (const z of [-ZD, ZD]) quad([xAt(a), G, z], [xAt(b), G, z], [xAt(b), hAt(b), z], [xAt(a), hAt(a), z]); }
+      const xe = xAt(R); quad([xe, G, -ZD], [xe, G, ZD], [xe, hAt(R), ZD], [xe, hAt(R), -ZD]);
       coldGeo.dispose(); coldGeo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); coldGeo.computeVertexNormals();
     };
 
-    // ---- 箭头：冷气团（蓝，贴地往右，按住它推）、暖气团（橙，沿锋面往上） ----
+    // ---- 推的那团空气：锋线后面（左边）。冷锋推冷气团，暖锋推暖气团 ----
     const arrow = (color, len) => {
       const g = new THREE.Group(), m = lit(color);
       const shaft = edges(new THREE.Mesh(new THREE.BoxGeometry(len, 0.006, 0.012), m)); shaft.position.x = len / 2; g.add(shaft);
       const headGeo = new THREE.ConeGeometry(0.012, 0.022, 3); headGeo.rotateZ(-Math.PI / 2); headGeo.rotateX(Math.PI / 6);
       const head = edges(new THREE.Mesh(headGeo, m)); head.position.x = len + 0.01; g.add(head);
-      return g;
+      g.userData.mat = m; return g;
     };
-    const coldArrow = arrow(0x2f7f6f, 0.05); group.add(coldArrow);
-    const warmArrow = arrow(0xd9662f, 0.045); group.add(warmArrow);
-    const grab = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, ZD * 2), new THREE.MeshBasicMaterial({ visible: false })); grab.userData.pick = true; group.add(grab);
+    const pushArrow = arrow(0x2f7f6f, 0.05); block.add(pushArrow);
+    const grab = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, ZD * 2), new THREE.MeshBasicMaterial({ visible: false })); grab.userData.pick = true; block.add(grab);
 
-    // ---- 被抬升的暖空气：课本那样的橙色箭头，但会流动——先贴地流向锋面，再贴着锋面往上爬（越高越冷，颜色从橙变白） ----
-    const flowTex = canvasTex(256, 64, (g, w, h) => { for (let x = 0; x < w; x += 64) { g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.moveTo(x + 8, 10); g.lineTo(x + 34, 10); g.lineTo(x + 54, h / 2); g.lineTo(x + 34, h - 10); g.lineTo(x + 8, h - 10); g.lineTo(x + 28, h / 2); g.closePath(); g.fill(); } });          // 一节节的箭头（>）
+    // ---- 被抬升的暖空气：一节节流动的箭头，贴着锋面往上爬（越高越冷，颜色从橙变白） ----
+    const flowTex = canvasTex(256, 64, (g, w, hh) => { for (let x = 0; x < w; x += 64) { g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.moveTo(x + 8, 10); g.lineTo(x + 34, 10); g.lineTo(x + 54, hh / 2); g.lineTo(x + 34, hh - 10); g.lineTo(x + 8, hh - 10); g.lineTo(x + 28, hh / 2); g.closePath(); g.fill(); } });
     flowTex.wrapS = THREE.RepeatWrapping;
-    const flows = [];
-    for (const [z, lift, main] of [[-0.045, 0.006, 0], [0.0, 0.009, 1], [0.045, 0.007, 0]]) {          // 中间一条是主路径：看它一路爬进云里
-      const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: flowTex, transparent: true, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
-      m.renderOrder = 7; m.userData = { z, lift, main }; flows.push(m); group.add(m);
-    }
+    const flows = [-0.04, 0.0, 0.04].map((z, i) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: flowTex, transparent: true, depthWrite: false, vertexColors: true, side: THREE.DoubleSide, opacity: i === 1 ? 1 : 0.45 })); m.renderOrder = 7; m.userData = { z }; block.add(m); return m; });
     const warmC = new THREE.Color(0xf07a2c), coolC = new THREE.Color(0xffffff);
-    const shapeFlows = () => {          // 一条带子：从锋前贴地流来，到锋线拐上去，贴着锋面往上爬
+    const shapeFlows = () => {
+      const k = K();
       for (const m of flows) {
-        const { z, lift } = m.userData, pts = [];
-        const run = Math.min(0.12, XR - 0.004 - S.xf); for (let i = 0; i <= 40; i++) { const x = S.xf + run - (i / 40) * run; pts.push([x, G + lift]); }          // 从地面边上流过来
-        for (let i = 1; i <= 50; i++) { const sv = (i / 50) * 0.11; pts.push([S.xf - sv, G + front(sv) * S.rise + lift + 0.003]); }          // 爬到云底那么高
-        const P = [], C = [], U = [], I = [], wdt = 0.0105;
-        let acc = 0;
-        pts.forEach(([x, y], k) => {
-          if (k) acc += Math.hypot(x - pts[k - 1][0], y - pts[k - 1][1]);
-          P.push(x, y, z - wdt, x, y, z + wdt); U.push(acc * 8, 0, acc * 8, 1);          // 一节箭头约 3 厘米长
+        const { z } = m.userData, pts = [];
+        // 冷锋：暖空气在前面（右边），往左流到锋线，再贴着锋面往左上爬；暖锋：暖空气在后面（左边），往右流到锋线，再贴着锋面往右上爬
+        const toward = -k.side, start = k.side < 0 ? Math.min(0.12, XR - 0.004 - S.xf) : Math.min(0.12, S.xf - XL - 0.004);
+        for (let i = 0; i <= 30; i++) pts.push([S.xf - toward * start * (1 - i / 30), G + 0.008]);
+        const climb = Math.min(k.side < 0 ? 0.1 : 0.16, run() - 0.004);
+        for (let i = 1; i <= 50; i++) { const sv = (i / 50) * climb; pts.push([xAt(sv), hAt(sv) + 0.011]); }
+        const P = [], C = [], U = [], I = [], wd = 0.0105; let acc = 0;
+        pts.forEach(([x, y], q) => {
+          if (q) acc += Math.hypot(x - pts[q - 1][0], y - pts[q - 1][1]);
+          P.push(x, y, z - wd, x, y, z + wd); U.push(acc * 8, 0, acc * 8, 1);
           const c = warmC.clone().lerp(coolC, smooth(0.015, 0.06, y - G)); C.push(c.r, c.g, c.b, c.r, c.g, c.b);
-          if (k) { const a = (k - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+          if (q) { const a = (q - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
         });
         m.geometry.dispose(); m.geometry = new THREE.BufferGeometry();
         m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); m.geometry.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); m.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); m.geometry.setIndex(I);
       }
     };
-    const placeParts = () => { flowTex.offset.x = -S.t * 0.8; const on = smooth(0.0, 0.15, S.form); for (const m of flows) { m.visible = on > 0.01; m.material.opacity = on * (m.userData.main ? 1 : 0.45); } };
 
-    // ---- 云：在锋线附近长高（冷锋：积雨云），按推的程度一团团长出来 ----
-    const puffs = [];
-    // 云用软边的贴片（面向镜头），一层层叠起来，比实心的球像云；底下偏灰、顶上亮
+    // ---- 云：冷锋是锋线附近的一座云塔（本例暖空气湿润）；暖锋是锋前一大片一层层的云 ----
     const cloudTex = canvasTex(256, 256, (g, w) => {
       const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
       gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.85)'); gr.addColorStop(0.75, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = gr; g.fillRect(0, 0, w, w);
-      g.globalCompositeOperation = 'destination-out';
-      for (let i = 0; i < 260; i++) { const a = Math.random() * Math.PI * 2, r = (0.3 + Math.random() * 0.7) * w / 2; g.fillStyle = `rgba(0,0,0,${Math.random() * 0.25})`; g.beginPath(); g.arc(w / 2 + Math.cos(a) * r, w / 2 + Math.sin(a) * r, 4 + Math.random() * 14, 0, 7); g.fill(); }
+      g.fillStyle = gr; g.fillRect(0, 0, w, w); g.globalCompositeOperation = 'destination-out';
+      for (let i = 0; i < 260; i++) { const a = Math.random() * 7, r = (0.3 + Math.random() * 0.7) * w / 2; g.fillStyle = `rgba(0,0,0,${Math.random() * 0.25})`; g.beginPath(); g.arc(w / 2 + Math.cos(a) * r, w / 2 + Math.sin(a) * r, 4 + Math.random() * 14, 0, 7); g.fill(); }
     });
-    for (let i = 0; i < 100; i++) {          // 一座云塔：骑在锋线上、长在锋面上方的暖空气里，越往上越窄，顶上摊开一点（积雨云）
-      const s = -0.014 + Math.pow(rnd(), 1.3) * 0.055, base = Math.max(0.026, front(s) + 0.004), hgt = 0.12 * Math.exp(-Math.abs(s - 0.004) / 0.03);
-      const y = base + Math.pow(rnd(), 0.8) * hgt, k = (y - base) / Math.max(hgt, 1e-3), top = k > 0.82, r = (0.013 + rnd() * 0.01) * (top ? 1.6 : 1);          // 云底平（凝结的高度），顶上摊开、往暖空气那边伸（砧状云顶）
-      const shade = 0.6 + 0.32 * Math.min(1, k * 1.25);          // 云底灰、云顶白（整体压暗一点，不抢暖空气爬升那一段）
-      const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(shade, shade, shade * 1.02), transparent: true, depthWrite: false, opacity: 0.9 }));
-      m.renderOrder = 8; m.raycast = () => {};
-      m.userData = { s: s - (top ? 0.045 * rnd() : 0), y, r, z: -ZD * 0.85 + rnd() * ZD * 1.7, born: 0.12 + k * 0.55 + rnd() * 0.12 };
-      puffs.push(m); group.add(m);
-    }
+    const puffs = Array.from({ length: 110 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
     const placeClouds = () => {
       for (const m of puffs) {
-        const u = m.userData, g = smooth(u.born, u.born + 0.25, S.form);
-        m.visible = g > 0.01;
-        m.position.set(S.xf - u.s, G + u.y, u.z); m.scale.setScalar(u.r * 2 * (0.35 + 0.65 * g)); m.material.opacity = 0.8 * g;
+        const [a, b, c, d] = m.userData.seed;
+        let s, y, r, sx = 1, sy = 1, shade;
+        if (S.kind === 'cold') {
+          s = -0.014 + Math.pow(a, 1.3) * 0.055; const base = Math.max(0.026, front(s) * S.rise + 0.004), hgt = 0.095 * Math.exp(-Math.abs(s - 0.004) / 0.03), q = Math.pow(b, 0.8);
+          y = base + q * hgt; r = 0.013 + c * 0.01; if (q > 0.82) { r *= 1.5; s -= 0.04 * d; } shade = 0.6 + 0.32 * Math.min(1, q * 1.25);
+        } else {
+          s = Math.pow(a, 0.9) * 0.15; const base = front(s) * S.rise + 0.006;
+          y = base + b * (0.012 + 0.025 * (1 - s / 0.15)); r = 0.012 + c * 0.008; sx = 2.2; sy = 0.9; shade = 0.62 + 0.3 * b;          // 一层层铺开的层状云
+        }
+        const x = xAt(s); m.visible = x > XL + 0.004 && x < XR - 0.004;          // 云和雨都只在这块地上方
+        m.position.set(x, G + y, -ZD * 0.85 + d * ZD * 1.7);
+        m.scale.set(r * 2 * sx, r * 2 * sy, 1); m.material.color.setRGB(shade, shade, shade * 1.02); m.material.opacity = 0.8 * S.rise;
       }
     };
 
-    // ---- 雨：从云底落下，穿过锋面落进下面的冷空气，一直落到地面（本图的情形：紧挨锋线的锋后） ----
-    const NR = 420, rainPos = new Float32Array(NR * 6), rainSeed = Array.from({ length: NR }, () => [rnd(), rnd(), rnd()]);
+    // ---- 雨：从云底落下，穿过锋面落进下面的冷空气，一直到地面 ----
+    const NR = 520, rainPos = new Float32Array(NR * 6), rainSeed = Array.from({ length: NR }, () => [rnd(), rnd(), rnd()]);
     const rain = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x4f6f98, transparent: true, opacity: 0.85 }));
-    rain.geometry.setAttribute('position', new THREE.BufferAttribute(rainPos, 3)); rain.raycast = () => {}; group.add(rain);
-    // 雨幕：云底下一道灰蓝色、往下变淡的帘子
-    const curtainTex = canvasTex(64, 128, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(80,100,130,0.9)'); gr.addColorStop(1, 'rgba(80,100,130,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
-    const curtain = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.024, ZD * 1.7), new THREE.MeshBasicMaterial({ map: curtainTex, transparent: true, depthWrite: false, opacity: 0 })); curtain.visible = false; curtain.renderOrder = 4; curtain.raycast = () => {}; group.add(curtain);
+    rain.geometry.setAttribute('position', new THREE.BufferAttribute(rainPos, 3)); rain.raycast = () => {}; block.add(rain);
     const placeRain = () => {
-      const on = smooth(0.7, 0.95, S.form); rain.visible = on > 0.02; if (!rain.visible) { curtain.visible = false; return; }
+      const [r0, r1] = K().rain; rain.material.opacity = 0.85 * S.rise;
       for (let i = 0; i < NR; i++) {
-        const [a, b, c] = rainSeed[i], sv = 0.002 + a * 0.043, x = S.xf - sv, top = Math.max(0.026, front(sv) * S.rise + 0.004), y = G + top - (((c + S.t * 1.1) % 1) * top);
-        const y2 = Math.max(G, y - 0.008);
+        const [a, b, c] = rainSeed[i], sv = r0 + 0.002 + a * (r1 - r0), x = xAt(sv), top = Math.max(0.024, front(sv) * S.rise + 0.004), y = G + top - (((c + S.t * 1.1) % 1) * top), y2 = x > XL + 0.002 && x < XR - 0.002 ? Math.max(G, y - 0.008) : y;          // 出了地块的雨不画
         rainPos.set([x, y, -ZD * 0.85 + b * ZD * 1.7, x - 0.0015 * (y - y2) / 0.008, y2, -ZD * 0.85 + b * ZD * 1.7], i * 6);
       }
-      rain.geometry.attributes.position.needsUpdate = true; rain.material.opacity = 0.85 * on;
-      curtain.visible = true; curtain.position.set(S.xf - 0.024, G + 0.012, 0); curtain.material.opacity = 0.32 * on;
+      rain.geometry.attributes.position.needsUpdate = true;
     };
 
-    // ---- 冷锋符号：地上锋线一排蓝三角，尖朝前进方向（天气图上的画法） ----
-    const sym = new THREE.Group(); group.add(sym);
+    // ---- 锋的符号（天气图上的画法）：冷锋蓝三角、暖锋红半圆，都朝前进方向 ----
+    const sym = new THREE.Group(); block.add(sym);
     const triGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, -0.005), new THREE.Vector3(0, 0, 0.005), new THREE.Vector3(0.008, 0, 0)]); triGeo.setIndex([0, 1, 2]);
-    const triMat = new THREE.MeshBasicMaterial({ color: 0x2a62b8, side: THREE.DoubleSide });
-    for (let z = -ZD + 0.012; z < ZD - 0.005; z += 0.024) { const t = new THREE.Mesh(triGeo, triMat); t.position.set(0, 0.0003, z); sym.add(t); }
-    const symLine = new THREE.Mesh(new THREE.BoxGeometry(0.0015, 0.0004, ZD * 2), triMat); sym.add(symLine);
+    const semiGeo = new THREE.CircleGeometry(0.0055, 16, -Math.PI / 2, Math.PI); semiGeo.rotateX(-Math.PI / 2);
+    const symMat = new THREE.MeshBasicMaterial({ color: 0x2a62b8, side: THREE.DoubleSide });
+    const drawSym = () => {
+      sym.clear(); symMat.color.set(S.kind === 'cold' ? 0x2a62b8 : 0xc8402e);
+      for (let z = -ZD + 0.012; z < ZD - 0.005; z += 0.024) { const t = new THREE.Mesh(S.kind === 'cold' ? triGeo : semiGeo, symMat); t.position.set(0, 0.0003, z); sym.add(t); }
+      sym.add(new THREE.Mesh(new THREE.BoxGeometry(0.0015, 0.0004, ZD * 2), symMat));
+    };
 
-    // ---- 标签（课本图 3.2 的字） ----
-    const tCold = tag('冷气团', 'pill'), tWarm = tag('暖气团', 'pill'), tFront = tag('锋面', 'pill'), tLine = tag('锋线', 'pill'), tHint = tag('按住冷气团，往右推', 'pill');
-    const tScale = tag('教学示意 · 竖直方向夸大了', 'pill');          // 常驻：真实锋面很平缓
+    // ---- 你家、邻城：几栋小房子（你家红顶、插一面小旗），都可以拖 ----
+    const makeTown = (roof, flag) => {
+      const t = new THREE.Group();
+      for (const [x, z, w, hh] of [[-0.006, -0.004, 0.007, 0.006], [0.004, 0.003, 0.008, 0.008], [0.0, -0.012, 0.006, 0.005], [0.009, -0.008, 0.005, 0.004]]) {
+        const body = edges(new THREE.Mesh(new THREE.BoxGeometry(w, hh, w), lit(0xf3ede1))); body.position.set(x, hh / 2, z); t.add(body);
+        const rg = new THREE.ConeGeometry(w * 0.78, 0.004, 4); rg.rotateY(Math.PI / 4); const r = edges(new THREE.Mesh(rg, lit(roof))); r.position.set(x, hh + 0.002, z); t.add(r);
+      }
+      if (flag) { const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0004, 0.0004, 0.016, 6), lit(0x666a72)); pole.position.set(-0.012, 0.008, 0.006); t.add(pole); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.006, 0.004), lit(0xd8392b, { side: THREE.DoubleSide })); f.position.set(-0.009, 0.014, 0.006); t.add(f); }
+      const pick = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.035), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.01; pick.userData.pick = true; t.add(pick);
+      t.userData.pick = pick; block.add(t); return t;
+    };
+    const home = makeTown(0xc7503c, true), town = makeTown(0x8a93a3, false);
+    const homeTag = tag('', 'pill'), townTag = tag('', 'pill');
 
-    // ---- 线稿 → 真实：颜色从平涂（自己发光）变成受光；墨线变淡；光亮起来 ----
+    // ---- 标签 ----
+    const tCold = tag('冷气团', 'pill'), tWarm = tag('暖气团', 'pill'), tFront = tag('锋面', 'pill'), tHint = tag('', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了', 'pill');
+
+    // ---- 线稿 → 真实：头一次推的时候，一秒内铺开 ----
     const setReal = () => {
       const r = S.real;
-      for (const m of [groundMat, frontMat, coldMat, coldArrow.children[0].material, warmArrow.children[0].material]) m.emissiveIntensity = 1 - 0.82 * r;
-      LINE.opacity = 0.9 - 0.6 * r;
-      frontMat.opacity = 0.8 - 0.5 * r;          // 锋面是两种气团之间的过渡界面，不是一块硬板：变真实以后很淡，只留轮廓
-      coldMat.opacity = 0.22 + 0.1 * r;
-      fieldMat.opacity = Math.min(1, r * 1.4); field.scale.x = Math.max(0.001, smooth(0, 0.85, r)); field.position.x = XL + (XR - XL) * field.scale.x / 2;          // 从冷气团那边一路铺过去
+      for (const m of [groundMat, frontMat, coldMat]) m.emissiveIntensity = 1 - 0.82 * r;
+      LINE.opacity = 0.9 - 0.6 * r; frontMat.opacity = 0.8 - 0.5 * r; coldMat.opacity = 0.24 + 0.08 * r;
+      fieldMat.opacity = Math.min(1, r * 1.4); field.scale.x = Math.max(0.001, smooth(0, 0.85, r)); field.position.x = XL + (XR - XL) * field.scale.x / 2;
+    };
+
+    // ---- 你家的天气、时间线 ----
+    const record = () => {
+      const w = weatherAt(S.kind, S.home - S.xf), log = S.logs[S.kind];
+      if (!log.length || w.k > log[log.length - 1].k) log.push(w);          // 锋面往前扫，你家依次经历的天气（往回拖不倒着记）
+      if (log.length === 4) S.done.add(S.kind);
+      drawLogs();
+    };
+    const drawLogs = () => {
+      if (!W) return;
+      W.logs.replaceChildren(...['cold', 'warm'].map((k) => h('div', { class: 'tl-row' }, h('b', {}, `${KIND[k].name}过你家：`), h('span', {}, S.logs[k].length > 1 ? S.logs[k].map((x) => x.text).join(' → ') : '还没推过'))));
+      if (S.done.size === 2) W.ui.unlock();
     };
 
     const layout = () => {
-      shapeFront();
-      coldArrow.position.set(Math.max(XL + 0.01, S.xf - 0.14), G + 0.004, 0.035);
-      const sW = 0.03, up = new THREE.Vector3(-0.02, (front(sW + 0.02) - front(sW)) * S.rise, 0).normalize();          // 暖气团的箭头：贴着锋面往上爬
-      warmArrow.position.set(S.xf - sW + 0.01, G + front(sW) * S.rise + 0.012, -0.035); warmArrow.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), up);
-      grab.position.set(S.xf - 0.1, G + 0.025, 0);
-      sym.position.set(S.xf, G, 0); sym.visible = S.real > 0.3;
-      setReal(); shapeFlows(); placeParts(); placeClouds(); placeRain();
-      tCold.loc(group, S.xf - 0.1, G + 0.03, 0.06); tWarm.loc(group, Math.min(XR - 0.035, S.xf + 0.07), G + 0.05, -0.02); tScale.loc(group, XL + 0.05, -0.004, ZD + 0.01);
-      tFront.loc(group, S.xf - 0.05, G + front(0.05) * S.rise + 0.012, 0.075); tLine.loc(group, S.xf + 0.006, G + 0.004, ZD - 0.005);
-      tHint.loc(group, S.xf - 0.12, G + 0.06, 0.04).show(S.form < 0.03 && S.open >= 1);
+      const k = K();
+      shapeFront(); shapeFlows(); placeClouds(); placeRain();
+      const ac = S.kind === 'cold' ? 0x2f7f6f : 0xd9662f; pushArrow.userData.mat.color.set(ac); pushArrow.userData.mat.emissive.set(ac);
+      pushArrow.position.set(Math.max(XL + 0.012, S.xf - 0.12), G + 0.004, 0.035);
+      grab.position.set(S.xf - 0.07, G + 0.03, 0);
+      sym.position.set(S.xf, G, 0); sym.visible = S.rise > 0.5;
+      home.position.set(S.home, G, 0.03); town.position.set(S.town, G, -0.025);
+      homeTag.loc(block, S.home, G + 0.04, 0.035).text(`<b>你家</b> ${weatherAt(S.kind, S.home - S.xf).text}`);
+      townTag.loc(block, S.town, G + 0.02, -0.03).text(`<b>邻城</b> ${weatherAt(S.kind, S.town - S.xf).text}`);
+      const coldX = k.side < 0 ? S.xf - 0.09 : Math.min(XR - 0.03, S.xf + 0.08), warmX = k.side < 0 ? Math.min(XR - 0.03, S.xf + 0.07) : Math.max(XL + 0.03, S.xf - 0.09);
+      tCold.loc(block, coldX, G + 0.03, -0.05); tWarm.loc(block, warmX, G + 0.075, -0.05);
+      tFront.loc(block, xAt(0.05), hAt(0.05) + 0.012, ZD + 0.004);
+      const intro = S.hintFor !== S.kind; tCold.show(intro); tWarm.show(intro); tFront.show(intro);          // 气团、锋面的名字只在开头标一下；推起来以后画面留给你家和邻城
+      tScale.loc(block, XL + 0.05, -0.006, ZD + 0.01);
+      tHint.loc(block, S.xf - 0.1, G + 0.065, 0.04).text(S.kind === 'cold' ? '按住冷气团，往右推' : '按住暖气团，往右推').show(S.hintFor !== S.kind);
+      setReal();
     };
 
-    // ---- 推冷气团：按住锋面后面的冷空气，在地面上往右拖 ----
+    // ---- 面板上的话：跟着你家发生的事说一句 ----
+    let last = '';
+    const say = () => {
+      if (!W) return;
+      const w = weatherAt(S.kind, S.home - S.xf), key = `${S.kind}${w.k}`; if (key === last) return; last = key;
+      const msg = {
+        coldw1: '锋线快到你家了：头顶的云变厚，风渐渐大起来。气温还没降，你家还在<b>暖空气</b>里。',
+        coldw2: '锋线到了你家：冷空气从下面插进来，<b>大风、降温、下雨</b>几乎一起来。',
+        coldw3: '锋线过去了：你家换成了<b>冷空气</b>，雨停了，天转晴，气温低了，气压升高。',
+        warmw1: '锋线还远，你家头顶已经是暖空气爬上来的地方：云一层层变厚。',
+        warmw2: '锋线还没到，你家就开始<b>连续下雨</b>了。雨是从头顶那层爬升的暖空气里落下来的，地面这里<b>还是冷空气</b>。',
+        warmw3: '锋线过去了：你家换成了<b>暖空气</b>，雨停了，变暖了，气压降低。',
+      }[key];
+      if (msg) W.ui.status(msg);
+    };
+
+    // ---- 拖：推后面的气团（锋面跟着走）；也可以拖你家、邻城换个地方 ----
     const plane = new THREE.Plane(), hit = new THREE.Vector3(), wq = new THREE.Vector3();
-    let x0 = 0, xf0 = 0;
-    const onGround = (ray) => { group.updateMatrixWorld(); group.getWorldPosition(wq); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), wq); if (!ray.intersectPlane(plane, hit)) return null; return group.worldToLocal(hit.clone()).x; };
+    let x0 = 0, v0 = 0;
+    const onGround = (ray) => { block.updateMatrixWorld(); block.localToWorld(wq.set(0, G, 0)); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), wq); if (!ray.intersectPlane(plane, hit)) return null; return block.worldToLocal(hit.clone()).x; };
+    const pickAt = (rc) => { const hits = rc.intersectObjects([home.userData.pick, town.userData.pick, grab, cold, pushArrow], true); if (!hits.length) return null; const o = hits[0].object; return o === home.userData.pick ? 'home' : o === town.userData.pick ? 'town' : 'front'; };
     const pointer = {
       down(rc) {
-        if (S.open < 1) return false;
-        const hits = rc.intersectObjects([grab, cold, coldArrow], true); if (!hits.length) return false;
+        if (S.rise < 0.95) return false;
+        const what = pickAt(rc); if (!what) return false;
         const x = onGround(rc.ray); if (x == null) return false;
-        S.drag = true; x0 = x; xf0 = S.xf; document.getElementById('c').style.cursor = 'grabbing'; return true;
+        S.drag = what; x0 = x; v0 = what === 'front' ? S.xf : S[what]; document.getElementById('c').style.cursor = 'grabbing'; return true;
       },
       move(rc) {
-        if (!S.drag) { const c = document.getElementById('c'); if (c && S.open >= 1) c.style.cursor = rc.intersectObjects([grab, cold, coldArrow], true).length ? 'grab' : ''; return false; }
+        const c = document.getElementById('c');
+        if (!S.drag) { if (c && S.rise > 0.95) c.style.cursor = pickAt(rc) ? 'grab' : ''; return false; }
         const x = onGround(rc.ray); if (x == null) return true;
-        const nx = Math.min(X1, Math.max(X0, xf0 + (x - x0)));
-        S.xf = nx; S.form = Math.max(S.form, Math.min(1, (S.xf - X0) / FORM)); S.rise = 0.25 + 0.75 * smooth(0, 0.4, S.form); if (S.form > 0.05) S.going = true;          // 头一段：锋面立起、成云、降水；形成以后再推，就是整个系统在走（云雨跟着锋）
-        layout(); progress(); return true;
+        if (S.drag === 'front') {
+          const k = K(); S.xf = Math.min(k.x1, Math.max(k.x0, v0 + (x - x0)));
+          S.going = true; S.hintFor = S.kind;
+        } else {
+          S[S.drag] = Math.min(XR - 0.015, Math.max(XL + 0.015, v0 + (x - x0)));
+          if (S.drag === 'home') { S.logs[S.kind] = []; S.done.delete(S.kind); }          // 你家搬了：这一次的时间线从头记
+        }
+        record(); layout(); say(); return true;
       },
-      up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; return true; },
-    };
-    const said = new Set();
-    const progress = () => {
-      if (!W) return;
-      const say = (k, m) => { if (!said.has(k)) { said.add(k); W.ui.status(m); } };
-      if (S.form > 0.05) say('in', '冷空气密度较大，贴着地面往前插，<b>楔入</b>暖空气下面；暖空气被迫沿着锋面<b>往上爬</b>。看中间那条箭头。');
-      if (S.form > 0.45) say('cloud', '暖湿空气被抬升、冷却，达到饱和后，水汽凝结成<b>云</b>。本例暖空气很湿润，云在锋线附近发展得很旺盛。');
-      if (S.form >= 1) { say('rain', '具备降水条件，雨从<b>云底</b>落下，穿过锋面，落进下面的<b>冷空气</b>里。本图是冷锋降水主要在锋后、紧挨锋线的情形。<br>现在再推，就是整个锋面在往前走，云和雨跟着它。'); W.goal.done('push'); }
+      up() { if (!S.drag) return false; S.drag = null; document.getElementById('c').style.cursor = ''; return true; },
     };
 
-    layout();
+    const setKind = (kind) => {
+      S.kind = kind; S.xf = KIND[kind].x0; S.rise = 0; S.hintFor = null; last = '';
+      drawSym(); record();
+      if (W) {
+        W.guess.el.querySelector('.ctl-label').textContent = kind === 'cold' ? '先猜一下（可以不猜）：冷锋来了，你家会——' : '先猜一下（可以不猜）：暖锋来了，你家会——';
+        W.guess.set(-1);
+        W.ui.status(kind === 'cold' ? '冷锋：冷气团主动往前推，插到暖空气下面。按住左边的<b>冷气团</b>往右推，看它扫过你家。' : '暖锋：暖气团主动往前走，顺着前面的冷空气慢慢爬上去。按住左边的<b>暖气团</b>往右推，看它扫过你家。');
+      }
+    };
+    drawSym(); record(); layout();
+
     return {
       group,
-      card: false,          // 和化学一样：直接立在书页上，不垫台板
-      size: { w: 0.38, d: 0.13, h: 0.22 },
-      view: { elev: 10, azim: 20, lookY: 0.42, frameMargin: 1.0 },          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面；镜头放低，锋面、云塔往上长
+      card: false,          // 和化学一样：不垫台板；整块地浮在书页上方
+      size: { w: 0.38, d: 0.14, h: 0.2 },
+      view: { elev: 14, azim: 18, lookY: 0.45, frameMargin: 0.96 },          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面
       pointer,
       mount(ui) {
-        W = { ui, goal: goals(ui, [['push', '按住冷气团往右推，看云和雨出现在哪里']]) };
-        const again = buttons([{ text: '重看形成过程', ghost: true, onClick: () => { S.xf = X0; S.form = 0; S.rise = 0.25; said.clear(); layout(); ui.status('回到开头：按住左边的<b>冷气团</b>，往右推。'); } }]);
-        ui.controls.append(again.el, note('教学示意：竖直方向夸大了。真实锋面很平缓，冷锋通常比暖锋陡（课本没写坡度；气象教材里冷锋约 1:50 到 1:100，暖锋约 1:100 到 1:200）。'));
-        ui.status('冷、暖两种气团相遇，交界面叫<b>锋面</b>，锋面和地面交成的线叫<b>锋线</b>（课本图 3.2）。按住左边的<b>冷气团</b>，往右推。');
+        const kindSeg = seg('推哪一种锋', ['冷锋', '暖锋'], (_, i) => { setKind(i ? 'warm' : 'cold'); layout(); }, { value: 0 });
+        const guess = seg('先猜一下（可以不猜）：冷锋来了，你家会——', ['先降温', '先下雨', '差不多一起'], () => {}, { value: -1 });
+        const logs = h('div', { class: 'timeline' });
+        const again = buttons([{ text: '把锋面推回去重来', ghost: true, onClick: () => { S.xf = K().x0; S.logs[S.kind] = []; S.done.delete(S.kind); last = ''; record(); layout(); } }]);
+        ui.controls.append(kindSeg.el, guess.el, again.el, note('你家和邻城都可以拖到别处。'));
+        ui.data.append(h('div', { class: 'bar-title' }, '你家经历了什么'), logs);
+        W = { ui, logs, guess };
+        drawLogs();
+        ui.status('地块上有你家和一座邻城。按住左边的<b>冷气团</b>往右推，看锋面扫过你家时，你家的天气怎么变。');
       },
       update(dt) {
         S.t += dt;
-        if (S.open < 1) { S.open = Math.min(1, S.open + dt / 0.9); S.rise = 0.25 * S.open; layout(); return; }          // 打开时：锋面微微立起（剩下的等学生推的时候再立）
-        if (S.going && S.real < 1) { S.real = Math.min(1, S.real + dt / 0.9); setReal(); sym.visible = S.real > 0.3; }
-        placeParts(); placeRain();
+        if (S.rise < 1) { S.rise = Math.min(1, S.rise + dt / 0.8); layout(); }          // 打开、换锋的时候：锋面立起来
+        if (S.going && S.real < 1) { S.real = Math.min(1, S.real + dt / 0.9); setReal(); }
+        flowTex.offset.x = -S.t * 0.8; placeRain();
       },
     };
   },
