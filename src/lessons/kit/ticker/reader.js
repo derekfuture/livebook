@@ -303,7 +303,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
         g.fillRect(x - 2, 151, 4, 100);
       }
     });
-    label('打到中间点时：' + timeAt(c) + ' s', LEFT, 322, 36);
+    label('从起点到中间点 ' + timeAt(c) + ' s', LEFT, 322, 36);
     const reading = (k) => (placed[k] || handle === k ? readings[k].toFixed(1) : '—');
     label('A ' + reading(0) + '    B ' + reading(1) + ' mm', RIGHT, 322, 34, '#554d42', 'right');
     label(
@@ -339,7 +339,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       g.beginPath();
       g.arc(x, 156, 15, 0, Math.PI * 2);
       g.stroke();
-      label('再测这里', x, 91, 33, '#286a71', 'center');
+      label(timeAt(slots[nextUnmeasured()]) + ' s', x, 91, 33, '#286a71', 'center');
     }
     bench.needsUpdate = true;
   }
@@ -511,7 +511,11 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     },
     get instruction() {
       if (probe) return '看这条纸带的实际点距，再回到全景。';
-      if (canContinue()) return '已记下一个速度。点纸带上圈出的点，比较小车在另一个时刻有多快。';
+      if (canContinue()) {
+        const first = sheet.points[0];
+        return first[0].toFixed(2) + ' s 时车速约 ' + first[1].toFixed(3) +
+          ' m/s。点同一条纸带上圈出的点，量 ' + timeAt(slots[nextUnmeasured()]) + ' s 时的车速。';
+      }
       if (sheet.used.size >= 2) return '这条纸带已量两个时刻，回到实验台。';
       if (slots.length === 1) return '这条纸带只能量一个时刻。回实验台，换新带，先通电再放车。';
       return placed[0]
