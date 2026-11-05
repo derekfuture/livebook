@@ -26,7 +26,7 @@ export default {
     src: '课本第 94–95 页 · 第四章 第2节 光的反射',
   },
 
-  create({ tag }) {
+  create({ tag, camera }) {
     const group = new THREE.Group();
 
     // 平面镜（镜面和实验台板顶面同高：画的时候让镜面略微靠前，免得两者重合闪烁）
@@ -38,7 +38,9 @@ export default {
     // 纸板（两半，各一张画布：量角刻度 + 笔迹）
     const half = (side) => {
       const tex = canvasTex(512, 512, () => {});
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(BW, BH), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+      const plain = paint(0xfbfaf5);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(BW, BH, 0.0008),
+        [plain, plain, plain, plain, new THREE.MeshBasicMaterial({ map: tex }), plain]);
       m.position.set((side * BW) / 2, BH / 2, 0);
       const edge = polyline([new THREE.Vector3(-BW / 2, -BH / 2, 0), new THREE.Vector3(-BW / 2, BH / 2, 0), new THREE.Vector3(BW / 2, BH / 2, 0), new THREE.Vector3(BW / 2, -BH / 2, 0)], { width: 1.3 });
       m.add(edge);
@@ -96,6 +98,7 @@ export default {
     const arcI = new THREE.Group(), arcR = new THREE.Group();
     group.add(arcI, arcR);
 
+    const observer = new THREE.Vector3();
     const S = { i: 40, fold: 0, reverse: false, rows: [] };
     let G = null;
 
@@ -104,7 +107,7 @@ export default {
       // 入射光从哪一侧来
       const inSide = S.reverse ? 1 : -1;
       const start = { x: inSide * Math.sin(i) * R, y: Math.cos(i) * R };
-      pen.position.set(start.x, start.y, 0.003);
+      pen.position.set(start.x, start.y, 0.008);   // 笔身贴近纸板正面
       pen.rotation.z = Math.atan2(-start.y, -start.x);
       const outEnd = { x: -inSide * Math.sin(i) * R * 1.12, y: Math.cos(i) * R * 1.12 };
       F.pivot.rotation.y = S.fold * deg;          // 向后折：纸板 NOF 绕 ON 往后（离开看的人）转
@@ -125,6 +128,7 @@ export default {
         for (let k = 0; k <= 20; k++) { const t = (i * k) / 20; pts.push(new THREE.Vector3(side * Math.sin(t) * 0.035, Math.cos(t) * 0.035, 0.002)); }
         grp.add(polyline(pts, { color: 0xd4006c, width: 1.6 }));
       }
+      arcI.visible = incOnPaper;
       arcR.visible = outOnPaper;
       tI.loc(group, inSide * Math.sin(i / 2) * 0.05, Math.cos(i / 2) * 0.05, 0.004).text(`<i>i</i> ${S.i}°`);
       tR.loc(group, -inSide * Math.sin(i / 2) * 0.05, Math.cos(i / 2) * 0.05, 0.004).text(S.rows.includes(S.i) ? `<i>r</i> ${S.i}°` : '<i>r</i> ?').show(outOnPaper);     // 反射角要学生自己从量角器上读
@@ -146,7 +150,13 @@ export default {
       size: { w: 0.3, d: 0.18, h: 0.14 },
       view: { elev: 22, azim: 0, lookY: 0.4, margin: 1.12 },
       pointer,
-      update() { S.guard?.check();},
+      update() {
+        S.guard?.check();
+        const front = group.worldToLocal(camera.getWorldPosition(observer)).z > 0;
+        tI.show(front && (!S.reverse || S.fold <= 2));
+        tR.show(front && (S.reverse || S.fold <= 2));
+        oLabel.show(front);
+      },
       mount(ui) {
         const out = readout([{ key: 'i', label: '入射角 ∠<i>i</i>' }, { key: 'r', label: '反射角 ∠<i>r</i>', secret: true }]);
         const ang = seg('入射角（也可以拖动激光笔）', ['20°', '30°', '40°', '50°', '60°', '70°'], (v) => { S.i = parseInt(v, 10); layout(); }, { value: 2 });

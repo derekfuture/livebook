@@ -38,7 +38,7 @@ export default {
 
     // ================= ① 气体扩散 =================
     const gasG = new THREE.Group();
-    const Y0 = 0.01, YM = Y0 + BH, Y1 = YM + 0.004 + BH;      // 下瓶底、瓶口相接处、上瓶顶
+    const Y0 = 0, YM = Y0 + BH, Y1 = YM + 0.004 + BH;      // 下瓶底、瓶口相接处、上瓶顶
     const b1 = new THREE.Mesh(new THREE.CylinderGeometry(BR, BR, BH, 32, 1, true), glassMat()); b1.position.y = Y0 + BH / 2;
     const b2 = new THREE.Mesh(new THREE.CylinderGeometry(BR, BR, BH, 32, 1, true), glassMat()); b2.position.y = YM + 0.004 + BH / 2;
     const bot = new THREE.Mesh(new THREE.CircleGeometry(BR, 32), glassMat()); bot.rotation.x = -Math.PI / 2; bot.position.y = Y0;
@@ -124,15 +124,19 @@ export default {
         // ---- ① ----
         if (S.scene === 'gas') {
           if (S.plate === 0) S.t += h;
+          const gap = S.plate ? 0.004 : 0;
+          b2.position.y = YM + gap + BH / 2;
+          fill[1].position.y = b2.position.y;
+          topC.position.y = YM + gap + BH;
           let topN = 0, botN = 0;
           const step = 0.009;
           P.forEach((p, i) => {
             const wasTop = p.y > YM + 0.002;          // 走这一步之前在哪个瓶子里（玻璃板挡着时不能跨过去）
             p.x += (Math.random() - 0.5) * step; p.z += (Math.random() - 0.5) * step; p.y += (Math.random() - 0.5) * step - (p.no2 ? 0.000006 : 0);
             const r = Math.hypot(p.x, p.z); if (r > BR * 0.95) { p.x *= (BR * 0.95) / r; p.z *= (BR * 0.95) / r; }
-            const lo = S.plate === 1 ? (wasTop ? YM + 0.004 : Y0) : Y0, hi = S.plate === 1 ? (wasTop ? Y1 : YM) : Y1;
+            const lo = S.plate === 1 ? (wasTop ? YM + 0.004 : Y0) : Y0, hi = S.plate === 1 ? (wasTop ? Y1 : YM) : topC.position.y;
             p.y = clamp(p.y, lo + 0.001, hi - 0.001);
-            if (p.no2) { if (p.y > YM + 0.002) topN++; else botN++; }
+            if (p.no2) { if (p.y > YM + gap / 2) topN++; else botN++; }
             m4.makeTranslation(p.x, p.y, p.z); mol.setMatrixAt(i, m4);
           });
           mol.instanceMatrix.needsUpdate = true;

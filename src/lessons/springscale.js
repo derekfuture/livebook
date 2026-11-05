@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { slider, buttons, goals, note, readout } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
 import { stand } from './kit/props.js';
-import { forceMeter, FM } from './kit/forcemeter.js';
+import { meterHanger, forceMeter, FM } from './kit/forcemeter.js';
 import { paint, inked, hull } from '../live/ink.js';
 
 const { MAX, PER_N, L } = FM;                              // 量程、每牛顿伸长、刻度板长
@@ -34,10 +34,9 @@ export default {
   create({ tag, look, back }) {
     const group = new THREE.Group();
     const st = stand({ height: 0.4, baseW: 0.14, baseD: 0.1 });
-    st.position.set(-0.11 - st.rodX, 0, -0.03);
-    const arm = st.clamp(TOPY + 0.006, 0.12);
+    st.position.set(-0.11 - st.rodX, 0, -0.055);
+    meterHanger(st, 0, TOPY, -0.03);
     group.add(st);
-    void arm;
     const sc = forceMeter();
     group.add(sc);
     // 文具袋

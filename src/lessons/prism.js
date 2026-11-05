@@ -35,11 +35,21 @@ export default {
 
     // ---- 色散 ----
     // 遮光板 + 狭缝（白光从左边射来）
-    const slit = inked(new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.12, 0.08), paint(0x2c313c)));
+    const slit = new THREE.Group();
     slit.position.set(SRC.x, SRC.y, 0);
+    for (const sign of [-1, 1]) {
+      const half = inked(new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.12, 0.039), paint(0x2c313c)));
+      half.position.z = sign * 0.0205;
+      slit.add(half);
+    }
     const lampBox = inked(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), paint(0x4d5668)));
     lampBox.position.set(SRC.x - 0.05, SRC.y, 0);
     dispersion.add(slit, lampBox);
+    for (const [x, bottom] of [[SRC.x, SRC.y - 0.06], [lampBox.position.x, SRC.y - 0.025]]) {
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.008, bottom, 12), paint(0x6d7480));
+      foot.position.set(x, bottom / 2, 0);
+      dispersion.add(foot);
+    }
 
     // 三棱镜（正三角形截面，沿 z 拉长）
     const side = 0.07;
@@ -54,13 +64,17 @@ export default {
     prismG.add(prismMesh);
     prismG.position.set(0, PY, 0);
     dispersion.add(prismG);
-    const stand = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, PY - 0.035, 10), paint(0x9aa3b2)), 0.0015);
-    stand.position.set(0, (PY - 0.035) / 2, 0);
-    dispersion.add(stand);
+    // 后方立柱上的水平短轴支撑棱镜，转动时轴心仍在截面中心。
+    const stand = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, PY, 10), paint(0x9aa3b2)), 0.0015);
+    stand.position.set(0, PY / 2, -0.05);
+    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.015, 12), paint(0x8a939f));
+    axle.rotation.x = Math.PI / 2;
+    axle.position.set(0, PY, -0.0425);
+    dispersion.add(stand, axle);
 
     // 白屏（竖直，在右边）
     const sTex = canvasTex(256, 512, () => {});
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.2, 0.1), [new THREE.MeshBasicMaterial({ map: sTex }), new THREE.MeshBasicMaterial({ map: sTex }), paint(0xe9e6dc), paint(0xe9e6dc), paint(0xe9e6dc), paint(0xe9e6dc)]);
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.2, 0.1), [paint(0xf7f6f1), new THREE.MeshBasicMaterial({ map: sTex }), paint(0xe9e6dc), paint(0xe9e6dc), paint(0xe9e6dc), paint(0xe9e6dc)]);
     screen.position.set(SCREEN_X, 0.1, 0);
     inked(screen, { width: 1.2 });
     dispersion.add(screen);
@@ -78,7 +92,7 @@ export default {
     const scene = new OpticsScene();
 
     // ---- 三原色 ----
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.22), new THREE.MeshBasicMaterial({ color: 0x15161b }));
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.22), new THREE.MeshBasicMaterial({ color: 0x15161b, side: THREE.DoubleSide }));
     wall.position.set(0, 0.11, -0.04);
     mixing.add(wall);
     const mixTex = canvasTex(680, 440, () => {});
@@ -143,7 +157,7 @@ export default {
       sTex.needsUpdate = true;
       // 温度计读数：在色带上升温，红端外升得最多（红外线），紫端外几乎不变
       const y = S.thY;
-      thG.position.set(SCREEN_X - 0.006, y, 0.025);
+      thG.position.set(SCREEN_X - 0.014, y, 0.025);   // 横放的玻璃泡全在迎光面前
       let rise = 0.3, zone = '色带外';
       if (S.stripe) {
         const { top, bot } = S.stripe, span = top - bot;
@@ -194,7 +208,7 @@ export default {
 
     return {
       group,
-      size: { w: 0.5, d: 0.2, h: 0.22 },
+      size: { w: 0.54, d: 0.25, h: 0.22 },
       view: { elev: 10, azim: -20, lookY: 0.48, margin: 1.05 },
       pointer,
       mount(ui) {

@@ -19,7 +19,7 @@ import { h } from '../ui/Panel.js';
 
 const ROOM = 20, Q = 1160, CAP = 13, LH_EVAP = 2260;            // J、J/℃、J/g
 const XS = [-0.025, 0.025], T_R = 0.009, T_LEN = 0.12, T_Y = 0.012;
-const CYL_HOME = new THREE.Vector3(0.09, 0, 0.04), TH_HOME = new THREE.Vector3(-0.09, 0.006, 0.06);
+const CYL_HOME = new THREE.Vector3(0.09, 0, 0.04), TH_HOME = new THREE.Vector3(0.07, 0.006, 0.07);
 
 export default {
   id: 'cao',
@@ -78,6 +78,7 @@ export default {
     const cylPick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.06, 8), new THREE.MeshBasicMaterial({ visible: false })); cylPick.position.y = 0.03; cylPick.userData.pick = true; cyl.add(cylPick);
     const CYL_PIV = CYL_HOME.clone().add(new THREE.Vector3(-0.009, 0.06, 0)); cylPiv.position.copy(CYL_PIV);
     const th = thermometer({ min: 0, max: 110, length: 0.15 }); group.add(th);
+    th.children[1].scale.set(0.84, 0.8, 0.84);   // 小玻璃泡能浸进 2 mL 水里，又避开圆底。
     th.children[1].material = paint(0xd8342a, { keep: true }); th.children[0].material = glass2({ base: 0.06, rim: 0.5, band: 0.5 }); th.children[0].renderOrder = 9;
     const thPick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.15, 8), new THREE.MeshBasicMaterial({ visible: false })); thPick.position.y = 0.075; thPick.userData.pick = true; th.add(thPick);
     th.position.copy(TH_HOME); th.rotation.z = Math.PI / 2;
@@ -172,7 +173,7 @@ export default {
       heatRing.material.opacity = clamp((S.t[0].T - 30) / 70, 0, 0.6);
       // 温度计
       if (S.thCarry) { th.position.lerp(S.thCarry.clone().add(new THREE.Vector3(0, -0.06, 0)), 0.45); th.rotation.z += (0 - th.rotation.z) * 0.3; }
-      else if (S.thIn >= 0) { th.position.lerp(new THREE.Vector3(XS[S.thIn] + 0.002, T_Y + 0.004, 0), 0.3); th.rotation.z += (0.03 - th.rotation.z) * 0.3; }
+      else if (S.thIn >= 0) { th.position.lerp(new THREE.Vector3(XS[S.thIn], T_Y + 0.007, 0), 0.3); th.rotation.z += (0.03 - th.rotation.z) * 0.3; }
       else { th.position.lerp(TH_HOME, 0.2); th.rotation.z += (Math.PI / 2 - th.rotation.z) * 0.2; }
       th.setTemp(S.thIn >= 0 && !S.thCarry ? S.t[S.thIn].T : ROOM);
       S.t.forEach((T, k) => cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${k ? '细沙' : '生石灰'}</span>${!k && T.T >= 99.5 ? '<span class="cc-res burn">沸腾</span>' : ''}</div><div class="cc-more"><div class="cc-obs"><b style="font-size:1.15em">${S.thIn === k ? T.T.toFixed(0) + ' ℃' : '—'}</b><small>${T.water > 0.05 ? `加了 ${Math.min(2, T.water + T.steam).toFixed(1)} mL 水` : '还没加水'}</small></div></div></div>`).loc(group, XS[k], T_Y + T_LEN, 0).show(tubes[k].visible));

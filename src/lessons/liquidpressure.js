@@ -40,6 +40,11 @@ export default {
     // U 形管（玻璃）+ 刻度板 + 支架
     const st = stand({ height: 0.3, baseW: 0.1, baseD: 0.07 });
     st.position.set(UX + 0.075 - st.rodX, 0, -0.04);
+    // 两根夹臂从立杆接到刻度背板的背面。
+    const dx = UX - (st.position.x + st.rodX), dz = -0.015 - st.position.z;
+    for (const y of [0.07, 0.21]) {
+      st.clamp(y, Math.hypot(dx, dz)).rotation.y = -Math.atan2(dz, dx);
+    }
     group.add(st);
     const glass = paint(0xd6ecf5, { unique: true, transparent: true, opacity: 0.35, depthWrite: false });
     const tubeR = 0.0045, bottom = 0.06;
@@ -131,7 +136,7 @@ export default {
 
     return {
       group,
-      size: { w: 0.3, d: 0.12, h: 0.3 },
+      size: { w: 0.46, d: 0.15, h: 0.3 },
       view: { elev: 8, azim: 0, lookY: 0.5, margin: 1.12 },
       pointer,
       mount(ui) {

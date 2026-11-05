@@ -34,7 +34,7 @@ export default {
     src: '课本第 122–124 页 · 第五章 第3节 凸透镜成像的规律',
   },
 
-  create({ tag, world, mode, look, back }) {
+  create({ tag, world, mode, look, back, camera }) {
     const ctxLook = look, ctxBack = back;
     const group = new THREE.Group();
     group.position.x = -LEN / 2;
@@ -75,9 +75,12 @@ export default {
     let G = null, W = null, onBack = null;
     // 虚像（透过透镜看时才出现）
     // 透过透镜看到的样子：只在镜片范围内，看到放大、正立的“F”
-    const ghostTex = ledTex.clone();
+    const eye = new THREE.Vector3();
+    const aperture = 0.037;
+    // 留一个透明边缘，让射线偏离发光板时露出镜片本身。
+    const ghostTex = canvasTex(128, 128, (g) => g.drawImage(ledTex.canvas, 1, 1, 126, 126));
     ghostTex.wrapS = ghostTex.wrapT = THREE.ClampToEdgeWrapping;
-    const ghost = new THREE.Mesh(new THREE.CircleGeometry(0.037, 48), new THREE.MeshBasicMaterial({ map: ghostTex, transparent: true, opacity: 0.92, depthWrite: false }));
+    const ghost = new THREE.Mesh(new THREE.CircleGeometry(aperture, 48), new THREE.MeshBasicMaterial({ map: ghostTex, transparent: true, opacity: 0.92, depthWrite: false }));
     ghost.rotation.y = Math.PI / 2;
     ghost.renderOrder = 12;
     ghost.visible = false;
@@ -101,19 +104,13 @@ export default {
       const d = describeImage(S.u, F);
       S.look = true;
       sp.visible = false;
-      // 镜片里看到的 F 比光源本身大 m 倍：贴图只取中间 1/m 的部分
-      const m = Math.max(1, Math.abs(d.m)), k = 2.8 / m;   // F 只占镜片的一部分，四周留出边
-      ghostTex.repeat.set(k, k);
-      ghostTex.offset.set(0.5 - k / 2, 0.5 - k / 2);
-      ghostTex.needsUpdate = true;
-      ghost.position.set(LENS_X + 0.006, y0 + H, 0);
-      ghost.visible = true;
-      look([LENS_X - LEN / 2, y0 + H, 0], [1, 0.1, 0.12], 0.3, () => { lookBack(); onBack?.(); });
+      ghost.position.set(LENS_X, y0 + H, 0);
+      look([LENS_X - LEN / 2, y0 + H, 0], [1, 0, 0], 0.3, () => lookBack());
       W.done('virtual');
       W.status(`透过透镜看：看到一个<b>${d.text}</b>，和物体在透镜的同一侧。光屏上接不到它。（点空白处回去）`);
       layout();
     };
-    const lookBack = () => { S.look = false; sp.visible = true; ghost.visible = false; back(); layout(); };
+    const lookBack = () => { S.look = false; sp.visible = true; ghost.visible = false; back(); onBack?.(); layout(); };
 
     const layout = () => {
       src.position.x = LENS_X - S.u;
@@ -140,7 +137,7 @@ export default {
         }
         g.save();
         g.translate(W / 2, Hh / 2);
-        g.rotate(Math.PI);          // 实像：上下、左右都颠倒
+        g.scale(1, -1);             // 光屏迎光面和光源朝向相反，两面的纹理横轴也相反
         g.filter = `blur(${blurPx.toFixed(1)}px)`;
         g.globalAlpha = Math.min(1, 1.3 / Math.max(0.6, m));
         g.drawImage(ledTex.canvas, -size / 2, -size / 2, size, size);
@@ -177,6 +174,21 @@ export default {
       scale: 1.0,
       view: { elev: 13, azim: -34, lookY: 0.55, lookZ: 0.04, margin: 0.82 },
       pointer,
+      update() {
+        if (!S.look) return;
+        group.worldToLocal(camera.getWorldPosition(eye));
+        const distance = eye.x - LENS_X;
+        ghost.visible = distance > 0.0001;
+        if (!ghost.visible) return;
+        // 把透镜圆面上的每条视线延长到虚像平面，斜看时 F 会移出镜片。
+        const image = describeImage(S.u, F);
+        const depthRatio = -image.v / distance;
+        const imageSize = 0.05 * image.m;
+        const span = 2 * aperture * (1 + depthRatio) / imageSize;
+        ghostTex.repeat.set(span, span);
+        ghostTex.offset.set((1 - span) / 2 + eye.z * depthRatio / imageSize,
+          (1 - span) / 2 - (eye.y - ghost.position.y) * depthRatio / imageSize);
+      },
       // 自动化测试用：直接设置位置、记录、透过透镜看
       debug: { set: (u, sc) => { S.u = u; S.s = sc ?? describeImage(u, F).v; layout(); G?.sync(); }, record: () => recordNow(), look: () => lookThrough(), back: () => lookBack() },
       // 世界内界面下的机位
@@ -189,7 +201,7 @@ export default {
       },
       mount(ui) {
         const out = readout([{ key: 'u', label: '物距', unit: 'cm', secret: '看光具座的刻度' }, { key: 's', label: '光屏到透镜', unit: 'cm', secret: '看光具座的刻度' }]);
-        const us = slider('移动发光物体（物距）', { min: 4, max: 45, step: 1, value: 30, fmt: () => '',  onInput: (v) => { S.u = v / 100; layout(); } });
+        const us = slider('移动发光物体（物距）', { min: 4, max: 45, step: 1, value: 30, fmt: () => '',  onInput: (v) => { if (S.look) lookBack(); S.u = v / 100; layout(); } });
         const ss = slider('移动光屏', { min: 6, max: 48, step: 0.5, value: 15, fmt: () => '', onInput: (v) => { S.s = v / 100; layout(); } });
         const auto = buttons([{ text: '提示：帮我找到最清晰的位置', ghost: true, onClick: () => {
           const d = describeImage(S.u, F);

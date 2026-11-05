@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { buttons, goals, note, table, chart, guard } from './kit/ui.js';
 import { stand, hookWeight } from './kit/props.js';
 import { draggable } from './kit/interact.js';
-import { forceMeter } from './kit/forcemeter.js';
+import { meterHanger, forceMeter } from './kit/forcemeter.js';
 
 const G = 9.8, M1 = 0.05, TOPY = 0.5, MAXN = 6;
 
@@ -30,8 +30,8 @@ export default {
   create({ tag, look, back }) {
     const group = new THREE.Group();
     const st = stand({ height: 0.53, baseW: 0.14, baseD: 0.1 });
-    st.position.set(-0.11 - st.rodX, 0, 0);
-    st.clamp(TOPY + 0.006, 0.12);
+    st.position.set(-0.11 - st.rodX, 0, -0.025);
+    meterHanger(st, 0, TOPY, 0);
     group.add(st);
     const sc = forceMeter();
     sc.position.set(0, TOPY, 0);
@@ -89,7 +89,7 @@ export default {
 
     return {
       group,
-      size: { w: 0.36, d: 0.16, h: 0.53 },
+      size: { w: 0.43, d: 0.16, h: 0.53 },
       view: { elev: 12, azim: 0, lookY: 0.5, margin: 1.12 },
       pointer,
       mount(ui) {

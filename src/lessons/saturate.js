@@ -341,7 +341,7 @@ export default {
       pointer,
       card: false,
       toggles: ['cards', 'steps'],
-      size: { w: 0.3, d: 0.16, h: 0.18 },
+      size: { w: 0.34, d: 0.16, h: 0.18 },
       view: { elev: 20, azim: -4, lookY: 0.4, frameMargin: 1.08 },
       mount(ui) {
         ui.el.classList.add('xuean');

@@ -36,7 +36,7 @@ export default {
     const group = new THREE.Group();
     const st = stand({ height: TOP + 0.06, baseW: 0.1, baseD: 0.08 });
     st.position.set(-0.09 - st.rodX, 0, -0.04);
-    st.clamp(TOP + 0.05, 0.12).rotation.y = -0.3;
+    st.clamp(TOP + 0.05, Math.hypot(0.09, 0.04)).rotation.y = -Math.atan2(0.04, 0.09);
     group.add(st);
     const S = { xw: 0.12, mw: 20, ang: 0, w: 0, onPan: null, O: null, C: null, marks: false, rows: [], drag: null, dragPos: new THREE.Vector3() };
     let W = null;
@@ -67,7 +67,7 @@ export default {
     for (const [x, t] of [[-AB, 'A'], [0, 'B']]) tag(t, 'mag').loc(beam, x, 0.012, 0.01);
     group.add(beam);
     // 提纽（挂在铁架台的横杆上）
-    const hold = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 0.04, 4), new THREE.MeshBasicMaterial({ color: 0x444444 })); hold.position.set(0, TOP + 0.024, 0); group.add(hold);
+    const hold = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 0.05, 6), new THREE.MeshBasicMaterial({ color: 0x444444 })); hold.position.set(0, TOP + 0.025, 0); group.add(hold);
     // 秤盘（挂在 A）
     const pan = new THREE.Group();
     const bowl = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.018, 0.015, 24, 1, true), paint(0xc8cdd4, { side: THREE.DoubleSide })), 0.001); bowl.position.y = 0.0075;
@@ -114,7 +114,7 @@ export default {
 
     return {
       group,
-      size: { w: 0.48, d: 0.14, h: 0.36 },
+      size: { w: 0.48, d: 0.17, h: 0.36 },
       view: { elev: 8, azim: 0, lookY: 0.5, margin: 1.05 },
       pointer,
       mount(ui) {

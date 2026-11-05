@@ -125,7 +125,7 @@ export default {
     const spoon = spatula(); const SPOON_HOME = new THREE.Vector3(-0.03, 0.004, 0.085); spoon.position.copy(SPOON_HOME); spoon.rotation.y = -0.3; group.add(spoon);
     const spoonPick = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.025), new THREE.MeshBasicMaterial({ visible: false })); spoonPick.position.x = 0.05; spoonPick.userData.pick = true; spoon.add(spoonPick);
     const cotton = cottonBall(0.0075);
-    const COTTON_HOME = new THREE.Vector3(0.025, 0.007, 0.085); cotton.position.copy(COTTON_HOME); group.add(cotton);
+    const COTTON_HOME = new THREE.Vector3(0.106, 0.007, 0.115); cotton.position.copy(COTTON_HOME); group.add(cotton);
     const cottonPick = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); cottonPick.userData.pick = true; cotton.add(cottonPick);
     const stick = splint(); const STICK_HOME = new THREE.Vector3(0.2, 0.006, 0.09); stick.position.copy(STICK_HOME); stick.rotation.z = Math.PI / 2; group.add(stick);
     const stickPick = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.14, 0.02), new THREE.MeshBasicMaterial({ visible: false })); stickPick.position.y = 0.065; stickPick.userData.pick = true; stick.add(stickPick);

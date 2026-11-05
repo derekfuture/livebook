@@ -112,7 +112,7 @@ export default {
     return {
       group,
       pointer,
-      size: { w: 0.3, d: 0.16, h: 0.1 },
+      size: { w: 0.36, d: 0.16, h: 0.1 },
       view: { elev: 24, azim: 0, lookY: 0.35, margin: 1.15 },
       mount(ui) {
         const out = readout([{ key: 'f', label: '压力 F', unit: 'N' }, { key: 's', label: '受力面积 S', unit: 'cm²' }, { key: 'd', label: '海绵凹陷（模拟值）', unit: 'mm' }]);

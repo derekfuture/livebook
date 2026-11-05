@@ -9,7 +9,7 @@ import { compass, filings, fieldAt, fieldLines } from './kit/magnet.js';
 import { battery, switchPart } from './kit/circuit.js';
 import { paint, inked, hull } from '../live/ink.js';
 
-const PW = 0.34, PD = 0.2, PY = 0.03;            // 玻璃板（架高，螺线管在板下）
+const PW = 0.34, PD = 0.2, PY = 0.035;            // 玻璃板（架高，螺线管在板下）
 const CL = 0.11, CR = 0.013, TURNS = 14;          // 螺线管长度、半径、匝数
 const EARTH = [0, -30];
 
@@ -97,10 +97,22 @@ export default {
     tag('点电池盒：正负极对调', 'pill').loc(group, -0.04, 0.005, PD / 2 + 0.075);
     const wires = [];
     const wire = (pts) => { const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))), 30, 0.0013, 6, false), paint(0xe08a3c)); group.add(m); wires.push(m); };
-    const ey = CR + 0.004 + 0.0, ez = 0.012;
-    wire([[-CL / 2 - 0.004, ey + CR, ez], [-CL / 2 - 0.03, 0.02, 0.06], [-0.04 - 0.04, 0.015, PD / 2 + 0.05]]);
-    wire([[CL / 2 + 0.004, ey, ez], [CL / 2 + 0.03, 0.02, 0.06], [0.09 + 0.018, 0.016, PD / 2 + 0.045]]);
-    wire([[0.09 - 0.018, 0.016, PD / 2 + 0.045], [0.03, 0.016, PD / 2 + 0.06], [-0.04 + 0.04, 0.015, PD / 2 + 0.05]]);
+    const connect = () => {
+      for (const m of wires) { group.remove(m); m.geometry.dispose(); }
+      wires.length = 0;
+      // 左端接正极时，电流沿 helixCurve 从左到右；电池掉头后两个接点跟着变。
+      bat.group.rotation.y = S.flip > 0 ? Math.PI : 0;
+      const terminal = (part, key) => group.worldToLocal(part.group.localToWorld(
+        new THREE.Vector3(...part.terminals[key]))).toArray();
+      const left = terminal(bat, S.flip > 0 ? '+' : '-'), right = terminal(bat, S.flip > 0 ? '-' : '+');
+      const a = terminal(sw, 'a'), b = terminal(sw, 'b');
+      const start = helixCurve.getPoint(0).add(coil.position).toArray();
+      const end = helixCurve.getPoint(1).add(coil.position).toArray();
+      wire([start, [-0.085, 0.019, 0.065], [left[0], 0.032, left[2] - 0.015], left]);
+      wire([end, [0.12, 0.017, 0.065], [b[0] + 0.017, 0.021, b[2] - 0.015], b]);
+      wire([a, [a[0] - 0.01, 0.027, a[2] + 0.012], [right[0] + 0.012, 0.027, right[2] + 0.012], right]);
+    };
+    connect();
 
     // 电流环绕方向 × 绕法 → N 极在哪一端（+1：+x 端是 N）
     const north = () => S.flip * S.wind;
@@ -121,7 +133,7 @@ export default {
       W?.sync();
     };
     const flipBat = () => {
-      S.flip *= -1; bat.group.rotation.y = S.flip > 0 ? 0 : Math.PI; redraw();
+      S.flip *= -1; connect(); redraw();
       if (S.on) { W?.goal.done('reverse'); status('电源正负极对调后，电流反向——小磁针都<b>转过来</b>了，螺线管的 N、S 极对调。'); }
       else status('电池盒掉了个头（正负极对调）。闭合开关看看。');
       W?.sync();
@@ -175,7 +187,7 @@ export default {
         fl.update(dt);
         iron.position.lerp(S.iron ? ironIn : ironHome, Math.min(1, dt * 6));
         ironTag.loc(group, iron.position.x + CL / 2 + 0.03, iron.position.y, iron.position.z).text(S.iron ? '' : '铁棒');
-        // 电流点（正极出发，经开关→右端引线→线圈→左端；flip 反过来）
+        // 电流点（初始从正极经左端流入线圈，经右端和开关回到负极）
         const m = new THREE.Matrix4();
         placeArrows();
         dots.count = S.on ? NDOT : 0;

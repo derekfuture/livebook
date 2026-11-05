@@ -9,6 +9,18 @@ import { clamp } from './interact.js';
 
 export const FM = { MAX: 5, PER_N: 0.024, L: 0.2, ZERO: 0.034 };
 
+// 挂销穿过圆环，夹臂前后的位置和仪器共用同一个挂点。
+export function meterHanger(st, x, top, z) {
+  const length = x - (st.position.x + st.rodX);
+  const reach = z - st.position.z + 0.006;
+  const arm = st.clamp(top - 0.002, length);
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, reach, 12), paint(0x8f99a8));
+  pin.rotation.x = Math.PI / 2;
+  pin.position.set(length, 0, reach / 2);
+  arm.add(pin);
+  return arm;
+}
+
 export function forceMeter({ max = FM.MAX, perN = FM.PER_N, length = FM.L } = {}) {
   const MAX = max, PER_N = perN, L = length, ZERO = FM.ZERO;
   const g = new THREE.Group();

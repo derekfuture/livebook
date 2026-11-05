@@ -72,8 +72,10 @@ export default {
     // 铁架台放在右后方、转过来：横杆朝左伸向电解器
     const st = stand({ height: 0.36, baseW: 0.16, baseD: 0.09 });
     st.position.set(0.17, 0, -0.03); st.rotation.y = Math.PI;
-    st.clamp(BASE_Y + 0.11, 0.17);
-    st.clamp(BASE_Y + 0.237, 0.2);
+    const rodX = st.position.x - st.rodX;   // 支架绕竖轴转了半圈。
+    st.clamp(BASE_Y + 0.11, rodX - 0.05);
+    const upper = st.clamp(BASE_Y + 0.259, Math.hypot(rodX, 0.03) - 0.023);
+    upper.rotation.y = Math.atan2(0.03, rodX);
     group.add(st);
     const glass = glassMat({ opacity: 0.16 });
     const mkTube = (x) => {
@@ -130,14 +132,14 @@ export default {
     midWater.position.copy(mid.position);
     const bulbPick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.05, 10), new THREE.MeshBasicMaterial({ visible: false }));
     bulbPick.position.set(0, BASE_Y + 0.255, 0); bulbPick.userData.pick = true;
-    const ring = hull(new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.0025, 8, 28), paint(0x3d4352)), 0.0008);
-    ring.rotation.x = Math.PI / 2; ring.position.set(0, BASE_Y + 0.237, 0);
+    const ring = hull(new THREE.Mesh(new THREE.TorusGeometry(0.023, 0.0025, 8, 28), paint(0x3d4352)), 0.0008);
+    ring.rotation.x = Math.PI / 2; ring.position.set(0, BASE_Y + 0.259, 0);
     group.add(bottom, mid, midWater, bulb, bulbWater, bulbPick, ring);
     // 夹子
     const holder = inked(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.012, 0.012), paint(0x9aa3b2)), { width: 0.8 });
     holder.position.set(0, BASE_Y + 0.11, -0.012); group.add(holder);
     const holderArm = inked(new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.006, 0.03), paint(0x8a929e)), { width: 0.8 });
-    holderArm.position.set(0.055, BASE_Y + 0.11, -0.024); group.add(holderArm);
+    holderArm.position.set(0.05, BASE_Y + 0.11, -0.024); group.add(holderArm);
 
     // ---------------- 直流电源、导线 ----------------
     const box = new THREE.Group(); box.position.set(-0.19, 0, 0.01);
@@ -445,7 +447,7 @@ export default {
       pointer,
       card: false,                 // 不要实验台板：器材直接立在课本这一页上
       toggles: ['cards', 'steps'],
-      size: { w: 0.44, d: 0.16, h: 0.33 },
+      size: { w: 0.51, d: 0.16, h: 0.33 },
       view: { elev: 10, azim: -10, lookY: 0.52, margin: 1.02 },
       mount(ui) {
         ui.el.classList.add('xuean');

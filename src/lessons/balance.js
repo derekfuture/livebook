@@ -203,7 +203,7 @@ export default {
     return {
       group,
       pointer,
-      size: { w: 0.32, d: 0.16, h: 0.18 },
+      size: { w: 0.46, d: 0.18, h: 0.18 },
       view: { elev: 14, azim: -10, lookY: 0.45, margin: 1.06 },
       mount(ui) {
         const out = readout([{ key: 'p', label: '指针' }, { key: 'm', label: '砝码 + 游码', unit: 'g', secret: '自己数砝码、读游码' }]);

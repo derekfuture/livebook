@@ -43,9 +43,10 @@ export function stand({ height = 0.5, baseW = 0.16, baseD = 0.11 } = {}) {
   g.rodX = rod.position.x;
   g.clamp = (y, len = 0.12, { ring = false, r = 0.04 } = {}) => {
     const arm = new THREE.Group();
-    const bar = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, len, 10), paint(C.metal)), 0.0018);
+    const barLength = ring ? len - r : len;  // 杆接到铁圈外缘，中央留给容器
+    const bar = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, barLength, 10), paint(C.metal)), 0.0018);
     bar.rotation.z = Math.PI / 2;
-    bar.position.x = len / 2;
+    bar.position.x = barLength / 2;
     const knob = inked(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.02), paint(0x5b6272)));
     arm.add(bar, knob);
     if (ring) {
@@ -101,6 +102,7 @@ export function beaker({ r = 0.05, h = 0.1, color = C.water, level = 0.06, spout
     g.add(plate);
   }
   const lmat = paint(color, { unique: true, transparent: true, opacity, depthWrite: false });
+  lmat.userData.see = true;   // 液体允许探头、加热丝浸入。
   const liquid = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.95, r * 0.93, 1, 40), lmat);
   liquid.geometry.translate(0, 0.5, 0);
   liquid.position.y = 0.004;

@@ -576,7 +576,7 @@ export default {
       pointer,
       card: false,                 // 不要实验台板：器材直接立在课本这一页上
       toggles: ['cards', 'steps'],  // 右下角的显示开关：观察卡片、底部步骤栏
-      size: { w: 0.5, d: 0.22, h: 0.2 },
+      size: { w: 0.62, d: 0.22, h: 0.2 },
       view: { elev: 28, azim: -6, lookY: 0.4, frameMargin: 1.02 },
       mount(ui) {
         ui.el.classList.add('xuean');

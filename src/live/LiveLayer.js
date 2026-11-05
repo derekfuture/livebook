@@ -94,13 +94,16 @@ export class LiveLayer {
         this._lookExit = onExit || null;
         const tgt = scaler.localToWorld(new THREE.Vector3(...localTarget));
         const q = new THREE.Quaternion(); scaler.getWorldQuaternion(q);
-        this._prevShot ||= { target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist };
+        this._prevShot ||= {
+          target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist, minEl: stage.rig.minEl,
+          yaw: stage.user.yaw, pitch: stage.user.pitch, zoom: stage.user.zoom, pan: stage.user.pan.clone(),
+        };
         stage.shot({ target: tgt, dir: new THREE.Vector3(...localDir).applyQuaternion(q), dist: dist * this.active.s * lookFit(stage), minEl: Math.abs(localDir[1]) < 0.05 ? 0 : 0.17 });     // 方向几乎水平：就是要平视（读量筒、温度计）
         tagFocus(tgt, dist * this.active.s * 0.35);
       },
       // 实验换了一套器材（场景）以后，按新器材重新取景
       reframe: () => requestAnimationFrame(() => this._reframe?.()),
-      back: () => { this._lookExit = null; tagFocus(null); if (this._prevShot) { stage.shot(this._prevShot); this._prevShot = null; } },
+      back: () => this._back(),
     };
     ink.setLessonStyle(def.style);          // 实验自己的画风（例如 'paper'），只在搭这个实验的时候生效
     const inst = def.create(ctx);
@@ -403,10 +406,27 @@ export class LiveLayer {
     const A = this.active;
     if (A && !A.closing && A.nb && A.nb.pointerDown(this._ray(ndc))) return true;
     if (!A || A.closing) return false;
-    // 特殊机位下：点到器材照常操作（比如凑近看标尺时拖游码），点空白处才回到原来的机位
     if (A.inst.pointer?.down && A.inst.pointer.down(this._ray(ndc), e)) return true;
-    if (this._lookExit) { const f = this._lookExit; this._lookExit = null; f(); return true; }
     return false;
+  }
+
+  _back() {
+    this._lookExit = null;
+    tagFocus(null);
+    const shot = this._prevShot;
+    if (!shot) return;
+    this.stage.shot(shot);
+    const view = this.stage.user;
+    view.yaw = shot.yaw; view.pitch = shot.pitch; view.zoom = shot.zoom;
+    view.pan.copy(shot.pan);
+    this._prevShot = null;
+  }
+
+  exitLook() {
+    if (!this._prevShot && !this._lookExit) return;
+    const onExit = this._lookExit;
+    this._back();
+    onExit?.();
   }
 
   pointerMove(ndc, e) {

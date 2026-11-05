@@ -65,6 +65,15 @@ const inPage = () => {
         if (!s.geometry.boundingBox) s.geometry.computeBoundingBox();
         const l = s.worldToLocal(pt.clone()), bb = s.geometry.boundingBox, k = 0.0006;
         if (l.x > bb.min.x + k && l.x < bb.max.x - k && l.y > bb.min.y + k && l.y < bb.max.y - k && l.z > bb.min.z + k && l.z < bb.max.z - k) {
+          // 空心圆环和开口圆筒内部是空的，不能把整个包围盒当成实心器材。
+          const shape = s.geometry.parameters;
+          if (s.geometry.type === 'TorusGeometry' &&
+              Math.hypot(Math.hypot(l.x, l.y) - shape.radius, l.z) > shape.tube + t.geometry.parameters.radius) continue;
+          if (s.geometry.type === 'CylinderGeometry' && shape.openEnded) {
+            const fraction = l.y / shape.height + 0.5;
+            const radius = shape.radiusBottom + fraction * (shape.radiusTop - shape.radiusBottom);
+            if (Math.abs(Math.hypot(l.x, l.z) - radius) > t.geometry.parameters.radius) continue;
+          }
           const w = s.getWorldPosition(new V()).applyMatrix4(inv); out.clip.push(`管子(r=${(t.geometry.parameters.radius*1000).toFixed(1)}mm ${t.material.type} #${t.material.color?.getHexString?.()}) 穿过 ${s.geometry.type}${s.material.transparent?'(透明'+s.material.opacity.toFixed(2)+')':''} #${s.material.color?.getHexString?.()} @(${w.x.toFixed(3)}, ${w.y.toFixed(3)}, ${w.z.toFixed(3)})`); }
       }
     }

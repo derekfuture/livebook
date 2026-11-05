@@ -35,7 +35,7 @@ export default {
     src: '课本第 104 页 · 第四章 第4节 光的折射',
   },
 
-  create({ tag, look, back }) {
+  create({ tag, look, back, camera }) {
     const group = new THREE.Group();
     const laserScene = new THREE.Group(), coinScene = new THREE.Group();
     group.add(laserScene, coinScene);
@@ -125,7 +125,7 @@ export default {
     const coinRays = new RayView({ width: 2, glow: 6 });
     coinInner.add(coinRays.group);
     const tEye = tag('从这里看', 'pill');
-    const coinSc = new OpticsScene();
+    const observer = new THREE.Vector3();
 
     // ======================= 场景切换（纸卡） =======================
     const pop = popup({ laser: laserScene, coin: coinScene }, { onShown: (id) => onScene(id) });
@@ -202,58 +202,75 @@ export default {
 
     // ---- 硬币 ----
     const LEVELS = [0, 0.032, 0.062];
+    // 从硬币到观察者的光在水面折射。求水下光线的水平位移，再将空气中的光线反向延长。
+    const surfaceOffset = (depth, airHeight, separation) => {
+      let lo = 0, hi = separation;
+      for (let i = 0; i < 20; i++) {
+        const x = (lo + hi) / 2, airX = separation - x;
+        if (N_WATER * x / Math.hypot(x, depth) > airX / Math.hypot(airX, airHeight)) hi = x;
+        else lo = x;
+      }
+      return (lo + hi) / 2;
+    };
     const layoutCoin = () => {
       const lv = S.level;
       cup.setLevel(lv);
-      coinSc.media.length = 0;
-      if (lv > 0.001) coinSc.media.push({ poly: [{ x: -1, y: -1 }, { x: 1, y: -1 }, { x: 1, y: lv }, { x: -1, y: lv }], n: N_WATER });
-      const coinP = { x: -0.018, y: 0.006 }, rim = { x: 0.035, y: 0.07 }, eyeP = { x: 0.1, y: 0.135 };   // 眼睛的位置：空杯时刚好被杯沿挡住
-      // 找一条从硬币出发、经水面折射后到达眼睛的光：不被杯壁挡住才算看得见
-      let best = null;
-      for (let a = 5; a < 85; a += 0.25) {
-        const t = coinSc.trace(coinP, { x: Math.sin(a * deg), y: Math.cos(a * deg) }, { maxLen: 0.3 });
-        const last = t.pts.at(-1), prev = t.pts.at(-2);
-        const k = (eyeP.x - prev.x) / (last.x - prev.x || 1e-9);
-        const yAt = prev.y + (last.y - prev.y) * k;
-        const err = Math.abs(yAt - eyeP.y);
-        if (!best || err < best.err) best = { err, pts: [...t.pts.slice(0, -1), eyeP] };
-      }
-      // 杯沿：光线在 x = rim.x 处的高度要高于杯沿
-      const seg = best.pts;
-      let yRim = null;
-      for (let i = 0; i < seg.length - 1; i++) if (seg[i].x <= rim.x && seg[i + 1].x >= rim.x) { const u = (rim.x - seg[i].x) / (seg[i + 1].x - seg[i].x); yRim = seg[i].y + (seg[i + 1].y - seg[i].y) * u; }
-      const visible = yRim != null && yRim > rim.y;
-      // 像的位置：进入眼睛的光反向延长，和硬币所在的竖直线相交（课本图4.4-4 的画法）
-      S.coinApparent = null;
-      if (visible && lv > 0) {
-        const a = seg.at(-2), b2 = seg.at(-1);
-        const k2 = (coinP.x - a.x) / (b2.x - a.x);
-        S.coinApparent = { x: coinP.x, y: a.y + (b2.y - a.y) * k2 };
-      }
-      S.coinVisible = visible && lv > 0;
+      const coinP = { x: coin.position.x, y: coin.position.y };
+      const rim = { x: CR, y: CH }, eyeP = { x: 0.1, y: 0.135 };
+      const x = lv ? surfaceOffset(lv - coinP.y, eyeP.y - lv, eyeP.x - coinP.x) : 0;
+      const exit = lv ? { x: coinP.x + x, y: lv } : coinP;
+      const yAtRim = exit.y + (eyeP.y - exit.y) * (rim.x - exit.x) / (eyeP.x - exit.x);
+      const visible = exit.x < CR - WALL && yAtRim > rim.y;
       applyEyeView();
-      const pts = visible ? best.pts : [coinP, rim, { x: rim.x + (rim.x - coinP.x) * 1.2, y: rim.y + (rim.y - coinP.y) * 1.2 }];
+      const pts = visible ? [coinP, exit, eyeP] : [coinP, rim];
       coinRays.set([{ pts, color: visible ? 0xffc23a : 0xd9c48a }], (x, y) => new THREE.Vector3(x, y, 0.036));
       tEye.loc(coinInner, eyeP.x + 0.02, eyeP.y + 0.02, 0);
-      if (!W) return;
-      if (visible && lv > 0) {
-        W.status(S.eyeView ? '硬币“出现”了！看到的是硬币被抬高的<b>像</b>——光从水中斜射入空气时偏折，越过了杯沿。' : '加水后，硬币发出的光从水中斜射入空气时<b>偏折</b>，越过杯沿进入了眼睛。从眼睛的位置看看。');
-        if (!S.coinSeen && S.eyeView) { S.coinSeen = true; W.done('coin'); }
-      } else if (lv > 0) W.status('还看不到硬币。再加点水。');
-      else W.status(S.eyeView ? '从这里看，杯沿刚好挡住了杯底的硬币。往杯里加水试试。' : '空杯。点“从眼睛的位置看”，确认看不到杯底的硬币。');
+      if (!W || S.eyeView) return;
+      if (visible && lv > 0) W.status('加水后，硬币发出的光从水中斜射入空气时<b>偏折</b>，越过杯沿进入了眼睛。从眼睛的位置看看。');
+      else if (lv > 0) W.status('还看不到硬币。再加点水。');
+      else W.status('空杯。点“从眼睛的位置看”，确认看不到杯底的硬币。');
     };
 
     // 从眼睛的位置看：镜头就在眼睛那里；看到的是“像”，不是光路
     S.eyeView = false;
     const applyEyeView = () => {
+      S.eyeMessage = null;
       const on = S.eyeView;
       coinRays.group.visible = !on;
       eye.visible = !on;
       tEye.show(!on && S.scene === 'coin');
-      const ap = S.coinApparent;
-      coinImg.visible = on && !!ap;
-      coin.visible = !(on && ap);                  // 加水后眼睛看到的是被抬高的像
-      if (ap) coinImg.position.set(ap.x, ap.y, 0);
+      coinImg.visible = false;
+      coin.visible = true;
+    };
+    const reportEye = (message, seen = false) => {
+      if (!W || message === S.eyeMessage) return;
+      S.eyeMessage = message;
+      W.status(message);
+      if (seen && !S.coinSeen) { S.coinSeen = true; W.done('coin'); }
+    };
+    const updateCoinImage = () => {
+      cup.worldToLocal(camera.getWorldPosition(observer));
+      const airHeight = observer.y - S.level;
+      const depth = S.level - coin.position.y;
+      if (airHeight <= 0 || depth <= 0) {
+        coin.visible = true;
+        coinImg.visible = false;
+        reportEye(depth <= 0 ? '空杯。转动视角看杯沿怎样遮挡硬币，再加水试试。' : '从水面上方观察硬币。');
+        return;
+      }
+      const dx = observer.x - coin.position.x, dz = observer.z - coin.position.z;
+      const separation = Math.hypot(dx, dz);
+      const x = surfaceOffset(depth, airHeight, separation);
+      const fraction = separation > 1e-7 ? x / separation : 0;
+      const exitRadius = Math.hypot(coin.position.x + dx * fraction, coin.position.z + dz * fraction);
+      coin.visible = false;
+      coinImg.visible = exitRadius < CR - WALL;
+      const apparentDepth = separation > 1e-7 ? airHeight * x / (separation - x) : depth / N_WATER;
+      coinImg.position.set(coin.position.x, S.level - apparentDepth, coin.position.z);
+      // 出射光线到杯口高度时仍在内壁以内，才能从这个角度看到硬币中心。
+      const rimFraction = fraction + (1 - fraction) * Math.min(1, (CH - S.level) / airHeight);
+      const clear = coinImg.visible && Math.hypot(coin.position.x + dx * rimFraction, coin.position.z + dz * rimFraction) < CR - WALL;
+      reportEye(clear ? '从这里看，硬币的<b>像</b>比杯底高。' : '从这个角度，杯壁挡住了硬币。换个角度或加些水再看。', clear);
     };
     const eyeLook = (on) => {
       S.eyeView = on;
@@ -263,7 +280,7 @@ export default {
         const d = Math.hypot(E.x - T.x, E.y - T.y);
         look([T.x, T.y, 0], [(E.x - T.x) / d, (E.y - T.y) / d, 0.0001], d * 1.9, () => { eyeLook(false); W?.syncEye?.(false); });
       } else back();
-      applyEyeView();
+      if (S.scene === 'coin') layoutCoin(); else applyEyeView();
     };
 
     const onScene = (id) => {
@@ -329,6 +346,7 @@ export default {
       predicting(on) { S.pred = on; layoutLaser(); },
       update(dt, t) {
         pop.update(dt);
+        if (S.eyeView && S.scene === 'coin') updateCoinImage();
         if (S.scene === 'laser' && S.cur?.i < 0.5) { S.perpT += dt; if (S.perpT > 0.6) W?.done('perp'); } else S.perpT = 0;
       },
       debug: { set: (phi) => { S.phi = phi; layoutLaser(); }, record: () => record(), ghost: () => reverse(), scene: (id) => pop.switchTo(id), pour: () => { const k = LEVELS.findIndex((l) => l > S.level + 1e-6); if (k >= 0) { S.level = LEVELS[k]; layoutCoin(); } }, state: () => ({ ...S.cur, rows: S.rows.length }) },

@@ -30,15 +30,17 @@ export default {
 
   create({ tag, look, back }) {
     const group = new THREE.Group();
-    const st = stand({ height: 0.32 });
-    st.position.set(-0.08, 0, 0);
+    const st = stand({ height: 0.32, baseW: 0.2 });
+    st.position.set(-0.04, 0, 0);
     group.add(st);
-    st.clamp(0.06, 0.08, { ring: true, r: 0.04 });   // 石棉网架
+    const rodX = st.position.x + st.rodX;
+    const ringY = 0.098;
+    st.clamp(ringY, -rodX, { ring: true, r: 0.04 });   // 石棉网架
     const gauze = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.002, 32), paint(0xc8ccd2));
-    gauze.position.set(0, 0.064, 0);
+    gauze.position.set(0, ringY + 0.004, 0);
     group.add(gauze);
     const cup = beaker({ r: 0.04, h: 0.09, level: 0.07 });
-    cup.position.set(0, 0.065, 0);
+    cup.position.set(0, gauze.position.y + 0.001, 0);
     group.add(cup);
     // 试管
     const tube = new THREE.Group();
@@ -60,16 +62,19 @@ export default {
     const liq = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 1, 16), paint(0xe8f3f6, { unique: true, transparent: true, opacity: 0.8 }));
     liq.geometry.translate(0, 0.5, 0);
     tube.add(solid, liq);
-    tube.position.set(-0.012, 0.08, 0);
+    tube.position.set(-0.012, cup.position.y + 0.015, 0);
     group.add(tube);
-    const arm = st.clamp(0.24, 0.08);
-    void arm;
+    // 在杯口以上夹住试管，让夹圈贴住管壁。
+    const gripR = 0.012;
+    const gripX = tube.position.x - rodX;
+    st.clamp(tube.position.y + 0.105, gripX, { ring: true, r: gripR });
     const th = thermometer({ min: 0, max: 100, length: 0.2 });
-    th.position.set(-0.012, 0.088, 0.0);
+    th.position.set(tube.position.x, tube.position.y + 0.008, 0);
     th.scale.setScalar(0.85);
     group.add(th);
     const lamp = alcoholLamp();
-    lamp.position.set(0, 0.002, 0);
+    lamp.position.y = 0.0163;
+    lamp.flame.scale.setScalar(0.65);
     lamp.scale.setScalar(0.85);
     group.add(lamp);
     const tT = tag('', 'pill');
@@ -107,7 +112,7 @@ export default {
     return {
       group,
       pointer,
-      size: { w: 0.24, d: 0.12, h: 0.3 },
+      size: { w: 0.30, d: 0.12, h: 0.32 },
       view: { elev: 12, azim: -24, lookY: 0.42, margin: 1.0 },
       mount(ui) {
         const out = readout([{ key: 'T', label: '温度', unit: '℃', secret: true }, { key: 't', label: '加热时间', unit: 'min' }]);

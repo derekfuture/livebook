@@ -28,7 +28,7 @@ const PURE = 0.88, SOLUB = 0.36;                 // 粗盐里氯化钠的比例�
 const BK1 = new THREE.Vector3(-0.13, 0, 0.04), BR = 0.024, BH = 0.05;               // 溶解用的烧杯（10 mL 水）
 const PAPER = new THREE.Vector3(-0.2, 0, 0.06), SPOON_HOME = new THREE.Vector3(-0.21, 0.006, 0.1);
 const ST1 = new THREE.Vector3(0.0, 0, 0), FUN_Y = 0.13, BK2 = new THREE.Vector3(0.02, 0, 0);          // 过滤：铁架台、漏斗、接滤液的烧杯
-const ST2 = new THREE.Vector3(0.15, 0, 0), DISH_Y = 0.105, LAMP = new THREE.Vector3(0.17, 0, 0);     // 蒸发：铁架台、蒸发皿、酒精灯
+const ST2 = new THREE.Vector3(0.15, 0, 0), DISH_Y = 0.105, LAMP = new THREE.Vector3(0.17, 0.016, 0);     // 蒸发：铁架台、蒸发皿、酒精灯
 const ROD_HOME = new THREE.Vector3(-0.11, 0.004, 0.125);
 const ROD_LEAN = 0.32;                            // 玻璃棒斜靠在漏斗里的角度（再斜，上端就碰到铁架台的铁杆了）
 const FUN_LIFT = 0.018;                           // 拿走接滤液的烧杯时，漏斗提起来多高（管口伸进烧杯约 1.4 cm）
@@ -109,7 +109,7 @@ export default {
     const crys = new THREE.Group(); crys.position.set(DISH_X, DISH_Y - 0.005, 0); group.add(crys);
     for (let i = 0; i < 90; i++) { const r = Math.sqrt(Math.random()) * 0.022, a = Math.random() * 6.28; const c = new THREE.Mesh(new THREE.BoxGeometry(0.0016, 0.0016, 0.0016), paint(0xffffff)); c.position.set(Math.cos(a) * r, 0.0006 + (r / 0.022) ** 2 * 0.008, Math.sin(a) * r); c.rotation.set(Math.random() * 3, Math.random() * 3, 0); c.userData.k = Math.random(); crys.add(c); }
     const dishPick = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.02, 12), new THREE.MeshBasicMaterial({ visible: false })); dishPick.position.set(0, 0.006, 0); dishPick.userData.pick = true; dish.add(dishPick);
-    const lamp = chemLamp(); lamp.position.copy(LAMP); lamp.scale.setScalar(0.85); group.add(lamp);
+    const lamp = chemLamp(); lamp.position.copy(LAMP); lamp.scale.setScalar(0.68); group.add(lamp);
     const lampPick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 10), new THREE.MeshBasicMaterial({ visible: false })); lampPick.position.set(0, 0.035, 0); lampPick.userData.pick = true; lamp.add(lampPick);
     // 灯帽（课本第 18 页）：点燃前取下，放在灯的前方桌上（铁架台底座外面）；熄灭时用灯帽盖灭，再轻提一下、重新盖好
     const capper = lampCap(group, lamp, { off: new THREE.Vector3(LAMP.x - 0.015, 0, 0.06) });
@@ -389,7 +389,7 @@ export default {
       pointer,
       card: false,
       toggles: ['cards', 'steps'],
-      size: { w: 0.44, d: 0.16, h: 0.22 },
+      size: { w: 0.53, d: 0.16, h: 0.22 },
       view: { elev: 16, azim: -4, lookY: 0.45, frameMargin: 1.04 },
       mount(ui) {
         ui.el.classList.add('xuean');

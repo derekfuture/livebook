@@ -35,7 +35,7 @@ export default {
     const eyeG = new THREE.Group();
     eyeG.position.set(0, Y, 0);
     group.add(eyeG);
-    const back = new THREE.Mesh(new THREE.CircleGeometry(EYE_R, 64), new THREE.MeshBasicMaterial({ color: 0xfdf3ec }));
+    const back = new THREE.Mesh(new THREE.CircleGeometry(EYE_R, 64), new THREE.MeshBasicMaterial({ color: 0xfdf3ec, side: THREE.DoubleSide }));
     back.position.z = -0.006;
     eyeG.add(back);
     let outline = null, retinaLine = null;

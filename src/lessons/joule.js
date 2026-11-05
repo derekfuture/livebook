@@ -48,6 +48,8 @@ export default {
       lid.position.y = CY * 2 + 0.0025;
       const pts = [];
       for (let i = 0; i <= 200; i++) { const a = (i / 200) * Math.PI * 2 * 9; pts.push(new THREE.Vector3(Math.cos(a) * 0.012, CY + 0.008 + Math.sin(a) * 0.012, -0.012 + (i / 200) * 0.024)); }
+      pts.unshift(new THREE.Vector3(-0.018, CY * 2 + 0.006, 0.01), new THREE.Vector3(-0.018, CY + 0.014, -0.018));
+      pts.push(new THREE.Vector3(0.018, CY + 0.014, 0.016), new THREE.Vector3(0.018, CY * 2 + 0.006, 0.01));
       const coilMat = new THREE.MeshBasicMaterial({ color: 0x8a6d4a });
       const coil = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 300, 0.0008, 5, false), coilMat);
       // 两个接线柱
@@ -76,7 +78,11 @@ export default {
       const tex = canvasTex(64, 512, (c, w, h) => { c.fillStyle = '#f6c443'; c.fillRect(0, 0, w, h); c.fillStyle = '#2f6fd0'; for (let i = 0; i < 16; i++) if (i % 2) c.fillRect(0, (i / 16) * h, w, h / 16); });
       const sc = new THREE.Mesh(new THREE.PlaneGeometry(0.008, 0.16), new THREE.MeshBasicMaterial({ map: tex }));
       sc.position.set(0, 0.1, 0.001);     // 刻度板的中线对着液面原来的高度
-      g.add(bend, sc);
+      const board = inked(new THREE.Mesh(new THREE.BoxGeometry(0.047, UH + 0.01, 0.005), paint(0xe9e2d2)));
+      board.position.set(0, (UH + 0.01) / 2, -0.0057);
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.006, 0.035), paint(0x78818c));
+      foot.position.set(0, 0.003, -0.0057);
+      g.add(bend, sc, board, foot);
       group.add(g);
       // 连到容器的细管
       const link = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(sx * (0.03 + W2), UH, 0), new THREE.Vector3(sx * (0.03 + W2 + 0.006), UH + 0.012, 0), new THREE.Vector3(sx * (CX - 0.012), UH + 0.012, 0), new THREE.Vector3(sx * (CX - 0.012), CY * 2 + 0.005, 0)]), 30, 0.0025, 6, false), paint(0xd6ecf5, { unique: true, transparent: true, opacity: 0.5 }));
@@ -109,9 +115,10 @@ export default {
       wire([[CX + 0.018, top, 0.01], [CX + 0.018, top + 0.01, 0.01], [0.155, top + 0.01, 0.04], [0.15, 0.03, 0.06], [0.08 + 0.022, 0.02, 0.09]]);                                                   // 右容器 → 开关
       wire([[0.08 - 0.022, 0.02, 0.09], [0.055, 0.025, 0.12], [0.0364, 0.025, 0.12], [-0.05 + 0.108 * 0.8, 0.018 * 0.8, 0.1096]]);                                                 // 开关 → 电源 +
       if (S.mode === 'I' && S.ext) {
-        wire([[CX - 0.018, top, 0.01], [CX - 0.02, top + 0.03, 0.01], [CX - 0.007, CY * 2 + 0.045, 0.01]]);
-        wire([[CX + 0.018, top, 0.01], [CX + 0.02, top + 0.03, 0.01], [CX + 0.017, CY * 2 + 0.045, 0.01]]);
+        wire([[CX - 0.018, top, 0.01], [CX - 0.02, top + 0.03, 0.01], [CX - 0.007, CY * 2 + 0.053, 0.01]]);
+        wire([[CX + 0.018, top, 0.01], [CX + 0.02, top + 0.03, 0.01], [CX + 0.017, CY * 2 + 0.053, 0.01]]);
       }
+      ext.position.set(CX + 0.005, S.ext ? CY * 2 + 0.045 : 0.009, S.ext ? 0.01 : 0.061);
       ext.visible = S.mode === 'I';
     };
     // 当前每段电阻丝的电阻和电流
@@ -139,7 +146,7 @@ export default {
 
     return {
       group,
-      size: { w: 0.36, d: 0.16, h: 0.2 },
+      size: { w: 0.36, d: 0.21, h: 0.2 },
       view: { elev: 16, azim: 0, lookY: 0.45, margin: 1.1 },
       pointer,
       mount(ui) {

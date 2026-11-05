@@ -159,7 +159,7 @@ export default {
     return {
       group,
       pointer: ptr,
-      size: { w: 0.32, d: 0.1, h: 0.2 },
+      size: { w: 0.34, d: 0.1, h: 0.2 },
       view: { elev: 10, azim: 0, lookY: 0.45, margin: 1.1 },
       mount(ui) {
         const choices = buttons([0, 1, 2].map((j) => ({ text: '', ghost: true, onClick: () => answer(j) })));

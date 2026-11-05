@@ -39,9 +39,9 @@ export default {
     rod.position.set(RX, (PIVOT.y + 0.06) / 2, -0.04);
     const arm = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, RX + 0.1, 12), metal), 0.003);
     arm.rotation.z = Math.PI / 2;
-    arm.position.set((RX - 0.1) / 2, PIVOT.y + 0.03, -0.04);
+    arm.position.set((RX - 0.1) / 2, PIVOT.y + 0.022, -0.04);
     const clamp = inked(new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.035), paint(0x5b6272)));
-    clamp.position.set(RX, PIVOT.y + 0.03, -0.04);
+    clamp.position.set(RX, PIVOT.y + 0.022, -0.04);
     const bar = inked(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.018, 0.1), paint(0xc99a64)));
     bar.position.set(0, PIVOT.y + 0.009, -0.02);
     group.add(base, rod, arm, clamp, bar);

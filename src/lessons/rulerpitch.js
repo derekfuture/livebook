@@ -91,7 +91,7 @@ export default {
     return {
       group,
       pointer,
-      size: { w: 0.42, d: 0.16, h: 0.1 },
+      size: { w: 0.46, d: 0.16, h: 0.1 },
       view: { elev: 26, azim: -30, lookY: 0.3, margin: 1.5 },
       mount(ui) {
         let last = null;

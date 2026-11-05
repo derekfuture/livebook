@@ -291,7 +291,14 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     touches.delete(e.pointerId);
     if (pinch) { if (touches.size < 2) { pinch = null; stage._interacting = false; } press = null; return; }
     const p = press; press = null;
-    if (p?.cam) { stage._interacting = false; canvas.style.cursor = ''; updateViewCtl(); return; }
+    if (p?.cam) {
+      stage._interacting = false;
+      canvas.style.cursor = '';
+      // 凑近观察时，点空白处返回；拖动空白处仍然可以绕着器材看。
+      if (e.type === 'pointerup' && p.cam === 'orbit' && p.moved < 5 && live.isOpen) live.exitLook();
+      updateViewCtl();
+      return;
+    }
     if (live.isOpen) { live.pointerUp(ndc, e); return; }
     if (!p) return;
     if (p.spot) { hideHint(); live.open(p.spot); return; }

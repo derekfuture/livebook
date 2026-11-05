@@ -122,7 +122,7 @@ export default {
 
     return {
       group,
-      size: { w: 0.32, d: 0.2, h: 0.09 },
+      size: { w: 0.32, d: 0.31, h: 0.09 },
       view: { elev: 16, azim: 62, lookY: 0.4, margin: 1.05 },
       pointer,
       mount(ui) {

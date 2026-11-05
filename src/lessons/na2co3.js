@@ -55,8 +55,9 @@ export default {
     const log = (row) => { if (!S.demo) W?.tbl.add(row); };
 
     paperSheet(group, { w: 0.28, d: 0.16, x: 0, z: 0.02 });
-    const st = stand({ height: 0.24, baseW: 0.1, baseD: 0.07 }); st.position.set(TUBE.x - 0.055, 0, -0.025); group.add(st);
-    st.clamp(TUBE.y + 0.08, 0.055);
+    const st = stand({ height: 0.24, baseW: 0.1, baseD: 0.07 }); st.position.set(TUBE.x - 0.055, 0, TUBE.z); group.add(st);
+    const boltX = TUBE.x - (T_R + 0.001) - 0.004;
+    st.clamp(TUBE.y + 0.08, boltX - (st.position.x + st.rodX));
     const tube = testTube({ r: T_R, len: T_LEN }); tube.position.copy(TUBE); group.add(tube);
     const jaw = tubeClamp(T_R + 0.001); jaw.position.y = 0.08; tube.add(jaw);
     const solid = new THREE.Mesh(new THREE.CylinderGeometry(T_R - 0.001, T_R - 0.001, 0.006, 18), paint(0xf6f6f2)); solid.position.y = 0.004; tube.add(solid);
@@ -173,7 +174,7 @@ export default {
       pointer,
       card: false,
       toggles: ['cards', 'steps'],
-      size: { w: 0.24, d: 0.12, h: 0.2 },
+      size: { w: 0.34, d: 0.12, h: 0.2 },
       view: { elev: 14, azim: -4, lookY: 0.5, frameMargin: 1.08 },
       mount(ui) {
         ui.el.classList.add('xuean');

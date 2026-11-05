@@ -29,14 +29,14 @@ export default {
     src: '课本第 115–116 页 · 第五章 第1节 透镜',
   },
 
-  create({ tag, look, back }) {
+  create({ tag, look, back, camera }) {
     const group = new THREE.Group();
     const bench = new THREE.Group(), sun = new THREE.Group();
     group.add(bench, sun);
 
     // ---- 光路板（深色，光路看得清） ----
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.18), new THREE.MeshBasicMaterial({ color: 0x1a2030 }));
-    board.position.set(0.02, Y, -0.02);
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.18), new THREE.MeshBasicMaterial({ color: 0x1a2030, side: THREE.DoubleSide }));
+    board.position.set(0.02, Y, -0.045);   // 背板在整片透镜后面
     bench.add(board);
     const axis = polyline([new THREE.Vector3(-0.2, Y, -0.015), new THREE.Vector3(0.25, Y, -0.015)], { dashed: true, color: 0x8fa3c0, width: 1.2, dash: 0.01, gap: 0.006 });
     bench.add(axis);
@@ -49,6 +49,7 @@ export default {
     bench.add(lensHolder);
     const rays = new RayView({ width: 2, glow: 7 });
     bench.add(rays.group);
+    const observer = new THREE.Vector3();
     const fDot = new THREE.Mesh(new THREE.SphereGeometry(0.003, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe066 }));
     bench.add(fDot);
     const tF = tag('<i>F</i>', 'mag big'), tf = tag('', 'pill');
@@ -205,6 +206,8 @@ export default {
         layout();
       },
       update(dt) {
+        const front = S.mode === 0 && bench.worldToLocal(camera.getWorldPosition(observer)).z > board.position.z;
+        tF.show(front); tf.show(front);
         if (S.mode === 1 && S.spot <= 0.0016) { burn = Math.min(1, burn + dt * 0.25); layoutSun(); }
       },
     };

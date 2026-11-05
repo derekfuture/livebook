@@ -86,7 +86,7 @@ export default {
     // 机座：飞轮后面一块立板托着曲轴，下面是底座（不然整台机器像浮在半空）
     const standMat = paint(0x8f99a8);
     const stand = inked(new THREE.Mesh(new THREE.BoxGeometry(0.03, CY, 0.008), standMat), { width: 1 }); stand.position.set(0, CY / 2, -0.046);
-    const foot = inked(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.006, 0.05), standMat), { width: 1 }); foot.position.set(0, 0.003, -0.03);
+    const foot = inked(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.006, 0.082), standMat), { width: 1 }); foot.position.set(0, 0.003, -0.019);
     const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.05, 10), paint(0x5b6272)); axle.rotation.x = Math.PI / 2; axle.position.set(0, CY, -0.02);
     for (const sx of [-1, 1]) { const leg = inked(new THREE.Mesh(new THREE.BoxGeometry(0.006, TOP - 0.1 - 0.006, 0.006), standMat), { width: 1 }); leg.position.set(sx * (BORE / 2 + 0.005), 0.006 + (TOP - 0.1 - 0.006) / 2, 0.012); group.add(leg); }
     group.add(stand, foot, axle);
@@ -134,7 +134,7 @@ export default {
 
     return {
       group,
-      size: { w: 0.2, d: 0.1, h: 0.22 },
+      size: { w: 0.2, d: 0.12, h: 0.22 },
       view: { elev: 8, azim: 0, lookY: 0.5, margin: 1.15 },
       pointer,
       mount(ui) {

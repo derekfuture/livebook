@@ -22,7 +22,7 @@ import { sfx } from './kit/audio.js';
 import { paint, inked } from '../live/ink.js';
 import { h } from '../ui/Panel.js';
 
-const ST = new THREE.Vector3(-0.1, 0, 0), FL_Y = 0.132, FL_R = 0.03;        // 陶土网高 0.1：酒精灯外焰正好顶到网下
+const ST = new THREE.Vector3(-0.09, 0, 0), FL_Y = 0.132, FL_R = 0.03;        // 陶土网高 0.1：酒精灯外焰正好顶到网下
 const TT = new THREE.Vector3(0.07, 0.04, 0), TT_R = 0.008, TT_LEN = 0.11;
 const CHIPS_HOME = new THREE.Vector3(-0.17, 0, 0.07), V0 = 60;
 const LIFT = 0.04;                           // 塞子（连着导管）拔开时提起来多高
@@ -61,7 +61,7 @@ export default {
     paperSheet(group, { w: 0.34, d: 0.18, x: -0.02, z: 0.02 });
 
     // ================= 铁架台、陶土网、烧瓶、酒精灯 =================
-    const st = stand({ height: 0.24, baseW: 0.1, baseD: 0.08 }); st.position.copy(ST); group.add(st);
+    const st = stand({ height: 0.24, baseW: 0.12, baseD: 0.08 }); st.position.copy(ST); group.add(st);
     const FX = ST.x + st.rodX + 0.06;
     st.clamp(FL_Y - FL_R - 0.004, 0.06, { ring: true, r: 0.028 });
     const net = inked(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.0016, 0.06), paint(0xd8d4cc)), { width: 0.5 }); net.position.set(FX, FL_Y - FL_R - 0.002, 0); group.add(net);
@@ -77,7 +77,7 @@ export default {
     const chips = new THREE.Group(); flask.add(chips);
     for (let i = 0; i < 4; i++) { const c = inked(new THREE.Mesh(new THREE.DodecahedronGeometry(0.0025, 0), paint(0xe9e6df)), { width: 0.4 }); c.position.set((Math.random() - 0.5) * 0.02, -FL_R + 0.003, (Math.random() - 0.5) * 0.02); c.userData.end = c.position.clone(); chips.add(c); }
     chips.visible = false;
-    const lamp = chemLamp(); lamp.scale.setScalar(0.85); lamp.position.set(FX, 0, 0); group.add(lamp);
+    const lamp = chemLamp(); lamp.scale.setScalar(0.68); lamp.position.set(FX, 0.016, 0); group.add(lamp);
     const lampPick = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.06, 10), new THREE.MeshBasicMaterial({ visible: false })); lampPick.position.y = 0.035; lampPick.userData.pick = true; lamp.add(lampPick);
     // 灯帽（课本第 18 页）：点燃前取下，放在灯的右前方桌上；熄灭时用灯帽盖灭，再轻提一下、重新盖好
     const capper = lampCap(group, lamp, { off: new THREE.Vector3(-0.015, 0, 0.05) });
@@ -277,7 +277,7 @@ export default {
       pointer,
       card: false,
       toggles: ['cards', 'steps'],
-      size: { w: 0.3, d: 0.14, h: 0.25 },
+      size: { w: 0.38, d: 0.14, h: 0.25 },
       view: { elev: 14, azim: -4, lookY: 0.5, frameMargin: 1.06 },
       mount(ui) {
         ui.el.classList.add('xuean');

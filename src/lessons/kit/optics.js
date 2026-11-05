@@ -257,7 +257,7 @@ export function benchPost(height = 0.1) {
 export function screenBoard({ w = 0.1, h = 0.09 } = {}) {
   const tex = canvasTex(512, Math.round((512 * h) / w), (c, W, H) => { c.fillStyle = '#fbfaf6'; c.fillRect(0, 0, W, H); });
   const g = new THREE.Group();
-  const board = new THREE.Mesh(new THREE.BoxGeometry(0.004, h, w), [new THREE.MeshBasicMaterial({ map: tex }), new THREE.MeshBasicMaterial({ map: tex }), paint(0xe9e6dc), paint(0xe9e6dc), paint(0xe9e6dc), paint(0xe9e6dc)]);
+  const board = new THREE.Mesh(new THREE.BoxGeometry(0.004, h, w), [paint(0xfbfaf6), new THREE.MeshBasicMaterial({ map: tex }), paint(0xe9e6dc), paint(0xe9e6dc), paint(0xe9e6dc), paint(0xe9e6dc)]);
   inked(board, { width: 1.2 });
   g.add(board);
   g.tex = tex;

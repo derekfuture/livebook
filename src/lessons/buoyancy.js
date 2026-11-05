@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { seg, buttons, goals, note, table, guard } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
 import { beaker, stand, canvasTex } from './kit/props.js';
-import { forceMeter } from './kit/forcemeter.js';
+import { meterHanger, forceMeter } from './kit/forcemeter.js';
 import { paint, hull } from '../live/ink.js';
 
 const G0 = 3.0, V = 100e-6, CH = 0.08, CR = Math.sqrt(V / CH / Math.PI);   // 圆柱体
@@ -36,8 +36,8 @@ export default {
   create({ tag, look, back }) {
     const group = new THREE.Group();
     const st = stand({ height: 0.72, baseW: 0.12, baseD: 0.09 });
-    st.position.set(-0.12 - st.rodX, 0, -0.03);
-    const arm = st.clamp(0.7, 0.12);      // 铁夹跟着测力计上下移动（相当于调节铁夹的高度）
+    st.position.set(-0.15 - st.rodX, 0, -0.03);
+    const arm = meterHanger(st, BX, 0.7, 0);      // 铁夹跟着测力计上下移动（相当于调节铁夹的高度）
     group.add(st);
     const bk = beaker({ r: BR, h: BH, level: L0, spout: false });
     bk.position.set(BX, 0, 0);
@@ -86,7 +86,7 @@ export default {
     const pointer = draggable(group, [{ obj: pick, plane: 'xy', offset: 0, keepOffset: true, onDrag: (p) => { S.top = clamp(p.y + 0.13, 0.4, 0.68); } }]);
     const layout = () => {
       sc.position.set(BX, S.top, 0);
-      arm.position.y = S.top + 0.006;
+      arm.position.y = S.top - 0.002;
       const hookY = S.top + sc.hookEnd;
       body.position.set(BX, S.yb + CH, 0);
       thread.position.set(BX, hookY, 0); thread.scale.y = Math.max(0.001, hookY - (S.yb + CH));
@@ -98,7 +98,7 @@ export default {
 
     return {
       group,
-      size: { w: 0.3, d: 0.12, h: 0.72 },
+      size: { w: 0.35, d: 0.15, h: 0.72 },
       view: { elev: 8, azim: 0, lookY: 0.52, margin: 1.08 },
       pointer,
       mount(ui) {
