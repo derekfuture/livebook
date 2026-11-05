@@ -16,8 +16,8 @@ import { XL, XR, ZD, WC, DC, APEX, LAM, smooth, stage, heightAt, gullyAt, waterY
 
 const LIFT = 0.04;
 const NX = 220, NZ = 140;
-const ASK = ['先猜一下（可以不猜）：在这个情境里，再过很久，原来建在南岸（凸岸）的渡口会——', ['被江水冲掉', '离江越来越远', '一直在江边']];
-const DOCK_T = 0.62;          // 河道变弯以后，两岸建起渡口
+const ASK = ['先猜一下（可以不猜）：在这个情境里，港口建在哪一岸，过很多年还能停大船？', ['凹岸', '凸岸', '两岸都一样']];
+const DOCK_T = 0.62;          // 一开始就是这个时候：河道已经弯了
 
 export default {
   id: 'river',
@@ -25,7 +25,7 @@ export default {
   title: '河谷的演变',
   flow: 'explore',
   ask: '镇江的西津渡，从前就在长江边上，后来离江越来越远，码头埋到了地下。长江岸线为什么会一直往北移？',
-  need: '把时间拖到最后，看河谷从 V 形变成槽形；切开河湾看一看；看两岸的渡口后来怎样了',
+  need: '切开一个河湾看哪边水深；把你的港口建在岸边，往后拖时间，看它和西津渡后来怎样了',
   conclusion: {
     page: 37,
     quote: '在河流发育初期，河流落差大，流速快，能量集中，河流侵蚀作用以向下和向源头侵蚀为主，使河谷不断加深和延长。这时的河谷深而窄，谷壁陡峭，横剖面呈“V”形（图2.27 a，图2.28）。“V”形河谷形成后，河流落差减小，河流向下的侵蚀作用减弱，向河谷两岸的侵蚀作用加强，河道开始变得弯曲。河流在凹岸侵蚀，在凸岸堆积（图2.29），使得河道更为弯曲，河谷拓宽（图2.27 b）。长江镇江段南岸为凸岸，北岸为凹岸，所以岸线不断向北推移。经过漫长的过程，河谷展宽，横剖面呈宽而浅的槽形（图2.27 c）。',
@@ -189,11 +189,12 @@ export default {
       const hut = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.006, 0.008), lit(0xf3ede1)); hut.position.set(0, 0.003, south ? 0.005 : -0.005); g.add(hut);
       const roof = new THREE.Mesh(new THREE.ConeGeometry(0.0068, 0.004, 4), lit(0x6f7f95)); roof.rotation.y = Math.PI / 4; roof.position.set(0, 0.008, south ? 0.005 : -0.005); g.add(roof);
       const pick = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.03), new THREE.MeshBasicMaterial({ visible: false })); pick.userData.pick = true; g.add(pick);
-      g.visible = false; block.add(g); return { g, pick, south, x: APEX, z: 0, t0: DOCK_T, g0: 0.003, seen: null, moved: false, tag: tag('', 'pill') };
+      g.visible = false; block.add(g); return { g, pick, south, x: APEX, z: 0, t0: DOCK_T, g0: 0.003, seen: null, moved: false, placed: south, tag: tag('', 'pill') };
     };
     const docks = [makeDock(true), makeDock(false)];
     const atBank = (d, x, side, t) => { const zc = centerZ(x, t); d.x = x; d.z = zc + side * (WC / 2 + 0.003); d.t0 = t; d.g0 = gapAt(d.x, d.z, t); d.seen = null; };          // 渡口建在水边（谷底上）
-    const homeDock = (d) => { atBank(d, APEX, d.south ? 1 : -1, DOCK_T); d.moved = false; };
+    const TRAY = [XL + 0.04, ZD + 0.035];          // 你的港口一开始放在地块外面的书页上，等你拖到岸边
+    const homeDock = (d) => { if (d.south) { atBank(d, APEX, 1, DOCK_T); d.placed = true; } else { d.placed = false; d.seen = null; } d.moved = false; };          // 南岸那个是西津渡（课本的例子）；另一个是你的港口
     docks.forEach(homeDock);
     const bankName = (d) => { const zc = centerZ(d.x, d.t0), k = 2 * Math.PI / LAM, c = Math.sin(k * (d.x - APEX) - Math.PI / 2), outerNorth = c < 0; const north = d.z < zc; return stage(d.t0).amp < 0.008 ? '岸边' : north === outerNorth ? '凹岸' : '凸岸'; };
     const fateOf = (d) => {          // 按现在的时间算：河道移过了渡口脚下＝岸塌了；水边离开它比建的时候远了很多＝淤成了陆地
@@ -201,16 +202,35 @@ export default {
       const gap = gapAt(d.x, d.z, S.t), sideNow = Math.sign(d.z - centerZ(d.x, S.t)), side0 = Math.sign(d.z - centerZ(d.x, d.t0));
       return gap < 0 || sideNow !== side0 ? 'fell' : gap - d.g0 > 0.012 ? 'far' : null;
     };
+    const depthAt = (d, flip = 1) => { const zc = centerZ(d.x, S.t), side = (Math.sign(d.z - zc) || 1) * flip; return waterY(d.x, S.t) - heightAt(d.x, zc + side * WC * 0.3, S.t); };          // 靠这一岸（flip = −1：对岸）的河道里水有多深
+    const nameOf = (d) => (d.south ? '西津渡' : '你的港口');
     const placeDocks = () => {
       for (const d of docks) {
+        if (!d.placed) { d.g.visible = S.t >= DOCK_T - 0.001; d.g.position.set(TRAY[0], -LIFT + 0.0062, TRAY[1]); d.g.rotation.x = 0; d.tag.loc(block, TRAY[0], -LIFT + 0.02, TRAY[1]).text('<b>你的港口</b> · 拖到岸边').show(d.g.visible); continue; }
         const show = S.t >= d.t0 - 0.001 && d.x < S.cut - 0.006 && S.t >= DOCK_T - 0.001;
         d.g.visible = show; d.tag.show(show); if (!show) continue;
-        const y = heightAt(d.x, d.z, S.t), name = `${d.south ? '南岸' : '北岸'}渡口`, f = fateOf(d);
+        const y = heightAt(d.x, d.z, S.t), f = fateOf(d);
         if (f === 'fell' || (f === 'far' && d.seen !== 'fell')) d.seen = f;          // 这一轮看到过的结局（记录里写）
-        const fallen = f === 'fell';
-        d.g.position.set(d.x, fallen ? Math.max(y, waterY(d.x, S.t)) - 0.004 : y, d.z); d.g.rotation.x = fallen ? (d.south ? -0.6 : 0.6) : 0;
-        d.tag.loc(block, d.x, y + (d.south ? 0.004 : 0.03), d.z + (d.south ? 0.03 : -0.01)).text(`<b>${name}</b> · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : ''}`);
+        const fallen = f === 'fell', deep = depthAt(d) > depthAt(d, -1) * 1.25;          // 和对岸比：深得多才算水深
+        d.g.position.set(d.x, fallen ? Math.max(y, waterY(d.x, S.t)) - 0.004 : y, d.z); d.g.rotation.x = fallen ? (d.z > centerZ(d.x, d.t0) ? -0.6 : 0.6) : 0;
+        d.tag.loc(block, d.x, y + (d.south ? 0.004 : 0.03), d.z + (d.south ? 0.03 : -0.01)).text(`<b>${nameOf(d)}</b> · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : deep ? ' · 水深，大船能靠' : ' · 水浅'}`);
       }
+    };
+
+    // ---- 测水深：刀切到哪儿，面板里就画出那里河道的横剖面 ----
+    const drawDepth = () => {
+      if (!W) return;
+      const c = W.depth, g = c.getContext('2d'), w = c.width, hh = c.height, x = S.cut - 0.001, t = S.t, zc = centerZ(x, t), wy = waterY(x, t), span = WC * 1.15;
+      g.fillStyle = '#f4efe2'; g.fillRect(0, 0, w, hh);
+      const X = (z) => w / 2 + ((z - zc) / span) * (w / 2 - 20), Y = (y) => 26 + ((wy + 0.0015 - y) / 0.0085) * (hh - 46);
+      g.fillStyle = 'rgba(90,163,204,0.9)'; g.fillRect(0, Y(wy), w, hh - Y(wy));          // 先铺一层水，再画河床盖住河床以下的部分
+      g.fillStyle = '#d7c08a'; g.beginPath(); g.moveTo(0, hh); for (let k = 0; k <= 120; k++) { const z = zc - span + (2 * span * k) / 120; g.lineTo(X(z), Math.min(hh, Y(heightAt(x, z, t)))); } g.lineTo(w, hh); g.closePath(); g.fill();
+      g.strokeStyle = '#8a6a40'; g.lineWidth = 1.2; g.stroke();
+      g.strokeStyle = '#2f6fb0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, Y(wy)); g.lineTo(w, Y(wy)); g.stroke();
+      const k2 = 2 * Math.PI / LAM, c0 = Math.sin(k2 * (x - APEX) - Math.PI / 2), bend = stage(t).amp > 0.008 && Math.abs(c0) > 0.45, outerNorth = c0 < 0;
+      g.font = '600 12px "PingFang SC", sans-serif'; g.fillStyle = '#2a3140'; g.textAlign = 'left'; g.fillText(`北岸${bend ? (outerNorth ? '（凹岸）' : '（凸岸）') : ''}`, 6, 16); g.textAlign = 'right'; g.fillText(`南岸${bend ? (outerNorth ? '（凸岸）' : '（凹岸）') : ''}`, w - 6, 16);
+      g.textAlign = 'center'; g.fillStyle = '#5f4f3c'; g.fillText(bend ? '这里是河湾：最深的地方偏向凹岸' : '这里河道比较直：两边差不多', w / 2, hh - 6);
+      if (bend && !S.measured) { S.measured = true; drawLogs(); }
     };
 
     // ---- 标签 ----
@@ -238,41 +258,42 @@ export default {
     const record = () => {
       const s = stageOf(S.t);
       for (let k = 1; k <= s; k++) if (!S.logs.includes(STAGE[k][0])) S.logs.push(STAGE[k][0]);
-      if (s !== S.said && W) { S.said = s; W.ui.status(s === 0 ? '这是一片高地，中间刚出现一条小河。拖下面的<b>时间</b>（或按“流下去”），看河谷怎么变。' : s === 2 && S.t >= DOCK_T ? '河道变弯了，两岸建起了渡口（南岸、北岸各一个，也可以挪到别处）。接着往后拖时间，看渡口会怎样。' : STAGE[s][0] + '。'); }
+      if (s !== S.said && W) { S.said = s; W.ui.status(s === 0 ? '这是一片高地，中间刚出现一条小河。拖下面的<b>时间</b>（或按“流下去”），看河谷怎么变。' : Math.abs(S.t - DOCK_T) < 0.002 ? '这是一段弯弯的河，南岸那个是西津渡。先拖<b>红球</b>切开一个河湾，看左边小图：哪一岸水深？再把<b>你的港口</b>拖到岸边，然后往后拖时间。' : STAGE[s][0] + '。'); }
       drawLogs();
     };
     const drawLogs = () => {
       if (!W) return;
       const rows = [h('div', { class: 'tl-row' }, h('b', {}, '河谷：'), h('span', {}, S.logs.length ? S.logs.join(' → ') : '还没开始'))];
-      for (const d of docks) if (d.seen) rows.push(h('div', { class: 'tl-row' }, h('b', {}, `${d.south ? '南岸' : '北岸'}渡口（${bankName(d)}）：`), h('span', {}, d.seen === 'fell' ? '河道移过来，脚下的岸被冲塌了' : '水边越退越远，脚下的泥沙淤成了陆地')));
-      const sd = docks[0];
-      if (sd.seen && !sd.moved && S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：${sd.seen === 'fell' ? '被江水冲掉' : '离江越来越远'}`)));
+      if (S.measured) rows.push(h('div', { class: 'tl-row' }, h('b', {}, '切开河湾：'), h('span', {}, '凹岸一侧水深、岸陡；凸岸一侧水浅、岸缓')));
+      for (const d of docks) if (d.placed && (d.seen || !d.south)) rows.push(h('div', { class: 'tl-row' }, h('b', {}, `${nameOf(d)}（${bankName(d)}）：`), h('span', {}, d.seen === 'fell' ? '水一直深，船能靠岸；可是河道往这边移，岸被冲塌了（凹岸要修护岸）' : d.seen === 'far' ? '水边越退越远，脚下的泥沙淤成了陆地，船靠不了了' : '刚建好，往后拖时间看看')));
+      const mine = docks[1];
+      if (mine.seen && S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：凹岸水深能停大船，但岸在后退要护岸；凸岸会淤浅`)));
       W.logs.replaceChildren(...rows);
       W.drop.textContent = `河床的落差（示意）：${drop(S.t) > 0.017 ? '大' : drop(S.t) > 0.009 ? '在变小' : '小'}`;
-      if (!S.done && S.t > 0.93 && docks.every((d) => d.seen) && S.cutMoved) { S.done = true; W.ui.unlock(); }
+      if (!S.done && S.measured && docks.every((d) => d.placed && d.seen)) { S.done = true; W.ui.unlock(); }
     };
 
-    const setT = (t) => { S.t = Math.min(1, Math.max(0, t)); build(); placeDocks(); placeTags(); record(); if (W) W.time.input.value = Math.round(S.t * 1000); };
+    const setT = (t) => { S.t = Math.min(1, Math.max(0, t)); build(); placeDocks(); placeTags(); record(); drawDepth(); if (W) W.time.input.value = Math.round(S.t * 1000); };
 
     // ---- 拖刀、拖渡口 ----
     const plane = new THREE.Plane(), hit = new THREE.Vector3(), wq = new THREE.Vector3();
     const onFloor = (ray, y) => { block.updateMatrixWorld(); block.localToWorld(wq.set(0, y, 0)); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), wq); if (!ray.intersectPlane(plane, hit)) return null; return block.worldToLocal(hit.clone()); };
-    const pickAt = (rc) => { const hits = rc.intersectObjects([knifePick, ...docks.filter((d) => d.g.visible).map((d) => d.pick)], false); if (!hits.length) return null; return hits[0].object === knifePick ? 'knife' : docks.find((d) => d.pick === hits[0].object); };
+    const pickAt = (rc) => { const hits = rc.intersectObjects([knifePick, ...docks.filter((d) => d.g.visible && !d.south).map((d) => d.pick)], false); if (!hits.length) return null; return hits[0].object === knifePick ? 'knife' : docks.find((d) => d.pick === hits[0].object); };          // 西津渡是课本里的，不搬；你的港口可以拖
     const pointer = {
       down(rc) { const w = pickAt(rc); if (!w) return false; S.drag = w; document.getElementById('c').style.cursor = 'grabbing'; return true; },
       move(rc) {
         const c = document.getElementById('c');
         if (!S.drag) { if (c) c.style.cursor = pickAt(rc) ? 'grab' : ''; return false; }
-        if (S.drag === 'knife') { const p = onFloor(rc.ray, 0.06); if (!p) return true; S.cut = Math.min(XR, Math.max(XL + 0.08, p.x)); S.cutMoved = true; build(); placeDocks(); placeTags(); drawLogs(); return true; }
+        if (S.drag === 'knife') { const p = onFloor(rc.ray, 0.06); if (!p) return true; S.cut = Math.min(XR, Math.max(XL + 0.08, p.x)); S.cutMoved = true; build(); placeDocks(); placeTags(); drawDepth(); drawLogs(); return true; }
         const d = S.drag, p = onFloor(rc.ray, floorY(d.x, S.t)); if (!p) return true;
         const x = Math.min(S.cut - 0.012, Math.max(stage(S.t).head + 0.03, p.x)), side = Math.sign(p.z - centerZ(x, S.t)) || 1;
-        atBank(d, x, side, S.t); d.moved = true;          // 挪到哪儿，就建在那儿的水边，从现在起看
+        atBank(d, x, side, S.t); d.moved = true; d.placed = true;          // 拖到哪儿，就建在那儿的水边，从现在起看
         placeDocks(); drawLogs(); return true;
       },
       up() { if (!S.drag) return false; S.drag = null; document.getElementById('c').style.cursor = ''; return true; },
     };
 
-    setT(0);
+    setT(DOCK_T);
 
     return {
       group,
@@ -281,17 +302,20 @@ export default {
       view: { elev: 32, azim: 48, lookY: 0.4, frameMargin: 1.2 },          // 从下游的东南方向、略高处看：河道和切面（横剖面）都看得见
       pointer,
       mount(ui) {
-        const time = slider('时间（示意，实际要经过漫长的年代）', { min: 0, max: 1000, value: 0, fmt: () => '', onInput: (v) => { S.play = false; playBtn.textContent = '流下去'; setT(v / 1000); } });
+        const time = slider('时间（示意，实际要经过漫长的年代）', { min: 0, max: 1000, value: Math.round(DOCK_T * 1000), fmt: () => '', onInput: (v) => { S.play = false; playBtn.textContent = '流下去'; setT(v / 1000); } });
         const acts = buttons([
-          { text: '流下去', onClick: () => { S.play = !S.play; if (S.play && S.t >= 1) setT(0); playBtn.textContent = S.play ? '停一下' : '流下去'; } },
-          { text: '重来', ghost: true, onClick: () => { S.play = false; playBtn.textContent = '流下去'; S.cut = XR; S.cutMoved = false; S.logs = []; S.guess = null; S.done = false; S.said = -1; docks.forEach(homeDock); guess.set(-1); setT(0); } },
+          { text: '流下去', onClick: () => { S.play = !S.play; if (S.play && S.t >= 1) setT(DOCK_T); playBtn.textContent = S.play ? '停一下' : '流下去'; } },
+          { text: '从头看这条河谷是怎么来的', ghost: true, onClick: () => { setT(0); S.play = true; playBtn.textContent = '停一下'; } },
+          { text: '重来', ghost: true, onClick: () => { S.play = false; playBtn.textContent = '流下去'; S.cut = XR; S.cutMoved = false; S.measured = false; S.logs = []; S.guess = null; S.done = false; S.said = -1; docks.forEach(homeDock); guess.set(-1); setT(DOCK_T); } },
         ]);
         const playBtn = acts.btns[0];
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLogs(); }, { value: -1 });
         const logs = h('div', { class: 'timeline' }), dropEl = h('p', { class: 'note' });
-        ui.controls.append(time.el, acts.el, guess.el, note('刀和两个渡口都可以拖。'));
+        const depth = h('canvas', { class: 'wx-map', width: 320, height: 120 });
+        ui.controls.append(h('div', { class: 'bar-title' }, '切开处河道的横剖面（测水深）'), depth, guess.el, time.el, acts.el, note('红球（刀）和你的港口都可以拖。'));
         ui.data.append(dropEl, h('div', { class: 'bar-title' }, '你看到了什么'), logs);
-        W = { ui, logs, time, drop: dropEl, play: playBtn };
+        W = { ui, logs, time, drop: dropEl, play: playBtn, depth };
+        drawDepth();
         S.said = -1; record();
       },
       update(dt) {
