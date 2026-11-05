@@ -115,27 +115,40 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     g.fillStyle = '#fff6dd';
     g.fillRect(0, 0, W, H);
   }
+  const timeAt = (i) => ((i - sheet.origin) * PERIOD).toFixed(2);
+  function nextUnmeasured() {
+    return slots.findIndex((i) => !sheet.used.has(i));
+  }
+  function canContinue() {
+    return sheet.used.size === 1 && sheet.used.has(slots[slot]) && nextUnmeasured() >= 0;
+  }
   function draw() {
     if (!sheet || probe) return;
     clearPaper();
     const marks = sheet.run.marks,
       start = marks[0].x,
       span = marks.at(-1).x - start;
-    label('第 ' + sheet.trial + ' 条纸带', LEFT, 38);
-    label(sheet.used.size ? '点上排选计数点' : '点上排选起点', RIGHT, 38, 41, '#575247', 'right');
-    for (const [i, m] of marks.entries())
-      dot(
-        LEFT + ((m.x - start) / span) * (RIGHT - LEFT),
-        64,
-        i === slots[slot] || i === sheet.origin ? 9 : 3,
-        i === slots[slot] ? '#286a71' : i === sheet.origin ? '#a24b32' : '#343a40',
-      );
+    label(sheet.run.load * 1000 + ' g · 第 ' + sheet.trial + ' 条', LEFT, 38);
+    label('整条纸带 · 红点是 0 s · 每隔 0.02 s 一点', RIGHT, 38, 38, '#575247', 'right');
     const c = slots[slot];
-    label('计数点 ' + ((c - sheet.origin) * PERIOD).toFixed(2) + ' s', LEFT, 125);
+    const wholeX = (i) => LEFT + ((marks[i].x - start) / span) * (RIGHT - LEFT);
+    g.fillStyle = '#dfd7b6';
+    g.fillRect(wholeX(c - 5) - 4, 51, wholeX(c + 5) - wholeX(c - 5) + 8, 25);
+    for (const [i] of marks.entries())
+      dot(
+        wholeX(i),
+        64,
+        i === c || i === sheet.origin ? 8 : 3,
+        i === c ? '#286a71' : i === sheet.origin ? '#a24b32' : '#343a40',
+      );
+    label('放大所选段 · 测起点后 ' + timeAt(c) + ' s 的速度', LEFT, 115, 40);
     for (let i = c - 5; i <= c + 5; i++) {
       const x = px(mm(i));
-      dot(x, 173, i === c ? 8 : 6);
-      if (i === c - 5 || i === c + 5) label(i < c ? 'A' : 'B', x, 151, 40, '#323b40', 'center');
+      dot(x, 177, i === c ? 9 : 6, i === c ? '#286a71' : '#303940');
+      if (i === c - 5 || i === c + 5) {
+        const left = i < c;
+        label((left ? 'A ' : 'B ') + timeAt(i) + ' s', x, 155, 34, left ? '#286a71' : '#a44730', 'center');
+      }
     }
     g.fillStyle = '#ead7af';
     g.fillRect(0, 190, W, 90);
@@ -158,8 +171,9 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       g.fill();
       label(v.toFixed(1), clamp(x, 60, W - 60), 316, 39, color, 'center');
     });
-    label(message || '把两个游标分别拖到 A、B 的点心', W / 2, 358, 42, '#34404a', 'center');
-    label('点空白回到实验台', W / 2, 409, 38, '#575247', 'center');
+    label(message || '尺上读 A、B 的位置；两点相隔 0.20 s', W / 2, 358, 39, '#34404a', 'center');
+    if (canContinue()) label('量下个时刻 ' + timeAt(slots[nextUnmeasured()]) + ' s ›', LEFT, 409, 38, '#286a71');
+    label('回实验台', RIGHT, 409, 38, '#575247', 'right');
     texture.needsUpdate = true;
     controls.btns[1].disabled = slot === 0;
     controls.btns[2].disabled = slot === slots.length - 1;
@@ -182,6 +196,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     placed = [false, false];
     message = previous ? '此点已记录' : sheet.complete ? '本条加速度已记录' : '';
     draw();
+    if (inspecting) onViewChange();
   }
   function move(delta) {
     if (!sheet) return;
@@ -223,13 +238,8 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     onRecord(sheet, (c - sheet.origin) * PERIOD, v, a, b);
     message = sheet.complete
       ? '已记录 · a = ' + sheet.acceleration.toFixed(3) + ' m/s²'
-      : '已记录 · v = ' + v.toFixed(3) + ' m/s';
-    if (sheet.used.size === 1 && slots.length > 1) {
-      const recorded = message;
-      slot = slot === slots.length - 1 ? slot - 1 : slot + 1;
-      aim();
-      message = recorded + ' · 再量一点';
-    }
+      : timeAt(c) + ' s 的速度：' + (b - a).toFixed(1) + ' mm ÷ 0.20 s ≈ ' + v.toFixed(3) + ' m/s';
+    onViewChange();
     draw();
   }
   const pixel = (p) => [(p.x / WIDTH + 0.5) * W, ((p.z - Z) / DEPTH + 0.5) * H];
@@ -252,6 +262,11 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
         return;
       }
       if (y > 369) {
+        if (canContinue() && x < W / 2) {
+          slot = nextUnmeasured();
+          aim();
+          return;
+        }
         leave();
         return;
       }
@@ -292,12 +307,21 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
   return {
     el,
     paper,
+    get canMeasureMore() {
+      return !!sheet && !probe && slots.length >= 2;
+    },
+    get count() {
+      return !probe && sheet ? sheet.used.size : 0;
+    },
     get inspecting() {
       return inspecting;
     },
     get instruction() {
       if (probe) return '看这条纸带的实际点距，再回到全景。';
-      return sheet?.used.size ? '比较不同时刻的读数；量好后回到全景。' : '把两个游标分别拖到 A、B 的点心，记下速度。';
+      if (canContinue()) return '已测 ' + timeAt(slots[slot]) + ' s。点纸带左下「量下个时刻」，再测一次。';
+      if (sheet.used.size >= 2) return '这条纸带已量两个时刻，回到实验台。';
+      if (slots.length === 1) return '这条纸带只能量一个时刻。回实验台，换新带，先通电再放车。';
+      return '从纸带起点算时间。把青色游标拖到 A、红色拖到 B，用这段的平均速度估计中间时刻的速度。';
     },
     leave,
     drag,

@@ -27,9 +27,16 @@ export default {
     const { tag } = ctx;
     const rig = apparatus();
     const loadLabel = tag('', 'pill').loc(rig.pan, 0, -0.06, 0);
+    const measured = new Set();
+    const remaining = () => LOADS.filter((m) => !measured.has(m));
     function target() {
       if (reader.inspecting) return null;
       if (moving || bar.finished) return null;
+      if (bar.current === 'compare' && !taken && !finished && measured.has(run.load)) {
+        const i = LOADS.indexOf(remaining()[0]);
+        if (i >= 0) return rack.drags[i].obj;
+      }
+      if (taken && reader.canMeasureMore && reader.count < 2) return reader.paper;
       return taken
         ? rig.cart
         : finished
@@ -77,27 +84,36 @@ export default {
     let ui, controls, masses;
     const status = (message) => ui?.status(message);
 
+    function stepHint() {
+      if (bar.finished) return '已完成 3/3 组。展开笔记本，看三组速度随时间怎样变化。';
+      const compare = bar.current === 'compare';
+      const progress = compare ? '已完成 ' + measured.size + '/3 组。' : '';
+      const mass = run.load * 1000 + ' g';
+      const next = remaining()[0] * 1000 + ' g';
+      if (reader.inspecting) {
+        if (compare && reader.count >= 2) return progress + '回实验台，向右拖回小车，再换 ' + next + ' 槽码。';
+        return progress + reader.instruction;
+      }
+      if (moving) return progress + '看相邻两个点的距离怎样变化。';
+      if (taken)
+        return (
+          progress +
+          (!reader.canMeasureMore && reader.count < 2
+            ? '纸带不够长。向右拖回小车，用同一组槽码重新打带。'
+            : compare && measured.has(run.load)
+              ? '向右拖回小车；把 ' + next + ' 槽码拖到滑轮下的挂钩。'
+              : '点台面上的纸带量两个时刻；要重测就向右拖回小车。')
+        );
+      if (finished) return progress + (run.recording ? '关计时器，再取下纸带。' : '点纸带取下，看上面留下了哪些点。');
+      if (compare && measured.has(run.load))
+        return progress + '这组 ' + mass + ' 已测过。把 ' + next + ' 槽码拖到左端挂钩。';
+      return progress + (run.recording ? '已通电，松开小车。' : '当前 ' + mass + '。先开右端计时器，再松开小车。');
+    }
     function refresh() {
       rig.draw(run);
       rack.draw(run.load);
       loadLabel.text('悬挂 ' + Math.round(run.load * 1000) + ' g').show(!moving);
-      bar.say(
-        bar.finished
-          ? null
-          : reader.inspecting
-            ? reader.instruction
-            : moving
-              ? '观察纸带上相邻两点的距离。'
-              : taken
-                ? '把小车向右拖回起点，再把另一组槽码拖到挂钩上。'
-                : finished
-                  ? run.recording
-                    ? '关计时器，再取纸带。'
-                    : '取下纸带，检查打出的点。'
-                  : run.recording
-                    ? '计时器已通电，松开小车。'
-                    : '先开右端的计时器，再松开小车。',
-      );
+      bar.say(stepHint());
       if (!controls) return;
       const [timer, release, take, replace] = controls.btns;
       timer.textContent = run.recording ? '关闭计时器' : '接通计时器';
@@ -205,11 +221,11 @@ export default {
         const graph = chart({
           x: { label: 't / s', min: 0, max: 0.8 },
           y: { label: 'v / (m/s)', min: 0, max: 1.1 },
-          legend: '槽码质量：蓝绿 50 g · 赭红 75 g · 紫色 100 g。每条连线来自同一条纸带。',
+          legend:
+            '槽码质量：蓝绿 50 g · 赭红 75 g · 紫色 100 g。每个点是一次速度读数，同色线连接同一条纸带上不同时刻的读数。',
         });
         graph.el.hidden = records.el.hidden = true;
         bar.attach(ui);
-        const measured = new Set();
         reader.bind(
           (sheet, time, speed, a, b) => {
             graph.el.hidden = records.el.hidden = false;
@@ -239,13 +255,7 @@ export default {
               message += '这条纸带首末两个测量点的斜率约为 ' + slope.toFixed(2) + ' m/s²。';
             } else message += '换下一个计数点再量一次。';
             if (measured.size === LOADS.length) bar.done('compare');
-            bar.say(
-              measured.size === LOADS.length
-                ? '三组都已测量，展开笔记本比较速度图。'
-                : sheet.points.length === 1
-                  ? '第一点已记录，再量另一个时刻的速度。'
-                  : '回全景，把小车拖回起点，换槽码再测。',
-            );
+            bar.say(stepHint());
             status(message);
           },
           () => {
