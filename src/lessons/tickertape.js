@@ -28,15 +28,21 @@ export default {
     const rig = apparatus();
     const loadLabel = tag('', 'pill').loc(rig.pan, 0, -0.06, 0);
     const measured = new Set();
+    function newRun(load) {
+      const result = makeRun(load);
+      // 基准组取三点，才能比较同一条纸带上前、后两段速度增量。
+      result.requiredSpeeds = load === LOADS[0] ? 3 : 2;
+      return result;
+    }
     const remaining = () => LOADS.filter((m) => !measured.has(m));
     function target() {
       if (reader.inspecting) return null;
-      if (moving || bar.finished) return null;
+      if (moving || bar.finished || bar.current === 'plot') return null;
       if (bar.current === 'compare' && !taken && !finished && measured.has(run.load)) {
         const i = LOADS.indexOf(remaining()[0]);
         if (i >= 0) return rack.drags[i].obj;
       }
-      if (taken && reader.canMeasureMore && reader.count < 2) return reader.paper;
+      if (taken && reader.canMeasureMore && reader.count < run.requiredSpeeds) return reader.paper;
       return taken
         ? rig.cart
         : finished
@@ -53,8 +59,9 @@ export default {
       group: rig.group,
       steps: [
         { id: 'tape', title: '打出纸带', todo: '先开计时器，再释放小车。', target },
-        { id: 'slope', title: '量两个速度点', todo: '在同一条纸带上量两个不同时刻的速度。', target },
-        { id: 'compare', title: '比较三条纸带', todo: '换槽码重测，在同一坐标系比较三条纸带。', target },
+        { id: 'slope', title: '测不同时刻的速度', todo: '在同一条纸带上测不同时刻的速度。', target },
+        { id: 'compare', title: '换槽码重测', todo: '更换槽码，保留三次运动的记录。', target },
+        { id: 'plot', title: '描速度图', todo: '展开笔记本，把纸带读数标到速度图上。' },
       ],
     });
     const reader = tapeReader(rig.group, ctx, bar, refresh);
@@ -76,33 +83,37 @@ export default {
         prepare(run.load);
       }
     }
-    let run = makeRun(LOADS[0]);
+    let run = newRun(LOADS[0]);
     let moving = false,
       finished = false,
       taken = false,
       trial = 1;
-    let ui, controls, masses;
+    let ui, controls, masses, removePlot;
+    let plotHint = '';
     const status = (message) => ui?.status(message);
 
     function stepHint() {
-      if (bar.finished) return '已完成 3/3 组。展开笔记本，看三组速度随时间怎样变化。';
+      if (bar.finished) return '三组速度图已画好。相同时间内速度增加越多，图上的线就越陡。';
+      if (bar.current === 'plot')
+        return '三组纸带已测完。' + (reader.inspecting ? '回实验台，' : '') + '展开笔记本，在速度图上标出表里的读数。';
       const compare = bar.current === 'compare';
       const progress = compare ? '已完成 ' + measured.size + '/3 组。' : '';
       const mass = run.load * 1000 + ' g';
       const next = remaining()[0] * 1000 + ' g';
       if (reader.inspecting) {
-        if (compare && reader.count >= 2) return progress + '回实验台，向右拖回小车，再换 ' + next + ' 槽码。';
+        if (compare && reader.count >= run.requiredSpeeds)
+          return progress + '回实验台，向右拖回小车，再换 ' + next + ' 槽码。';
         return progress + reader.instruction;
       }
       if (moving) return progress + '看相邻两个点的距离怎样变化。';
       if (taken)
         return (
           progress +
-          (!reader.canMeasureMore && reader.count < 2
+          (!reader.canMeasureMore && reader.count < run.requiredSpeeds
             ? '纸带不够长。向右拖回小车，用同一组槽码重新打带。'
             : compare && measured.has(run.load)
               ? '向右拖回小车；把 ' + next + ' 槽码拖到滑轮下的挂钩。'
-              : '点台面上的纸带量两个时刻；要重测就向右拖回小车。')
+              : '点台面纸带，沿同一把尺测 ' + run.requiredSpeeds + ' 个时刻的车速。')
         );
       if (finished) return progress + (run.recording ? '关计时器，再取下纸带。' : '点纸带取下，看上面留下了哪些点。');
       if (compare && measured.has(run.load))
@@ -159,7 +170,7 @@ export default {
     }
     function prepare(load) {
       reader.stow();
-      run = makeRun(load);
+      run = newRun(load);
       moving = finished = taken = false;
       rig.setPaperVisible(true);
       masses.set(LOADS.indexOf(load));
@@ -169,7 +180,7 @@ export default {
     function chooseMass(index) {
       if (!moving && !finished) {
         const powered = run.recording;
-        run = makeRun(LOADS[index]);
+        run = newRun(LOADS[index]);
         if (powered) power(run, true);
         masses.set(index);
         refresh();
@@ -224,20 +235,80 @@ export default {
           legend:
             '槽码质量：蓝绿 50 g · 赭红 75 g · 紫色 100 g。每个点是一次速度读数，同色线连接同一条纸带上不同时刻的读数。',
         });
+        const sheets = new Map(),
+          pending = [];
+        let coords;
+        graph.extra = (_, X, Y) => {
+          coords = { X, Y };
+        };
+        const prompt = note('');
+        const updatePlotHint = () => {
+          const n = pending[0];
+          plotHint = n
+            ? '第 ' +
+              n.sheet.trial +
+              ' 条纸带：横轴找 ' +
+              n.time.toFixed(2) +
+              ' s，纵轴找 ' +
+              n.speed.toFixed(3) +
+              ' m/s，点两者交会处。'
+            : '';
+          prompt.textContent = plotHint || '同色点来自同一条纸带。用速度变化量除以时间间隔，可以比较斜率。';
+          graph.canvas.title = n ? '在速度图上描点' : '点一下放大';
+        };
+        const mark = (event) => {
+          if (!pending.length || !coords) return;
+          event.stopImmediatePropagation();
+          const { sheet, time, speed } = pending[0];
+          const r = graph.canvas.getBoundingClientRect();
+          const px = ((event.clientX - r.left) * graph.canvas.width) / (2 * r.width);
+          const py = ((event.clientY - r.top) * graph.canvas.height) / (2 * r.height);
+          if (Math.abs(px - coords.X(time)) > 11 || Math.abs(py - coords.Y(speed)) > 10) {
+            prompt.textContent = '再对一遍坐标。' + plotHint;
+            return;
+          }
+          const dots = sheets.get(sheet).points;
+          dots.push([time, speed]);
+          dots.sort((a, b) => a[0] - b[0]);
+          pending.shift();
+          graph.draw();
+          updatePlotHint();
+          if (measured.size === LOADS.length && !pending.length) {
+            bar.done('plot');
+            const baseline = [...sheets.keys()].find((s) => s.points.length >= 3 && s.run.load === LOADS[0]);
+            if (baseline) {
+              const [a, b, c] = baseline.points;
+              const slopes = [(b[1] - a[1]) / (b[0] - a[0]), (c[1] - b[1]) / (c[0] - b[0])];
+              prompt.textContent =
+                '50 g 纸带上，前后两段的斜率分别为 ' +
+                slopes.map((v) => v.toFixed(2)).join('、') +
+                ' m/s²。比较另外两条纸带，看哪条更陡。';
+            }
+          }
+          bar.say(stepHint());
+        };
+        graph.canvas.addEventListener('click', mark, true);
+        removePlot = () => graph.canvas.removeEventListener('click', mark, true);
+        graph.el.prepend(prompt);
         graph.el.hidden = records.el.hidden = true;
         bar.attach(ui);
         reader.bind(
           (sheet, time, speed, a, b) => {
-            graph.el.hidden = records.el.hidden = false;
-            if (!sheet.points.length)
-              graph.series.push({
+            records.el.hidden = false;
+            if (!sheet.points.length) {
+              const series = {
                 color: ['#176e74', '#b35430', '#765490'][LOADS.indexOf(sheet.run.load)],
-                points: sheet.points,
+                points: [],
                 dots: true,
-              });
+              };
+              graph.series.push(series);
+              sheets.set(sheet, series);
+            }
+            bar.undo('plot');
+            pending.push({ sheet, time, speed });
+            updatePlotHint();
             sheet.points.push([time, speed]);
             sheet.points.sort((p, q) => p[0] - q[0]);
-            graph.draw();
             records.add([
               sheet.trial + ' / ' + sheet.run.load * 1000 + ' g',
               time.toFixed(2),
@@ -248,20 +319,29 @@ export default {
             const first = sheet.points[0],
               last = sheet.points.at(-1);
             let message = '本次读数得到 ' + speed.toFixed(3) + ' m/s。';
-            if (sheet.points.length > 1) {
+            if (sheet.points.length >= sheet.run.requiredSpeeds) {
               measured.add(sheet.run.load);
               bar.done('slope');
               const slope = (last[1] - first[1]) / (last[0] - first[0]);
               message += '这条纸带首末两个测量点的斜率约为 ' + slope.toFixed(2) + ' m/s²。';
             } else message += '换下一个计数点再量一次。';
-            if (measured.size === LOADS.length) bar.done('compare');
+            if (measured.size === LOADS.length) {
+              bar.done('compare');
+              graph.el.hidden = false;
+              const points = [...sheets.keys()].flatMap((s) => s.points);
+              for (const [index, axis] of [graph.x, graph.y].entries()) {
+                const largest = Math.max(...points.map((p) => p[index]));
+                axis.max = Math.ceil((largest + 0.015) * 10) / 10;
+              }
+              graph.draw();
+            }
             bar.say(stepHint());
             status(message);
           },
           () => {
             ui.go(1);
             ui.fold(false);
-            graph.el.scrollIntoView({ block: 'start' });
+            (graph.el.hidden ? records.el : graph.el).scrollIntoView({ block: 'start' });
           },
         );
         masses = seg(
@@ -284,10 +364,13 @@ export default {
               reader.clear();
               records.clear();
               graph.el.hidden = records.el.hidden = true;
+              pending.length = 0;
+              sheets.clear();
+              updatePlotHint();
               graph.series.length = 0;
               graph.draw();
               measured.clear();
-              bar.undo('tape', 'slope', 'compare');
+              bar.undo('tape', 'slope', 'compare', 'plot');
               trial = 1;
               prepare(LOADS[0]);
             },
@@ -316,6 +399,7 @@ export default {
         }
       },
       dispose() {
+        removePlot?.();
         rig.dispose();
         rack.dispose();
         pointer.dispose();

@@ -226,8 +226,9 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
   function nextUnmeasured() {
     return slots.findIndex((i) => !sheet.used.has(i));
   }
+  const required = () => sheet?.run.requiredSpeeds || 2;
   function canContinue() {
-    return sheet.used.size === 1 && sheet.used.has(slots[slot]) && nextUnmeasured() >= 0;
+    return sheet.used.size > 0 && sheet.used.size < required() && sheet.used.has(slots[slot]) && nextUnmeasured() >= 0;
   }
   function stopPan() {
     cancelAnimationFrame(animation);
@@ -467,7 +468,10 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       if (moved) return;
       if (sheet.used.size) {
         const next = nextUnmeasured();
-        const nearest = slots.reduce((best, c, j) => (Math.abs(mm(c) - at) < Math.abs(mm(slots[best]) - at) ? j : best), 0);
+        const nearest = slots.reduce(
+          (best, c, j) => (Math.abs(mm(c) - at) < Math.abs(mm(slots[best]) - at) ? j : best),
+          0,
+        );
         const candidate = canContinue() && Math.abs(mm(slots[next]) - at) <= 3 ? next : nearest;
         if (Math.abs(mm(slots[candidate]) - at) > 3) return;
         slot = candidate;
@@ -477,8 +481,8 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
           0,
         );
         const available = centers(sheet.run.marks, nearest);
-        if (available.length < 2) {
-          message = '这个起点后没有足够的点量两个时刻，请向左选。';
+        if (available.length < required()) {
+          message = '这个起点后没有足够的点测 ' + required() + ' 个时刻，请向左选。';
           draw();
           return;
         }
@@ -493,7 +497,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     el,
     paper,
     get canMeasureMore() {
-      return !!sheet && !probe && slots.length >= 2;
+      return !!sheet && !probe && slots.length >= required();
     },
     get count() {
       return !probe && sheet ? sheet.used.size : 0;
@@ -504,11 +508,19 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     get instruction() {
       if (probe) return '看这条纸带的实际点距，再回到全景。';
       if (canContinue()) {
-        const first = sheet.points[0];
-        return first[0].toFixed(2) + ' s 时车速约 ' + first[1].toFixed(3) +
-          ' m/s。点同一纸带上圈出的点，测 ' + timeAt(slots[nextUnmeasured()]) + ' s 时的速度，比较车速的变化。';
+        const first = sheet.points.find(([time]) => Math.abs(time - Number(timeAt(slots[slot]))) < 0.001);
+        return (
+          first[0].toFixed(2) +
+          ' s 时车速约 ' +
+          first[1].toFixed(3) +
+          ' m/s。点同一纸带上圈出的点，测 ' +
+          timeAt(slots[nextUnmeasured()]) +
+          ' s 时的速度，比较车速的变化。'
+        );
       }
-      if (sheet.used.size >= 2) return '这条纸带已量两个时刻，回到实验台。';
+      if (sheet.used.size >= required()) return '这条纸带已量 ' + required() + ' 个时刻，回到实验台。';
+      if (slots.length < required() && slots.length > 1)
+        return '这条纸带可测的时刻太少，回实验台换新带，先通电再放车。';
       if (slots.length === 1) return '这条纸带只能量一个时刻。回实验台，换新带，先通电再放车。';
       return placed[0]
         ? '沿尺读 B。A 到 B 经过 10 个打点间隔，共 0.20 s。'
