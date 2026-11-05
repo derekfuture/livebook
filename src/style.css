@@ -672,3 +672,7 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 .timeline .tl-row small { display: block; color: #6b5f48; margin-top: 2px; }
 .tag3d.pill.hot { box-shadow: 0 0 0 2px #4f6f98, 0 2px 10px rgba(40,70,120,.35); animation: tagHot 1.2s ease-in-out 2; }          /* 你家正在下雨 */
 @keyframes tagHot { 50% { box-shadow: 0 0 0 4px #4f6f98, 0 2px 14px rgba(40,70,120,.45); } }
+/* 地理活页里自己记下的小表（昼长、正午太阳高度） */
+table.rec { width: 100%; border-collapse: collapse; font-size: 12px; margin: 4px 0; }
+table.rec th, table.rec td { border: 1px solid rgba(60, 50, 40, 0.18); padding: 3px 4px; text-align: center; font-weight: 500; }
+table.rec td small { color: #8a5a2b; }
