@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { Circuit, battery, switchPart, rheostatPart, meterPart } from './kit/circuit.js';
 import { Bench, nets } from './kit/bench.js';
+import { readMeterTick } from './kit/meterReading.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { chart, table, note, buttons, h } from './kit/ui.js';
 
@@ -145,22 +146,11 @@ export default {
       say(meter === A ? '量程 0.6 A，每小格 0.02 A。点指针所指的刻线。' : '量程 3 V，每小格 0.1 V。点指针所指的刻线。');
     }
     function read(meter, hit) {
-      const dial = meter.group.face,
-        local = dial.worldToLocal(hit.point.clone());
-      const dh = meter.dial.geometry.parameters.height;
-      const dy = local.y + 0.4 * dh,
-        angle = Math.atan2(local.x, dy);
-      if (Math.hypot(local.x, dy) < dh * 0.5 || Math.abs(angle) > 0.64) {
-        say('沿指针找到表盘上端的弧形刻度，点它所指的那一格。');
+      const { value, error } = readMeterTick(meter, hit);
+      if (error) {
+        say(error);
         return;
       }
-      const tick = Math.max(0, Math.min(30, Math.round(((angle + 0.6) / 1.2) * 30)));
-      const step = meter.range / 30;
-      if (Math.abs(tick - meter.value / step) > 0.8) {
-        say('再看指针方向。这块表每小格 ' + step.toFixed(meter === A ? 2 : 1) + (meter === A ? ' A。' : ' V。'));
-        return;
-      }
-      const value = +(tick * step).toFixed(2);
       leave();
       if (meter === A) {
         first = value;

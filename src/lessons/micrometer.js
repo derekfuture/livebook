@@ -6,8 +6,8 @@ import { draggable } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { sfx } from './kit/audio.js';
 import { woodBlock } from './kit/props.js';
-import { turnSpindle, micrometerReading, SCREW_PITCH, THIMBLE_DIVISIONS } from './kit/micrometer.js';
-import { micrometerTool, ANVIL_X, AXIS_Y, SCALE_ZERO } from './kit/micrometerTool.js';
+import { turnSpindle, SCREW_PITCH } from './kit/micrometer.js';
+import { micrometerTool, readMicrometerTick, ANVIL_X, AXIS_Y, SCALE_ZERO } from './kit/micrometerTool.js';
 
 const DIAMETER = 0.625,
   HOME_X = 0.046,
@@ -214,23 +214,15 @@ export default {
       },
     );
     function read(ray) {
-      const hit = ray.intersectObjects([tool.sleeve, tool.scale])[0];
-      if (!hit) return;
-      const expected = micrometerReading(gap);
-      if (sleeveRead === null) {
-        if (hit.object !== tool.sleeve) return bar.say('先在左侧固定套筒上读数，把露出的半毫米线也算进去。');
-        const point = group.worldToLocal(hit.point.clone());
-        const n = Math.round((point.x - SCALE_ZERO) * 2000) / 2;
-        if (n !== expected.sleeve) return bar.say('从微分筒左缘向左找，点刚露出的最后一条刻线。');
-        sleeveRead = n;
+      const result = readMicrometerTick(tool, gap, sleeveRead, ray);
+      if (result.error) return bar.say(result.error);
+      if (result.coarse !== undefined) {
+        sleeveRead = result.coarse;
         guide();
         return;
       }
-      if (hit.object !== tool.scale) return;
-      let division = Math.round((((0.5 - hit.uv.y) * THIMBLE_DIVISIONS + 50) % 50) * 10) / 10;
-      if (division === 50 || (expected.division === 0 && division >= 49.8)) division = 0;
-      if (Math.abs(division - expected.division) > 0.21)
-        return bar.say('看固定套筒上那条长横线，点它延长到微分筒上的位置。');
+      if (result.value === undefined) return;
+      const { division, value } = result;
       if (!checked) {
         checked = true;
         bar.done('zero');
@@ -242,7 +234,6 @@ export default {
         leave();
         return;
       }
-      const value = sleeveRead + division / 100;
       log.add([sleeveRead.toFixed(1), division.toFixed(1), value.toFixed(3)]);
       log.el.hidden = false;
       clicked = false;

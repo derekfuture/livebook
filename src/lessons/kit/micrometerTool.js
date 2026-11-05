@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { paint, inked } from '../../live/ink.js';
 import { canvasTex } from './props.js';
-import { SCREW_PITCH, THIMBLE_DIVISIONS } from './micrometer.js';
+import { SCREW_PITCH, THIMBLE_DIVISIONS, micrometerReading } from './micrometer.js';
 
 export const ANVIL_X = -0.047,
   AXIS_Y = 0.009,
@@ -134,6 +134,7 @@ export function micrometerTool() {
   body.add(screw);
   return {
     group,
+    frame,
     sleeve,
     drum,
     grip,
@@ -153,4 +154,24 @@ export function micrometerTool() {
       thimbleTex.dispose();
     },
   };
+}
+
+// 合拢查零时两筒的分界恰好落在零线上，两侧边缘都应能点中它。
+export function readMicrometerTick(tool, gap, coarse, ray) {
+  const hit = ray.intersectObjects([tool.sleeve, tool.scale])[0];
+  if (!hit) return {};
+  const expected = micrometerReading(gap);
+  if (coarse === null) {
+    const x = tool.group.worldToLocal(hit.point.clone()).x;
+    if (hit.object !== tool.sleeve && !(gap < 1e-8 && Math.abs(x - SCALE_ZERO) < 0.00024))
+      return { error: '先读左边的固定套筒。' };
+    const n = Math.round((x - SCALE_ZERO) * 2000) / 2;
+    if (n !== expected.sleeve) return { error: '从微分筒左缘向左找，点刚露出的最后一条刻线。' };
+    return { coarse: n };
+  }
+  if (hit.object !== tool.scale) return {};
+  let n = Math.round((((0.5 - hit.uv.y) * THIMBLE_DIVISIONS + 50) % 50) * 10) / 10;
+  if (n === 50 || (expected.division === 0 && n >= 49.8)) n = 0;
+  if (Math.abs(n - expected.division) > 0.21) return { error: '沿固定套筒的长横线，点它延长到微分筒上的位置。' };
+  return { division: n, value: coarse + n / 100 };
 }
