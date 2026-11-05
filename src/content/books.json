@@ -2270,6 +2270,11 @@
   "title": "物理 高中必修第三册",
   "base": "/books/wuli-hs3/",
   "lessons": {
+   "caliper": {
+    "title": "游标卡尺测圆管的外径与内径",
+    "fig": "图11.3-1",
+    "sec": "长度的测量及测量工具的选用"
+   },
    "batteryemf": {
     "title": "电池电动势和内阻的测量",
     "fig": "图12.3-1",
@@ -2277,6 +2282,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "caliper",
+    "page": 66,
+    "bbox": [
+     147,
+     531,
+     530,
+     675
+    ],
+    "label": "图11.3-1 · 翻开活页"
+   },
    {
     "lesson": "batteryemf",
     "page": 93,
