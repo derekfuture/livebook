@@ -35,7 +35,7 @@ export default {
   conclusion: {
     page: 49,
     quote: '在等压线分布图上，凡等压线闭合，中心气压低于四周气压的区域，叫作低气压，简称低压。在水平气压梯度力的作用下，低压的气流由四周向中心流动。受地转偏向力影响，低压的气流在北半球向右偏转，按逆时针方向流动（图3.6 a），在南半球向左偏转，按顺时针方向流动。……低压中心形成上升气流。空气在上升过程中，温度降低，其中所含的水汽凝结成云和雨（图3.6 b）。因此，一个地方受低压控制时，常出现阴雨天气。……高压的气流是由中心向外流出的，在北半球按顺时针方向旋转流出（图3.7 a），在南半球按逆时针方向旋转流出。……高压中心形成下沉气流。空气在下沉过程中，温度升高，水汽不易凝结，天气晴朗（图3.7 b）。',
-    why: '空气从气压高的地方流向气压低的地方（气压梯度力），一边走一边被地转偏向力往一侧推（北半球向右、南半球向左），地面摩擦又让它斜着穿过等压线。所以流进低压的空气转着圈进去，北半球是逆时针；流出高压的转着圈出去，北半球是顺时针。地转偏向力只让风偏，不会自己让风转起来：没有气压差就没有风。低压中心的空气挤在一起只能往上升，越升越冷，水汽凝结成云、下雨；高压中心的空气往外流，上面的空气下沉补进来，越沉越暖，云就散了。气旋东部吹偏南风、西部吹偏北风；反气旋东部吹偏北风、西部吹偏南风。',
+    why: '空气从气压高的地方流向气压低的地方（气压梯度力），一边走一边被地转偏向力往一侧推（北半球向右、南半球向左），地面摩擦又让它斜着穿过等压线。所以流进低压的空气转着圈进去，北半球是逆时针；流出高压的转着圈出去，北半球是顺时针。地转偏向力只让风偏，不会自己让风转起来：没有气压差就没有风。低压中心的空气挤在一起只能往上升，越升越冷，水汽凝结成云、下雨；高压中心的空气往外流，上面的空气下沉补进来，越沉越暖，云就散了。北半球的气旋东部吹偏南风、西部吹偏北风，反气旋东部吹偏北风、西部吹偏南风；南半球转向相反。本活页的云雨是水汽充足时的示意：上升冷却使水汽凝结成云，条件适宜才形成降水。',
     src: '课本第 45–46 页 · 第三章 第一节 常见天气系统',
   },
 
@@ -75,7 +75,7 @@ export default {
       for (const p of levels) {
         const e = low ? (MODEL.P0 - p) / MODEL.DP : (p - MODEL.P0) / MODEL.DP, r = MODEL.SIG * Math.sqrt(-Math.log(e));          // 这一条等压线的半径
         g.beginPath(); g.ellipse(px(0), py(0), (r / (XR - XL)) * TW, (r / (2 * ZN)) * TH, 0, 0, 7); g.stroke();
-        const lx = px(r * 0.72), ly = py(-r * 0.72);          // 数字标在右下方，线断开一小段
+        const lx = px(r * 0.72), ly = py(r * 0.6);          // 数字标在右上方，线断开一小段（右下角留给单位说明）
         g.save(); g.fillStyle = '#e9efd9'; g.fillRect(lx - 62, ly - 18, 124, 36); g.restore(); g.fillText(p.toFixed(1), lx, ly);
       }
       g.font = '700 64px "Songti SC", serif'; g.fillStyle = low ? '#b0412a' : '#2a62b8'; g.fillText(low ? '低' : '高', px(0), py(0));
@@ -89,8 +89,9 @@ export default {
     // ---- 一缕缕空气：小团 + 身后的轨迹 ----
     const puffTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const MAXP = 360, parcels = [];
+    const drop = (p) => { block.remove(p.line, p.dot); p.line.geometry.dispose(); p.line.material.dispose(); p.dot.material.dispose(); };
     const release = (x, n) => {
-      if (parcels.length > 30) { const old = parcels.shift(); block.remove(old.line, old.dot); old.line.geometry.dispose(); }
+      if (parcels.length > 30) drop(parcels.shift());
       const pos = new Float32Array(MAXP * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setDrawRange(0, 0);
       const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4a78bd, transparent: true, opacity: 0.75 })); line.raycast = () => {}; line.renderOrder = 4;
       const dot = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color: 0xdbe8ff, transparent: true, depthWrite: false })); dot.scale.set(0.011, 0.011, 1); dot.raycast = () => {}; dot.renderOrder = 9;
@@ -113,7 +114,7 @@ export default {
         const r = Math.hypot(p.x, p.n);
         if (S.mode === 'low' && r < 0.016) { p.st = 'rise'; onArrive(p); }
         if (S.mode === 'high' && r > Math.max(0.05, Math.hypot(p.rx, p.rn) + 0.03) && !p.counted) { p.counted = true; onLeave(p); }
-        if (p.x < XL + 0.003 || p.x > XR - 0.003 || Math.abs(p.n) > ZN - 0.003) { p.st = 'gone'; }
+        if (p.x < XL + 0.003 || p.x > XR - 0.003 || Math.abs(p.n) > ZN - 0.003) { p.st = 'gone'; if (S.mode === 'high' && p.counted) { setSpin(p); drawLogs(); } }
       } else if (p.st === 'rise') {          // 到了低压中心：往上升，一直升到云底
         p.y += dt * 0.045; p.x *= 1 - dt * 0.5; p.n *= 1 - dt * 0.5;
         if (p.y > G + 0.05) { p.st = 'gone'; S.cloud = Math.min(1, S.cloud + 0.09); record(); }
@@ -202,7 +203,7 @@ export default {
       rain.geometry.attributes.position.needsUpdate = true;
     };
 
-    // ---- 你家：几栋小房子，房顶上一支风向标（箭头指向风吹去的方向） ----
+    // ---- 你家：几栋小房子，房顶上一支风向标（箭头指着风吹来的方向） ----
     const home = new THREE.Group(); block.add(home);
     for (const [x, z, w, hh] of [[-0.006, -0.004, 0.007, 0.006], [0.004, 0.003, 0.008, 0.008], [0.0, -0.012, 0.006, 0.005]]) {
       const body = edges(new THREE.Mesh(new THREE.BoxGeometry(w, hh, w), lit(0xf3ede1))); body.position.set(x, hh / 2, z); home.add(body);
@@ -214,7 +215,7 @@ export default {
     const vHead = new THREE.Mesh(new THREE.ConeGeometry(0.0028, 0.007, 8), vaneMat); vHead.rotation.z = -Math.PI / 2; vHead.position.x = 0.011; vane.add(vHead);
     const vTail = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.0006), vaneMat); vTail.position.x = -0.009; vane.add(vTail);
     const homePick = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.03, 0.024), new THREE.MeshBasicMaterial({ visible: false })); homePick.position.y = 0.014; homePick.userData.pick = true; home.add(homePick);
-    const homeTag = tag('', 'pill'), tHint = tag('在图上任意一处点一下，放一缕空气', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间加快了', 'pill');
+    const homeTag = tag('', 'pill'), tHint = tag('在图上任意一处点一下，放一缕空气', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间加快了 · 本例水汽充足', 'pill');
     const homeWx = () => {
       const [x, n] = S.home, r = Math.hypot(x, n);
       if (S.mode === 'low') return S.cloud >= 0.7 && r < 0.05 ? '阴雨' : S.cloud >= 0.3 && r < 0.09 ? '多云' : '晴';          // 教学示意：雨区在低压中心附近，外圈多云
@@ -224,7 +225,7 @@ export default {
     const layoutHome = () => {
       const [x, n] = S.home; home.position.copy(P(x, n, G));
       const w = homeWind(), blowing = S.released > 0;
-      vane.visible = blowing; vane.rotation.y = Math.atan2(w.vn, w.vx);          // 箭头指向风吹去的方向
+      vane.visible = blowing; vane.rotation.y = Math.atan2(-w.vn, -w.vx);          // 风向标的箭头指着风吹来的方向
       homeTag.loc(block, x, G + 0.04, -n).text(`<b>你家</b> ${blowing ? `${w.name}${w.lean && w.lean !== w.name ? `（${w.lean}）` : ''} · ` : ''}${homeWx()}`);
       homeTag.el.classList.toggle('hot', homeWx() === '阴雨');
     };
@@ -236,10 +237,11 @@ export default {
       const turned = Math.abs(p.L) > 0.3, ccw = p.L > 0;
       return S.mode === 'low' ? (turned ? `绕着中心${ccw ? '逆' : '顺'}时针转进去` : '直直流进中心') : (turned ? `绕着中心${ccw ? '逆' : '顺'}时针转着流出去` : '直直流出去');
     };
-    const onArrive = (p) => { const L = log(); L.spin ||= spinText(p); addStep('中心的空气往上升'); record(); };
-    const onLeave = (p) => { const L = log(); L.spin ||= spinText(p); S.out++; addStep('中心上方的空气往下沉'); record(); };
+    const setSpin = (p) => { const L = log(), t = spinText(p); if (!L.spin || (/直直/.test(L.spin) && !/直直/.test(t))) L.spin = t; };          // 短轨迹可能还看不出转向：后面转得明显的会改过来
+    const onArrive = (p) => { setSpin(p); addStep('中心的空气往上升'); record(); };
+    const onLeave = (p) => { setSpin(p); S.out++; addStep('中心上方的空气往下沉'); record(); };
     const record = () => {
-      if (S.mode === 'low') { if (S.cloud >= 0.3) addStep('升上去变冷，成云'); if (S.cloud >= 0.7) { addStep('云够厚，下雨了'); S.done.add(LK()); } }
+      if (S.mode === 'low') { if (S.cloud >= 0.3) addStep('升上去冷却，水汽凝结成云'); if (S.cloud >= 0.7) { addStep('云层变厚，下起雨（本例水汽充足）'); S.done.add(LK()); } }
       else if (S.out > 0 && S.cloud <= 0.001) { addStep('下沉变暖，云散了，天晴'); S.done.add(LK()); }
       drawLogs();
     };
@@ -287,9 +289,9 @@ export default {
       const [q, opts] = ASK[S.mode], key = S.mode + S.hemi, g = seg(q, opts, (_, i) => { S.guess[key] = i; drawLogs(); }, { value: S.guess[key] ?? -1 });
       W.guess.el.replaceWith(g.el); W.guess = g;
     };
-    const clearAir = () => { for (const p of parcels) { block.remove(p.line, p.dot); p.line.geometry.dispose(); } parcels.length = 0; S.last = null; S.released = 0; S.out = 0; };
+    const clearAir = () => { for (const p of parcels) drop(p); parcels.length = 0; S.last = null; S.released = 0; S.out = 0; };
     const setMode = (fresh = false) => {
-      clearAir(); S.cloud = S.mode === 'high' ? 0.8 : 0;          // 高压一开始天上有几朵云：空气下沉时它们会散掉
+      clearAir(); delete S.logs[LK()];          // 重新进这个情境：空气、云都从头来，这一行记录也从头记（完成过的照样算完成） S.cloud = S.mode === 'high' ? 0.8 : 0;          // 高压一开始天上有几朵云：空气下沉时它们会散掉
       if (fresh) S.home = [0.07, 0.0];
       drawMapTex(); setGuess(); layoutHome(); drawLogs();
       W?.ui.status(S.mode === 'low'
@@ -338,7 +340,7 @@ export default {
         const logs = h('div', { class: 'timeline' });
         const acts = buttons([
           { text: '一圈都放上', onClick: ring },
-          { text: '重来', ghost: true, onClick: () => { delete S.logs[LK()]; S.done.delete(LK()); delete S.guess[S.mode + S.hemi]; tHint.show(true); setMode(true); } },
+          { text: '重来', ghost: true, onClick: () => { S.logs = {}; S.done.clear(); S.guess = {}; S.mode = 'low'; S.hemi = 0; modeSeg.set(0); hemiSeg.set(0); tHint.show(true); setMode(true); } },          // 回到第一次打开的样子
         ]);
         const skyWin = h('canvas', { class: 'wx-map', width: 320, height: 110 });
         ui.controls.append(modeSeg.el, hemiSeg.el, guess.el, acts.el, note('你家可以拖到低压、高压的东边、西边、北边、南边。'));
@@ -349,7 +351,7 @@ export default {
       update(dt) {
         S.t += dt; const d = Math.min(dt, 0.05);
         for (const p of parcels) stepParcel(p, d);
-        for (let i = parcels.length - 1; i >= 0; i--) { const p = parcels[i]; if (p.st === 'gone') { p.fade -= d / 3.5; p.line.material.opacity = 0.75 * Math.max(0, p.fade); if (p.fade <= 0) { block.remove(p.line, p.dot); p.line.geometry.dispose(); parcels.splice(i, 1); if (S.last === p) S.last = null; } } }
+        for (let i = parcels.length - 1; i >= 0; i--) { const p = parcels[i]; if (p.st === 'gone') { p.fade -= d / 3.5; p.line.material.opacity = 0.75 * Math.max(0, p.fade); if (p.fade <= 0) { drop(p); parcels.splice(i, 1); if (S.last === p) S.last = null; } } }
         if (S.mode === 'high' && S.out > 0 && S.cloud > 0) { S.cloud = Math.max(0, S.cloud - d * 0.12 * Math.min(3, S.out)); if (S.cloud === 0) record(); }          // 下沉增温：云一点点散掉
         placeArrows(); placeVArrows(); placeClouds(); placeRain(); layoutHome(); drawSky();
       },
