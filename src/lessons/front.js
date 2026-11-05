@@ -299,7 +299,7 @@ export default {
     const layout = () => {
       const k = K();
       shapeFront(); shapeFlows(); placeClouds(); placeRain();
-      const ac = S.kind === 'warm' ? 0xd9662f : 0x2f7f6f;          // 冷锋、准静止锋推冷气团；暖锋推暖气团 pushArrow.userData.mat.color.set(ac); pushArrow.userData.mat.emissive.set(ac);
+      const ac = S.kind === 'warm' ? 0xd9662f : 0x2f7f6f; pushArrow.userData.mat.color.set(ac); pushArrow.userData.mat.emissive.set(ac);          // 冷锋、准静止锋推冷气团；暖锋推暖气团
       pushArrow.position.set(Math.max(XL + 0.012, S.xf - 0.12), G + 0.004, 0.035);
       grab.position.set(S.xf - 0.07, G + 0.03, 0);
       sym.position.set(S.xf, G, 0); sym.visible = S.rise > 0.5; ridge.visible = S.kind === 'still';
