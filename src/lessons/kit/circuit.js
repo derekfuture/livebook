@@ -161,6 +161,7 @@ export class Circuit {
     this.curves = [];
     const copper = paint(0xe08a3c);
     for (const w of this.wires) {
+      if (w.draw === false) continue; // 接触处的连接由表笔等实物表示。
       const a = this.terminalWorld(w.a), b = this.terminalWorld(w.b);
       // 接电表的导线贴着桌面走，不从表盘前面拱过去挡住刻度
       const meter = [w.a, w.b].some((t) => ['ammeter', 'voltmeter'].includes(this.parts.get(splitId(t)[0])?.kind));
