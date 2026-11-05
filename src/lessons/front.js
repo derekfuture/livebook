@@ -140,7 +140,7 @@ export default {
       const head = edges(new THREE.Mesh(headGeo, m)); head.position.x = len + 0.01; g.add(head);
       g.userData.mat = m; return g;
     };
-    const pushArrow = arrow(0x2f7f6f, 0.05); block.add(pushArrow);
+    const pushArrow = arrow(0x2f7f6f, 0.05); pushArrow.scale.setScalar(0.6); block.add(pushArrow);
     const grab = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, ZD * 2), new THREE.MeshBasicMaterial({ visible: false })); grab.userData.pick = true; block.add(grab);
 
     // ---- 被抬升的暖空气：一节节流动的箭头，贴着锋面往上爬（越高越冷，颜色从橙变白） ----
@@ -172,13 +172,13 @@ export default {
     // ---- 云：冷锋是锋线附近的一座云塔（本例暖空气湿润）；暖锋是锋前一大片一层层的云 ----
     const cloudTex = canvasTex(256, 256, (g, w) => {
       const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.85)'); gr.addColorStop(0.75, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.92)'); gr.addColorStop(0.82, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)');          // 边缘收得紧一点：云有轮廓，不是一团失焦的棉花
       g.globalAlpha = 0.55; g.fillStyle = gr; g.fillRect(0, 0, w, w);
       // 花菜状的边：一圈软的小团叠在边上（不挖洞，挖洞看着像肥皂泡）
       for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2, r = w * 0.27, cx = w / 2 + Math.cos(a) * r, cy = w / 2 + Math.sin(a) * r * 0.85, rr = w * (0.13 + 0.05 * ((i * 7) % 3) / 2);
         const gg = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gg.addColorStop(0, 'rgba(255,255,255,0.9)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fill(); }
     });
-    const puffs = Array.from({ length: 110 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
+    const puffs = Array.from({ length: 64 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
     const placeClouds = () => {
       const wet = smooth(0.8, 1, S.form) * S.rise;          // 云够厚、下起雨来，云底就压暗
       for (const m of puffs) {
@@ -250,8 +250,9 @@ export default {
     // ---- 线稿 → 真实：头一次推的时候，一秒内铺开 ----
     const setReal = () => {
       const r = S.real;
-      for (const m of [groundMat, frontMat, coldMat]) m.emissiveIntensity = 1 - 0.82 * r;
-      LINE.opacity = 0.9 - 0.6 * r; frontMat.opacity = 0.8 - 0.5 * r; coldMat.opacity = 0.24 + 0.08 * r;
+      for (const m of [groundMat, coldMat]) m.emissiveIntensity = 1 - 0.82 * r;
+      frontMat.emissiveIntensity = 1 - 0.6 * r;          // 锋面保持暖橙、透亮，不变成灰褐的塑料壳
+      LINE.opacity = 0.9 - 0.6 * r; frontMat.opacity = 0.8 - 0.56 * r; coldMat.opacity = 0.24 + 0.06 * r;
       fieldMat.opacity = Math.min(1, r * 1.4); field.scale.x = Math.max(0.001, smooth(0, 0.85, r)); field.position.x = XL + (XR - XL) * field.scale.x / 2;
     };
 
@@ -345,7 +346,7 @@ export default {
       for (const f of flows) { f.material.opacity = (f.userData.z === 0 ? 1 : 0.45) * smooth(0, 0.12, S.form) * S.rise; f.visible = S.rise > 0.02; }
       frontMesh.visible = frontEdge.visible = cold.visible = S.rise > 0.02;          // 看图推天气：还没立起来时，图上只有锋线符号          // 推起来，暖空气才开始被抬升
       const ac = S.map && S.lift < 1 ? 0x8a8f98 : S.kind === 'warm' ? 0xd9662f : 0x2f7f6f; pushArrow.userData.mat.color.set(ac); pushArrow.userData.mat.emissive.set(ac);          // 冷锋、准静止锋推冷气团；暖锋推暖气团
-      pushArrow.position.set(Math.max(XL + 0.012, S.xf - 0.12), G + 0.004, 0.035);
+      pushArrow.position.set(Math.max(XL + 0.012, S.xf - 0.08), G + 0.004, ZD - 0.012);          // 靠地块前沿走，不压着房子
       grab.position.set(S.xf - 0.07, G + 0.03, 0);
       sym.position.set(S.xf, G, 0); sym.visible = S.map || S.rise > 0.5; ridge.visible = S.kind === 'still';
       home.position.set(S.home, G, 0.03); town.position.set(S.town, G, -0.025);

@@ -91,7 +91,9 @@ export default {
     // ---- 树：高地上一丛丛的小树；那里被河谷冲掉了，树就跟着没了 ----
     const NT = 170, trees = new THREE.InstancedMesh(new THREE.ConeGeometry(0.0026, 0.0075, 7).translate(0, 0.0037, 0), new THREE.MeshStandardMaterial({ color: 0x3f6f35, roughness: 0.9, emissive: 0x1d3318, emissiveIntensity: 0.4 }), NT);
     trees.raycast = () => {}; block.add(trees);
-    const treeAt = Array.from({ length: NT }, (_, k) => { const cl = Math.floor(k / 5), cx = XL + 0.01 + ((cl * 0.618) % 1) * (XR - XL - 0.02), cz = (((cl * 0.377) % 1) * 2 - 1) * (ZD - 0.008); return [cx + (Math.random() - 0.5) * 0.012, Math.max(-ZD + 0.004, Math.min(ZD - 0.004, cz + (Math.random() - 0.5) * 0.012)), 0.7 + Math.random() * 0.6]; });
+    const rr = (() => { let q = 17; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })();
+    const clusters = Array.from({ length: 30 }, () => [XL + 0.01 + rr() * (XR - XL - 0.02), (rr() * 2 - 1) * (ZD - 0.01), 2 + Math.floor(rr() * 8)]);          // 一丛丛大小不一的树林，位置随机（固定种子）
+    const treeAt = Array.from({ length: NT }, (_, k) => { const [cx, cz, m] = clusters[k % clusters.length], a = rr() * 6.28, d = Math.sqrt(rr()) * 0.004 * m; return [cx + Math.cos(a) * d, Math.max(-ZD + 0.004, Math.min(ZD - 0.004, cz + Math.sin(a) * d)), 0.7 + rr() * 0.6]; });
     const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), v4 = new THREE.Vector3(), s4 = new THREE.Vector3();
     const placeTrees = (x1, t) => {
       treeAt.forEach(([x, z, sc], k) => {
@@ -154,7 +156,7 @@ export default {
         const X = x1 + 0.0003; A.push(X, ya, za, X, ya - th, za, X, yb - th, zb, X, ya, za, X, yb - th, zb, X, yb, zb);
       }
       alluv.geometry.dispose(); alluv.geometry = new THREE.BufferGeometry(); alluv.geometry.setAttribute('position', new THREE.Float32BufferAttribute(A, 3)); alluv.visible = A.length > 0;
-      knife.position.set(x1, 0, 0);
+      knife.position.set(x1, 0, 0); placeRail(x1);
     };
     const alluvTex = canvasTex(128, 32, (g, w, hh) => { g.fillStyle = '#e2cf93'; g.fillRect(0, 0, w, hh); for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(120,95,55,${0.25 + Math.random() * 0.35})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.5, 1.5); } });
     const alluv = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: alluvTex, side: THREE.DoubleSide })); alluv.raycast = () => {}; block.add(alluv);
@@ -168,8 +170,11 @@ export default {
     // ---- 切刀：挂在地块前沿的一根导轨上，拖着它沿导轨走，地块就从刀口切开 ----
     const steel = new THREE.MeshStandardMaterial({ color: 0xc9ced6, emissive: 0x6b7280, emissiveIntensity: 0.35, metalness: 0.5, roughness: 0.35 });
     const RY = 0.084, RZ = ZD + 0.007;
-    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, XR - XL - 0.06, 10), steel); rail.rotation.z = Math.PI / 2; rail.position.set((XL + 0.06 + XR) / 2, RY, RZ); rail.raycast = () => {}; block.add(rail);
-    for (const x of [XL + 0.06, XR]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.0008, 0.0008, RY - topY(x) + 0.002, 8), steel); post.position.set(x, (RY + topY(x)) / 2, RZ); post.raycast = () => {}; block.add(post); }
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, 1, 10), steel); rail.rotation.z = Math.PI / 2; rail.raycast = () => {}; block.add(rail);
+    const postGeo = (x) => new THREE.CylinderGeometry(0.0008, 0.0008, RY - topY(x) + 0.002, 8);
+    const post0 = new THREE.Mesh(postGeo(XL + 0.06), steel); post0.position.set(XL + 0.06, (RY + topY(XL + 0.06)) / 2, RZ); post0.raycast = () => {}; block.add(post0);
+    const post1 = new THREE.Mesh(postGeo(XR), steel); post1.raycast = () => {}; block.add(post1);
+    const placeRail = (x1) => { rail.scale.y = x1 - (XL + 0.06); rail.position.set((XL + 0.06 + x1) / 2, RY, RZ); post1.geometry.dispose(); post1.geometry = postGeo(x1); post1.position.set(x1, (RY + topY(x1)) / 2, RZ); };          // 导轨只伸到切口，切开以后不会悬空伸出去
     const knife = new THREE.Group(); block.add(knife);
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.0042, 20, 14), new THREE.MeshStandardMaterial({ color: 0xc0462e, emissive: 0x7a2416, emissiveIntensity: 0.35, roughness: 0.45 })); knob.position.set(0, RY, RZ); knife.add(knob);
     const pointerGeo = new THREE.ConeGeometry(0.0022, 0.006, 3); pointerGeo.rotateX(Math.PI);
@@ -273,7 +278,7 @@ export default {
       group,
       card: false,
       size: { w: 0.36, d: 0.22, h: 0.12 },
-      view: { elev: 24, azim: 58, lookY: 0.4, frameMargin: 1.05 },          // 从下游的东南方向看：切面（横剖面）正对着镜头
+      view: { elev: 32, azim: 48, lookY: 0.4, frameMargin: 1.2 },          // 从下游的东南方向、略高处看：河道和切面（横剖面）都看得见
       pointer,
       mount(ui) {
         const time = slider('时间（示意，实际要经过漫长的年代）', { min: 0, max: 1000, value: 0, fmt: () => '', onInput: (v) => { S.play = false; playBtn.textContent = '流下去'; setT(v / 1000); } });

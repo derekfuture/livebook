@@ -89,9 +89,9 @@ export default {
 
     // ---- 等压面：一张张横穿空气槽的面；前沿一条实线，旁边一条虚线是它原来的位置 ----
     const NI = 80, sheets = ZK.map((zk) => {
-      const geo = new THREE.PlaneGeometry(1, 1, NI, 1), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x3f7fc0, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })); m.raycast = () => {}; m.renderOrder = 4; block.add(m);
+      const geo = new THREE.PlaneGeometry(1, 1, NI, 1), m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x3f7fc0, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false })); m.raycast = () => {}; m.renderOrder = 4; block.add(m);
       const line = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x2f6fb0 })); line.raycast = () => {}; block.add(line);
-      const dash = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(XL, GT + zk, D), new THREE.Vector3(XR, GT + zk, D)]), new THREE.LineDashedMaterial({ color: 0xd9663a, dashSize: 0.004, gapSize: 0.003, transparent: true, opacity: 0.7 })); dash.computeLineDistances(); dash.raycast = () => {}; block.add(dash);
+      const dash = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(XL, GT + zk, D), new THREE.Vector3(XR, GT + zk, D)]), new THREE.LineDashedMaterial({ color: 0x8a8f98, dashSize: 0.004, gapSize: 0.003, transparent: true, opacity: 0.35 })); dash.computeLineDistances(); dash.raycast = () => {}; block.add(dash);
       return { zk, geo, m, line, dash };
     });
     const placeSheets = () => {
@@ -104,7 +104,7 @@ export default {
     };
 
     // ---- 一粒粒空气：跟着风走（看得出上升、下沉、水平流动） ----
-    const NP = 380, pPos = new Float32Array(NP * 3), pCol = new Float32Array(NP * 3), pts = Array.from({ length: NP }, () => ({ x: XL + rnd() * (XR - XL), z: rnd() * H, d: (rnd() * 2 - 1) * D * 0.9 }));
+    const NP = 200, pPos = new Float32Array(NP * 3), pCol = new Float32Array(NP * 3), pts = Array.from({ length: NP }, () => ({ x: XL + rnd() * (XR - XL), z: rnd() * H, d: (rnd() * 2 - 1) * D * 0.9 }));
     const dotTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const pGeo = new THREE.BufferGeometry(); pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
     const dots = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.013, map: dotTex, vertexColors: true, transparent: true, depthWrite: false })); dots.raycast = () => {}; dots.renderOrder = 6; block.add(dots);
@@ -123,23 +123,49 @@ export default {
     };
 
     // ---- 风的箭头：一格格摆着，长短表示快慢 ----
-    const arrows = [];
-    for (let a = 0; a < 9; a++) for (const r of [0.1, 0.5, 0.9]) {
-      const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0 });
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 1, 6), m), head = new THREE.Mesh(new THREE.ConeGeometry(0.0032, 0.008, 10), m); g.add(shaft, head);
-      g.userData = { m, shaft, head, x: XL + (a + 0.5) * (XR - XL) / 9, z: r * H }; g.position.set(g.userData.x, GT + g.userData.z, D * 0.6); block.add(g); arrows.push(g);
-    }
-    const placeArrows = () => {
-      const F = field(S.st);
-      for (const g of arrows) {
-        const { m, shaft, head, x, z } = g.userData, [u, w] = F.at(x, z), sp = Math.hypot(u, w), len = Math.min(0.026, sp * 0.22);
-        m.opacity = Math.min(0.9, sp * 25); g.visible = len > 0.004;
-        if (!g.visible) continue;
-        g.rotation.z = Math.atan2(w, u) - Math.PI / 2;          // 箭头本来朝上（+y）
-        shaft.scale.y = len; shaft.position.y = 0; head.position.y = len / 2 + 0.004;
-        m.color.set(w > Math.abs(u) * 0.8 ? 0xd9663a : 0x2a5a9a);          // 上升的标暖色
+    // ---- 环流：画成几个闭合的圈（流函数 ψ = Φ(x)·sin(πz/H) 的等值线），圈上几个箭头指着空气走的方向 ----
+    const loopMat = new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0, depthWrite: false });
+    const headMat = new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0, depthWrite: false });
+    const loops = new THREE.Group(); block.add(loops); let loopT = 0;
+    const GX = 68, GZ = 26;
+    const contour = (psi, lev) => {          // 方格上找 ψ = lev 的线段（marching squares），再连成折线
+      const segs = [], P = (i, j) => [XL + (XR - XL) * (i / GX), H * (j / GZ)];
+      const lerp = (a, b, va, vb) => { const t = (lev - va) / (vb - va); return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; };
+      for (let i = 0; i < GX; i++) for (let j = 0; j < GZ; j++) {
+        const v = [psi[i][j], psi[i + 1][j], psi[i + 1][j + 1], psi[i][j + 1]], c = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)], e = [];
+        for (let k = 0; k < 4; k++) { const a = v[k], b = v[(k + 1) % 4]; if ((a - lev) * (b - lev) < 0) e.push(lerp(c[k], c[(k + 1) % 4], a, b)); }
+        if (e.length === 2) segs.push(e); else if (e.length === 4) { segs.push([e[0], e[1]]); segs.push([e[2], e[3]]); }
+      }
+      const lines = [], key = (p) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`;
+      while (segs.length) {
+        const line = segs.pop();
+        for (let grow = true; grow;) { grow = false; for (let k = 0; k < segs.length; k++) { const [a, b] = segs[k], end = line[line.length - 1];
+          if (key(a) === key(end)) { line.push(b); segs.splice(k, 1); grow = true; break; } if (key(b) === key(end)) { line.push(a); segs.splice(k, 1); grow = true; break; } } }
+        if (line.length > 6) lines.push(line);
+      }
+      return lines;
+    };
+    const buildLoops = () => {
+      for (const o of [...loops.children]) { loops.remove(o); o.geometry.dispose(); }
+      const mix = { S: S.st.S.map((v, i) => (v + S.st.P[i]) / 2) }, Phi = new Float64Array(N + 1); for (let i = 0; i < N; i++) Phi[i + 1] = Phi[i] + mix.S[i] * ((XR - XL) / N);
+      const psi = Array.from({ length: GX + 1 }, (_, i) => { const f = Phi[Math.round((i / GX) * N)]; return Array.from({ length: GZ + 1 }, (_, j) => f * Math.sin(Math.PI * j / GZ)); });
+      let mx = 0, mn = 0; for (const r of psi) for (const v of r) { mx = Math.max(mx, v); mn = Math.min(mn, v); }
+      const F = field(S.st), strength = Math.max(mx, -mn);
+      loopMat.opacity = headMat.opacity = Math.min(0.85, strength * 3);
+      if (strength < 0.02) return;
+      for (const lev of [mx * 0.5, mn * 0.5]) {
+        if (Math.abs(lev) < 0.01) continue;
+        for (const line of contour(psi, lev)) {
+          const pts = line.map(([x, z]) => new THREE.Vector3(x, GT + z, D * 0.55)), closed = pts[0].distanceTo(pts[pts.length - 1]) < 0.01;
+          const curve = new THREE.CatmullRomCurve3(pts, closed), tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.min(200, pts.length * 2), 0.0011, 6, closed), loopMat); tube.raycast = () => {}; tube.renderOrder = 7; loops.add(tube);
+          for (let k = 0; k < 4; k++) {          // 圈上四个箭头，方向跟着那里的风
+            const p = curve.getPointAt((k + 0.5) / 4), [u, w] = F.at(p.x, p.y - GT), d = new THREE.Vector3(u, w, 0).normalize();
+            const head = new THREE.Mesh(new THREE.ConeGeometry(0.0036, 0.009, 10), headMat); head.position.copy(p); head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); head.raycast = () => {}; head.renderOrder = 7; loops.add(head);
+          }
+        }
       }
     };
+    const placeArrows = () => { if (S.t - loopT > 0.25) { loopT = S.t; buildLoops(); } };
 
     // ---- 标签：A、B、C；气压高低（近地面、上空）；海峡两岸 ----
     const tABC = Object.entries(ABC).map(([k, x]) => ({ x, t: tag(k, 'pill') }));
@@ -172,7 +198,7 @@ export default {
         tTown[k].loc(block, tw.position.x, GT + 0.03, 0).text(`<b>${k === 'fj' ? '福建沿海' : '台湾西岸'}</b> ${name}${name === '静风' ? '' : fromSea ? '（从海上吹来）' : '（从陆上吹来）'}`).show(!free);
       }
       tHint.loc(block, 0, GT + 0.02, D).show(free && !S.heated);
-      tHeat.loc(block, S.heatX ?? 0, GT + 0.006, D).show(free && !!S.heat);
+      tHeat.loc(block, S.heatX ?? 0, GT - 0.012, D + 0.004).show(free && !!S.heat);          // 写在地面前沿下方，不压着“低”
       tIso.loc(block, XL + 0.03, GT + (ZK[2] + ZK[3]) / 2, D).show(true);          // 放在左边两张等压面之间，不和右上角的气压标签挤在一起
       tScale.loc(block, 0, GT + H + 0.008, -D);          // 写在空气槽顶上靠后，不压着地面的字母
     };

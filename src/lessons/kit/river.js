@@ -27,9 +27,9 @@ const hash = (n) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return
 /** 谷壁上的冲沟：沿着河谷一条条切进谷壁，越往后越深（示意） */
 export function gullyAt(x, z, t) {
   const s = stage(t), az = Math.abs(z), q = az - s.floorHalf; if (q < -0.001) return 0;
-  const side = z > 0 ? 1 : 0, u = x * 52 + side * 0.37, c = Math.floor(u), f = u - c - 0.5 - (hash(c + side * 50) - 0.5) * 0.4;
+  const side = z > 0 ? 1 : 0, u = x * 44 + side * 0.37 + 0.35 * Math.sin(x * 23 + side), c = Math.floor(u), f = u - c - 0.5 - (hash(c + side * 50) - 0.5) * 0.6;          // 间距、位置都打乱一点，不像折纸
   const reach = (topY(x) - floorY(x, t)) / s.wall + 0.004 + 0.014 * hash(c * 3 + side), w = Math.exp(-((f / 0.16) ** 2));
-  return 0.0065 * hash(c * 7 + side * 13 + 1) * w * Math.max(0, 1 - q / reach) * sm(0.12, 0.55, t);
+  return 0.0035 * (0.3 + hash(c * 7 + side * 13 + 1)) * w * Math.max(0, 1 - q / reach) * sm(0.12, 0.55, t);
 }
 /** 地面高度（gully = false：不算冲沟，核对横剖面时用） */
 export function heightAt(x, z, t, gully = true) {

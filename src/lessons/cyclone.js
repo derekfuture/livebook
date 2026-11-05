@@ -71,14 +71,14 @@ export default {
     const mapTex = new THREE.CanvasTexture(mapCanvas); mapTex.colorSpace = THREE.SRGBColorSpace; mapTex.anisotropy = 8;
     const drawMapTex = () => {
       const g = mapCanvas.getContext('2d'), px = (x) => ((x - XL) / (XR - XL)) * TW, py = (n) => ((ZN - n) / (2 * ZN)) * TH;
-      if (land.complete && land.naturalWidth) { g.drawImage(land, 0, 0, TW, TH); g.fillStyle = 'rgba(250,248,236,0.38)'; g.fillRect(0, 0, TW, TH); }          // 底下是一片虚构的乡村（手绘贴图），上面蒙一层淡白，等压线才看得清
+      if (land.complete && land.naturalWidth) { g.drawImage(land, 0, 0, TW, TH); g.fillStyle = 'rgba(250,248,236,0.6)'; g.fillRect(0, 0, TW, TH); }          // 底下是一片虚构的乡村（手绘贴图），上面蒙一层淡白，等压线才看得清
       else { g.fillStyle = '#e9efd9'; g.fillRect(0, 0, TW, TH); }
       g.lineJoin = 'round';
       const low = S.mode === 'low', levels = low ? [1000, 1002.5, 1005, 1007.5] : [1015, 1012.5, 1010, 1008.5];
-      g.strokeStyle = '#c4672c'; g.lineWidth = 5; g.fillStyle = '#9a4a1c'; g.font = '600 40px "Songti SC", serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.strokeStyle = '#b97a4f'; g.lineWidth = 3.5; g.fillStyle = '#9a4a1c'; g.font = '600 40px "Songti SC", serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       for (const p of levels) {
         const e = low ? (MODEL.P0 - p) / MODEL.DP : (p - MODEL.P0) / MODEL.DP, r = MODEL.SIG * Math.sqrt(-Math.log(e));          // 这一条等压线的半径
-        g.save(); g.strokeStyle = 'rgba(255,253,240,0.85)'; g.lineWidth = 11; g.beginPath(); g.ellipse(px(0), py(0), (r / (XR - XL)) * TW, (r / (2 * ZN)) * TH, 0, 0, 7); g.stroke(); g.restore();          // 白边衬着，等压线在地面上也清楚
+        g.save(); g.strokeStyle = 'rgba(255,253,240,0.85)'; g.lineWidth = 8; g.beginPath(); g.ellipse(px(0), py(0), (r / (XR - XL)) * TW, (r / (2 * ZN)) * TH, 0, 0, 7); g.stroke(); g.restore();          // 白边衬着，等压线在地面上也清楚
         g.beginPath(); g.ellipse(px(0), py(0), (r / (XR - XL)) * TW, (r / (2 * ZN)) * TH, 0, 0, 7); g.stroke();
         const lx = px(r * 0.72), ly = py(r * 0.6);          // 数字标在右上方，线断开一小段（右下角留给单位说明）
         g.save(); g.fillStyle = 'rgba(255,253,240,0.92)'; g.beginPath(); g.roundRect(lx - 70, ly - 24, 140, 48, 10); g.fill(); g.restore(); g.fillText(p.toFixed(1), lx, ly);
@@ -99,7 +99,7 @@ export default {
     const release = (x, n) => {
       if (parcels.length > 30) drop(parcels.shift());
       const pos = new Float32Array(MAXP * 3), rib = new Float32Array(MAXP * 6), col = new Float32Array(MAXP * 8), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(rib, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 4)); geo.setIndex(RIBIDX); geo.setDrawRange(0, 0);
-      const line = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide })); line.raycast = () => {}; line.renderOrder = 4;          // 轨迹是一条细带子，越往后越窄、越淡：只看得见它刚走过的一段，不会在中心缠成一团
+      const line = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide })); line.raycast = () => {}; line.renderOrder = 10;          // 轨迹是一条细带子，越往后越窄、越淡：只看得见它刚走过的一段，不会在中心缠成一团
       const dot = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color: 0xdbe8ff, transparent: true, depthWrite: false })); dot.scale.set(0.011, 0.011, 1); dot.raycast = () => {}; dot.renderOrder = 9;
       block.add(line, dot);
       const p = { x, n, vx: 0, vn: 0, y: G + 0.004, st: 'flow', np: 0, pos, rib, col, geo, line, dot, fade: 1, L: 0, rx: x, rn: n };
@@ -113,7 +113,7 @@ export default {
       const P = p.pos, R = p.rib, n = p.np;
       for (let k = 0; k < n; k++) {
         const a = Math.max(0, k - 1), b = Math.min(n - 1, k + 1), dx = P[b * 3] - P[a * 3], dz = P[b * 3 + 2] - P[a * 3 + 2], hl = Math.hypot(dx, dz), age = k / Math.max(1, n - 1);
-        const w = 0.0016 * (0.25 + 0.75 * age), ox = hl > 1e-5 ? (-dz / hl) * w : w, oz = hl > 1e-5 ? (dx / hl) * w : 0;
+        const w = 0.0024 * (0.25 + 0.75 * age), ox = hl > 1e-5 ? (-dz / hl) * w : w, oz = hl > 1e-5 ? (dx / hl) * w : 0;
         R.set([P[k * 3] + ox, P[k * 3 + 1], P[k * 3 + 2] + oz, P[k * 3] - ox, P[k * 3 + 1], P[k * 3 + 2] - oz], k * 6);
         const al = Math.pow(age, 1.4) * 0.92 * Math.max(0, p.fade); p.col.set([0.15, 0.34, 0.64, al, 0.15, 0.34, 0.64, al], k * 8);
       }
@@ -168,19 +168,21 @@ export default {
     };
 
     // ---- 中心上空：低压是上升气流和云塔，高压是下沉气流 ----
-    const vArrows = [0, 1, 2, 3].map((i) => {
-      const g = new THREE.Group(), m = new THREE.MeshBasicMaterial({ color: 0x3466b0, transparent: true, opacity: 0 });
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 0.022, 8), m), head = new THREE.Mesh(new THREE.ConeGeometry(0.003, 0.007, 10), m);
-      head.position.y = 0.014; g.add(shaft, head); g.userData = { m, head, a: (i / 4) * Math.PI * 2 + 0.4, r: i === 0 ? 0 : 0.013 }; block.add(g); return g;
-    });
+    // 中心的竖直气流画成几条连着的弯箭头（课本图 3.6 b、3.7 b）：低压——贴地流进来、在中心往上升；高压——从高处沉下来、贴地往外散
+    const flowMat = new THREE.MeshBasicMaterial({ color: 0x2f5f9e, transparent: true, opacity: 0, depthWrite: false });
+    const vPaths = { low: [], high: [] };
+    for (const mode of ['low', 'high']) for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4, c = Math.cos(a), sn = Math.sin(a), up = [];
+      for (let k = 0; k <= 24; k++) { const t = k / 24, r = 0.052 * Math.pow(1 - t, 1.6) + 0.004, y = G + 0.004 + 0.07 * Math.pow(t, 2.2); up.push(new THREE.Vector3(c * r, y, -sn * r)); }
+      const pts = mode === 'low' ? up : up.reverse(), curve = new THREE.CatmullRomCurve3(pts);
+      const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.0009, 6, false), flowMat), end = pts[pts.length - 1], dir = end.clone().sub(pts[pts.length - 3]).normalize();
+      const head = new THREE.Mesh(new THREE.ConeGeometry(0.0032, 0.008, 10), flowMat); head.position.copy(end); head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      tube.raycast = head.raycast = () => {}; tube.renderOrder = head.renderOrder = 9; const g = new THREE.Group(); g.add(tube, head); block.add(g); vPaths[mode].push(g);
+    }
     const placeVArrows = () => {
       const low = S.mode === 'low', on = low ? smooth(0, 0.15, S.cloud) : smooth(0, 1, Math.min(1, S.out / 2));
-      for (const g of vArrows) {
-        const { m, head, a, r } = g.userData, ph = (S.t * 0.5 + a) % 1;
-        g.rotation.z = low ? 0 : Math.PI; head.position.y = 0.014;
-        const y = low ? G + 0.012 + ph * 0.03 : G + 0.07 - ph * 0.04;          // 低压：从地面往上；高压：从高处往下
-        g.position.set(Math.cos(a) * r, y, Math.sin(a) * r); m.opacity = on * 0.85 * Math.sin(ph * Math.PI);
-      }
+      flowMat.opacity = on * 0.75;
+      for (const g of vPaths.low) g.visible = low && on > 0.01; for (const g of vPaths.high) g.visible = !low && on > 0.01;
     };
     const cloudTex = canvasTex(256, 256, (g, w) => {
       const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
@@ -189,14 +191,14 @@ export default {
       for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2, r = w * 0.27, cx = w / 2 + Math.cos(a) * r, cy = w / 2 + Math.sin(a) * r * 0.85, rr = w * (0.13 + 0.05 * ((i * 7) % 3) / 2);
         const gg = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gg.addColorStop(0, 'rgba(255,255,255,0.9)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fill(); }
     });
-    const puffs = Array.from({ length: 90 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
+    const puffs = Array.from({ length: 60 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
     const placeClouds = () => {
       const low = S.mode === 'low', wet = smooth(0.55, 0.75, S.cloud) * (low ? 1 : 0);
       for (const m of puffs) {
         const [a, b, c, d] = m.userData.seed;
         let x, n, y, r, shade, vis;
         if (low) {          // 云塔：放进来的空气越多，长得越高
-          const q = b, rad = 0.012 + 0.03 * Math.sqrt(c) * (1 - 0.5 * q);
+          const q = b, rad = 0.01 + 0.024 * Math.sqrt(c) * (1 - 0.5 * q);          // 云塔收窄：外圈转进来的轨迹露在云外面
           x = Math.cos(a * 7) * rad; n = Math.sin(a * 7) * rad; y = G + 0.04 + q * 0.075 * S.cloud; r = 0.01 + d * 0.008 + (q > 0.85 ? 0.006 : 0);
           vis = smooth(q * 0.9, q * 0.9 + 0.12, S.cloud); shade = 0.6 + 0.34 * q - 0.26 * wet * Math.max(0, 1 - q * 1.8); if (q < 0.25) { r *= 1.35; }          // 云底：大一点、扁一点的灰团连成一片，不是一个个黑球
         } else {          // 高压：几朵散开的淡积云，空气下沉时一点点散掉
@@ -214,7 +216,7 @@ export default {
     const placeRain = () => {
       const on = S.mode === 'low' ? smooth(0.6, 0.8, S.cloud) : 0; rain.visible = on > 0.01; rain.material.opacity = 0.55 * on; if (!rain.visible) return;
       for (let i = 0; i < NR; i++) {
-        const [a, b, c] = rainSeed[i], rad = 0.048 * Math.sqrt(b), x = Math.cos(a * 7) * rad, n = Math.sin(a * 7) * rad, topY = G + 0.04, y = topY - ((c + S.t * 1.1) % 1) * (topY - G), y2 = Math.max(G, y - 0.008);
+        const [a, b, c] = rainSeed[i], rad = 0.034 * Math.sqrt(b), x = Math.cos(a * 7) * rad, n = Math.sin(a * 7) * rad, topY = G + 0.04, y = topY - ((c + S.t * 1.1) % 1) * (topY - G), y2 = Math.max(G, y - 0.008);
         rainPos.set([x, y, -n, x - 0.0012, y2, -n], i * 6);
       }
       rain.geometry.attributes.position.needsUpdate = true;
@@ -235,7 +237,7 @@ export default {
     const homeTag = tag('', 'pill'), tHint = tag('在图上任意一处点一下，放一缕空气', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间加快了 · 本例水汽充足', 'pill');
     const homeWx = () => {
       const [x, n] = S.home, r = Math.hypot(x, n);
-      if (S.mode === 'low') return S.cloud >= 0.7 && r < 0.05 ? '阴雨' : S.cloud >= 0.3 && r < 0.09 ? '多云' : '晴';          // 教学示意：雨区在低压中心附近，外圈多云
+      if (S.mode === 'low') return S.cloud >= 0.7 && r < 0.036 ? '阴雨' : S.cloud >= 0.3 && r < 0.09 ? '多云' : '晴';          // 教学示意：雨区在低压中心附近，外圈多云
       return S.cloud > 0.15 && r < 0.075 ? '多云' : '晴';
     };
     const homeWind = () => { const [vx, vn] = windAt(S.mode, hemi(), S.home[0], S.home[1]); return { vx, vn, ...windName(vx, vn) }; };
@@ -341,7 +343,7 @@ export default {
     const ring = () => { for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; release(Math.cos(a) * (S.mode === 'low' ? 0.1 : 0.022), Math.sin(a) * (S.mode === 'low' ? 0.09 : 0.02)); } tHint.show(false); layoutHome(); };
 
     drawMapTex(); layoutHome(); placeClouds();
-    tHint.loc(block, -0.07, G + 0.02, -0.07); tScale.loc(block, XL + 0.07, G + 0.004, -ZN + 0.012);          // 写在地图的左上角（远处），不压在地块正面
+    tHint.loc(block, -0.07, G + 0.02, -0.07); tScale.loc(block, XL + 0.08, G + 0.003, ZN - 0.01);          // 写在地图靠镜头那一边的左角，不飘在云旁边
     S.cloud = 0;
 
     return {
