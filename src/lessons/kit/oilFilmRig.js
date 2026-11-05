@@ -24,6 +24,8 @@ export function oilFilmRig() {
   const group = new THREE.Group();
   const stock = beaker({ r: 0.022, h: 0.055, level: 0.042, color: 0xdfd8a9 }),
     cup = beaker({ r: 0.017, h: 0.035, level: 0, color: 0xdfd8a9 });
+  stock.setColor(0xd8d6b9, 0.35);
+  cup.setColor(0xd8d6b9, 0.35);
   stock.position.x = STOCK_X;
   cup.position.x = CUP_X;
   group.add(stock, cup);
@@ -40,7 +42,7 @@ export function oilFilmRig() {
   waterMesh.position.set(PAN_X, WATER_Y, 0);
   group.add(waterMesh);
   let powder = [],
-    coverage = new Set();
+    coverage = [0, 0, 0, 0];
   function water(outline = [], origin = null, expansion = 1) {
     const g = waterTex.canvas.getContext('2d'),
       w = waterTex.canvas.width,
@@ -74,16 +76,17 @@ export function oilFilmRig() {
     waterTex.needsUpdate = true;
   }
   function sprinkle(x, z) {
-    for (let i = 0; i < 110; i++) {
+    for (let i = 0; i < 180; i++) {
       const theta = Math.random() * 2 * Math.PI,
         r = 0.057 * Math.sqrt(Math.random());
       const px = x + r * Math.cos(theta),
         pz = z + r * Math.sin(theta);
       if (Math.abs(px) >= PAN_W / 2 || Math.abs(pz) >= PAN_W / 2) continue;
       const grain = Math.random();
+      if (Math.hypot(px, pz) > 0.062 && Math.hypot(px, pz) < 0.112) coverage[(px >= 0 ? 1 : 0) + (pz >= 0 ? 2 : 0)]++;
       powder.push({ x: px, z: pz, r: grain, color: grain < 0.5 ? '#d2d1bc' : '#e9e5d3' });
     }
-    if (Math.abs(x) < PAN_W / 2 && Math.abs(z) < PAN_W / 2) coverage.add((x >= 0 ? 1 : 0) + (z >= 0 ? 2 : 0));
+
     water();
   }
   const bag = new THREE.Group();
@@ -175,7 +178,7 @@ export function oilFilmRig() {
   // 支架让学生松手读数。夹头沿横杆平移，低位取液，越过杯口时抬起。
   block(group, 0.038, 0.008, 0.035, -0.274, 0.004, -0.083, 0x686862);
   cyl(group, 0.003, 0.175, -0.274, 0.089, -0.083, 0x86918f);
-  block(group, 0.404, 0.006, 0.006, -0.076, 0.158, -0.083, 0x939f9a);
+  const boom = block(group, 1, 0.006, 0.006, 0, 0.158, -0.083, 0x939f9a);
   const carriage = new THREE.Group();
   group.add(carriage);
   block(carriage, 0.012, 0.013, 0.014, 0, 0.158, -0.083, 0x6e7778);
@@ -184,6 +187,8 @@ export function oilFilmRig() {
   const clamp = block(syringe, 0.012, 0.006, 0.01, -0.002, SYRINGE_ZERO + 0.059, -0.003, 0x8e7155);
   function position(x, y, z) {
     syringe.position.set(x, y, z);
+    boom.scale.x = x + 0.274 + 0.008;
+    boom.position.x = -0.274 + boom.scale.x / 2;
     carriage.position.x = x;
     arm.scale.z = z + 0.083;
     arm.position.z = (z - 0.083) / 2;
@@ -203,7 +208,7 @@ export function oilFilmRig() {
   group.add(drops);
   function resetTray() {
     powder = [];
-    coverage = new Set();
+    coverage = [0, 0, 0, 0];
     water();
     grid();
     plate.position.copy(plateHome);
@@ -234,10 +239,10 @@ export function oilFilmRig() {
     volume,
     position,
     get powdered() {
-      return coverage.size === 4;
+      return coverage.every((n) => n >= 18);
     },
     get coverage() {
-      return coverage.size;
+      return coverage.filter((n) => n >= 18).length;
     },
   };
 }

@@ -45,7 +45,7 @@ export default {
   create(ctx) {
     const rig = oilFilmRig(),
       { group, syringe, plunger, scale, bag, plate } = rig;
-    let ui, rows, calForm, answerForm, dropInput, pureInput, areaInput, sizeInput, calLabel, view, aim;
+    let ui, rows, calForm, answerForm, dropInput, pureInput, areaInput, sizeInput, calLabel, calibrationRecord, erasing, view, aim;
     let ml,
       target,
       grabbing,
@@ -64,7 +64,6 @@ export default {
       trace,
       traced,
       markers,
-      counted,
       shakeAt,
       plateStart,
       moveStart;
@@ -113,7 +112,7 @@ export default {
           ctx.camera.aspect >= 1 ? 0.43 : 0.25,
           leave,
         );
-      else ctx.look([PAN_X, PLATE_Y, 0], [0, 1, 0.02], ctx.camera.aspect >= 1 ? 0.8 : 0.54, leave);
+      else ctx.look([PAN_X, PLATE_Y, 0], [0, 1, 0.02], ctx.camera.aspect >= 1 ? 0.8 : 0.43, leave);
       guide();
     }
     function guide() {
@@ -133,7 +132,7 @@ export default {
         if (endMl === null)
           return say(
             count < 10
-              ? '在烧杯上方按住活塞慢慢向下推，一滴脱落数一次。至少数十滴，松手即停。'
+              ? '在烧杯上方按住活塞慢慢向下推，一滴脱落数一次。至少数 10 滴，松手即停。'
               : '已经有足够的滴数。松开活塞，点下沿对应的终止刻度。',
             count < 10 ? plunger : scale,
           );
@@ -147,13 +146,15 @@ export default {
         return say('缓推活塞，看到一滴脱离立即松手。观察粉粒怎样移向油膜边缘。', plunger);
       }
       if (spread < 1) return say('等油膜边缘停止扩展，再盖玻璃板。');
+      if (!covered && !cup())
+        return say((view === 'syringe' ? '回全景，' : '') + '把针管夹头移回数滴烧杯上方，给方格板腾出位置。', syringe);
       if (!covered) return say('把后架上的方格玻璃板拖到浅盘上，盖住水面。', plate);
       if (!traced)
         return say(
           view === 'plate'
             ? '按住玻璃板，沿清亮油膜与粉粒交界处绕一圈，回到起点。'
             : '点浅盘上的玻璃板俯视，沿油膜边界描线。',
-          plate,
+          view === 'plate' ? null : plate,
         );
       return say('在自己的线内数 1 cm 方格。可逐排划过已数格子作记号，再展开笔记本填格数和大小。');
     }
@@ -163,6 +164,7 @@ export default {
       if (calForm) {
         calForm.hidden = true;
         dropInput.value = pureInput.value = '';
+        calibrationRecord.hidden = true;
       }
     }
     function newTray() {
@@ -172,7 +174,7 @@ export default {
       dirty = covered = traced = false;
       trace = [];
       markers = new Set();
-      counted = null;
+
       rig.resetTray();
       bag.position.copy(BAG_HOME);
       bar.undo('spread', 'trace', 'size');
@@ -245,7 +247,7 @@ export default {
         guide();
         return;
       }
-      if (count < 10 || falling.length) return say('等液滴确实落入杯中。至少数十滴，再读终止刻度。', plunger);
+      if (count < 10 || falling.length) return say('等液滴确实落入杯中。至少数 10 滴，再读终止刻度。', plunger);
       endMl = n;
       calLabel.textContent =
         '同一支注射器从 ' +
@@ -264,6 +266,16 @@ export default {
       if (!val || !Number.isFinite(pureInput.valueAsNumber) || Math.abs(pureInput.valueAsNumber - val * 1000) > 0.002)
         return say('刻度差先除以滴数，再乘 1/500。1 mL 是 1000 μL。');
       pure = pureInput.valueAsNumber / 1000;
+      calibrationRecord.textContent =
+        startMl.toFixed(2) +
+        ' → ' +
+        endMl.toFixed(2) +
+        ' mL，共 ' +
+        count +
+        ' 滴。每滴含纯油酸 ' +
+        pureInput.value +
+        ' μL。';
+      calibrationRecord.hidden = false;
       bar.done('drop');
       calForm.hidden = true;
       if (view) leave();
@@ -278,8 +290,8 @@ export default {
       const nm = molecularSizeNm(pure, n);
       if (!Number.isFinite(sizeInput.valueAsNumber) || Math.abs(sizeInput.valueAsNumber - nm) > 0.035)
         return say('用纯油酸体积除以面积，统一单位。1 μL = 10⁻⁹ m³，1 cm² = 10⁻⁴ m²。');
-      counted = n;
-      rows.add([count, pureInput.value, String(n), sizeInput.value]);
+
+      rows.add([String(count), pureInput.value, String(n), sizeInput.value]);
       bar.done('size');
       answerForm.hidden = true;
       guide();
@@ -288,15 +300,23 @@ export default {
       if (trace.length < 12 || Math.hypot(trace[0].x - trace.at(-1).x, trace[0].z - trace.at(-1).z) > 0.012)
         return say('可接着上次的线继续描，最后回到起点。');
       const bins = new Set();
+      let offEdge = 0;
       const miss = trace.some((p) => {
         bins.add(
           Math.floor(
             (((Math.atan2(p.z - origin.z, p.x - origin.x) + Math.PI * 2) % (Math.PI * 2)) * 24) / (Math.PI * 2),
           ),
         );
-        return !film.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 0.01);
+        const error = Math.min(...film.map((q) => Math.hypot(q.x - p.x, q.z - p.z)));
+        if (error > 0.008) offEdge++;
+        return error > 0.016;
       });
-      if (miss || bins.size < 18 || Math.abs(polygonArea(trace) / polygonArea(film) - 1) > 0.14) {
+      if (
+        miss ||
+        offEdge > trace.length * 0.1 ||
+        bins.size < 18 ||
+        Math.abs(polygonArea(trace) / polygonArea(film) - 1) > 0.14
+      ) {
         trace = [];
         rig.grid();
         return say('这条线没有贴着油膜绕满一圈。沿粉粒内缘重新描。');
@@ -312,7 +332,9 @@ export default {
       const x = p.x - PAN_X,
         z = p.z;
       if (traced) {
-        markers.add(Math.floor(x / GRID) + '/' + Math.floor(z / GRID));
+        const id = Math.floor(x / GRID) + '/' + Math.floor(z / GRID);
+        if (erasing) markers.delete(id);
+        else markers.add(id);
         rig.grid(trace, markers);
       } else if (!trace.length || Math.hypot(trace.at(-1).x - x, trace.at(-1).z - z) > 0.001) {
         trace.push({ x, z });
@@ -420,6 +442,7 @@ export default {
             plateStart = plate.position.clone();
             if (covered && view === 'plate' && p) {
               const pt = { x: p.x - PAN_X, z: p.z };
+              erasing = traced && markers.has(Math.floor(pt.x / GRID) + '/' + Math.floor(pt.z / GRID));
               if (!traced && trace.length && Math.hypot(pt.x - trace.at(-1).x, pt.z - trace.at(-1).z) > 0.014)
                 trace = [];
               markPoint(p);
@@ -431,7 +454,7 @@ export default {
               if (view === 'plate') markPoint(p);
               return;
             }
-            if (spread < 1) return say('等油膜边缘稳定再盖板。');
+            if (spread < 1 || !cup()) return guide();
             const shift = p.z - start.z,
               u = clamp(shift / 0.15, 0, 1);
             plate.position.lerpVectors(plateStart, new THREE.Vector3(PAN_X, PLATE_Y, 0), u);
@@ -495,15 +518,17 @@ export default {
         answerForm = h(
           'div',
           {},
-          note('用标定所得的 ' + '单滴纯油酸体积，除以自己数出的轮廓面积。'),
+          note('用标定所得的单滴纯油酸体积，除以自己数出的轮廓面积。'),
           h('label', {}, '方格数 ', areaInput),
           h('label', {}, '尺度 / nm ', sizeInput),
           buttons([{ text: '记录估测', onClick: confirmSize }]).el,
         );
         calForm.hidden = answerForm.hidden = true;
-        panel.data.append(rows.el, calForm, answerForm);
+        calibrationRecord = note('');
+        calibrationRecord.hidden = true;
+        panel.data.append(rows.el, calibrationRecord, calForm, answerForm);
         panel.notes.append(
-          note('每小格边长 1 cm。用同一针头缓慢滴液，标定时至少数十滴；可留更多滴数以减小读尺和挂滴造成的误差。'),
+          note('每小格边长 1 cm。用同一针头缓慢滴液，标定时至少数 10 滴；可留更多滴数以减小读尺和挂滴造成的误差。'),
           buttons([
             {
               text: '重新标定滴数',
