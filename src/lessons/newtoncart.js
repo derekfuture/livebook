@@ -84,6 +84,29 @@ export default {
     const status = (text) => ui?.status(text);
     const settings = () => ({ mode, lift, cartIndex, hangerIndex, balanced });
     let run = tractionRun(settings());
+    const forceMeasurements = new Map();
+    const massMeasurements = new Map();
+    function nextTrial() {
+      if (!run.balanced) return '先回实验台，用无牵引试滑验证阻力已补偿。';
+      if (mode === 'force') {
+        const next = HANGERS.slice(0, 3).find((m) => !forceMeasurements.has(m * GRAVITY));
+        if (next) return '拖回小车，保持车的质量，把 ' + Math.round(next * 1000) + ' g 槽码拖到挂钩。';
+        return bar.has('force')
+          ? '拖回小车，保持悬挂槽码，把台上的砝码拖上车。'
+          : '已测三种悬挂质量。展开笔记本，读图比较 10 g 与 20 g 的加速度。';
+      }
+      const set = massMeasurements.get(run.load);
+      const next = CARTS.find((m) => !set?.has(1 / m));
+      if (next)
+        return (
+          '拖回小车，保持槽码不变，' +
+          (next > run.mass ? '从台面往车上加砝码' : '从车上取下砝码') +
+          '，使车总质量为 ' +
+          Math.round(next * 1000) +
+          ' g。'
+        );
+      return '已测三种车质量。展开笔记本，读图比较 500 g 与 1000 g 的加速度。';
+    }
     function refresh() {
       rig.draw(run);
       rack.draw(run.load);
@@ -97,7 +120,9 @@ export default {
         bar.finished
           ? null
           : reader.inspecting
-            ? reader.instruction
+            ? mode !== 'balance' && reader.count >= 2
+              ? '回实验台。' + nextTrial()
+              : reader.instruction
             : moving
               ? '观察小车和纸带。'
               : mode === 'balance'
@@ -113,7 +138,9 @@ export default {
                 : taken
                   ? reader.canMeasureMore && reader.count < 2
                     ? '点台面上刚取下的纸带，沿尺量两个时刻。'
-                    : '向右拖回小车。换槽码比较力，把台上的 250 g 砝码拖上车比较质量。'
+                    : reader.count >= 2
+                      ? nextTrial()
+                      : '纸带打点不足。拖回小车，换纸带重新测。'
                   : finished
                     ? powered
                       ? '关计时器，再取纸带。'
@@ -376,8 +403,6 @@ export default {
         logs.el.style.overflowX = 'auto';
         logs.el.hidden = true;
         const plots = {};
-        const forceMeasurements = new Map();
-        const massMeasurements = new Map();
         let questionLoad;
         const questions = {};
         const comparisons = {
