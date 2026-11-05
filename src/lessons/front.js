@@ -53,7 +53,7 @@ export function weatherAt(kind, d) {
   if (d > 0.14) return { k: 'w0', text: '晴，较冷', s: '晴冷' };
   if (d > 0.095) return { k: 'w1', text: '云一层层变厚', s: '云渐厚' };
   if (d >= 0) return { k: 'w2', text: '锋线还没到，已经连续下雨，地面还冷', s: '连续下雨（地面还冷）' };
-  return { k: 'w3', text: '雨停，变暖，气压降低', s: '雨停变暖' };
+  return { k: 'w3', text: '转晴，变暖，气压降低', s: '转晴变暖' };          // 课本 p43：暖锋过境后气温升高，气压降低，天气转晴
 }
 
 export default {
@@ -181,20 +181,22 @@ export default {
     });
     const puffs = Array.from({ length: 110 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
     const placeClouds = () => {
+      const wet = smooth(0.8, 1, S.form) * S.rise;          // 云够厚、下起雨来，云底就压暗
       for (const m of puffs) {
         const [a, b, c, d] = m.userData.seed;
-        let s, y, r, sx = 1, sy = 1, shade;
+        let s, y, r, sx = 1, sy = 1, shade, op = 1;
         if (S.kind === 'cold') {
           s = -0.014 + Math.pow(a, 1.3) * 0.055; const base = Math.max(0.026, front(s) * S.rise + 0.004), hgt = 0.075 * Math.exp(-Math.abs(s - 0.004) / 0.03), q = Math.pow(b, 0.8);
-          y = base + q * hgt; r = 0.013 + c * 0.01; if (q > 0.82) { r *= 1.5; s -= 0.04 * d; } shade = 0.6 + 0.32 * Math.min(1, q * 1.25);
+          y = base + q * hgt; r = 0.013 + c * 0.01; if (q > 0.82) { r *= 1.5; s -= 0.04 * d; } shade = 0.6 + 0.32 * Math.min(1, q * 1.25) - 0.48 * wet * Math.max(0, 1 - q * 1.8);          // 积雨云：顶上亮，底下发暗
         } else {          // 暖锋、准静止锋：锋面缓，云一层层铺开
           s = Math.pow(a, 0.9) * (S.kind === 'still' ? 0.13 : 0.15); const base = front(s) * S.rise + 0.006;
-          y = base + b * (0.012 + 0.025 * (1 - s / 0.15)); r = 0.012 + c * 0.008; sx = 2.2; sy = 0.9; shade = 0.62 + 0.3 * b;          // 一层层铺开的层状云
+          const t = s / 0.15; y = base + b * (0.012 + 0.025 * (1 - t)); r = 0.012 + c * 0.008; sx = 2.2 + 1.6 * t; sy = 0.9 * (1 - 0.55 * t); op = 1 - 0.6 * t;
+          shade = 0.62 + 0.3 * b - 0.45 * wet * Math.max(0, 1 - t * 1.6) * (1 - b * 0.7);          // 一层层铺开的层状云：锋线附近又低又厚、发暗，越往前越高越薄，成了丝缕一样的高云
         }
         const x = xAt(s); m.visible = x > XL + 0.004 && x < XR - 0.004;          // 云和雨都只在这块地上方
         m.position.set(x, G + y, -ZD * 0.85 + d * ZD * 1.7);
         const born = 0.15 + b * 0.55, g = smooth(born, born + 0.25, S.form);          // 一团团凝结出来：低处先有，越高越晚
-        m.scale.set(r * 2 * sx * (0.4 + 0.6 * g), r * 2 * sy * (0.4 + 0.6 * g), 1); m.material.color.setRGB(shade, shade, shade * 1.02); m.material.opacity = 0.8 * S.rise * g; if (g < 0.01) m.visible = false;
+        m.scale.set(r * 2 * sx * (0.4 + 0.6 * g), r * 2 * sy * (0.4 + 0.6 * g), 1); shade = Math.max(0.14, shade); m.material.color.setRGB(shade, shade, shade * 1.04);          // 颜色是线性空间的值：0.6 显示出来已经很浅 m.material.opacity = 0.8 * S.rise * g * op; if (g < 0.01) m.visible = false;
       }
     };
 
@@ -389,7 +391,7 @@ export default {
         coldw3: '锋线过去了：你家换成了<b>冷空气</b>，雨停了，天转晴，气温低了，气压升高。',
         warmw1: '锋线还远，你家头顶已经是暖空气爬上来的地方：云一层层变厚。',
         warmw2: '锋线还没到，你家就开始<b>连续下雨</b>了。雨是从头顶那层爬升的暖空气里落下来的，地面这里<b>还是冷空气</b>。',
-        warmw3: '锋线过去了：你家换成了<b>暖空气</b>，雨停了，变暖了，气压降低。',
+        warmw3: '锋线过去了：你家换成了<b>暖空气</b>，雨停了，天转晴，变暖了，气压降低。',
         stillw2: '你家在冷空气这一侧，头顶是爬上来的暖湿空气：<b>阴雨</b>。',
         stillw0: '你家在山那边的暖空气里：<b>晴</b>。',
       }[key];
