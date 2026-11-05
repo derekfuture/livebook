@@ -79,7 +79,7 @@ export function apparatus({ adjustable = false } = {}) {
   const cart = new THREE.Group();
   group.add(cart);
   box(cart, [0.104, 0.023, 0.059], [0, 0.03, 0], teal, true);
-  const cartTop = box(cart, [0.086, 0.006, 0.049], [0, 0.044, 0], 0xb9d2cd);
+  box(cart, [0.086, 0.006, 0.049], [0, 0.044, 0], 0xb9d2cd);
   const tires = [];
   for (const x of [-0.033, 0.033])
     for (const z of [-0.032, 0.032]) {
@@ -166,6 +166,13 @@ export function apparatus({ adjustable = false } = {}) {
   };
   const strip = paper(),
     tail = paper();
+  // 纸带本身很窄。触屏取带时也接受紧邻纸边的触点。
+  const paperHit = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 0.046, 0.016),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  paperHit.userData.pick = true;
+  strip.add(paperHit);
   // 垂直部分的宽度沿 z 轴。
   tail.quaternion.setFromRotationMatrix(
     new THREE.Matrix4().makeBasis(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0)),
@@ -188,7 +195,11 @@ export function apparatus({ adjustable = false } = {}) {
     for (const z of [-0.022, 0.022])
       box(group, [0.009, 0.034, 0.014], [START - TRAVEL - 0.052 - 0.0045, TOP + 0.017, z], metal);
     support = box(base, [0.052, 1, 0.11], [0.398, TOP - 0.018, 0], wood);
-    ballast = [0, 1].map((i) => box(cart, [0.068, 0.009, 0.043], [0, 0.052 + i * 0.009, 0], gold, true));
+    ballast = [0.23, 0.32].map((x) => {
+      const weight = box(base, [0.068, 0.009, 0.043], [x, 0.0045, 0.12], gold, true);
+      weight.userData.home = weight.position.clone();
+      return weight;
+    });
   }
   function draw(run) {
     const angle = run.angle || 0;
@@ -206,8 +217,15 @@ export function apparatus({ adjustable = false } = {}) {
       support.visible = height > 0;
       support.scale.y = height;
       support.position.y = pivotY + height / 2;
-      ballast.forEach((w, i) => (w.visible = i < (run.ballast || 0)));
-      pan.visible = vertical.visible = horizontal.visible = wrappedCord.visible = run.load > 0;
+      ballast.forEach((w, i) => {
+        const loaded = i < run.ballast;
+        const parent = loaded ? cart : base;
+        if (w.parent !== parent) parent.add(w);
+        if (loaded) w.position.set(0, 0.052 + i * 0.009, 0);
+        else w.position.copy(w.userData.home);
+        w.quaternion.identity();
+      });
+      vertical.visible = horizontal.visible = wrappedCord.visible = run.load > 0;
     }
     const travel = (run.startOffset || 0) + run.x;
     const x = START - travel,
@@ -225,6 +243,10 @@ export function apparatus({ adjustable = false } = {}) {
       pan.position.set(anchorX - v * Math.sin(angle), anchorY - v * Math.cos(angle), 0);
       pan.rotation.z = vertical.rotation.z = -angle;
       heavyWeight.visible = heavy;
+      if (!run.load) {
+        group.updateMatrix();
+        pan.position.set(-0.32, 0.04, 0.072).applyMatrix4(group.matrix.clone().invert());
+      }
     }
     wheel.rotation.z = travel / R;
     tires.forEach((w) => (w.rotation.y = travel / 0.011));
@@ -255,7 +277,7 @@ export function apparatus({ adjustable = false } = {}) {
   return {
     group: base,
     board,
-    cartTop,
+    ballast,
     support,
     cart,
     pan,

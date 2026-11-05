@@ -1,279 +1,347 @@
+// 纸带放在实验台前沿。主视图和近看共用同一件器材、同一份读数。
+import * as THREE from 'three';
+import { canvasTex } from '../props.js';
+import { clamp } from '../interact.js';
+import { buttons } from '../ui.js';
 import { PERIOD, centers } from './motion.js';
-import './reader.css';
-import { paperDesk } from './bench.js';
 
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-const button = (text) => Object.assign(document.createElement('button'), { type: 'button', textContent: text });
-
-// 整条纸带选起点，放大镜下用两条游标量相隔十个打点间隔的距离。
-export function tapeReader(onRecord, status, showGraph) {
-  const desk = paperDesk('量纸带');
-  const launcher = button('再看纸带');
-  launcher.hidden = true;
-  launcher.onclick = () => {
-    desk.open();
-    render();
-  };
-  const result = document.createElement('p');
-  result.className = 'paper-result';
-  result.setAttribute('aria-live', 'polite');
-  const el = document.createElement('section');
-  el.className = 'tape-reader';
-  el.hidden = true;
-  el.innerHTML =
-    '<h4>纸带测量</h4><label>实验记录 <select></select></label><p class="tape-prompt"></p><canvas class="whole-tape" height="68" aria-label="点纸带选计时起点"></canvas><div class="tape-nav"></div><canvas class="detail-tape" height="108" aria-label="把两条游标分别拖到左右目标点"></canvas><div class="tape-values"></div>';
-  const select = el.querySelector('select'),
-    [whole, detail] = el.querySelectorAll('canvas'),
-    prompt = el.querySelector('p');
-  const prev = button('上一点'),
-    next = button('下一点'),
-    stamp = button('把测量点记入图表');
-  const label = document.createElement('span');
-  el.querySelector('.tape-nav').append(prev, label, next);
-  const inputs = ['左游标', '右游标'].map((name) => {
-    const node = document.createElement('label');
-    node.textContent = name;
-    const input = document.createElement('input');
+const WIDTH = 0.36,
+  DEPTH = 0.155,
+  Z = 0.145,
+  Y = 0.009;
+const W = 1440,
+  H = 420,
+  LEFT = 60,
+  RIGHT = W - LEFT;
+export function tapeReader(group, { look, back }) {
+  const texture = canvasTex(W, H, () => {});
+  const paper = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH, DEPTH), new THREE.MeshBasicMaterial({ map: texture }));
+  paper.rotation.x = -Math.PI / 2;
+  paper.position.set(0, Y, Z);
+  group.add(paper);
+  paper.visible = false;
+  const g = texture.canvas.getContext('2d');
+  const sheets = [];
+  const archive = document.createElement('select');
+  archive.setAttribute('aria-label', '选纸带');
+  let sheet,
+    slots = [],
+    slot = 0,
+    probe,
+    inspecting = false,
+    handle = -1,
+    low = 0,
+    high = 1;
+  let readings = [0, 0],
+    placed = [false, false],
+    message = '';
+  let onRecord, onGraph;
+  const controls = buttons([
+    { text: '近看纸带', onClick: inspect },
+    { text: '上一个计数点', onClick: () => move(-1) },
+    { text: '下一个计数点', onClick: () => move(1) },
+    {
+      text: '看图表',
+      onClick: () => {
+        leave();
+        onGraph(sheet);
+      },
+    },
+  ]);
+  const el = document.createElement('div');
+  const manual = document.createElement('div');
+  manual.className = 'ctl';
+  const fields = ['A / mm', 'B / mm'].map((text) => {
+    const label = document.createElement('label'),
+      input = document.createElement('input');
     input.type = 'number';
     input.step = '0.1';
-    input.setAttribute('aria-label', name + '（mm）');
-    node.append(input, ' mm');
-    el.querySelector('.tape-values').append(node);
+    input.style.width = '5em';
+    input.setAttribute('aria-label', text);
+    label.append(text + ' ', input);
+    manual.append(label);
     return input;
   });
-  const graphButton = button('看这次的图表');
-  graphButton.onclick = () => {
-    desk.dialog.close();
-    showGraph(sheet);
-  };
-  const fields = document.createElement('details');
-  const summary = document.createElement('summary');
-  summary.textContent = '用数字微调游标';
-  fields.append(summary, el.querySelector('.tape-values'));
-  el.append(fields, stamp, result, graphButton);
-  desk.dialog.append(el);
-  const sheets = [];
-  let sheet = null,
-    origin = 0,
-    slot = 0,
-    indices = [],
-    low = 0,
-    high = 1,
-    dragging = -1;
-  const t = () => sheet.run.marks;
-  const xMM = (i) => t()[i].x * 1000;
-  function context(canvas) {
-    const w = Math.max(250, canvas.getBoundingClientRect().width || 300),
-      h = canvas === whole ? 68 : 108;
-    const d = Math.min(devicePixelRatio, 2);
-    if (canvas.width !== Math.round(w * d) || canvas.height !== Math.round(h * d)) {
-      canvas.width = Math.round(w * d);
-      canvas.height = Math.round(h * d);
+  const record = buttons([
+    {
+      text: '记录尺上读数',
+      onClick: () => {
+        const values = fields.map((input) => input.valueAsNumber);
+        if (!values.every(Number.isFinite) || !sheet || sheet.complete || sheet.used.has(slots[slot])) return;
+        readings = values;
+        placed = [true, true];
+        handle = 1;
+        finish();
+      },
+    },
+  ]);
+  el.append(archive, controls.el, manual, record.el);
+  el.hidden = true;
+  function leave() {
+    if (inspecting) {
+      back();
+      inspecting = false;
     }
-    const g = canvas.getContext('2d');
-    g.setTransform(d, 0, 0, d, 0, 0);
-    g.clearRect(0, 0, w, h);
-    return { g, w, h };
   }
-  function render() {
-    if (!sheet || el.hidden) return;
-    const { g, w } = context(whole);
-    g.fillStyle = '#f4e8c9';
-    g.fillRect(0, 12, w, 38);
-    const span = Math.max(1, xMM(t().length - 1) - xMM(0));
-    const map = (i) => 12 + ((xMM(i) - xMM(0)) * (w - 24)) / span;
-    for (let i = 0; i < t().length; i++) {
-      g.fillStyle = i === origin ? '#b34627' : '#364542';
-      g.beginPath();
-      g.arc(map(i), 31, i === origin ? 3 : 1.4, 0, 7);
-      g.fill();
-    }
-    g.fillStyle = '#94502c';
-    g.font = '11px sans-serif';
-    g.fillText('0 s', clamp(map(origin) - 7, 1, w - 22), 62);
-    const c = indices[slot];
-    prev.disabled = slot === 0;
-    next.disabled = slot === indices.length - 1;
-    label.textContent = ((c - origin) * PERIOD).toFixed(2) + ' s';
-    const box = context(detail),
-      ctx = box.g,
-      W = box.w;
-    const px = (mm) => 12 + ((mm - low) / (high - low)) * (W - 24);
-    ctx.fillStyle = '#f7efd9';
-    ctx.fillRect(0, 0, W, 54);
-    ctx.fillStyle = '#e8d3a3';
-    ctx.fillRect(0, 55, W, 53);
-    const base = xMM(origin);
+  function inspect() {
+    if (!paper.visible && sheet) choose(sheets.indexOf(sheet));
+    if (!paper.visible) return;
+    inspecting = true;
+    look([0, Y, Z], [0, 1, 0.16], 0.56, () => {
+      inspecting = false;
+    });
+  }
+  const mm = (i) => (sheet.run.marks[i].x - sheet.run.marks[sheet.origin].x) * 1000;
+  const px = (v) => LEFT + ((v - low) / (high - low)) * (RIGHT - LEFT);
+  function label(text, x, y, size = 45, color = '#34404a', align = 'left') {
+    g.fillStyle = color;
+    g.font = size + 'px sans-serif';
+    g.textAlign = align;
+    g.fillText(text, x, y);
+  }
+  function dot(x, y, r = 5, color = '#303940') {
+    g.fillStyle = color;
+    g.beginPath();
+    g.arc(x, y, r, 0, 2 * Math.PI);
+    g.fill();
+  }
+  function clearPaper() {
+    g.fillStyle = '#fff6dd';
+    g.fillRect(0, 0, W, H);
+  }
+  function draw() {
+    if (!sheet || probe) return;
+    clearPaper();
+    const marks = sheet.run.marks,
+      start = marks[0].x,
+      span = marks.at(-1).x - start;
+    label('第 ' + sheet.trial + ' 条纸带', LEFT, 38);
+    label(sheet.used.size ? '点上排选计数点' : '点上排选起点', RIGHT, 38, 41, '#575247', 'right');
+    for (const [i, m] of marks.entries())
+      dot(
+        LEFT + ((m.x - start) / span) * (RIGHT - LEFT),
+        64,
+        i === slots[slot] || i === sheet.origin ? 9 : 3,
+        i === slots[slot] ? '#286a71' : i === sheet.origin ? '#a24b32' : '#343a40',
+      );
+    const c = slots[slot];
+    label('计数点 ' + ((c - sheet.origin) * PERIOD).toFixed(2) + ' s', LEFT, 125);
     for (let i = c - 5; i <= c + 5; i++) {
-      const x = px(xMM(i) - base);
-      ctx.fillStyle = i === c ? '#366a70' : '#313f44';
-      ctx.beginPath();
-      ctx.arc(x, 33, 2.3, 0, 7);
-      ctx.fill();
-      if (i !== c && i % 5 === origin % 5) {
-        ctx.font = '12px sans-serif';
-        ctx.fillText(i < c ? 'A' : 'B', x - 4, 18);
-      }
+      const x = px(mm(i));
+      dot(x, 173, i === c ? 8 : 6);
+      if (i === c - 5 || i === c + 5) label(i < c ? 'A' : 'B', x, 151, 40, '#323b40', 'center');
     }
-    ctx.fillStyle = '#61563f';
-    ctx.font = '10px sans-serif';
-    const tick = 1;
-    for (let mm = Math.ceil(low / tick) * tick; mm <= high; mm += tick) {
-      const x = px(mm);
-      ctx.fillRect(x, 55, 1, mm % 10 === 0 ? 15 : mm % 5 === 0 ? 10 : 5);
-      if (mm % 10 === 0) ctx.fillText(String(mm), x - 6, 85);
+    g.fillStyle = '#ead7af';
+    g.fillRect(0, 190, W, 90);
+    for (let v = Math.ceil(low); v <= high; v++) {
+      const x = px(v);
+      g.fillStyle = '#615747';
+      g.fillRect(x, 190, 2, v % 10 === 0 ? 34 : v % 5 === 0 ? 24 : 12);
+      if (v % 10 === 0) label(String(v), x, 260, 37, '#554d42', 'center');
     }
-    ctx.fillText('mm', W - 24, 99);
-    for (const [k, input] of inputs.entries()) {
-      const x = px(Number(input.value));
-      ctx.fillStyle = k ? '#b64c28' : '#176e74';
-      ctx.fillRect(x - 1, 21, 2, 57);
-      ctx.beginPath();
-      ctx.moveTo(x, 78);
-      ctx.lineTo(x - 9, 91);
-      ctx.lineTo(x + 9, 91);
-      ctx.closePath();
-      ctx.fill();
-      ctx.font = '11px sans-serif';
-      ctx.fillText(Number(input.value).toFixed(1), clamp(x - 8, 1, W - 25), 105);
-    }
-    graphButton.hidden = !sheet.used.size;
-    stamp.disabled = sheet.used.has(c) || !!sheet.complete;
-    stamp.textContent = sheet.used.has(c) ? '这个点已记录' : sheet.complete ? '本条加速度已记录' : '把测量点记入图表';
+    label('mm', W - 10, 276, 33, '#554d42', 'right');
+    readings.forEach((v, k) => {
+      const x = px(v),
+        color = k ? '#a44730' : '#286a71';
+      g.fillStyle = color;
+      g.fillRect(x - 2, 157, 4, 124);
+      g.beginPath();
+      g.moveTo(x, 265);
+      g.lineTo(x - 14, 290);
+      g.lineTo(x + 14, 290);
+      g.fill();
+      label(v.toFixed(1), clamp(x, 60, W - 60), 316, 39, color, 'center');
+    });
+    label(message || '把两个游标分别拖到 A、B 的点心', W / 2, 358, 42, '#34404a', 'center');
+    label('点空白回到实验台', W / 2, 409, 38, '#575247', 'center');
+    texture.needsUpdate = true;
+    controls.btns[1].disabled = slot === 0;
+    controls.btns[2].disabled = slot === slots.length - 1;
+    controls.btns[3].disabled = sheet.run.mode ? !sheet.complete : !sheet.used.size;
+    fields.forEach((f, i) => {
+      f.value = readings[i].toFixed(1);
+      f.disabled = sheet.complete || sheet.used.has(c);
+    });
+    record.btns[0].disabled = fields[0].disabled;
   }
   function aim() {
-    const c = indices[slot],
-      base = xMM(origin),
-      left = xMM(c - 5) - base,
-      right = xMM(c + 5) - base;
-    const margin = Math.max(4, (right - left) * 0.18);
-    low = Math.floor(left - margin);
-    high = Math.ceil(right + margin);
-    inputs.forEach((inp, k) => {
-      inp.min = low;
-      inp.max = high;
-      inp.disabled = sheet.used.has(c);
-      inp.value = (sheet.used.get(c)?.[k] ?? (k ? high - 1 : low + 1)).toFixed(1);
-    });
-    prompt.textContent = sheet.used.size
-      ? '对准 A、B 两点后记录，换计数点再量。'
-      : '可点上方纸带选起点；在下方把游标拖到 A、B 两点。';
-    render();
+    const c = slots[slot],
+      a = mm(c - 5),
+      b = mm(c + 5);
+    const margin = Math.max(4, (b - a) * 0.18);
+    low = Math.floor(a - margin);
+    high = Math.ceil(b + margin);
+    const previous = sheet.used.get(c);
+    readings = previous ? [...previous] : [low + 1, high - 1];
+    placed = [false, false];
+    message = previous ? '此点已记录' : sheet.complete ? '本条加速度已记录' : '';
+    draw();
+  }
+  function move(delta) {
+    if (!sheet) return;
+    if (probe || !paper.visible) choose(sheets.indexOf(sheet));
+    slot = clamp(slot + delta, 0, slots.length - 1);
+    aim();
   }
   function choose(i) {
+    probe = null;
     sheet = sheets[i];
-    result.textContent = '';
-    select.value = String(i);
-    origin = sheet.origin;
-    indices = centers(t(), origin);
+    archive.value = String(i);
+    slots = centers(sheet.run.marks, sheet.origin);
     slot = 0;
+    paper.visible = true;
     aim();
   }
-  select.onchange = () => choose(+select.value);
-  whole.onpointerdown = (e) => {
-    if (sheet.used.size) {
-      status('这条纸带已经记过点，保留原来的计时起点。');
-      return;
-    }
-    const rect = whole.getBoundingClientRect(),
-      u = clamp((e.clientX - rect.left - 12) / (rect.width - 24), 0, 1);
-    const target = xMM(0) + u * (xMM(t().length - 1) - xMM(0));
-    let nearest = 0;
-    for (let i = 1; i < t().length; i++) if (Math.abs(xMM(i) - target) < Math.abs(xMM(nearest) - target)) nearest = i;
-    const valid = centers(t(), nearest);
-    if (!valid.length) {
-      status('这个起点之后没有连续的十个间隔；往纸带左边选。');
-      return;
-    }
-    origin = sheet.origin = nearest;
-    indices = valid;
-    slot = 0;
-    aim();
+  archive.onchange = () => {
+    choose(Number(archive.value));
+    inspect();
   };
-  prev.onclick = () => {
-    slot--;
-    aim();
-  };
-  next.onclick = () => {
-    slot++;
-    aim();
-  };
-  inputs.forEach((inp) => (inp.oninput = render));
-  function mmAt(e) {
-    const r = detail.getBoundingClientRect();
-    return clamp(low + ((e.clientX - r.left - 12) / (r.width - 24)) * (high - low), low, high);
+  function place(x) {
+    readings[handle] = Math.round(10 * clamp(low + ((x - LEFT) / (RIGHT - LEFT)) * (high - low), low, high)) / 10;
+    draw();
   }
-  detail.onpointerdown = (e) => {
-    if (sheet.used.has(indices[slot])) return;
-    const mm = mmAt(e);
-    dragging = Math.abs(mm - Number(inputs[0].value)) <= Math.abs(mm - Number(inputs[1].value)) ? 0 : 1;
-    detail.setPointerCapture(e.pointerId);
-    inputs[dragging].value = mm.toFixed(1);
-    render();
-  };
-  detail.onpointermove = (e) => {
-    if (dragging >= 0) {
-      inputs[dragging].value = mmAt(e).toFixed(1);
-      render();
-    }
-  };
-  detail.onpointerup = detail.onpointercancel = () => (dragging = -1);
-  stamp.onclick = () => {
-    const c = indices[slot],
-      base = xMM(origin);
-    const [a, b] = inputs.map((i) => i.valueAsNumber);
-    if (
-      !Number.isFinite(a + b) ||
-      Math.abs(a - (xMM(c - 5) - base)) > 1 ||
-      Math.abs(b - (xMM(c + 5) - base)) > 1 ||
-      b <= a
-    ) {
-      result.textContent = '左、右游标分别对准 A、B 的点心。尺上每小格 1 mm。';
-      status(result.textContent);
+  function finish() {
+    if (handle < 0) return;
+    placed[handle] = true;
+    handle = -1;
+    if (!placed.every(Boolean)) return;
+    const c = slots[slot],
+      [a, b] = readings;
+    if (Math.abs(a - mm(c - 5)) > 1 || Math.abs(b - mm(c + 5)) > 1 || b <= a) {
+      message = '游标还没对准点心，可继续拖动';
+      draw();
       return;
     }
+    const v = (b - a) / 1000 / (10 * PERIOD);
     sheet.used.set(c, [a, b]);
-    const velocity = (b - a) / 1000 / (10 * PERIOD);
-    onRecord(sheet, (c - origin) * PERIOD, velocity, a, b);
-    result.textContent =
-      '已记录 ' +
-      label.textContent +
-      ' 的速度 ' +
-      velocity.toFixed(3) +
-      ' m/s。' +
-      (sheet.complete
-        ? '由这两次速度读数算得加速度 ' + sheet.acceleration.toFixed(3) + ' m/s²。'
-        : sheet.used.size < 2
-          ? '点「下一点」再量一次。'
-          : '可以放回实验台，换一条纸带。');
-    render();
+    onRecord(sheet, (c - sheet.origin) * PERIOD, v, a, b);
+    message = sheet.complete
+      ? '已记录 · a = ' + sheet.acceleration.toFixed(3) + ' m/s²'
+      : '已记录 · v = ' + v.toFixed(3) + ' m/s';
+    if (sheet.used.size === 1 && slots.length > 1) {
+      const recorded = message;
+      slot = slot === slots.length - 1 ? slot - 1 : slot + 1;
+      aim();
+      message = recorded + ' · 再量一点';
+    }
+    draw();
+  }
+  const pixel = (p) => [(p.x / WIDTH + 0.5) * W, ((p.z - Z) / DEPTH + 0.5) * H];
+  const drag = {
+    obj: paper,
+    plane: 'xz',
+    offset: Y,
+    enabled: () => paper.visible,
+    hint: '点纸带近看，拖游标量点距',
+    onStart(p) {
+      handle = -1;
+      if (!p) return;
+      if (!inspecting) {
+        inspect();
+        return;
+      }
+      const [x, y] = pixel(p);
+      if (probe) {
+        leave();
+        return;
+      }
+      if (y > 369) {
+        leave();
+        return;
+      }
+      if (y < 96) {
+        const marks = sheet.run.marks,
+          target = marks[0].x + clamp((x - LEFT) / (RIGHT - LEFT), 0, 1) * (marks.at(-1).x - marks[0].x);
+        if (sheet.used.size) {
+          slot = slots.reduce(
+            (best, c, j) => (Math.abs(marks[c].x - target) < Math.abs(marks[slots[best]].x - target) ? j : best),
+            0,
+          );
+          aim();
+          return;
+        }
+        let i = 0;
+        for (let j = 1; j < marks.length; j++) if (Math.abs(marks[j].x - target) < Math.abs(marks[i].x - target)) i = j;
+        const available = centers(marks, i);
+        if (available.length) {
+          sheet.origin = i;
+          slots = available;
+          slot = 0;
+          aim();
+        } else {
+          message = '起点后需有连续十个间隔，请向左选';
+          draw();
+        }
+        return;
+      }
+      if (y < 132 || y > 325 || sheet.complete || sheet.used.has(slots[slot])) return;
+      handle = Math.abs(x - px(readings[0])) <= Math.abs(x - px(readings[1])) ? 0 : 1;
+      place(x);
+    },
+    onDrag(p) {
+      if (handle >= 0) place(pixel(p)[0]);
+    },
+    onEnd: finish,
   };
-  const observer = new ResizeObserver(render);
-  observer.observe(el);
   return {
-    el: launcher,
+    el,
+    drag,
+    bind(record, graph) {
+      onRecord = record;
+      onGraph = graph;
+    },
     add(run, trial) {
-      const first = run.marks.findIndex((_, i) => centers(run.marks, i).length);
-      if (first < 0) return false;
-      const sheet = { run, trial, origin: first, used: new Map(), points: [] };
-      sheets.push(sheet);
-      select.add(new Option('第 ' + trial + ' 条 · ' + run.load * 1000 + ' g', String(sheets.length - 1)));
-      el.hidden = launcher.hidden = false;
-      result.textContent = '';
-      desk.open();
+      const origin = run.marks.findIndex((_, i) => centers(run.marks, i).length);
+      if (origin < 0) return false;
+      sheets.push({ run, trial, origin, points: [], used: new Map() });
+      archive.add(new Option('第 ' + trial + ' 条 · ' + run.load * 1000 + ' g', String(sheets.length - 1)));
+      el.hidden = false;
       choose(sheets.length - 1);
+      inspect();
       return true;
     },
+    trialStrip(marks) {
+      leave();
+      probe = marks;
+      el.hidden = true;
+      paper.visible = true;
+      clearPaper();
+      label('无牵引试滑 · 每段 0.10 s', LEFT, 62, 37);
+      const x = (i) => LEFT + (marks[i].x / marks[15].x) * (RIGHT - LEFT);
+      for (let i = 0; i <= 15; i++) dot(x(i), 154, i % 5 === 0 ? 9 : 4);
+      for (let i = 5; i <= 15; i += 5) {
+        g.fillStyle = '#756b59';
+        g.fillRect(x(i - 5), 184, x(i) - x(i - 5), 2);
+        g.fillRect(x(i - 5), 168, 2, 20);
+        g.fillRect(x(i), 168, 2, 20);
+        label(
+          ((marks[i].x - marks[i - 5].x) * 1000).toFixed(1) + ' mm',
+          (x(i) + x(i - 5)) / 2,
+          247,
+          40,
+          '#34404a',
+          'center',
+        );
+      }
+      label('点纸带返回，再调木板或挂槽码', W / 2, 360, 30, '#34404a', 'center');
+      texture.needsUpdate = true;
+      inspect();
+    },
+    stow() {
+      leave();
+      probe = null;
+      paper.visible = false;
+      el.hidden = !sheets.length;
+    },
     clear() {
+      this.stow();
       sheet = null;
       sheets.length = 0;
-      select.replaceChildren();
-      el.hidden = launcher.hidden = true;
-      desk.dialog.close();
+      archive.replaceChildren();
+      el.hidden = true;
     },
     dispose() {
-      observer.disconnect();
-      desk.dispose();
+      texture.dispose();
     },
   };
 }

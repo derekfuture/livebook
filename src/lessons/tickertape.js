@@ -2,12 +2,10 @@ import { buttons, chart, goals, note, seg, table } from './kit/ui.js';
 import { draggable } from './kit/interact.js';
 import { apparatus } from './kit/ticker/apparatus.js';
 import { advance, LOADS, makeRun, power } from './kit/ticker/motion.js';
-import { benchCue, auxiliary } from './kit/ticker/bench.js';
 import { tapeReader } from './kit/ticker/reader.js';
 
 export default {
   id: 'tickertape',
-  sceneFirst: true,
   fig: '图2.1-1',
   title: '探究小车速度随时间变化的规律',
   stampText: '测量',
@@ -23,10 +21,13 @@ export default {
     src: '本实验模型 · 对应人教版高中物理必修第一册第 36–37 页',
   },
 
-  create({ tag }) {
+  create(ctx) {
+    const { tag } = ctx;
     const rig = apparatus();
-    const cue = benchCue(tag),
-      loadCue = benchCue(tag);
+    const timerLabel = tag('计时器（点开关）', 'pill').loc(rig.timer, 0, 0.515, 0);
+    const loadLabel = tag('', 'pill').loc(rig.pan, 0, -0.06, 0);
+    const paperLabel = tag('', 'pill');
+    const reader = tapeReader(rig.group, ctx);
     const enter = () => {
       if (ui && document.body.classList.contains('predicting')) ui.go(1);
     };
@@ -40,29 +41,25 @@ export default {
       enter();
       chooseMass((LOADS.indexOf(run.load) + 1) % LOADS.length);
     }
-    function guide() {
-      loadCue(!finished && !moving ? rig.pan : null, [0, -0.058, 0], run.load * 1000 + ' g · 换槽码', cycleMass);
-      if (moving) cue(null);
-      else if (taken) cue(rig.cart, [0, 0.072, 0], empty ? '打点不足 · 换新纸带' : '装新纸带，再做一次', replace);
-      else if (finished && !run.recording) cue(rig.strip, [0, 0, 0.035], '取下纸带，量点距', take);
-      else if (run.recording && !finished) cue(rig.cart, [0, 0.076, 0], '松开小车', release);
-      else cue(rig.timer, [0, 0.515, 0], finished ? '关闭计时器' : '接通计时器', toggle);
-    }
     let run = makeRun(LOADS[0]);
     let moving = false,
       finished = false,
       taken = false,
       trial = 1;
-    let ui,
-      reader,
-      controls,
-      masses,
-      empty = false;
+    let ui, controls, masses;
     const status = (message) => ui?.status(message);
 
     function refresh() {
       rig.draw(run);
-      guide();
+      timerLabel.text(run.recording ? '计时器 · 已通电' : '计时器（点开关）');
+      loadLabel.text(Math.round(run.load * 1000) + ' g').show(!moving);
+      timerLabel.show(!finished || run.recording);
+      if (taken) paperLabel.loc(rig.cart, 0, 0.067, 0).text('小车（点放回起点）').show(true);
+      else
+        paperLabel
+          .loc(rig.strip, 0, 0, 0.025)
+          .text('纸带（点取下）')
+          .show(finished && !run.recording);
       if (!controls) return;
       const [timer, release, take, replace] = controls.btns;
       timer.textContent = run.recording ? '关闭计时器' : '接通计时器';
@@ -97,7 +94,6 @@ export default {
       if (run.recording) return status('先关闭计时器，再取下纸带。');
       taken = true;
       const valid = reader.add(run, trial);
-      empty = !valid;
       rig.setPaperVisible(false);
       refresh();
       status(
@@ -107,6 +103,7 @@ export default {
       );
     }
     function prepare(load) {
+      reader.stow();
       run = makeRun(load);
       moving = finished = taken = false;
       rig.setPaperVisible(true);
@@ -123,24 +120,28 @@ export default {
         refresh();
       }
     }
-    const pointer = draggable(rig.group, [], {
+    const pointer = draggable(rig.group, [reader.drag], {
       highlight: true,
       tip: tag('', 'pill'),
       taps: [
         { obj: rig.timer, hint: '点一下：切换打点计时器', onTap: toggle },
-        { obj: rig.cart, hint: '点一下：释放小车', onTap: () => (taken ? replace() : release()) },
+        {
+          obj: rig.cart,
+          hint: () => (taken ? '把小车放回起点，装新纸带' : '点一下：释放小车'),
+          onTap: () => (taken ? replace() : release()),
+        },
         {
           obj: rig.pan,
           hint: '点一下：更换槽码',
           onTap: cycleMass,
         },
-        { obj: rig.strip, hint: '点一下：取下纸带', onTap: take },
+        { obj: rig.strip, enabled: () => finished && !taken && !run.recording, hint: '点一下：取下纸带', onTap: take },
       ],
     });
     refresh();
     return {
       group: rig.group,
-      size: { w: 0.94, d: 0.32, h: 0.52 },
+      size: { w: 0.94, d: 0.42, h: 0.52 },
       view: { elev: 17, azim: -10, lookY: 0.55, margin: 1.02 },
       pointer,
       mount(panel) {
@@ -151,13 +152,15 @@ export default {
           y: { label: 'v / (m/s)', min: 0, max: 1.1 },
           legend: '槽码质量：蓝绿 50 g · 赭红 75 g · 紫色 100 g。每条连线来自同一条纸带。',
         });
+        graph.el.hidden = records.el.hidden = true;
         const goal = goals(ui, [
           ['slope', '在同一条纸带上量出两个速度点'],
           ['compare', '三种槽码的纸带各量两个点以比较斜率'],
         ]);
         const measured = new Set();
-        reader = tapeReader(
+        reader.bind(
           (sheet, time, speed, a, b) => {
+            graph.el.hidden = records.el.hidden = false;
             if (!sheet.points.length)
               graph.series.push({
                 color: ['#176e74', '#b35430', '#765490'][LOADS.indexOf(sheet.run.load)],
@@ -186,7 +189,6 @@ export default {
             if (measured.size === LOADS.length) goal.done('compare');
             status(message);
           },
-          status,
           () => {
             ui.go(1);
             ui.fold(false);
@@ -212,6 +214,7 @@ export default {
             onClick: () => {
               reader.clear();
               records.clear();
+              graph.el.hidden = records.el.hidden = true;
               graph.series.length = 0;
               graph.draw();
               measured.clear();
@@ -221,7 +224,7 @@ export default {
             },
           },
         ]);
-        ui.controls.append(reader.el, auxiliary(masses.el, controls.el));
+        ui.notes.append(note('点计时器通电，点小车放手。停车后关电，点纸带近看。'), masses.el, controls.el, reader.el);
         ui.data.append(
           graph.el,
           records.el,

@@ -2,7 +2,6 @@ import { buttons, chart, goals, note, seg, table } from './kit/ui.js';
 import { draggable } from './kit/interact.js';
 import { apparatus } from './kit/ticker/apparatus.js';
 import { advance, power } from './kit/ticker/motion.js';
-import { auxiliary, benchCue, probePaper } from './kit/ticker/bench.js';
 import { tapeReader } from './kit/ticker/reader.js';
 import { CARTS, GRAVITY, HANGERS, tractionRun } from './kit/ticker/traction.js';
 
@@ -11,7 +10,6 @@ const LIFTS = [0, 15, 30];
 
 export default {
   id: 'newtoncart',
-  sceneFirst: true,
   fig: '图4.2-2',
   title: '探究加速度与力、质量的关系',
   stampText: '探究',
@@ -26,7 +24,8 @@ export default {
     why: '右端垫高后，用无牵引的匀速试滑检查沿板的重力分量能否补偿阻力。补偿后小车沿板的合力等于绳的拉力 T。悬挂物向下加速，所以 T = m(g − a)。只有 m 远小于小车总质量 M，才能用 mg 近似 T，并用固定槽码近似保持拉力不变。',
     src: '人教版高中物理必修第一册，第 88–90 页 · 参考案例 1',
   },
-  create({ tag }) {
+  create(ctx) {
+    const { tag } = ctx;
     const rig = apparatus({ adjustable: true });
     let mode = 'balance',
       lift = 0,
@@ -36,16 +35,15 @@ export default {
       moving = false,
       finished = false,
       trial = 1;
-    let ui, reader, modeSeg, liftSeg, cartSeg, hangerSeg, actions, goal;
-    const cue = benchCue(tag),
-      adjust = benchCue(tag),
-      compare = benchCue(tag);
-    let empty = false,
-      taken = false,
+    let ui, modeSeg, liftSeg, cartSeg, hangerSeg, actions, goal;
+    const reader = tapeReader(rig.group, ctx);
+    const blockLabel = tag('', 'pill').loc(rig.board, 0.31, 0.032, 0.05);
+    const panLabel = tag('', 'pill').loc(rig.pan, 0, -0.055, 0);
+    const paperLabel = tag('', 'pill');
+    const timerLabel = tag('计时器（点开关）', 'pill').loc(rig.timer, 0, 0.515, 0);
+    let taken = false,
       powered = false,
-      probe,
-      graphs,
-      nextMode = false;
+      observed = false;
     const enter = () => {
       if (ui && document.body.classList.contains('predicting')) ui.go(1);
     };
@@ -59,48 +57,23 @@ export default {
       if (mode === 'force') hangerSeg.set((hangerIndex + 1) % HANGERS.length, true);
       if (mode === 'mass') cartSeg.set((cartIndex + 1) % CARTS.length, true);
     }
-    function guide() {
-      cue(null);
-      adjust(null);
-      compare(null);
-      if (!ui || moving) return;
-      if (mode === 'balance') {
-        if (finished && run.marks.length < 16) cue(rig.cart, [0, 0.078, 0], '点数太少 · 再推一次', prepare);
-        else if (finished) cue(rig.strip, [0, 0, 0.034], '试滑定格 · 看纸带', take);
-        else cue(rig.cart, [0, 0.078, 0], '向左轻推小车', start);
-        if (!finished)
-          adjust(rig.board, [0.31, 0.026, 0.052], '垫块 ' + lift + ' mm', () =>
-            adjustLift((LIFTS.indexOf(lift) + 1) % LIFTS.length),
-          );
-        return;
-      }
-      if (taken) cue(rig.cart, [0, 0.078, 0], empty ? '打点不足 · 换新纸带' : '装新纸带，再做一次', prepare);
-      else if (finished && !powered) cue(rig.strip, [0, 0, 0.034], '取下纸带，量两次速度', take);
-      else if (!finished && powered) cue(rig.cart, [0, 0.078, 0], '松开小车', start);
-      else cue(rig.timer, [0, 0.515, 0], finished ? '关闭计时器' : '接通计时器', timer);
-      if (!finished && mode === 'force')
-        adjust(rig.pan, [0, -0.06, 0], HANGERS[hangerIndex] * 1000 + ' g · 换槽码', changeLoad);
-      if (!finished && mode === 'mass')
-        adjust(rig.board, [-0.03, -0.035, 0.05], CARTS[cartIndex] * 1000 + ' g · 加减车载重物', changeLoad);
-      if (!balanced && !powered && (!finished || taken))
-        compare(rig.board, [0.24, -0.045, 0.05], '摘下槽码，重调木板', () => modeSeg.set(0, true));
-      else if (mode === 'mass' && taken)
-        compare(rig.timer, [0, 0.515, 0], '改做固定车质量', () => modeSeg.set(1, true));
-      else if (finished && taken && nextMode)
-        compare(rig.timer, [0, 0.515, 0], '固定槽码，改车质量', () => modeSeg.set(2, true));
-      else if (finished && taken && graphs)
-        compare(rig.timer, [0, 0.515, 0], '看实验图表', () => {
-          ui.go(1);
-          ui.fold(false);
-          graphs.scrollIntoView({ block: 'start' });
-        });
-    }
     const status = (text) => ui?.status(text);
     const settings = () => ({ mode, lift, cartIndex, hangerIndex, balanced });
     let run = tractionRun(settings());
     function refresh() {
       rig.draw(run);
-      guide();
+      blockLabel.text('垫高 ' + lift + ' mm').show(mode === 'balance' && !moving);
+      panLabel
+        .loc(rig.pan, 0, mode === 'balance' ? 0.028 : -0.055, 0)
+        .text(mode === 'balance' ? '槽码（点挂上）' : HANGERS[hangerIndex] * 1000 + ' g')
+        .show(!moving);
+      timerLabel.text(powered ? '计时器 · 已通电' : '计时器（点开关）').show(mode !== 'balance' && !taken);
+      if (taken) paperLabel.loc(rig.cart, 0, 0.067, 0).text('小车（点放回起点）').show(true);
+      else
+        paperLabel
+          .loc(rig.strip, 0, 0, 0.025)
+          .text('纸带（点近看）')
+          .show(finished && !powered);
       if (!actions) return;
       const locked = moving || finished;
       MODES.forEach((_, i) => modeSeg.disable(i, moving));
@@ -126,15 +99,19 @@ export default {
     function prepare() {
       run = tractionRun(settings());
       moving = finished = powered = taken = false;
-      probe?.close();
+      reader.stow();
+      observed = false;
       rig.setPaperVisible(true);
       refresh();
     }
-    function switchMode(index) {
+    function switchMode(index, fixedHanger = 1) {
+      if (mode === 'balance' && index !== 0 && observed) {
+        balanced = Math.abs(run.a) < 1e-8;
+        if (balanced) goal.done('balanced');
+      }
       mode = MODES[index];
-      nextMode = false;
       cartIndex = 0;
-      hangerIndex = mode === 'mass' ? 1 : 0;
+      hangerIndex = mode === 'mass' ? fixedHanger : 0;
       cartSeg.set(cartIndex);
       hangerSeg.set(hangerIndex);
       hangerSeg.el.hidden = mode === 'balance';
@@ -143,7 +120,7 @@ export default {
         [
           '摘掉槽码，轻推小车。观察相邻 0.10 s 的位移是否相等。',
           '固定车和车上重物的总质量为 500 g，改变悬挂质量。',
-          '固定悬挂质量为 20 g，给小车添加重物。',
+          '悬挂质量固定为 ' + HANGERS[hangerIndex] * 1000 + ' g，把台上的砝码放到小车上。',
         ][index],
       );
     }
@@ -186,14 +163,15 @@ export default {
     function take() {
       if (!finished || taken) return;
       if (mode === 'balance') {
-        if (run.marks.length >= 16) probe.open(run.marks);
-        else prepare();
+        if (run.marks.length >= 16) {
+          observed = true;
+          reader.trialStrip(run.marks);
+        } else prepare();
         return;
       }
       if (powered) return status('先关计时器。');
       taken = true;
-      empty = !reader.add(run, trial++);
-      if (!empty) {
+      if (reader.add(run, trial++)) {
         rig.setPaperVisible(false);
         status('取下了本轮纸带。对准 A、B 记录两个不同时刻的速度，用速度差除以时间差得到加速度。');
       } else status('纸带缺少连续打点。检查是否通电及木板高度。');
@@ -202,9 +180,50 @@ export default {
     let dragLift = 0,
       pushStart = 0,
       stroke = 0;
+    // 砝码和车身分别拾取。落在车顶才装车，落回台面才卸下。
+    const weightDrags = rig.ballast.map((weight) => {
+      let loaded;
+      function transfer() {
+        const count = cartIndex,
+          from = rig.ballast.indexOf(weight),
+          to = loaded ? count - 1 : count;
+        [rig.ballast[from], rig.ballast[to]] = [rig.ballast[to], rig.ballast[from]];
+        if (mode !== 'mass') {
+          modeSeg.set(2);
+          switchMode(2, hangerIndex);
+        }
+        cartSeg.set(count + (loaded ? -1 : 1), true);
+        status('车总质量 ' + CARTS[cartIndex] * 1000 + ' g，悬挂质量仍为 ' + HANGERS[hangerIndex] * 1000 + ' g。');
+      }
+      return {
+        obj: weight,
+        plane: 'xy',
+        offset: 0.06,
+        keepOffset: true,
+        enabled: () => mode !== 'balance' && !moving && (!finished || taken),
+        hint: () => (weight.parent === rig.cart ? '250 g 砝码：拖回台面' : '250 g 砝码：拖到小车上'),
+        onStart: () => {
+          loaded = weight.parent === rig.cart;
+          rig.group.attach(weight);
+        },
+        onDrag: (p) => {
+          weight.position.set(p.x, Math.max(0.0045, p.y), 0.12 * (1 - Math.min(1, Math.max(0, p.y) / 0.47)));
+        },
+        onEnd: (moved) => {
+          if (!moved) return;
+          const car = rig.group.worldToLocal(rig.cart.getWorldPosition(rig.cart.position.clone()));
+          const onCar = Math.abs(weight.position.x - car.x) < 0.07 && Math.abs(weight.position.y - car.y - 0.05) < 0.07;
+          if ((!loaded && onCar) || (loaded && weight.position.y < 0.08)) transfer();
+          else refresh();
+        },
+        onTap: transfer,
+      };
+    });
     const pointer = draggable(
       rig.group,
       [
+        reader.drag,
+        ...weightDrags,
         {
           obj: rig.cart,
           plane: 'xy',
@@ -257,12 +276,6 @@ export default {
         tip: tag('', 'pill'),
         taps: [
           {
-            obj: rig.cartTop,
-            enabled: () => mode === 'mass' && !moving && !finished,
-            hint: '点车顶加减重物',
-            onTap: changeLoad,
-          },
-          {
             obj: rig.timer,
             enabled: () => mode !== 'balance' && !taken && (!finished || powered),
             hint: '开关计时器',
@@ -271,9 +284,21 @@ export default {
           { obj: rig.strip, enabled: () => finished && !taken, hint: '点纸带近看', onTap: take },
           {
             obj: rig.pan,
-            enabled: () => mode === 'force' && !finished && !moving,
-            hint: '点槽码更换悬挂质量',
-            onTap: changeLoad,
+            enabled: () => !moving && (mode === 'balance' || !finished || taken),
+            hint: () => (mode === 'balance' ? '把槽码挂到绳端' : '换槽码，保持小车质量'),
+            onTap: () => {
+              enter();
+              if (mode === 'balance') {
+                balanced = observed && Math.abs(run.a) < 1e-8;
+                if (balanced) goal.done('balanced');
+                modeSeg.set(1, true);
+                status(balanced ? '点距相等，已挂上槽码。点计时器通电，再松开小车。' : '未验证匀速，测量会标为对照。');
+              } else {
+                if (mode === 'mass') modeSeg.set(1, true);
+                else if (taken) prepare();
+                changeLoad();
+              }
+            },
           },
         ],
       },
@@ -281,7 +306,7 @@ export default {
     refresh();
     return {
       group: rig.group,
-      size: { w: 0.94, d: 0.32, h: 0.55 },
+      size: { w: 0.94, d: 0.42, h: 0.55 },
       view: { elev: 18, azim: -10, lookY: 0.55, margin: 1.02 },
       pointer,
       mount(panel) {
@@ -293,8 +318,11 @@ export default {
         ]);
         const logs = table(['带号', 'M / kg', 'mg / N', 't₁→t₂ / s', 'v₁→v₂ / (m/s)', 'a / (m/s²)', '条件']);
         logs.el.style.overflowX = 'auto';
+        logs.el.hidden = true;
         const plots = {};
-        const valid = { force: new Map(), mass: new Map() };
+        const forceMeasurements = new Map();
+        const massMeasurements = new Map();
+        let questionLoad;
         const questions = {};
         const comparisons = {
           force: '固定车质量，槽码由 10 g 加至 20 g，实测加速度接近原来的多少？',
@@ -312,10 +340,18 @@ export default {
             legend:
               key === 'force'
                 ? '车总质量 500 g · 横轴为槽码重力（拉力估计值），赭色为重槽码对照'
-                : '悬挂质量 20 g · 横轴为车总质量的倒数',
+                : '横轴为车总质量的倒数。蓝绿 10 g，赭红 20 g，紫色 30 g，灰色 150 g。',
           });
         }
         for (const key of ['force', 'mass']) {
+          if (key === 'mass')
+            plots.mass.series = ['#176e74', '#b35430', '#765490', '#667080'].map((color) => ({
+              color,
+              points: [],
+              line: false,
+              dots: true,
+            }));
+          plots[key].el.hidden = true;
           const question = document.createElement('div');
           question.append(
             note(comparisons[key]),
@@ -323,7 +359,7 @@ export default {
               [0.5, 1, 2].map((ratio) => ({
                 text: ratio + ' 倍',
                 onClick: () => {
-                  const points = valid[key];
+                  const points = key === 'mass' ? massMeasurements.get(questionLoad) : forceMeasurements;
                   const first = key === 'force' ? points.get(HANGERS[0] * GRAVITY) : points.get(1 / CARTS[0]);
                   const last = key === 'force' ? points.get(HANGERS[1] * GRAVITY) : points.get(1 / CARTS[2]);
                   const observed = last / first;
@@ -348,17 +384,7 @@ export default {
           question.hidden = true;
           questions[key] = question;
         }
-        graphs = plots.force.el;
-        probe = probePaper((choice) => {
-          const expected = Math.abs(run.a) < 1e-8 ? 1 : run.a < 0 ? 0 : 2;
-          if (choice === 1) {
-            balanced = expected === 1;
-            if (balanced) goal.done('balanced');
-            modeSeg.set(1, true);
-            status(balanced ? '点距相等，挂上槽码后可以测量。' : '仍有点距变化，本轮将保留为未补偿对照。');
-          } else adjustLift(Math.max(0, Math.min(2, LIFTS.indexOf(lift) + (choice === 0 ? 1 : -1))));
-        });
-        reader = tapeReader(
+        reader.bind(
           (sheet, t, v) => {
             const r = sheet.run;
             sheet.points.push([t, v]);
@@ -370,6 +396,7 @@ export default {
             sheet.acceleration = a;
             const heavy = r.load / r.mass > 0.1;
             const condition = !r.balanced ? '未验证阻力补偿' : heavy ? '重槽码对照' : '已补偿 · 轻槽码';
+            logs.el.hidden = false;
             logs.add([
               String(sheet.trial),
               r.mass.toFixed(2),
@@ -381,20 +408,27 @@ export default {
             ]);
             if (!r.balanced) return status('本轮已留在表内。先验证无牵引匀速，再把测量结果加入比较图。');
             const x = r.mode === 'force' ? r.load * GRAVITY : 1 / r.mass;
-            plots[r.mode].series[heavy ? 1 : 0].points.push([x, a]);
+            plots[r.mode].el.hidden = false;
+            const seriesIndex = r.mode === 'mass' ? HANGERS.indexOf(r.load) : Number(heavy);
+            plots[r.mode].series[seriesIndex].points.push([x, a]);
             plots[r.mode].draw();
             if (heavy)
               return status(
                 '重槽码对照：mg = ' +
-                  x.toFixed(2) +
+                  (r.load * GRAVITY).toFixed(2) +
                   ' N，用实测 a 估算 T = m(g − a) ≈ ' +
                   (r.load * (GRAVITY - a)).toFixed(2) +
                   ' N。重力与拉力的差异已不能忽略。',
               );
-            valid[r.mode].set(x, a);
-            nextMode = mode === 'force' && valid.force.size >= 3;
-            guide();
-            if (valid[r.mode].size >= 3) {
+            if (r.mode === 'mass' && !massMeasurements.has(r.load)) massMeasurements.set(r.load, new Map());
+            const set = r.mode === 'mass' ? massMeasurements.get(r.load) : forceMeasurements;
+            set.set(x, a);
+            if (set.size >= 3) {
+              if (r.mode === 'mass') {
+                questionLoad = r.load;
+                questions.mass.firstElementChild.textContent =
+                  '固定 ' + r.load * 1000 + ' g 槽码，小车从 500 g 加至 1000 g，加速度接近原来的多少？';
+              }
               goal.undo(r.mode);
               questions[r.mode].hidden = false;
             }
@@ -408,11 +442,11 @@ export default {
                   : ' m/s²。到下方图表比较两次测量的比值。'),
             );
           },
-          status,
           (sheet) => {
             ui.go(1);
             ui.fold(false);
-            (sheet.run.mode === 'mass' ? plots.mass : plots.force).el.scrollIntoView({ block: 'start' });
+            const target = sheet.run.balanced ? plots[sheet.run.mode].el : logs.el;
+            target.scrollIntoView({ block: 'start' });
           },
         );
         modeSeg = seg('实验步骤', ['补偿阻力', '固定车质量', '固定槽码'], (_, i) => switchMode(i));
@@ -464,12 +498,15 @@ export default {
             onClick: () => {
               reader.clear();
               logs.clear();
+              massMeasurements.clear();
+              forceMeasurements.clear();
+              logs.el.hidden = true;
               trial = 1;
               balanced = false;
               lift = 0;
               liftSeg.set(0);
               for (const key of ['force', 'mass']) {
-                valid[key].clear();
+                plots[key].el.hidden = true;
                 questions[key].hidden = true;
                 plots[key].series.forEach((s) => (s.points.length = 0));
                 plots[key].draw();
@@ -479,7 +516,15 @@ export default {
             },
           },
         ]);
-        ui.controls.append(reader.el, auxiliary(modeSeg.el, liftSeg.el, cartSeg.el, hangerSeg.el, actions.el));
+        ui.controls.append(modeSeg.el);
+        ui.notes.append(
+          note('向左推小车，点纸带比较点距。拖木板右端调整高度；点槽码挂上，把台上的砝码拖到车顶。'),
+          liftSeg.el,
+          cartSeg.el,
+          hangerSeg.el,
+          actions.el,
+          reader.el,
+        );
         ui.data.append(
           plots.force.el,
           questions.force,
@@ -500,7 +545,6 @@ export default {
       },
       dispose() {
         reader?.dispose();
-        probe?.dispose();
       },
     };
   },
