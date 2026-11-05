@@ -86,7 +86,7 @@ export class LiveLayer {
     const world = !!def.world && ['page', 'desk', 'card'].includes(MODE);
     const stand = MODE === 'stand' && innerWidth > 760;
     const ctx = {
-      THREE, ink, root: scaler, world, mode: world ? MODE : 'panel',
+      THREE, ink, camera: stage.camera, root: scaler, world, mode: world ? MODE : 'panel',
       tag: (text, cls, onClick) => { const t = tag(text, cls, onClick); tags.push(t); return t; },
       ui: null,
       // 让实验临时换个机位（例如“从光屏一侧透过透镜看”），back() 回到原来的机位

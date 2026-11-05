@@ -30,30 +30,33 @@ export default {
 
   create({ tag, look, back }) {
     const group = new THREE.Group();
-    const st = stand({ height: 0.34 });
-    st.position.set(-0.08, 0, 0);
+    const st = stand({ height: 0.34, baseW: 0.2 });
+    st.position.set(-0.04, 0, 0);
     group.add(st);
-    st.clamp(0.06, 0.08, { ring: true, r: 0.045 });
+    const rodX = st.position.x + st.rodX;
+    const ringY = 0.098;
+    st.clamp(ringY, -rodX, { ring: true, r: 0.045 });
     const gauze = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.002, 32), paint(0xc8ccd2));
-    gauze.position.set(0, 0.064, 0);
+    gauze.position.set(0, ringY + 0.004, 0);
     group.add(gauze);
     const cup = beaker({ r: 0.045, h: 0.1, level: 0.065 });
-    cup.position.set(0, 0.065, 0);
+    cup.position.set(0, gauze.position.y + 0.001, 0);
     group.add(cup);
     const lid = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.003, 32), paint(0xd8b07a)));
-    lid.position.set(0, 0.167, 0);
+    lid.position.set(0, cup.position.y + 0.102, 0);
     group.add(lid);
     const th = thermometer({ min: 0, max: 110, length: 0.22 });
-    th.position.set(0.012, 0.08, 0);
+    th.position.set(0.012, cup.position.y + 0.015, 0);
     th.scale.setScalar(0.9);
     group.add(th);
-    st.clamp(0.29, 0.09);
+    st.clamp(0.29, th.position.x - rodX);
     const lamp = alcoholLamp();
-    lamp.position.y = 0.002;
+    lamp.position.y = 0.0163;  // 灯底放在铁架台底座上
+    lamp.flame.scale.setScalar(0.65);
     lamp.scale.setScalar(0.85);
     group.add(lamp);
     const bub = bubbles({ r: 0.04 });
-    bub.mesh.position.set(0, 0.067, 0);
+    bub.mesh.position.set(0, cup.position.y + 0.002, 0);
     group.add(bub.mesh);
     const vap = steam({ max: 160 });
     group.add(vap.mesh);
@@ -73,7 +76,7 @@ export default {
     return {
       group,
       pointer,
-      size: { w: 0.26, d: 0.12, h: 0.36 },
+      size: { w: 0.30, d: 0.12, h: 0.36 },
       view: { elev: 12, azim: -12, lookY: 0.42, margin: 1.2 },
       mount(ui) {
         const out = readout([{ key: 'T', label: '水温', unit: '℃', secret: true }, { key: 't', label: '计时', unit: 'min' }]);
@@ -125,7 +128,7 @@ export default {
         // 气泡：沸腾前少、上升变小；沸腾时多、上升变大
         const pre = S.heat && S.T > 90 && !boiling;
         bub.update(dt, { level: cup.level - 0.002, rate: boiling ? 70 : pre ? 10 + (S.T - 90) * 3 : 0, grow: boiling });
-        vap.update(dt, { rate: boiling ? (S.lid ? 10 : 26) : S.T > 92 ? 3 : 0, origin: new THREE.Vector3(0, S.lid ? 0.17 : 0.13, 0), spread: S.lid ? 0.006 : 0.06, up: 0.05, size: 0.025 });
+        vap.update(dt, { rate: boiling ? (S.lid ? 10 : 26) : S.T > 92 ? 3 : 0, origin: new THREE.Vector3(0, S.lid ? lid.position.y : cup.position.y + cup.level, 0), spread: S.lid ? 0.006 : 0.06, up: 0.05, size: 0.025 });
         tT.loc(group, 0.06, 0.32, 0).text('');
         const G = this._G;
         if (!G) return;
