@@ -147,7 +147,7 @@ export default {
       if (!finished || taken) return;
       if (run.recording) return status('先关闭计时器，再取下纸带。');
       taken = true;
-      const valid = reader.add(run, trial);
+      const valid = reader.add(run, trial, rig.stripLayout(run));
       if (valid) bar.done('tape');
       rig.setPaperVisible(false);
       refresh();

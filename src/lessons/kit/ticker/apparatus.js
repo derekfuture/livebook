@@ -169,7 +169,7 @@ export function apparatus({ adjustable = false } = {}) {
     new THREE.Matrix4().makeBasis(new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0)),
   );
   const dots = new THREE.InstancedMesh(
-    new THREE.CircleGeometry(0.0014, 10),
+    new THREE.CircleGeometry(0.00055, 10),
     new THREE.MeshBasicMaterial({ color: 0x253446 }),
     Math.ceil((adjustable ? 6 : 1.5) / PERIOD) + 1,
   );
@@ -269,6 +269,17 @@ export function apparatus({ adjustable = false } = {}) {
     draw,
     dispose() {
       for (const texture of markings) texture.dispose();
+    },
+    stripLayout(run) {
+      const firstX = TIMER - run.x + (run.marks[0]?.x || 0);
+      const leftX = strip.position.x - strip.scale.x / 2;
+      const center = strip.position.clone();
+      center.x += tail.scale.x / 2;
+      return {
+        length: strip.scale.x + tail.scale.x,
+        lead: firstX - leftX,
+        center: base.worldToLocal(group.localToWorld(center)),
+      };
     },
     setPaperVisible(visible) {
       strip.visible = tail.visible = dots.visible = visible;

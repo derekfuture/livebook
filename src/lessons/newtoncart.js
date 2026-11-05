@@ -92,8 +92,8 @@ export default {
         const next = HANGERS.slice(0, 3).find((m) => !forceMeasurements.has(m * GRAVITY));
         if (next) return '拖回小车，保持车的质量，把 ' + Math.round(next * 1000) + ' g 槽码拖到挂钩。';
         return bar.has('force')
-          ? '拖回小车，保持悬挂槽码，把台上的砝码拖上车。'
-          : '已测三种悬挂质量。展开笔记本，读图比较 10 g 与 20 g 的加速度。';
+          ? '槽码从 10 g 加到 20 g，加速度约加倍。拖回小车，保持槽码，往车上加砝码。'
+          : '10 g 与 20 g 的实测比值偏离较大。重测这两组，选相距更远的时刻读速度。';
       }
       const set = massMeasurements.get(run.load);
       const next = CARTS.find((m) => !set?.has(1 / m));
@@ -105,7 +105,9 @@ export default {
           Math.round(next * 1000) +
           ' g。'
         );
-      return '已测三种车质量。展开笔记本，读图比较 500 g 与 1000 g 的加速度。';
+      return bar.has('mass')
+        ? '车从 500 g 加到 1000 g，加速度约减半。'
+        : '重测 500 g 与 1000 g 两组，选相距更远的时刻读速度。';
     }
     function refresh() {
       rig.draw(run);
@@ -118,7 +120,7 @@ export default {
       valueLabel.show(!moving);
       bar.say(
         bar.finished
-          ? null
+          ? '已测完。车质量相同，牵引力约加倍，加速度约加倍；牵引力近似相同，车质量加倍，加速度约减半。'
           : reader.inspecting
             ? mode !== 'balance' && reader.count >= 2
               ? '回实验台。' + nextTrial()
@@ -240,7 +242,8 @@ export default {
       if (mode === 'balance') {
         if (run.marks.length >= 16) {
           observed = true;
-          reader.trialStrip(run.marks);
+          rig.setPaperVisible(false);
+          reader.trialStrip(run.marks, rig.stripLayout(run));
           bar.say(
             Math.abs(run.a) < 1e-8
               ? '点距相等。返回后，把槽码拖到左端挂钩。'
@@ -253,8 +256,8 @@ export default {
       }
       if (powered) return status('先关计时器。');
       taken = true;
-      if (reader.add(run, trial++)) {
-        rig.setPaperVisible(false);
+      rig.setPaperVisible(false);
+      if (reader.add(run, trial++, rig.stripLayout(run))) {
         status('取下了本轮纸带。对准 A、B 记录两个不同时刻的速度，用速度差除以时间差得到加速度。');
       } else status('纸带缺少连续打点。检查是否通电及木板高度。');
       refresh();
@@ -510,7 +513,13 @@ export default {
                 questions.mass.firstElementChild.textContent =
                   '固定 ' + r.load * 1000 + ' g 槽码，小车从 500 g 加至 1000 g，加速度接近原来的多少？';
               }
-              bar.undo(r.mode);
+              const ratio =
+                r.mode === 'force'
+                  ? set.get(HANGERS[1] * GRAVITY) / set.get(HANGERS[0] * GRAVITY)
+                  : set.get(1 / CARTS[2]) / set.get(1 / CARTS[0]);
+              const expected = r.mode === 'force' ? 2 : 0.5;
+              if (Math.abs(ratio / expected - 1) <= 0.25) bar.done(r.mode);
+              else bar.undo(r.mode);
               questions[r.mode].hidden = false;
               bar.say(
                 r.mode === 'force'
