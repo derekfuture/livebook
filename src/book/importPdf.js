@@ -13,7 +13,7 @@ export function mountImport({ content, manifest, source }) {
   const imported = source.kind === 'pdf', bundled = !!source.bundled, ed = EDITIONS[content.id];          // bundled：离线版，课本带在离线包里
   const pages = ed?.pages ?? manifest.pageCount;
   const bookName = nameOf(content.id, manifest.title);          // 人教版《物理 八年级下册》
-  const short = `${bookName}（2024 年版，${pages} 页）`;
+  const short = `${bookName}（${ed?.short ?? '2024 年版'}，${pages} 页）`;          // 初中各册都是 2024 年版；高中写在 editions.js 里
   const btn = el('button', { id: 'btn-import', className: 'chip', textContent: imported ? '课本 ✓' : '导入课本', title: bundled ? '用的是离线包里带的教材 PDF' : imported ? '用的是导入的教材 PDF（只在本机）' : '导入这一版教材的 PDF，换成原书页' });
   actions.append(btn);
   const copy = document.getElementById('copy');          // 页脚
