@@ -16,15 +16,13 @@ export function stage(t) {
     inc: sm(0, 0.55, t),          // 下切到哪了
   };
 }
-const topY = (x) => 0.058 + 0.02 * (XR - x) / (XR - XL);          // 原来的高地：上游高、下游低
+export const topY = (x) => 0.058 + 0.02 * (XR - x) / (XR - XL);          // 原来的高地：上游高、下游低
 const endY = (x) => 0.02 + 0.004 * (XR - x) / (XR - XL);          // 很久以后的谷底：坡度小多了
 /** 谷底高度：一开始就是高地面（落差大），慢慢下切到很缓的谷底（落差小） */
 export function floorY(x, t) { const s = stage(t); return topY(x) - 0.003 - (topY(x) - 0.003 - endY(x)) * s.inc; }
 /** 落差：河床从上游到下游降了多少（示意） */
 export function drop(t) { return floorY(XL, t) - floorY(XR, t); }
 export function centerZ(x, t) { const s = stage(t); return s.amp * Math.sin((2 * Math.PI / LAM) * (x - APEX) - Math.PI / 2); }          // APEX 处 = −amp（向北凸）
-/** 这一处河湾往哪边弯：+1＝凹岸在南（+z），−1＝凹岸在北 */
-export function outerSide(x, t) { const s = stage(t), c = Math.sin((2 * Math.PI / LAM) * (x - APEX) - Math.PI / 2); return s.amp < 0.006 ? 0 : -Math.sign(-c) || 0; }
 /** 地面高度 */
 export function heightAt(x, z, t) {
   const s = stage(t), top = topY(x) + 0.0012 * Math.sin(x * 90 + z * 40) * Math.sin(z * 70 - x * 20);
@@ -34,7 +32,7 @@ export function heightAt(x, z, t) {
   let y = az <= s.floorHalf ? fl : Math.min(top, fl + (az - s.floorHalf) * s.wall);
   const zc = centerZ(x, t), u = (z - zc) / (WC / 2);
   if (Math.abs(u) < 1 && y <= fl + 1e-6) {          // 河道：凹岸那边深、陡，凸岸那边浅、缓
-    const k = 2 * Math.PI / LAM, curv = s.amp * k * k * Math.sin(k * (x - APEX) - Math.PI / 2), o = Math.max(-1, Math.min(1, -curv / (0.037 * k * k)));          // o > 0：凹岸在 +z
+    const k = 2 * Math.PI / LAM, curv = s.amp * k * k * Math.sin(k * (x - APEX) - Math.PI / 2), o = Math.max(-1, Math.min(1, curv / (0.037 * k * k)));          // curv ＝ −z″：o > 0 表示凹岸在 +z（南）
     y -= DC * f * (1 - u * u) * (1 + 0.85 * o * u) * (0.6 + 0.4 * s.inc);
   }
   return y;
