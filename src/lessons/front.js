@@ -20,7 +20,7 @@ const G = 0.022;                        // 地面顶面（地块有厚度，侧�
 const XL = -0.17, XR = 0.17, ZD = 0.062;
 // 两种锋：锋面的形状 h(s) = H·(1 − e^(−s/λ))，s 是从锋线往冷空气那边量的距离。冷锋陡，冷空气在后面（锋线左边）；暖锋缓，冷空气在前面（右边）
 const KIND = {
-  cold: { H: 0.11, L: 0.1, side: -1, x0: -0.12, x1: 0.165, rain: [0, 0.045], name: '冷锋' },
+  cold: { H: 0.11, L: 0.1, side: -1, x0: -0.07, x1: 0.165, rain: [0, 0.045], name: '冷锋' },
   warm: { H: 0.07, L: 0.2, side: 1, x0: -0.15, x1: 0.165, rain: [0, 0.095], name: '暖锋' },
   still: { H: 0.06, L: 0.2, side: -1, x0: -0.1, x1: 0.03, rain: [0, 0.11], name: '准静止锋' },          // 冷空气在左边，被山（x = 0.03 往右）挡住；暖空气从右边沿锋面慢慢爬到冷空气上面
 };
@@ -170,8 +170,10 @@ export default {
     const cloudTex = canvasTex(256, 256, (g, w) => {
       const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
       gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.85)'); gr.addColorStop(0.75, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = gr; g.fillRect(0, 0, w, w); g.globalCompositeOperation = 'destination-out';
-      for (let i = 0; i < 260; i++) { const a = Math.random() * 7, r = (0.3 + Math.random() * 0.7) * w / 2; g.fillStyle = `rgba(0,0,0,${Math.random() * 0.25})`; g.beginPath(); g.arc(w / 2 + Math.cos(a) * r, w / 2 + Math.sin(a) * r, 4 + Math.random() * 14, 0, 7); g.fill(); }
+      g.globalAlpha = 0.55; g.fillStyle = gr; g.fillRect(0, 0, w, w);
+      // 花菜状的边：一圈软的小团叠在边上（不挖洞，挖洞看着像肥皂泡）
+      for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2, r = w * 0.27, cx = w / 2 + Math.cos(a) * r, cy = w / 2 + Math.sin(a) * r * 0.85, rr = w * (0.13 + 0.05 * ((i * 7) % 3) / 2);
+        const gg = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gg.addColorStop(0, 'rgba(255,255,255,0.9)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fill(); }
     });
     const puffs = Array.from({ length: 110 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
     const placeClouds = () => {
@@ -179,7 +181,7 @@ export default {
         const [a, b, c, d] = m.userData.seed;
         let s, y, r, sx = 1, sy = 1, shade;
         if (S.kind === 'cold') {
-          s = -0.014 + Math.pow(a, 1.3) * 0.055; const base = Math.max(0.026, front(s) * S.rise + 0.004), hgt = 0.095 * Math.exp(-Math.abs(s - 0.004) / 0.03), q = Math.pow(b, 0.8);
+          s = -0.014 + Math.pow(a, 1.3) * 0.055; const base = Math.max(0.026, front(s) * S.rise + 0.004), hgt = 0.075 * Math.exp(-Math.abs(s - 0.004) / 0.03), q = Math.pow(b, 0.8);
           y = base + q * hgt; r = 0.013 + c * 0.01; if (q > 0.82) { r *= 1.5; s -= 0.04 * d; } shade = 0.6 + 0.32 * Math.min(1, q * 1.25);
         } else {          // 暖锋、准静止锋：锋面缓，云一层层铺开
           s = Math.pow(a, 0.9) * (S.kind === 'still' ? 0.13 : 0.15); const base = front(s) * S.rise + 0.006;
@@ -309,11 +311,11 @@ export default {
       townTag.loc(block, S.town, G + (Math.abs(S.home - S.town) < 0.05 ? 0.075 : 0.02), -0.03).text(`<b>邻城</b> ${weatherAt(S.kind, S.town - S.xf).text}`);          // 两城靠近：邻城的牌子抬高，免得叠字
       homeTag.el.classList.toggle('hot', wHome.k === 'w2');          // 你家正在下雨：牌子亮一下
       const coldX = k.side < 0 ? S.xf - 0.09 : Math.min(XR - 0.03, S.xf + 0.08), warmX = k.side < 0 ? Math.min(XR - 0.03, S.xf + 0.07) : Math.max(XL + 0.03, S.xf - 0.09);
-      tCold.loc(block, coldX, G + 0.03, -0.05); tWarm.loc(block, warmX, G + 0.075, -0.05);
-      tFront.loc(block, xAt(0.05), hAt(0.05) + 0.012, ZD + 0.004);
+      tCold.loc(block, coldX, G + 0.02, -ZD); tWarm.loc(block, warmX, G + 0.075, -0.05);          // 冷气团的名字在楔子里面靠后；锋面的名字在锋面上；“按住推”贴着推的箭头
+      tFront.loc(block, xAt(0.07), hAt(0.07) + 0.016, ZD);
       const intro = S.hintFor !== S.kind; tCold.show(intro); tWarm.show(intro); tFront.show(intro);          // 气团、锋面的名字只在开头标一下；推起来以后画面留给你家和邻城
       tScale.loc(block, XL + 0.05, -0.006, ZD + 0.01);
-      tHint.loc(block, S.xf - 0.1, G + 0.065, 0.04).text(S.kind === 'warm' ? '按住暖气团，往右推' : '按住冷气团，往右推').show(S.hintFor !== S.kind);
+      tHint.loc(block, Math.max(XL + 0.03, S.xf - 0.11), G + 0.03, ZD).text(S.kind === 'warm' ? '按住暖气团，往右推' : '按住冷气团，往右推').show(S.hintFor !== S.kind);
       setReal();
       if (S.dived) for (const o of diagram()) o.visible = false;
     };
