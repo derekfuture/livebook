@@ -128,7 +128,7 @@ export class LiveLayer {
     const dir = new THREE.Vector3(Math.sin(azim) * Math.cos(elev), Math.sin(elev), Math.cos(azim) * Math.cos(elev));
     const wide = innerWidth > 760;
     stage.cameraOffsetX = world || stand ? 0 : wide ? Math.min(380, innerWidth * 0.4) / 2 + 8 : 0;
-    stage.cameraOffsetY = world || stand ? 0 : wide ? 0 : innerHeight * 0.26;   // 手机：面板占下半屏，画面放到上半屏
+    stage.cameraOffsetY = world || stand ? 0 : panelOffsetY(false);   // 手机：面板占下半屏，画面放到上半屏
     let look = pageCenter.clone().add(new THREE.Vector3(0, (size.h * s) * (v.lookY ?? 0.42), (v.lookZ ?? 0) * s));
     let dist = stage.fitDistance(size.w * s, Math.max(size.h * s, size.d * s * 0.6), v.margin ?? 1.2);
     let board = null;
@@ -214,7 +214,11 @@ export class LiveLayer {
       // 预测阶段：隐藏标签和会泄露答案的现象（实验自己实现 predicting(on)）
       const onStep = (i) => { const on = i === 0; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
       api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => this.close(), foldable: MODE === 'float' || stand,
-        onFold: (folded) => { if (!stand) stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8; } });
+        onFold: (folded) => {
+          if (stand) return;
+          stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8;
+          stage.cameraOffsetY = panelOffsetY(folded);
+        } });
     }
     ctx.ui = api;
     if (world) inst.mountWorld?.(api); else { inst.mount?.(api); this.panel.arrange?.(); }
@@ -291,7 +295,7 @@ export class LiveLayer {
     // 面板的位置跟着屏幕宽窄变（宽屏在左侧，窄屏在下半屏）：先按现在的屏幕重算给面板让出的位置
     const wide = innerWidth > 760, folded = this.panel.el?.classList.contains('folded');
     this.stage.cameraOffsetX = wide && !folded ? Math.min(380, innerWidth * 0.4) / 2 + 8 : 0;
-    this.stage.cameraOffsetY = wide ? 0 : innerHeight * 0.26;
+    this.stage.cameraOffsetY = panelOffsetY(folded);
     this._reframe();
   }
 
@@ -440,6 +444,11 @@ export class LiveLayer {
     if (!A || A.closing || !A.inst.pointer?.up) return false;
     return !!A.inst.pointer.up(this._ray(ndc), e);
   }
+}
+
+// 手机展开笔记本时让出下半屏；收起时只给底部书脊和步骤条留空间。
+function panelOffsetY(folded) {
+  return innerWidth > 760 ? 0 : innerHeight * (folded ? 0.05 : 0.26);
 }
 
 // 实验里的近看机位是按桌面（约 16:10、左侧有纸卡）定的距离。窄屏（手机竖屏、面板占下半屏）看得到的范围小得多，
