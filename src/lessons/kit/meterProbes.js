@@ -2,6 +2,30 @@ import * as THREE from 'three';
 import { paint } from '../../live/ink.js';
 import { clamp } from './interact.js';
 
+export function meterProbeHandle(color, rotation) {
+  const handle = new THREE.Group(),
+    grip = new THREE.Group();
+  handle.add(grip);
+  grip.rotation.x = 0.98;
+  grip.rotation.z = rotation;
+  function piece(r, h, y, c) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 20), paint(c));
+    m.position.y = y;
+    grip.add(m);
+  }
+  piece(0.0008, 0.012, 0.006, 0xc7c9bc);
+  piece(0.0038, 0.025, 0.0245, color);
+  piece(0.0048, 0.003, 0.013, color);
+  const pick = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.006, 0.006, 0.031, 12),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  pick.userData.pick = true;
+  pick.position.y = 0.022;
+  grip.add(pick);
+  return { handle, grip };
+}
+
 // 表笔的原点就在金属尖端。接触才接入求解器，拖动中保持开路。
 export function meterProbes(circuit, targets, { changed, allow, mayLift }) {
   const probes = {},
@@ -11,27 +35,8 @@ export function meterProbes(circuit, targets, { changed, allow, mayLift }) {
     ['red', 0xb74738, -0.025],
     ['black', 0x333d41, -0.052],
   ]) {
-    const handle = new THREE.Group(),
-      grip = new THREE.Group();
+    const { handle, grip } = meterProbeHandle(color, name === 'red' ? -0.35 : 0.35);
     group.add(handle);
-    handle.add(grip);
-    grip.rotation.x = 0.98;
-    grip.rotation.z = name === 'red' ? -0.35 : 0.35;
-    function piece(r, h, y, c) {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 20), paint(c));
-      m.position.y = y;
-      grip.add(m);
-    }
-    piece(0.0008, 0.012, 0.006, 0xc7c9bc);
-    piece(0.0038, 0.025, 0.0245, color);
-    piece(0.0048, 0.003, 0.013, color);
-    const pick = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.006, 0.006, 0.031, 12),
-      new THREE.MeshBasicMaterial({ visible: false }),
-    );
-    pick.userData.pick = true;
-    pick.position.y = 0.022;
-    grip.add(pick);
     const lead = new THREE.Mesh(new THREE.BufferGeometry(), paint(color));
     group.add(lead);
     lead.raycast = () => {};

@@ -16,8 +16,8 @@ const OHM_RADIUS = 498,
   DC_RADIUS = 413;
 const angleFor = (f) => (2 * f - 1) * ARC;
 const coord = ([x, y]) => [(x - W / 2) * UNIT, TOP, (y - H / 2) * UNIT];
-const selectorAngle = (i) => -Math.PI * 0.66 + (i * TURN) / METER_STOPS.length;
-function artwork(g) {
+const selectorAngle = (i, count) => -Math.PI * 0.66 + (i * TURN) / count;
+function artwork(g, stops, ac) {
   g.fillStyle = '#dacaa9';
   g.fillRect(0, 0, W, H);
   g.fillStyle = '#343f43';
@@ -65,10 +65,10 @@ function artwork(g) {
     mark(i / 50, DC_RADIUS, i % 5 === 0 ? -16 : -8, '#273b3f');
     if (i % 5 === 0) text(String(i / 5), ...xy(i / 50, DC_RADIUS - 39), 32);
   }
-  text('V · mA', 600, 398, 33);
+  text(ac ? 'V ~' : 'V · mA', 600, 398, 33);
   text('机械调零', 600, 804, 24);
-  for (const [i, s] of METER_STOPS.entries()) {
-    const a = selectorAngle(i);
+  for (const [i, s] of stops.entries()) {
+    const a = selectorAngle(i, stops.length);
     text(
       s.label,
       selectorAt[0] + 215 * Math.sin(a),
@@ -81,12 +81,12 @@ function artwork(g) {
   text('−', 876, 1585, 40);
   text('+', 1080, 1585, 40);
 }
-export function multimeterTool() {
+export function multimeterTool({ stops = METER_STOPS, ac = false } = {}) {
   const group = new THREE.Group();
   const body = inked(new THREE.Mesh(new THREE.BoxGeometry(W * UNIT, TOP, H * UNIT), paint(0x344446)), { width: 0.8 });
   body.position.y = TOP / 2;
   group.add(body);
-  const tex = canvasTex(W, H, artwork);
+  const tex = canvasTex(W, H, (g) => artwork(g, stops, ac));
   const face = new THREE.Mesh(new THREE.PlaneGeometry(W * UNIT, H * UNIT), new THREE.MeshBasicMaterial({ map: tex }));
   face.rotation.x = -Math.PI / 2;
   face.position.y = TOP + 0.0001;
@@ -142,14 +142,14 @@ export function multimeterTool() {
     fraction: 0,
     display: 0,
     branches() {
-      return [{ a: 'red', b: 'black', ...meterBranch(METER_STOPS[this.stop], this.trimOffset) }];
+      return [{ a: 'red', b: 'black', ...meterBranch(stops[this.stop], this.trimOffset) }];
     },
     read([branch]) {
-      this.fraction = meterFraction(METER_STOPS[this.stop], branch);
+      this.fraction = meterFraction(stops[this.stop], branch);
     },
     setStop(i) {
       this.stop = i;
-      selector.rotation.y = -selectorAngle(i);
+      selector.rotation.y = -selectorAngle(i, stops.length);
       this.circuit?.solve();
     },
     update(dt) {
@@ -164,15 +164,13 @@ export function multimeterTool() {
       const a = Math.atan2(dx, up),
         r = Math.hypot(dx, up);
       if (Math.abs(a) > ARC + 0.025) return null;
-      const scale = Math.abs(r - OHM_RADIUS) <= 24 ? 'ohm' : Math.abs(r - DC_RADIUS) <= 24 ? 'dc' : null;
+      const scale = Math.abs(r - OHM_RADIUS) <= 24 ? 'ohm' : Math.abs(r - DC_RADIUS) <= 24 ? (ac ? 'ac' : 'dc') : null;
       return scale ? { scale, fraction: Math.max(0, Math.min(1, (a / ARC + 1) / 2)) } : null;
     },
     pickStop(point) {
       const [x, , z] = coord(selectorAt),
         a = Math.atan2(point.x - x, z - point.z);
-      return (
-        (Math.round(((a - selectorAngle(0)) / TURN) * METER_STOPS.length) + METER_STOPS.length) % METER_STOPS.length
-      );
+      return (Math.round(((a - selectorAngle(0, stops.length)) / TURN) * stops.length) + stops.length) % stops.length;
     },
     dispose() {
       tex.dispose();

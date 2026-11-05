@@ -26,3 +26,12 @@ test('电表接到副边时成为副线圈实际负载', () => {
   assert.ok(read().secondaryV < open.secondaryV);
   assert.ok(read({ range: 2.5 }).secondaryV < read({ range: 50 }).secondaryV);
 });
+
+test('测量原边实际抽头，整段显示电源端电压，半段与未通电的延伸段也能读数', () => {
+  const full = read({ meterSide: 'primary' });
+  assert.ok(Math.abs(full.primaryV - full.meterV) < 1e-9);
+  const half = read({ meterSide: 'primary', meterTurns: 100, overlapTurns: 100 });
+  assert.ok(Math.abs(half.meterV - full.primaryV / 2) < 0.002);
+  const extension = read({ meterSide: 'primary', meterTurns: 200, overlapTurns: 0 });
+  assert.ok(extension.meterV > 2.9 && extension.meterV < full.primaryV);
+});

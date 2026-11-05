@@ -5,7 +5,7 @@ export const SUPPLY_RMS = 3;
 const sourceResistance = 0.45;
 const resistancePerTurn = 0.012;
 
-// 电阻 r 与电抗 x 表示同一个复阻抗的实、虚部。
+// 用有效值相量解电源和电表两条回路；同一绕组上两对抽头可以只重叠一部分。
 export function transformerReadings({
   primary,
   secondary,
@@ -14,28 +14,36 @@ export function transformerReadings({
   frequency = 50,
   meterSide = null,
   range = 50,
+  meterTurns = meterSide === 'primary' ? primary : secondary,
+  overlapTurns = Math.min(primary, meterTurns),
 }) {
-  if (!energized || !primary) return { primaryV: 0, secondaryV: 0, sourceCurrent: 0 };
+  if (!energized || !primary) return { primaryV: 0, secondaryV: 0, meterV: 0, sourceCurrent: 0 };
   const omega = 2 * Math.PI * frequency;
-  const permeance = coreClosed ? 6e-6 : 0.12e-6;
-  const coupling = coreClosed ? 0.985 : 0.32;
-  const mutualX = omega * coupling * permeance * primary * secondary;
-  const secondaryX = omega * permeance * secondary ** 2;
-  const meterR = range * 20e3; // 模型表的交流电压挡内阻。
-  const loaded = meterSide === 'secondary';
-  const loadR = resistancePerTurn * secondary + meterR;
-  const loadZ2 = loadR ** 2 + secondaryX ** 2;
-  const reflected = loaded ? mutualX ** 2 / loadZ2 : 0;
-  const r = resistancePerTurn * primary + reflected * loadR;
-  const x = omega * permeance * primary ** 2 - reflected * secondaryX;
-  const z2 = r * r + x * x;
-  const conductance = r / z2 + (meterSide === 'primary' ? 1 / meterR : 0);
-  const susceptance = -x / z2;
-  const primaryV = SUPPLY_RMS / Math.hypot(1 + sourceResistance * conductance, sourceResistance * susceptance);
-  const inducedV = (mutualX * primaryV) / Math.sqrt(z2);
-  return {
-    primaryV,
-    secondaryV: loaded ? (inducedV * meterR) / Math.sqrt(loadZ2) : inducedV,
-    sourceCurrent: primaryV * Math.hypot(conductance, susceptance),
-  };
+  const permeance = coreClosed ? 6e-6 : 0.12e-6,
+    coupling = coreClosed ? 0.985 : 0.32;
+  const xPerTurnSquared = omega * permeance;
+  const meterR = range * 20e3;
+  const same = meterSide === 'primary';
+  const commonR = same ? resistancePerTurn * overlapTurns : 0;
+  const mutualX = xPerTurnSquared * primary * meterTurns * (same ? 1 : coupling);
+  const loadR = resistancePerTurn * meterTurns + meterR,
+    loadX = xPerTurnSquared * meterTurns ** 2;
+  const loadZ2 = loadR ** 2 + loadX ** 2;
+  // ratio 是电表回路电流与电源回路电流的复数比值。
+  const ratioR = meterSide ? -(commonR * loadR + mutualX * loadX) / loadZ2 : 0;
+  const ratioX = meterSide ? -(mutualX * loadR - commonR * loadX) / loadZ2 : 0;
+  const r = resistancePerTurn * primary + commonR * ratioR - mutualX * ratioX;
+  const x = xPerTurnSquared * primary ** 2 + commonR * ratioX + mutualX * ratioR;
+  const sourceCurrent = SUPPLY_RMS / Math.hypot(sourceResistance + r, x);
+  const primaryV = sourceCurrent * Math.hypot(r, x);
+  const meterV = meterR * sourceCurrent * Math.hypot(ratioR, ratioX);
+  const secondaryV =
+    meterSide === 'secondary'
+      ? meterV
+      : xPerTurnSquared *
+        coupling *
+        secondary *
+        sourceCurrent *
+        Math.hypot(primary + meterTurns * ratioR, meterTurns * ratioX);
+  return { primaryV, secondaryV, meterV, sourceCurrent };
 }
