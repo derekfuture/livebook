@@ -781,6 +781,7 @@
   "centripetal": [62, 56, 303, 239],
   "fallenergy": [376, 405, 522, 619],
   "projectile": [416, 621, 507, 736],
+  "pendulumgravity": [393, 467, 541, 667],
   "momentum": [66, 522, 521, 696],
   "capacitor": [55, 578, 200, 681],
   "multimeter": [214, 339, 413, 602],
