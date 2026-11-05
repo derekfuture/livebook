@@ -89,7 +89,7 @@ export class Panel {
     const s2 = h('div', { class: 'p-step' },
       h('div', { class: 'bar-title' }, explore ? '动手看' : '动手试'),
       this.nowEl, this.controlsEl, this.notesBox,
-      h('div', { class: 'bar-title' }, '数据'),
+      explore ? null : h('div', { class: 'bar-title' }, '数据'),          // 探索模式：没有“数据”这一栏（要的话活页自己加标题）
       this.dataEl, this.toProve, this.needEl);
 
     // ③ 结论
@@ -105,7 +105,7 @@ export class Panel {
       h('p', { class: 'src' }, c.src),
       this.sealEl);
     this.flapFront = h('div', { class: 'flap-front', onclick: () => this._openFlap() },
-      h('span', {}, explore ? '🔒 看明白了再掀开' : '🔒 做完实验再掀开'), h('small', {}, ''));
+      h('span', {}, explore ? '🔒 先动手看看' : '🔒 做完实验再掀开'), h('small', {}, ''));
     this.flap = h('div', { class: 'flap locked' }, this.flapFront, h('div', { class: 'flap-back' }, answer));
     this.answerEl = answer;
     const s3 = h('div', { class: 'p-step' },
@@ -156,7 +156,7 @@ export class Panel {
   go(i) {
     if (this.explore) {          // 探索模式：问题、动手、课本原文一路排下来，不分页
       this.step = Math.max(1, i);
-      this.steps.forEach((s) => (s.hidden = false));
+      this.steps.forEach((s, k) => (s.hidden = k === 2 && !this.unlocked));          // 课本原文那一块，能看了才出现
       if (i === 2) this.steps[2].scrollIntoView({ behavior: 'smooth', block: 'start' });
       this._onStep?.(this.step);
       return;
@@ -207,7 +207,8 @@ export class Panel {
     this.flap.classList.remove('locked');
     this.flapFront.querySelector('span').textContent = '掀开看结论';
     this.flapFront.querySelector('small').textContent = '点一下纸片';
-    this.needEl.textContent = pending ? `之前已经做完（可以看结论）。这一次${pending}` : this.explore ? '看明白了，可以对照课本原文。' : '实验做完了，可以去看结论。';
+    this.needEl.textContent = pending ? `之前已经做完（可以看结论）。这一次${pending}` : this.explore ? '可以对照课本原文了。' : '实验做完了，可以去看结论。';
+    if (this.explore) this.steps[2].hidden = false;
     this.toProve.disabled = false;
     if (!fromHistory) this.tabs[1].classList.add('done');
   }

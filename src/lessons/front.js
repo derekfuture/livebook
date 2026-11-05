@@ -1,17 +1,18 @@
 // 高中地理 选择性必修1 第三章第一节 常见天气系统 · 锋（课本第 42–44 页，图 3.2 锋的形成、图 3.3 冷锋及其天气）。
 //
-// 课本的图就是模型：打开时和图 3.2 一样——绿色的地面、橙色倾斜的锋面、冷暖气团的箭头，线稿、平涂的颜色。
-// 学生按住冷气团往右推：冷空气贴着地面插到暖空气下面，暖空气被迫沿锋面抬升、冷却，水汽凝结成云；云在锋线附近长高，
-// 雨落在锋线后面的冷气团里（图 3.3）。一推起来，线稿换成真实的光、云和雨。
-// 教学模型：锋面的高度放大了几十倍（真实的冷锋坡度约 1:50–1:100，暖锋约 1:100–1:200），只表示关系，不是天气预报。
+// 课本的图就是模型（讲同一件事，不还原插图）：地块上冷、暖两种气团，交界面是锋面，锋面和地面交成锋线。
+// 学生第一次按住冷气团往右推：锋面随之立起，冷空气（密度较大）楔入暖空气下面，暖湿空气被迫沿锋面抬升、冷却，
+// 达到饱和后凝结成云；本例暖空气湿润，具备降水条件，雨从云底落下，穿过锋面落进下面的冷空气（图 3.3 的情形：降水主要在锋后、紧挨锋线）。
+// 形成以后再推，就是整个锋面系统在移动（云雨跟着锋走，往回拖也不会消失）；“重看形成过程”才回到开头。
+// 教学示意：竖直方向夸大了（真实锋面很平缓，冷锋通常比暖锋陡），只表示冷暖空气的关系，不是天气预报。
 import * as THREE from 'three';
-import { goals, note } from './kit/ui.js';
+import { goals, note, buttons } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 
 const G = 0.022;                       // 地面顶面（地块有厚度，侧面露出土层）
 const XL = -0.17, XR = 0.17, ZD = 0.062; // 地面范围（窄一些：像从地上切下来的一块）
 const HC = 0.13, LAM = 0.12;            // 冷锋锋面的形状：h(s) = HC·(1 − e^(−s/λ))，s 是离锋线往后（冷气团一侧）的距离；近地面陡、高处缓
-const X0 = -0.02, X1 = 0.115;          // 锋线从哪推到哪
+const X0 = -0.02, X1 = 0.09, FORM = 0.07;          // 锋线从哪推到哪；推过 FORM 这一段，云雨就形成了
 const front = (s) => HC * (1 - Math.exp(-Math.max(0, s) / LAM));
 const rnd = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -26,13 +27,13 @@ export default {
   conclusion: {
     page: 47,
     quote: '冷锋是冷气团主动向暖气团移动的锋。冷气团的前缘插入暖气团下面，使暖气团被迫抬升（图3.3）。暖气团在抬升过程中冷却，其中水汽容易凝结成云和雨。当冷锋过境时，常出现较大的风，云层增厚，并出现雨、雪天气。冷锋过境后，冷气团占据原来暖气团的位置，气温下降，气压上升，天气转晴。',
-    why: '冷空气重，贴着地面往前插，把暖空气从下面顶起来。暖空气被抬升、冷却，水汽凝结成云；冷锋的锋面近地面很陡，云在锋线附近长得又高又厚，雨落在锋线后面、冷气团一侧。',
+    why: '冷空气密度较大，前缘贴着地面楔入暖空气下面，把暖空气抬起来。暖湿空气被抬升、冷却，达到饱和后凝结成云；具备降水条件时形成降水。本图演示的是冷锋降水主要落在锋后、紧挨锋线的冷空气一侧的情形（实际的冷锋，降水也可能在锋前，或者没有降水）。',
     src: '课本第 43 页 · 第三章 第一节 常见天气系统',
   },
 
   create({ tag }) {
     const group = new THREE.Group();
-    const S = { xf: X0, rise: 0, real: 0, pushed: 0, drag: false, t: 0, v: 0, going: false };
+    const S = { xf: X0, rise: 0, open: 0, form: 0, real: 0, drag: false, t: 0, going: false };          // open：打开时立到 0.25；form：形成过程（0→1，立起、抬升、成云、降水）
     let W = null;
     const LINE = new THREE.LineBasicMaterial({ color: 0x2a3140, transparent: true, opacity: 0.9 });
     const lit = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1, roughness: 0.9, metalness: 0, ...o });
@@ -41,7 +42,7 @@ export default {
     // 光用舞台自己的（加灯会把整本书照白）：线稿时颜色自己发光（平涂），推起来以后才受光
 
     // 镜头取景用：整块地加上云塔长到最高的范围（看不见；打开时云还没长出来，镜头也要把它算进去）
-    const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.2, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL + 0.05, 0.2, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     frameBox.position.y = 0.1; frameBox.raycast = () => {}; group.add(frameBox);
     // ---- 地面（图 3.2 那块绿色的板） ----
     const groundMat = lit(0x9cc98a);
@@ -111,16 +112,16 @@ export default {
     const flowTex = canvasTex(256, 64, (g, w, h) => { for (let x = 0; x < w; x += 64) { g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.moveTo(x + 8, 10); g.lineTo(x + 34, 10); g.lineTo(x + 54, h / 2); g.lineTo(x + 34, h - 10); g.lineTo(x + 8, h - 10); g.lineTo(x + 28, h / 2); g.closePath(); g.fill(); } });          // 一节节的箭头（>）
     flowTex.wrapS = THREE.RepeatWrapping;
     const flows = [];
-    for (const [z, lift] of [[-0.05, 0.006], [0.0, 0.011], [0.05, 0.007]]) {
+    for (const [z, lift, main] of [[-0.045, 0.006, 0], [0.0, 0.009, 1], [0.045, 0.007, 0]]) {          // 中间一条是主路径：看它一路爬进云里
       const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: flowTex, transparent: true, depthWrite: false, vertexColors: true, side: THREE.DoubleSide }));
-      m.renderOrder = 7; m.userData = { z, lift }; flows.push(m); group.add(m);
+      m.renderOrder = 7; m.userData = { z, lift, main }; flows.push(m); group.add(m);
     }
     const warmC = new THREE.Color(0xf07a2c), coolC = new THREE.Color(0xffffff);
     const shapeFlows = () => {          // 一条带子：从锋前贴地流来，到锋线拐上去，贴着锋面往上爬
       for (const m of flows) {
         const { z, lift } = m.userData, pts = [];
         const run = Math.min(0.12, XR - 0.004 - S.xf); for (let i = 0; i <= 40; i++) { const x = S.xf + run - (i / 40) * run; pts.push([x, G + lift]); }          // 从地面边上流过来
-        for (let i = 1; i <= 50; i++) { const sv = (i / 50) * 0.15; pts.push([S.xf - sv, G + front(sv) * S.rise + lift + 0.003]); }
+        for (let i = 1; i <= 50; i++) { const sv = (i / 50) * 0.11; pts.push([S.xf - sv, G + front(sv) * S.rise + lift + 0.003]); }          // 爬到云底那么高
         const P = [], C = [], U = [], I = [], wdt = 0.0105;
         let acc = 0;
         pts.forEach(([x, y], k) => {
@@ -133,7 +134,7 @@ export default {
         m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); m.geometry.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); m.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); m.geometry.setIndex(I);
       }
     };
-    const placeParts = () => { flowTex.offset.x = -S.t * 0.8; const on = smooth(0.0, 0.08, S.pushed); for (const m of flows) { m.visible = on > 0.01; m.material.opacity = on; } };
+    const placeParts = () => { flowTex.offset.x = -S.t * 0.8; const on = smooth(0.0, 0.15, S.form); for (const m of flows) { m.visible = on > 0.01; m.material.opacity = on * (m.userData.main ? 1 : 0.45); } };
 
     // ---- 云：在锋线附近长高（冷锋：积雨云），按推的程度一团团长出来 ----
     const puffs = [];
@@ -145,10 +146,10 @@ export default {
       g.globalCompositeOperation = 'destination-out';
       for (let i = 0; i < 260; i++) { const a = Math.random() * Math.PI * 2, r = (0.3 + Math.random() * 0.7) * w / 2; g.fillStyle = `rgba(0,0,0,${Math.random() * 0.25})`; g.beginPath(); g.arc(w / 2 + Math.cos(a) * r, w / 2 + Math.sin(a) * r, 4 + Math.random() * 14, 0, 7); g.fill(); }
     });
-    for (let i = 0; i < 130; i++) {          // 一座云塔：骑在锋线上、长在锋面上方的暖空气里，越往上越窄，顶上摊开一点（积雨云）
+    for (let i = 0; i < 100; i++) {          // 一座云塔：骑在锋线上、长在锋面上方的暖空气里，越往上越窄，顶上摊开一点（积雨云）
       const s = -0.014 + Math.pow(rnd(), 1.3) * 0.055, base = Math.max(0.026, front(s) + 0.004), hgt = 0.12 * Math.exp(-Math.abs(s - 0.004) / 0.03);
       const y = base + Math.pow(rnd(), 0.8) * hgt, k = (y - base) / Math.max(hgt, 1e-3), top = k > 0.82, r = (0.013 + rnd() * 0.01) * (top ? 1.6 : 1);          // 云底平（凝结的高度），顶上摊开、往暖空气那边伸（砧状云顶）
-      const shade = 0.72 + 0.28 * Math.min(1, k * 1.3);          // 云底灰、云顶白
+      const shade = 0.6 + 0.32 * Math.min(1, k * 1.25);          // 云底灰、云顶白（整体压暗一点，不抢暖空气爬升那一段）
       const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(shade, shade, shade * 1.02), transparent: true, depthWrite: false, opacity: 0.9 }));
       m.renderOrder = 8; m.raycast = () => {};
       m.userData = { s: s - (top ? 0.045 * rnd() : 0), y, r, z: -ZD * 0.85 + rnd() * ZD * 1.7, born: 0.12 + k * 0.55 + rnd() * 0.12 };
@@ -156,13 +157,13 @@ export default {
     }
     const placeClouds = () => {
       for (const m of puffs) {
-        const u = m.userData, g = smooth(u.born, u.born + 0.25, S.pushed) * S.rise;
+        const u = m.userData, g = smooth(u.born, u.born + 0.25, S.form);
         m.visible = g > 0.01;
-        m.position.set(S.xf - u.s, G + u.y, u.z); m.scale.setScalar(u.r * 2 * (0.35 + 0.65 * g)); m.material.opacity = 0.9 * g;
+        m.position.set(S.xf - u.s, G + u.y, u.z); m.scale.setScalar(u.r * 2 * (0.35 + 0.65 * g)); m.material.opacity = 0.8 * g;
       }
     };
 
-    // ---- 雨：落在锋线后面（冷气团一侧），云长够了才下 ----
+    // ---- 雨：从云底落下，穿过锋面落进下面的冷空气，一直落到地面（本图的情形：紧挨锋线的锋后） ----
     const NR = 420, rainPos = new Float32Array(NR * 6), rainSeed = Array.from({ length: NR }, () => [rnd(), rnd(), rnd()]);
     const rain = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x4f6f98, transparent: true, opacity: 0.85 }));
     rain.geometry.setAttribute('position', new THREE.BufferAttribute(rainPos, 3)); rain.raycast = () => {}; group.add(rain);
@@ -170,10 +171,11 @@ export default {
     const curtainTex = canvasTex(64, 128, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(80,100,130,0.9)'); gr.addColorStop(1, 'rgba(80,100,130,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
     const curtain = new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.024, ZD * 1.7), new THREE.MeshBasicMaterial({ map: curtainTex, transparent: true, depthWrite: false, opacity: 0 })); curtain.visible = false; curtain.renderOrder = 4; curtain.raycast = () => {}; group.add(curtain);
     const placeRain = () => {
-      const on = smooth(0.55, 0.8, S.pushed) * S.rise; rain.visible = on > 0.02; if (!rain.visible) { curtain.visible = false; return; }
+      const on = smooth(0.7, 0.95, S.form); rain.visible = on > 0.02; if (!rain.visible) { curtain.visible = false; return; }
       for (let i = 0; i < NR; i++) {
-        const [a, b, c] = rainSeed[i], x = S.xf - 0.002 - a * 0.045, base = 0.024, y = G + base - (((c + S.t * 1.1) % 1) * base);
-        rainPos.set([x, y, -ZD * 0.85 + b * ZD * 1.7, x - 0.0015, y - 0.008, -ZD * 0.85 + b * ZD * 1.7], i * 6);
+        const [a, b, c] = rainSeed[i], sv = 0.002 + a * 0.043, x = S.xf - sv, top = Math.max(0.026, front(sv) * S.rise + 0.004), y = G + top - (((c + S.t * 1.1) % 1) * top);
+        const y2 = Math.max(G, y - 0.008);
+        rainPos.set([x, y, -ZD * 0.85 + b * ZD * 1.7, x - 0.0015 * (y - y2) / 0.008, y2, -ZD * 0.85 + b * ZD * 1.7], i * 6);
       }
       rain.geometry.attributes.position.needsUpdate = true; rain.material.opacity = 0.85 * on;
       curtain.visible = true; curtain.position.set(S.xf - 0.024, G + 0.012, 0); curtain.material.opacity = 0.32 * on;
@@ -188,13 +190,14 @@ export default {
 
     // ---- 标签（课本图 3.2 的字） ----
     const tCold = tag('冷气团', 'pill'), tWarm = tag('暖气团', 'pill'), tFront = tag('锋面', 'pill'), tLine = tag('锋线', 'pill'), tHint = tag('按住冷气团，往右推', 'pill');
+    const tScale = tag('教学示意 · 竖直方向夸大了', 'pill');          // 常驻：真实锋面很平缓
 
     // ---- 线稿 → 真实：颜色从平涂（自己发光）变成受光；墨线变淡；光亮起来 ----
     const setReal = () => {
       const r = S.real;
       for (const m of [groundMat, frontMat, coldMat, coldArrow.children[0].material, warmArrow.children[0].material]) m.emissiveIntensity = 1 - 0.82 * r;
       LINE.opacity = 0.9 - 0.6 * r;
-      frontMat.opacity = 0.85 - 0.3 * r;
+      frontMat.opacity = 0.8 - 0.5 * r;          // 锋面是两种气团之间的过渡界面，不是一块硬板：变真实以后很淡，只留轮廓
       coldMat.opacity = 0.22 + 0.1 * r;
       fieldMat.opacity = Math.min(1, r * 1.4); field.scale.x = Math.max(0.001, smooth(0, 0.85, r)); field.position.x = XL + (XR - XL) * field.scale.x / 2;          // 从冷气团那边一路铺过去
     };
@@ -207,9 +210,9 @@ export default {
       grab.position.set(S.xf - 0.1, G + 0.025, 0);
       sym.position.set(S.xf, G, 0); sym.visible = S.real > 0.3;
       setReal(); shapeFlows(); placeParts(); placeClouds(); placeRain();
-      tCold.loc(group, S.xf - 0.1, G + 0.03, 0.06); tWarm.loc(group, S.xf + 0.07, G + 0.05, -0.02);
+      tCold.loc(group, S.xf - 0.1, G + 0.03, 0.06); tWarm.loc(group, Math.min(XR - 0.035, S.xf + 0.07), G + 0.05, -0.02); tScale.loc(group, XL + 0.05, -0.004, ZD + 0.01);
       tFront.loc(group, S.xf - 0.05, G + front(0.05) * S.rise + 0.012, 0.075); tLine.loc(group, S.xf + 0.006, G + 0.004, ZD - 0.005);
-      tHint.loc(group, S.xf - 0.12, G + 0.06, 0.04).show(S.pushed < 0.05 && S.rise > 0.9);
+      tHint.loc(group, S.xf - 0.12, G + 0.06, 0.04).show(S.form < 0.03 && S.open >= 1);
     };
 
     // ---- 推冷气团：按住锋面后面的冷空气，在地面上往右拖 ----
@@ -218,16 +221,16 @@ export default {
     const onGround = (ray) => { group.updateMatrixWorld(); group.getWorldPosition(wq); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), wq); if (!ray.intersectPlane(plane, hit)) return null; return group.worldToLocal(hit.clone()).x; };
     const pointer = {
       down(rc) {
-        if (S.rise < 0.95) return false;
+        if (S.open < 1) return false;
         const hits = rc.intersectObjects([grab, cold, coldArrow], true); if (!hits.length) return false;
         const x = onGround(rc.ray); if (x == null) return false;
         S.drag = true; x0 = x; xf0 = S.xf; document.getElementById('c').style.cursor = 'grabbing'; return true;
       },
       move(rc) {
-        if (!S.drag) { const c = document.getElementById('c'); if (c && S.rise > 0.95) c.style.cursor = rc.intersectObjects([grab, cold, coldArrow], true).length ? 'grab' : ''; return false; }
+        if (!S.drag) { const c = document.getElementById('c'); if (c && S.open >= 1) c.style.cursor = rc.intersectObjects([grab, cold, coldArrow], true).length ? 'grab' : ''; return false; }
         const x = onGround(rc.ray); if (x == null) return true;
         const nx = Math.min(X1, Math.max(X0, xf0 + (x - x0)));
-        S.v = nx - S.xf; S.xf = nx; S.pushed = Math.max(S.pushed, (S.xf - X0) / (X1 - X0)); if (S.pushed > 0.04) S.going = true;          // 一推就开始变真实（update 里一秒铺开）
+        S.xf = nx; S.form = Math.max(S.form, Math.min(1, (S.xf - X0) / FORM)); S.rise = 0.25 + 0.75 * smooth(0, 0.4, S.form); if (S.form > 0.05) S.going = true;          // 头一段：锋面立起、成云、降水；形成以后再推，就是整个系统在走（云雨跟着锋）
         layout(); progress(); return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; return true; },
@@ -236,26 +239,27 @@ export default {
     const progress = () => {
       if (!W) return;
       const say = (k, m) => { if (!said.has(k)) { said.add(k); W.ui.status(m); } };
-      if (S.pushed > 0.04) say('in', '冷空气重，贴着地面往前插，钻到暖空气<b>下面</b>；暖空气被迫沿着锋面<b>往上爬</b>。');
-      if (S.pushed > 0.3) say('cloud', '暖空气越抬越高、越来越冷，里面的水汽凝结成<b>云</b>。冷锋的锋面贴地的地方很陡，云就在锋线附近长得又高又厚。');
-      if (S.pushed > 0.7) { say('rain', '云长够了，开始下<b>雨</b>：雨落在锋线<b>后面</b>，落在冷气团这一侧。'); W.goal.done('push'); }
+      if (S.form > 0.05) say('in', '冷空气密度较大，贴着地面往前插，<b>楔入</b>暖空气下面；暖空气被迫沿着锋面<b>往上爬</b>。看中间那条箭头。');
+      if (S.form > 0.45) say('cloud', '暖湿空气被抬升、冷却，达到饱和后，水汽凝结成<b>云</b>。本例暖空气很湿润，云在锋线附近发展得很旺盛。');
+      if (S.form >= 1) { say('rain', '具备降水条件，雨从<b>云底</b>落下，穿过锋面，落进下面的<b>冷空气</b>里。本图是冷锋降水主要在锋后、紧挨锋线的情形。<br>现在再推，就是整个锋面在往前走，云和雨跟着它。'); W.goal.done('push'); }
     };
 
     layout();
     return {
       group,
       card: false,          // 和化学一样：直接立在书页上，不垫台板
-      size: { w: 0.36, d: 0.13, h: 0.22 },
-      view: { elev: 10, azim: 20, lookY: 0.42, frameMargin: 1.02 },          // 镜头放低：锋面、云塔往上长，看得出高          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面
+      size: { w: 0.38, d: 0.13, h: 0.22 },
+      view: { elev: 10, azim: 20, lookY: 0.42, frameMargin: 1.0 },          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面；镜头放低，锋面、云塔往上长
       pointer,
       mount(ui) {
         W = { ui, goal: goals(ui, [['push', '按住冷气团往右推，看云和雨出现在哪里']]) };
-        ui.controls.append(note('这是教学模型：锋面的高度放大了几十倍。真实的冷锋坡度约 1:50 到 1:100（课本没写数值，取自气象教材），只表示冷暖空气的关系。'));
-        ui.status('这是课本图 3.2：冷、暖两种气团相遇，交界面叫<b>锋面</b>，锋面和地面交成的线叫<b>锋线</b>。按住左边的<b>冷气团</b>，往右推。');
+        const again = buttons([{ text: '重看形成过程', ghost: true, onClick: () => { S.xf = X0; S.form = 0; S.rise = 0.25; said.clear(); layout(); ui.status('回到开头：按住左边的<b>冷气团</b>，往右推。'); } }]);
+        ui.controls.append(again.el, note('教学示意：竖直方向夸大了。真实锋面很平缓，冷锋通常比暖锋陡（课本没写坡度；气象教材里冷锋约 1:50 到 1:100，暖锋约 1:100 到 1:200）。'));
+        ui.status('冷、暖两种气团相遇，交界面叫<b>锋面</b>，锋面和地面交成的线叫<b>锋线</b>（课本图 3.2）。按住左边的<b>冷气团</b>，往右推。');
       },
       update(dt) {
         S.t += dt;
-        if (S.rise < 1) { S.rise = Math.min(1, S.rise + dt / 1.1); layout(); return; }          // 打开时：锋面从书页上立起来
+        if (S.open < 1) { S.open = Math.min(1, S.open + dt / 0.9); S.rise = 0.25 * S.open; layout(); return; }          // 打开时：锋面微微立起（剩下的等学生推的时候再立）
         if (S.going && S.real < 1) { S.real = Math.min(1, S.real + dt / 0.9); setReal(); sym.visible = S.real > 0.3; }
         placeParts(); placeRain();
       },
