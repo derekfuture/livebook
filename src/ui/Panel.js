@@ -201,7 +201,7 @@ export class Panel {
   }
 
   unlock(fromHistory = false) {
-    if (this.unlocked) { this.needEl.textContent = '实验做完了，可以去看结论。'; return; }
+    if (this.unlocked) { this.needEl.textContent = this.explore ? '可以对照课本原文了。' : '实验做完了，可以去看结论。'; return; }
     const pending = fromHistory ? this.needEl.textContent : '';
     this.unlocked = true;
     this.flap.classList.remove('locked');
