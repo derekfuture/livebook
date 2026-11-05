@@ -20,16 +20,16 @@ const G = 0.022;                        // 地面顶面（地块有厚度，侧�
 const XL = -0.17, XR = 0.17, ZD = 0.062;
 // 两种锋：锋面的形状 h(s) = H·(1 − e^(−s/λ))，s 是从锋线往冷空气那边量的距离。冷锋陡，冷空气在后面（锋线左边）；暖锋缓，冷空气在前面（右边）
 const KIND = {
-  cold: { H: 0.11, L: 0.1, side: -1, x0: -0.12, x1: 0.15, rain: [0, 0.045], name: '冷锋' },
-  warm: { H: 0.07, L: 0.2, side: 1, x0: -0.15, x1: 0.13, rain: [0, 0.095], name: '暖锋' },
+  cold: { H: 0.11, L: 0.1, side: -1, x0: -0.12, x1: 0.165, rain: [0, 0.045], name: '冷锋' },
+  warm: { H: 0.07, L: 0.2, side: 1, x0: -0.15, x1: 0.165, rain: [0, 0.095], name: '暖锋' },
   still: { H: 0.06, L: 0.2, side: -1, x0: -0.1, x1: 0.03, rain: [0, 0.11], name: '准静止锋' },          // 冷空气在左边，被山（x = 0.03 往右）挡住；暖空气从右边沿锋面慢慢爬到冷空气上面
 };
 const MX = 0.03;                        // 山脚（准静止锋停在这里）
 const HOME0 = { cold: [0.05, 0.13], warm: [0.05, 0.13], still: [-0.035, 0.1] };          // 你家、邻城一开始在哪（准静止锋：你家在冷空气一侧，像贵阳；邻城在山那边，像昆明）
 const ASK = {
-  cold: ['先猜一下（可以不猜）：冷锋来了，你家会——', ['先降温', '先下雨', '差不多一起']],
-  warm: ['先猜一下（可以不猜）：暖锋来了，你家会——', ['先变暖', '先下雨', '差不多一起']],
-  still: ['先猜一下（可以不猜）：冷空气被山挡住了，你家会——', ['很快放晴', '连着下好几天', '一直不下雨']],
+  cold: ['先猜一下（可以不猜）：在这个情境里，冷锋来了，你家会——', ['先降温', '先下雨', '差不多一起']],
+  warm: ['先猜一下（可以不猜）：在这个情境里，暖锋来了，你家会——', ['先变暖', '先下雨', '差不多一起']],
+  still: ['先猜一下（可以不猜）：在这个情境里，冷空气被山挡住了，你家会——', ['很快放晴', '连着下好几天', '一直不下雨']],
 };
 const rnd = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -37,20 +37,20 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a
 /** 某地离锋线 d（正数＝在锋线前面，锋还没到）时的天气（教学示意，按课本图 3.3、3.4） */
 export function weatherAt(kind, d) {
   if (kind === 'cold') {
-    if (d > 0.065) return { k: 'w0', text: '晴，较暖' };
-    if (d > 0) return { k: 'w1', text: '云变厚，风渐大' };
-    if (d >= -0.045) return { k: 'w2', text: '大风、降温、下雨' };
-    return { k: 'w3', text: '转晴，较冷，气压升高' };
+    if (d > 0.065) return { k: 'w0', text: '晴，较暖', s: '晴暖' };
+    if (d > 0) return { k: 'w1', text: '云变厚，风渐大', s: '云厚风起' };
+    if (d >= -0.045) return { k: 'w2', text: '大风、降温、下雨', s: '大风降温下雨' };
+    return { k: 'w3', text: '转晴，较冷，气压升高', s: '转晴变冷' };
   }
   if (kind === 'still') {
-    if (d >= 0) return { k: 'w0', text: '晴，较暖' };
-    if (d >= -0.11) return { k: 'w2', text: '阴雨连绵' };
-    return { k: 'w1', text: '阴，较冷' };
+    if (d >= 0) return { k: 'w0', text: '晴，较暖', s: '晴' };
+    if (d >= -0.11) return { k: 'w2', text: '阴雨连绵', s: '阴雨连绵' };
+    return { k: 'w1', text: '阴，较冷', s: '阴冷' };
   }
-  if (d > 0.14) return { k: 'w0', text: '晴，较冷' };
-  if (d > 0.095) return { k: 'w1', text: '云一层层变厚' };
-  if (d >= 0) return { k: 'w2', text: '连续下雨，地面还冷' };
-  return { k: 'w3', text: '雨停，变暖，气压降低' };
+  if (d > 0.14) return { k: 'w0', text: '晴，较冷', s: '晴冷' };
+  if (d > 0.095) return { k: 'w1', text: '云一层层变厚', s: '云渐厚' };
+  if (d >= 0) return { k: 'w2', text: '锋线还没到，已经连续下雨，地面还冷', s: '连续下雨（地面还冷）' };
+  return { k: 'w3', text: '雨停，变暖，气压降低', s: '雨停变暖' };
 }
 
 export default {
@@ -67,7 +67,7 @@ export default {
     src: '课本第 43–44 页 · 第三章 第一节 常见天气系统',
   },
 
-  create({ tag, look, back }) {
+  create({ tag, look, back, reframe }) {
     const group = new THREE.Group();
     const S = { kind: 'cold', xf: KIND.cold.x0, rise: 0, real: 0, going: false, hintFor: null, drag: null, moved: false, t: 0, home: 0.05, town: 0.13, logs: { cold: [], warm: [], still: [] }, done: new Set(), guess: {}, days: 0, dived: false };
     let W = null;
@@ -150,8 +150,8 @@ export default {
       for (const m of flows) {
         const { z } = m.userData, pts = [];
         // 冷锋：暖空气在前面（右边），往左流到锋线，再贴着锋面往左上爬；暖锋：暖空气在后面（左边），往右流到锋线，再贴着锋面往右上爬
-        const toward = -k.side, start = k.side < 0 ? Math.min(0.12, XR - 0.004 - S.xf) : Math.min(0.12, S.xf - XL - 0.004);
-        for (let i = 0; i <= 30; i++) pts.push([S.xf - toward * start * (1 - i / 30), G + 0.008]);
+        const start = k.side < 0 ? Math.min(0.12, XR - 0.004 - S.xf) : Math.min(0.12, S.xf - XL - 0.004);          // 暖空气那一侧离地块边多远
+        for (let i = 0; i <= 30; i++) pts.push([S.xf - k.side * start * (1 - i / 30), G + 0.008]);          // 从暖空气一侧贴地流到锋线（冷锋从右往左，暖锋从左往右）
         const climb = Math.min(k.side < 0 ? 0.1 : 0.16, run() - 0.004);
         for (let i = 1; i <= 50; i++) { const sv = (i / 50) * climb; pts.push([xAt(sv), hAt(sv) + 0.011]); }
         const P = [], C = [], U = [], I = [], wd = 0.0105; let acc = 0;
@@ -230,14 +230,14 @@ export default {
         const rg = new THREE.ConeGeometry(w * 0.78, 0.004, 4); rg.rotateY(Math.PI / 4); const r = edges(new THREE.Mesh(rg, lit(roof))); r.position.set(x, hh + 0.002, z); t.add(r);
       }
       if (flag) { const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0004, 0.0004, 0.016, 6), lit(0x666a72)); pole.position.set(-0.012, 0.008, 0.006); t.add(pole); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.006, 0.004), lit(0xd8392b, { side: THREE.DoubleSide })); f.position.set(-0.009, 0.014, 0.006); t.add(f); }
-      const pick = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.035), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.01; pick.userData.pick = true; t.add(pick);
+      const pick = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.024, 0.026), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.01; pick.userData.pick = true; t.add(pick);
       t.userData.pick = pick; block.add(t); return t;
     };
     const home = makeTown(0xc7503c, true), town = makeTown(0x8a93a3, false);
     const homeTag = tag('', 'pill', () => dive()), townTag = tag('', 'pill');          // 点你家头顶的牌子也能落到地上看
 
     // ---- 标签 ----
-    const tCold = tag('冷气团', 'pill'), tWarm = tag('暖气团', 'pill'), tFront = tag('锋面', 'pill'), tHint = tag('', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了', 'pill');
+    const tCold = tag('冷气团', 'pill'), tWarm = tag('暖气团', 'pill'), tFront = tag('锋面', 'pill'), tHint = tag('', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 本例水汽充足', 'pill');
 
     // ---- 线稿 → 真实：头一次推的时候，一秒内铺开 ----
     const setReal = () => {
@@ -255,13 +255,13 @@ export default {
       drawLogs();
     };
     const truth = (k) => k === 'cold' ? '锋线一到，降温和下雨差不多一起来' : k === 'warm' ? '先下雨：锋线没到就下起来，锋线过后才变暖'
-      : weatherAt('still', S.home - S.xf).k === 'w2' ? '连着下好几天：锋停着不走，雨也不走' : '你家不在雨区，一直没下雨';
+      : S.stillSnap?.rain ? '连着下好几天：锋停着不走，雨也不走' : '你家不在雨区，一直没下雨';
     const drawLogs = () => {
       if (!W) return;
       W.logs.replaceChildren(...['cold', 'warm', 'still'].map((k) => {
-        const log = S.logs[k], fin = k === 'still' ? S.days >= 3 : log.length === 4;
-        const line = k === 'still' ? (S.days >= 0.5 ? `锋停在山脚，你家：${weatherAt('still', S.home - S.xf).text}，已经 ${Math.floor(S.days)} 天` : '还没推过')
-          : log.length > 1 ? log.map((x) => x.text).join(' → ') : '还没推过';
+        const log = S.logs[k], fin = k === 'still' ? (S.stillSnap?.days ?? 0) >= 3 : log.length === 4;
+        const snap = S.stillSnap, line = k === 'still' ? (snap ? `锋停在山脚，你家${snap.text}，已经 ${snap.days} 天（示意，时间加快了）` : '还没推过')          // 用当时记下的，不拿现在的位置重算
+          : log.length > 1 ? log.map((x) => x.s).join(' → ') : '还没推过';
         const g = S.guess[k] != null ? ASK[k][1][S.guess[k]] : null;
         return h('div', { class: 'tl-row' }, h('b', {}, k === 'still' ? '准静止锋：' : `${KIND[k].name}过你家：`), h('span', {}, line),
           fin ? h('small', {}, g ? `你猜：${g}　实际：${truth(k)}` : `实际：${truth(k)}`) : null);          // 不判对错：猜的和实际的并排放着
@@ -280,7 +280,8 @@ export default {
       g.fillStyle = 'rgba(111,159,214,0.28)'; g.fillRect(coldL, 10, coldR - coldL, hh - 20);
       g.fillStyle = 'rgba(242,163,94,0.25)'; g.fillRect(k.side < 0 ? fx : 10, 10, k.side < 0 ? w - 10 - fx : fx - 10, hh - 20);
       const [r0, r1] = k.rain, ra = px(S.xf + k.side * r0), rb = px(S.xf + k.side * r1);
-      g.save(); g.beginPath(); g.rect(Math.min(ra, rb), 10, Math.abs(rb - ra), hh - 20); g.clip();
+      const rl = Math.max(10, Math.min(ra, rb)), rr = Math.min(w - 10, Math.max(ra, rb));          // 雨区只画在地图的地块里
+      g.save(); g.beginPath(); g.rect(rl, 10, Math.max(0, rr - rl), hh - 20); g.clip();
       g.strokeStyle = 'rgba(60,90,140,0.55)'; g.lineWidth = 1.2; for (let x = -hh; x < w; x += 6) { g.beginPath(); g.moveTo(x, hh); g.lineTo(x + hh * 0.5, 0); g.stroke(); } g.restore();          // 雨区：斜线
       if (S.kind === 'still') { g.fillStyle = '#8a7a52'; for (let y = 14; y < hh - 12; y += 10) { g.beginPath(); g.moveTo(px(MX + 0.012), y + 8); g.lineTo(px(MX + 0.025), y); g.lineTo(px(MX + 0.038), y + 8); g.fill(); } }          // 山
       g.strokeStyle = S.kind === 'warm' ? '#c8402e' : '#2a62b8'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(fx, 10); g.lineTo(fx, hh - 10); g.stroke();
@@ -298,20 +299,21 @@ export default {
     const layout = () => {
       const k = K();
       shapeFront(); shapeFlows(); placeClouds(); placeRain();
-      const ac = S.kind === 'cold' ? 0x2f7f6f : 0xd9662f; pushArrow.userData.mat.color.set(ac); pushArrow.userData.mat.emissive.set(ac);
+      const ac = S.kind === 'warm' ? 0xd9662f : 0x2f7f6f;          // 冷锋、准静止锋推冷气团；暖锋推暖气团 pushArrow.userData.mat.color.set(ac); pushArrow.userData.mat.emissive.set(ac);
       pushArrow.position.set(Math.max(XL + 0.012, S.xf - 0.12), G + 0.004, 0.035);
       grab.position.set(S.xf - 0.07, G + 0.03, 0);
       sym.position.set(S.xf, G, 0); sym.visible = S.rise > 0.5; ridge.visible = S.kind === 'still';
       home.position.set(S.home, G, 0.03); town.position.set(S.town, G, -0.025);
       const wHome = weatherAt(S.kind, S.home - S.xf), stuck = S.kind === 'still' && S.days >= 1 && wHome.k === 'w2';
       homeTag.loc(block, S.home, G + 0.04, 0.035).text(`<b>你家</b> ${wHome.text}${stuck ? `，第 ${Math.floor(S.days) + 1} 天` : ''}`);
-      townTag.loc(block, S.town, G + 0.02, -0.03).text(`<b>邻城</b> ${weatherAt(S.kind, S.town - S.xf).text}`);
+      townTag.loc(block, S.town, G + (Math.abs(S.home - S.town) < 0.05 ? 0.075 : 0.02), -0.03).text(`<b>邻城</b> ${weatherAt(S.kind, S.town - S.xf).text}`);          // 两城靠近：邻城的牌子抬高，免得叠字
+      homeTag.el.classList.toggle('hot', wHome.k === 'w2');          // 你家正在下雨：牌子亮一下
       const coldX = k.side < 0 ? S.xf - 0.09 : Math.min(XR - 0.03, S.xf + 0.08), warmX = k.side < 0 ? Math.min(XR - 0.03, S.xf + 0.07) : Math.max(XL + 0.03, S.xf - 0.09);
       tCold.loc(block, coldX, G + 0.03, -0.05); tWarm.loc(block, warmX, G + 0.075, -0.05);
       tFront.loc(block, xAt(0.05), hAt(0.05) + 0.012, ZD + 0.004);
       const intro = S.hintFor !== S.kind; tCold.show(intro); tWarm.show(intro); tFront.show(intro);          // 气团、锋面的名字只在开头标一下；推起来以后画面留给你家和邻城
       tScale.loc(block, XL + 0.05, -0.006, ZD + 0.01);
-      tHint.loc(block, S.xf - 0.1, G + 0.065, 0.04).text(S.kind === 'cold' ? '按住冷气团，往右推' : '按住暖气团，往右推').show(S.hintFor !== S.kind);
+      tHint.loc(block, S.xf - 0.1, G + 0.065, 0.04).text(S.kind === 'warm' ? '按住暖气团，往右推' : '按住冷气团，往右推').show(S.hintFor !== S.kind);
       setReal();
       if (S.dived) for (const o of diagram()) o.visible = false;
     };
@@ -355,7 +357,7 @@ export default {
           const k = K(); S.xf = Math.min(k.x1, Math.max(k.x0, v0 + (x - x0))); if (S.xf < MX - 0.01) S.stuck = false;
           S.going = true; S.hintFor = S.kind;
         } else {
-          S[S.drag] = Math.min(XR - 0.015, Math.max(XL + 0.015, v0 + (x - x0)));
+          S[S.drag] = Math.min(0.115, Math.max(XL + 0.03, v0 + (x - x0)));          // 只能放在锋面推得到、雨带也能完全过去的地方
           if (S.drag === 'home') { S.logs[S.kind] = []; S.done.delete(S.kind); }          // 你家搬了：这一次的时间线从头记
         }
         record(); layout(); say(); return true;
@@ -372,6 +374,7 @@ export default {
       S.kind = kind; S.xf = KIND[kind].x0; S.rise = 0; S.hintFor = null; last = '';
       if (fresh || kind === 'still') [S.home, S.town] = HOME0[kind];
       S.stuck = false; if (kind === 'still') S.days = 0;
+      const fh = kind === 'cold' ? 0.17 : 0.11; frameBox.scale.y = fh / 0.17; frameBox.position.y = LIFT + fh / 2; reframe?.();          // 暖锋、准静止锋的云低：镜头按各自的高度取景，不留大片空
       drawSym(); record();
       if (W) {
         setGuess();
@@ -389,13 +392,16 @@ export default {
       S.dived = on; for (const o of diagram()) o.visible = !on && (o !== sym || S.rise > 0.5);
       for (const t of [tCold, tWarm, tFront, tHint, tScale, townTag]) t.el.style.visibility = on ? 'hidden' : '';
       if (W?.diveBtn) W.diveBtn.textContent = on ? '回到上面看' : '到你家地上看';
+      if (W?.stepBtn) W.stepBtn.hidden = !on;
     };
     const dive = () => {
       if (S.dived) { setDived(false); back(); return; }
       setDived(true);
       // 站在你家房子后面、屋顶那么高，朝锋面来的方向（左边）看：看云一层层压过来
       // 视线几乎水平（look 会按屏幕把距离放大一点，所以这里给近一些）：人站在地上，云在头顶上方压过来
-      const eye = new THREE.Vector3(S.home + 0.02, LIFT + G + 0.01, 0.05), tgt = new THREE.Vector3(S.home - 0.12, LIFT + G + 0.014, 0.0);
+      // 站在你家旁边的空地上（不被房子、旗杆挡住），望向锋线那一边：锋线、云底和雨幕在眼前
+      const side = S.xf < S.home ? -1 : 1, eye = new THREE.Vector3(S.home - side * 0.035, LIFT + G + 0.012, -0.03);
+      const tgt = new THREE.Vector3(Math.min(XR - 0.01, Math.max(XL + 0.01, S.xf + side * 0.01)), LIFT + G + 0.022, 0.0);
       const dir = eye.clone().sub(tgt), dist = dir.length() * 0.7; dir.normalize();
       look(tgt.toArray(), dir.toArray(), dist, () => { setDived(false); back(); });
     };
@@ -415,11 +421,13 @@ export default {
         // 重来：这一种锋回到开头的样子——锋面、你家和邻城的位置、猜的选项、提示、这一种锋的时间线（别的锋的时间线留着，好对比）
         const acts = buttons([
           { text: '到你家地上看', ghost: true, onClick: () => dive() },
-          { text: '重来', ghost: true, onClick: () => { S.logs[S.kind] = []; S.done.delete(S.kind); delete S.guess[S.kind]; setKind(S.kind, true); layout(); } },
+          { text: '锋面往前走一点', ghost: true, onClick: () => { const k = K(); S.xf = Math.min(k.x1, S.xf + 0.015); S.going = true; S.hintFor = S.kind; record(); layout(); say(); } },
+          { text: '重来', ghost: true, onClick: () => { if (S.dived) { setDived(false); back(); } S.logs[S.kind] = []; S.done.delete(S.kind); delete S.guess[S.kind]; if (S.kind === 'still') S.stillSnap = null; setKind(S.kind, true); layout(); } },
         ]);
         ui.controls.append(kindSeg.el, guess.el, acts.el, note('你家和邻城都可以拖到别处；点一下你家，也能落到地上看。'));
         ui.data.append(h('div', { class: 'bar-title' }, '从上往下看（天气图）'), map, h('div', { class: 'bar-title' }, '你家经历了什么'), logs);
-        W = { ui, logs, guess, map, diveBtn: acts.btns[0] };
+        W = { ui, logs, guess, map, diveBtn: acts.btns[0], stepBtn: acts.btns[1] };
+        acts.btns[1].hidden = true;          // 站在地上时才有：一步步看锋面过来
         setGuess();
         drawLogs();
         ui.status('地块上有你家和一座邻城。按住左边的<b>冷气团</b>往右推，看锋面扫过你家时，你家的天气怎么变。');
@@ -432,7 +440,7 @@ export default {
         if (S.kind === 'still' && (S.stuck || S.xf >= MX - 0.004) && S.drag !== 'front') {          // 准静止锋：顶在山脚不走了，一天天过去（锋线只是来回微微摆动）
           S.stuck = true; const d0 = Math.floor(S.days); S.days += dt / 1.4;
           S.xf = MX - 0.002 - 0.003 * (0.5 + 0.5 * Math.sin(S.t * 0.9)); shapeFront(); shapeFlows(); placeClouds(); sym.position.x = S.xf;
-          if (Math.floor(S.days) !== d0) { if (S.days >= 3) S.done.add('still'); layout(); drawLogs(); if (Math.floor(S.days) === 1) W?.ui.status('冷空气被山挡住，锋停在山脚，几乎不动。暖湿空气一直沿锋面往上爬：山这边的你家<b>阴雨连绵</b>，一天又一天；山那边的邻城是晴天。'); }
+          if (Math.floor(S.days) !== d0) { const w = weatherAt('still', S.home - S.xf); S.stillSnap = { text: w.text, rain: w.k === 'w2', days: Math.floor(S.days) }; if (S.days >= 3) S.done.add('still'); layout(); drawLogs(); if (Math.floor(S.days) === 1) W?.ui.status('冷空气被山挡住，锋停在山脚，几乎不动。暖湿空气一直沿锋面往上爬：山这边的你家<b>阴雨连绵</b>，一天又一天（示意，时间加快了）；山那边的邻城是晴天。'); }
         }
       },
     };
