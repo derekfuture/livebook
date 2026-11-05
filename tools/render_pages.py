@@ -21,6 +21,13 @@ LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
 VERIFIED_TOC = Path(os.environ.get("LIVEBOOK_VERIFIED_TOC", ROOT / "pdf" / "章节与选点.tsv")).expanduser()
 
 BOOKS = {
+    "wuli-hs2": {
+        "code": "hs2", "title": "物理 高中必修第二册", "publisher": "人民教育出版社",
+        "pdf": LIB / "必修第二册.pdf", "toc": LIB / "必修第二册.目录树.json",
+        "first_body_index": 5, "page_offset": 4,
+        "printed_pages": [[1, 2, 6, 10, 14], [22, 23, 27, 31, 35], [43, 44, 49, 55, 59, 65],
+                          [73, 74, 79, 84, 89, 95], [102]],
+    },
     "wuli-hs1": {
         "code": "hs1", "title": "物理 高中必修第一册", "publisher": "人民教育出版社",
         "pdf": LIB / "必修第一册.pdf", "toc": LIB / "必修第一册.目录树.json",

@@ -2159,5 +2159,30 @@
     "label": "图4.2-2 · 翻开活页"
    }
   ]
+ },
+ "wuli-hs2": {
+  "id": "wuli-hs2",
+  "title": "物理 高中必修第二册",
+  "base": "/books/wuli-hs2/",
+  "lessons": {
+   "projectile": {
+    "title": "研究平抛运动的竖直分运动",
+    "fig": "图5.3-2",
+    "sec": "实验：探究平抛运动的特点"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "projectile",
+    "page": 15,
+    "bbox": [
+     416,
+     621,
+     507,
+     736
+    ],
+    "label": "图5.3-2 · 翻开活页"
+   }
+  ]
  }
 }
