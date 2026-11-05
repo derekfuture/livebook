@@ -43,29 +43,19 @@ function engravedTube(length, leftR, rightR, texture) {
   return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: texture }));
 }
 
-export function micrometerTool() {
-  const group = new THREE.Group(),
-    body = new THREE.Group();
-  group.add(body);
-  body.position.y = AXIS_Y;
-  const frameShape = new THREE.Shape();
-  frameShape.moveTo(-0.053, 0);
-  frameShape.lineTo(-0.053, -0.022);
-  frameShape.bezierCurveTo(-0.052, -0.044, -0.004, -0.045, -0.003, -0.022);
-  frameShape.lineTo(-0.003, 0);
-  frameShape.lineTo(-0.011, 0);
-  frameShape.lineTo(-0.011, -0.015);
-  frameShape.bezierCurveTo(-0.016, -0.033, -0.043, -0.033, -0.047, -0.015);
-  frameShape.lineTo(-0.047, 0);
-  frameShape.closePath();
-  const frameGeo = new THREE.ExtrudeGeometry(frameShape, { depth: 0.009, bevelEnabled: false });
-  frameGeo.rotateX(-Math.PI / 2);
-  const frame = inked(new THREE.Mesh(frameGeo, paint(0x497f86)), { width: 0.7 });
-  frame.position.y = -0.0045;
-  body.add(frame);
-  shaft(body, ANVIL_X - 0.007, 0.007, 0.0032, metal);
-  shaft(body, -0.021, 0.017, 0.006, 0x697c81);
-  const spindle = shaft(body, 0, 0.045, 0.0027, 0xacb6b5);
+function knurl(parent, start, len, r, count) {
+  const mat = paint(0xa49987);
+  for (let k = 0; k < count; k++) {
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(len, 0.00028, 0.00033), mat);
+    const q = (k * TAU) / count;
+    rib.position.set(start + len / 2, r * Math.sin(q), r * Math.cos(q));
+    rib.rotation.x = -q;
+    parent.add(rib);
+  }
+}
+
+// 螺旋测微器和双缝测量头都使用半毫米螺距、50 等分的测微副。
+export function measuringScrew(body) {
   const sleeveLength = 0.03;
   const sleeveTex = canvasTex(3072, 1024, (g, w, h) => {
     g.fillStyle = '#d1d5cd';
@@ -113,18 +103,46 @@ export function micrometerTool() {
   const scale = engravedTube(0.006, 0.00455, 0.0067, thimbleTex);
   drum.add(scale);
   const grip = shaft(drum, 0.006, 0.019, 0.0067, 0x895c3d);
-  function knurl(parent, start, len, r, count) {
-    const mat = paint(0xa49987);
-    for (let k = 0; k < count; k++) {
-      const rib = new THREE.Mesh(new THREE.BoxGeometry(len, 0.00028, 0.00033), mat);
-      const q = (k * TAU) / count;
-      rib.position.set(start + len / 2, r * Math.sin(q), r * Math.cos(q));
-      rib.rotation.x = -q;
-      parent.add(rib);
-    }
-  }
   knurl(drum, 0.007, 0.017, 0.0067, 48);
   shaft(drum, 0.025, 0.005, 0.0035, metal);
+  return {
+    sleeve, drum, scale, grip,
+    setReading(mm) {
+      drum.position.x = SCALE_ZERO + mm / 1000;
+      drum.rotation.x = (TAU * mm) / SCREW_PITCH;
+    },
+    dispose() {
+      sleeveTex.dispose();
+      thimbleTex.dispose();
+    },
+  };
+}
+
+export function micrometerTool() {
+  const group = new THREE.Group(),
+    body = new THREE.Group();
+  group.add(body);
+  body.position.y = AXIS_Y;
+  const frameShape = new THREE.Shape();
+  frameShape.moveTo(-0.053, 0);
+  frameShape.lineTo(-0.053, -0.022);
+  frameShape.bezierCurveTo(-0.052, -0.044, -0.004, -0.045, -0.003, -0.022);
+  frameShape.lineTo(-0.003, 0);
+  frameShape.lineTo(-0.011, 0);
+  frameShape.lineTo(-0.011, -0.015);
+  frameShape.bezierCurveTo(-0.016, -0.033, -0.043, -0.033, -0.047, -0.015);
+  frameShape.lineTo(-0.047, 0);
+  frameShape.closePath();
+  const frameGeo = new THREE.ExtrudeGeometry(frameShape, { depth: 0.009, bevelEnabled: false });
+  frameGeo.rotateX(-Math.PI / 2);
+  const frame = inked(new THREE.Mesh(frameGeo, paint(0x497f86)), { width: 0.7 });
+  frame.position.y = -0.0045;
+  body.add(frame);
+  shaft(body, ANVIL_X - 0.007, 0.007, 0.0032, metal);
+  shaft(body, -0.021, 0.017, 0.006, 0x697c81);
+  const spindle = shaft(body, 0, 0.045, 0.0027, 0xacb6b5);
+  const drive = measuringScrew(body);
+  const { sleeve, drum, scale, grip } = drive;
   const ratchet = new THREE.Group();
   body.add(ratchet);
   shaft(ratchet, 0, 0.008, 0.004, 0xb8bab1);
@@ -144,15 +162,11 @@ export function micrometerTool() {
     update(gap, ratchetTurns) {
       const distance = gap / 1000;
       spindle.position.x = ANVIL_X + distance + 0.045 / 2;
-      drum.position.x = SCALE_ZERO + distance;
-      drum.rotation.x = (TAU * gap) / SCREW_PITCH;
+      drive.setReading(gap);
       ratchet.position.x = drum.position.x + 0.03;
       ratchet.rotation.x = ratchetTurns * TAU;
     },
-    dispose() {
-      sleeveTex.dispose();
-      thimbleTex.dispose();
-    },
+    dispose: drive.dispose,
   };
 }
 
