@@ -2515,5 +2515,30 @@
     "label": "图5.3-5 · 翻开活页"
    }
   ]
+ },
+ "wuli-hsx3": {
+  "id": "wuli-hsx3",
+  "title": "物理 高中选择性必修第三册",
+  "base": "/books/wuli-hsx3/",
+  "lessons": {
+   "gasisotherm": {
+    "title": "探究气体等温变化的规律",
+    "fig": "图2.2-1",
+    "sec": "气体的等温变化"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "gasisotherm",
+    "page": 27,
+    "bbox": [
+     393,
+     481,
+     523,
+     717
+    ],
+    "label": "图2.2-1 · 翻开活页"
+   }
+  ]
  }
 }

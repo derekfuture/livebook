@@ -12,7 +12,7 @@ import fitz
 ROOT = Path(__file__).resolve().parent.parent
 # 教材 PDF 所在目录：设环境变量 LIVEBOOK_PDF_DIR，里面放 八年级上册.pdf、八年级下册.pdf、九年级全一册.pdf（及 *.目录树.json）
 LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
-PDF = {"wuli-hsx2": "选择性必修第二册", "wuli-hsx1": "选择性必修第一册", "wuli-hs3": "必修第三册", "wuli-hs2": "必修第二册", "wuli-hs1": "必修第一册", "wuli-8s": "八年级上册", "wuli-8x": "八年级下册", "wuli-9": "九年级全一册", "huaxue-9s": "化学/九年级上册", "huaxue-9x": "化学/九年级下册"}
+PDF = {"wuli-hsx3": "选择性必修第三册", "wuli-hsx2": "选择性必修第二册", "wuli-hsx1": "选择性必修第一册", "wuli-hs3": "必修第三册", "wuli-hs2": "必修第二册", "wuli-hs1": "必修第一册", "wuli-8s": "八年级上册", "wuli-8x": "八年级下册", "wuli-9": "九年级全一册", "huaxue-9s": "化学/九年级上册", "huaxue-9x": "化学/九年级下册"}
 OVERRIDE = ROOT / "tools" / "bbox-overrides.json"   # 自动框不准时手工改这里
 
 
