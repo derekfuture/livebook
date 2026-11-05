@@ -15,18 +15,21 @@ export function step(st, dt, { tauP = 0.8, tauS = 2.2, relax = 0 } = {}) {
   for (let i = 0; i < N; i++) { st.P[i] += (tp[i] - st.P[i]) * Math.min(1, dt / tauP); st.S[i] += (tp[i] - st.S[i]) * Math.min(1, dt / tauS); if (relax) st.th[i] *= Math.max(0, 1 - dt / relax); }
   const t2 = st.th.slice(); for (let i = 1; i < N - 1; i++) st.th[i] = t2[i] + 0.15 * dt * (t2[i - 1] - 2 * t2[i] + t2[i + 1]) / 1;          // 地面上热量慢慢摊开一点
 }
-/** 风场（单位：模型速度）：上升 w ∝ S′·sin(πz/H)，水平 u 由连续性得出 u = −(π/H)·Φ(x)·cos(πz/H)，Φ = ∫S′dx */
+/** 风场（单位：模型速度）。上半层（上空）和上升气流跟着 P（受热膨胀、上空先聚积，先动起来），下半层（近地面）跟着 S（近地面气压后变，后动起来）。
+ *  稳定以后 P = S，就是一个闭合的环流：w ∝ S′·sin(πz/H)，u 由连续性得出 u = −(π/H)·Φ(x)·cos(πz/H)，Φ = ∫S′dx */
 export function field(st) {
-  const Phi = new Float64Array(N + 1);
-  for (let i = 0; i < N; i++) Phi[i + 1] = Phi[i] + st.S[i] * DX;
+  const PhiS = new Float64Array(N + 1), PhiP = new Float64Array(N + 1);
+  for (let i = 0; i < N; i++) { PhiS[i + 1] = PhiS[i] + st.S[i] * DX; PhiP[i + 1] = PhiP[i] + st.P[i] * DX; }
   return {
     at(x, z) {
-      const f = (x - XL) / DX, i = Math.max(0, Math.min(N - 1, Math.floor(f))), ph = Phi[i] + (Phi[i + 1] - Phi[i]) * Math.min(1, Math.max(0, f - i));
-      const s = st.S[i], k = Math.PI / H;
-      return [-k * ph * Math.cos(k * z) * 0.02, s * Math.sin(k * z) * 0.02];
+      const f = (x - XL) / DX, i = Math.max(0, Math.min(N - 1, Math.floor(f))), fr = Math.min(1, Math.max(0, f - i)), k = Math.PI / H, c = Math.cos(k * z);
+      const ph = c < 0 ? PhiP[i] + (PhiP[i + 1] - PhiP[i]) * fr : PhiS[i] + (PhiS[i + 1] - PhiS[i]) * fr;
+      return [-k * ph * c * 0.02, st.P[i] * Math.sin(k * z) * 0.02];
     },
   };
 }
+/** 地面温度距平 th 对应的稳定环流（记录风向时用，不受画面上的滞后影响） */
+export function steady(th) { const st = makeState(); st.th.set(th); const tp = meanOut(Array.from(th)); st.P.set(tp); st.S.set(tp); return st; }
 /** 等压面：第 k 层原来在 zk。上空（zk 大）在受热的地方向上拱（高压），近地面（zk 小）向下凹（低压） */
 export function isobar(st, zk, x) { const i = iOf(x), r = zk / H; return zk + 0.0016 * st.P[i] * r * r - 0.0016 * st.S[i] * (1 - r) * (1 - r); }
 /** 气压高低（相对同一高度的别处）：近地面看 −S，上空看 P */

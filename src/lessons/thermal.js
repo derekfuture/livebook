@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, H, N, xOf, iOf, makeState, step, field, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
+import { XL, XR, H, N, xOf, iOf, makeState, step, field, steady, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
 
 const LIFT = 0.03, GT = 0.02, D = 0.035;          // 浮起多高、地面多厚、空气槽前后多深
 const ZK = [0.2, 0.42, 0.64, 0.86].map((r) => r * H);          // 四张等压面原来的高度
@@ -144,7 +144,7 @@ export default {
     const SEAX = { fj: -0.125, sea: 0.01, tw: 0.135 };
     const tSea = [['福建', SEAX.fj], ['台湾海峡', SEAX.sea], ['台湾', SEAX.tw]].map(([s, x]) => ({ x, t: tag(s, 'pill') }));
     const tPS = Object.values(SEAX).flatMap((x) => [{ x, aloft: false, t: tag('', 'pill') }, { x, aloft: true, t: tag('', 'pill') }]);
-    const tHint = tag('按住地面 A 处，给它加热', 'pill'), tHeat = tag('受热', 'pill'), tScale = tag('教学示意 · 温差、风速都是示意 · 时间加快了', 'pill'), tIso = tag('等压面', 'pill');
+    const tHint = tag('按住地面 A 处，给它加热', 'pill'), tHeat = tag('受热', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了，海峡剖面不按实际比例 · 温差、风速是示意 · 时间加快了', 'pill'), tIso = tag('等压面', 'pill');
     // 两岸的小城：房顶风向标
     const makeTown = () => {
       const t = new THREE.Group();
@@ -170,7 +170,7 @@ export default {
       }
       tHint.loc(block, 0, GT + 0.02, D).show(free && !S.heated);
       tHeat.loc(block, S.heatX ?? 0, GT + 0.006, D).show(free && !!S.heat);
-      tIso.loc(block, XR - 0.03, GT + ZK[3] + 0.006, D).show(true);
+      tIso.loc(block, XL + 0.03, GT + (ZK[2] + ZK[3]) / 2, D).show(true);          // 放在左边两张等压面之间，不和右上角的气压标签挤在一起
       tScale.loc(block, XL + 0.08, -0.006, D + 0.01);
     };
 
@@ -179,16 +179,19 @@ export default {
     const recordFree = () => {
       if (S.mode !== 'free' || S.heatX == null) return;
       const L = S.logs.free, x = S.heatX, F = field(S.st), add = (k) => { if (!L.includes(FREE_STEPS[k])) { L.push(FREE_STEPS[k]); drawLogs(); } };
-      if (F.at(x, H / 2)[1] > 0.012) add(0);
-      if (L.length >= 1 && pressure(S.st, x, true) > 0.9) add(1);
-      if (L.length >= 2 && Math.abs(F.at(x + 0.06, H * 0.92)[0]) > 0.0016) add(2);
-      if (L.length >= 3 && pressure(S.st, x, false) < -0.9) add(3);
-      if (L.length >= 4 && Math.abs(F.at(x + 0.06, H * 0.08)[0]) > 0.0016) { add(4); S.done.add('free'); drawLogs(); }
+      const n = L.length;          // 一帧最多记一步：哪一步真的发生了才记
+      if (n === 0 && F.at(x, H / 2)[1] > 0.012) add(0);
+      else if (n === 1 && pressure(S.st, x, true) > 0.9) add(1);
+      else if (n === 2 && Math.abs(F.at(x + 0.06, H * 0.92)[0]) > 0.004) add(2);
+      else if (n === 3 && pressure(S.st, x, false) < -0.9) add(3);
+      else if (n === 4 && Math.abs(F.at(x + 0.06, H * 0.08)[0]) > 0.004) { add(4); S.done.add('free'); drawLogs(); W?.ui.status('热力环流形成了：受热处上升、上空流向两边、两边下沉、近地面流回来（图 2.11 c）。松开以后，地面慢慢变凉，环流也会慢慢停下来。'); }
+      if (n === 0 && S.heat && W && !S.saidHeat) { S.saidHeat = true; W.ui.status('正在加热：看受热处的空气、上空的等压面，再看近地面。'); }
     };
     const recordSea = () => {
       if (S.mode !== 'sea') return;
       const slot = S.hour >= 5 && S.hour <= 7 ? '早上' : S.hour >= 13 && S.hour <= 15 ? '下午' : null; if (!slot) return;
-      const u1 = windName(surfU(towns.fj.position.x)), u2 = windName(surfU(towns.tw.position.x)), prev = S.logs.sea[slot];
+      const th = Float64Array.from({ length: N }, (_, i) => seaLandTemp(xOf(i), S.hour)), F = field(steady(th)), su = (x) => F.at(x, H * 0.08)[0];          // 按这个时刻稳定下来的风记，不记拖动途中还没转过来的风
+      const u1 = windName(su(towns.fj.position.x)), u2 = windName(su(towns.tw.position.x)), prev = S.logs.sea[slot];
       if (!prev || prev.fj !== u1 || prev.tw !== u2) { S.logs.sea[slot] = { fj: u1, tw: u2 }; if (S.logs.sea['早上'] && S.logs.sea['下午']) S.done.add('sea'); drawLogs(); }
     };
     const drawLogs = () => {
@@ -207,7 +210,8 @@ export default {
     // ---- 换情境 ----
     const setGuess = () => { if (!W) return; const [q, o] = ASK[S.mode], g = seg(q, o, (_, i) => { S.guess[S.mode] = i; drawLogs(); }, { value: S.guess[S.mode] ?? -1 }); W.guess.el.replaceWith(g.el); W.guess = g; };
     const setMode = () => {
-      S.st = makeState(); S.heat = null; S.heatX = null; S.heated = false; S.play = false;
+      S.st = makeState(); S.heat = null; S.heatX = null; S.heated = false; S.saidHeat = false; S.play = false;
+      if (S.mode === 'free') S.logs.free = []; else S.logs.sea = {};          // 重新进这个情境：从头看、从头记（完成过的照样算完成）
       if (S.mode === 'sea') for (let i = 0; i < N; i++) S.st.th[i] = seaLandTemp(xOf(i), S.hour);
       for (let k = 0; k < NP; k++) { pts[k].x = XL + rnd() * (XR - XL); pts[k].z = rnd() * H; }
       if (W) { W.timeCtl.el.style.display = S.mode === 'sea' ? '' : 'none'; W.play.style.display = S.mode === 'sea' ? '' : 'none'; W.play.textContent = '让时间走'; setGuess(); W.ui.status(S.mode === 'free' ? '地面受热均匀：空气不动，等压面是平的（图 2.11 a）。<b>按住地面 A 处</b>给它加热，看空气和等压面怎么变。' : '台湾海峡：西边是福建，东边是台湾。拖<b>时刻</b>（或按“让时间走”），看一天里两岸的风怎么变。'); }
