@@ -109,8 +109,8 @@ export function tapeReader(onRecord, status) {
       ctx.fillRect(x - 1, 21, 2, 57);
       ctx.fillRect(x - 7, 92, 14, 5);
     }
-    stamp.disabled = sheet.used.has(c);
-    stamp.textContent = stamp.disabled ? '这个点已记录' : '把测量点记入图表';
+    stamp.disabled = sheet.used.has(c) || !!sheet.complete;
+    stamp.textContent = sheet.used.has(c) ? '这个点已记录' : sheet.complete ? '本条加速度已记录' : '把测量点记入图表';
   }
   function aim() {
     const c = indices[slot],

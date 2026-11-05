@@ -16,7 +16,7 @@ const metal = 0x53616b,
   teal = 0x366a70,
   gold = 0xb78a40;
 
-export function apparatus() {
+export function apparatus({ adjustable = false } = {}) {
   const group = new THREE.Group();
   function box(parent, size, at, color, outline = false) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(...size), paint(color));
@@ -42,9 +42,11 @@ export function apparatus() {
   }
   // 木板下面留出真实下落空间；桌沿不得挡住槽码。
   box(group, [0.72, 0.018, 0.115], [0.08, TOP - 0.009, 0], wood, true);
+  const stand = new THREE.Group();
+  group.add(stand);
   for (const x of [-0.235, 0.398]) {
-    for (const z of [-0.042, 0.042]) box(group, [0.02, TOP - 0.018, 0.02], [x, (TOP - 0.018) / 2, z], 0xbba785);
-    box(group, [0.028, 0.017, 0.104], [x, 0.045, 0], wood);
+    for (const z of [-0.042, 0.042]) box(stand, [0.02, TOP - 0.018, 0.02], [x, (TOP - 0.018) / 2, z], 0xbba785);
+    box(stand, [0.028, 0.017, 0.104], [x, 0.045, 0], wood);
   }
   box(group, [0.66, 0.027, 0.012], [0.08, TOP - 0.03, -0.043], 0xaa895f);
   const scaleTex = canvasTex(2048, 128, (c, w, h) => {
@@ -103,7 +105,7 @@ export function apparatus() {
   };
   const horizontal = cord(false),
     vertical = cord(true);
-  stroke(
+  const wrappedCord = stroke(
     Array.from({ length: 19 }, (_, i) => {
       const a = (i * Math.PI) / 36;
       return [PX - R * Math.sin(a), LINE - R + R * Math.cos(a), 0];
@@ -171,18 +173,58 @@ export function apparatus() {
   const dots = new THREE.InstancedMesh(
     new THREE.CircleGeometry(0.0014, 10),
     new THREE.MeshBasicMaterial({ color: 0x253446 }),
-    Math.ceil(1.5 / PERIOD),
+    Math.ceil((adjustable ? 6 : 1.5) / PERIOD) + 1,
   );
   dots.frustumCulled = false;
   group.add(dots);
   const marker = new THREE.Object3D();
   marker.rotation.x = -Math.PI / 2;
+  const base = adjustable ? new THREE.Group() : group;
+  let support, ballast, heavyWeight;
+  if (adjustable) {
+    base.add(stand, group);
+    heavyWeight = cyl(pan, 0.034, 0.0218, [0, -0.0236, 0], gold);
+    // 挡块接触车头两侧，中央留出牵引绳通道。
+    for (const z of [-0.022, 0.022])
+      box(group, [0.009, 0.034, 0.014], [START - TRAVEL - 0.052 - 0.0045, TOP + 0.017, z], metal);
+    support = box(base, [0.052, 1, 0.11], [0.398, TOP - 0.018, 0], wood);
+    ballast = [0, 1].map((i) => box(cart, [0.068, 0.009, 0.043], [0, 0.052 + i * 0.009, 0], gold, true));
+  }
   function draw(run) {
+    const angle = run.angle || 0;
+    if (adjustable) {
+      // 绕左支脚转木板。支架保持竖直，垫块填满右端抬高的间隙。
+      const pivotX = -0.235,
+        pivotY = TOP - 0.018;
+      group.rotation.z = angle;
+      group.position.set(
+        pivotX * (1 - Math.cos(angle)) + pivotY * Math.sin(angle),
+        pivotY * (1 - Math.cos(angle)) - pivotX * Math.sin(angle),
+        0,
+      );
+      const height = (0.398 - pivotX) * Math.tan(angle);
+      support.visible = height > 0;
+      support.scale.y = height;
+      support.position.y = pivotY + height / 2;
+      ballast.forEach((w, i) => (w.visible = i < (run.ballast || 0)));
+      pan.visible = vertical.visible = horizontal.visible = wrappedCord.visible = run.load > 0;
+    }
     const x = START - run.x,
-      drop = TRAVEL + 0.04 - run.x;
+      drop = TRAVEL + (adjustable ? 0.046 : 0.04) - run.x;
     cart.position.set(x, TOP, 0);
     pan.position.set(PX - R, drop, 0);
-    weights.forEach((w, i) => (w.visible = i < Math.round(run.load / 0.025)));
+    const heavy = adjustable && run.load === 0.15;
+    const count = adjustable ? run.discs : Math.round(run.load / 0.025);
+    weights.forEach((w, i) => (w.visible = !heavy && i < count));
+    if (adjustable) {
+      // 槽码及下垂绳段在世界坐标系中铅直。
+      const v = LINE - R - drop;
+      const anchorX = PX - R * Math.cos(angle),
+        anchorY = LINE - R + R * Math.sin(angle);
+      pan.position.set(anchorX - v * Math.sin(angle), anchorY - v * Math.cos(angle), 0);
+      pan.rotation.z = vertical.rotation.z = -angle;
+      heavyWeight.visible = heavy;
+    }
     wheel.rotation.z = run.x / R;
     tires.forEach((w) => (w.rotation.y = run.x / 0.011));
     const h = x - 0.052 - PX;
@@ -190,6 +232,8 @@ export function apparatus() {
     horizontal.scale.y = h;
     const v = LINE - R - drop;
     vertical.position.set(PX - R, drop + v / 2, 0);
+    if (adjustable)
+      vertical.position.set(pan.position.x + (v / 2) * Math.sin(angle), pan.position.y + (v / 2) * Math.cos(angle), 0);
     vertical.scale.y = v;
     const from = x + 0.055;
     strip.position.set((from + EDGE) / 2, PAPER_Y, 0);
@@ -208,7 +252,7 @@ export function apparatus() {
     striker.position.y = PAPER_Y + 0.006 + (run.recording ? 0.0015 * Math.sin((run.t / PERIOD) * Math.PI * 2) : 0);
   }
   return {
-    group,
+    group: base,
     cart,
     pan,
     timer,

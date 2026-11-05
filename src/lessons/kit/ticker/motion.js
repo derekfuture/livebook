@@ -20,16 +20,20 @@ export function power(run, on) {
   }
 }
 
+function position(run, t) {
+  return (run.v0 || 0) * t + 0.5 * run.a * t ** 2;
+}
+
 export function advance(run, dt) {
   const t = Math.min(run.end, run.t + dt);
   if (run.recording) {
     while (run.next <= t + 1e-9) {
-      run.marks.push({ t: run.next, x: 0.5 * run.a * run.next ** 2, segment: run.segment });
+      run.marks.push({ t: run.next, x: position(run, run.next), segment: run.segment });
       run.next += PERIOD;
     }
   }
   run.t = t;
-  run.x = 0.5 * run.a * t * t;
+  run.x = position(run, t);
 }
 
 export function centers(marks, origin) {
