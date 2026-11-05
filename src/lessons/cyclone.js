@@ -13,7 +13,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 
-const LIFT = 0.05, G = 0.022;
+const LIFT = 0.06, G = 0.03;          // 地块浮得高一点、厚一点
 const XL = -0.15, XR = 0.15, ZN = 0.12;          // 地块：东西 0.3，南北 0.24（x 朝东，−z 朝北）
 import { MODEL, accP, windAt, windName } from './kit/pressure.js';
 const HEMI = [1, -1, 0];          // 北半球（向右偏）、南半球（向左偏）、假如地球不自转
@@ -59,49 +59,66 @@ export default {
     frameBox.position.y = LIFT + 0.075; frameBox.raycast = () => {}; group.add(frameBox);
 
     // ---- 地块：三层土，顶面是一张等压线图 ----
-    let yy = G - 0.002;
-    for (const [c, t] of [[0x8fb276, 0.004], [0xa07a52, 0.006], [0xb8915f, 0.005], [0xc9a877, G - 0.017]]) { const m = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, t, ZN * 2), lit(c))); m.position.y = yy - t / 2 + 0.002; yy -= t; block.add(m); }
-    const TW = 1200, TH = 960;
+    const BASE = import.meta.env.BASE_URL || '/';
+    const strataTex = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`, (t) => { t.needsUpdate = true; }); strataTex.colorSpace = THREE.SRGBColorSpace; strataTex.wrapS = THREE.RepeatWrapping;
+    const sideM = (rep, c) => { const t = strataTex.clone(); t.repeat.set(rep, 1); t.wrapS = THREE.RepeatWrapping; return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, G - 0.001, ZN * 2), [sideM(1.2, 0.9), sideM(1.2, 0.78), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sideM(1.5, 0.97), sideM(1.5, 0.82)]);          // 侧面是一层层的岩层（贴图），朝镜头那两面亮一点
+    soil.position.y = (G - 0.001) / 2; block.add(soil);
+    const rim = new THREE.LineSegments(new THREE.EdgesGeometry(soil.geometry), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); rim.raycast = () => {}; soil.add(rim);
+    const TW = 1600, TH = 1280;
+    const land = new Image(); land.onload = () => drawMapTex(); land.src = `${BASE}tex/geo/landscape-top.jpg`;
     const mapCanvas = document.createElement('canvas'); mapCanvas.width = TW; mapCanvas.height = TH;
     const mapTex = new THREE.CanvasTexture(mapCanvas); mapTex.colorSpace = THREE.SRGBColorSpace; mapTex.anisotropy = 8;
     const drawMapTex = () => {
       const g = mapCanvas.getContext('2d'), px = (x) => ((x - XL) / (XR - XL)) * TW, py = (n) => ((ZN - n) / (2 * ZN)) * TH;
-      g.fillStyle = '#e9efd9'; g.fillRect(0, 0, TW, TH);
-      g.globalAlpha = 0.35; const cols = ['#dfe8cc', '#d6e2bf', '#e4ecd2'];          // 淡淡的田野
-      for (let i = 0; i < 40; i++) { g.fillStyle = cols[i % 3]; g.fillRect((i * 173) % TW, (i * 97) % TH, 120 + ((i * 41) % 110), 80 + ((i * 29) % 70)); }
-      g.globalAlpha = 1;
+      if (land.complete && land.naturalWidth) { g.drawImage(land, 0, 0, TW, TH); g.fillStyle = 'rgba(250,248,236,0.38)'; g.fillRect(0, 0, TW, TH); }          // 底下是一片虚构的乡村（手绘贴图），上面蒙一层淡白，等压线才看得清
+      else { g.fillStyle = '#e9efd9'; g.fillRect(0, 0, TW, TH); }
+      g.lineJoin = 'round';
       const low = S.mode === 'low', levels = low ? [1000, 1002.5, 1005, 1007.5] : [1015, 1012.5, 1010, 1008.5];
-      g.strokeStyle = '#c9743a'; g.lineWidth = 4; g.fillStyle = '#a85a26'; g.font = '600 30px "Songti SC", serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.strokeStyle = '#c4672c'; g.lineWidth = 5; g.fillStyle = '#9a4a1c'; g.font = '600 40px "Songti SC", serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
       for (const p of levels) {
         const e = low ? (MODEL.P0 - p) / MODEL.DP : (p - MODEL.P0) / MODEL.DP, r = MODEL.SIG * Math.sqrt(-Math.log(e));          // 这一条等压线的半径
+        g.save(); g.strokeStyle = 'rgba(255,253,240,0.85)'; g.lineWidth = 11; g.beginPath(); g.ellipse(px(0), py(0), (r / (XR - XL)) * TW, (r / (2 * ZN)) * TH, 0, 0, 7); g.stroke(); g.restore();          // 白边衬着，等压线在地面上也清楚
         g.beginPath(); g.ellipse(px(0), py(0), (r / (XR - XL)) * TW, (r / (2 * ZN)) * TH, 0, 0, 7); g.stroke();
         const lx = px(r * 0.72), ly = py(r * 0.6);          // 数字标在右上方，线断开一小段（右下角留给单位说明）
-        g.save(); g.fillStyle = '#e9efd9'; g.fillRect(lx - 62, ly - 18, 124, 36); g.restore(); g.fillText(p.toFixed(1), lx, ly);
+        g.save(); g.fillStyle = 'rgba(255,253,240,0.92)'; g.beginPath(); g.roundRect(lx - 70, ly - 24, 140, 48, 10); g.fill(); g.restore(); g.fillText(p.toFixed(1), lx, ly);
       }
-      g.font = '700 64px "Songti SC", serif'; g.fillStyle = low ? '#b0412a' : '#2a62b8'; g.fillText(low ? '低' : '高', px(0), py(0));
-      g.font = '500 26px "PingFang SC", sans-serif'; g.fillStyle = '#7a6a55'; g.textAlign = 'right'; g.fillText('海平面等压线 / hPa', TW - 24, TH - 26);
-      g.textAlign = 'left'; g.fillText('北 ↑', 24, 34);
+      g.font = '700 84px "Songti SC", serif'; g.lineWidth = 12; g.strokeStyle = 'rgba(255,253,240,0.9)'; g.strokeText(low ? '低' : '高', px(0), py(0)); g.fillStyle = low ? '#b0412a' : '#2a62b8'; g.fillText(low ? '低' : '高', px(0), py(0));
+      g.font = '500 34px "PingFang SC", sans-serif'; g.fillStyle = '#5f4f3c'; g.textAlign = 'right'; g.fillText('海平面等压线 / hPa', TW - 30, TH - 34);
+      g.textAlign = 'left'; g.fillText('北 ↑', 30, 44);
       mapTex.needsUpdate = true;
     };
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZN * 2), new THREE.MeshStandardMaterial({ map: mapTex, roughness: 1, emissive: 0xffffff, emissiveMap: mapTex, emissiveIntensity: 0.25 }));
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZN * 2), new THREE.MeshBasicMaterial({ map: mapTex }));
     top.rotation.x = -Math.PI / 2; top.position.y = G + 0.0002; block.add(top);
 
     // ---- 一缕缕空气：小团 + 身后的轨迹 ----
     const puffTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const MAXP = 360, parcels = [];
+    const RIBIDX = []; for (let k = 0; k < MAXP - 1; k++) { const a = k * 2; RIBIDX.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     const drop = (p) => { block.remove(p.line, p.dot); p.line.geometry.dispose(); p.line.material.dispose(); p.dot.material.dispose(); };
     const release = (x, n) => {
       if (parcels.length > 30) drop(parcels.shift());
-      const pos = new Float32Array(MAXP * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setDrawRange(0, 0);
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x4a78bd, transparent: true, opacity: 0.75 })); line.raycast = () => {}; line.renderOrder = 4;
+      const pos = new Float32Array(MAXP * 3), rib = new Float32Array(MAXP * 6), col = new Float32Array(MAXP * 8), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(rib, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 4)); geo.setIndex(RIBIDX); geo.setDrawRange(0, 0);
+      const line = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide })); line.raycast = () => {}; line.renderOrder = 4;          // 轨迹是一条细带子，越往后越窄、越淡：只看得见它刚走过的一段，不会在中心缠成一团
       const dot = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color: 0xdbe8ff, transparent: true, depthWrite: false })); dot.scale.set(0.011, 0.011, 1); dot.raycast = () => {}; dot.renderOrder = 9;
       block.add(line, dot);
-      const p = { x, n, vx: 0, vn: 0, y: G + 0.004, st: 'flow', np: 0, pos, geo, line, dot, fade: 1, L: 0, rx: x, rn: n };
+      const p = { x, n, vx: 0, vn: 0, y: G + 0.004, st: 'flow', np: 0, pos, rib, col, geo, line, dot, fade: 1, L: 0, rx: x, rn: n };
       parcels.push(p); S.last = p; S.released++;
       W?.ui.status(S.mode === 'low' ? '看它往哪儿走：<b>虚线</b>是气压梯度力（指向低压中心），<b>实线</b>是它实际走的方向。可以多放几缕，也可以把你家拖到别处。' : '看它往哪儿走：<b>虚线</b>是气压梯度力（从高压往外指），<b>实线</b>是它实际走的方向。多放几缕，看中心上空的云。');
       return p;
     };
-    const push = (p) => { if (p.np >= MAXP) { p.pos.copyWithin(0, 3); p.np--; } p.pos.set([p.x, p.y, -p.n], p.np * 3); p.np++; p.geo.setDrawRange(0, p.np); p.geo.attributes.position.needsUpdate = true; };
+    const TAIL = 150;
+    const push = (p) => { if (p.np >= TAIL) { p.pos.copyWithin(0, 3); p.np--; } p.pos.set([p.x, p.y, -p.n], p.np * 3); p.np++; tint(p); };
+    const tint = (p) => {          // 按中线重算带子的两条边；越老越窄、越淡
+      const P = p.pos, R = p.rib, n = p.np;
+      for (let k = 0; k < n; k++) {
+        const a = Math.max(0, k - 1), b = Math.min(n - 1, k + 1), dx = P[b * 3] - P[a * 3], dz = P[b * 3 + 2] - P[a * 3 + 2], hl = Math.hypot(dx, dz), age = k / Math.max(1, n - 1);
+        const w = 0.0016 * (0.25 + 0.75 * age), ox = hl > 1e-5 ? (-dz / hl) * w : w, oz = hl > 1e-5 ? (dx / hl) * w : 0;
+        R.set([P[k * 3] + ox, P[k * 3 + 1], P[k * 3 + 2] + oz, P[k * 3] - ox, P[k * 3 + 1], P[k * 3 + 2] - oz], k * 6);
+        const al = Math.pow(age, 1.4) * 0.92 * Math.max(0, p.fade); p.col.set([0.15, 0.34, 0.64, al, 0.15, 0.34, 0.64, al], k * 8);
+      }
+      p.geo.setDrawRange(0, Math.max(0, n - 1) * 6); p.geo.attributes.position.needsUpdate = true; p.geo.attributes.color.needsUpdate = true; p.geo.computeBoundingSphere();
+    };
     const stepParcel = (p, dt) => {
       if (p.st === 'flow') {
         const f = MODEL.F * hemi(), k = MODEL.K;
@@ -181,7 +198,7 @@ export default {
         if (low) {          // 云塔：放进来的空气越多，长得越高
           const q = b, rad = 0.012 + 0.03 * Math.sqrt(c) * (1 - 0.5 * q);
           x = Math.cos(a * 7) * rad; n = Math.sin(a * 7) * rad; y = G + 0.04 + q * 0.075 * S.cloud; r = 0.01 + d * 0.008 + (q > 0.85 ? 0.006 : 0);
-          vis = smooth(q * 0.9, q * 0.9 + 0.12, S.cloud); shade = 0.55 + 0.37 * q - 0.42 * wet * Math.max(0, 1 - q * 1.8);
+          vis = smooth(q * 0.9, q * 0.9 + 0.12, S.cloud); shade = 0.6 + 0.34 * q - 0.26 * wet * Math.max(0, 1 - q * 1.8); if (q < 0.25) { r *= 1.35; }          // 云底：大一点、扁一点的灰团连成一片，不是一个个黑球
         } else {          // 高压：几朵散开的淡积云，空气下沉时一点点散掉
           const cl = Math.floor(a * 5), ca = cl * 1.3 + 0.5, cr = 0.03 + (cl % 3) * 0.012;
           x = Math.cos(ca) * cr + (c - 0.5) * 0.02; n = Math.sin(ca) * cr + (d - 0.5) * 0.014; y = G + 0.045 + b * 0.012; r = 0.007 + d * 0.006;
@@ -192,13 +209,13 @@ export default {
       }
     };
     const NR = 260, rainPos = new Float32Array(NR * 6), rainSeed = Array.from({ length: NR }, () => [rnd(), rnd(), rnd()]);
-    const rain = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x4f6f98, transparent: true, opacity: 0 }));
+    const rain = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x8fb0d0, transparent: true, opacity: 0, depthWrite: false }));
     rain.geometry.setAttribute('position', new THREE.BufferAttribute(rainPos, 3)); rain.raycast = () => {}; block.add(rain);
     const placeRain = () => {
-      const on = S.mode === 'low' ? smooth(0.6, 0.8, S.cloud) : 0; rain.visible = on > 0.01; rain.material.opacity = 0.8 * on; if (!rain.visible) return;
+      const on = S.mode === 'low' ? smooth(0.6, 0.8, S.cloud) : 0; rain.visible = on > 0.01; rain.material.opacity = 0.55 * on; if (!rain.visible) return;
       for (let i = 0; i < NR; i++) {
         const [a, b, c] = rainSeed[i], rad = 0.048 * Math.sqrt(b), x = Math.cos(a * 7) * rad, n = Math.sin(a * 7) * rad, topY = G + 0.04, y = topY - ((c + S.t * 1.1) % 1) * (topY - G), y2 = Math.max(G, y - 0.008);
-        rainPos.set([x, y, -n, x, y2, -n], i * 6);
+        rainPos.set([x, y, -n, x - 0.0012, y2, -n], i * 6);
       }
       rain.geometry.attributes.position.needsUpdate = true;
     };
@@ -324,14 +341,14 @@ export default {
     const ring = () => { for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; release(Math.cos(a) * (S.mode === 'low' ? 0.1 : 0.022), Math.sin(a) * (S.mode === 'low' ? 0.09 : 0.02)); } tHint.show(false); layoutHome(); };
 
     drawMapTex(); layoutHome(); placeClouds();
-    tHint.loc(block, -0.07, G + 0.02, -0.07); tScale.loc(block, XL + 0.06, -0.006, ZN + 0.01);
+    tHint.loc(block, -0.07, G + 0.02, -0.07); tScale.loc(block, XL + 0.07, G + 0.004, -ZN + 0.012);          // 写在地图的左上角（远处），不压在地块正面
     S.cloud = 0;
 
     return {
       group,
       card: false,
       size: { w: 0.32, d: 0.26, h: 0.18 },
-      view: { elev: 30, azim: 10, lookY: 0.4, frameMargin: 1.06 },          // 要看清空气在图上怎么转，镜头比锋那张高一些
+      view: { elev: 30, azim: 10, lookY: 0.46, frameMargin: 1.06 },          // 要看清空气在图上怎么转，镜头比锋那张高一些
       pointer,
       mount(ui) {
         const modeSeg = seg('看哪一种', ['低压（气旋）', '高压（反气旋）'], (_, i) => { S.mode = i ? 'high' : 'low'; setMode(); }, { value: 0 });
@@ -351,7 +368,7 @@ export default {
       update(dt) {
         S.t += dt; const d = Math.min(dt, 0.05);
         for (const p of parcels) stepParcel(p, d);
-        for (let i = parcels.length - 1; i >= 0; i--) { const p = parcels[i]; if (p.st === 'gone') { p.fade -= d / 3.5; p.line.material.opacity = 0.75 * Math.max(0, p.fade); if (p.fade <= 0) { drop(p); parcels.splice(i, 1); if (S.last === p) S.last = null; } } }
+        for (let i = parcels.length - 1; i >= 0; i--) { const p = parcels[i]; if (p.st === 'gone') { p.fade -= d / 2.5; tint(p); if (p.fade <= 0) { drop(p); parcels.splice(i, 1); if (S.last === p) S.last = null; } } }
         if (S.mode === 'high' && S.out > 0 && S.cloud > 0) { S.cloud = Math.max(0, S.cloud - d * 0.12 * Math.min(3, S.out)); if (S.cloud === 0) record(); }          // 下沉增温：云一点点散掉
         placeArrows(); placeVArrows(); placeClouds(); placeRain(); layoutHome(); drawSky();
       },

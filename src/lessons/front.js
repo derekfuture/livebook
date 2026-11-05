@@ -196,7 +196,7 @@ export default {
         const x = xAt(s); m.visible = x > XL + 0.004 && x < XR - 0.004;          // 云和雨都只在这块地上方
         m.position.set(x, G + y, -ZD * 0.85 + d * ZD * 1.7);
         const born = 0.15 + b * 0.55, g = smooth(born, born + 0.25, S.form);          // 一团团凝结出来：低处先有，越高越晚
-        m.scale.set(r * 2 * sx * (0.4 + 0.6 * g), r * 2 * sy * (0.4 + 0.6 * g), 1); shade = Math.max(0.14, shade); m.material.color.setRGB(shade, shade, shade * 1.04);          // 颜色是线性空间的值：0.6 显示出来已经很浅 m.material.opacity = 0.8 * S.rise * g * op; if (g < 0.01) m.visible = false;
+        m.scale.set(r * 2 * sx * (0.4 + 0.6 * g), r * 2 * sy * (0.4 + 0.6 * g), 1); shade = Math.max(0.14, shade); m.material.color.setRGB(shade, shade, shade * 1.04); m.material.opacity = 0.8 * S.rise * g * op; if (g < 0.01) m.visible = false;          // 颜色是线性空间的值：0.6 显示出来已经很浅
       }
     };
 

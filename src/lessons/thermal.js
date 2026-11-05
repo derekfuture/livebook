@@ -13,7 +13,7 @@ import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, H, N, xOf, iOf, makeState, step, field, steady, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
 
-const LIFT = 0.03, GT = 0.02, D = 0.035;          // 浮起多高、地面多厚、空气槽前后多深
+const LIFT = 0.035, GT = 0.026, D = 0.035;          // 浮起多高、地面多厚、空气槽前后多深
 const ZK = [0.2, 0.42, 0.64, 0.86].map((r) => r * H);          // 四张等压面原来的高度
 const ABC = { B: -0.12, A: 0, C: 0.12 };
 const ASK = {
@@ -52,17 +52,20 @@ export default {
     frameBox.position.y = LIFT + (GT + H) / 2; frameBox.raycast = () => {}; group.add(frameBox);
 
     // ---- 地面：一格格的颜色跟着地面温度变（冷蓝、暖橙）；台湾海峡那个情境里中间是海 ----
-    const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, GT - 0.003, D * 2), lit(0xb8915f)); soil.position.y = (GT - 0.003) / 2; block.add(soil);
-    const soilE = new THREE.LineSegments(new THREE.EdgesGeometry(soil.geometry), LINE); soil.add(soilE);
+    const strata = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL || '/'}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace; strata.wrapS = THREE.RepeatWrapping;
+    const sm = (rep, c) => { const t = strata.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rep, 0.5); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, GT - 0.003, D * 2), [sm(0.4, 0.9), sm(0.4, 0.78), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm(2.2, 0.97), sm(2.2, 0.82)]); soil.position.y = (GT - 0.003) / 2; block.add(soil);          // 地面下是一层层的岩层（手绘贴图）
+    const soilE = new THREE.LineSegments(new THREE.EdgesGeometry(soil.geometry), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); soil.add(soilE);
     const gGeo = new THREE.BoxGeometry(XR - XL, 0.003, D * 2, N, 1, 1), gCol = new Float32Array(gGeo.attributes.position.count * 3); gGeo.setAttribute('color', new THREE.BufferAttribute(gCol, 3));
-    const groundTop = new THREE.Mesh(gGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: 0x333333, emissiveIntensity: 0.3 })); groundTop.position.y = GT - 0.0015; block.add(groundTop);
-    const cSoil = new THREE.Color(0xc9b07a), cGrass = new THREE.Color(0x9cbf74), cSea = new THREE.Color(0x5f9fc8), cHot = new THREE.Color(0xe8743a), cCold = new THREE.Color(0x6c8fd0), tmpC = new THREE.Color();
+    const grain = canvasTex(512, 128, (g, w, hh) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, hh); for (let i = 0; i < 2600; i++) { const v = 150 + Math.random() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.12 + Math.random() * 0.2})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.6, i % 3 ? 1.6 : 3.5); } });
+    const groundTop = new THREE.Mesh(gGeo, new THREE.MeshBasicMaterial({ vertexColors: true, map: grain })); groundTop.position.y = GT - 0.0015; block.add(groundTop);          // 地面有一点点笔触质感；颜色里带着冷暖
+    const cSoil = new THREE.Color(0xb9c98a), cGrass = new THREE.Color(0x8fbf66), cSea = new THREE.Color(0x5a9fcc), cHot = new THREE.Color(0xe8743a), cCold = new THREE.Color(0x6c8fd0), tmpC = new THREE.Color();
     const paintGround = () => {
       const p = gGeo.attributes.position;
       for (let k = 0; k < p.count; k++) {
         const x = p.getX(k), i = iOf(x), th = S.st.th[i];
         tmpC.copy(S.mode === 'sea' ? (isLand(x) ? cGrass : cSea) : cSoil);
-        if (th > 0) tmpC.lerp(cHot, Math.min(0.85, th / 7)); else tmpC.lerp(cCold, Math.min(0.6, -th / 7));
+        if (th > 0) tmpC.lerp(cHot, Math.min(S.mode === 'sea' ? 0.45 : 0.8, th / 7)); else tmpC.lerp(cCold, Math.min(0.45, -th / 7));          // 海陆那个情境：陆地、海面本来的颜色要认得出，冷暖只淡淡带一点
         gCol.set([tmpC.r, tmpC.g, tmpC.b], k * 3);
       }
       gGeo.attributes.color.needsUpdate = true;
@@ -104,8 +107,8 @@ export default {
     const NP = 380, pPos = new Float32Array(NP * 3), pCol = new Float32Array(NP * 3), pts = Array.from({ length: NP }, () => ({ x: XL + rnd() * (XR - XL), z: rnd() * H, d: (rnd() * 2 - 1) * D * 0.9 }));
     const dotTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const pGeo = new THREE.BufferGeometry(); pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
-    const dots = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.009, map: dotTex, vertexColors: true, transparent: true, depthWrite: false })); dots.raycast = () => {}; dots.renderOrder = 6; block.add(dots);
-    const cAir = new THREE.Color(0x4f79b8), cAirWarm = new THREE.Color(0xd8653a);
+    const dots = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.013, map: dotTex, vertexColors: true, transparent: true, depthWrite: false })); dots.raycast = () => {}; dots.renderOrder = 6; block.add(dots);
+    const cAir = new THREE.Color(0x2f5f9e), cAirWarm = new THREE.Color(0xd0522a);          // 空气粒深一点，在浅色背板上看得清
     const moveDots = (dt) => {
       const F = field(S.st);
       for (let k = 0; k < NP; k++) {
@@ -171,7 +174,7 @@ export default {
       tHint.loc(block, 0, GT + 0.02, D).show(free && !S.heated);
       tHeat.loc(block, S.heatX ?? 0, GT + 0.006, D).show(free && !!S.heat);
       tIso.loc(block, XL + 0.03, GT + (ZK[2] + ZK[3]) / 2, D).show(true);          // 放在左边两张等压面之间，不和右上角的气压标签挤在一起
-      tScale.loc(block, XL + 0.08, -0.006, D + 0.01);
+      tScale.loc(block, 0, GT + H + 0.008, -D);          // 写在空气槽顶上靠后，不压着地面的字母
     };
 
     // ---- 记录 ----
@@ -234,7 +237,7 @@ export default {
       group,
       card: false,
       size: { w: 0.36, d: 0.1, h: 0.18 },
-      view: { elev: 10, azim: 16, lookY: 0.5, frameMargin: 1.06 },          // 正对剖面略偏一点：看得出等压面是一张张“面”
+      view: { elev: 12, azim: 16, lookY: 0.5, frameMargin: 1.22 },          // 正对剖面略偏一点：看得出等压面是一张张“面”
       pointer,
       mount(ui) {
         const modeSeg = seg('看哪一个', ['地面受热不均（图 2.11）', '台湾海峡两岸'], (_, i) => { S.mode = i ? 'sea' : 'free'; setMode(); }, { value: 0 });

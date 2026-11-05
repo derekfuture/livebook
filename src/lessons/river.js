@@ -102,16 +102,12 @@ export default {
     };
 
     // ---- 侧面：一层层的岩层（切面就是横剖面） ----
-    const strata = canvasTex(512, 512, (g, w, hh) => {          // 细细的一层层岩层（像课本图上那样画线）
-      const bands = ['#d8bf8e', '#cdb07c', '#e0caa0', '#c4a372', '#d3b886', '#bf9c6a'];
-      let y = 0, i = 0; while (y < hh) { const t = 10 + ((i * 7) % 12); g.fillStyle = bands[i % bands.length]; g.fillRect(0, y, w, t); y += t; i++; g.fillStyle = 'rgba(90,62,35,0.55)'; g.fillRect(0, y - 1, w, 1.2); }
-      for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(90,62,35,${Math.random() * 0.25})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 1); }
-    });
+    const strata = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL || '/'}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace; strata.wrapS = strata.wrapT = THREE.RepeatWrapping;          // 手绘的岩层（生成的贴图，可左右平铺）
     const sides = [0.8, 0.86, 0.74, 0.97].map((c) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: strata, color: new THREE.Color(c, c, c), side: THREE.DoubleSide })); block.add(m); return m; });          // 四个侧面明暗不同；切面最亮
     const outline = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); outline.raycast = () => {}; block.add(outline);
     const side = (m, pts) => {          // pts：沿着边的顶面点 [x, y, z]；从顶面一直到底（y = 0）
       const P = [], U = [], I = [];
-      pts.forEach(([x, y, z], k) => { P.push(x, y, z, x, 0, z); const s = k / (pts.length - 1); U.push(s * 3, y / 0.06, s * 3, 0); if (k) { const a = (k - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } });
+      pts.forEach(([x, y, z], k) => { P.push(x, y, z, x, 0, z); const s = k / (pts.length - 1); U.push(s * 2.2, y / 0.075, s * 2.2, 0); if (k) { const a = (k - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } });
       m.geometry.dispose(); m.geometry = new THREE.BufferGeometry(); m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); m.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); m.geometry.setIndex(I); m.geometry.computeVertexNormals();
     };
 
