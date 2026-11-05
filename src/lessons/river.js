@@ -16,8 +16,8 @@ import { XL, XR, ZD, WC, APEX, LAM, smooth, stage, heightAt, waterY, floorY, dro
 
 const LIFT = 0.04;
 const NX = 170, NZ = 110;
-const ASK = ['先猜一下（可以不猜）：在这个情境里，再过很久，南岸（凸岸）的渡口会——', ['被江水冲掉', '离江越来越远', '一直在江边']];
-const DOCK_T = 0.5;          // 河道变弯以后，两岸建起渡口
+const ASK = ['先猜一下（可以不猜）：在这个情境里，再过很久，原来建在南岸（凸岸）的渡口会——', ['被江水冲掉', '离江越来越远', '一直在江边']];
+const DOCK_T = 0.62;          // 河道变弯以后，两岸建起渡口
 
 export default {
   id: 'river',
@@ -105,10 +105,19 @@ export default {
       for (const [x, z] of [[XL, -ZD], [XL, ZD], [x1, -ZD], [x1, ZD]]) L.push(x, 0, z, x, heightAt(x, z, t), z);
       L.push(XL, 0, -ZD, x1, 0, -ZD, XL, 0, ZD, x1, 0, ZD, XL, 0, -ZD, XL, 0, ZD, x1, 0, -ZD, x1, 0, ZD);
       outline.geometry.dispose(); outline.geometry = new THREE.BufferGeometry(); outline.geometry.setAttribute('position', new THREE.Float32BufferAttribute(L, 3));
-      // 切面上的水：河道那一段画一块水的截面
+      // 切面上的水：河道那一段画一块水的截面；谷底上面一层是河流堆积的泥沙（冲积层），下面才是原来的岩层
       placeCutWater(x1, t);
+      const th = 0.004 * smooth(0.45, 1, t), fy1 = floorY(x1, t), A = [];
+      if (th > 0.0002) for (let j = 0; j < NZ; j++) {
+        const [, ya, za] = cutPts[j], [, yb, zb] = cutPts[j + 1];
+        if (ya > fy1 + 0.0008 || yb > fy1 + 0.0008 || gapAt(x1, za, t) < 0 || gapAt(x1, zb, t) < 0) continue;
+        const X = x1 + 0.0003; A.push(X, ya, za, X, ya - th, za, X, yb - th, zb, X, ya, za, X, yb - th, zb, X, yb, zb);
+      }
+      alluv.geometry.dispose(); alluv.geometry = new THREE.BufferGeometry(); alluv.geometry.setAttribute('position', new THREE.Float32BufferAttribute(A, 3)); alluv.visible = A.length > 0;
       knife.position.set(x1 + 0.006, 0, 0);
     };
+    const alluvTex = canvasTex(128, 32, (g, w, hh) => { g.fillStyle = '#e2cf93'; g.fillRect(0, 0, w, hh); for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(120,95,55,${0.25 + Math.random() * 0.35})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.5, 1.5); } });
+    const alluv = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xe2cf93, side: THREE.DoubleSide })); alluv.raycast = () => {}; block.add(alluv);
     const cutWaterGeo = new THREE.BufferGeometry(), cutWater = new THREE.Mesh(cutWaterGeo, new THREE.MeshBasicMaterial({ color: 0x5aa3cc, transparent: true, opacity: 0.85, side: THREE.DoubleSide })); cutWater.raycast = () => {}; block.add(cutWater);
     const placeCutWater = (x, t) => {
       const zc = centerZ(x, t), wy = waterY(x, t), P = [];
@@ -120,42 +129,43 @@ export default {
     const knife = new THREE.Group(); block.add(knife);
     const handle = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.01, 0.05), new THREE.MeshStandardMaterial({ color: 0xb0412a, emissive: 0xb0412a, emissiveIntensity: 0.3 })); handle.position.y = 0.1; knife.add(handle);
     const edge = new THREE.Mesh(new THREE.BoxGeometry(0.0012, 0.012, 0.05), new THREE.MeshStandardMaterial({ color: 0xd9dde3, emissive: 0x8a9099, emissiveIntensity: 0.3, metalness: 0.5, roughness: 0.3 })); edge.position.y = 0.089; knife.add(edge);          // 刀刃：只露一小截在切口正上方，不挡切面
-    const knifePick = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, ZD * 2 + 0.02), new THREE.MeshBasicMaterial({ visible: false })); knifePick.position.y = 0.06; knifePick.userData.pick = true; knife.add(knifePick);
+    const knifePick = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.03, 0.07), new THREE.MeshBasicMaterial({ visible: false })); knifePick.position.y = 0.098; knifePick.userData.pick = true; knife.add(knifePick);          // 只包住红把手，不挡渡口
 
     // ---- 渡口：一段木栈桥 + 一间小屋。挪到哪儿，就在哪儿的河岸上 ----
     const makeDock = (south) => {
       const g = new THREE.Group(), wood = lit(0x8a6240);
-      const deck = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.0015, 0.014), wood); deck.position.set(0, 0.002, south ? -0.006 : 0.006); g.add(deck);
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.0015, 0.014), wood); deck.position.set(0, 0.002, south ? -0.004 : 0.004); g.add(deck);
       for (const dz of [-0.011, -0.001]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.0007, 0.0007, 0.008, 6), wood); p.position.set(0, -0.002, (south ? 1 : -1) * dz); g.add(p); }
-      const hut = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.006, 0.008), lit(0xf3ede1)); hut.position.set(0, 0.003, south ? 0.006 : -0.006); g.add(hut);
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.0068, 0.004, 4), lit(0x6f7f95)); roof.rotation.y = Math.PI / 4; roof.position.set(0, 0.008, south ? 0.006 : -0.006); g.add(roof);
+      const hut = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.006, 0.008), lit(0xf3ede1)); hut.position.set(0, 0.003, south ? 0.005 : -0.005); g.add(hut);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(0.0068, 0.004, 4), lit(0x6f7f95)); roof.rotation.y = Math.PI / 4; roof.position.set(0, 0.008, south ? 0.005 : -0.005); g.add(roof);
       const pick = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.03), new THREE.MeshBasicMaterial({ visible: false })); pick.userData.pick = true; g.add(pick);
-      g.visible = false; block.add(g); return { g, pick, south, x: APEX, z: 0, t0: DOCK_T, fell: 0, fate: null, tag: tag('', 'pill') };
+      g.visible = false; block.add(g); return { g, pick, south, x: APEX, z: 0, t0: DOCK_T, g0: 0.003, seen: null, moved: false, tag: tag('', 'pill') };
     };
     const docks = [makeDock(true), makeDock(false)];
-    const homeDock = (d) => { const zc = centerZ(APEX, DOCK_T); d.x = APEX; d.z = d.south ? zc + WC / 2 + 0.006 : zc - WC / 2 - 0.006; d.t0 = DOCK_T; d.fell = 0; d.fate = null; };          // 一开始都紧挨着水边
+    const atBank = (d, x, side, t) => { const zc = centerZ(x, t); d.x = x; d.z = zc + side * (WC / 2 + 0.003); d.t0 = t; d.g0 = gapAt(d.x, d.z, t); d.seen = null; };          // 渡口建在水边（谷底上）
+    const homeDock = (d) => { atBank(d, APEX, d.south ? 1 : -1, DOCK_T); d.moved = false; };
     docks.forEach(homeDock);
     const bankName = (d) => { const zc = centerZ(d.x, d.t0), k = 2 * Math.PI / LAM, c = Math.sin(k * (d.x - APEX) - Math.PI / 2), outerNorth = c < 0; const north = d.z < zc; return stage(d.t0).amp < 0.008 ? '岸边' : north === outerNorth ? '凹岸' : '凸岸'; };
+    const fateOf = (d) => {          // 按现在的时间算：河道移过了渡口脚下＝岸塌了；水边离开它比建的时候远了很多＝淤成了陆地
+      if (S.t <= d.t0 + 0.001) return null;
+      const gap = gapAt(d.x, d.z, S.t), sideNow = Math.sign(d.z - centerZ(d.x, S.t)), side0 = Math.sign(d.z - centerZ(d.x, d.t0));
+      return gap < 0 || sideNow !== side0 ? 'fell' : gap - d.g0 > 0.012 ? 'far' : null;
+    };
     const placeDocks = () => {
-      const show = S.t >= DOCK_T - 0.001 && S.cut > APEX + 0.03;
       for (const d of docks) {
+        const show = S.t >= d.t0 - 0.001 && d.x < S.cut - 0.006 && S.t >= DOCK_T - 0.001;
         d.g.visible = show; d.tag.show(show); if (!show) continue;
-        const gap = gapAt(d.x, d.z, S.t), y = heightAt(d.x, d.z, S.t), name = `${d.south ? '南岸' : '北岸'}渡口`;
-        const sideNow = Math.sign(d.z - centerZ(d.x, S.t)), side0 = Math.sign(d.z - centerZ(d.x, d.t0));
-        if ((gap < 0 || sideNow !== side0) && d.fate !== 'fell' && S.t > d.t0) d.fate = 'fell';          // 河道移过了渡口脚下：岸被冲掉了
-        if (d.fate === 'fell' && S.t <= d.t0 + 0.001) d.fate = null;
-        const fallen = d.fate === 'fell';
+        const y = heightAt(d.x, d.z, S.t), name = `${d.south ? '南岸' : '北岸'}渡口`, f = fateOf(d);
+        if (f === 'fell' || (f === 'far' && d.seen !== 'fell')) d.seen = f;          // 这一轮看到过的结局（记录里写）
+        const fallen = f === 'fell';
         d.g.position.set(d.x, fallen ? Math.max(y, waterY(d.x, S.t)) - 0.004 : y, d.z); d.g.rotation.x = fallen ? (d.south ? -0.6 : 0.6) : 0;
-        const far = !fallen && gap > 0.016;
-        if (far && !d.fate) d.fate = 'far';
-        if (d.fate === 'far' && gap < 0.012) d.fate = null;          // 往回拖时间，又回到江边
-        d.tag.loc(block, d.x, y + (d.south ? 0.016 : 0.03), d.z).text(`<b>${name}</b> · ${bankName(d)}${fallen ? ' · 岸塌了' : far ? ' · 离江远了' : ''}`);
+        d.tag.loc(block, d.x, y + (d.south ? 0.016 : 0.03), d.z).text(`<b>${name}</b> · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : ''}`);
       }
     };
 
     // ---- 标签 ----
     const tStage = tag('', 'pill'), tKnife = tag('拖这把刀往上游切，看横剖面', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间大大加快', 'pill');
-    const tOuter = tag('凹岸', 'pill'), tInner = tag('凸岸', 'pill'), tPlain = tag('河漫滩', 'pill');
+    const tOuter = tag('凹岸', 'pill'), tInner = tag('凸岸', 'pill'), tPlain = tag('河漫滩（凸岸堆积的泥沙）', 'pill');
     const stageOf = (t) => (t < 0.08 ? 0 : t < 0.35 ? 1 : t < 0.6 ? 2 : t < 0.93 ? 3 : 4);
     const STAGE = [
       ['一条刚出现的小河', ''],
@@ -184,12 +194,12 @@ export default {
     const drawLogs = () => {
       if (!W) return;
       const rows = [h('div', { class: 'tl-row' }, h('b', {}, '河谷：'), h('span', {}, S.logs.length ? S.logs.join(' → ') : '还没开始'))];
-      for (const d of docks) if (d.fate) rows.push(h('div', { class: 'tl-row' }, h('b', {}, `${d.south ? '南岸' : '北岸'}渡口（${bankName(d)}）：`), h('span', {}, d.fate === 'fell' ? '脚下的岸被冲塌了' : '离江越来越远，脚下淤成了陆地')));
+      for (const d of docks) if (d.seen) rows.push(h('div', { class: 'tl-row' }, h('b', {}, `${d.south ? '南岸' : '北岸'}渡口（${bankName(d)}）：`), h('span', {}, d.seen === 'fell' ? '河道移过来，脚下的岸被冲塌了' : '水边越退越远，脚下的泥沙淤成了陆地')));
       const sd = docks[0];
-      if (sd.fate && S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：${sd.fate === 'fell' ? '被江水冲掉' : '离江越来越远'}`)));
+      if (sd.seen && !sd.moved && S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：${sd.seen === 'fell' ? '被江水冲掉' : '离江越来越远'}`)));
       W.logs.replaceChildren(...rows);
       W.drop.textContent = `河床的落差（示意）：${drop(S.t) > 0.017 ? '大' : drop(S.t) > 0.009 ? '在变小' : '小'}`;
-      if (!S.done && S.t > 0.93 && docks.every((d) => d.fate) && S.cutMoved) { S.done = true; W.ui.unlock(); }
+      if (!S.done && S.t > 0.93 && docks.every((d) => d.seen) && S.cutMoved) { S.done = true; W.ui.unlock(); }
     };
 
     const setT = (t) => { S.t = Math.min(1, Math.max(0, t)); build(); placeDocks(); placeTags(); record(); if (W) W.time.input.value = Math.round(S.t * 1000); };
@@ -205,8 +215,8 @@ export default {
         if (!S.drag) { if (c) c.style.cursor = pickAt(rc) ? 'grab' : ''; return false; }
         if (S.drag === 'knife') { const p = onFloor(rc.ray, 0.06); if (!p) return true; S.cut = Math.min(XR, Math.max(XL + 0.08, p.x)); S.cutMoved = true; build(); placeDocks(); placeTags(); drawLogs(); return true; }
         const d = S.drag, p = onFloor(rc.ray, floorY(d.x, S.t)); if (!p) return true;
-        d.x = Math.min(S.cut - 0.01, Math.max(XL + 0.02, p.x)); d.z = Math.min(ZD - 0.01, Math.max(-ZD + 0.01, p.z)); d.t0 = S.t; d.fate = null;          // 挪到哪儿，就从现在起在那儿看
-        if (gapAt(d.x, d.z, S.t) < 0.002) d.z = centerZ(d.x, S.t) + Math.sign(d.z - centerZ(d.x, S.t) || 1) * (WC / 2 + 0.004);          // 不能放进河里
+        const x = Math.min(S.cut - 0.012, Math.max(stage(S.t).head + 0.03, p.x)), side = Math.sign(p.z - centerZ(x, S.t)) || 1;
+        atBank(d, x, side, S.t); d.moved = true;          // 挪到哪儿，就建在那儿的水边，从现在起看
         placeDocks(); drawLogs(); return true;
       },
       up() { if (!S.drag) return false; S.drag = null; document.getElementById('c').style.cursor = ''; return true; },
