@@ -94,14 +94,13 @@ export default {
     const groundMat = lit(0x9cc98a);
     const ground = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.004, ZD * 2), groundMat)); ground.position.y = G - 0.002; block.add(ground);
     let yy = G - 0.004;
-    for (const [c, t] of [[0xa07a52, 0.006], [0xb8915f, 0.006], [0xc9a877, G - 0.016]]) { const m = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, t, ZD * 2), lit(c))); m.position.y = yy - t / 2; yy -= t; block.add(m); }
-    const fields = canvasTex(1024, 380, (g, w, hh) => {
-      g.fillStyle = '#86b06a'; g.fillRect(0, 0, w, hh);
-      const cols = ['#8fbb6e', '#7aa65c', '#9fc277', '#78a35a'];
-      g.globalAlpha = 0.4; for (let i = 0; i < 30; i++) { g.fillStyle = cols[i % cols.length]; g.fillRect((i * 131) % w, (i * 67) % hh, 120 + ((i * 37) % 90), 70 + ((i * 29) % 60)); }
-      g.globalAlpha = 1; for (let i = 0; i < 3000; i++) { g.fillStyle = `rgba(40,70,30,${Math.random() * 0.1})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 2); }
-    });
-    const fieldMat = new THREE.MeshStandardMaterial({ map: fields, roughness: 1, transparent: true, opacity: 0 });
+    const BASE = import.meta.env.BASE_URL || '/';
+    const strata = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace;
+    const sm = (rx, c) => { const t = strata.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.35); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
+    { const t = G - 0.004, m = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, t, ZD * 2), [sm(0.5, 0.9), sm(0.5, 0.8), lit(0x8fb276), lit(0x6b5236), sm(2.4, 0.97), sm(2.4, 0.84)])); m.position.y = yy - t / 2; block.add(m); }          // 地下是一层层的岩层（手绘贴图）
+    const fields = new THREE.TextureLoader().load(`${BASE}tex/geo/landscape-top.jpg`); fields.colorSpace = THREE.SRGBColorSpace;          // 地面：一片手绘的乡村（田、树林、村子）
+    fields.repeat.set(1, (ZD * 2) / (XR - XL) * 1.25); fields.offset.set(0, (1 - fields.repeat.y) / 2);          // 贴图是 5:4，地块又长又窄：取中间一条
+    const fieldMat = new THREE.MeshBasicMaterial({ map: fields, color: 0xf2f2ec, transparent: true, opacity: 0 });
     const field = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2), fieldMat); field.rotation.x = -Math.PI / 2; field.position.y = G + 0.0002; block.add(field);
     // 山（准静止锋用）：一道横在地块上的山脊，挡住从左边来的冷空气
     const ridgeShape = new THREE.Shape(); ridgeShape.moveTo(0, 0); ridgeShape.lineTo(0.012, 0.026); ridgeShape.lineTo(0.02, 0.03); ridgeShape.lineTo(0.034, 0.018); ridgeShape.lineTo(0.05, 0); ridgeShape.closePath();
