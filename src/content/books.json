@@ -2184,5 +2184,30 @@
     "label": "图5.3-2 · 翻开活页"
    }
   ]
+ },
+ "wuli-hs3": {
+  "id": "wuli-hs3",
+  "title": "物理 高中必修第三册",
+  "base": "/books/wuli-hs3/",
+  "lessons": {
+   "batteryemf": {
+    "title": "电池电动势和内阻的测量",
+    "fig": "图12.3-1",
+    "sec": "实验：电池电动势和内阻的测量"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "batteryemf",
+    "page": 93,
+    "bbox": [
+     395,
+     238,
+     535,
+     322
+    ],
+    "label": "图12.3-1 · 翻开活页"
+   }
+  ]
  }
 }

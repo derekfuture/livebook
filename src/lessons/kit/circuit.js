@@ -347,8 +347,8 @@ export function switchPart(name, { closed = false } = {}) {
   hinge.position.set(-0.016, 0.016, 0);
   const blade = inked(new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.002, 0.006), paint(0xc8cdd4)));
   blade.position.x = 0.018;
-  const knob = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.005, 0.016, 12), paint(0x2b2f3a)), 0.0012);
-  knob.position.set(0.034, 0.007, 0);
+  const knob = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.005, 0.024, 12), paint(0x2b2f3a)), 0.0012);
+  knob.position.set(0.025, 0.013, 0);
   hinge.add(blade, knob);
   g.add(pa, pb, clip, hinge);
   let ang = closed ? 0 : -0.75;
@@ -552,7 +552,7 @@ export function meterPart(name, { type = 'A', ranges } = {}) {
   strip.position.set(0, 0.0165, 0.012);
   const plate = canvasTex(512, 96, (c, W, H) => { c.fillStyle = '#2e8b57'; c.fillRect(0, 0, W, H); c.fillStyle = '#fff'; c.font = 'bold 54px sans-serif'; c.textAlign = 'center'; ['−', String(ranges[0]), String(ranges[1])].forEach((t, i) => c.fillText(t, W * (0.18 + i * 0.32), H * 0.72)); });
   const label = new THREE.Mesh(new THREE.PlaneGeometry(FW - 0.006, 0.0075), new THREE.MeshBasicMaterial({ map: plate }));
-  label.position.set(0, 0.0085, 0.0201);
+  label.position.set(0, 0.0085, base.position.z + base.geometry.parameters.depth / 2 + 0.0002);
   const dialTex = canvasTex(1024, 840, (c, W, H) => drawDial(c, W, H, type, ranges));
   const dial = new THREE.Mesh(new THREE.PlaneGeometry(FW - 0.008, (FW - 0.008) * 420 / 512), new THREE.MeshBasicMaterial({ map: dialTex }));
   const DH = (FW - 0.008) * 420 / 512;
@@ -584,7 +584,7 @@ export function meterPart(name, { type = 'A', ranges } = {}) {
   let ang = 0;
   const rInt = type === 'A' ? 0.02 : 2e5;   // 电压表内阻取得较大但有限，方便说明“并联”
   return {
-    name, group: g, kind: type === 'A' ? 'ammeter' : 'voltmeter', type, ranges,
+    name, group: g, kind: type === 'A' ? 'ammeter' : 'voltmeter', type, ranges, dial,
     terminals: terms,
     branches() {
       return [
