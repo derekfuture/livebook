@@ -261,7 +261,7 @@ export default {
       group,
       pointer,
       toggles: ['steps'],
-      size: { w: 0.86, d: 0.50, h: 0.66 },
+      size: { w: 0.86, d: 0.5, h: 0.66 },
       view: { elev: 12, azim: -7, lookY: 0.45, margin: 1.1 },
       mount(panel) {
         ui = panel;
@@ -274,6 +274,23 @@ export default {
           buttons([
             { text: '慢放上次击打', onClick: slow },
             { text: '装回两球', onClick: reload },
+            {
+              text: '全部重做',
+              onClick() {
+                phase = 'ready';
+                height = 0.34;
+                strength = 0.55;
+                wind = elapsed = 0;
+                replay = false;
+                trial = from = null;
+                hammer.rotation.z = leaf.rotation.z = 0;
+                pose();
+                trials.length = 0;
+                records.clear();
+                bar.undo('drop', 'speed', 'height');
+                guidance();
+              },
+            },
           ]).el,
         );
       },
