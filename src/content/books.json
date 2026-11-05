@@ -2369,5 +2369,30 @@
     "label": "图12.3-1 · 翻开活页"
    }
   ]
+ },
+ "wuli-hsx1": {
+  "id": "wuli-hsx1",
+  "title": "物理 高中选择性必修第一册",
+  "base": "/books/wuli-hsx1/",
+  "lessons": {
+   "momentum": {
+    "title": "气垫导轨验证动量守恒定律",
+    "fig": "图1.4-1",
+    "sec": "实验：验证动量守恒定律"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "momentum",
+    "page": 22,
+    "bbox": [
+     66,
+     522,
+     521,
+     696
+    ],
+    "label": "图1.4-1 · 翻开活页"
+   }
+  ]
  }
 }

@@ -6,6 +6,7 @@ const REV = '根据 2022 年版课程标准修订';
 const YEAR = '2024 年新版（封面印有“国家教材委员会专家委员会审核通过 2024”）';
 
 export const EDITIONS = {
+  'wuli-hsx1': { name: '普通高中教科书·物理 选择性必修第一册', press: PEP, rev: '普通高中教科书', year: '与图 1.4-1 对应的 130 页版本', pages: 130, isbn: '', url: SMARTEDU('346c3c04-1663-472c-849e-ff876dcf293f'), login: false },
   'wuli-hs1': { name: '普通高中教科书·物理 必修第一册', press: PEP, rev: '普通高中教科书', year: '与图 2.1-1 对应的 134 页版本', pages: 134, isbn: '', url: SMARTEDU('708256b6-6f06-4d14-89c7-4df16dfe3b81'), login: false },
   'wuli-hs2': { name: '普通高中教科书·物理 必修第二册', press: PEP, rev: '普通高中教科书', year: '与图 5.3-2 对应的 114 页版本', pages: 114, isbn: '', url: SMARTEDU('55baa3cc-156f-4358-8e28-bfa21a864450'), login: false },
   'wuli-hs3': { name: '普通高中教科书·物理 必修第三册', press: PEP, rev: '普通高中教科书', year: '与图 12.3-1 对应的 143 页版本', pages: 143, isbn: '', url: SMARTEDU('dcd8cc6b-5380-4008-a2d0-a061f24d34dd'), login: false },
