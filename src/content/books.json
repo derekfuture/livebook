@@ -2442,5 +2442,30 @@
     "label": "图4.4-1 · 翻开活页"
    }
   ]
+ },
+ "wuli-hsx2": {
+  "id": "wuli-hsx2",
+  "title": "物理 高中选择性必修第二册",
+  "base": "/books/wuli-hsx2/",
+  "lessons": {
+   "lenzcoil": {
+    "title": "探究影响感应电流方向的因素",
+    "fig": "图2.1-1",
+    "sec": "楞次定律"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "lenzcoil",
+    "page": 29,
+    "bbox": [
+     114,
+     126,
+     485,
+     249
+    ],
+    "label": "图2.1-1 · 翻开活页"
+   }
+  ]
  }
 }

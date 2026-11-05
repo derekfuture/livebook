@@ -781,6 +781,7 @@
   "centripetal": [62, 56, 303, 239],
   "fallenergy": [376, 405, 522, 619],
   "projectile": [416, 621, 507, 736],
+  "lenzcoil": [114, 126, 485, 249],
   "doubleslit": [66, 456, 376, 542],
   "glasspins": [381, 515, 537, 658],
   "pendulumgravity": [393, 467, 541, 667],
