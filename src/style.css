@@ -101,6 +101,7 @@ body.lesson-on #hint, body.lesson-on #copy { opacity: 0; }
 
 .q { font: 16px/1.75 var(--song); color: #2c4f86; margin: 0 0 12px; }
 .q small { display: block; font: 12px/1.5 var(--sans); color: var(--ink2); margin-top: 4px; }
+.q.ask { font-size: 18px; line-height: 1.7; margin: 2px 0 6px; }          /* 探索模式开头的问题 */
 .opts { display: grid; gap: 8px; }
 .opt { text-align: left; border: 1.5px solid #e6dcc8; background: #fff; border-radius: 10px; padding: 11px 13px; font: 15px/1.5 var(--song); transition: border-color .2s, background .2s, transform .15s; }
 .opt:hover { border-color: #c9b998; transform: translateY(-1px); }

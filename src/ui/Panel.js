@@ -55,22 +55,26 @@ export class Panel {
     this._onStep = onStep;
     this.prediction = null;
     this.unlocked = false;
+    // 探索模式（地理）：不分“预测、实验、结论”三步——开头一个生活里的问题，下面直接动手看，最后对照课本原文
+    const explore = this.explore = def.flow === 'explore';
 
     const tabs = ['预测', '实验', '结论'].map((t, i) =>
       h('button', { class: 'p-tab', onclick: () => this.go(i) }, h('b', {}, String(i + 1)), t));
     this.tabs = tabs;
 
-    // ① 预测
-    const p = def.predict;
+    // ① 预测（探索模式：只有一个问题）
+    const p = explore ? { q: def.ask, options: [] } : def.predict;
     const opts = h('div', { class: 'opts' }, p.options.map((o, i) =>
       h('button', { class: 'opt', onclick: () => this._pick(i) }, o)));
     this.opts = opts;
     this.goBtn = h('button', { class: 'go ghost', onclick: () => this.go(1) }, '不猜了，直接动手 →');     // 预测是选做的：不猜也能做实验、看结论
-    const s1 = h('div', { class: 'p-step' },
-      h('div', { class: 'bar-title' }, '想一想'),
-      h('p', { class: 'q', html: p.q + (p.hint ? `<small>${p.hint}</small>` : '') }),
-      opts, this.goBtn,
-      h('p', { class: 'note' }, '先猜一猜再做，印象更深；不想猜也可以直接动手。'));
+    const s1 = explore
+      ? h('div', { class: 'p-step' }, h('p', { class: 'q ask', html: p.q }))
+      : h('div', { class: 'p-step' },
+        h('div', { class: 'bar-title' }, '想一想'),
+        h('p', { class: 'q', html: p.q + (p.hint ? `<small>${p.hint}</small>` : '') }),
+        opts, this.goBtn,
+        h('p', { class: 'note' }, '先猜一猜再做，印象更深；不想猜也可以直接动手。'));
 
     // ② 实验
     this.statusEl = h('p', { class: 'status' });
@@ -81,9 +85,9 @@ export class Panel {
     this.notesBox = h('details', { class: 'how-to', hidden: true }, h('summary', {}, '怎么操作（说明）'), this.notesEl);
     this.dataEl = h('div');
     this.needEl = h('p', { class: 'progress-need' });
-    this.toProve = h('button', { class: 'go', disabled: true, onclick: () => this.go(2) }, '去看结论 →');
+    this.toProve = h('button', { class: 'go', disabled: true, onclick: () => this.go(2) }, explore ? '对照课本原文 →' : '去看结论 →');
     const s2 = h('div', { class: 'p-step' },
-      h('div', { class: 'bar-title' }, '动手试'),
+      h('div', { class: 'bar-title' }, explore ? '动手看' : '动手试'),
       this.nowEl, this.controlsEl, this.notesBox,
       h('div', { class: 'bar-title' }, '数据'),
       this.dataEl, this.toProve, this.needEl);
@@ -101,15 +105,15 @@ export class Panel {
       h('p', { class: 'src' }, c.src),
       this.sealEl);
     this.flapFront = h('div', { class: 'flap-front', onclick: () => this._openFlap() },
-      h('span', {}, '🔒 做完实验再掀开'), h('small', {}, ''));
+      h('span', {}, explore ? '🔒 看明白了再掀开' : '🔒 做完实验再掀开'), h('small', {}, ''));
     this.flap = h('div', { class: 'flap locked' }, this.flapFront, h('div', { class: 'flap-back' }, answer));
     this.answerEl = answer;
     const s3 = h('div', { class: 'p-step' },
-      h('div', { class: 'bar-title' }, '课本上的结论'),
+      h('div', { class: 'bar-title' }, explore ? '对照课本原文' : '课本上的结论'),
       h('div', { class: 'flap-wrap' }, this.flap));
 
     this.steps = [s1, s2, s3];
-    el.append(
+    el.append(...[
       foldable ? h('div', { class: 'p-spine', onclick: () => this.fold(false) }, def.title) : null,
       h('div', { class: 'p-head' },
         foldable ? h('span', { class: 'p-tuck', title: '收起', onclick: () => this.fold(true) }, '‹') : null,
@@ -117,8 +121,8 @@ export class Panel {
         h('h2', { class: 'p-title' }, def.title),
         h('div', { class: 'p-acts' },
           h('button', { class: 'p-close', onclick: () => onClose() }, '放回书里 ↩'))),
-      h('div', { class: 'p-tabs' }, tabs),
-      h('div', { class: 'p-body' }, s1, s2, s3));
+      explore ? null : h('div', { class: 'p-tabs' }, tabs),
+      h('div', { class: 'p-body' }, s1, s2, s3)].filter(Boolean));          // 空的不要放进去（不然会显示成“null”）
     this.go(0);
     this.need(def.need || '');
     // 上次的记录：只读地放在数据区下面；盖过章的可以直接掀开结论
@@ -150,6 +154,13 @@ export class Panel {
   }
 
   go(i) {
+    if (this.explore) {          // 探索模式：问题、动手、课本原文一路排下来，不分页
+      this.step = Math.max(1, i);
+      this.steps.forEach((s) => (s.hidden = false));
+      if (i === 2) this.steps[2].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      this._onStep?.(this.step);
+      return;
+    }
     this.step = i;
     this.steps.forEach((s, k) => (s.hidden = k !== i));
     this.tabs.forEach((t, k) => t.classList.toggle('on', k === i));
@@ -196,7 +207,7 @@ export class Panel {
     this.flap.classList.remove('locked');
     this.flapFront.querySelector('span').textContent = '掀开看结论';
     this.flapFront.querySelector('small').textContent = '点一下纸片';
-    this.needEl.textContent = pending ? `之前已经做完（可以看结论）。这一次${pending}` : '实验做完了，可以去看结论。';
+    this.needEl.textContent = pending ? `之前已经做完（可以看结论）。这一次${pending}` : this.explore ? '看明白了，可以对照课本原文。' : '实验做完了，可以去看结论。';
     this.toProve.disabled = false;
     if (!fromHistory) this.tabs[1].classList.add('done');
   }
