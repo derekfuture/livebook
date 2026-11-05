@@ -5,6 +5,7 @@ import { resistivityBench } from './kit/resistivityBench.js';
 import { wireLengthStation } from './kit/wireLength.js';
 import { wireDiameterStation } from './kit/wireDiameter.js';
 import { readMeterTick } from './kit/meterReading.js';
+import { hitAny } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { table, chart, note, h, buttons } from './kit/ui.js';
 
@@ -32,7 +33,8 @@ export default {
       diameters = [],
       points = [],
       line = [];
-    let aim = null,
+    let chosen = null,
+      aim = null,
       meter = null,
       current = null,
       ui,
@@ -47,8 +49,8 @@ export default {
       group,
       back: leave,
       steps: [
-        { id: 'length', title: '量有效长度', todo: '沿同一把尺读出两柱的位置，移尺复测。', target: () => aim },
-        { id: 'diameter', title: '三处测径', todo: '用测微器在三个位置测量电阻丝直径。', target: () => aim },
+        { id: 'first', title: '选量具测尺寸', todo: '量两柱间距与丝径。先拿适合其中一项的量具。', target: () => aim },
+        { id: 'both', title: '测另一种尺寸', todo: '留下长度和直径两组测量记录。', target: () => aim },
         { id: 'circuit', title: '接表调压', todo: '按图接入电流表和电压表，从零输出开始。', target: () => aim },
         { id: 'points', title: '读 U、I', todo: '调节分压滑片，读取多组 U、I。', target: () => aim },
         { id: 'rho', title: '计算电阻率', todo: '断电，读图求电阻，再用实测尺寸计算电阻率。', target: () => aim },
@@ -84,12 +86,14 @@ export default {
         lengths.push(b - a);
         lengthLog.el.hidden = false;
         lengthLog.add([String(a), String(b), String(b - a)]);
-        if (lengths.length >= 2) bar.done('length');
+        dimensionsDone();
         say(
           '本次有效长度 ' +
             (b - a) +
             ' mm。' +
-            (lengths.length === 1 ? '把尺沿丝挪动半厘米以上，再读两端。' : '把直尺往台前拖开，给测微器留出位置。'),
+            (lengths.length === 1
+              ? '把尺沿丝挪动半厘米以上，再读两端。'
+              : '把直尺放回台前。两柱间距超过了测微器的 25 mm 量程。'),
           length.grip,
         );
       },
@@ -97,14 +101,14 @@ export default {
     const diameter = wireDiameterStation(group, sample, {
       ...nearCtx,
       say(s, obj) {
-        if (diameters.length >= 3 && diameter.parked && !diameter.near) guideElectrical();
+        if (diameters.length >= 3 && diameter.parked && !diameter.near) guide();
         else say(s, obj);
       },
       record(x, d) {
         diameters.push(d);
         diameterLog.el.hidden = false;
         diameterLog.add([String(Math.round((x - sample.terminals.a[0]) * 1000)), d.toFixed(3)]);
-        if (diameters.length >= 3) bar.done('diameter');
+        dimensionsDone();
         say(
           '距左接线点 ' +
             Math.round((x - sample.terminals.a[0]) * 1000) +
@@ -115,16 +119,25 @@ export default {
         );
       },
     });
+    function dimensionsDone() {
+      if (lengths.length >= 2 || diameters.length >= 3) bar.done('first');
+      if (lengths.length >= 2 && diameters.length >= 3) bar.done('both');
+    }
     function phase() {
-      if (lengths.length < 2 || !length.stowed) return 'length';
-      if (diameters.length < 3 || !diameter.parked || diameter.near) return 'diameter';
-      return 'electrical';
+      if (length.near || !length.stowed) return 'length';
+      if (diameter.near || !diameter.parked) return 'diameter';
+      if (lengths.length >= 2 && diameters.length >= 3) return 'electrical';
+      if (lengths.length >= 2) return 'diameter';
+      if (diameters.length >= 3) return 'length';
+      return chosen;
     }
     function guide() {
-      if (phase() === 'length') {
-        if (lengths.length >= 2) say('已完成两次测长。把直尺往台前拖开，给测微器留出位置。', length.grip);
+      const stage = phase();
+      if (!stage) return say('要量两接线点间距和细丝直径。台前直尺每小格 1 mm，测微器量程 25 mm。选一把先测。');
+      if (stage === 'length') {
+        if (lengths.length >= 2) say('两次长度已读。把直尺往台前拖开，腾出金属丝。', length.grip);
         else length.guide();
-      } else if (phase() === 'diameter') diameter.guide();
+      } else if (stage === 'diameter') diameter.guide();
       else guideElectrical();
     }
     function topology() {
@@ -260,6 +273,7 @@ export default {
       say('根据本组读数，R ≈ ' + R.toFixed(2) + ' Ω，ρ ≈ ' + rho.toFixed(2) + ' × 10⁻⁶ Ω·m。');
     }
     function reset() {
+      chosen = null;
       length.reset();
       diameter.reset();
       if (meter) leave();
@@ -278,10 +292,11 @@ export default {
       report.hidden = plot.el.hidden = true;
       plot.draw();
       inputs.forEach((i) => (i.value = ''));
-      bar.undo('length', 'diameter', 'circuit', 'points', 'rho');
+      bar.undo('first', 'both', 'circuit', 'points', 'rho');
       guide();
     }
-    let active = null;
+    let active = null,
+      hovered = null;
     const electric = {
       down(ray, e) {
         if (!meter && wiring.down(ray, e)) {
@@ -301,7 +316,21 @@ export default {
         return wiring.up();
       },
     };
-    const pointerFor = () => ({ length: length.pointer, diameter: diameter.pointer, electrical: electric })[phase()];
+    const instruments = { length: length.pointer, diameter: diameter.pointer, electrical: electric };
+    const targets = new Map(
+      [length, diameter].flatMap((station, i) =>
+        station.pointer.items().map((item) => [item.obj, i ? 'diameter' : 'length']),
+      ),
+    );
+    const objects = [...targets.keys()];
+    function pointerFor(ray, select = false) {
+      const stage = phase();
+      if (stage === 'electrical' || length.near || diameter.near || !length.stowed || !diameter.parked)
+        return instruments[stage];
+      const name = targets.get(hitAny(ray, objects));
+      if (select && name) chosen = name;
+      return instruments[name || stage];
+    }
     return {
       group,
       size: { w: 0.83, d: 0.58, h: 0.1 },
@@ -310,11 +339,15 @@ export default {
       pointer: {
         items: () => [...length.pointer.items(), ...diameter.pointer.items()],
         down(ray, e) {
-          active = pointerFor();
-          return active.down(ray, e);
+          active = pointerFor(ray, true);
+          return active?.down(ray, e) || false;
         },
         move(ray) {
-          return (active || pointerFor()).move(ray);
+          if (active) return active.move(ray);
+          const next = pointerFor(ray);
+          if (hovered && next !== hovered) hovered.move(ray);
+          hovered = next;
+          return next?.move(ray) || false;
         },
         up() {
           const last = active;

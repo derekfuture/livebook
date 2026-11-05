@@ -108,7 +108,7 @@ export function wireLengthStation(group, circuit, { look, back, say, enter, reco
     leave();
     left = null;
     previousOrigin = null;
-    ruler.position.set(-0.006, THICK / 2, 0.108);
+    ruler.position.set(-0.006, THICK / 2, 0.14);
   }
   reset();
   let tappedEnd = null;

@@ -36,7 +36,7 @@ export function wireDiameterStation(group, sample, { look, back, say, record, en
       return say(
         gap < diameter + 0.06
           ? '三处已读。先把大旋钮向标尺左端滚动，松开测面。'
-          : '把尺架提离金属丝，放回台前，然后接电表。',
+          : '把尺架提离金属丝，放回台前。',
         gap < diameter + 0.06 ? tool.grip : tool.frame,
       );
     if (locked) return say('松开锁紧装置，再旋转或提起测微器。', tool.screw);
