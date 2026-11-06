@@ -2608,6 +2608,11 @@
     "fig": "图3.1-1",
     "sec": "波的形成"
    },
+   "longitudinalwave": {
+    "title": "观察弹簧形成的波",
+    "fig": "图3.1-4",
+    "sec": "波的形成"
+   },
    "momentum": {
     "title": "气垫导轨验证动量守恒定律",
     "fig": "图1.4-1",
@@ -2719,6 +2724,17 @@
      655
     ],
     "label": "图3.1-1 · 翻开活页"
+   },
+   {
+    "lesson": "longitudinalwave",
+    "page": 68,
+    "bbox": [
+     265,
+     374,
+     483,
+     472
+    ],
+    "label": "图3.1-4 · 翻开活页"
    },
    {
     "lesson": "momentum",

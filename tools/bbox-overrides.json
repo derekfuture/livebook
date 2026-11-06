@@ -1,4 +1,5 @@
 {
+  "longitudinalwave": [265, 374, 483, 472],
   "springphase": [87, 506, 187, 575],
   "freespring": [442, 587, 498, 728],
   "thermistor": [65, 59, 537, 187],
