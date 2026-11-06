@@ -2681,6 +2681,11 @@
   "title": "物理 高中选择性必修第三册",
   "base": "/books/wuli-hsx3/",
   "lessons": {
+   "brownianmotion": {
+    "title": "用显微镜观察炭粒的运动",
+    "fig": "图1.1-3",
+    "sec": "分子动理论的基本内容"
+   },
    "gasisotherm": {
     "title": "探究气体等温变化的规律",
     "fig": "图2.2-1",
@@ -2693,6 +2698,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "brownianmotion",
+    "page": 7,
+    "bbox": [
+     306,
+     462,
+     537,
+     707
+    ],
+    "label": "图1.1-3 · 翻开活页"
+   },
    {
     "lesson": "gasisotherm",
     "page": 27,
