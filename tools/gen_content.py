@@ -18,7 +18,7 @@ EXTRA_SPOTS = [
 TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "wuli-hs1": "物理 高中必修第一册", "wuli-hs2": "物理 高中必修第二册", "wuli-hs3": "物理 高中必修第三册", "wuli-hsx1": "物理 高中选择性必修第一册", "wuli-hsx2": "物理 高中选择性必修第二册", "wuli-hsx3": "物理 高中选择性必修第三册"}
 
 
-FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究)"
+FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究|实验)"
 
 
 def short_fig(fig):
@@ -33,7 +33,7 @@ def main():
         if r["id"] not in BOX:
             print("缺图框：", r["id"]); continue
         fig = r["fig"]
-        title = re.sub(r"^(图[\d.\-/]+\s*)+", "", fig).strip() if fig.startswith("图") else re.sub(r"^(实验活动\d+|实验\d+-\d+|探究)\s*", "", fig).strip()
+        title = re.sub(r"^(图[\d.\-/]+\s*)+", "", fig).strip() if fig.startswith("图") else re.sub(r"^(实验活动\d+|实验\d+-\d+|探究|实验)\s*", "", fig).strip()
         title = title or r["sec"]
         title = title.replace("问题：", "")
         sec = re.sub(r"^[\d.]+\s*", "", r["sec"])
