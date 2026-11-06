@@ -90,7 +90,7 @@ export class LiveLayer {
       tag: (text, cls, onClick) => { const t = tag(text, cls, onClick); tags.push(t); return t; },
       ui: null,
       // 让实验临时换个机位（例如“从光屏一侧透过透镜看”），back() 回到原来的机位
-      look: (localTarget, localDir, dist, onExit) => {
+      look: (localTarget, localDir, dist, onExit, opts = {}) => {
         this._lookExit = onExit || null;
         const tgt = scaler.localToWorld(new THREE.Vector3(...localTarget));
         const q = new THREE.Quaternion(); scaler.getWorldQuaternion(q);
@@ -98,7 +98,7 @@ export class LiveLayer {
           target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist, minEl: stage.rig.minEl,
           yaw: stage.user.yaw, pitch: stage.user.pitch, zoom: stage.user.zoom, pan: stage.user.pan.clone(),
         };
-        stage.shot({ target: tgt, dir: new THREE.Vector3(...localDir).applyQuaternion(q), dist: dist * this.active.s * lookFit(stage), minEl: Math.abs(localDir[1]) < 0.05 ? 0 : 0.17 });     // 方向几乎水平：就是要平视（读量筒、温度计）
+        stage.shot({ target: tgt, dir: new THREE.Vector3(...localDir).applyQuaternion(q), dist: dist * this.active.s * lookFit(stage), minEl: opts.minEl ?? (Math.abs(localDir[1]) < 0.05 ? 0 : 0.17) });     // 方向几乎水平：就是要平视（读量筒、温度计）          // opts.minEl：允许相机低于目标（站在地上抬头看）
         tagFocus(tgt, dist * this.active.s * 0.35);
       },
       // 实验换了一套器材（场景）以后，按新器材重新取景

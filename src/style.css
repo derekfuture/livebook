@@ -676,3 +676,7 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 table.rec { width: 100%; border-collapse: collapse; font-size: 12px; margin: 4px 0; }
 table.rec th, table.rec td { border: 1px solid rgba(60, 50, 40, 0.18); padding: 3px 4px; text-align: center; font-weight: 500; }
 table.rec td small { color: #8a5a2b; }
+/* 地理活页：画面里换视角的小按钮、现象旁边说的一句话 */
+.tag3d.pill.view { cursor: pointer; pointer-events: auto; opacity: .78; font-size: 12px; }
+.tag3d.pill.view.on { opacity: 1; background: #2a3140; color: #fff; }
+.tag3d.pill.callout { background: #fff6dc; border: 1px solid #d9a441; font-weight: 600; font-size: 13px; color: #3a2a10; box-shadow: 0 3px 12px rgba(120, 80, 20, .25); }

@@ -38,6 +38,14 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a
 /** 某地离锋线 d（正数＝在锋线前面，锋还没到）时的天气（教学示意，按课本图 3.3、3.4） */
 /** 云雨还没形成时：只有冷、暖空气，都是晴天 */
 const plainAt = (kind, d) => ((kind === 'warm' ? d < 0 : d > 0) ? { k: 'p', text: '晴，较暖', s: '晴暖' } : { k: 'p', text: '晴，较冷', s: '晴冷' });
+const sig = (x) => 1 / (1 + Math.exp(-x));
+/** 你家气象站的读数（教学示意的数值，按课本第 43–44 页的变化方向）：d＝你家离锋线多远，正数＝锋线还没到。
+ *  冷锋：过境后气温下降、气压上升，过境时风大；暖锋：过境后气温升高、气压降低（锋前气压就在慢慢降）；准静止锋：冷空气一侧阴冷。 */
+export function stationAt(kind, d) {
+  if (kind === 'cold') return { T: 11 + 9 * sig(d / 0.008), P: 1008 + 8 * sig(-d / 0.012) - 1.5 * Math.exp(-((d / 0.02) ** 2)), wind: Math.round(2 + 4 * Math.exp(-(((d + 0.012) / 0.02) ** 2))) };
+  if (kind === 'warm') return { T: 16 - 8 * sig(d / 0.008), P: 1007 + 7 * sig((d - 0.06) / 0.03), wind: Math.round(2 + Math.exp(-((d / 0.04) ** 2))) };
+  return { T: d >= 0 ? 16 : 10, P: d >= 0 ? 1009 : 1013, wind: 2 };
+}
 export function weatherAt(kind, d) {
   if (kind === 'cold') {
     if (d > 0.065) return { k: 'w0', text: '晴，较暖', s: '晴暖' };
@@ -70,7 +78,7 @@ export default {
     src: '课本第 43–44 页 · 第三章 第一节 常见天气系统',
   },
 
-  create({ tag, reframe }) {
+  create({ tag, reframe, look, back }) {
     const group = new THREE.Group();
     const S = { kind: 'cold', xf: KIND.cold.x0, rise: 0, real: 0, going: false, hintFor: null, drag: null, moved: false, t: 0, home: 0.05, town: 0.13, logs: { cold: [], warm: [], still: [], map: [] }, done: new Set(), guess: {}, days: 0, form: 0, map: false, lift: 0 };          // form：云雨形成到哪了（0：天上干干净净；1：成云、下雨了）；map：看图推天气（图上的空气、锋面、云雨先压着，推的时候 lift 才立起来）
     let W = null;
@@ -179,6 +187,8 @@ export default {
         const gg = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gg.addColorStop(0, 'rgba(255,255,255,0.9)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fill(); }
     });
     const puffs = Array.from({ length: 64 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
+    const camLocal = new THREE.Vector3();
+    const viewFade = (p) => { if (S.view === 'map') return 0.22; if (S.view !== 'home') return 1; const cam = globalThis.__lb?.stage?.camera; if (!cam) return 1; block.worldToLocal(camLocal.copy(cam.position)); return smooth(0.025, 0.06, camLocal.distanceTo(p)); };
     const placeClouds = () => {
       const wet = smooth(0.8, 1, S.form) * S.rise;          // 云够厚、下起雨来，云底就压暗
       for (const m of puffs) {
@@ -195,7 +205,7 @@ export default {
         const x = xAt(s); m.visible = x > XL + 0.004 && x < XR - 0.004;          // 云和雨都只在这块地上方
         m.position.set(x, G + y, -ZD * 0.85 + d * ZD * 1.7);
         const born = 0.15 + b * 0.55, g = smooth(born, born + 0.25, S.form);          // 一团团凝结出来：低处先有，越高越晚
-        m.scale.set(r * 2 * sx * (0.4 + 0.6 * g), r * 2 * sy * (0.4 + 0.6 * g), 1); shade = Math.max(0.14, shade); m.material.color.setRGB(shade, shade, shade * 1.04); m.material.opacity = 0.8 * S.rise * g * op; if (g < 0.01) m.visible = false;          // 颜色是线性空间的值：0.6 显示出来已经很浅
+        m.scale.set(r * 2 * sx * (0.4 + 0.6 * g), r * 2 * sy * (0.4 + 0.6 * g), 1); shade = Math.max(0.14, shade); m.material.color.setRGB(shade, shade, shade * 1.04); m.material.opacity = 0.8 * S.rise * g * op * viewFade(m.position); if (g < 0.01) m.visible = false;          // 颜色是线性空间的值：0.6 显示出来已经很浅          // 天气图里云淡下去，露出地面；站在地上时，贴到眼前的那几团也淡掉
       }
     };
 
@@ -204,7 +214,7 @@ export default {
     const rain = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x4f6f98, transparent: true, opacity: 0.85 }));
     rain.geometry.setAttribute('position', new THREE.BufferAttribute(rainPos, 3)); rain.raycast = () => {}; block.add(rain);
     const placeRain = () => {
-      const [r0, r1] = K().rain, on = smooth(0.8, 1, S.form) * S.rise; rain.visible = on > 0.01; rain.material.opacity = 0.85 * on;          // 云够厚了才下雨
+      const [r0, r1] = K().rain, on = smooth(0.8, 1, S.form) * S.rise; rain.visible = on > 0.01; rain.material.opacity = (S.view === 'home' ? 0.35 : 0.85) * on;          // 站在地上看：雨就在眼前，淡一点才不乱          // 云够厚了才下雨
       for (let i = 0; i < NR; i++) {
         const [a, b, c] = rainSeed[i], sv = r0 + 0.002 + a * (r1 - r0), x = xAt(sv), top = Math.max(0.024, front(sv) * S.rise + 0.004), y = G + top - (((c + S.t * 1.1) % 1) * top), y2 = x > XL + 0.002 && x < XR - 0.002 ? Math.max(G, y - 0.008) : y;          // 出了地块的雨不画
         rainPos.set([x, y, -ZD * 0.85 + b * ZD * 1.7, x - 0.0015 * (y - y2) / 0.008, y2, -ZD * 0.85 + b * ZD * 1.7], i * 6);
@@ -283,7 +293,7 @@ export default {
 
     // ---- 你家的天空（抬头看）：晴天有太阳；冷锋来时一座云塔从左边压过来、起风，下雨时云底发黑、雨斜着落；暖锋是高云一层层铺满、绵绵细雨；过后放晴 ----
     const drawSky = () => {
-      if (!W) return;
+      if (!W?.sky) return;
       const c = W.sky, g = c.getContext('2d'), w = c.width, hh = c.height, d = S.home - S.xf;
       const wx = S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d), k = wx.k, kind = S.kind;
       const rainy = k === 'w2', overcast = rainy || (k === 'w1' && kind !== 'cold'), clear = !rainy && !overcast && !(k === 'w1' && kind === 'cold');
@@ -315,7 +325,7 @@ export default {
 
     // ---- 从上往下看（天气图）：和地块同步——锋线和符号、雨区、冷暖空气、山、你家和邻城 ----
     const drawMap = () => {
-      if (!W) return;
+      if (!W?.map) return;
       const c = W.map, g = c.getContext('2d'), w = c.width, hh = c.height, px = (x) => ((x - XL) / (XR - XL)) * (w - 20) + 10, k = K(), fx = px(S.xf);
       g.clearRect(0, 0, w, hh);
       g.fillStyle = '#eef3e6'; g.fillRect(10, 10, w - 20, hh - 20);
@@ -363,7 +373,7 @@ export default {
       tScale.loc(block, XL + 0.05, -0.006, ZD + 0.01);
       tHint.loc(block, Math.max(XL + 0.03, S.xf - 0.11), G + 0.03, ZD).text(S.map ? '按住左边的气团，往右推' : S.kind === 'warm' ? '按住暖气团，往右推' : '按住冷气团，往右推').show(S.map ? !S.lifting : S.hintFor !== S.kind);          // 看图推天气：不说是冷是暖，要你看符号
       setReal();
-      drawSky();
+      drawSky(); placeExtras(); drawStation();
     };
 
     // ---- 形成过程：头一段推的时候，跟着说一句 ----
@@ -376,7 +386,9 @@ export default {
         warm: ['暖空气主动往前走，顺着前面的冷空气<b>慢慢爬上去</b>：暖锋锋面很缓。', '暖湿空气沿着缓缓的锋面爬升、变冷，凝结成一层层的<b>云</b>，铺得很宽，一直铺到锋线前面很远。', '云够厚了，开始<b>连续下雨</b>，雨下在锋线前面。<br>接着推，看它扫过你家。'],
         still: ['冷空气往前推……', '暖湿空气沿锋面爬升、变冷，凝结成一层层的<b>云</b>，铺在冷空气这一侧的上空。', '开始下雨了。接着推到山脚看看。'],
       }[S.kind];
-      if (S.form > 0.05) one(0, T[0]); if (S.form > 0.45) one(1, T[1]); if (S.form >= 1) one(2, T[2]);
+      if (S.form > 0.05) one(0, T[0]); if (S.form > 0.45) one(1, T[1]);
+      if (S.form >= 1 && !formSaid.has(2)) { const [r0, r1] = K().rain, xm = S.xf + K().side * (r0 + r1) / 2; say1('雨落在冷气团这一侧', Math.max(XL + 0.03, Math.min(XR - 0.03, xm)), G + 0.012, ZD - 0.005); }
+      if (S.form >= 1) one(2, T[2]);
     };
 
     // ---- 面板上的话：跟着你家发生的事说一句 ----
@@ -396,6 +408,8 @@ export default {
         stillw0: '你家在山那边的暖空气里：<b>晴</b>。',
       }[key];
       if (msg) W.ui.status(msg);
+      const short = { coldw2: '锋线到了：大风、降温、下雨一起来', coldw3: '锋线过去：气温降了，气压升了', warmw2: '锋线还没到，已经下起雨了', warmw3: '锋线过去：气温升了，气压降了' }[key];
+      if (short && !S.map) say1(short, S.home, G + 0.05, 0.035);
     };
 
     // ---- 拖：推后面的气团（锋面跟着走）；也可以拖你家、邻城换个地方 ----
@@ -422,9 +436,9 @@ export default {
           S.going = true; S.hintFor = S.kind;
         } else {
           S[S.drag] = Math.min(0.115, Math.max(XL + 0.03, v0 + (x - x0)));          // 只能放在锋面推得到、雨带也能完全过去的地方
-          if (S.drag === 'home') { S.logs[LK()] = []; S.done.delete(LK()); }          // 你家搬了：这一次的时间线从头记
+          if (S.drag === 'home') { S.logs[LK()] = []; S.trace[LK()] = []; S.done.delete(LK()); }          // 你家搬了：这一次的时间线从头记
         }
-        record(); layout(); say(); return true;
+        traceIt(); record(); layout(); say(); return true;
       },
       up() { if (!S.drag) return false; S.drag = null; document.getElementById('c').style.cursor = ''; return true; },
     };
@@ -459,6 +473,126 @@ export default {
         }[kind]);
       }
     };
+    // ---- 舞台：书退到后面，地块在中央当主角。四周罩一层天色（跟着你家的天气变），书和桌子淡到看不见 ----
+    const skyTex = canvasTex(64, 512, (g, w, hh) => { const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.45, '#ffffff'); gr.addColorStop(0.62, '#f2efe6'); gr.addColorStop(1, '#e8e2d2'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); });
+    const backdropMat = new THREE.MeshBasicMaterial({ map: skyTex, color: 0xc9dcec, side: THREE.BackSide, transparent: true, opacity: 0, depthWrite: false });
+    const backdrop = new THREE.Mesh(new THREE.SphereGeometry(3, 48, 24), backdropMat); backdrop.position.y = LIFT + 0.05; backdrop.renderOrder = -10; backdrop.raycast = () => {}; backdrop.userData.noFrame = true; backdrop.userData.qaSupport = true; group.add(backdrop);
+    const skyCol = { clear: new THREE.Color(0xbcd6ec), cloud: new THREE.Color(0xc8d0d8), rain: new THREE.Color(0x9aa5b1) }, skyNow = new THREE.Color(0xbcd6ec);
+    // 地平线：只在“站在你家抬头看”时出现的一大片田野，让地块四周不是悬空
+    const farTex = fields.clone(); farTex.wrapS = farTex.wrapT = THREE.RepeatWrapping; farTex.repeat.set(10, 10); farTex.offset.set(0, 0);
+    const farField = new THREE.Mesh(new THREE.CircleGeometry(2.4, 64), new THREE.MeshBasicMaterial({ map: farTex, color: 0xdfe6d2, transparent: true, opacity: 0, depthWrite: false }));
+    farField.rotation.x = -Math.PI / 2; farField.position.y = LIFT + G - 0.0006; farField.raycast = () => {}; farField.userData.noFrame = true; farField.renderOrder = -5; group.add(farField);
+
+    // ---- 天气图视角：地面上铺冷暖空气的淡色、雨区的斜线（从上往下看才出现） ----
+    const tint = (c) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, ZD * 2), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = G + 0.0012; m.raycast = () => {}; m.renderOrder = 3; block.add(m); return m; };
+    const coldTint = tint(0x5b8fd0), warmTint = tint(0xe8894a);
+    const hatchTex = canvasTex(128, 128, (g, w) => { g.strokeStyle = 'rgba(40,70,120,0.85)'; g.lineWidth = 6; for (let x = -w; x < w * 2; x += 22) { g.beginPath(); g.moveTo(x, w); g.lineTo(x + w, 0); g.stroke(); } }); hatchTex.wrapS = hatchTex.wrapT = THREE.RepeatWrapping;
+    const rainArea = new THREE.Mesh(new THREE.PlaneGeometry(1, ZD * 2), new THREE.MeshBasicMaterial({ map: hatchTex, transparent: true, opacity: 0, depthWrite: false })); rainArea.rotation.x = -Math.PI / 2; rainArea.position.y = G + 0.0016; rainArea.raycast = () => {}; rainArea.renderOrder = 4; block.add(rainArea);
+    const tRainArea = tag('雨区', 'pill');
+
+    // ---- 换视角：同一时刻、同一个你家，三种看法 ----
+    S.view = '3d';
+    const VIEWS = [['3d', '立体剖面'], ['map', '天气图（从上往下看）'], ['home', '站在你家抬头看']];
+    const viewTags = VIEWS.map(([k, name]) => { const t = tag(name, 'pill view', () => setView(k)); return t; });
+    const setView = (k) => {
+      if (k === S.view) return;
+      if (k === '3d') { S.view = '3d'; back?.(); placeExtras(); return; }
+      S.view = k;
+      if (k === 'map') look?.([0, LIFT + G, 0], [0, 1, 0.22], 0.8, () => { S.view = '3d'; placeExtras(); });
+      else look?.([S.home - 0.09, LIFT + G + 0.035, -0.01], [0.85, -0.2, 0.45], 0.12, () => { S.view = '3d'; placeExtras(); }, { minEl: -0.8 });          // 站在你家东南边一点的地上，朝锋来的西边抬头看          // 站在你家东边一点、人的眼睛那么高，朝锋来的方向（西边）往上看
+      placeExtras();
+    };
+
+    // ---- 指引：开头在气团上出现一串往右走的箭头（推这里、往这边推）；现象出现的那一刻，在它旁边说一句 ----
+    const chevTex = canvasTex(64, 64, (g, w) => { g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 9; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(18, 12); g.lineTo(42, 32); g.lineTo(18, 52); g.stroke(); g.strokeStyle = 'rgba(40,90,80,0.9)'; g.lineWidth = 5; g.beginPath(); g.moveTo(18, 12); g.lineTo(42, 32); g.lineTo(18, 52); g.stroke(); });
+    const chevs = [0, 1, 2].map(() => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: chevTex, transparent: true, depthWrite: false, depthTest: false })); m.scale.set(0.012, 0.012, 1); m.renderOrder = 20; m.raycast = () => {}; block.add(m); return m; });
+    const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
+    const say1 = (text, x, y, z) => { callout.loc(block, x, y, z).text(text).show(true); calloutT = 4.5; };          // 同一时刻只说一句，4 秒多以后收起
+
+    // ---- 你家的气象站：锋扫过你家时，气温、气压一点点画出来（侧栏）；另一种锋画过的留成虚线，好比一比 ----
+    S.trace = { cold: [], warm: [], still: [], map: [] };
+    const traceIt = () => { const d = S.home - S.xf, tr = S.trace[LK()]; if (!tr.some((p) => Math.abs(p.d - d) < 0.0015)) { tr.push({ d, ...stationAt(S.kind, d) }); tr.sort((a, b) => b.d - a.d); } };
+    const D0 = 0.2, D1 = -0.12;
+    const drawStation = () => {
+      if (!W?.station) return;
+      const c = W.station, g = c.getContext('2d'), w = c.width, hh = c.height, L = 34, R = w - 40, T0 = 16, B = hh - 30;
+      const X = (d) => L + ((D0 - d) / (D0 - D1)) * (R - L), YT = (t) => B - ((t - 5) / 18) * (B - T0), YP = (p) => B - ((p - 1004) / 14) * (B - T0);
+      g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh);
+      g.strokeStyle = 'rgba(60,50,40,0.12)'; g.lineWidth = 1; for (let k = 0; k <= 3; k++) { const y = T0 + (k * (B - T0)) / 3; g.beginPath(); g.moveTo(L, y); g.lineTo(R, y); g.stroke(); }
+      g.setLineDash([4, 3]); g.strokeStyle = 'rgba(60,50,40,0.45)'; g.beginPath(); g.moveTo(X(0), T0 - 4); g.lineTo(X(0), B); g.stroke(); g.setLineDash([]);
+      g.font = '600 11px "PingFang SC", sans-serif'; g.fillStyle = '#5f4f3c'; g.textAlign = 'center'; g.fillText('锋线到你家', X(0), B + 13); g.textAlign = 'left'; g.fillText('← 锋来之前', L, B + 26); g.textAlign = 'right'; g.fillText('锋过去以后 →', R, B + 26);
+      g.fillStyle = '#c4462e'; g.textAlign = 'left'; g.fillText('气温 ℃', 2, 11); g.fillStyle = '#2f62b0'; g.textAlign = 'right'; g.fillText('气压 hPa', w - 2, 11);
+      g.fillStyle = '#c4462e'; g.textAlign = 'right'; for (const t of [5, 11, 17, 23]) g.fillText(t, L - 4, YT(t) + 4);
+      g.fillStyle = '#2f62b0'; g.textAlign = 'left'; for (const p of [1004, 1009, 1013, 1018]) g.fillText(p, R + 4, YP(p) + 4);
+      const line = (tr, key, Y, col, dash, wd) => { if (tr.length < 2) return; g.save(); g.setLineDash(dash); g.strokeStyle = col; g.lineWidth = wd; g.beginPath(); tr.forEach((p, i) => { const x = X(p.d), y = Y(p[key]); if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.stroke(); g.restore(); };
+      const other = S.kind === 'cold' ? 'warm' : S.kind === 'warm' ? 'cold' : null;
+      if (other && !S.map) { line(S.trace[other], 'T', YT, 'rgba(196,70,46,0.35)', [4, 3], 1.5); line(S.trace[other], 'P', YP, 'rgba(47,98,176,0.35)', [4, 3], 1.5); }
+      const tr = S.trace[LK()]; line(tr, 'T', YT, '#c4462e', [], 2.2); line(tr, 'P', YP, '#2f62b0', [], 2.2);
+      const d = S.home - S.xf, now = stationAt(S.kind, d);
+      if (d <= D0 && d >= D1) { for (const [y, col] of [[YT(now.T), '#c4462e'], [YP(now.P), '#2f62b0']]) { g.fillStyle = col; g.beginPath(); g.arc(X(d), y, 3.6, 0, 7); g.fill(); } }
+      if (other && !S.map && S.trace[other].length > 1) { g.fillStyle = 'rgba(60,50,40,0.6)'; g.textAlign = 'center'; g.fillText(`虚线：${KIND[other].name}过你家时`, (L + R) / 2, 11); }
+      const wx = S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d), rainy = S.form >= 1 && wx.k === 'w2';
+      W.read.innerHTML = `<b style="color:#c4462e">${now.T.toFixed(0)} ℃</b>　<b style="color:#2f62b0">${now.P.toFixed(0)} hPa</b>　风力 ${now.wind} 级　${rainy ? '<b style="color:#2f62b0">下雨</b>' : '不下雨'}<br><small>数值是教学示意，变化的方向按课本</small>`;
+    };
+
+    // ---- 书和桌子淡出（只淡这一张活页打开的时候；关上时慢慢回来，dispose 时全部还原） ----
+    const hero = { list: null, k: 0 };
+    const heroFade = (dt) => {
+      if (!hero.list) {
+        let root = group; while (root.parent) root = root.parent;
+        const mine = new Set(); for (let o = group; o; o = o.parent) mine.add(o);
+        hero.list = [];
+        for (const top of root.children) {
+          if (mine.has(top) || top.isLight || top.isCamera) continue;
+          top.traverse((o) => { if (!o.isMesh && !o.isLine && !o.isSprite) return; for (const m of [].concat(o.material || [])) hero.list.push({ o, m, op: m.opacity, tr: m.transparent, vis: o.visible }); });
+        }
+      }
+      const closing = !!globalThis.__lb?.live?.active?.closing, tgt = closing ? 0 : 1;
+      hero.k = tgt > hero.k ? Math.min(1, hero.k + dt / 1.1) : Math.max(0, hero.k - dt / 0.6);
+      const k = smooth(0, 1, hero.k);
+      backdropMat.opacity = 0.97 * k;
+      for (const e of hero.list) { const tr = e.tr || k > 0; if (e.m.transparent !== tr) { e.m.transparent = tr; e.m.needsUpdate = true; } e.m.opacity = e.op * (1 - k); e.o.visible = e.vis && k < 0.95; }          // 改 transparent 要重新编译材质
+    };
+    const heroRestore = () => { for (const e of hero.list || []) { e.m.opacity = e.op; if (e.m.transparent !== e.tr) { e.m.transparent = e.tr; e.m.needsUpdate = true; } e.o.visible = e.vis; } };
+    // ---- 真实一点：地上一丛丛树，风大时往下风那边弯；雨下过的地面颜色变深 ----
+    const NT = 70, trees = new THREE.InstancedMesh(new THREE.ConeGeometry(0.0022, 0.0068, 7).translate(0, 0.0034, 0), new THREE.MeshStandardMaterial({ color: 0x3f6f35, roughness: 0.9, emissive: 0x1d3318, emissiveIntensity: 0.45 }), NT);
+    trees.raycast = () => {}; block.add(trees);
+    const tr2 = (() => { let q = 23; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })();
+    const treeAt = []; for (let k = 0; treeAt.length < NT && k < 600; k++) { const x = XL + 0.01 + tr2() * (XR - XL - 0.02), z = (tr2() * 2 - 1) * (ZD - 0.006); if (Math.abs(x - 0.05) < 0.02 && Math.abs(z - 0.03) < 0.02) continue; if (Math.abs(x - 0.13) < 0.02 && Math.abs(z + 0.025) < 0.02) continue; treeAt.push([x, z, 0.75 + tr2() * 0.5, tr2() * 6.28]); }          // 避开你家、邻城一开始的位置
+    const tm4 = new THREE.Matrix4(), tq = new THREE.Quaternion(), tv = new THREE.Vector3(), ts = new THREE.Vector3(), te = new THREE.Euler();
+    const placeTrees = () => {
+      const ridgeOn = S.kind === 'still';
+      treeAt.forEach(([x, z, sc, ph], k) => {
+        const nearCam = S.view === 'home' && x > S.home - 0.05 && x < S.home + 0.03 && z > -0.01;          // 站在地上看：挡在眼前的那几棵树不画
+        const blocked = nearCam || (Math.abs(x - S.home) < 0.016 && Math.abs(z - 0.03) < 0.018) || (!S.map && Math.abs(x - S.town) < 0.016 && Math.abs(z + 0.025) < 0.018) || (ridgeOn && x > MX - 0.004 && x < MX + 0.054);
+        const wind = S.form > 0.2 ? stationAt(S.kind, x - S.xf).wind : 2, tilt = Math.max(0, wind - 2) * 0.09 * (1 + 0.15 * Math.sin(S.t * 6 + ph));          // 风越大越弯，还一阵一阵地晃
+        te.set(0, 0, -tilt); tq.setFromEuler(te); tm4.compose(tv.set(x, G, z), tq, ts.setScalar(blocked ? 1e-4 : sc)); trees.setMatrixAt(k, tm4);
+      });
+      trees.instanceMatrix.needsUpdate = true;
+    };
+    const wetMat = new THREE.MeshBasicMaterial({ color: 0x24323a, transparent: true, opacity: 0, depthWrite: false });
+    const wet = new THREE.Mesh(new THREE.PlaneGeometry(1, ZD * 2), wetMat); wet.rotation.x = -Math.PI / 2; wet.position.y = G + 0.0008; wet.raycast = () => {}; wet.renderOrder = 2; block.add(wet);
+    const placeWet = () => { const [r0, r1] = K().rain, a = Math.max(XL, Math.min(S.xf + K().side * r0, S.xf + K().side * r1)), b = Math.min(XR, Math.max(S.xf + K().side * r0, S.xf + K().side * r1)); wet.scale.x = Math.max(1e-4, b - a); wet.position.x = (a + b) / 2; wetMat.opacity = 0.22 * smooth(0.8, 1, S.form) * S.rise * (S.view === 'map' ? 0 : 1); };          // 雨下着的那一片地面湿了、暗下来
+    // ---- 摆好这些新东西 ----
+    const placeExtras = () => {
+      const k = K(), mapV = S.view === 'map', homeV = S.view === 'home';
+      const coldL = k.side < 0 ? XL : S.xf, coldR = k.side < 0 ? S.xf : XR, warmL = k.side < 0 ? S.xf : XL, warmR = k.side < 0 ? XR : S.xf;
+      coldTint.scale.x = Math.max(1e-4, coldR - coldL); coldTint.position.x = (coldL + coldR) / 2; warmTint.scale.x = Math.max(1e-4, warmR - warmL); warmTint.position.x = (warmL + warmR) / 2;
+      coldTint.material.opacity = warmTint.material.opacity = mapV ? 0.34 : 0;
+      const [r0, r1] = k.rain, ra = Math.max(XL, Math.min(S.xf + k.side * r0, S.xf + k.side * r1)), rb = Math.min(XR, Math.max(S.xf + k.side * r0, S.xf + k.side * r1)), on = mapV && S.form >= 1 ? 0.55 : 0;
+      rainArea.scale.x = Math.max(1e-4, rb - ra); rainArea.position.x = (ra + rb) / 2; hatchTex.repeat.set((rb - ra) / 0.03, (ZD * 2) / 0.03); rainArea.material.opacity = on;
+      tRainArea.loc(block, (ra + rb) / 2, G + 0.004, -ZD + 0.01).show(on > 0);
+      placeTrees(); placeWet();
+      sym.scale.set(mapV ? 1.7 : 1, 1, 1);          // 天气图上锋线符号放大一些（只放大沿推进方向的那一边，不伸出地块）
+      frontMesh.visible = frontEdge.visible = cold.visible = S.rise > 0.02 && !mapV && !homeV;          // 站在地上看：只看天、云、雨和地面，不看画在空中的锋面          // 天气图：从上往下看只看地面——冷暖空气的淡色、雨区、锋线符号
+      for (const f of flows) f.visible = S.rise > 0.02 && !mapV && !homeV;
+      sym.position.y = G + (mapV ? 0.0022 : 0); sym.visible = (S.map || S.rise > 0.5) && !homeV;
+      for (const t of [tCold, tWarm, tFront, tHint, tScale]) if (homeV) t.show(false);
+      pushArrow.visible = !homeV;
+      farField.material.opacity = homeV ? 0.95 : 0; home.visible = !homeV;          // 站在你家门口：自己家的房子不挡镜头
+      viewTags.forEach((t, i) => { t.loc(block, XL + 0.02 + i * 0.075, G + 0.105, -ZD).show(S.rise > 0.95 && !S.map); t.el.classList.toggle('on', VIEWS[i][0] === S.view); });
+      if (homeV) { homeTag.show(false); townTag.show(false); }
+    };
     // 回到上面看 / 到你家地上看：镜头落到你家旁边，按人的视线高度往锋面来的方向看
     drawSym(); record(); layout();
 
@@ -468,19 +602,19 @@ export default {
       size: { w: 0.38, d: 0.14, h: 0.2 },
       view: { elev: 14, azim: 18, lookY: 0.45, frameMargin: 0.96 },          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面
       pointer,
+      dispose() { heroRestore(); },
       mount(ui) {
         const kindSeg = seg('推哪一种锋', ['冷锋', '暖锋', '准静止锋', '看图推天气'], (_, i) => { if (i === 3) setMap(); else { const was = S.map; S.map = false; setKind(['cold', 'warm', 'still'][i], was); } layout(); }, { value: 0 });          // 从看图推天气回来：你家、邻城回到这种锋开头的位置
         const guess = seg(...ASK.cold, () => {}, { value: -1 });
         const logs = h('div', { class: 'timeline' });
-        const map = h('canvas', { class: 'wx-map', width: 320, height: 120 });
+        const station = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('p', { class: 'note' });
         // 重来：这一种锋回到开头的样子——锋面、你家和邻城的位置、猜的选项、提示、这一种锋的时间线（别的锋的时间线留着，好对比）
         const acts = buttons([
-          { text: '重来', ghost: true, onClick: () => { S.logs[LK()] = []; S.done.delete(LK()); delete S.guess[LK()]; S.real = 0; S.going = false; setReal(); if (S.kind === 'still') S.stillSnap = null; if (S.map) setMap(); else setKind(S.kind, true); layout(); } },
+          { text: '重来', ghost: true, onClick: () => { S.logs[LK()] = []; S.trace[LK()] = []; if (S.view !== '3d') setView('3d'); S.done.delete(LK()); delete S.guess[LK()]; S.real = 0; S.going = false; setReal(); if (S.kind === 'still') S.stillSnap = null; if (S.map) setMap(); else setKind(S.kind, true); layout(); } },
         ]);
-        const skyWin = h('canvas', { class: 'wx-map', width: 320, height: 110 });
-        ui.controls.append(kindSeg.el, guess.el, acts.el, note('你家和邻城都可以拖到别处。'));
-        ui.data.append(h('div', { class: 'bar-title' }, '你家的天空（抬头看）'), skyWin, h('div', { class: 'bar-title' }, '从上往下看（天气图）'), map, h('div', { class: 'bar-title' }, '你家经历了什么'), logs);
-        W = { ui, logs, guess, map, sky: skyWin };
+        ui.controls.append(h('div', { class: 'bar-title' }, '你家的气象站'), station, read, kindSeg.el, guess.el, acts.el, note('你家和邻城都可以拖到别处。画面上方可以换着看：立体剖面、天气图、站在你家抬头看。'));          // 侧栏只放一张图：锋扫过你家时的气温、气压；天空和天气图挪到主画面里换着看
+        ui.data.append(h('div', { class: 'bar-title' }, '你家经历了什么'), logs);
+        W = { ui, logs, guess, station, read };
         setGuess();
         drawLogs();
         ui.status('地块上有你家和一座邻城。按住左边的<b>冷气团</b>往右推，看锋面扫过你家时，你家的天气怎么变。');
@@ -491,6 +625,12 @@ export default {
         else if (S.rise < 1) { S.rise = Math.min(1, S.rise + dt / 0.8); layout(); }          // 打开、换锋的时候：锋面立起来
         if (S.going && S.real < 1) { S.real = Math.min(1, S.real + dt / 0.9); setReal(); }
         flowTex.offset.x = -S.t * 0.8; placeRain(); drawSky();
+        heroFade(dt);          // 打开以后：书和桌子淡出，四周换成天色；关上时反过来
+        { const d = S.home - S.xf, wx = S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d), tgt = wx.k === 'w2' ? skyCol.rain : wx.k === 'w1' && S.kind !== 'cold' ? skyCol.cloud : skyCol.clear; skyNow.lerp(tgt, Math.min(1, dt * 2)); backdropMat.color.copy(skyNow); }          // 四周的天色跟着你家的天气：下雨时暗下来
+        { const show = S.hintFor !== S.kind && !S.map && S.rise > 0.95 && S.view === '3d'; chevs.forEach((m, i) => { const ph = (S.t * 0.7 + i / 3) % 1; m.visible = show; m.position.set(Math.max(XL + 0.012, S.xf - 0.08) + 0.03 + ph * 0.05, G + 0.022, ZD - 0.012); m.material.opacity = Math.sin(ph * Math.PI) * 0.95; }); }          // 一串箭头沿着推的方向往前走
+        if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
+        if (S.view !== '3d') placeClouds();          // 镜头在动：云跟着按离镜头多远淡一淡
+        if (S.form > 0.2) placeTrees();          // 树在风里一阵阵晃
         if (S.kind === 'still' && (S.stuck || S.xf >= MX - 0.004) && S.drag !== 'front') {          // 准静止锋：顶在山脚不走了，一天天过去（锋线只是来回微微摆动）
           S.stuck = true; const d0 = Math.floor(S.days); S.days += dt / 1.4;
           S.xf = MX - 0.002 - 0.003 * (0.5 + 0.5 * Math.sin(S.t * 0.9)); shapeFront(); shapeFlows(); placeClouds(); sym.position.x = S.xf;
