@@ -15,7 +15,7 @@ BOX = json.loads((ROOT / "tools" / "bbox-overrides.json").read_text())
 EXTRA_SPOTS = [
     {"lesson": "pendulum", "page": 101, "bbox": [138, 236, 386, 416], "label": "图11.4-3 · 翻开活页"},
 ]
-TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "dili-7s": "地理 七年级上册", "dili-xb1": "地理 选择性必修1", "dili-bx1": "地理 必修第一册", "dili-bx2": "地理 必修第二册"}
+TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "dili-7s": "地理 七年级上册", "dili-xb1": "地理 选择性必修1", "dili-bx1": "地理 必修第一册", "dili-bx2": "地理 必修第二册", "dili-xb2": "地理 选择性必修2"}
 
 
 FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究)"

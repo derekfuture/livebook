@@ -14,6 +14,7 @@ export const EDITIONS = {
   'dili-bx2': { name: '普通高中教科书·地理 必修 第二册', press: PEP, rev: '依据《普通高中地理课程标准（2017 年版）》编写', year: '2019 年版', short: '2019 年版', pages: 134, isbn: '', url: '', login: false },
   'dili-bx1': { name: '普通高中教科书·地理 必修 第一册', press: PEP, rev: '依据《普通高中地理课程标准（2017 年版）》编写', year: '2019 年版', short: '2019 年版', pages: 134, isbn: '', url: '', login: false },
   'dili-xb1': { name: '普通高中教科书·地理 选择性必修1 自然地理基础', press: PEP, rev: '依据《普通高中地理课程标准（2017 年版）》编写', year: '2019 年版（2019 年经国家教材委员会专家委员会审核通过）', short: '2019 年版', pages: 106, isbn: '', url: '', login: false },
+  'dili-xb2': { name: '普通高中教科书·地理 选择性必修2 区域发展', press: PEP, rev: '依据《普通高中地理课程标准（2017 年版）》编写', year: '2019 年版（2019 年经国家教材委员会专家委员会审核通过）', short: '2019 年版', pages: 102, isbn: '', url: '', login: false },
 };
 
 /** 导入提示、下载离线版里写的书名：人教版《物理 八年级下册》 */

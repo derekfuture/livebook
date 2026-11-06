@@ -104,6 +104,15 @@ BOOKS = {
         "first_body_index": 5,
         "page_offset": 4,
     },
+    "dili-xb2": {
+        "code": "gx2",
+        "title": "地理 选择性必修2",
+        "publisher": "人民教育出版社",
+        "pdf": LIB / "地理" / "选择性必修2.pdf",
+        "toc": LIB / "地理" / "选择性必修2.目录树.json",
+        "first_body_index": 5,
+        "page_offset": 4,
+    },
 }
 
 HI_HEIGHT = 2048
