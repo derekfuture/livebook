@@ -7,7 +7,7 @@
 //   每一步自己挑“接下来它经历什么作用”——只能挑课本图 2.10 里有的箭头：冷却凝固、抬升风化侵蚀搬运沉积、压实固结、变质作用、熔化。
 //   石头就真的在地壳里走过去：从岩浆房升上来凝固成花岗岩、被抬到山顶风化成沙、顺着河流进海、埋下去压成砂岩、被压到深处变成石英岩、再熔化回岩浆……
 //   侧栏是图 2.10 的循环图：走过的箭头亮起来，并记下这块石头的“履历”。走一圈，就会发现每一类岩石都可以变成另外两类。
-// 数据：kit/rock.js（tools/geo/rock_check.mjs 核对课本说法）。教学示意：竖直方向、时间都大大压缩了，真实的一步要上百万年。
+// 数据：kit/rock.js（tools/geo/rock_check.mjs 核对课本说法）。教学示意：竖直方向压缩了；各个过程的时间尺度差别很大，动画不按真实时间比例。
 import * as THREE from 'three';
 import { buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
@@ -33,7 +33,7 @@ export default {
   conclusion: {
     page: 28,
     quote: '岩石按照成因可以分为岩浆岩、沉积岩和变质岩三大类，它们之间可以相互转换，使得岩石圈的物质处于循环转化中。……在地球内部巨大压力作用下，岩浆沿着岩石圈的薄弱地带侵入岩石圈上部或喷出地表，随着温度、压力的变化，冷却凝固形成岩浆岩。……裸露在地表的岩石，经风化、侵蚀作用，逐渐成为砾石、沙子、泥土等碎屑物质。这些碎屑物质被风、流水等搬运后沉积下来，经压实、固结形成沉积岩。……地壳中已生成的岩石，在地球内部的高温、高压等条件下，成分、性质发生改变，形成变质岩。……这三类岩石在岩石圈深处或岩石圈以下高温高压的条件下熔化，又成为新的岩浆回到地球内部。',
-    why: '两种说法说的是同一件事的两面：第一种说的是每一类岩石是“怎么形成的”（成因）——岩浆冷却凝固、沉积物压实固结、已有的岩石受高温高压变质；第二种说的是“原料从哪来”——沉积物来自已有岩石的风化侵蚀，变质岩来自已有的岩石，岩浆来自岩石的熔化。所以三类岩石可以相互转化，岩石圈的物质一直在循环；地表形态的塑造过程，也就是这个循环的一部分。',
+    why: '两种说法说的是同一件事的两面：第一种说的是每一类岩石是“怎么形成的”（成因）——岩浆冷却凝固、沉积物压实固结、已有的岩石受高温高压变质；第二种说的是“原料从哪来”——碎屑沉积物主要来自已有岩石的风化、侵蚀，有的沉积岩来自化学沉淀物或生物遗体（它们的物质也多来自岩石风化时溶进水里的成分），变质岩来自已有的岩石，岩浆来自岩石的熔化。所以三类岩石可以相互转化，岩石圈的物质一直在循环；地表形态的塑造过程，也就是这个循环的一部分。',
     src: '课本第 22–24 页 · 第二章 第一节 塑造地表形态的力量',
   },
 
@@ -84,7 +84,7 @@ export default {
     // 剖面上的字：地方的名字
     const F = (t, x, y, c = '#ffffff') => faceLabel(block, t, { x, y, z: ZD, h: 0.0075, color: c, stroke: 'rgba(40,30,20,0.6)' });
     F('岩浆', AT.chamber[0], AT.chamber[1] - 0.012); F('侵入岩体', AT.intrusion[0] + 0.03, AT.intrusion[1] + 0.006); F('深处：高温、高压', AT.meta[0] + 0.02, AT.meta[1] - 0.012); F('一层层沉积岩', AT.buried[0] + 0.03, AT.buried[1] - 0.004);
-    noteBadge(tag, '教学示意：竖直方向、时间都大大压缩了，真实的每一步要经过很长的地质年代').loc(block, XL + 0.012, -0.002, ZD + 0.012);
+    noteBadge(tag, '教学示意：竖直方向压缩了；各个过程的时间尺度差别很大（熔岩冷却结壳可能只要几天，抬升、风化、搬运、变质往往要很长的地质年代），动画不按真实时间比例').loc(block, XL + 0.012, -0.002, ZD + 0.012);
 
     // ---- 那块做了记号的石头：样子跟着它是什么岩石变；岩浆时会发光 ----
     const rockCv = document.createElement('canvas'); rockCv.width = 128; rockCv.height = 128;
@@ -108,6 +108,7 @@ export default {
     };
     const placeAt = (key) => { const [x, y] = AT[key]; return new THREE.Vector3(x, y, ZD - 0.005); };          // 都在剖面前面一点点，看得见
     const aName = airLabel(block, '', { h: 0.0085, color: '#2c3245' }), aProc = airLabel(block, '', { h: 0.0078, color: '#a8341f', dim: 0 });
+    const shortName = (r) => r.name.replace(/^(侵入岩|喷出岩)（以(.+)为例）$/, '$2（$1）').replace(/（具体是哪种.*）$/, '');
     const labels = [aName, aProc];
     // 这一步石头怎么走：一串路点（凝固就地；上抬到山顶；顺着河进海；往下埋；往深处；往岩浆房）
     const route = (from, to, proc) => {
@@ -121,24 +122,25 @@ export default {
     };
     const stepTo = (n) => {
       if (S.anim) return; const from = S.id;
-      S.anim = { t: 0, curve: route(from, n.to, n.proc), from, to: n.to, proc: n.proc, why: n.why, mid: false };
+      const sw = n.proc.startsWith('抬升') ? 0.4 : n.proc.startsWith('变质') ? 0.5 : 0.92;          // 什么时候换样子：风化在被抬到地表以后，变质在深处半路上，冷却凝固、压实固结、熔化都在到了地方以后
+      S.anim = { t: 0, curve: route(from, n.to, n.proc), from, to: n.to, proc: n.proc, why: n.why, mid: false, sw };
       aProc.setText(n.proc.replace(/（.*）/, '')).setOn(true); S.moved = true;
     };
     const arrowKey = (a, b) => `${ROCK[a].kind}>${ROCK[b].kind}`;
     const finish = () => {
       const a = S.anim; S.anim = null; S.id = a.to; S.kinds.add(ROCK[a.to].kind); S.arrows.add(arrowKey(a.from, a.to)); S.path.push({ id: a.to, proc: a.proc });
       aProc.setOn(false); look(S.id); layout();
-      const r = ROCK[S.id]; W?.ui.status(`经过<b>${a.proc.replace(/（.*）/, '')}</b>：${a.why}。现在它是<b>${r.name}</b>（${KIND[r.kind]}${r.sub ? `，${r.sub}` : ''}）。${S.id === 'magma' && S.path.length > 2 ? '它又回到了岩浆——绕了一圈。' : '接下来呢？'}`);
+      const r = ROCK[S.id]; W?.ui.status(`经过<b>${a.proc.replace(/（.*）/, '')}</b>：${a.why}。现在它是<b>${r.name}</b>（${KIND[r.kind]}）${r.sub ? `，${r.sub}` : ''}。${S.id === 'magma' && S.path.length > 2 ? '它又回到了岩浆——绕了一圈。' : '接下来呢？'}`);
       drawLog(); drawChart(); renderChoices();
     };
     const layout = () => {
       const p = placeAt(ROCK[S.id].at); stone.position.copy(p); pile.position.copy(p); ring.position.set(p.x, p.y, p.z + 0.004);
-      const r = ROCK[S.id]; aName.position.set(p.x, p.y + 0.018, p.z); aName.setText(`${r.name} · ${KIND[r.kind]}`);
+      const r = ROCK[S.id]; aName.position.set(p.x, p.y + 0.018, p.z); aName.setText(`${shortName(r)} · ${KIND[r.kind]}`);
     };
 
     // ---- 侧栏：图 2.10 的循环图（走过的箭头亮起来） ----
     const NODES = { magma: [160, 34, '岩浆'], igneous: [270, 110, '岩浆岩'], sediment: [215, 200, '沉积物'], sedimentary: [105, 200, '沉积岩'], metamorphic: [50, 110, '变质岩'] };
-    const EDGES = [['magma', 'igneous', '冷却凝固'], ['igneous', 'sediment', '风化侵蚀搬运沉积'], ['sedimentary', 'sediment', ''], ['metamorphic', 'sediment', ''], ['sediment', 'sedimentary', '压实固结'], ['igneous', 'metamorphic', '变质作用'], ['sedimentary', 'metamorphic', '变质作用'], ['metamorphic', 'metamorphic', '变质'], ['igneous', 'magma', '熔化'], ['sedimentary', 'magma', '熔化'], ['metamorphic', 'magma', '熔化']];
+    const EDGES = [['magma', 'igneous', '冷却凝固'], ['igneous', 'sediment', '抬升风化侵蚀搬运沉积'], ['sedimentary', 'sediment', '抬升风化…'], ['metamorphic', 'sediment', '抬升风化…'], ['sediment', 'sedimentary', '压实固结'], ['igneous', 'metamorphic', '变质作用'], ['sedimentary', 'metamorphic', '变质作用'], ['metamorphic', 'metamorphic', '变质作用'], ['igneous', 'magma', '熔化'], ['sedimentary', 'magma', '熔化'], ['metamorphic', 'magma', '熔化']];
     const drawChart = () => {
       if (!W) return;
       const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, cur = ROCK[S.id].kind;
@@ -146,7 +148,7 @@ export default {
       for (const [a, b, t] of EDGES) {
         const lit = S.arrows.has(`${a}>${b}`), [x0, y0] = NODES[a], [x1, y1] = NODES[b];
         g.strokeStyle = lit ? '#c8402c' : 'rgba(120,110,90,0.35)'; g.fillStyle = g.strokeStyle; g.lineWidth = lit ? 2.6 : 1.4;
-        if (a === b) { g.beginPath(); g.arc(x0 - 26, y0 - 18, 10, 0.3, 5.6); g.stroke(); continue; }
+        if (a === b) { g.beginPath(); g.arc(x0, y0 - 24, 11, 0.9, Math.PI * 2 + 0.2); g.stroke(); const ax = x0 + Math.cos(0.9) * 11, ay = y0 - 24 + Math.sin(0.9) * 11; g.beginPath(); g.moveTo(ax, ay); g.lineTo(ax + 6, ay - 4); g.lineTo(ax + 1, ay - 7); g.fill(); if (lit) { g.font = '10px "PingFang SC", sans-serif'; g.fillStyle = '#a8341f'; g.fillText(t, x0, y0 - 42); } continue; }          // 变质岩再次变质：自己指向自己
         const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, off = (EDGES.some(([p, q]) => p === b && q === a) ? 6 : 0), nx = -uy * off, ny = ux * off, sx = x0 + ux * 26 + nx, sy = y0 + uy * 14 + ny, ex = x1 - ux * 28 + nx, ey = y1 - uy * 16 + ny;
         g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.stroke(); g.beginPath(); g.moveTo(ex, ey); g.lineTo(ex - ux * 8 - uy * 4, ey - uy * 8 + ux * 4); g.lineTo(ex - ux * 8 + uy * 4, ey - uy * 8 - ux * 4); g.fill();
         if (t && lit) { g.font = '10px "PingFang SC", sans-serif'; g.fillStyle = '#a8341f'; g.fillText(t, (sx + ex) / 2 + nx * 2.2, (sy + ey) / 2 + ny * 2.2 - 6); }
@@ -160,14 +162,15 @@ export default {
       const rockKinds = ['igneous', 'sedimentary', 'metamorphic'].filter((k) => S.kinds.has(k));
       if (rockKinds.length === 3) r('三类岩石都当过了：', '岩浆岩、沉积岩、变质岩都是由别的东西转化来的：沉积物来自已有岩石的风化侵蚀，变质岩来自已有的岩石，岩浆来自岩石的熔化');
       if (S.path.length > 2 && S.id === 'magma') r('回到岩浆：', '每一类岩石最后都能熔化，又成为新的岩浆：岩石圈的物质一直在循环');
-      if (S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${S.guess ? '有可能' : '不可能'}　实际：有可能——花岗岩被抬升到地表，风化、侵蚀成沙子，被搬运、沉积，再压实固结就是砂岩`)));
+      const ids = S.path.map((p) => p.id), gi = ids.indexOf('granite'), proven = gi >= 0 && ids.indexOf('sandstone', gi) > gi;          // 这块石头真的从花岗岩走到过砂岩，才给出“实际”
+      if (S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, proven ? `你猜：${S.guess ? '有可能' : '不可能'}　你刚才亲手走过了：花岗岩被抬升到地表，风化、侵蚀成沙子，被搬运、沉积，再压实固结，就是砂岩` : `你猜：${S.guess ? '有可能' : '不可能'}　自己走一遍试试：让它先变成花岗岩，再看能不能变成砂岩`)));
       W.log.replaceChildren(...rows);
       if (rockKinds.length === 3 && S.path.length > 3 && S.id === 'magma') W.ui.unlock();
     };
     const renderChoices = () => {
       if (!W) return;
       const list = nexts(S.id), r = ROCK[S.id];
-      W.now.innerHTML = `现在它是 <b>${r.name}</b>（${KIND[r.kind]}${r.sub ? `，${r.sub}` : ''}）`;
+      W.now.innerHTML = `现在它是 <b>${r.name}</b>（${KIND[r.kind]}）${r.sub ? `<br><small>${r.sub}</small>` : ''}`;
       W.choices.replaceChildren(...list.map((n) => { return h('button', { class: 'go ghost choice', onclick: () => stepTo(n) }, n.proc); }));
     };
 
@@ -199,7 +202,7 @@ export default {
         if (S.anim) {
           const a = S.anim; a.t = Math.min(1, a.t + dt / 3); const p = a.curve.getPointAt(a.t);
           stone.position.copy(p); pile.position.copy(p); ring.position.set(p.x, p.y, p.z + 0.004); aProc.position.set(p.x, p.y + 0.02, p.z); aName.setOn(false);
-          if (!a.mid && a.t > 0.5) { a.mid = true; look(a.to); }          // 走到一半就换了样子：作用正在发生
+          if (!a.mid && a.t > a.sw) { a.mid = true; look(a.to); }          // 作用发生的地方才换样子
           if (a.t >= 1) { aName.setOn(true); finish(); }
         }
       },
