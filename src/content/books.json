@@ -2293,6 +2293,11 @@
   "title": "物理 高中必修第二册",
   "base": "/books/wuli-hs2/",
   "lessons": {
+   "tangenttrack": {
+    "title": "钢球离开弯道的方向",
+    "fig": "图5.1-1",
+    "sec": "曲线运动"
+   },
    "projectile": {
     "title": "研究平抛运动的竖直分运动",
     "fig": "图5.3-2",
@@ -2320,6 +2325,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "tangenttrack",
+    "page": 6,
+    "bbox": [
+     78,
+     620,
+     194,
+     742
+    ],
+    "label": "图5.1-1 · 翻开活页"
+   },
    {
     "lesson": "projectile",
     "page": 15,
