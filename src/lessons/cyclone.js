@@ -349,7 +349,6 @@ export default {
     return {
       group,
       card: false,
-      place: 'spread',          // 从课本的图里升起来，放到两页正中间、按整个对开页放大
       size: { w: 0.32, d: 0.26, h: 0.18 },
       view: { elev: 30, azim: 10, lookY: 0.46, frameMargin: 1.06 },          // 要看清空气在图上怎么转，镜头比锋那张高一些
       pointer,

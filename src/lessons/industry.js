@@ -185,7 +185,6 @@ export default {
     return {
       group,
       card: false,
-      place: 'spread',
       size: { w: 0.34, d: 0.24, h: 0.08 },
       view: { elev: 42, azim: 8, lookY: 0.3, frameMargin: 1.05 },
       pointer,

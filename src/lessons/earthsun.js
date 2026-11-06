@@ -195,7 +195,6 @@ export default {
     return {
       group,
       card: false,
-      place: 'spread',          // 从课本的图里升起来，放到两页正中间、按整个对开页放大
       size: { w: 0.32, d: 0.32, h: 0.14 },
       view: { elev: 30, azim: -20, lookY: 0.42, frameMargin: 1.18 },
       pointer,

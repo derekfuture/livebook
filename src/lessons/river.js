@@ -298,7 +298,6 @@ export default {
     return {
       group,
       card: false,
-      place: 'spread',          // 从课本的图里升起来，放到两页正中间、按整个对开页放大
       size: { w: 0.36, d: 0.22, h: 0.12 },
       view: { elev: 32, azim: 48, lookY: 0.4, frameMargin: 1.2 },          // 从下游的东南方向、略高处看：河道和切面（横剖面）都看得见
       pointer,

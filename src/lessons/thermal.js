@@ -262,7 +262,6 @@ export default {
     return {
       group,
       card: false,
-      place: 'spread',          // 从课本的图里升起来，放到两页正中间、按整个对开页放大
       size: { w: 0.36, d: 0.1, h: 0.18 },
       view: { elev: 12, azim: 16, lookY: 0.5, frameMargin: 1.22 },          // 正对剖面略偏一点：看得出等压面是一张张“面”
       pointer,
