@@ -792,6 +792,7 @@
   "transformer": [115, 147, 488, 288],
   "lenzcoil": [114, 126, 485, 249],
   "doubleslit": [66, 456, 376, 542],
+  "totalreflection": [125, 638, 464, 747],
   "glasspins": [381, 515, 537, 658],
   "pendulumgravity": [393, 467, 541, 667],
   "ballrange": [299, 508, 537, 718],
