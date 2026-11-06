@@ -17,7 +17,19 @@ export function h(tag, attrs = {}, ...kids) {
     else if (v !== false && v != null) el.setAttribute(k, v === true ? '' : v);
   }
   for (const c of kids.flat()) if (c != null) el.append(c.nodeType ? c : document.createTextNode(c));
-  return el;
+  return tag === 'canvas' ? sharp(el) : el;
+}
+
+// 侧栏里的画布（曲线、图表）按高清屏画：底下的像素是写的宽高的 2.5 倍，画的时候还按原来的宽高算（width、height、getContext 都照旧用）
+function sharp(c) {
+  const d = Math.min(3, Math.max(2, devicePixelRatio || 1) * 1.25), P = HTMLCanvasElement.prototype, W = Object.getOwnPropertyDescriptor(P, 'width'), H = Object.getOwnPropertyDescriptor(P, 'height');
+  let lw = W.get.call(c), lh = H.get.call(c), ctx = null;
+  const apply = () => { W.set.call(c, Math.round(lw * d)); H.set.call(c, Math.round(lh * d)); ctx?.setTransform(d, 0, 0, d, 0, 0); };
+  Object.defineProperty(c, 'width', { get: () => lw, set: (v) => { lw = +v; apply(); } });
+  Object.defineProperty(c, 'height', { get: () => lh, set: (v) => { lh = +v; apply(); } });
+  const gc = c.getContext.bind(c);
+  c.getContext = (type, o) => { const x = gc(type, o); if (type === '2d' && !ctx) { ctx = x; ctx.setTransform(d, 0, 0, d, 0, 0); } return x; };
+  apply(); return c;
 }
 
 /** 从课本高清页里截一块：rect 是 PDF 点 [x0, y0, x1, y1] */

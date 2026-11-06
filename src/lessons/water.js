@@ -86,9 +86,23 @@ export default {
     // 砂田：田面上铺一层砂石（一颗颗小石子）
     const pebbles = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0012, 6, 4), new THREE.MeshLambertMaterial({ color: 0x8e8a80 }), 160); pebbles.raycast = () => {}; block.add(pebbles);
     { const m4 = new THREE.Matrix4(); for (let k = 0; k < 160; k++) { const x = FIELD[0] + rnd() * (FIELD[1] - FIELD[0]), z = (rnd() - 0.5) * ZD * 1.9; m4.makeTranslation(x, ground(x) + 0.0004, z); pebbles.setMatrixAt(k, m4); } }
-    // 城市：地面硬化时，田上长出几栋楼
+    // 城市：地面硬化时，田上长出一片城区——一栋栋有窗户、有屋顶的楼，沿着河两岸排开，不压在河上
+    const facade = canvasTex(64, 64, (g, w) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, w); g.fillStyle = '#e6e2da'; g.fillRect(0, 54, w, 10); g.fillStyle = '#7f93a6'; for (let i = 0; i < 4; i++) g.fillRect(5 + i * 15, 14, 9, 30); g.fillStyle = 'rgba(255,255,255,0.35)'; for (let i = 0; i < 4; i++) g.fillRect(5 + i * 15, 14, 9, 7); }, { repeat: [1, 1] });          // 一层楼：四扇窗（窗上沿一道反光）、一道楼板线
+    const riverZ = (x) => 0.018 * Math.sin(((x - DIVIDE - 0.03) / (COAST - DIVIDE - 0.03)) * 40 * 0.4);
+    const roofM = new THREE.MeshLambertMaterial({ color: 0x8c8a86 }), BODY = [0xe9e4da, 0xd9d4ca, 0xe3d6c4, 0xcfd4d8];
     const city = new THREE.Group(); block.add(city);
-    for (let k = 0; k < 9; k++) { const w = 0.006 + rnd() * 0.004, hh = 0.008 + rnd() * 0.014, x = FIELD[0] + 0.006 + (k % 3) * 0.017, z = -0.03 + Math.floor(k / 3) * 0.028; const b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, w), new THREE.MeshLambertMaterial({ color: 0xd6d3cc })); b.position.set(x, ground(x) + hh / 2, z); city.add(b); }
+    { const put = []; let tries = 0;
+      while (put.length < 10 && tries++ < 400) {
+        const w = 0.0055 + rnd() * 0.004, d = w * (0.8 + rnd() * 0.5), floors = 3 + Math.floor(rnd() * 6), hh = floors * 0.0026, x = FIELD[0] + 0.004 + w / 2 + rnd() * (FIELD[1] - FIELD[0] - 0.008 - w), z = -ZD * 0.85 + rnd() * ZD * 1.2;
+        if (Math.abs(z - riverZ(x)) < 0.0045 + Math.max(w, d) / 2) continue;          // 离河道远一点
+        if (put.some((q) => Math.abs(q.x - x) < (q.w + w) / 2 + 0.002 && Math.abs(q.z - z) < (q.d + d) / 2 + 0.002)) continue;
+        put.push({ x, z, w, d });
+        const tex = facade.clone(); tex.needsUpdate = true; tex.repeat.set(Math.max(1, Math.round(w / 0.004)), floors); tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        const wall = new THREE.MeshLambertMaterial({ color: BODY[put.length % BODY.length], map: tex });
+        const b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), [wall, wall, roofM, roofM, wall, wall]); b.position.set(x, ground(x) + hh / 2, z); city.add(b);
+        const rim = new THREE.Mesh(new THREE.BoxGeometry(w * 1.04, 0.0006, d * 1.04), new THREE.MeshLambertMaterial({ color: 0xbdb8ae })); rim.position.set(x, ground(x) + hh + 0.0003, z); city.add(rim);          // 屋顶女儿墙
+        if (rnd() < 0.6) { const box = new THREE.Mesh(new THREE.BoxGeometry(w * 0.3, 0.0016, d * 0.3), roofM); box.position.set(x + (rnd() - 0.5) * w * 0.3, ground(x) + hh + 0.0008, z); city.add(box); }          // 屋顶上的水箱、楼梯间
+      } }
 
     // ---- 云：拖着它走（就是风把水汽送到哪儿） ----
     const cloudTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
