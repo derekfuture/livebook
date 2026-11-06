@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 
 const LIFT = 0, G = 0.03;          // 地块直接放在书页上（放在两页正中间、放大以后不用再浮起来）
@@ -155,16 +156,16 @@ export default {
       return g;
     };
     const aPGF = arrowOf(0x8a5a2b, true), aWind = arrowOf(0x1f3f75, false);
-    const tPGF = tag('气压梯度力', 'pill'), tWind = tag('风向', 'pill');
+    const tPGF = airLabel(block, '气压梯度力', { h: 0.011, color: '#a8341f', dim: 0 }), tWind = airLabel(block, '风向', { h: 0.011, color: '#1f4f86', icon: 'wind', dim: 0 });          // 字和各自的箭头同色
     const placeArrows = () => {
       const p = S.last, on = p && p.st === 'flow';
-      aPGF.visible = aWind.visible = !!on; tPGF.show(!!on); tWind.show(!!on);
+      aPGF.visible = aWind.visible = !!on; tPGF.setOn(!!on); tWind.setOn(!!on);
       if (!on) return;
       const [ax, an] = accP(S.mode, p.x, p.n), o = P(p.x, p.n, G + 0.005);
       aPGF.set(o, new THREE.Vector3(ax, 0, -an), 0.03);
       if (Math.hypot(p.vx, p.vn) > 1e-4) aWind.set(o, new THREE.Vector3(p.vx, 0, -p.vn), 0.03);
       const e1 = o.clone().add(new THREE.Vector3(ax, 0, -an).normalize().multiplyScalar(0.034)), e2 = o.clone().add(new THREE.Vector3(p.vx, 0, -p.vn).normalize().multiplyScalar(0.034));
-      tPGF.loc(block, e1.x, e1.y + 0.008, e1.z); tWind.loc(block, e2.x, e2.y + 0.008, e2.z);
+      tPGF.position.set(e1.x, e1.y + 0.008, e1.z); tWind.position.set(e2.x, e2.y + 0.008, e2.z);
     };
 
     // ---- 中心上空：低压是上升气流和云塔，高压是下沉气流 ----
@@ -234,7 +235,7 @@ export default {
     const vHead = new THREE.Mesh(new THREE.ConeGeometry(0.0028, 0.007, 8), vaneMat); vHead.rotation.z = -Math.PI / 2; vHead.position.x = 0.011; vane.add(vHead);
     const vTail = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.0006), vaneMat); vTail.position.x = -0.009; vane.add(vTail);
     const homePick = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.03, 0.024), new THREE.MeshBasicMaterial({ visible: false })); homePick.position.y = 0.014; homePick.userData.pick = true; home.add(homePick);
-    const homeTag = tag('', 'pill'), tHint = tag('在图上任意一处点一下，放一缕烟，看空气往哪儿走', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间加快了 · 本例水汽充足', 'pill');
+    const homeTag = airLabel(block, '', { h: 0.011, color: '#a8341f', icon: 'home' }), tHint = tag('<span>在图上任意一处点一下</span><small>放一缕烟，看空气往哪儿走</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，时间加快了，本例水汽充足');
     const homeWx = () => {
       const [x, n] = S.home, r = Math.hypot(x, n);
       if (S.mode === 'low') return S.cloud >= 0.7 && r < 0.036 ? '阴雨' : S.cloud >= 0.3 && r < 0.09 ? '多云' : '晴';          // 教学示意：雨区在低压中心附近，外圈多云
@@ -245,8 +246,7 @@ export default {
       const [x, n] = S.home; home.position.copy(P(x, n, G));
       const w = homeWind(), blowing = S.released > 0;
       vane.visible = blowing; vane.rotation.y = Math.atan2(-w.vn, -w.vx);          // 风向标的箭头指着风吹来的方向
-      homeTag.loc(block, x, G + 0.04, -n).text(`<b>你家</b> ${blowing ? `${w.name}${w.lean && w.lean !== w.name ? `（${w.lean}）` : ''} · ` : ''}${homeWx()}`);
-      homeTag.el.classList.toggle('hot', homeWx() === '阴雨');
+      homeTag.position.set(x, G + 0.04, -n); homeTag.setText(`你家 ${blowing ? `${w.name}${w.lean && w.lean !== w.name ? `（${w.lean}）` : ''} · ` : ''}${homeWx()}`);
     };
 
     // ---- 记录：你看到了什么 ----
@@ -369,6 +369,7 @@ export default {
         setMode();
       },
       update(dt) {
+        [tPGF, tWind, homeTag].forEach((l) => l.tick(dt));
         S.t += dt; const d = Math.min(dt, 0.05);
         for (const p of parcels) stepParcel(p, d);
         for (let i = parcels.length - 1; i >= 0; i--) { const p = parcels[i]; if (p.st === 'gone') { p.fade -= d / 2.5; tint(p); if (p.fade <= 0) { drop(p); parcels.splice(i, 1); if (S.last === p) S.last = null; } } }
