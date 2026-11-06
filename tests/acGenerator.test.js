@@ -125,3 +125,21 @@ test('握柄停在一个位置时转子停下，固定步长不依赖画面帧�
   assert.equal(total(a), 0);
   assert.equal(a.connected, false);
 });
+
+test('交换外接线只反转灯板极性，不改变原线圈磁链和电磁制动方向', () => {
+  const normal = generatorState(1, 6, true),
+    swapped = generatorState(1, 6, true, { polarity: -1 });
+  close(normal.emf, swapped.emf);
+  close(normal.linkage, swapped.linkage);
+  assert.ok(normal.redCurrent > 0 && swapped.yellowCurrent > 0);
+  assert.equal(swapped.redCurrent, 0);
+  assert.ok(swapped.torque < 0);
+  close(-swapped.torque * 6, swapped.coilPower + swapped.resistorPower + swapped.ledPower);
+  const m = new ACGenerator();
+  m.theta = 1;
+  m.omega = 6;
+  m.connect(true, -1);
+  assert.ok(m.observe().yellowCurrent > 0);
+  close(m.theta, 1);
+  close(m.omega, 6);
+});

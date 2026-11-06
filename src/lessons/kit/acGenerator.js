@@ -21,11 +21,13 @@ export function generatorState(theta, omega, connected, parameters = GENERATOR) 
   const linkage = k * Math.cos(theta),
     gradient = -k * Math.sin(theta),
     emf = -gradient * omega;
-  const drop = emf >= 0 ? p.redDrop : p.yellowDrop;
+  const polarity = p.polarity === -1 ? -1 : 1,
+    loadEmf = emf * polarity;
+  const drop = loadEmf >= 0 ? p.redDrop : p.yellowDrop;
   const resistance = p.coilResistance + p.seriesResistance + p.diodeResistance;
   const current = connected ? (Math.sign(emf) * Math.max(0, Math.abs(emf) - drop)) / resistance : 0;
-  const redCurrent = Math.max(0, current),
-    yellowCurrent = Math.max(0, -current);
+  const redCurrent = Math.max(0, current * polarity),
+    yellowCurrent = Math.max(0, -current * polarity);
   const coilPower = current * current * p.coilResistance;
   const resistorPower = current * current * p.seriesResistance;
   const ledPower = Math.abs(current) * drop + current * current * p.diodeResistance;
@@ -54,6 +56,7 @@ export class ACGenerator {
     this.target = 0;
     this.held = false;
     this.connected = false;
+    this.polarity = 1;
     this.handWork = this.frictionHeat = this.coilHeat = this.resistorHeat = this.ledEnergy = 0;
   }
   setHand(theta) {
@@ -64,11 +67,12 @@ export class ACGenerator {
   release() {
     this.held = false;
   }
-  connect(connected) {
+  connect(connected, polarity = 1) {
     this.connected = !!connected;
+    this.polarity = polarity === -1 ? -1 : 1;
   }
   observe(theta = this.theta, omega = this.omega) {
-    return generatorState(theta, omega, this.connected, this.parameters);
+    return generatorState(theta, omega, this.connected, { ...this.parameters, polarity: this.polarity });
   }
   energy() {
     return 0.5 * this.parameters.inertia * this.omega * this.omega;
