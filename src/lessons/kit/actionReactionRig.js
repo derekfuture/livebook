@@ -10,12 +10,19 @@ export function actionReactionRig() {
     textures = [];
   const meters = ['B', 'A'].map((name) => {
     const meter = forceMeter();
+    meter.ring.visible = false; // 用同形的水平提环作为实际拖动处，避免两环叠在一起。
     group.add(meter);
     const label = textPlate(name, { w: 0.018, h: 0.012, bg: '#efe5cd', font: 'bold 230px sans-serif' });
-    label.position.set(0, -0.018, 0.012);
+    label.position.set(0.014, -0.018, 0.012);
     meter.add(label);
     textures.push(label.material.map);
     const handle = new THREE.Mesh(new THREE.TorusGeometry(0.009, 0.002, 8, 24), paint(0x697b7b));
+    const pick = new THREE.Mesh(
+      new THREE.SphereGeometry(0.014, 12, 8),
+      new THREE.MeshBasicMaterial({ visible: false }),
+    );
+    pick.userData.pick = true;
+    handle.add(pick);
     handle.rotation.x = -Math.PI / 2;
     group.add(handle);
     return { meter, handle };
@@ -25,6 +32,13 @@ export function actionReactionRig() {
   const pinHead = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.006, 16), paint(0xaa794e)));
   pinHead.position.y = 0.02;
   pin.add(pinHead);
+  const pinPick = new THREE.Mesh(
+    new THREE.SphereGeometry(0.013, 12, 8),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  pinPick.position.y = 0.02;
+  pinPick.userData.pick = true;
+  pin.add(pinPick);
   const rest = meters.map((m) => -m.meter.hookEnd);
   function orient(m, handle, joint) {
     const dx = handle.x - joint.x,
