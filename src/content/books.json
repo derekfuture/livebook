@@ -2366,6 +2366,11 @@
   "title": "物理 高中必修第三册",
   "base": "/books/wuli-hs3/",
   "lessons": {
+   "staticinduction": {
+    "title": "观察静电感应",
+    "fig": "图9.1-3",
+    "sec": "电荷"
+   },
    "capacitor": {
     "title": "观察电容器的充、放电现象",
     "fig": "图10.4-1",
@@ -2408,6 +2413,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "staticinduction",
+    "page": 7,
+    "bbox": [
+     352,
+     591,
+     553,
+     689
+    ],
+    "label": "图9.1-3 · 翻开活页"
+   },
    {
     "lesson": "capacitor",
     "page": 42,
