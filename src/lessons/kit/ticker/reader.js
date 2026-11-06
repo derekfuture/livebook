@@ -410,7 +410,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     plane: 'xz',
     offset: Y,
     enabled: () => !!probe || (!el.hidden && !!sheet && benchHasTape),
-    hint: '点纸带近看，沿同一把尺读 A、B',
+    hint: '点纸带近看，沿同一把尺读 A、B；首次测量前可拖 0 点重选计时起点',
     onStart(p) {
       handle = -1;
       if (!p) return;
@@ -422,7 +422,8 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       if (probe) return;
       if (y < 184) {
         stopPan();
-        panStart = { x, low };
+        const at = low + ((x - LEFT) / (RIGHT - LEFT)) * WINDOW_MM;
+        panStart = { x, low, origin: sheet.used.size === 0 && Math.abs(at - mm(sheet.origin)) < 3 };
         return;
       }
       if (y > 278 || sheet.complete || sheet.used.has(slots[slot])) return;
@@ -433,6 +434,20 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     onDrag(p) {
       const x = pixel(p)[0];
       if (panStart) {
+        if (panStart.origin) {
+          const at = low + ((x - LEFT) / (RIGHT - LEFT)) * WINDOW_MM;
+          const nearest = sheet.run.marks.reduce(
+            (best, _, i) => (Math.abs(mm(i) - at) < Math.abs(mm(best) - at) ? i : best),
+            0,
+          );
+          const available = centers(sheet.run.marks, nearest);
+          if (available.length < required()) return;
+          sheet.origin = nearest;
+          slots = available;
+          slot = 0;
+          aim();
+          return;
+        }
         low = clamp(
           panStart.low - ((x - panStart.x) / (RIGHT - LEFT)) * WINDOW_MM,
           -5,
