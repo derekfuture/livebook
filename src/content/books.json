@@ -2486,6 +2486,11 @@
     "fig": "图2.5-1",
     "sec": "实验：用单摆测量重力加速度"
    },
+   "ripplediffraction": {
+    "title": "水波通过宽窄狭缝",
+    "fig": "图3.3-3",
+    "sec": "波的反射、折射和衍射"
+   },
    "totalreflection": {
     "title": "观察全反射现象",
     "fig": "图4.2-1",
@@ -2535,6 +2540,17 @@
      667
     ],
     "label": "图2.5-1 · 翻开活页"
+   },
+   {
+    "lesson": "ripplediffraction",
+    "page": 76,
+    "bbox": [
+     59,
+     409,
+     275,
+     488
+    ],
+    "label": "图3.3-3 · 翻开活页"
    },
    {
     "lesson": "totalreflection",

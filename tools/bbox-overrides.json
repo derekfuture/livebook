@@ -793,6 +793,7 @@
   "amperedirection": [72, 525, 182, 647],
   "lenzcoil": [114, 126, 485, 249],
   "doubleslit": [66, 456, 376, 542],
+  "ripplediffraction": [59, 409, 275, 488],
   "totalreflection": [125, 638, 464, 747],
   "glasspins": [381, 515, 537, 658],
   "pendulumgravity": [393, 467, 541, 667],
