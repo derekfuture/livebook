@@ -267,7 +267,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     const c = slots[slot],
       a = c - 5,
       b = c + 5;
-    label('第 ' + sheet.trial + ' 条纸带', LEFT, 50, 38);
+    label('纸带 ' + sheet.trial + ' · 已测 ' + sheet.used.size + '/' + required() + ' 处', LEFT, 50, 38);
     label('相邻打点相隔 0.02 s', RIGHT, 50, 36, '#575247', 'right');
     g.fillStyle = 'rgba(40,106,113,.15)';
     g.fillRect(px(mm(a)), 144, px(mm(b)) - px(mm(a)), 33);
@@ -311,10 +311,11 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
         g.fillRect(x - 2, 151, 4, 100);
       }
     });
-    label('从起点到中间点 ' + timeAt(c) + ' s', LEFT, 322, 36);
+    label('中点时刻 ' + timeAt(c) + ' s', LEFT, 322, 40);
     const reading = (k) => (placed[k] || handle === k ? readings[k].toFixed(1) : '—');
-    label('A ' + reading(0) + '    B ' + reading(1) + ' mm', RIGHT, 322, 34, '#554d42', 'right');
-    if (message) label(message, W / 2, 362, 40, '#34404a', 'center');
+    label('尺读数 A ' + reading(0) + '    B ' + reading(1) + ' mm', LEFT, 365, 40, '#554d42');
+    label('本段用时 0.20 s', RIGHT, 322, 40, '#575247', 'right');
+    if (message) label(message, LEFT, 409, 40, '#34404a');
     const previous = sheet.points.findLast(([time]) => Math.abs(time - Number(timeAt(c))) > 0.001);
     if (previous) {
       const index = sheet.origin + Math.round(previous[0] / PERIOD);
@@ -330,7 +331,14 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       g.lineTo(right, 72);
       g.lineTo(right, 103);
       g.stroke();
-      label('已测 ' + previous[0].toFixed(2) + ' s 处：' + previous[1].toFixed(3) + ' m/s', LEFT, 409, 34, '#575247');
+      if (!message)
+        label(
+          '上方括线是上一段 · ' + previous[0].toFixed(2) + ' s 处：' + previous[1].toFixed(3) + ' m/s',
+          LEFT,
+          409,
+          34,
+          '#575247',
+        );
     }
     if (canContinue()) {
       const x = px(mm(slots[nextUnmeasured()]));
@@ -415,7 +423,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     onRecord(sheet, (c - sheet.origin) * PERIOD, v, a, b);
     message = sheet.complete
       ? '已记录 · a = ' + sheet.acceleration.toFixed(3) + ' m/s²'
-      : timeAt(c) + ' s 的速度：' + (b - a).toFixed(1) + ' mm ÷ 0.20 s ≈ ' + v.toFixed(3) + ' m/s';
+      : (b - a).toFixed(1) + ' mm ÷ 0.20 s ≈ ' + v.toFixed(3) + ' m/s';
     onViewChange();
     draw();
   }
@@ -519,7 +527,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
           first[1].toFixed(3) +
           ' m/s。点同一纸带上圈出的点，测 ' +
           timeAt(slots[nextUnmeasured()]) +
-          ' s 时的速度，比较车速的变化。'
+          ' s 时的速度；仍量这条纸带，尺和计时起点都不变。'
         );
       }
       if (sheet.used.size >= required()) return '这条纸带已量 ' + required() + ' 个时刻，回到实验台。';
@@ -527,10 +535,14 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
         return '这条纸带可测的时刻太少，回实验台换新带，先通电再放车。';
       if (slots.length === 1) return '这条纸带只能量一个时刻。回实验台，换新带，先通电再放车。';
       return placed[0]
-        ? '已读起点 A。读终点 B 下的刻度，两数相减就是小车在这 0.20 s 内走过的距离。'
-        : '圈内是计时起点后 ' +
+        ? '已读 A 的位置。沿同一把尺读 B；B − A 是这 0.20 s 内的位移，用它求圈内点处的速度。'
+        : '测第 ' +
+            (sheet.used.size + 1) +
+            '/' +
+            required() +
+            ' 处：圈内是计时起点后 ' +
             timeAt(slots[slot]) +
-            ' s 的打点。要估计当时的车速，量它前后各 5 个间隔。先读 A 下的刻度。';
+            ' s 的打点。A、B 在它前后各 5 个间隔，总用时 0.20 s。先读 A 下的尺刻。';
     },
     leave,
     drag,
