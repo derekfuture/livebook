@@ -790,6 +790,7 @@
   "lightswitch": [65, 500, 190, 617],
   "dooralarm": [412, 479, 538, 578],
   "transformer": [115, 147, 488, 288],
+  "amperedirection": [72, 525, 182, 647],
   "lenzcoil": [114, 126, 485, 249],
   "doubleslit": [66, 456, 376, 542],
   "totalreflection": [125, 638, 464, 747],

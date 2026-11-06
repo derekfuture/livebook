@@ -2576,6 +2576,11 @@
   "title": "物理 高中选择性必修第二册",
   "base": "/books/wuli-hsx2/",
   "lessons": {
+   "amperedirection": {
+    "title": "观察安培力的方向",
+    "fig": "图1.1-1",
+    "sec": "磁场对通电导线的作用力"
+   },
    "lenzcoil": {
     "title": "探究影响感应电流方向的因素",
     "fig": "图2.1-1",
@@ -2598,6 +2603,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "amperedirection",
+    "page": 6,
+    "bbox": [
+     72,
+     525,
+     182,
+     647
+    ],
+    "label": "图1.1-1 · 翻开活页"
+   },
    {
     "lesson": "lenzcoil",
     "page": 29,
