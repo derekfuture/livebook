@@ -160,6 +160,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     h('footer', { class: 'home-foot' },
       h('button', { class: 'paper-btn', onclick: () => openOverview(books, manifests, subjects, pagesOk) }, '⊞ 活页总览'),
       !OFFLINE && (FEATURES.offline || import.meta.env.DEV) ? offlineButton() : null,          // 开关在 src/features.js；离线版里不用再下载
+      OFFLINE ? h('a', { class: 'home-copy', href: 'https://livebook.derekfuture.club/', target: '_blank', rel: 'noopener' }, '活页课本会持续更新，联网后可回到网站下载新版。') : null,
       h('span', { class: 'home-copy' }, '书里可以导入你自己下载的课本 PDF，文件只在这台电脑上使用')));
   document.body.append(ui);
   document.querySelector('#loader')?.classList.add('done');
