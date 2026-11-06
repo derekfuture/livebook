@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { makeCloud } from './kit/cloud.js';
 import { h } from '../ui/Panel.js';
 
 const LIFT = 0;                         // 地块直接放在书页上（已经放在两页正中间、放得很大，不用再浮起来）
@@ -187,10 +188,38 @@ export default {
         const gg = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gg.addColorStop(0, 'rgba(255,255,255,0.9)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fill(); }
     });
     const puffs = Array.from({ length: 64 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
+    // ---- 有体积的云（主体）：冷锋是一座积雨云，底平、往上长成云塔，顶上摊开成砧状；暖锋、准静止锋是贴着缓缓锋面的一大片层状云 ----
+    const vcloud = makeCloud(48, 12), vcum = makeCloud(56, 60); block.add(vcloud.mesh, vcum.mesh);          // 层状云融成一片（SUB 小）；积雨云一团团的（SUB 大）
+    const cr = (() => { let q = 31; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })();
+    const BALLS = { cold: [], warm: [], still: [] };
+    for (let k = 0; k < 22; k++) { const h = k / 21, w = 0.013 + 0.007 * Math.sin(h * Math.PI * 0.9); BALLS.cold.push({ x: -0.012 + (cr() - 0.5) * 0.014 - h * 0.004, y: 0.018 + h * 0.088, z: (cr() - 0.5) * 0.05, r: w, born: 0.22 + h * 0.6 });          // 云塔：低处先凝结，越高越晚
+      for (let j = 0; j < 3; j++) { const a = cr() * 6.28, rr = w * (0.9 + cr() * 0.3); BALLS.cold.push({ x: -0.012 - h * 0.004 + Math.cos(a) * rr, y: 0.02 + h * 0.086 + (cr() - 0.3) * 0.008, z: Math.sin(a) * rr * 1.2, r: w * (0.45 + cr() * 0.25), born: 0.26 + h * 0.6 }); } }          // 一圈圈鼓起来的小团：花菜一样的边
+    for (let k = 0; k < 8; k++) BALLS.cold.push({ x: -0.035 + k * 0.006 + (cr() - 0.5) * 0.004, y: 0.02 + cr() * 0.006, z: (cr() - 0.5) * 0.07, r: 0.014 + cr() * 0.004, born: 0.12 + k * 0.03 });          // 平平的云底
+    for (let k = 0; k < 16; k++) for (const z of [-0.02, 0.02]) BALLS.cold.push({ x: -0.018 + k * 0.0042, y: 0.103 + (cr() - 0.5) * 0.004 - k * 0.0003, z: z + (cr() - 0.5) * 0.02, r: 0.0125 - k * 0.00025 + cr() * 0.002, born: 0.8 + k * 0.01 });          // 砧状的顶：在最高处往前（锋前方向）摊开成扁扁的一片
+    for (const kind of ['warm', 'still']) { const L = kind === 'still' ? 0.12 : 0.14; for (let s = 0.004; s < L * 0.75; s += 0.006) for (const z of [-0.04, 0, 0.04]) { const t = s / L; BALLS[kind].push({ s, z: z + (cr() - 0.5) * 0.02, th: 0.016 * (1 - t) + 0.005, born: 0.15 + t * 0.6 + cr() * 0.05 }); } }          // 层状云：锋线附近又低又厚，越往前越薄
+    let cloudKey = '';
+    const placeVCloud = (wet) => {
+      const k = K(), kind = S.kind;
+      vcum.mesh.visible = kind === 'cold'; vcloud.mesh.visible = kind !== 'cold';
+      if (kind === 'cold') {
+        const cx = S.xf + 0.002, cy = G + 0.07, hx = 0.06, hy = 0.058, hz = ZD * 0.95;
+        vcum.frame(cx, cy, 0, hx, hy, hz);
+        const key = `c${Math.round(S.form * 40)}${Math.round(S.rise * 10)}`;
+        if (key !== cloudKey) { cloudKey = key; vcum.build(BALLS.cold.map((b) => { const g = smooth(b.born, b.born + 0.22, S.form) * S.rise; return [(S.xf + b.x - (cx - hx)) / (2 * hx), (G + b.y - (cy - hy)) / (2 * hy), (b.z + hz) / (2 * hz), (b.r / (2 * hx)) * g]; })); }
+      } else {
+        const L = kind === 'still' ? 0.12 : 0.14, x0 = Math.min(S.xf, xAt(L)), x1 = Math.max(S.xf, xAt(L)), cx = (x0 + x1) / 2, hx = (x1 - x0) / 2 + 0.01, cy = G + 0.04, hy = 0.045, hz = ZD * 0.95;
+        vcloud.frame(cx, cy, 0, hx, hy, hz);
+        const key = `${kind}${Math.round(S.form * 40)}${Math.round(S.rise * 10)}${Math.round(S.xf * 400)}`;
+        if (key !== cloudKey) { cloudKey = key; vcloud.build(BALLS[kind].map((b) => { const g = smooth(b.born, b.born + 0.22, S.form) * S.rise, x = xAt(b.s), y = G + front(b.s) * S.rise + 0.006 + b.th * 0.5; return [(x - (cx - hx)) / (2 * hx), (y - (cy - hy)) / (2 * hy), (b.z + hz) / (2 * hz), (b.th / (2 * hy)) * 0.55 * g]; })); }          // 层状云贴着锋面：锋一动就要重算
+      }
+      for (const c of [vcloud, vcum]) { c.wet(wet); c.opacity(S.view === 'map' ? 0.22 : 1); }
+      vcum.mesh.visible = kind === 'cold' && S.rise > 0.01; vcloud.mesh.visible = kind !== 'cold' && S.rise > 0.01;
+    };
     const camLocal = new THREE.Vector3();
     const viewFade = (p) => { if (S.view === 'map') return 0.22; if (S.view !== 'home') return 1; const cam = globalThis.__lb?.stage?.camera; if (!cam) return 1; block.worldToLocal(camLocal.copy(cam.position)); return smooth(0.025, 0.06, camLocal.distanceTo(p)); };
     const placeClouds = () => {
       const wet = smooth(0.8, 1, S.form) * S.rise;          // 云够厚、下起雨来，云底就压暗
+      placeVCloud(wet);
       for (const m of puffs) {
         const [a, b, c, d] = m.userData.seed;
         let s, y, r, sx = 1, sy = 1, shade, op = 1;
@@ -202,7 +231,7 @@ export default {
           const t = s / 0.15; y = base + b * (0.012 + 0.025 * (1 - t)); r = 0.012 + c * 0.008; sx = 2.2 + 1.6 * t; sy = 0.9 * (1 - 0.55 * t); op = 1 - 0.6 * t;
           shade = 0.62 + 0.3 * b - 0.45 * wet * Math.max(0, 1 - t * 1.6) * (1 - b * 0.7);          // 一层层铺开的层状云：锋线附近又低又厚、发暗，越往前越高越薄，成了丝缕一样的高云
         }
-        const x = xAt(s); m.visible = x > XL + 0.004 && x < XR - 0.004;          // 云和雨都只在这块地上方
+        const x = xAt(s); m.visible = x > XL + 0.004 && x < XR - 0.004 && S.kind !== 'cold' && s / 0.15 > 0.55;          // 主体已经是有体积的云；这些软的小团只留作暖锋前面远处丝丝缕缕的高云
         m.position.set(x, G + y, -ZD * 0.85 + d * ZD * 1.7);
         const born = 0.15 + b * 0.55, g = smooth(born, born + 0.25, S.form);          // 一团团凝结出来：低处先有，越高越晚
         m.scale.set(r * 2 * sx * (0.4 + 0.6 * g), r * 2 * sy * (0.4 + 0.6 * g), 1); shade = Math.max(0.14, shade); m.material.color.setRGB(shade, shade, shade * 1.04); m.material.opacity = 0.8 * S.rise * g * op * viewFade(m.position); if (g < 0.01) m.visible = false;          // 颜色是线性空间的值：0.6 显示出来已经很浅          // 天气图里云淡下去，露出地面；站在地上时，贴到眼前的那几团也淡掉
