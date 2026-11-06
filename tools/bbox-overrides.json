@@ -1,4 +1,7 @@
 {
+  "singleslit": [55, 604, 350, 752],
+  "capillarity": [310, 361, 518, 499],
+  "thinfilminterference": [56, 454, 239, 597],
   "squatsupport": [306, 596, 511, 747],
   "amperefactors": [42, 50, 230, 216],
   "fourconductors": [225, 190, 520, 311],

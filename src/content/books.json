@@ -2663,6 +2663,16 @@
   "title": "物理 高中选择性必修第一册",
   "base": "/books/wuli-hsx1/",
   "lessons": {
+   "singleslit": {
+    "title": "观察光的单缝衍射",
+    "fig": "图4.5-1",
+    "sec": "光的衍射"
+   },
+   "thinfilminterference": {
+    "title": "观察肥皂膜反射灯焰的干涉",
+    "fig": "图4.3-5",
+    "sec": "光的干涉"
+   },
    "springphase": {
     "title": "观察两个小球的振动",
     "fig": "图2.2-4",
@@ -2755,6 +2765,28 @@
    }
   },
   "spots": [
+   {
+    "lesson": "singleslit",
+    "page": 108,
+    "bbox": [
+     55,
+     604,
+     350,
+     752
+    ],
+    "label": "图4.5-1 · 翻开活页"
+   },
+   {
+    "lesson": "thinfilminterference",
+    "page": 102,
+    "bbox": [
+     56,
+     454,
+     239,
+     597
+    ],
+    "label": "图4.3-5 · 翻开活页"
+   },
    {
     "lesson": "springphase",
     "page": 42,
@@ -3188,6 +3220,11 @@
   "title": "物理 高中选择性必修第三册",
   "base": "/books/wuli-hsx3/",
   "lessons": {
+   "capillarity": {
+    "title": "观察毛细现象",
+    "fig": "图2.5-6",
+    "sec": "液体的表面张力"
+   },
    "surfacetension": {
     "title": "观察肥皂膜和棉线的变化",
     "fig": "图2.5-2",
@@ -3210,6 +3247,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "capillarity",
+    "page": 42,
+    "bbox": [
+     310,
+     361,
+     518,
+     499
+    ],
+    "label": "图2.5-6 · 翻开活页"
+   },
    {
     "lesson": "surfacetension",
     "page": 40,
