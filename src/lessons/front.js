@@ -238,7 +238,7 @@ export default {
       const [r0, r1] = K().rain, on = (S.form >= 1 - 1e-10 ? 1 : 0) * S.rise; rain.visible = on > 0.01; rain.material.opacity = (S.view === 'home' ? 0.35 : 0.85) * on;          // 站在地上看：雨就在眼前，淡一点才不乱          // 云够厚了才下雨
       for (let i = 0; i < NR; i++) {
         const [a, b, c] = rainSeed[i], sv = r0 + 0.002 + a * (r1 - r0), x = xAt(sv), top = Math.max(0.024, front(sv) * S.rise + 0.004), y = G + top - (((c + S.t * 1.1) % 1) * top), y2 = x > XL + 0.002 && x < XR - 0.002 ? Math.max(G, y - 0.008) : y;          // 出了地块的雨不画
-        rainPos.set([x, y, -ZD * 0.85 + b * ZD * 1.7, x - 0.0015 * (y - y2) / 0.008, y2, -ZD * 0.85 + b * ZD * 1.7], i * 6);
+        rainPos.set([x, y, -ZD * 0.85 + b * ZD * 1.7, x + 0.0015 * (y - y2) / 0.008, y2, -ZD * 0.85 + b * ZD * 1.7], i * 6);
       }
       rain.geometry.attributes.position.needsUpdate = true;
     };
@@ -433,7 +433,7 @@ export default {
         stillw0: '你家在暖空气一侧：<b>晴</b>。',
         stillw1: '你家在冷空气一侧，但不在雨区：<b>阴，较冷</b>。',
       }[key];
-      if (msg) W.ui.status(msg);
+      W.ui.status(msg || `你家现在：<b>${w.text}</b>。`);          // 回到锋前（晴）等没有专门的话时，也按当前天气说，不留着上一句
       const short = { coldw2: '锋线到了：大风、降温、下雨一起来', coldw3: '锋线过去：气温降了，气压升了', warmw2: '锋线还没到，已经下起雨了', warmw3: '锋线过去：气温升了，气压降了' }[key];
       if (short && !S.map) say1(short, S.home + 0.03, G + 0.075, 0.035);          // 写在你家牌子的右上方，不压着它
     };
@@ -670,7 +670,7 @@ export default {
         if (S.form > 0.2) placeTrees();          // 树在风里一阵阵晃
         if (S.kind === 'still' && (S.stuck || S.xf >= MX - 0.004) && S.drag !== 'front') {          // 准静止锋：顶在山脚不走了，一天天过去（锋线只是来回微微摆动）
           S.stuck = true; const d0 = Math.floor(S.days); S.days += dt / 1.4;
-          S.xf = MX - 0.002 - 0.003 * (0.5 + 0.5 * Math.sin(S.t * 0.9)); layout();
+          S.xf = MX - 0.002 - 0.003 * (0.5 + 0.5 * Math.sin(S.t * 0.9)); layout(); { const ks = `${weatherAt('still', S.home - S.xf).k}${weatherAt('still', S.town - S.xf).k}`; if (ks !== S.stillKey) { S.stillKey = ks; say(); } }          // 锋线摆得让你家、邻城的天气变了：状态栏跟着改
           if (Math.floor(S.days) !== d0) { const w = weatherAt('still', S.home - S.xf); S.stillSnap = { text: w.k === 'w2' ? '正在下雨' : w.text, rain: w.k === 'w2', days: Math.floor(S.days) }; if (S.days >= 3) S.done.add('still'); drawLogs(); if (Math.floor(S.days) === 1) W?.ui.status(`冷空气被山挡住，锋停在山脚，几乎不动。按当前两城位置：你家<b>${w.text}</b>，邻城<b>${weatherAt('still', S.town - S.xf).text}</b>（示意，时间加快了）。`); }
         }
       },

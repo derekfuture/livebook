@@ -144,13 +144,13 @@ export default {
     let spawnAcc = 0;
     const stepDots = (dt) => {
       const l = L(); spawnAcc += dt * l.inflow * 2.2;
-      while (spawnAcc > 1) { spawnAcc -= 1; const q = P.find((p) => !p.on); if (!q) break; const s0 = rnd() < l.up / l.inflow ? 0 : 0.05 + rnd() * (DAM_S - 0.1); Object.assign(q, { on: true, s: s0, off: (rnd() - 0.5) * 0.007, fate: rnd() }); }
+      while (spawnAcc > 1) { spawnAcc -= 1; const q = P.find((p) => !p.on); if (!q) break; const s0 = rnd() < l.up / l.inflow ? 0 : 0.05 + rnd() * (DAM_S - 0.1); Object.assign(q, { on: true, s: s0, off: (rnd() - 0.5) * 0.007, fate: rnd(), fate2: rnd() }); }
       for (let i = 0; i < NP; i++) {
         const p = P[i]; if (!p.on) { ppos.set([0, -1, 0], i * 3); continue; }
         p.s += dt * (S.pulse > 0 && p.s > DAM_S ? 0.22 : 0.07);
         if (S.dam && p.s > DAM_S - 0.02 && p.s < DAM_S && p.fate < l.trapped / l.inflow) { p.on = false; continue; }          // 小浪底水库拦下大部分沙（淤满了就拦不住）
         const keep = l.out > 0 ? Math.min(1, l.sea / l.out) : 1;
-        if (p.s > 0.75 && p.fate > keep && p.s > 0.75 + (p.fate - keep) * 0.8) { p.on = false; continue; }          // 按当年下泄与入海之比示意河道沉积
+        if (p.s > 0.75 && p.fate2 > keep && p.s > 0.75 + (p.fate2 - keep) * 0.8) { p.on = false; continue; }          // 按当年下泄与入海之比示意河道沉积；用另一个独立的随机数（水库那一关已经筛过 fate）
         if (p.s >= 1) { p.on = false; continue; }
         const q = curve.getPointAt(p.s), t = curve.getTangentAt(p.s), base = channelSection(p.s, S.bed).particle;
         if (q.z > ZD) { p.on = false; continue; }

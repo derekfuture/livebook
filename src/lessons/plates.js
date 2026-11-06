@@ -161,7 +161,7 @@ export default {
       } else if (k === 'OSR' || k === 'CRB') {
         crust(0, mid - 6, hh * (k === 'OSR' ? 0.12 : 0.3), k === 'OSR' ? '#4f5f74' : '#b89a74'); crust(mid + 6, w, hh * (k === 'OSR' ? 0.12 : 0.3), k === 'OSR' ? '#4f5f74' : '#b4946c');
         if (k === 'OSR') { g.fillStyle = '#e0542c'; g.beginPath(); g.moveTo(mid - 30, hh); g.quadraticCurveTo(mid - 8, base + 60, mid, base + 10); g.quadraticCurveTo(mid + 8, base + 60, mid + 30, hh); g.fill(); }          // 洋中脊岩浆补充；大陆张裂不默认画成岩浆裂隙
-        arrow(mid - 80, base + 40, -130, 0); arrow(mid + 80, base + 40, 130, 0);
+        const ay = (x0, x1) => Math.max(geom.surface(x0), geom.surface(x1), base) + 36; arrow(mid - 80, ay(mid - 210, mid - 80), -130, 0); arrow(mid + 80, ay(mid + 80, mid + 210), 130, 0);          // 箭头画在当地海底以下的岩石圈里，不被裁掉
       } else {
         crust(0, w, hh * 0.2, '#8a8070'); g.fillStyle = '#ffffff'; g.font = '600 26px "PingFang SC", sans-serif'; g.textAlign = 'center'; g.fillText('两侧板块沿着边界水平错动（从侧面看不出相向、相离）', mid, base + 80);
       }
