@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, ZD, WC, DC, APEX, LAM, smooth, stage, heightAt, gullyAt, waterY, floorY, drop, centerZ, gapAt, topY } from './kit/river.js';
 
@@ -189,7 +190,7 @@ export default {
       const hut = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.006, 0.008), lit(0xf3ede1)); hut.position.set(0, 0.003, south ? 0.005 : -0.005); g.add(hut);
       const roof = new THREE.Mesh(new THREE.ConeGeometry(0.0068, 0.004, 4), lit(0x6f7f95)); roof.rotation.y = Math.PI / 4; roof.position.set(0, 0.008, south ? 0.005 : -0.005); g.add(roof);
       const pick = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.03), new THREE.MeshBasicMaterial({ visible: false })); pick.userData.pick = true; g.add(pick);
-      g.visible = false; block.add(g); return { g, pick, south, x: APEX, z: 0, t0: DOCK_T, g0: 0.003, seen: null, moved: false, placed: south, tag: tag('', 'pill') };
+      g.visible = false; block.add(g); return { g, pick, south, x: APEX, z: 0, t0: DOCK_T, g0: 0.003, seen: null, moved: false, placed: south, tag: airLabel(block, '', { h: 0.0115, color: '#2c3245', icon: 'anchor', dim: 0 }) };
     };
     const docks = [makeDock(true), makeDock(false)];
     const atBank = (d, x, side, t) => { const zc = centerZ(x, t); d.x = x; d.z = zc + side * (WC / 2 + 0.003); d.t0 = t; d.g0 = gapAt(d.x, d.z, t); d.seen = null; };          // 渡口建在水边（谷底上）
@@ -206,14 +207,14 @@ export default {
     const nameOf = (d) => (d.south ? '西津渡' : '你的港口');
     const placeDocks = () => {
       for (const d of docks) {
-        if (!d.placed) { d.g.visible = S.t >= DOCK_T - 0.001; d.g.position.set(TRAY[0], -LIFT + 0.0062, TRAY[1]); d.g.rotation.x = 0; d.tag.loc(block, TRAY[0], -LIFT + 0.02, TRAY[1]).text('<b>你的港口</b> · 拖到岸边').show(d.g.visible); continue; }
+        if (!d.placed) { d.g.visible = S.t >= DOCK_T - 0.001; d.g.position.set(TRAY[0], -LIFT + 0.0062, TRAY[1]); d.g.rotation.x = 0; d.tag.position.set(TRAY[0], -LIFT + 0.02, TRAY[1]); d.tag.setText('你的港口 · 拖到岸边').setOn(d.g.visible); continue; }
         const show = S.t >= d.t0 - 0.001 && d.x < S.cut - 0.006 && S.t >= DOCK_T - 0.001;
-        d.g.visible = show; d.tag.show(show); if (!show) continue;
+        d.g.visible = show; d.tag.setOn(show); if (!show) continue;
         const y = heightAt(d.x, d.z, S.t), f = fateOf(d);
         if (f === 'fell' || (f === 'far' && d.seen !== 'fell')) d.seen = f;          // 这一轮看到过的结局（记录里写）
         const fallen = f === 'fell', deep = depthAt(d) > depthAt(d, -1) * 1.25;          // 和对岸比：深得多才算水深
         d.g.position.set(d.x, fallen ? Math.max(y, waterY(d.x, S.t)) - 0.004 : y, d.z); d.g.rotation.x = fallen ? (d.z > centerZ(d.x, d.t0) ? -0.6 : 0.6) : 0;
-        d.tag.loc(block, d.x, y + (d.south ? 0.004 : 0.03), d.z + (d.south ? 0.03 : -0.01)).text(`<b>${nameOf(d)}</b> · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : deep ? ' · 水深，大船能靠' : ' · 水浅'}`);
+        d.tag.position.set(d.x, y + (d.south ? 0.004 : 0.03), d.z + (d.south ? 0.03 : -0.01)); d.tag.setText(`${nameOf(d)} · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : deep ? ' · 水深，大船能靠' : ' · 水浅'}`);
       }
     };
 
@@ -234,8 +235,8 @@ export default {
     };
 
     // ---- 标签 ----
-    const tStage = tag('', 'pill'), tKnife = tag('拖这个红球往上游走，切开看横剖面', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间大大加快', 'pill');
-    const tOuter = tag('凹岸', 'pill'), tInner = tag('凸岸', 'pill'), tPlain = tag('河漫滩（凸岸堆积的泥沙）', 'pill');
+    const tStage = airLabel(block, '', { h: 0.0105, color: '#a8341f', dim: 0 }), tKnife = tag('<span>拖这个红球往上游走</span><small>切开看横剖面</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，时间大大加快');
+    const tOuter = airLabel(block, '凹岸', { h: 0.0135, color: '#12305a', dim: 0 }), tInner = airLabel(block, '凸岸', { h: 0.0135, color: '#12305a', dim: 0 }), tPlain = groundLabel(block, '河漫滩（凸岸堆积的泥沙）', { h: 0.011, color: '#3a2a16', opacity: 0.9 });          // 河道太窄，两岸的名字立在岸边；河漫滩的名字印在滩面上
     const stageOf = (t) => (t < 0.08 ? 0 : t < 0.35 ? 1 : t < 0.6 ? 2 : t < 0.93 ? 3 : 4);
     const STAGE = [
       ['一条刚出现的小河', ''],
@@ -246,11 +247,11 @@ export default {
     ];
     const placeTags = () => {
       const t = S.t, x1 = S.cut, s = stageOf(t), st = stage(t);
-      tStage.loc(block, x1, 0.095, -ZD + 0.02).text(STAGE[s][1] || '横剖面').show(s > 0);
-      tKnife.loc(block, x1 - 0.045, RY + 0.01, RZ + 0.004).show(!S.cutMoved && t > 0.15);          // 写在导轨上方、红球的上游那边
+      tStage.position.set(x1, 0.095, -ZD + 0.02); tStage.setText(STAGE[s][1] || '横剖面').setOn(s > 0);
+      tKnife.loc(block, x1 + 0.045, RY + 0.025, RZ + 0.004).show(!S.cutMoved && t > 0.15);          // 写在导轨上方、红球的上游那边
       const xb = APEX - LAM / 2, bend = st.amp > 0.012 && x1 > xb + 0.02, zc = centerZ(xb, t);          // 另一个湾（向南凸）标上凹岸、凸岸；有渡口的那个湾看渡口的牌子
-      tOuter.loc(block, xb, waterY(xb, t) + 0.006, zc + WC / 2 + 0.004).show(bend); tInner.loc(block, xb, waterY(xb, t) + 0.006, zc - WC / 2 - 0.014).show(bend);
-      tPlain.loc(block, xb - 0.045, floorY(xb, t) + 0.004, centerZ(xb - 0.045, t) - WC / 2 - 0.022).show(t > 0.75 && x1 > xb + 0.02);          // 离凹岸、凸岸的牌子远一点
+      tOuter.position.set(xb, waterY(xb, t) + 0.006, zc + WC / 2 + 0.004); tOuter.setOn(bend); tInner.position.set(xb, waterY(xb, t) + 0.006, zc - WC / 2 - 0.014); tInner.setOn(bend);
+      tPlain.position.set(xb - 0.045, floorY(xb, t) + 0.0012, centerZ(xb - 0.045, t) - WC / 2 - 0.022); tPlain.visible = t > 0.75 && x1 > xb + 0.02;          // 离凹岸、凸岸的牌子远一点
       tScale.loc(block, XL + 0.07, -0.006, ZD + 0.01);
     };
 
@@ -320,6 +321,7 @@ export default {
         S.said = -1; record();
       },
       update(dt) {
+        [tStage, tOuter, tInner, ...docks.map((d) => d.tag)].forEach((l) => l.tick(dt));
         ripple.offset.x -= dt * 0.35;          // 水往下游流（+x）
         if (S.play) { setT(S.t + dt / 24, true); if (S.t >= 1) { S.play = false; if (W) W.play.textContent = '流下去'; } }
       },
