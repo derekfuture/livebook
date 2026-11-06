@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { SYN, level, range, lunarName, phaseName } from './kit/tide.js';
 
@@ -48,20 +49,28 @@ export default {
     { const g = sideCv.getContext('2d'); for (let i = 0; i < 512; i++) { const x = XL + (XR - XL) * (i / 511), ty = (1 - shore(x) / 0.07) * 128; g.fillStyle = '#9a7650'; g.fillRect(i, ty, 1, 6); g.fillStyle = '#c4a272'; g.fillRect(i, ty + 6, 1, 128); } }
     const sideTex = new THREE.CanvasTexture(sideCv); sideTex.colorSpace = THREE.SRGBColorSpace;
     const sideM = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, 0.07), new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, alphaTest: 0.1 })); sideM.position.set(0, 0.035, ZD); block.add(sideM);
-    const water = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 1, ZD * 2), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, transparent: true, opacity: 0.72, depthWrite: false })); water.renderOrder = 4; block.add(water);
+    const water = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 1, ZD * 2 - 0.0006), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, transparent: true, opacity: 0.72, depthWrite: false })); water.renderOrder = 4; block.add(water);
     const lineM = new THREE.LineDashedMaterial({ color: 0x2a3140, dashSize: 0.003, gapSize: 0.002, transparent: true, opacity: 0.55 });
     const mark = (y, t) => { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(XL, y, ZD + 0.001), new THREE.Vector3(XR, y, ZD + 0.001)]), lineM); l.computeLineDistances(); block.add(l); const tg = tag(t, 'pill'); tg.loc(block, XL + 0.02, y, ZD + 0.002); return tg; };
 
     // ---- 潮间带上的紫菜网帘：一排排竹竿挂着网 ----
-    const bamboo = new THREE.MeshLambertMaterial({ color: 0xc8a96a }), netM = new THREE.MeshLambertMaterial({ color: 0x3a4a32, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
-    for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) { const x = -0.02 + r * 0.022, z = -ZD + 0.012 + k * 0.02, y0 = shore(x); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0005, 0.0005, 0.016, 5), bamboo); pole.position.set(x, y0 + 0.008, z); block.add(pole); if (k < 5) { const net = new THREE.Mesh(new THREE.PlaneGeometry(0.02, 0.003), netM); net.position.set(x, y0 + 0.008, z + 0.01); net.rotation.y = Math.PI / 2; block.add(net); } }
-    const tNori = tag('紫菜网帘', 'pill');
+    const bamboo = new THREE.MeshLambertMaterial({ color: 0xc8a96a }), WET = new THREE.Color(0x26351f), DRY = new THREE.Color(0x7d8a52);          // 浸在水里的网帘颜色深，露出水面晒着的变浅
+    const netTex = canvasTex(64, 64, (g, w) => { g.strokeStyle = '#ffffff'; g.lineWidth = 3; for (let k = 0; k <= w; k += 8) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, w); g.moveTo(0, k); g.lineTo(w, k); g.stroke(); } }, { repeat: [2, 3] });          // 网眼；网帘平着张在竹竿之间，顺着滩涂的坡
+    const netMs = [0, 1, 2, 3].map(() => new THREE.MeshLambertMaterial({ color: WET.clone(), map: netTex, alphaMap: netTex, transparent: true, side: THREE.DoubleSide, depthWrite: false })), nets = [];
+    for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) { const x = -0.02 + r * 0.022, z = -ZD + 0.012 + k * 0.02, y0 = shore(x); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0005, 0.0005, 0.016, 5), bamboo); pole.position.set(x, y0 + 0.008, z); block.add(pole); if (k < 5) { const net = new THREE.Mesh(new THREE.PlaneGeometry(0.017, 0.019), netMs[r]); net.position.set(x, y0 + 0.008, z + 0.01); net.rotation.set(-Math.PI / 2, 0, -Math.atan(0.04 / 0.14), 'ZYX'); net.userData.row = r; block.add(net); nets.push(net); } }
     // ---- 港口：码头和一条船 ----
     const pier = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.004, 0.014), new THREE.MeshLambertMaterial({ color: 0x8a8f96 })); pier.position.set(0.11, 0.05, -0.03); block.add(pier);
     const pierLegs = []; for (const x of [0.085, 0.105, 0.125]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.05, 0.002), pier.material); l.position.set(x, 0.025, -0.03); block.add(l); pierLegs.push(l); }
+    // 码头边立着一根潮位尺（水尺）：一米一格红白相间，海水淹到哪就是现在的潮位；旁边写着读数和涨、落
+    const STAFF_X = 0.14, STAFF_Z = 0.035, STAFF_LO = MSL - 3 * KY, STAFF_HI = MSL + 3 * KY;
+    const staffTex = canvasTex(32, 384, (g, w) => { for (let m = 0; m < 6; m++) { g.fillStyle = m % 2 ? '#f4f1ea' : '#c8382a'; g.fillRect(0, m * 64, w, 64); } g.fillStyle = '#20242c'; for (let k = 0; k <= 60; k++) g.fillRect(k % 5 ? w * 0.6 : w * 0.25, k * 6.4 - 0.5, w, k % 5 ? 1 : 2); });
+    const staff = new THREE.Mesh(new THREE.BoxGeometry(0.005, STAFF_HI - STAFF_LO, 0.0012), [0, 0, 0, 0, 1, 0].map((i) => new THREE.MeshLambertMaterial(i ? { map: staffTex } : { color: 0xe8e4da }))); staff.position.set(STAFF_X, (STAFF_LO + STAFF_HI) / 2, STAFF_Z); block.add(staff);
+    const staffPost = new THREE.Mesh(new THREE.BoxGeometry(0.0016, STAFF_LO - shore(STAFF_X), 0.0016), new THREE.MeshLambertMaterial({ color: 0x6b6f76 })); staffPost.position.set(STAFF_X, (STAFF_LO + shore(STAFF_X)) / 2, STAFF_Z - 0.001); block.add(staffPost);
+    const aLevel = airLabel(block, '', { h: 0.013, color: '#1d3f70' }), aGround = airLabel(block, '搁浅', { h: 0.017, color: '#b03a2a', dim: 0 }), aHover = airLabel(block, '', { h: 0.014, color: '#3a3226', dim: 0 });
     const ship = new THREE.Group(); block.add(ship);
     { const hull = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.007, 0.012), new THREE.MeshLambertMaterial({ color: 0xb8442e })); hull.position.y = 0.0015; ship.add(hull); const cab = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.007, 0.009), new THREE.MeshLambertMaterial({ color: 0xf2efe6 })); cab.position.set(-0.008, 0.008, 0); ship.add(cab); }
-    const tShip = tag('', 'pill'), tHint = tag('', 'pill'), tScale = tag('教学示意 · 潮位竖直方向夸大了 · 数值是示意', 'pill');
+    const tHint = tag('', 'pill');
+    noteBadge(tag, '教学示意：潮位竖直方向夸大了，数值是示意').loc(block, XL + 0.012, -0.004, ZD + 0.01);
     const people = new THREE.Group(); block.add(people);
     for (let k = 0; k < 5; k++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0014, 0.006, 6), new THREE.MeshLambertMaterial({ color: [0xd8553a, 0x3a6fb0, 0xe0b040][k % 3] })); const x = 0.02 + k * 0.012, z = 0.02 - (k % 2) * 0.02; p.position.set(x, shore(x) + 0.003, z); people.add(p); }          // 赶海的人
 
@@ -75,7 +84,8 @@ export default {
     const sunDir = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.014, 12), new THREE.MeshBasicMaterial({ color: 0xffc04a })); sunDir.rotation.z = -Math.PI / 2; sunDir.position.set(-0.044, 0.006, 0); orr.add(sunDir);          // 尖朝地球：太阳光从左边照过来
     const port = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xd8392b })); orr.add(port);
     const moonOrbit = new THREE.Mesh(new THREE.RingGeometry(0.034, 0.0352, 72), new THREE.MeshBasicMaterial({ color: 0x9aa4b4, side: THREE.DoubleSide })); moonOrbit.rotation.x = -Math.PI / 2; moonOrbit.position.y = 0.0005; orr.add(moonOrbit);
-    const tSun = tag('太阳光 →', 'pill'), tMoon = tag('', 'pill'), tPort = tag('港口', 'pill');
+    const aSun = airLabel(orr, '太阳光 →', { x: -0.046, y: 0.014, z: 0.026, h: 0.012, color: '#9a6410' }), aMoon = airLabel(orr, '', { h: 0.012, color: '#2b3346' });
+    const labels = [aLevel, aGround, aHover, aSun, aMoon];
     const placeOrr = () => {
       const a = Math.PI + (2 * Math.PI * S.D) / SYN;          // 新月：月亮在地球和太阳中间（太阳在左边）
       moon.position.set(Math.cos(a) * 0.035, 0.01, -Math.sin(a) * 0.035);
@@ -83,7 +93,7 @@ export default {
       bulge.scale.set(1.45 * pr / 1.8, 0.9, 0.85); bulge.rotation.y = a;
       const rot = (2 * Math.PI * S.h) / 24;          // 地球自转：0 点时港口在背着太阳的那一边（夜里，太阳在左边）
       port.position.set(Math.cos(rot) * 0.0105, 0.01, -Math.sin(rot) * 0.0105);
-      tSun.loc(orr, -0.04, 0.02, -0.02); tMoon.loc(orr, moon.position.x, 0.03, moon.position.z).text(`${phaseName(S.D)} · 农历${lunarName(S.D)}`); tPort.loc(orr, port.position.x * 1.6, 0.03, port.position.z * 1.6).show(false);          // 港口就是地球上的红点，不再挂牌子（太挤）
+      aMoon.setText(`${phaseName(S.D)} · ${lunarName(S.D)}`); aMoon.position.set(moon.position.x, 0.026, moon.position.z);          // 港口就是地球上的红点，不挂牌子
     };
 
     const layout = () => {
@@ -92,12 +102,11 @@ export default {
       water.scale.set((XR - x0) / (XR - XL), Math.max(0.001, y), 1); water.position.set((x0 + XR) / 2, y / 2, 0);
       const bed = SHIP_BED, deep = y - bed, afloat = deep > SHIP_DRAFT;          // 港口航道（码头边）的水深：太浅船就搁浅
       ship.position.set(0.11, afloat ? y - 0.002 : bed + 0.0003, 0.0); ship.rotation.z = afloat ? 0 : 0.18;          // 搁浅时船底就落在海底上
-      tShip.loc(block, 0.11, Math.max(bed, y) + 0.016, 0).text(afloat ? '船浮着，能进出港' : '水太浅，船搁浅了');
+      aGround.position.set(0.1, bed + 0.024, 0); aGround.setOn(!afloat);          // 船浮着就不写字；搁浅了才写
+      const dv = level(S.D, S.h + 0.1) - v; aLevel.setText(`${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} 米 ${dv > 0 ? '↑涨' : '↓落'}`); aLevel.position.set(STAFF_X - 0.005 - aLevel.scale.x / 2, y + 0.003, STAFF_Z + 0.004);          // 读数跟着水面，挂在潮位尺旁边
       people.children.forEach((pp) => (pp.visible = shore(pp.position.x) > y + 0.001)); people.visible = true;          // 赶海的人只站在露出水面的滩涂上
-      const rows = [0, 1, 2, 3].map((r) => shore(-0.02 + r * 0.022) + 0.008), out = rows.filter((ny) => ny > y).length;
-      tNori.loc(block, 0.01, Math.max(y, 0.035) + 0.022, -ZD + 0.02).text(out === 4 ? '紫菜网帘全露出水面：晒太阳、光合作用' : out === 0 ? '紫菜网帘全浸在海水里：吸收养分' : `${out} 排网帘露出水面，${4 - out} 排浸在水里`);          // 按每一排网帘的高度算
+      S.dry = [0, 1, 2, 3].map((r) => shore(-0.02 + r * 0.022) + 0.008 > y);          // 按每一排网帘的高度算：露出水面没有
       tHint.loc(block, -0.03, 0.08, 0).text('拨时间、拖月亮，看潮水涨落').show(!S.seen.size);
-      tScale.loc(block, XL + 0.06, -0.004, ZD + 0.01);
       placeOrr(); drawChart();
     };
 
@@ -114,8 +123,8 @@ export default {
       curve(S.D, [], '#2f62b0', 2.2);
       if (S.act) { const A = ACTS[S.act]; g.fillStyle = 'rgba(80,160,90,0.15)'; for (let t = 0; t < 24; t += 0.1) if (A.ok(level(S.D, t), S.D, level(S.D, t + 0.1) > level(S.D, t))) g.fillRect(PX(t), T, PX(0.1) - PX(0) + 0.5, B - T); }          // 挑过一件事以后，合适的时段淡淡涂绿
       const v = level(S.D, S.h); g.fillStyle = '#c4462e'; g.beginPath(); g.arc(PX(S.h), PY(v), 4, 0, 7); g.fill();
-      const rg = range(S.D), dv = level(S.D, S.h + 0.1) - v;
-      W.read.innerHTML = `现在 <b>${Math.floor(S.h)} 时 ${String(Math.round((S.h % 1) * 60)).padStart(2, '0')} 分</b>：水位 ${v >= 0 ? '+' : ''}${v.toFixed(1)} 米，正在<b>${dv > 0 ? '涨潮' : '落潮'}</b>　这一天的潮差 <b>${rg.r.toFixed(1)} 米</b>${S.pick ? `<br>${ACTS[S.pick.k].name}挑在 ${Math.floor(S.pick.h)} 时：<b>${S.pick.ok ? '合适' : '不合适'}</b>（${ACTS[S.pick.k].why}）` : ''}<br><small>潮位是示意；实际各地每天的潮时、潮高可以查潮汐表</small>`;
+      const rg = range(S.D);
+      W.read.innerHTML = `现在 <b>${Math.floor(S.h)} 时 ${String(Math.round((S.h % 1) * 60)).padStart(2, '0')} 分</b>　这一天的潮差 <b>${rg.r.toFixed(1)} 米</b>${S.pick ? `<br>${ACTS[S.pick.k].name}挑在 ${Math.floor(S.pick.h)} 时：<b>${S.pick.ok ? '合适' : '不合适'}</b>（${ACTS[S.pick.k].why}）` : ''}<br><small>潮位是示意；实际各地每天的潮时、潮高可以查潮汐表</small>`;
     };
     const drawLog = () => {
       if (!W) return;
@@ -133,13 +142,20 @@ export default {
       if (Math.abs(f - 0.25) < 0.04 || Math.abs(f - 0.75) < 0.04) { if (!S.did.neap) { S.did.neap = range(S.D).r; S.cmp = S.cmp ?? S.D; drawLog(); } }
     };
 
+    // ---- 鼠标移上去才浮出名字（平时不写，免得满屏都是字） ----
+    const hover = (rc) => {
+      const ht = rc.intersectObjects([...nets, staff, pier, ...ship.children, land], false)[0], o = ht?.object;
+      if (!o) { aHover.userData.want = 0; return; }
+      const l = block.worldToLocal(ht.point.clone()), nm = o.userData.row != null ? (S.dry[o.userData.row] ? '紫菜网帘：露出水面晒太阳' : '紫菜网帘：浸在海水里吸收养分') : o === staff ? '潮位尺' : o === pier ? '码头' : o.parent === ship ? '船' : l.x < -0.065 ? '岸上' : l.x < 0.085 ? '潮间带（滩涂）' : '海底';
+      aHover.setText(nm); aHover.position.set(l.x, Math.max(l.y, MSL) + 0.014, l.z); aHover.userData.want = 1;
+    };
     // ---- 指针：拖月亮；在曲线上挑时刻（在侧栏里，见 mount） ----
     const plane = new THREE.Plane(), hit = new THREE.Vector3();
     const pointer = {
       down(rc) { if (!rc.intersectObject(moonPick, false).length) return false; S.drag = true; document.getElementById('c').style.cursor = 'grabbing'; return true; },
       move(rc) {
         const c = document.getElementById('c');
-        if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(moonPick, false).length ? 'grab' : ''; return false; }
+        if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(moonPick, false).length ? 'grab' : ''; hover(rc); return false; }
         orr.updateMatrixWorld(); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), orr.localToWorld(new THREE.Vector3(0, 0.01, 0))); if (!rc.ray.intersectPlane(plane, hit)) return true;
         const l = orr.worldToLocal(hit.clone()), a = Math.atan2(-l.z, l.x), prevD = S.D; S.D = ((((a - Math.PI) / (2 * Math.PI)) * SYN) % SYN + SYN) % SYN;
         if (Math.abs(S.D - prevD) > 0.5) S.pick = null; if (Math.abs(S.D - prevD) > 3) S.cmp = prevD;          // 换到差得远的日子：原来那天的曲线留成虚线比一比
@@ -176,6 +192,7 @@ export default {
         layout(); drawLog();
       },
       update(dt) {
+        netMs.forEach((m, r) => m.color.lerp(S.dry[r] ? DRY : WET, Math.min(1, dt * 1.5))); labels.forEach((l) => l.tick(dt));          // 网帘露出来慢慢晒干、变浅
         if (S.play) { S.h = (S.h + dt * 2) % 24; if (!S.seen.has('day')) { S.seen.add('day'); drawLog(); } W?.time.set(S.h); layout(); }
       },
     };
