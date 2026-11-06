@@ -409,7 +409,7 @@ export default {
       }[key];
       if (msg) W.ui.status(msg);
       const short = { coldw2: '锋线到了：大风、降温、下雨一起来', coldw3: '锋线过去：气温降了，气压升了', warmw2: '锋线还没到，已经下起雨了', warmw3: '锋线过去：气温升了，气压降了' }[key];
-      if (short && !S.map) say1(short, S.home, G + 0.05, 0.035);
+      if (short && !S.map) say1(short, S.home + 0.03, G + 0.075, 0.035);          // 写在你家牌子的右上方，不压着它
     };
 
     // ---- 拖：推后面的气团（锋面跟着走）；也可以拖你家、邻城换个地方 ----
@@ -493,7 +493,7 @@ export default {
     // ---- 换视角：同一时刻、同一个你家，三种看法 ----
     S.view = '3d';
     const VIEWS = [['3d', '立体剖面'], ['map', '天气图（从上往下看）'], ['home', '站在你家抬头看']];
-    const viewTags = VIEWS.map(([k, name]) => { const t = tag(name, 'pill view', () => setView(k)); return t; });
+    const viewTags = VIEWS.map(([k, name]) => { const t = tag(name, 'btn view', () => setView(k)); return t; });          // 能点的用按钮的样子，和说明用的牌子分开
     const setView = (k) => {
       if (k === S.view) return;
       if (k === '3d') { S.view = '3d'; back?.(); placeExtras(); return; }
@@ -547,7 +547,7 @@ export default {
           top.traverse((o) => { if (!o.isMesh && !o.isLine && !o.isSprite) return; for (const m of [].concat(o.material || [])) hero.list.push({ o, m, op: m.opacity, tr: m.transparent, vis: o.visible }); });
         }
       }
-      const closing = !!globalThis.__lb?.live?.active?.closing, tgt = closing ? 0 : 1;
+      const closing = !!globalThis.__lb?.live?.active?.closing, tgt = !closing && S.view === 'home' ? 1 : 0;          // 书是这个系列的标志，一直留着；只有“站在你家抬头看”时，四周换成天空和田野
       hero.k = tgt > hero.k ? Math.min(1, hero.k + dt / 1.1) : Math.max(0, hero.k - dt / 0.6);
       const k = smooth(0, 1, hero.k);
       backdropMat.opacity = 0.97 * k;
@@ -599,6 +599,7 @@ export default {
     return {
       group,
       card: false,          // 和化学一样：不垫台板；整块地浮在书页上方
+      place: 'spread',          // 从课本的图里升起来，放到两页正中间、按整个对开页放大：模型是主角，书还在
       size: { w: 0.38, d: 0.14, h: 0.2 },
       view: { elev: 14, azim: 18, lookY: 0.45, frameMargin: 0.96 },          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面
       pointer,

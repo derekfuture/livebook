@@ -112,11 +112,14 @@ export class LiveLayer {
     // 放在这一页中间，按页面大小缩放（书即学案模式：留在原图的位置，页面下半部分要留给表格）
     const size = inst.size;   // { w, d, h }（实验自己的单位，米）
     const inPage = world && MODE === 'page';
+    const spread = !inPage && inst.place === 'spread';          // 放在两页正中间、按整个对开页放大（地理：模型是主角，书还在）
     const pageCenter = inPage
       ? book.pageToWorld(spot.page, book.PW / 2, (y0 + y1) / 2 + 20, 0.004)
+      : spread ? new THREE.Vector3(0, Math.max(book.topHeight('left'), book.topHeight('right')) + 0.004, 0.02)
       : new THREE.Vector3(side === 'left' ? -book.W / 2 : book.W / 2, book.topHeight(side) + 0.004, 0.02);
     const s = inPage
       ? Math.min((book.W * 0.94) / size.w, (book.H * 0.34) / size.d)
+      : spread ? Math.min((book.W * 1.7) / size.w, (book.H * 0.8) / size.d) * (inst.scale || 1)
       : Math.min((book.W * 0.96) / size.w, (book.H * 0.62) / size.d) * (inst.scale || 1);
     scaler.scale.setScalar(s);
     root.position.copy(figCenter);
