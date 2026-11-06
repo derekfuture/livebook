@@ -2551,6 +2551,11 @@
   "title": "物理 高中选择性必修第一册",
   "base": "/books/wuli-hsx1/",
   "lessons": {
+   "forcedvibration": {
+    "title": "研究受迫振动的频率",
+    "fig": "图2.6-2",
+    "sec": "受迫振动 共振"
+   },
    "momentum": {
     "title": "气垫导轨验证动量守恒定律",
     "fig": "图1.4-1",
@@ -2593,6 +2598,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "forcedvibration",
+    "page": 59,
+    "bbox": [
+     403,
+     239,
+     505,
+     363
+    ],
+    "label": "图2.6-2 · 翻开活页"
+   },
    {
     "lesson": "momentum",
     "page": 22,

@@ -92,3 +92,18 @@ test('固定物理步长与帧长无关，周期由运动事件而非设置值�
   assert.ok(a.reading(0).start > 0);
   assert.equal(a.reading(0).intervals, 3);
 });
+
+test('过渡结束按位移与速度残差判断，不能把电机已到设定转速当钩码已经稳定', () => {
+  const m = new ForcedVibration();
+  m.switch(true);
+  m.advance(0.2);
+  assert.equal(m.settled(), false);
+  m.advance(25);
+  assert.equal(m.settled(), true);
+  m.setFrequency(2);
+  assert.equal(m.settled(), false);
+  m.advance(25);
+  assert.equal(m.settled(), true);
+  m.switch(false);
+  assert.equal(m.settled(), false);
+});

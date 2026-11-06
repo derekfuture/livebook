@@ -69,6 +69,20 @@ export class ForcedVibration {
       workRate: bodies.reduce((sum, b) => sum + b.workRate, 0),
     };
   }
+  settled() {
+    if (!this.powered) return false;
+    const o = this.observe(),
+      w = 2 * Math.PI * this.frequency;
+    if (Math.abs(o.frequency - this.frequency) > 0.005 * this.frequency) return false;
+    return o.bodies.every((b, i) => {
+      const p = this.systems[i],
+        w0sq = p.stiffness / p.mass;
+      const amplitude = (this.amplitude * w0sq) / Math.hypot(w0sq - w * w, 2 * p.beta * w);
+      const angle = o.phase - Math.atan2(2 * p.beta * w, w0sq - w * w);
+      // Residual transient in displacement/velocity, relative to the steady response.
+      return Math.hypot(b.q - amplitude * Math.sin(angle), b.v / w - amplitude * Math.cos(angle)) < 0.03 * amplitude;
+    });
+  }
   derivative(s) {
     const o = this.observe(s);
     return [
