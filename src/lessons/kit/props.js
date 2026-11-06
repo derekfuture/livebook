@@ -325,7 +325,7 @@ export function arc(radius, a0, a1, { color = INK, width = 1.3 } = {}) {
 }
 
 /** 带刻度的尺（贴图）。length 米，unit 每格的米数。 */
-export function rulerMesh({ length = 0.3, width = 0.03, thick = 0.003, divisions = 300, every = 10, labelEvery = 10, startLabel = 0, color = '#f5f1e6' } = {}) {
+export function rulerMesh({ length = 0.3, width = 0.03, thick = 0.003, divisions = 300, every = 10, labelEvery = 10, startLabel = 0, labelStep = 1, color = '#f5f1e6' } = {}) {
   const tex = canvasTex(4096, Math.round((4096 * width) / length), (g, W, H) => {
     g.fillStyle = color; g.fillRect(0, 0, W, H);
     g.strokeStyle = '#1d2433'; g.fillStyle = '#1d2433';
@@ -335,7 +335,7 @@ export function rulerMesh({ length = 0.3, width = 0.03, thick = 0.003, divisions
       const lw = Math.max(2, W / divisions / 7);     // 线宽跟着格子宽度走，缩小显示时不会消失
       g.lineWidth = major ? lw * 1.8 : lw;
       g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H * (major ? 0.42 : half ? 0.32 : 0.22)); g.stroke();
-      if (i % labelEvery === 0) g.fillText(String(startLabel + i / every), x, H * 0.82);
+      if (i % labelEvery === 0) g.fillText(String(startLabel + i / every * labelStep), x, H * 0.82);
     }
   });
   const top = new THREE.MeshBasicMaterial({ map: tex });

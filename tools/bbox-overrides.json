@@ -775,6 +775,7 @@
  ],
   "forceaddition": [277, 258, 534, 442],
   "newtontube": [59, 160, 198, 312],
+  "fallacceleration": [75, 617, 164, 725],
   "staticfriction": [58, 58, 198, 152],
   "hookelaw": [111, 532, 470, 736],
   "handtape": [63, 78, 537, 149],

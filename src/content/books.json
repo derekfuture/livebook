@@ -2144,6 +2144,11 @@
     "fig": "图2.4-1",
     "sec": "自由落体运动"
    },
+   "fallacceleration": {
+    "title": "研究自由落体运动规律",
+    "fig": "图2.4-2",
+    "sec": "自由落体运动"
+   },
    "staticfriction": {
     "title": "测量最大静摩擦力",
     "fig": "图3.2-4",
@@ -2209,6 +2214,17 @@
      312
     ],
     "label": "图2.4-1 · 翻开活页"
+   },
+   {
+    "lesson": "fallacceleration",
+    "page": 52,
+    "bbox": [
+     75,
+     617,
+     164,
+     725
+    ],
+    "label": "图2.4-2 · 翻开活页"
    },
    {
     "lesson": "staticfriction",
