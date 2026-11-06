@@ -121,8 +121,8 @@ export function selfInductionRig() {
   });
   circuit.wire('A2.b', 'E.-', {
     points: [
-      [0.2, 0.02, 0.125],
-      [-0.235, 0.015, 0.125],
+      [0.2, 0.02, 0.11],
+      [-0.235, 0.015, 0.11],
     ],
     color: 0x465857,
   });
