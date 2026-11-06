@@ -132,7 +132,7 @@ export default {
     const tM = airLabel(block, '', { h: 0.0078, color: '#2c3245', icon: 'thermo' }), tE = airLabel(block, '', { h: 0.0078, color: '#2c3245', icon: 'thermo' });
     tM.position.set(MX - CW + 0.02, GY + 0.088, ZD * 0.78); tE.position.set(EX - CW + 0.02, GY + 0.088, ZD * 0.78);
     const tHint = tag('<span>按住太阳，往左拖</span><small>太阳落下去，就是夜里</small>', 'hint');
-    noteBadge(tag, '教学示意：月球的一昼夜约等于地球上的一个月，这里画成一样长；同一个太阳照着两边；箭头多少表示辐射强弱，数值是示意').loc(block, MX - CW + 0.006, -0.002, ZD + 0.01);
+    noteBadge(tag, '教学示意：月球的一昼夜约等于地球上的一个月，这里画成一样长；同一个太阳照着两边；箭头多少表示辐射强弱，数值是示意。两边地表的性质（吸热、反射）也不一样，这里只看大气让温差变小的方向，不用来算大气单独让温差小了多少').loc(block, MX - CW + 0.006, -0.002, ZD + 0.01);
     const labels = [...Object.values(pLabels), tM, tE];
 
     // ---- 摆好 ----
@@ -149,17 +149,28 @@ export default {
       drawChart();
     };
     // 时间往前走：积分温度，记下这一天、这一夜的最高最低
+    // 时间往前走：一小步一小步地积分，每一小步都记下温度（拨得再快也不漏掉中间的最高、最低）
+    // 对照：每个白天（6—18 时）、夜晚（18—次日 6 时）开始时，从同一个状态另起一个“孪生”地面，用另一种天空走完同一段；比的是同一时段、同一起点
+    const other = (sky) => (sky === 'cloud' ? 'clear' : 'cloud');
     const advance = (dt) => {
-      if (dt <= 0) return; const t0 = S.t; step(S.st, t0, dt, S.sky); S.t = t0 + dt;
-      const Tm = S.st.m - K0, Tg = S.st.g - K0, tt = ((S.t % 24) + 24) % 24;
-      S.trace.push({ t: S.t, m: Tm, g: Tg, sky: S.sky }); if (S.trace.length > 2000) S.trace.shift();
-      const D = S.dayTr; D.mMax = Math.max(D.mMax, Tm); D.mMin = Math.min(D.mMin, Tm); D.gMax = Math.max(D.gMax, Tg); D.gMin = Math.min(D.gMin, Tg);
-      if (S.t - D.from >= 24) { if (!S.rec.full) { S.rec.full = { ...D }; W?.ui.status(`过了一整天：月球表面最高约 ${D.mMax.toFixed(0)} ℃、最低约 ${D.mMin.toFixed(0)} ℃；地球表面只在 ${D.gMin.toFixed(0)}–${D.gMax.toFixed(0)} ℃ 之间。再给地球的天空<b>加上浓密的低云</b>，过一个白天或一个夜晚试试。`); drawLog(); } S.dayTr = { mMax: -1e9, mMin: 1e9, gMax: -1e9, gMin: 1e9, from: S.t }; }
-      const isNight = tt >= 18 || tt < 6, key = isNight ? 'n' : 'd';          // 一个白天（6—18 时）、一个夜晚（18—次日 6 时）里天空没换过，才记下来比
-      if (!S.seg || S.seg.key !== key) { if (S.seg && S.seg.whole && S.seg.ok) { const r = S.seg; (r.key === 'n' ? S.rec.nights : S.rec.days)[r.sky] = r.key === 'n' ? r.min : r.max; drawLog(); sayCloud(r); } S.seg = { key, sky: S.sky, ok: true, whole: Math.abs(tt - (isNight ? 18 : 6)) < 0.5, min: 1e9, max: -1e9 }; }
-      if (S.seg.sky !== S.sky) S.seg.ok = false; S.seg.min = Math.min(S.seg.min, Tg); S.seg.max = Math.max(S.seg.max, Tg);
+      if (dt <= 0) return; const n = Math.max(1, Math.ceil(dt / 0.25)), hstep = dt / n;
+      for (let i = 0; i < n; i++) {
+        const t0 = S.t; step(S.st, t0, hstep, S.sky); S.t = t0 + hstep;
+        const Tm = S.st.m - K0, Tg = S.st.g - K0, tt = ((S.t % 24) + 24) % 24;
+        S.trace.push({ t: S.t, m: Tm, g: Tg, sky: S.sky }); if (S.trace.length > 2000) S.trace.shift();
+        const D = S.dayTr; D.mMax = Math.max(D.mMax, Tm); D.mMin = Math.min(D.mMin, Tm); D.gMax = Math.max(D.gMax, Tg); D.gMin = Math.min(D.gMin, Tg);
+        if (S.t - D.from >= 24 - 1e-6) { if (!S.rec.full) { S.rec.full = { ...D }; W?.ui.status(`过了一整天：月球表面最高约 ${D.mMax.toFixed(0)} ℃、最低约 ${D.mMin.toFixed(0)} ℃；地球表面只在 ${D.gMin.toFixed(0)}–${D.gMax.toFixed(0)} ℃ 之间。再给地球的天空<b>加上浓密的低云</b>，过一个白天或一个夜晚试试。`); drawLog(); } S.dayTr = { mMax: -1e9, mMin: 1e9, gMax: -1e9, gMin: 1e9, from: S.t }; }
+        const isNight = tt >= 18 - 1e-6 || tt < 6 - 1e-6, key = isNight ? 'n' : 'd';
+        if (!S.seg || S.seg.key !== key) { const r = S.seg; if (r && r.whole && r.ok) { const rec = r.key === 'n' ? S.rec.nights : S.rec.days, v = r.key === 'n' ? r.min : r.max, tv = r.key === 'n' ? r.tmin : r.tmax; rec[r.sky] = { v, twin: tv, twinSky: other(r.sky) }; drawLog(); sayCloud(r); } S.seg = { key, sky: S.sky, ok: true, whole: Math.abs(tt - (isNight ? 18 : 6)) < 0.3, min: 1e9, max: -1e9, twin: { ...S.st }, tmin: 1e9, tmax: -1e9 }; }
+        if (S.seg.sky !== S.sky) S.seg.ok = false;
+        S.seg.min = Math.min(S.seg.min, Tg); S.seg.max = Math.max(S.seg.max, Tg);
+        step(S.seg.twin, t0, hstep, other(S.seg.sky)); const tg = S.seg.twin.g - K0; S.seg.tmin = Math.min(S.seg.tmin, tg); S.seg.tmax = Math.max(S.seg.tmax, tg);
+      }
     };
-    const sayCloud = (r) => { if (!W || r.sky !== 'cloud') return; const base = (r.key === 'n' ? S.rec.nights : S.rec.days).clear; W.ui.status(r.key === 'n' ? `这一夜有浓密的低云：地球表面最低约 <b>${r.min.toFixed(0)} ℃</b>${base != null ? `（晴夜约 ${base.toFixed(0)} ℃）` : ''}。云让大气逆辐射更强，地面没那么冷。` : `这个白天有浓密的低云：地球表面最高约 <b>${r.max.toFixed(0)} ℃</b>${base != null ? `（晴天约 ${base.toFixed(0)} ℃）` : ''}。云把更多阳光反射回去，地面没那么热。`); };
+    const sayCloud = (r) => {
+      if (!W) return; const night = r.key === 'n', a = night ? r.min : r.max, b = night ? r.tmin : r.tmax, cloudV = r.sky === 'cloud' ? a : b, clearV = r.sky === 'cloud' ? b : a, d = cloudV - clearV;
+      W.ui.status(night ? `同一个夜晚、同样的起点：有浓密的低云，地球表面最低约 <b>${cloudV.toFixed(0)} ℃</b>；晴夜约 <b>${clearV.toFixed(0)} ℃</b>。${d > 0.5 ? '有云的夜里大气逆辐射更强，地面没那么冷。' : '这一夜差别不大。'}` : `同一个白天、同样的起点：有浓密的低云，地球表面最高约 <b>${cloudV.toFixed(0)} ℃</b>；晴天约 <b>${clearV.toFixed(0)} ℃</b>。${d < -0.5 ? '云把更多阳光反射回去，地面没那么热。' : '这个白天差别不大。'}`);
+    };
 
     // ---- 侧栏：两支温度计一天里的读数（上面月球、下面地球，刻度不同才看得清地球那条） ----
     const drawChart = () => {
@@ -177,7 +188,8 @@ export default {
         g.lineWidth = 1;
       };
       panel(22, 112, -150, 130, 50, '月球表面（℃）', 'm', '#8a8a8a');
-      panel(146, 226, 10, 40, 10, '地球表面（℃，刻度放大了）', 'g', '#3f8a3a');
+      const gv = S.trace.filter((p) => p.t >= t0).map((p) => p.g), glo = Math.floor(Math.min(10, ...gv) / 10) * 10, ghi = Math.ceil(Math.max(40, ...gv) / 10) * 10;          // 地球那条：刻度按实际温度放，不截掉
+      panel(146, 226, glo, ghi, ghi - glo > 40 ? 20 : 10, '地球表面（℃，刻度放大了）', 'g', '#3f8a3a');
       g.font = '11px "PingFang SC", sans-serif'; g.fillStyle = '#7a705e'; g.textAlign = 'left'; g.fillText('24 小时前', L, hh - 8); g.textAlign = 'right'; g.fillText('现在', R, hh - 8); g.fillStyle = '#6b7a8c'; g.fillText('灰线：天上有云', R, 137); g.fillStyle = '#7a705e'; g.fillText('灰底：夜里', R, 13);
     };
     const drawLog = () => {
@@ -185,12 +197,14 @@ export default {
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t))), F = S.rec.full;
       if (F) { r('一整天：', `月球表面 ${F.mMin.toFixed(0)}～${F.mMax.toFixed(0)} ℃，温差约 ${(F.mMax - F.mMin).toFixed(0)} ℃；地球表面 ${F.gMin.toFixed(0)}～${F.gMax.toFixed(0)} ℃，温差约 ${(F.gMax - F.gMin).toFixed(0)} ℃`); r('地球比月球多了：', '大气对太阳辐射的反射、吸收；大气吸收地面辐射；大气逆辐射（还有大气向上射向宇宙空间的辐射）'); }
       const N = S.rec.nights, D = S.rec.days;
-      if (N.cloud != null) r('有云的夜里：', `地球表面最低约 ${N.cloud.toFixed(0)} ℃${N.clear != null ? `，晴夜约 ${N.clear.toFixed(0)} ℃` : ''}：大气逆辐射更强`);
-      if (D.cloud != null) r('有云的白天：', `地球表面最高约 ${D.cloud.toFixed(0)} ℃${D.clear != null ? `，晴天约 ${D.clear.toFixed(0)} ℃` : ''}：云反射了更多阳光`);
+      const pair = (rec) => { const x = rec.cloud ?? rec.clear; if (!x) return null; return rec.cloud ? { cloud: rec.cloud.v, clear: rec.cloud.twin } : { cloud: rec.clear.twin, clear: rec.clear.v }; };          // 记下的是同一段时间、同一起点的一对：真走的那种天空，和孪生地面走的另一种
+      const np = pair(N), dp = pair(D);
+      if (np) r('同一个夜晚：', `有浓密的低云，地球表面最低约 ${np.cloud.toFixed(0)} ℃；晴夜约 ${np.clear.toFixed(0)} ℃${np.cloud - np.clear > 0.5 ? '：有云时大气逆辐射更强，保温作用更强' : ''}`);
+      if (dp) r('同一个白天：', `有浓密的低云，地球表面最高约 ${dp.cloud.toFixed(0)} ℃；晴天约 ${dp.clear.toFixed(0)} ℃${dp.clear - dp.cloud > 0.5 ? '：云反射了更多太阳辐射' : ''}`);
       if (S.guess != null && F) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：大得多`)));
       W.log.replaceChildren(...rows);
       W.read.innerHTML = `现在 <b>${hm(S.t)}</b>，${toa(S.t) > 0 ? '白天' : '夜里'}；地球的天空：<b>${SKY[S.sky].name}</b><br><small>箭头越密，辐射越强；数值是示意</small>`;
-      if (F && (N.cloud != null || D.cloud != null)) W.ui.unlock();
+      if (F && (np || dp) && [N, D].some((x) => x.cloud)) W.ui.unlock();
     };
 
     // ---- 指针：拖太阳 ----
