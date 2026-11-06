@@ -41,19 +41,24 @@ export function tangentPath(count = 3) {
   return { count, length, at, exit: at(length) };
 }
 
-export function tangentTrial({ count = 3, speed = 0.36, resistance = 0.08 } = {}) {
+export function tangentTrial({ count = 3, speed = 0.36, resistance = 0.08, startDistance = 0 } = {}) {
   if (!(Number.isFinite(speed) && speed >= 0 && Number.isFinite(resistance) && resistance >= 0))
     throw new RangeError('速度和等效减速度须为非负有限数');
   const path = tangentPath(count);
+  if (!Number.isFinite(startDistance) || startDistance < 0 || startDistance > path.length)
+    throw new RangeError('释放位置须在已安装轨道内');
   const stopTime = speed === 0 ? 0 : resistance > 0 ? speed / resistance : Infinity;
-  const stopDistance = resistance > 0 ? (speed * speed) / (2 * resistance) : speed === 0 ? 0 : Infinity;
+  const stopDistance =
+    startDistance + (resistance > 0 ? (speed * speed) / (2 * resistance) : speed === 0 ? 0 : Infinity);
   const reachesExit = speed > 0 && stopDistance > path.length;
-  const exitSpeed = reachesExit ? Math.sqrt(Math.max(0, speed * speed - 2 * resistance * path.length)) : 0;
-  const exitTime = reachesExit ? (2 * path.length) / (speed + exitSpeed) : null;
+  const exitSpeed = reachesExit
+    ? Math.sqrt(Math.max(0, speed * speed - 2 * resistance * (path.length - startDistance)))
+    : 0;
+  const exitTime = reachesExit ? (2 * (path.length - startDistance)) / (speed + exitSpeed) : null;
   function at(time) {
     if (!(Number.isFinite(time) && time >= 0)) throw new RangeError('时间须为非负有限数');
     const t = Math.min(time, stopTime);
-    const distance = speed * t - 0.5 * resistance * t * t;
+    const distance = startDistance + speed * t - 0.5 * resistance * t * t;
     const velocity = Math.max(0, speed - resistance * t);
     const p = path.at(Math.min(distance, stopDistance));
     return {
@@ -70,14 +75,14 @@ export function tangentTrial({ count = 3, speed = 0.36, resistance = 0.08 } = {}
   function trace(time, spacing = 0.0015) {
     if (!(Number.isFinite(spacing) && spacing > 0)) throw new RangeError('采样间距须为正有限数');
     const end = at(time).distance;
-    const distances = [0];
-    for (let s = spacing; s < end; s += spacing) distances.push(s);
+    const distances = [startDistance];
+    for (let s = startDistance + spacing; s < end; s += spacing) distances.push(s);
     let edge = 0;
     for (const segment of TANGENT_SEGMENTS.slice(0, count)) {
       edge += segment.length;
-      if (edge > 0 && edge < end) distances.push(edge);
+      if (edge > startDistance && edge < end) distances.push(edge);
     }
-    if (end > 0) distances.push(end);
+    if (end > startDistance) distances.push(end);
     return distances
       .sort((a, b) => a - b)
       .filter((s, i, all) => i === 0 || s - all[i - 1] > 1e-12)

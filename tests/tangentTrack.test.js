@@ -102,3 +102,21 @@ test('无阻力和无轨道是连续极限，非法输入不能产生 NaN 轨迹
   assert.throws(() => trial.trace(1, 0), RangeError);
   assert.throws(() => trial.at(-1), RangeError);
 });
+
+test('从手推后的实际位置释放，不跳回 C，留痕不补画尚未滚过的起点', () => {
+  const startDistance = 0.05,
+    speed = 0.3,
+    resistance = 0.08;
+  const trial = tangentTrial({ startDistance, speed, resistance });
+  const initial = trial.at(0),
+    geometry = tangentPath().at(startDistance);
+  close(initial.x, geometry.x);
+  close(initial.z, geometry.z);
+  close(initial.distance, startDistance);
+  close(trial.stopDistance, startDistance + speed ** 2 / (2 * resistance));
+  close(trial.at(trial.exitTime).distance, trial.path.length);
+  close(trial.trace(1)[0].distance, startDistance);
+  assert.ok(trial.trace(1).every((p) => p.distance >= startDistance));
+  close(trial.at(10).distance, trial.stopDistance);
+  assert.throws(() => tangentTrial({ startDistance: 1 }), RangeError);
+});
