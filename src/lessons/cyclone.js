@@ -13,7 +13,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 
-const LIFT = 0.06, G = 0.03;          // 地块浮得高一点、厚一点
+const LIFT = 0, G = 0.03;          // 地块直接放在书页上（放在两页正中间、放大以后不用再浮起来）
 const XL = -0.15, XR = 0.15, ZN = 0.12;          // 地块：东西 0.3，南北 0.24（x 朝东，−z 朝北）
 import { MODEL, accP, windAt, windName } from './kit/pressure.js';
 const HEMI = [1, -1, 0];          // 北半球（向右偏）、南半球（向左偏）、假如地球不自转
@@ -349,6 +349,7 @@ export default {
     return {
       group,
       card: false,
+      place: 'spread',          // 从课本的图里升起来，放到两页正中间、按整个对开页放大
       size: { w: 0.32, d: 0.26, h: 0.18 },
       view: { elev: 30, azim: 10, lookY: 0.46, frameMargin: 1.06 },          // 要看清空气在图上怎么转，镜头比锋那张高一些
       pointer,

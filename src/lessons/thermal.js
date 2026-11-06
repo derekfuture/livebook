@@ -13,7 +13,7 @@ import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, H, N, xOf, iOf, makeState, step, field, steady, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
 
-const LIFT = 0.035, GT = 0.026, D = 0.035;          // 浮起多高、地面多厚、空气槽前后多深
+const LIFT = 0, GT = 0.026, D = 0.035;          // 直接放在书页上；地面多厚、空气槽前后多深
 const ZK = [0.2, 0.42, 0.64, 0.86].map((r) => r * H);          // 四张等压面原来的高度
 const ABC = { B: -0.12, A: 0, C: 0.12 };
 const ASK = {
@@ -262,6 +262,7 @@ export default {
     return {
       group,
       card: false,
+      place: 'spread',          // 从课本的图里升起来，放到两页正中间、按整个对开页放大
       size: { w: 0.36, d: 0.1, h: 0.18 },
       view: { elev: 12, azim: 16, lookY: 0.5, frameMargin: 1.22 },          // 正对剖面略偏一点：看得出等压面是一张张“面”
       pointer,

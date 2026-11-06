@@ -14,7 +14,7 @@ import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, ZD, WC, DC, APEX, LAM, smooth, stage, heightAt, gullyAt, waterY, floorY, drop, centerZ, gapAt, topY } from './kit/river.js';
 
-const LIFT = 0.04;
+const LIFT = 0;          // 地块直接放在书页上
 const NX = 220, NZ = 140;
 const ASK = ['先猜一下（可以不猜）：在这个情境里，港口建在哪一岸，过很多年还能停大船？', ['凹岸', '凸岸', '两岸都一样']];
 const DOCK_T = 0.62;          // 一开始就是这个时候：河道已经弯了
@@ -298,6 +298,7 @@ export default {
     return {
       group,
       card: false,
+      place: 'spread',          // 从课本的图里升起来，放到两页正中间、按整个对开页放大
       size: { w: 0.36, d: 0.22, h: 0.12 },
       view: { elev: 32, azim: 48, lookY: 0.4, frameMargin: 1.2 },          // 从下游的东南方向、略高处看：河道和切面（横剖面）都看得见
       pointer,
