@@ -1,6 +1,6 @@
 // 高中地理 必修第一册 第四章第一节 常见地貌类型 · 喀斯特地貌（课本第 66–68 页，图 4.2 地表喀斯特地貌景观演变示意、图 4.4 溶洞、活动“大窝凼”）。
 //
-// 一个问题：为什么桂林、贵州、云南有那么多石头山、溶洞，别的地方却没有？
+// 一个问题：为什么广西、贵州、云南等地的喀斯特地貌特别典型？峰林和溶洞是怎样形成的？
 // 课本的图就是模型：图 4.2 那样的一块块岩石，淋着雨。这里并排三块：湿润地区的石灰岩、干旱地区的石灰岩、湿润地区的花岗岩——这里、那里一起比。
 // 每块前面切开，看得见地下：石灰岩里慢慢溶出溶洞，洞顶长石钟乳、洞底长石笋，连起来是石柱。
 // 学生亲手做的：
@@ -25,12 +25,12 @@ export default {
   fig: '图4.2',
   title: '喀斯特地貌',
   flow: 'explore',
-  ask: '为什么桂林、贵州、云南有那么多石头山和溶洞，别的地方却没有？这些石头山又是怎么一步步变出来的？',
+  ask: '为什么广西、贵州、云南等地的喀斯特地貌特别典型？那一座座峰林和地下的溶洞是怎样形成的？',
   need: '让时间走，看三块岩石各变成什么样；比一比湿润和干旱、石灰岩和花岗岩；再看看地下的溶洞',
   conclusion: {
     page: 70,
     quote: '组成地壳的岩石有一部分是可溶性岩石，如石灰岩等。在适当条件下，这类岩石的物质溶于水并被带走，或重新沉淀，从而在地表和地下形成形态各异的地貌，统称为喀斯特地貌。……地表喀斯特地貌主要有溶沟、洼地、峰林等。……溶沟进一步发展，可形成面积较大的洼地。……洼地边缘残留的岩体，常常呈锥状耸立，构成峰丛、峰林。峰林可演变为孤峰，以至残丘。……地下喀斯特地貌以溶洞为主。……溶洞顶部常见向下发育的石钟乳、石幔或石帘；底部常见向上发育的石笋。石钟乳和石笋连接起来形成石柱。',
-    why: '石灰岩是可溶性岩石。雨水溶进了二氧化碳，顺着岩石的裂隙往下渗，一边走一边把岩石溶掉、带走：地表先溶出一道道溶沟，溶沟连成洼地，洼地之间剩下的岩体就成了峰丛、峰林，再溶下去只剩孤峰、残丘。地下的水把岩石溶出溶洞；洞顶滴下的水里，二氧化碳跑出去，溶在水里的物质又沉淀下来，洞顶长出石钟乳、洞底长出石笋。水越多（湿润）、溶蚀越强，发育得越快，所以我国广西、贵州、云南最典型；干旱地区慢得多；花岗岩不是可溶性岩石，不会形成喀斯特地貌。',
+    why: '石灰岩是可溶性岩石。雨水溶进了二氧化碳，顺着岩石的裂隙往下渗，一边走一边把岩石溶掉、带走：地表先溶出一道道溶沟，溶沟连成洼地，洼地之间剩下的岩体就成了峰丛、峰林，再溶下去只剩孤峰、残丘。地下的水把岩石溶出溶洞；洞顶滴下的水里，二氧化碳跑出去，溶在水里的物质又沉淀下来，洞顶长出石钟乳、洞底长出石笋。在岩性、裂隙等条件相近时，水分越充足通常越有利于溶蚀（水温、水里溶进的二氧化碳等也有影响），我国广西、贵州、云南等地石灰岩分布广、气候湿热，喀斯特地貌最为典型；干旱地区发育得慢得多；花岗岩不是可溶性岩石，不会形成这样的喀斯特地貌（它的风化、侵蚀是另一回事，本活页没有模拟）。这里展示的是一种典型演变示意，不是每个地方都要依次经过这六步。',
     src: '课本第 66–68 页 · 第四章 第一节 常见地貌类型',
   },
 
@@ -95,7 +95,7 @@ export default {
       if (b.rock === 'limestone' && b.clim === 'wet' && t > 0.5) for (let k = 0; k < 400 && nh < 14; k++) { const x = (R() - 0.5) * BW * 0.9, z = (R() - 0.5) * BD * 0.9, hg = height(b, P, x, z); if (hg < H0 - 0.045) { m4.makeTranslation(x, hg, z); u.houses.setMatrixAt(nh++, m4); } }
       if (b.clim === 'wet') for (let k = 0; k < 1200 && nt < 160; k++) { const x = (R() - 0.5) * BW * 0.94, z = (R() - 0.5) * BD * 0.94, hg = height(b, P, x, z); if (b.rock === 'granite' ? R() < 0.15 : hg > H0 - 0.035 || t < 0.3) { if (R() < (b.rock === 'granite' ? 1 : 0.5)) { m4.makeTranslation(x, hg - 0.0003, z); u.trees.setMatrixAt(nt++, m4); } } }
       u.houses.count = nh; u.trees.count = nt; u.houses.instanceMatrix.needsUpdate = true; u.trees.instanceMatrix.needsUpdate = true;
-      const sn = b.rock === 'granite' ? null : stageName(t); u.stageL.setText(sn ?? (b.rock === 'granite' ? '几乎没有变化' : t > 0 ? '刚开始溶蚀' : '')).setOn(S.time > 0);
+      const sn = b.rock === 'granite' ? null : stageName(t); u.stageL.setText(sn ?? (b.rock === 'granite' ? '不出现喀斯特形态' : t > 0 ? '刚开始溶蚀' : '')).setOn(S.time > 0);
       if (sn) { (S.seen[b.key] ||= new Set()).add(sn); }
     };
     // 切面：一层层石灰岩（或花岗岩）、裂隙、地下的溶洞和钟乳石
@@ -108,12 +108,16 @@ export default {
         const c = cave(t), cx = w * 0.52, cy = Y(0.016), rx = 30 + 120 * c.size, ry = 8 + 30 * c.size;          // 溶洞在地下深处：比后来溶低的地面（坝子）还低
         if (c.size > 0.02) {
           g.fillStyle = '#2a2a2c'; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, 7); g.fill();          // 溶洞
-          g.fillStyle = '#4f87b8'; g.fillRect(cx - rx * 0.8, cy + ry * 0.55, rx * 1.6, ry * 0.32);          // 地下河
+          g.fillStyle = '#4f87b8'; g.beginPath(); g.ellipse(cx + rx * 0.45, cy + ry * 0.86, rx * 0.4, ry * 0.12, 0, 0, 7); g.fill();          // 地下河：在洞底一侧的河槽里
           const R = mkRnd(9); g.fillStyle = '#e4ddcc';
           for (let i = 0; i < 9; i++) { const x = cx - rx * 0.75 + (i / 8) * rx * 1.5 + (R() - 0.5) * 8, half = ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2)), L1 = half * 0.9 * c.drip * (0.5 + R() * 0.5), L2 = half * 0.7 * c.drip * (0.5 + R() * 0.5), col = c.column && i % 3 === 1;
             g.beginPath(); g.moveTo(x - 4, cy - half); g.lineTo(x + 4, cy - half); g.lineTo(x, cy - half + (col ? half : L1)); g.fill();          // 石钟乳：从洞顶往下
-            if (i % 2 === 0 || col) { g.beginPath(); g.moveTo(x - 5, cy + half * 0.55); g.lineTo(x + 5, cy + half * 0.55); g.lineTo(x, cy + half * 0.55 - (col ? half * 1.6 : L2)); g.fill(); }          // 石笋：从洞底往上；连起来就是石柱
+            if ((i % 2 === 0 || col) && x < cx + rx * 0.05) { g.beginPath(); g.moveTo(x - 5, cy + half - 1); g.lineTo(x + 5, cy + half - 1); g.lineTo(x, cy + half - 1 - (col ? half * 2 : L2)); g.fill(); }          // 石笋：从洞底往上（河槽那边不长）；和石钟乳连起来就是石柱
           }
+          g.font = '600 24px "PingFang SC", sans-serif'; g.textAlign = 'left'; g.lineWidth = 5; g.strokeStyle = 'rgba(30,30,30,0.55)';
+          const say = (txt, x, y, cl) => { g.strokeText(txt, x, y); g.fillStyle = cl; g.fillText(txt, x, y); };
+          say('水往下渗：溶蚀、带走', 10, Y(0.042), '#d9ecff');          // 一样是水，在这里是溶蚀
+          if (c.drip > 0.05) say('滴水：CO₂ 逸出，碳酸钙沉淀', Math.max(6, cx - rx * 0.9), cy - ry - 10, '#fff2c8');          // 在洞里又是沉淀
           if (t > 0.18 && t < 0.62) { g.strokeStyle = '#4f87b8'; g.lineWidth = 2.5; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(X(0.012), Y(height(b, P, 0.012, BD / 2)) + 4); g.lineTo(cx - rx * 0.3, cy - ry * 0.8); g.stroke(); g.setLineDash([]); }          // 洼地底下有裂隙通到地下河（像大窝凼）
         }
       }
@@ -121,8 +125,8 @@ export default {
       ftex.needsUpdate = true;
     }
     const aHover = airLabel(block, '', { h: 0.0075, color: '#3a3226', dim: 0 });
-    const tHint = tag('<span>拖“经过的时间”</span><small>三块岩石淋着一样久的雨</small>', 'hint');
-    noteBadge(tag, '教学示意：时间大大压缩了（真实的发育要经过很长的地质年代）；三块发育快慢只是示意的比较；竖直方向夸大了').loc(block, -1.5 * BW - GAP + 0.01, -0.002, BD / 2 + 0.012);
+    const tHint = tag('<span>拖“经过的时间”</span><small>三块经历同样长的时间</small>', 'hint');
+    noteBadge(tag, '教学示意：时间大大压缩了；三块发育快慢只是示意的比较；展示的是一种典型演变，不代表每个地方都要依次经过各阶段；地下的石钟乳、石笋和地表的阶段没有固定对应；竖直方向夸大了；花岗岩的风化、侵蚀没有模拟').loc(block, -1.5 * BW - GAP + 0.01, -0.002, BD / 2 + 0.012);
     const labels = [aHover, ...units.flatMap((u) => [u.label, u.stageL])];
     const layoutAll = () => { units.forEach(rebuild); tHint.loc(block, 0, 0.18, 0).show(!S.moved); drawChart(); drawLog(); };
 
@@ -136,20 +140,21 @@ export default {
         const y = 40 + r * 34, t = tOf(u.b), seen = S.seen[u.b.key] || new Set();
         g.textAlign = 'left'; g.font = '600 11px "PingFang SC", sans-serif'; g.fillStyle = '#3a3226'; g.fillText(u.b.name.replace(' · ', ''), 4, y);
         STAGES.forEach(([n, a], i) => { const x = L + (i + 0.5) * cw, cur = stageName(t) === n; g.fillStyle = cur ? '#a8341f' : seen.has(n) ? '#c9a68a' : 'rgba(120,110,90,0.15)'; g.beginPath(); g.arc(x, y, cur ? 8 : 6, 0, 7); g.fill(); if (i) { g.strokeStyle = seen.has(n) ? '#c9a68a' : 'rgba(120,110,90,0.2)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x - cw + 8, y); g.lineTo(x - 8, y); g.stroke(); } void a; });
-        if (u.b.rock === 'granite') { g.fillStyle = '#7a705e'; g.font = '10px "PingFang SC", sans-serif'; g.textAlign = 'left'; g.fillText('不可溶：不形成喀斯特地貌', L + 4, y + 13); }
+        if (u.b.rock === 'granite') { g.fillStyle = '#7a705e'; g.font = '10px "PingFang SC", sans-serif'; g.textAlign = 'left'; g.fillText('不可溶：不出现这样的喀斯特形态', L + 4, y + 13); }
       });
     };
     const drawLog = () => {
       if (!W) return;
       const rows = [], r = (b2, t2) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b2), h('span', {}, t2))), wet = S.seen.wet || new Set(), dry = S.seen.dry || new Set();
-      if (wet.size) r('湿润地区的石灰岩：', [...wet].join(' → '));
-      if (dry.size) r('干旱地区的石灰岩：', `${[...dry].join(' → ')}（同样的时间，慢得多）`);
-      if (S.time > 2) r('湿润地区的花岗岩：', '几乎没有变化：花岗岩不是可溶性岩石，不形成喀斯特地貌');
-      if (wet.has('洼地') || wet.has('峰林')) r('坝子：', '洼地底部平坦，在云南、贵州叫坝子，是当地重要的农耕区');
+      const inOrder = (set) => STAGES.map((x) => x[0]).filter((n) => set.has(n)).join(' → ');          // 按演变的先后排，不按拖动的先后
+      if (wet.size) r('湿润地区的石灰岩：', `看到过 ${inOrder(wet)}`);
+      if (dry.size) r('干旱地区的石灰岩：', `看到过 ${inOrder(dry)}（同样的时间，发育得慢得多）`);
+      if (S.time > 2) r('湿润地区的花岗岩：', '花岗岩不是可溶性岩石，不出现石灰岩那样的喀斯特形态（它的风化、侵蚀本活页没有模拟）');
+      if (wet.has('洼地') || wet.has('峰林')) r('坝子：', '有的洼地面积较大、底部平坦，在云南、贵州等地称为坝子，可以成为重要的农耕区');
       if (wet.has('峰丛')) r('地下：', '溶洞越溶越大；洞顶长石钟乳，洞底长石笋，连起来是石柱。洼地底下有裂隙通到地下河——大窝凼就是这样的洼地，排水通畅');
       if (S.guess != null && wet.has('峰林')) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：湿润地区的石灰岩`)));
       W.log.replaceChildren(...rows);
-      if (wet.has('残丘') && dry.size) W.ui.unlock();
+      if (wet.size >= 5 && wet.has('残丘') && dry.size) W.ui.unlock();          // 要真的看过大部分阶段，不是一下拖到底
     };
 
     // ---- 指针：鼠标停在地块上看地貌的名字 ----
@@ -159,7 +164,8 @@ export default {
         const ht = rc.intersectObjects(units.map((u) => u.top), false)[0];
         if (!ht) { aHover.userData.want = 0; return false; }
         const u = units.find((q) => q.top === ht.object), l = u.g.worldToLocal(ht.point.clone()), t = tOf(u.b), hg = l.y, lowFlat = hg < H0 - 0.04 && t > 0.3;
-        const nm = u.b.rock === 'granite' ? '花岗岩：只是磨圆了一点' : t < 0.05 ? '石灰岩的地面' : t < 0.2 ? '溶沟：顺着裂隙溶出的沟' : lowFlat ? (u.b.clim === 'wet' && t > 0.5 ? '洼地（坝子）：底部平坦，是农耕区' : '洼地') : t < 0.56 ? '峰丛：峰和峰的基部连在一起' : t < 0.76 ? '峰林：一座座分开的峰' : t < 0.9 ? '孤峰' : '残丘';
+        const relTop = (hg - (H0 - 0.05 * sm(0.14, 0.62, t) - 0.008 * sm(0.75, 1, t))) / Math.max(0.001, H0 - 0.03), sn = stageName(t);          // 这一点比溶低的地面高出多少：高的是峰体，低平的是洼地
+        const nm = u.b.rock === 'granite' ? '花岗岩：不出现喀斯特形态（风化、侵蚀没有模拟）' : t < 0.05 ? '石灰岩的地面' : t < 0.18 ? '溶沟：顺着裂隙溶出的沟' : lowFlat && relTop < 0.08 ? (u.b.clim === 'wet' && t > 0.5 ? '洼地：底部平坦的，可以是坝子（农耕区）' : '洼地') : sn === '洼地' ? '洼地边上残留的岩体' : sn ? `${sn}${sn === '峰丛' ? '：基部相连的成片山峰' : sn === '峰林' ? '：一座座分开的峰' : ''}` : '石灰岩';
         aHover.setText(nm); const wp = block.worldToLocal(ht.point.clone()); aHover.position.set(wp.x, wp.y + 0.012, wp.z); aHover.userData.want = 1; return false;
       },
     };
@@ -195,4 +201,4 @@ export default {
     };
   },
 };
-const START = '三块岩石淋着一样的雨：湿润地区的石灰岩、干旱地区的石灰岩、湿润地区的花岗岩。拖<b>经过的时间</b>（或按“让时间走”），看它们各变成什么样。';
+const START = '三块岩石经历同样长的时间，但岩性或降水条件不同：湿润地区的石灰岩、干旱地区的石灰岩、湿润地区的花岗岩。拖<b>经过的时间</b>（或按“让时间走”），看它们各变成什么样。';
