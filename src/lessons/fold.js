@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, NLAY, TH, LAM, surface, layerAt, exposed, crack, bend } from './kit/fold.js';
 
@@ -102,18 +103,20 @@ export default {
     const placePlates = () => plates.forEach((g) => { const { sd } = g.userData; g.position.x = sd * (XR - XL) / 2 + sd * (0.012 - 0.008 * S.c); });          // 挤得越狠，板子越往里
 
     // ---- 标签：背斜、向斜（在剖面上，按岩层怎么弯）；山岭、谷地（在地面上，按此刻的高低） ----
-    const tAnti = tag('背斜', 'pill'), tSyn = [tag('向斜', 'pill'), tag('向斜', 'pill')], tLand = [tag('', 'pill'), tag('', 'pill'), tag('', 'pill')];
-    const tPush = tag('按住两头的红板往里推：挤压', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间大大加快', 'pill');
-    const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
-    const say1 = (text, x, y, z) => { callout.loc(block, x, y, z).text(text).show(true); calloutT = 4.5; };
+    const face = (t) => faceLabel(block, t, { h: 0.0095, color: '#ffffff', stroke: 'rgba(40,30,20,0.6)' });          // 背斜、向斜写在岩层剖面上，跟着岩层弯
+    const tAnti = face('背斜'), tSyn = [face('向斜'), face('向斜')], tLand = [0, 1, 2].map(() => airLabel(block, '', { h: 0.011, color: '#2c3245', dim: 0 }));
+    const tPush = tag('<span>按住两头的红板往里推</span><small>挤压</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，时间大大加快');
+    const callout = airLabel(block, '', { h: 0.009, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
+    callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
+    const say1 = (text, x, y, z) => { callout.position.set(x, y, z); callout.setText(text).setOn(true); calloutT = 4.5; };
     const AX = [-LAM / 2, 0, LAM / 2];          // 向斜、背斜、向斜的轴
     const placeTags = () => {
       const shown = S.c > 0.45;
-      tAnti.loc(block, 0, bend(0, S.c) + TH * 3, ZD + 0.004).show(shown);
-      tSyn.forEach((t, i) => t.loc(block, AX[i * 2], bend(AX[i * 2], S.c) + TH * 3, ZD + 0.004).show(shown));
-      AX.forEach((x, i) => { const y = surface(x, S.c, S.e), nb = surface(x + 0.04, S.c, S.e), hi = y > nb; tLand[i].loc(block, x, y + 0.012, -ZD * 0.7).text(hi ? '山岭' : '谷地').show(S.c > 0.45); });
+      tAnti.position.set(0, bend(0, S.c) + TH * 3, ZD + 0.0008); tAnti.visible = shown;
+      tSyn.forEach((t, i) => { t.position.set(AX[i * 2], bend(AX[i * 2], S.c) + TH * 3, ZD + 0.0008); t.visible = shown; });
+      AX.forEach((x, i) => { const y = surface(x, S.c, S.e), nb = surface(x + 0.04, S.c, S.e), hi = y > nb; tLand[i].position.set(x, y + 0.012, -ZD * 0.7); tLand[i].setText(hi ? '山岭' : '谷地').setOn(S.c > 0.45); });
       tPush.loc(block, XR + 0.03, 0.08, 0).show(S.c < 0.2);
-      tScale.loc(block, XL + 0.06, -0.004, ZD + 0.01);
+      tScale.loc(block, XL + 0.015, -0.004, ZD + 0.01);
     };
 
     // ---- 取样：在地面上点一处，插一面小旗，标出露出来的是第几层 ----
@@ -121,12 +124,12 @@ export default {
     const probeObjs = [];
     const addProbe = (x) => {
       const near = S.probes.findIndex((q) => Math.abs(q.x - x) < 0.015); if (near >= 0) { S.probes[near].x = x; return; }          // 点在已有小旗旁边：挪那面旗，不再插一面叠在一起
-      if (S.probes.length >= 4) { S.probes.shift(); const o = probeObjs.shift(); block.remove(o.g); o.g.traverse((m) => { m.geometry?.dispose(); if (m.material !== probeMat) m.material?.dispose(); }); o.t.show(false); }
+      if (S.probes.length >= 4) { S.probes.shift(); const o = probeObjs.shift(); block.remove(o.g); o.g.traverse((m) => { m.geometry?.dispose(); if (m.material !== probeMat) m.material?.dispose(); }); block.remove(o.t); o.t.material.dispose(); }
       const g = new THREE.Group(), pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 0.018, 6), probeMat); pole.position.y = 0.009; g.add(pole);
       const f = new THREE.Mesh(new THREE.PlaneGeometry(0.008, 0.005), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); f.position.set(0.004, 0.016, 0); g.add(f);
-      block.add(g); const t = tag('', 'pill'); probeObjs.push({ g, t }); S.probes.push({ x });
+      block.add(g); const t = airLabel(block, '', { h: 0.0085, color: '#2c3245' }); probeObjs.push({ g, t }); S.probes.push({ x });
     };
-    const placeProbes = () => probeObjs.forEach((o, i) => { const x = S.probes[i].x, y = surface(x, S.c, S.e), L = exposed(x, S.c, S.e); o.g.position.set(x, y, ZD * 0.4); o.t.loc(block, x, y + 0.024 + (i % 2) * 0.014, ZD * 0.4).text(`第 ${L} 层 · ${AGE[L - 1]}`); });
+    const placeProbes = () => probeObjs.forEach((o, i) => { const x = S.probes[i].x, y = surface(x, S.c, S.e), L = exposed(x, S.c, S.e); o.g.position.set(x, y, ZD * 0.4); o.t.position.set(x, y + 0.024 + (i % 2) * 0.014, ZD * 0.4); o.t.setText(`第 ${L} 层 · ${AGE[L - 1]}`); });
 
     // ---- 侧栏：一张图——上面是地面高低，下面是整条地面露出来的岩层（颜色＋第几层） ----
     const drawChart = () => {
@@ -199,7 +202,7 @@ export default {
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
           { text: '让时间走', onClick: () => { S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让时间走'; } },
-          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.c = 0; S.e = 0; S.play = false; S.said = {}; S.guess = null; while (probeObjs.length) { const o = probeObjs.pop(); block.remove(o.g); o.t.show(false); } S.probes = []; time.set(0); guess.set(-1); acts.btns[0].textContent = '让时间走'; callout.show(false); layout(); drawLog(); ui.status('岩层一层层平平地叠着，最下面最老。按住两头的<b>红板</b>往里推。'); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.c = 0; S.e = 0; S.play = false; S.said = {}; S.guess = null; while (probeObjs.length) { const o = probeObjs.pop(); block.remove(o.g); block.remove(o.t); } S.probes = []; time.set(0); guess.set(-1); acts.btns[0].textContent = '让时间走'; callout.show(false); layout(); drawLog(); ui.status('岩层一层层平平地叠着，最下面最老。按住两头的<b>红板</b>往里推。'); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '地面和露出的岩层'), chart, read, time.el, acts.el, guess.el, note('在地面上点一下就是取样，最多插四面小旗。'));
@@ -209,6 +212,7 @@ export default {
         layout(); drawLog();
       },
       update(dt) {
+        [...tLand, callout, ...probeObjs.map((o) => o.t)].forEach((l) => l.tick(dt));
         if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
         if (S.play) { S.e = Math.min(1, S.e + dt / 12); W?.time.set(Math.round(S.e * 100)); if (S.e >= 1) { S.play = false; if (W) W.play.textContent = '让时间走'; } layout(); }
       },
