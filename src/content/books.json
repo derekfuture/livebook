@@ -2139,6 +2139,11 @@
     "fig": "图3.1-8",
     "sec": "重力与弹力"
    },
+   "staticfriction": {
+    "title": "测量最大静摩擦力",
+    "fig": "图3.2-4",
+    "sec": "摩擦力"
+   },
    "forceaddition": {
     "title": "探究两个互成角度的力的合成规律",
     "fig": "图3.4-3",
@@ -2188,6 +2193,17 @@
      736
     ],
     "label": "图3.1-8 · 翻开活页"
+   },
+   {
+    "lesson": "staticfriction",
+    "page": 70,
+    "bbox": [
+     58,
+     58,
+     198,
+     152
+    ],
+    "label": "图3.2-4 · 翻开活页"
    },
    {
     "lesson": "forceaddition",
