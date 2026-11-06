@@ -30,12 +30,7 @@ export function tag(text, cls = '', onClick) {
 let focus = null;
 export function tagFocus(target, depth) { focus = target ? { target: target.clone(), depth } : null; }
 
-// 别的画面层（活页里的批注 kit/annot.js）也要在这一帧、用同一台相机摆位置，不晚一帧
-const hooks = new Set();
-export function onTagsUpdate(fn) { hooks.add(fn); return () => hooks.delete(fn); }
-
 export function updateTags(camera) {
-  for (const f of hooks) f(camera);
   const w = innerWidth, h = innerHeight;
   const fd = focus && camera.position.distanceTo(focus.target) + focus.depth;
   const crowd = [], pinned = [];
