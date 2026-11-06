@@ -2556,6 +2556,11 @@
     "fig": "图2.6-2",
     "sec": "受迫振动 共振"
    },
+   "coupledpendulums": {
+    "title": "演示共振现象",
+    "fig": "图2.6-3",
+    "sec": "受迫振动 共振"
+   },
    "momentum": {
     "title": "气垫导轨验证动量守恒定律",
     "fig": "图1.4-1",
@@ -2608,6 +2613,17 @@
      363
     ],
     "label": "图2.6-2 · 翻开活页"
+   },
+   {
+    "lesson": "coupledpendulums",
+    "page": 59,
+    "bbox": [
+     398,
+     598,
+     525,
+     733
+    ],
+    "label": "图2.6-3 · 翻开活页"
    },
    {
     "lesson": "momentum",
