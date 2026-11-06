@@ -11,4 +11,6 @@ const endOf = (sg, k) => sg.find((s) => s.k === k)?.to ?? 0;
 ok(endOf(onRoad, 'shop') > endOf(offRoad, 'shop') * 1.3 && endOf(onRoad, 'home') > endOf(offRoad, 'home') * 1.3, `沿交通干线，各区都往外伸得更远（商业区到 ${endOf(onRoad, 'shop').toFixed(2)}，离干线远的方向只到 ${endOf(offRoad, 'shop').toFixed(2)}）：距交通干线越近，租金越高`);
 ok(winner(2.5, 0.05, {}).rent > winner(2.5 * Math.SQRT1_2, 2.5 * Math.SQRT1_2, {}).rent, '同样离市中心 2.5，干线边上的地租比离干线远的高');
 ok(winner(2.6, 1.2, { sub: [2.6, 1.2] }).k === 'shop' && winner(2.6, 1.2, {}).k !== 'shop', '建了副中心：那一带出现新的商业中心');
+const subDirection = along(Math.atan2(-1.15, 2.55), { sub: [2.55, -1.15] });
+ok(subDirection.map((s) => s.k).join() === 'shop,home,shop,home' && subDirection[2].from > 2.6 && subDirection[2].to < 3, '沿副中心剖面为商业、住宅、商业、住宅：动态 BC 是商业区');
 process.exit(bad ? 1 : 0);

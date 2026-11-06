@@ -7,23 +7,37 @@ export const ROCK = {
   magma: { kind: 'magma', name: '岩浆', at: 'chamber' },
   granite: { kind: 'igneous', name: '侵入岩（以花岗岩为例）', sub: '具体是哪种岩石，还取决于岩浆的成分', at: 'intrusion' },
   basalt: { kind: 'igneous', name: '喷出岩（以玄武岩为例）', sub: '具体是哪种岩石，还取决于岩浆的成分', at: 'lava' },
-  gravel: { kind: 'sediment', name: '砾石', at: 'shore' }, sand: { kind: 'sediment', name: '沙子', at: 'shallow' }, mud: { kind: 'sediment', name: '泥土', at: 'deep' }, shell: { kind: 'sediment', name: '碳酸钙质的生物遗体、化学沉淀物', at: 'deep' },
-  conglomerate: { kind: 'sedimentary', name: '砾岩', at: 'buried' }, sandstone: { kind: 'sedimentary', name: '砂岩', at: 'buried' }, shale: { kind: 'sedimentary', name: '页岩', at: 'buried' }, limestone: { kind: 'sedimentary', name: '石灰岩', at: 'buried' },
+  gravel: { kind: 'sediment', name: '砾石', at: 'shore' }, sand: { kind: 'sediment', name: '石英砂', at: 'shallow' }, mud: { kind: 'sediment', name: '泥土', at: 'deep' }, shell: { kind: 'sediment', name: '碳酸钙质的生物遗体、化学沉淀物', at: 'deep' },
+  conglomerate: { kind: 'sedimentary', name: '砾岩', at: 'buried' }, sandstone: { kind: 'sedimentary', name: '石英砂岩', at: 'buried' }, shale: { kind: 'sedimentary', name: '页岩', at: 'buried' }, limestone: { kind: 'sedimentary', name: '石灰岩', at: 'buried' },
   slate: { kind: 'metamorphic', name: '板岩', at: 'meta', book: true }, marble: { kind: 'metamorphic', name: '大理岩', at: 'meta', book: true }, gneiss: { kind: 'metamorphic', name: '片麻岩', at: 'meta' }, metabas: { kind: 'metamorphic', name: '变质岩（具体是哪种，取决于变质的温度、压力）', at: 'meta' }, quartzite: { kind: 'metamorphic', name: '石英岩', at: 'meta' }, metacong: { kind: 'metamorphic', name: '变质砾岩', at: 'meta' },
 };
-const META = { shale: 'slate', limestone: 'marble', granite: 'gneiss', basalt: 'metabas', sandstone: 'quartzite', conglomerate: 'metacong' };          // 玄武岩变质的产物随条件变，不写具体名字
-const LITH = { gravel: 'conglomerate', sand: 'sandstone', mud: 'shale', shell: 'limestone' };
+// 石英砂岩→石英岩限定为石英质实例；碳酸盐碎屑不因粒径变化而变成硅质。
+// 参考：Physical Geology 7.2，https://opentextbc.ca/geology/chapter/7-2-classification-of-metamorphic-rocks/
+const META = { shale: 'slate', limestone: 'marble', granite: 'gneiss', basalt: 'metabas', sandstone: 'quartzite', conglomerate: 'metacong', lithsandstone: 'metabas' };
+const LITH = { gravel: 'conglomerate', sand: 'sandstone', mud: 'shale', shell: 'limestone', lithsand: 'lithsandstone', carbgravel: 'limestone', carbsand: 'limestone', carbmud: 'limestone' };
+ROCK.lithsand = { kind: 'sediment', name: '砂级岩屑（非石英砂）', at: 'shallow', grain: 'sand' };
+ROCK.lithsandstone = { kind: 'sedimentary', name: '岩屑砂岩（非石英砂岩）', at: 'buried' };
+for (const [id, grain, name, at] of [['carbgravel', 'gravel', '砾级碳酸盐碎屑', 'shore'], ['carbsand', 'sand', '砂级碳酸盐碎屑', 'shallow'], ['carbmud', 'mud', '泥级碳酸盐碎屑', 'deep']]) ROCK[id] = { kind: 'sediment', name, at, grain };
+for (const [id, r] of Object.entries(ROCK)) {
+  r.composition = ['limestone', 'marble', 'shell', 'carbgravel', 'carbsand', 'carbmud'].includes(id) ? 'carbonate' : ['sand', 'sandstone', 'quartzite'].includes(id) ? 'quartz' : 'silicate';
+  if (r.kind === 'sediment') r.grain ||= id;
+}
+for (const [id, r] of Object.entries(ROCK)) if (r.kind === 'metamorphic') ROCK[id + '_further'] = { ...r, name: '进一步变质的岩石', sub: '具体岩种取决于原岩成分及温度、压力等条件', origin: id };
+/** 只认可连续的花岗岩风化取出石英砂、再固结的具体转换边。 */
+export const provenGraniteSand = (path) => path.some((p, i) => p.id === 'granite' && path[i + 1]?.id === 'sand' && path[i + 1]?.proc.startsWith('抬升') && path[i + 2]?.id === 'sandstone' && path[i + 2]?.proc.startsWith('压实'));
 /** 这块岩石下一步能经历的作用（课本图 2.10 的箭头）：[{ proc, to, why }] */
 export function nexts(id) {
-  const r = ROCK[id], out = [];
-  if (r.kind === 'magma') out.push({ proc: '冷却凝固（在岩石圈里）', to: 'granite', why: '岩浆侵入岩石圈上部，慢慢冷却凝固' }, { proc: '冷却凝固（喷出地表）', to: 'basalt', why: '岩浆喷出地表，冷却凝固' });
+  const r = ROCK[id], out = [], source = r.origin || id;
+  if (r.kind === 'magma') out.push({ proc: '冷却凝固（在岩石圈里）', to: 'granite', why: '以富硅岩浆侵入后慢慢冷却形成花岗岩为例；不是任意岩浆都能形成花岗岩' }, { proc: '冷却凝固（喷出地表）', to: 'basalt', why: '以玄武质岩浆喷出后冷却形成玄武岩为例；不是任意岩浆都能形成玄武岩' });
   if (['igneous', 'sedimentary', 'metamorphic'].includes(r.kind)) {
-    for (const [to, w] of [['gravel', '沉积下粗颗粒：砾石'], ['sand', '沉积下砂粒：沙子'], ['mud', '沉积下细颗粒：泥土']]) out.push({ proc: `抬升、风化、侵蚀、搬运和沉积（${w}）`, to, why: '被抬升到地表，风化、侵蚀成碎屑，被流水搬运后沉积下来（流水的搬运能力减弱时，常常先沉积粗的、后沉积细的）' });
-    if (['basalt', 'limestone', 'marble'].includes(id)) out.push({ proc: '抬升、风化、侵蚀、搬运和沉积（溶解的钙质在海里沉淀，或被贝壳、珊瑚利用）', to: 'shell', why: '风化时溶进水里的钙质被带进海里，化学沉淀下来，或成了贝壳、珊瑚，这些碳酸钙质的东西堆积起来' });          // 只给含钙多的岩石开这条路：石英岩、砂岩里的物质变不成碳酸钙
-    if (r.kind !== 'metamorphic') out.push({ proc: '变质作用（高温、高压）', to: META[id], why: '在地球内部的高温、高压下，成分、性质发生改变' });
-    else out.push({ proc: '变质作用（再一次）', to: id, why: '变质岩也可以再次变质（课本图 2.10 里变质岩自己的那个箭头）' });
-    out.push({ proc: '熔化', to: 'magma', why: '在岩石圈深处或以下的高温高压下熔化，又成为岩浆' });
+    const grains = r.composition === 'carbonate' ? ['carbgravel', 'carbsand', 'carbmud'] : r.composition === 'quartz' ? ['sand'] : ['gravel', ['granite', 'gneiss'].includes(source) ? 'sand' : 'lithsand', 'mud'];
+    for (const to of grains) out.push({ proc: `抬升、风化、侵蚀、搬运和沉积（${ROCK[to].name}）`, to, why: to === 'sand' ? '跟踪原岩中的石英组分：经风化、搬运和分选，形成以石英为主的砂；不是整块岩石的所有成分都变成石英' : '岩石抬升后风化、侵蚀成碎屑，搬运并沉积；粒径变化不等于物质成分改变，碳酸盐碎屑仍沿碳酸盐路径' });
+    if (r.composition === 'carbonate' || source === 'basalt' || source === 'metabas') out.push({ proc: '抬升、风化、侵蚀、搬运和沉积（溶解钙质形成碳酸盐沉积）', to: 'shell', why: '只跟踪风化溶液中的钙质，进入水体后在适当条件下参与碳酸钙沉淀或生物成壳；不是原岩全部物质都变成碳酸钙' });
+    if (r.kind !== 'metamorphic') out.push({ proc: '变质作用（未熔融）', to: META[id], why: '在适当温度、压力等条件下，岩石主要在固态发生矿物组合和结构变化，尚未熔融' });
+    else out.push({ proc: '变质作用（再一次，未熔融）', to: source + '_further', why: '继续在固态发生变质，具体岩种取决于原岩成分和条件，不能认定仍保留原岩名' });
+    out.push({ proc: '熔化', to: 'magma', why: '在适当温度、压力和挥发分条件下越过固相线，发生部分熔融形成岩浆；减压或加入水等挥发分可促熔，升压本身通常不是促熔机制。此处回到岩浆类别，未追踪熔体成分，后续凝固需另选相应成分的实例' });
   }
-  if (r.kind === 'sediment') out.push({ proc: '压实、固结', to: LITH[id], why: '一层层沉积物被压实、固结' });
+  if (r.kind === 'sediment') out.push({ proc: '压实、固结', to: LITH[id], why: r.composition === 'carbonate' ? '碳酸盐沉积物经压实、胶结等成岩作用形成石灰岩，不会因粒径为砂级就变成石英砂岩' : '沉积物经压实、胶结等成岩作用固结；石英砂在此限定为形成石英砂岩的实例' });
   return out;
 }
+// 固态变质与熔融条件：Physical Geology 3.2，https://opentextbc.ca/geology/chapter/3-2-magma-and-magma-formation/

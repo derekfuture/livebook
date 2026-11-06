@@ -4,16 +4,16 @@
 // 课本的图就是模型：一块切开的地块——东边是海，往西是沿海平原（中间一块田）、一道山（分水岭），山那边是一块内陆盆地和一个湖。
 // 学生亲手做的：
 //   1. 拖着云走：海上的水汽被风送到哪里，雨就下在哪里。下在海上是海上内循环；下在沿海平原，雨水经地表径流、地下径流流回海里，是海陆间循环；
-//      翻过山下在内陆盆地，水流进湖里、再蒸发，流不到海，是陆地内循环。一粒粒水看得见它往哪走：上天、落地、在地面流、往地下渗。
+//      拖到内陆盆地会重置为陆地蒸发、陆地降水的独立情境，不追踪之前海洋水汽。一粒粒水看得见它往哪走：上天、落地、在地面流、往地下渗。
 //   2. 换平原上那块田的地面：裸田、砂田（铺砂石）、硬化地面。同样的雨，下渗、地表径流、蒸发各占多少就变了（课本活动）。
-//   3. 侧栏记着海洋“流进”和“蒸发走”的水：一直下着雨、河一直往海里流，海水却不增不减。
+//   3. 侧栏记着海洋“流进”和“蒸发走”的水：分别统计源水体取出、回海、入湖、土壤暂存和在途水，核对收支。
 // 教学示意：竖直方向夸大了，时间加快了；各环节的比例是示意，只用来比较。
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { groundLabel, faceLabel, airLabel, noteBadge } from './kit/labels.js';
-import { XL, XR, DIVIDE, COAST, FIELD, SURF, ground, SEA_Y, LAKE_X, LAKE_Y, cycleOf, split } from './kit/water.js';
+import { XL, XR, DIVIDE, COAST, FIELD, SURF, ground, SEA_Y, LAKE_X, LAKE_Y, scenarioOf as cycleOf, rainSplit, createWater } from './kit/water.js';
 
 const ZD = 0.065, NX = 160, YB = 0, CLOUD_Y = 0.112;
 const KEYS = ['bare', 'sand', 'paved'];
@@ -27,17 +27,17 @@ export default {
   title: '水循环',
   flow: 'explore',
   ask: '江河奔流不息，最终注入大海，为什么大海的水没有增多？蒸发的海水又去哪儿了？',
-  need: '把云拖到海上、沿海平原、内陆盆地，各看一种水循环；再换田的地面，比一比雨水去哪了',
+  need: '拖云选择海上、沿海、内陆三个独立情境（切换即重置水粒）；再换田的地面，比一比雨水去哪了',
   conclusion: {
     page: 51,
     quote: '水循环是指自然界的水在水圈、大气圈、岩石圈、生物圈中，通过蒸发（蒸腾）、水汽输送、降水、下渗、径流等环节连续运动的过程。……根据发生的空间范围，水循环可分为海陆间循环、陆地内循环和海上内循环。……海洋表面的水经过蒸发变成水汽。水汽上升到空中，被气流输送到大陆上空，部分在适当条件下凝结，形成降水。降落到地面的水，一部分在地面流动，形成地表径流；一部分渗入地下，形成地下径流。两者经过江河汇集，最后又回到海洋。……水循环把大气圈、水圈、岩石圈和生物圈有机联系起来，使地球上各种水体处于不断更新状态，从而维持全球水量的动态平衡。',
-    why: '海水一直在蒸发，水汽被风送到陆地上空、变成雨落下来，再经地表径流、地下径流回到海里：流进海里的水，本来就是从海里蒸发出去的。只要整个循环一直转着，海洋、陆地、大气里的水一边进、一边出，总量就不增不减。地面不同，雨水的去向不同：铺上砂石，水容易渗下去、不容易蒸发；地面硬化，水渗不下去，大多在地面上流走。',
+    why: '海水一直在蒸发，水汽被风送到陆地上空、变成雨落下来，再经地表径流、地下径流回到海里：流进海里的水，本来就是从海里蒸发出去的。全球水的总量在一定时间尺度上近似稳定；各水体储量随收入与支出的差额变化。长期平均条件下，海洋蒸发与降水、径流补给大致平衡，循环持续并不保证每个水体储量不变。地面不同，雨水的去向不同：铺上砂石，水容易渗下去、不容易蒸发；地面硬化，水渗不下去，大多在地面上流走。',
     src: '课本第 46–48 页 · 第三章 第一节 水循环',
   },
 
   create({ tag }) {
     const group = new THREE.Group();
-    const S = { pend: 0, lake: 0, cx: 0.03, surf: 'bare', drag: false, seen: new Set(), surfSeen: new Set(), guess: null, cnt: { in: 0, out: 0 }, tally: {}, moved: false };
+    const S = { cx: 0.03, surf: 'bare', drag: false, seen: new Set(), surfSeen: new Set(), guess: null, moved: false };
     let W = null;
     const block = new THREE.Group(); group.add(block);
     const X = (u) => XL + (XR - XL) * u;
@@ -77,7 +77,7 @@ export default {
       p.needsUpdate = true; topGeo.attributes.color.needsUpdate = true; topGeo.computeVertexNormals();
     };
     const sea = new THREE.Mesh(new THREE.BoxGeometry(XR - COAST, 0.001, ZD * 2), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, transparent: true, opacity: 0.85 })); sea.position.set((COAST + XR) / 2, SEA_Y, 0); block.add(sea);
-    const lake = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.001, ZD * 1.4), new THREE.MeshLambertMaterial({ color: 0x5f9fcc, transparent: true, opacity: 0.85 })); lake.position.set(LAKE_X, LAKE_Y, 0); block.add(lake);
+    const lake = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.001, ZD * 2), new THREE.MeshLambertMaterial({ color: 0x5f9fcc, transparent: true, opacity: 0.85 })); lake.position.set(LAKE_X, LAKE_Y, 0); block.add(lake);
     // 山上的树、平原上的河（从山脚流到海）
     const trees = new THREE.InstancedMesh(new THREE.ConeGeometry(0.0024, 0.007, 7).translate(0, 0.0035, 0), new THREE.MeshLambertMaterial({ color: 0x3f6f35 }), 60); trees.raycast = () => {}; block.add(trees);
     { const m4 = new THREE.Matrix4(); for (let k = 0; k < 60; k++) { const x = DIVIDE + (rnd() - 0.5) * 0.08, z = (rnd() - 0.5) * ZD * 1.8; m4.makeTranslation(x, ground(x) - 0.0004, z); trees.setMatrixAt(k, m4); } }
@@ -125,33 +125,14 @@ export default {
     };
 
     // ---- 一粒粒的水 ----
-    const NP = 420, pos = new Float32Array(NP * 3), col = new Float32Array(NP * 3), P = Array.from({ length: NP }, () => ({ st: 'off' }));
+    const sim = createWater(420, rnd), NP = 420, pos = new Float32Array(NP * 3), col = new Float32Array(NP * 3), P = sim.P;
     const dotTex = canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); pg.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const dots = new THREE.Points(pg, new THREE.PointsMaterial({ size: 0.04, map: dotTex, vertexColors: true, transparent: true, depthWrite: false })); dots.raycast = () => {}; dots.renderOrder = 9; block.add(dots);
     const CO = { vap: [0.92, 0.95, 1], rain: [0.2, 0.42, 0.78], run: [0.15, 0.45, 0.85], inf: [0.12, 0.3, 0.7], ev: [0.85, 0.9, 1] };
-    let evT = 0;
-    const tally = (k) => { const key = `${S.surf}|${cycleOf(S.cx).kind}`; (S.tally[key] ||= { inf: 0, run: 0, ev: 0, sea: 0 })[k]++; };
-    const spawn = (st, x, y, z) => { const p = P.find((q) => q.st === 'off'); if (!p) return; Object.assign(p, { st, x, y, z, t: 0 }); };
-    // 守恒：每一粒雨都是一粒升到云里的水汽变的；水汽从哪来，看这是哪一种循环
-    //   海陆间、海上内循环：海面蒸发的水汽被送到云里；陆地内循环：水汽来自内陆湖面、地面的蒸发和植物蒸腾
-    const inBasin = (x) => x < -0.105 && x > -0.165 && ground(x) < LAKE_Y;
     const stepDots = (dt) => {
-      evT += dt; const kind = cycleOf(S.cx).kind;
-      while (evT > 0.05) { evT -= 0.05;
-        if (kind === 'land') spawn('vap', LAKE_X + (rnd() - 0.5) * 0.045, LAKE_Y + 0.002, (rnd() - 0.5) * ZD * 1.3);          // 湖面蒸发
-        else { spawn('vap', COAST + 0.01 + rnd() * (XR - COAST - 0.02), SEA_Y + 0.002, (rnd() - 0.5) * ZD * 1.6); S.cnt.out++; } }          // 海面蒸发（记一笔“出”）
-      while (S.pend > 0) { S.pend--; spawn('rain', S.cx + (rnd() - 0.5) * 0.05, CLOUD_Y - 0.012, (rnd() - 0.5) * ZD * 1.6); }
-      for (let k = 0; k < NP; k++) {
-        const p = P[k];
-        if (p.st === 'off') { pos.set([0, -1, 0], k * 3); continue; }
-        p.t += dt; const c = CO[p.st] || CO.vap;
-        if (p.st === 'vap' || p.st === 'ev') { p.y += dt * 0.035; p.x += (S.cx - p.x) * dt * 0.25; if (p.y > CLOUD_Y - 0.01) { S.pend = (S.pend || 0) + 1; p.st = 'off'; } }          // 水汽升上去、被风带到云那里，在云里凝结
-        else if (p.st === 'rain') { p.y -= dt * 0.12; const gy = p.x > COAST ? SEA_Y : inBasin(p.x) ? LAKE_Y : ground(p.x); if (p.y <= gy) { if (p.x > COAST) { p.st = 'off'; tally('sea'); S.cnt.in++; continue; } if (inBasin(p.x)) { p.st = 'off'; S.lake = (S.lake || 0) + 1; continue; } const sp = split(p.x, S.surf), r = rnd(); p.st = r < sp.inf ? 'inf' : r < sp.inf + sp.run ? 'run' : 'ev'; tally(p.st); p.y = gy; p.d = 0; } }
-        else if (p.st === 'run') { const dir = p.x > DIVIDE ? 1 : Math.sign(LAKE_X - p.x) || 1, nx = p.x + dir * dt * 0.05; p.x = nx; p.y = ground(nx) + 0.0012; if (p.x > COAST) { p.st = 'off'; S.cnt.in++; } else if (inBasin(p.x)) { p.st = 'off'; S.lake = (S.lake || 0) + 1; } }          // 地表径流：顺坡往低处流——山这边进河、进海，山那边流进湖
-        else if (p.st === 'inf') { p.d += dt * 0.012; const dir = p.x > DIVIDE ? 1 : Math.sign(LAKE_X - p.x) || 1; if (p.d > 0.012) p.x += dir * dt * 0.018; p.y = ground(p.x) - Math.min(0.016, p.d); if (p.x > COAST) { p.st = 'off'; S.cnt.in++; } else if (p.d > 0.012 && Math.abs(p.x - LAKE_X) < 0.02 && p.x < DIVIDE) { p.st = 'off'; S.lake = (S.lake || 0) + 1; } }          // 下渗以后变成地下径流，慢慢流走（画在剖面上）
-        pos.set([p.x, p.y, p.st === 'inf' && p.d > 0.004 ? ZD + 0.0012 : p.z], k * 3); col.set(c, k * 3);
-      }
+      sim.step(dt, S.cx, S.surf);
+      for (let k = 0; k < NP; k++) { const p = P[k]; pos.set(p.st === 'off' ? [0, -1, 0] : [p.x, p.y, p.st === 'inf' && p.d > 0.004 ? ZD + 0.0012 : p.z], k * 3); col.set(CO[p.st] || CO.vap, k * 3); }
       pg.attributes.position.needsUpdate = true; pg.attributes.color.needsUpdate = true;
     };
 
@@ -161,10 +142,10 @@ export default {
     const gLake = groundLabel(block, '内陆湖', { x: LAKE_X - 0.008, y: LAKE_Y, z: ZD * 0.45, h: 0.013, color: '#0f2c52', opacity: 0.9 });
     const gField = groundLabel(block, SURF.bare.name.replace(/（.*）/, ''), { x: (FIELD[0] + FIELD[1]) / 2, y: ground((FIELD[0] + FIELD[1]) / 2) + 0.001, z: ZD * 0.86, h: 0.013, color: '#2e2010', opacity: 0.9 });
     faceLabel(block, '地下水面（虚线）', { x: -0.045, y: 0.016, z: ZD, h: 0.008 });
-    const fInf = faceLabel(block, '下渗 → 地下径流', { x: 0.045, y: 0.024, z: ZD, h: 0.008, opacity: 0, icon: 'seep' });
+    const fInf = faceLabel(block, '下渗（部分补给地下水）', { x: 0.045, y: 0.024, z: ZD, h: 0.008, opacity: 0, icon: 'seep' });
     const aVap = airLabel(block, '蒸发', { x: COAST + 0.055, y: SEA_Y + 0.035, z: 0.02, h: 0.011, icon: 'vapor' }), aTrans = airLabel(block, '水汽输送', { x: (COAST + XR) / 2, y: CLOUD_Y + 0.006, z: 0, h: 0.011, icon: 'wind' }), aRain = airLabel(block, '降水', { x: 0, y: CLOUD_Y - 0.04, z: 0, h: 0.011, icon: 'rain' });
     const aCyc = airLabel(block, '', { x: 0, y: CLOUD_Y + 0.03, z: 0, h: 0.014, color: '#a8352a', icon: 'cycle' }), aHover = airLabel(block, '', { x: 0, y: 0, z: 0, h: 0.0095, color: '#3a3226', dim: 0 }), aRun = airLabel(block, '地表径流', { x: -0.012, y: ground(-0.012) + 0.012, z: -0.006, h: 0.0105, color: '#1d4f86', dim: 0, icon: 'flow' });
-    const tHint = tag('<span>按住云，拖到别处</span><small>风把水汽送到哪，雨就下在哪</small>', 'hint');          // 开场的提示：不用白底牌子，字带一圈纸色柔光
+    const tHint = tag('<span>按住云，拖到别处</span><small>三个独立情境，切换时重新开始</small>', 'hint');          // 开场的提示：不用白底牌子，字带一圈纸色柔光
     noteBadge(tag, '教学示意：竖直方向夸大了，各环节的比例是示意').loc(block, XL + 0.012, -0.002, ZD + 0.01);
     const labels = [aVap, aTrans, aRain, aCyc, aHover, aRun];
     const placeTags = () => {
@@ -185,19 +166,14 @@ export default {
     // ---- 侧栏：雨水去哪了（这块地方，这次的地面）；海洋进、出 ----
     const drawChart = () => {
       if (!W) return;
-      const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, cy = cycleOf(S.cx), sp = split(S.cx, S.surf);
+      const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, cy = cycleOf(S.cx), sp = rainSplit(S.cx, S.surf);
       g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh); g.font = '600 13px "PingFang SC", sans-serif'; g.textBaseline = 'middle'; g.fillStyle = '#3a3226'; g.textAlign = 'left';
       g.fillText(`雨下在这里，水去哪了（${cy.kind === 'sea' ? '海上' : S.cx >= FIELD[0] && S.cx <= FIELD[1] ? SURF[S.surf].name.replace(/（.*）/, '') : S.cx < DIVIDE ? '内陆盆地' : '林地'}）`, 8, 14);
-      const parts = cy.kind === 'sea' ? [['直接落回海里', 1, '#4f8fc4']] : [['下渗', sp.inf, '#2f5fa8'], ['地表径流', sp.run, '#5aa6d8'], ['蒸发（蒸腾）', sp.ev, '#c9d6e6']];
-      let x = 10; for (const [, v, cl] of parts) { const ww = (w - 20) * v; g.fillStyle = cl; g.fillRect(x, 26, ww, 18); x += ww; }
-      g.textAlign = 'left'; g.font = '12px "PingFang SC", sans-serif'; x = 10; for (const [n, v, cl] of parts) { g.fillStyle = cl; g.fillRect(x, 50, 10, 10); g.fillStyle = '#3a3226'; const t = `${n} ${Math.round(v * 100)}%`; g.fillText(t, x + 14, 55); x += g.measureText(t).width + 26; }          // 图例写在条外面，比例再小也看得到
-      g.font = '600 13px "PingFang SC", sans-serif';
-      if (cy.kind === 'land') return void (W.read.innerHTML = `${cy.name}：${cy.text}<br>落进湖里的水：${S.lake || 0} 粒，湖面又一直在蒸发<br><small>每粒水是示意，比例只用来比较</small>`);          // 陆地内循环不涉及海洋：不画海洋的进出
-      g.fillStyle = '#3a3226'; g.textAlign = 'left'; g.fillText('海洋：', 8, 80);
-      const tot = Math.max(1, S.cnt.in + S.cnt.out), ratio = S.cnt.in / Math.max(1, S.cnt.out);
-      g.fillStyle = '#4f8fc4'; g.fillRect(56, 72, Math.min(w - 66, 120 * Math.min(2, S.cnt.out / tot * 2)), 8); g.fillStyle = '#3a3226'; g.fillText(`蒸发走 ${S.cnt.out}`, 56, 92);
-      g.fillStyle = '#2f5fa8'; g.fillRect(56, 100, Math.min(w - 66, 120 * Math.min(2, S.cnt.in / tot * 2)), 8); g.fillStyle = '#3a3226'; g.fillText(`流进来（降水、河、地下水） ${S.cnt.in}`, 56, 120);
-      W.read.innerHTML = `${cy.name}：${cy.text}${cy.kind === 'land' ? `<br>落进湖里的水：${S.lake || 0} 粒，湖面又一直在蒸发` : S.cnt.out > 200 ? (Math.abs(S.cnt.in / S.cnt.out - 1) < 0.15 ? `<br><b>一段时间里，流进海里的和从海里蒸发出去的差不多（${S.cnt.in} : ${S.cnt.out}）：海水总量保持动态平衡</b>` : `<br>流进来 ${S.cnt.in}，蒸发走 ${S.cnt.out}：还有水在云里、地面、地下，正在路上`) : ''}<br><small>每粒水是示意，比例只用来比较</small>`;
+      const parts = [['下渗', sp.inf, '#2f5fa8'], ['地表径流', sp.run, '#5aa6d8'], ['蒸发（蒸腾）', sp.ev, '#a4b9d0'], ['直接入海', sp.sea, '#4f8fc4'], ['直接入湖', sp.lake, '#538d9e']].filter((p) => p[1] > 0.0001);
+      let x = 10; for (const [, v, color] of parts) { g.fillStyle = color; g.fillRect(x, 28, (w - 20) * v, 16); x += (w - 20) * v; }
+      g.font = '12px "PingFang SC", sans-serif'; parts.forEach(([name, v, color], i) => { const xx = 8 + (i % 2) * 155, yy = 60 + Math.floor(i / 2) * 24; g.fillStyle = color; g.fillRect(xx, yy - 5, 8, 10); g.fillStyle = '#3a3226'; g.fillText(`${name} ${(v * 100).toFixed(1)}%`, xx + 12, yy); });
+      const q = sim.S, { transit, error } = sim.balance();
+      W.read.innerHTML = `${cy.name}（独立情境）：${cy.text}<br>期初在途水为0；源水体蒸发 ${q.emitted} 粒 = 回海 ${q.cnt.in} + 入湖 ${q.lake} + 土壤暂存 ${q.soil} + 在途 ${transit}（差额 ${error}）<br>海洋收支：收入 ${q.cnt.in}，蒸发支出 ${q.cnt.out}；湖泊累计入水 ${q.lake} 粒。<br><small>上图按实际降雨覆盖范围计算假设比例；每粒水是示意。下渗仅一部分补给地下水，本页假设一半暂存土壤，省略其后续利用、蒸发及真实储水时长。</small>`;
     };
     const drawLog = () => {
       if (!W) return;
@@ -208,7 +184,8 @@ export default {
       W.log.replaceChildren(...rows);
       if (S.seen.size === 3 && S.surfSeen.size >= 2) W.ui.unlock();
     };
-    const note1 = () => { const cy = cycleOf(S.cx); if (cy.kind !== S.lastKind) { S.lastKind = cy.kind; S.cnt = { in: 0, out: 0 }; S.lake = 0; }          // 换了一种循环：海洋的进出从头数
+    const note1 = () => { const cy = cycleOf(S.cx);
+
       if (S.moved && !S.seen.has(cy.kind)) { S.seen.add(cy.kind); W?.ui.status(`<b>${cy.name}</b>：${cy.text}。`); drawLog(); } if (S.cx >= FIELD[0] && S.cx <= FIELD[1] && S.moved && !S.surfSeen.has(S.surf)) { S.surfSeen.add(S.surf); drawLog(); } };
     const layout = () => { cloud.position.set(S.cx, CLOUD_Y, 0); placeWind(); placeTags(); drawChart(); city.visible = S.surf === 'paved'; pebbles.visible = S.surf === 'sand'; };
 
@@ -220,7 +197,7 @@ export default {
       move(rc) {
         const c = document.getElementById('c');
         if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(cloudPick, false).length ? 'grab' : ''; const ht = rc.intersectObject(topMesh, false)[0], nm = ht && hoverName(block.worldToLocal(ht.point.clone()).x); if (nm) { const l = block.worldToLocal(ht.point.clone()); aHover.setText(nm); aHover.position.set(l.x, l.y + 0.012, l.z); aHover.userData.want = 1; } else aHover.userData.want = 0; return false; }
-        const p = onY(rc.ray); if (!p) return true; S.cx = Math.max(XL + 0.03, Math.min(XR - 0.03, p.x - dx0)); S.moved = true; layout(); return true;
+        const p = onY(rc.ray); if (!p) return true; S.cx = Math.max(XL + 0.03, Math.min(XR - 0.03, p.x - dx0)); S.moved = true; sim.reset(); stepDots(0); note1(); layout(); return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; note1(); return true; },
     };
@@ -235,17 +212,17 @@ export default {
       view: { elev: 18, azim: 14, lookY: 0.45, frameMargin: 1.08 },
       pointer,
       mount(ui) {
-        const surfSeg = seg('平原上那块田的地面', KEYS.map((k) => SURF[k].name.replace(/（.*）/, '')), (_, i) => { S.surf = KEYS[i]; shapeTop(); layout(); note1(); }, { value: 0 });
+        const surfSeg = seg('平原上那块田的地面', KEYS.map((k) => SURF[k].name.replace(/（.*）/, '')), (_, i) => { S.surf = KEYS[i]; sim.reset(); stepDots(0); shapeTop(); layout(); note1(); }, { value: 0 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
-        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.cx = 0.03; S.surf = 'bare'; S.seen.clear(); S.surfSeen.clear(); S.guess = null; S.cnt = { in: 0, out: 0 }; S.lake = 0; S.pend = 0; S.lastKind = null; S.moved = false; surfSeg.set(0); guess.set(-1); P.forEach((p) => (p.st = 'off')); shapeTop(); layout(); drawLog(); ui.status('海面一直在蒸发。按住<b>云</b>拖到别处，看雨下在海上、平原、山那边，水各往哪走。'); } }]);
+        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.cx = 0.03; S.surf = 'bare'; S.seen.clear(); S.surfSeen.clear(); S.guess = null; S.moved = false; surfSeg.set(0); guess.set(-1); sim.reset(); stepDots(0); shapeTop(); layout(); drawLog(); ui.status('海面一直在蒸发。按住<b>云</b>拖到别处，看雨下在海上、平原、山那边，水各往哪走。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 130 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '水去哪了'), chart, read, surfSeg.el, guess.el, acts.el, note('一粒粒水：白的是水汽，蓝的是雨水和径流，剖面上深蓝的是渗进地下的水。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '水去哪了'), chart, read, surfSeg.el, guess.el, acts.el, note('拖云选择三个独立情境，移动或换地面会重置水粒和账本。陆地内循环也可发生在外流区域。白色是水汽，蓝色是雨水和径流。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log };
         ui.status('海面一直在蒸发。按住<b>云</b>拖到别处，看雨下在海上、平原、山那边，水各往哪走。');
         layout(); drawLog();
       },
-      update(dt) { labels.forEach((l) => l.tick(dt)); flowTex.offset.x -= dt * 0.5; stepDots(Math.min(dt, 0.05)); if (W && Math.floor(S.cnt.out / 20) !== S.lastC) { S.lastC = Math.floor(S.cnt.out / 20); drawChart(); } },
+      update(dt) { labels.forEach((l) => l.tick(dt)); flowTex.offset.x -= dt * 0.5; stepDots(Math.min(dt, 0.05)); if (W) drawChart(); },
     };
   },
 };

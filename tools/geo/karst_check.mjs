@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 // 核对喀斯特地貌：node tools/geo/karst_check.mjs（必修1 第 66–68 页，图 4.2、图 4.4）
 import { STAGES, stageName, RATE, STEP, cave } from '../../src/lessons/kit/karst.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
@@ -8,4 +10,10 @@ ok(RATE.granite.wet === 0, '花岗岩不是可溶性岩石：不形成喀斯特�
 ok(RATE.limestone.wet > 4 * RATE.limestone.dry, '同样是石灰岩，湿润地区比干旱地区发育得快得多');
 const n = (r) => { let t = 0, k = 0; while (t < 0.9 && k < 200) { t += STEP * r; k++; } return k; }; ok(n(RATE.limestone.wet) < n(RATE.limestone.dry), `湿润地区的石灰岩 ${n(RATE.limestone.wet)} 步发育到残丘，干旱地区要 ${n(RATE.limestone.dry)} 步`);
 ok(!cave(0.5).column && cave(0.8).column && cave(0.5).drip > 0, '溶洞里先长石钟乳、石笋，连起来才是石柱');
+const source = readFileSync(new URL('../../src/lessons/karst.js', import.meta.url), 'utf8');
+const state = { time: 0 }, H0 = 0.1;
+const height = runInNewContext(source.slice(source.indexOf('    const height ='), source.indexOf('    const grain =')) + '; height', { H0, S: state, tOf: () => 0, sm: (a, b, x) => Math.max(0, Math.min(1, (x - a) / (b - a))) });
+let unchanged = true;
+for (const time of [0, 1, 4, 8, 50]) { state.time = time; for (let x = -0.05; x <= 0.05; x += 0.01) for (let z = -0.05; z <= 0.05; z += 0.01) unchanged &&= height({ rock: 'granite' }, [], x, z) === H0; }
+ok(unchanged, '花岗岩表面各点在所有抽查时间保持原高，不暗示风化速率');
 process.exit(bad ? 1 : 0);

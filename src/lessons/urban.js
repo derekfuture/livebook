@@ -31,7 +31,7 @@ export default {
   conclusion: {
     page: 32,
     quote: '城镇内部空间结构的形成是多种因素共同作用的结果，经济因素是影响城镇内部空间结构的主要因素……在市场竞争的环境下，一块土地用于哪一种活动，主要取决于各种活动愿意付出租金的高低。影响地租高低的因素主要有交通便捷程度和距离城镇中心远近两个方面。……城镇中心的土地利用可能性多，竞争强，因此地租高，交通可以在一定程度上改变土地利用的潜能。一般来说，穿过的道路越多，或者距交通干线越近，土地租金就越高；离城镇中心越近，土地租金也越高。',
-    why: '三类活动都愿意为离市中心近的地多付钱，但在乎的程度不同：商业最需要人流、最在乎位置，付租能力在市中心最高、往外掉得最快；工业要大片便宜的地，在市中心付租能力最低、往外掉得最慢；住宅在中间。每块地给出价最高的那一类，于是从市中心往外依次是商业区（OA）、住宅区（AB）、工业区（BC）。交通干线让沿线的地更“近”，三条线都被抬高，各区就沿着干线往外伸；新修干线、建副中心，城市的样子也跟着变。实际上，政策、文化、环境等因素也会影响城镇内部空间结构。',
+    why: '三类活动都愿意为离市中心近的地多付钱，但在乎的程度不同：商业最需要人流、最在乎位置，付租能力在市中心最高、往外掉得最快；工业要大片便宜的地，在市中心付租能力最低、往外掉得最慢；住宅在中间。每块地给出价最高的那一类，在原始单中心情境下，从市中心往外依次是商业区（OA）、住宅区（AB）、工业区（BC）。交通干线让沿线的地更“近”，三条线都被抬高，各区就沿着干线往外伸；新修干线、建副中心，城市的样子也跟着变。实际上，政策、文化、环境等因素也会影响城镇内部空间结构。',
     src: '课本第 26–28 页 · 第二章 第一节 乡村和城镇空间结构',
   },
 
@@ -142,7 +142,7 @@ export default {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
       if (S.saw.on || S.saw.off) r('三条线：', `都随距市中心距离增大而递减；商业在市中心付得最多、降得最快，工业在市中心付得最少、降得最慢${S.sub ? '（建了副中心以后，那个方向上离副中心近的地方付租能力又升高了：只有一个中心时的“单调递减”不再适用于整条剖面）' : ''}`);
-      if (S.segs.off) r('OA、AB、BC：', `由付租能力决定用途时，OA 是商业区，AB 是住宅区，BC 是工业区（两条干线之间：商业区 ${span(S.segs.off, 'shop')}，住宅区 ${span(S.segs.off, 'home')}，工业区 ${span(S.segs.off, 'fact')}）`);
+      if (S.segs.off) r('原始单中心观察（OA、AB、BC）：', `由付租能力决定用途时，OA 是商业区，AB 是住宅区，BC 是工业区（两条干线之间：商业区 ${span(S.segs.off, 'shop')}，住宅区 ${span(S.segs.off, 'home')}，工业区 ${span(S.segs.off, 'fact')}）`);
       if (S.segs.on && S.segs.off) r('沿交通干线：', `三条线都被抬高，各区都往外伸（商业区 ${span(S.segs.on, 'shop')}，住宅区 ${span(S.segs.on, 'home')}）：同样离市中心，干线边上的租金更高`);
       if (S.tried?.road) r('修了新干线：', '沿线的地租升高，商业区、住宅区顺着它往外伸——交通可以改变土地利用的潜能');
       if (S.tried?.sub) r('建了副中心：', '假设在那里新建一个商业副中心：那里出现新的商业区，周围的住宅区跟着变。课本里北京城市副中心的例子说明：政策也会改变城镇的空间结构');
@@ -166,11 +166,11 @@ export default {
         }
         if (!p) return true; let a = Math.atan2(-p.z, p.x);
         for (const ra of opt().roads) if (Math.abs(((a - ra + 3 * Math.PI) % (2 * Math.PI)) - Math.PI) < 0.06) a = ra;          // 靠近干线时吸到干线上
-        S.ang = a; S.moved = true; layoutPanel(); return true;
+        S.ang = a; S.moved = true; layoutPanel(); if (S.sub) say(); return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; say(); return true; },
     };
-    const say = () => { if (!W) return; const on = onRoadNow(); if (on && !S.saidOn) { S.saidOn = true; W.ui.status('剖面转到了<b>交通干线</b>上：三条线都被抬高，商业区、住宅区、工业区都沿着干线伸得更远。再转到两条干线中间比一比。'); } else if (!on && !S.saidOff) { S.saidOff = true; W.ui.status('在两条干线之间：从市中心往外依次是<b>商业区（OA）、住宅区（AB）、工业区（BC）</b>，C 以外这三类城市用地都付不起租金，模型里画成城外的农田（没有算农业的地租）。再转到一条交通干线上看看。'); } };
+    const say = () => { if (!W) return; if (S.sub) { const sg = along(S.ang, opt()); W.ui.status('当前为假设的商业副中心情境：' + sg.map((s, i) => `${i ? 'ABCDEF'[i - 1] : 'O'}—${i < sg.length - 1 ? 'ABCDEF'[i] : '剖面末端'}：<b>${s.k ? USES[s.k].zone : '农田'}</b>（${s.from.toFixed(2)}–${s.to.toFixed(2)}）`).join('；') + '。字母按当前分界排列。'); return; } const on = onRoadNow(); if (on && !S.saidOn) { S.saidOn = true; W.ui.status('剖面转到了<b>交通干线</b>上：三条线都被抬高，商业区、住宅区、工业区都沿着干线伸得更远。再转到两条干线中间比一比。'); } else if (!on && !S.saidOff) { S.saidOff = true; W.ui.status('在两条干线之间：从市中心往外依次是<b>商业区（OA）、住宅区（AB）、工业区（BC）</b>，C 以外这三类城市用地都付不起租金，模型里画成城外的农田（没有算农业的地租）。再转到一条交通干线上看看。'); } };
     rebuild();
 
     return {
@@ -184,7 +184,7 @@ export default {
       mount(ui) {
         const acts = buttons([
           { text: '修一条新的交通干线（东北方向）', onClick: () => { S.newRoad = !S.newRoad; S.tried = { ...(S.tried || {}), road: true }; acts.btns[0].textContent = S.newRoad ? '拆掉新干线' : '修一条新的交通干线（东北方向）'; rebuild(); if (S.newRoad) ui.status('东北方向修了一条新干线：沿线的地租升高了。看看城市的样子怎么变，再把剖面转到新干线上。'); } },
-          { text: '建一个城市副中心（东南边）', onClick: () => { S.sub = !S.sub; S.tried = { ...(S.tried || {}), sub: true }; acts.btns[1].textContent = S.sub ? '撤掉副中心' : '建一个城市副中心（东南边）'; rebuild(); if (S.sub) ui.status('假设东南边建了一个<b>商业副中心</b>：那里冒出一片新的高楼，周围的用地也跟着变。（课本里北京把市级机关搬到通州、建城市副中心，说明政策也会影响城镇空间结构。）'); } },
+          { text: '建一个城市副中心（东南边）', onClick: () => { S.sub = !S.sub; S.tried = { ...(S.tried || {}), sub: true }; acts.btns[1].textContent = S.sub ? '撤掉副中心' : '建一个城市副中心（东南边）'; rebuild(); if (S.sub) ui.status('假设东南边建了一个<b>商业副中心</b>：那里冒出一片新的高楼，周围的用地也跟着变。（课本里北京把市级机关搬到通州、建城市副中心，说明政策也会影响城镇空间结构。）'); else { S.saidOn = S.saidOff = false; say(); } } },
         ]);
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const reset = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { ang: 0.38, newRoad: false, sub: false, moved: false, guess: null, saidOn: false, saidOff: false, tried: {} }); S.saw = { on: false, off: false }; S.segs = {}; acts.btns[0].textContent = '修一条新的交通干线（东北方向）'; acts.btns[1].textContent = '建一个城市副中心（东南边）'; guess.set(-1); rebuild(); ui.status(START); } }]);

@@ -1,6 +1,6 @@
 // 自动核对：高中地理“昼夜长短和正午太阳高度”里显示的数，和课本对得上。node tools/geo/sun_check.mjs
 // 课本第 12 页：北京（40°N）夏至正午 73°26′、冬至 26°34′；图 1.15（北纬 40°）日出日落大致时间：夏至 4:30 / 19:30，二分 6:00 / 18:00，冬至 7:30 / 16:30。
-import { D2R, decOf, dm, hm, dur, altText, dirName, sunAt, halfDay, noonAlt } from '../../src/lessons/kit/sun.js';
+import { D2R, decOf, dm, hm, dur, altText, dirName, sunAt, halfDay, noonAlt, snapSeason, noonText, skyJoin } from '../../src/lessons/kit/sun.js';
 
 let bad = 0;
 const ok = (name, got, want) => { const pass = got === want; if (!pass) bad++; console.log(`${pass ? '✓' : '✗'} ${name}：${got}${pass ? '' : `（应为 ${want}）`}`); };
@@ -41,5 +41,15 @@ near('北极圈以北冬至昼长（极夜）', day(arctic + 1e-6, winter), 0, 0
   okT('摩尔曼斯克冬至白天（显示）', dur(day(M, winter)), '0（极夜）');
   okT('摩尔曼斯克冬至正午太阳高度（显示）', altText(noonAlt(M, winter)), '地平线下 2°24′');
 }
+ok('分钟进位：夏至 16.63°N', dur(day(16.63 * D2R, summer)), '13 小时 00 分');
+ok('赤道春分正午在头顶', noonText(0, 0), '正午太阳高度 90°（在头顶）');
+ok('回归线夏至在头顶', noonText(summer, summer), '正午太阳高度 90°（在头顶）');
+ok('正午恰在地平线', noonText(Math.PI / 2 - summer, -summer), '正午太阳高度 0°（在地平线上）');
+for (const lam of [3.9, 356.1, 89, 183, 267]) ok(`黄经 ${lam} 吸附准确节气`, snapSeason(lam) % 90, 0);
+near('范围外不吸附', snapSeason(4.1), 4.1, 1e-10);
+ok('89.5°N 吸附春分后画面和记录昼长均为 12 小时', day(89.5 * D2R, decOf(snapSeason(3.9))), 12);
+let seams = 0, prev = null;
+for (let k = 0; k <= 288; k++) { const sun = sunAt(68.97 * D2R, summer, (k / 288 * 24 - 12) * 15 * D2R), a = ((sun.az / D2R - 180 + 540) % 360) - 180, x = 160 + a / 180 * 160; if (prev !== null && !skyJoin(x, prev, 320)) seams++; prev = x; }
+ok('摩尔曼斯克夏至路径在方位接缝断开', seams > 0, true);
 console.log(bad ? `\n${bad} 项没对上` : '\n全部对上');
 process.exit(bad ? 1 : 0);

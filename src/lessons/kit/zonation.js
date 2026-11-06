@@ -62,3 +62,16 @@ export function bandAt(m, side, h, northLow = false) {
 export const bandsBelow = (m, side, top, northLow = false) => MOUNTAINS[m][side === 'north' && northLow ? 'northLow' : side].bands.filter((b) => b[1] < top);
 /** 比这座山最低的山麓冷多少（℃） */
 export const colderBy = (m, h) => ((h - (m === 'hima' ? 1000 : 500)) / 100) * LAPSE;
+
+/** 最终地形海拔：所有起伏之后统一限高；zn 从前剖面 0 到后缘 1。 */
+export function terrainHeight(m, u, zn, opt = {}) {
+  if (m === 'cb') return elev(m, u, { r: Math.hypot(u, zn * 0.14 / 0.19 * 1.15) });
+  const wob = 0.06 * Math.sin(zn * 4.2 + 0.8) * zn * (1 - Math.abs(u) * 0.6);
+  let e = elev(m, u + wob, opt);
+  e += zn * (160 * Math.sin(u * 17 + zn * 9) + 90 * Math.sin(u * 41 - zn * 13)) * Math.min(1, (e - 900) / 1500);
+  const foot = MOUNTAINS.hima[sideOf(m, u) === 'north' && opt.northLow ? 'northLow' : sideOf(m, u)].foot;
+  return Math.max(foot, Math.min(e, Math.min(opt.cut ?? Infinity, MOUNTAINS.hima.peak) - 1e-6));          // 顶部不形成零厚度的新带，与 bandsBelow 的严格下界一致
+}
+
+// 递减率随时地变化，0.6℃/100米仅作海拔影响估算：https://courses.ems.psu.edu/meteo3/node/1968 。
+// 长白山带界参考《植物生态学报》2017，41(12):1228–1238，研究区概况：https://www.plant-ecology.com/article/2017/1005-264X/1005-264X-41-12-1228.shtml 。

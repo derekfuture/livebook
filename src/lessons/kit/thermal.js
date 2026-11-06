@@ -28,7 +28,7 @@ export function field(st) {
     },
   };
 }
-/** 地面温度距平 th 对应的稳定环流（记录风向时用，不受画面上的滞后影响） */
+/** 地面温度距平 th 对应的稳定环流（用于比较稳定极限，不作为当前观察记录） */
 export function steady(th) { const st = makeState(); st.th.set(th); const tp = meanOut(Array.from(th)); st.P.set(tp); st.S.set(tp); return st; }
 /** 等压面：第 k 层原来在 zk。上空（zk 大）在受热的地方向上拱（高压），近地面（zk 小）向下凹（低压） */
 export function isobar(st, zk, x) { const i = iOf(x), r = zk / H; return zk + 0.0016 * st.P[i] * r * r - 0.0016 * st.S[i] * (1 - r) * (1 - r); }
@@ -38,7 +38,8 @@ export function pressure(st, x, aloft) { const i = iOf(x); return aloft ? st.P[i
 // ---- 台湾海峡：福建（西）| 海峡 | 台湾（东）。陆地比热小，白天增温快、夜晚降温快；海洋变化小、慢 ----
 export const COAST_W = -0.075, COAST_E = 0.095;
 export const isLand = (x) => x < COAST_W || x > COAST_E;
-/** h 时（0–24）的地面温度距平 */
+// 理想海陆风：背景风较弱，未模拟季风、地形；依据 NWS https://www.weather.gov/hfo/kids
+/** h 时（0–24）的教学温度距平；正弦与时刻是假设值，不是台湾海峡观测 */
 export function seaLandTemp(x, h) { const w = (2 * Math.PI) / 24; return isLand(x) ? 5 * Math.sin(w * (h - 9)) : 1.2 * Math.sin(w * (h - 11)); }
 /** 风向：按风从哪边吹来叫；u > 0 往东吹＝西风 */
 export const windName = (u) => (Math.abs(u) < 1e-5 ? '静风' : u > 0 ? '西风' : '东风');

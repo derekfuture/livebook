@@ -17,12 +17,14 @@ export const PLACES = {
   fishery: { x: 0.142, n: 0.075, name: '渔场' },
 };
 // 河：从西边山里（水电站）流过县城北边、水源地，从大城市旁边入海
-export const RIVER = [[-0.155, 0.05], [-0.125, 0.042], [-0.1, 0.03], [-0.07, 0.018], [-0.04, 0.026], [-0.01, 0.036], [0.03, 0.034], [0.06, 0.03], [0.085, 0.012], [0.11, 0.006]];
+export const RIVER = [[-0.155, 0.05], [-0.125, 0.042], [-0.1, 0.03], [-0.07, 0.018], [-0.04, 0.026], [-0.01, 0.036], [0.03, 0.034], [0.06, 0.03], [0.085, 0.012], [coastX(0.006), 0.006]];
 export const MOUNTAIN_X = -0.105;          // 这以西是山地
 export const WIND = [-0.6, 0.8];          // 盛行风吹去的方向（东南风：从东南吹向西北）
 const dist = (a, b) => Math.hypot(a.x - b.x, a.n - b.n);
 export function nearRiver(p) { let best = { d: 1e9, i: 0 }; for (let i = 0; i < RIVER.length - 1; i++) { const [ax, an] = RIVER[i], [bx, bn] = RIVER[i + 1], vx = bx - ax, vn = bn - an, t = Math.max(0, Math.min(1, ((p.x - ax) * vx + (p.n - an) * vn) / (vx * vx + vn * vn))), d = Math.hypot(p.x - ax - t * vx, p.n - an - t * vn); if (d < best.d) best = { d, i: i + t }; } return best; }
 export const isSea = (p) => p.x > coastX(p.n) - 0.002;
+/** 厂区半宽不超过 0.016、南北半宽不超过 0.01；海岸斜率绝对值上界 0.708，预留 0.024 保证整个厂区在岸内。 */
+export const landPoint = (p) => { const n = Math.max(NL + 0.01, Math.min(NR - 0.01, p.n)); return { x: Math.max(XL + 0.016, Math.min(p.x, coastX(n) - 0.024)), n }; };
 export const isFarm = (p) => (p.n < -0.035 && p.x > -0.09 && p.x < 0.04) || (dist(p, PLACES.city) < 0.06 && dist(p, PLACES.city) > 0.03 && p.x < 0.1);          // 南边平原的甘蔗田、城市周边的菜地
 export const isMountain = (p) => p.x < MOUNTAIN_X;
 
@@ -41,32 +43,36 @@ export function evaluate(kind, p) {
   const src = P[I.mFrom], dSrc = dist(p, src);
   c['原料运输'] = I.m * (I.perish || 1) * dSrc * (I.sea ? 0.6 : 1) * 10;          // 进口原料先海运到港口，从港口再往里运（陆运）
   c['产品运输'] = I.pr * (I.prPerish || 1) * dist(p, P.city) * 10;
-  c['动力'] = I.e * (0.4 + dist(p, P.hydro) * 6);          // 离水电站越近，电越便宜（示意）
+  c['动力'] = I.e * (0.4 + dist(p, P.hydro) * 6);          // 本情境假设水电站附近低价、稳定供电，距离函数只是人为成本设定，不是现实电价规律
   const labor = dist(p, P.county) < 0.03 ? 1 : dist(p, P.city) < 0.04 ? 3 : 2;          // 县城劳动力便宜、城市贵
   c['劳动力'] = I.l * labor * 0.6;
   c['技术'] = I.t * dist(p, P.univ) * 6;
   const total = Object.values(c).reduce((a, b) => a + b, 0);
   const fx = [];
-  const r = nearRiver(p), upstreamOfIntake = (r.d < 0.02 && r.i <= 6.2) || dist(p, P.intake) < 0.02;          // 河在水源地（第 6 个点）上游，或者就挨着水源地
+  const r = nearRiver(p), upstreamOfIntake = r.d < 0.02 && r.i < 6;          // 取水口在索引 6，顺流污染只判断其上游
   if (I.water && upstreamOfIntake) fx.push({ k: 'water', at: 'intake', text: '污水顺河流到城市水源地' });
+  if (I.water && !upstreamOfIntake && dist(p, P.intake) < 0.02) fx.push({ k: 'water', at: 'intake', text: '紧邻水源地，存在选址风险（不表示污水逆流）' });
   if (I.water && dist(p, P.fishery) < 0.06 && p.x > 0.09) fx.push({ k: 'fish', at: 'fishery', text: '污水排进渔场' });
   if (I.air) { const vx = P.city.x - p.x, vn = P.city.n - p.n, d = Math.hypot(vx, vn), along = (vx * WIND[0] + vn * WIND[1]) / (d || 1); if (d < 0.09 && along > 0.5) fx.push({ k: 'air', at: 'city', text: '烟顺着盛行风吹进城里' }); }
   if (I.land && isFarm(p)) fx.push({ k: 'farm', at: 'here', text: '占用大片农田' });
   if (I.tall && dist(p, P.airport) < 0.04) fx.push({ k: 'air2', at: 'airport', text: '高大设备、上升热气流影响飞机起降' });
-  if (I.needWater && r.d > 0.03 && p.x < coastX(p.n) - 0.03) fx.push({ k: 'nowater', at: 'here', text: '用水量大，这里离河、离海都远' });
-  if (I.clean && dist(p, P.county) > 0.2) fx.push({ k: 'x', at: 'here', text: '' });
+  if (I.needWater && r.d > 0.03) fx.push({ k: 'nowater', at: 'here', text: '远离河流，需落实淡水供水；临海不等于具备工艺供水条件' });
+  if (I.clean) fx.push({ k: 'scope', at: 'here', text: '本例侧重技术区位；晶圆制造还需供水和废水处理设施，未在本模型核算' });
   if (isMountain(p)) fx.push({ k: 'mount', at: 'here', text: '山区建厂、运输都难' }), (c['原料运输'] *= 1.4, c['产品运输'] *= 1.4);
   return { cost: c, total: Object.values(c).reduce((a, b) => a + b, 0), fx: fx.filter((f) => f.text) };
 }
 /** 全区总成本最低的地方（只在陆地上找，示意） */
-export function cheapest(kind) { let best = null; for (let x = XL + 0.01; x < XR; x += 0.004) for (let n = NL + 0.01; n < NR; n += 0.004) { const p = { x, n }; if (isSea(p)) continue; const e = evaluate(kind, p); if (!best || e.total < best.total) best = { ...p, total: e.total }; } return best; }
+export function cheapest(kind) { let best = null; for (let x = XL + 0.01; x < XR; x += 0.004) for (let n = NL + 0.01; n < NR; n += 0.004) { const p = { x, n }; if (p.x > landPoint(p).x) continue; const e = evaluate(kind, p); if (!best || e.total < best.total) best = { ...p, total: e.total }; } return best; }
 
-/** 对这种工厂，地点一变，哪一项成本变化最大（在全区陆地上比最贵和最便宜差多少）：它最能决定工厂建在哪 */
+/** 对这种工厂，地点一变，哪一项成本变化最大（在全区陆地上比最贵和最便宜差多少）；极差不能单独判定最优位置或主导因素 */
 const RANGE = {};
 export function swing(kind) {
   if (RANGE[kind]) return RANGE[kind];
   const lo = {}, hi = {};
-  for (let x = XL + 0.01; x < XR; x += 0.008) for (let n = NL + 0.01; n < NR; n += 0.008) { const p = { x, n }; if (isSea(p) || isMountain(p)) continue; const c = evaluate(kind, p).cost; for (const k in c) { lo[k] = Math.min(lo[k] ?? 1e9, c[k]); hi[k] = Math.max(hi[k] ?? -1e9, c[k]); } }
+  for (let x = XL + 0.01; x < XR; x += 0.008) for (let n = NL + 0.01; n < NR; n += 0.008) { const p = { x, n }; if (p.x > landPoint(p).x || isMountain(p)) continue; const c = evaluate(kind, p).cost; for (const k in c) { lo[k] = Math.min(lo[k] ?? 1e9, c[k]); hi[k] = Math.max(hi[k] ?? -1e9, c[k]); } }
   const r = Object.fromEntries(Object.keys(lo).map((k) => [k, hi[k] - lo[k]]));
   return (RANGE[kind] = r);
 }
+
+// 电价影响因素参见 EIA：https://www.eia.gov/energyexplained/electricity/prices-and-factors-affecting-prices.php
+// 晶圆制造用水与废水参见 EPA：https://www.epa.gov/eg/electrical-and-electronic-components-effluent-guidelines

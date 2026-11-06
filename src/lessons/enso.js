@@ -1,21 +1,23 @@
 // 高中地理 选择性必修1 第四章第三节 海—气相互作用 · 厄尔尼诺和拉尼娜（课本第 74–75 页，图 4.17、图 4.18 正常年份热带太平洋上空的大气热力环流模式）。
 //
-// 一个问题（课本开头）：秘鲁沿海常年受寒流影响，气候干旱；可 2016 年底起海水变暖、暴雨成灾。为什么会出现这种气候异常？
+// 一个问题（课本开头）：秘鲁沿海常年受寒流影响，气候干旱；2016年12月下旬沿岸海水开始升温，2017年3月严重洪灾（沿岸事件，非本页盆地尺度情境）。为什么会出现这种气候异常？
 // 课本的图就是模型：图 4.18 那样一个沿赤道切开的太平洋剖面——西边是印度尼西亚一带的群岛，东边是秘鲁沿海和安第斯山；
 // 海面下是一层暖水，暖水下面是冷水；海面上空是一圈热力环流（西边上升、东边下沉）。
 // 学生亲手做的：按住海里那团暖水往东推（厄尔尼诺），或往西推（拉尼娜）。中东部海温跟着变，东西温差变小或变大，
-// 上空的环流、云雨跟着挪；西边由多雨变干旱（森林起火），东边由干旱变多雨（洪涝）；秘鲁沿岸的冷水上涌变弱，鱼少了。
+// 上空的环流、云雨跟着挪；西部偏干、中东部降水增加的风险变化（灾害并非必然）；秘鲁沿岸的冷水上涌变弱，鱼少了。
 // 教学示意：海温、环流的位置都是示意；厄尔尼诺的成因科学家还在探索（课本自学窗），这里只演示它发生后的样子和影响。
+// 2017年沿岸事件依据：https://enfen.imarpe.gob.pe/download/informe-tecnico-el-nino-costero-2017/
+// 环流减弱、强事件可能反转依据：https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/impacts/warm_impacts.shtml
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { sst, west, east, diff, riseX, sinkX, rainAmt, weather, upwell, stateName } from './kit/enso.js';
+import { sst, west, east, diff, riseX, sinkX, rainAmt, weather, upwell, stateName, stateKey, circulation } from './kit/enso.js';
 
 const XL = -0.17, XR = 0.17, ZD = 0.05, SEA = 0.03, AIR = 0.085;
 const X = (u) => XL + (XR - XL) * (u + 1) / 2, U = (x) => ((x - XL) / (XR - XL)) * 2 - 1;          // 模型 x（−1…1）↔ 画面 x
-const ASK = ['先猜一下（可以不猜）：在这个情境里，太平洋中东部海水变暖以后，秘鲁沿海会——', ['更干旱', '变得多雨', '没变化']];
+const ASK = ['先猜一下（可以不猜）：在这个情境里，太平洋中东部海水变暖以后，中东部降水可能——', ['减少', '增加', '没变化']];
 const rnd = (() => { let s = 31; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -24,13 +26,13 @@ export default {
   fig: '图4.18',
   title: '厄尔尼诺和拉尼娜',
   flow: 'explore',
-  ask: '秘鲁沿海常年受寒流影响，气候干旱；可 2016 年底，那里的海水变暖，暴雨引发洪灾。为什么会出现这种气候异常？',
+  ask: '秘鲁沿海常年受寒流影响，气候干旱；2016年12月下旬沿岸海水开始升温，2017年3月发生严重洪灾。这是沿岸厄尔尼诺，当时中太平洋正从拉尼娜向中性过渡，不能用本页盆地尺度模型直接解释。下面探索盆地尺度 ENSO 如何影响海温和降水。',
   need: '把暖水往东推，看东西两岸的天气怎么变；再往西推比一比',
   conclusion: {
     page: 78,
     quote: '正常年份，赤道附近太平洋中东部的表层海水温度较低，大气较稳定，气流下沉；西部海水温度较高，气流上升。有些年份，赤道附近太平洋中东部表层海水温度异常升高，这种现象被称为厄尔尼诺现象。厄尔尼诺现象发生后，赤道附近太平洋地区东、西部海面的温度差异减小。赤道附近的太平洋东部，如秘鲁和智利沿海，下沉气流减弱或消失，甚至出现上升气流，气候由原来的干燥少雨变为多雨，引发洪涝灾害。同时，赤道附近的太平洋西部，上升气流减弱或消失，气候由温润多雨转变为干燥少雨，带来旱灾或森林大火。……与厄尔尼诺现象相反，拉尼娜现象是指赤道附近太平洋中东部的表层海水温度异常降低的现象。',
-    why: '海面温度的分布影响上空的空气是升还是沉：相对暖的海面上空气容易受热上升、成云下雨，相对冷的海面上空气下沉、干燥。正常年份暖水堆在西边，西边上升多雨、东边下沉干燥，上空连成一圈热力环流。厄尔尼诺时暖水到了中东部，上升的地方跟着东移：东边下起大雨，西边反而干旱。海温变一变，大气环流、各地的降水都跟着变——这就是海—气相互作用。',
-    src: '课本第 74–75 页 · 第四章 第三节 海—气相互作用',
+    why: '海面温度的分布影响上空的空气是升还是沉：相对暖的海面上空气容易受热上升、成云下雨，相对冷的海面上空气下沉、干燥。正常年份暖水堆在西边，西边上升多雨、东边下沉干燥，上空连成一圈热力环流。厄尔尼诺时暖水到了中东部，上升的地方跟着东移：沃克环流通常减弱、对流东移，强事件可能反转。中东部降水可能增加、西部可能偏干，洪涝、旱灾和火灾并非必然。风的变化也会改变海水运动、暖水分布、上升流和温跃层，进而改变海温，海洋与大气相互反馈。',
+    src: '课本第 74–75 页 · 第四章 第三节 海—气相互作用（教材摘录，省略图号）',
   },
 
   create({ tag }) {
@@ -112,7 +114,7 @@ export default {
       handle.position.set(hx, SEA - 0.006, ZD + 0.004);
       paintSea(); paintTop(); buildLoop();
       const xr = X(riseX(S.a)); cloud.position.set(xr, AIR - 0.01, 0); cloud.scale.setScalar(0.8 + 0.4 * Math.max(0.3, diff(S.a) / 9.9));
-      fire.visible = !wx.west.rain; flood.material.opacity = wx.east.rain ? 0.7 : 0; boats.visible = true;
+      fire.visible = false; flood.material.opacity = 0; boats.visible = true;
       const up = upwell(S.a); upArrows.forEach((m) => { m.material.opacity = up; m.visible = up > 0.05; }); fish.forEach((f, i) => (f.visible = i < Math.round(up * 10 + 1)));          // 冷水上涌少了，营养物质少，鱼也少了
       tW.position.set(XL + 0.02, SEA + 0.03, -ZD); tW.setText(`西部 ${west(S.a).toFixed(0)}℃ · ${wx.west.t}`); tE.position.set(XR - 0.01, SEA + 0.04, -ZD); tE.setText(`东部 ${east(S.a).toFixed(0)}℃ · ${wx.east.t}`);
       tState.position.set(0, AIR + 0.025, 0); tState.setText(stateName(S.a));
@@ -131,21 +133,24 @@ export default {
       g.textAlign = 'left'; g.fillText('西', L, hh - 10); g.textAlign = 'right'; g.fillText('东', R, hh - 10);
       const line = (a, dash, cl, wd) => { g.save(); g.setLineDash(dash); g.strokeStyle = cl; g.lineWidth = wd; g.beginPath(); for (let i = 0; i <= 60; i++) { const u = -1 + (2 * i) / 60, x = PX(u), y = PY(sst(u, a)); if (i) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke(); g.restore(); };
       line(0, [4, 3], 'rgba(60,60,60,0.5)', 1.5); line(S.a, [], '#c4462e', 2.4);
-      W.read.innerHTML = `<b>${stateName(S.a)}</b>：西部 ${west(S.a).toFixed(1)}℃，中东部 ${east(S.a).toFixed(1)}℃，东西温差 <b>${diff(S.a).toFixed(1)}℃</b>（正常年份约 ${diff(0).toFixed(1)}℃）<br><small>海温是示意；厄尔尼诺的成因科学家还在探索</small>`;
+      W.read.innerHTML = `<b>${stateName(S.a)}</b>：西部 ${west(S.a).toFixed(1)}℃，中东部 ${east(S.a).toFixed(1)}℃，东西温差 <b>${diff(S.a).toFixed(1)}℃</b>（正常年份约 ${diff(0).toFixed(1)}℃）<br><small>海温和状态阈值是示意；${circulation(S.a)}</small>`;
     };
     const drawLog = () => {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
-      if (S.seen.has('el')) r('厄尔尼诺：', '中东部海温升高，东西温差变小；上升气流东移：东边多雨、洪涝，西边干旱、森林起火；秘鲁沿岸冷水上涌变弱，鱼少了');
-      if (S.seen.has('la')) r('拉尼娜：', '中东部海温降低，东西温差变大；东边下沉气流更强、更干，西边雨更多');
-      if (S.guess != null && S.seen.has('el')) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：变得多雨（甚至洪涝）`)));
+      if (S.seen.has('el')) r('曾观察到厄尔尼诺情境：', '中东部海温升高，东西温差变小；上升气流东移：中东部降水可能增加，西边可能偏干，灾害并非必然；秘鲁沿岸冷水上涌变弱，鱼少了');
+      if (S.seen.has('la')) r('曾观察到拉尼娜情境：', '中东部海温降低，东西温差变大；东边下沉气流更强、更干，西边雨更多');
+      if (S.guess != null && S.seen.has('el')) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　示意趋势：降水可能增加`)));
       W.log.replaceChildren(...rows);
       if (S.seen.has('el') && S.seen.has('la')) W.ui.unlock();
     };
     const events = () => {
-      const k = S.a > 0.6 ? 'el' : S.a < -0.6 ? 'la' : null, st = k || (Math.abs(S.a) < 0.3 ? 'normal' : S.lastSt);
-      if (st !== S.lastSt) { S.lastSt = st; W?.stSeg.set(st === 'la' ? 0 : st === 'el' ? 2 : st === 'normal' ? 1 : -1); if (st === 'normal' && S.seen.size) W?.ui.status('回到正常年份：暖水堆在西边，西边上升多雨，东边下沉干燥。'); else if (k && S.seen.has(k)) W?.ui.status(k === 'el' ? '又是<b>厄尔尼诺</b>：上升气流到了中东部，秘鲁沿海多雨，西边干旱。' : '又是<b>拉尼娜</b>：东西温差更大，原来的环流更强。'); }          // 状态变了：按钮、提示一起跟着变
-      if (k && !S.seen.has(k)) { S.seen.add(k); callout.position.set(k === 'el' ? XR - 0.03 : XL + 0.04, AIR + 0.02, 0); callout.setText(k === 'el' ? '东边下起大雨，西边干旱' : '东西温差更大了').setOn(true); calloutT = 4; drawLog(); W?.ui.status(k === 'el' ? '这就是<b>厄尔尼诺</b>：赤道附近太平洋中东部海水异常变暖。上升气流东移到了中东部：秘鲁沿海下起大雨，西边的岛上却干旱起火。再往西推试试。' : '这是<b>拉尼娜</b>：中东部海水异常变冷，东西温差更大，原来的环流更强了。'); }
+      const st = stateKey(S.a), k = st === 'normal' ? null : st;
+      S.lastSt = st; W?.stSeg.set(st === 'la' ? 0 : st === 'el' ? 2 : 1);
+      W?.ui.status(`${stateName(S.a)}：${circulation(S.a)}`);
+      if (k && !S.seen.has(k)) { S.seen.add(k); drawLog(); }
+      callout.show(false);
+
     };
 
     // ---- 拖暖水 ----
@@ -173,9 +178,9 @@ export default {
       mount(ui) {
         const stSeg = seg('直接选', ['拉尼娜', '正常年份', '厄尔尼诺'], (_, i) => { S.a = i - 1; events(); layout(); }, { value: 1 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
-        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.a = 0; S.seen.clear(); S.guess = null; stSeg.set(1); guess.set(-1); callout.show(false); layout(); drawLog(); ui.status('这是正常年份的赤道太平洋：暖水堆在西边。按住那团<b>暖水</b>往东推。'); } }]);
+        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.a = 0; S.lastSt = 'normal'; S.seen.clear(); S.guess = null; stSeg.set(1); guess.set(-1); callout.show(false); layout(); drawLog(); ui.status('这是正常年份的赤道太平洋：暖水堆在西边。按住那团<b>暖水</b>往东推。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 130 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '表层海温（西 → 东）'), chart, read, guess.el, stSeg.el, acts.el, note('剖面上：红是暖水，蓝是冷水，白虚线是暖水层的底；上空的环：西边上升、东边下沉。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '表层海温（西 → 东）'), chart, read, guess.el, stSeg.el, acts.el, note('剖面上：红是暖水，蓝是冷水，白虚线是暖水层的底；上空箭头表示当前环流，上升支随暖状态东移、环流减弱；本页未模拟强事件反转。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, stSeg };
         ui.status('这是正常年份的赤道太平洋：暖水堆在西边，西边上升多雨、东边下沉干燥。按住那团<b>暖水</b>往东推。');

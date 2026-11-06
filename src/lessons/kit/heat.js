@@ -35,3 +35,25 @@ export function steady(sky) { const st = { m: 250, g: 290, a: 270 }; for (let d 
 /** 一天里每小时的温度（℃） */
 export function day(sky) { const st = steady(sky), out = []; for (let t = 0; t <= 24; t += 0.25) { out.push({ t, moon: st.m - K0, ground: st.g - K0, air: st.a - K0 }); step(st, t, 0.25, sky); } return out; }
 export const range = (arr, k) => { const v = arr.map((p) => p[k]); return { max: Math.max(...v), min: Math.min(...v), d: Math.max(...v) - Math.min(...v) }; };
+
+/** 昼夜对照共用推进：边界先结算旧段，再从同一状态创建新段；两组都采样起点和终点。 */
+export const otherSky = (sky) => sky === 'cloud' ? 'clear' : 'cloud';
+export function advanceComparison(S, dt, sample = () => {}, finish = () => {}) {
+  const begin = () => {
+    const tt = ((S.t % 24) + 24) % 24, night = tt >= 18 || tt < 6, g = S.st.g - K0;
+    return { from: S.t, key: night ? 'n' : 'd', sky: S.sky, ok: true, whole: Math.abs(tt - (night ? 18 : 6)) < 1e-8, min: g, max: g, twin: { ...S.st }, tmin: g, tmax: g };
+  };
+  const end = S.t + Math.max(0, dt);
+  while (S.t < end - 1e-10) {
+    if (!S.seg || (S.seg.from === S.t && S.seg.sky !== S.sky)) S.seg = begin();
+    const r = S.seg, t0 = S.t, boundary = 6 + 12 * (Math.floor((t0 - 6) / 12) + 1), t1 = Math.min(end, t0 + 0.25, boundary);
+    if (r.sky !== S.sky) r.ok = false;
+    step(S.st, t0, t1 - t0, S.sky); step(r.twin, t0, t1 - t0, otherSky(r.sky)); S.t = Math.abs(t1 - boundary) < 1e-9 ? boundary : t1;
+    const g = S.st.g - K0, tg = r.twin.g - K0;
+    r.min = Math.min(r.min, g); r.max = Math.max(r.max, g); r.tmin = Math.min(r.tmin, tg); r.tmax = Math.max(r.tmax, tg);
+    sample();
+    if (Math.abs(t1 - boundary) < 1e-9) { if (r.whole && r.ok) finish(r); S.seg = begin(); }
+  }
+}
+/** 表面入射短波分成吸收与反射；粒子与能量计算共用。 */
+export const surfaceShortwave = (f) => ({ moonAbsorb: f.moon.sunIn - f.moon.reflect, moonReflect: f.moon.reflect, groundAbsorb: f.earth.reach - f.earth.groundRefl, groundReflect: f.earth.groundRefl });

@@ -20,4 +20,11 @@ const m = strait(6), a = strait(14);
 console.log(`  早上 6 时：福建沿海 ${m.fj}，台湾西岸 ${m.tw}；下午 14 时：福建沿海 ${a.fj}，台湾西岸 ${a.tw}`);
 ok(m.fj === '西风' && a.fj === '东风', '内地（福建）之风，早西晚东');
 ok(m.tw === '东风' && a.tw === '西风', '惟台地早东风，午西风');
+const jump = makeState();
+for (let k = 0; k < 400; k++) { for (let i = 0; i < N; i++) jump.th[i] = seaLandTemp(xOf(i), 6); step(jump, 0.05, { tauP: 0.6, tauS: 1.2 }); }
+for (let i = 0; i < N; i++) jump.th[i] = seaLandTemp(xOf(i), 14);
+step(jump, 0.016, { tauP: 0.6, tauS: 1.2 });
+ok(windName(field(jump).at(COAST_W - 0.014, zLow)[0]) === '西风', '6时切14时下一帧仍是西风，当前观察必须保留风场滞后');
+for (let k = 0; k < 400; k++) { for (let i = 0; i < N; i++) jump.th[i] = seaLandTemp(xOf(i), 14); step(jump, 0.05, { tauP: 0.6, tauS: 1.2 }); }
+ok(windName(field(jump).at(COAST_W - 0.014, zLow)[0]) === '东风', '14时稳定后才转为东风');
 process.exit(bad ? 1 : 0);

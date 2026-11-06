@@ -36,7 +36,7 @@ export default {
   conclusion: {
     page: 49,
     quote: '在等压线分布图上，凡等压线闭合，中心气压低于四周气压的区域，叫作低气压，简称低压。在水平气压梯度力的作用下，低压的气流由四周向中心流动。受地转偏向力影响，低压的气流在北半球向右偏转，按逆时针方向流动（图3.6 a），在南半球向左偏转，按顺时针方向流动。……低压中心形成上升气流。空气在上升过程中，温度降低，其中所含的水汽凝结成云和雨（图3.6 b）。因此，一个地方受低压控制时，常出现阴雨天气。……高压的气流是由中心向外流出的，在北半球按顺时针方向旋转流出（图3.7 a），在南半球按逆时针方向旋转流出。……高压中心形成下沉气流。空气在下沉过程中，温度升高，水汽不易凝结，天气晴朗（图3.7 b）。',
-    why: '空气从气压高的地方流向气压低的地方（气压梯度力），一边走一边被地转偏向力往一侧推（北半球向右、南半球向左），地面摩擦又让它斜着穿过等压线。所以流进低压的空气转着圈进去，北半球是逆时针；流出高压的转着圈出去，北半球是顺时针。地转偏向力只让风偏，不会自己让风转起来：没有气压差就没有风。低压中心的空气挤在一起只能往上升，越升越冷，水汽凝结成云、下雨；高压中心的空气往外流，上面的空气下沉补进来，越沉越暖，云就散了。北半球的气旋东部吹偏南风、西部吹偏北风，反气旋东部吹偏北风、西部吹偏南风；南半球转向相反。本活页的云雨是水汽充足时的示意：上升冷却使水汽凝结成云，条件适宜才形成降水。',
+    why: '空气从气压高的地方流向气压低的地方（气压梯度力），一边走一边被地转偏向力往一侧推（北半球向右、南半球向左），地面摩擦又让它斜着穿过等压线。所以流进低压的空气转着圈进去，北半球是逆时针；流出高压的转着圈出去，北半球是顺时针。水平气压梯度力是形成风的直接原因；地转偏向力改变运动方向，本身不提供动能。低压中心的空气挤在一起只能往上升，越升越冷，水汽凝结成云、下雨；高压中心的空气往外流，上面的空气下沉补进来，越沉越暖，云就散了。北半球的气旋东部吹偏南风、西部吹偏北风，反气旋东部吹偏北风、西部吹偏南风；南半球转向相反。本活页的云雨是水汽充足时的示意：上升冷却使水汽凝结成云，条件适宜才形成降水。',
     src: '课本第 45–46 页 · 第三章 第一节 常见天气系统',
   },
 
@@ -85,7 +85,7 @@ export default {
         g.save(); g.fillStyle = 'rgba(255,253,240,0.92)'; g.beginPath(); g.roundRect(lx - 70, ly - 24, 140, 48, 10); g.fill(); g.restore(); g.fillText(p.toFixed(1), lx, ly);
       }
       g.font = '700 84px "Songti SC", serif'; g.lineWidth = 12; g.strokeStyle = 'rgba(255,253,240,0.9)'; g.strokeText(low ? '低' : '高', px(0), py(0)); g.fillStyle = low ? '#b0412a' : '#2a62b8'; g.fillText(low ? '低' : '高', px(0), py(0));
-      g.font = '500 34px "PingFang SC", sans-serif'; g.fillStyle = '#5f4f3c'; g.textAlign = 'right'; g.fillText('海平面等压线 / hPa', TW - 30, TH - 34);
+      g.font = '500 34px "PingFang SC", sans-serif'; g.fillStyle = '#5f4f3c'; g.textAlign = 'right'; g.fillText('示意海平面等压线 / hPa', TW - 30, TH - 34);
       g.textAlign = 'left'; g.fillText('北 ↑', 30, 44);
       mapTex.needsUpdate = true;
     };
@@ -235,7 +235,7 @@ export default {
     const vHead = new THREE.Mesh(new THREE.ConeGeometry(0.0028, 0.007, 8), vaneMat); vHead.rotation.z = -Math.PI / 2; vHead.position.x = 0.011; vane.add(vHead);
     const vTail = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.0006), vaneMat); vTail.position.x = -0.009; vane.add(vTail);
     const homePick = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.03, 0.024), new THREE.MeshBasicMaterial({ visible: false })); homePick.position.y = 0.014; homePick.userData.pick = true; home.add(homePick);
-    const homeTag = airLabel(block, '', { h: 0.011, color: '#a8341f', icon: 'home' }), tHint = tag('<span>在图上任意一处点一下</span><small>放一缕烟，看空气往哪儿走</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，时间加快了，本例水汽充足');
+    const homeTag = airLabel(block, '', { h: 0.011, color: '#a8341f', icon: 'home' }), tHint = tag('<span>在图上任意一处点一下</span><small>放一缕烟，看空气往哪儿走</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，时间加快了，本例水汽充足；虚构气压场，数值为教学设定');
     const homeWx = () => {
       const [x, n] = S.home, r = Math.hypot(x, n);
       if (S.mode === 'low') return S.cloud >= 0.7 && r < 0.036 ? '阴雨' : S.cloud >= 0.3 && r < 0.09 ? '多云' : '晴';          // 教学示意：雨区在低压中心附近，外圈多云
@@ -245,7 +245,7 @@ export default {
     const layoutHome = () => {
       const [x, n] = S.home; home.position.copy(P(x, n, G));
       const w = homeWind(), blowing = S.released > 0;
-      vane.visible = blowing; vane.rotation.y = Math.atan2(-w.vn, -w.vx);          // 风向标的箭头指着风吹来的方向
+      vane.visible = blowing && w.name !== '静风'; vane.rotation.y = Math.atan2(-w.vn, -w.vx);          // 风向标的箭头指着风吹来的方向
       homeTag.position.set(x, G + 0.04, -n); homeTag.setText(`你家 ${blowing ? `${w.name}${w.lean && w.lean !== w.name ? `（${w.lean}）` : ''} · ` : ''}${homeWx()}`);
     };
 
@@ -310,7 +310,9 @@ export default {
     };
     const clearAir = () => { for (const p of parcels) drop(p); parcels.length = 0; S.last = null; S.released = 0; S.out = 0; };
     const setMode = (fresh = false) => {
-      clearAir(); delete S.logs[LK()];          // 重新进这个情境：空气、云都从头来，这一行记录也从头记（完成过的照样算完成） S.cloud = S.mode === 'high' ? 0.8 : 0;          // 高压一开始天上有几朵云：空气下沉时它们会散掉
+      clearAir(); delete S.logs[LK()];          // 每次进入都重新观察、重新记录
+      S.cloud = S.mode === 'high' ? 0.8 : 0;          // 高压从几朵云开始，低压从晴空开始
+      placeClouds(); placeRain(); placeVArrows(); drawSky();
       if (fresh) S.home = [0.07, 0.0];
       drawMapTex(); setGuess(); layoutHome(); drawLogs();
       W?.ui.status(S.mode === 'low'
@@ -373,7 +375,7 @@ export default {
         S.t += dt; const d = Math.min(dt, 0.05);
         for (const p of parcels) stepParcel(p, d);
         for (let i = parcels.length - 1; i >= 0; i--) { const p = parcels[i]; if (p.st === 'gone') { p.fade -= d / 2.5; tint(p); if (p.fade <= 0) { drop(p); parcels.splice(i, 1); if (S.last === p) S.last = null; } } }
-        if (S.released && S.mode === 'low' && S.cloud < 1) { const c0 = Math.floor(S.cloud * 10); S.cloud = Math.min(1, S.cloud + d * 0.07); if (Math.floor(S.cloud * 10) !== c0) record(); }          // 下沉增温：云一点点散掉          // 低压里空气一直在辐合、上升：从你开始看起，云一点点长厚（本例水汽充足），和你放了几缕烟无关          // 低压里空气一直在辐合、上升：从你开始看起，云一点点长厚（本例水汽充足），和你放了几缕烟无关
+        if (S.released && S.mode === 'low' && S.cloud < 1) { const c0 = Math.floor(S.cloud * 10); S.cloud = Math.min(1, S.cloud + d * 0.07); if (Math.floor(S.cloud * 10) !== c0) record(); }          // 低压里空气辐合、上升，云逐渐长厚；本例水汽充足，与烟的数量无关
         if (S.released && S.mode === 'high' && S.cloud > 0) { S.cloud = Math.max(0, S.cloud - d * 0.07); if (S.cloud === 0) record(); }          // 高压里空气一直在下沉、增温：云一点点散掉
         placeArrows(); placeVArrows(); placeClouds(); placeRain(); layoutHome(); drawSky();
       },

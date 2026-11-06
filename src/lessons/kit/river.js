@@ -46,6 +46,26 @@ export function heightAt(x, z, t, gully = true) {
   }
   return y;
 }
-export function waterY(x, t) { return floorY(x, t) - 0.0016; }
+export function waterY(x, t) {
+  const f = sm(stage(t).head, stage(t).head + 0.04, x), z = centerZ(x, t), top = topY(x) + 0.0012 * Math.sin(x * 90 + z * 40) * Math.sin(z * 70 - x * 20);
+  return top - (top - floorY(x, t) + 0.0016) * f;          // 水面与河床共享源头过渡，水深随源头河槽一起渐增
+}
+/** 与河道中心连通的水域两岸；无水返回空。三维水面、切面、港口共用同一岸线。 */
+export function waterBanks(x, t) {
+  const zc = centerZ(x, t), wy = waterY(x, t);
+  if (x < stage(t).head + 0.012 || wy - heightAt(x, zc, t) <= 1e-8) return null;
+  return [-1, 1].map((side) => {
+    let wet = zc, dry = zc;
+    for (let i = 1; i <= 64; i++) { dry = zc + side * WC * i / 128; if (heightAt(x, dry, t) >= wy) break; wet = dry; }
+    for (let i = 0; i < 32; i++) { const mid = (wet + dry) / 2; if (heightAt(x, mid, t) < wy) wet = mid; else dry = mid; }
+    return (wet + dry) / 2;
+  });
+}
+/** 水域内相同相对位置的正水深，避免把干地或负值用于深浅比较。 */
+export function bankDepth(x, side, t) {
+  const banks = waterBanks(x, t); if (!banks) return 0;
+  const zc = centerZ(x, t), edge = banks[side < 0 ? 0 : 1];
+  return Math.max(0, waterY(x, t) - heightAt(x, zc + (edge - zc) * 0.65, t));
+}
 /** 某处河岸到水边多远（在河道里返回负数） */
-export function gapAt(x, z, t) { const zc = centerZ(x, t), d = Math.abs(z - zc) - WC / 2; return d; }
+export function gapAt(x, z, t) { const banks = waterBanks(x, t); return banks ? Math.max(banks[0] - z, z - banks[1]) : Infinity; }

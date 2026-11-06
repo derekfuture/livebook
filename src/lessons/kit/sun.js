@@ -5,14 +5,14 @@
 import * as THREE from 'three';
 
 export const D2R = Math.PI / 180, R2D = 180 / Math.PI;
-export const EPS = (23 + 26 / 60) * D2R;                       // 黄赤交角 23°26′（课本）
+export const EPS = (23 + 26 / 60) * D2R;          // 黄赤交角 23°26′（课本）
 export const decOf = (lam) => Math.asin(Math.sin(EPS) * Math.sin(lam * D2R));
 /** 角度写成 度°分′：73°26′ */
 export const dm = (r) => { const d = Math.abs(r * R2D); let a = Math.floor(d + 1e-9), m = Math.round((d - a) * 60); if (m === 60) { a++; m = 0; } return `${a}°${m ? String(m).padStart(2, '0') + '′' : ''}`; };
 /** 时刻 h（小时）写成 7:25 */
 export const hm = (h) => { h = ((h % 24) + 24) % 24; let H = Math.floor(h), M = Math.round((h - H) * 60); if (M === 60) { H++; M = 0; } return `${H}:${String(M).padStart(2, '0')}`; };
 /** 时长（小时）：不取模——24 小时就是 24 小时（极昼），0 就是极夜 */
-export const dur = (h) => (h >= 24 - 1e-6 ? '24 小时（极昼）' : h <= 1e-6 ? '0（极夜）' : `${Math.floor(h + 1e-9)} 小时 ${String(Math.round((h - Math.floor(h + 1e-9)) * 60)).padStart(2, '0')} 分`);
+export const dur = (h) => { const mins = Math.round(h * 60); return h >= 24 - 1e-6 ? '24 小时（极昼）' : h <= 1e-6 ? '0（极夜）' : `${Math.floor(mins / 60)} 小时 ${String(mins % 60).padStart(2, '0')} 分`; };
 /** 太阳高度（弧度）：负的说成“在地平线下” */
 export const altText = (r) => (r >= 0 ? dm(r) : `地平线下 ${dm(-r)}`);
 /** 方位（从正北顺时针，弧度）→ 正北 / 东北 / 正东 …… */
@@ -27,3 +27,10 @@ export function sunAt(lat, dec, t) {
 export const halfDay = (lat, dec) => { const c = -Math.tan(lat) * Math.tan(dec); return c <= -1 ? Math.PI : c >= 1 ? 0 : Math.acos(c); };
 /** 正午太阳高度 a = 90° − |φ − δ| */
 export const noonAlt = (lat, dec) => Math.PI / 2 - Math.abs(lat - dec);
+
+/** 拖动进入节气附近时吸附，画面与记录共用准确黄经。 */
+export const snapSeason = (lam) => { const a = ((lam % 360) + 360) % 360, k = (Math.round(a / 90) * 90) % 360; return Math.abs(((a - k + 540) % 360) - 180) < 4 ? k : a; };
+/** 天顶无南北方位，几何地平线与地平线下分开。 */
+export const noonText = (lat, dec) => { const a = noonAlt(lat, dec); return Math.abs(lat - dec) < 1e-9 ? '正午太阳高度 90°（在头顶）' : Math.abs(a) < 1e-9 ? '正午太阳高度 0°（在地平线上）' : a < 0 ? '正午太阳也在地平线下' : `正午太阳高度 ${dm(a)}（在${lat > dec ? '南' : '北'}边）`; };
+/** 平面天空图的方位接缝不能连线。 */
+export const skyJoin = (x, prev, width) => Math.abs(x - prev) <= width / 2;

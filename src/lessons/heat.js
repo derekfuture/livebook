@@ -12,7 +12,7 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { faceLabel, airLabel, noteBadge } from './kit/labels.js';
-import { SKY, K0, steady, step, fluxes, toa } from './kit/heat.js';
+import { SKY, K0, steady, step, fluxes, toa, advanceComparison, otherSky, surfaceShortwave } from './kit/heat.js';
 
 const ZD = 0.05, GY = 0.012, TOP = 0.105, MX = -0.09, EX = 0.09, CW = 0.075;          // 地面高度、大气上界、月球和地球两块的中心、半宽
 const TMIN = -160, TMAX = 140;          // 温度计的刻度（两支一样）
@@ -30,7 +30,7 @@ export default {
   conclusion: {
     page: 39,
     quote: '到达地球表面的太阳辐射，被地面吸收和反射。地面因吸收太阳辐射而增温，同时又以长波辐射的形式把热量传递给近地面大气。……地面长波辐射是近地面大气主要的、直接的热源。……地面辐射的长波辐射除极少部分穿过大气，到达宇宙空间外，绝大部分（75%—95%）被对流层中的水汽、二氧化碳等吸收。……大气辐射除一小部分向上射向宇宙空间外，大部分向下射向地面，其方向与地面辐射方向相反，故称大气逆辐射。大气逆辐射把热量传给地面，这就在一定程度上补偿了地面辐射损失的热量，对地面起到了保温作用。天空有云，特别是浓密的低云时，大气逆辐射更强。',
-    why: '月球几乎没有大气：白天阳光毫无削减地晒在表面，表面很快热到一百多摄氏度；夜里表面的辐射直接散到宇宙空间，没有东西还回来，就冷到零下一百多摄氏度。地球多了一层大气：白天它反射、吸收掉一部分太阳辐射，地面不会那么热；地面辐射的长波辐射绝大部分被大气吸收，大气又以大气逆辐射把热量还给地面，夜里地面就不会那么冷。所以地球的昼夜温差小得多。浓密的低云让这两样都更明显：白天反射更多阳光，夜里逆辐射更强。',
+    why: '月球几乎没有大气：白天阳光毫无削减地晒在表面，表面很快热到一百多摄氏度；夜里表面的辐射直接散到宇宙空间，没有东西还回来，就冷到零下一百多摄氏度。地球多了一层大气：白天它反射、吸收掉一部分太阳辐射，地面不会那么热；地面辐射的长波辐射绝大部分被大气吸收，大气又以大气逆辐射把热量还给地面，夜里地面就不会那么冷。所以地球的昼夜温差小得多。大气是重要原因，真实差异还受昼夜长度及地表热性质影响；这里不量化各因素贡献。浓密的低云让这两样都更明显：白天反射更多阳光，夜里逆辐射更强。',
     src: '课本第 34–35 页 · 第二章 第二节 大气受热过程和大气运动',
   },
 
@@ -95,12 +95,14 @@ export default {
     const emit = (key, rate, dt, fn) => { acc[key] = (acc[key] || 0) + rate * dt; while (acc[key] >= 1) { acc[key] -= 1; fn(); } };
     const AIRMID = GY + (TOP - GY) * 0.55;
     const stepPacks = (dt, f) => {
-      const k = 1 / 120;          // 每秒放几份：辐射越强放得越多
-      emit('mSun', f.moon.sunIn * k, dt, () => spawn('sun', LANE.mSun, TOP + 0.01, GY + 0.002));
+      const k = 1 / 120, sw = surfaceShortwave(f);          // 每秒放几份：辐射越强放得越多
+      emit('mSun', sw.moonAbsorb * k, dt, () => spawn('sun', LANE.mSun, TOP + 0.01, GY + 0.002));
+      emit('mRefl', sw.moonReflect * k, dt, () => spawn('sun', LANE.mSun, TOP + 0.01, GY + 0.002, 'bounce'));
       emit('mUp', f.moon.up * k, dt, () => spawn('ground', LANE.mUp, GY + 0.002, TOP + 0.015));
       emit('eSunR', f.earth.refl * k, dt, () => spawn('sun', LANE.eSun, TOP + 0.01, S.sky === 'cloud' ? GY + 0.044 : TOP - 0.004, 'bounce'));          // 一部分被大气、云反射回去
       emit('eSunA', f.earth.atmAbsS * k, dt, () => spawn('sun', LANE.eSun, TOP + 0.01, AIRMID, 'absorb'));
-      emit('eSunG', f.earth.reach * k, dt, () => spawn('sun', LANE.eSun, TOP + 0.01, GY + 0.002));
+      emit('eSunG', sw.groundAbsorb * k, dt, () => spawn('sun', LANE.eSun, TOP + 0.01, GY + 0.002));
+      emit('eGroundRefl', sw.groundReflect * k, dt, () => spawn('sun', LANE.eSun, TOP + 0.01, GY + 0.002, 'bounce'));
       emit('eUpA', f.earth.lwAbsorbed * k, dt, () => spawn('ground', LANE.eUp, GY + 0.002, AIRMID - 0.01 + rnd() * 0.02, 'absorb'));          // 地面辐射绝大部分被大气吸收
       emit('eUpS', f.earth.lwEscape * k, dt, () => spawn('ground', LANE.eUp, GY + 0.002, TOP + 0.015));
       emit('eBack', f.earth.back * k, dt, () => spawn('atm', LANE.eBack, AIRMID, GY + 0.002));          // 大气逆辐射
@@ -132,7 +134,7 @@ export default {
     const tM = airLabel(block, '', { h: 0.0078, color: '#2c3245', icon: 'thermo' }), tE = airLabel(block, '', { h: 0.0078, color: '#2c3245', icon: 'thermo' });
     tM.position.set(MX - CW + 0.02, GY + 0.088, ZD * 0.78); tE.position.set(EX - CW + 0.02, GY + 0.088, ZD * 0.78);
     const tHint = tag('<span>按住太阳，往左拖</span><small>太阳落下去，就是夜里</small>', 'hint');
-    noteBadge(tag, '教学示意：月球的一昼夜约等于地球上的一个月，这里画成一样长；同一个太阳照着两边；箭头多少表示辐射强弱，数值是示意。两边地表的性质（吸热、反射）也不一样，这里只看大气让温差变小的方向，不用来算大气单独让温差小了多少').loc(block, MX - CW + 0.006, -0.002, ZD + 0.01);
+    noteBadge(tag, '教学示意：月球的一昼夜约等于地球上的一个月，这里画成一样长；同一个太阳照着两边；黄色短波到达表面后，一部分吸收、一部分反射向外；箭头多少表示辐射强弱，数值是示意。两边地表的性质（吸热、反射）也不一样，这里只看大气让温差变小的方向，不用来算大气单独让温差小了多少').loc(block, MX - CW + 0.006, -0.002, ZD + 0.01);
     const labels = [...Object.values(pLabels), tM, tE];
 
     // ---- 摆好 ----
@@ -151,22 +153,17 @@ export default {
     // 时间往前走：积分温度，记下这一天、这一夜的最高最低
     // 时间往前走：一小步一小步地积分，每一小步都记下温度（拨得再快也不漏掉中间的最高、最低）
     // 对照：每个白天（6—18 时）、夜晚（18—次日 6 时）开始时，从同一个状态另起一个“孪生”地面，用另一种天空走完同一段；比的是同一时段、同一起点
-    const other = (sky) => (sky === 'cloud' ? 'clear' : 'cloud');
-    const advance = (dt) => {
-      if (dt <= 0) return; const n = Math.max(1, Math.ceil(dt / 0.25)), hstep = dt / n;
-      for (let i = 0; i < n; i++) {
-        const t0 = S.t; step(S.st, t0, hstep, S.sky); S.t = t0 + hstep;
-        const Tm = S.st.m - K0, Tg = S.st.g - K0, tt = ((S.t % 24) + 24) % 24;
+    const other = otherSky;
+    const advance = (dt) => advanceComparison(S, dt, () => {
+        const Tm = S.st.m - K0, Tg = S.st.g - K0;
         S.trace.push({ t: S.t, m: Tm, g: Tg, sky: S.sky }); if (S.trace.length > 2000) S.trace.shift();
         const D = S.dayTr; D.mMax = Math.max(D.mMax, Tm); D.mMin = Math.min(D.mMin, Tm); D.gMax = Math.max(D.gMax, Tg); D.gMin = Math.min(D.gMin, Tg);
         if (S.t - D.from >= 24 - 1e-6) { if (!S.rec.full) { S.rec.full = { ...D }; W?.ui.status(`过了一整天：月球表面最高约 ${D.mMax.toFixed(0)} ℃、最低约 ${D.mMin.toFixed(0)} ℃；地球表面只在 ${D.gMin.toFixed(0)}–${D.gMax.toFixed(0)} ℃ 之间。再给地球的天空<b>加上浓密的低云</b>，过一个白天或一个夜晚试试。`); drawLog(); } S.dayTr = { mMax: -1e9, mMin: 1e9, gMax: -1e9, gMin: 1e9, from: S.t }; }
-        const isNight = tt >= 18 - 1e-6 || tt < 6 - 1e-6, key = isNight ? 'n' : 'd';
-        if (!S.seg || S.seg.key !== key) { const r = S.seg; if (r && r.whole && r.ok) { const rec = r.key === 'n' ? S.rec.nights : S.rec.days, v = r.key === 'n' ? r.min : r.max, tv = r.key === 'n' ? r.tmin : r.tmax; rec[r.sky] = { v, twin: tv, twinSky: other(r.sky) }; drawLog(); sayCloud(r); } S.seg = { key, sky: S.sky, ok: true, whole: Math.abs(tt - (isNight ? 18 : 6)) < 0.3, min: 1e9, max: -1e9, twin: { ...S.st }, tmin: 1e9, tmax: -1e9 }; }
-        if (S.seg.sky !== S.sky) S.seg.ok = false;
-        S.seg.min = Math.min(S.seg.min, Tg); S.seg.max = Math.max(S.seg.max, Tg);
-        step(S.seg.twin, t0, hstep, other(S.seg.sky)); const tg = S.seg.twin.g - K0; S.seg.tmin = Math.min(S.seg.tmin, tg); S.seg.tmax = Math.max(S.seg.tmax, tg);
-      }
-    };
+    }, (r) => {
+      const rec = r.key === 'n' ? S.rec.nights : S.rec.days;
+      rec[r.sky] = { v: r.key === 'n' ? r.min : r.max, twin: r.key === 'n' ? r.tmin : r.tmax, twinSky: other(r.sky) };
+      drawLog(); sayCloud(r);
+    });
     const sayCloud = (r) => {
       if (!W) return; const night = r.key === 'n', a = night ? r.min : r.max, b = night ? r.tmin : r.tmax, cloudV = r.sky === 'cloud' ? a : b, clearV = r.sky === 'cloud' ? b : a, d = cloudV - clearV;
       W.ui.status(night ? `同一个夜晚、同样的起点：有浓密的低云，地球表面最低约 <b>${cloudV.toFixed(0)} ℃</b>；晴夜约 <b>${clearV.toFixed(0)} ℃</b>。${d > 0.5 ? '有云的夜里大气逆辐射更强，地面没那么冷。' : '这一夜差别不大。'}` : `同一个白天、同样的起点：有浓密的低云，地球表面最高约 <b>${cloudV.toFixed(0)} ℃</b>；晴天约 <b>${clearV.toFixed(0)} ℃</b>。${d < -0.5 ? '云把更多阳光反射回去，地面没那么热。' : '这个白天差别不大。'}`);
@@ -203,7 +200,7 @@ export default {
       if (dp) r('同一个白天：', `有浓密的低云，地球表面最高约 ${dp.cloud.toFixed(0)} ℃；晴天约 ${dp.clear.toFixed(0)} ℃${dp.clear - dp.cloud > 0.5 ? '：云反射了更多太阳辐射' : ''}`);
       if (S.guess != null && F) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：大得多`)));
       W.log.replaceChildren(...rows);
-      W.read.innerHTML = `现在 <b>${hm(S.t)}</b>，${toa(S.t) > 0 ? '白天' : '夜里'}；地球的天空：<b>${SKY[S.sky].name}</b><br><small>箭头越密，辐射越强；数值是示意</small>`;
+      W.read.innerHTML = `现在 <b>${hm(S.t)}</b>，${((S.t % 24) + 24) % 24 >= 6 && ((S.t % 24) + 24) % 24 < 18 ? '白天' : '夜里'}；地球的天空：<b>${SKY[S.sky].name}</b><br><small>箭头越密，辐射越强；数值是示意</small>`;
       if (F && (np || dp) && [N, D].some((x) => x.cloud)) W.ui.unlock();
     };
 
@@ -231,7 +228,7 @@ export default {
       size: { w: 0.36, d: 0.12, h: 0.16 },
       view: { elev: 12, azim: 6, lookY: 0.5, frameMargin: 1.12 },
       pointer,
-      debug: { run: (hours, sky) => { if (sky) S.sky = sky; for (let i = 0; i < hours * 4; i++) advance(0.25); layout(); drawLog(); } },
+      debug: { state: () => structuredClone(S), run: (hours, sky) => { if (sky) S.sky = sky; for (let i = 0; i < hours * 4; i++) advance(0.25); layout(); drawLog(); } },
       mount(ui) {
         const time = slider('时刻（只能往后拨，就像时间只往前走）', { min: 0, max: 23.9, step: 0.1, value: S.t, fmt: (v) => hm(v), onInput: (v) => { let d = v - (((S.t % 24) + 24) % 24); if (d < 0) d += 24; advance(d); S.moved = true; S.play = false; play.textContent = '让一天走'; layout(); drawLog(); } });
         const skySeg = seg('地球的天空', ['晴天', '有云（浓密的低云）'], (_, i) => { S.sky = i ? 'cloud' : 'clear'; layout(); drawLog(); }, { value: 0 });
@@ -242,7 +239,7 @@ export default {
         ]);
         const play = acts.btns[0];
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 250 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '两支温度计的读数'), chart, read, acts.el, time.el, skySeg.el, guess.el, note('黄箭头是太阳辐射（短波），橙箭头是地面辐射（长波），红箭头是大气辐射（长波）。往上走的变小、停住，就是被大气吸收了。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '两支温度计的读数'), chart, read, acts.el, time.el, skySeg.el, guess.el, note('黄箭头是太阳辐射（短波），橙箭头是地面辐射（长波），红箭头是大气辐射（长波）。黄色箭头从表面折返向上表示短波反射；橙色箭头向上变小、停住表示被大气吸收。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, time, play };
         ui.status(START);

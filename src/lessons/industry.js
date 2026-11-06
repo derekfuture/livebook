@@ -12,7 +12,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, NL, NR, PLACES, RIVER, INDUSTRIES, WIND, coastX, evaluate, isSea, isMountain, nearRiver, swing } from './kit/industry.js';
+import { XL, XR, NL, NR, PLACES, RIVER, INDUSTRIES, WIND, coastX, evaluate, isSea, isMountain, nearRiver, swing, landPoint } from './kit/industry.js';
 
 const G = 0.024;
 const KINDS = ['sugar', 'beer', 'alu', 'cloth', 'chip', 'petro'];
@@ -32,7 +32,7 @@ export default {
   conclusion: {
     page: 68,
     quote: '从经济效益看，工厂应当选择在利润最高的地方。……在市场因素一定的情况下，为了获取最大的经济效益，决策者会综合考虑多种成本，把工厂建在总成本最低的地方。……一些原料容易腐烂或原料运输成本很高的工业，如制糖工业……多建在原料产地附近。一些产品容易变质或者产品运输成本较高的工业……如肉类加工业、啤酒制造业等，多建在靠近市场的地方。……电解铝厂一般建在电能供应充足的水电站附近……普通服装制造……一般多建在具有大量廉价劳动力的地方。一些技术要求高的工业，如集成电路……一般多建在高等教育和科技发达的地区。……对环境污染严重的工业，区位选择应非常慎重。……大多数情况下，工业区位选择往往是多种因素综合作用的结果。',
-    why: '每种工厂随地点变化最大的那一项成本不一样，它就把工厂“拉”过去：制糖厂运甘蔗的花费离甘蔗田越远涨得越快（甘蔗又重又容易坏），就建在甘蔗田旁边——建到那儿，这项花费就几乎没有了；啤酒厂运产品的花费离城市越远涨得越快，就靠近城市；电解铝的电费离水电站越远越贵，就靠近水电站。但总成本最低的地方不一定能建：污染重的工厂还要看风往哪吹、河往哪流、占不占农田、离机场近不近，最后是多种因素综合权衡的结果。',
+    why: '本情境假设水电站附近有低价、稳定供电条件，动力成本的距离函数是人为设定，不是现实电价随距离增加的规律。制糖、啤酒、电解铝等在本组参数下有不同的成本分布。比较范围内某项成本极差最大，只表示它的变化幅度最大；选址仍要综合总成本、可行用地、供水、污染及其他约束。',
     src: '课本第 64–66 页 · 第三章 第二节 工业区位因素及其变化',
   },
 
@@ -159,8 +159,8 @@ export default {
         if (col.ev.fx.length) { g.fillStyle = '#c4462e'; g.fillText(`要注意 ${col.ev.fx.length} 处`, x + bw / 2, B + 26); }
       });
       g.textAlign = 'left'; g.font = '11px "PingFang SC", sans-serif'; let lx = 6; for (const k of Object.keys(COLORS)) { g.fillStyle = COLORS[k]; g.fillRect(lx, 2, 9, 9); g.fillStyle = '#3a3226'; g.fillText(k, lx + 12, 10); lx += g.measureText(k).width + 26; }
-      const lead = Object.entries(swing(S.kind)).sort((a, b) => b[1] - a[1])[0][0];          // 地点一变，哪一项变化最大：它最能决定工厂建在哪（不是“此刻哪项最贵”）
-      W.read.innerHTML = `${INDUSTRIES[S.kind].name}：建在这里总成本 <b>${ev.total.toFixed(1)}</b>。换个地方，变化最大的是<b style="color:${COLORS[lead]}">${lead}</b>——它最能决定建在哪。${ev.fx.length ? `<br><b style="color:#c4462e">要注意：${ev.fx.map((f) => f.text).join('；')}</b>` : '<br>本模型列的环境问题这里都没碰上'}<br><small>成本数值是教学示意，只用来比较</small>`;
+      const lead = Object.entries(swing(S.kind)).sort((a, b) => b[1] - a[1])[0][0];          // 地点一变，哪一项变化最大：仅描述本模型比较范围的极差，不等同主导因素
+      W.read.innerHTML = `${INDUSTRIES[S.kind].name}：建在这里总成本 <b>${ev.total.toFixed(1)}</b>。在本模型比较范围内，变化幅度最大的是<b style="color:${COLORS[lead]}">${lead}</b>；选址还需综合总成本和约束。${ev.fx.length ? `<br><b style="color:#c4462e">要注意：${ev.fx.map((f) => f.text).join('；')}</b>` : '<br>本模型列的环境问题这里都没碰上'}<br><small>成本数值是教学示意；假设水电站附近低价、稳定供电，距离函数不代表现实电价规律</small>`;
     };
     const drawLog = () => {
       if (!W) return;
@@ -179,7 +179,7 @@ export default {
         const c = document.getElementById('c');
         if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(pinPick, false).length ? 'grab' : ''; return false; }
         const m = onMap(rc.ray); if (!m) return true;
-        if (isSea(m)) m.x = Math.min(m.x, 0.104);          // 工厂建在陆地上（港口边最多到岸边）
+        Object.assign(m, landPoint(m));          // 按曲线海岸约束整个厂区，不模拟围填海
         S.p = m; S.moved = true; S.tried.add(S.kind); layout(); drawLog(); return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; return true; },

@@ -16,7 +16,7 @@ export function pressure(x, lat, m, land = true) {
   const d = landT(m) - seaT(m);          // 陆地比海洋热多少
   return zonal - 4.5 * d * blob(x, lat, 0.32, 42 - 7 * landT(m), 0.36, 18) + 1.5 * d * blob(x, lat, 0.88, 45 - 12 * landT(m), 0.26, 16);          // 大陆上的高、低压中心（冬季偏北、像亚洲高压；夏季偏南、像印度低压，示意）；大洋上冬季加强副极地低压、夏季加强副热带高压
 }
-/** 近地面的风（东、北分量）：从高压吹向低压，在北半球向右偏（近地面有摩擦，偏约 45°） */
+/** 近地面的风（东、北分量）：从高压吹向低压，在北半球向右偏（固定右偏 45°仅示意中纬度近地面风，不是全区域通用规律；赤道科氏作用为零） */
 export function wind(x, lat, m, land = true) {
   const e = 0.004, ky = 1 / 100, gx = (pressure(x + e, lat, m, land) - pressure(x - e, lat, m, land)) / (2 * e), gy = (pressure(x, lat + e / ky, m, land) - pressure(x, lat - e / ky, m, land)) / (2 * e);          // x 方向 1 个单位约等于 100 个纬度的距离（示意）
   const a = -gx, b = -gy, th = Math.PI / 4;          // 气压梯度力指向低压
@@ -35,3 +35,5 @@ export function cityWeather(m, land = true) {
   return { w, name: windName(w), fromSea, calm, season: winter ? 'winter' : summer ? 'summer' : 'mid', text: !land ? '风向一年里变化不大' : calm ? '静风' : winter && !fromSea ? '冬季风：从大陆吹来，干燥寒冷' : summer && fromSea ? '夏季风：从海上吹来，暖湿多雨' : fromSea ? '风从海上来（过渡季节）' : '风从大陆来（过渡季节）' };          // “干冷”“暖湿”只说冬夏季风，过渡季节只说风从哪来
 }
 export const monthName = (m) => `${m} 月`;
+
+// 适用边界参考美国国家气象局：https://www.weather.gov/jkl/education 。低纬箭头不用于推断真实风向。

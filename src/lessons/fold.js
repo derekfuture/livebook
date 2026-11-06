@@ -6,7 +6,7 @@
 //   1. 推地块两头的挤压板：岩层被挤弯，拱起来的是背斜（形成山岭），弯下去的是向斜（形成谷地）。挤得越狠，背斜顶上越容易裂开。
 //   2. 拖时间（外力长期作用）：背斜顶部裂隙多，冲得快，慢慢成了谷地；向斜槽部致密，冲得慢，反而高耸成山岭——地形倒置。
 //   3. 在地面上点一点“取样”：看露出来的是哪一层。背斜：中间老、两边新；向斜：中间新、两边老。侧栏把整条地面露出的岩层排成一条带。
-// 教学示意：竖直方向夸大了，时间大大加快；岩层厚度、侵蚀快慢都是示意。
+// 教学示意：竖直方向夸大了，侵蚀阶段无时间标定；岩层厚度、侵蚀快慢都是示意。
 import * as THREE from 'three';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
@@ -30,7 +30,7 @@ export default {
   conclusion: {
     page: 31,
     quote: '在地壳运动产生的强大挤压力作用下，岩层会发生塑性变形，产生一系列波状弯曲，叫作褶皱。褶皱是由背斜和向斜组成的。背斜岩层一般向上拱起，形成山岭；向斜岩层一般向下弯曲，形成谷地（图2.15）。在外力长期作用下，背斜、向斜的地表形态也会出现倒置现象。背斜顶部因受张力产生裂隙，容易被侵蚀成谷地；而向斜槽部由于受到挤压，岩石致密，不易被侵蚀，相对高耸形成山岭（图2.16）。',
-    why: '判断背斜还是向斜，看岩层怎么弯、看岩层的新老，不看地面高低：背斜岩层向上拱，中间的岩层老、两边的新；向斜岩层向下弯，中间的新、两边的老。刚挤出来时，背斜是山、向斜是谷；可背斜顶上被拉开、裂隙多，外力冲得快，向斜底部被挤得致密、冲得慢，久而久之就倒过来：背斜成谷，向斜成山。',
+    why: '本例为正常层序的直立褶皱：背斜一般向上拱，中心岩层老、两翼新；向斜一般向下弯，中心新、两翼老。构造识别以岩层新老关系为依据，不能仅看地面高低。本例初期背斜为山、向斜为谷；在所设差异侵蚀条件下，背斜顶部裂隙多、侵蚀较快，向斜槽部较致密、侵蚀较慢，发生地形倒置。这不是所有褶皱必然的结局，地形还取决于岩性、侵蚀等条件。',
     src: '课本第 27 页 · 第二章 第二节 构造地貌的形成',
   },
 
@@ -105,7 +105,7 @@ export default {
     // ---- 标签：背斜、向斜（在剖面上，按岩层怎么弯）；山岭、谷地（在地面上，按此刻的高低） ----
     const face = (t) => faceLabel(block, t, { h: 0.0095, color: '#ffffff', stroke: 'rgba(40,30,20,0.6)' });          // 背斜、向斜写在岩层剖面上，跟着岩层弯
     const tAnti = face('背斜'), tSyn = [face('向斜'), face('向斜')], tLand = [0, 1, 2].map(() => airLabel(block, '', { h: 0.011, color: '#2c3245', dim: 0 }));
-    const tPush = tag('<span>按住两头的红板往里推</span><small>挤压</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，时间大大加快');
+    const tPush = tag('<span>按住两头的红板往里推</span><small>挤压</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，侵蚀阶段无时间标定');
     const callout = airLabel(block, '', { h: 0.009, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
     callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
     const say1 = (text, x, y, z) => { callout.position.set(x, y, z); callout.setText(text).setOn(true); calloutT = 4.5; };
@@ -142,7 +142,7 @@ export default {
       let prev = 0, x0 = XL;
       for (let i = 0; i <= 240; i++) { const x = XL + (XR - XL) * i / 240, k = exposed(x, S.c, S.e); if (k !== prev || i === 240) { if (prev) { g.fillStyle = LAYC[prev - 1]; g.fillRect(PX(x0), 104, PX(x) - PX(x0), 22); if (PX(x) - PX(x0) > 12) { g.fillStyle = prev <= 2 ? '#fff' : '#3a2a1a'; g.textAlign = 'center'; g.fillText(prev, (PX(x0) + PX(x)) / 2, 119); } } prev = k; x0 = x; } }
       for (const [x, n] of [[0, '背斜'], [-LAM / 2, '向斜'], [LAM / 2, '向斜']]) { g.fillStyle = '#2a3140'; g.textAlign = 'center'; if (S.c > 0.45) g.fillText(n, PX(x), 140); }
-      W.read.innerHTML = `挤压：${S.c < 0.05 ? '还没挤' : S.c < 0.5 ? '挤弯了一点' : '挤得很弯'}　外力作用：${S.e < 0.05 ? '刚开始' : `约 ${Math.round(S.e * 100)} 万年（示意）`}<br><small>判断背斜、向斜：看岩层怎么弯、中间和两边谁老谁新，不看地面高低</small>`;
+      W.read.innerHTML = `挤压：${S.c < 0.05 ? '还没挤' : S.c < 0.5 ? '挤弯了一点' : '挤得很弯'}　外力作用：${S.e < 0.05 ? '刚开始' : `侵蚀阶段 ${Math.round(S.e * 100)}/100`}<br><small>本例：正常层序的直立褶皱，按设定的差异侵蚀演化；倒置并非必然。取样旗与记录均显示当前露头。</small>`;
     };
     const drawLog = () => {
       if (!W) return;
@@ -151,20 +151,20 @@ export default {
       if (S.said.fold) r('挤压：', '岩层弯成一拱一凹：拱起来的是背斜（山岭），弯下去的是向斜（谷地）');
       if (S.said.inv) r('外力作用很久：', '背斜顶上裂隙多、冲得快，成了谷地；向斜底部致密、冲得慢，成了山岭');
       const near = (x, a) => Math.abs(x - a) < 0.03, pa = S.probes.find((p) => near(p.x, 0)), ps = S.probes.find((p) => near(p.x, LAM / 2) || near(p.x, -LAM / 2));
-      if (pa) r('背斜处取样：', `中间露出第 ${exposed(pa.x, S.c, S.e)} 层（${AGE[exposed(pa.x, S.c, S.e) - 1]}）`);
-      if (ps) r('向斜处取样：', `中间露出第 ${exposed(ps.x, S.c, S.e)} 层（${AGE[exposed(ps.x, S.c, S.e) - 1]}）`);
+      if (pa) r('背斜处当前露头：', `中间露出第 ${exposed(pa.x, S.c, S.e)} 层（${AGE[exposed(pa.x, S.c, S.e) - 1]}）`);
+      if (ps) r('向斜处当前露头：', `中间露出第 ${exposed(ps.x, S.c, S.e)} 层（${AGE[exposed(ps.x, S.c, S.e) - 1]}）`);
       if (S.guess != null && S.said.inv) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：外力作用很久以后，变成谷地（背斜成谷）`)));
       W.log.replaceChildren(...rows);
       if (S.said.fold && S.said.inv && pa && ps) W.ui.unlock();
     };
     const events = () => {
-      if (S.c > 0.6 && !S.said.fold) { S.said.fold = true; say1('拱起来的是背斜，弯下去的是向斜', LAM / 4, surface(LAM / 4, S.c, S.e) + 0.05, ZD); W?.ui.status('岩层被挤弯了：<b>背斜</b>向上拱，形成山岭；<b>向斜</b>向下弯，形成谷地。背斜顶上被拉开，出现了裂隙。现在拖<b>时间</b>，看外力长期作用以后会怎样。'); drawLog(); }
+      if (S.c > 0.6 && !S.said.fold) { S.said.fold = true; say1('拱起来的是背斜，弯下去的是向斜', LAM / 4, surface(LAM / 4, S.c, S.e) + 0.05, ZD); W?.ui.status('岩层被挤弯了：<b>背斜</b>向上拱，形成山岭；<b>向斜</b>向下弯，形成谷地。背斜顶上被拉开，出现了裂隙。现在拖<b>侵蚀阶段</b>，看外力长期作用以后会怎样。'); drawLog(); }
       const inv = surface(0, S.c, S.e) < surface(LAM / 2, S.c, S.e);
-      if (S.said.inv && !inv && !S.said.back) { S.said.back = true; W?.ui.status('时间拖回去了：地形又回到刚挤出来的样子，背斜是山岭、向斜是谷地。'); }
+      if (S.said.inv && !inv && !S.said.back) { S.said.back = true; W?.ui.status('侵蚀阶段回溯了：地形又回到刚挤出来的样子，背斜是山岭、向斜是谷地。'); }
       if (inv) S.said.back = false;
       if (S.c > 0.6 && S.e > 0.7 && !S.said.inv && surface(0, S.c, S.e) < surface(LAM / 2, S.c, S.e)) { S.said.inv = true; say1('背斜成了谷地，向斜成了山岭', -LAM / 4, surface(LAM / 2, S.c, S.e) + 0.05, ZD); W?.ui.status('地形倒过来了：<b>背斜成谷、向斜成山</b>。可岩层还是原来那样弯着。在地面上点一点取样，看看中间和两边的岩层谁老谁新。'); drawLog(); }          // 写在背斜和向斜之间的上方，不压着取样的小旗
     };
-    const layout = () => { shape(); placePlates(); placeTags(); placeProbes(); drawChart(); events(); };
+    const layout = () => { shape(); placePlates(); placeTags(); placeProbes(); drawChart(); events(); drawLog(); };
 
     // ---- 指针：推板子、在地面上取样 ----
     const plane = new THREE.Plane(), hit = new THREE.Vector3(), wq = new THREE.Vector3();
@@ -191,6 +191,7 @@ export default {
     layout();
 
     return {
+      debug: { S, layout, addProbe },
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
@@ -198,11 +199,11 @@ export default {
       view: { elev: 22, azim: 24, lookY: 0.4, frameMargin: 1.05 },
       pointer,
       mount(ui) {
-        const time = slider('外力作用的时间（示意）', { min: 0, max: 100, value: 0, fmt: (v) => (v ? `约 ${v} 万年` : '刚开始'), onInput: (v) => { S.e = v / 100; S.play = false; W.play.textContent = '让时间走'; layout(); } });
+        const time = slider('侵蚀阶段（无时间标定）', { min: 0, max: 100, value: 0, fmt: (v) => (v ? `阶段 ${v}/100` : '刚开始'), onInput: (v) => { S.e = v / 100; S.play = false; W.play.textContent = '推进侵蚀'; layout(); } });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
-          { text: '让时间走', onClick: () => { S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让时间走'; } },
-          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.c = 0; S.e = 0; S.play = false; S.said = {}; S.guess = null; while (probeObjs.length) { const o = probeObjs.pop(); block.remove(o.g); block.remove(o.t); } S.probes = []; time.set(0); guess.set(-1); acts.btns[0].textContent = '让时间走'; callout.show(false); layout(); drawLog(); ui.status('岩层一层层平平地叠着，最下面最老。按住两头的<b>红板</b>往里推。'); } },
+          { text: '推进侵蚀', onClick: () => { S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '推进侵蚀'; } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.c = 0; S.e = 0; S.play = false; S.said = {}; S.guess = null; while (probeObjs.length) { const o = probeObjs.pop(); block.remove(o.g); block.remove(o.t); } S.probes = []; time.set(0); guess.set(-1); acts.btns[0].textContent = '推进侵蚀'; callout.show(false); layout(); drawLog(); ui.status('岩层一层层平平地叠着，最下面最老。按住两头的<b>红板</b>往里推。'); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '地面和露出的岩层'), chart, read, time.el, acts.el, guess.el, note('在地面上点一下就是取样，最多插四面小旗。'));
@@ -214,7 +215,7 @@ export default {
       update(dt) {
         [...tLand, callout, ...probeObjs.map((o) => o.t)].forEach((l) => l.tick(dt));
         if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
-        if (S.play) { S.e = Math.min(1, S.e + dt / 12); W?.time.set(Math.round(S.e * 100)); if (S.e >= 1) { S.play = false; if (W) W.play.textContent = '让时间走'; } layout(); }
+        if (S.play) { S.e = Math.min(1, S.e + dt / 12); W?.time.set(Math.round(S.e * 100)); if (S.e >= 1) { S.play = false; if (W) W.play.textContent = '推进侵蚀'; } layout(); }
       },
     };
   },

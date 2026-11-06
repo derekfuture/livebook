@@ -5,7 +5,7 @@
 // 深处靠近岩浆的地方高温高压。一块做了记号的岩石（一块小石头）就在这块地壳里。
 // 学生亲手做的：
 //   每一步自己挑“接下来它经历什么作用”——只能挑课本图 2.10 里有的箭头：冷却凝固、抬升风化侵蚀搬运沉积、压实固结、变质作用、熔化。
-//   石头就真的在地壳里走过去：从岩浆房升上来凝固成花岗岩、被抬到山顶风化成沙、顺着河流进海、埋下去压成砂岩、被压到深处变成石英岩、再熔化回岩浆……
+//   石头就真的在地壳里走过去：从岩浆房升上来凝固成花岗岩、被抬到山顶风化成沙、顺着河流进海、埋下去压成砂岩、在深处未熔融时变质成石英岩、再熔化回岩浆……
 //   侧栏是图 2.10 的循环图：走过的箭头亮起来，并记下这块石头的“履历”。走一圈，就会发现每一类岩石都可以变成另外两类。
 // 数据：kit/rock.js（tools/geo/rock_check.mjs 核对课本说法）。教学示意：竖直方向压缩了；各个过程的时间尺度差别很大，动画不按真实时间比例。
 import * as THREE from 'three';
@@ -13,15 +13,20 @@ import { buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
-import { KIND, ROCK, nexts } from './kit/rock.js';
+import { KIND, ROCK, nexts, provenGraniteSand } from './kit/rock.js';
 
 const XL = -0.19, XR = 0.19, ZD = 0.06, TOP = 0.085, SEA_X = 0.07, SEA_Y = 0.072;          // 地块；地面高度；海岸线在哪、海面多高
 const ASK = '先猜一下（可以不猜）：一块花岗岩，最后有没有可能变成砂岩？';
 const rnd = (() => { let s = 61; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 // 地块里的几个地方（模型坐标，都在靠前的剖面上，看得见）
-const AT = { chamber: [-0.1, 0.012], intrusion: [-0.045, 0.045], lava: [-0.105, 0.112], peak: [-0.02, TOP + 0.022], shore: [SEA_X + 0.004, SEA_Y - 0.004], shallow: [SEA_X + 0.04, SEA_Y - 0.008], deep: [SEA_X + 0.085, SEA_Y - 0.012], buried: [SEA_X + 0.05, 0.048], meta: [0.03, 0.022] };
-const LOOK = { magma: { c: 0xff6a1f, e: 0xd84010 }, granite: { c: 0xd8b8a8, spot: true }, basalt: { c: 0x3c3c40, pore: true }, gravel: { c: 0x9a8a76, grain: 'gravel' }, sand: { c: 0xd8c08a, grain: 'sand' }, mud: { c: 0x8a7a66, grain: 'mud' }, shell: { c: 0xeae4d6, grain: 'shell' }, conglomerate: { c: 0x9a8a76, spot: true }, sandstone: { c: 0xd6b07a }, shale: { c: 0x6f6a66, band: true }, limestone: { c: 0xd9d3c4 }, slate: { c: 0x4a5560, band: true }, marble: { c: 0xf4f2ee }, gneiss: { c: 0xbcae9e, band: true }, quartzite: { c: 0xe8dcc8 }, metacong: { c: 0xa89a88, band: true } };
+export const AT = { chamber: [-0.1, 0.012], intrusion: [-0.045, 0.045], lava: [-0.105, 0.112], peak: [-0.02, TOP + 0.022], shore: [SEA_X + 0.004, SEA_Y - 0.004], shallow: [SEA_X + 0.04, SEA_Y - 0.008], deep: [SEA_X + 0.085, SEA_Y - 0.012], buried: [SEA_X + 0.05, 0.048], meta: [0.03, 0.022] };
+export const LOOK = { magma: { c: 0xff6a1f, e: 0xd84010 }, granite: { c: 0xd8b8a8, spot: true }, basalt: { c: 0x3c3c40, pore: true }, gravel: { c: 0x9a8a76, grain: 'gravel' }, sand: { c: 0xd8c08a, grain: 'sand' }, mud: { c: 0x8a7a66, grain: 'mud' }, shell: { c: 0xeae4d6, grain: 'shell' }, conglomerate: { c: 0x9a8a76, spot: true }, sandstone: { c: 0xd6b07a }, shale: { c: 0x6f6a66, band: true }, limestone: { c: 0xd9d3c4 }, slate: { c: 0x4a5560, band: true }, marble: { c: 0xf4f2ee }, gneiss: { c: 0xbcae9e, band: true }, quartzite: { c: 0xe8dcc8 }, metacong: { c: 0xa89a88, band: true } };
+LOOK.metabas = { c: 0x607067 };
+LOOK.lithsand = { c: 0x8b8170, grain: 'sand' }; LOOK.lithsandstone = { c: 0x8b8170 };
+for (const id of ['carbgravel', 'carbsand', 'carbmud']) LOOK[id] = { c: 0xd9d3c4, grain: ROCK[id].grain };
+for (const [id, r] of Object.entries(ROCK)) if (r.origin) LOOK[id] = { c: LOOK[r.origin].c };          // 再次变质不指定矿物纹理，只以颜色标识原岩来源
+
 
 export default {
   id: 'rockcycle',
@@ -33,7 +38,7 @@ export default {
   conclusion: {
     page: 28,
     quote: '岩石按照成因可以分为岩浆岩、沉积岩和变质岩三大类，它们之间可以相互转换，使得岩石圈的物质处于循环转化中。……在地球内部巨大压力作用下，岩浆沿着岩石圈的薄弱地带侵入岩石圈上部或喷出地表，随着温度、压力的变化，冷却凝固形成岩浆岩。……裸露在地表的岩石，经风化、侵蚀作用，逐渐成为砾石、沙子、泥土等碎屑物质。这些碎屑物质被风、流水等搬运后沉积下来，经压实、固结形成沉积岩。……地壳中已生成的岩石，在地球内部的高温、高压等条件下，成分、性质发生改变，形成变质岩。……这三类岩石在岩石圈深处或岩石圈以下高温高压的条件下熔化，又成为新的岩浆回到地球内部。',
-    why: '两种说法说的是同一件事的两面：第一种说的是每一类岩石是“怎么形成的”（成因）——岩浆冷却凝固、沉积物压实固结、已有的岩石受高温高压变质；第二种说的是“原料从哪来”——碎屑沉积物主要来自已有岩石的风化、侵蚀，有的沉积岩来自化学沉淀物或生物遗体（它们的物质也多来自岩石风化时溶进水里的成分），变质岩来自已有的岩石，岩浆来自岩石的熔化。所以三类岩石可以相互转化，岩石圈的物质一直在循环；地表形态的塑造过程，也就是这个循环的一部分。',
+    why: '两种说法说的是同一件事的两面：第一种说的是每一类岩石是“怎么形成的”（成因）——岩浆冷却凝固、沉积物压实固结、已有的岩石在未熔融时主要以固态发生变质；第二种说的是“原料从哪来”——碎屑沉积物主要来自已有岩石的风化、侵蚀，有的沉积岩来自化学沉淀物或生物遗体（它们的物质也多来自岩石风化时溶进水里的成分），变质岩来自已有的岩石，岩浆来自适当温度、压力和挥发分条件下越过固相线的部分熔融；减压或加入水可促熔，不能理解为越压越容易熔化。所以三类岩石可以相互转化，岩石圈的物质一直在循环；地表形态的塑造过程，也就是这个循环的一部分。',
     src: '课本第 22–24 页 · 第二章 第一节 塑造地表形态的力量',
   },
 
@@ -162,8 +167,8 @@ export default {
       const rockKinds = ['igneous', 'sedimentary', 'metamorphic'].filter((k) => S.kinds.has(k));
       if (rockKinds.length === 3) r('三类岩石都当过了：', '岩浆岩、沉积岩、变质岩都是由别的东西转化来的：沉积物来自已有岩石的风化侵蚀，变质岩来自已有的岩石，岩浆来自岩石的熔化');
       if (S.path.length > 2 && S.id === 'magma') r('回到岩浆：', '每一类岩石最后都能熔化，又成为新的岩浆：岩石圈的物质一直在循环');
-      const ids = S.path.map((p) => p.id), gi = ids.indexOf('granite'), proven = gi >= 0 && ids.indexOf('sandstone', gi) > gi;          // 这块石头真的从花岗岩走到过砂岩，才给出“实际”
-      if (S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, proven ? `你猜：${S.guess ? '有可能' : '不可能'}　你刚才亲手走过了：花岗岩被抬升到地表，风化、侵蚀成沙子，被搬运、沉积，再压实固结，就是砂岩` : `你猜：${S.guess ? '有可能' : '不可能'}　自己走一遍试试：让它先变成花岗岩，再看能不能变成砂岩`)));
+      const proven = provenGraniteSand(S.path);          // 必须连续经过具体转换边，绕经岩浆的路径不算直接证明
+      if (S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, proven ? `你猜：${S.guess ? '有可能' : '不可能'}　你刚才亲手走过了：花岗岩被抬升到地表，风化后取其中的石英组分，经搬运、分选成为石英砂，再固结成石英砂岩` : `你猜：${S.guess ? '有可能' : '不可能'}　自己走一遍试试：让它先变成花岗岩，再看能不能变成砂岩`)));
       W.log.replaceChildren(...rows);
       if (rockKinds.length === 3 && S.path.length > 3 && S.id === 'magma') W.ui.unlock();
     };
@@ -189,7 +194,7 @@ export default {
         const guess = buttons([{ text: '猜：有可能', ghost: true, onClick: () => { S.guess = 1; drawLog(); } }, { text: '猜：不可能', ghost: true, onClick: () => { S.guess = 0; drawLog(); } }]);
         const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { id: 'magma', path: [{ id: 'magma' }], anim: null, guess: null, moved: false }); S.kinds = new Set(['magma']); S.arrows = new Set(); look(S.id); layout(); drawChart(); drawLog(); renderChoices(); ui.status(START); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 230 }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '图 2.10：走过的箭头会亮起来'), chart, now, h('div', { class: 'bar-title' }, '接下来，它经历什么作用？'), choices, h('p', { class: 'note' }, ASK), guess.el, acts.el, note('只能挑课本图 2.10 里有的箭头。地块上那块被红圈圈着的就是这块岩石，它会真的在地壳里走过去。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '图 2.10：走过的箭头会亮起来'), chart, now, h('div', { class: 'bar-title' }, '接下来，它经历什么作用？'), choices, h('p', { class: 'note' }, ASK), guess.el, acts.el, note('只能挑课本图 2.10 里有的箭头。地块上那块被红圈圈着的就是这块岩石，它会在示意剖面中移动。石英砂→石英砂岩→石英岩是限定实例；熔融后只保留岩浆类别，凝固分支需满足相应岩浆成分。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, log, choices, now };
         ui.status(START);

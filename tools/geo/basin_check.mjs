@@ -1,5 +1,5 @@
 // 核对黄河调沙减淤：node tools/geo/basin_check.mjs（选必2 第 61–64 页，图 4.7）
-import { loads, bedRise, run } from '../../src/lessons/kit/basin.js';
+import { loads, bedRise, run, RES_CAP } from '../../src/lessons/kit/basin.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const near = (a, b, tol) => Math.abs(a - b) <= tol, ALL = { bio: true, farm: true, eng: true };
 const L0 = loads(), L1 = loads(ALL), L2 = loads({ ...ALL, dam: true, flush: true });
@@ -12,4 +12,14 @@ const no = run({ dam: true, flush: true }, { bed: 7.5 }, 20), yes = run({ ...ALL
 ok(no.bed > 7.5 + 0.5 && yes.bed < 7.5, `20 年后：只修水库、中游不治理，水库不到 10 年就淤满，下游河床又抬高到 ${no.bed.toFixed(1)} 米；中游治理加水库调沙，河床 ${yes.bed.toFixed(1)} 米，没有再长高`);
 const r10a = run({ dam: true }, { bed: 7.5 }, 10).res, r10b = run({ ...ALL, dam: true }, { bed: 7.5 }, 10).res; ok(r10a > r10b * 1.8, `10 年里水库淤进去的沙：中游不治理 ${r10a.toFixed(0)} 亿吨，治理后 ${r10b.toFixed(0)} 亿吨——中游减沙，水库才能用得更久`);
 const one = ['bio', 'farm', 'eng'].map((k) => loads({ [k]: true }).inflow); ok(one.every((v) => v < L0.inflow && v > L1.inflow), '每一类措施都减少入黄泥沙，三类结合最有效');
+const edge = loads({ dam: true }, RES_CAP - 0.1);
+ok(near(edge.trapped, 0.1, 1e-10) && near(edge.out + edge.trapped, edge.inflow, 1e-10), '剩余 0.1 亿吨时只拦 0.1，未拦住的全部下泄');
+for (let mask = 0; mask < 32; mask++) {
+  const cfg = Object.fromEntries(['bio', 'farm', 'eng', 'dam', 'flush'].map((k, i) => [k, !!(mask & (1 << i))])); let res = 0, valid = true;
+  for (let y = 0; y < 200; y++) { const l = loads(cfg, res); res += l.trapped; valid &&= res <= RES_CAP + 1e-10 && l.trapped >= 0 && near(l.inflow, l.out + l.trapped, 1e-10) && near(l.inflow, l.sea + l.deposit + l.trapped, 1e-10); }
+  ok(valid, `措施组合 ${mask}：200 年库存不超限，入库、出库、河床和入海收支守恒`);
+}
+const decade = run({ dam: true, flush: true }, { bed: 7.5 }, 10), long = run({ ...ALL, dam: true, flush: true }, { bed: 7.5 }, 50);
+ok(decade.res === RES_CAP && decade.first.sea < decade.last.sea && decade.last.full, '首十年跨过拦沙上限，首末年入海量不同，末年不再拦沙');
+ok(long.bed > 7.5 && long.last.deposit > 0, '50 年后全措施仍可能淤积，不支持长期不再长高的断言');
 process.exit(bad ? 1 : 0);

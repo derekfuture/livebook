@@ -5,17 +5,20 @@ export const sst = (x, a) => { const normal = 29 - 3.5 * (x + 1) ** 1.3, warm = 
 export const west = (a) => sst(-0.9, a), east = (a) => sst(0.9, a), diff = (a) => west(a) - east(a);
 /** 上升气流在哪（x）：正常在西边；厄尔尼诺时东移；拉尼娜时更偏西 */
 export const riseX = (a) => -0.7 + 1.35 * Math.max(0, a) + 0.12 * Math.min(0, a);
-/** 下沉气流在哪：正常、拉尼娜在东边；厄尔尼诺时上升移到中东部，下沉移到西边 */
-export const sinkX = (a) => (a > 0.5 ? -0.8 : Math.min(0.92, riseX(a) + 1.35));
+/** 本页只演示环流减弱、对流东移；强事件可能出现反转，本页不强制模拟反转。 */
+export const sinkX = (a) => 0.92;
 /** 上升那里的雨有多大（0–1，示意）：东西温差越大，环流越强 */
-export const rainAmt = (a) => (a < -0.5 ? 1 : a > 0.5 ? 0.85 : 0.65);
+export const rainAmt = (a) => (0.65 - 0.2 * a);
 /** 东、西两岸的天气 */
 export function weather(a) {
   return {
-    west: a > 0.5 ? { t: '上升气流减弱，干燥少雨：旱灾、森林大火', rain: false } : { t: '上升气流，温润多雨', rain: true },
-    east: a > 0.5 ? { t: '下沉气流减弱、甚至上升：多雨，洪涝', rain: true } : { t: a < -0.5 ? '下沉气流更强，更干燥' : '下沉气流，干燥少雨', rain: false },
+    west: stateKey(a) === 'el' ? { t: '上升减弱，降水偏少、干旱风险增加', rain: false } : { t: '上升气流，温润多雨', rain: true },
+    east: stateKey(a) === 'el' ? { t: '下沉减弱，降水增加的风险', rain: true } : { t: stateKey(a) === 'la' ? '下沉气流更强，更干燥' : '下沉气流，干燥少雨', rain: false },
   };
 }
 /** 秘鲁沿岸上涌的冷水有多强（0–1）：上涌带来营养物质、鱼多 */
 export const upwell = (a) => Math.max(0, Math.min(1, 0.6 - 0.6 * a));
-export const stateName = (a) => (a > 0.5 ? '厄尔尼诺' : a < -0.5 ? '拉尼娜' : '正常年份');
+export const stateKey = (a) => a > 0.5 ? 'el' : a < -0.5 ? 'la' : 'normal';
+export const stateName = (a) => ({ el: '厄尔尼诺', la: '拉尼娜', normal: '正常年份' }[stateKey(a)]);
+export const circulation = (a) => stateKey(a) === 'el' ? '沃克环流减弱，对流东移；强事件可能反转，本页未模拟反转。灾害是否发生还取决于区域和具体事件。' : stateKey(a) === 'la' ? '西部上升、东部下沉，沃克环流增强。' : '西部上升、东部下沉；接近正常的示意状态。';
+// 状态阈值仅用于切换教学情境，不是实际 ENSO 监测指标。过程依据：https://www.noaa.gov/jetstream/tropical/enso/enso-patterns

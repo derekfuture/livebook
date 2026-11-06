@@ -2,7 +2,7 @@
 //
 // 课本的图就是模型：图 2.11 是一个竖直剖面（地面 B、A、C，上面几条等压面）。这里是一个立在书页上的“空气槽”：
 // 底下是地面，里面是一粒粒空气，横穿着几张等压面（课本注：等压面是空间中气压相等的各点所组成的“面”，所以画成一张张面）。
-// 开始地面受热均匀，空气不动，等压面是平的（图 2.11 a）。学生按住地面某处给它加热：那里的空气膨胀上升，上空的等压面先向上拱
+// 开始地面受热均匀，空气不动，等压面是平的（图 2.11 a）。学生按住地面 A 处给它加热：那里的空气膨胀上升，上空的等压面先向上拱
 // （上空高压，图 2.11 b），上空空气向两边流；接着近地面的等压面向下凹（近地面低压），近地面的空气从两边流回来，热力环流成了（图 2.11 c）。
 // 换个情境：课本开头的问题——台湾海峡两岸，“内地之风，早西晚东，惟台地早东风，午西风”。福建 | 海峡 | 台湾，拖一天的时刻，
 // 陆地白天增温快、夜晚降温快，两岸的风一天里反过来。
@@ -12,7 +12,7 @@ import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { faceLabel, airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, H, N, xOf, iOf, makeState, step, field, steady, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
+import { XL, XR, H, N, xOf, iOf, makeState, step, field, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
 
 const LIFT = 0, GT = 0.026, D = 0.035;          // 直接放在书页上；地面多厚、空气槽前后多深
 const ZK = [0.2, 0.42, 0.64, 0.86].map((r) => r * H);          // 四张等压面原来的高度
@@ -33,7 +33,7 @@ export default {
   conclusion: {
     page: 40,
     quote: '由于地面冷热不均而形成的空气环流，称为大气热力环流。……当A地接受热量多，B、C两地接受热量少时，A地近地面空气膨胀上升，到上空聚积，使上空空气密度增大，形成高气压；B、C两地空气收缩下沉，上空空气密度减小，形成低气压（图2.11b）。于是空气从气压高的A地上空向气压低的B、C两地上空扩散。在近地面，A地空气上升向外流出后，空气密度减小，形成低气压；B、C两地因有下沉气流，空气密度增大，形成高气压。这样近地面的空气从B、C两地流回A地，以补充A地上升的空气，从而形成了热力环流（图2.11c）。……台湾海峡两岸风向的日变化，反映了海陆间大气热力环流的日变化。',
-    why: '受热的地方空气膨胀上升，冷的地方空气收缩下沉。同一高度上，受热处上空空气多、气压高，近地面空气少、气压低；冷处正好相反。空气在同一高度上总是从气压高处流向气压低处，于是上空从热处流向冷处，近地面从冷处流回热处，转成一个圈。海陆之间：白天陆地增温快，陆地上升、海上下沉，近地面风从海上吹向陆地；夜晚陆地降温快，反过来，风从陆地吹向海上。福建在海峡西边，下午海风是东风、早上陆风是西风；台湾在海峡东边，正好相反。',
+    why: '受热的地方空气膨胀上升，冷的地方空气收缩下沉。同一高度上，受热处上空空气多、气压高，近地面空气少、气压低；冷处正好相反。本图忽略地转偏向等影响，水平气压梯度力驱动空气由高压处流向低压处，于是上空从热处流向冷处，近地面从冷处流回热处，转成一个圈。海陆之间：白天陆地增温快，陆地上升、海上下沉，近地面风从海上吹向陆地；夜晚陆地降温快，反过来，风从陆地吹向海上。福建在海峡西边，下午海风是东风、早上陆风是西风；台湾在海峡东边，正好相反。这是背景风较弱时的理想海陆风示意，6时和14时为示例时刻，未模拟季风、地形等影响。',
     src: '课本第 34、36、38 页 · 第二章 第二节 大气受热过程和大气运动',
   },
 
@@ -178,7 +178,7 @@ export default {
     const tSea = [['福建', SEAX.fj], ['台湾海峡', SEAX.sea], ['台湾', SEAX.tw]].map(([s, x]) => ({ x, t: faceLabel(block, s, { x, y: SOILY, z: D, h: 0.0105, color: '#22190f', stroke: 'rgba(255,250,240,0.75)' }) }));
     const tPS = Object.values(SEAX).flatMap((x) => [{ x, aloft: false, t: pLabel() }, { x, aloft: true, t: pLabel() }]);
     const tHint = tag('<span>按住地面 A 处</span><small>给它加热</small>', 'hint'), tHeat = airLabel(block, '受热', { h: 0.01, color: HI, icon: 'heat', dim: 0 }), tIso = faceLabel(block, '等压面', { x: XL + 0.03, y: GT + (ZK[2] + ZK[3]) / 2, z: D, h: 0.0105, color: '#1f4f86', stroke: 'rgba(255,255,255,0.7)' });
-    noteBadge(tag, '教学示意：竖直方向夸大了，海峡剖面不按实际比例；温差、风速是示意；时间加快了').loc(block, XL + 0.012, 0, D + 0.01);
+    noteBadge(tag, '教学示意：竖直方向夸大了，海峡剖面不按实际比例；温差、风速是示意；时间加快了；背景风较弱时的理想海陆风，6时、14时为示例，未模拟季风和地形').loc(block, XL + 0.012, 0, D + 0.01);
     // 两岸的小城：房顶风向标
     const makeTown = () => {
       const t = new THREE.Group();
@@ -201,7 +201,7 @@ export default {
       for (const { x, aloft, t } of tPS) press(t, x + 0.014, aloft, !free);
       for (const k of ['fj', 'tw']) {
         const tw = towns[k], u = surfU(tw.position.x), name = windName(u), fromSea = (k === 'fj') === (u < 0);
-        tw.visible = !free; tw.userData.vane.rotation.y = u > 0 ? Math.PI : 0;          // 风向标的箭头指着风吹来的方向：西风指向西（−x）
+        tw.visible = !free; tw.userData.vane.visible = name !== '静风'; tw.userData.vane.rotation.y = u > 0 ? Math.PI : 0;          // 风向标的箭头指着风吹来的方向：西风指向西（−x）
         tTown[k].position.set(tw.position.x, GT + 0.03, 0); tTown[k].setText(`${k === 'fj' ? '福建沿海' : '台湾西岸'} ${name}${name === '静风' ? '' : fromSea ? '（从海上吹来）' : '（从陆上吹来）'}`).setOn(!free);
       }
       tHint.loc(block, 0, GT + 0.02, D).show(free && !S.heated);
@@ -215,16 +215,16 @@ export default {
       const L = S.logs.free, x = S.heatX, F = field(S.st), add = (k) => { if (!L.includes(FREE_STEPS[k])) { L.push(FREE_STEPS[k]); drawLogs(); } };
       const n = L.length;          // 一帧最多记一步：哪一步真的发生了才记
       if (n === 0 && F.at(x, H / 2)[1] > 0.012) add(0);
-      else if (n === 1 && pressure(S.st, x, true) > 0.9) add(1);
-      else if (n === 2 && Math.abs(F.at(x + 0.06, H * 0.92)[0]) > 0.004) add(2);
-      else if (n === 3 && pressure(S.st, x, false) < -0.9) add(3);
-      else if (n === 4 && Math.abs(F.at(x + 0.06, H * 0.08)[0]) > 0.004) { add(4); S.done.add('free'); drawLogs(); W?.ui.status('热力环流形成了：受热处上升、上空流向两边、两边下沉、近地面流回来（图 2.11 c）。松开以后，地面慢慢变凉，环流也会慢慢停下来。'); }
+      else if (n === 1 && pressure(S.st, x, true) > 0.9 && pressure(S.st, ABC.B, true) < -0.1 && pressure(S.st, ABC.C, true) < -0.1) add(1);
+      else if (n === 2 && F.at(x - 0.06, H * 0.92)[0] < -0.004 && F.at(x + 0.06, H * 0.92)[0] > 0.004) add(2);
+      else if (n === 3 && pressure(S.st, x, false) < -0.9 && pressure(S.st, ABC.B, false) > 0.1 && pressure(S.st, ABC.C, false) > 0.1) add(3);
+      else if (n === 4 && F.at(x - 0.06, H * 0.08)[0] > 0.004 && F.at(x + 0.06, H * 0.08)[0] < -0.004 && F.at(ABC.B, H / 2)[1] < 0 && F.at(ABC.C, H / 2)[1] < 0) { add(4); S.done.add('free'); drawLogs(); W?.ui.status('热力环流形成了：受热处上升、上空流向两边、两边下沉、近地面流回来（图 2.11 c）。松开以后，地面慢慢变凉，环流也会慢慢停下来。'); }
       if (n === 0 && S.heat && W && !S.saidHeat) { S.saidHeat = true; W.ui.status('正在加热：看受热处的空气、上空的等压面，再看近地面。'); }
     };
     const recordSea = () => {
       if (S.mode !== 'sea') return;
       const slot = S.hour >= 5 && S.hour <= 7 ? '早上' : S.hour >= 13 && S.hour <= 15 ? '下午' : null; if (!slot) return;
-      const th = Float64Array.from({ length: N }, (_, i) => seaLandTemp(xOf(i), S.hour)), F = field(steady(th)), su = (x) => F.at(x, H * 0.08)[0];          // 按这个时刻稳定下来的风记，不记拖动途中还没转过来的风
+      const su = surfU;          // 与画面风向标共用当前风场，保留快速切时刻后的调整过程
       const u1 = windName(su(towns.fj.position.x)), u2 = windName(su(towns.tw.position.x)), prev = S.logs.sea[slot];
       if (!prev || prev.fj !== u1 || prev.tw !== u2) { S.logs.sea[slot] = { fj: u1, tw: u2 }; if (S.logs.sea['早上'] && S.logs.sea['下午']) S.done.add('sea'); drawLogs(); }
     };
@@ -234,9 +234,9 @@ export default {
       rows.push(h('div', { class: 'tl-row' }, h('b', {}, '地面受热不均：'), h('span', {}, L.length ? L.join(' → ') : '还没加热'),
         L.length >= 5 && S.guess.free != null ? h('small', {}, `你猜：${ASK.free[1][S.guess.free]}　实际：近地面的风从两边吹向受热处`) : null));
       const s = (k) => (sea[k] ? `福建沿海 ${sea[k].fj}，台湾西岸 ${sea[k].tw}` : '还没看');
-      rows.push(h('div', { class: 'tl-row' }, h('b', {}, '台湾海峡两岸：'), h('span', {}, `早上（6 时前后）：${s('早上')}；下午（14 时前后）：${s('下午')}`),
+      rows.push(h('div', { class: 'tl-row' }, h('b', {}, '台湾海峡两岸：'), h('span', {}, `早上（6 时前后，当前风）：${s('早上')}；下午（14 时前后，当前风）：${s('下午')}`),
         sea['早上'] && sea['下午'] ? h('small', {}, '对照《台海使槎录》：内地之风，早西晚东，惟台地早东风，午西风。') : null,
-        sea['下午'] && S.guess.sea != null ? h('small', {}, `你猜：${ASK.sea[1][S.guess.sea]}　实际：${sea['下午'].fj === '东风' ? '东风（从海上吹来）' : '西风（从陆上吹来）'}`) : null));
+        sea['下午'] && S.guess.sea != null ? h('small', {}, `你猜：${ASK.sea[1][S.guess.sea]}　当前记录：${sea['下午'].fj}`) : null));
       W.logs.replaceChildren(...rows);
       if (S.done.has('free') && S.done.has('sea')) W.ui.unlock();
     };
@@ -257,8 +257,8 @@ export default {
     const onGround = (ray) => { block.updateMatrixWorld(); block.localToWorld(wq.set(0, GT, 0)); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 0, 1).applyQuaternion(block.getWorldQuaternion(new THREE.Quaternion())), block.localToWorld(new THREE.Vector3(0, GT, D))); if (!ray.intersectPlane(plane, hit)) return null; const l = block.worldToLocal(hit.clone()); return l.x > XL && l.x < XR && l.y > -0.01 && l.y < GT + 0.03 ? l.x : null; };
     const onTop = (rc) => rc.intersectObject(groundTop, false).length ? block.worldToLocal(rc.intersectObject(groundTop, false)[0].point.clone()).x : null;
     const pointer = {
-      down(rc) { if (S.mode !== 'free') return false; const x = onTop(rc) ?? onGround(rc.ray); if (x == null) return false; S.heat = true; S.heatX = x; S.heated = true; return true; },
-      move(rc) { const c = document.getElementById('c'); if (!S.heat) { if (c) c.style.cursor = S.mode === 'free' && (onTop(rc) != null || onGround(rc.ray) != null) ? 'pointer' : ''; return false; } const x = onTop(rc) ?? onGround(rc.ray); if (x != null) S.heatX = x; return true; },
+      down(rc) { if (S.mode !== 'free') return false; const x = onTop(rc) ?? onGround(rc.ray); if (x == null) return false; if (Math.abs(x - ABC.A) > 0.035) return false; S.heat = true; S.heatX = ABC.A; S.heated = true; return true; },
+      move(rc) { const c = document.getElementById('c'); if (!S.heat) { if (c) c.style.cursor = S.mode === 'free' && Math.abs((onTop(rc) ?? onGround(rc.ray) ?? Infinity) - ABC.A) <= 0.035 ? 'pointer' : ''; return false; } const x = onTop(rc) ?? onGround(rc.ray); if (x != null) S.heatX = ABC.A; return true; },
       up() { if (!S.heat) return false; S.heat = null; return true; },
     };
 
@@ -280,7 +280,7 @@ export default {
           { text: '让时间走', onClick: () => { S.play = !S.play; W.play.textContent = S.play ? '停一下' : '让时间走'; } },
           { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.logs = { free: [], sea: {} }; S.guess = {}; S.done.clear(); S.mode = 'free'; S.hour = 6; modeSeg.set(0); timeCtl.set(6); setMode(); } },
         ]);
-        ui.controls.append(modeSeg.el, timeCtl.el, guess.el, acts.el, note('地面哪里都可以按住加热，也可以换个地方再按。'));
+        ui.controls.append(modeSeg.el, timeCtl.el, guess.el, acts.el, note('仅在 A 地按住加热，B、C 保持相对冷，观察两侧环流。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), logs);
         W = { ui, logs, guess, timeCtl, play: acts.btns[0] };
         setMode();

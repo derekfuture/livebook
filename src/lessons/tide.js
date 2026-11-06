@@ -12,10 +12,11 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { SYN, level, range, lunarName, phaseName } from './kit/tide.js';
+import { SYN, level, range, lunarName, phaseName, hours, angles, MSL, KY, SHIP_DRAFT, SHIP_BED, HULL_BOTTOM, shore, shipState, intertidal, playHour, setDate } from './kit/tide.js';
 
-const XL = -0.16, XR = 0.16, ZD = 0.06, MSL = 0.03, KY = 0.004, SHIP_BED = 0.01 - (0.11 - 0.08) * 0.08, SHIP_DRAFT = 0.015;          // 码头边的海底高度、大船要的水深          // 平均海面高度；1 米水位在画面上是 4 毫米（示意，竖直方向夸大）
-const ACTS = { gan: { name: '赶海', need: '低潮', ok: (v) => v < -1.4, why: '要等潮水退下去，潮间带露出来' }, ship: { name: '大船进港', need: '水够深的时候', ok: (v) => MSL + v * KY - SHIP_BED > SHIP_DRAFT, why: '港口航道要水深，低潮时大船会搁浅' }, see: { name: '观潮', need: '大潮的涨潮', ok: (v, D, rising) => rising && v > 0 && range(D).r > 3.6, why: '要挑初一、十五前后、正在涨潮的时候（像钱塘江大潮那样壮观，还要靠喇叭口一样外宽内窄的河口）' } };
+const XL = -0.16, XR = 0.16, ZD = 0.06;
+
+const ACTS = { gan: { name: '赶海', need: '低潮', ok: (v) => v < -1.4, why: '要等潮水退下去，潮间带露出来' }, ship: { name: '大船进港', need: '水够深的时候', ok: (v) => shipState(v).afloat, why: '港口航道要水深，低潮时大船会搁浅' }, see: { name: '观潮', need: '大潮的涨潮', ok: (v, D, rising) => rising && v > 0 && range(D).r > 3.6, why: '要挑初一、十五前后、正在涨潮的时候（像钱塘江大潮那样壮观，还要靠喇叭口一样外宽内窄的河口）' } };
 const ASK = ['先猜一下（可以不猜）：在这个情境里，一个月里潮水涨得最高的是——', ['初一、十五前后', '初八、廿三前后', '每天都一样']];
 
 export default {
@@ -28,8 +29,8 @@ export default {
   conclusion: {
     page: 63,
     quote: '潮汐是海水的一种周期性涨落现象，它的成因与月球和太阳对地球的引力有关。一天中，通常可以观察到两次海水涨落。古人将白天的海水涨落称为潮，夜晚的海水涨落称为汐，合称潮汐。农历每月的初一和十五前后，潮汐现象最为明显，潮水涨得最高，落得最低。沿海各地，每日潮涨潮落的时间准确、可查。人们在海边的许多活动，如潮间带采集和养殖、沿海港口建设和航运、潮汐发电等，都需要充分认识并利用潮汐规律。',
-    why: '月球和太阳的引潮作用，让地球朝着月亮和背着月亮的两边海水鼓起来；地球一天自转一圈，一个地方每天就经过两次“鼓起来”的地方，所以一天涨落两次。初一（新月）、十五（满月）时，太阳、地球、月亮差不多在一条直线上，两份引潮作用叠在一起，潮水涨得最高、落得最低；上弦、下弦时两者错开，互相抵消一部分，潮差就小。',
-    src: '课本第 59–60 页 · 第三章 第三节 海水的运动',
+    why: '月球和太阳的引潮作用，让地球朝着月亮和背着月亮的两边海水鼓起来；月球也在公转，一个地方追上月球约需24小时50分，理想半日潮的月球分潮周期约12小时25分，所以一天通常两次涨落。本页是理想化半日潮模型；真实港口还受海盆、海岸和水深影响。初一（新月）、十五（满月）时，太阳、地球、月亮差不多在一条直线上，两份引潮作用叠在一起，潮水涨得最高、落得最低；上弦、下弦时两者错开，互相抵消一部分，潮差就小。',
+    src: '课本第 59–60 页 · 第三章 第三节 海水的运动（教材摘录，省略图号及脚注标记）',
   },
 
   create({ tag }) {
@@ -40,10 +41,10 @@ export default {
     const grain = canvasTex(256, 256, (g, w) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2200; i++) { const v = 150 + Math.random() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.2 + Math.random() * 0.3})`; g.fillRect(Math.random() * w, Math.random() * w, 1.6, 1.6); } }); grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.repeat.set(4, 2);
 
     // ---- 海岸：左边是陆地，往右是一段缓缓的潮间带滩涂，再往右是海底 ----
-    const shore = (x) => (x < -0.06 ? 0.05 : x < 0.08 ? 0.05 - ((x + 0.06) / 0.14) * 0.04 : 0.01 - (x - 0.08) * 0.08);          // 高潮线大约在 x = -0.06，低潮线大约在 x = 0.08
+
     const NX = 120, geo = new THREE.PlaneGeometry(XR - XL, ZD * 2, NX, 1); geo.rotateX(-Math.PI / 2);
     const col = new Float32Array(geo.attributes.position.count * 3); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    { const p = geo.attributes.position, c = new THREE.Color(); for (let k = 0; k < p.count; k++) { const x = p.getX(k); p.setY(k, shore(x)); c.set(x < -0.065 ? 0x9cbf6e : x < 0.085 ? 0x9d8e70 : 0xb9a57a); col.set([c.r, c.g, c.b], k * 3); } geo.computeVertexNormals(); }          // 岸上是草地，潮间带是灰褐的泥滩
+    { const p = geo.attributes.position, c = new THREE.Color(); for (let k = 0; k < p.count; k++) { const x = p.getX(k); p.setY(k, shore(x)); c.set(x < intertidal.hi ? 0x9cbf6e : x < intertidal.lo ? 0x9d8e70 : 0xb9a57a); col.set([c.r, c.g, c.b], k * 3); } geo.computeVertexNormals(); }          // 岸上是草地，潮间带是灰褐的泥滩
     const land = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: grain })); block.add(land);
     const sideCv = document.createElement('canvas'); sideCv.width = 512; sideCv.height = 128;
     { const g = sideCv.getContext('2d'); for (let i = 0; i < 512; i++) { const x = XL + (XR - XL) * (i / 511), ty = (1 - shore(x) / 0.07) * 128; g.fillStyle = '#9a7650'; g.fillRect(i, ty, 1, 6); g.fillStyle = '#c4a272'; g.fillRect(i, ty + 6, 1, 128); } }
@@ -67,7 +68,7 @@ export default {
     const staffPost = new THREE.Mesh(new THREE.BoxGeometry(0.0016, STAFF_LO - shore(STAFF_X), 0.0016), new THREE.MeshLambertMaterial({ color: 0x6b6f76 })); staffPost.position.set(STAFF_X, (STAFF_LO + shore(STAFF_X)) / 2, STAFF_Z - 0.001); block.add(staffPost);
     const aLevel = airLabel(block, '', { h: 0.011, color: '#1d3f70', icon: 'flow' }), aGround = airLabel(block, '搁浅', { h: 0.013, color: '#b03a2a', dim: 0 }), aHover = airLabel(block, '', { h: 0.011, color: '#3a3226', dim: 0 });
     const ship = new THREE.Group(); block.add(ship);
-    { const hull = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.007, 0.012), new THREE.MeshLambertMaterial({ color: 0xb8442e })); hull.position.y = 0.0015; ship.add(hull); const cab = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.007, 0.009), new THREE.MeshLambertMaterial({ color: 0xf2efe6 })); cab.position.set(-0.008, 0.008, 0); ship.add(cab); }
+    { const hull = new THREE.Mesh(new THREE.BoxGeometry(0.034, SHIP_DRAFT + 0.005, 0.012), new THREE.MeshLambertMaterial({ color: 0xb8442e })); hull.position.y = HULL_BOTTOM + (SHIP_DRAFT + 0.005) / 2; ship.add(hull); const cab = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.007, 0.009), new THREE.MeshLambertMaterial({ color: 0xf2efe6 })); cab.position.set(-0.008, HULL_BOTTOM + SHIP_DRAFT + 0.0085, 0); ship.add(cab); }
     const tHint = tag('<span>拨时间、拖月亮</span><small>看潮水一天里怎么涨落</small>', 'hint');          // 开场的提示：不用白底牌子
     noteBadge(tag, '教学示意：潮位竖直方向夸大了，数值是示意').loc(block, XL + 0.012, -0.004, ZD + 0.01);
     const people = new THREE.Group(); block.add(people);
@@ -86,21 +87,21 @@ export default {
     const aSun = airLabel(orr, '太阳光 →', { x: -0.06, y: 0.012, z: 0.028, h: 0.0065, color: '#9a6410', icon: 'sun' }), aMoon = airLabel(orr, '', { h: 0.0065, color: '#2b3346', icon: 'moon' });
     const labels = [aLevel, aGround, aHover, aSun, aMoon];
     const placeOrr = () => {
-      const a = Math.PI + (2 * Math.PI * S.D) / SYN;          // 新月：月亮在地球和太阳中间（太阳在左边）
+      const { moon: a, port: rot } = angles(S.D, S.h);          // 新月：月亮在地球和太阳中间（太阳在左边）
       moon.position.set(Math.cos(a) * 0.035, 0.01, -Math.sin(a) * 0.035);
-      const pr = 1 + 0.55 * 1 + 0.25 * Math.cos(2 * (2 * Math.PI * S.D / SYN)) * 1;          // 叠加时鼓得多，错开时鼓得少（示意）
+      const pr = 1 + 0.55 * 1 + 0.25 * Math.cos(2 * (2 * Math.PI * hours(S.D, S.h) / (SYN * 24))) * 1;          // 叠加时鼓得多，错开时鼓得少（示意）
       bulge.scale.set(1.45 * pr / 1.8, 0.9, 0.85); bulge.rotation.y = a;
-      const rot = (2 * Math.PI * S.h) / 24;          // 地球自转：0 点时港口在背着太阳的那一边（夜里，太阳在左边）
+      // 地球自转：0 点时港口在背着太阳的那一边（夜里，太阳在左边）
       port.position.set(Math.cos(rot) * 0.0105, 0.01, -Math.sin(rot) * 0.0105);
-      aMoon.setText(`${phaseName(S.D)} · ${lunarName(S.D)}`); aMoon.position.set(moon.position.x, 0.026, moon.position.z);          // 港口就是地球上的红点，不挂牌子
+      aMoon.setText(`${phaseName(S.D + S.h / 24)} · ${lunarName(S.D)}`); aMoon.position.set(moon.position.x, 0.026, moon.position.z);          // 港口就是地球上的红点，不挂牌子
     };
 
     const layout = () => {
       const v = level(S.D, S.h), y = MSL + v * KY;
       let x0 = XL; for (let x = XL; x < XR; x += 0.001) if (shore(x) < y) { x0 = x; break; }          // 海水只从水边往海里画，不罩在岸上
       water.scale.set((XR - x0) / (XR - XL), Math.max(0.001, y), 1); water.position.set((x0 + XR) / 2, y / 2, 0);
-      const bed = SHIP_BED, deep = y - bed, afloat = deep > SHIP_DRAFT;          // 港口航道（码头边）的水深：太浅船就搁浅
-      ship.position.set(0.11, afloat ? y - 0.002 : bed + 0.0003, 0.0); ship.rotation.z = afloat ? 0 : 0.18;          // 搁浅时船底就落在海底上
+      const bed = SHIP_BED, { afloat, y: shipY } = shipState(v);          // 港口航道（码头边）的水深：太浅船就搁浅
+      ship.position.set(0.11, shipY, 0.0); ship.rotation.z = 0;          // 搁浅时船底就落在海底上
       aGround.position.set(0.1, bed + 0.024, 0); aGround.setOn(!afloat);          // 船浮着就不写字；搁浅了才写
       const dv = level(S.D, S.h + 0.1) - v; aLevel.setText(`${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} 米 ${dv > 0 ? '↑涨' : '↓落'}`); aLevel.position.set(STAFF_X - 0.005 - aLevel.scale.x / 2, y + 0.003, STAFF_Z + 0.004);          // 读数跟着水面，挂在潮位尺旁边
       people.children.forEach((pp) => (pp.visible = shore(pp.position.x) > y + 0.001)); people.visible = true;          // 赶海的人只站在露出水面的滩涂上
@@ -130,7 +131,7 @@ export default {
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
       if (S.seen.has('day')) r('一天里：', '海水通常涨两次、落两次');
       for (const [k, n] of [['spring', '新月、满月（初一、十五前后）'], ['neap', '上弦、下弦']]) if (S.did[k]) r(`${n}：`, `潮差约 ${S.did[k].toFixed(1)} 米`);
-      for (const k in ACTS) if (S.did[k] != null) r(`${ACTS[k].name}：`, S.did[k] ? `挑在${ACTS[k].need}，合适` : `没挑在${ACTS[k].need}，不合适`);
+      for (const k in ACTS) if (S.did[k] != null) r(`曾尝试${ACTS[k].name}：`, S.did[k] ? `挑在${ACTS[k].need}，合适` : `没挑在${ACTS[k].need}，不合适`);
       if (S.guess != null && S.did.spring && S.did.neap) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：初一、十五前后`)));
       W.log.replaceChildren(...rows);
       if (S.seen.has('day') && S.did.spring && S.did.neap && Object.keys(ACTS).some((k) => S.did[k])) W.ui.unlock();
@@ -145,7 +146,7 @@ export default {
     const hover = (rc) => {
       const ht = rc.intersectObjects([...nets, staff, pier, ...ship.children, land], false)[0], o = ht?.object;
       if (!o) { aHover.userData.want = 0; return; }
-      const l = block.worldToLocal(ht.point.clone()), nm = o.userData.row != null ? (S.dry[o.userData.row] ? '紫菜网帘：露出水面晒太阳' : '紫菜网帘：浸在海水里吸收养分') : o === staff ? '潮位尺' : o === pier ? '码头' : o.parent === ship ? '船' : l.x < -0.065 ? '岸上' : l.x < 0.085 ? '潮间带（滩涂）' : '海底';
+      const l = block.worldToLocal(ht.point.clone()), nm = o.userData.row != null ? (S.dry[o.userData.row] ? '紫菜网帘：露出水面晒太阳' : '紫菜网帘：浸在海水里吸收养分') : o === staff ? '潮位尺' : o === pier ? '码头' : o.parent === ship ? '船' : l.x < intertidal.hi ? '岸上' : l.x < intertidal.lo ? '潮间带（滩涂）' : '海底';
       aHover.setText(nm); aHover.position.set(l.x, Math.max(l.y, MSL) + 0.014, l.z); aHover.userData.want = 1;
     };
     // ---- 指针：拖月亮；在曲线上挑时刻（在侧栏里，见 mount） ----
@@ -156,8 +157,7 @@ export default {
         const c = document.getElementById('c');
         if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(moonPick, false).length ? 'grab' : ''; hover(rc); return false; }
         orr.updateMatrixWorld(); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), orr.localToWorld(new THREE.Vector3(0, 0.01, 0))); if (!rc.ray.intersectPlane(plane, hit)) return true;
-        const l = orr.worldToLocal(hit.clone()), a = Math.atan2(-l.z, l.x), prevD = S.D; S.D = ((((a - Math.PI) / (2 * Math.PI)) * SYN) % SYN + SYN) % SYN;
-        if (Math.abs(S.D - prevD) > 0.5) S.pick = null; if (Math.abs(S.D - prevD) > 3) S.cmp = prevD;          // 换到差得远的日子：原来那天的曲线留成虚线比一比
+        const l = orr.worldToLocal(hit.clone()), a = Math.atan2(-l.z, l.x), nextD = (((a - Math.PI) / (2 * Math.PI) * SYN - S.h / 24) % SYN + SYN) % SYN; setDate(S, nextD);
         S.seen.add('moon'); noteState(); W?.day.set(Math.round(S.D)); layout(); return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; return true; },
@@ -174,11 +174,11 @@ export default {
       pointer,
       mount(ui) {
         const time = slider('一天里的时刻（地方时）', { min: 0, max: 24, step: 0.1, value: S.h, fmt: (v) => `${Math.floor(v)} 时`, onInput: (v) => { S.h = v; S.play = false; acts.btns[0].textContent = '让一天走'; S.seen.add('day'); layout(); drawLog(); } });
-        const day = slider('农历的日子（也可以拖月亮）', { min: 0, max: 29, step: 1, value: 0, fmt: (v) => lunarName(v), onInput: (v) => { const p = S.D; S.D = v; S.pick = null; if (Math.abs(v - p) > 3) S.cmp = p; noteState(); layout(); } });          // 换了日子：之前挑的时刻作废
+        const day = slider('农历的日子（也可以拖月亮）', { min: 0, max: 29, step: 1, value: 0, fmt: (v) => lunarName(v), onInput: (v) => { setDate(S, v); noteState(); layout(); } });          // 换了日子：之前挑的时刻作废
         const actSeg = seg('选一件事，再在曲线上点一个时刻', Object.keys(ACTS).map((k) => ACTS[k].name), (_, i) => { S.act = Object.keys(ACTS)[i]; S.pick = null; layout(); ui.status(`${ACTS[S.act].name}：在上面的潮位曲线上<b>点一个时刻</b>，看看这时候行不行。`); }, { value: -1 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
-          { text: '让一天走', onClick: () => { S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让一天走'; } },
+          { text: '让一天走', onClick: () => { if (S.h >= 24) S.h = 0; S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让一天走'; } },
           { text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { D: 0, h: 6, play: false, act: null, pick: null, seen: new Set(), did: {}, guess: null, cmp: null }); time.set(6); day.set(0); actSeg.set(-1); guess.set(-1); acts.btns[0].textContent = '让一天走'; layout(); drawLog(); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 140, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
@@ -186,13 +186,13 @@ export default {
           if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D, level(S.D, t + 0.1) > level(S.D, t)); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = ok; } layout(); drawLog(); };          // 点曲线：挑一个时刻
         ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('海岸左边的小盘：太阳光从左边来，中间是地球（红点是港口），可以拖月亮。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
-        W = { ui, chart, read, log, day, time };
+        W = { ui, chart, read, log, day, time, acts };
         ui.status('这是一段海岸：岸上有港口，滩涂上养着紫菜。先<b>拨时间</b>（或让一天走），看海水一天里怎么涨落。');
         layout(); drawLog();
       },
       update(dt) {
         netMs.forEach((m, r) => m.color.lerp(S.dry[r] ? DRY : WET, Math.min(1, dt * 1.5))); labels.forEach((l) => l.tick(dt));          // 网帘露出来慢慢晒干、变浅
-        if (S.play) { S.h = (S.h + dt * 2) % 24; if (!S.seen.has('day')) { S.seen.add('day'); drawLog(); } W?.time.set(S.h); layout(); }
+        if (S.play) { S.h = playHour(S.h, dt); if (S.h >= 24) { S.play = false; if (W) W.acts.btns[0].textContent = '重新播放当天'; } if (!S.seen.has('day')) { S.seen.add('day'); drawLog(); } W?.time.set(S.h); layout(); }
       },
     };
   },

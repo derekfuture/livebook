@@ -22,4 +22,7 @@ ok(windName(...windAt('high', 1, -R, 0)).lean === '偏南风', '反气旋西部�
 const [vx, vn] = windAt('low', 1, R, 0), ang = Math.atan2(-vx, vn) * 180 / Math.PI;          // 和等压线（东边那一点是南北向）的夹角
 ok(Math.abs(ang - Math.atan(MODEL.K / MODEL.F) * 180 / Math.PI) < 0.01 && ang > 10 && ang < 45, `风和等压线夹角 ${ang.toFixed(1)}°（示意，实际常见 10°–45°）`);
 const [nx] = windAt('low', 0, R, 0); ok(windAt('low', 0, R, 0)[1] === 0 && nx < 0, '地球不自转：风直直吹向低压中心');
+for (const mode of ['low', 'high']) for (const hemi of [-1, 0, 1]) {
+  for (const [x, n] of [[0, 0], [1e-9, -1e-9]]) { const w = windName(...windAt(mode, hemi, x, n)); ok(w.name === '静风' && w.lean === null, `${mode}/${hemi} 中心及极小风速不报告风向：${x}`); }
+}
 process.exit(bad ? 1 : 0);

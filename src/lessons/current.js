@@ -5,15 +5,15 @@
 // 学生亲手做的：
 //   1. 让风吹起来：信风、西风吹动海面，海水被陆地挡住、转弯，慢慢转成几个大的环流；箭头红的是暖流、蓝的是寒流。
 //   2. 在海上点一下，放一只玩具鸭，看它跟着洋流漂到哪里。
-//   3. 假如没有大陆挡着：海水只随风带东西向流，转不成环流——洋流的方向还受海陆分布的影响。
+//   3. 假如没有大陆挡着：本模型仅保留东西向流动的理想情境，不能推广为真实海洋规律——洋流的方向还受海陆分布的影响。
 //   4. 看同纬度大洋两岸：北纬 60° 东岸暖、西岸冷；中低纬东岸有寒流，岸上成了沙漠；寒暖流交汇的地方有大渔场。
-// 教学示意：大洋、大陆都是理想化的；流速、气温是示意。
+// 教学示意：大洋、大陆都是理想化的；流速是示意，沿岸影响仅定性比较。
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastTemp, GYRES } from './kit/current.js';
+import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastEffect, advance, GYRES } from './kit/current.js';
 
 const XL = -0.17, XR = 0.17, G = 0.016, SPEED = 2.2;
 const ASK = ['先猜一下（可以不猜）：在这个情境里，从北纬 20° 大洋中间放下的玩具鸭，会先往——', ['西漂', '东漂', '原地打转']];
@@ -26,11 +26,11 @@ export default {
   title: '洋流',
   flow: 'explore',
   ask: '一艘货轮在太平洋上遇到风暴，几万只玩具鸭散落海面，后来在世界很多海岸陆续被发现。它们是怎么漂过去的？',
-  need: '让风吹起来，看海水转成哪几个环流；放几只玩具鸭看它们漂到哪；再假设没有大陆比一比；看看同纬度大洋两岸差多少',
+  need: '让风吹起来，看海水转成哪几个环流；放几只玩具鸭看它们漂到哪；再假设没有大陆比一比；比较洋流对同纬度两岸的定性影响',
   conclusion: {
     page: 73,
     quote: '盛行风吹拂海面，推动海水随风漂流，并且使上层海水带动下层海水流动，在海洋表层形成规模很大的洋流。洋流运动的方向还受海陆分布、地转偏向力等因素的影响。……信风驱动赤道南北两侧的海水由东向西流动，到达大洋西岸时，受到陆地阻挡，……大部分沿着海岸流向较高纬度海区。到中纬度海区时，在盛行西风吹拂下，洋流向东流去。到达大洋东岸时，又有一部分折向低纬度海区。这样就在中低纬度海区形成大洋环流，在北半球呈顺时针方向流动，在南半球呈逆时针方向流动。……在北半球中高纬度海区也形成大洋环流，它呈逆时针方向流动。……南极大陆外围，海面广阔。这里终年受西风影响，形成西风漂流。',
-    why: '风推着海面走：信风带里海水往西，西风带里海水往东。海水碰到大陆走不过去，只能沿着海岸拐弯，于是在一个个大洋里转成环流。从低纬流向高纬的洋流比所到之处的海水暖，是暖流；从高纬流向低纬的是寒流。暖流让沿岸暖湿，寒流让沿岸凉、干，所以同纬度的大洋两岸气温、景观可以差很多；寒暖流相遇的地方海水扰动，营养物质上涌，鱼多，成了大渔场。',
+    why: '风推着海面走：信风带里海水往西，西风带里海水往东。风场、地转偏向力、压力梯度和海岸边界共同影响大洋环流。本页用预设流函数示意环流，未逐项求解成因。暖流比流经海区周围海水温度高，寒流较低；低纬向高纬通常是暖流，反向通常是寒流，但流向不是定义。暖流让沿岸暖湿，寒流让沿岸凉、干，所以同纬度的大洋两岸气温、景观可以差很多；寒暖流相遇的地方海水扰动，营养物质上涌，鱼多，成了大渔场。',
     src: '课本第 68–71 页 · 第四章 第二节 洋流',
   },
 
@@ -93,14 +93,15 @@ export default {
     // ---- 风：大洋两边的空中一排小白箭头（信风向西、西风向东） ----
     const windArrows = new THREE.Group(); block.add(windArrows);
     for (const lat of [15, -15, 45, -45, -58]) { const dir = Math.abs(lat) < 30 ? -1 : 1; for (let x = -0.1; x <= 0.1; x += 0.05) { const a = new THREE.Mesh(new THREE.ConeGeometry(0.003, 0.012, 3), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 })); a.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2; a.position.copy(P3(x, nOf(lat) + (lat > 0 ? 0.004 : -0.004), G + 0.02)); a.raycast = () => {}; windArrows.add(a); } }
-    const tWind = ['信风（东北风）', '盛行西风', '信风（东南风）', '西风'].map((t) => airLabel(block, t, { h: 0.0085, color: '#1f4f86', icon: 'wind', dim: 0 }));
+    const tWind = ['东北信风（东西分量）', '西风（东西分量）', '东南信风（东西分量）', '西风（东西分量）'].map((t) => airLabel(block, t, { h: 0.0085, color: '#1f4f86', icon: 'wind', dim: 0 }));
 
     // ---- 漂浮的海水：一粒粒，跟着洋流走 ----
     const NP = 420, pp = new Float32Array(NP * 3), parts = Array.from({ length: NP }, () => ({ x: XL + rnd() * (XR - XL), n: -NB + rnd() * 2 * NB, a: rnd() * 4 }));
     const dotTex = canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
     const dots = new THREE.Points(pg, new THREE.PointsMaterial({ size: 0.022, map: dotTex, color: 0xe8f4ff, transparent: true, opacity: 0.8, depthWrite: false })); dots.raycast = () => {}; dots.renderOrder = 6; block.add(dots);
-    const advect = (o, dt) => { for (let i = 0; i < 3; i++) { const [u, v] = vel(o.x, o.n, S.land); o.x += u * dt * SPEED * S.w / 3; o.n += v * dt * SPEED * S.w / 3; } if (!S.land || latOf(o.n) <= SOUTH_OPEN) { if (o.x > XR - 0.003) o.x = XL + 0.004; if (o.x < XL + 0.003) o.x = XR - 0.004; } };          // 没有陆地的地方：从东边流出去，又从西边流进来（地球是圆的）
+    const advect = (o, dt) => advance(o, dt, S.w, S.land);
+
 
     // ---- 玩具鸭：点哪儿放哪儿，留下一路的轨迹 ----
     const duckMat = new THREE.MeshStandardMaterial({ color: 0xf6c63a, roughness: 0.5, emissive: 0x5a4210, emissiveIntensity: 0.3 });
@@ -116,7 +117,6 @@ export default {
         const px = d.x; advect(d, dt); d.t += dt;
         if (Math.abs(d.x - px) > 0.1) { d.np = 0; }          // 绕地球一圈从另一边回来：轨迹从新的地方重新画，不横穿整个海
         if (d.np >= 600) { d.pos.copyWithin(0, 3); d.np--; }          // 轨迹太长：丢掉最老的一段，鸭子照样漂
-        if (isLand(d.x, d.n, S.land)) { d.x = px; }          // 碰到岸就停在岸边（被冲上海滩）
         if (d.t > 0.05 || !d.np) { d.t = 0; d.pos.set([d.x, G + 0.0012, -d.n], d.np * 3); d.np++; d.line.geometry.setDrawRange(0, d.np); d.line.geometry.attributes.position.needsUpdate = true; }
         d.m.position.copy(P3(d.x, d.n, G + 0.0006));
       }
@@ -126,7 +126,7 @@ export default {
     const town = (x, n) => { const g = new THREE.Group(); for (const [dx, dz, hh] of [[-0.003, 0, 0.004], [0.003, 0.003, 0.006], [0, -0.004, 0.003]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.004, hh, 0.004), new THREE.MeshLambertMaterial({ color: 0xf3ede1 })); b.position.set(dx, hh / 2, dz); g.add(b); } g.position.copy(P3(x, n)); block.add(g); return g; };
     const townW = town(XW - 0.012, nOf(60)), townE = town(XE + 0.012, nOf(60));
     const tTownW = airLabel(block, '', { h: 0.0085, color: '#2c3245', icon: 'thermo', dim: 0 }), tTownE = airLabel(block, '', { h: 0.0085, color: '#2c3245', icon: 'thermo', dim: 0 });
-    const tHint = tag('<span>在海上点一下</span><small>放一只玩具鸭</small>', 'hint'), tScale = noteBadge(tag, '教学示意：大洋和大陆是理想化的，流速、气温是示意；赤道逆流、季风洋流本模型省略');
+    const tHint = tag('<span>在海上点一下</span><small>放一只玩具鸭</small>', 'hint'), tScale = noteBadge(tag, '教学示意：大洋和大陆是理想化的，流速是示意，沿岸影响仅定性比较；赤道逆流、季风洋流本模型省略');
     const callout = airLabel(block, '', { h: 0.0085, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
     callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
     const say1 = (text, x, n) => { callout.position.set(x, G + 0.03, -n); callout.setText(text).setOn(true); calloutT = 4.5; };
@@ -136,8 +136,8 @@ export default {
       const on = S.w > 0.6;
       tGyre.forEach(({ t }) => (t.visible = on && S.land));
       [[15, 0], [45, 1], [-15, 2], [-55, 3]].forEach(([lat, i]) => { tWind[i].position.set(0.085, G + 0.022, -nOf(lat)); tWind[i].setOn(S.blow || S.w > 0.05); });
-      tTownW.position.set(XW - 0.012, G + 0.014, -nOf(60)); tTownW.setText(`北纬 60° 西岸：最冷月约 ${coastTemp(60, 'west', true).toFixed(0)}℃`).setOn(S.w > 0.6 && S.land);
-      tTownE.position.set(XE + 0.012, G + 0.014, -nOf(60)); tTownE.setText(`东岸：约 ${coastTemp(60, 'east', true).toFixed(0)}℃`).setOn(S.w > 0.6 && S.land); townW.visible = townE.visible = S.land;
+      tTownW.position.set(XW - 0.012, G + 0.014, -nOf(60)); tTownW.setText(`北纬 60° 西岸：${coastEffect(60, 'west')}`).setOn(S.w > 0.6 && S.land);
+      tTownE.position.set(XE + 0.012, G + 0.014, -nOf(60)); tTownE.setText(`东岸：${coastEffect(60, 'east')}`).setOn(S.w > 0.6 && S.land); townW.visible = townE.visible = S.land;
       tHint.loc(block, 0, G + 0.012, -nOf(7)).show(S.w > 0.6 && !S.ducks.length);
       tScale.loc(block, XL + 0.08, G + 0.002, NB - 0.008);
       windArrows.visible = S.blow || S.w > 0.05;
@@ -148,22 +148,21 @@ export default {
       if (!W) return;
       const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, on = S.w > 0.6;
       g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh); g.font = '600 13px "PingFang SC", sans-serif'; g.textBaseline = 'middle'; g.fillStyle = '#3a3226'; g.textAlign = 'left';
-      g.fillText('同纬度的大洋两岸（最冷月平均气温，示意）', 8, 12);
-      const rows = [[60, '北纬 60°'], [25, '北纬 25°']], Z = 120, k = 3.2;
-      rows.forEach(([lat, nm], i) => {
-        const y = 36 + i * 46, tw = coastTemp(lat, 'west', true), te = coastTemp(lat, 'east', true);          // 多年平均的气候：洋流常年这样流，两岸就常年这样差
-        g.fillStyle = '#3a3226'; g.fillText(nm, 8, y + 9);
-        for (const [t, side, yy] of [[tw, '西岸', y], [te, '东岸', y + 18]]) { g.fillStyle = t >= 0 ? '#d9673f' : '#3b6fb8'; const x0 = Z, x1 = Z + t * k; g.fillRect(Math.min(x0, x1), yy, Math.abs(x1 - x0), 13); g.fillStyle = '#3a3226'; g.fillText(`${side} ${t.toFixed(0)}℃`, t >= 0 ? x1 + 6 : x0 + 6, yy + 7); }
+      W.chart.hidden = !S.land;
+      if (!S.land) { W.read.textContent = '无大陆情境没有“两岸”。本模型仅保留东西向流动，不能据此断言真实海洋不形成环流。'; return; }
+      g.fillText('沿岸洋流的定性影响（非气温预测）', 8, 12);
+      [[60, '北纬 60°'], [25, '北纬 25°']].forEach(([lat, name], i) => {
+        g.fillStyle = '#3a3226'; g.fillText(name, 8, 48 + i * 42);
+        for (const [side, title, x] of [['west', '西岸', 100], ['east', '东岸', 210]]) { const effect = coastEffect(lat, side); g.fillStyle = effect === '偏暖' ? '#bd492c' : '#315c98'; g.fillText(`${title}：${effect}`, x, 48 + i * 42); }
       });
-      g.strokeStyle = '#3a3226'; g.beginPath(); g.moveTo(Z, 28); g.lineTo(Z, hh - 6); g.stroke();
-      W.read.innerHTML = S.land ? '这是多年平均的样子：北纬 60° 大洋<b>东岸</b>有暖流经过，比西岸暖得多（像欧洲西北部）；中低纬大洋东岸有寒流，空气稳定、难以成雨，有助于形成沙漠；西岸有暖流，湿润。<br><small>气温是示意</small>' : '假如没有大陆：也就没有“两岸”，海水只跟着风东西向流。';
+      W.read.innerHTML = '暖流通常增温增湿，寒流通常降温减湿；气候还受大气环流、地形等影响。<br><small>仅示意影响方向，不表示洋流独立造成的温差。</small>';
     };
     const drawLog = () => {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
       if (S.saw.gyre) r('风吹起来：', '北半球中低纬转成顺时针的环流、中高纬逆时针；南半球中低纬逆时针；南纬 45°—60° 是向东的西风漂流');
-      if (S.saw.duck) r('玩具鸭：', '跟着洋流漂，能漂到很远的海岸');
-      if (S.saw.noland) r('假如没有大陆：', '海水只随风带东西向流，转不成环流');
+      if (S.saw.duck) r('玩具鸭：', '沿预设流线漂移；本页未模拟真实沿岸搁浅过程');
+      if (S.saw.noland) r('假如没有大陆：', '本模型仅保留东西向流动的理想情境，不能推广为真实海洋规律');
       if (S.saw.coast) r('同纬度两岸：', '北纬 60° 东岸暖、西岸冷；中低纬大洋东岸有寒流（有助于形成干旱的沙漠），西岸有暖流、湿润；寒暖流交汇处有渔场');
       if (S.guess != null && S.saw.duck) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：你在${Math.abs(Math.round(S.first.lat))}°${S.first.lat >= 0 ? 'N' : 'S'}放的鸭子先往${S.first.dir}漂${Math.abs(S.first.lat - 20) < 8 ? '（信风推着海水往西）' : '（题目问的是北纬 20°，可以在那里再放一只）'}`)));
       W.log.replaceChildren(...rows);
@@ -193,10 +192,10 @@ export default {
           { text: '让风吹起来', onClick: () => { S.blow = !S.blow; acts.btns[0].textContent = S.blow ? '风停下' : '让风吹起来'; placeTags(); ui.status(S.blow ? '风吹起来了：<b>信风</b>推着赤道两侧的海水往西，<b>西风</b>推着中纬度的海水往东。看海水碰到大陆以后怎么走。' : '风停了，海水慢慢停下来。'); } },
           { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.w = 0; S.blow = false; S.land = true; S.saw = {}; S.guess = null; while (S.ducks.length) { const d = S.ducks.pop(); block.remove(d.m, d.line); d.line.geometry.dispose(); } landSeg.set(0); guess.set(-1); acts.btns[0].textContent = '让风吹起来'; callout.show(false); drawMap(); placeArrows(); placeTags(); drawChart(); drawLog(); ui.status('这是一个理想化的大洋，两边是大陆。先按<b>让风吹起来</b>。'); } },
         ]);
-        const landSeg = seg('大陆', ['有大陆挡着', '假如没有大陆'], (_, i) => { S.land = !i; if (i) S.saw.noland = true; drawMap(); placeArrows(); placeTags(); drawChart(); drawLog(); ui.status(i ? '假如没有大陆挡着：海水只跟着风带东西向流，转不成环流。' : '有大陆挡着：海水碰到大陆只能拐弯，转成一个个环流。'); }, { value: 0 });
+        const landSeg = seg('大陆', ['有大陆挡着', '假如没有大陆'], (_, i) => { S.land = !i; S.ducks.forEach((d) => { d.rest = 0; d.np = 0; if (isLand(d.x, d.n, S.land)) d.x = Math.max(XW + 0.001, Math.min(XE - 0.001, d.x)); }); if (i) S.saw.noland = true; drawMap(); placeArrows(); placeTags(); drawChart(); drawLog(); ui.status(i ? '假如没有大陆挡着：本模型仅保留东西向流动，未推导真实无大陆海洋的环流。' : '有大陆情境：预设环流示意风场、地转偏向力和海岸边界的共同影响。'); }, { value: 0 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 130 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '同纬度的大洋两岸'), chart, read, acts.el, guess.el, landSeg.el, note('洋流箭头：红色是暖流，蓝色是寒流，指着海水流去的方向。在海上点一下就放一只玩具鸭。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '同纬度的大洋两岸'), chart, read, acts.el, guess.el, landSeg.el, note('暖流比流经海区周围海水温度高，寒流较低；流向不是定义。箭头红暖、蓝寒，按典型模式配色；风箭头仅示东西向分量。真实洋流受风场、地转偏向力、压力梯度和海岸边界共同影响，本页预设流线，不模拟搁浅。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log };
         ui.status('这是一个理想化的大洋（不是真实地图），西边、东边各一块大陆。先按<b>让风吹起来</b>。');
@@ -204,10 +203,10 @@ export default {
       },
       update(dt) {
         labels.forEach((l) => l.tick(dt));
-        const d = Math.min(dt, 0.05), w0 = S.w;
+        const d = dt, w0 = S.w;
         S.w = S.blow ? Math.min(1, S.w + d / 3) : Math.max(0, S.w - d / 3);          // 风吹起来，洋流慢慢建立；风停了，慢慢停下
         if (Math.abs(S.w - w0) > 1e-4) { placeArrows(); placeTags(); if (Math.floor(S.w * 10) !== Math.floor(w0 * 10)) drawChart(); }
-        if (S.w > 0.9 && S.land && !S.saw.gyre) { S.saw.gyre = true; drawLog(); say1('海水碰到大陆拐弯，转成了环流', XW + 0.02, nOf(25)); }
+        if (S.w > 0.9 && S.land && !S.saw.gyre) { S.saw.gyre = true; drawLog(); say1('风场、地转偏向力和边界共同影响环流', XW + 0.02, nOf(25)); }
         if (S.w > 0.9 && S.land && !S.saw.coast && S.saw.gyre) { S.saw.coast = true; drawLog(); }
         if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
         for (let k = 0; k < NP; k++) { const o = parts[k]; advect(o, d); o.a += d; if (o.a > 6 || isLand(o.x, o.n, S.land) || Math.abs(o.n) > NB - 0.003) { do { o.x = XL + rnd() * (XR - XL); o.n = -NB + rnd() * 2 * NB; } while (isLand(o.x, o.n, S.land)); o.a = 0; } pp.set([o.x, G + 0.0016, -o.n], k * 3); }

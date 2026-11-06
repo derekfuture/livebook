@@ -142,21 +142,22 @@ export default {
     const dialPick = new THREE.Mesh(new THREE.CylinderGeometry(DR, DR, 0.006, 24), new THREE.MeshBasicMaterial({ visible: false })); dialPick.userData.pick = true; dial.add(dialPick);
     const aDial = airLabel(block, '', { h: 0.0095, color: '#a8341f' }); aDial.position.set(dial.position.x, 0.016, dial.position.z - DR - 0.006);
     const tHint = tag('<span>转这个月份盘</span><small>拨到夏季（7 月前后）看看</small>', 'hint');
-    noteBadge(tag, '教学示意：大陆和大洋是理想化的，不是真实地图；气压、风速、海陆温差都是示意').loc(block, XL + 0.012, -0.002, ZS + 0.01);
+    noteBadge(tag, '教学示意：大陆和大洋是理想化的，不是真实地图；气压、风速、海陆温差都是示意；固定右偏 45°仅示意中纬度近地面风向，不适用于赤道附近').loc(block, XL + 0.012, -0.002, ZS + 0.01);
     const labels = [...centerL, aColL, aColS, aCity, aDial];
 
     // ---- 摆好 ----
     const layout = () => {
+      S.m = mi();          // 全部展示先吸附到同一个整数月份
       buildIso(); placeCenters(); placeWinds(); placeCols();
       hand.rotation.y = -((S.m - 1) / 12) * Math.PI * 2; aDial.setText(MON[mi()]);
-      const cw = cityWeather(mi(), S.land); vane.rotation.y = Math.atan2(-cw.w[0], cw.w[1]) + Math.PI;          // 箭头转向风吹来的那边
+      const cw = cityWeather(mi(), S.land); vane.visible = !cw.calm; if (!cw.calm) vane.rotation.y = Math.atan2(-cw.w[0], cw.w[1]) + Math.PI;          // 箭头转向风吹来的那边
       aCity.position.set(X(CITY.x) - 0.006, 0.07, Z(CITY.lat)); aCity.setText(`${CITY.name} · ${cw.name}${S.land && cw.season === 'winter' && !cw.fromSea ? ' · 干燥寒冷' : S.land && cw.season === 'summer' && cw.fromSea ? ' · 暖湿多雨' : ''}`);
       const wet = S.land && cw.fromSea && landT(S.m) > 0.3; rainCloud.visible = rain.visible = wet;
       tHint.loc(block, dial.position.x, 0.03, dial.position.z).show(!S.moved);
-      gLand.visible = S.land; town.children.forEach((c) => { if (c.isMesh && c.geometry.type === 'BoxGeometry') c.visible = S.land; }); drawChart();          // 全是海洋时：大陆和房子都没了，只留风向标标着原来东岸城市的位置
+      gLand.visible = S.land; town.children.forEach((c) => { if (c.isMesh && c.geometry.type === 'BoxGeometry') c.visible = S.land; }); drawChart(); drawLog();          // 全是海洋时：大陆和房子都没了，只留风向标标着原来东岸城市的位置
     };
-    const note1 = () => { const m = mi(), key = S.land ? 'land' : 'sea'; if (!S.seen[key][m]) { S.seen[key][m] = cityWeather(m, S.land); drawLog(); drawChart(); say(m); } };
-    const say = (m) => { if (!W) return; const winter = m === 12 || m <= 2, summer = m >= 6 && m <= 8; if (!S.land) { if (winter || summer) W.ui.status(`假如全是海洋（${MON[m]}）：气压带一圈圈呈带状分布，东岸那里吹${cityWeather(m, false).name}。拨到另一个季节比一比，风会倒过来吗？`); return; } if (winter && !S.saidW) { S.saidW = true; W.ui.status(`${MON[m]}：大陆比海洋冷，空气收缩下沉，大陆上形成<b>冷高压</b>；风从大陆吹向海洋，东岸的城市吹<b>${cityWeather(m).name}</b>，干燥寒冷。再把月份盘拨到夏季。`); } if (summer && !S.saidS) { S.saidS = true; W.ui.status(`${MON[m]}：大陆比海洋热，空气受热上升，大陆上形成<b>热低压</b>；大洋上的副热带高压加强，暖湿空气从海上吹来，东岸吹<b>${cityWeather(m).name}</b>，多雨。风倒过来了。`); } };
+    const note1 = () => { const m = mi(), key = S.land ? 'land' : 'sea'; if (!S.seen[key][m]) { S.seen[key][m] = cityWeather(m, S.land); drawLog(); drawChart(); } say(m); };
+    const say = (m) => { if (!W) return; const winter = m === 12 || m <= 2, summer = m >= 6 && m <= 8; if (!S.land) { W.ui.status(`假如全是海洋（${MON[m]}）：气压带一圈圈呈带状分布，东岸那里吹${cityWeather(m, false).name}。拨到另一个季节比一比，风会倒过来吗？`); return; } if (winter) { S.saidW = true; W.ui.status(`${MON[m]}：大陆比海洋冷，空气收缩下沉，大陆上形成<b>冷高压</b>；风从大陆吹向海洋，东岸的城市吹<b>${cityWeather(m).name}</b>，干燥寒冷。再把月份盘拨到夏季。`); } if (summer) { S.saidS = true; W.ui.status(`${MON[m]}：大陆比海洋热，空气受热上升，大陆上形成<b>热低压</b>；大洋上的副热带高压加强，暖湿空气从海上吹来，东岸吹<b>${cityWeather(m).name}</b>，多雨。风倒过来了。`); } if (!winter && !summer) W.ui.status(`${MON[m]}，过渡季节：${cityWeather(m).text}，东岸城市吹${cityWeather(m).name}。继续拨月份盘，比一比冬夏。`); };
 
     // ---- 侧栏：东岸城市一年里每个月的风（拨过的月份才画） ----
     const drawChart = () => {

@@ -3,8 +3,8 @@
 // 一个问题（课本开头）：麦哲伦的船队，哪段航程是逆风？为什么到了南纬 30° 附近反而平静无风、寸步难行？
 // 课本的图就是模型：一个地球仪（不画大陆——课本也是先“假设地球表面是均匀的”），表面按气压带着色，近地面一支支小箭头是风；
 // 左边沿着地球的轮廓，画着三圈环流（上升、高空、下沉、近地面）。学生亲手做的：
-//   1. 拖一条小帆船沿着经线南北走（往西、往西北航行，像麦哲伦船队）：船上的风向标和“顺风 / 逆风 / 平静无风”跟着变。
-//   2. 换个条件：假如地球不自转——没有地转偏向力，每个半球只剩一个大环流圈，近地面的风直直吹向赤道，三圈环流和信风、西风都没了。
+//   1. 拖一条小帆船沿着经线南北走（往西、往西北航行，像麦哲伦船队）：船上的气流方向箭头和“顺风 / 逆风 / 未判定”跟着变。
+//   2. 换个条件：假如地球不自转——下垫面均匀、理想化纬向受热、太阳直射赤道且没有地转偏向力时，每半球一个环流圈，近地面的风直直吹向赤道，三圈环流和信风、西风都没了。
 //   3. 换季节：7 月气压带、风带一起往北挪，1 月往南挪（图 3.11）。
 // 教学示意：环流圈的高度大大夸大了；风带的界线、季节移动的度数都是示意。
 import * as THREE from 'three';
@@ -24,11 +24,11 @@ export default {
   title: '气压带和风带',
   flow: 'explore',
   ask: '麦哲伦的船队绕过南美洲南端时风大浪高，到了南纬 30° 附近却平静无风、热得难受，后来一路吹着东南风。哪段是逆风？为什么 30° 附近那么难走？',
-  need: '把船从南美洲南端（约南纬 50°）推到赤道，看哪段逆风、哪段平静、哪段顺风；再假设地球不自转比一比；换个季节看气压带怎么挪',
+  need: '把船从南美洲南端（约南纬 50°）推到赤道，看哪段逆风、哪段经过副热带高压带、哪段顺风；再假设地球不自转比一比；换个季节看气压带怎么挪',
   conclusion: {
     page: 53,
     quote: '赤道地区接受太阳辐射能量多，近地面的空气受热膨胀上升，空气密度减小，气压降低。这样赤道地区就形成了一个低压带——赤道低压带。……来自赤道高空的气流在这里不断堆积下沉，使地面气压升高，形成副热带高压带。……这样，全球共形成七个气压带……在气压带之间形成了六个风带……由此可以知道，麦哲伦船队航行至南美洲南端的海峡时受盛行西风影响，船队逆风航行；航行至30°S附近海域时，受副热带高压带控制，气流下沉，平静无风，加之天气炎热，航行十分艰难；船队航行至东南信风带时，顺风航行，这段航程最为轻松。……在北半球，与二分日相比，气压带和风带的位置大致是夏季偏北，冬季偏南。',
-    why: '赤道受热多，空气上升，地面成了低压；上升的空气在高空流向两极，一路被地转偏向力往一边推，到 30° 附近已经偏成了西风、流不过去，堆积下沉，地面成了高压；从这里流回赤道的空气偏成信风，流向高纬的偏成西风；极地冷空气下沉成高压，流出的偏成极地东风，在 60° 附近和西风相遇抬升成低压。所以气压带和风带一高一低、一层层相间；高压带、低压带上空气以上下运动为主，水平的风很小。要是地球不自转，就没有偏转，每个半球只有一个大环流圈。',
+    why: '赤道受热多，空气上升，地面成了低压；上升的空气在高空流向两极，一路被地转偏向力往一边推，到 30° 附近已经偏成了西风、流不过去，堆积下沉，地面成了高压；从这里流回赤道的空气偏成信风，流向高纬的偏成西风；极地冷空气下沉成高压，流出的偏成极地东风，在 60° 附近和西风相遇抬升成低压。所以气压带和风带一高一低、一层层相间；高压带近地面辐散，低压带近地面辐合；不能由升降气流推出水平无风。本模型不计算风速。无地转偏转的单圈模型还假定下垫面均匀、理想化纬向受热、太阳直射赤道，并非现实地球停止自转后的预测。',
     src: '课本第 48–50 页 · 第三章 第二节 气压带和风带',
   },
 
@@ -112,7 +112,7 @@ export default {
     const hull = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.003, 0.005), new THREE.MeshStandardMaterial({ color: 0x8a5a34, roughness: 0.7 })); hull.position.y = 0.0015; boat.add(hull);
     const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.0004, 0.0004, 0.014, 6), new THREE.MeshStandardMaterial({ color: 0x5a4028 })); mast.position.y = 0.009; boat.add(mast);
     const sail = new THREE.Mesh(new THREE.PlaneGeometry(0.008, 0.01), new THREE.MeshStandardMaterial({ color: 0xf4f0e4, side: THREE.DoubleSide })); sail.position.set(0, 0.009, 0); boat.add(sail);
-    const vaneM = new THREE.MeshBasicMaterial({ color: 0xc4462e }), vane = new THREE.Mesh(new THREE.ConeGeometry(0.0018, 0.009, 8), vaneM); vane.position.y = 0.018; boat.add(vane);          // 船上的风向标：指着风吹去的方向
+    const vaneM = new THREE.MeshBasicMaterial({ color: 0xc4462e }), vane = new THREE.Mesh(new THREE.ConeGeometry(0.0018, 0.009, 8), vaneM); vane.position.y = 0.018; boat.add(vane);          // 船上的气流方向箭头：指着风吹去的方向
     const boatPick = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), new THREE.MeshBasicMaterial({ visible: false })); boatPick.position.y = 0.006; boatPick.userData.pick = true; boat.add(boatPick);
     const heading = (lat) => (lat < -40 ? 270 : 315);          // 麦哲伦船队：绕过南美南端往西；进了太平洋以后往西北
     const tBoat = airLabel(group, '', { h: 0.0078, color: '#2c3245', icon: 'wind' }), tHint = tag('<span>按住小帆船</span><small>往北（上）推</small>', 'hint'), tScale = noteBadge(tag, '教学示意：环流圈的高度大大夸大了，不画海陆，风带界线和季节移动的度数是示意');
@@ -130,8 +130,8 @@ export default {
       const hd = heading(S.lat), fwd = f.east.clone().multiplyScalar(Math.sin(hd * D2R)).add(f.north.clone().multiplyScalar(Math.cos(hd * D2R)));
       boat.position.copy(p); boat.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(fwd, f.up, new THREE.Vector3().crossVectors(fwd, f.up)));
       const w = relWind(S.lat, hd, S.shift, S.rot), wd = f.east.clone().multiplyScalar(w.u).add(f.north.clone().multiplyScalar(w.v));
-      vane.visible = w.speed >= 0.2; if (vane.visible) { const local = wd.clone().applyQuaternion(boat.quaternion.clone().invert()).normalize(); vane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), local); }
-      const bn = beltNear(S.lat, S.shift, 2);          // 和“风很小”的判定用同一个宽度
+      vane.visible = w.known; if (vane.visible) { const local = wd.clone().applyQuaternion(boat.quaternion.clone().invert()).normalize(); vane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), local); }
+      const bn = beltNear(S.lat, S.shift, 2);          // 气压带附近只说明辐合或辐散
       tBoat.position.set(p.x - 0.03, p.y + 0.006, p.z); tBoat.setText(`${Math.abs(Math.round(S.lat))}°${S.lat >= 0 ? 'N' : 'S'} ${S.rot ? (bn ? bn.name.replace(/^(北半球|南半球)/, '') : w.belt.replace(/^(北半球|南半球)/, '')) : ''} · ${w.dir} · ${w.rel}`);
       tHint.loc(group, p.x + 0.05, p.y - 0.022, p.z).show(!S.visited.size);
       return { w, bn, p };
@@ -146,17 +146,17 @@ export default {
       if (S.rot) {
         for (const b of BELTS) { const y = Y(beltLat(b, S.shift)); g.fillStyle = b.p === 'H' ? 'rgba(229,122,97,0.9)' : 'rgba(87,133,219,0.9)'; g.fillRect(8, y - 6, 118, 12); g.fillStyle = '#fff'; g.textAlign = 'left'; g.fillText(b.name.replace('北半球', '北').replace('南半球', '南'), 12, y); }
         WINDS.forEach((z, i) => { const y = (Y(z.a + (Math.abs(z.a) === 90 ? 0 : S.shift)) + Y(z.b + (Math.abs(z.b) === 90 ? 0 : S.shift))) / 2; g.fillStyle = '#2a3140'; g.textAlign = 'left'; g.fillText(`${z.name.replace(/^(北半球|南半球)/, '')}：${z.dir}`, 136, y); });
-      } else { g.fillStyle = '#2a3140'; g.textAlign = 'left'; g.fillText('假如地球不自转：', 12, Y(60)); g.fillText('赤道受热上升，两极冷却下沉，', 12, Y(40)); g.fillText('每个半球只有一个大环流圈，', 12, Y(20)); g.fillText('近地面北半球吹北风、南半球吹南风。', 12, Y(0)); }
+      } else { g.fillStyle = '#2a3140'; g.textAlign = 'left'; g.fillText('理想化无地转偏转：', 12, Y(60)); g.fillText('赤道受热上升，两极冷却下沉，', 12, Y(40)); g.fillText('每个半球只有一个大环流圈，', 12, Y(20)); g.fillText('近地面北半球吹北风、南半球吹南风。', 12, Y(0)); }
       const y = Y(S.lat); g.fillStyle = '#c4462e'; g.beginPath(); g.moveTo(w - 8, y); g.lineTo(w - 18, y - 6); g.lineTo(w - 18, y + 6); g.fill(); g.textAlign = 'right'; g.fillText('船', w - 20, y);
-      W.read.innerHTML = `船在 <b>${Math.abs(Math.round(S.lat))}°${S.lat >= 0 ? 'N' : 'S'}</b>，往${heading(S.lat) === 270 ? '西' : '西北'}航行：${cur.w.dir}，<b>${cur.w.rel}</b>${cur.bn && S.rot ? `（${cur.bn.name}${cur.bn.p === 'H' ? '：气流下沉' : '：气流上升'}，水平的风很小）` : ''}`;
+      W.read.innerHTML = `船在 <b>${Math.abs(Math.round(S.lat))}°${S.lat >= 0 ? 'N' : 'S'}</b>，往${heading(S.lat) === 270 ? '西' : '西北'}航行：${cur.w.dir}，<b>${cur.w.rel}</b>${cur.bn && S.rot ? `（${cur.bn.name}${cur.bn.p === 'H' ? '：气流下沉' : '：气流上升'}；不据此判定风速）` : ''}`;
     };
     const drawLog = () => {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
-      if (S.saw.west) r('南美南端往西：', '盛行西风，逆风，风大浪高');
-      if (S.saw.calm) r('南纬 30° 附近：', '副热带高压带，气流下沉，平静无风');
+      if (S.saw.west) r('南美南端往西：', '盛行西风，逆风；风浪大小未模拟');
+      if (S.saw.calm) r('南纬 30° 附近：', '副热带高压带，近地面辐散；课本所述航程遇到静风，本模型未计算风速');
       if (S.saw.trade) r('再往西北：', '东南信风，顺风，最轻松');
-      if (S.saw.norot) r('假如地球不自转：', '没有偏转，每个半球一个大环流圈，近地面的风直直吹向赤道');
+      if (S.saw.norot) r('理想化无地转偏转：', '下垫面均匀、直射赤道时，没有地转偏转，每半球一个环流圈，近地面的风直直吹向赤道');
       if (S.saw.season) r('换季节：', '7 月气压带、风带整体偏北，1 月偏南');
       if (S.guess != null && S.saw.west) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：逆风（盛行西风）`)));
       W.log.replaceChildren(...rows);
@@ -166,10 +166,10 @@ export default {
       if (!S.rot || S.shift !== 0 || !S.visited.size) return;          // 自己推过船才算看到
       const was = { ...S.saw };
       if (S.lat < -40 && S.lat > -60 && cur.w.rel === '逆风') S.saw.west = true;
-      if (Math.abs(S.lat + 30) < 3 && cur.w.rel === '平静无风') S.saw.calm = true;
+      if (Math.abs(S.lat + 30) < 3 && cur.bn?.p === 'H') S.saw.calm = true;
       if (S.lat > -25 && S.lat < -5 && cur.w.rel === '顺风') S.saw.trade = true;
       if (S.saw.west && !was.west) say1('逆风：盛行西风迎面吹来', cur.p);
-      if (S.saw.calm && !was.calm) say1('副热带高压带：气流下沉，没有风', cur.p);
+      if (S.saw.calm && !was.calm) say1('副热带高压带：下沉、近地面辐散', cur.p);
       if (S.saw.trade && !was.trade) say1('顺风：东南信风推着船走', cur.p);
       if (JSON.stringify(was) !== JSON.stringify(S.saw)) drawLog();
     };
@@ -193,6 +193,7 @@ export default {
     layout2();
 
     return {
+      debug: { S, layout: layout2 },
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
@@ -200,16 +201,16 @@ export default {
       view: { elev: 8, azim: 0, lookY: 0.5, frameMargin: 1.45 },
       pointer,
       mount(ui) {
-        const rotSeg = seg('地球', ['在自转', '假如不自转'], (_, i) => { S.rot = !i; if (i) { S.saw.norot = true; S.shift = 0; seaSegRef.set(1); } seaSegRef.el.style.opacity = i ? 0.4 : 1; seaSegRef.el.style.pointerEvents = i ? 'none' : ''; callout.show(false); calloutT = 0; layout2(); drawLog(); ui.status(i ? '假如地球不自转：没有地转偏向力，每个半球只剩一个大环流圈，近地面的风直直吹向赤道。三圈环流、信风、西风都没了。' : '地球在自转：空气一边流一边被偏转，形成三圈环流、七个气压带、六个风带。'); }, { value: 0 });
+        const rotSeg = seg('地球', ['在自转', '理想化无偏转'], (_, i) => { S.rot = !i; if (i) { S.saw.norot = true; S.shift = 0; seaSegRef.set(1); } seaSegRef.el.style.opacity = i ? 0.4 : 1; seaSegRef.el.style.pointerEvents = i ? 'none' : ''; callout.show(false); calloutT = 0; layout2(); drawLog(); ui.status(i ? '理想化无地转偏转：下垫面均匀、理想化纬向受热、太阳直射赤道且没有地转偏向力时，每半球一个环流圈，近地面的风直直吹向赤道。三圈环流、信风、西风都没了。' : '地球在自转：空气一边流一边被偏转，形成三圈环流、七个气压带、六个风带。'); }, { value: 0 });
         const seaSeg = seg('季节', SEASONS.map((x) => x[0]), (_, i) => { S.shift = SEASONS[i][1]; if (i !== 1) S.saw.season = true; callout.show(false); calloutT = 0; layout2(); drawLog(); }, { value: 1 });
         seaSegRef = seaSeg;          // 假如不自转：只看春分、秋分（季节移动先不考虑）
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.lat = -50; S.rot = true; S.shift = 0; S.saw = {}; S.guess = null; S.visited.clear(); rotSeg.set(0); seaSeg.set(1); guess.set(-1); callout.show(false); layout2(); drawLog(); ui.status('船在南美洲南端（约南纬 50°）。按住<b>小帆船</b>往北推，看一路上的风。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 210 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '气压带和风带（北 → 南）'), chart, read, guess.el, rotSeg.el, seaSeg.el, acts.el, note('地球上红色是高压带，蓝色是低压带；小箭头是近地面的风，指着风吹去的方向。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '气压带和风带（北 → 南）'), chart, read, h('div', { class: 'note' }, '只示意风向和辐合、辐散，不计算风速。跨赤道转向未模拟。船上箭头指气流吹去方向。无偏转模型：下垫面均匀、理想化纬向受热、太阳直射赤道。'), guess.el, rotSeg.el, seaSeg.el, acts.el, note('地球上红色是高压带，蓝色是低压带；小箭头和船上气流方向箭头均指吹去方向，仅示意方向，不表示风速。季节迁移只示意带的位置；跨赤道区不显示固定信风方向，转向过程未模拟。无偏转模型假定下垫面均匀、太阳直射赤道、理想化纬向受热。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log };
-        ui.status('船在南美洲南端（约南纬 50°）。按住<b>小帆船</b>往北推，看一路上哪段逆风、哪段平静、哪段顺风。');
+        ui.status('船在南美洲南端（约南纬 50°）。按住<b>小帆船</b>往北推，看一路上哪段逆风、哪段经过副热带高压带、哪段顺风。');
         layout2(); drawLog();
       },
       update(dt) { labels.forEach((l) => l.tick(dt)); if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); } },

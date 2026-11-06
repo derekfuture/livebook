@@ -13,27 +13,31 @@ export const WINDS = [
 const clampPole = (x) => Math.max(-90, Math.min(90, x));
 /** 加上季节移动以后各气压带所在的纬度（两极不动） */
 export const beltLat = (b, shift) => (Math.abs(b.lat) === 90 ? b.lat : b.lat + shift);
-/** 某纬度在哪个风带里、风从哪来、多大（rot：地球自转；不自转时每个半球只有一个环流圈，近地面风从极地直吹向赤道） */
+/** 只示意方向，不计算风速；气压带附近显示辐合/辐散，不指定单一来风方向。 */
 export function windAt(lat, shift = 0, rot = true) {
-  if (!rot) { const s = Math.sin((Math.PI * Math.min(90, Math.abs(lat - shift))) / 90), v = lat > shift ? -s : s; return { u: 0, v, speed: Math.abs(s), dir: Math.abs(s) < 0.15 ? '无风' : v < 0 ? '北风' : '南风', belt: '（假如地球不自转）', zone: null }; }
-  const L = (x) => beltLat({ lat: x }, shift), edges = [90, 60, 30, 0, -30, -60, -90].map((x) => clampPole(Math.abs(x) === 90 ? x : x + shift));
+  const unknown = (dir, belt, zone = null) => ({ u: 0, v: 0, known: false, dir, belt, zone });
+  if (!rot) { if (Math.abs(lat) < 2 || Math.abs(lat) > 88) return unknown('环流交汇处，未指定单一风向', '理想化无地转偏转模型'); const v = lat > 0 ? -1 : 1; return { u: 0, v, known: true, dir: v < 0 ? '北风' : '南风', belt: '理想化无地转偏转模型', zone: null }; }
+  if (shift !== 0 && lat >= Math.min(0, shift) && lat <= Math.max(0, shift)) return unknown('跨赤道转向未模拟', '跨赤道气流区');
+  const near = beltNear(lat, shift, 2);
+  if (near) return unknown(near.p === 'H' ? '近地面辐散' : '近地面辐合', near.name);
+  const edges = [90, 60, 30, 0, -30, -60, -90].map((x) => clampPole(Math.abs(x) === 90 ? x : x + shift));
   for (let i = 0; i < WINDS.length; i++) {
-    const hi = edges[i], lo = edges[i + 1];
-    if (lat <= hi && lat >= lo) {
-      const t = (lat - lo) / (hi - lo), s = Math.sin(Math.PI * t), w = WINDS[i];          // 风带中间风大，靠近气压带（边上）风小
-      const north = w.a >= 0, toward = (i === 0 || i === 2 || i === 5 || i === 3) ? (north ? -1 : 1) : (north ? 1 : -1);          // 信风、极地东风：吹向低纬；西风：吹向高纬
-      const sideways = w.dir.includes('西') && !w.dir.startsWith('东') ? 1 : -1;          // 西风带吹向东（u>0）；信风、东风吹向西
-      return { u: sideways * s * 0.9, v: toward * s * 0.45, speed: s, dir: s < 0.2 ? '无风或风很小' : w.dir, belt: w.name, zone: i };
+    if (lat <= edges[i] && lat >= edges[i + 1]) {
+      const w = WINDS[i], north = w.a >= 0, toward = (i === 0 || i === 2 || i === 5 || i === 3) ? (north ? -1 : 1) : (north ? 1 : -1);
+      const sideways = w.dir.startsWith('西') ? 1 : -1;
+      return { u: sideways * 0.9, v: toward * 0.45, known: true, dir: w.dir, belt: w.name, zone: i };
     }
   }
-  return { u: 0, v: 0, speed: 0, dir: '无风', belt: '', zone: null };
+  return unknown('未指定风向', '');
 }
 /** 离哪个气压带最近（在 tol 度以内就算在这个气压带里） */
 export function beltNear(lat, shift = 0, tol = 5) { let best = null; for (const b of BELTS) { const d = Math.abs(lat - beltLat(b, shift)); if (d <= tol && (!best || d < best.d)) best = { ...b, d }; } return best; }
 /** 船往 heading（从正北顺时针，度）走，这里的风是顺风、逆风还是侧风 */
 export function relWind(lat, heading, shift = 0, rot = true) {
   const w = windAt(lat, shift, rot), hx = Math.sin((heading * Math.PI) / 180), hy = Math.cos((heading * Math.PI) / 180);
-  if (w.speed < 0.2) return { ...w, rel: '平静无风' };
+  if (!w.known) return { ...w, rel: '不判定顺逆风' };
   const c = (w.u * hx + w.v * hy) / Math.hypot(w.u, w.v);
   return { ...w, rel: c > 0.35 ? '顺风' : c < -0.35 ? '逆风' : '侧风' };
 }
+
+// 单圈模型的理想化条件参见 NOAA：https://www.noaa.gov/jetstream/global/global-atmospheric-circulations

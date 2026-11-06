@@ -14,4 +14,6 @@ ok(dang(windFrom(w7.w), 135) <= 30 && w7.fromSea, `夏季吹${w7.name}，从海�
 ok(dang(windFrom(w1.w), windFrom(w7.w)) > 120, '一年中盛行风向随季节有规律地变换：季风');
 const s1 = windFrom(wind(CITY.x, CITY.lat, 1, false)), s7 = windFrom(wind(CITY.x, CITY.lat, 7, false));
 ok(dang(s1, s7) < 90, `假如全是海洋：这里冬季吹${windName(wind(CITY.x, CITY.lat, 1, false))}，夏季吹${windName(wind(CITY.x, CITY.lat, 7, false))}，没有冬夏相反的季风`);
+ok(cityWeather(7, false).calm && cityWeather(7, false).name === '静风', '全海洋 7 月城市为静风，不定义方向');
+ok(cityWeather(4.4).name === windName(wind(CITY.x, CITY.lat, 4.4)), '连续月份模型的城市和风场同源；界面统一吸附后再调用');
 process.exit(bad ? 1 : 0);

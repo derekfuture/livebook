@@ -3,7 +3,7 @@
 // 课本的图就是模型（讲同一件事，不还原插图）：一块从地上切下来的地块，浮在书页上方；上面是冷、暖两种气团，交界面是锋面。
 // 核心：“你家”。地块上有你家和一座邻城，都可以拖到别处。学生按住后面的气团往前推，锋面一路扫过来，
 // 你家的天气跟着变，旁边的时间线记下你家依次经历了什么。冷锋、暖锋各推一次，两条时间线一比：
-//   冷锋——锋线到了才大风、降温、下雨，过后转晴；暖锋——锋线还没到就开始连续下雨（地面还冷），锋线过后才变暖。
+//   冷锋——接近锋区时开始降温，过境时大风、下雨，过后转晴；暖锋——锋线还没到就开始连续下雨（地面还冷），接近锋区时气温逐渐升高，过境后更暖。
 // 同一时刻，邻城和你家的天气不一样：看的是各自离锋线多远、在哪一侧。
 // 准静止锋：冷空气被一道山挡住，锋线停在山脚几乎不动，冷空气一侧阴雨连绵（课本第 44 页昆明准静止锋：贵阳阴雨、昆明晴），时间一天天过去。
 // 面板里两扇小窗和地块同步：“你家的天空”（站在你家抬头看）、“从上往下看”（天气图）。三处一起变：俯视的天气图、侧面的剖面、地面上的天。
@@ -11,14 +11,15 @@
 // 教学示意：竖直方向夸大了（真实锋面很平缓，冷锋通常比暖锋陡）；雨区画的是课本图 3.3、3.4 的情形
 // （冷锋降水主要在锋后、紧挨锋线；暖锋降水在锋前、范围宽）。实际的锋，降水也可能在别的位置，或者没有降水。
 import * as THREE from 'three';
+import { stationAt, weatherAt, frontPath } from './kit/front.js';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { makeCloud } from './kit/cloud.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 
-const LIFT = 0;                         // 地块直接放在书页上（已经放在两页正中间、放得很大，不用再浮起来）
-const G = 0.022;                        // 地面顶面（地块有厚度，侧面露出土层）
+const LIFT = 0;          // 地块直接放在书页上（已经放在两页正中间、放得很大，不用再浮起来）
+const G = 0.022;          // 地面顶面（地块有厚度，侧面露出土层）
 const XL = -0.17, XR = 0.17, ZD = 0.062;
 // 两种锋：锋面的形状 h(s) = H·(1 − e^(−s/λ))，s 是从锋线往冷空气那边量的距离。冷锋陡，冷空气在后面（锋线左边）；暖锋缓，冷空气在前面（右边）
 const KIND = {
@@ -26,13 +27,13 @@ const KIND = {
   warm: { H: 0.07, L: 0.2, side: 1, x0: -0.15, x1: 0.165, rain: [0, 0.095], name: '暖锋' },
   still: { H: 0.06, L: 0.2, side: -1, x0: -0.1, x1: 0.03, rain: [0, 0.11], name: '准静止锋' },          // 冷空气在左边，被山（x = 0.03 往右）挡住；暖空气从右边沿锋面慢慢爬到冷空气上面
 };
-const MX = 0.03;                        // 山脚（准静止锋停在这里）
+const MX = 0.03;          // 山脚（准静止锋停在这里）
 const HOME0 = { cold: [0.05, 0.13], warm: [0.05, 0.13], still: [-0.035, 0.1] };          // 你家、邻城一开始在哪（准静止锋：你家在冷空气一侧，像贵阳；邻城在山那边，像昆明）
 const ASK = {
   cold: ['先猜一下（可以不猜）：在这个情境里，冷锋来了，你家会——', ['先降温', '先下雨', '差不多一起']],
   warm: ['先猜一下（可以不猜）：在这个情境里，暖锋来了，你家会——', ['先变暖', '先下雨', '差不多一起']],
   still: ['先猜一下（可以不猜）：在这个情境里，冷空气被山挡住了，你家会——', ['很快放晴', '连着下好几天', '一直不下雨']],
-  map: ['看锋线的符号推一推（可以不猜）：P 城接下来会——', ['锋线一到就大风、降温、下雨，过后转晴', '锋线没到就连续下雨，锋线过后变暖']],
+  map: ['看锋线的符号推一推（可以不猜）：P 城接下来会——', ['接近锋区时降温，过境时大风、下雨，过后转晴', '锋线没到就连续下雨，锋线过后变暖']],
 };
 const rnd = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -40,31 +41,7 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a
 /** 某地离锋线 d（正数＝在锋线前面，锋还没到）时的天气（教学示意，按课本图 3.3、3.4） */
 /** 云雨还没形成时：只有冷、暖空气，都是晴天 */
 const plainAt = (kind, d) => ((kind === 'warm' ? d < 0 : d > 0) ? { k: 'p', text: '晴，较暖', s: '晴暖' } : { k: 'p', text: '晴，较冷', s: '晴冷' });
-const sig = (x) => 1 / (1 + Math.exp(-x));
-/** 你家气象站的读数（教学示意的数值，按课本第 43–44 页的变化方向）：d＝你家离锋线多远，正数＝锋线还没到。
- *  冷锋：过境后气温下降、气压上升，过境时风大；暖锋：过境后气温升高、气压降低（锋前气压就在慢慢降）；准静止锋：冷空气一侧阴冷。 */
-export function stationAt(kind, d) {
-  if (kind === 'cold') return { T: 11 + 9 * sig(d / 0.008), P: 1008 + 8 * sig(-d / 0.012) - 1.5 * Math.exp(-((d / 0.02) ** 2)), wind: Math.round(2 + 4 * Math.exp(-(((d + 0.012) / 0.02) ** 2))) };
-  if (kind === 'warm') return { T: 16 - 8 * sig(d / 0.008), P: 1007 + 7 * sig((d - 0.06) / 0.03), wind: Math.round(2 + Math.exp(-((d / 0.04) ** 2))) };
-  return { T: d >= 0 ? 16 : 10, P: d >= 0 ? 1009 : 1013, wind: 2 };
-}
-export function weatherAt(kind, d) {
-  if (kind === 'cold') {
-    if (d > 0.065) return { k: 'w0', text: '晴，较暖', s: '晴暖' };
-    if (d > 0) return { k: 'w1', text: '云变厚，风渐大', s: '云厚风起' };
-    if (d >= -0.045) return { k: 'w2', text: '大风、降温、下雨', s: '大风降温下雨' };
-    return { k: 'w3', text: '转晴，较冷，气压升高', s: '转晴变冷' };
-  }
-  if (kind === 'still') {
-    if (d >= 0) return { k: 'w0', text: '晴，较暖', s: '晴' };
-    if (d >= -0.11) return { k: 'w2', text: '阴雨连绵', s: '阴雨连绵' };
-    return { k: 'w1', text: '阴，较冷', s: '阴冷' };
-  }
-  if (d > 0.14) return { k: 'w0', text: '晴，较冷', s: '晴冷' };
-  if (d > 0.095) return { k: 'w1', text: '云一层层变厚', s: '云渐厚' };
-  if (d >= 0) return { k: 'w2', text: '锋线还没到，已经连续下雨，地面还冷', s: '连续下雨（地面还冷）' };
-  return { k: 'w3', text: '转晴，变暖，气压降低', s: '转晴变暖' };          // 课本 p43：暖锋过境后气温升高，气压降低，天气转晴
-}
+export { stationAt, weatherAt } from './kit/front.js';
 
 export default {
   id: 'front',
@@ -75,14 +52,14 @@ export default {
   need: '冷锋、暖锋各推过你家一次，比一比你家的天气是按什么顺序变的（准静止锋可以再看看）',
   conclusion: {
     page: 47,
-    quote: '冷锋是冷气团主动向暖气团移动的锋。冷气团的前缘插入暖气团下面，使暖气团被迫抬升（图3.3）。……当冷锋过境时，常出现较大的风，云层增厚，并出现雨、雪天气。冷锋过境后，冷气团占据原来暖气团的位置，气温下降，气压上升，天气转晴。暖锋是暖气团主动向冷气团移动的锋。暖气团沿冷气团徐徐爬升，冷却凝结产生云、雨（图3.4）。当暖锋过境时，云层加厚，多形成连续性降水。暖锋过境后，暖气团占据原来冷气团的位置，气温升高，气压降低，天气转晴。……准静止锋是冷、暖气团势均力敌，或遇地形阻挡，移动缓慢或很少移动的锋。准静止锋会带来阴雨连绵的天气。',
-    why: '两种锋都是暖湿空气沿锋面被抬升、冷却，达到饱和后成云；具备降水条件时形成降水。冷锋的锋面陡，云雨集中在锋线附近，本图降水主要在锋后：锋线一到，大风、降温、下雨几乎一起来，过后转晴。暖锋的锋面缓，暖空气爬升的范围很宽，雨下在锋前：锋线还没到就开始连续下雨，地面还是冷的，锋线过后才变暖。准静止锋几乎不动，暖空气一直沿锋面爬升，冷空气那一侧就阴雨连绵好些天（本图是地形阻挡的情形；冷暖气团势均力敌也能形成）。实际的锋，降水也可能在别的位置，或者没有降水。',
+    quote: '冷锋是冷气团主动向暖气团移动的锋。冷气团的前缘插入暖气团下面，使暖气团被迫抬升（图3.3）。……当冷锋过境时，常出现较大的风，云层增厚，并出现雨、雪天气。冷锋过境后，冷气团占据原来暖气团的位置，气温下降，气压上升，天气转晴。……暖锋是暖气团主动向冷气团移动的锋。暖气团沿冷气团徐徐爬升，冷却凝结产生云、雨（图3.4）。当暖锋过境时，云层加厚，多形成连续性降水。暖锋过境后，暖气团占据原来冷气团的位置，气温升高，气压降低，天气转晴。……准静止锋是冷、暖气团势均力敌，或遇地形阻挡，移动缓慢或很少移动的锋。准静止锋会带来阴雨连绵的天气。',
+    why: '两种锋都是暖湿空气沿锋面被抬升、冷却，达到饱和后成云；具备降水条件时形成降水。冷锋的锋面陡，云雨集中在锋线附近，本图降水主要在锋后：接近锋区时气温逐渐下降，过境时大风、下雨，过后转晴。暖锋的锋面缓，暖空气爬升的范围很宽，雨下在锋前：锋线还没到就开始连续下雨，地面还是冷的，接近锋区时气温逐渐升高，过境后更暖。准静止锋几乎不动，暖空气一直沿锋面爬升，冷空气那一侧就阴雨连绵好些天（本图是地形阻挡的情形；冷暖气团势均力敌也能形成）。实际的锋，降水也可能在别的位置，或者没有降水。',
     src: '课本第 43–44 页 · 第三章 第一节 常见天气系统',
   },
 
   create({ tag, reframe, look, back }) {
     const group = new THREE.Group();
-    const S = { kind: 'cold', xf: KIND.cold.x0, rise: 0, real: 0, going: false, hintFor: null, drag: null, moved: false, t: 0, home: 0.05, town: 0.13, logs: { cold: [], warm: [], still: [], map: [] }, done: new Set(), guess: {}, days: 0, form: 0, map: false, lift: 0 };          // form：云雨形成到哪了（0：天上干干净净；1：成云、下雨了）；map：看图推天气（图上的空气、锋面、云雨先压着，推的时候 lift 才立起来）
+    const S = { recordD: 0.12, traceD: 0.12, kind: 'cold', xf: KIND.cold.x0, rise: 0, real: 0, going: false, hintFor: null, drag: null, moved: false, t: 0, home: 0.05, town: 0.13, logs: { cold: [], warm: [], still: [], map: [] }, done: new Set(), guess: {}, days: 0, form: 0, map: false, lift: 0 };          // form：云雨形成到哪了（0：天上干干净净；1：成云、下雨了）；map：看图推天气（图上的空气、锋面、云雨先压着，推的时候 lift 才立起来）
     let W = null;
     const K = () => KIND[S.kind];
     const LK = () => (S.map ? 'map' : S.kind);          // 时间线记在哪一行
@@ -297,19 +274,22 @@ export default {
 
     // ---- 你家的天气、时间线 ----
     const record = () => {
-      if (S.form < 1) { drawLogs(); return; }          // 云雨形成以后才开始记
-      const w = weatherAt(S.kind, S.home - S.xf), log = S.logs[LK()];
-      if (!log.length && w.k === 'w1') log.push(weatherAt(S.kind, 1));          // 云雨刚形成时你家已经在“云变厚”那一段：形成之前那段晴天也记上
-      if (!log.length || w.k > log[log.length - 1].k) log.push(w);          // 锋面往前扫，你家依次经历的天气（往回拖不倒着记）
-      if (log.length === 4) S.done.add(LK());
+      if (S.form < 1) { drawLogs(); return; }
+      const d = S.home - S.xf, log = S.logs[LK()];
+      for (const at of frontPath(S.kind, S.recordD, d)) {
+        const w = weatherAt(S.kind, at);
+        if (!log.length || w.k !== log[log.length - 1].k) log.push(w);
+      }
+      S.recordD = d;
+      if (['w0', 'w1', 'w2', 'w3'].every((k) => log.some((w) => w.k === k))) S.done.add(LK());
       drawLogs();
     };
-    const truth = (k) => k === 'map' ? (S.mapKind === 'cold' ? '这是冷锋（三角朝前进方向）：锋线一到就大风、降温、下雨，过后转晴' : '这是暖锋（半圆朝前进方向）：锋线没到就连续下雨，锋线过后变暖') : k === 'cold' ? '锋线一到，降温和下雨差不多一起来' : k === 'warm' ? '先下雨：锋线没到就下起来，锋线过后才变暖'
+    const truth = (k) => k === 'map' ? (S.mapKind === 'cold' ? '这是冷锋（三角朝前进方向）：接近锋区时降温，过境时大风、下雨，过后转晴' : '这是暖锋（半圆朝前进方向）：锋线没到就连续下雨，锋线过后变暖') : k === 'cold' ? '接近锋区时逐渐降温，过境时大风、下雨' : k === 'warm' ? '先下雨：锋线没到就下起来，接近锋区时气温逐渐升高，过境后更暖'
       : S.stillSnap?.rain ? '连着下好几天：锋停着不走，雨也不走' : '你家不在雨区，一直没下雨';
     const drawLogs = () => {
       if (!W) return;
       W.logs.replaceChildren(...['cold', 'warm', 'still', 'map'].filter((k) => k !== 'map' || S.map || S.logs.map.length > 1).map((k) => {
-        const log = S.logs[k], fin = k === 'still' ? (S.stillSnap?.days ?? 0) >= 3 : log.length === 4;
+        const log = S.logs[k], fin = k === 'still' ? (S.stillSnap?.days ?? 0) >= 3 : ['w0', 'w1', 'w2', 'w3'].every((stage) => log.some((w) => w.k === stage));
         const snap = S.stillSnap, line = k === 'still' ? (snap ? `锋停在山脚，你家${snap.text}，已经 ${snap.days} 天（示意，时间加快了）` : '还没推过')          // 用当时记下的，不拿现在的位置重算
           : log.length > 1 ? log.map((x) => x.s).join(' → ') : '还没推过';
         const g = S.guess[k] != null ? ASK[k][1][S.guess[k]] : null;
@@ -424,16 +404,18 @@ export default {
     const say = () => {
       if (!W) return;
       if (S.form < 1) return;
+      if (S.kind === 'still') { W.ui.status(`准静止锋：按当前两城位置，你家<b>${weatherAt('still', S.home - S.xf).text}</b>，邻城<b>${weatherAt('still', S.town - S.xf).text}</b>。冷侧雨区随锋面停留，时间为加快的示意。`); return; }
       const w = weatherAt(S.kind, S.home - S.xf), key = `${S.kind}${w.k}`; if (key === last) return; last = key;
       const msg = {
-        coldw1: '锋线快到你家了：头顶的云变厚，风渐渐大起来。气温还没降，你家还在<b>暖空气</b>里。',
+        coldw1: '锋线快到你家了：头顶的云变厚，风渐渐大起来。你家仍在<b>暖侧</b>，正接近锋区，气温开始变化。',
         coldw2: '锋线到了你家：冷空气从下面插进来，<b>大风、降温、下雨</b>几乎一起来。',
         coldw3: '锋线过去了：你家换成了<b>冷空气</b>，雨停了，天转晴，气温低了，气压升高。',
         warmw1: '锋线还远，你家头顶已经是暖空气爬上来的地方：云一层层变厚。',
         warmw2: '锋线还没到，你家就开始<b>连续下雨</b>了。雨是从头顶那层爬升的暖空气里落下来的，地面这里<b>还是冷空气</b>。',
         warmw3: '锋线过去了：你家换成了<b>暖空气</b>，雨停了，天转晴，变暖了，气压降低。',
         stillw2: '你家在冷空气这一侧，头顶是爬上来的暖湿空气：<b>阴雨</b>。',
-        stillw0: '你家在山那边的暖空气里：<b>晴</b>。',
+        stillw0: '你家在暖空气一侧：<b>晴</b>。',
+        stillw1: '你家在冷空气一侧，但不在雨区：<b>阴，较冷</b>。',
       }[key];
       if (msg) W.ui.status(msg);
       const short = { coldw2: '锋线到了：大风、降温、下雨一起来', coldw3: '锋线过去：气温降了，气压升了', warmw2: '锋线还没到，已经下起雨了', warmw3: '锋线过去：气温升了，气压降了' }[key];
@@ -464,7 +446,7 @@ export default {
           S.going = true; S.hintFor = S.kind;
         } else {
           S[S.drag] = Math.min(0.115, Math.max(XL + 0.03, v0 + (x - x0)));          // 只能放在锋面推得到、雨带也能完全过去的地方
-          if (S.drag === 'home') { S.logs[LK()] = []; S.trace[LK()] = []; S.done.delete(LK()); }          // 你家搬了：这一次的时间线从头记
+          if (S.drag === 'home') { S.logs[LK()] = []; S.trace[LK()] = []; S.recordD = S.home - S.xf; S.traceD = S.recordD; S.stillSnap = null; S.days = 0; S.done.delete(LK()); }          // 你家搬了：这一次的时间线从头记
         }
         traceIt(); record(); layout(); say(); return true;
       },
@@ -474,11 +456,11 @@ export default {
     // 看图推天气：换个情境——锋的种类、位置每次随机；一开始只有地面、城市和锋线符号（一张天气图），推的时候空气、锋面和云雨才立起来
     const setMap = () => {
       const kind = Math.random() < 0.5 ? 'cold' : 'warm';
-      S.map = true; S.mapKind = kind; S.lift = 0; S.lifting = false; S.logs.map = []; S.done.delete('map'); delete S.guess.map;
+      S.map = true; S.mapKind = kind; S.lift = 0; S.lifting = false; S.logs.map = []; S.trace.map = []; S.done.delete('map'); delete S.guess.map;
       setKind(kind);
       S.xf = KIND[kind].x0 + 0.02 + Math.random() * 0.03; S.form = 1; formSaid.add(0); formSaid.add(1); formSaid.add(2);
       S.home = Math.min(0.115, S.xf + (kind === 'cold' ? 0.09 : 0.17) + Math.random() * 0.03); S.town = 0.2;          // P 城在锋前、还晴着；邻城先不用
-      record(); setGuess();
+      S.recordD = S.home - S.xf; S.traceD = S.recordD; traceIt(); record(); setGuess();
       W?.ui.status('换个情境：这是一张<b>天气图</b>，图上只有锋线和城市。先看锋线上的符号：三角还是半圆？朝哪边？再想想 P 城接下来会怎样。<br>想好了（不想也行），按住左边的气团往右推，看看对不对。');
     };
     const setGuess = () => {          // 换锋：换一句问题和选项；之前点过的还记着
@@ -489,6 +471,7 @@ export default {
     const setKind = (kind, fresh = false) => {
       S.kind = kind; S.xf = KIND[kind].x0; S.rise = 0; S.hintFor = null; last = ''; S.form = 0; formSaid.clear();
       if (fresh || kind === 'still') [S.home, S.town] = HOME0[kind];
+      S.logs[LK()] = []; S.trace[LK()] = []; S.recordD = S.home - S.xf; S.traceD = S.recordD; if (kind === 'still') S.stillSnap = null;
       S.stuck = false; if (kind === 'still') S.days = 0;
       const fh = kind === 'cold' ? 0.17 : 0.11; frameBox.scale.y = fh / 0.17; frameBox.position.y = LIFT + fh / 2; reframe?.();          // 暖锋、准静止锋的云低：镜头按各自的高度取景，不留大片空
       drawSym(); record();
@@ -540,7 +523,11 @@ export default {
 
     // ---- 你家的气象站：锋扫过你家时，气温、气压一点点画出来（侧栏）；另一种锋画过的留成虚线，好比一比 ----
     S.trace = { cold: [], warm: [], still: [], map: [] };
-    const traceIt = () => { const d = S.home - S.xf, tr = S.trace[LK()]; if (!tr.some((p) => Math.abs(p.d - d) < 0.0015)) { tr.push({ d, ...stationAt(S.kind, d) }); tr.sort((a, b) => b.d - a.d); } };
+    const traceIt = () => {
+      const d = S.home - S.xf, tr = S.trace[LK()];
+      for (const at of frontPath(S.kind, S.traceD, d)) if (!tr.some((p) => Math.abs(p.d - at) < 0.0005)) tr.push({ d: at, ...stationAt(S.kind, at) });
+      tr.sort((a, b) => b.d - a.d); S.traceD = d;
+    };
     const D0 = 0.2, D1 = -0.12;
     const drawStation = () => {
       if (!W?.station) return;
@@ -668,7 +655,7 @@ export default {
         if (S.kind === 'still' && (S.stuck || S.xf >= MX - 0.004) && S.drag !== 'front') {          // 准静止锋：顶在山脚不走了，一天天过去（锋线只是来回微微摆动）
           S.stuck = true; const d0 = Math.floor(S.days); S.days += dt / 1.4;
           S.xf = MX - 0.002 - 0.003 * (0.5 + 0.5 * Math.sin(S.t * 0.9)); shapeFront(); shapeFlows(); placeClouds(); sym.position.x = S.xf;
-          if (Math.floor(S.days) !== d0) { const w = weatherAt('still', S.home - S.xf); S.stillSnap = { text: w.text, rain: w.k === 'w2', days: Math.floor(S.days) }; if (S.days >= 3) S.done.add('still'); layout(); drawLogs(); if (Math.floor(S.days) === 1) W?.ui.status('冷空气被山挡住，锋停在山脚，几乎不动。暖湿空气一直沿锋面往上爬：山这边的你家<b>阴雨连绵</b>，一天又一天（示意，时间加快了）；山那边的邻城是晴天。'); }
+          if (Math.floor(S.days) !== d0) { const w = weatherAt('still', S.home - S.xf); S.stillSnap = { text: w.text, rain: w.k === 'w2', days: Math.floor(S.days) }; if (S.days >= 3) S.done.add('still'); layout(); drawLogs(); if (Math.floor(S.days) === 1) W?.ui.status(`冷空气被山挡住，锋停在山脚，几乎不动。按当前两城位置：你家<b>${w.text}</b>，邻城<b>${weatherAt('still', S.town - S.xf).text}</b>（示意，时间加快了）。`); }
         }
       },
     };

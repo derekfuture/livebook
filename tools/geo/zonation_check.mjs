@@ -1,5 +1,5 @@
 // 核对山地垂直地带性：node tools/geo/zonation_check.mjs（选必1 第 88–89 页，图 5.12）
-import { MOUNTAINS, elev, bandAt, bandsBelow, sideOf, KIND, colderBy } from '../../src/lessons/kit/zonation.js';
+import { MOUNTAINS, elev, terrainHeight, bandAt, bandsBelow, sideOf, KIND, colderBy } from '../../src/lessons/kit/zonation.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const H = MOUNTAINS.hima, nm = (k) => KIND[k].name;
 ok(H.south.bands.map((b) => b[0]).join() === 'broad,mixed,conifer,shrub,meadow,desert,snow', `南坡从山麓到山顶：${H.south.bands.map((b) => nm(b[0])).join('、')}（课本图 5.12）`);
@@ -18,4 +18,13 @@ const C = MOUNTAINS.cb; ok(C.north.bands.length === 4 && C.north.foot === 500 &&
 ok(bandsBelow('cb', 'north', 2691).length < bandsBelow('hima', 'south', 8848).length, '长白山纬度高、山又低，带比喜马拉雅南坡少：纬度越低、海拔越高，带谱越完整');
 ok(H.south.bands[0][0] === 'broad' && C.north.bands[0][0] === 'cbMixed', '山麓和当地的陆地自然地带一致：喜马拉雅南坡山麓是常绿阔叶林，长白山山麓是针阔叶混交林');
 ok(Math.abs(colderBy('hima', 5500) - 27) < 0.01, '从 1 000 米爬到 5 500 米，气温约低 27 ℃（每 100 米约 0.6 ℃）');
+for (const cut of [4500, 5500, 6000, 8848.86]) for (const northLow of [false, true]) {
+  let valid = true; const seen = { south: new Set(), north: new Set() };
+  for (let i = 0; i <= 220; i++) for (let j = 0; j <= 44; j++) {
+    const u = -1 + 2 * i / 220, sd = sideOf('hima', u), height = terrainHeight('hima', u, j / 44, { cut, northLow }), kd = bandAt('hima', sd, height, northLow);
+    seen[sd].add(kd); if (height > cut || !bandsBelow('hima', sd, cut, northLow).some((b) => b[0] === kd)) valid = false;
+  }
+  ok(valid && ['south', 'north'].every((sd) => seen[sd].size === bandsBelow('hima', sd, cut, northLow).length), `${cut} 米、低山麓 ${northLow}：完整网格限高、画面分带与统计一致`);
+}
+ok(bandsBelow('hima', 'north', 4500, true).map((b) => b[0]).join() === 'dry,meadowS', '低北坡削至 4500 米只有草甸草原与待推断段');
 process.exit(bad ? 1 : 0);

@@ -2,7 +2,7 @@
 //
 // 课本的图就是模型：图 2.27 本来就是三块地块（V 形谷 → 河道变弯 → 槽形谷），这里是一块会自己变的地块，浮在书页上。
 // 开头是一片高地，一条刚出现的小河。学生拖时间：河谷先往下切、往源头延长，成了 V 形；落差变小后河道开始变弯，
-// 凹岸被冲、凸岸堆积，河道越来越弯，河谷展宽成槽形，凸岸堆出河漫滩。
+// 凹岸被冲、凸岸堆积，河道越来越弯，河谷展宽成槽形，凸岸堆出边滩。
 // 学生自己动手的两件事：
 //   1. 切开看：拖地块前面的那把刀，地块从刀口切开，切面就是这里的横剖面（V 形、槽形；河湾处凹岸深陡、凸岸浅缓）。
 //   2. 两个渡口（课本开头的问题：镇江的西津渡为什么离长江越来越远）：河道变弯以后，两岸各建一个渡口，可以挪到别处。
@@ -13,11 +13,11 @@ import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, ZD, WC, DC, APEX, LAM, smooth, stage, heightAt, gullyAt, waterY, floorY, drop, centerZ, gapAt, topY } from './kit/river.js';
+import { XL, XR, ZD, WC, DC, APEX, LAM, smooth, stage, heightAt, gullyAt, waterY, waterBanks, bankDepth, floorY, drop, centerZ, gapAt, topY } from './kit/river.js';
 
 const LIFT = 0;          // 地块直接放在书页上
 const NX = 220, NZ = 140;
-const ASK = ['先猜一下（可以不猜）：在这个情境里，港口建在哪一岸，过很多年还能停大船？', ['凹岸', '凸岸', '两岸都一样']];
+const ASK = ['先猜一下（可以不猜）：在这个情境里，哪一岸水较深、较有利于港口选址？', ['凹岸', '凸岸', '两岸都一样']];
 const DOCK_T = 0.62;          // 一开始就是这个时候：河道已经弯了
 
 export default {
@@ -30,7 +30,7 @@ export default {
   conclusion: {
     page: 37,
     quote: '在河流发育初期，河流落差大，流速快，能量集中，河流侵蚀作用以向下和向源头侵蚀为主，使河谷不断加深和延长。这时的河谷深而窄，谷壁陡峭，横剖面呈“V”形（图2.27 a，图2.28）。“V”形河谷形成后，河流落差减小，河流向下的侵蚀作用减弱，向河谷两岸的侵蚀作用加强，河道开始变得弯曲。河流在凹岸侵蚀，在凸岸堆积（图2.29），使得河道更为弯曲，河谷拓宽（图2.27 b）。长江镇江段南岸为凸岸，北岸为凹岸，所以岸线不断向北推移。经过漫长的过程，河谷展宽，横剖面呈宽而浅的槽形（图2.27 c）。',
-    why: '河水流过河湾时，受惯性作用冲向外侧的凹岸，凹岸一侧水深流急，岸被不断冲刷后退；内侧的凸岸水浅流缓，泥沙沉积下来。凹岸越冲越往外，凸岸越堆越往外长，河道就越来越弯，整条河一点点向凹岸那边移动。镇江在南岸，南岸是凸岸：江水在北岸冲刷、在南岸堆积，岸线向北推移，西津渡脚下淤成了陆地。',
+    why: '河水流过河湾时，受惯性作用冲向外侧的凹岸，凹岸一侧水深流急，岸被不断冲刷后退；内侧的凸岸水浅流缓，泥沙沉积下来。凹岸越冲越往外，凸岸越堆越往外长，河道就越来越弯，这个河湾向外侧迁移。镇江在南岸，南岸是凸岸：江水在北岸冲刷、在南岸堆积，岸线向北推移，西津渡脚下淤成了陆地。本图为外部条件相对稳定时的一种理想化演变，并非所有河流的必经路径；真实河湾还可向下游迁移、发生裁弯。',
     src: '课本第 33 页 · 第二章 第三节 河流地貌的发育',
   },
 
@@ -78,11 +78,11 @@ export default {
       const st = stage(t), P = [], Cc = [], U = [], I = [], x0 = st.head + 0.012; let acc = 0, prev = null, row = 0;
       for (let i = 0; i <= NX; i++) {
         const x = x0 + (x1 - x0) * (i / NX); if (x1 <= x0) break;
-        const f = smooth(st.head, st.head + 0.04, x), dc = DC * f * (0.6 + 0.4 * st.inc), hw = (WC / 2) * Math.sqrt(Math.max(0, 1 - 0.0016 / Math.max(1e-5, dc))) * smooth(x0, x0 + 0.03, x);
+        const banks = waterBanks(x, t); if (!banks) continue;
         const zc = centerZ(x, t), wy = waterY(x, t);
         if (prev) acc += Math.hypot(x - prev[0], zc - prev[1]); prev = [x, zc];
         const outerS = Math.sign(-zc) || 0;          // 凹岸在哪一边（−1：北，+1：南）：那边水深、颜色深；凸岸那边水浅，透出沙底
-        for (let q = 0; q <= WQ; q++) { const v = q / WQ, z = zc - hw + 2 * hw * v, side = (v - 0.5) * 2, deep = Math.max(0, Math.min(1, 0.55 + 0.45 * (outerS ? -side * outerS : 0) - Math.abs(side) * 0.25)); P.push(x, wy, z); tmp.copy(cShallow).lerp(cDeep, deep * Math.sin(v * Math.PI) ** 0.5); if (q === 0 || q === WQ) tmp.lerp(new THREE.Color(0xe6f2f7), 0.55); Cc.push(tmp.r, tmp.g, tmp.b); U.push(acc * 26, v); }
+        for (let q = 0; q <= WQ; q++) { const v = q / WQ, z = banks[0] + (banks[1] - banks[0]) * v, side = (v - 0.5) * 2, deep = Math.max(0, Math.min(1, 0.55 + 0.45 * (outerS ? -side * outerS : 0) - Math.abs(side) * 0.25)); P.push(x, wy, z); tmp.copy(cShallow).lerp(cDeep, deep * Math.sin(v * Math.PI) ** 0.5); if (q === 0 || q === WQ) tmp.lerp(new THREE.Color(0xe6f2f7), 0.55); Cc.push(tmp.r, tmp.g, tmp.b); U.push(acc * 26, v); }
         if (row) { const a = (row - 1) * (WQ + 1); for (let q = 0; q < WQ; q++) I.push(a + q, a + q + 1, a + q + WQ + 1, a + q + 1, a + q + WQ + 2, a + q + WQ + 1); }
         row++;
       }
@@ -163,8 +163,8 @@ export default {
     const alluv = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: alluvTex, side: THREE.DoubleSide })); alluv.raycast = () => {}; block.add(alluv);
     const cutWaterGeo = new THREE.BufferGeometry(), cutWater = new THREE.Mesh(cutWaterGeo, new THREE.MeshBasicMaterial({ color: 0x5aa3cc, transparent: true, opacity: 0.85, side: THREE.DoubleSide })); cutWater.raycast = () => {}; block.add(cutWater);
     const placeCutWater = (x, t) => {
-      const zc = centerZ(x, t), wy = waterY(x, t), P = [];
-      if (x > stage(t).head + 0.01) for (let j = 0; j < 24; j++) { const z0 = zc - WC / 2 + (WC * j) / 24, z1 = z0 + WC / 24, y0 = heightAt(x, z0, t), y1 = heightAt(x, z1, t); if (y0 < wy && y1 < wy) P.push(x + 0.0004, y0, z0, x + 0.0004, wy, z0, x + 0.0004, wy, z1, x + 0.0004, y0, z0, x + 0.0004, wy, z1, x + 0.0004, y1, z1); }
+      const banks = waterBanks(x, t), wy = waterY(x, t), P = [];
+      if (banks) for (let j = 0; j < 24; j++) { const z0 = banks[0] + (banks[1] - banks[0]) * j / 24, z1 = banks[0] + (banks[1] - banks[0]) * (j + 1) / 24, y0 = heightAt(x, z0, t), y1 = heightAt(x, z1, t); if (y0 <= wy + 1e-8 && y1 <= wy + 1e-8) P.push(x + 0.0004, y0, z0, x + 0.0004, wy, z0, x + 0.0004, wy, z1, x + 0.0004, y0, z0, x + 0.0004, wy, z1, x + 0.0004, y1, z1); }
       cutWaterGeo.dispose(); cutWaterGeo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); cutWater.visible = P.length > 0;
     };
 
@@ -193,7 +193,7 @@ export default {
       g.visible = false; block.add(g); return { g, pick, south, x: APEX, z: 0, t0: DOCK_T, g0: 0.003, seen: null, moved: false, placed: south, tag: airLabel(block, '', { h: 0.0115, color: '#2c3245', icon: 'anchor', dim: 0 }) };
     };
     const docks = [makeDock(true), makeDock(false)];
-    const atBank = (d, x, side, t) => { const zc = centerZ(x, t); d.x = x; d.z = zc + side * (WC / 2 + 0.003); d.t0 = t; d.g0 = gapAt(d.x, d.z, t); d.seen = null; };          // 渡口建在水边（谷底上）
+    const atBank = (d, x, side, t) => { const banks = waterBanks(x, t); if (!banks || bankDepth(x, -1, t) <= 0 || bankDepth(x, 1, t) <= 0) return false; d.x = x; d.z = banks[side < 0 ? 0 : 1] + side * 0.003; d.t0 = t; d.g0 = gapAt(d.x, d.z, t); d.seen = null; return true; };          // 渡口建在水边（谷底上）
     const TRAY = [XL + 0.04, ZD + 0.035];          // 你的港口一开始放在地块外面的书页上，等你拖到岸边
     const homeDock = (d) => { if (d.south) { atBank(d, APEX, 1, DOCK_T); d.placed = true; } else { d.placed = false; d.seen = null; } d.moved = false; };          // 南岸那个是西津渡（课本的例子）；另一个是你的港口
     docks.forEach(homeDock);
@@ -203,7 +203,7 @@ export default {
       const gap = gapAt(d.x, d.z, S.t), sideNow = Math.sign(d.z - centerZ(d.x, S.t)), side0 = Math.sign(d.z - centerZ(d.x, d.t0));
       return gap < 0 || sideNow !== side0 ? 'fell' : gap - d.g0 > 0.012 ? 'far' : null;
     };
-    const depthAt = (d, flip = 1) => { const zc = centerZ(d.x, S.t), side = (Math.sign(d.z - zc) || 1) * flip; return waterY(d.x, S.t) - heightAt(d.x, zc + side * WC * 0.3, S.t); };          // 靠这一岸（flip = −1：对岸）的河道里水有多深
+    const depthAt = (d, flip = 1) => bankDepth(d.x, (Math.sign(d.z - centerZ(d.x, S.t)) || 1) * flip, S.t);          // 在两侧连通水域内比较相对水深
     const nameOf = (d) => (d.south ? '西津渡' : '你的港口');
     const placeDocks = () => {
       for (const d of docks) {
@@ -212,9 +212,9 @@ export default {
         d.g.visible = show; d.tag.setOn(show); if (!show) continue;
         const y = heightAt(d.x, d.z, S.t), f = fateOf(d);
         if (f === 'fell' || (f === 'far' && d.seen !== 'fell')) d.seen = f;          // 这一轮看到过的结局（记录里写）
-        const fallen = f === 'fell', deep = depthAt(d) > depthAt(d, -1) * 1.25;          // 和对岸比：深得多才算水深
+        const fallen = f === 'fell', deep = depthAt(d) > 0 && depthAt(d, -1) > 0 && depthAt(d) > depthAt(d, -1) * 1.25;          // 和对岸比：深得多才算水深
         d.g.position.set(d.x, fallen ? Math.max(y, waterY(d.x, S.t)) - 0.004 : y, d.z); d.g.rotation.x = fallen ? (d.z > centerZ(d.x, d.t0) ? -0.6 : 0.6) : 0;
-        d.tag.position.set(d.x, y + (d.south ? 0.004 : 0.03), d.z + (d.south ? 0.03 : -0.01)); d.tag.setText(`${nameOf(d)} · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : deep ? ' · 水深，大船能靠' : ' · 水浅'}`);
+        d.tag.position.set(d.x, y + (d.south ? 0.004 : 0.03), d.z + (d.south ? 0.03 : -0.01)); d.tag.setText(`${nameOf(d)} · ${bankName(d)}${fallen ? ' · 岸塌了' : f === 'far' ? ' · 离江远了' : deep ? ' · 水较深，选址较有利' : ' · 水较浅，需核查'}`);
       }
     };
 
@@ -224,10 +224,11 @@ export default {
       const c = W.depth, g = c.getContext('2d'), w = c.width, hh = c.height, x = S.cut - 0.001, t = S.t, zc = centerZ(x, t), wy = waterY(x, t), span = WC * 1.15;
       g.fillStyle = '#f4efe2'; g.fillRect(0, 0, w, hh);
       const X = (z) => w / 2 + ((z - zc) / span) * (w / 2 - 20), Y = (y) => 26 + ((wy + 0.0015 - y) / 0.0085) * (hh - 46);
-      g.fillStyle = 'rgba(90,163,204,0.9)'; g.fillRect(0, Y(wy), w, hh - Y(wy));          // 先铺一层水，再画河床盖住河床以下的部分
+      const banks = waterBanks(x, t);
+      if (banks) { g.fillStyle = 'rgba(90,163,204,0.9)'; g.fillRect(X(banks[0]), Y(wy), X(banks[1]) - X(banks[0]), hh - Y(wy)); }          // 只在共用岸线内铺水，再用河床遮住水底
       g.fillStyle = '#d7c08a'; g.beginPath(); g.moveTo(0, hh); for (let k = 0; k <= 120; k++) { const z = zc - span + (2 * span * k) / 120; g.lineTo(X(z), Math.min(hh, Y(heightAt(x, z, t)))); } g.lineTo(w, hh); g.closePath(); g.fill();
       g.strokeStyle = '#8a6a40'; g.lineWidth = 1.2; g.stroke();
-      g.strokeStyle = '#2f6fb0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, Y(wy)); g.lineTo(w, Y(wy)); g.stroke();
+      g.strokeStyle = '#2f6fb0'; g.lineWidth = 1.5; g.beginPath(); if (banks) { g.moveTo(X(banks[0]), Y(wy)); g.lineTo(X(banks[1]), Y(wy)); } g.stroke();
       const k2 = 2 * Math.PI / LAM, c0 = Math.sin(k2 * (x - APEX) - Math.PI / 2), bend = stage(t).amp > 0.008 && Math.abs(c0) > 0.45, outerNorth = c0 < 0;
       g.font = '600 12px "PingFang SC", sans-serif'; g.fillStyle = '#2a3140'; g.textAlign = 'left'; g.fillText(`北岸${bend ? (outerNorth ? '（凹岸）' : '（凸岸）') : ''}`, 6, 16); g.textAlign = 'right'; g.fillText(`南岸${bend ? (outerNorth ? '（凸岸）' : '（凹岸）') : ''}`, w - 6, 16);
       g.textAlign = 'center'; g.fillStyle = '#5f4f3c'; g.fillText(bend ? '这里是河湾：最深的地方偏向凹岸' : '这里河道比较直：两边差不多', w / 2, hh - 6);
@@ -235,8 +236,8 @@ export default {
     };
 
     // ---- 标签 ----
-    const tStage = airLabel(block, '', { h: 0.0105, color: '#a8341f', dim: 0 }), tKnife = tag('<span>拖这个红球往上游走</span><small>切开看横剖面</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，时间大大加快');
-    const tOuter = airLabel(block, '凹岸', { h: 0.0135, color: '#12305a', dim: 0 }), tInner = airLabel(block, '凸岸', { h: 0.0135, color: '#12305a', dim: 0 }), tPlain = groundLabel(block, '河漫滩（凸岸堆积的泥沙）', { h: 0.011, color: '#3a2a16', opacity: 0.9 });          // 河道太窄，两岸的名字立在岸边；河漫滩的名字印在滩面上
+    const tStage = airLabel(block, '', { h: 0.0105, color: '#a8341f', dim: 0 }), tKnife = tag('<span>拖这个红球往上游走</span><small>切开看横剖面</small>', 'hint'), tScale = noteBadge(tag, '外部条件相对稳定时的一种理想化演变；竖直方向夸大，时间加快');
+    const tOuter = airLabel(block, '凹岸', { h: 0.0135, color: '#12305a', dim: 0 }), tInner = airLabel(block, '凸岸', { h: 0.0135, color: '#12305a', dim: 0 }), tPlain = groundLabel(block, '凸岸边滩', { h: 0.011, color: '#3a2a16', opacity: 0.9 });          // 河道太窄，两岸的名字立在岸边；边滩的名字印在滩面上
     const stageOf = (t) => (t < 0.08 ? 0 : t < 0.35 ? 1 : t < 0.6 ? 2 : t < 0.93 ? 3 : 4);
     const STAGE = [
       ['一条刚出现的小河', ''],
@@ -266,9 +267,9 @@ export default {
       if (!W) return;
       const rows = [h('div', { class: 'tl-row' }, h('b', {}, '河谷：'), h('span', {}, S.logs.length ? S.logs.join(' → ') : '还没开始'))];
       if (S.measured) rows.push(h('div', { class: 'tl-row' }, h('b', {}, '切开河湾：'), h('span', {}, '凹岸一侧水深、岸陡；凸岸一侧水浅、岸缓')));
-      for (const d of docks) if (d.placed && (d.seen || !d.south)) rows.push(h('div', { class: 'tl-row' }, h('b', {}, `${nameOf(d)}（${bankName(d)}）：`), h('span', {}, d.seen === 'fell' ? '水一直深，船能靠岸；可是河道往这边移，岸被冲塌了（凹岸要修护岸）' : d.seen === 'far' ? '水边越退越远，脚下的泥沙淤成了陆地，船靠不了了' : '刚建好，往后拖时间看看')));
+      for (const d of docks) if (d.placed && (d.seen || !d.south)) rows.push(h('div', { class: 'tl-row' }, h('b', {}, `${nameOf(d)}（${bankName(d)}）：`), h('span', {}, d.seen === 'fell' ? '河道往这边移，岸被冲塌了；港口选址还需核查水深、航道和岸坡稳定性' : d.seen === 'far' ? '水边越退越远，脚下的泥沙淤成了陆地，船靠不了了' : '刚建好，往后拖时间看看')));
       const mine = docks[1];
-      if (mine.seen && S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：凹岸水深能停大船，但岸在后退要护岸；凸岸会淤浅`)));
+      if (mine.seen && S.guess != null) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：凹岸水较深，较有利于港口选址；仍需核查水深、航道和岸坡稳定性；凸岸会淤浅`)));
       W.logs.replaceChildren(...rows);
       W.drop.textContent = `河床的落差（示意）：${drop(S.t) > 0.017 ? '大' : drop(S.t) > 0.009 ? '在变小' : '小'}`;
       if (!S.done && S.measured && docks.every((d) => d.placed && d.seen)) { S.done = true; W.ui.unlock(); }
@@ -288,7 +289,7 @@ export default {
         if (S.drag === 'knife') { const p = onFloor(rc.ray, 0.06); if (!p) return true; S.cut = Math.min(XR, Math.max(XL + 0.08, p.x)); S.cutMoved = true; build(); placeDocks(); placeTags(); drawDepth(); drawLogs(); return true; }
         const d = S.drag, p = onFloor(rc.ray, floorY(d.x, S.t)); if (!p) return true;
         const x = Math.min(S.cut - 0.012, Math.max(stage(S.t).head + 0.03, p.x)), side = Math.sign(p.z - centerZ(x, S.t)) || 1;
-        atBank(d, x, side, S.t); d.moved = true; d.placed = true;          // 拖到哪儿，就建在那儿的水边，从现在起看
+        if (!atBank(d, x, side, S.t)) return true; d.moved = true; d.placed = true;          // 拖到哪儿，就建在那儿的水边，从现在起看
         placeDocks(); drawLogs(); return true;
       },
       up() { if (!S.drag) return false; S.drag = null; document.getElementById('c').style.cursor = ''; return true; },

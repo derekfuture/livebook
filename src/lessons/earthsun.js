@@ -15,7 +15,7 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { groundLabel, airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { D2R, R2D, EPS, decOf, dm, hm, dur, altText, sunAt, halfDay, noonAlt } from './kit/sun.js';
+import { D2R, R2D, EPS, decOf, dm, hm, dur, altText, sunAt, halfDay, noonAlt, snapSeason, noonText, skyJoin } from './kit/sun.js';
 
 const R = 0.12, SY = 0.08, ER = 0.046;          // 轨道半径、灯和地球仪中心的高度、地球仪半径
 const CITIES = [{ name: '摩尔曼斯克', lat: 68.97 }, { name: '哈尔滨', lat: 45.75 }, { name: '北京', lat: 40 }, { name: '广州', lat: 23.13 }, { name: '新加坡', lat: 1.3 }, { name: '悉尼', lat: -33.87 }];
@@ -35,7 +35,7 @@ export default {
   need: '推着地球仪走到夏至、冬至（和一个分日），记下你家的昼长和正午太阳高度；再换一座城市比一比',
   conclusion: {
     page: 15,
-    quote: '自春分日至秋分日，是北半球的夏半年，太阳直射北半球，北半球各纬度昼弧大于夜弧，昼长大于夜长。纬度越高，昼越长，夜越短，至北极四周为极昼。其中，夏至日太阳直射北回归线，北半球昼最长、夜最短，北极圈及其以北地区皆为极昼。……春分日和秋分日，太阳直射赤道，全球各地昼夜等长，均为12时。……正午太阳高度随纬度不同和季节变化而有规律地变化。……在北回归线及其以北的纬度带，正午太阳高度夏至日达最大值，冬至日达最小值。',
+    quote: '自春分日至秋分日，是北半球的夏半年，太阳直射北半球，北半球各纬度昼弧大于夜弧，昼长大于夜长。纬度越高，昼越长，夜越短，至北极四周为极昼。其中，夏至日太阳直射北回归线，北半球昼最长、夜最短，北极圈及其以北地区皆为极昼。……春分日和秋分日，太阳直射赤道，全球各地昼夜等长，均为12时。……正午太阳高度随纬度不同和季节变化而有规律地变化。……在北回归线及其以北的纬度带，正午太阳高度夏至日达最大值，冬至日达最小值；……',
     why: '地轴是斜的，而且在公转时方向不变（始终指向北极星附近），所以一年里太阳直射点在南北回归线之间来回移动。直射点在北半球时，晨昏线把北半球的纬线圈分得昼弧长、夜弧短，越往北白天越长；到了南半球就反过来。正午太阳高度只看你家和直射点隔着多少纬度：正午太阳高度 = 90° − 两者的纬度差。所以北回归线以北，夏至正午太阳最高、冬至最低；回归线之间的地方，一年里太阳会两次直射头顶。',
     src: '课本第 10–12 页 · 第一章 第二节 地球运动的地理意义',
   },
@@ -110,6 +110,7 @@ export default {
     // ---- 摆好：按日期、时刻 ----
     const dec = () => decOf(lamOf(S.th));
     const layout = () => {
+      S.th = thetaOf(snapSeason(lamOf(S.th)));
       const a = S.th * D2R, ep = new THREE.Vector3(Math.cos(a) * R, 0, -Math.sin(a) * R);
       cart.position.copy(ep);
       const ec = ep.clone().setY(SY), sdir = new THREE.Vector3(0, SY, 0).sub(ec).normalize(); sunUni.sunDir.value.copy(sdir);
@@ -155,7 +156,7 @@ export default {
       const day = now.alt > 0, gr = g.createLinearGradient(0, 0, 0, hh);
       if (day) { gr.addColorStop(0, '#5f9fd8'); gr.addColorStop(1, '#d4e7f5'); } else { gr.addColorStop(0, '#0f1a33'); gr.addColorStop(1, '#2c3c63'); }
       g.fillStyle = gr; g.fillRect(0, 0, w, hh);
-      const path = (la, dash, col) => { g.save(); g.setLineDash(dash); g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); let up = false; for (let k = 0; k <= 288; k++) { const s = sunAt(la, d, (k / 288 * 24 - 12) * 15 * D2R); if (s.alt < 0) { up = false; continue; } const x = X(s.az), y = Y(s.alt); if (up) g.lineTo(x, y); else g.moveTo(x, y); up = true; } g.stroke(); g.restore(); };
+      const path = (la, dash, col) => { g.save(); g.setLineDash(dash); g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); let up = false, prev = 0; for (let k = 0; k <= 288; k++) { const s = sunAt(la, d, (k / 288 * 24 - 12) * 15 * D2R); if (s.alt < 0) { up = false; continue; } const x = X(s.az), y = Y(s.alt); if (up && skyJoin(x, prev, w)) g.lineTo(x, y); else g.moveTo(x, y); up = true; prev = x; } g.stroke(); g.restore(); };
       if (S.other !== S.city) path(CITIES[S.other].lat * D2R, [5, 4], day ? 'rgba(80,80,90,0.75)' : 'rgba(200,210,230,0.6)');
       path(lat, [], day ? '#c9572c' : '#f0a070');
       g.fillStyle = '#7d9c63'; g.fillRect(0, hh - 26, w, 26);
@@ -166,7 +167,7 @@ export default {
       g.fillStyle = 'rgba(250,247,238,0.96)'; g.fillRect(0, 0, w, 76);
       const otherName = () => CITIES[S.other].name;
       const pill = (x, y, s, al = 'left') => { g.font = '600 12px "PingFang SC", sans-serif'; const tw = g.measureText(s).width, x0 = al === 'left' ? x : x - tw - 12; g.fillStyle = 'rgba(255,255,255,0.88)'; g.beginPath(); g.roundRect(x0, y, tw + 12, 19, 9); g.fill(); g.fillStyle = '#2a3140'; g.textAlign = 'left'; g.fillText(s, x0 + 6, y + 14); };
-      const na = noonAlt(lat, d); pill(6, 6, txt); pill(6, 29, na > 0 ? `正午太阳高度 ${dm(na)}（在${lat >= d ? '南' : '北'}边）` : '正午太阳也在地平线下');
+      pill(6, 6, txt); pill(6, 29, noonText(lat, d));
       pill(6, 52, `现在 ${hm(S.t)}：${day ? `太阳高度 ${dm(now.alt)}` : '夜里'}`); if (S.other !== S.city) pill(w - 6, 52, `虚线：${otherName()}`, 'right');
     };
 
@@ -194,6 +195,7 @@ export default {
     layout();
 
     return {
+      debug: { S, layout },
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
@@ -202,7 +204,7 @@ export default {
       pointer,
       mount(ui) {
         const dateSeg = seg('推到哪一天（也可以直接推地球仪）', KEY.map((k) => k.name), (_, i) => { S.th = thetaOf(KEY[i].lam); layout(); }, { value: 0 });
-        const time = slider('时刻（地方时；也可以按住地球仪左右拖）', { min: 0, max: 24, step: 1 / 60, value: S.t, fmt: (v) => hm(v), onInput: (v) => { S.t = v; S.play = false; if (W) W.play.textContent = '转一天'; layout(); } });
+        const time = slider('时刻（地方真太阳时；也可以按住地球仪左右拖）', { min: 0, max: 24, step: 1 / 60, value: S.t, fmt: (v) => hm(v), onInput: (v) => { S.t = v; S.play = false; if (W) W.play.textContent = '转一天'; layout(); } });
         const citySeg = seg('你家在', CITIES.map((c) => c.name), (_, i) => { S.city = i; S.lat = CITIES[i].lat; layout(); }, { value: S.city });
         const otherSeg = seg('和哪座城比', CITIES.map((c) => c.name), (_, i) => { S.other = i; layout(); }, { value: S.other });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawTable(); }, { value: -1 });
@@ -212,7 +214,7 @@ export default {
         ]);
         const sky = h('canvas', { class: 'wx-map', width: 320, height: 230 });
         const table = h('div', {});
-        ui.controls.append(h('div', { class: 'bar-title' }, '你家的天空（实线是你家，虚线是比的那座城）'), sky, dateSeg.el, time.el, acts.el, citySeg.el, otherSeg.el, guess.el, note('地球仪上的红旗是你家，也可以直接把它拖到别的纬度。比的只是纬度：两面旗画在同一条经线上，时刻都按各自的地方时。'));          // 天空小窗放在最上面：推地球仪的时候一眼就看得到
+        ui.controls.append(h('div', { class: 'bar-title' }, '你家的天空（实线是你家，虚线是比的那座城）'), sky, h('div', { class: 'note' }, '计算条件：地方真太阳时；太阳中心过几何地平线；忽略大气折射、太阳视半径和地形遮挡。不是城市实测预报。'), dateSeg.el, time.el, acts.el, citySeg.el, otherSeg.el, guess.el, note('地球仪上的红旗是你家，也可以直接把它拖到别的纬度。比的只是纬度：两面旗画在同一条经线上，时刻都按各自的地方真太阳时。'));          // 天空小窗放在最上面：推地球仪的时候一眼就看得到
         ui.data.append(h('div', { class: 'bar-title' }, '你记下的'), table);
         W = { ui, sky, table, time, citySeg, dateSeg, play: acts.btns[0] };
         ui.status('这是一台“灯 + 地球仪”：中间的灯是太阳。<b>推着地球仪</b>沿轨道走到夏至、冬至，看地轴的方向、太阳直射点和你家的天空怎么变。');
