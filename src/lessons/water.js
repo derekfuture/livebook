@@ -12,7 +12,8 @@ import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
-import { groundLabel, faceLabel, airLabel, noteBadge } from './kit/labels.js';
+import { noteBadge } from './kit/labels.js';
+import { inkLayer } from './kit/annot.js';
 import { XL, XR, DIVIDE, COAST, FIELD, SURF, ground, SEA_Y, LAKE_X, LAKE_Y, cycleOf, split } from './kit/water.js';
 
 const ZD = 0.065, NX = 160, YB = 0, CLOUD_Y = 0.112;
@@ -35,7 +36,7 @@ export default {
     src: '课本第 46–48 页 · 第三章 第一节 水循环',
   },
 
-  create({ tag }) {
+  create({ tag, camera }) {
     const group = new THREE.Group();
     const S = { pend: 0, lake: 0, cx: 0.03, surf: 'bare', drag: false, seen: new Set(), surfSeen: new Set(), guess: null, cnt: { in: 0, out: 0 }, tally: {}, moved: false };
     let W = null;
@@ -96,12 +97,6 @@ export default {
     for (let k = 0; k < 14; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(0.86, 0.88, 0.92), transparent: true, depthWrite: false })); const a = k / 14 * 6.28; s.position.set(Math.cos(a) * 0.018 * rnd(), (rnd() - 0.3) * 0.008, Math.sin(a) * 0.03 * rnd()); const r = 0.018 + rnd() * 0.012; s.scale.set(r, r * 0.75, 1); s.raycast = () => {}; cloud.add(s); }
     cloud.scale.setScalar(1.5);          // 云大一点：一眼看得到雨从哪片云下来
     const cloudPick = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, ZD * 1.6), new THREE.MeshBasicMaterial({ visible: false })); cloudPick.userData.pick = true; cloud.add(cloudPick);
-    const windArrow = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })); windArrow.raycast = () => {}; block.add(windArrow);
-    const placeWind = () => {          // 水汽输送：从海面上空指向云（云在陆地上时才画）
-      const on = cycleOf(S.cx).kind === 'big', a = (COAST + XR) / 2, b = S.cx + 0.03, y = CLOUD_Y - 0.008, P = [];
-      if (on) { const w = 0.002, e = b; P.push(a, y + w, 0, a, y - w, 0, e + 0.008, y - w, 0, a, y + w, 0, e + 0.008, y - w, 0, e + 0.008, y + w, 0, e + 0.008, y + 0.006, 0, e + 0.008, y - 0.006, 0, e, y, 0); }
-      windArrow.geometry.dispose(); windArrow.geometry = new THREE.BufferGeometry(); windArrow.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); windArrow.visible = on;
-    };
 
     // ---- 一粒粒的水 ----
     const NP = 420, pos = new Float32Array(NP * 3), col = new Float32Array(NP * 3), P = Array.from({ length: NP }, () => ({ st: 'off' }));
@@ -134,28 +129,37 @@ export default {
       pg.attributes.position.needsUpdate = true; pg.attributes.color.needsUpdate = true;
     };
 
-    // ---- 标签 ----
-    // ---- 画面里的字：地名写在地面、水面上；过程的名字贴着它发生的地方，发生时亮；剖面上的字写在剖面上 ----
-    const gSea = groundLabel(block, '海洋', { x: (COAST + XR) / 2 + 0.01, y: SEA_Y, z: 0.02, h: 0.02, color: '#173a63', opacity: 0.9 });
-    const gLake = groundLabel(block, '内陆湖', { x: LAKE_X, y: LAKE_Y, z: 0.0, h: 0.014, color: '#0f2c52', opacity: 0.9 });
-    const gField = groundLabel(block, SURF.bare.name.replace(/（.*）/, ''), { x: (FIELD[0] + FIELD[1]) / 2, y: ground((FIELD[0] + FIELD[1]) / 2) + 0.001, z: ZD * 0.86, h: 0.013, color: '#2e2010', opacity: 0.9 });
-    faceLabel(block, '地下水面（虚线）', { x: -0.045, y: 0.016, z: ZD, h: 0.008 });
-    const fInf = faceLabel(block, '下渗 → 地下径流', { x: 0.045, y: 0.024, z: ZD, h: 0.009, opacity: 0 });
-    const aVap = airLabel(block, '蒸发', { x: COAST + 0.055, y: SEA_Y + 0.035, z: 0.02, h: 0.014 }), aTrans = airLabel(block, '水汽输送', { x: (COAST + XR) / 2, y: CLOUD_Y + 0.006, z: 0, h: 0.014 }), aRain = airLabel(block, '降水', { x: 0, y: CLOUD_Y - 0.04, z: 0, h: 0.014 });
-    const aCyc = airLabel(block, '', { x: 0, y: CLOUD_Y + 0.03, z: 0, h: 0.017, color: '#a8352a' }), aHover = airLabel(block, '', { x: 0, y: 0, z: 0, h: 0.012, color: '#3a3226', dim: 0 }), aRun = airLabel(block, '地表径流', { x: -0.012, y: ground(-0.012) + 0.012, z: -0.006, h: 0.012, color: '#1d4f86', dim: 0 });
-    const tHint = tag('按住云，拖到别处：风把水汽送到哪，雨就下在哪', 'pill');
+    // ---- 画面里的字（kit/annot.js）：地名印在地面、水面上；剖面上的字印在剖面上；过程是一条流动的细线，名字顺着线写，发生时才有；状态和悬停的名字是批注 ----
+    const ink = inkLayer({ tag, camera });
+    const WATER = '#1d4a7e', SOIL = '#3a2a16', FACE = '#2a2622';
+    ink.print(block, '海洋', { at: [(COAST + XR) / 2 + 0.01, SEA_Y + 0.0008, 0.018], h: 0.015, color: WATER, spacing: 0.9 });
+    ink.print(block, '内陆湖', { at: [LAKE_X, LAKE_Y + 0.0008, ZD * 0.5], h: 0.008, color: WATER, spacing: 0.3, occl: [topMesh] });
+    const pField = ink.print(block, SURF.bare.name.replace(/（.*）/, ''), { at: [(FIELD[0] + FIELD[1]) / 2, ground((FIELD[0] + FIELD[1]) / 2) + 0.0015, ZD * 0.84], h: 0.0085, color: SOIL, spacing: 0.4 });
+    ink.print(block, '地下水面', { at: [-0.045, 0.017, ZD + 0.0008], up: [0, 1, 0], h: 0.0058, color: FACE, opacity: 0.7, spacing: 0.2 });
+    const pInf = ink.print(block, '下渗 → 地下径流', { at: [0.045, 0.024, ZD + 0.0008], up: [0, 1, 0], h: 0.0058, color: FACE, opacity: 0.75, spacing: 0.12 });
+    const runPts = riverPts.slice(0, 15).map((q, k, A) => { const w = A.slice(Math.max(0, k - 5), k + 6), z = w.reduce((a, b) => a + b.z, 0) / w.length; return [q.x, q.y, z - 0.008]; });          // 字顺着河的大方向写（把弯弯绕绕抹平），写在河的里侧
+    const pRun = ink.printPath(block, '地表径流', { pts: runPts, h: 0.0062, color: WATER, spacing: 0.35 });
+    const fVap = ink.flow(block, { pts: [], label: '蒸发', vertical: true, at: 0.8, color: '#1f4f86' });
+    const fTrans = ink.flow(block, { pts: [], label: '水汽输送', color: '#1f4f86' });
+    const fRain = ink.flow(block, { pts: [], label: '降水', vertical: true, at: 0.18, color: '#1f4f86', side: 1 });
+    const nCyc = ink.note(block, '', { dx: 0, dy: -46, size: 19, color: '#a3352a', dot: false });
+    const nHint = ink.note(block, '按住云，拖到别处', { dx: -70, dy: -34, size: 15, color: '#a3352a', sub: '风把水汽送到哪，雨就下在哪', stack: true });
+    const nHover = ink.note(block, '', { dx: 30, dy: -26, size: 14 }); nHover.show(false);
     noteBadge(tag, '教学示意：竖直方向夸大了，各环节的比例是示意').loc(block, XL + 0.012, -0.002, ZD + 0.01);
-    const labels = [aVap, aTrans, aRain, aCyc, aHover, aRun];
+    const vline = (x, y0, y1, z = 0) => Array.from({ length: 9 }, (_, k) => [x, y0 + ((y1 - y0) * k) / 8, z]);
+    const placeWind = () => {
+      const cy = cycleOf(S.cx), big = cy.kind === 'big', land = cy.kind === 'land', vx = land ? LAKE_X - 0.012 : COAST + 0.05, vy = land ? LAKE_Y : SEA_Y;
+      fVap.pts = vline(vx, vy + 0.006, CLOUD_Y - 0.03, 0.02);          // 蒸发：从海面（陆地内循环时从湖面）往上
+      fTrans.pts = Array.from({ length: 9 }, (_, k) => [XR - 0.02 + (S.cx + 0.045 - XR + 0.02) * (k / 8), CLOUD_Y - 0.004 + 0.006 * Math.sin((Math.PI * k) / 8), 0]); fTrans.show(big);          // 水汽输送：从海面上空吹向云（云在陆地上时才有）
+      const rx = S.cx + (land ? 0.034 : 0.042); fRain.pts = vline(rx, CLOUD_Y - 0.02, (rx > COAST ? SEA_Y : inBasin(rx) ? LAKE_Y : ground(rx)) + 0.012, 0);
+      pRun.show(big);          // 雨下在平原上，才有地表径流流进河里
+    };
     const placeTags = () => {
-      const cy = cycleOf(S.cx), land = cy.kind === 'land';
-      gField.setText(SURF[S.surf].name.replace(/（.*）/, ''));
-      aVap.setText(land ? '湖面、地面蒸发' : '蒸发'); aVap.position.set(land ? LAKE_X + 0.02 : COAST + 0.055, (land ? LAKE_Y : SEA_Y) + 0.035, 0.02); aVap.setOn(true);
-      aTrans.position.set((COAST + XR) / 2 - 0.02, CLOUD_Y + 0.008, 0); aTrans.setOn(cy.kind === 'big'); if (cy.kind !== 'big') aTrans.userData.want = 0;
-      aRain.position.set(S.cx + 0.038, CLOUD_Y - 0.035, 0); aRain.setOn(true);
-      aRun.setOn(cy.kind === 'big');          // 雨下在平原上，才有地表径流流进河里
-      fInf.material.opacity = cy.kind !== 'sea' ? 0.9 : 0; fInf.position.x = Math.min(COAST - 0.03, Math.max(XL + 0.04, S.cx + 0.01)); fInf.position.y = ground(fInf.position.x) - 0.013;
-      aCyc.setText(cy.name); aCyc.position.set(S.cx, CLOUD_Y + 0.034, 0);
-      tHint.loc(block, S.cx, CLOUD_Y + 0.05, 0).show(!S.moved);
+      const cy = cycleOf(S.cx);
+      pField.set(SURF[S.surf].name.replace(/（.*）/, ''));
+      pInf.show(cy.kind !== 'sea'); const ix = Math.min(COAST - 0.03, Math.max(XL + 0.04, S.cx + 0.01)); pInf.move(ix, ground(ix) - 0.013, ZD + 0.0008);
+      nCyc.set(cy.name); nCyc.move(S.cx, CLOUD_Y + 0.016, 0);
+      nHint.move(S.cx - 0.03, CLOUD_Y + 0.004, 0); nHint.show(!S.moved);
     };
     // 鼠标移到地面上：在那儿浮出这块地方的名字（平时不写，免得满屏都是字）
     const hoverName = (x) => (Math.abs(x - DIVIDE) < 0.03 ? '山（分水岭）' : x < DIVIDE ? '内陆盆地' : x < COAST ? '沿海平原' : null);
@@ -197,7 +201,7 @@ export default {
       down(rc) { if (!rc.intersectObject(cloudPick, false).length) return false; const p = onY(rc.ray); dx0 = p ? p.x - S.cx : 0; S.drag = true; document.getElementById('c').style.cursor = 'grabbing'; return true; },
       move(rc) {
         const c = document.getElementById('c');
-        if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(cloudPick, false).length ? 'grab' : ''; const ht = rc.intersectObject(topMesh, false)[0], nm = ht && hoverName(block.worldToLocal(ht.point.clone()).x); if (nm) { const l = block.worldToLocal(ht.point.clone()); aHover.setText(nm); aHover.position.set(l.x, l.y + 0.012, l.z); aHover.userData.want = 1; } else aHover.userData.want = 0; return false; }
+        if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(cloudPick, false).length ? 'grab' : ''; const ht = rc.intersectObject(topMesh, false)[0], nm = ht && hoverName(block.worldToLocal(ht.point.clone()).x); if (nm) { const l = block.worldToLocal(ht.point.clone()); nHover.set(nm); nHover.move(l.x, l.y, l.z); nHover.show(true); } else nHover.show(false); return false; }
         const p = onY(rc.ray); if (!p) return true; S.cx = Math.max(XL + 0.03, Math.min(XR - 0.03, p.x - dx0)); S.moved = true; layout(); return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; note1(); return true; },
@@ -223,7 +227,8 @@ export default {
         ui.status('海面一直在蒸发。按住<b>云</b>拖到别处，看雨下在海上、平原、山那边，水各往哪走。');
         layout(); drawLog();
       },
-      update(dt) { labels.forEach((l) => l.tick(dt)); stepDots(Math.min(dt, 0.05)); if (W && Math.floor(S.cnt.out / 20) !== S.lastC) { S.lastC = Math.floor(S.cnt.out / 20); drawChart(); } },
+      dispose() { ink.dispose(); },
+      update(dt) { stepDots(Math.min(dt, 0.05)); if (W && Math.floor(S.cnt.out / 20) !== S.lastC) { S.lastC = Math.floor(S.cnt.out / 20); drawChart(); } },
     };
   },
 };

@@ -694,6 +694,10 @@ body.world-ui .tag3d.btn.view.on, .tag3d.btn.view.on { background: #8a4b10; colo
 .read-out small { color: #8a7a62; }
 .geo-views { transition: opacity .5s; }
 /* 画面角上的“示意”小标记：平时只两个字，鼠标移上去展开完整说明 */
-.tag3d.pill.note-badge { pointer-events: auto; cursor: help; font-size: 11px; padding: 2px 7px; opacity: .7; background: rgba(255,255,255,.75); }
+.tag3d.pill.note-badge { pointer-events: auto; cursor: help; font: 600 11px/1 "Songti SC", "STSong", serif; letter-spacing: .2em; padding: 3px 4px 3px 7px; opacity: .6; background: none; box-shadow: none; border: 0.5px solid currentColor; border-radius: 0; color: #3a3226; }
 .tag3d.pill.note-badge:hover { opacity: 1; }
 .tag3d.pill.note-badge:hover::before { content: attr(data-full); position: absolute; left: 0; bottom: 120%; white-space: nowrap; background: #fffdf6; color: #3a3226; padding: 5px 9px; border-radius: 4px; box-shadow: 0 3px 10px rgba(0,0,0,.18); font-size: 12px; }
+/* 活页里的批注层（kit/annot.js）：铺满屏幕的 SVG；印在材质上的字用正片叠底 */
+.ink-layer { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 4; overflow: visible; }
+.ink-layer.print { mix-blend-mode: multiply; }
+.tag3d.ink-host { display: none; }
