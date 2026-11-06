@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { groundLabel, airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { D2R, R2D, EPS, decOf, dm, hm, dur, altText, sunAt, halfDay, noonAlt } from './kit/sun.js';
 
@@ -50,7 +51,7 @@ export default {
     // ---- 底座：一圈轨道，上面刻着二分二至 ----
     const ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.0022, 10, 160), brass); ring.rotation.x = Math.PI / 2; ring.position.y = 0.004; group.add(ring);
     const disc = new THREE.Mesh(new THREE.CircleGeometry(R + 0.03, 96), new THREE.MeshBasicMaterial({ color: 0xf6f1e4, transparent: true, opacity: 0.82 })); disc.rotation.x = -Math.PI / 2; disc.position.y = 0.0015; disc.raycast = () => {}; group.add(disc);          // 公转仪底下垫一层浅纸色，压住书页上密密的字
-    const keyTags = KEY.map((k) => { const a = thetaOf(k.lam) * D2R, p = new THREE.Vector3(Math.cos(a) * (R + 0.02), 0.006, -Math.sin(a) * (R + 0.02)); const t = tag(`${k.name}<br><small>${k.date}</small>`, 'pill'); t.loc(group, p.x, p.y, p.z); const tick = new THREE.Mesh(new THREE.BoxGeometry(0.0015, 0.004, 0.012), brass); tick.position.set(Math.cos(a) * R, 0.004, -Math.sin(a) * R); tick.rotation.y = a; group.add(tick); return t; });
+    const keyTags = KEY.map((k) => { const a = thetaOf(k.lam) * D2R, p = new THREE.Vector3(Math.cos(a) * (R + 0.012), 0.006, -Math.sin(a) * (R + 0.012) - 0.004); const t = groundLabel(group, k.name, { x: p.x, y: 0.0025, z: p.z, h: 0.017, color: '#3a3020', opacity: 0.9 }); groundLabel(group, k.date, { x: p.x, y: 0.0025, z: p.z + 0.014, h: 0.0095, color: '#5a4d36', opacity: 0.85 }); const tick = new THREE.Mesh(new THREE.BoxGeometry(0.0015, 0.004, 0.012), brass); tick.position.set(Math.cos(a) * R, 0.004, -Math.sin(a) * R); tick.rotation.y = a; group.add(tick); return t; });          // 二分二至印在底座的纸面上：名字大，日期小一号、写在名字下面
     // 公转方向：轨道边上几个小箭头（从上往下看逆时针）
     for (let i = 0; i < 4; i++) { const a = (i * 90 + 45) * D2R, c = new THREE.Mesh(new THREE.ConeGeometry(0.003, 0.009, 8), brass); c.position.set(Math.cos(a) * R, 0.005, -Math.sin(a) * R); c.rotation.x = Math.PI / 2; c.rotation.z = 0; c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(-Math.sin(a), 0, -Math.cos(a))); group.add(c); }
 
@@ -91,19 +92,20 @@ export default {
     tilt.add(latLine(0, 0xc0462e, false), latLine(EPS, 0xd99a3a, true), latLine(-EPS, 0xd99a3a, true), latLine(Math.PI / 2 - EPS, 0x6b8fc7, true), latLine(-(Math.PI / 2 - EPS), 0x6b8fc7, true));          // 纬线不跟着自转（是一圈圈对称的）
     for (let m = 0; m < 12; m++) { const a = (m / 12) * Math.PI * 2, pts = []; for (let i = 0; i <= 64; i++) { const la = -Math.PI / 2 + (i / 64) * Math.PI; pts.push(new THREE.Vector3(Math.cos(a) * Math.cos(la) * ER * 1.003, Math.sin(la) * ER * 1.003, Math.sin(a) * Math.cos(la) * ER * 1.003)); } const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 })); l.raycast = () => {}; spin.add(l); }
     const axisRod = new THREE.Mesh(new THREE.CylinderGeometry(0.0008, 0.0008, ER * 2.9, 8), brass); tilt.add(axisRod);
-    const nTag = tag('地轴：始终指向北极星', 'pill');
+    const nTag = airLabel(group, '地轴始终指向北极星', { h: 0.0135, color: '#2c3245', icon: 'star' });
     // 太阳直射点：地球仪上正对着灯的那一点
     const subDot = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff3b1f })); group.add(subDot);
     const ray = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineDashedMaterial({ color: 0xffb347, dashSize: 0.004, gapSize: 0.003 })); ray.raycast = () => {}; group.add(ray);
-    const tSub = tag('', 'pill');
+    const tSub = airLabel(group, '', { h: 0.0135, color: '#a8541a', icon: 'sun' });
     // 你家、另一座城：地球仪上的小旗
     const flag = (color) => { const g = new THREE.Group(), pole = new THREE.Mesh(new THREE.CylinderGeometry(0.00045, 0.00045, 0.009, 6), dark); pole.position.y = 0.0045; g.add(pole); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.0055, 0.0035), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })); f.position.set(0.0028, 0.0075, 0); g.add(f); const pick = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = 0.005; pick.userData.pick = true; g.add(pick); g.userData.pick = pick; spin.add(g); return g; };
     const home = flag(0xd8392b), other = flag(0x8a93a3);
     const putFlag = (f, lat) => { const la = lat * D2R; f.position.set(Math.cos(la) * ER, Math.sin(la) * ER, 0); f.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), f.position.clone().normalize()); };
-    const homeTag = tag('', 'pill'), otherTag = tag('', 'pill');
+    const homeTag = airLabel(group, '', { h: 0.015, color: '#a8341f', icon: 'home' });
+    const labels = [nTag, tSub, homeTag];
     const cartPick = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.03, 12), new THREE.MeshBasicMaterial({ visible: false })); cartPick.position.y = 0.016; cartPick.userData.pick = true; cart.add(cartPick);
-    const tHint = tag('推着地球仪沿轨道走；按住地球仪左右拖，它就自转', 'pill'), tScale = tag('教学示意 · 大小、距离不按比例', 'pill');
-    tScale.loc(group, 0, 0.004, R + 0.012);
+    const tHint = tag('<span>推着地球仪沿轨道走</span><small>按住地球仪左右拖，它就自转</small>', 'hint');          // 开场的提示：不用白底牌子
+    noteBadge(tag, '教学示意：大小、距离不按比例').loc(group, -R - 0.02, 0.004, R + 0.012);
 
     // ---- 摆好：按日期、时刻 ----
     const dec = () => decOf(lamOf(S.th));
@@ -118,12 +120,11 @@ export default {
       putFlag(home, S.lat); putFlag(other, CITIES[S.other].lat); other.visible = S.other !== S.city || S.city < 0;
       const d = dec(), sub = ec.clone().addScaledVector(sdir, ER * 1.01); subDot.position.copy(sub);
       ray.geometry.setFromPoints([new THREE.Vector3(0, SY, 0), sub]); ray.computeLineDistances();
-      tSub.loc(group, sub.x, sub.y - 0.012, sub.z).text(`直射 ${latName(d * R2D)}`);
-      const np = new THREE.Vector3(0, ER * 1.45, 0).applyQuaternion(tilt.quaternion).add(new THREE.Vector3(ep.x, SY, ep.z)); nTag.loc(group, np.x, np.y + 0.006, np.z);
+      tSub.position.set(sub.x, sub.y - 0.016, sub.z); tSub.setText(`直射 ${latName(d * R2D)}`);
+      const np = new THREE.Vector3(0, ER * 1.45, 0).applyQuaternion(tilt.quaternion).add(new THREE.Vector3(ep.x, SY, ep.z)); nTag.position.set(np.x, np.y + 0.01, np.z);
       home.updateMatrixWorld(true); const hp = home.getWorldPosition(new THREE.Vector3()), op = other.getWorldPosition(new THREE.Vector3()), gp = group.getWorldPosition(new THREE.Vector3());
       const hl = group.worldToLocal(hp.clone()), ol = group.worldToLocal(op.clone());
-      homeTag.loc(group, hl.x, hl.y + 0.014, hl.z).text(`<b>你家</b> ${hm(S.t)}`);
-      otherTag.show(false);          // 另一座城的名字写在天空小窗里，地球仪上只放一面灰旗，不再挤一个牌子
+      homeTag.position.set(hl.x, hl.y + 0.018, hl.z); homeTag.setText(`你家 ${hm(S.t)}`);
       tHint.loc(group, ep.x, 0.01, ep.z + 0.03).show(!S.saw.size);
       recordKey(); drawSky(); drawTable();
     };
@@ -218,6 +219,7 @@ export default {
         layout();
       },
       update(dt) {
+        labels.forEach((l) => l.tick(dt));
         if (S.play) { S.t = (S.t + dt * 3) % 24; S.played = (S.played || 0) + dt * 3; if (S.played >= 24) { S.play = false; S.played = 0; if (W) W.play.textContent = '转一天'; } W?.time.set(S.t); layout(); }          // 转满一天自动停
       },
     };
