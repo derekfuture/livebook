@@ -12,11 +12,11 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { SYN, level, range, lunarName, phaseName, hours, angles, MSL, KY, SHIP_DRAFT, SHIP_BED, HULL_BOTTOM, shore, shipState, intertidal, playHour, setDate } from './kit/tide.js';
+import { SYN, level, range, lunarName, phaseName, hours, angles, MSL, KY, SHIP_DRAFT, SHIP_BED, HULL_BOTTOM, shore, shipState, intertidal, playHour, setDate, timeText, NET_WIDTH, NET_TILT, netRow, netState, nearLow } from './kit/tide.js';
 
 const XL = -0.16, XR = 0.16, ZD = 0.06;
 
-const ACTS = { gan: { name: '赶海', need: '低潮', ok: (v) => v < -1.4, why: '要等潮水退下去，潮间带露出来' }, ship: { name: '大船进港', need: '水够深的时候', ok: (v) => shipState(v).afloat, why: '港口航道要水深，低潮时大船会搁浅' }, see: { name: '观潮', need: '大潮的涨潮', ok: (v, D, rising) => rising && v > 0 && range(D).r > 3.6, why: '要挑初一、十五前后、正在涨潮的时候（像钱塘江大潮那样壮观，还要靠喇叭口一样外宽内窄的河口）' } };
+const ACTS = { gan: { name: '赶海', need: '低潮附近', ok: (v, D, rising, h) => nearLow(D, h), why: '本页以低潮前后半小时为练习窗口，潮间带部分出露；实际赶海须查看当地潮汐及安全条件' }, ship: { name: '大船进港', need: '水够深的时候', ok: (v) => shipState(v).afloat, why: '港口航道要水深，低潮时大船会搁浅' }, see: { name: '观潮', need: '大潮的涨潮', ok: (v, D, rising) => rising && v > 0 && range(D).r > 3.6, why: '要挑初一、十五前后、正在涨潮的时候（像钱塘江大潮那样壮观，还要靠喇叭口一样外宽内窄的河口）' } };
 const ASK = ['先猜一下（可以不猜）：在这个情境里，一个月里潮水涨得最高的是——', ['初一、十五前后', '初八、廿三前后', '每天都一样']];
 
 export default {
@@ -57,7 +57,7 @@ export default {
     const bamboo = new THREE.MeshLambertMaterial({ color: 0xc8a96a }), WET = new THREE.Color(0x26351f), DRY = new THREE.Color(0x7d8a52);          // 浸在水里的网帘颜色深，露出水面晒着的变浅
     const netTex = canvasTex(64, 64, (g, w) => { g.strokeStyle = '#ffffff'; g.lineWidth = 3; for (let k = 0; k <= w; k += 8) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, w); g.moveTo(0, k); g.lineTo(w, k); g.stroke(); } }, { repeat: [2, 3] });          // 网眼；网帘平着张在竹竿之间，顺着滩涂的坡
     const netMs = [0, 1, 2, 3].map(() => new THREE.MeshLambertMaterial({ color: WET.clone(), map: netTex, alphaMap: netTex, transparent: true, side: THREE.DoubleSide, depthWrite: false })), nets = [];
-    for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) { const x = -0.02 + r * 0.022, z = -ZD + 0.012 + k * 0.02, y0 = shore(x); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0005, 0.0005, 0.016, 5), bamboo); pole.position.set(x, y0 + 0.008, z); block.add(pole); if (k < 5) { const net = new THREE.Mesh(new THREE.PlaneGeometry(0.017, 0.019), netMs[r]); net.position.set(x, y0 + 0.008, z + 0.01); net.rotation.set(-Math.PI / 2, 0, -Math.atan(0.04 / 0.14), 'ZYX'); net.userData.row = r; block.add(net); nets.push(net); } }
+    for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) { const { x, y } = netRow(r), z = -ZD + 0.012 + k * 0.02, y0 = shore(x); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0005, 0.0005, 0.016, 5), bamboo); pole.position.set(x, y0 + 0.008, z); block.add(pole); if (k < 5) { const net = new THREE.Mesh(new THREE.PlaneGeometry(NET_WIDTH, 0.019), netMs[r]); net.position.set(x, y, z + 0.01); net.rotation.set(-Math.PI / 2, 0, -NET_TILT, 'ZYX'); net.userData.row = r; block.add(net); nets.push(net); } }
     // ---- 港口：码头和一条船 ----
     const pier = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.004, 0.014), new THREE.MeshLambertMaterial({ color: 0x8a8f96 })); pier.position.set(0.11, 0.05, -0.03); block.add(pier);
     const pierLegs = []; for (const x of [0.085, 0.105, 0.125]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.05, 0.002), pier.material); l.position.set(x, 0.025, -0.03); block.add(l); pierLegs.push(l); }
@@ -105,7 +105,7 @@ export default {
       aGround.position.set(0.1, bed + 0.024, 0); aGround.setOn(!afloat);          // 船浮着就不写字；搁浅了才写
       const dv = level(S.D, S.h + 0.1) - v; aLevel.setText(`${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} 米 ${dv > 0 ? '↑涨' : '↓落'}`); aLevel.position.set(STAFF_X - 0.005 - aLevel.scale.x / 2, y + 0.003, STAFF_Z + 0.004);          // 读数跟着水面，挂在潮位尺旁边
       people.children.forEach((pp) => (pp.visible = shore(pp.position.x) > y + 0.001)); people.visible = true;          // 赶海的人只站在露出水面的滩涂上
-      S.dry = [0, 1, 2, 3].map((r) => shore(-0.02 + r * 0.022) + 0.008 > y);          // 按每一排网帘的高度算：露出水面没有
+      S.netStates = [0, 1, 2, 3].map((r) => netState(r, y));          // 按网面最低与最高边缘区分全干、部分浸水、全湿
       tHint.loc(block, -0.03, 0.11, 0).show(!S.seen.size);
       placeOrr(); drawChart();
     };
@@ -121,20 +121,20 @@ export default {
       const curve = (D, dash, cl, wd) => { g.save(); g.setLineDash(dash); g.strokeStyle = cl; g.lineWidth = wd; g.beginPath(); for (let t = 0; t <= 24; t += 0.1) { const x = PX(t), y = PY(level(D, t)); if (t) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke(); g.restore(); };
       if (S.cmp != null && Math.abs(S.cmp - S.D) > 3) curve(S.cmp, [4, 3], 'rgba(60,90,140,0.45)', 1.5);
       curve(S.D, [], '#2f62b0', 2.2);
-      if (S.act) { const A = ACTS[S.act]; g.fillStyle = 'rgba(80,160,90,0.15)'; for (let t = 0; t < 24; t += 0.1) if (A.ok(level(S.D, t), S.D, level(S.D, t + 0.1) > level(S.D, t))) g.fillRect(PX(t), T, PX(0.1) - PX(0) + 0.5, B - T); }          // 挑过一件事以后，合适的时段淡淡涂绿
+      if (S.act) { const A = ACTS[S.act]; g.fillStyle = 'rgba(80,160,90,0.15)'; for (let t = 0; t < 24; t += 0.1) if (A.ok(level(S.D, t), S.D, level(S.D, t + 0.1) > level(S.D, t), t)) g.fillRect(PX(t), T, PX(0.1) - PX(0) + 0.5, B - T); }          // 挑过一件事以后，合适的时段淡淡涂绿
       const v = level(S.D, S.h); g.fillStyle = '#c4462e'; g.beginPath(); g.arc(PX(S.h), PY(v), 4, 0, 7); g.fill();
       const rg = range(S.D);
-      W.read.innerHTML = `现在 <b>${Math.floor(S.h)} 时 ${String(Math.round((S.h % 1) * 60)).padStart(2, '0')} 分</b>　这一天的潮差 <b>${rg.r.toFixed(1)} 米</b>${S.pick ? `<br>${ACTS[S.pick.k].name}挑在 ${Math.floor(S.pick.h)} 时：<b>${S.pick.ok ? '合适' : '不合适'}</b>（${ACTS[S.pick.k].why}）` : ''}<br><small>潮位是示意；实际各地每天的潮时、潮高可以查潮汐表</small>`;
+      W.read.innerHTML = `现在 <b>${timeText(S.h)}</b>　这一天的潮差 <b>${rg.r.toFixed(1)} 米</b>${S.pick ? `<br>${ACTS[S.pick.k].name}挑在 ${timeText(S.pick.h)}：<b>${S.pick.ok ? '合适' : '不合适'}</b>（${ACTS[S.pick.k].why}）` : ''}<br><small>潮位是示意；实际各地每天的潮时、潮高可以查潮汐表</small>`;
     };
     const drawLog = () => {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
       if (S.seen.has('day')) r('一天里：', '海水通常涨两次、落两次');
       for (const [k, n] of [['spring', '新月、满月（初一、十五前后）'], ['neap', '上弦、下弦']]) if (S.did[k]) r(`${n}：`, `潮差约 ${S.did[k].toFixed(1)} 米`);
-      for (const k in ACTS) if (S.did[k] != null) r(`曾尝试${ACTS[k].name}：`, S.did[k] ? `挑在${ACTS[k].need}，合适` : `没挑在${ACTS[k].need}，不合适`);
+      for (const k in ACTS) if (S.did[k] != null) r(`曾尝试${ACTS[k].name}：`, `${lunarName(S.did[k].D)} ${timeText(S.did[k].h)}：${S.did[k].ok ? '挑在' : '没挑在'}${ACTS[k].need}，${S.did[k].ok ? '合适' : '不合适'}`);
       if (S.guess != null && S.did.spring && S.did.neap) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：初一、十五前后`)));
       W.log.replaceChildren(...rows);
-      if (S.seen.has('day') && S.did.spring && S.did.neap && Object.keys(ACTS).some((k) => S.did[k])) W.ui.unlock();
+      if (S.seen.has('day') && S.did.spring && S.did.neap && Object.keys(ACTS).some((k) => S.did[k]?.ok)) W.ui.unlock();
     };
     const noteState = () => {
       const f = ((S.D % SYN) + SYN) % SYN / SYN;
@@ -146,7 +146,7 @@ export default {
     const hover = (rc) => {
       const ht = rc.intersectObjects([...nets, staff, pier, ...ship.children, land], false)[0], o = ht?.object;
       if (!o) { aHover.userData.want = 0; return; }
-      const l = block.worldToLocal(ht.point.clone()), nm = o.userData.row != null ? (S.dry[o.userData.row] ? '紫菜网帘：露出水面晒太阳' : '紫菜网帘：浸在海水里吸收养分') : o === staff ? '潮位尺' : o === pier ? '码头' : o.parent === ship ? '船' : l.x < intertidal.hi ? '岸上' : l.x < intertidal.lo ? '潮间带（滩涂）' : '海底';
+      const l = block.worldToLocal(ht.point.clone()), nm = o.userData.row != null ? `紫菜网帘：${S.netStates[o.userData.row]}` : o === staff ? '潮位尺' : o === pier ? '码头' : o.parent === ship ? '船' : l.x < intertidal.hi ? '岸上' : l.x < intertidal.lo ? '潮间带（滩涂）' : '海底';
       aHover.setText(nm); aHover.position.set(l.x, Math.max(l.y, MSL) + 0.014, l.z); aHover.userData.want = 1;
     };
     // ---- 指针：拖月亮；在曲线上挑时刻（在侧栏里，见 mount） ----
@@ -173,8 +173,8 @@ export default {
       view: { elev: 22, azim: 12, lookY: 0.4, frameMargin: 1.08 },
       pointer,
       mount(ui) {
-        const time = slider('一天里的时刻（地方时）', { min: 0, max: 24, step: 0.1, value: S.h, fmt: (v) => `${Math.floor(v)} 时`, onInput: (v) => { S.h = v; S.play = false; acts.btns[0].textContent = '让一天走'; S.seen.add('day'); layout(); drawLog(); } });
-        const day = slider('农历的日子（也可以拖月亮）', { min: 0, max: 29, step: 1, value: 0, fmt: (v) => lunarName(v), onInput: (v) => { setDate(S, v); noteState(); layout(); } });          // 换了日子：之前挑的时刻作废
+        const time = slider('一天里的时刻（地方时）', { min: 0, max: 24, step: 1 / 60, value: S.h, fmt: timeText, onInput: (v) => { S.h = v; S.play = false; acts.btns[0].textContent = '让一天走'; S.seen.add('day'); layout(); drawLog(); } });
+        const day = slider('农历的日子（拖月亮吸附整日）', { min: 0, max: 29, step: 1, value: 0, fmt: (v) => lunarName(v), onInput: (v) => { setDate(S, v); noteState(); layout(); } });          // 换了日子：之前挑的时刻作废
         const actSeg = seg('选一件事，再在曲线上点一个时刻', Object.keys(ACTS).map((k) => ACTS[k].name), (_, i) => { S.act = Object.keys(ACTS)[i]; S.pick = null; layout(); ui.status(`${ACTS[S.act].name}：在上面的潮位曲线上<b>点一个时刻</b>，看看这时候行不行。`); }, { value: -1 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
@@ -183,7 +183,7 @@ export default {
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 140, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         chart.onclick = (e) => { const r = chart.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width) * 320 - 30) / (320 - 38) * 24; if (t < 0 || t > 24) return; S.h = t; time.set(t); S.seen.add('day'); S.play = false; acts.btns[0].textContent = '让一天走';          // 挑时刻时先停下
-          if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D, level(S.D, t + 0.1) > level(S.D, t)); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = ok; } layout(); drawLog(); };          // 点曲线：挑一个时刻
+          if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D, level(S.D, t + 0.1) > level(S.D, t), t); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = { D: S.D, h: t, ok }; } layout(); drawLog(); };          // 点曲线：挑一个时刻
         ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('海岸左边的小盘：太阳光从左边来，中间是地球（红点是港口），可以拖月亮。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, day, time, acts };
@@ -191,7 +191,7 @@ export default {
         layout(); drawLog();
       },
       update(dt) {
-        netMs.forEach((m, r) => m.color.lerp(S.dry[r] ? DRY : WET, Math.min(1, dt * 1.5))); labels.forEach((l) => l.tick(dt));          // 网帘露出来慢慢晒干、变浅
+        netMs.forEach((m, r) => m.color.lerp(S.netStates[r] === '全部出露' ? DRY : S.netStates[r] === '全部浸水' ? WET : WET.clone().lerp(DRY, 0.5), Math.min(1, dt * 1.5))); labels.forEach((l) => l.tick(dt));          // 网帘露出来慢慢晒干、变浅
         if (S.play) { S.h = playHour(S.h, dt); if (S.h >= 24) { S.play = false; if (W) W.acts.btns[0].textContent = '重新播放当天'; } if (!S.seen.has('day')) { S.seen.add('day'); drawLog(); } W?.time.set(S.h); layout(); }
       },
     };

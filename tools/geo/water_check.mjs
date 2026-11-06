@@ -1,5 +1,5 @@
 // 核对水循环活页：node tools/geo/water_check.mjs（必修第一册第 46–48 页）
-import { SURF, cycleOf, scenarioOf, rainSplit, createWater, split, ground, COAST, DIVIDE, SEA_Y, LAKE_X, LAKE_Y } from '../../src/lessons/kit/water.js';
+import { waterHead, groundwaterDirection, SURF, cycleOf, scenarioOf, rainSplit, createWater, split, ground, COAST, DIVIDE, SEA_Y, LAKE_X, LAKE_Y } from '../../src/lessons/kit/water.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 ok(cycleOf(0.12).name === '海上内循环' && cycleOf(0.03).name === '海陆间循环' && scenarioOf(-0.12).name === '陆地内循环', '三个独立教学情境');
 ok(SURF.sand.inf > SURF.bare.inf && SURF.sand.ev < SURF.bare.ev, '砂田比裸田：下渗多、蒸发少（课本活动）');
@@ -24,4 +24,16 @@ for (const size of [1, 8, 420]) {
 }
 const full = createWater(1, rnd); full.spawn('vap', 0.13, 0.032, 0); full.S.emitted = 1; full.S.pend = 2; full.S.emitted += 2; full.step(0.05, 0.13, 'bare');
 ok(full.S.pend === 2 && full.S.emitted === 3 && full.balance().error === 0, '池满时失败的蒸发不入账，待降水不扣除');
+
+let headValid = true;
+for (let x = DIVIDE + 0.0001; x < COAST; x += 0.0001) headValid &&= waterHead(x) >= SEA_Y && waterHead(x) <= ground(x) && groundwaterDirection(x) === 1;
+ok(headValid && waterHead(COAST) === SEA_Y, '整个沿海潜水面在地面下，水头向海下降并衔接海面');
+ok(waterHead(0.074) > SEA_Y, '复核位置0.074：近岸水头高于海面');
+for (const x of [-0.169, -0.09, 0.074]) {
+  const sim = createWater(1, () => 0.5); sim.spawn('inf', x, waterHead(x), 0); Object.assign(sim.P[0], { soil: false, d: 1 }); sim.S.emitted = 1;
+  let downhill = true;
+  for (let i = 0; i < 1000 && sim.P[0].st !== 'off'; i++) { const prev = waterHead(sim.P[0].x); sim.step(0.01, x, 'bare'); downhill &&= sim.P[0].y <= prev + 1e-10; }
+  ok(downhill && sim.P[0].st === 'off' && sim.balance().error === 0, `${x}地下水沿递减水头抵达湖或海，守恒`);
+}
+const edge = rainSplit(0, 'sand'); ok(Math.abs(edge.inf - 0.535) < 1e-9 && Math.abs(edge.run - 0.26) < 1e-9 && Math.abs(edge.ev - 0.205) < 1e-9, '田边降雨覆盖区53.5/26/20.5%，不同于纯砂田预设62/22/16%');
 process.exit(bad ? 1 : 0);

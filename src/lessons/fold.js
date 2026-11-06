@@ -12,7 +12,7 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, NLAY, TH, LAM, surface, layerAt, exposed, crack, bend } from './kit/fold.js';
+import { XL, XR, NLAY, TH, LAM, surface, layerAt, exposed, crack, bend, hasFold, terrain, terrainText, changeText } from './kit/fold.js';
 
 const ZD = 0.07, NX = 220;
 const LAYC = ['#6f5038', '#8f6844', '#b0814f', '#c99e62', '#dbbb83', '#e9d4a2'];          // 第 1 层（最老）到第 6 层（最新）
@@ -111,10 +111,10 @@ export default {
     const say1 = (text, x, y, z) => { callout.position.set(x, y, z); callout.setText(text).setOn(true); calloutT = 4.5; };
     const AX = [-LAM / 2, 0, LAM / 2];          // 向斜、背斜、向斜的轴
     const placeTags = () => {
-      const shown = S.c > 0.45;
+      const shown = hasFold(S.c);
       tAnti.position.set(0, bend(0, S.c) + TH * 3, ZD + 0.0008); tAnti.visible = shown;
       tSyn.forEach((t, i) => { t.position.set(AX[i * 2], bend(AX[i * 2], S.c) + TH * 3, ZD + 0.0008); t.visible = shown; });
-      AX.forEach((x, i) => { const y = surface(x, S.c, S.e), nb = surface(x + 0.04, S.c, S.e), hi = y > nb; tLand[i].position.set(x, y + 0.012, -ZD * 0.7); tLand[i].setText(hi ? '山岭' : '谷地').setOn(S.c > 0.45); });
+      AX.forEach((x, i) => { const y = surface(x, S.c, S.e), state = terrain(S.c, S.e), hi = (i === 1) === (state === 'normal'); tLand[i].position.set(x, y + 0.012, -ZD * 0.7); tLand[i].setText(state === 'flat' || state === 'unfolded' ? '地表近乎平坦' : hi ? '山岭' : '谷地').setOn(shown); });
       tPush.loc(block, XR + 0.03, 0.08, 0).show(S.c < 0.2);
       tScale.loc(block, XL + 0.015, -0.004, ZD + 0.01);
     };
@@ -141,28 +141,29 @@ export default {
       g.fillText('地面露出的岩层（数字：第几层，1 最老）', L, 98);
       let prev = 0, x0 = XL;
       for (let i = 0; i <= 240; i++) { const x = XL + (XR - XL) * i / 240, k = exposed(x, S.c, S.e); if (k !== prev || i === 240) { if (prev) { g.fillStyle = LAYC[prev - 1]; g.fillRect(PX(x0), 104, PX(x) - PX(x0), 22); if (PX(x) - PX(x0) > 12) { g.fillStyle = prev <= 2 ? '#fff' : '#3a2a1a'; g.textAlign = 'center'; g.fillText(prev, (PX(x0) + PX(x)) / 2, 119); } } prev = k; x0 = x; } }
-      for (const [x, n] of [[0, '背斜'], [-LAM / 2, '向斜'], [LAM / 2, '向斜']]) { g.fillStyle = '#2a3140'; g.textAlign = 'center'; if (S.c > 0.45) g.fillText(n, PX(x), 140); }
-      W.read.innerHTML = `挤压：${S.c < 0.05 ? '还没挤' : S.c < 0.5 ? '挤弯了一点' : '挤得很弯'}　外力作用：${S.e < 0.05 ? '刚开始' : `侵蚀阶段 ${Math.round(S.e * 100)}/100`}<br><small>本例：正常层序的直立褶皱，按设定的差异侵蚀演化；倒置并非必然。取样旗与记录均显示当前露头。</small>`;
+      for (const [x, n] of [[0, '背斜'], [-LAM / 2, '向斜'], [LAM / 2, '向斜']]) { g.fillStyle = '#2a3140'; g.textAlign = 'center'; if (hasFold(S.c)) g.fillText(n, PX(x), 140); }
+      W.read.innerHTML = `挤压：${S.c < 0.05 ? '还没挤' : S.c < 0.5 ? '挤弯了一点' : '挤得很弯'}　外力作用：${S.e < 0.05 ? '刚开始' : `侵蚀阶段 ${Math.round(S.e * 100)}/100`}<br>${terrainText(S.c, S.e)}<br><small>本例：正常层序的直立褶皱，按设定的差异侵蚀演化；倒置并非必然。取样旗与记录均显示当前露头。</small>`;
     };
     const drawLog = () => {
       if (!W) return;
       const rows = [];
       const r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
-      if (S.said.fold) r('挤压：', '岩层弯成一拱一凹：拱起来的是背斜（山岭），弯下去的是向斜（谷地）');
-      if (S.said.inv) r('外力作用很久：', '背斜顶上裂隙多、冲得快，成了谷地；向斜底部致密、冲得慢，成了山岭');
+      if (S.said.fold) r('曾观察到挤压：', '岩层弯成一拱一凹：拱起来的是背斜，弯下去的是向斜；地形另看当前地表高低');
+      if (S.said.inv) r('曾观察到倒置：', '背斜顶上裂隙多、冲得快，成了谷地；向斜底部致密、冲得慢，成了山岭');
       const near = (x, a) => Math.abs(x - a) < 0.03, pa = S.probes.find((p) => near(p.x, 0)), ps = S.probes.find((p) => near(p.x, LAM / 2) || near(p.x, -LAM / 2));
-      if (pa) r('背斜处当前露头：', `中间露出第 ${exposed(pa.x, S.c, S.e)} 层（${AGE[exposed(pa.x, S.c, S.e) - 1]}）`);
-      if (ps) r('向斜处当前露头：', `中间露出第 ${exposed(ps.x, S.c, S.e)} 层（${AGE[exposed(ps.x, S.c, S.e) - 1]}）`);
-      if (S.guess != null && S.said.inv) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：外力作用很久以后，变成谷地（背斜成谷）`)));
+      if (pa) r(hasFold(S.c) ? '背斜处当前露头：' : '原背斜轴位置当前露头：', `中间露出第 ${exposed(pa.x, S.c, S.e)} 层（${AGE[exposed(pa.x, S.c, S.e) - 1]}）`);
+      if (ps) r(hasFold(S.c) ? '向斜处当前露头：' : '原向斜轴位置当前露头：', `中间露出第 ${exposed(ps.x, S.c, S.e)} 层（${AGE[exposed(ps.x, S.c, S.e) - 1]}）`);
+      if (S.guess != null && S.said.inv) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　曾观察到：在本例差异侵蚀下，背斜成谷`)));
       W.log.replaceChildren(...rows);
       if (S.said.fold && S.said.inv && pa && ps) W.ui.unlock();
     };
+    let previous = { c: S.c, e: S.e };
     const events = () => {
-      if (S.c > 0.6 && !S.said.fold) { S.said.fold = true; say1('拱起来的是背斜，弯下去的是向斜', LAM / 4, surface(LAM / 4, S.c, S.e) + 0.05, ZD); W?.ui.status('岩层被挤弯了：<b>背斜</b>向上拱，形成山岭；<b>向斜</b>向下弯，形成谷地。背斜顶上被拉开，出现了裂隙。现在拖<b>侵蚀阶段</b>，看外力长期作用以后会怎样。'); drawLog(); }
-      const inv = surface(0, S.c, S.e) < surface(LAM / 2, S.c, S.e);
-      if (S.said.inv && !inv && !S.said.back) { S.said.back = true; W?.ui.status('侵蚀阶段回溯了：地形又回到刚挤出来的样子，背斜是山岭、向斜是谷地。'); }
-      if (inv) S.said.back = false;
-      if (S.c > 0.6 && S.e > 0.7 && !S.said.inv && surface(0, S.c, S.e) < surface(LAM / 2, S.c, S.e)) { S.said.inv = true; say1('背斜成了谷地，向斜成了山岭', -LAM / 4, surface(LAM / 2, S.c, S.e) + 0.05, ZD); W?.ui.status('地形倒过来了：<b>背斜成谷、向斜成山</b>。可岩层还是原来那样弯着。在地面上点一点取样，看看中间和两边的岩层谁老谁新。'); drawLog(); }          // 写在背斜和向斜之间的上方，不压着取样的小旗
+      const state = terrain(S.c, S.e), changed = S.c !== previous.c || S.e !== previous.e;
+      if (changed) { callout.setOn(false); W?.ui.status(changeText(previous, S.c, S.e)); }
+      if (S.c > 0.6 && !S.said.fold) { S.said.fold = true; say1('拱起来的是背斜，弯下去的是向斜', LAM / 4, surface(LAM / 4, S.c, S.e) + 0.05, ZD); }
+      if (state === 'inverted' && !S.said.inv) { S.said.inv = true; say1('背斜成了谷地，向斜成了山岭', -LAM / 4, surface(LAM / 2, S.c, S.e) + 0.05, ZD); }
+      previous = { c: S.c, e: S.e };
     };
     const layout = () => { shape(); placePlates(); placeTags(); placeProbes(); drawChart(); events(); drawLog(); };
 

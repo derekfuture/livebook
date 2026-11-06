@@ -43,3 +43,22 @@ export const isLand = (x) => x < COAST_W || x > COAST_E;
 export function seaLandTemp(x, h) { const w = (2 * Math.PI) / 24; return isLand(x) ? 5 * Math.sin(w * (h - 9)) : 1.2 * Math.sin(w * (h - 11)); }
 /** 风向：按风从哪边吹来叫；u > 0 往东吹＝西风 */
 export const windName = (u) => (Math.abs(u) < 1e-5 ? '静风' : u > 0 ? '西风' : '东风');
+
+/** 与当前热力条件的稳定解比较；2% 是教学显示容差，不是观测标准。 */
+export function settled(st) {
+  const target = meanOut(Array.from(st.th)), scale = Math.max(0.1, ...target.map(Math.abs));
+  return target.every((v, i) => Math.abs(st.P[i] - v) <= 0.02 * scale && Math.abs(st.S[i] - v) <= 0.02 * scale);
+}
+/** 从当前速度场积分瞬时流线，不强制闭合；归一化中点法，步长为模型长度。 */
+export function streamline(st, x, z, count = 600) {
+  const F = field(st), points = [[x, z]], ds = 0.0008;
+  for (let i = 0; i < count; i++) {
+    const [u, w] = F.at(x, z), speed = Math.hypot(u, w); if (speed < 1e-5) break;
+    const [um, wm] = F.at(x + ds * u / speed / 2, z + ds * w / speed / 2), mid = Math.hypot(um, wm); if (mid < 1e-5) break;
+    x += ds * um / mid; z += ds * wm / mid;
+    if (x <= XL || x >= XR || z <= 0 || z >= H) break;
+    points.push([x, z]);
+    if (i > 20 && Math.hypot(x - points[0][0], z - points[0][1]) < ds) break;
+  }
+  return points;
+}

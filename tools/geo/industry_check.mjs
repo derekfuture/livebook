@@ -20,4 +20,7 @@ const mouth = RIVER.at(-1); ok(Math.abs(mouth[0] - coastX(mouth[1])) < 1e-12, '�
 let dry = true; for (let n = -0.11; n <= 0.11; n += 0.001) { const p = landPoint({ x: 0.16, n }); for (let dn = -0.01; dn <= 0.01001; dn += 0.001) if (p.x + 0.016 > coastX(p.n + dn)) dry = false; }
 ok(dry, '沿整条曲线海岸约束厂区宽度，厂区不入海');
 ok(landPoint({ x: 0.104, n: -0.02 }).x < coastX(-0.02) - 0.016, '审稿坐标 n=-0.02：退到岸内并留厂区宽度');
+for (const p of [PLACES.intake, PLACES.city, PLACES.port]) ok(evaluate('beer', p).fx.some((f) => f.k === 'scope' && ['供水', '废水处理', '水源地保护', '未核算'].every((t) => f.text.includes(t))), '啤酒厂在取水口、城市和港口均提示环境核算范围');
+const caneCost = evaluate('sugar', PLACES.cane).cost;
+ok(caneCost['原料运输'] === 0 && caneCost['产品运输'] > 0, '甘蔗田处原料运输为零，不能声称当前运原料最贵');
 process.exit(bad ? 1 : 0);

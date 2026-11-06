@@ -13,7 +13,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { groundLabel, faceLabel, airLabel, noteBadge } from './kit/labels.js';
-import { XL, XR, DIVIDE, COAST, FIELD, SURF, ground, SEA_Y, LAKE_X, LAKE_Y, scenarioOf as cycleOf, rainSplit, createWater } from './kit/water.js';
+import { XL, XR, DIVIDE, COAST, FIELD, SURF, ground, waterHead, SEA_Y, LAKE_X, LAKE_Y, scenarioOf as cycleOf, rainSplit, createWater } from './kit/water.js';
 
 const ZD = 0.065, NX = 160, YB = 0, CLOUD_Y = 0.112;
 const KEYS = ['bare', 'sand', 'paved'];
@@ -52,10 +52,10 @@ export default {
         const sea = x > COAST; if (sea) { const sy = (1 - SEA_Y / YMAX) * SH; g.fillStyle = '#5e9ccc'; g.fillRect(i, sy, 1, ty - sy); }
         if (x < -0.105 && x > -0.165 && top < LAKE_Y) { const ly = (1 - LAKE_Y / YMAX) * SH; g.fillStyle = '#6aa8d2'; g.fillRect(i, ly, 1, ty - ly); }
         g.fillStyle = '#8e6a44'; g.fillRect(i, ty, 1, 10); g.fillStyle = '#b48b5a'; g.fillRect(i, ty + 10, 1, SH * 0.25); g.fillStyle = '#c9a877'; g.fillRect(i, ty + 10 + SH * 0.25, 1, SH);
-        const wt = Math.min(top - 0.008, Math.max(0.018, top - 0.012)), wy = (1 - wt / YMAX) * SH;          // 地下水面：在地面下面一点，跟着地形起伏
+        const wt = waterHead(x), wy = (1 - wt / YMAX) * SH;          // 地下水面和粒子共用水头，沿海段向海面下降
         if (!sea) { g.fillStyle = 'rgba(70,130,190,0.35)'; g.fillRect(i, wy, 1, SH - wy); }
       }
-      g.strokeStyle = 'rgba(40,90,150,0.8)'; g.setLineDash([8, 6]); g.lineWidth = 2; g.beginPath(); for (let i = 0; i < SW; i += 2) { const x = X(i / (SW - 1)); if (x > COAST) break; const top = ground(x), wy = (1 - Math.max(0.018, top - 0.012) / YMAX) * SH; if (i) g.lineTo(i, wy); else g.moveTo(i, wy); } g.stroke(); g.setLineDash([]);
+      g.strokeStyle = 'rgba(40,90,150,0.8)'; g.setLineDash([8, 6]); g.lineWidth = 2; g.beginPath(); for (let i = 0; i < SW; i += 2) { const x = X(i / (SW - 1)); if (x > COAST) break; const top = ground(x), wy = (1 - waterHead(x) / YMAX) * SH; if (i) g.lineTo(i, wy); else g.moveTo(i, wy); } g.stroke(); g.setLineDash([]);
       sideTex.needsUpdate = true;
     };
     const front = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, YMAX), new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, alphaTest: 0.1 })); front.position.set(0, YMAX / 2, ZD); block.add(front);
@@ -179,14 +179,14 @@ export default {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
       for (const k of ['big', 'sea', 'land']) if (S.seen.has(k)) { const c = cycleOf(k === 'big' ? 0.03 : k === 'sea' ? 0.12 : -0.12); r(`${c.name}：`, c.text); }
-      for (const k of KEYS) if (S.surfSeen.has(k)) { const s2 = SURF[k]; r(`${s2.name.replace(/（.*）/, '')}：`, `下渗 ${Math.round(s2.inf * 100)}%，地表径流 ${Math.round(s2.run * 100)}%，蒸发 ${Math.round(s2.ev * 100)}%`); }
+      for (const k of KEYS) if (S.surfSeen.has(k)) { const s2 = SURF[k]; r(`${s2.name.replace(/（.*）/, '')}：`, `纯地块预设比例（示意，非此次降雨覆盖区）：下渗 ${Math.round(s2.inf * 100)}%，地表径流 ${Math.round(s2.run * 100)}%，蒸发 ${Math.round(s2.ev * 100)}%`); }
       if (S.guess != null && S.surfSeen.has('sand')) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：下渗得更多，蒸发更少（砂石盖着，水不容易跑掉）`)));
       W.log.replaceChildren(...rows);
       if (S.seen.size === 3 && S.surfSeen.size >= 2) W.ui.unlock();
     };
     const note1 = () => { const cy = cycleOf(S.cx);
 
-      if (S.moved && !S.seen.has(cy.kind)) { S.seen.add(cy.kind); W?.ui.status(`<b>${cy.name}</b>：${cy.text}。`); drawLog(); } if (S.cx >= FIELD[0] && S.cx <= FIELD[1] && S.moved && !S.surfSeen.has(S.surf)) { S.surfSeen.add(S.surf); drawLog(); } };
+      if (S.moved) W?.ui.status(`<b>${cy.name}</b>：${cy.text}。`); if (S.moved && !S.seen.has(cy.kind)) { S.seen.add(cy.kind); drawLog(); } if (S.cx >= FIELD[0] && S.cx <= FIELD[1] && S.moved && !S.surfSeen.has(S.surf)) { S.surfSeen.add(S.surf); drawLog(); } };
     const layout = () => { cloud.position.set(S.cx, CLOUD_Y, 0); placeWind(); placeTags(); drawChart(); city.visible = S.surf === 'paved'; pebbles.visible = S.surf === 'sand'; };
 
     // ---- 拖云 ----

@@ -1,5 +1,5 @@
 // 核对热力环流活页的模型：node tools/geo/thermal_check.mjs（必修第一册第 36、38 页；《台海使槎录》：内地之风，早西晚东，惟台地早东风，午西风）
-import { makeState, step, field, pressure, seaLandTemp, windName, xOf, N, H, COAST_W, COAST_E } from '../../src/lessons/kit/thermal.js';
+import { makeState, step, field, settled, streamline, pressure, seaLandTemp, windName, xOf, N, H, COAST_W, COAST_E } from '../../src/lessons/kit/thermal.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const A = 0, B = -0.12, C = 0.12;
 const st = makeState();
@@ -27,4 +27,21 @@ step(jump, 0.016, { tauP: 0.6, tauS: 1.2 });
 ok(windName(field(jump).at(COAST_W - 0.014, zLow)[0]) === '西风', '6时切14时下一帧仍是西风，当前观察必须保留风场滞后');
 for (let k = 0; k < 400; k++) { for (let i = 0; i < N; i++) jump.th[i] = seaLandTemp(xOf(i), 14); step(jump, 0.05, { tauP: 0.6, tauS: 1.2 }); }
 ok(windName(field(jump).at(COAST_W - 0.014, zLow)[0]) === '东风', '14时稳定后才转为东风');
+ok(settled(jump), '14时稳定状态可完成记录');
+for (let k = 0; k < 1200; k++) { for (let i = 0; i < N; i++) jump.th[i] = seaLandTemp(xOf(i), 6); step(jump, 1 / 60, { tauP: 0.6, tauS: 1.2 }); }
+for (const hour of [14, 12]) {
+  for (let i = 0; i < N; i++) jump.th[i] = seaLandTemp(xOf(i), hour);
+  ok(!settled(jump), `跳到${hour}时不能立即作为稳定对照`);
+  for (let k = 0; k < 30; k++) { for (let i = 0; i < N; i++) jump.th[i] = seaLandTemp(xOf(i), hour); step(jump, 1 / 60, { tauP: 0.6, tauS: 1.2 }); }
+  const f = field(jump);
+  for (const x of [-0.08, 0.08]) {
+    const line = streamline(jump, x, H * 0.25); let worst = 0;
+    for (let k = 0; k < 4; k++) {
+      const j = Math.floor((k + 0.5) * line.length / 4); if (!line[j + 1]) continue;
+      const [px, z] = line[j], [u, w] = f.at(px, z), dx = line[j + 1][0] - px, dz = line[j + 1][1] - z;
+      worst = Math.max(worst, Math.acos(Math.max(-1, Math.min(1, (u * dx + w * dz) / Math.hypot(u, w) / Math.hypot(dx, dz)))) * 180 / Math.PI);
+    }
+    ok(worst < 10, `${hour}时切换0.5秒，${x}侧箭头与流线夹角 ${worst.toFixed(2)}°`);
+  }
+}
 process.exit(bad ? 1 : 0);

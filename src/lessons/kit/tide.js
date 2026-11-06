@@ -22,4 +22,14 @@ export function shipState(v) { const water = MSL + v * KY, bottom = Math.max(wat
 export const intertidal = { hi: -0.06 + (0.05 - MSL - KY * K * (AM + AS)) * 3.5, lo: -0.06 + (0.05 - MSL + KY * K * (AM + AS)) * 3.5 };
 export const playHour = (h, dt) => Math.min(24, h + dt * 2);
 /** 任意微小日期变化都作废当前活动判断；远日期保留旧曲线仅供对照。 */
-export function setDate(state, D) { const previous = state.D; state.D = D; if (D !== previous) state.pick = null; if (Math.abs(D - previous) > 3) state.cmp = previous; }
+export function setDate(state, D) { const previous = state.D; state.D = Math.max(0, Math.min(29, Math.round(D))); if (D !== previous) state.pick = null; if (Math.abs(state.D - previous) > 3) state.cmp = previous; }
+
+/** 日期吸附整数；显示分钟统一进位，24时表示当天终点。 */
+export const timeText = (h) => { const m = Math.round(h * 60); return `${Math.floor(m / 60)} 时 ${String(m % 60).padStart(2, '0')} 分`; };
+export const NET_WIDTH = 0.011, NET_TILT = Math.atan(0.04 / 0.14);
+export function netRow(r) { const x = 0.01 + r * 0.012, y = shore(x) + 0.005, half = NET_WIDTH / 2 * Math.sin(NET_TILT); return { x, y, lo: y - half, hi: y + half }; }
+export function netState(r, water) { const { lo, hi } = netRow(r); return water <= lo ? '全部出露' : water >= hi ? '全部浸水' : '部分浸水'; }
+/** 低潮取局部极小值；前后半小时为本页练习的示意窗口，并非现实赶海安全建议。 */
+export function lows(D) { const t = []; for (let h = -0.5; h <= 24.5; h += 0.01) if (level(D, h) < level(D, h - 0.01) && level(D, h) <= level(D, h + 0.01)) t.push(h); return t; }
+const lowCache = new Map();
+export function nearLow(D, h) { if (!lowCache.has(D)) lowCache.set(D, lows(D)); return lowCache.get(D).some((t) => Math.abs(t - h) <= 0.5); }

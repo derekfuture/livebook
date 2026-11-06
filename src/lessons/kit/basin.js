@@ -26,9 +26,18 @@ export function loads(cfg = {}, res = 0) {
 export const bedRise = (deposit) => deposit * 0.025;
 /** 一口气走 years 年：返回每年的河床高度、最后水库淤了多少（配置在这几年里不变） */
 export function run(cfg, { bed, res = 0 }, years = 10) {
-  const beds = []; let b = bed, r = res, last = null;
-  for (let y = 0; y < years; y++) { const l = loads(cfg, r); r += l.trapped; b += bedRise(l.deposit); beds.push(b); last = l; }
-  return { beds, bed: b, res: r, last, first: loads(cfg, res) };
+  const beds = [], frames = []; let b = bed, r = res, last = null;
+  for (let y = 0; y < years; y++) { const l = loads(cfg, r), from = { bed: b, res: r }; r += l.trapped; b += bedRise(l.deposit); beds.push(b); frames.push({ from, bed: b, res: r, loads: l }); last = l; }
+  return { beds, frames, bed: b, res: r, last, first: loads(cfg, res) };
 }
 // 简化边界：未模拟库区排沙、减淤，只示意调度对下游的冲刷；不能预测小浪底长期运行或寿命。
 // 真实库区排沙过程参见《湖泊科学》2024，DOI: 10.18307/2024.0544。
+
+/** 年内只对同一年度的库存和河床插值；年输沙量保持该年度的收支值，并非瞬时流率。 */
+export function frameAt(result, elapsed) {
+  const k = Math.max(0, Math.min(result.frames.length, elapsed)), i = Math.min(result.frames.length - 1, Math.floor(k)), f = result.frames[i], t = k - i;
+  return { bed: f.from.bed + (f.bed - f.from.bed) * t, res: f.from.res + (f.res - f.from.res) * t, loads: f.loads, year: i + 1 };
+}
+export const configKey = (cfg) => ['bio', 'farm', 'eng', 'dam', 'flush'].map((k) => k === 'flush' ? +(cfg.dam && cfg.flush) : +!!cfg[k]).join('');
+export const configName = (cfg) => { const names = Object.keys(MEASURES).filter((k) => cfg[k]).map((k) => MEASURES[k].name); return `${names.length ? `中游${names.join('＋')}` : '中游不治理'}${cfg.dam ? (cfg.flush ? '，小浪底调水调沙' : '，小浪底只拦沙') : ''}`; };
+export const leveeResult = (levee, flood) => levee < flood ? '堤顶仍低于模拟洪水位，仍有漫堤危险。' : levee === flood ? '堤顶仅与模拟洪水位齐平，尚无安全余量。' : '堤顶已高于本模型的模拟洪水位；这不代表实际防洪安全保证。';

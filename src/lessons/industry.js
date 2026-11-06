@@ -165,7 +165,7 @@ export default {
     const drawLog = () => {
       if (!W) return;
       const rows = [...S.tried].map((k) => { const mine = S.saved.filter((s) => s.kind === k); return h('div', { class: 'tl-row' }, h('b', {}, `${INDUSTRIES[k].name}：`), h('span', {}, mine.length ? mine.map((s) => `${s.label} 总成本 ${s.ev.total.toFixed(1)}${s.ev.fx.length ? '（有麻烦）' : ''}`).join('；') : '拖过，还没记方案'), mine.length ? h('small', {}, `它最在乎：${INDUSTRIES[k].lead}`) : null); });
-      if (S.guess != null && S.saved.some((s) => s.kind === 'sugar')) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：甘蔗田旁边最省（甘蔗又重又容易坏，运原料最贵）`)));
+      if (S.guess != null && S.saved.some((s) => s.kind === 'sugar')) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　本情境中原料运输对距离更敏感，靠近甘蔗田能显著节省这部分成本`)));
       W.log.replaceChildren(...rows);
       if (new Set(S.saved.map((s) => s.kind)).size >= 3) W.ui.unlock();
     };

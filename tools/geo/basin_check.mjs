@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 // 核对黄河调沙减淤：node tools/geo/basin_check.mjs（选必2 第 61–64 页，图 4.7）
-import { loads, bedRise, run, RES_CAP } from '../../src/lessons/kit/basin.js';
+import { loads, bedRise, run, RES_CAP, frameAt, configKey, configName, leveeResult } from '../../src/lessons/kit/basin.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const near = (a, b, tol) => Math.abs(a - b) <= tol, ALL = { bio: true, farm: true, eng: true };
 const L0 = loads(), L1 = loads(ALL), L2 = loads({ ...ALL, dam: true, flush: true });
@@ -22,4 +24,25 @@ for (let mask = 0; mask < 32; mask++) {
 const decade = run({ dam: true, flush: true }, { bed: 7.5 }, 10), long = run({ ...ALL, dam: true, flush: true }, { bed: 7.5 }, 50);
 ok(decade.res === RES_CAP && decade.first.sea < decade.last.sea && decade.last.full, '首十年跨过拦沙上限，首末年入海量不同，末年不再拦沙');
 ok(long.bed > 7.5 && long.last.deposit > 0, '50 年后全措施仍可能淤积，不支持长期不再长高的断言');
+const at85 = frameAt(decade, 8.5), f9 = decade.frames[8];
+ok(near(at85.loads.out, 9.306, 0.001) && at85.loads.deposit > 0 && at85.bed > f9.from.bed && near(at85.res, (f9.from.res + f9.res) / 2, 1e-10), '第 8.5 年：库存按第九年插值，下泄 9.306 亿吨、净淤积与河床上升一致');
+let synced = true;
+for (let k = 0; k <= 1000; k++) { const f = frameAt(decade, k / 100), i = Math.min(9, Math.floor(k / 100)), a = decade.frames[i]; synced &&= near(f.bed - a.from.bed, bedRise(f.loads.deposit) * (k / 100 - i), 1e-10) && near(f.res - a.from.res, f.loads.trapped * (k / 100 - i), 1e-10); }
+ok(synced, '首十年每 0.01 年检查：动画库存、河床与同一年泥沙收支一致，含整数年和结束边界');
+const stopped = run({}, decade, 10), restarted = run({ dam: true, flush: true }, stopped, 10);
+ok(stopped.res === RES_CAP && restarted.res === RES_CAP && restarted.first.trapped === 0, '满库后停用十年再启用：库存保留，不恢复拦沙容量');
+const partial = run({ dam: true }, { bed: 7.5 }, 3), paused = run({}, partial, 2), resumed = run({ dam: true }, paused, 1);
+ok(paused.res === partial.res && resumed.res > partial.res, '未满库停用再启用：库存连续累积');
+const configs = ['bio', 'farm', 'eng'].map((k) => ({ [k]: true }));
+ok(new Set(configs.map(configKey)).size === 3 && new Set(configs.map(configName)).size === 3, '三种单项措施的记录键和名称各自独立');
+const flood100 = run({}, { bed: 7.5 }, 100).bed + 3.5;
+ok(leveeResult(16, flood100).includes('仍低于') && leveeResult(20, 20).includes('齐平') && leveeResult(22, 20).includes('已高于'), '100 年后首次加堤仍不足；低于、齐平、高于洪水位分别提示');
+const source = readFileSync(new URL('../../src/lessons/basin.js', import.meta.url), 'utf8');
+const S = { dam: true, flush: true, res: 100, year: 10, bed: decade.bed, pulse: 0 }, noop = () => {};
+const control = runInNewContext(source.slice(source.indexOf('        const damSeg ='), source.indexOf('        const time = buttons')) + '; damSeg', { S, rebuild: noop, ui: { status: noop }, seg: (_label, _options, callback) => ({ callback, set: noop }) });
+control.callback('', 0); control.callback('', 2);
+ok(S.res === 100 && S.year === 10 && S.bed === decade.bed, '实际水库选项回调：停用再启用不会清空库存或改写年份、河床');
+const color = runInNewContext(source.slice(source.indexOf('    const conc ='), source.indexOf('    const buildWater =')) + '; conc', { S, L: () => at85.loads, DAM_S: 0.47 });
+const before = Array.from({ length: 101 }, (_, i) => color(i / 100)); S.pulse = 2;
+ok(before.every((v, i) => v === color(i / 100)), '实际河流配色函数：调沙脉冲不改变同一年度输沙量的颜色');
 process.exit(bad ? 1 : 0);

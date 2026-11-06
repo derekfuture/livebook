@@ -9,3 +9,14 @@ export const RATE = { limestone: { wet: 1, dry: 0.15 }, granite: { wet: 0, dry: 
 export const STEP = 0.12;          // “让一段很长的时间过去”一次，湿润地区的石灰岩往前走多少（示意）
 /** 溶洞有多大、石钟乳和石笋长了多少（0—1）：洞先长大，钟乳石、石笋慢慢长，连起来成石柱 */
 export const cave = (t) => ({ size: Math.min(1, t / 0.45), drip: Math.max(0, Math.min(1, (t - 0.2) / 0.5)), column: t > 0.66 });
+
+const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const joint = (x, z) => { const a = Math.abs(Math.sin((x * 0.92 + z * 0.39) * 160)), b = Math.abs(Math.sin((z * 0.95 - x * 0.31) * 140)); return Math.max((1 - a) ** 14, (1 - b) ** 14); };          // 岩石里两组节理（裂隙），溶沟顺着它们长
+export const terrainHeight = (b, P, x, z, t, H0 = 0.09) => {
+  if (b.rock === 'granite') return H0;          // 花岗岩地块保持不变：本活页不模拟其风化侵蚀
+  const base = H0 - 0.05 * sm(0.14, 0.62, t) - 0.008 * sm(0.75, 1, t), c0 = 0.03 + 0.6 * sm(0.3, 0.78, t), hs = 1 - 0.78 * sm(0.84, 1, t);          // 地面一路溶低；峰的基部越来越窄（峰丛 → 峰林）；到最后峰也矮了（残丘）
+  let top = 0; for (const p of P) { if (p.r < 0.82 * sm(0.62, 0.92, t)) continue; const cone = Math.max(0, 1 - Math.hypot(x - p.x, z - p.z) / (0.028 * p.k)); top = Math.max(top, sm(c0, 1, cone) ** (0.7 + 0.6 * t) * hs * (0.85 + 0.15 * p.r)); }          // 越往后，留下的峰越少（孤峰）
+  let hgt = base + (H0 - base) * top;
+  hgt -= 0.01 * sm(0, 0.16, t) * joint(x, z);          // 累计溶沟不回填；基面降低、残余峰体缩小，纯溶蚀中同一点高度不回升
+  return Math.max(0.03, hgt);
+};

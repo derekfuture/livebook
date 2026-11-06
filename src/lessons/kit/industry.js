@@ -57,6 +57,7 @@ export function evaluate(kind, p) {
   if (I.land && isFarm(p)) fx.push({ k: 'farm', at: 'here', text: '占用大片农田' });
   if (I.tall && dist(p, P.airport) < 0.04) fx.push({ k: 'air2', at: 'airport', text: '高大设备、上升热气流影响飞机起降' });
   if (I.needWater && r.d > 0.03) fx.push({ k: 'nowater', at: 'here', text: '远离河流，需落实淡水供水；临海不等于具备工艺供水条件' });
+  if (kind === 'beer') fx.push({ k: 'scope', at: 'here', text: '本例侧重市场区位；供水、废水处理及水源地保护条件未核算，需另行落实' });
   if (I.clean) fx.push({ k: 'scope', at: 'here', text: '本例侧重技术区位；晶圆制造还需供水和废水处理设施，未在本模型核算' });
   if (isMountain(p)) fx.push({ k: 'mount', at: 'here', text: '山区建厂、运输都难' }), (c['原料运输'] *= 1.4, c['产品运输'] *= 1.4);
   return { cost: c, total: Object.values(c).reduce((a, b) => a + b, 0), fx: fx.filter((f) => f.text) };
@@ -76,3 +77,5 @@ export function swing(kind) {
 
 // 电价影响因素参见 EIA：https://www.eia.gov/energyexplained/electricity/prices-and-factors-affecting-prices.php
 // 晶圆制造用水与废水参见 EPA：https://www.epa.gov/eg/electrical-and-electronic-components-effluent-guidelines
+
+// 酿造用水和废水参见康涅狄格州 DEEP：https://portal.ct.gov/deep/p2/industry/sustainable-breweries

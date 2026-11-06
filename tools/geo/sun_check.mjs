@@ -1,6 +1,6 @@
 // 自动核对：高中地理“昼夜长短和正午太阳高度”里显示的数，和课本对得上。node tools/geo/sun_check.mjs
 // 课本第 12 页：北京（40°N）夏至正午 73°26′、冬至 26°34′；图 1.15（北纬 40°）日出日落大致时间：夏至 4:30 / 19:30，二分 6:00 / 18:00，冬至 7:30 / 16:30。
-import { D2R, decOf, dm, hm, dur, altText, dirName, sunAt, halfDay, noonAlt, snapSeason, noonText, skyJoin } from '../../src/lessons/kit/sun.js';
+import { D2R, decOf, dm, hm, dur, altText, dirName, sunAt, halfDay, noonAlt, snapSeason, noonText, skyJoin, skyX } from '../../src/lessons/kit/sun.js';
 
 let bad = 0;
 const ok = (name, got, want) => { const pass = got === want; if (!pass) bad++; console.log(`${pass ? '✓' : '✗'} ${name}：${got}${pass ? '' : `（应为 ${want}）`}`); };
@@ -51,5 +51,21 @@ ok('89.5°N 吸附春分后画面和记录昼长均为 12 小时', day(89.5 * D2
 let seams = 0, prev = null;
 for (let k = 0; k <= 288; k++) { const sun = sunAt(68.97 * D2R, summer, (k / 288 * 24 - 12) * 15 * D2R), a = ((sun.az / D2R - 180 + 540) % 360) - 180, x = 160 + a / 180 * 160; if (prev !== null && !skyJoin(x, prev, 320)) seams++; prev = x; }
 ok('摩尔曼斯克夏至路径在方位接缝断开', seams > 0, true);
+for (const south of [true, false]) {
+  const east = skyX(Math.PI / 2, 0, south, 320), west = skyX(-Math.PI / 2, 0, south, 320);
+  ok(`朝${south ? '南' : '北'}的东西方位顺序`, south ? east < west : west < east, true);
+}
+const sgAM = sunAt(1.3 * D2R, summer, -30 * D2R), sgPM = sunAt(1.3 * D2R, summer, 30 * D2R);
+ok('新加坡夏至朝北：上午太阳在右、下午在左', skyX(sgAM.az, sgAM.alt, false, 320) > 160 && skyX(sgPM.az, sgPM.alt, false, 320) < 160, true);
+for (const lat of [0, summer, winter]) {
+  const s = sunAt(lat, lat, 0);
+  ok('直射正午方位未定义', s.az, null);
+  ok('天顶投影居中', skyX(s.az, s.alt, true, 320), 160);
+  ok('天顶空间方向仍有效', Number.isFinite(s.dir.length()), true);
+}
+for (const hour of [11 + 55 / 60, 12 + 5 / 60]) {
+  const s = sunAt(0, 0, (hour - 12) * 15 * D2R);
+  ok(`赤道春分 ${hour} 路径收束到天顶附近`, Math.abs(skyX(s.az, s.alt, true, 320) - 160) < 2, true);
+}
 console.log(bad ? `\n${bad} 项没对上` : '\n全部对上');
 process.exit(bad ? 1 : 0);

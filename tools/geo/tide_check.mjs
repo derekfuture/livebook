@@ -1,5 +1,5 @@
 // 核对潮汐：node tools/geo/tide_check.mjs（必修第一册第 59 页）
-import { range, highs, lunarName, angles, level, M2, K, AM, AS, MSL, KY, shipState, SHIP_BED, HULL_BOTTOM, SHIP_DRAFT, shore, intertidal, playHour, setDate } from '../../src/lessons/kit/tide.js';
+import { NET_WIDTH, timeText, netRow, netState, lows, nearLow, range, highs, lunarName, angles, level, M2, K, AM, AS, MSL, KY, shipState, SHIP_BED, HULL_BOTTOM, SHIP_DRAFT, shore, intertidal, playHour, setDate } from '../../src/lessons/kit/tide.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 for (const D of [0, 7, 14.8, 22]) { const n = highs(D).n; ok(n >= 1 && n <= 2, `${lunarName(D)}：一天里 ${n} 次高潮（通常两次）`); }
 const r0 = range(0).r, r15 = range(14.8).r, r7 = range(7.4).r, r22 = range(22.1).r;
@@ -15,4 +15,11 @@ ok(playHour(23.999, 0.05) === 24 && playHour(24, 1) === 24 && Math.abs(level(18,
 ok(Math.abs(shore(intertidal.hi) - (MSL + KY * K * (AM + AS))) < 1e-12 && Math.abs(shore(intertidal.lo) - (MSL - KY * K * (AM + AS))) < 1e-12, '潮间带边界为模型最高最低潮位与地形交点');
 const selected = { D: 0, pick: { ok: true } }; setDate(selected, 0.001); ok(selected.pick === null, '慢拖仅0.001天立即清除旧活动判断');
 for (let d = 0.01; d < 18; d += 0.01) setDate(selected, d); ok(selected.pick === null && selected.D > 17.9, '多次微移累计到另一日期，不残留旧判断');
+
+const snapped = [7.6, 8, 8.4].map((D) => { const s = { D: 0, h: 6 }; setDate(s, D); return s; });
+ok(snapped.every((s) => s.D === 8 && s.h === 6 && level(s.D, s.h) === level(8, 6) && angles(s.D, s.h).port === angles(8, 6).port), '7.6/8/8.4拖动统一吸附初九6时，潮位与红点一致');
+for (const D of [0, 7, 14, 22, 29]) { const ts = lows(D).filter((h) => h >= 0 && h <= 24); ok(ts.length > 0 && ts.every((h) => nearLow(D, h) && nearLow(D, h + 0.4) && !nearLow(D, h + 0.6)), `${D}日：所有低潮及半小时窗口接受，窗口外拒绝`); }
+ok(lows(7).some((h) => level(7, h) > -1.4 && nearLow(7, h)), '初八最低潮高于−1.4米也属于低潮');
+for (let r = 0; r < 4; r++) { const row = netRow(r); ok(netState(r, MSL - KY * K * (AM + AS)) === '全部出露' && netState(r, MSL + KY * K * (AM + AS)) === '全部浸水' && netState(r, row.y) === '部分浸水' && row.lo > shore(row.x - NET_WIDTH / 2), `第${r + 1}排：低潮全干、高潮全湿、中间部分浸水`); }
+ok(timeText(6.999) === '7 时 00 分' && timeText(23.999) === '24 时 00 分' && timeText(6.5) === '6 时 30 分', '分钟进位且保留分钟，午夜为当天24时');
 process.exit(bad ? 1 : 0);

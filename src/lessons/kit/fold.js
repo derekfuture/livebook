@@ -22,3 +22,11 @@ export function surface(x, c, e) {
 export function layerAt(x, y, c) { const k = Math.floor((y - bend(x, c)) / TH) + 1; return Math.max(1, Math.min(NLAY, k)); }
 /** 地面上露出来的是第几层 */
 export const exposed = (x, c, e) => layerAt(x, surface(x, c, e) - 1e-6, c);
+
+export const RELIEF_TOL = AMP * 1e-4;          // 示意振幅的万分之一，远小于绘图分辨率，排除舍入高差
+export const hasFold = (c) => AMP * c > RELIEF_TOL;
+/** 构造与地形分开：平层、地表近乎平坦、正常起伏或倒置。 */
+export const terrain = (c, e) => { const d = surface(0, c, e) - surface(LAM / 2, c, e); return !hasFold(c) ? 'unfolded' : Math.abs(d) <= RELIEF_TOL ? 'flat' : d > 0 ? 'normal' : 'inverted'; };
+export const terrainText = (c, e) => ({ unfolded: '岩层平直，地表近乎平坦，无背斜、向斜', flat: '地表近乎平坦，岩层仍有褶皱', normal: '背斜是山岭、向斜是谷地', inverted: '背斜成谷、向斜成山' })[terrain(c, e)];
+/** 参数回调是教学状态调整，不把撤回挤压误报为侵蚀回溯。 */
+export const changeText = (prev, c, e) => `${c !== prev.c ? '挤压参数调整了' : e < prev.e ? '侵蚀阶段回溯了' : '侵蚀阶段推进了'}：${terrainText(c, e)}。`;

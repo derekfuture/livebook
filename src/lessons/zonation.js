@@ -12,7 +12,7 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { faceLabel, airLabel, groundLabel, noteBadge } from './kit/labels.js';
-import { KIND, MOUNTAINS, elev, terrainHeight, sideOf, bandAt, bandsBelow, colderBy } from './kit/zonation.js';
+import { KIND, MOUNTAINS, elev, terrainHeight, surfaceBandAt, LAKE_RADIUS, sideOf, bandAt, bandsBelow, colderBy } from './kit/zonation.js';
 
 const XL = -0.19, XR = 0.19, ZD = 0.07, NX = 220, NZ = 44;
 const SCALE = { hima: 0.15 / 8848.86, cb: 0.1 / 2691 };          // 1 米在画面上多高（两座山不一样，侧栏的带谱按真实海拔画）
@@ -74,8 +74,8 @@ export default {
       soil.geometry.dispose(); soil.geometry = new THREE.BufferGeometry(); soil.geometry.setAttribute('position', new THREE.Float32BufferAttribute(SP, 3));
       lake.visible = lakeFace.visible = S.m === 'cb';
       if (S.m === 'cb') {
-        const C = MOUNTAINS.cb, ly = C.lake * K(), rx = 0.12 * 0.47 * (XR - XL) / 2, LP = [], FP = [];          // 天池：切开一半的湖，水面和剖面上的一块蓝
-        for (let k = 0; k < 32; k++) { const a0 = Math.PI * (k / 32), a1 = Math.PI * ((k + 1) / 32); LP.push(0, ly, ZD, Math.cos(a0) * rx, ly, ZD - Math.sin(a0) * rx * 0.9, Math.cos(a1) * rx, ly, ZD - Math.sin(a1) * rx * 0.9); }
+        const C = MOUNTAINS.cb, ly = C.lake * K(), rx = LAKE_RADIUS * (XR - XL) / 2, LP = [], FP = [];          // 天池：切开一半的湖，水面和剖面上的一块蓝
+        for (let k = 0; k < 32; k++) { const a0 = Math.PI * (k / 32), a1 = Math.PI * ((k + 1) / 32); LP.push(0, ly, ZD, Math.cos(a0) * rx, ly, ZD - Math.sin(a0) * rx / 1.15, Math.cos(a1) * rx, ly, ZD - Math.sin(a1) * rx / 1.15); }
         lake.geometry.dispose(); lake.geometry = new THREE.BufferGeometry(); lake.geometry.setAttribute('position', new THREE.Float32BufferAttribute(LP, 3)); lake.geometry.computeVertexNormals();
         for (let i = 0; i < 40; i++) { const x0 = -rx + (2 * rx * i) / 40, x1 = x0 + (2 * rx) / 40, zf = ZD + 0.0004; FP.push(x0, ly, zf, x0, Y(x0, ZD), zf, x1, Y(x1, ZD), zf, x0, ly, zf, x1, Y(x1, ZD), zf, x1, ly, zf); }
         lakeFace.geometry.dispose(); lakeFace.geometry = new THREE.BufferGeometry(); lakeFace.geometry.setAttribute('position', new THREE.Float32BufferAttribute(FP, 3));
@@ -86,8 +86,8 @@ export default {
       const p = topGeo.attributes.position;
       for (let k = 0; k < p.count; k++) {
         const x = p.getX(k), z = p.getZ(k), e = heightM(x, z); p.setY(k, e * K());
-        const kd = kindAt(x, e);          // 配色、植被与标签统一使用最终海拔，不另加分带扰动
-        tc.setHex(KIND[kd].color); shade.setHex(0xffffff).multiplyScalar(0.92 + 0.08 * Math.sin(x * 700 + z * 400)); tc.multiply(shade);
+        const kd = surfaceBandAt(S.m, xm(x), (ZD - z) / (2 * ZD), opt());          // 水下地形用湖底色，不套用陆生植被带
+        tc.setHex(kd === null ? 0x8d8070 : KIND[kd].color); shade.setHex(0xffffff).multiplyScalar(0.92 + 0.08 * Math.sin(x * 700 + z * 400)); tc.multiply(shade);
         tCol.set([tc.r, tc.g, tc.b], k * 3);
       }
       p.needsUpdate = true; topGeo.attributes.color.needsUpdate = true; topGeo.computeVertexNormals(); topGeo.computeBoundingSphere();
@@ -236,8 +236,8 @@ export default {
         const c = document.getElementById('c');
         if (!S.drag) {
           if (c) c.style.cursor = rc.intersectObject(climbPick, false).length ? 'grab' : '';
-          const ht = rc.intersectObject(topMesh, false)[0];
-          if (ht) { const l = block.worldToLocal(ht.point.clone()), kd = kindAt(l.x, heightM(l.x, l.z)); aHover.setText(KIND[kd].name); aHover.position.set(l.x, l.y + 0.01, l.z); aHover.userData.want = 1; } else aHover.userData.want = 0;
+          const ht = rc.intersectObjects(S.m === 'cb' ? [lake, lakeFace, topMesh] : [topMesh], false)[0];
+          if (ht) { const l = block.worldToLocal(ht.point.clone()), kd = ht.object === lake || ht.object === lakeFace ? null : surfaceBandAt(S.m, xm(l.x), (ZD - l.z) / (2 * ZD), opt()); aHover.setText(kd === null ? '天池（火山口湖）' : KIND[kd].name); aHover.position.set(l.x, l.y + 0.01, l.z); aHover.userData.want = 1; } else aHover.userData.want = 0;
           return false;
         }
         const p = onFace(rc.ray); if (!p) return true; S.u = Math.max(-0.985, Math.min(0.985, xm(p.x))); S.moved = true; placeClimber(); return true;

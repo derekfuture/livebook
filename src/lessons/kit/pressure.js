@@ -20,3 +20,11 @@ export function windName(vx, vn) {
   const lean = -vn > Math.abs(vx) * 0.25 ? '偏北' : vn > Math.abs(vx) * 0.25 ? '偏南' : null;          // 从北边来＝偏北风
   return { name: `${d}风`, lean: lean && `${lean}风` };
 }
+
+/** 烟是空气示踪物：按与风向标相同的瞬时风场平流，中点法减小轨迹误差。 */
+export function advect(mode, hemi, x, n, dt) {
+  const [u, v] = windAt(mode, hemi, x, n), [um, vm] = windAt(mode, hemi, x + u * dt / 2, n + v * dt / 2);
+  const nx = x + um * dt, nn = n + vm * dt;
+  return { x: nx, n: nn, velocity: windAt(mode, hemi, nx, nn) };
+}
+export const windCaption = (name) => name === '静风' ? '静风' : `风从${name.replace('风', '')}边吹来`;

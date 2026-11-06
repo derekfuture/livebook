@@ -1,6 +1,6 @@
 // 高中地理 选择性必修1 第四章第二节 洋流（课本第 68–71 页，图 4.11 全球风带和世界洋流模式、活动“绘制世界洋流模式图”）。
 //
-// 一个问题（课本开头）：1992 年一艘货轮在太平洋上遇到风暴，几万只玩具鸭散落海面，后来在世界很多海岸陆续被发现。它们是怎么漂过去的？
+// 一个问题（课本开头）：1992 年一艘货轮在太平洋上遇到风暴，约2.88万件塑料洗澡玩具（包括玩具鸭等）散落海面，后来在世界很多海岸陆续被发现。它们是怎么漂过去的？
 // 课本的图就是模型：图 4.11 那样一个理想化的大洋（不是真实地图，不画国界）：西边一块大陆、东边一块大陆，南纬 45° 以南四周是开阔的海。
 // 学生亲手做的：
 //   1. 让风吹起来：信风、西风吹动海面，海水被陆地挡住、转弯，慢慢转成几个大的环流；箭头红的是暖流、蓝的是寒流。
@@ -13,7 +13,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastEffect, advance, GYRES } from './kit/current.js';
+import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastEffect, advance, windStep, driftInfo, GYRES } from './kit/current.js';
 
 const XL = -0.17, XR = 0.17, G = 0.016, SPEED = 2.2;
 const ASK = ['先猜一下（可以不猜）：在这个情境里，从北纬 20° 大洋中间放下的玩具鸭，会先往——', ['西漂', '东漂', '原地打转']];
@@ -25,7 +25,8 @@ export default {
   fig: '图4.11',
   title: '洋流',
   flow: 'explore',
-  ask: '一艘货轮在太平洋上遇到风暴，几万只玩具鸭散落海面，后来在世界很多海岸陆续被发现。它们是怎么漂过去的？',
+  // 案例数量依据：https://www.metlink.org/resource/rubber-ducks-an-unexpected-journey/
+  ask: '一艘货轮在太平洋上遇到风暴，约2.88万件塑料洗澡玩具（包括玩具鸭等）散落海面，后来在世界很多海岸陆续被发现。它们是怎么漂过去的？',
   need: '让风吹起来，看海水转成哪几个环流；放几只玩具鸭看它们漂到哪；再假设没有大陆比一比；比较洋流对同纬度两岸的定性影响',
   conclusion: {
     page: 73,
@@ -100,7 +101,8 @@ export default {
     const dotTex = canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
     const dots = new THREE.Points(pg, new THREE.PointsMaterial({ size: 0.022, map: dotTex, color: 0xe8f4ff, transparent: true, opacity: 0.8, depthWrite: false })); dots.raycast = () => {}; dots.renderOrder = 6; block.add(dots);
-    const advect = (o, dt) => advance(o, dt, S.w, S.land);
+    let frameWind = 0;
+    const advect = (o, dt) => advance(o, dt, frameWind, S.land);
 
 
     // ---- 玩具鸭：点哪儿放哪儿，留下一路的轨迹 ----
@@ -161,10 +163,10 @@ export default {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
       if (S.saw.gyre) r('风吹起来：', '北半球中低纬转成顺时针的环流、中高纬逆时针；南半球中低纬逆时针；南纬 45°—60° 是向东的西风漂流');
-      if (S.saw.duck) r('玩具鸭：', '沿预设流线漂移；本页未模拟真实沿岸搁浅过程');
+      if (S.saw.duck) r('最近投放的玩具鸭：', `${Math.abs(S.first.lat).toFixed(1)}°${S.first.lat >= 0 ? 'N' : 'S'}，${S.first.motion}；本页未模拟真实沿岸搁浅过程`);
       if (S.saw.noland) r('假如没有大陆：', '本模型仅保留东西向流动的理想情境，不能推广为真实海洋规律');
       if (S.saw.coast) r('同纬度两岸：', '北纬 60° 东岸暖、西岸冷；中低纬大洋东岸有寒流（有助于形成干旱的沙漠），西岸有暖流、湿润；寒暖流交汇处有渔场');
-      if (S.guess != null && S.saw.duck) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：你在${Math.abs(Math.round(S.first.lat))}°${S.first.lat >= 0 ? 'N' : 'S'}放的鸭子先往${S.first.dir}漂${Math.abs(S.first.lat - 20) < 8 ? '（信风推着海水往西）' : '（题目问的是北纬 20°，可以在那里再放一只）'}`)));
+      if (S.guess != null && S.saw.duck) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：你在${Math.abs(S.first.lat).toFixed(1)}°${S.first.lat >= 0 ? 'N' : 'S'}放的鸭子${S.first.motion}${S.first.target ? '（信风推着海水往西）' : '（此投放点不用于题设判断；题目限定中央20°N附近）'}`)));
       W.log.replaceChildren(...rows);
       if (S.saw.gyre && S.saw.duck && S.saw.noland) W.ui.unlock();
     };
@@ -173,7 +175,7 @@ export default {
     const plane = new THREE.Plane(), hit = new THREE.Vector3(), wq = new THREE.Vector3();
     const onMap = (ray) => { block.updateMatrixWorld(); block.localToWorld(wq.set(0, G, 0)); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), wq); if (!ray.intersectPlane(plane, hit)) return null; const l = block.worldToLocal(hit.clone()); return l.x > XL && l.x < XR && Math.abs(l.z) < NB ? { x: l.x, n: -l.z } : null; };
     const pointer = {
-      down(rc) { const m = onMap(rc.ray); if (!m || isLand(m.x, m.n, S.land)) return false; addDuck(m.x, m.n); if (S.w < 0.3) W?.ui.status('玩具鸭放下了，可是还没起风，海水不怎么动。按“让风吹起来”。'); else { const [u0] = vel(m.x, m.n, S.land); if (!S.saw.duck) S.first = { lat: latOf(m.n), dir: u0 < 0 ? '西' : '东' }; S.saw.duck = true; drawLog(); say1('玩具鸭跟着洋流漂', m.x, m.n); } placeTags(); return true; },
+      down(rc) { const m = onMap(rc.ray); if (!m || isLand(m.x, m.n, S.land)) return false; addDuck(m.x, m.n); if (S.w < 0.3) W?.ui.status('玩具鸭放下了，可是还没起风，海水不怎么动。按“让风吹起来”。'); else { S.first = driftInfo(m.x, m.n, S.land); S.saw.duck = true; drawLog(); say1(S.first.motion, m.x, m.n); } placeTags(); return true; },
       move(rc) { const c = document.getElementById('c'); if (c) { const m = onMap(rc.ray); c.style.cursor = m && !isLand(m.x, m.n, S.land) ? 'crosshair' : ''; } return false; },
       up() { return false; },
     };
@@ -204,7 +206,7 @@ export default {
       update(dt) {
         labels.forEach((l) => l.tick(dt));
         const d = dt, w0 = S.w;
-        S.w = S.blow ? Math.min(1, S.w + d / 3) : Math.max(0, S.w - d / 3);          // 风吹起来，洋流慢慢建立；风停了，慢慢停下
+        const wind = windStep(w0, S.blow, d); S.w = wind.w; frameWind = d > 0 ? wind.integral / d : w0;          // 风吹起来，洋流慢慢建立；风停了，慢慢停下
         if (Math.abs(S.w - w0) > 1e-4) { placeArrows(); placeTags(); if (Math.floor(S.w * 10) !== Math.floor(w0 * 10)) drawChart(); }
         if (S.w > 0.9 && S.land && !S.saw.gyre) { S.saw.gyre = true; drawLog(); say1('风场、地转偏向力和边界共同影响环流', XW + 0.02, nOf(25)); }
         if (S.w > 0.9 && S.land && !S.saw.coast && S.saw.gyre) { S.saw.coast = true; drawLog(); }

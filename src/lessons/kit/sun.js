@@ -20,8 +20,9 @@ export const dirName = (az) => { const a = ((az * R2D) % 360 + 360) % 360, near 
 /** 太阳：纬度 lat、直射点纬度 dec、时角 t（弧度）→ 高度、方位（从正北顺时针）、方向 */
 export function sunAt(lat, dec, t) {
   const sh = Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(t), alt = Math.asin(Math.max(-1, Math.min(1, sh)));
-  const az = Math.atan2(-Math.sin(t) * Math.cos(dec), Math.sin(dec) * Math.cos(lat) - Math.cos(dec) * Math.sin(lat) * Math.cos(t));
-  return { alt, az, dir: new THREE.Vector3(Math.sin(az) * Math.cos(alt), Math.sin(alt), -Math.cos(az) * Math.cos(alt)) };
+  const east = -Math.sin(t) * Math.cos(dec), north = Math.sin(dec) * Math.cos(lat) - Math.cos(dec) * Math.sin(lat) * Math.cos(t);
+  const az = Math.hypot(east, north) < 1e-12 ? null : Math.atan2(east, north);          // 天顶和天底方位未定义，不能把 atan2(0, 0) 当北方
+  return { alt, az, dir: new THREE.Vector3(east, sh, -north) };
 }
 /** 半昼弧 t₀（弧度）：极昼 π，极夜 0 */
 export const halfDay = (lat, dec) => { const c = -Math.tan(lat) * Math.tan(dec); return c <= -1 ? Math.PI : c >= 1 ? 0 : Math.acos(c); };
@@ -34,3 +35,7 @@ export const snapSeason = (lam) => { const a = ((lam % 360) + 360) % 360, k = (M
 export const noonText = (lat, dec) => { const a = noonAlt(lat, dec); return Math.abs(lat - dec) < 1e-9 ? '正午太阳高度 90°（在头顶）' : Math.abs(a) < 1e-9 ? '正午太阳高度 0°（在地平线上）' : a < 0 ? '正午太阳也在地平线下' : `正午太阳高度 ${dm(a)}（在${lat > dec ? '南' : '北'}边）`; };
 /** 平面天空图的方位接缝不能连线。 */
 export const skyJoin = (x, prev, width) => Math.abs(x - prev) <= width / 2;
+
+/** 天空示意投影：地平方位从左向右递增，高度越高横向越收束，天顶为唯一点；不是等距照片。 */
+export const skyX = (az, alt, south, width) => az === null ? width / 2 : width / 2 + ((((az * R2D - (south ? 180 : 0) + 540) % 360) - 180) / 180) * width / 2 * Math.cos(alt);
+// 方位定义和天顶退化参见 NOAA：https://gml.noaa.gov/grad/solcalc/solareqns.PDF

@@ -12,7 +12,7 @@ import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { faceLabel, airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, H, N, xOf, iOf, makeState, step, field, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
+import { XL, XR, H, N, xOf, iOf, makeState, step, field, settled, streamline, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
 
 const LIFT = 0, GT = 0.026, D = 0.035;          // 直接放在书页上；地面多厚、空气槽前后多深
 const ZK = [0.2, 0.42, 0.64, 0.86].map((r) => r * H);          // 四张等压面原来的高度
@@ -123,50 +123,23 @@ export default {
       pGeo.attributes.position.needsUpdate = true; pGeo.attributes.color.needsUpdate = true;
     };
 
-    // ---- 风的箭头：一格格摆着，长短表示快慢 ----
-    // ---- 环流：画成几个闭合的圈（流函数 ψ = Φ(x)·sin(πz/H) 的等值线），圈上几个箭头指着空气走的方向 ----
-    const loopMat = new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0, depthWrite: false });
-    const headMat = new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0, depthWrite: false });
-    const loops = new THREE.Group(); block.add(loops); let loopT = 0;
-    const GX = 68, GZ = 26;
-    const contour = (psi, lev) => {          // 方格上找 ψ = lev 的线段（marching squares），再连成折线
-      const segs = [], P = (i, j) => [XL + (XR - XL) * (i / GX), H * (j / GZ)];
-      const lerp = (a, b, va, vb) => { const t = (lev - va) / (vb - va); return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; };
-      for (let i = 0; i < GX; i++) for (let j = 0; j < GZ; j++) {
-        const v = [psi[i][j], psi[i + 1][j], psi[i + 1][j + 1], psi[i][j + 1]], c = [P(i, j), P(i + 1, j), P(i + 1, j + 1), P(i, j + 1)], e = [];
-        for (let k = 0; k < 4; k++) { const a = v[k], b = v[(k + 1) % 4]; if ((a - lev) * (b - lev) < 0) e.push(lerp(c[k], c[(k + 1) % 4], a, b)); }
-        if (e.length === 2) segs.push(e); else if (e.length === 4) { segs.push([e[0], e[1]]); segs.push([e[2], e[3]]); }
-      }
-      const lines = [], key = (p) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`;
-      while (segs.length) {
-        const line = segs.pop();
-        for (let grow = true; grow;) { grow = false; for (let k = 0; k < segs.length; k++) { const [a, b] = segs[k], end = line[line.length - 1];
-          if (key(a) === key(end)) { line.push(b); segs.splice(k, 1); grow = true; break; } if (key(b) === key(end)) { line.push(a); segs.splice(k, 1); grow = true; break; } } }
-        if (line.length > 6) lines.push(line);
-      }
-      return lines;
-    };
-    const buildLoops = () => {
+    // ---- 当前风场的流线：逐帧积分，不把调整中的气流强行画成闭合环流 ----
+    const loopMat = new THREE.LineBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0.7 });
+    const headMat = new THREE.MeshBasicMaterial({ color: 0x2a5a9a });
+    const loops = new THREE.Group(); block.add(loops);
+    const placeArrows = () => {
       for (const o of [...loops.children]) { loops.remove(o); o.geometry.dispose(); }
-      const mix = { S: S.st.S.map((v, i) => (v + S.st.P[i]) / 2) }, Phi = new Float64Array(N + 1); for (let i = 0; i < N; i++) Phi[i + 1] = Phi[i] + mix.S[i] * ((XR - XL) / N);
-      const psi = Array.from({ length: GX + 1 }, (_, i) => { const f = Phi[Math.round((i / GX) * N)]; return Array.from({ length: GZ + 1 }, (_, j) => f * Math.sin(Math.PI * j / GZ)); });
-      let mx = 0, mn = 0; for (const r of psi) for (const v of r) { mx = Math.max(mx, v); mn = Math.min(mn, v); }
-      const F = field(S.st), strength = Math.max(mx, -mn);
-      loopMat.opacity = headMat.opacity = Math.min(0.85, strength * 3);
-      if (strength < 0.02) return;
-      for (const lev of [mx * 0.5, mn * 0.5]) {
-        if (Math.abs(lev) < 0.01) continue;
-        for (const line of contour(psi, lev)) {
-          const pts = line.map(([x, z]) => new THREE.Vector3(x, GT + z, D * 0.55)), closed = pts[0].distanceTo(pts[pts.length - 1]) < 0.01;
-          const curve = new THREE.CatmullRomCurve3(pts, closed), tube = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.min(200, pts.length * 2), 0.0011, 6, closed), loopMat); tube.raycast = () => {}; tube.renderOrder = 7; loops.add(tube);
-          for (let k = 0; k < 4; k++) {          // 圈上四个箭头，方向跟着那里的风
-            const p = curve.getPointAt((k + 0.5) / 4), [u, w] = F.at(p.x, p.y - GT), d = new THREE.Vector3(u, w, 0).normalize();
-            const head = new THREE.Mesh(new THREE.ConeGeometry(0.0036, 0.009, 10), headMat); head.position.copy(p); head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); head.raycast = () => {}; head.renderOrder = 7; loops.add(head);
-          }
+      const F = field(S.st);
+      for (const x of [-0.08, 0.08]) {
+        const line = streamline(S.st, x, H * 0.25); if (line.length < 10) continue;
+        const pts = line.map(([px, z]) => new THREE.Vector3(px, GT + z, D * 0.55));
+        const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), loopMat); tube.raycast = () => {}; loops.add(tube);
+        for (let k = 0; k < 4; k++) {
+          const p = pts[Math.floor((k + 0.5) * pts.length / 4)], [u, w] = F.at(p.x, p.y - GT), d = new THREE.Vector3(u, w, 0).normalize();
+          const head = new THREE.Mesh(new THREE.ConeGeometry(0.0036, 0.009, 10), headMat); head.position.copy(p); head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); head.raycast = () => {}; loops.add(head);
         }
       }
     };
-    const placeArrows = () => { if (S.t - loopT > 0.25) { loopT = S.t; buildLoops(); } };
 
     // ---- 标签：A、B、C；气压高低（近地面、上空）；海峡两岸 ----
     // 地点的名字写在地面下岩层的剖面上；气压高低是红、蓝两色的字（不带底）；“受热”带一个热气的小图标
@@ -202,7 +175,7 @@ export default {
       for (const k of ['fj', 'tw']) {
         const tw = towns[k], u = surfU(tw.position.x), name = windName(u), fromSea = (k === 'fj') === (u < 0);
         tw.visible = !free; tw.userData.vane.visible = name !== '静风'; tw.userData.vane.rotation.y = u > 0 ? Math.PI : 0;          // 风向标的箭头指着风吹来的方向：西风指向西（−x）
-        tTown[k].position.set(tw.position.x, GT + 0.03, 0); tTown[k].setText(`${k === 'fj' ? '福建沿海' : '台湾西岸'} ${name}${name === '静风' ? '' : fromSea ? '（从海上吹来）' : '（从陆上吹来）'}`).setOn(!free);
+        tTown[k].position.set(tw.position.x, GT + 0.03, 0); tTown[k].setText(`${k === 'fj' ? '福建沿海' : '台湾西岸'} ${name}${settled(S.st) ? '' : '（风场调整中）'}${name === '静风' ? '' : fromSea ? '（从海上吹来）' : '（从陆上吹来）'}`).setOn(!free);
       }
       tHint.loc(block, 0, GT + 0.02, D).show(free && !S.heated);
       tHeat.position.set((S.heatX ?? 0) + 0.045, GT + 0.006, D + 0.004); tHeat.setOn(free && !!S.heat);          // 贴着受热的地面，写在“低”的右边
@@ -223,7 +196,7 @@ export default {
     };
     const recordSea = () => {
       if (S.mode !== 'sea') return;
-      const slot = S.hour >= 5 && S.hour <= 7 ? '早上' : S.hour >= 13 && S.hour <= 15 ? '下午' : null; if (!slot) return;
+      const slot = S.hour >= 5 && S.hour <= 7 ? '早上' : S.hour >= 13 && S.hour <= 15 ? '下午' : null; if (!slot || !settled(S.st)) return;
       const su = surfU;          // 与画面风向标共用当前风场，保留快速切时刻后的调整过程
       const u1 = windName(su(towns.fj.position.x)), u2 = windName(su(towns.tw.position.x)), prev = S.logs.sea[slot];
       if (!prev || prev.fj !== u1 || prev.tw !== u2) { S.logs.sea[slot] = { fj: u1, tw: u2 }; if (S.logs.sea['早上'] && S.logs.sea['下午']) S.done.add('sea'); drawLogs(); }
@@ -234,9 +207,9 @@ export default {
       rows.push(h('div', { class: 'tl-row' }, h('b', {}, '地面受热不均：'), h('span', {}, L.length ? L.join(' → ') : '还没加热'),
         L.length >= 5 && S.guess.free != null ? h('small', {}, `你猜：${ASK.free[1][S.guess.free]}　实际：近地面的风从两边吹向受热处`) : null));
       const s = (k) => (sea[k] ? `福建沿海 ${sea[k].fj}，台湾西岸 ${sea[k].tw}` : '还没看');
-      rows.push(h('div', { class: 'tl-row' }, h('b', {}, '台湾海峡两岸：'), h('span', {}, `早上（6 时前后，当前风）：${s('早上')}；下午（14 时前后，当前风）：${s('下午')}`),
+      rows.push(h('div', { class: 'tl-row' }, h('b', {}, '台湾海峡两岸：'), h('span', {}, `早上（6 时前后，当时记录）：${s('早上')}；下午（14 时前后，当时记录）：${s('下午')}`),
         sea['早上'] && sea['下午'] ? h('small', {}, '对照《台海使槎录》：内地之风，早西晚东，惟台地早东风，午西风。') : null,
-        sea['下午'] && S.guess.sea != null ? h('small', {}, `你猜：${ASK.sea[1][S.guess.sea]}　当前记录：${sea['下午'].fj}`) : null));
+        sea['下午'] && S.guess.sea != null ? h('small', {}, `你猜：${ASK.sea[1][S.guess.sea]}　当时记录：${sea['下午'].fj}`) : null));
       W.logs.replaceChildren(...rows);
       if (S.done.has('free') && S.done.has('sea')) W.ui.unlock();
     };

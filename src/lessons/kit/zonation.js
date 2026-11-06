@@ -75,3 +75,12 @@ export function terrainHeight(m, u, zn, opt = {}) {
 
 // 递减率随时地变化，0.6℃/100米仅作海拔影响估算：https://courses.ems.psu.edu/meteo3/node/1968 。
 // 长白山带界参考《植物生态学报》2017，41(12):1228–1238，研究区概况：https://www.plant-ecology.com/article/2017/1005-264X/1005-264X-41-12-1228.shtml 。
+
+/** 天池的示意岸线半径：由火山口地形与湖面相交求得，不是真实湖泊尺度。 */
+export const LAKE_RADIUS = 0.12 * Math.sqrt((MOUNTAINS.cb.lake - 2050) / (2691 - 2050));
+/** 水域不属于陆生植被带；低海拔山麓即使低于湖面，也不是天池。 */
+export function surfaceBandAt(m, u, zn, opt = {}) {
+  const r = Math.hypot(u, zn * 0.14 / 0.19 * 1.15);
+  if (m === 'cb' && r <= LAKE_RADIUS) return null;
+  return bandAt(m, sideOf(m, u), terrainHeight(m, u, zn, opt), m === 'hima' && opt.northLow);
+}

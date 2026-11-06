@@ -15,7 +15,7 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { groundLabel, airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { D2R, R2D, EPS, decOf, dm, hm, dur, altText, sunAt, halfDay, noonAlt, snapSeason, noonText, skyJoin } from './kit/sun.js';
+import { D2R, R2D, EPS, decOf, dm, hm, dur, altText, sunAt, halfDay, noonAlt, snapSeason, noonText, skyJoin, skyX } from './kit/sun.js';
 
 const R = 0.12, SY = 0.08, ER = 0.046;          // 轨道半径、灯和地球仪中心的高度、地球仪半径
 const CITIES = [{ name: '摩尔曼斯克', lat: 68.97 }, { name: '哈尔滨', lat: 45.75 }, { name: '北京', lat: 40 }, { name: '广州', lat: 23.13 }, { name: '新加坡', lat: 1.3 }, { name: '悉尼', lat: -33.87 }];
@@ -152,17 +152,18 @@ export default {
       if (!W) return;
       const c = W.sky, g = c.getContext('2d'), w = c.width, hh = c.height, d = dec(), lat = S.lat * D2R, now = sunAt(lat, d, (S.t - 12) * 15 * D2R);
       const noonSouth = lat >= d;          // 正午太阳在南边还是北边：画面中间朝那边
-      const X = (az) => { let a = az * R2D - (noonSouth ? 180 : 0); a = ((a + 540) % 360) - 180; return w / 2 + (a / 180) * (w / 2) * (noonSouth ? 1 : -1); }, Y = (alt) => hh - 26 - (alt * R2D / 90) * (hh - 26 - 82);          // 上面留一条放读数，不压着天空
+      const X = (az, alt = 0) => skyX(az, alt, noonSouth, w), Y = (alt) => hh - 26 - (alt * R2D / 90) * (hh - 26 - 96);          // 高处横向收束到天顶，上方留出读数和天顶标签
       const day = now.alt > 0, gr = g.createLinearGradient(0, 0, 0, hh);
       if (day) { gr.addColorStop(0, '#5f9fd8'); gr.addColorStop(1, '#d4e7f5'); } else { gr.addColorStop(0, '#0f1a33'); gr.addColorStop(1, '#2c3c63'); }
       g.fillStyle = gr; g.fillRect(0, 0, w, hh);
-      const path = (la, dash, col) => { g.save(); g.setLineDash(dash); g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); let up = false, prev = 0; for (let k = 0; k <= 288; k++) { const s = sunAt(la, d, (k / 288 * 24 - 12) * 15 * D2R); if (s.alt < 0) { up = false; continue; } const x = X(s.az), y = Y(s.alt); if (up && skyJoin(x, prev, w)) g.lineTo(x, y); else g.moveTo(x, y); up = true; prev = x; } g.stroke(); g.restore(); };
+      const path = (la, dash, col) => { g.save(); g.setLineDash(dash); g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); let up = false, prev = 0; for (let k = 0; k <= 288; k++) { const s = sunAt(la, d, (k / 288 * 24 - 12) * 15 * D2R); if (s.alt < 0) { up = false; continue; } const x = X(s.az, s.alt), y = Y(s.alt), u = s.az === null ? null : X(s.az); if (up && (u === null || prev === null || skyJoin(u, prev, w))) g.lineTo(x, y); else g.moveTo(x, y); up = true; prev = u; } g.stroke(); g.restore(); };
       if (S.other !== S.city) path(CITIES[S.other].lat * D2R, [5, 4], day ? 'rgba(80,80,90,0.75)' : 'rgba(200,210,230,0.6)');
       path(lat, [], day ? '#c9572c' : '#f0a070');
       g.fillStyle = '#7d9c63'; g.fillRect(0, hh - 26, w, 26);
       g.fillStyle = '#2a3140'; g.font = '600 12px "PingFang SC", sans-serif'; g.textAlign = 'center';
       for (const [az, n] of [[90, '东'], [180, '南'], [270, '西'], [0, '北']]) { const x = X(az * D2R); if (x > 8 && x < w - 8) g.fillText(n, x, hh - 9); }
-      if (day) { const x = X(now.az), y = Y(now.alt), sg = g.createRadialGradient(x, y, 0, x, y, 16); sg.addColorStop(0, 'rgba(255,240,170,1)'); sg.addColorStop(0.4, 'rgba(255,215,110,0.9)'); sg.addColorStop(1, 'rgba(255,215,110,0)'); g.fillStyle = sg; g.fillRect(x - 16, y - 16, 32, 32); }
+      g.fillStyle = day ? '#2a3140' : '#ffffff'; g.fillText('天顶 90°（方位收束示意）', w / 2, 89);
+      if (day) { const x = X(now.az, now.alt), y = Y(now.alt), sg = g.createRadialGradient(x, y, 0, x, y, 16); sg.addColorStop(0, 'rgba(255,240,170,1)'); sg.addColorStop(0.4, 'rgba(255,215,110,0.9)'); sg.addColorStop(1, 'rgba(255,215,110,0)'); g.fillStyle = sg; g.fillRect(x - 16, y - 16, 32, 32); }
       const hd = halfDay(lat, d), len = (2 * hd * R2D) / 15, txt = hd >= Math.PI - 1e-6 ? '极昼：太阳整天不落，白天 24 小时' : hd <= 1e-6 ? '极夜：太阳整天不出来' : `日出 ${hm(12 - len / 2)}　日落 ${hm(12 + len / 2)}　白天 ${dur(len)}`;
       g.fillStyle = 'rgba(250,247,238,0.96)'; g.fillRect(0, 0, w, 76);
       const otherName = () => CITIES[S.other].name;

@@ -13,9 +13,17 @@ export function ground(x) {
   if (x > COAST) return 0.03 - (x - COAST) * 0.25;          // 海底往东变深
   const mtn = 0.05 * Math.exp(-(((x - DIVIDE) / 0.035) ** 2));
   const basin = x < DIVIDE ? -0.012 * Math.exp(-(((x + 0.135) / 0.03) ** 2)) : 0;          // 内陆盆地里低一块，积成湖
-  return 0.036 + mtn + basin + (x > DIVIDE ? -0.006 * (x - DIVIDE) / (COAST - DIVIDE) : 0);
+  return 0.036 + mtn + basin + (x > DIVIDE ? -0.004 * (x - DIVIDE) / (COAST - DIVIDE) : 0);
 }
 export const SEA_Y = 0.032, LAKE_X = -0.135, LAKE_Y = 0.03;
+// 潜水面示意：向海、湖的水头递减并接到水面；粒子沿水头负梯度运动。
+// 依据：https://pubs.usgs.gov/circ/circ1217/html/boxa.html
+export function waterHead(x) {
+  if (x >= COAST) return SEA_Y;
+  if (x >= DIVIDE) return SEA_Y + 0.004 * ((COAST - x) / (COAST - DIVIDE)) ** 2;
+  return LAKE_Y + 0.006 * Math.max(0, ground(x) - LAKE_Y) / (ground(DIVIDE) - LAKE_Y);
+}
+export const groundwaterDirection = (x) => Math.sign(waterHead(x - 1e-6) - waterHead(x + 1e-6));
 /** 按水汽来源、降水去向描述路径，不把内陆盆地等同陆地内循环。 */
 export function cycleOf(x, source = 'sea') {
   if (source === 'land' && x > COAST) return { kind: 'big', name: '海陆间水分交换', text: '陆地蒸发的水汽输送到海洋降水，不属于陆地内循环' };
@@ -58,11 +66,13 @@ export function createWater(size = 420, random = Math.random) {
         }
       } else if (p.st === 'run' || p.st === 'inf') {
         const inf = p.st === 'inf'; if (inf) p.d += dt * 0.012;
-        if (inf && p.soil && p.d > 0.004) { S.soil++; p.st = 'off'; continue; }          // 示意将部分下渗水留在土壤，省略后续植物利用和再蒸发；一半只是模型假设
-        if (!inf || p.d > 0.012) p.x += (p.x > DIVIDE ? 1 : Math.sign(LAKE_X - p.x) || 1) * dt * (inf ? 0.018 : 0.05);
-        p.y = ground(p.x) + (inf ? -Math.min(0.016, p.d) : 0.0012);
-        if (p.x > COAST) { S.cnt.in++; p.st = 'off'; }
-        else if (inLake(p.x) && (!inf || p.d > 0.012)) { S.lake++; p.st = 'off'; }
+        if (inf && p.soil && p.d > Math.min(0.004, (ground(p.x) - waterHead(p.x)) / 2)) { S.soil++; p.st = 'off'; continue; }          // 示意将部分下渗水留在土壤，省略后续植物利用和再蒸发；一半只是模型假设
+        if (inf) {
+          const head = waterHead(p.x); p.y = Math.max(head, ground(p.x) - p.d);
+          if (p.y <= head) { p.x += groundwaterDirection(p.x) * dt * 0.018; p.y = waterHead(p.x); }
+        } else { p.x += (p.x > DIVIDE ? 1 : Math.sign(LAKE_X - p.x) || 1) * dt * 0.05; p.y = ground(p.x) + 0.0012; }
+        if (p.x >= COAST) { S.cnt.in++; p.st = 'off'; }
+        else if (inLake(p.x) && (!inf || p.y <= LAKE_Y)) { S.lake++; p.st = 'off'; }
       }
     }
   };

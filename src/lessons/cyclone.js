@@ -1,7 +1,7 @@
 // 高中地理 选择性必修1 第三章第一节 常见天气系统 · 气旋与反气旋（课本第 44–46 页，图 3.6 北半球气旋的形成及其天气、图 3.7 反气旋）。
 //
 // 课本的图就是模型：一块浮在书页上的地块，地面上画着闭合的等压线（虚构地区，不画边界）。开始只有等压线，天上干干净净。
-// 学生在图上任意一处点一下，放一缕烟（示踪：空气本来就在流，烟让人看得见它往哪儿走）。它按真实的受力走：气压梯度力（指向低压）+ 地转偏向力（北半球向右偏）+ 地面摩擦，
+// 学生在图上任意一处点一下，放一缕烟（示踪：空气本来就在流，烟让人看得见它往哪儿走）。它沿三力平衡的示意风场移动：气压梯度力（指向低压）+ 地转偏向力（北半球向右偏）+ 地面摩擦，
 // 身后留下轨迹；旁边两支箭头：虚线是气压梯度力，实线是它实际走的方向（就是课本图 3.6 a 的图例）。
 // 低压：空气转着流进中心、往上升，学生放进去的空气越多，中心的云越高，够厚了就下雨（图 3.6 b）。
 // 高压：空气转着往外流，中心上方的空气往下沉、增温，原来的云一点点散掉，天晴了（图 3.7）。
@@ -16,7 +16,7 @@ import { h } from '../ui/Panel.js';
 
 const LIFT = 0, G = 0.03;          // 地块直接放在书页上（放在两页正中间、放大以后不用再浮起来）
 const XL = -0.15, XR = 0.15, ZN = 0.12;          // 地块：东西 0.3，南北 0.24（x 朝东，−z 朝北）
-import { MODEL, accP, windAt, windName } from './kit/pressure.js';
+import { MODEL, accP, windAt, windName, advect, CALM_SPEED, windCaption } from './kit/pressure.js';
 const HEMI = [1, -1, 0];          // 北半球（向右偏）、南半球（向左偏）、假如地球不自转
 const ASK = {
   low: ['先猜一下（可以不猜）：在这个情境里，放在低压边上的空气会——', ['直直流进中心', '绕着中心转着流进去', '绕着中心转着流出来']],
@@ -103,7 +103,7 @@ export default {
       const line = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide })); line.raycast = () => {}; line.renderOrder = 10;          // 轨迹是一条细带子，越往后越窄、越淡：只看得见它刚走过的一段，不会在中心缠成一团
       const dot = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color: 0xdbe8ff, transparent: true, depthWrite: false })); dot.scale.set(0.011, 0.011, 1); dot.raycast = () => {}; dot.renderOrder = 9;
       block.add(line, dot);
-      const p = { x, n, vx: 0, vn: 0, y: G + 0.004, st: 'flow', np: 0, pos, rib, col, geo, line, dot, fade: 1, L: 0, rx: x, rn: n };
+      const p = { x, n, vx: windAt(S.mode, hemi(), x, n)[0], vn: windAt(S.mode, hemi(), x, n)[1], y: G + 0.004, st: 'flow', np: 0, pos, rib, col, geo, line, dot, fade: 1, L: 0, rx: x, rn: n };
       parcels.push(p); S.last = p; S.released++;
       W?.ui.status(S.mode === 'low' ? '看它往哪儿走：<b>虚线</b>是气压梯度力（指向低压中心），<b>实线</b>是它实际走的方向。可以多放几缕，也可以把你家拖到别处。' : '看它往哪儿走：<b>虚线</b>是气压梯度力（从高压往外指），<b>实线</b>是它实际走的方向。多放几缕，看中心上空的云。');
       return p;
@@ -122,11 +122,9 @@ export default {
     };
     const stepParcel = (p, dt) => {
       if (p.st === 'flow') {
-        const f = MODEL.F * hemi(), k = MODEL.K;
         for (let i = 0; i < 4; i++) {
-          const h4 = dt / 4, [ax, an] = accP(S.mode, p.x, p.n);
-          p.vx += (ax + f * p.vn - k * p.vx) * h4; p.vn += (an - f * p.vx - k * p.vn) * h4;
-          p.x += p.vx * h4; p.n += p.vn * h4;
+          const h4 = dt / 4, next = advect(S.mode, hemi(), p.x, p.n, h4);
+          p.x = next.x; p.n = next.n; [p.vx, p.vn] = next.velocity;
           p.L += (p.x * p.vn - p.n * p.vx) * h4 / Math.max(1e-4, p.x * p.x + p.n * p.n);          // 绕中心转过的角度（弧度）：正＝逆时针（从上往下看）
         }
         const r = Math.hypot(p.x, p.n);
@@ -162,8 +160,9 @@ export default {
       aPGF.visible = aWind.visible = !!on; tPGF.setOn(!!on); tWind.setOn(!!on);
       if (!on) return;
       const [ax, an] = accP(S.mode, p.x, p.n), o = P(p.x, p.n, G + 0.005);
-      aPGF.set(o, new THREE.Vector3(ax, 0, -an), 0.03);
-      if (Math.hypot(p.vx, p.vn) > 1e-4) aWind.set(o, new THREE.Vector3(p.vx, 0, -p.vn), 0.03);
+      aPGF.visible = Math.hypot(ax, an) > 1e-10; aWind.visible = Math.hypot(p.vx, p.vn) >= CALM_SPEED; tPGF.setOn(aPGF.visible); tWind.setOn(aWind.visible);
+      if (aPGF.visible) aPGF.set(o, new THREE.Vector3(ax, 0, -an), 0.03);
+      if (aWind.visible) aWind.set(o, new THREE.Vector3(p.vx, 0, -p.vn), 0.03);
       const e1 = o.clone().add(new THREE.Vector3(ax, 0, -an).normalize().multiplyScalar(0.034)), e2 = o.clone().add(new THREE.Vector3(p.vx, 0, -p.vn).normalize().multiplyScalar(0.034));
       tPGF.position.set(e1.x, e1.y + 0.008, e1.z); tWind.position.set(e2.x, e2.y + 0.008, e2.z);
     };
@@ -299,7 +298,7 @@ export default {
       g.fillStyle = '#f3ede1'; g.fillRect(30, hh - 32, 18, 14); g.fillStyle = '#c7503c'; g.beginPath(); g.moveTo(27, hh - 32); g.lineTo(39, hh - 40); g.lineTo(51, hh - 32); g.fill();
       const pill = (x, y, s, bg, fg) => { g.font = '600 13px "PingFang SC", sans-serif'; const tw = g.measureText(s).width; g.fillStyle = bg; g.beginPath(); g.roundRect(x, y, tw + 14, 20, 10); g.fill(); g.fillStyle = fg; g.fillText(s, x + 7, y + 15); };
       pill(8, 8, wx, 'rgba(255,255,255,0.88)', '#2a3140');
-      if (S.released) { const wd = homeWind(); pill(8, hh - 46, `风从${wd.name.replace('风', '')}边吹来`, 'rgba(255,255,255,0.88)', '#1f3f75'); }
+      if (S.released) { const wd = homeWind(); pill(8, hh - 46, windCaption(wd.name), 'rgba(255,255,255,0.88)', '#1f3f75'); }
     };
 
     // ---- 换模式 ----
