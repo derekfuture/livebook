@@ -4,9 +4,8 @@ export const DX = 0.0025,
   NZ = 109,
   BARRIER = 42,
   WAVELENGTH = 0.032;
-const SPEED = 0.16,
-  DT = 0.009,
-  C2 = ((SPEED * DT) / DX) ** 2;
+export const SPEED = 0.16, DT = 0.009;
+const C2 = ((SPEED * DT) / DX) ** 2;
 export class RippleTank {
   constructor() {
     this.surface = new Float32Array(NX * NZ);
