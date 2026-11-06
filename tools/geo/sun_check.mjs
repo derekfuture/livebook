@@ -1,6 +1,6 @@
 // 自动核对：高中地理“昼夜长短和正午太阳高度”里显示的数，和课本对得上。node tools/geo/sun_check.mjs
 // 课本第 12 页：北京（40°N）夏至正午 73°26′、冬至 26°34′；图 1.15（北纬 40°）日出日落大致时间：夏至 4:30 / 19:30，二分 6:00 / 18:00，冬至 7:30 / 16:30。
-import { D2R, decOf, dm, hm, dirName, sunAt, halfDay, noonAlt } from '../../src/lessons/kit/sun.js';
+import { D2R, decOf, dm, hm, dur, altText, dirName, sunAt, halfDay, noonAlt } from '../../src/lessons/kit/sun.js';
 
 let bad = 0;
 const ok = (name, got, want) => { const pass = got === want; if (!pass) bad++; console.log(`${pass ? '✓' : '✗'} ${name}：${got}${pass ? '' : `（应为 ${want}）`}`); };
@@ -35,5 +35,11 @@ ok('海口夏至正午太阳方向', dirName(sunAt(20 * D2R, summer, 0).az), '�
 const arctic = (90 - 23 - 26 / 60) * D2R;
 near('北极圈以北夏至昼长（极昼）', day(arctic + 1e-6, summer), 24, 0, ' 小时');
 near('北极圈以北冬至昼长（极夜）', day(arctic + 1e-6, winter), 0, 0, ' 小时');
+// 界面上显示的文字也要对：极昼不能写成 0 小时，太阳在地平线下不能写成正的高度（摩尔曼斯克 68.97°N）
+{ const M = 68.97 * D2R; const okT = (n, g, w) => { const p = g === w; if (!p) bad++; console.log(`${p ? '✓' : '✗'} ${n}：${g}${p ? '' : `（应为 ${w}）`}`); };
+  okT('摩尔曼斯克夏至白天（显示）', dur(day(M, summer)), '24 小时（极昼）');
+  okT('摩尔曼斯克冬至白天（显示）', dur(day(M, winter)), '0（极夜）');
+  okT('摩尔曼斯克冬至正午太阳高度（显示）', altText(noonAlt(M, winter)), '地平线下 2°24′');
+}
 console.log(bad ? `\n${bad} 项没对上` : '\n全部对上');
 process.exit(bad ? 1 : 0);

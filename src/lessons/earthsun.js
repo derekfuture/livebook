@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
-import { D2R, R2D, EPS, decOf, dm, hm, sunAt, halfDay, noonAlt } from './kit/sun.js';
+import { D2R, R2D, EPS, decOf, dm, hm, dur, altText, sunAt, halfDay, noonAlt } from './kit/sun.js';
 
 const R = 0.12, SY = 0.08, ER = 0.046;          // 轨道半径、灯和地球仪中心的高度、地球仪半径
 const CITIES = [{ name: '摩尔曼斯克', lat: 68.97 }, { name: '哈尔滨', lat: 45.75 }, { name: '北京', lat: 40 }, { name: '广州', lat: 23.13 }, { name: '新加坡', lat: 1.3 }, { name: '悉尼', lat: -33.87 }];
@@ -134,15 +134,15 @@ export default {
       const k = keyNear(); if (!k) return;
       const name = S.city >= 0 ? CITIES[S.city].name : latName(S.lat), d = decOf(k.lam), lat = S.lat * D2R;
       (S.rec[name] ||= {})[k.name] = { len: dayLen(lat, d), noon: noonAlt(lat, d) }; S.saw.add(k.name);
-      if (W && !S.said?.[k.name + name]) { (S.said ||= {})[k.name + name] = 1; W.ui.status(`${k.name}（${k.date}）：太阳直射 ${latName(d * R2D)}。你家（${name}）白天 ${hm(dayLen(lat, d))}，正午太阳高度 ${dm(noonAlt(lat, d))}，已记进表里。`); }
+      if (W && !S.said?.[k.name + name]) { (S.said ||= {})[k.name + name] = 1; W.ui.status(`${k.name}（${k.date}）：太阳直射 ${latName(d * R2D)}。你家（${name}）白天 ${dur(dayLen(lat, d))}，正午太阳高度 ${altText(noonAlt(lat, d))}，已记进表里。`); }
       if (['夏至', '冬至'].every((x) => S.rec[name]?.[x]) && (S.rec[name]['春分'] || S.rec[name]['秋分']) && Object.keys(S.rec).length >= 2) W?.ui.unlock();
     };
     const drawTable = () => {
       if (!W) return;
-      const names = Object.keys(S.rec), cell = (r, k) => (r[k] ? `${hm(r[k].len)}<br><small>${dm(r[k].noon)}</small>` : '');
+      const names = Object.keys(S.rec), cell = (r, k) => (r[k] ? `${dur(r[k].len)}<br><small>${altText(r[k].noon)}</small>` : '');
       W.table.innerHTML = names.length ? `<table class="rec"><tr><th></th>${KEY.map((k) => `<th>${k.name}</th>`).join('')}</tr>${names.map((n) => `<tr><th>${n}</th>${KEY.map((k) => `<td>${cell(S.rec[n], k.name)}</td>`).join('')}</tr>`).join('')}</table><p class="note">每格上面是昼长，下面是正午太阳高度。</p>` : '<p class="note">还没记：推着地球仪走到春分、夏至、秋分、冬至。</p>';
       const g = S.guess;
-      if (g != null && S.rec['哈尔滨']?.['夏至'] && S.rec['广州']?.['夏至']) W.table.insertAdjacentHTML('beforeend', `<p class="note">你猜：${ASK[1][g]}　实际：哈尔滨 ${hm(S.rec['哈尔滨']['夏至'].len)}，广州 ${hm(S.rec['广州']['夏至'].len)}</p>`);
+      if (g != null && S.rec['哈尔滨']?.['夏至'] && S.rec['广州']?.['夏至']) W.table.insertAdjacentHTML('beforeend', `<p class="note">你猜：${ASK[1][g]}　实际：哈尔滨 ${dur(S.rec['哈尔滨']['夏至'].len)}，广州 ${dur(S.rec['广州']['夏至'].len)}</p>`);
     };
 
     // ---- 你家的天空：今天太阳走过的路（实线），另一座城（虚线）；现在太阳在哪 ----
@@ -161,7 +161,7 @@ export default {
       g.fillStyle = '#2a3140'; g.font = '600 12px "PingFang SC", sans-serif'; g.textAlign = 'center';
       for (const [az, n] of [[90, '东'], [180, '南'], [270, '西'], [0, '北']]) { const x = X(az * D2R); if (x > 8 && x < w - 8) g.fillText(n, x, hh - 9); }
       if (day) { const x = X(now.az), y = Y(now.alt), sg = g.createRadialGradient(x, y, 0, x, y, 16); sg.addColorStop(0, 'rgba(255,240,170,1)'); sg.addColorStop(0.4, 'rgba(255,215,110,0.9)'); sg.addColorStop(1, 'rgba(255,215,110,0)'); g.fillStyle = sg; g.fillRect(x - 16, y - 16, 32, 32); }
-      const hd = halfDay(lat, d), len = (2 * hd * R2D) / 15, txt = hd >= Math.PI - 1e-6 ? '极昼：太阳整天不落，白天 24 小时' : hd <= 1e-6 ? '极夜：太阳整天不出来' : `日出 ${hm(12 - len / 2)}　日落 ${hm(12 + len / 2)}　白天 ${hm(len)}`;
+      const hd = halfDay(lat, d), len = (2 * hd * R2D) / 15, txt = hd >= Math.PI - 1e-6 ? '极昼：太阳整天不落，白天 24 小时' : hd <= 1e-6 ? '极夜：太阳整天不出来' : `日出 ${hm(12 - len / 2)}　日落 ${hm(12 + len / 2)}　白天 ${dur(len)}`;
       g.fillStyle = 'rgba(250,247,238,0.96)'; g.fillRect(0, 0, w, 76);
       const otherName = () => CITIES[S.other].name;
       const pill = (x, y, s, al = 'left') => { g.font = '600 12px "PingFang SC", sans-serif'; const tw = g.measureText(s).width, x0 = al === 'left' ? x : x - tw - 12; g.fillStyle = 'rgba(255,255,255,0.88)'; g.beginPath(); g.roundRect(x0, y, tw + 12, 19, 9); g.fill(); g.fillStyle = '#2a3140'; g.textAlign = 'left'; g.fillText(s, x0 + 6, y + 14); };

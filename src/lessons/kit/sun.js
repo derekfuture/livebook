@@ -11,6 +11,10 @@ export const decOf = (lam) => Math.asin(Math.sin(EPS) * Math.sin(lam * D2R));
 export const dm = (r) => { const d = Math.abs(r * R2D); let a = Math.floor(d + 1e-9), m = Math.round((d - a) * 60); if (m === 60) { a++; m = 0; } return `${a}°${m ? String(m).padStart(2, '0') + '′' : ''}`; };
 /** 时刻 h（小时）写成 7:25 */
 export const hm = (h) => { h = ((h % 24) + 24) % 24; let H = Math.floor(h), M = Math.round((h - H) * 60); if (M === 60) { H++; M = 0; } return `${H}:${String(M).padStart(2, '0')}`; };
+/** 时长（小时）：不取模——24 小时就是 24 小时（极昼），0 就是极夜 */
+export const dur = (h) => (h >= 24 - 1e-6 ? '24 小时（极昼）' : h <= 1e-6 ? '0（极夜）' : `${Math.floor(h + 1e-9)} 小时 ${String(Math.round((h - Math.floor(h + 1e-9)) * 60)).padStart(2, '0')} 分`);
+/** 太阳高度（弧度）：负的说成“在地平线下” */
+export const altText = (r) => (r >= 0 ? dm(r) : `地平线下 ${dm(-r)}`);
 /** 方位（从正北顺时针，弧度）→ 正北 / 东北 / 正东 …… */
 export const dirName = (az) => { const a = ((az * R2D) % 360 + 360) % 360, near = (x) => Math.abs(((a - x + 540) % 360) - 180) < 0.5; return near(0) ? '正北' : near(90) ? '正东' : near(180) ? '正南' : near(270) ? '正西' : a < 90 ? '东北' : a < 180 ? '东南' : a < 270 ? '西南' : '西北'; };
 /** 太阳：纬度 lat、直射点纬度 dec、时角 t（弧度）→ 高度、方位（从正北顺时针）、方向 */

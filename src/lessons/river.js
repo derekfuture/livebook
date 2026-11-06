@@ -35,7 +35,7 @@ export default {
 
   create({ tag, reframe }) {
     const group = new THREE.Group();
-    const S = { t: 0, play: false, cut: XR, drag: null, docks: null, logs: [], done: false, guess: null, cutMoved: false, said: -1 };
+    const S = { visited: new Set(), t: 0, play: false, cut: XR, drag: null, docks: null, logs: [], done: false, guess: null, cutMoved: false, said: -1 };
     let W = null;
     const block = new THREE.Group(); block.position.y = LIFT; group.add(block);
     const LINE = new THREE.LineBasicMaterial({ color: 0x2a3140, transparent: true, opacity: 0.35 });
@@ -230,7 +230,7 @@ export default {
       const k2 = 2 * Math.PI / LAM, c0 = Math.sin(k2 * (x - APEX) - Math.PI / 2), bend = stage(t).amp > 0.008 && Math.abs(c0) > 0.45, outerNorth = c0 < 0;
       g.font = '600 12px "PingFang SC", sans-serif'; g.fillStyle = '#2a3140'; g.textAlign = 'left'; g.fillText(`北岸${bend ? (outerNorth ? '（凹岸）' : '（凸岸）') : ''}`, 6, 16); g.textAlign = 'right'; g.fillText(`南岸${bend ? (outerNorth ? '（凸岸）' : '（凹岸）') : ''}`, w - 6, 16);
       g.textAlign = 'center'; g.fillStyle = '#5f4f3c'; g.fillText(bend ? '这里是河湾：最深的地方偏向凹岸' : '这里河道比较直：两边差不多', w / 2, hh - 6);
-      if (bend && !S.measured) { S.measured = true; drawLogs(); }
+      if (bend && S.cutMoved && !S.measured) { S.measured = true; drawLogs(); }          // 你自己拖刀切到河湾才算测过
     };
 
     // ---- 标签 ----
@@ -257,7 +257,7 @@ export default {
     // ---- 记录：你看到了什么 ----
     const record = () => {
       const s = stageOf(S.t);
-      for (let k = 1; k <= s; k++) if (!S.logs.includes(STAGE[k][0])) S.logs.push(STAGE[k][0]);
+      S.logs = [...S.visited].sort().filter((k) => k > 0).map((k) => STAGE[k][0]);          // 只记你真的拖到、看到过的阶段，不替你把前面的过程写好
       if (s !== S.said && W) { S.said = s; W.ui.status(s === 0 ? '这是一片高地，中间刚出现一条小河。拖下面的<b>时间</b>（或按“流下去”），看河谷怎么变。' : Math.abs(S.t - DOCK_T) < 0.002 ? '这是一段弯弯的河，南岸那个是西津渡。先拖<b>红球</b>切开一个河湾，看左边小图：哪一岸水深？再把<b>你的港口</b>拖到岸边，然后往后拖时间。' : STAGE[s][0] + '。'); }
       drawLogs();
     };
@@ -273,7 +273,7 @@ export default {
       if (!S.done && S.measured && docks.every((d) => d.placed && d.seen)) { S.done = true; W.ui.unlock(); }
     };
 
-    const setT = (t) => { S.t = Math.min(1, Math.max(0, t)); build(); placeDocks(); placeTags(); record(); drawDepth(); if (W) W.time.input.value = Math.round(S.t * 1000); };
+    const setT = (t, user = false) => { S.t = Math.min(1, Math.max(0, t)); if (user) S.visited.add(stageOf(S.t)); build(); placeDocks(); placeTags(); record(); drawDepth(); if (W) W.time.input.value = Math.round(S.t * 1000); };
 
     // ---- 拖刀、拖渡口 ----
     const plane = new THREE.Plane(), hit = new THREE.Vector3(), wq = new THREE.Vector3();
@@ -302,11 +302,11 @@ export default {
       view: { elev: 32, azim: 48, lookY: 0.4, frameMargin: 1.2 },          // 从下游的东南方向、略高处看：河道和切面（横剖面）都看得见
       pointer,
       mount(ui) {
-        const time = slider('时间（示意，实际要经过漫长的年代）', { min: 0, max: 1000, value: Math.round(DOCK_T * 1000), fmt: () => '', onInput: (v) => { S.play = false; playBtn.textContent = '流下去'; setT(v / 1000); } });
+        const time = slider('时间（示意，实际要经过漫长的年代）', { min: 0, max: 1000, value: Math.round(DOCK_T * 1000), fmt: () => '', onInput: (v) => { S.play = false; playBtn.textContent = '流下去'; setT(v / 1000, true); } });
         const acts = buttons([
           { text: '流下去', onClick: () => { S.play = !S.play; if (S.play && S.t >= 1) setT(DOCK_T); playBtn.textContent = S.play ? '停一下' : '流下去'; } },
           { text: '从头看这条河谷是怎么来的', ghost: true, onClick: () => { setT(0); S.play = true; playBtn.textContent = '停一下'; } },
-          { text: '重来', ghost: true, onClick: () => { S.play = false; playBtn.textContent = '流下去'; S.cut = XR; S.cutMoved = false; S.measured = false; S.logs = []; S.guess = null; S.done = false; S.said = -1; docks.forEach(homeDock); guess.set(-1); setT(DOCK_T); } },
+          { text: '重来', ghost: true, onClick: () => { S.play = false; playBtn.textContent = '流下去'; S.cut = XR; S.cutMoved = false; S.measured = false; S.logs = []; S.visited = new Set(); S.guess = null; S.done = false; S.said = -1; docks.forEach(homeDock); guess.set(-1); setT(DOCK_T); } },
         ]);
         const playBtn = acts.btns[0];
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLogs(); }, { value: -1 });
@@ -320,7 +320,7 @@ export default {
       },
       update(dt) {
         ripple.offset.x -= dt * 0.35;          // 水往下游流（+x）
-        if (S.play) { setT(S.t + dt / 24); if (S.t >= 1) { S.play = false; if (W) W.play.textContent = '流下去'; } }
+        if (S.play) { setT(S.t + dt / 24, true); if (S.t >= 1) { S.play = false; if (W) W.play.textContent = '流下去'; } }
       },
     };
   },

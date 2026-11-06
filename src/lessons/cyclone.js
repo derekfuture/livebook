@@ -1,7 +1,7 @@
 // 高中地理 选择性必修1 第三章第一节 常见天气系统 · 气旋与反气旋（课本第 44–46 页，图 3.6 北半球气旋的形成及其天气、图 3.7 反气旋）。
 //
 // 课本的图就是模型：一块浮在书页上的地块，地面上画着闭合的等压线（虚构地区，不画边界）。开始只有等压线，天上干干净净。
-// 学生在图上任意一处点一下，放一缕空气。它按真实的受力自己走：气压梯度力（指向低压）+ 地转偏向力（北半球向右偏）+ 地面摩擦，
+// 学生在图上任意一处点一下，放一缕烟（示踪：空气本来就在流，烟让人看得见它往哪儿走）。它按真实的受力走：气压梯度力（指向低压）+ 地转偏向力（北半球向右偏）+ 地面摩擦，
 // 身后留下轨迹；旁边两支箭头：虚线是气压梯度力，实线是它实际走的方向（就是课本图 3.6 a 的图例）。
 // 低压：空气转着流进中心、往上升，学生放进去的空气越多，中心的云越高，够厚了就下雨（图 3.6 b）。
 // 高压：空气转着往外流，中心上方的空气往下沉、增温，原来的云一点点散掉，天晴了（图 3.7）。
@@ -31,7 +31,7 @@ export default {
   title: '气旋与反气旋',
   flow: 'explore',
   ask: '天气预报常说“受低压影响，阴雨”“高压控制，晴好”。为什么低压下雨、高压晴？',
-  need: '在低压、高压里各放几缕空气：看它往哪儿走，中心的空气是升还是沉，天上的云怎么变（北半球）',
+  need: '在低压、高压里各放几缕烟：看空气往哪儿走，中心的空气是升还是沉，天上的云怎么变（北半球）',
   conclusion: {
     page: 49,
     quote: '在等压线分布图上，凡等压线闭合，中心气压低于四周气压的区域，叫作低气压，简称低压。在水平气压梯度力的作用下，低压的气流由四周向中心流动。受地转偏向力影响，低压的气流在北半球向右偏转，按逆时针方向流动（图3.6 a），在南半球向左偏转，按顺时针方向流动。……低压中心形成上升气流。空气在上升过程中，温度降低，其中所含的水汽凝结成云和雨（图3.6 b）。因此，一个地方受低压控制时，常出现阴雨天气。……高压的气流是由中心向外流出的，在北半球按顺时针方向旋转流出（图3.7 a），在南半球按逆时针方向旋转流出。……高压中心形成下沉气流。空气在下沉过程中，温度升高，水汽不易凝结，天气晴朗（图3.7 b）。',
@@ -134,7 +134,7 @@ export default {
         if (p.x < XL + 0.003 || p.x > XR - 0.003 || Math.abs(p.n) > ZN - 0.003) { p.st = 'gone'; if (S.mode === 'high' && p.counted) { setSpin(p); drawLogs(); } }
       } else if (p.st === 'rise') {          // 到了低压中心：往上升，一直升到云底
         p.y += dt * 0.045; p.x *= 1 - dt * 0.5; p.n *= 1 - dt * 0.5;
-        if (p.y > G + 0.05) { p.st = 'gone'; S.cloud = Math.min(1, S.cloud + 0.09); record(); }
+        if (p.y > G + 0.05) { p.st = 'gone'; record(); }          // 放的是看得见的“烟”（示踪）：只用来看空气往哪儿走，不往系统里添空气、添云
       }
       if (p.st !== 'gone') push(p);
       p.dot.position.set(p.x, p.y, -p.n); p.dot.visible = p.st !== 'gone';
@@ -234,7 +234,7 @@ export default {
     const vHead = new THREE.Mesh(new THREE.ConeGeometry(0.0028, 0.007, 8), vaneMat); vHead.rotation.z = -Math.PI / 2; vHead.position.x = 0.011; vane.add(vHead);
     const vTail = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.0006), vaneMat); vTail.position.x = -0.009; vane.add(vTail);
     const homePick = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.03, 0.024), new THREE.MeshBasicMaterial({ visible: false })); homePick.position.y = 0.014; homePick.userData.pick = true; home.add(homePick);
-    const homeTag = tag('', 'pill'), tHint = tag('在图上任意一处点一下，放一缕空气', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间加快了 · 本例水汽充足', 'pill');
+    const homeTag = tag('', 'pill'), tHint = tag('在图上任意一处点一下，放一缕烟，看空气往哪儿走', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间加快了 · 本例水汽充足', 'pill');
     const homeWx = () => {
       const [x, n] = S.home, r = Math.hypot(x, n);
       if (S.mode === 'low') return S.cloud >= 0.7 && r < 0.036 ? '阴雨' : S.cloud >= 0.3 && r < 0.09 ? '多云' : '晴';          // 教学示意：雨区在低压中心附近，外圈多云
@@ -270,7 +270,7 @@ export default {
       const rows = [];
       for (const m of ['low', 'high']) for (let hi = 0; hi < 3; hi++) {
         const k = `${m}-${hi}`, L = S.logs[k]; if (!L && k !== LK()) continue;
-        const line = L && (L.spin || L.steps.length) ? [L.spin, ...L.steps].filter(Boolean).join(' → ') : '还没放空气';
+        const line = L && (L.spin || L.steps.length) ? [L.spin, ...L.steps].filter(Boolean).join(' → ') : k === LK() && S.released ? '已经放出去了，正在看它往哪儿走……' : '还没放空气';
         const g = S.guess[m + hi] != null ? ASK[m][1][S.guess[m + hi]] : null;
         rows.push(h('div', { class: 'tl-row' }, h('b', {}, `${m === 'low' ? '低压（气旋）' : '高压（反气旋）'} · ${HN[hi]}：`), h('span', {}, line),
           L?.home ? h('small', {}, `你家在${L.home}`) : null,
@@ -314,8 +314,8 @@ export default {
       if (fresh) S.home = [0.07, 0.0];
       drawMapTex(); setGuess(); layoutHome(); drawLogs();
       W?.ui.status(S.mode === 'low'
-        ? `这是一张等压线图：中间是<b>低压</b>，四周气压高。在图上任意一处点一下，放一缕空气，看它往哪儿走。（${HN[S.hemi]}）`
-        : `这回中间是<b>高压</b>，天上有几朵云。在高压中心附近点一下，放一缕空气，看它往哪儿走，再看看云。（${HN[S.hemi]}）`);
+        ? `这是一张等压线图：中间是<b>低压</b>，四周气压高。在图上任意一处点一下，放一缕烟，看空气往哪儿走。（${HN[S.hemi]}）`
+        : `这回中间是<b>高压</b>，天上有几朵云。在高压中心附近点一下，放一缕烟，看空气往哪儿走，再看看云。（${HN[S.hemi]}）`);
     };
 
     // ---- 点图放空气；拖你家 ----
@@ -371,7 +371,8 @@ export default {
         S.t += dt; const d = Math.min(dt, 0.05);
         for (const p of parcels) stepParcel(p, d);
         for (let i = parcels.length - 1; i >= 0; i--) { const p = parcels[i]; if (p.st === 'gone') { p.fade -= d / 2.5; tint(p); if (p.fade <= 0) { drop(p); parcels.splice(i, 1); if (S.last === p) S.last = null; } } }
-        if (S.mode === 'high' && S.out > 0 && S.cloud > 0) { S.cloud = Math.max(0, S.cloud - d * 0.12 * Math.min(3, S.out)); if (S.cloud === 0) record(); }          // 下沉增温：云一点点散掉
+        if (S.released && S.mode === 'low' && S.cloud < 1) { const c0 = Math.floor(S.cloud * 10); S.cloud = Math.min(1, S.cloud + d * 0.07); if (Math.floor(S.cloud * 10) !== c0) record(); }          // 下沉增温：云一点点散掉          // 低压里空气一直在辐合、上升：从你开始看起，云一点点长厚（本例水汽充足），和你放了几缕烟无关          // 低压里空气一直在辐合、上升：从你开始看起，云一点点长厚（本例水汽充足），和你放了几缕烟无关
+        if (S.released && S.mode === 'high' && S.cloud > 0) { S.cloud = Math.max(0, S.cloud - d * 0.07); if (S.cloud === 0) record(); }          // 高压里空气一直在下沉、增温：云一点点散掉
         placeArrows(); placeVArrows(); placeClouds(); placeRain(); layoutHome(); drawSky();
       },
     };
