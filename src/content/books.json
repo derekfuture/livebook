@@ -2139,6 +2139,11 @@
     "fig": "图3.1-8",
     "sec": "重力与弹力"
    },
+   "newtontube": {
+    "title": "比较铁片和羽毛的下落",
+    "fig": "图2.4-1",
+    "sec": "自由落体运动"
+   },
    "staticfriction": {
     "title": "测量最大静摩擦力",
     "fig": "图3.2-4",
@@ -2193,6 +2198,17 @@
      736
     ],
     "label": "图3.1-8 · 翻开活页"
+   },
+   {
+    "lesson": "newtontube",
+    "page": 52,
+    "bbox": [
+     59,
+     160,
+     198,
+     312
+    ],
+    "label": "图2.4-1 · 翻开活页"
    },
    {
     "lesson": "staticfriction",
