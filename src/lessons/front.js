@@ -15,7 +15,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 
-const LIFT = 0.05;                      // 整块地浮在书页上方多高
+const LIFT = 0;                         // 地块直接放在书页上（已经放在两页正中间、放得很大，不用再浮起来）
 const G = 0.022;                        // 地面顶面（地块有厚度，侧面露出土层）
 const XL = -0.17, XR = 0.17, ZD = 0.062;
 // 两种锋：锋面的形状 h(s) = H·(1 − e^(−s/λ))，s 是从锋线往冷空气那边量的距离。冷锋陡，冷空气在后面（锋线左边）；暖锋缓，冷空气在前面（右边）
@@ -92,7 +92,7 @@ export default {
 
     // ---- 书页上的影子（地块浮在上面） ----
     const shadowTex = canvasTex(256, 128, (g, w, hh) => { const gr = g.createRadialGradient(w / 2, hh / 2, 0, w / 2, hh / 2, w / 2); gr.addColorStop(0, 'rgba(60,45,30,0.5)'); gr.addColorStop(0.6, 'rgba(60,45,30,0.2)'); gr.addColorStop(1, 'rgba(60,45,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); });
-    const shadow = new THREE.Mesh(new THREE.PlaneGeometry((XR - XL) * 1.25, ZD * 2 * 1.9), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+    const shadow = new THREE.Mesh(new THREE.PlaneGeometry((XR - XL) * 1.06, ZD * 2 * 1.25), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.0006; shadow.raycast = () => {}; group.add(shadow);
     // 镜头取景用：整块地加上云长到最高的范围（看不见）
     const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL + 0.04, 0.17, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
