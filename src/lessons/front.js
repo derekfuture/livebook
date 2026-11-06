@@ -132,7 +132,7 @@ export default {
       pos.needsUpdate = true; frontGeo.computeVertexNormals(); frontGeo.computeBoundingSphere();
       const L = [];
       for (const z of [-ZD, ZD]) for (let i = 0; i < NS; i++) { const a = (i / NS) * R, b = ((i + 1) / NS) * R; L.push(xAt(a), hAt(a), z, xAt(b), hAt(b), z); }
-      L.push(xAt(R), hAt(R), -ZD, xAt(R), hAt(R), ZD, S.xf, G, -ZD, S.xf, G, ZD);
+      L.push(xAt(R), hAt(R), -ZD, xAt(R), hAt(R), ZD, S.xf, G + 0.0014, -ZD, S.xf, G + 0.0014, ZD);
       frontEdge.geometry.dispose(); frontEdge.geometry = new THREE.BufferGeometry(); frontEdge.geometry.setAttribute('position', new THREE.Float32BufferAttribute(L, 3));
       const P = [], quad = (a, b, c, d) => P.push(...a, ...b, ...c, ...a, ...c, ...d);
       for (let i = 0; i < NS; i++) { const a = (i / NS) * R, b = ((i + 1) / NS) * R; for (const z of [-ZD, ZD]) quad([xAt(a), G, z], [xAt(b), G, z], [xAt(b), hAt(b), z], [xAt(a), hAt(a), z]); }
@@ -358,7 +358,7 @@ export default {
       const ac = S.map && S.lift < 1 ? 0x8a8f98 : S.kind === 'warm' ? 0xd9662f : 0x2f7f6f; pushArrow.userData.mat.color.set(ac); pushArrow.userData.mat.emissive.set(ac);          // 冷锋、准静止锋推冷气团；暖锋推暖气团
       pushArrow.position.set(Math.max(XL + 0.012, S.xf - 0.08), G + 0.004, ZD - 0.012);          // 靠地块前沿走，不压着房子
       grab.position.set(S.xf - 0.07, G + 0.03, 0);
-      sym.position.set(S.xf, G, 0); sym.visible = S.map || S.rise > 0.5; ridge.visible = S.kind === 'still';
+      sym.position.set(S.xf, G + 0.0012, 0); sym.visible = S.map || S.rise > 0.5; ridge.visible = S.kind === 'still';
       home.position.set(S.home, G, 0.03); town.position.set(S.town, G, -0.025);
       const wx = (d) => (S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d));
       const wHome = wx(S.home - S.xf), stuck = S.kind === 'still' && S.days >= 1 && wHome.k === 'w2';
@@ -550,7 +550,7 @@ export default {
       const closing = !!globalThis.__lb?.live?.active?.closing, tgt = !closing && S.view === 'home' ? 1 : 0;          // 书是这个系列的标志，一直留着；只有“站在你家抬头看”时，四周换成天空和田野
       hero.k = tgt > hero.k ? Math.min(1, hero.k + dt / 1.1) : Math.max(0, hero.k - dt / 0.6);
       const k = smooth(0, 1, hero.k);
-      backdropMat.opacity = 0.97 * k;
+      backdropMat.opacity = 0.97 * k; backdrop.visible = k > 0.001;          // 用不着的时候不画
       for (const e of hero.list) { const tr = e.tr || k > 0; if (e.m.transparent !== tr) { e.m.transparent = tr; e.m.needsUpdate = true; } e.m.opacity = e.op * (1 - k); e.o.visible = e.vis && k < 0.95; }          // 改 transparent 要重新编译材质
     };
     const heroRestore = () => { for (const e of hero.list || []) { e.m.opacity = e.op; if (e.m.transparent !== e.tr) { e.m.transparent = e.tr; e.m.needsUpdate = true; } e.o.visible = e.vis; } };
@@ -586,10 +586,10 @@ export default {
       sym.scale.set(mapV ? 1.7 : 1, 1, 1);          // 天气图上锋线符号放大一些（只放大沿推进方向的那一边，不伸出地块）
       frontMesh.visible = frontEdge.visible = cold.visible = S.rise > 0.02 && !mapV && !homeV;          // 站在地上看：只看天、云、雨和地面，不看画在空中的锋面          // 天气图：从上往下看只看地面——冷暖空气的淡色、雨区、锋线符号
       for (const f of flows) f.visible = S.rise > 0.02 && !mapV && !homeV;
-      sym.position.y = G + (mapV ? 0.0022 : 0); sym.visible = (S.map || S.rise > 0.5) && !homeV;
+      sym.position.y = G + (mapV ? 0.0022 : 0.0012); sym.visible = (S.map || S.rise > 0.5) && !homeV;          // 锋线符号抬到田野、湿地面那几层上面一点，不和它们抢同一个深度（会闪）
       for (const t of [tCold, tWarm, tFront, tHint, tScale]) if (homeV) t.show(false);
       pushArrow.visible = !homeV;
-      farField.material.opacity = homeV ? 0.95 : 0; home.visible = !homeV;          // 站在你家门口：自己家的房子不挡镜头
+      farField.material.opacity = homeV ? 0.95 : 0; farField.visible = homeV; home.visible = !homeV;          // 站在你家门口：自己家的房子不挡镜头
       viewTags.forEach((t, i) => { t.loc(block, XL + 0.02 + i * 0.075, G + 0.105, -ZD).show(S.rise > 0.95 && !S.map); t.el.classList.toggle('on', VIEWS[i][0] === S.view); });
       if (homeV) { homeTag.show(false); townTag.show(false); }
     };
