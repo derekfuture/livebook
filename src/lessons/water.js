@@ -13,7 +13,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { noteBadge } from './kit/labels.js';
-import { inkLayer } from './kit/annot.js';
+import { inkLayer, INK, BLUE, RED } from './kit/annot.js';
 import { XL, XR, DIVIDE, COAST, FIELD, SURF, ground, SEA_Y, LAKE_X, LAKE_Y, cycleOf, split } from './kit/water.js';
 
 const ZD = 0.065, NX = 160, YB = 0, CLOUD_Y = 0.112;
@@ -131,20 +131,19 @@ export default {
 
     // ---- 画面里的字（kit/annot.js）：地名印在地面、水面上；剖面上的字印在剖面上；过程是一条流动的细线，名字顺着线写，发生时才有；状态和悬停的名字是批注 ----
     const ink = inkLayer({ tag, camera });
-    const WATER = '#1d4a7e', SOIL = '#3a2a16', FACE = '#2a2622';
-    ink.print(block, '海洋', { at: [(COAST + XR) / 2 + 0.01, SEA_Y + 0.0008, 0.018], h: 0.015, color: WATER, spacing: 0.9 });
-    ink.print(block, '内陆湖', { at: [LAKE_X, LAKE_Y + 0.0008, ZD * 0.5], h: 0.008, color: WATER, spacing: 0.3, occl: [topMesh] });
-    const pField = ink.print(block, SURF.bare.name.replace(/（.*）/, ''), { at: [(FIELD[0] + FIELD[1]) / 2, ground((FIELD[0] + FIELD[1]) / 2) + 0.0015, ZD * 0.84], h: 0.0085, color: SOIL, spacing: 0.4 });
-    ink.print(block, '地下水面', { at: [-0.045, 0.017, ZD + 0.0008], up: [0, 1, 0], h: 0.0058, color: FACE, opacity: 0.7, spacing: 0.2 });
-    const pInf = ink.print(block, '下渗 → 地下径流', { at: [0.045, 0.024, ZD + 0.0008], up: [0, 1, 0], h: 0.0058, color: FACE, opacity: 0.75, spacing: 0.12 });
-    const runPts = riverPts.slice(0, 15).map((q, k, A) => { const w = A.slice(Math.max(0, k - 5), k + 6), z = w.reduce((a, b) => a + b.z, 0) / w.length; return [q.x, q.y, z - 0.008]; });          // 字顺着河的大方向写（把弯弯绕绕抹平），写在河的里侧
-    const pRun = ink.printPath(block, '地表径流', { pts: runPts, h: 0.0062, color: WATER, spacing: 0.35 });
-    const fVap = ink.flow(block, { pts: [], label: '蒸发', vertical: true, at: 0.8, color: '#1f4f86' });
-    const fTrans = ink.flow(block, { pts: [], label: '水汽输送', color: '#1f4f86' });
-    const fRain = ink.flow(block, { pts: [], label: '降水', vertical: true, at: 0.18, color: '#1f4f86', side: 1 });
-    const nCyc = ink.note(block, '', { dx: 0, dy: -46, size: 19, color: '#a3352a', dot: false });
-    const nHint = ink.note(block, '按住云，拖到别处', { dx: -70, dy: -34, size: 15, color: '#a3352a', sub: '风把水汽送到哪，雨就下在哪', stack: true });
-    const nHover = ink.note(block, '', { dx: 30, dy: -26, size: 14 }); nHover.show(false);
+    ink.print(block, '海洋', { at: [(COAST + XR) / 2 + 0.01, SEA_Y + 0.0008, 0.018], h: 0.02, color: BLUE, spacing: 0.7 });
+    ink.print(block, '内陆湖', { at: [LAKE_X - 0.01, LAKE_Y + 0.0008, ZD * 0.5], h: 0.011, color: BLUE, spacing: 0.15, occl: [topMesh] });
+    const pField = ink.print(block, SURF.bare.name.replace(/（.*）/, ''), { at: [(FIELD[0] + FIELD[1]) / 2, ground((FIELD[0] + FIELD[1]) / 2) + 0.0015, ZD * 0.82], h: 0.012, color: '#3a2a16', spacing: 0.3 });
+    ink.print(block, '地下水面', { at: [-0.045, 0.017, ZD + 0.0008], up: [0, 1, 0], h: 0.0085, color: INK, opacity: 0.8, spacing: 0.1 });
+    const pInf = ink.print(block, '下渗 → 地下径流', { at: [0.045, 0.024, ZD + 0.0008], up: [0, 1, 0], h: 0.0085, color: INK, opacity: 0.85, spacing: 0.05 });
+    const runPts = riverPts.slice(0, 15).map((q, k, A) => { const w = A.slice(Math.max(0, k - 5), k + 6), z = w.reduce((a, b) => a + b.z, 0) / w.length; return [q.x, q.y, z - 0.009]; });          // 字顺着河的大方向写（把弯弯绕绕抹平），写在河的里侧
+    const pRun = ink.printPath(block, '地表径流', { pts: runPts, h: 0.009 });
+    const fVap = ink.flow(block, { pts: [], label: '蒸发', vertical: true, at: 0.75 });
+    const fTrans = ink.flow(block, { pts: [], label: '水汽输送' });
+    const fRain = ink.flow(block, { pts: [], label: '降水', vertical: true, at: 0.2 });
+    const nCyc = ink.note(block, '', { dx: 0, dy: -50, size: 23, color: RED, dot: false, paper: 'paper' });
+    const nHint = ink.note(block, '按住云，拖到别处', { dx: -80, dy: -40, size: 19, color: RED, sub: '风把水汽送到哪，雨就下在哪', stack: true, paper: 'sticky', tilt: 1.5 });
+    const nHover = ink.note(block, '', { dx: 34, dy: -30, size: 19 }); nHover.show(false);
     noteBadge(tag, '教学示意：竖直方向夸大了，各环节的比例是示意').loc(block, XL + 0.012, -0.002, ZD + 0.01);
     const vline = (x, y0, y1, z = 0) => Array.from({ length: 9 }, (_, k) => [x, y0 + ((y1 - y0) * k) / 8, z]);
     const placeWind = () => {
