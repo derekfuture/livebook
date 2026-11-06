@@ -2703,6 +2703,11 @@
     "fig": "图2.1-1",
     "sec": "楞次定律"
    },
+   "faradaydrop": {
+    "title": "探究感应电动势大小的影响因素",
+    "fig": "图2.2-1",
+    "sec": "法拉第电磁感应定律"
+   },
    "selfinductionon": {
     "title": "观察通电自感",
     "fig": "图2.4-1",
@@ -2762,6 +2767,17 @@
      249
     ],
     "label": "图2.1-1 · 翻开活页"
+   },
+   {
+    "lesson": "faradaydrop",
+    "page": 34,
+    "bbox": [
+     402,
+     510,
+     508,
+     622
+    ],
+    "label": "图2.2-1 · 翻开活页"
    },
    {
     "lesson": "selfinductionon",
