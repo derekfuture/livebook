@@ -31,7 +31,7 @@ export default {
   conclusion: {
     page: 93,
     quote: '高大的山体随着海拔的变化，水热状况不同，自然环境要素间物质迁移和能量交换的差异很大，自然景观也相应地呈现垂直变化。从山麓到山顶，分布着不同的景观带，构成垂直带谱。山麓与陆地自然地带一致，垂直带变化与其所在纬度向较高纬度方向上的陆地自然地带变化相似。……垂直地域分异与山地所在纬度、高度密切相关，即山地所在纬度越低，海拔越高，垂直带数目越多，垂直带谱越完整。',
-    why: '往上爬，气温每 100 米约降低 0.6 ℃，水分条件也跟着变，所以景观一带一带地换，和从山脚所在的地方一路往高纬度走看到的变化相似。喜马拉雅南坡山麓低（约 1 000 米）、纬度低，从温暖的常绿阔叶林开始；又迎着西南季风，水汽多，一层层森林、灌木林都长得出来。北坡山麓就是约 4 300 米的高原，起点已经很冷；又是背风坡、阴坡，干燥少雨，所以只有草甸草原、荒漠和冰雪。山越高、纬度越低，从山麓到山顶跨过的水热条件越多，带谱就越完整。',
+    why: '往上爬，气温每 100 米约降低 0.6 ℃，水分条件也跟着变，所以景观一带一带地换，和从山脚所在的地方一路往高纬度走看到的变化相似。喜马拉雅南坡山麓低（约 1 000 米）、纬度低，从温暖的常绿阔叶林开始；又迎着西南季风，水汽多，一层层森林、灌木林都长得出来。北坡山麓就是约 4 300 米的高原，起点已经很冷；又是背风坡，降水少（北坡也是阴坡，得到的太阳辐射少些），所以只有草甸草原、荒漠和冰雪。山越高、纬度越低，从山麓到山顶跨过的水热条件越多，带谱就越完整。',
     src: '课本第 88–89 页 · 第五章 第二节 自然环境的地域差异性',
   },
 
@@ -110,7 +110,7 @@ export default {
       birch: merge(new THREE.SphereGeometry(0.0019, 6, 4).scale(0.8, 1.2, 0.8).translate(0, 0.0045, 0), new THREE.CylinderGeometry(0.0003, 0.0004, 0.003, 5).translate(0, 0.0015, 0)),
     };
     function merge(a, b) { const g = new THREE.BufferGeometry(), A = a.toNonIndexed(), B = b.toNonIndexed(), pa = A.attributes.position.array, pb = B.attributes.position.array, P = new Float32Array(pa.length + pb.length); P.set(pa); P.set(pb, pa.length); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); const C = new Float32Array(P.length); for (let i = 0; i < pa.length; i += 3) C.set([1, 1, 1], i); for (let i = pa.length; i < P.length; i += 3) C.set([0.55, 0.4, 0.3], i); g.setAttribute('color', new THREE.BufferAttribute(C, 3)); g.computeVertexNormals(); return g; }          // 树冠白色（按实例上色）、树干棕色
-    const LOOK = { broad: ['broad', 0x3f8a3a], mixed: ['broad', 0x4f8a3e, 'conifer', 0x2f6a3c], conifer: ['conifer', 0x2a5e38], shrub: ['shrub', 0x9a6650], meadow: ['grass', 0x8fbf52], meadowS: ['grass', 0xa8b85e], desert: ['rock', 0x8d8070], dry: ['grass', 0xbfa86a, 'rock', 0x9a8a72], cbMixed: ['broad', 0x4e8a3c, 'conifer', 0x2f6a3c], cbDark: ['conifer', 0x24503a], birch: ['birch', 0x9ab56a], tundra: ['grass', 0x9a9a62] };
+    const LOOK = { broad: ['broad', 0x3f8a3a], mixed: ['broad', 0x4f8a3e, 'conifer', 0x2f6a3c], conifer: ['conifer', 0x2a5e38], shrub: ['shrub', 0x9a6650], meadow: ['grass', 0x8fbf52], meadowS: ['grass', 0xa8b85e], desert: ['rock', 0x8d8070], cbMixed: ['broad', 0x4e8a3c, 'conifer', 0x2f6a3c], cbDark: ['conifer', 0x24503a], birch: ['birch', 0x9ab56a], tundra: ['grass', 0x9a9a62] };
     const MAXN = 1400, inst = {};
     for (const k of Object.keys(geoOf)) { const m = new THREE.InstancedMesh(geoOf[k], new THREE.MeshLambertMaterial({ vertexColors: !!geoOf[k].attributes.color }), MAXN); m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAXN * 3), 3); m.raycast = () => {}; m.count = 0; block.add(m); inst[k] = m; }
     const plant = () => {
@@ -210,7 +210,7 @@ export default {
       });
       const side = sideNow(), ci = cols.findIndex(([k]) => k === side); if (ci >= 0) { const x0 = G.L + 6 + ci * (G.colW + G.gap), e = heightM(xOf(S.u), CZ), y = Y(e); g.fillStyle = '#d2452e'; g.beginPath(); g.moveTo(x0 - 3, y); g.lineTo(x0 - 11, y - 5); g.lineTo(x0 - 11, y + 5); g.fill(); }          // 登山的人在哪
       const n = (key, band) => bandsBelow(key === 'cb' ? 'cb' : 'hima', band, key === 'cb' ? 2691 : Math.min(S.cut, 8848.86), false).length;
-      g.font = '11px "PingFang SC", sans-serif'; g.fillStyle = '#5a5040'; cols.forEach(([k, , band], i) => { const x0 = G.L + 6 + i * (G.colW + G.gap); g.textAlign = 'center'; g.fillText(`${n(k, band)} 个带`, x0 + G.colW / 2, hh - 8); });
+      g.font = '11px "PingFang SC", sans-serif'; g.fillStyle = '#5a5040'; cols.forEach(([k, , band], i) => { const x0 = G.L + 6 + i * (G.colW + G.gap), unk = band === 'northLow'; g.textAlign = 'center'; g.fillText(unk ? '3 个带 + 待推断的一段' : `${n(k, band)} 个带`, x0 + G.colW / 2, hh - 8); });
     };
     const drawLog = () => {
       if (!W) return;
@@ -219,11 +219,11 @@ export default {
       const sDone = all('south', 'south'), nDone = H.north.bands.every((b) => S.seen.north.has(b[0]));
       if (S.seen.south.size) r('南坡：', H.south.bands.filter((b) => S.seen.south.has(b[0])).map((b) => KIND[b[0]].name).join(' → ') + (sDone ? `，共 ${H.south.bands.filter((b) => b[1] < S.cut).length} 个带` : ''));
       if (S.seen.north.size) r('北坡：', H.north.bands.filter((b) => S.seen.north.has(b[0])).map((b) => KIND[b[0]].name).join(' → ') + (nDone ? '，共 3 个带' : ''));
-      if (sDone && nDone) r('比一比：', '南坡多出常绿阔叶林、高山针叶阔叶混交林、高山针叶林、高山灌木林和高山草甸（北坡是高山草甸草原）。北坡山麓就是约 4 300 米的高原，从草甸草原开始；南坡的高山草甸只在 4 500–4 800 米，北坡的草甸草原从山麓一直到约 4 900 米');
-      if (S.tried.has('low')) r('假如北坡山麓也低到 1 000 米：', '多出来的只是干旱的山地草原、荒漠，也长不出南坡那些森林——北坡是背风坡、阴坡，西南季风的水汽翻不过来');
+      if (sDone && nDone && S.cut >= 8848) r('比一比：', '南坡多出常绿阔叶林、高山针叶阔叶混交林、高山针叶林、高山灌木林和高山草甸（北坡是高山草甸草原）。南坡的高山草甸只在 4 500–4 800 米；北坡的草甸草原从山麓（约 4 300 米）一直到约 4 900 米——北坡的下限是被山麓高度限住的。南坡迎着暖湿气流，热量、水分条件好；北坡是背风坡，降水少、更干冷，所以长的是草甸草原，不是同一种草甸');
+      if (S.tried.has('low')) r('假如北坡山麓也低到 1 000 米：', '如果北坡仍是背风坡、降水较少，带谱不一定和南坡一样多；多出来的这一段长什么，要看那里的热量和水分条件去推断（课本问题 3）');
       for (const c of Object.keys(S.cuts).map(Number).sort((a, b) => b - a)) r(`把山削到 ${fmt(c)} 米：`, `南坡只剩 ${S.cuts[c]} 个带`);
       if (S.seen.cb.size) r('长白山（约 42°N）：', `${MOUNTAINS.cb.north.bands.filter((b) => S.seen.cb.has(b[0])).map((b) => KIND[b[0]].name).join(' → ')}${MOUNTAINS.cb.north.bands.every((b) => S.seen.cb.has(b[0])) ? '：一共 4 个带，山麓是针阔叶混交林' : ''}`);
-      if (S.guess != null && sDone && nDone) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：南坡 7 种，北坡 3 种`)));
+      if (S.guess != null && sDone && nDone && S.cut >= 8848) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：南坡 7 种，北坡 3 种`)));
       W.log.replaceChildren(...rows);
       W.read.innerHTML = `登山的人在 <b>${fmt(heightM(xOf(S.u), CZ))} 米</b>，${S.m === 'hima' ? (sideNow() === 'south' ? '南坡' : '北坡') : '长白山'}<br><small>每升高 100 米，气温约降低 0.6 ℃；界线是课本图 5.12 上的数，没标的是约数</small>`;
       if (sDone && nDone && (S.tried.has('low') || S.tried.has('cut') || S.seen.cb.size >= 3)) W.ui.unlock();
@@ -246,7 +246,7 @@ export default {
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; drawLog(); sayZone(); return true; },
     };
-    const sayZone = () => { const side = sideNow(); if (!W) return; if (side === 'north' && S.m === 'hima' && !S.saidN) { S.saidN = true; W.ui.status('翻到<b>北坡</b>了。北坡的山麓就是约 4 300 米的高原，比南坡山脚冷了 20 ℃ 左右（按每 100 米 0.6 ℃ 算）；又是背风坡，干燥少雨。往下走到山麓，看北坡一共有几个带。'); } else if (side === 'south' && S.m === 'hima' && S.seen.south.size >= 7 && !S.saidS) { S.saidS = true; W.ui.status('南坡从常绿阔叶林一路排到积雪冰川。再<b>翻过山顶</b>，把北坡也走一遍，比一比。'); } };
+    const sayZone = () => { const side = sideNow(); if (!W) return; if (side === 'north' && S.m === 'hima' && !S.saidN) { S.saidN = true; W.ui.status('翻到<b>北坡</b>了。北坡的山麓就是约 4 300 米的高原，比南坡山脚冷了 20 ℃ 左右（按每 100 米 0.6 ℃ 算）；又是背风坡，降水少。往下走到山麓，看北坡一共有几个带。'); } else if (side === 'south' && S.m === 'hima' && S.seen.south.size >= 7 && !S.saidS) { S.saidS = true; W.ui.status('南坡从常绿阔叶林一路排到积雪冰川。再<b>翻过山顶</b>，把北坡也走一遍，比一比。'); } };
 
     const switchMountain = (m) => { S.m = m; S.u = 0.93; if (m === 'cb') S.tried.add('cb'); rebuild(); drawLog(); };
     rebuild();
@@ -260,9 +260,9 @@ export default {
       pointer,
       debug: { go: (u) => { S.u = u; S.moved = true; placeClimber(); drawLog(); sayZone(); }, set: (k, v) => { S[k] = v; rebuild(); drawLog(); } },
       mount(ui) {
-        const mSeg = seg('看哪座山', ['喜马拉雅山脉（约 28°N）', '长白山（约 42°N）'], (_, i) => { switchMountain(i ? 'cb' : 'hima'); cutSl.el.style.display = lowBtn.el.style.display = i ? 'none' : ''; ui.status(i ? '<b>长白山</b>在东北，纬度比喜马拉雅高得多，主峰只有 2 691 米，山顶是火山口和天池。拖着登山的人从山脚爬上去，数数有几个带。' : '回到喜马拉雅山。'); }, { value: 0 });
-        const cutSl = slider('假如山只有这么高（只对喜马拉雅）', { min: 2500, max: 8900, step: 100, value: 8900, fmt: (v) => (v >= 8900 ? '原样 8 848.86 米' : `${fmt(v)} 米`), onInput: (v) => { S.cut = v >= 8900 ? 8848.86 : v; if (v < 8900) { S.tried.add('cut'); S.cuts[v] = bandsBelow('hima', 'south', v).length; } rebuild(); drawLog(); } });
-        const lowBtn = buttons([{ text: '假如北坡山麓也低到 1 000 米', onClick: () => { S.northLow = !S.northLow; lowBtn.btns[0].textContent = S.northLow ? '回到真实的北坡' : '假如北坡山麓也低到 1 000 米'; if (S.northLow) { S.tried.add('low'); ui.status('假如北坡也从 1 000 米起……拖着登山的人到北坡山脚走一走：北坡多出来的是什么？'); } rebuild(); drawLog(); } }]);
+        const mSeg = seg('看哪座山', ['喜马拉雅山脉（约 28°N）', '长白山（约 42°N）'], (_, i) => { switchMountain(i ? 'cb' : 'hima'); cutSl.el.style.display = lowBtn.el.style.display = i ? 'none' : ''; ui.status(i ? '<b>长白山</b>在东北，纬度比喜马拉雅高得多；中国境内的最高峰白云峰只有 2 691 米，山顶是火山口和天池。拖着登山的人从山脚爬上去，数数有几个带。' : '回到喜马拉雅山。'); }, { value: 0 });
+        const cutSl = slider('假如山只有这么高（只对喜马拉雅）', { min: 4500, max: 8900, step: 100, value: 8900, fmt: (v) => (v >= 8900 ? '原样 8 848.86 米' : `${fmt(v)} 米`), onInput: (v) => { S.cut = v >= 8900 ? 8848.86 : v; if (v < 8900) { S.tried.add('cut'); S.cuts[v] = bandsBelow('hima', 'south', v).length; } rebuild(); drawLog(); } });
+        const lowBtn = buttons([{ text: '假如北坡山麓也低到 1 000 米', onClick: () => { S.northLow = !S.northLow; lowBtn.btns[0].textContent = S.northLow ? '回到真实的北坡' : '假如北坡山麓也低到 1 000 米'; if (S.northLow) { S.tried.add('low'); ui.status('假如北坡山麓也低到 1 000 米：多出来的这一段画成了“？”。北坡仍是背风坡、降水少——它会长出南坡那么多种植被吗？想一想，再看侧栏。'); } rebuild(); drawLog(); } }]);
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { m: 'hima', cut: 8848.86, northLow: false, u: 0.93, guess: null, moved: false, cuts: {}, saidN: false, saidS: false }); S.seen = { south: new Set(), north: new Set(), cb: new Set() }; S.tried = new Set(); mSeg.set(0); cutSl.set(8900); guess.set(-1); lowBtn.btns[0].textContent = '假如北坡山麓也低到 1 000 米'; cutSl.el.style.display = lowBtn.el.style.display = ''; rebuild(); drawLog(); ui.status(START); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 250, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });

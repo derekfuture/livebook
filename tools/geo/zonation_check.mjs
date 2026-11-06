@@ -11,7 +11,8 @@ let mono = true; for (let x = -0.25; x < 1; x += 0.01) if (elev('hima', x + 0.01
 ok(sideOf('hima', 0.5) === 'south' && sideOf('hima', -0.6) === 'north', '主峰南边是南坡，北边是北坡');
 ok(bandsBelow('hima', 'south', 8848).length > bandsBelow('hima', 'north', 8848).length, '南坡的带比北坡多（问题 1）');
 const mS = H.south.bands.find((b) => b[0] === 'meadow'), mN = H.north.bands.find((b) => b[0] === 'meadowS'); ok(mN[1] < mS[1] && mN[2] - mN[1] > mS[2] - mS[1] && mN[1] === H.north.foot, `高山草甸：南坡 ${mS[1]}–${mS[2]} 米；北坡从山麓（约 ${mN[1]} 米）就是草甸草原，到约 ${mN[2]} 米，下限更低、范围更宽（问题 2）`);
-ok(bandsBelow('hima', 'north', 8848, true).every((b) => !['broad', 'mixed', 'conifer'].includes(b[0])), '假如北坡山麓也低到 1 000 米：背风、干旱，也长不出南坡那几种森林（问题 3）');
+ok(bandsBelow('hima', 'north', 8848, true)[0][0] === 'dry', '假如北坡山麓也低到 1 000 米：多出来的一段标成“要推断”，不替学生预设答案（问题 3）');
+let capOk = true; for (const cut of [4500, 6000, 7500]) for (let x = -1; x <= 1; x += 0.01) if (elev('hima', x, { cut }) > cut + 1e-6) capOk = false; ok(capOk, '把山削低：最高处就是选的高度，带谱的统计和画面一致');
 ok(bandsBelow('hima', 'south', 3000).length === 2 && bandsBelow('hima', 'south', 8848).length === 7, '把山削到 3 000 米，南坡只剩 2 个带：海拔越高，带谱越完整');
 const C = MOUNTAINS.cb; ok(C.north.bands.length === 4 && C.north.foot === 500 && Math.abs(elev('cb', 1) - 500) < 1 && elev('cb', 0.12) > C.lake && elev('cb', 0) < C.lake, '长白山：山麓约 500 米、4 个带；山顶火山口里是天池');
 ok(bandsBelow('cb', 'north', 2691).length < bandsBelow('hima', 'south', 8848).length, '长白山纬度高、山又低，带比喜马拉雅南坡少：纬度越低、海拔越高，带谱越完整');
