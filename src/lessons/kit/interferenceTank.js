@@ -26,6 +26,7 @@ export class InterferenceTank extends RippleTank {
           this.surface[(row + dz) * NX + col + dx] += (drive * kernel[dx + 1] * kernel[dz + 1]) / 16;
         }
     }
+    this.onStep?.(this.time);
   }
   sample(x, z) {
     const a = Math.max(0, Math.min(NX - 1, x / DX + (NX - 1) / 2)),
