@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 
 const XL = -0.17, XR = 0.17, ZD = 0.07, F1 = -0.05, F2 = 0.05;          // 两条断层（垂直位移那一种）
@@ -99,10 +100,12 @@ export default {
     const shadowTex = canvasTex(256, 128, (g, w, hh) => { const gr = g.createRadialGradient(w / 2, hh / 2, 0, w / 2, hh / 2, w / 2); gr.addColorStop(0, 'rgba(60,45,30,0.4)'); gr.addColorStop(0.7, 'rgba(60,45,30,0.12)'); gr.addColorStop(1, 'rgba(60,45,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); });
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry((XR - XL) * 1.15, ZD * 2.6), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.0006; shadow.raycast = () => {}; shadow.userData.noFrame = true; group.add(shadow);
     const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL + 0.06, 0.1, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); frameBox.position.y = 0.05; frameBox.raycast = () => {}; group.add(frameBox);
-    const tHint = tag('', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 时间大大加快', 'pill');
-    const tW = tag('', 'pill'), tM = tag('', 'pill'), tFault = [tag('断层', 'pill'), tag('断层', 'pill')], tRoad = tag('公路被错开了', 'pill');
-    const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
-    const say1 = (text, x, y, z) => { callout.loc(block, x, y, z).text(text).show(true); calloutT = 4.5; };
+    const tHint = tag('', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，时间大大加快');
+    const tW = airLabel(block, '', { h: 0.0105, color: '#2c3245', dim: 0 }), tM = airLabel(block, '', { h: 0.0105, color: '#2c3245', dim: 0 }), tFault = [0, 1].map(() => faceLabel(block, '断层', { h: 0.0095, color: '#ffffff', stroke: 'rgba(40,30,20,0.6)' })), tRoad = airLabel(block, '公路被错开了', { h: 0.0105, color: '#a8341f', icon: 'warn', dim: 0 });
+    const callout = airLabel(block, '', { h: 0.0095, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
+    callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
+    const labels = [tW, tM, tRoad, callout];
+    const say1 = (text, x, y, z) => { callout.position.set(x, y, z); callout.setText(text).setOn(true); calloutT = 4.5; };
 
     const D = () => (S.broken ? 0.3 + 0.7 * sm(BREAK, 1, S.s) : 0);          // 断开的那一下就错开一段（突然滑动），再用力错得更多；断开以后就退不回去
     const layout = () => {
@@ -129,12 +132,12 @@ export default {
     };
     const placeTags = () => {
       const v = S.mode === 'v', d = D();
-      tScale.loc(block, XL + 0.06, -0.004, ZD + 0.01);
-      tHint.loc(block, v ? XR + 0.04 : 0.12, v ? 0.07 : H0 + 0.03, v ? 0 : ZD - 0.016).text(v ? '按住两头的红板往外拉：张力' : '按住这个把手往旁边推').show(S.s < 0.08);
-      tW.loc(block, (XL + F1) / 2, H0 + 0.022 * d + 0.012 + 0.024 * S.e, 0).text(S.e > 0.5 ? '断块山（如华山）' : '抬升的岩块').show(v && d > 0.3);
-      tM.loc(block, 0, H0 - 0.016 * d + 0.01, 0).text(S.e > 0.5 ? '谷地、平原（如渭河平原）' : '下降的岩块').show(v && d > 0.3);
-      tFault.forEach((t, i) => t.loc(block, i ? F2 : F1, H0 * 0.5, ZD + 0.004).show(v && S.broken));
-      tRoad.loc(block, -0.06, H0 + 0.012, 0).show(!v && d > 0.3);
+      tScale.loc(block, XL + 0.015, -0.004, ZD + 0.01);
+      tHint.loc(block, v ? XR + 0.04 : 0.12, v ? 0.07 : H0 + 0.03, v ? 0 : ZD - 0.016).text(v ? '<span>按住两头的红板往外拉</span><small>张力</small>' : '<span>按住这个把手往旁边推</span>').show(S.s < 0.08);
+      tW.position.set((XL + F1) / 2, H0 + 0.022 * d + 0.012 + 0.024 * S.e, 0); tW.setText(S.e > 0.5 ? '断块山（如华山）' : '抬升的岩块').setOn(v && d > 0.3);
+      tM.position.set(0, H0 - 0.016 * d + 0.01, 0); tM.setText(S.e > 0.5 ? '谷地、平原（如渭河平原）' : '下降的岩块').setOn(v && d > 0.3);
+      tFault.forEach((t, i) => { t.position.set(i ? F2 : F1, H0 * 0.5, ZD + 0.0008); t.visible = v && S.broken; });
+      tRoad.position.set(-0.06, H0 + 0.012, 0); tRoad.setOn(!v && d > 0.3);
     };
 
     // ---- 侧栏：一张图——断层两侧同一层（黄砂岩）的高度，或者水平错开了多少 ----
@@ -225,6 +228,7 @@ export default {
         layout(); drawLog();
       },
       update(dt) {
+        labels.forEach((l) => l.tick(dt));
         if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
         if (S.shake > 0) { S.shake = Math.max(0, S.shake - dt * 1.6); layout(); }          // 断开那一下，整块地震一震
         if (S.play) { S.e = Math.min(1, S.e + dt / 10); W?.time.set(Math.round(S.e * 100)); if (S.e >= 1) { S.play = false; if (W) W.play.textContent = '让时间走'; } events(); layout(); }
