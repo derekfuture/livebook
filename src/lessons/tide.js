@@ -14,7 +14,7 @@ import { h } from '../ui/Panel.js';
 import { SYN, level, range, lunarName, phaseName } from './kit/tide.js';
 
 const XL = -0.16, XR = 0.16, ZD = 0.06, MSL = 0.03, KY = 0.004;          // 平均海面高度；1 米水位在画面上是 4 毫米（示意，竖直方向夸大）
-const ACTS = { gan: { name: '赶海', need: '低潮', ok: (v) => v < -1.4, why: '要等潮水退下去，潮间带露出来' }, ship: { name: '大船进港', need: '高潮', ok: (v) => v > 1.0, why: '港口航道要水深，涨潮时才进得来' }, see: { name: '观潮', need: '大潮的涨潮', ok: (v, D) => v > 1.4 && range(D).r > 3.6, why: '初一、十五前后涨潮最猛' } };
+const ACTS = { gan: { name: '赶海', need: '低潮', ok: (v) => v < -1.4, why: '要等潮水退下去，潮间带露出来' }, ship: { name: '大船进港', need: '高潮', ok: (v) => v > -1.9 + 0.5, why: '港口航道要水深，涨潮时才进得来' }, see: { name: '观潮', need: '大潮的涨潮', ok: (v, D) => v > 1.4 && range(D).r > 3.6, why: '初一、十五前后涨潮最猛' } };
 const ASK = ['先猜一下（可以不猜）：在这个情境里，一个月里潮水涨得最高的是——', ['初一、十五前后', '初八、廿三前后', '每天都一样']];
 
 export default {
@@ -35,7 +35,7 @@ export default {
     const group = new THREE.Group();
     const S = { D: 0, h: 6, play: false, drag: null, act: null, pick: null, seen: new Set(), did: {}, guess: null };
     let W = null;
-    const block = new THREE.Group(); block.position.x = 0.045; group.add(block);
+    const block = new THREE.Group(); block.position.x = 0.075; group.add(block);
     const grain = canvasTex(256, 256, (g, w) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2200; i++) { const v = 150 + Math.random() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.2 + Math.random() * 0.3})`; g.fillRect(Math.random() * w, Math.random() * w, 1.6, 1.6); } }); grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.repeat.set(4, 2);
 
     // ---- 海岸：左边是陆地，往右是一段缓缓的潮间带滩涂，再往右是海底 ----
@@ -58,7 +58,7 @@ export default {
     const tNori = tag('紫菜网帘', 'pill');
     // ---- 港口：码头和一条船 ----
     const pier = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.004, 0.014), new THREE.MeshLambertMaterial({ color: 0x8a8f96 })); pier.position.set(0.11, 0.05, -0.03); block.add(pier);
-    const pierLegs = []; for (const x of [0.085, 0.105, 0.125]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.06, 0.002), pier.material); l.position.set(x, 0.02, -0.03); block.add(l); pierLegs.push(l); }
+    const pierLegs = []; for (const x of [0.085, 0.105, 0.125]) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.05, 0.002), pier.material); l.position.set(x, 0.025, -0.03); block.add(l); pierLegs.push(l); }
     const ship = new THREE.Group(); block.add(ship);
     { const hull = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.007, 0.012), new THREE.MeshLambertMaterial({ color: 0xb8442e })); hull.position.y = 0.0015; ship.add(hull); const cab = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.007, 0.009), new THREE.MeshLambertMaterial({ color: 0xf2efe6 })); cab.position.set(-0.008, 0.008, 0); ship.add(cab); }
     const tShip = tag('', 'pill'), tHint = tag('', 'pill'), tScale = tag('教学示意 · 潮位竖直方向夸大了 · 数值是示意', 'pill');
@@ -66,7 +66,7 @@ export default {
     for (let k = 0; k < 5; k++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0014, 0.006, 6), new THREE.MeshLambertMaterial({ color: [0xd8553a, 0x3a6fb0, 0xe0b040][k % 3] })); const x = 0.02 + k * 0.012, z = 0.02 - (k % 2) * 0.02; p.position.set(x, shore(x) + 0.003, z); people.add(p); }          // 赶海的人
 
     // ---- 太阳—地球—月亮小盘（在海岸左边的书页上）：拖月亮绕地球走 ----
-    const orr = new THREE.Group(); orr.position.set(-0.07, 0.004, -0.125); group.add(orr);          // 小盘放在海岸后面的书页上
+    const orr = new THREE.Group(); orr.position.set(-0.155, 0.004, 0.035); group.add(orr);          // 小盘放在海岸左前方的书页上
     const disc = new THREE.Mesh(new THREE.CircleGeometry(0.05, 64), new THREE.MeshBasicMaterial({ color: 0x1f2735 })); disc.rotation.x = -Math.PI / 2; orr.add(disc);
     const earth = new THREE.Mesh(new THREE.SphereGeometry(0.009, 24, 16), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, emissive: 0x10243a })); earth.position.y = 0.01; orr.add(earth);
     const bulge = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 32, 16), new THREE.MeshBasicMaterial({ color: 0x8fc6ea, transparent: true, opacity: 0.55, depthWrite: false })); bulge.position.y = 0.01; orr.add(bulge);          // 鼓起来的海水（夸大）
@@ -90,9 +90,9 @@ export default {
       const v = level(S.D, S.h), y = MSL + v * KY;
       let x0 = XL; for (let x = XL; x < XR; x += 0.001) if (shore(x) < y) { x0 = x; break; }          // 海水只从水边往海里画，不罩在岸上
       water.scale.set((XR - x0) / (XR - XL), Math.max(0.001, y), 1); water.position.set((x0 + XR) / 2, y / 2, 0);
-      const deep = y - 0.0105, afloat = deep > 0.004;          // 港口航道（码头边）的水深
-      ship.position.set(0.11, Math.max(0.0105, y - 0.002), 0.0); ship.rotation.z = afloat ? 0 : 0.18;
-      tShip.loc(block, 0.11, Math.max(0.0105, y) + 0.016, 0).text(afloat ? '船浮着，能进出港' : '水太浅，船搁浅了');
+      const bed = shore(0.11), deep = y - bed, afloat = deep > 0.015;          // 港口航道（码头边）的水深：太浅船就搁浅
+      ship.position.set(0.11, Math.max(bed + 0.003, y - 0.002), 0.0); ship.rotation.z = afloat ? 0 : 0.18;
+      tShip.loc(block, 0.11, Math.max(bed, y) + 0.016, 0).text(afloat ? '船浮着，能进出港' : '水太浅，船搁浅了');
       people.visible = v < -1.4; tNori.loc(block, 0.01, Math.max(y, 0.035) + 0.022, -ZD + 0.02).text(y < shore(0.01) ? '紫菜网帘露出水面：晒太阳、光合作用' : '紫菜网帘浸在海水里：吸收养分');
       tHint.loc(block, -0.03, 0.08, 0).text('拨时间、拖月亮，看潮水涨落').show(!S.seen.size);
       tScale.loc(block, XL + 0.06, -0.004, ZD + 0.01);
@@ -152,7 +152,7 @@ export default {
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
-      size: { w: 0.36, d: 0.26, h: 0.09 },
+      size: { w: 0.42, d: 0.16, h: 0.09 },
       view: { elev: 22, azim: 12, lookY: 0.4, frameMargin: 1.08 },
       pointer,
       mount(ui) {
@@ -166,7 +166,7 @@ export default {
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 140, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         chart.onclick = (e) => { const r = chart.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width) * 320 - 30) / (320 - 38) * 24; if (t < 0 || t > 24) return; S.h = t; time.set(t); S.seen.add('day'); if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = ok; } layout(); drawLog(); };          // 点曲线：挑一个时刻
-        ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('海岸后面的小盘：太阳光从左边来，中间是地球（红点是港口），可以拖月亮。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('海岸左边的小盘：太阳光从左边来，中间是地球（红点是港口），可以拖月亮。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, day, time };
         ui.status('这是一段海岸：岸上有港口，滩涂上养着紫菜。先<b>拨时间</b>（或让一天走），看海水一天里怎么涨落。');
