@@ -702,3 +702,5 @@ body.world-ui .tag3d.btn.view.on, .tag3d.btn.view.on { background: #8a4b10; colo
 .tag3d.hint span { display: block; animation: hint-breath 2.8s ease-in-out infinite; }
 .tag3d.hint small { display: block; font-size: 11.5px; color: #7a6e5a; letter-spacing: .02em; }
 @keyframes hint-breath { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
+.btn-col { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.btn-col .go.choice { text-align: left; padding: 8px 12px; font-size: 13px; line-height: 1.45; white-space: normal; }
