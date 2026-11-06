@@ -521,7 +521,8 @@ export default {
     // ---- 换视角：同一时刻、同一个你家，三种看法 ----
     S.view = '3d';
     const VIEWS = [['3d', '立体剖面'], ['map', '天气图（从上往下看）'], ['home', '站在你家抬头看']];
-    const viewTags = VIEWS.map(([k, name]) => { const t = tag(name, 'btn view', () => setView(k)); return t; });          // 能点的用按钮的样子，和说明用的牌子分开
+    const viewBar = document.createElement('div'); viewBar.className = 'geo-views';          // 换视角的按钮固定在画面上方（不跟着三维场景走，换到哪个视角都在原处）
+    const viewTags = VIEWS.map(([k, name]) => { const b = document.createElement('button'); b.textContent = name; b.onclick = () => setView(k); viewBar.append(b); return b; });
     const setView = (k) => {
       if (k === S.view) return;
       if (k === '3d') { S.view = '3d'; back?.(); placeExtras(); return; }
@@ -570,14 +571,16 @@ export default {
         let root = group; while (root.parent) root = root.parent;
         const mine = new Set(); for (let o = group; o; o = o.parent) mine.add(o);
         hero.list = [];
+        const A = globalThis.__lb?.live?.active, skip = new Set([A?.card, A?.hole].filter(Boolean));          // 揭起来的原图卡片由 LiveLayer 自己淡出，不能碰（碰了它就一直立在那儿）
         for (const top of root.children) {
-          if (mine.has(top) || top.isLight || top.isCamera) continue;
+          if (mine.has(top) || top.isLight || top.isCamera || skip.has(top)) continue;
           top.traverse((o) => { if (!o.isMesh && !o.isLine && !o.isSprite) return; for (const m of [].concat(o.material || [])) hero.list.push({ o, m, op: m.opacity, tr: m.transparent, vis: o.visible }); });
         }
       }
       const closing = !!globalThis.__lb?.live?.active?.closing, tgt = !closing && S.view === 'home' ? 1 : 0;          // 书是这个系列的标志，一直留着；只有“站在你家抬头看”时，四周换成天空和田野
       hero.k = tgt > hero.k ? Math.min(1, hero.k + dt / 1.1) : Math.max(0, hero.k - dt / 0.6);
       const k = smooth(0, 1, hero.k);
+      if (k === 0 && hero.last === 0) return; hero.last = k;          // 没在“抬头看”的时候什么都不动
       backdropMat.opacity = 0.97 * k; backdrop.visible = k > 0.001;          // 用不着的时候不画
       for (const e of hero.list) { const tr = e.tr || k > 0; if (e.m.transparent !== tr) { e.m.transparent = tr; e.m.needsUpdate = true; } e.m.opacity = e.op * (1 - k); e.o.visible = e.vis && k < 0.95; }          // 改 transparent 要重新编译材质
     };
@@ -618,7 +621,7 @@ export default {
       for (const t of [tCold, tWarm, tFront, tHint, tScale]) if (homeV) t.show(false);
       pushArrow.visible = !homeV;
       farField.material.opacity = homeV ? 0.95 : 0; farField.visible = homeV; home.visible = !homeV;          // 站在你家门口：自己家的房子不挡镜头
-      viewTags.forEach((t, i) => { t.loc(block, XL + 0.02 + i * 0.075, G + 0.105, -ZD).show(S.rise > 0.95 && !S.map); t.el.classList.toggle('on', VIEWS[i][0] === S.view); });
+      viewBar.style.display = S.rise > 0.95 && !S.map ? '' : 'none'; viewTags.forEach((b, i) => b.classList.toggle('on', VIEWS[i][0] === S.view));
       if (homeV) { homeTag.show(false); townTag.show(false); }
     };
     // 回到上面看 / 到你家地上看：镜头落到你家旁边，按人的视线高度往锋面来的方向看
@@ -630,7 +633,7 @@ export default {
       size: { w: 0.38, d: 0.14, h: 0.2 },
       view: { elev: 14, azim: 18, lookY: 0.45, frameMargin: 0.96 },          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面
       pointer,
-      dispose() { heroRestore(); },
+      dispose() { heroRestore(); viewBar.remove(); },
       mount(ui) {
         const kindSeg = seg('推哪一种锋', ['冷锋', '暖锋', '准静止锋', '看图推天气'], (_, i) => { if (i === 3) setMap(); else { const was = S.map; S.map = false; setKind(['cold', 'warm', 'still'][i], was); } layout(); }, { value: 0 });          // 从看图推天气回来：你家、邻城回到这种锋开头的位置
         const guess = seg(...ASK.cold, () => {}, { value: -1 });
@@ -638,11 +641,12 @@ export default {
         const station = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('p', { class: 'note' });
         // 重来：这一种锋回到开头的样子——锋面、你家和邻城的位置、猜的选项、提示、这一种锋的时间线（别的锋的时间线留着，好对比）
         const acts = buttons([
-          { text: '重来', ghost: true, onClick: () => { S.logs[LK()] = []; S.trace[LK()] = []; if (S.view !== '3d') setView('3d'); S.done.delete(LK()); delete S.guess[LK()]; S.real = 0; S.going = false; setReal(); if (S.kind === 'still') S.stillSnap = null; if (S.map) setMap(); else setKind(S.kind, true); layout(); } },
+          { text: '重来', ghost: true, onClick: () => { if (S.view !== '3d') setView('3d'); for (const k of Object.keys(S.logs)) S.logs[k] = []; for (const k of Object.keys(S.trace)) S.trace[k] = []; S.done.clear(); S.guess = {}; S.stillSnap = null; S.real = 0; S.going = false; setReal(); callout.show(false); calloutT = 0; home.visible = true; S.map = false; kindSeg.set(0); setKind('cold', true); drawLogs(); layout(); } },          // 回到第一次打开的样子：冷锋、所有记录和猜的都清掉
         ]);
         ui.controls.append(h('div', { class: 'bar-title' }, '你家的气象站'), station, read, kindSeg.el, guess.el, acts.el, note('你家和邻城都可以拖到别处。画面上方可以换着看：立体剖面、天气图、站在你家抬头看。'));          // 侧栏只放一张图：锋扫过你家时的气温、气压；天空和天气图挪到主画面里换着看
         ui.data.append(h('div', { class: 'bar-title' }, '你家经历了什么'), logs);
         W = { ui, logs, guess, station, read };
+        document.body.append(viewBar);
         setGuess();
         drawLogs();
         ui.status('地块上有你家和一座邻城。按住左边的<b>冷气团</b>往右推，看锋面扫过你家时，你家的天气怎么变。');

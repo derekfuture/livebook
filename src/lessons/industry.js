@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, NL, NR, PLACES, RIVER, INDUSTRIES, WIND, coastX, evaluate, isSea, isMountain, nearRiver } from './kit/industry.js';
+import { XL, XR, NL, NR, PLACES, RIVER, INDUSTRIES, WIND, coastX, evaluate, isSea, isMountain, nearRiver, swing } from './kit/industry.js';
 
 const G = 0.024;
 const KINDS = ['sugar', 'beer', 'alu', 'cloth', 'chip', 'petro'];
@@ -29,13 +29,13 @@ export default {
   conclusion: {
     page: 68,
     quote: '从经济效益看，工厂应当选择在利润最高的地方。……在市场因素一定的情况下，为了获取最大的经济效益，决策者会综合考虑多种成本，把工厂建在总成本最低的地方。……一些原料容易腐烂或原料运输成本很高的工业，如制糖工业……多建在原料产地附近。一些产品容易变质或者产品运输成本较高的工业……如肉类加工业、啤酒制造业等，多建在靠近市场的地方。……电解铝厂一般建在电能供应充足的水电站附近……普通服装制造……一般多建在具有大量廉价劳动力的地方。一些技术要求高的工业，如集成电路……一般多建在高等教育和科技发达的地区。……对环境污染严重的工业，区位选择应非常慎重。……大多数情况下，工业区位选择往往是多种因素综合作用的结果。',
-    why: '每种工厂花钱最多的那一项不一样，哪一项最贵，工厂就被它“拉”过去：制糖厂运甘蔗最贵（又重又容易坏），就建在甘蔗田旁边；啤酒厂运产品最贵，就靠近城市；电解铝最耗电，就靠近水电站。但总成本最低的地方不一定能建：污染重的工厂还要看风往哪吹、河往哪流、占不占农田、离机场近不近，最后是多种因素综合权衡的结果。',
+    why: '每种工厂随地点变化最大的那一项成本不一样，它就把工厂“拉”过去：制糖厂运甘蔗的花费离甘蔗田越远涨得越快（甘蔗又重又容易坏），就建在甘蔗田旁边——建到那儿，这项花费就几乎没有了；啤酒厂运产品的花费离城市越远涨得越快，就靠近城市；电解铝的电费离水电站越远越贵，就靠近水电站。但总成本最低的地方不一定能建：污染重的工厂还要看风往哪吹、河往哪流、占不占农田、离机场近不近，最后是多种因素综合权衡的结果。',
     src: '课本第 64–66 页 · 第三章 第二节 工业区位因素及其变化',
   },
 
   create({ tag }) {
     const group = new THREE.Group();
-    const S = { kind: 'sugar', p: { x: 0.03, n: -0.02 }, drag: false, saved: [], tried: new Set(), guess: null, moved: false };
+    const S = { kind: 'sugar', p: { x: 0.03, n: -0.02 }, drag: false, saved: [], no: {}, tried: new Set(), guess: null, moved: false };
     let W = null;
     const block = new THREE.Group(); group.add(block);
     const P3 = (x, n, y = G) => new THREE.Vector3(x, y, -n);
@@ -115,8 +115,8 @@ export default {
     const plumeTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(120,120,125,0.85)'); gr.addColorStop(1, 'rgba(120,120,125,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const plume = Array.from({ length: 14 }, () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: plumeTex, transparent: true, depthWrite: false })); s.raycast = () => {}; s.renderOrder = 9; block.add(s); return s; });
     const dirty = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x8a6a3a, transparent: true, opacity: 0.75, depthWrite: false })); dirty.renderOrder = 4; dirty.raycast = () => {}; block.add(dirty);
-    const fxTags = [tag('', 'pill callout'), tag('', 'pill callout')];
-    const tScale = tag('教学示意 · 区域是虚构的 · 成本数值只用来比较', 'pill'); tScale.loc(block, XL + 0.08, G + 0.002, -NL - 0.008);
+    const fxTags = [tag('', 'pill callout'), tag('', 'pill callout')], savedTags = [tag('', 'pill'), tag('', 'pill'), tag('', 'pill')];
+    const tScale = tag('教学示意 · 区域是虚构的 · 成本数值只用来比较', 'pill'); tScale.loc(block, XL + 0.08, G + 0.002, -NR + 0.008);          // 放在地图北边（远处），不压着南边的盛行风说明
 
     let phase = 0;
     const layout = () => {
@@ -137,6 +137,7 @@ export default {
         const P = [], w = 0.0024; for (let i = 0; i < pts.length - 1; i++) { const [ax, an] = pts[i], [bx, bn] = pts[i + 1], L = Math.hypot(bx - ax, bn - an) || 1, vx = -(bn - an) / L * w, vn = (bx - ax) / L * w, y = G + 0.001; P.push(ax + vx, y, -(an + vn), ax - vx, y, -(an - vn), bx + vx, y, -(bn + vn), ax - vx, y, -(an - vn), bx - vx, y, -(bn - vn), bx + vx, y, -(bn + vn)); }
         dirty.geometry.dispose(); dirty.geometry = new THREE.BufferGeometry(); dirty.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); dirty.visible = true;
       } else dirty.visible = false;
+      savedTags.forEach((t, i) => { const sv = S.saved.filter((x) => x.kind === S.kind)[i]; if (sv) t.loc(block, sv.p.x, G + 0.012, -sv.p.n).text(sv.label).show(true); else t.show(false); });          // 记下的方案在地图上留个小牌子，好回看
       fxTags.forEach((t, i) => { const f = ev.fx[i]; if (!f) { t.show(false); return; } const at = f.at === 'here' ? p : PLACES[f.at]; t.loc(block, at.x, G + 0.03 + i * 0.012, -at.n).text(f.text).show(true); });
       drawBars(ev);
     };
@@ -144,18 +145,18 @@ export default {
     // ---- 侧栏：成本叠成一根柱子；记下的方案并排 ----
     const drawBars = (ev) => {
       if (!W) return;
-      const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, cols = [...S.saved.filter((s) => s.kind === S.kind), { label: '现在', ev }], B = hh - 34, top = 14;
+      const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, cols = [...S.saved.filter((s) => s.kind === S.kind), { label: '现在', ev }], B = hh - 34, top = 34;          // 上面留出图例和柱顶数字的位置
       g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh);
       const maxT = Math.max(...cols.map((c2) => c2.ev.total), 1), bw = Math.min(46, (w - 40) / cols.length - 14);
       cols.forEach((col, i) => {
         const x = 30 + i * (bw + 14); let y = B;
         for (const k of Object.keys(COLORS)) { const v = col.ev.cost[k], hgt = (v / maxT) * (B - top); g.fillStyle = COLORS[k]; g.fillRect(x, y - hgt, bw, hgt); y -= hgt; }
         g.fillStyle = '#3a3226'; g.font = '600 11px "PingFang SC", sans-serif'; g.textAlign = 'center'; g.fillText(col.label, x + bw / 2, B + 13); g.fillText(col.ev.total.toFixed(1), x + bw / 2, y - 4);
-        if (col.ev.fx.length) { g.fillStyle = '#c4462e'; g.fillText(`⚠ ${col.ev.fx.length}`, x + bw / 2, B + 26); }
+        if (col.ev.fx.length) { g.fillStyle = '#c4462e'; g.fillText(`要注意 ${col.ev.fx.length} 处`, x + bw / 2, B + 26); }
       });
       g.textAlign = 'left'; g.font = '11px "PingFang SC", sans-serif'; let lx = 6; for (const k of Object.keys(COLORS)) { g.fillStyle = COLORS[k]; g.fillRect(lx, 2, 9, 9); g.fillStyle = '#3a3226'; g.fillText(k, lx + 12, 10); lx += g.measureText(k).width + 26; }
-      const big = Object.entries(ev.cost).sort((a, b) => b[1] - a[1])[0];
-      W.read.innerHTML = `${INDUSTRIES[S.kind].name}：总成本 <b>${ev.total.toFixed(1)}</b>，最贵的是<b style="color:${COLORS[big[0]]}">${big[0]}</b>${ev.fx.length ? `　<b style="color:#c4462e">${ev.fx.map((f) => f.text).join('；')}</b>` : '　没有明显的环境问题'}<br><small>成本数值是教学示意，只用来比较</small>`;
+      const lead = Object.entries(swing(S.kind)).sort((a, b) => b[1] - a[1])[0][0];          // 地点一变，哪一项变化最大：它最能决定工厂建在哪（不是“此刻哪项最贵”）
+      W.read.innerHTML = `${INDUSTRIES[S.kind].name}：建在这里总成本 <b>${ev.total.toFixed(1)}</b>。换个地方，变化最大的是<b style="color:${COLORS[lead]}">${lead}</b>——它最能决定建在哪。${ev.fx.length ? `<br><b style="color:#c4462e">要注意：${ev.fx.map((f) => f.text).join('；')}</b>` : '<br>本模型列的环境问题这里都没碰上'}<br><small>成本数值是教学示意，只用来比较</small>`;
     };
     const drawLog = () => {
       if (!W) return;
@@ -192,10 +193,10 @@ export default {
         const kindSeg = seg('建哪一种工厂', KINDS.map((k) => INDUSTRIES[k].name), (_, i) => { S.kind = KINDS[i]; layout(); drawLog(); ui.status(`${INDUSTRIES[S.kind].name}：拖地图上的“地点”，看哪些因素把它往哪边拉。`); }, { value: 0 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
-          { text: '记下这个方案', onClick: () => { const n = S.saved.filter((s) => s.kind === S.kind).length; if (n >= 3) S.saved.splice(S.saved.findIndex((s) => s.kind === S.kind), 1); S.saved.push({ kind: S.kind, label: `方案${'ABC'[S.saved.filter((s) => s.kind === S.kind).length]}`, ev: evaluate(S.kind, S.p), p: { ...S.p } }); S.tried.add(S.kind); layout(); drawLog(); } },
-          { text: '重来', ghost: true, onClick: () => { S.saved = []; S.tried.clear(); S.guess = null; S.p = { x: 0.03, n: -0.02 }; S.moved = false; S.kind = 'sugar'; kindSeg.set(0); guess.set(-1); layout(); drawLog(); ui.status('选一种工厂，拖地图上的“地点”。'); } },
+          { text: '记下这个方案', onClick: () => { S.no[S.kind] = (S.no[S.kind] || 0) + 1; const n = S.saved.filter((s) => s.kind === S.kind).length; if (n >= 3) S.saved.splice(S.saved.findIndex((s) => s.kind === S.kind), 1); S.saved.push({ kind: S.kind, label: `方案${S.no[S.kind]}`, ev: evaluate(S.kind, S.p), p: { ...S.p } }); S.tried.add(S.kind); layout(); drawLog(); } },          // 编号一直往上加，不重名；最多留三个
+          { text: '重来', ghost: true, onClick: () => { S.saved = []; S.no = {}; S.tried.clear(); S.guess = null; S.p = { x: 0.03, n: -0.02 }; S.moved = false; S.kind = 'sugar'; kindSeg.set(0); guess.set(-1); layout(); drawLog(); ui.status('选一种工厂，拖地图上的“地点”。'); } },
         ]);
-        const chart = h('canvas', { class: 'wx-map', width: 320, height: 160 }), read = h('p', { class: 'note' }), log = h('div', { class: 'timeline' });
+        const chart = h('canvas', { class: 'wx-map', width: 320, height: 176 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });          // 读数用 div（长的 p.note 会被收进“怎么操作”里）
         ui.controls.append(h('div', { class: 'bar-title' }, '建在这里，要花多少（示意）'), chart, read, kindSeg.el, acts.el, guess.el, note('同一种工厂可以记下三个方案并排比。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你比过的'), log);
         W = { ui, chart, read, log };

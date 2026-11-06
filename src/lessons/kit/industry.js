@@ -29,7 +29,7 @@ export const isMountain = (p) => p.x < MOUNTAIN_X;
 // 六种工厂（每生产一个单位产品，示意的数）：m 原料多重、从哪来；pr 产品多重；e 耗能；l 用工多少；t 技术要求；水污染、空气污染、用地大、设备高
 export const INDUSTRIES = {
   sugar: { name: '制糖厂', m: 7, mFrom: 'cane', perish: 1.6, pr: 1, e: 1, l: 1, t: 0, water: true, air: false, land: false, tall: false, lead: '原料' },
-  beer: { name: '啤酒厂', m: 1.2, mFrom: 'cane', perish: 1, pr: 5, prPerish: 1.4, e: 1, l: 1, t: 0, water: false, air: false, land: false, tall: false, lead: '市场' },
+  beer: { name: '啤酒厂', m: 1.2, mFrom: 'port', sea: true, perish: 1, pr: 5, prPerish: 1.4, e: 1, l: 1, t: 0, water: false, air: false, land: false, tall: false, lead: '市场' },
   alu: { name: '电解铝厂', m: 2, mFrom: 'port', sea: true, pr: 1, e: 9, l: 1, t: 0, water: false, air: true, land: false, tall: false, lead: '动力' },
   cloth: { name: '服装厂', m: 0.6, mFrom: 'port', sea: true, pr: 0.6, e: 0.5, l: 7, t: 0, water: false, air: false, land: false, tall: false, lead: '劳动力' },
   chip: { name: '集成电路厂', m: 0.3, mFrom: 'port', sea: true, pr: 0.2, e: 1.5, l: 1, t: 8, water: false, air: false, land: false, tall: false, clean: true, lead: '技术' },
@@ -47,7 +47,7 @@ export function evaluate(kind, p) {
   c['技术'] = I.t * dist(p, P.univ) * 6;
   const total = Object.values(c).reduce((a, b) => a + b, 0);
   const fx = [];
-  const r = nearRiver(p), upstreamOfIntake = r.d < 0.02 && r.i < 6.0;          // 河在水源地（第 6 段）上游
+  const r = nearRiver(p), upstreamOfIntake = (r.d < 0.02 && r.i <= 6.2) || dist(p, P.intake) < 0.02;          // 河在水源地（第 6 个点）上游，或者就挨着水源地
   if (I.water && upstreamOfIntake) fx.push({ k: 'water', at: 'intake', text: '污水顺河流到城市水源地' });
   if (I.water && dist(p, P.fishery) < 0.06 && p.x > 0.09) fx.push({ k: 'fish', at: 'fishery', text: '污水排进渔场' });
   if (I.air) { const vx = P.city.x - p.x, vn = P.city.n - p.n, d = Math.hypot(vx, vn), along = (vx * WIND[0] + vn * WIND[1]) / (d || 1); if (d < 0.09 && along > 0.5) fx.push({ k: 'air', at: 'city', text: '烟顺着盛行风吹进城里' }); }
@@ -60,3 +60,13 @@ export function evaluate(kind, p) {
 }
 /** 全区总成本最低的地方（只在陆地上找，示意） */
 export function cheapest(kind) { let best = null; for (let x = XL + 0.01; x < XR; x += 0.004) for (let n = NL + 0.01; n < NR; n += 0.004) { const p = { x, n }; if (isSea(p)) continue; const e = evaluate(kind, p); if (!best || e.total < best.total) best = { ...p, total: e.total }; } return best; }
+
+/** 对这种工厂，地点一变，哪一项成本变化最大（在全区陆地上比最贵和最便宜差多少）：它最能决定工厂建在哪 */
+const RANGE = {};
+export function swing(kind) {
+  if (RANGE[kind]) return RANGE[kind];
+  const lo = {}, hi = {};
+  for (let x = XL + 0.01; x < XR; x += 0.008) for (let n = NL + 0.01; n < NR; n += 0.008) { const p = { x, n }; if (isSea(p) || isMountain(p)) continue; const c = evaluate(kind, p).cost; for (const k in c) { lo[k] = Math.min(lo[k] ?? 1e9, c[k]); hi[k] = Math.max(hi[k] ?? -1e9, c[k]); } }
+  const r = Object.fromEntries(Object.keys(lo).map((k) => [k, hi[k] - lo[k]]));
+  return (RANGE[kind] = r);
+}
