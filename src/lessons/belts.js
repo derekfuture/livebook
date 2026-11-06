@@ -34,7 +34,7 @@ export default {
   create({ tag }) {
     const group = new THREE.Group();
     const S = { shift: 0, rot: true, lat: -50, drag: false, visited: new Set(), guess: null, saw: {} };
-    let W = null;
+    let W = null, seaSegRef = null;
 
     // ---- 地球仪：架子 + 一个不画大陆的地球，表面按气压带着色 ----
     const brass = new THREE.MeshStandardMaterial({ color: 0xb89656, metalness: 0.6, roughness: 0.35, emissive: 0x3a2a10, emissiveIntensity: 0.4 });
@@ -103,7 +103,7 @@ export default {
         const c = cellPath(a, b, H), tube = new THREE.Mesh(new THREE.TubeGeometry(c, 90, 0.0008, 6, true), loopMat); tube.raycast = () => {}; loops.add(tube);
         for (const u of [0.12, 0.5, 0.72]) { const hd = new THREE.Mesh(new THREE.ConeGeometry(0.0026, 0.007, 10), loopMat); hd.position.copy(c.getPointAt(u)); hd.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), c.getTangentAt(u)); hd.raycast = () => {}; loops.add(hd); }
       }
-      loops.rotation.y = -Math.PI * 0.12;          // 稍微转向镜头
+      loops.rotation.y = Math.PI * 0.16;          // 左边的轮廓往镜头这边转一点，环流圈露在地球前面，不被挡住
     };
 
     // ---- 小帆船：在正对镜头的经线上，拖着它南北走 ----
@@ -114,9 +114,11 @@ export default {
     const vaneM = new THREE.MeshBasicMaterial({ color: 0xc4462e }), vane = new THREE.Mesh(new THREE.ConeGeometry(0.0018, 0.009, 8), vaneM); vane.position.y = 0.018; boat.add(vane);          // 船上的风向标：指着风吹去的方向
     const boatPick = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), new THREE.MeshBasicMaterial({ visible: false })); boatPick.position.y = 0.006; boatPick.userData.pick = true; boat.add(boatPick);
     const heading = (lat) => (lat < -40 ? 270 : 315);          // 麦哲伦船队：绕过南美南端往西；进了太平洋以后往西北
-    const tBoat = tag('', 'pill'), tHint = tag('按住小帆船，往北（上）推', 'pill'), tScale = tag('教学示意 · 环流圈的高度大大夸大了 · 不画海陆', 'pill');
+    const tBoat = tag('', 'pill'), tHint = tag('按住小帆船，往北（上）推', 'pill'), tScale = tag('教学示意 · 环流圈的高度大大夸大了 · 不画海陆 · 风带界线和季节移动的度数是示意', 'pill');
     const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
     const say1 = (text, p) => { callout.loc(group, p.x + 0.03, p.y + 0.02, p.z).text(text).show(true); calloutT = 4; };
+    const tUD = [[0, '上升'], [30, '下沉'], [60, '上升'], [88, '下沉']].map(([lat, t]) => ({ lat, t: tag(t, 'pill') }));
+    const placeUD = () => { const cs = Math.cos(Math.PI * 0.16), sn = Math.sin(Math.PI * 0.16); tUD.forEach(({ lat, t }, i) => { const la = (lat + (Math.abs(lat) >= 88 ? 0 : S.shift)) * D2R, r = R * 1.22, x = -Math.cos(la) * r; t.loc(group, x * cs, CY + Math.sin(la) * r, -x * sn).show(S.rot); }); };
     const tBelts = [];          // 右边轮廓上：每条气压带一个“高”“低”
     for (const b of BELTS) tBelts.push({ b, t: tag(b.p === 'H' ? '高' : '低', 'pill') });
 
@@ -126,7 +128,7 @@ export default {
       boat.position.copy(p); boat.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(fwd, f.up, new THREE.Vector3().crossVectors(fwd, f.up)));
       const w = relWind(S.lat, hd, S.shift, S.rot), wd = f.east.clone().multiplyScalar(w.u).add(f.north.clone().multiplyScalar(w.v));
       vane.visible = w.speed >= 0.2; if (vane.visible) { const local = wd.clone().applyQuaternion(boat.quaternion.clone().invert()).normalize(); vane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), local); }
-      const bn = beltNear(S.lat, S.shift, 4);
+      const bn = beltNear(S.lat, S.shift, 2);          // 和“风很小”的判定用同一个宽度
       tBoat.loc(group, p.x - 0.03, p.y + 0.006, p.z).text(`<b>${Math.abs(Math.round(S.lat))}°${S.lat >= 0 ? 'N' : 'S'}</b> ${S.rot ? (bn ? bn.name.replace(/^(北半球|南半球)/, '') : w.belt.replace(/^(北半球|南半球)/, '')) : ''} · ${w.dir} · <b>${w.rel}</b>`);
       tHint.loc(group, p.x - 0.05, p.y - 0.012, p.z).show(!S.visited.size);
       return { w, bn, p };
@@ -158,7 +160,7 @@ export default {
       if (S.saw.west && S.saw.calm && S.saw.trade && S.saw.norot) W.ui.unlock();
     };
     const events = (cur) => {
-      if (!S.rot || S.shift !== 0) return;
+      if (!S.rot || S.shift !== 0 || !S.visited.size) return;          // 自己推过船才算看到
       const was = { ...S.saw };
       if (S.lat < -40 && S.lat > -60 && cur.w.rel === '逆风') S.saw.west = true;
       if (Math.abs(S.lat + 30) < 3 && cur.w.rel === '平静无风') S.saw.calm = true;
@@ -170,7 +172,7 @@ export default {
     };
     // 季节移动时，虚线纬线要挪到新纬度：直接重建更简单
     const rebuildBeltLines = () => { for (const { b, l } of beltLines) { const la = beltLat(b, S.shift) * D2R, pts = []; for (let i = 0; i <= 96; i++) { const a = (i / 96) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * Math.cos(la) * R * 1.002, CY + Math.sin(la) * R * 1.002, Math.sin(a) * Math.cos(la) * R * 1.002)); } l.geometry.dispose(); l.geometry = new THREE.BufferGeometry().setFromPoints(pts); l.computeLineDistances(); l.scale.set(1, 1, 1); l.position.y = 0; l.visible = S.rot; } };
-    const layout2 = () => { uni.shift.value = S.shift; uni.rot.value = S.rot ? 1 : 0; rebuildBeltLines(); placeArrows(); buildLoops(); placeBeltTags(); const cur = placeBoat(); drawChart(cur); events(cur); };
+    const layout2 = () => { uni.shift.value = S.shift; uni.rot.value = S.rot ? 1 : 0; rebuildBeltLines(); placeArrows(); buildLoops(); placeBeltTags(); placeUD(); const cur = placeBoat(); drawChart(cur); events(cur); };
 
     // ---- 拖船：沿着正对镜头的经线 ----
     const pointer = {
@@ -195,8 +197,9 @@ export default {
       view: { elev: 8, azim: 0, lookY: 0.5, frameMargin: 1.45 },
       pointer,
       mount(ui) {
-        const rotSeg = seg('地球', ['在自转', '假如不自转'], (_, i) => { S.rot = !i; if (i) S.saw.norot = true; callout.show(false); calloutT = 0; layout2(); drawLog(); ui.status(i ? '假如地球不自转：没有地转偏向力，每个半球只剩一个大环流圈，近地面的风直直吹向赤道。三圈环流、信风、西风都没了。' : '地球在自转：空气一边流一边被偏转，形成三圈环流、七个气压带、六个风带。'); }, { value: 0 });
+        const rotSeg = seg('地球', ['在自转', '假如不自转'], (_, i) => { S.rot = !i; if (i) { S.saw.norot = true; S.shift = 0; seaSegRef.set(1); } seaSegRef.el.style.opacity = i ? 0.4 : 1; seaSegRef.el.style.pointerEvents = i ? 'none' : ''; callout.show(false); calloutT = 0; layout2(); drawLog(); ui.status(i ? '假如地球不自转：没有地转偏向力，每个半球只剩一个大环流圈，近地面的风直直吹向赤道。三圈环流、信风、西风都没了。' : '地球在自转：空气一边流一边被偏转，形成三圈环流、七个气压带、六个风带。'); }, { value: 0 });
         const seaSeg = seg('季节', SEASONS.map((x) => x[0]), (_, i) => { S.shift = SEASONS[i][1]; if (i !== 1) S.saw.season = true; callout.show(false); calloutT = 0; layout2(); drawLog(); }, { value: 1 });
+        seaSegRef = seaSeg;          // 假如不自转：只看春分、秋分（季节移动先不考虑）
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([{ text: '重来', ghost: true, onClick: () => { S.lat = -50; S.rot = true; S.shift = 0; S.saw = {}; S.guess = null; S.visited.clear(); rotSeg.set(0); seaSeg.set(1); guess.set(-1); callout.show(false); layout2(); drawLog(); ui.status('船在南美洲南端（约南纬 50°）。按住<b>小帆船</b>往北推，看一路上的风。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 210 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
