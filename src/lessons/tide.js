@@ -66,10 +66,10 @@ export default {
     const staffTex = canvasTex(32, 384, (g, w) => { for (let m = 0; m < 6; m++) { g.fillStyle = m % 2 ? '#f4f1ea' : '#c8382a'; g.fillRect(0, m * 64, w, 64); } g.fillStyle = '#20242c'; for (let k = 0; k <= 60; k++) g.fillRect(k % 5 ? w * 0.6 : w * 0.25, k * 6.4 - 0.5, w, k % 5 ? 1 : 2); });
     const staff = new THREE.Mesh(new THREE.BoxGeometry(0.005, STAFF_HI - STAFF_LO, 0.0012), [0, 0, 0, 0, 1, 0].map((i) => new THREE.MeshLambertMaterial(i ? { map: staffTex } : { color: 0xe8e4da }))); staff.position.set(STAFF_X, (STAFF_LO + STAFF_HI) / 2, STAFF_Z); block.add(staff);
     const staffPost = new THREE.Mesh(new THREE.BoxGeometry(0.0016, STAFF_LO - shore(STAFF_X), 0.0016), new THREE.MeshLambertMaterial({ color: 0x6b6f76 })); staffPost.position.set(STAFF_X, (STAFF_LO + shore(STAFF_X)) / 2, STAFF_Z - 0.001); block.add(staffPost);
-    const aLevel = airLabel(block, '', { h: 0.013, color: '#1d3f70' }), aGround = airLabel(block, '搁浅', { h: 0.017, color: '#b03a2a', dim: 0 }), aHover = airLabel(block, '', { h: 0.014, color: '#3a3226', dim: 0 });
+    const aLevel = airLabel(block, '', { h: 0.011, color: '#1d3f70', icon: 'flow' }), aGround = airLabel(block, '搁浅', { h: 0.013, color: '#b03a2a', dim: 0 }), aHover = airLabel(block, '', { h: 0.011, color: '#3a3226', dim: 0 });
     const ship = new THREE.Group(); block.add(ship);
     { const hull = new THREE.Mesh(new THREE.BoxGeometry(0.034, 0.007, 0.012), new THREE.MeshLambertMaterial({ color: 0xb8442e })); hull.position.y = 0.0015; ship.add(hull); const cab = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.007, 0.009), new THREE.MeshLambertMaterial({ color: 0xf2efe6 })); cab.position.set(-0.008, 0.008, 0); ship.add(cab); }
-    const tHint = tag('', 'pill');
+    const tHint = tag('<span>拨时间、拖月亮</span><small>看潮水一天里怎么涨落</small>', 'hint');          // 开场的提示：不用白底牌子
     noteBadge(tag, '教学示意：潮位竖直方向夸大了，数值是示意').loc(block, XL + 0.012, -0.004, ZD + 0.01);
     const people = new THREE.Group(); block.add(people);
     for (let k = 0; k < 5; k++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0014, 0.006, 6), new THREE.MeshLambertMaterial({ color: [0xd8553a, 0x3a6fb0, 0xe0b040][k % 3] })); const x = 0.02 + k * 0.012, z = 0.02 - (k % 2) * 0.02; p.position.set(x, shore(x) + 0.003, z); people.add(p); }          // 赶海的人
@@ -84,7 +84,7 @@ export default {
     const sunDir = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.014, 12), new THREE.MeshBasicMaterial({ color: 0xffc04a })); sunDir.rotation.z = -Math.PI / 2; sunDir.position.set(-0.044, 0.006, 0); orr.add(sunDir);          // 尖朝地球：太阳光从左边照过来
     const port = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xd8392b })); orr.add(port);
     const moonOrbit = new THREE.Mesh(new THREE.RingGeometry(0.034, 0.0352, 72), new THREE.MeshBasicMaterial({ color: 0x9aa4b4, side: THREE.DoubleSide })); moonOrbit.rotation.x = -Math.PI / 2; moonOrbit.position.y = 0.0005; orr.add(moonOrbit);
-    const aSun = airLabel(orr, '太阳光 →', { x: -0.046, y: 0.014, z: 0.026, h: 0.012, color: '#9a6410' }), aMoon = airLabel(orr, '', { h: 0.012, color: '#2b3346' });
+    const aSun = airLabel(orr, '太阳光 →', { x: -0.064, y: 0.014, z: 0.026, h: 0.0095, color: '#9a6410', icon: 'sun' }), aMoon = airLabel(orr, '', { h: 0.0095, color: '#2b3346', icon: 'moon' });
     const labels = [aLevel, aGround, aHover, aSun, aMoon];
     const placeOrr = () => {
       const a = Math.PI + (2 * Math.PI * S.D) / SYN;          // 新月：月亮在地球和太阳中间（太阳在左边）
@@ -106,7 +106,7 @@ export default {
       const dv = level(S.D, S.h + 0.1) - v; aLevel.setText(`${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} 米 ${dv > 0 ? '↑涨' : '↓落'}`); aLevel.position.set(STAFF_X - 0.005 - aLevel.scale.x / 2, y + 0.003, STAFF_Z + 0.004);          // 读数跟着水面，挂在潮位尺旁边
       people.children.forEach((pp) => (pp.visible = shore(pp.position.x) > y + 0.001)); people.visible = true;          // 赶海的人只站在露出水面的滩涂上
       S.dry = [0, 1, 2, 3].map((r) => shore(-0.02 + r * 0.022) + 0.008 > y);          // 按每一排网帘的高度算：露出水面没有
-      tHint.loc(block, -0.03, 0.08, 0).text('拨时间、拖月亮，看潮水涨落').show(!S.seen.size);
+      tHint.loc(block, -0.03, 0.11, 0).show(!S.seen.size);
       placeOrr(); drawChart();
     };
 
