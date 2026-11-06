@@ -2273,5 +2273,30 @@
     "label": "图2.11 · 翻开活页"
    }
   ]
+ },
+ "dili-bx2": {
+  "id": "dili-bx2",
+  "title": "地理 必修第二册",
+  "base": "/books/dili-bx2/",
+  "lessons": {
+   "industry": {
+    "title": "工业主要区位因素",
+    "fig": "图3.18",
+    "sec": "第三章第二节 工业区位因素及其变化"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "industry",
+    "page": 68,
+    "bbox": [
+     215,
+     120,
+     528,
+     380
+    ],
+    "label": "图3.18 · 翻开活页"
+   }
+  ]
  }
 }

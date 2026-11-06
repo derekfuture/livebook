@@ -11,6 +11,7 @@ export const EDITIONS = {
   'wuli-9': { name: '义务教育教科书·物理 九年级 全一册', press: PEP, rev: REV, year: YEAR, pages: 218, isbn: '978-7-107-38956-6', url: SMARTEDU('ed5f6a59-0cc5-47e9-adc3-0033711700ea'), login: false },
   'huaxue-9s': { name: '义务教育教科书·化学 九年级 上册', press: PEP, rev: REV, year: YEAR, pages: 199, isbn: '978-7-107-38260-4', url: SMARTEDU('8c419b19-b3a9-4dbf-a8b4-546b7d337528'), login: false },
   'huaxue-9x': { name: '义务教育教科书·化学 九年级 下册', press: PEP, rev: REV, year: YEAR, pages: 127, isbn: '', url: SMARTEDU('1998204c-f017-4f49-9000-0ba0b93d2a4d'), login: true },
+  'dili-bx2': { name: '普通高中教科书·地理 必修 第二册', press: PEP, rev: '依据《普通高中地理课程标准（2017 年版）》编写', year: '2019 年版', short: '2019 年版', pages: 134, isbn: '', url: '', login: false },
   'dili-bx1': { name: '普通高中教科书·地理 必修 第一册', press: PEP, rev: '依据《普通高中地理课程标准（2017 年版）》编写', year: '2019 年版', short: '2019 年版', pages: 134, isbn: '', url: '', login: false },
   'dili-xb1': { name: '普通高中教科书·地理 选择性必修1 自然地理基础', press: PEP, rev: '依据《普通高中地理课程标准（2017 年版）》编写', year: '2019 年版（2019 年经国家教材委员会专家委员会审核通过）', short: '2019 年版', pages: 106, isbn: '', url: '', login: false },
 };

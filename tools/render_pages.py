@@ -86,6 +86,15 @@ BOOKS = {
         "first_body_index": 5,
         "page_offset": 4,
     },
+    "dili-bx2": {
+        "code": "gb2",
+        "title": "地理 必修第二册",
+        "publisher": "人民教育出版社",
+        "pdf": LIB / "地理" / "必修第二册.pdf",
+        "toc": LIB / "地理" / "必修第二册.目录树.json",
+        "first_body_index": 5,
+        "page_offset": 4,
+    },
     "dili-xb1": {
         "code": "gx1",
         "title": "地理 选择性必修1",
