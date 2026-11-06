@@ -74,16 +74,16 @@ export default {
     for (let k = 0; k < 5; k++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0014, 0.006, 6), new THREE.MeshLambertMaterial({ color: [0xd8553a, 0x3a6fb0, 0xe0b040][k % 3] })); const x = 0.02 + k * 0.012, z = 0.02 - (k % 2) * 0.02; p.position.set(x, shore(x) + 0.003, z); people.add(p); }          // 赶海的人
 
     // ---- 太阳—地球—月亮小盘（在海岸左边的书页上）：拖月亮绕地球走 ----
-    const orr = new THREE.Group(); orr.position.set(-0.155, 0.004, 0.035); group.add(orr);          // 小盘放在海岸左前方的书页上
+    const orr = new THREE.Group(); orr.position.set(-0.2, 0.004, 0.03); orr.scale.setScalar(1.75); group.add(orr);          // 小盘放在海岸左前方的书页上，放大到和海岸差不多分量：月亮好按、好拖
     const disc = new THREE.Mesh(new THREE.CircleGeometry(0.05, 64), new THREE.MeshBasicMaterial({ color: 0x1f2735 })); disc.rotation.x = -Math.PI / 2; orr.add(disc);
     const earth = new THREE.Mesh(new THREE.SphereGeometry(0.009, 24, 16), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, emissive: 0x10243a })); earth.position.y = 0.01; orr.add(earth);
     const bulge = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 32, 16), new THREE.MeshBasicMaterial({ color: 0x8fc6ea, transparent: true, opacity: 0.55, depthWrite: false })); bulge.position.y = 0.01; orr.add(bulge);          // 鼓起来的海水（夸大）
-    const moon = new THREE.Mesh(new THREE.SphereGeometry(0.004, 16, 12), new THREE.MeshLambertMaterial({ color: 0xd8d4c8, emissive: 0x333333 })); orr.add(moon);
-    const moonPick = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); moonPick.userData.pick = true; moon.add(moonPick);
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 20, 14), new THREE.MeshLambertMaterial({ color: 0xd8d4c8, emissive: 0x333333 })); orr.add(moon);
+    const moonPick = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); moonPick.userData.pick = true; moon.add(moonPick);
     const sunDir = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.014, 12), new THREE.MeshBasicMaterial({ color: 0xffc04a })); sunDir.rotation.z = -Math.PI / 2; sunDir.position.set(-0.044, 0.006, 0); orr.add(sunDir);          // 尖朝地球：太阳光从左边照过来
     const port = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xd8392b })); orr.add(port);
     const moonOrbit = new THREE.Mesh(new THREE.RingGeometry(0.034, 0.0352, 72), new THREE.MeshBasicMaterial({ color: 0x9aa4b4, side: THREE.DoubleSide })); moonOrbit.rotation.x = -Math.PI / 2; moonOrbit.position.y = 0.0005; orr.add(moonOrbit);
-    const aSun = airLabel(orr, '太阳光 →', { x: -0.064, y: 0.014, z: 0.026, h: 0.0095, color: '#9a6410', icon: 'sun' }), aMoon = airLabel(orr, '', { h: 0.0095, color: '#2b3346', icon: 'moon' });
+    const aSun = airLabel(orr, '太阳光 →', { x: -0.06, y: 0.012, z: 0.028, h: 0.0065, color: '#9a6410', icon: 'sun' }), aMoon = airLabel(orr, '', { h: 0.0065, color: '#2b3346', icon: 'moon' });
     const labels = [aLevel, aGround, aHover, aSun, aMoon];
     const placeOrr = () => {
       const a = Math.PI + (2 * Math.PI * S.D) / SYN;          // 新月：月亮在地球和太阳中间（太阳在左边）
@@ -169,7 +169,7 @@ export default {
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
-      size: { w: 0.42, d: 0.16, h: 0.09 },
+      size: { w: 0.5, d: 0.18, h: 0.09 },
       view: { elev: 22, azim: 12, lookY: 0.4, frameMargin: 1.08 },
       pointer,
       mount(ui) {
