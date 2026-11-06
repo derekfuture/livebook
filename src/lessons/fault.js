@@ -215,7 +215,7 @@ export default {
         const guess = seg(...ASK.v, (_, i) => { S.guess.v = i; drawLog(); }, { value: -1 });
         const acts = buttons([
           { text: '让时间走', onClick: () => { if (!S.broken) { ui.status('先把岩层拉断，再看风化侵蚀。'); return; } S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让时间走'; } },
-          { text: '重来', ghost: true, onClick: () => { S.said = {}; S.guess = {}; S.keep = {}; modeSeg.set(0); reset('v'); drawLog(); ui.status('按住两头的<b>红板</b>往外拉，给岩层加上张力。'); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.said = {}; S.guess = {}; S.keep = {}; modeSeg.set(0); reset('v'); drawLog(); ui.status('按住两头的<b>红板</b>往外拉，给岩层加上张力。'); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 140 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '断层两侧'), chart, read, modeSeg.el, time.el, acts.el, guess.el, note('拉、推都要用力超过一定程度，岩层才会断开。'));

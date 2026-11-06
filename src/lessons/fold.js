@@ -199,7 +199,7 @@ export default {
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
           { text: '让时间走', onClick: () => { S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让时间走'; } },
-          { text: '重来', ghost: true, onClick: () => { S.c = 0; S.e = 0; S.play = false; S.said = {}; S.guess = null; while (probeObjs.length) { const o = probeObjs.pop(); block.remove(o.g); o.t.show(false); } S.probes = []; time.set(0); guess.set(-1); acts.btns[0].textContent = '让时间走'; callout.show(false); layout(); drawLog(); ui.status('岩层一层层平平地叠着，最下面最老。按住两头的<b>红板</b>往里推。'); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.c = 0; S.e = 0; S.play = false; S.said = {}; S.guess = null; while (probeObjs.length) { const o = probeObjs.pop(); block.remove(o.g); o.t.show(false); } S.probes = []; time.set(0); guess.set(-1); acts.btns[0].textContent = '让时间走'; callout.show(false); layout(); drawLog(); ui.status('岩层一层层平平地叠着，最下面最老。按住两头的<b>红板</b>往里推。'); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '地面和露出的岩层'), chart, read, time.el, acts.el, guess.el, note('在地面上点一下就是取样，最多插四面小旗。'));

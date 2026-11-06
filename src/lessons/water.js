@@ -206,7 +206,7 @@ export default {
       mount(ui) {
         const surfSeg = seg('平原上那块田的地面', KEYS.map((k) => SURF[k].name.replace(/（.*）/, '')), (_, i) => { S.surf = KEYS[i]; shapeTop(); layout(); note1(); }, { value: 0 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
-        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { S.cx = 0.03; S.surf = 'bare'; S.seen.clear(); S.surfSeen.clear(); S.guess = null; S.cnt = { in: 0, out: 0 }; S.lake = 0; S.pend = 0; S.lastKind = null; S.moved = false; surfSeg.set(0); guess.set(-1); P.forEach((p) => (p.st = 'off')); shapeTop(); layout(); drawLog(); ui.status('海面一直在蒸发。按住<b>云</b>拖到别处，看雨下在海上、平原、山那边，水各往哪走。'); } }]);
+        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.cx = 0.03; S.surf = 'bare'; S.seen.clear(); S.surfSeen.clear(); S.guess = null; S.cnt = { in: 0, out: 0 }; S.lake = 0; S.pend = 0; S.lastKind = null; S.moved = false; surfSeg.set(0); guess.set(-1); P.forEach((p) => (p.st = 'off')); shapeTop(); layout(); drawLog(); ui.status('海面一直在蒸发。按住<b>云</b>拖到别处，看雨下在海上、平原、山那边，水各往哪走。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 130 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '水去哪了'), chart, read, surfSeg.el, guess.el, acts.el, note('一粒粒水：白的是水汽，蓝的是雨水和径流，剖面上深蓝的是渗进地下的水。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);

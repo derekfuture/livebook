@@ -207,7 +207,7 @@ export default {
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawTable(); }, { value: -1 });
         const acts = buttons([
           { text: '转一天', onClick: () => { S.play = !S.play; S.played = 0; acts.btns[0].textContent = S.play ? '停一下' : '转一天'; } },
-          { text: '重来', ghost: true, onClick: () => { Object.assign(S, { th: thetaOf(0), t: 12, lat: 40, city: 2, other: 3, play: false, played: 0, rec: {}, guess: null, saw: new Set(), said: {} }); dateSeg.set(0); time.set(12); citySeg.set(2); otherSeg.set(3); guess.set(-1); acts.btns[0].textContent = '转一天'; layout(); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { th: thetaOf(0), t: 12, lat: 40, city: 2, other: 3, play: false, played: 0, rec: {}, guess: null, saw: new Set(), said: {} }); dateSeg.set(0); time.set(12); citySeg.set(2); otherSeg.set(3); guess.set(-1); acts.btns[0].textContent = '转一天'; layout(); } },
         ]);
         const sky = h('canvas', { class: 'wx-map', width: 320, height: 230 });
         const table = h('div', {});

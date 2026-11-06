@@ -188,7 +188,7 @@ export default {
       mount(ui) {
         const acts = buttons([
           { text: '让风吹起来', onClick: () => { S.blow = !S.blow; acts.btns[0].textContent = S.blow ? '风停下' : '让风吹起来'; placeTags(); ui.status(S.blow ? '风吹起来了：<b>信风</b>推着赤道两侧的海水往西，<b>西风</b>推着中纬度的海水往东。看海水碰到大陆以后怎么走。' : '风停了，海水慢慢停下来。'); } },
-          { text: '重来', ghost: true, onClick: () => { S.w = 0; S.blow = false; S.land = true; S.saw = {}; S.guess = null; while (S.ducks.length) { const d = S.ducks.pop(); block.remove(d.m, d.line); d.line.geometry.dispose(); } landSeg.set(0); guess.set(-1); acts.btns[0].textContent = '让风吹起来'; callout.show(false); drawMap(); placeArrows(); placeTags(); drawChart(); drawLog(); ui.status('这是一个理想化的大洋，两边是大陆。先按<b>让风吹起来</b>。'); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.w = 0; S.blow = false; S.land = true; S.saw = {}; S.guess = null; while (S.ducks.length) { const d = S.ducks.pop(); block.remove(d.m, d.line); d.line.geometry.dispose(); } landSeg.set(0); guess.set(-1); acts.btns[0].textContent = '让风吹起来'; callout.show(false); drawMap(); placeArrows(); placeTags(); drawChart(); drawLog(); ui.status('这是一个理想化的大洋，两边是大陆。先按<b>让风吹起来</b>。'); } },
         ]);
         const landSeg = seg('大陆', ['有大陆挡着', '假如没有大陆'], (_, i) => { S.land = !i; if (i) S.saw.noland = true; drawMap(); placeArrows(); placeTags(); drawChart(); drawLog(); ui.status(i ? '假如没有大陆挡着：海水只跟着风带东西向流，转不成环流。' : '有大陆挡着：海水碰到大陆只能拐弯，转成一个个环流。'); }, { value: 0 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });

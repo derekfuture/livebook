@@ -139,6 +139,7 @@ export class Panel {
       status: (msg) => { this.statusEl.innerHTML = msg || ''; },
       need: (msg) => this.need(msg),
       unlock: () => this.unlock(),
+      relock: () => this.relock(),
       prediction: () => this.prediction,
       // 给自己排步骤的实验用：当前提示（status + 题目）所在的块、面板本身、翻到第几步
       now: this.nowEl,
@@ -211,6 +212,18 @@ export class Panel {
     if (this.explore) this.steps[2].hidden = false;
     this.toProve.disabled = false;
     if (!fromHistory) this.tabs[1].classList.add('done');
+  }
+
+  /** 重来：这一次的进度回到刚打开的样子——结论重新合上、锁上（以前盖过的章、书架上的记录不动） */
+  relock() {
+    this.unlocked = false;
+    this.flap.classList.add('locked'); this.flap.classList.remove('open');
+    this.flapFront.querySelector('span').textContent = this.explore ? '🔒 先动手看看' : '🔒 做完实验再掀开';
+    this.need(this.def.need || '');
+    if (this.explore) this.steps[2].hidden = true;
+    this.toProve.disabled = true;
+    this.tabs?.[1]?.classList.remove('done');
+    this.el.querySelector('.p-body').scrollTop = 0;
   }
 
   _openFlap() {

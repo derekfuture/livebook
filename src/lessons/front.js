@@ -642,7 +642,7 @@ export default {
         const station = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('p', { class: 'note' });
         // 重来：这一种锋回到开头的样子——锋面、你家和邻城的位置、猜的选项、提示、这一种锋的时间线（别的锋的时间线留着，好对比）
         const acts = buttons([
-          { text: '重来', ghost: true, onClick: () => { if (S.view !== '3d') setView('3d'); for (const k of Object.keys(S.logs)) S.logs[k] = []; for (const k of Object.keys(S.trace)) S.trace[k] = []; S.done.clear(); S.guess = {}; S.stillSnap = null; S.real = 0; S.going = false; setReal(); callout.show(false); calloutT = 0; home.visible = true; S.map = false; kindSeg.set(0); setKind('cold', true); drawLogs(); layout(); } },          // 回到第一次打开的样子：冷锋、所有记录和猜的都清掉
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); if (S.view !== '3d') setView('3d'); for (const k of Object.keys(S.logs)) S.logs[k] = []; for (const k of Object.keys(S.trace)) S.trace[k] = []; S.done.clear(); S.guess = {}; S.stillSnap = null; S.real = 0; S.going = false; setReal(); callout.show(false); calloutT = 0; home.visible = true; S.map = false; kindSeg.set(0); setKind('cold', true); drawLogs(); layout(); } },          // 回到第一次打开的样子：冷锋、所有记录和猜的都清掉
         ]);
         ui.controls.append(h('div', { class: 'bar-title' }, '你家的气象站'), station, read, kindSeg.el, guess.el, acts.el, note('你家和邻城都可以拖到别处。画面上方可以换着看：立体剖面、天气图、站在你家抬头看。'));          // 侧栏只放一张图：锋扫过你家时的气温、气压；天空和天气图挪到主画面里换着看
         ui.data.append(h('div', { class: 'bar-title' }, '你家经历了什么'), logs);

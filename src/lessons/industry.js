@@ -195,7 +195,7 @@ export default {
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
           { text: '记下这个方案', onClick: () => { S.no[S.kind] = (S.no[S.kind] || 0) + 1; const n = S.saved.filter((s) => s.kind === S.kind).length; if (n >= 3) S.saved.splice(S.saved.findIndex((s) => s.kind === S.kind), 1); S.saved.push({ kind: S.kind, label: `方案${S.no[S.kind]}`, ev: evaluate(S.kind, S.p), p: { ...S.p } }); S.tried.add(S.kind); layout(); drawLog(); } },          // 编号一直往上加，不重名；最多留三个
-          { text: '重来', ghost: true, onClick: () => { S.saved = []; S.no = {}; S.tried.clear(); S.guess = null; S.p = { x: 0.03, n: -0.02 }; S.moved = false; S.kind = 'sugar'; kindSeg.set(0); guess.set(-1); layout(); drawLog(); ui.status('选一种工厂，拖地图上的“地点”。'); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.saved = []; S.no = {}; S.tried.clear(); S.guess = null; S.p = { x: 0.03, n: -0.02 }; S.moved = false; S.kind = 'sugar'; kindSeg.set(0); guess.set(-1); layout(); drawLog(); ui.status('选一种工厂，拖地图上的“地点”。'); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 176 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });          // 读数用 div（长的 p.note 会被收进“怎么操作”里）
         ui.controls.append(h('div', { class: 'bar-title' }, '建在这里，要花多少（示意）'), chart, read, kindSeg.el, acts.el, guess.el, note('同一种工厂可以记下三个方案并排比。'));

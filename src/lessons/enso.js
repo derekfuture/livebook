@@ -170,7 +170,7 @@ export default {
       mount(ui) {
         const stSeg = seg('直接选', ['拉尼娜', '正常年份', '厄尔尼诺'], (_, i) => { S.a = i - 1; events(); layout(); }, { value: 1 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
-        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { S.a = 0; S.seen.clear(); S.guess = null; stSeg.set(1); guess.set(-1); callout.show(false); layout(); drawLog(); ui.status('这是正常年份的赤道太平洋：暖水堆在西边。按住那团<b>暖水</b>往东推。'); } }]);
+        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.a = 0; S.seen.clear(); S.guess = null; stSeg.set(1); guess.set(-1); callout.show(false); layout(); drawLog(); ui.status('这是正常年份的赤道太平洋：暖水堆在西边。按住那团<b>暖水</b>往东推。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 130 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '表层海温（西 → 东）'), chart, read, guess.el, stSeg.el, acts.el, note('剖面上：红是暖水，蓝是冷水，白虚线是暖水层的底；上空的环：西边上升、东边下沉。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);

@@ -307,7 +307,7 @@ export default {
         const acts = buttons([
           { text: '流下去', onClick: () => { S.play = !S.play; if (S.play && S.t >= 1) setT(DOCK_T); playBtn.textContent = S.play ? '停一下' : '流下去'; } },
           { text: '从头看这条河谷是怎么来的', ghost: true, onClick: () => { setT(0); S.play = true; playBtn.textContent = '停一下'; } },
-          { text: '重来', ghost: true, onClick: () => { S.play = false; playBtn.textContent = '流下去'; S.cut = XR; S.cutMoved = false; S.measured = false; S.logs = []; S.visited = new Set(); S.guess = null; S.done = false; S.said = -1; docks.forEach(homeDock); guess.set(-1); setT(DOCK_T); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.play = false; playBtn.textContent = '流下去'; S.cut = XR; S.cutMoved = false; S.measured = false; S.logs = []; S.visited = new Set(); S.guess = null; S.done = false; S.said = -1; docks.forEach(homeDock); guess.set(-1); setT(DOCK_T); } },
         ]);
         const playBtn = acts.btns[0];
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLogs(); }, { value: -1 });

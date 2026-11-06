@@ -360,7 +360,7 @@ export default {
         const logs = h('div', { class: 'timeline' });
         const acts = buttons([
           { text: '一圈都放上', onClick: ring },
-          { text: '重来', ghost: true, onClick: () => { S.logs = {}; S.done.clear(); S.guess = {}; S.mode = 'low'; S.hemi = 0; modeSeg.set(0); hemiSeg.set(0); tHint.show(true); setMode(true); } },          // 回到第一次打开的样子
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.logs = {}; S.done.clear(); S.guess = {}; S.mode = 'low'; S.hemi = 0; modeSeg.set(0); hemiSeg.set(0); tHint.show(true); setMode(true); } },          // 回到第一次打开的样子
         ]);
         const skyWin = h('canvas', { class: 'wx-map', width: 320, height: 110 });
         ui.controls.append(modeSeg.el, hemiSeg.el, guess.el, acts.el, note('你家可以拖到低压、高压的东边、西边、北边、南边。'));

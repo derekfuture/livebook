@@ -273,7 +273,7 @@ export default {
         const logs = h('div', { class: 'timeline' });
         const acts = buttons([
           { text: '让时间走', onClick: () => { S.play = !S.play; W.play.textContent = S.play ? '停一下' : '让时间走'; } },
-          { text: '重来', ghost: true, onClick: () => { S.logs = { free: [], sea: {} }; S.guess = {}; S.done.clear(); S.mode = 'free'; S.hour = 6; modeSeg.set(0); timeCtl.set(6); setMode(); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.logs = { free: [], sea: {} }; S.guess = {}; S.done.clear(); S.mode = 'free'; S.hour = 6; modeSeg.set(0); timeCtl.set(6); setMode(); } },
         ]);
         ui.controls.append(modeSeg.el, timeCtl.el, guess.el, acts.el, note('地面哪里都可以按住加热，也可以换个地方再按。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), logs);
