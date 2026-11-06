@@ -144,7 +144,7 @@ export default {
     // ---- 标签 ----
     // ---- 画面里的字：地名写在地面、水面上；过程的名字贴着它发生的地方，发生时亮；剖面上的字写在剖面上 ----
     const gSea = groundLabel(block, '海洋', { x: (COAST + XR) / 2 + 0.01, y: SEA_Y, z: 0.02, h: 0.02, color: '#173a63', opacity: 0.9 });
-    const gLake = groundLabel(block, '内陆湖', { x: LAKE_X, y: LAKE_Y, z: 0.0, h: 0.014, color: '#0f2c52', opacity: 0.9 });
+    const gLake = groundLabel(block, '内陆湖', { x: LAKE_X - 0.008, y: LAKE_Y, z: ZD * 0.45, h: 0.013, color: '#0f2c52', opacity: 0.9 });
     const gField = groundLabel(block, SURF.bare.name.replace(/（.*）/, ''), { x: (FIELD[0] + FIELD[1]) / 2, y: ground((FIELD[0] + FIELD[1]) / 2) + 0.001, z: ZD * 0.86, h: 0.013, color: '#2e2010', opacity: 0.9 });
     faceLabel(block, '地下水面（虚线）', { x: -0.045, y: 0.016, z: ZD, h: 0.008 });
     const fInf = faceLabel(block, '下渗 → 地下径流', { x: 0.045, y: 0.024, z: ZD, h: 0.008, opacity: 0, icon: 'seep' });
@@ -156,10 +156,11 @@ export default {
     const placeTags = () => {
       const cy = cycleOf(S.cx), land = cy.kind === 'land';
       gField.setText(SURF[S.surf].name.replace(/（.*）/, ''));
-      aVap.setText(land ? '湖面、地面蒸发' : '蒸发'); aVap.position.set(land ? LAKE_X + 0.02 : XR - 0.008, (land ? LAKE_Y : SEA_Y) + (land ? 0.035 : 0.05), 0.02); aVap.setOn(true);          // 海上：写在海面右上角，不压在一缕缕上升的水汽里
-      aTrans.position.set((COAST + XR) / 2 - 0.02, CLOUD_Y + 0.008, 0); aTrans.setOn(cy.kind === 'big'); if (cy.kind !== 'big') aTrans.userData.want = 0;
-      aRain.position.set(S.cx + 0.046, CLOUD_Y - 0.035, 0); aRain.setOn(true);          // 写在雨丝的旁边
-      aRun.setOn(cy.kind === 'big');          // 雨下在平原上，才有地表径流流进河里
+      const fresh = S.litKind !== cy.kind, d = (k) => (fresh ? k * 0.3 : 0); S.litKind = cy.kind;          // 换了一种循环：新出现的过程按水走的顺序依次亮（蒸发 → 水汽输送 → 降水 → 地表径流）
+      aVap.setText(land ? '湖面、地面蒸发' : '蒸发'); aVap.position.set(land ? LAKE_X + 0.02 : XR - 0.008, (land ? LAKE_Y : SEA_Y) + (land ? 0.035 : 0.05), 0.02); aVap.setOn(true, d(0));          // 海上：写在海面右上角，不压在一缕缕上升的水汽里
+      aTrans.position.set((COAST + XR) / 2 - 0.02, CLOUD_Y + 0.008, 0); aTrans.setOn(cy.kind === 'big', d(1)); if (cy.kind !== 'big') aTrans.userData.want = 0;
+      aRain.position.set(S.cx + 0.046, CLOUD_Y - 0.035, 0); aRain.setOn(true, d(cy.kind === 'big' ? 2 : 1));          // 写在雨丝的旁边
+      aRun.setOn(cy.kind === 'big', d(3));          // 雨下在平原上，才有地表径流流进河里
       fInf.material.opacity = cy.kind !== 'sea' ? 0.9 : 0; fInf.position.x = Math.min(COAST - 0.03, Math.max(XL + 0.04, S.cx + 0.01)); fInf.position.y = ground(fInf.position.x) - 0.013;
       aCyc.setText(cy.name); aCyc.position.set(S.cx, CLOUD_Y + 0.034, 0);
       tHint.loc(block, S.cx, CLOUD_Y + 0.05, 0).show(!S.moved);

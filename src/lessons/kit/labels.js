@@ -49,10 +49,10 @@ export function faceLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.006, color 
 export function airLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.0075, color = '#1f3f75', dim = 0.18, icon = null } = {}) {
   const { tex, aspect } = textTex(text, { color, icon });
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })); s.scale.set(h * aspect, h, 1); s.position.set(x, y, z); s.raycast = () => {}; s.renderOrder = 14; parent.add(s);
-  s.userData = { on: 1, want: 1, dim, h, color, icon };
-  s.setOn = (on) => { s.userData.want = on ? 1 : s.userData.dim; return s; };
+  s.userData = { on: 1, want: 1, dim, h, color, icon, hold: 0 };
+  s.setOn = (on, delay = 0) => { const u = s.userData, w = on ? 1 : u.dim; if (w > u.want && delay) u.hold = delay; u.want = w; return s; };          // delay：过一会儿再亮（几个过程按水走的顺序依次亮）
   s.setText = (t, ic = s.userData.icon) => { s.userData.icon = ic; const r = textTex(t, { color: s.userData.color, icon: ic }); s.material.map = r.tex; s.scale.set(h * r.aspect, h, 1); return s; };
-  s.tick = (dt) => { const u = s.userData; u.on += (u.want - u.on) * Math.min(1, dt * 4); s.material.opacity = u.on; s.visible = u.on > 0.03; };
+  s.tick = (dt) => { const u = s.userData; if (u.hold > 0) { u.hold -= dt; return; } u.on += (u.want - u.on) * Math.min(1, dt * 4); s.material.opacity = u.on; s.center.y = 0.5 + (1 - u.on) * 0.15; s.visible = u.on > 0.03; };          // 亮起来时轻轻往上浮一点
   return s;
 }
 /** 角上的“示意”：tag 的元素上挂完整的说明，鼠标移上去才展开 */
