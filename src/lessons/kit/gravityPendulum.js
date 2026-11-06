@@ -32,3 +32,49 @@ export function pendulumEstimate(length, elapsed, oscillations) {
   const period = elapsed / oscillations;
   return { period, gravity: (4 * Math.PI ** 2 * length) / period ** 2 };
 }
+
+// 两幅图共用学生记录的 l、t、N，不用理论周期替换原计时。
+// 自由截距直线用于检查趋势，不能先强迫拟合线过原点再宣称正比。
+export function pendulumSeries(samples) {
+  if (
+    !Array.isArray(samples) ||
+    samples.length < 3 ||
+    samples.some(
+      (s) =>
+        !Number.isFinite(s.l) || s.l <= 0 || !Number.isFinite(s.t) || s.t <= 0 || !Number.isInteger(s.n) || s.n <= 0,
+    )
+  )
+    throw new RangeError('至少需要三组有效摆长、总时间和全振动次数');
+  const rows = samples.map((s) => {
+    const estimate = pendulumEstimate(s.l, s.t, s.n);
+    return { l: s.l, t: s.t, n: s.n, ...estimate, squared: estimate.period ** 2 };
+  });
+  function fit(key) {
+    const xMean = rows.reduce((sum, r) => sum + r.l, 0) / rows.length;
+    const yMean = rows.reduce((sum, r) => sum + r[key], 0) / rows.length;
+    const xx = rows.reduce((sum, r) => sum + (r.l - xMean) ** 2, 0);
+    if (xx < 1e-12) throw new RangeError('摆长不能全部相同');
+    const slope = rows.reduce((sum, r) => sum + (r.l - xMean) * (r[key] - yMean), 0) / xx;
+    const intercept = yMean - slope * xMean;
+    const residuals = rows.map((r) => r[key] - (slope * r.l + intercept));
+    const rms = Math.sqrt(residuals.reduce((sum, r) => sum + r * r, 0) / rows.length);
+    return { slope, intercept, residuals, rms };
+  }
+  const periodFit = fit('period'),
+    squaredFit = fit('squared');
+  const lengths = rows.map((r) => r.l).sort((a, b) => a - b),
+    span = lengths.at(-1) - lengths[0];
+  // 四种摆长和至少20cm跨度是本活页的取样要求，不是教材规定的固定数值。
+  const distinct = lengths.reduce((list, l) => {
+    if (!list.length || l - list.at(-1) >= 0.049) list.push(l);
+    return list;
+  }, []);
+  return {
+    rows,
+    periodFit,
+    squaredFit,
+    span,
+    sufficient: distinct.length >= 4 && span >= 0.199,
+    slopeGravity: squaredFit.slope > 0 ? (4 * Math.PI ** 2) / squaredFit.slope : null,
+  };
+}
