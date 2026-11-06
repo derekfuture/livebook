@@ -81,7 +81,7 @@ export default {
     const trees = new THREE.InstancedMesh(new THREE.ConeGeometry(0.0024, 0.007, 7).translate(0, 0.0035, 0), new THREE.MeshLambertMaterial({ color: 0x3f6f35 }), 60); trees.raycast = () => {}; block.add(trees);
     { const m4 = new THREE.Matrix4(); for (let k = 0; k < 60; k++) { const x = DIVIDE + (rnd() - 0.5) * 0.08, z = (rnd() - 0.5) * ZD * 1.8; m4.makeTranslation(x, ground(x) - 0.0004, z); trees.setMatrixAt(k, m4); } }
     const riverPts = []; for (let i = 0; i <= 40; i++) { const x = DIVIDE + 0.03 + (COAST - DIVIDE - 0.03) * (i / 40); riverPts.push(new THREE.Vector3(x, ground(x) + 0.0008, 0.018 * Math.sin(i * 0.4))); }
-    const riverMat = new THREE.MeshBasicMaterial({ color: 0x5a9fd0 }); riverMat.userData.see = true; const river = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(riverPts), 60, 0.0022, 6, false), riverMat);          // 河道本来就半埋在地面里 river.scale.y = 0.4; river.raycast = () => {}; block.add(river);
+    const riverMat = new THREE.MeshBasicMaterial({ color: 0x5a9fd0 }); riverMat.userData.see = true; const river = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(riverPts), 60, 0.0022, 6, false), riverMat); river.scale.y = 0.4; river.raycast = () => {}; block.add(river);          // 河道本来就半埋在地面里
     // 城市：地面硬化时，田上长出几栋楼
     const city = new THREE.Group(); block.add(city);
     for (let k = 0; k < 9; k++) { const w = 0.006 + rnd() * 0.004, hh = 0.008 + rnd() * 0.014, x = FIELD[0] + 0.006 + (k % 3) * 0.017, z = -0.03 + Math.floor(k / 3) * 0.028; const b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, w), new THREE.MeshLambertMaterial({ color: 0xd6d3cc })); b.position.set(x, ground(x) + hh / 2, z); city.add(b); }
