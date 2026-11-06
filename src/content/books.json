@@ -2394,6 +2394,12 @@
   "title": "地理 必修第一册",
   "base": "/books/dili-bx1/",
   "lessons": {
+   "karst": {
+    "title": "喀斯特地貌",
+    "fig": "图4.2",
+    "sec": "第四章第一节 常见地貌类型",
+    "cap": "地表喀斯特地貌景观演变示意"
+   },
    "water": {
     "title": "水循环",
     "fig": "图3.2",
@@ -2420,6 +2426,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "karst",
+    "page": 71,
+    "bbox": [
+     120,
+     92,
+     470,
+     422
+    ],
+    "label": "图4.2 · 翻开活页"
+   },
    {
     "lesson": "water",
     "page": 51,
