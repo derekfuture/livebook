@@ -14,7 +14,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, faceLabel, groundLabel, noteBadge } from './kit/labels.js';
-import { MEASURES, loads, bedRise } from './kit/basin.js';
+import { MEASURES, RES_CAP, loads, run } from './kit/basin.js';
 
 const XL = -0.19, XR = 0.19, ZD = 0.1, NX = 170, NZ = 90, PLAIN = 0.01, KM = 0.0016;          // 地块；平原（开封城里地面）的高度；1 米在画面上多高（示意，夸大了）
 const DAM_S = 0.47, BED0 = 7.5, LEVEE0 = 14, FLOOD = 3.5;          // 小浪底在河的哪一段；开始时河床比开封城里的地面高 7 米多（课本图 4.5：＞7 米）、堤顶高 14 米；洪水位比河床高约 3.5 米（示意）
@@ -32,15 +32,15 @@ export default {
   conclusion: {
     page: 66,
     quote: '含沙量大是黄河最突出的水文特征。黄土高原水土流失严重，导致黄河挟带泥沙数量之多，居世界大河首位。黄河下游流经华北平原，坡度变小，流速缓慢，泥沙沉积使下游河床不断抬高……为了防治水害，两岸不断加高大堤，使得黄河下游河床高出两岸地面，成为世界上著名的“地上悬河”。黄河沙患的解决，需要流域内综合协调：侵蚀区需要减少入河泥沙量，堆积区需要减少河道淤积。中游的黄土高原是黄河流域的主要侵蚀区，水土保持是减少入黄泥沙的根本措施。',
-    why: '下游河床抬高的泥沙，九成左右来自中游的黄土高原。只在下游加高大堤，沙照样年年淤，河床和大堤一起越长越高，“悬”得越来越危险。在中游做水土保持（生物、耕作、工程措施结合），从源头减少入黄泥沙；再用小浪底水库拦沙，汛前调水调沙，人造洪峰冲刷下游河床，把淤沙送进大海，下游才能基本保持冲淤平衡。一个地方的问题，要在整个流域里找原因、分工解决。',
+    why: '下游河床抬高的泥沙，主要来自中游的黄土高原（按课本图 4.7 的 1956—1986 年，约九成）。只在下游加高大堤，沙照样年年淤，河床和大堤一起越长越高，“悬”得越来越危险。在中游做水土保持（生物、耕作、工程措施结合），从源头减少入黄泥沙；再用小浪底水库拦沙，汛前调水调沙，人造洪峰冲刷下游河床，把淤沙送进大海，下游才能基本保持冲淤平衡。水库拦沙的库容是有限的，进库的沙越少，水库能用得越久——两头要一起做。一个地方的问题，要在整个流域里找原因、分工解决。',
     src: '课本第 61–64 页 · 第四章 第一节 流域内协调发展',
   },
 
   create({ tag }) {
     const group = new THREE.Group(), block = new THREE.Group(); group.add(block);
-    const S = { bio: false, farm: false, eng: false, dam: false, flush: false, year: 0, bed: BED0, levee: LEVEE0, hist: [{ y: 0, bed: BED0, levee: LEVEE0 }], runs: [], anim: null, raised: 0, moved: false, guess: null, pulse: 0 };
+    const S = { bio: false, farm: false, eng: false, dam: false, flush: false, res: 0, year: 0, bed: BED0, levee: LEVEE0, hist: [{ y: 0, bed: BED0, levee: LEVEE0 }], runs: [], anim: null, raised: 0, moved: false, guess: null, pulse: 0 };
     let W = null;
-    const L = () => loads(S);
+    const L = () => loads(S, S.res);
 
     // ---- 河的走向（俯视）：从后面的黄土高原流出来，过小浪底，到前面的平原上，一直流到地块前面的切面 ----
     const curve = new THREE.CatmullRomCurve3([[-0.2, -0.085], [-0.13, -0.06], [-0.07, -0.05], [-0.025, -0.022], [0.012, -0.004], [0.05, 0.02], [0.07, 0.06], [0.074, 0.12]].map(([x, z]) => new THREE.Vector3(x, 0, z)));
@@ -133,8 +133,8 @@ export default {
     const CITY = [FRONT_X + 0.06, ZD - 0.03];
     for (let i = 0; i < 26; i++) { const x = CITY[0] + (rnd() - 0.5) * 0.07, z = CITY[1] + (rnd() - 0.5) * 0.05; if (Math.abs(x - FRONT_X) < 0.03) continue; const w = 0.004 + rnd() * 0.003, hh = 0.003 + rnd() * 0.004, b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, w * 1.3), new THREE.MeshLambertMaterial({ color: [0xe9e2d4, 0xd8cdb8, 0xc9b9a0][i % 3] })); b.position.set(x, PLAIN + hh / 2, z); city.add(b); }
     const pagoda = new THREE.Group(); for (let k = 0; k < 7; k++) { const r = 0.0034 - k * 0.00028, seg2 = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.9, r, 0.0034, 8), new THREE.MeshLambertMaterial({ color: 0x7a5a48 })); seg2.position.y = 0.0017 + k * 0.0034; pagoda.add(seg2); const eave = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.25, r * 1.25, 0.0006, 8), new THREE.MeshLambertMaterial({ color: 0x5a4034 })); eave.position.y = 0.0034 * (k + 1); pagoda.add(eave); }
-    pagoda.position.set(FRONT_X + 0.045, PLAIN, ZD - 0.012); block.add(pagoda);          // 开封铁塔：不按比例，画得和课本图 4.5 里一样，塔顶和洪水位差不多高
-    pagoda.scale.y = ((BED0 + FLOOD) * KM) / (7 * 0.0034);
+    pagoda.position.set(FRONT_X + 0.045, PLAIN, ZD - 0.012); block.add(pagoda);          // 开封铁塔：不按比例，只保留课本图 4.5 里的高低关系——塔比大堤、洪水位都高
+    pagoda.scale.y = ((LEVEE0 + 8) * KM) / (7 * 0.0034);
 
     // ---- 一粒粒泥沙：从高原的沟里冲进河，顺流而下；到下游有的淤下、有的流走 ----
     const dotTex = canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
@@ -147,7 +147,7 @@ export default {
       for (let i = 0; i < NP; i++) {
         const p = P[i]; if (!p.on) { ppos.set([0, -1, 0], i * 3); continue; }
         p.s += dt * (S.pulse > 0 && p.s > DAM_S ? 0.22 : 0.07);
-        if (S.dam && p.s > DAM_S - 0.02 && p.s < DAM_S && p.fate > 0.1) { p.on = false; continue; }          // 小浪底水库拦下九成的沙
+        if (S.dam && S.res < RES_CAP && p.s > DAM_S - 0.02 && p.s < DAM_S && p.fate > 0.1) { p.on = false; continue; }          // 小浪底水库拦下大部分沙（淤满了就拦不住）
         const keep = l.inflow > 0 ? (S.dam ? 1 : l.sea / l.inflow) : 1;
         if (!S.dam && p.s > 0.75 && p.fate > keep && p.s > 0.75 + (p.fate - keep) * 0.8) { p.on = false; continue; }          // 没有水库：一部分在下游淤下来
         if (p.s >= 1) { p.on = false; continue; }
@@ -187,24 +187,25 @@ export default {
     const rebuild = () => { shapeTop(); buildFaces(); layout(); };
 
     // ---- 时间：10 年一步，河床慢慢抬高或者被冲低 ----
+    // 一开始就把这 10 年按当时的配置算好（kit 的 run），动画只是把结果播出来；播的时候不许换措施，记账也按这个快照
     const passDecade = () => {
-      if (S.anim) return; const l = L(), d = bedRise(l.deposit) * 10;
-      S.anim = { t: 0, from: S.bed, to: Math.max(BED0 - 3, S.bed + d), y0: S.year }; S.moved = true;
+      if (S.anim) return; const cfg = { bio: S.bio, farm: S.farm, eng: S.eng, dam: S.dam, flush: S.flush }, R0 = run(cfg, { bed: S.bed, res: S.res }, 10);
+      S.anim = { t: 0, from: S.bed, beds: R0.beds, res0: S.res, res1: R0.res, snap: { cfg, name: cfgName(), first: R0.first, last: R0.last, from: S.bed, to: R0.bed } }; S.moved = true;
       if (S.dam && S.flush) S.pulse = 2.4;          // 汛前放水调沙：人造洪峰
     };
     const finishDecade = () => {
-      const l = L(); S.year += 10; S.hist.push({ y: S.year, bed: S.bed, levee: S.levee, cfg: cfgName() });
-      S.runs.push({ cfg: cfgName(), d: S.hist[S.hist.length - 1].bed - S.hist[S.hist.length - 2].bed, l });
-      const margin = S.levee - (S.bed + FLOOD);
-      W?.ui.status(margin < 0.5 ? `又过了 10 年，河床抬高到比城里高 <b>${S.bed.toFixed(1)} 米</b>，洪水位逼近堤顶。要么<b>加高大堤</b>，要么想办法让河里的沙少一点。` : S.runs[S.runs.length - 1].d > 0.05 ? `又过了 10 年：下游淤下来的沙让河床抬高了 <b>${S.runs[S.runs.length - 1].d.toFixed(1)} 米</b>。` : `又过了 10 年：下游河床${S.runs[S.runs.length - 1].d < -0.05 ? `被冲低了 <b>${(-S.runs[S.runs.length - 1].d).toFixed(1)} 米</b>` : '基本没有变化：冲淤平衡'}。`);
-      drawLog();
+      const a = S.anim, sn = a.snap; S.bed = sn.to; S.res = a.res1; S.anim = null; S.year += 10; S.hist.push({ y: S.year, bed: S.bed, levee: S.levee, cfg: sn.name });
+      const d = sn.to - sn.from; S.runs.push({ cfg: sn.name, d, l: sn.first, last: sn.last, filled: sn.cfg.dam && sn.last.full });
+      const margin = S.levee - (S.bed + FLOOD), filledNow = sn.cfg.dam && sn.last.full;
+      W?.ui.status(`${filledNow ? `这 10 年里<b>小浪底水库淤满了</b>，拦不住沙了。` : ''}${d > 0.05 ? `又过了 10 年：下游淤下来的沙让河床抬高了 <b>${d.toFixed(1)} 米</b>。` : d < -0.05 ? `又过了 10 年：下游河床被冲低了 <b>${(-d).toFixed(1)} 米</b>。` : '又过了 10 年：下游河床基本没有变化，冲淤大致平衡。'}${margin < 0.5 ? '洪水位逼近堤顶了：要么<b>加高大堤</b>，要么想办法让河里的沙少一点。' : ''}`);
+      layout();
     };
     const cfgName = () => { const m = ['bio', 'farm', 'eng'].filter((k) => S[k]).length; return `${m ? `中游 ${m} 类措施` : '中游不治理'}${S.dam ? (S.flush ? '，小浪底调水调沙' : '，小浪底只拦沙') : ''}`; };
 
     // ---- 侧栏：三处一年各有多少沙（和图 4.7 比）；下游河床、大堤的高度一年年怎么变 ----
     const drawChart = () => {
       if (!W) return;
-      const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, l = L(), bars = [['进入小浪底一带', l.inflow, [13.33, 5.46, 0.55]], ['小浪底下泄', l.out, null], ['入海（利津）', l.sea, [9.78, 3.33, 1.02]]], B0 = 128, T0 = 44, Y = (v) => B0 - (v / 14) * (B0 - T0);
+      const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, l = L(), bars = [['进入水库一带', l.inflow, null], ['小浪底站', l.out, [13.33, 5.46, 0.55]], ['入海（利津站）', l.sea, [9.78, 3.33, 1.02]]], B0 = 128, T0 = 44, Y = (v) => B0 - (v / 14) * (B0 - T0);          // 图 4.7 的实测是“小浪底站”（水库下面）和“利津站”的年均输沙量，短横线就挂在这两栏
       g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh); g.textBaseline = 'middle';
       g.font = '600 12px "PingFang SC", sans-serif'; g.fillStyle = '#3a3226'; g.textAlign = 'left'; g.fillText('一年里的泥沙（亿吨）', 6, 10);
       g.font = '11px "PingFang SC", sans-serif'; g.fillStyle = '#7a705e'; g.textAlign = 'right'; for (const v of [0, 5, 10]) { g.fillText(String(v), 28, Y(v)); g.strokeStyle = 'rgba(60,50,40,0.08)'; g.beginPath(); g.moveTo(32, Y(v)); g.lineTo(w - 6, Y(v)); g.stroke(); }
@@ -212,7 +213,7 @@ export default {
         const x = 46 + i * 92; g.fillStyle = '#b08a4a'; g.fillRect(x, Y(v), 34, B0 - Y(v)); g.fillStyle = '#3a3226'; g.textAlign = 'center'; g.fillText(v.toFixed(2), x + 17, Y(v) - 7); g.fillText(name, x + 30, B0 + 12);
         if (ref) ref.forEach((r, k) => { g.strokeStyle = ['#5f9a72', '#8a74b0', '#c07a9a'][k]; g.lineWidth = 2; g.beginPath(); g.moveTo(x + 40, Y(r)); g.lineTo(x + 56, Y(r)); g.stroke(); g.lineWidth = 1; });
       });
-      g.font = '10px "PingFang SC", sans-serif'; g.textAlign = 'left'; g.fillStyle = '#7a705e'; g.fillText('短横线：图 4.7 实测', 6, 27); [['1956—1986', '#5f9a72'], ['1987—2005', '#8a74b0'], ['2006—2016', '#c07a9a']].forEach(([t, cl], k) => { const x = 100 + k * 72; g.fillStyle = cl; g.fillRect(x, 26, 10, 2); g.fillStyle = '#7a705e'; g.fillText(t, x + 13, 27); });
+      g.font = '10px "PingFang SC", sans-serif'; g.textAlign = 'left'; g.fillStyle = '#7a705e'; g.fillText('短横线：图 4.7 实测', 6, 27); if (S.dam) { g.textAlign = 'right'; g.fillStyle = S.res >= RES_CAP ? '#b03a2a' : '#5a5040'; g.fillText(`水库淤了 ${Math.min(100, (S.res / RES_CAP) * 100).toFixed(0)}%`, w - 6, 10); g.textAlign = 'left'; g.fillStyle = '#7a705e'; } [['1956—1986', '#5f9a72'], ['1987—2005', '#8a74b0'], ['2006—2016', '#c07a9a']].forEach(([t, cl], k) => { const x = 100 + k * 72; g.fillStyle = cl; g.fillRect(x, 26, 10, 2); g.fillStyle = '#7a705e'; g.fillText(t, x + 13, 27); });
       // 下面：河床、堤顶、洪水位一年年的高度（比城里地面高几米）
       const T1 = 182, B1 = hh - 18, ys = S.hist.map((p) => p.y), ymax = Math.max(40, ...ys, S.year + 10), X = (y) => 40 + (y / ymax) * (w - 50), Y2 = (m) => B1 - (m / 24) * (B1 - T1);
       g.font = '600 12px "PingFang SC", sans-serif'; g.fillStyle = '#3a3226'; g.textAlign = 'left'; g.fillText('下游：比开封城里的地面高几米', 6, T1 - 12);
@@ -225,13 +226,15 @@ export default {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
       const seen = new Map(); for (const x of S.runs) seen.set(x.cfg, x);
-      for (const [cfg, x] of seen) r(`${cfg}：`, `每年进入小浪底一带约 ${x.l.inflow.toFixed(1)} 亿吨沙，入海约 ${x.l.sea.toFixed(1)} 亿吨；10 年里下游河床${x.d > 0.05 ? `抬高 ${x.d.toFixed(1)} 米` : x.d < -0.05 ? `冲低 ${(-x.d).toFixed(1)} 米` : '基本不变'}`);
-      if (S.raised) r('加高大堤：', `加高了 ${S.raised} 次。沙照样年年淤，河床和大堤一起越长越高——“地上悬河”越悬越高`);
+      for (const [cfg, x] of seen) r(`${cfg}：`, `每年进入水库一带约 ${x.l.inflow.toFixed(1)} 亿吨沙，入海约 ${x.l.sea.toFixed(1)} 亿吨；10 年里下游河床${x.d > 0.05 ? `抬高 ${x.d.toFixed(1)} 米` : x.d < -0.05 ? `冲低 ${(-x.d).toFixed(1)} 米` : '基本不变'}${x.filled ? '（水库淤满了，后几年拦不住沙）' : ''}`);
+      if (S.raised) r('加高大堤：', `加高了 ${S.raised} 次。大堤只是挡住洪水，不减少河里的沙；只要下游还在淤，河床和大堤就一起越长越高——“地上悬河”越悬越高`);
       const base = [...seen.values()].find((x) => x.cfg === '中游不治理'), best = [...seen.values()].find((x) => x.cfg.includes('3 类') && x.cfg.includes('调水调沙'));
-      if (base && best) r('比一比：', '下游的沙九成左右来自中游。中游保持水土，从源头减沙；小浪底拦沙、调水调沙，冲刷下游河床：“地上河”才不再长高');
+      const damOnly = [...seen.values()].find((x) => x.cfg === '中游不治理，小浪底调水调沙' || x.cfg === '中游不治理，小浪底只拦沙');
+      if (damOnly && damOnly.filled) r('只修水库：', '中游不治理，进库的沙太多，水库很快就淤满了，下游又开始淤：水库替代不了中游的水土保持');
+      if (base && best) r('比一比：', '按课本图 4.7 的 1956—1986 年，中游是主要来沙区。中游保持水土，从源头减沙；水库拦沙、调水调沙，冲刷下游河床，进库的沙少了，水库也能用得更久：侵蚀区减沙、堆积区减淤，“地上河”才不再长高');
       if (S.guess != null && base && best) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：在中游黄土高原保持水土是根本措施`)));
       W.log.replaceChildren(...rows);
-      const l = L(); W.read.innerHTML = `第 <b>${S.year}</b> 年 · ${cfgName()}<br>下游河床比开封城里的地面高 <b>${S.bed.toFixed(1)} 米</b>，堤顶高 ${S.levee.toFixed(0)} 米<br><small>泥沙量参照课本图 4.7；河床抬高的速度、措施各减多少是示意</small>`;
+      W.read.innerHTML = `第 <b>${S.year}</b> 年 · ${cfgName()}${S.dam ? `（水库已淤 ${Math.min(100, (S.res / RES_CAP) * 100).toFixed(0)}%）` : ''}<br>下游河床比开封城里的地面高 <b>${S.bed.toFixed(1)} 米</b>，堤顶高 ${S.levee.toFixed(0)} 米<br><small>泥沙量参照课本图 4.7；河床抬高的速度、措施各减多少是示意</small>`;
       if (base && seen.size >= 3 && [...seen.keys()].some((k) => k.includes('小浪底'))) W.ui.unlock();
     };
 
@@ -254,17 +257,19 @@ export default {
       size: { w: 0.4, d: 0.22, h: 0.09 },
       view: { elev: 30, azim: 16, lookY: 0.32, frameMargin: 1.06 },
       pointer,
-      debug: { set: (o) => { Object.assign(S, o); rebuild(); }, decade: () => { passDecade(); S.anim.t = 0.999; } },
+      debug: { set: (o) => { Object.assign(S, o); rebuild(); }, decade: () => { passDecade(); if (S.anim) S.anim.t = 0.999; } },
       mount(ui) {
-        const tog = (k, label) => ({ text: label, onClick: () => { S[k] = !S[k]; mBtns.btns[['bio', 'farm', 'eng'].indexOf(k)].classList.toggle('on', S[k]); rebuild(); ui.status(S[k] ? `中游实施了${MEASURES[k].name.split('：')[0]}：入黄泥沙少了。让 10 年过去看看下游。` : '撤掉了这一类措施。'); } });
+        const tog = (k, label) => ({ text: label, onClick: () => { if (S.anim) return; S[k] = !S[k];          // 这 10 年还在走的时候不许换措施
+ mBtns.btns[['bio', 'farm', 'eng'].indexOf(k)].classList.toggle('on', S[k]); rebuild(); ui.status(S[k] ? `中游实施了<b>${MEASURES[k].name}</b>——${MEASURES[k].where}：${MEASURES[k].how}。入黄泥沙少了，让 10 年过去看看下游。` : '撤掉了这一类措施。'); } });
         const mBtns = buttons([tog('bio', '生物措施（封山育林、退耕还林还草）'), tog('farm', '耕作措施（沿等高线耕作、少耕免耕）'), tog('eng', '工程措施（梯田、淤地坝、鱼鳞坑）')]);
-        const damSeg = seg('小浪底水库', ['没有', '建了，只拦沙', '建了，汛前调水调沙'], (_, i) => { S.dam = i > 0; S.flush = i === 2; rebuild(); if (i === 2) ui.status('每年汛期前，上中游的水库联动放水，在小浪底形成“人造洪峰”，冲刷下游河床。让 10 年过去看看。'); }, { value: 0 });
+        const damSeg = seg('小浪底水库', ['没有', '建了，只拦沙', '建了，汛前调水调沙'], (_, i) => { if (S.anim) return; if (i > 0 && !S.dam) S.res = 0; S.dam = i > 0;          // 新建的水库是空的
+ S.flush = i === 2; rebuild(); if (i === 2) ui.status('每年汛期前，上中游的水库联动放水，在小浪底形成“人造洪峰”，冲刷下游河床。让 10 年过去看看。'); }, { value: 0 });
         const time = buttons([
           { text: '让 10 年过去', onClick: () => passDecade() },
-          { text: '加高两岸大堤（+2 米）', ghost: true, onClick: () => { S.levee += 2; S.raised++; S.hist.push({ y: S.year, bed: S.bed, levee: S.levee }); rebuild(); ui.status('两岸的大堤加高了 2 米，暂时挡住了洪水。可是河床还在长高……'); } },
+          { text: '加高两岸大堤（+2 米）', ghost: true, onClick: () => { if (S.anim) return; S.levee += 2; S.raised++; S.hist.push({ y: S.year, bed: S.bed, levee: S.levee }); rebuild(); const last = S.runs[S.runs.length - 1]; ui.status(`两岸的大堤加高了 2 米，暂时挡住了洪水。${last && last.d > 0.05 ? '可是上一个 10 年里河床还在长高……' : '大堤只挡洪水，不减少河里的沙。'}`); } },
         ]);
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
-        const reset = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { bio: false, farm: false, eng: false, dam: false, flush: false, year: 0, bed: BED0, levee: LEVEE0, hist: [{ y: 0, bed: BED0, levee: LEVEE0 }], runs: [], anim: null, raised: 0, moved: false, guess: null, pulse: 0 }); mBtns.btns.forEach((b) => b.classList.remove('on')); damSeg.set(0); guess.set(-1); rebuild(); ui.status(START); } }]);
+        const reset = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { bio: false, farm: false, eng: false, dam: false, flush: false, res: 0, year: 0, bed: BED0, levee: LEVEE0, hist: [{ y: 0, bed: BED0, levee: LEVEE0 }], runs: [], anim: null, raised: 0, moved: false, guess: null, pulse: 0 }); mBtns.btns.forEach((b) => b.classList.remove('on')); damSeg.set(0); guess.set(-1); rebuild(); ui.status(START); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 292 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '泥沙从哪来、到哪去'), chart, read, time.el, h('div', { class: 'bar-title' }, '中游：水土保持（课本图 4.6）'), mBtns.el, damSeg.el, guess.el, reset.el, note('前面的切面就是课本图 4.5：大堤夹着的河床比开封城里的地面高，红线量的是高多少。河水越黄，含沙越多。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
@@ -275,7 +280,7 @@ export default {
       update(dt) {
         labels.forEach((l) => l.tick(dt)); stepDots(Math.min(dt, 0.05));
         if (S.pulse > 0) { S.pulse -= dt; buildWater(); if (S.pulse <= 0) buildWater(); }
-        if (S.anim) { const a = S.anim; a.t = Math.min(1, a.t + dt / 2.2); S.bed = a.from + (a.to - a.from) * a.t; shapeTop(); buildFaces(); layout(); if (a.t >= 1) { S.anim = null; finishDecade(); layout(); } }
+        if (S.anim) { const a = S.anim; a.t = Math.min(1, a.t + dt / 2.2); const k = a.t * 10, i = Math.floor(k), b0 = i === 0 ? a.from : a.beds[i - 1], b1 = a.beds[Math.min(9, i)]; S.bed = b0 + (b1 - b0) * (k - i); S.res = a.res0 + (a.res1 - a.res0) * a.t; shapeTop(); buildFaces(); layout(); if (a.t >= 1) finishDecade(); }
       },
     };
   },
