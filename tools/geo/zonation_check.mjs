@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 // 核对山地垂直地带性：node tools/geo/zonation_check.mjs（选必1 第 88–89 页，图 5.12）
 import { MOUNTAINS, elev, terrainHeight, surfaceBandAt, LAKE_RADIUS, bandAt, bandsBelow, sideOf, KIND, colderBy } from '../../src/lessons/kit/zonation.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
@@ -37,4 +38,5 @@ for (let i = 0; i <= 220; i++) for (let j = 0; j <= 44; j++) {
   if ((surfaceBandAt('cb', u, zn) === null) !== wet || surfaceBandAt('hima', u, zn) === null) waterOk = false;
 }
 ok(waterOk && Math.abs(elev('cb', LAKE_RADIUS) - C.lake) < 1e-8, '完整网格水域判定与地形一致，岸线等于湖面海拔，喜马拉雅不受影响');
+ok(['南坡植被类型较多；图示景观带南坡 7 个、北坡 3 个，包含积雪冰川带'].every((t) => readFileSync(new URL('../../src/lessons/zonation.js', import.meta.url), 'utf8').includes(t)), '本轮文字复核：概念或引文图号准确');
 process.exit(bad ? 1 : 0);

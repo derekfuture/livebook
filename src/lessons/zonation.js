@@ -221,7 +221,7 @@ export default {
       if (S.tried.has('low')) r('假如北坡山麓也低到 1 000 米：', '如果北坡仍是背风坡、降水较少，带谱不一定和南坡一样多；多出来的这一段长什么，要看那里的热量和水分条件去推断（课本问题 3）');
       for (const c of Object.keys(S.cuts).map(Number).sort((a, b) => b - a)) r(`把山削到 ${fmt(c)} 米：`, `南坡只剩 ${S.cuts[c]} 个带`);
       if (S.seen.cb.size) r('长白山（约 42°N）：', `${MOUNTAINS.cb.north.bands.filter((b) => S.seen.cb.has(b[0])).map((b) => KIND[b[0]].name).join(' → ')}${MOUNTAINS.cb.north.bands.every((b) => S.seen.cb.has(b[0])) ? '：一共 4 个带，山麓是针阔叶混交林' : ''}`);
-      if (S.guess != null && sDone && nDone && S.cut >= 8848 && !S.northLow) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：南坡 7 种，北坡 3 种`)));
+      if (S.guess != null && sDone && nDone && S.cut >= 8848 && !S.northLow) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：南坡植被类型较多；图示景观带南坡 7 个、北坡 3 个，包含积雪冰川带`)));
       W.log.replaceChildren(...rows);
       W.read.innerHTML = `登山的人在 <b>${fmt(heightM(xOf(S.u), CZ))} 米</b>，${S.m === 'hima' ? (sideNow() === 'south' ? '南坡' : '北坡') : '长白山'}<br><small>按 0.6℃/100米估算，仅表示海拔影响，并非实测温差；${S.m === 'cb' ? '长白山北坡带谱参考《植物生态学报》2017，41(12):1228–1238 的研究资料，界线为约数' : '喜马拉雅带界参考课本图 5.12，未标数字的界线为示意约数'}</small>`;
       if (sDone && nDone && (S.tried.has('low') || S.tried.has('cut') || S.seen.cb.size >= 3)) W.ui.unlock();

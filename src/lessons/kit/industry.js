@@ -48,7 +48,7 @@ export function evaluate(kind, p) {
   c['劳动力'] = I.l * labor * 0.6;
   c['技术'] = I.t * dist(p, P.univ) * 6;
   const total = Object.values(c).reduce((a, b) => a + b, 0);
-  const fx = [];
+  const fx = [], scope = [];          // 已触发风险与未核算条件分开，后者不计入问题数量
   const r = nearRiver(p), upstreamOfIntake = r.d < 0.02 && r.i < 6;          // 取水口在索引 6，顺流污染只判断其上游
   if (I.water && upstreamOfIntake) fx.push({ k: 'water', at: 'intake', text: '污水顺河流到城市水源地' });
   if (I.water && !upstreamOfIntake && dist(p, P.intake) < 0.02) fx.push({ k: 'water', at: 'intake', text: '紧邻水源地，存在选址风险（不表示污水逆流）' });
@@ -57,10 +57,10 @@ export function evaluate(kind, p) {
   if (I.land && isFarm(p)) fx.push({ k: 'farm', at: 'here', text: '占用大片农田' });
   if (I.tall && dist(p, P.airport) < 0.04) fx.push({ k: 'air2', at: 'airport', text: '高大设备、上升热气流影响飞机起降' });
   if (I.needWater && r.d > 0.03) fx.push({ k: 'nowater', at: 'here', text: '远离河流，需落实淡水供水；临海不等于具备工艺供水条件' });
-  if (kind === 'beer') fx.push({ k: 'scope', at: 'here', text: '本例侧重市场区位；供水、废水处理及水源地保护条件未核算，需另行落实' });
-  if (I.clean) fx.push({ k: 'scope', at: 'here', text: '本例侧重技术区位；晶圆制造还需供水和废水处理设施，未在本模型核算' });
+  if (kind === 'beer') scope.push({ k: 'scope', at: 'here', text: '本例侧重市场区位；供水、废水处理及水源地保护条件未核算，需另行落实' });
+  if (I.clean) scope.push({ k: 'scope', at: 'here', text: '本例侧重技术区位；晶圆制造还需供水和废水处理设施，未在本模型核算' });
   if (isMountain(p)) fx.push({ k: 'mount', at: 'here', text: '山区建厂、运输都难' }), (c['原料运输'] *= 1.4, c['产品运输'] *= 1.4);
-  return { cost: c, total: Object.values(c).reduce((a, b) => a + b, 0), fx: fx.filter((f) => f.text) };
+  return { cost: c, total: Object.values(c).reduce((a, b) => a + b, 0), fx: fx.filter((f) => f.text), scope };
 }
 /** 全区总成本最低的地方（只在陆地上找，示意） */
 export function cheapest(kind) { let best = null; for (let x = XL + 0.01; x < XR; x += 0.004) for (let n = NL + 0.01; n < NR; n += 0.004) { const p = { x, n }; if (p.x > landPoint(p).x) continue; const e = evaluate(kind, p); if (!best || e.total < best.total) best = { ...p, total: e.total }; } return best; }

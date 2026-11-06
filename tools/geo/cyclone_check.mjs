@@ -1,6 +1,6 @@
 // 核对气旋、反气旋活页里的风：node tools/geo/cyclone_check.mjs
 // 课本第 45–46 页：北半球低压逆时针流入、高压顺时针流出（南半球相反）；气旋东部偏南风、西部偏北风；反气旋东部偏北风、西部偏南风。
-import { windAt, windName, accP, MODEL, advect, windCaption } from '../../src/lessons/kit/pressure.js';
+import { windAt, windName, accP, MODEL, advect, windCaption, motionText } from '../../src/lessons/kit/pressure.js';
 let bad = 0;
 const ok = (c, msg) => { console.log(`${c ? '✓' : '✗'} ${msg}`); if (!c) bad++; };
 const R = 0.06, pts = { 东部: [R, 0], 西部: [-R, 0], 北部: [0, R], 南部: [0, -R] };
@@ -32,4 +32,15 @@ for (const mode of ['low', 'high']) for (const hemi of [-1, 0, 1]) {
   const q = advect(mode, hemi, 0, 0, 1); ok(q.x === 0 && q.n === 0 && q.velocity.every((v) => v === 0), '中心水平示踪速度为零');
 }
 ok(windCaption('静风') === '静风' && windCaption('北风') === '风从北边吹来', '天空静风不显示来向');
+for (const mode of ['low', 'high']) for (const hemi of [-1, 0, 1]) {
+  const text = motionText(mode, hemi, 0.017, 0);
+  ok(hemi === 0 ? text.includes('直直') : text.includes((mode === 'low') === (hemi === 1) ? '逆时针' : '顺时针'), `${mode}/${hemi} 近中心短轨迹按切向分量判断：${text}`);
+  ok(motionText(mode, hemi, 0, 0).includes('未发生水平流入或流出'), `${mode}/${hemi} 中心释放不冒充流入`);
+}
+let sx = 0.017, sn = 0, angle = 0;
+for (let frame = 0; frame < 7; frame++) for (let j = 0; j < 4; j++) {
+  const q = advect('low', 1, sx, sn, 1 / 240); sx = q.x; sn = q.n;
+  angle += (sx * q.velocity[1] - sn * q.velocity[0]) / (sx * sx + sn * sn) / 240;
+}
+ok(Math.hypot(sx, sn) < 0.016 && angle < 0.3 && motionText('low', 1, 0.017, 0).includes('逆时针'), '复现7帧进入上升、转角不足0.3仍正确记为逆时针流入');
 process.exit(bad ? 1 : 0);

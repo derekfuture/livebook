@@ -1,5 +1,5 @@
 // 核对洋流：node tools/geo/current_check.mjs（选必1 第 68–71 页）
-import { windStep, driftInfo, vel, kindOf, coastEffect, advance, psi, isLand, nOf, XW, XE } from '../../src/lessons/kit/current.js';
+import { recordDrop, windStep, driftInfo, vel, kindOf, coastEffect, advance, psi, isLand, nOf, XW, XE } from '../../src/lessons/kit/current.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const V = (x, lat) => vel(x, nOf(lat));
 ok(V(0, 10)[0] < 0 && V(0, -10)[0] < 0, '赤道南北两侧：海水由东向西流（信风驱动）');
@@ -37,4 +37,11 @@ for (const dt of [1 / 20, 1 / 60, 1 / 144]) {
 }
 ok(tracks.every((p) => Math.hypot(p.x - tracks[0].x, p.n - tracks[0].n) < 1e-8), '20/60/144fps反复启停、跨越0和1截断后轨迹一致');
 ok(Math.abs(windStep(0.9, true, 1).integral - 0.985) < 1e-12 && Math.abs(windStep(0.1, false, 1).integral - 0.015) < 1e-12, '达到风速上下限的帧分段精确积分');
+// 第三轮：走页面共用的投放记录逻辑，覆盖满风后停风再投放。
+const state = { w: 1, land: true, saw: {} };
+recordDrop(state, 0, nOf(20)); const first = state.first;
+state.w = 0; recordDrop(state, 0, nOf(69));
+ok(state.first !== first && state.first.lat === 69 && state.first.wind === 0 && state.first.u === 0 && state.first.v === 0 && state.first.motion.includes('投放时静止') && !state.first.target && state.saw.duck, '满风20°N后零风69°N投放：最近记录与反馈覆盖旧位置，速度为0');
+recordDrop(state, 0, nOf(20)); ok(!state.first.target && state.first.motion.includes('静止'), '零风20°N也不套用向西反馈');
+for (const w of [0.01, 0.29, 0.3, 1]) { state.w = w; recordDrop(state, 0, nOf(25)); const v = vel(0, nOf(25)); ok(state.first.lat === 25 && state.first.wind === w && Math.abs(state.first.u - v[0] * 2.2 * w) < 1e-12 && Math.abs(state.first.v - v[1] * 2.2 * w) < 1e-12 && !state.first.target, `风速${w}：弱风及满风均保存当前位置与实际模型速度`); }
 process.exit(bad ? 1 : 0);

@@ -156,15 +156,15 @@ export default {
         const x = 30 + i * (bw + 14); let y = B;
         for (const k of Object.keys(COLORS)) { const v = col.ev.cost[k], hgt = (v / maxT) * (B - top); g.fillStyle = COLORS[k]; g.fillRect(x, y - hgt, bw, hgt); y -= hgt; }
         g.fillStyle = '#3a3226'; g.font = '600 11px "PingFang SC", sans-serif'; g.textAlign = 'center'; g.fillText(col.label, x + bw / 2, B + 13); g.fillText(col.ev.total.toFixed(1), x + bw / 2, y - 4);
-        if (col.ev.fx.length) { g.fillStyle = '#c4462e'; g.fillText(`要注意 ${col.ev.fx.length} 处`, x + bw / 2, B + 26); }
+        if (col.ev.fx.length || col.ev.scope.length) { g.fillStyle = col.ev.fx.length ? '#c4462e' : '#3a3226'; g.fillText(col.ev.fx.length ? `要注意 ${col.ev.fx.length} 处` : '另需核实', x + bw / 2, B + 26); }
       });
       g.textAlign = 'left'; g.font = '11px "PingFang SC", sans-serif'; let lx = 6; for (const k of Object.keys(COLORS)) { g.fillStyle = COLORS[k]; g.fillRect(lx, 2, 9, 9); g.fillStyle = '#3a3226'; g.fillText(k, lx + 12, 10); lx += g.measureText(k).width + 26; }
       const lead = Object.entries(swing(S.kind)).sort((a, b) => b[1] - a[1])[0][0];          // 地点一变，哪一项变化最大：仅描述本模型比较范围的极差，不等同主导因素
-      W.read.innerHTML = `${INDUSTRIES[S.kind].name}：建在这里总成本 <b>${ev.total.toFixed(1)}</b>。在本模型比较范围内，变化幅度最大的是<b style="color:${COLORS[lead]}">${lead}</b>；选址还需综合总成本和约束。${ev.fx.length ? `<br><b style="color:#c4462e">要注意：${ev.fx.map((f) => f.text).join('；')}</b>` : '<br>本模型列的环境问题这里都没碰上'}<br><small>成本数值是教学示意；假设水电站附近低价、稳定供电，距离函数不代表现实电价规律</small>`;
+      W.read.innerHTML = `${INDUSTRIES[S.kind].name}：建在这里总成本 <b>${ev.total.toFixed(1)}</b>。在本模型比较范围内，变化幅度最大的是<b style="color:${COLORS[lead]}">${lead}</b>；选址还需综合总成本和约束。${ev.fx.length ? `<br><b style="color:#c4462e">要注意：${ev.fx.map((f) => f.text).join('；')}</b>` : '<br>本模型列的环境问题这里都没碰上'}${ev.scope.length ? `<br>另需核实：${ev.scope.map((f) => f.text).join('；')}` : ''}<br><small>成本数值是教学示意；假设水电站附近低价、稳定供电，距离函数不代表现实电价规律</small>`;
     };
     const drawLog = () => {
       if (!W) return;
-      const rows = [...S.tried].map((k) => { const mine = S.saved.filter((s) => s.kind === k); return h('div', { class: 'tl-row' }, h('b', {}, `${INDUSTRIES[k].name}：`), h('span', {}, mine.length ? mine.map((s) => `${s.label} 总成本 ${s.ev.total.toFixed(1)}${s.ev.fx.length ? '（有麻烦）' : ''}`).join('；') : '拖过，还没记方案'), mine.length ? h('small', {}, `它最在乎：${INDUSTRIES[k].lead}`) : null); });
+      const rows = [...S.tried].map((k) => { const mine = S.saved.filter((s) => s.kind === k); return h('div', { class: 'tl-row' }, h('b', {}, `${INDUSTRIES[k].name}：`), h('span', {}, mine.length ? mine.map((s) => `${s.label} 总成本 ${s.ev.total.toFixed(1)}${s.ev.fx.length ? '（有麻烦）' : ''}${s.ev.scope.length ? '（另需核实）' : ''}`).join('；') : '拖过，还没记方案'), mine.length ? h('small', {}, `它最在乎：${INDUSTRIES[k].lead}`) : null); });
       if (S.guess != null && S.saved.some((s) => s.kind === 'sugar')) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　本情境中原料运输对距离更敏感，靠近甘蔗田能显著节省这部分成本`)));
       W.log.replaceChildren(...rows);
       if (new Set(S.saved.map((s) => s.kind)).size >= 3) W.ui.unlock();
@@ -188,6 +188,7 @@ export default {
     layout();
 
     return {
+      debug: { S, layout },
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪

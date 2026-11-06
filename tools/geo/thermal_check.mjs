@@ -1,5 +1,5 @@
 // 核对热力环流活页的模型：node tools/geo/thermal_check.mjs（必修第一册第 36、38 页；《台海使槎录》：内地之风，早西晚东，惟台地早东风，午西风）
-import { makeState, step, field, settled, streamline, pressure, seaLandTemp, windName, xOf, N, H, COAST_W, COAST_E } from '../../src/lessons/kit/thermal.js';
+import { makeState, step, field, settled, streamline, seaClock, pressure, seaLandTemp, windName, xOf, N, H, COAST_W, COAST_E } from '../../src/lessons/kit/thermal.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const A = 0, B = -0.12, C = 0.12;
 const st = makeState();
@@ -43,5 +43,41 @@ for (const hour of [14, 12]) {
     }
     ok(worst < 10, `${hour}时切换0.5秒，${x}侧箭头与流线夹角 ${worst.toFixed(2)}°`);
   }
+}
+// 扫描双向切换全过程的每一帧、每一线段，包含审稿的第46帧与第75帧。
+for (const [from, to] of [[6, 14], [14, 6]]) {
+  const state = makeState();
+  const tick = (hour) => { for (let i = 0; i < N; i++) state.th[i] = seaLandTemp(xOf(i), hour); step(state, 1 / 60, { tauP: 0.6, tauS: 1.2 }); };
+  for (let j = 0; j < 1200; j++) tick(from);
+  let worst = 0, finite = true, continuous = true;
+  for (let frame = 1; frame <= 720; frame++) {
+    tick(to); const f = field(state);
+    for (let i = 1; i < N; i++) {
+      const x = xOf(i) - 0.0025, a = f.at(x - 1e-9, H / 4), b = f.at(x + 1e-9, H / 4);
+      continuous &&= Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-6;
+    }
+    for (const x of [-0.08, 0.08]) {
+      const line = streamline(state, x, H / 4);
+      for (let j = 0; j < line.length - 1; j++) {
+        const [px, z] = line[j], [u, w] = f.at(px, z), dx = line[j + 1][0] - px, dz = line[j + 1][1] - z;
+        const angle = Math.acos(Math.max(-1, Math.min(1, (u * dx + w * dz) / Math.hypot(u, w) / Math.hypot(dx, dz)))) * 180 / Math.PI;
+        finite &&= Number.isFinite(angle); worst = Math.max(worst, angle);
+      }
+    }
+  }
+  ok(continuous && finite && worst <= 4.01, `${from}→${to}时720帧全线段相切检查，最大夹角${worst.toFixed(3)}°，网格风场连续`);
+}
+ok(streamline(makeState(), 0, H / 4).length === 1, '静风停滞点终止积分');
+for (const preload of [false, true]) {
+  const state = makeState(), logs = {}; let hour = 6, held = 0;
+  if (preload) for (let k = 0; k < 1200; k++) { for (let i = 0; i < N; i++) state.th[i] = seaLandTemp(xOf(i), 6); step(state, 1 / 60, { tauP: 0.6, tauS: 1.2 }); }
+  for (let k = 0; k < 4800; k++) {
+    const next = seaClock(hour, 1 / 60, logs); if (next === hour) held++; hour = next;
+    for (let i = 0; i < N; i++) state.th[i] = seaLandTemp(xOf(i), hour);
+    step(state, 1 / 60, { tauP: 0.6, tauS: 1.2 });
+    const slot = hour >= 5 && hour <= 7 ? '早上' : hour >= 13 && hour <= 15 ? '下午' : null;
+    if (slot && settled(state)) logs[slot] = [windName(field(state).at(COAST_W - 0.014, zLow)[0]), windName(field(state).at(COAST_E + 0.014, zLow)[0])];
+  }
+  ok(held > 0 && logs['早上']?.join() === '西风,东风' && logs['下午']?.join() === '东风,西风', `${preload ? '6时先稳定' : '进入立即'}自动播放可完成早晚稳定记录并继续走时`);
 }
 process.exit(bad ? 1 : 0);

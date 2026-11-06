@@ -4,7 +4,17 @@
 export const SYN = 29.53, M2 = 1 / (1 / 12 - 2 / (29.53 * 24)), S2 = 12, AM = 1.0, AS = 0.46, K = 1.6;
 export const hours = (D, h) => D * 24 + h;
 /** 港口的水位（米，示意，相对平均海面） */
-export function level(D, h) { const T = hours(D, h); return K * (AM * Math.cos((2 * Math.PI * T) / M2) + AS * Math.cos((2 * Math.PI * T) / S2)); }
+export function level(D, h) { return surface(D, h, angles(D, h).port); }
+/** 同一日月合成式用于小盘各方位和港口潮位；小盘径向比例仅为示意。 */
+// 太阳也影响隆起位置，依据：https://oceanservice.noaa.gov/education/tutorial_tides/tides03_gravity.html
+export function surface(D, h, theta) { return K * (AM * Math.cos(2 * (theta - angles(D, h).moon)) + AS * Math.cos(2 * theta)); }
+export function bulgeRadius(D, h, theta) { return 0.012 + 0.001 * surface(D, h, theta); }
+/** 解析导数单位为米/小时；绝对变化率不足0.01时标记极值附近（显示阈值，示意）。 */
+export function tideTrend(D, h) {
+  const T = hours(D, h), wm = 2 * Math.PI / M2, ws = 2 * Math.PI / S2, rate = -K * (AM * wm * Math.sin(wm * T) + AS * ws * Math.sin(ws * T));
+  const near = Math.abs(rate) < 0.01, curvature = -K * (AM * wm * wm * Math.cos(wm * T) + AS * ws * ws * Math.cos(ws * T));
+  return { rate, rising: !near && rate > 0, label: near ? (curvature < 0 ? '高潮附近' : '低潮附近') : rate > 0 ? '↑涨' : '↓落' };
+}
 /** 这一天的最高、最低水位和潮差 */
 export function range(D) { let hi = -9, lo = 9; for (let h = 0; h <= 24; h += 0.05) { const v = level(D, h); hi = Math.max(hi, v); lo = Math.min(lo, v); } return { hi, lo, r: hi - lo }; }
 /** 这一天出现几次高潮（极大值） */

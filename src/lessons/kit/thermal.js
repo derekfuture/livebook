@@ -18,13 +18,22 @@ export function step(st, dt, { tauP = 0.8, tauS = 2.2, relax = 0 } = {}) {
 /** 风场（单位：模型速度）。上半层（上空）和上升气流跟着 P（受热膨胀、上空先聚积，先动起来），下半层（近地面）跟着 S（近地面气压后变，后动起来）。
  *  稳定以后 P = S，就是一个闭合的环流：w ∝ S′·sin(πz/H)，u 由连续性得出 u = −(π/H)·Φ(x)·cos(πz/H)，Φ = ∫S′dx */
 export function field(st) {
-  const PhiS = new Float64Array(N + 1), PhiP = new Float64Array(N + 1);
-  for (let i = 0; i < N; i++) { PhiS[i + 1] = PhiS[i] + st.S[i] * DX; PhiP[i + 1] = PhiP[i] + st.P[i] * DX; }
+  // 网格中心间线性插值，边缘延拓半格；积分与竖直速度使用同一连续函数，稳定时满足连续性。
+  const xs = [XL, ...Array.from({ length: N }, (_, i) => xOf(i)), XR];
+  const profile = (values) => {
+    const v = [values[0], ...values, values[N - 1]], phi = [0];
+    for (let i = 0; i < xs.length - 1; i++) phi.push(phi[i] + (v[i] + v[i + 1]) * (xs[i + 1] - xs[i]) / 2);
+    return { v, phi };
+  };
+  const P = profile(st.P), S = profile(st.S);
   return {
     at(x, z) {
-      const f = (x - XL) / DX, i = Math.max(0, Math.min(N - 1, Math.floor(f))), fr = Math.min(1, Math.max(0, f - i)), k = Math.PI / H, c = Math.cos(k * z);
-      const ph = c < 0 ? PhiP[i] + (PhiP[i + 1] - PhiP[i]) * fr : PhiS[i] + (PhiS[i + 1] - PhiS[i]) * fr;
-      return [-k * ph * c * 0.02, st.P[i] * Math.sin(k * z) * 0.02];
+      x = Math.max(XL, Math.min(XR, x));
+      const i = x < xOf(0) ? 0 : Math.min(N, Math.floor((x - xOf(0)) / DX) + 1), dx = x - xs[i], span = xs[i + 1] - xs[i];
+      const sample = (a) => a.v[i] + (a.v[i + 1] - a.v[i]) * dx / span;
+      const integral = (a) => a.phi[i] + a.v[i] * dx + (a.v[i + 1] - a.v[i]) * dx * dx / (2 * span);
+      const k = Math.PI / H, c = Math.cos(k * z), ph = integral(c < 0 ? P : S);
+      return [-k * ph * c * 0.02, sample(P) * Math.sin(k * z) * 0.02];
     },
   };
 }
@@ -49,16 +58,37 @@ export function settled(st) {
   const target = meanOut(Array.from(st.th)), scale = Math.max(0.1, ...target.map(Math.abs));
   return target.every((v, i) => Math.abs(st.P[i] - v) <= 0.02 * scale && Math.abs(st.S[i] - v) <= 0.02 * scale);
 }
-/** 从当前速度场积分瞬时流线，不强制闭合；归一化中点法，步长为模型长度。 */
+/** 从当前连续速度场积分瞬时流线；急转处缩短步长，停滞或出界时终止，不跨越反向区。 */
 export function streamline(st, x, z, count = 600) {
-  const F = field(st), points = [[x, z]], ds = 0.0008;
+  const F = field(st), points = [[x, z]], maxStep = 0.0008, minStep = 1e-7, cosLimit = Math.cos(4 * Math.PI / 180);
+  const direction = (a, b) => { const v = F.at(a, b), speed = Math.hypot(...v); return speed < 1e-5 ? null : v.map((q) => q / speed); };
+  const inside = (a, b) => a > XL && a < XR && b > 0 && b < H;
+  const aligned = (a, b) => a && b && a[0] * b[0] + a[1] * b[1] >= cosLimit;
   for (let i = 0; i < count; i++) {
-    const [u, w] = F.at(x, z), speed = Math.hypot(u, w); if (speed < 1e-5) break;
-    const [um, wm] = F.at(x + ds * u / speed / 2, z + ds * w / speed / 2), mid = Math.hypot(um, wm); if (mid < 1e-5) break;
-    x += ds * um / mid; z += ds * wm / mid;
-    if (x <= XL || x >= XR || z <= 0 || z >= H) break;
-    points.push([x, z]);
+    const v = direction(x, z); if (!v) break;
+    let ds = maxStep, next = null;
+    while (ds >= minStep) {
+      const mx = x + ds * v[0] / 2, mz = z + ds * v[1] / 2;
+      if (!inside(mx, mz)) { ds /= 2; continue; }
+      const mid = direction(mx, mz);
+      if (mid) {
+        const nx = x + ds * mid[0], nz = z + ds * mid[1];
+        if (inside(nx, nz) && aligned(v, mid) && aligned(v, direction(nx, nz))) { next = [nx, nz]; break; }
+      }
+      ds /= 2;
+    }
+    if (!next) break;
+    [x, z] = next; points.push(next);
     if (i > 20 && Math.hypot(x - points[0][0], z - points[0][1]) < ds) break;
   }
   return points;
+}
+/** 自动观察在尚未记录的6时、14时停留；记录完成后继续。时间速度为教学设定。 */
+export function seaClock(hour, dt, logs) {
+  const delta = dt * 1.2;
+  for (const [target, slot] of [[6, '早上'], [14, '下午']]) {
+    const distance = (target - hour + 24) % 24;
+    if (!logs[slot] && distance <= delta + 1e-10) return target;
+  }
+  return (hour + delta) % 24;
 }

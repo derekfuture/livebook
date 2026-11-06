@@ -62,8 +62,11 @@ export function advance(o, dt, wind = 1, land = true) {
 
 /** 精确积分线性起停风，截断到0或1后按恒值积分；与显示帧率无关。 */
 export function windStep(w, blow, dt) { const target = blow ? 1 : 0, ramp = Math.min(dt, Math.abs(target - w) * 3), end = w + (blow ? 1 : -1) * ramp / 3; return { w: end, integral: (w + end) * ramp / 2 + target * (dt - ramp) }; }
-/** 自动记录使用完整速度向量；静止没有流向，题设限于中央20°N附近。 */
-export function driftInfo(x, n, land = true) {
-  const [u, v] = vel(x, n, land), eps = 1e-8, lat = latOf(n), dir = (Math.abs(v) > eps ? (v > 0 ? '北' : '南') : '') + (Math.abs(u) > eps ? (u > 0 ? '东' : '西') : '');
-  return { lat, motion: dir ? `先向${dir.length === 2 ? dir[1] + dir[0] : dir}漂移` : '在此处静止（模型速度为0）', target: Math.abs(x) < 0.005 && Math.abs(lat - 20) < 0.5 && u < 0 };
+/** 自动记录投放瞬间完整速度（模型坐标/秒，含时间倍率与风速）；静止没有流向。 */
+export function driftInfo(x, n, land = true, wind = 1) {
+  const [u, v] = vel(x, n, land).map((v) => v * 2.2 * wind), eps = 1e-8, lat = latOf(n), dir = (Math.abs(v) > eps ? (v > 0 ? '北' : '南') : '') + (Math.abs(u) > eps ? (u > 0 ? '东' : '西') : '');
+  return { x, n, wind, u, v, lat, motion: dir ? `先向${dir.length === 2 ? dir[1] + dir[0] : dir}漂移` : u === 0 && v === 0 ? '投放时静止（模型速度为0）' : '投放时近乎静止（模型速度极小）', target: Math.abs(x) < 0.005 && Math.abs(lat - 20) < 0.5 && u < -eps };
 }
+
+/** 每次投放覆盖最近记录，包括弱风、零风速和模型静止区。 */
+export function recordDrop(state, x, n) { state.first = driftInfo(x, n, state.land, state.w); state.saw.duck = true; return state.first; }

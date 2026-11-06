@@ -12,7 +12,7 @@ import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { faceLabel, airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XL, XR, H, N, xOf, iOf, makeState, step, field, settled, streamline, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
+import { XL, XR, H, N, xOf, iOf, makeState, step, field, settled, streamline, seaClock, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
 
 const LIFT = 0, GT = 0.026, D = 0.035;          // 直接放在书页上；地面多厚、空气槽前后多深
 const ZK = [0.2, 0.42, 0.64, 0.86].map((r) => r * H);          // 四张等压面原来的高度
@@ -207,7 +207,7 @@ export default {
       rows.push(h('div', { class: 'tl-row' }, h('b', {}, '地面受热不均：'), h('span', {}, L.length ? L.join(' → ') : '还没加热'),
         L.length >= 5 && S.guess.free != null ? h('small', {}, `你猜：${ASK.free[1][S.guess.free]}　实际：近地面的风从两边吹向受热处`) : null));
       const s = (k) => (sea[k] ? `福建沿海 ${sea[k].fj}，台湾西岸 ${sea[k].tw}` : '还没看');
-      rows.push(h('div', { class: 'tl-row' }, h('b', {}, '台湾海峡两岸：'), h('span', {}, `早上（6 时前后，当时记录）：${s('早上')}；下午（14 时前后，当时记录）：${s('下午')}`),
+      rows.push(h('div', { class: 'tl-row' }, h('b', {}, '台湾海峡两岸：'), h('span', {}, `早上（6 时前后，稳定后记录）：${s('早上')}；下午（14 时前后，稳定后记录）：${s('下午')}`),
         sea['早上'] && sea['下午'] ? h('small', {}, '对照《台海使槎录》：内地之风，早西晚东，惟台地早东风，午西风。') : null,
         sea['下午'] && S.guess.sea != null ? h('small', {}, `你猜：${ASK.sea[1][S.guess.sea]}　当时记录：${sea['下午'].fj}`) : null));
       W.logs.replaceChildren(...rows);
@@ -221,7 +221,7 @@ export default {
       if (S.mode === 'free') S.logs.free = []; else S.logs.sea = {};          // 重新进这个情境：从头看、从头记（完成过的照样算完成）
       if (S.mode === 'sea') for (let i = 0; i < N; i++) S.st.th[i] = seaLandTemp(xOf(i), S.hour);
       for (let k = 0; k < NP; k++) { pts[k].x = XL + rnd() * (XR - XL); pts[k].z = rnd() * H; }
-      if (W) { W.timeCtl.el.style.display = S.mode === 'sea' ? '' : 'none'; W.play.style.display = S.mode === 'sea' ? '' : 'none'; W.play.textContent = '让时间走'; setGuess(); W.ui.status(S.mode === 'free' ? '地面受热均匀：空气不动，等压面是平的（图 2.11 a）。<b>按住地面 A 处</b>给它加热，看空气和等压面怎么变。' : '台湾海峡：西边是福建，东边是台湾。拖<b>时刻</b>（或按“让时间走”），看一天里两岸的风怎么变。'); }
+      if (W) { W.timeCtl.el.style.display = S.mode === 'sea' ? '' : 'none'; W.play.style.display = S.mode === 'sea' ? '' : 'none'; W.play.textContent = '让时间走'; setGuess(); W.ui.status(S.mode === 'free' ? '地面受热均匀：空气不动，等压面是平的（图 2.11 a）。<b>按住地面 A 处</b>给它加热，看空气和等压面怎么变。' : '台湾海峡：西边是福建，东边是台湾。拖<b>时刻</b>（或按“让时间走”），看一天里两岸的风怎么变。自动播放会在尚未记录的6时、14时停留，待风场稳定并记录后继续（示例时刻的稳定对照）。'); }
       paintGround(); paintBack(); placeSheets(); placeTags(); drawLogs();
     };
 
@@ -265,7 +265,7 @@ export default {
           if (S.heat && S.heatX != null) for (let i = 0; i < N; i++) S.st.th[i] = Math.min(7, S.st.th[i] + 5 * d * Math.exp(-((xOf(i) - S.heatX) ** 2) / 0.022 ** 2));
           step(S.st, d, { relax: 40 });
         } else {
-          if (S.play) { S.hour = (S.hour + d * 1.2) % 24; W?.timeCtl.set(S.hour); }
+          if (S.play) { S.hour = seaClock(S.hour, d, S.logs.sea); W?.timeCtl.set(S.hour); }
           for (let i = 0; i < N; i++) S.st.th[i] = seaLandTemp(xOf(i), S.hour);
           step(S.st, d, { tauP: 0.6, tauS: 1.2 });
         }

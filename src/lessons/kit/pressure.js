@@ -28,3 +28,12 @@ export function advect(mode, hemi, x, n, dt) {
   return { x: nx, n: nn, velocity: windAt(mode, hemi, nx, nn) };
 }
 export const windCaption = (name) => name === '静风' ? '静风' : `风从${name.replace('风', '')}边吹来`;
+
+/** 用释放点风场的径向、切向分量判断性质；短轨迹不能用累计转角当作无旋转的证据。 */
+export function motionText(mode, hemi, x, n) {
+  const [u, v] = windAt(mode, hemi, x, n), r = Math.hypot(x, n);
+  if (r === 0 || Math.hypot(u, v) < CALM_SPEED) return '释放处水平静风，未发生水平流入或流出';
+  const radial = (x * u + n * v) / r, tangent = (x * v - n * u) / r, inward = radial < 0;
+  if (Math.abs(tangent) <= Number.EPSILON * Math.hypot(u, v) * 8) return inward ? '直直流进中心' : '直直流出去';
+  return `绕着中心${tangent > 0 ? '逆' : '顺'}时针${inward ? '转进去' : '转着流出去'}`;
+}

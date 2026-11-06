@@ -14,7 +14,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, faceLabel, groundLabel, noteBadge } from './kit/labels.js';
-import { MEASURES, RES_CAP, loads, run, frameAt, configKey, configName, leveeResult } from './kit/basin.js';
+import { MEASURES, RES_CAP, loads, run, frameAt, configKey, configName, leveeResult, channelSection, floodStatus, MAX_YEARS } from './kit/basin.js';
 
 const XL = -0.19, XR = 0.19, ZD = 0.1, NX = 170, NZ = 90, PLAIN = 0.01, KM = 0.0016;          // 地块；平原（开封城里地面）的高度；1 米在画面上多高（示意，夸大了）
 const DAM_S = 0.47, BED0 = 7.5, LEVEE0 = 14, FLOOD = 3.5;          // 小浪底在河的哪一段；开始时河床比开封城里的地面高 7 米多（课本图 4.5：＞7 米）、堤顶高 14 米；洪水位比河床高约 3.5 米（示意）
@@ -31,7 +31,7 @@ export default {
   need: '先什么都不做，让几个 10 年过去，看下游的河床和大堤；再到中游做水土保持，建小浪底水库、调水调沙，比一比',
   conclusion: {
     page: 66,
-    quote: '含沙量大是黄河最突出的水文特征。黄土高原水土流失严重，导致黄河挟带泥沙数量之多，居世界大河首位。黄河下游流经华北平原，坡度变小，流速缓慢，泥沙沉积使下游河床不断抬高……为了防治水害，两岸不断加高大堤，使得黄河下游河床高出两岸地面，成为世界上著名的“地上悬河”。黄河沙患的解决，需要流域内综合协调：侵蚀区需要减少入河泥沙量，堆积区需要减少河道淤积。中游的黄土高原是黄河流域的主要侵蚀区，水土保持是减少入黄泥沙的根本措施。',
+    quote: '含沙量大是黄河最突出的水文特征。黄土高原水土流失严重，导致黄河挟带泥沙数量之多，居世界大河首位。黄河下游流经华北平原，坡度变小，流速缓慢，泥沙沉积使下游河床不断抬高……为了防治水害，两岸不断加高大堤，使得黄河下游河床高出两岸地面，成为世界上著名的“地上悬河”（图4.5）。黄河沙患的解决，需要流域内综合协调：侵蚀区需要减少入河泥沙量，堆积区需要减少河道淤积。中游的黄土高原是黄河流域的主要侵蚀区，水土保持是减少入黄泥沙的根本措施。',
     why: '下游河床抬高的泥沙，主要来自中游的黄土高原（按课本图 4.7 的 1956—1986 年，约九成）。只在下游加高大堤，沙照样年年淤，河床和大堤一起越长越高，“悬”得越来越危险。在中游做水土保持（生物、耕作、工程措施结合），从源头减少入黄泥沙；再用小浪底水库拦沙，汛前调水调沙，人造洪峰冲刷下游河床，把淤沙送进大海，有助于下游减淤，但不能保证每个时段都冲淤平衡。本模型固定水文条件，未模拟真实调水调沙中的库区排沙、减淤，不能预测水库寿命；100 亿吨仅是假设拦沙质量容量，河床变化须按所运行时段判断。一个地方的问题，要在整个流域里找原因、分工解决。',
     src: '课本第 61–64 页 · 第四章 第一节 流域内协调发展',
   },
@@ -57,8 +57,9 @@ export default {
       const m = platMask(x, z), g = gully(x, z) * m;
       let hgt = PLAIN + m * (0.042 + 0.004 * Math.sin(x * 47) * Math.sin(z * 39)) - g * 0.013;
       const { s, d } = near(x, z);
-      if (s < DAM_S + 0.04) { const base = 0.036 - (0.036 - 0.019) * (s / DAM_S); hgt = Math.min(hgt, base + Math.max(0, d - 0.005) * 1.4); }          // 峡谷：河床从上游往下游一路降低
+      if (s < DAM_S + 0.04) { const base = channelSection(s, S.bed).bed; hgt = Math.min(hgt, base + Math.max(0, d - 0.005) * 1.4); }          // 峡谷：河床从上游往下游一路降低
       else { const w = sm(DAM_S + 0.02, DAM_S + 0.12, s), lv = d < 0.0065 ? bedY() : d < 0.0115 ? leveeY() : d < 0.02 ? leveeY() - (leveeY() - PLAIN) * ((d - 0.0115) / 0.0085) : PLAIN; hgt = hgt * (1 - w) + Math.max(PLAIN, lv) * w; if (d > 0.02) hgt = Math.max(hgt, PLAIN); }          // 平原上：河床在中间、两边是大堤、堤外是城里的地面
+      if (d < 0.0065) hgt = channelSection(s, S.bed).bed;
       return hgt;
     };
     const topGeo = new THREE.PlaneGeometry(XR - XL, 2 * ZD, NX, NZ); topGeo.rotateX(-Math.PI / 2);
@@ -92,7 +93,7 @@ export default {
       front.geometry.dispose(); front.geometry = strip(ZD, false); back.geometry.dispose(); back.geometry = strip(-ZD, true);
       const P = []; for (const x of [XL, XR]) for (let k = 0; k < NZ; k++) { const z0 = -ZD + (2 * ZD * k) / NZ, z1 = z0 + (2 * ZD) / NZ; P.push(x, 0, z0, x, height(x, z0), z0, x, height(x, z1), z1, x, 0, z0, x, height(x, z1), z1, x, 0, z1); }
       ends.geometry.dispose(); ends.geometry = new THREE.BufferGeometry(); ends.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); ends.geometry.computeVertexNormals();
-      const wl = bedY() + 0.0028, x0 = FRONT_X - 0.0065, x1 = FRONT_X + 0.0065, zf = ZD + 0.0004;
+      const wl = channelSection(1, S.bed).water, x0 = FRONT_X - 0.0065, x1 = FRONT_X + 0.0065, zf = ZD + 0.0004;
       waterFace.geometry.dispose(); waterFace.geometry = new THREE.BufferGeometry(); waterFace.geometry.setAttribute('position', new THREE.Float32BufferAttribute([x0, bedY(), zf, x1, bedY(), zf, x1, wl, zf, x0, bedY(), zf, x1, wl, zf, x0, wl, zf], 3));
     };
 
@@ -106,7 +107,7 @@ export default {
       for (let i = 0; i <= WN; i++) {
         const s = i / WN, p = curve.getPointAt(Math.min(1, s)), t = curve.getTangentAt(Math.min(1, s)), n = new THREE.Vector3().crossVectors(t, up).normalize();
         if (p.z > ZD) { p.z = ZD; }
-        const w = s < DAM_S ? 0.0035 + 0.002 * s : 0.0062, base = s < DAM_S + 0.04 ? 0.036 - (0.036 - 0.019) * (Math.min(s, DAM_S) / DAM_S) : bedY(), y = Math.max(base, s > DAM_S + 0.04 ? bedY() : base) + 0.0026;
+        const w = s < DAM_S ? 0.0035 + 0.002 * s : 0.0062, y = channelSection(s, S.bed).water;
         P.push(p.x + n.x * w, y, p.z + n.z * w, p.x - n.x * w, y, p.z - n.z * w);
         tc.copy(CLEAR).lerp(MUDDY, conc(s)); C.push(tc.r, tc.g, tc.b, tc.r, tc.g, tc.b);
         if (i) { const a = 2 * i - 2; I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
@@ -118,7 +119,7 @@ export default {
     const damP = curve.getPointAt(DAM_S), damT = curve.getTangentAt(DAM_S);
     const dam = new THREE.Group(); dam.position.set(damP.x, 0, damP.z); dam.rotation.y = Math.atan2(-damT.z, damT.x) + Math.PI / 2; block.add(dam);
     { const wall = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.024, 0.0045), new THREE.MeshLambertMaterial({ color: 0xd4d0c6 })); wall.position.y = 0.028; dam.add(wall); for (const dx of [-0.006, 0, 0.006]) { const gate = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.006, 0.0048), new THREE.MeshLambertMaterial({ color: 0x6a6f78 })); gate.position.set(dx, 0.022, 0.0002); dam.add(gate); } }
-    const lakeLevel = 0.036, lakePts = []; for (let i = Math.floor(NS * 0.26); i <= Math.floor(NS * DAM_S); i += 3) lakePts.push(SP[i]);
+    const lakeLevel = channelSection(0.26, BED0).water, lakePts = []; for (let i = Math.floor(NS * 0.26); i <= Math.floor(NS * DAM_S); i += 3) lakePts.push(SP[i]);
     const lake = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({ color: 0x7f9fae, transparent: true, opacity: 0.9 })); lake.raycast = () => {}; block.add(lake);
     { const P = [], up = new THREE.Vector3(0, 1, 0); for (let k = 0; k < lakePts.length - 1; k++) { const a = lakePts[k], b = lakePts[k + 1], t = new THREE.Vector3().subVectors(b, a).normalize(), n = new THREE.Vector3().crossVectors(t, up).normalize(), wa = 0.006 + 0.02 * (k / lakePts.length), wb = 0.006 + 0.02 * ((k + 1) / lakePts.length); P.push(a.x + n.x * wa, lakeLevel, a.z + n.z * wa, b.x + n.x * wb, lakeLevel, b.z + n.z * wb, b.x - n.x * wb, lakeLevel, b.z - n.z * wb, a.x + n.x * wa, lakeLevel, a.z + n.z * wa, b.x - n.x * wb, lakeLevel, b.z - n.z * wb, a.x - n.x * wa, lakeLevel, a.z - n.z * wa); } lake.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); lake.geometry.computeVertexNormals(); }          // 坝后的水面：比峡谷里的河宽，越靠近坝越宽；被两岸更高的地面挡住的地方自然看不到
 
@@ -151,9 +152,9 @@ export default {
         const keep = l.out > 0 ? Math.min(1, l.sea / l.out) : 1;
         if (p.s > 0.75 && p.fate > keep && p.s > 0.75 + (p.fate - keep) * 0.8) { p.on = false; continue; }          // 按当年下泄与入海之比示意河道沉积
         if (p.s >= 1) { p.on = false; continue; }
-        const q = curve.getPointAt(p.s), t = curve.getTangentAt(p.s), base = p.s < DAM_S + 0.04 ? 0.036 - (0.036 - 0.019) * (Math.min(p.s, DAM_S) / DAM_S) : bedY();
+        const q = curve.getPointAt(p.s), t = curve.getTangentAt(p.s), base = channelSection(p.s, S.bed).particle;
         if (q.z > ZD) { p.on = false; continue; }
-        ppos.set([q.x - t.z * p.off, base + 0.0032, q.z + t.x * p.off], i * 3);
+        ppos.set([q.x - t.z * p.off, base, q.z + t.x * p.off], i * 3);
       }
       dots.geometry.attributes.position.needsUpdate = true;
     };
@@ -176,10 +177,11 @@ export default {
     // ---- 摆好 ----
     const layout = () => {
       const l = L(); dam.visible = lake.visible = S.dam; aDam.setOn(S.dam); trees.visible = S.bio; checks.visible = S.eng;
+      lake.position.y = (S.bed - BED0) * KM; dam.position.y = channelSection(DAM_S, S.bed).bed - 0.019;
       buildWater();
       const fx = FRONT_X - 0.016; measure.geometry.dispose(); measure.geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(fx, PLAIN, ZD + 0.0008), new THREE.Vector3(fx, bedY(), ZD + 0.0008), new THREE.Vector3(fx - 0.003, bedY(), ZD + 0.0008), new THREE.Vector3(fx + 0.003, bedY(), ZD + 0.0008), new THREE.Vector3(fx, bedY(), ZD + 0.0008), new THREE.Vector3(fx, PLAIN, ZD + 0.0008), new THREE.Vector3(fx - 0.003, PLAIN, ZD + 0.0008), new THREE.Vector3(fx + 0.003, PLAIN, ZD + 0.0008)]);
       aBed.position.set(fx - 0.03, (PLAIN + bedY()) / 2 + 0.004, ZD + 0.002); aBed.setText(`模拟河床高 ${S.bed.toFixed(1)} 米`);
-      const margin = S.levee - (S.bed + FLOOD); aDanger.position.set(FRONT_X, leveeY() + 0.012, ZD - 0.01); aDanger.setText('洪水位快漫过堤顶：决口危险').setOn(margin < 0.5);
+      const margin = S.levee - (S.bed + FLOOD); aDanger.position.set(FRONT_X, leveeY() + 0.012, ZD - 0.01); aDanger.setText(floodStatus(S.levee, S.bed + FLOOD)).setOn(margin < 0.5);
       aErode.setText(`中游冲进河里的沙：一年约 ${l.mid.toFixed(1)} 亿吨`);
       tHint.loc(block, 0.11, 0.06, ZD * 0.6).show(!S.moved);
       drawChart(); drawLog();
@@ -189,7 +191,7 @@ export default {
     // ---- 时间：10 年一步，河床慢慢抬高或者被冲低 ----
     // 一开始就把这 10 年按当时的配置算好（kit 的 run），动画只是把结果播出来；播的时候不许换措施，记账也按这个快照
     const passDecade = () => {
-      if (S.anim) return; const cfg = { bio: S.bio, farm: S.farm, eng: S.eng, dam: S.dam, flush: S.flush }, R0 = run(cfg, { bed: S.bed, res: S.res }, 10);
+      if (S.anim) return; if (S.year >= MAX_YEARS) { W?.ui.status('已到示意范围 50 年，请重来比较其他措施；不能据此预测实际河道长期演变。'); return; } const cfg = { bio: S.bio, farm: S.farm, eng: S.eng, dam: S.dam, flush: S.flush }, R0 = run(cfg, { bed: S.bed, res: S.res }, 10);
       S.anim = { t: 0, result: R0, res1: R0.res, snap: { cfg, key: configKey(cfg), name: cfgName(), first: R0.first, last: R0.last, from: S.bed, to: R0.bed } }; S.moved = true;
       if (S.dam && S.flush) S.pulse = 2.4;          // 汛前放水调沙：人造洪峰
     };
@@ -197,7 +199,7 @@ export default {
       const a = S.anim, sn = a.snap; S.bed = sn.to; S.res = a.res1; S.anim = null; S.year += 10; S.hist.push({ y: S.year, bed: S.bed, levee: S.levee, cfg: sn.name });
       const d = sn.to - sn.from; S.runs.push({ cfg: sn.name, key: sn.key, options: sn.cfg, d, start: S.year - 9, end: S.year, l: sn.first, last: sn.last, filled: sn.cfg.dam && sn.last.full });
       const margin = S.levee - (S.bed + FLOOD), filledNow = sn.cfg.dam && sn.last.full;
-      W?.ui.status(`${filledNow ? `本段结束时<b>模型已达拦沙质量上限</b>，此后不再拦沙。` : ''}${d > 0.05 ? `又过了 10 年：下游淤下来的沙让河床抬高了 <b>${d.toFixed(1)} 米</b>。` : d < -0.05 ? `又过了 10 年：下游河床被冲低了 <b>${(-d).toFixed(1)} 米</b>。` : '又过了 10 年：下游河床基本没有变化，冲淤大致平衡。'}${margin < 0.5 ? '洪水位逼近堤顶了：要么<b>加高大堤</b>，要么想办法让河里的沙少一点。' : ''}`);
+      W?.ui.status(`${filledNow ? `本段结束时<b>模型已达拦沙质量上限</b>，此后不再拦沙。` : ''}${d > 0.05 ? `又过了 10 年：下游淤下来的沙让河床抬高了 <b>${d.toFixed(1)} 米</b>。` : d < -0.05 ? `又过了 10 年：下游河床被冲低了 <b>${(-d).toFixed(1)} 米</b>。` : '又过了 10 年：下游河床基本没有变化，冲淤大致平衡。'}${margin < 0.5 ? `${floodStatus(S.levee, S.bed + FLOOD)}。加高大堤只能改变堤顶余量，还需减少入河泥沙。` : ''}`);
       layout();
     };
     const cfgName = () => configName(S);
@@ -234,7 +236,7 @@ export default {
       if (base && best) r('比一比：', `中游保持水土可从源头减沙。三类措施加调沙的最近一段（第 ${best.start}—${best.end} 年），模拟河床${best.d > 0.05 ? '仍在抬高' : best.d < -0.05 ? '被冲低' : '基本不变'}；这一时段的结果不能外推为长期不再淤积。模型未模拟库区排沙，不能预测实际水库寿命。`);
       if (S.guess != null && base && best) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：在中游黄土高原保持水土是根本措施`)));
       W.log.replaceChildren(...rows);
-      W.read.innerHTML = `第 <b>${S.anim ? (S.year + S.anim.t * 10).toFixed(1) : S.year}</b> 年${S.anim ? `（年输沙量：第 ${S.year + frameAt(S.anim.result, S.anim.t * 10).year} 年）` : "（年输沙量：下一年预估）"} · ${cfgName()}${S.dam || S.res > 0 ? `（库存占上限 ${((S.res / RES_CAP) * 100).toFixed(0)}%）` : ''}<br>模拟断面：河床比城里地面高 <b>${S.bed.toFixed(1)} 米</b>，堤顶高 ${S.levee.toFixed(0)} 米<br><small>假设拦沙质量容量 100 亿吨（不是体积库容）；初始河床 7.5 米、堤顶 14 米、洪水深 3.5 米均为模拟断面参数。固定年水量、年内水文过程及河道条件，以假设输沙能力判冲淤；未模拟库区排沙，不能预测实际寿命</small>`;
+      W.read.innerHTML = `第 <b>${S.anim ? (S.year + S.anim.t * 10).toFixed(1) : S.year}</b> 年${S.anim ? `（年输沙量：第 ${S.year + frameAt(S.anim.result, S.anim.t * 10).year} 年）` : "（年输沙量：下一年预估）"} · ${cfgName()}${S.dam || S.res > 0 ? `（库存占上限 ${((S.res / RES_CAP) * 100).toFixed(0)}%）` : ''}<br>模拟断面：河床比城里地面高 <b>${S.bed.toFixed(1)} 米</b>，堤顶高 ${S.levee.toFixed(0)} 米<br><small>假设拦沙质量容量 100 亿吨（不是体积库容）；初始河床 7.5 米、堤顶 14 米、洪水深 3.5 米均为模拟断面参数。最多运行 50 年（更长时段需模拟漫流）；纵剖面随河床调整以保持连续坡降，不计算真实回水。固定年水量、年内水文过程及河道条件，以假设输沙能力判冲淤；未模拟库区排沙，不能预测实际寿命</small>`;
       if (base && seen.size >= 3 && [...seen.values()].some((x) => x.options.dam)) W.ui.unlock();
     };
 

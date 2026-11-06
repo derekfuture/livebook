@@ -8,7 +8,7 @@ for (const [k, [pl, what]] of Object.entries(want)) { const c = cheapest(k), dd 
 const pc = cheapest('petro'); ok(d(pc, PLACES.port) < 0.06, `石油化工厂总成本最低处靠近港口（相距 ${d(pc, PLACES.port).toFixed(3)}）`);
 ok(evaluate('petro', PLACES.city).fx.length + evaluate('petro', { x: 0.01, n: 0.036 }).fx.length > 0, '石化厂建在城里、河上游：会出现污染、用地等影响');
 ok(evaluate('sugar', { x: 0.0, n: 0.034 }).fx.some((f) => f.k === 'water'), '制糖厂建在水源地上游的河边：污水流到水源地');
-ok(evaluate('chip', PLACES.univ).fx.some((f) => f.k === 'scope' && f.text.includes('废水处理')), '集成电路厂始终说明未核算的用水和处理条件');
+ok(evaluate('chip', PLACES.univ).scope.some((f) => f.k === 'scope' && f.text.includes('废水处理')), '集成电路厂始终说明未核算的用水和处理条件');
 const lead = { sugar: '原料运输', beer: '产品运输', alu: '动力', cloth: '劳动力', chip: '技术' };
 for (const [k, f] of Object.entries(lead)) { const r = swing(k), top = Object.entries(r).sort((a, b) => b[1] - a[1])[0][0]; ok(top === f, `${INDUSTRIES[k].name}：地点一变，变化最大的是${top}（应为${f}）`); }
 ok(evaluate('petro', PLACES.intake).fx.some((f) => f.k === 'water'), '石化厂建在水源地：报水污染');
@@ -20,7 +20,11 @@ const mouth = RIVER.at(-1); ok(Math.abs(mouth[0] - coastX(mouth[1])) < 1e-12, '�
 let dry = true; for (let n = -0.11; n <= 0.11; n += 0.001) { const p = landPoint({ x: 0.16, n }); for (let dn = -0.01; dn <= 0.01001; dn += 0.001) if (p.x + 0.016 > coastX(p.n + dn)) dry = false; }
 ok(dry, '沿整条曲线海岸约束厂区宽度，厂区不入海');
 ok(landPoint({ x: 0.104, n: -0.02 }).x < coastX(-0.02) - 0.016, '审稿坐标 n=-0.02：退到岸内并留厂区宽度');
-for (const p of [PLACES.intake, PLACES.city, PLACES.port]) ok(evaluate('beer', p).fx.some((f) => f.k === 'scope' && ['供水', '废水处理', '水源地保护', '未核算'].every((t) => f.text.includes(t))), '啤酒厂在取水口、城市和港口均提示环境核算范围');
+for (const p of [PLACES.intake, PLACES.city, PLACES.port]) ok(evaluate('beer', p).scope.some((f) => f.k === 'scope' && ['供水', '废水处理', '水源地保护', '未核算'].every((t) => f.text.includes(t))), '啤酒厂在取水口、城市和港口均提示环境核算范围');
 const caneCost = evaluate('sugar', PLACES.cane).cost;
 ok(caneCost['原料运输'] === 0 && caneCost['产品运输'] > 0, '甘蔗田处原料运输为零，不能声称当前运原料最贵');
+for (const [kind, p] of [['beer', PLACES.city], ['chip', PLACES.univ]]) {
+  const ev = evaluate(kind, p); ok(ev.fx.length === 0 && ev.scope.length === 1, `${INDUSTRIES[kind].name}适宜地点：仅需核实，不计选址问题`);
+  const mountain = evaluate(kind, PLACES.hydro); ok(mountain.fx.some((f) => f.k === 'mount') && mountain.scope.length === 1 && mountain.fx.every((f) => f.k !== 'scope'), `${INDUSTRIES[kind].name}山区：风险保留且与范围说明分开`);
+}
 process.exit(bad ? 1 : 0);

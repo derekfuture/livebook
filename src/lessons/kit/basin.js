@@ -40,4 +40,16 @@ export function frameAt(result, elapsed) {
 }
 export const configKey = (cfg) => ['bio', 'farm', 'eng', 'dam', 'flush'].map((k) => k === 'flush' ? +(cfg.dam && cfg.flush) : +!!cfg[k]).join('');
 export const configName = (cfg) => { const names = Object.keys(MEASURES).filter((k) => cfg[k]).map((k) => MEASURES[k].name); return `${names.length ? `中游${names.join('＋')}` : '中游不治理'}${cfg.dam ? (cfg.flush ? '，小浪底调水调沙' : '，小浪底只拦沙') : ''}`; };
-export const leveeResult = (levee, flood) => levee < flood ? '堤顶仍低于模拟洪水位，仍有漫堤危险。' : levee === flood ? '堤顶仅与模拟洪水位齐平，尚无安全余量。' : '堤顶已高于本模型的模拟洪水位；这不代表实际防洪安全保证。';
+export const leveeResult = (levee, flood) => floodStatus(levee, flood).includes('已高于') ? '堤顶仍低于模拟洪水位，仍有漫堤危险。' : floodStatus(levee, flood).includes('齐平') ? '堤顶仅与模拟洪水位齐平，尚无安全余量。' : '堤顶已高于本模型的模拟洪水位；这不代表实际防洪安全保证。';
+
+// 河道纵剖面仅为连续坡降示意，不计算回水；依据 Physical Geology 13.3 的河槽坡降关系。
+// https://opentextbc.ca/geology/chapter/13-3-stream-erosion-and-deposition/
+export const MAX_YEARS = 50;          // 不治理 50 年时常态水面仍低于初始堤顶；超出后需模拟漫流，故不再延长动画
+export function channelSection(s, bed) {
+  const floor = 0.01 + bed * 0.0016 + 0.025 * Math.max(0, 1 - s / 0.6);
+  return { bed: floor, water: floor + 0.0026, particle: floor + 0.0018 };
+}
+export function floodStatus(levee, flood) {
+  const margin = levee - flood;
+  return Math.abs(margin) < 1e-8 ? '模拟洪水位与堤顶齐平' : margin < 0 ? '模拟洪水位已高于堤顶' : margin < 0.5 ? '模拟洪水位接近堤顶' : '模拟洪水位低于堤顶';
+}

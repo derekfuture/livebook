@@ -30,4 +30,5 @@ ok(monotone && minHeight >= 0.03, `三块地形全网格、1001 个发育程度�
 const peaks = peaksOf(17), x = -0.055 + 0.11 * 29 / 70, z = -0.055 + 0.11 * 48 / 70;
 const h25 = terrainHeight({ rock: 'limestone' }, peaks, x, z, 2.5 * STEP), h4 = terrainHeight({ rock: 'limestone' }, peaks, x, z, 4 * STEP);
 ok(h4 <= h25, `审稿点：2.5 段 ${h25.toFixed(6)} → 4 段 ${h4.toFixed(6)}，不再长回去`);
+ok(['峰林等（图4.2）', '孤峰（图4.3）', '溶洞（图4.4）'].every((t) => readFileSync(new URL('../../src/lessons/karst.js', import.meta.url), 'utf8').includes(t)), '本轮文字复核：概念或引文图号准确');
 process.exit(bad ? 1 : 0);

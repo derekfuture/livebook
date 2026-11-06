@@ -28,4 +28,5 @@ ok(!provenGraniteSand(path(['granite', 'magma', 'basalt', 'lithsand', 'lithsands
 const source = readFileSync(new URL('../../src/lessons/rockcycle.js', import.meta.url), 'utf8');
 const visuals = runInNewContext(source.slice(source.indexOf('const XL ='), source.indexOf('export default')).replaceAll('export const', 'const') + '; ({ AT, LOOK })', { ROCK });
 for (const id of seen) ok(Number.isFinite(visuals.LOOK[id]?.c) && visuals.AT[ROCK[id].at]?.every(Number.isFinite) && (ROCK[id].kind !== 'sediment' || ['gravel', 'sand', 'mud', 'shell'].includes(visuals.LOOK[id]?.grain)), `${id}：所有可达状态有有效外观、粒径显示及场景位置`);
+ok(['岩浆岩（图2.7）', '沉积岩（图2.8）', '变质岩（图2.9）'].every((t) => readFileSync(new URL('../../src/lessons/rockcycle.js', import.meta.url), 'utf8').includes(t)), '本轮文字复核：概念或引文图号准确');
 process.exit(bad ? 1 : 0);

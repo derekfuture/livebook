@@ -11,7 +11,7 @@ import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, noteBadge } from './kit/labels.js';
-import { NAMES, SIX_NAMES, CLASS, OVERVIEW, ll2v, v2ll, profile, bearing, nearestBoundary, arrowFrame, sectionSides, elevationState, roundedHeight } from './kit/plates.js';
+import { NAMES, SIX_NAMES, CLASS, OVERVIEW, ll2v, v2ll, profile, bearing, nearestBoundary, arrowFrame, sectionSides, elevationState, roundedHeight, sectionGeometry } from './kit/plates.js';
 import LINES, { GRID, HEIGHT } from './data/plates.js';
 import reliefUrl from './data/earth_relief.jpg';
 
@@ -133,23 +133,26 @@ export default {
     function paintSlice() {
       const pk = S.pick, g = faceCv.getContext('2d'), w = faceCv.width, hh = faceCv.height, n = pk.pr.length, X = (i) => (i / (n - 1)) * w, Y = (y) => hh - (y / 0.1) * hh, base = Y(SL.base);
       g.clearRect(0, 0, w, hh);
+      const geom = sectionGeometry(pk.pr, sectionSides(pk.line).subLeft, w, hh);
       // 软流层
-      const asth = g.createLinearGradient(0, hh * 0.55, 0, hh); asth.addColorStop(0, '#d9a25c'); asth.addColorStop(1, '#c46a32'); g.fillStyle = asth; g.fillRect(0, hh * 0.62, w, hh);
+      const asth = g.createLinearGradient(0, hh * 0.55, 0, hh); asth.addColorStop(0, '#d9a25c'); asth.addColorStop(1, '#c46a32'); g.fillStyle = asth; g.fillRect(0, 0, w, hh);
       g.fillStyle = '#5a4a3a'; g.font = '600 26px "PingFang SC", sans-serif'; g.textAlign = 'left'; g.fillText('软流层（主体固态）', 14, hh - 6);
-      const crust = (x0, x1, thick, cl) => { g.fillStyle = cl; g.beginPath(); for (let x = x0; x <= x1; x += 4) { const i = Math.round((x / w) * (n - 1)), y = Y(SV(pk.pr[Math.max(0, Math.min(n - 1, i))].h)); x === x0 ? g.moveTo(x, y) : g.lineTo(x, y); } g.lineTo(x1, base + thick); g.lineTo(x0, base + thick); g.closePath(); g.fill(); };
+      const band = (x0, x1, top, bottom, cl) => { const xs = []; for (let x = x0; x < x1; x += 2) xs.push(x); xs.push(x1); g.fillStyle = cl; g.beginPath(); xs.forEach((x, i) => i ? g.lineTo(x, top(x)) : g.moveTo(x, top(x))); xs.reverse().forEach((x) => g.lineTo(x, bottom(x))); g.closePath(); g.fill(); };
+      const crust = (x0, x1, thick, cl) => band(x0, x1, geom.surface, (x) => geom.bottom(x, thick), cl);
       const arrow = (x, y, dx, dy, cl = '#ffffff') => { g.strokeStyle = cl; g.fillStyle = cl; g.lineWidth = 8; g.beginPath(); g.moveTo(x, y); g.lineTo(x + dx, y + dy); g.stroke(); const a = Math.atan2(dy, dx); g.beginPath(); g.moveTo(x + dx + Math.cos(a) * 16, y + dy + Math.sin(a) * 16); g.lineTo(x + dx + Math.cos(a + 2.4) * 18, y + dy + Math.sin(a + 2.4) * 18); g.lineTo(x + dx + Math.cos(a - 2.4) * 18, y + dy + Math.sin(a - 2.4) * 18); g.fill(); };
       const k = pk.c, mid = w / 2;
       if (k === 'SUB') {
-        const oL = sectionSides(pk.line).subLeft, outer = oL ? 0 : w;
-        crust(oL ? mid : 0, oL ? w : mid, 80, '#b89a74');          // 上面那块（大陆或岛弧）
-        g.fillStyle = '#4f5f74'; g.beginPath(); g.moveTo(outer, base + 10); g.lineTo(mid, base + 10); g.lineTo(oL ? mid + 260 : mid - 260, hh); g.lineTo(oL ? mid + 150 : mid - 150, hh); g.lineTo(oL ? mid - 60 : mid + 60, base + 60); g.lineTo(outer, base + 60); g.closePath(); g.fill();          // 大洋板块：薄、密度大，俯冲到下面
-        arrow(oL ? 120 : w - 120, base + 36, oL ? 120 : -120, 0); arrow(oL ? mid + 40 : mid - 40, base + 110, oL ? 70 : -70, 70);
-        const wx = oL ? mid + 160 : mid - 160;
-        g.fillStyle = '#ddb77c'; g.beginPath(); g.moveTo(oL ? mid + 100 : mid - 100, base + 80); g.lineTo(oL ? mid + 280 : mid - 280, base + 80); g.lineTo(oL ? mid + 240 : mid - 240, base + 230); g.closePath(); g.fill();
-        g.fillStyle = '#d8462c'; g.beginPath(); g.ellipse(wx, base + 120, 32, 18, 0, 0, Math.PI * 2); g.fill();
-        g.fillStyle = '#ffffff'; g.font = '600 22px "PingFang SC", sans-serif'; g.textAlign = 'center';
-        g.fillText('下插板片', oL ? mid + 200 : mid - 200, base + 230); g.fillText('地幔楔', wx, base + 75); g.fillText('局部部分熔融', wx, base + 160);
-        g.fillStyle = '#d0e6f3'; arrow(oL ? mid + 90 : mid - 90, base + 200, oL ? 55 : -55, -50, '#d0e6f3');          // 板片释放流体促进地幔楔部分熔融；USGS Dynamic Planet，不是板片整体熔化
+        const oL = sectionSides(pk.line).subLeft, sign = oL ? 1 : -1;
+        const upperBottom = (x) => Math.min(geom.bottom(x, 80), geom.slab(x));
+        band(oL ? mid : 0, oL ? w : mid, geom.surface, upperBottom, '#b89a74');
+        band(oL ? mid : 0, oL ? w : mid, upperBottom, geom.slab, '#ddb77c');          // 地幔楔位于上覆岩石圈与下插板片之间
+        band(0, w, geom.slab, (x) => geom.slab(x) + 50, '#4f5f74');          // 海底以下保持连续厚度，进入边界后向下倾斜
+        const ax = oL ? 120 : w - 120, wx = mid + sign * 180, wy = (upperBottom(wx) + geom.slab(wx)) / 2;
+        arrow(ax, geom.slab(ax) + 25, sign * 100, geom.slab(ax + sign * 100) - geom.slab(ax));
+        g.fillStyle = '#d8462c'; g.beginPath(); g.ellipse(wx, wy, 24, Math.min(12, (geom.slab(wx) - upperBottom(wx)) / 4), 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#ffffff'; g.font = '600 20px "PingFang SC", sans-serif'; g.textAlign = 'center';
+        g.fillText('下插板片', mid + sign * 70, geom.slab(mid + sign * 70) + 32); g.fillText('地幔楔', wx, wy - 18); g.fillText('局部部分熔融', wx, wy + 28);
+        arrow(wx - sign * 35, geom.slab(wx) - 8, sign * 20, -24, '#d0e6f3');          // 板片释放流体，促进上覆地幔楔局部部分熔融
       } else if (k === 'CCB' || k === 'OCB') {
         crust(0, mid, hh * 0.36, '#c0a27a'); crust(mid, w, hh * 0.36, '#b4946c');
         g.fillStyle = '#a8865e'; g.beginPath(); g.ellipse(mid, base + hh * 0.33, 200, 80, 0, 0, Math.PI); g.fill();          // 汇聚挤压示意，不据类别推断大陆碰撞、海沟或火山
@@ -163,7 +166,7 @@ export default {
         crust(0, w, hh * 0.2, '#8a8070'); g.fillStyle = '#ffffff'; g.font = '600 26px "PingFang SC", sans-serif'; g.textAlign = 'center'; g.fillText('两侧板块沿着边界水平错动（从侧面看不出相向、相离）', mid, base + 80);
       }
       g.strokeStyle = 'rgba(255,255,255,0.6)'; g.setLineDash([10, 8]); g.lineWidth = 3; g.beginPath(); g.moveTo(0, base); g.lineTo(w, base); g.stroke(); g.setLineDash([]);          // 海平面
-      for (let x = 0; x <= w; x += 2) { const i = Math.round((x / w) * (n - 1)), y = Y(SV(pk.pr[Math.min(n - 1, i)].h)); g.clearRect(x, 0, 2, y); }
+      g.save(); g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.moveTo(0, 0); g.lineTo(w, 0); for (let x = w; x >= 0; x -= 2) g.lineTo(x, geom.surface(x)); g.closePath(); g.fill(); g.restore();
       faceTex.needsUpdate = true;
     }
 

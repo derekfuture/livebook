@@ -80,3 +80,12 @@ export function sampleHeight(data, grid, lat, lon) {
 export function elevationState(grid) {
   return { status: 'loading', data: null, load(encoded) { try { this.data = decodeHeight(encoded, grid); this.status = 'ready'; } catch { this.data = null; this.status = 'failed'; } }, sample(lat, lon) { return sampleHeight(this.data, grid, lat, lon); } };
 }
+
+// 像素尺度的地下机制示意，厚度从当地地表向下量，不代表真实深度。
+// 俯冲结构依据：https://www.nps.gov/subjects/geology/plate-tectonics-subduction-zones.htm
+export function sectionGeometry(pr, subLeft, width = 1024, height = 512) {
+  const surface = (x) => { const q = Math.max(0, Math.min(pr.length - 1, x / width * (pr.length - 1))), i = Math.min(pr.length - 2, Math.floor(q)), t = q - i; return height * (0.5 - (pr[i].h * (1 - t) + pr[i + 1].h * t) * 0.028 / 900); };
+  const mid = width / 2, sign = subLeft ? 1 : -1;
+  const slab = (x) => { const d = (x - mid) * sign; if (d <= 0) return surface(x); let y = surface(mid); for (let a = 0; a <= d; a += 2) y = Math.max(y, surface(mid + sign * a) + Math.min(80, a * 0.8), surface(mid) + a * 0.55); return Math.max(y, surface(x) + Math.min(80, d * 0.8), surface(mid) + d * 0.55); };
+  return { surface, slab, bottom: (x, thickness) => surface(x) + thickness };
+}

@@ -16,7 +16,7 @@ import { h } from '../ui/Panel.js';
 
 const LIFT = 0, G = 0.03;          // 地块直接放在书页上（放在两页正中间、放大以后不用再浮起来）
 const XL = -0.15, XR = 0.15, ZN = 0.12;          // 地块：东西 0.3，南北 0.24（x 朝东，−z 朝北）
-import { MODEL, accP, windAt, windName, advect, CALM_SPEED, windCaption } from './kit/pressure.js';
+import { MODEL, accP, windAt, windName, advect, CALM_SPEED, windCaption, motionText } from './kit/pressure.js';
 const HEMI = [1, -1, 0];          // 北半球（向右偏）、南半球（向左偏）、假如地球不自转
 const ASK = {
   low: ['先猜一下（可以不猜）：在这个情境里，放在低压边上的空气会——', ['直直流进中心', '绕着中心转着流进去', '绕着中心转着流出来']],
@@ -251,11 +251,8 @@ export default {
     // ---- 记录：你看到了什么 ----
     const log = () => (S.logs[LK()] ||= { spin: null, steps: [], home: null });
     const addStep = (s) => { const L = log(); if (!L.steps.includes(s)) L.steps.push(s); };
-    const spinText = (p) => {
-      const turned = Math.abs(p.L) > 0.3, ccw = p.L > 0;
-      return S.mode === 'low' ? (turned ? `绕着中心${ccw ? '逆' : '顺'}时针转进去` : '直直流进中心') : (turned ? `绕着中心${ccw ? '逆' : '顺'}时针转着流出去` : '直直流出去');
-    };
-    const setSpin = (p) => { const L = log(), t = spinText(p); if (!L.spin || (/直直/.test(L.spin) && !/直直/.test(t))) L.spin = t; };          // 短轨迹可能还看不出转向：后面转得明显的会改过来
+    const spinText = (p) => motionText(S.mode, hemi(), p.rx, p.rn);
+    const setSpin = (p) => { const L = log(), t = spinText(p); if (!L.spin || L.spin.includes('水平静风')) L.spin = t; };
     const onArrive = (p) => { setSpin(p); addStep('中心的空气往上升'); record(); };
     const onLeave = (p) => { setSpin(p); S.out++; addStep('中心上方的空气往下沉'); record(); };
     const record = () => {

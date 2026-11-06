@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 // 核对黄河调沙减淤：node tools/geo/basin_check.mjs（选必2 第 61–64 页，图 4.7）
-import { loads, bedRise, run, RES_CAP, frameAt, configKey, configName, leveeResult } from '../../src/lessons/kit/basin.js';
+import { loads, bedRise, run, RES_CAP, frameAt, configKey, configName, leveeResult, floodStatus, channelSection, MAX_YEARS } from '../../src/lessons/kit/basin.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const near = (a, b, tol) => Math.abs(a - b) <= tol, ALL = { bio: true, farm: true, eng: true };
 const L0 = loads(), L1 = loads(ALL), L2 = loads({ ...ALL, dam: true, flush: true });
@@ -45,4 +45,18 @@ ok(S.res === 100 && S.year === 10 && S.bed === decade.bed, '实际水库选项�
 const color = runInNewContext(source.slice(source.indexOf('    const conc ='), source.indexOf('    const buildWater =')) + '; conc', { S, L: () => at85.loads, DAM_S: 0.47 });
 const before = Array.from({ length: 101 }, (_, i) => color(i / 100)); S.pulse = 2;
 ok(before.every((v, i) => v === color(i / 100)), '实际河流配色函数：调沙脉冲不改变同一年度输沙量的颜色');
+const flood40 = run({}, { bed: 7.5 }, 40).bed + 3.5;
+ok(floodStatus(14, flood40).includes('已高于') && floodStatus(14, 14).includes('齐平') && floodStatus(14, 13.8).includes('接近') && floodStatus(14, 11).includes('低于'), '40 年超顶、齐平、接近和低于提示分别准确');
+ok(source.includes('aDanger.setText(floodStatus(') && source.includes('${floodStatus(S.levee, S.bed + FLOOD)}'), '画面与十年结束提示共用洪水位判据');
+let continuous = true;
+for (let mask = 0; mask < 32; mask++) {
+  const cfg = Object.fromEntries(['bio', 'farm', 'eng', 'dam', 'flush'].map((k, i) => [k, !!(mask & (1 << i))])); const r = run(cfg, { bed: 7.5 }, MAX_YEARS);
+  for (const bed of [7.5, ...r.beds]) { let last = Infinity; for (let i = 0; i <= 1000; i++) { const p = channelSection(i / 1000, bed); continuous &&= p.water <= last + 1e-12 && p.bed < p.particle && p.particle < p.water; last = p.water; } }
+}
+ok(channelSection(1, run({}, { bed: 7.5 }, MAX_YEARS).bed).water < 0.01 + 14 * 0.0016, '运行上限内常态水面低于原堤顶，超顶提示指假设洪水位');
+ok(continuous, '初始及全部 32 种配置的 50 年逐年检查：连续水面不逆坡，泥沙位于河床与水面之间');
+const capped = { year: MAX_YEARS, anim: null }; let capText = '';
+const pass = runInNewContext(source.slice(source.indexOf('    const passDecade ='), source.indexOf('    const finishDecade =')) + '; passDecade', { S: capped, MAX_YEARS, W: { ui: { status: (t) => { capText = t; } } } }); pass();
+ok(capped.anim === null && capText.includes('50 年'), '50 年实际按钮回调停止继续计算并提示重来');
+ok(source.includes('地上悬河”（图4.5）'), '课本引文恢复图4.5');
 process.exit(bad ? 1 : 0);

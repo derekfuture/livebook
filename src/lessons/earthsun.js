@@ -133,11 +133,14 @@ export default {
     // ---- 二分二至：推到那儿，就把你家那天的昼长、正午太阳高度记进表里 ----
     const keyNear = () => KEY.find((k) => Math.abs(((lamOf(S.th) - k.lam + 540) % 360) - 180) < 4);
     const recordKey = () => {
-      const k = keyNear(); if (!k) return;
-      const name = S.city >= 0 ? CITIES[S.city].name : latName(S.lat), d = decOf(k.lam), lat = S.lat * D2R;
-      (S.rec[name] ||= {})[k.name] = { len: dayLen(lat, d), noon: noonAlt(lat, d) }; S.saw.add(k.name);
-      if (W && !S.said?.[k.name + name]) { (S.said ||= {})[k.name + name] = 1; W.ui.status(`${k.name}（${k.date}）：太阳直射 ${latName(d * R2D)}。你家（${name}）白天 ${dur(dayLen(lat, d))}，正午太阳高度 ${altText(noonAlt(lat, d))}，已记进表里。`); }
-      if (['夏至', '冬至'].every((x) => S.rec[name]?.[x]) && (S.rec[name]['春分'] || S.rec[name]['秋分']) && Object.keys(S.rec).length >= 2) W?.ui.unlock();
+      const k = keyNear(), name = S.city >= 0 ? CITIES[S.city].name : latName(S.lat), d = dec(), lat = S.lat * D2R;
+      let first = false;
+      if (k) {
+        (S.rec[name] ||= {})[k.name] = { len: dayLen(lat, d), noon: noonAlt(lat, d) }; S.saw.add(k.name);
+        if (W && !S.said?.[k.name + name]) { (S.said ||= {})[k.name + name] = 1; first = true; }
+        if (['夏至', '冬至'].every((x) => S.rec[name]?.[x]) && (S.rec[name]['春分'] || S.rec[name]['秋分']) && Object.keys(S.rec).length >= 2) W?.ui.unlock();
+      }
+      W?.ui.status(`${k ? `${k.name}（${k.date}）` : '当前日期（非二分二至）'}：太阳直射 ${latName(d * R2D)}。你家（${name}）白天 ${dur(dayLen(lat, d))}，正午太阳高度 ${altText(noonAlt(lat, d))}。${first ? '已首次记进表里。' : ''}`);          // 当前结论始终同步；仅首次记表提示去重，离开节气也更新
     };
     const drawTable = () => {
       if (!W) return;

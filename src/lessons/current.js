@@ -13,7 +13,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastEffect, advance, windStep, driftInfo, GYRES } from './kit/current.js';
+import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastEffect, advance, windStep, recordDrop, GYRES } from './kit/current.js';
 
 const XL = -0.17, XR = 0.17, G = 0.016, SPEED = 2.2;
 const ASK = ['先猜一下（可以不猜）：在这个情境里，从北纬 20° 大洋中间放下的玩具鸭，会先往——', ['西漂', '东漂', '原地打转']];
@@ -166,7 +166,7 @@ export default {
       if (S.saw.duck) r('最近投放的玩具鸭：', `${Math.abs(S.first.lat).toFixed(1)}°${S.first.lat >= 0 ? 'N' : 'S'}，${S.first.motion}；本页未模拟真实沿岸搁浅过程`);
       if (S.saw.noland) r('假如没有大陆：', '本模型仅保留东西向流动的理想情境，不能推广为真实海洋规律');
       if (S.saw.coast) r('同纬度两岸：', '北纬 60° 东岸暖、西岸冷；中低纬大洋东岸有寒流（有助于形成干旱的沙漠），西岸有暖流、湿润；寒暖流交汇处有渔场');
-      if (S.guess != null && S.saw.duck) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：你在${Math.abs(S.first.lat).toFixed(1)}°${S.first.lat >= 0 ? 'N' : 'S'}放的鸭子${S.first.motion}${S.first.target ? '（信风推着海水往西）' : '（此投放点不用于题设判断；题目限定中央20°N附近）'}`)));
+      if (S.guess != null && S.saw.duck) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：你在${Math.abs(S.first.lat).toFixed(1)}°${S.first.lat >= 0 ? 'N' : 'S'}放的鸭子${S.first.motion}${S.first.target ? '（信风推着海水往西）' : '（此次投放不用于题设判断；需中央20°N附近且海水向西流动）'}`)));
       W.log.replaceChildren(...rows);
       if (S.saw.gyre && S.saw.duck && S.saw.noland) W.ui.unlock();
     };
@@ -175,7 +175,7 @@ export default {
     const plane = new THREE.Plane(), hit = new THREE.Vector3(), wq = new THREE.Vector3();
     const onMap = (ray) => { block.updateMatrixWorld(); block.localToWorld(wq.set(0, G, 0)); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), wq); if (!ray.intersectPlane(plane, hit)) return null; const l = block.worldToLocal(hit.clone()); return l.x > XL && l.x < XR && Math.abs(l.z) < NB ? { x: l.x, n: -l.z } : null; };
     const pointer = {
-      down(rc) { const m = onMap(rc.ray); if (!m || isLand(m.x, m.n, S.land)) return false; addDuck(m.x, m.n); if (S.w < 0.3) W?.ui.status('玩具鸭放下了，可是还没起风，海水不怎么动。按“让风吹起来”。'); else { S.first = driftInfo(m.x, m.n, S.land); S.saw.duck = true; drawLog(); say1(S.first.motion, m.x, m.n); } placeTags(); return true; },
+      down(rc) { const m = onMap(rc.ray); if (!m || isLand(m.x, m.n, S.land)) return false; addDuck(m.x, m.n); recordDrop(S, m.x, m.n); drawLog(); say1(S.first.motion, m.x, m.n); if (S.w < 0.3) W?.ui.status(S.w === 0 ? '玩具鸭投放时静止。按“让风吹起来”观察变化。' : '玩具鸭已投放，目前风速较小；记录保存投放时的流向。'); placeTags(); return true; },
       move(rc) { const c = document.getElementById('c'); if (c) { const m = onMap(rc.ray); c.style.cursor = m && !isLand(m.x, m.n, S.land) ? 'crosshair' : ''; } return false; },
       up() { return false; },
     };

@@ -41,9 +41,19 @@ const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a
 /** 某地离锋线 d（正数＝在锋线前面，锋还没到）时的天气（教学示意，按课本图 3.3、3.4） */
 /** 云雨还没形成时：只有冷、暖空气，都是晴天 */
 const plainAt = (kind, d) => ((kind === 'warm' ? d < 0 : d > 0) ? { k: 'p', text: '晴，较暖', s: '晴暖' } : { k: 'p', text: '晴，较冷', s: '晴冷' });
-// 补录只采集当时已经成雨的路径；首次成雨前的位移不能套用成熟锋面的天气。
+// 按路径当时的形成程度记录：晴天、成云、成雨都有效，不能提前补记降雨。
 export function formedPath(kind, from, to, previousForm, home, start) {
-  return frontPath(kind, from, to).filter((d) => Math.max(previousForm, (home - d - start) / 0.06) >= 1 - 1e-10);
+  return frontPath(kind, from, to).map((d) => observedWeather(kind, d, Math.max(previousForm, (home - d - start) / 0.06)));
+}
+export function observedWeather(kind, d, form) {
+  const w = weatherAt(kind, d);
+  if (form >= 1 - 1e-10) return w;
+  if (form > 0.45 && ['w1', 'w2'].includes(w.k)) return { k: 'w1', text: '云渐厚，尚未下雨', s: '云渐厚（未下雨）' };
+  return { ...plainAt(kind, d), k: 'w0' };
+}
+export function observedPass(log) {
+  const rain = log.findIndex((w) => w.k === 'w2');
+  return rain >= 0 && log.slice(rain + 1).some((w) => w.k === 'w3');
 }
 export { stationAt } from './kit/front.js';
 export function weatherAt(kind, d) { const w = modelWeatherAt(kind, d); return kind === 'still' && w.k === 'w2' ? { ...w, text: '正在下雨', s: '下雨' } : w; }
@@ -283,12 +293,11 @@ export default {
     // ---- 你家的天气、时间线 ----
     const record = () => {
       const d = S.home - S.xf, log = S.logs[LK()];
-      for (const at of formedPath(S.kind, S.recordD, d, S.recordForm, S.home, K().x0)) {
-        const w = weatherAt(S.kind, at);
+      for (const w of formedPath(S.kind, S.recordD, d, S.recordForm, S.home, K().x0)) {
         if (!log.length || w.k !== log[log.length - 1].k) log.push(w);
       }
       S.recordD = d; S.recordForm = S.form;
-      if (['w0', 'w1', 'w2', 'w3'].every((k) => log.some((w) => w.k === k))) S.done.add(LK());
+      if (observedPass(log)) S.done.add(LK());
       drawLogs();
     };
     const truth = (k) => k === 'map' ? (S.mapKind === 'cold' ? '这是冷锋（三角朝前进方向）：接近锋区时降温，过境时大风、下雨，过后转晴' : '这是暖锋（半圆朝前进方向）：锋线没到就连续下雨，锋线过后变暖') : k === 'cold' ? '接近锋区时逐渐降温，过境时大风、下雨' : k === 'warm' ? '先下雨：锋线没到就下起来，接近锋区时气温逐渐升高，过境后更暖'
@@ -296,9 +305,9 @@ export default {
     const drawLogs = () => {
       if (!W) return;
       W.logs.replaceChildren(...['cold', 'warm', 'still', 'map'].filter((k) => k !== 'map' || S.map || S.logs.map.length > 1).map((k) => {
-        const log = S.logs[k], fin = k === 'still' ? (S.stillSnap?.days ?? 0) >= 3 : ['w0', 'w1', 'w2', 'w3'].every((stage) => log.some((w) => w.k === stage));
+        const log = S.logs[k], fin = k === 'still' ? (S.stillSnap?.days ?? 0) >= 3 : observedPass(log);
         const snap = S.stillSnap, line = k === 'still' ? (snap ? `锋已停留 ${snap.days} 天；本次观察你家${snap.text}（示意，时间加快了）` : '还没推过')          // 用当时记下的，不拿现在的位置重算
-          : log.length > 1 ? log.map((x) => x.s).join(' → ') : '还没推过';
+          : log.length ? log.map((x) => x.s).join(' → ') : '还没推过';
         const g = S.guess[k] != null ? ASK[k][1][S.guess[k]] : null;
         return h('div', { class: 'tl-row' }, h('b', {}, k === 'still' ? '准静止锋：' : k === 'map' ? '看图推天气（P 城）：' : `${KIND[k].name}过你家：`), h('span', {}, line),
           fin ? h('small', {}, g ? `你猜：${g}　实际：${truth(k)}` : `实际：${truth(k)}`) : null);          // 不判对错：猜的和实际的并排放着
@@ -311,7 +320,7 @@ export default {
     const drawSky = () => {
       if (!W?.sky) return;
       const c = W.sky, g = c.getContext('2d'), w = c.width, hh = c.height, d = S.home - S.xf;
-      const wx = S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d), k = wx.k, kind = S.kind;
+      const wx = observedWeather(S.kind, d, S.form), k = wx.k, kind = S.kind;
       const rainy = k === 'w2', overcast = rainy || (k === 'w1' && kind !== 'cold'), clear = !rainy && !overcast && !(k === 'w1' && kind === 'cold');
       const [top, bot] = rainy ? (kind === 'cold' ? ['#4c5664', '#8b949e'] : ['#6b7480', '#a7aeb6']) : overcast ? ['#8d9bab', '#d6dbe0'] : (k === 'w1' ? ['#7fa9cf', '#d3e0ea'] : ['#6fa8dc', '#d4e7f5']);
       const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, top); gr.addColorStop(1, bot); g.fillStyle = gr; g.fillRect(0, 0, w, hh);
@@ -376,7 +385,7 @@ export default {
       grab.position.set(S.xf - 0.07, G + 0.03, 0);
       sym.position.set(S.xf, G + 0.0012, 0); sym.visible = S.map || S.rise > 0.5; ridge.visible = S.kind === 'still';
       home.position.set(S.home, G, 0.03); town.position.set(S.town, G, -0.025);
-      const wx = (d) => (S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d));
+      const wx = (d) => (observedWeather(S.kind, d, S.form));
       const wHome = wx(S.home - S.xf), stuck = S.kind === 'still' && S.days >= 1 && wHome.k === 'w2';
       homeTag.position.set(S.home, G + 0.04, 0.035); homeTag.setColor(wHome.k === 'w2' ? '#a8341f' : '#2c3245').setText(`${S.map ? 'P 城' : '你家'} ${S.map && S.lift < 1 ? '？' : wHome.text}${stuck ? `，第 ${Math.floor(S.days) + 1} 天` : ''}`).setOn(true);          // 你家正在下雨：字变红
       townTag.position.set(S.town, G + (Math.abs(S.home - S.town) < 0.09 ? 0.075 : 0.02), -0.03); townTag.setText(`邻城 ${wx(S.town - S.xf).text}`);          // 两城靠近：邻城的牌子抬高，免得叠字
@@ -388,7 +397,7 @@ export default {
       tScale.loc(block, XL + 0.05, -0.006, ZD + 0.01);
       tHint.loc(block, Math.max(XL + 0.03, S.xf - 0.11), G + 0.03, ZD).text(S.map ? '<span>按住左边的气团</span><small>往右推</small>' : S.kind === 'warm' ? '<span>按住暖气团</span><small>往右推</small>' : '<span>按住冷气团</span><small>往右推</small>').show(S.map ? !S.lifting : S.hintFor !== S.kind);          // 看图推天气：不说是冷是暖，要你看符号
       setReal();
-      drawSky(); placeExtras(); drawStation();
+      drawSky(); drawMap(); placeExtras(); drawStation();
     };
 
     // ---- 形成过程：头一段推的时候，跟着说一句 ----
@@ -467,7 +476,7 @@ export default {
       setKind(kind);
       S.xf = KIND[kind].x0 + 0.02 + Math.random() * 0.03; S.form = 1; formSaid.add(0); formSaid.add(1); formSaid.add(2);
       S.home = Math.min(0.115, S.xf + (kind === 'cold' ? 0.09 : 0.17) + Math.random() * 0.03); S.town = 0.2;          // P 城在锋前、还晴着；邻城先不用
-      S.recordForm = S.form; S.recordD = S.home - S.xf; S.traceD = S.recordD; traceIt(); record(); setGuess();
+      S.logs.map = []; S.recordForm = S.form; S.recordD = S.home - S.xf; S.traceD = S.recordD; traceIt(); record(); setGuess();
       W?.ui.status('换个情境：这是一张<b>天气图</b>，图上只有锋线和城市。先看锋线上的符号：三角还是半圆？朝哪边？再想想 P 城接下来会怎样。<br>想好了（不想也行），按住左边的气团往右推，看看对不对。');
     };
     const setGuess = () => {          // 换锋：换一句问题和选项；之前点过的还记着
@@ -554,7 +563,7 @@ export default {
       const d = S.home - S.xf, now = stationAt(S.kind, d);
       if (d <= D0 && d >= D1) { for (const [y, col] of [[YT(now.T), '#c4462e'], [YP(now.P), '#2f62b0']]) { g.fillStyle = col; g.beginPath(); g.arc(X(d), y, 3.6, 0, 7); g.fill(); } }
       if (other && !S.map && S.trace[other].length > 1) { g.fillStyle = 'rgba(60,50,40,0.6)'; g.textAlign = 'center'; g.fillText(`虚线：${KIND[other].name}过你家时`, (L + R) / 2, 11); }
-      const wx = S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d), rainy = S.form >= 1 && wx.k === 'w2';
+      const wx = observedWeather(S.kind, d, S.form), rainy = S.form >= 1 && wx.k === 'w2';
       W.read.innerHTML = `<b style="color:#c4462e">${now.T.toFixed(0)} ℃</b>　<b style="color:#2f62b0">${now.P.toFixed(0)} hPa</b>　风力 ${now.wind} 级　${rainy ? '<b style="color:#2f62b0">下雨</b>' : '不下雨'}<br><small>数值是教学示意，变化的方向按课本</small>`;
     };
 
@@ -654,15 +663,15 @@ export default {
         if (S.going && S.real < 1) { S.real = Math.min(1, S.real + dt / 0.9); setReal(); }
         flowTex.offset.x = -S.t * 0.8; placeRain(); drawSky();
         heroFade(dt);          // 打开以后：书和桌子淡出，四周换成天色；关上时反过来
-        { const d = S.home - S.xf, wx = S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d), tgt = wx.k === 'w2' ? skyCol.rain : wx.k === 'w1' && S.kind !== 'cold' ? skyCol.cloud : skyCol.clear; skyNow.lerp(tgt, Math.min(1, dt * 2)); backdropMat.color.copy(skyNow); }          // 四周的天色跟着你家的天气：下雨时暗下来
+        { const d = S.home - S.xf, wx = observedWeather(S.kind, d, S.form), tgt = wx.k === 'w2' ? skyCol.rain : wx.k === 'w1' && S.kind !== 'cold' ? skyCol.cloud : skyCol.clear; skyNow.lerp(tgt, Math.min(1, dt * 2)); backdropMat.color.copy(skyNow); }          // 四周的天色跟着你家的天气：下雨时暗下来
         { const show = S.hintFor !== S.kind && !S.map && S.rise > 0.95 && S.view === '3d'; chevs.forEach((m, i) => { const ph = (S.t * 0.7 + i / 3) % 1; m.visible = show; m.position.set(Math.max(XL + 0.012, S.xf - 0.08) + 0.03 + ph * 0.05, G + 0.022, ZD - 0.012); m.material.opacity = Math.sin(ph * Math.PI) * 0.95; }); }          // 一串箭头沿着推的方向往前走
         if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
         if (S.view !== '3d') placeClouds();          // 镜头在动：云跟着按离镜头多远淡一淡
         if (S.form > 0.2) placeTrees();          // 树在风里一阵阵晃
         if (S.kind === 'still' && (S.stuck || S.xf >= MX - 0.004) && S.drag !== 'front') {          // 准静止锋：顶在山脚不走了，一天天过去（锋线只是来回微微摆动）
           S.stuck = true; const d0 = Math.floor(S.days); S.days += dt / 1.4;
-          S.xf = MX - 0.002 - 0.003 * (0.5 + 0.5 * Math.sin(S.t * 0.9)); shapeFront(); shapeFlows(); placeClouds(); sym.position.x = S.xf;
-          if (Math.floor(S.days) !== d0) { const w = weatherAt('still', S.home - S.xf); S.stillSnap = { text: w.k === 'w2' ? '正在下雨' : w.text, rain: w.k === 'w2', days: Math.floor(S.days) }; if (S.days >= 3) S.done.add('still'); layout(); drawLogs(); if (Math.floor(S.days) === 1) W?.ui.status(`冷空气被山挡住，锋停在山脚，几乎不动。按当前两城位置：你家<b>${w.text}</b>，邻城<b>${weatherAt('still', S.town - S.xf).text}</b>（示意，时间加快了）。`); }
+          S.xf = MX - 0.002 - 0.003 * (0.5 + 0.5 * Math.sin(S.t * 0.9)); layout();
+          if (Math.floor(S.days) !== d0) { const w = weatherAt('still', S.home - S.xf); S.stillSnap = { text: w.k === 'w2' ? '正在下雨' : w.text, rain: w.k === 'w2', days: Math.floor(S.days) }; if (S.days >= 3) S.done.add('still'); drawLogs(); if (Math.floor(S.days) === 1) W?.ui.status(`冷空气被山挡住，锋停在山脚，几乎不动。按当前两城位置：你家<b>${w.text}</b>，邻城<b>${weatherAt('still', S.town - S.xf).text}</b>（示意，时间加快了）。`); }
         }
       },
     };

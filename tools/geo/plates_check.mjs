@@ -1,7 +1,7 @@
 // 回归核对：保留源步段、极性、实际箭头尖端、球面点击、高程配准和浏览器加载状态。
 import * as THREE from 'three';
 import L, { GRID, HEIGHT, SOURCE } from '../../src/lessons/data/plates.js';
-import { NAMES, CLASS, ll2v, dest, bearing, nearestBoundary, sectionSides, elevationState, sampleHeight, profile } from '../../src/lessons/kit/plates.js';
+import { NAMES, CLASS, ll2v, dest, bearing, nearestBoundary, sectionSides, elevationState, sampleHeight, profile, sectionGeometry } from '../../src/lessons/kit/plates.js';
 import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -33,6 +33,11 @@ ok(state.sample(0, -180) === state.sample(0, 180) && state.sample(0, 181) === st
 ok(createHash('sha256').update(csv).digest('hex') === SOURCE.sha256['etopo.csv'] && createHash('sha256').update(readFileSync('/tmp/plates/pb_steps.json')).digest('hex') === SOURCE.sha256['pb_steps.json'], '来源 SHA256 与缓存一致');
 const uiSource = readFileSync(new URL('../../src/lessons/plates.js', import.meta.url), 'utf8');
 ok(!/实测|lowL|lowLeft|2500/.test(uiSource) && /即板块（图2.20）。这些板块/.test(uiSource), '无地形猜极性和地貌阈值；图号恢复原位置');
+for (const [name, lat, lon] of [['安第斯', -32.65, -72], ['日本海沟', 38, 143.5], ['右侧俯冲', -48, 165], ['洋中脊', -30, -13.5]]) {
+  const nb = near(lat, lon), pr = profile((a, b) => state.sample(a, b), nb.lat, nb.lon, nb.strike), subLeft = sectionSides(nb.l).subLeft, g = sectionGeometry(pr, subLeft); let valid = true;
+  for (let x = 0; x <= 1024; x++) { valid &&= g.bottom(x, 50) > g.surface(x); if ((x - 512) * (subLeft ? 1 : -1) <= 0) valid &&= Math.abs(g.slab(x) - g.surface(x)) < 1e-8; else valid &&= g.slab(x) >= g.surface(x); }
+  ok(valid, `${name}：逐像素检查海底以下厚度、入沟连续性及俯冲侧`);
+}
 // 真正的页面实例：检查实例矩阵变换后的圆锥尖端，不只检查模型函数的预期值。
 const bases = [`${process.env.HOME}/.cache/livebook-tools/package.json`, '/tmp/lbshot/package.json'];
 const pw = createRequire(bases.find((p) => existsSync(p.replace('package.json', 'node_modules/playwright-core/package.json'))))('playwright-core');
@@ -53,6 +58,16 @@ try {
     return { correct, checked };
   }); ok(arrowResult.correct && arrowResult.checked > 500, `页面实际圆锥尖端与边界法向点积正确（${arrowResult.checked} 个箭头）`);
   for (const name of ['喜马拉雅山', '安第斯山', '大西洋中脊', '东非裂谷', '日本海沟']) { await page.getByRole('button', { name, exact: true }).click(); const pk = await page.evaluate(() => window.__lb.live.active.inst.debug.snapshot().pick); ok(pk?.preset?.[0] === name && pk.pr.every((p) => Number.isFinite(p.h)) && pk.pr.some((p) => p.h !== 0), `${name} 预设使用有效地形和案例元数据`); }
+  for (const [name, distance] of [['安第斯山', -600], ['日本海沟', -900]]) {
+    await page.getByRole('button', { name, exact: true }).click();
+    const pixels = await page.evaluate(async (distance) => {
+      const inst = window.__lb.live.active.inst, pk = inst.debug.snapshot().pick; let canvas;
+      inst.group.traverse((o) => { const c = o.material?.map?.image; if (c?.width === 1024 && c?.height === 512 && c.getContext) canvas = c; });
+      const { sectionGeometry, sectionSides } = await import('/src/lessons/kit/plates.js'); const g = sectionGeometry(pk.pr, sectionSides(pk.line).subLeft), x = Math.round((distance + 1200) / 2400 * 1024), y = Math.ceil(g.surface(x)) + 8;
+      return Array.from(canvas.getContext('2d').getImageData(x, y, 1, 1).data);
+    }, distance);
+    ok(pixels.join() === '79,95,116,255', `${name} 审稿指定海底下 8 像素为完整板片颜色，未被裁掉`);
+  }
   await page.evaluate(() => { window.plateCanvasText = []; const fill = CanvasRenderingContext2D.prototype.fillText; CanvasRenderingContext2D.prototype.fillText = function (text, ...args) { window.plateCanvasText.push({ text, chart: this.canvas.classList.contains('wx-map') }); return fill.call(this, text, ...args); }; });
   await page.evaluate(() => { const d = window.__lb.live.active.inst.debug; window.heightWait = d.reloadHeight(new Promise((resolve) => { window.heightResolve = resolve; })); d.pick(39.91, -124.16); });
   const loading = await page.evaluate(() => ({ s: window.__lb.live.active.inst.debug.snapshot(), text: document.body.innerText })); ok(loading.s.status === 'loading' && loading.s.pick === null && loading.text.includes('暂无') || loading.s.status === 'loading' && loading.s.pick === null && loading.text.includes('暂不提供高程'), '加载中点击不创建伪零米剖面，状态明确');
@@ -64,7 +79,7 @@ try {
   await page.evaluate(async () => { await window.__lb.live.active.inst.debug.reloadHeight(); });
   const ocb = L.find((l) => l.c === 'OCB'), middle = new THREE.Vector3(...ll2v(ocb.pts[0][1], ocb.pts[0][0])).add(new THREE.Vector3(...ll2v(ocb.pts[1][1], ocb.pts[1][0]))).normalize(); await page.evaluate(([x, y, z]) => { window.plateCanvasText = []; window.__lb.live.active.inst.debug.pick(Math.asin(y) * 180 / Math.PI, Math.atan2(-z, x) * 180 / Math.PI); }, middle.toArray());
   const actualOCB = await page.evaluate(() => window.__lb.live.active.inst.debug.snapshot().pick); const ocbText = await page.evaluate(() => window.plateCanvasText.map((r) => r.text)); ok(actualOCB.c === 'OCB' && ocbText.includes('汇聚挤压（不自动推断俯冲）') && !ocbText.includes('下插板片') && !ocbText.includes('局部部分熔融'), 'OCB 实际选中且只画挤压，无下插板片或部分熔融');
-  await page.getByRole('button', { name: '安第斯山', exact: true }).click(); await page.waitForTimeout(2400); await page.screenshot({ path: '/tmp/plates-andes.png' });
+  await page.getByRole('button', { name: '安第斯山', exact: true }).click(); await page.waitForTimeout(2400); if (process.argv.includes('--shots')) await page.screenshot({ path: '/tmp/plates-andes.png' });
   ok(errors.length === 0, `浏览器无运行错误${errors.length ? ': ' + errors.join('; ') : ''}`);
 } finally { await browser.close(); }
 process.exit(bad ? 1 : 0);

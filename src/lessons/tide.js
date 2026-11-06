@@ -12,11 +12,11 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { SYN, level, range, lunarName, phaseName, hours, angles, MSL, KY, SHIP_DRAFT, SHIP_BED, HULL_BOTTOM, shore, shipState, intertidal, playHour, setDate, timeText, NET_WIDTH, NET_TILT, netRow, netState, nearLow } from './kit/tide.js';
+import { SYN, level, range, lunarName, phaseName, bulgeRadius, tideTrend, angles, MSL, KY, SHIP_DRAFT, SHIP_BED, HULL_BOTTOM, shore, shipState, intertidal, playHour, setDate, timeText, NET_WIDTH, NET_TILT, netRow, netState, nearLow } from './kit/tide.js';
 
 const XL = -0.16, XR = 0.16, ZD = 0.06;
 
-const ACTS = { gan: { name: '赶海', need: '低潮附近', ok: (v, D, rising, h) => nearLow(D, h), why: '本页以低潮前后半小时为练习窗口，潮间带部分出露；实际赶海须查看当地潮汐及安全条件' }, ship: { name: '大船进港', need: '水够深的时候', ok: (v) => shipState(v).afloat, why: '港口航道要水深，低潮时大船会搁浅' }, see: { name: '观潮', need: '大潮的涨潮', ok: (v, D, rising) => rising && v > 0 && range(D).r > 3.6, why: '要挑初一、十五前后、正在涨潮的时候（像钱塘江大潮那样壮观，还要靠喇叭口一样外宽内窄的河口）' } };
+const ACTS = { gan: { name: '赶海', need: '低潮附近', ok: (v, D, rising, h) => nearLow(D, h), why: '本页以低潮前后半小时为练习窗口，潮间带部分出露；实际赶海须查看当地潮汐及安全条件' }, ship: { name: '大船进港', need: '水够深的时候', ok: (v) => shipState(v).afloat, why: '水深不足时可能搁浅；本页只比较水深与吃水判断浮起，实际通航还须预留富余水深' }, see: { name: '观潮', need: '大潮的涨潮', ok: (v, D, rising) => rising && v > 0 && range(D).r > 3.6, why: '要挑初一、十五前后、正在涨潮的时候（像钱塘江大潮那样壮观，还要靠喇叭口一样外宽内窄的河口）' } };
 const ASK = ['先猜一下（可以不猜）：在这个情境里，一个月里潮水涨得最高的是——', ['初一、十五前后', '初八、廿三前后', '每天都一样']];
 
 export default {
@@ -29,7 +29,7 @@ export default {
   conclusion: {
     page: 63,
     quote: '潮汐是海水的一种周期性涨落现象，它的成因与月球和太阳对地球的引力有关。一天中，通常可以观察到两次海水涨落。古人将白天的海水涨落称为潮，夜晚的海水涨落称为汐，合称潮汐。农历每月的初一和十五前后，潮汐现象最为明显，潮水涨得最高，落得最低。沿海各地，每日潮涨潮落的时间准确、可查。人们在海边的许多活动，如潮间带采集和养殖、沿海港口建设和航运、潮汐发电等，都需要充分认识并利用潮汐规律。',
-    why: '月球和太阳的引潮作用，让地球朝着月亮和背着月亮的两边海水鼓起来；月球也在公转，一个地方追上月球约需24小时50分，理想半日潮的月球分潮周期约12小时25分，所以一天通常两次涨落。本页是理想化半日潮模型；真实港口还受海盆、海岸和水深影响。初一（新月）、十五（满月）时，太阳、地球、月亮差不多在一条直线上，两份引潮作用叠在一起，潮水涨得最高、落得最低；上弦、下弦时两者错开，互相抵消一部分，潮差就小。',
+    why: '月球分潮使朝月和背月两侧的海水隆起，太阳分潮叠加后会改变合成隆起的大小与方向；月球也在公转，一个地方追上月球约需24小时50分，理想半日潮的月球分潮周期约12小时25分，所以一天通常两次涨落。本页是理想化半日潮模型；真实港口还受海盆、海岸和水深影响。初一（新月）、十五（满月）时，太阳、地球、月亮差不多在一条直线上，两份引潮作用叠在一起，潮水涨得最高、落得最低；上弦、下弦时两者错开，互相抵消一部分，潮差就小。',
     src: '课本第 59–60 页 · 第三章 第三节 海水的运动（教材摘录，省略图号及脚注标记）',
   },
 
@@ -78,7 +78,8 @@ export default {
     const orr = new THREE.Group(); orr.position.set(-0.2, 0.004, 0.03); orr.scale.setScalar(1.75); group.add(orr);          // 小盘放在海岸左前方的书页上，放大到和海岸差不多分量：月亮好按、好拖
     const disc = new THREE.Mesh(new THREE.CircleGeometry(0.05, 64), new THREE.MeshBasicMaterial({ color: 0x1f2735 })); disc.rotation.x = -Math.PI / 2; orr.add(disc);
     const earth = new THREE.Mesh(new THREE.SphereGeometry(0.009, 24, 16), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, emissive: 0x10243a })); earth.position.y = 0.01; orr.add(earth);
-    const bulge = new THREE.Mesh(new THREE.SphereGeometry(0.0105, 32, 16), new THREE.MeshBasicMaterial({ color: 0x8fc6ea, transparent: true, opacity: 0.55, depthWrite: false })); bulge.position.y = 0.01; orr.add(bulge);          // 鼓起来的海水（夸大）
+    const bulge = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 24), new THREE.MeshBasicMaterial({ color: 0x8fc6ea, transparent: true, opacity: 0.55, depthWrite: false })); bulge.position.y = 0.01; orr.add(bulge);          // 鼓起来的海水（夸大）
+    const bulgeBase = bulge.geometry.attributes.position.array.slice();
     const moon = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 20, 14), new THREE.MeshLambertMaterial({ color: 0xd8d4c8, emissive: 0x333333 })); orr.add(moon);
     const moonPick = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); moonPick.userData.pick = true; moon.add(moonPick);
     const sunDir = new THREE.Mesh(new THREE.ConeGeometry(0.004, 0.014, 12), new THREE.MeshBasicMaterial({ color: 0xffc04a })); sunDir.rotation.z = -Math.PI / 2; sunDir.position.set(-0.044, 0.006, 0); orr.add(sunDir);          // 尖朝地球：太阳光从左边照过来
@@ -89,8 +90,9 @@ export default {
     const placeOrr = () => {
       const { moon: a, port: rot } = angles(S.D, S.h);          // 新月：月亮在地球和太阳中间（太阳在左边）
       moon.position.set(Math.cos(a) * 0.035, 0.01, -Math.sin(a) * 0.035);
-      const pr = 1 + 0.55 * 1 + 0.25 * Math.cos(2 * (2 * Math.PI * hours(S.D, S.h) / (SYN * 24))) * 1;          // 叠加时鼓得多，错开时鼓得少（示意）
-      bulge.scale.set(1.45 * pr / 1.8, 0.9, 0.85); bulge.rotation.y = a;
+      const p = bulge.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) { const x = bulgeBase[i * 3], y = bulgeBase[i * 3 + 1], z = bulgeBase[i * 3 + 2], r = bulgeRadius(S.D, S.h, Math.atan2(-z, x)); p.setXYZ(i, x * r, y * 0.0095, z * r); }
+      p.needsUpdate = true; bulge.geometry.computeBoundingSphere();          // 各方位按日月合成式变形，不把长轴固定朝月
       // 地球自转：0 点时港口在背着太阳的那一边（夜里，太阳在左边）
       port.position.set(Math.cos(rot) * 0.0105, 0.01, -Math.sin(rot) * 0.0105);
       aMoon.setText(`${phaseName(S.D + S.h / 24)} · ${lunarName(S.D)}`); aMoon.position.set(moon.position.x, 0.026, moon.position.z);          // 港口就是地球上的红点，不挂牌子
@@ -103,7 +105,7 @@ export default {
       const bed = SHIP_BED, { afloat, y: shipY } = shipState(v);          // 港口航道（码头边）的水深：太浅船就搁浅
       ship.position.set(0.11, shipY, 0.0); ship.rotation.z = 0;          // 搁浅时船底就落在海底上
       aGround.position.set(0.1, bed + 0.024, 0); aGround.setOn(!afloat);          // 船浮着就不写字；搁浅了才写
-      const dv = level(S.D, S.h + 0.1) - v; aLevel.setText(`${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} 米 ${dv > 0 ? '↑涨' : '↓落'}`); aLevel.position.set(STAFF_X - 0.005 - aLevel.scale.x / 2, y + 0.003, STAFF_Z + 0.004);          // 读数跟着水面，挂在潮位尺旁边
+      const trend = tideTrend(S.D, S.h); aLevel.setText(`${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} 米 ${trend.label}`); aLevel.position.set(STAFF_X - 0.005 - aLevel.scale.x / 2, y + 0.003, STAFF_Z + 0.004);          // 读数跟着水面，挂在潮位尺旁边
       people.children.forEach((pp) => (pp.visible = shore(pp.position.x) > y + 0.001)); people.visible = true;          // 赶海的人只站在露出水面的滩涂上
       S.netStates = [0, 1, 2, 3].map((r) => netState(r, y));          // 按网面最低与最高边缘区分全干、部分浸水、全湿
       tHint.loc(block, -0.03, 0.11, 0).show(!S.seen.size);
@@ -121,7 +123,7 @@ export default {
       const curve = (D, dash, cl, wd) => { g.save(); g.setLineDash(dash); g.strokeStyle = cl; g.lineWidth = wd; g.beginPath(); for (let t = 0; t <= 24; t += 0.1) { const x = PX(t), y = PY(level(D, t)); if (t) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke(); g.restore(); };
       if (S.cmp != null && Math.abs(S.cmp - S.D) > 3) curve(S.cmp, [4, 3], 'rgba(60,90,140,0.45)', 1.5);
       curve(S.D, [], '#2f62b0', 2.2);
-      if (S.act) { const A = ACTS[S.act]; g.fillStyle = 'rgba(80,160,90,0.15)'; for (let t = 0; t < 24; t += 0.1) if (A.ok(level(S.D, t), S.D, level(S.D, t + 0.1) > level(S.D, t), t)) g.fillRect(PX(t), T, PX(0.1) - PX(0) + 0.5, B - T); }          // 挑过一件事以后，合适的时段淡淡涂绿
+      if (S.act) { const A = ACTS[S.act]; g.fillStyle = 'rgba(80,160,90,0.15)'; for (let t = 0; t < 24; t += 0.1) if (A.ok(level(S.D, t), S.D, tideTrend(S.D, t).rising, t)) g.fillRect(PX(t), T, PX(0.1) - PX(0) + 0.5, B - T); }          // 挑过一件事以后，合适的时段淡淡涂绿
       const v = level(S.D, S.h); g.fillStyle = '#c4462e'; g.beginPath(); g.arc(PX(S.h), PY(v), 4, 0, 7); g.fill();
       const rg = range(S.D);
       W.read.innerHTML = `现在 <b>${timeText(S.h)}</b>　这一天的潮差 <b>${rg.r.toFixed(1)} 米</b>${S.pick ? `<br>${ACTS[S.pick.k].name}挑在 ${timeText(S.pick.h)}：<b>${S.pick.ok ? '合适' : '不合适'}</b>（${ACTS[S.pick.k].why}）` : ''}<br><small>潮位是示意；实际各地每天的潮时、潮高可以查潮汐表</small>`;
@@ -183,8 +185,8 @@ export default {
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 140, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         chart.onclick = (e) => { const r = chart.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width) * 320 - 30) / (320 - 38) * 24; if (t < 0 || t > 24) return; S.h = t; time.set(t); S.seen.add('day'); S.play = false; acts.btns[0].textContent = '让一天走';          // 挑时刻时先停下
-          if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D, level(S.D, t + 0.1) > level(S.D, t), t); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = { D: S.D, h: t, ok }; } layout(); drawLog(); };          // 点曲线：挑一个时刻
-        ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('海岸左边的小盘：太阳光从左边来，中间是地球（红点是港口），可以拖月亮。'));
+          if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D, tideTrend(S.D, t).rising, t); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = { D: S.D, h: t, ok }; } layout(); drawLog(); };          // 点曲线：挑一个时刻
+        ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('海岸左边的小盘：太阳光从左边来，中间是地球（红点是港口），可以拖月亮。浅蓝水面按日月分潮合成，径向变形夸大。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, day, time, acts };
         ui.status('这是一段海岸：岸上有港口，滩涂上养着紫菜。先<b>拨时间</b>（或让一天走），看海水一天里怎么涨落。');
