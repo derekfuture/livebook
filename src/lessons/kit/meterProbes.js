@@ -27,20 +27,30 @@ export function meterProbeHandle(color, rotation) {
 }
 
 // 表笔的原点就在金属尖端。接触才接入求解器，拖动中保持开路。
-export function meterProbes(circuit, targets, { changed, allow, mayLift }) {
+export function meterProbes(
+  circuit,
+  targets,
+  {
+    changed,
+    allow,
+    mayLift,
+    bounds = { x: [-0.23, 0.24], z: [-0.17, 0.16] },
+    homes = { red: [-0.025, 0.001, 0.078], black: [-0.052, 0.001, 0.078] },
+  },
+) {
   const probes = {},
     group = circuit.group;
   let shorted = false;
-  for (const [name, color, x] of [
-    ['red', 0xb74738, -0.025],
-    ['black', 0x333d41, -0.052],
+  for (const [name, color] of [
+    ['red', 0xb74738],
+    ['black', 0x333d41],
   ]) {
     const { handle, grip } = meterProbeHandle(color, name === 'red' ? -0.35 : 0.35);
     group.add(handle);
     const lead = new THREE.Mesh(new THREE.BufferGeometry(), paint(color));
     group.add(lead);
     lead.raycast = () => {};
-    const home = new THREE.Vector3(x, 0.001, 0.078);
+    const home = new THREE.Vector3(...homes[name]);
     probes[name] = { handle, grip, lead, home, target: null };
   }
   function cable(name, lifted = false) {
@@ -101,7 +111,7 @@ export function meterProbes(circuit, targets, { changed, allow, mayLift }) {
           disconnect(name);
           moved = true;
         }
-        p.handle.position.set(clamp(point.x, -0.23, 0.24), 0.025, clamp(point.z, -0.17, 0.16));
+        p.handle.position.set(clamp(point.x, ...bounds.x), 0.025, clamp(point.z, ...bounds.z));
         cable(name, true);
       },
       onEnd() {
