@@ -49,11 +49,30 @@ export function faceLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.006, color 
 export function airLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.0075, color = '#1f3f75', dim = 0.18, icon = null } = {}) {
   const { tex, aspect } = textTex(text, { color, icon });
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })); s.scale.set(h * aspect, h, 1); s.position.set(x, y, z); s.raycast = () => {}; s.renderOrder = 14; parent.add(s);
-  s.userData = { on: 1, want: 1, dim, h, color, icon };
-  s.setOn = (on) => { s.userData.want = on ? 1 : s.userData.dim; return s; };
+  s.userData = { on: 1, want: 1, dim, h, color, icon, hold: 0 };
+  s.setOn = (on, delay = 0) => { const u = s.userData, w = on ? 1 : u.dim; if (w > u.want && delay) u.hold = delay; u.want = w; return s; };          // delay：过一会儿再亮（几个过程按水走的顺序依次亮）
   s.setText = (t, ic = s.userData.icon) => { s.userData.icon = ic; const r = textTex(t, { color: s.userData.color, icon: ic }); s.material.map = r.tex; s.scale.set(h * r.aspect, h, 1); return s; };
-  s.tick = (dt) => { const u = s.userData; u.on += (u.want - u.on) * Math.min(1, dt * 4); s.material.opacity = u.on; s.visible = u.on > 0.03; };
+  s.tick = (dt) => { const u = s.userData; if (u.hold > 0) { u.hold -= dt; return; } u.on += (u.want - u.on) * Math.min(1, dt * 4); s.material.opacity = u.on; s.center.y = 0.5 + (1 - u.on) * 0.15; s.visible = u.on > 0.03; };          // 亮起来时轻轻往上浮一点
   return s;
+}
+// ---- 字摆在效果的外沿：按屏幕像素留固定的间距，拉远拉近、转视角都一样整齐，不压在效果上 ----
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _r = new THREE.Vector3(), _ws = new THREE.Vector3();
+/** p（obj 的局部坐标）这里，1 个世界单位在屏幕上是多少像素 */
+export function pxPerUnit(camera, obj, p) {
+  camera.updateMatrixWorld(); _a.set(p[0], p[1], p[2]); obj.localToWorld(_a); _b.copy(_a).project(camera);
+  _r.setFromMatrixColumn(camera.matrixWorld, 0); const q = _a.addScaledVector(_r, 0.01).project(camera);
+  return Math.hypot(((q.x - _b.x) * innerWidth) / 2, ((q.y - _b.y) * innerHeight) / 2) / 0.01;
+}
+/** p 在屏幕上挪 (dx, dy) 像素、深度不变，换回 obj 的局部坐标写进 out */
+export function screenShift(camera, obj, p, dx, dy, out) {
+  camera.updateMatrixWorld(); _a.set(p[0], p[1], p[2]); obj.localToWorld(_a).project(camera);
+  _a.x += (dx / innerWidth) * 2; _a.y -= (dy / innerHeight) * 2; _a.unproject(camera); return obj.worldToLocal(out.copy(_a));
+}
+/** 把字（sprite，父物体就是效果所在的物体）摆在效果边上 edge 那一点的外侧：dir 是屏幕上往哪边让（[1,0] 右、[-1,0] 左、[0,-1] 上），gap 是字和效果之间的像素 */
+export function besideEdge(s, camera, edge, dir, gap = 10) {
+  const k = pxPerUnit(camera, s.parent, edge); s.getWorldScale(_ws);
+  const l = Math.hypot(dir[0], dir[1]) || 1, dx = dir[0] / l, dy = dir[1] / l, off = gap + Math.abs(dx) * (_ws.x * k) / 2 + Math.abs(dy) * (_ws.y * k) / 2;
+  return screenShift(camera, s.parent, edge, dx * off, dy * off, s.position);
 }
 /** 角上的“示意”：tag 的元素上挂完整的说明，鼠标移上去才展开 */
 export function noteBadge(tagFn, full) { const t = tagFn('示意', 'pill note-badge'); t.el.dataset.full = full; t.el.title = full; return t; }
