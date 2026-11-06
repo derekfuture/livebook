@@ -1,16 +1,70 @@
-// 核对板块运动与地貌：node tools/geo/plates_check.mjs（选必1 第 29 页）。用生成的高度图和边界核对几处有名的地形在不在对的边界上。
-import L from '../../src/lessons/data/plates.js';
-import { ll2v, CLASS } from '../../src/lessons/kit/plates.js';
-import { readFileSync } from 'fs';
+// 回归核对：保留源步段、极性、实际箭头尖端、球面点击、高程配准和浏览器加载状态。
+import * as THREE from 'three';
+import L, { GRID, HEIGHT, SOURCE } from '../../src/lessons/data/plates.js';
+import { NAMES, CLASS, ll2v, dest, bearing, nearestBoundary, sectionSides, elevationState, sampleHeight, profile } from '../../src/lessons/kit/plates.js';
+import { readFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
-const near = (lat, lon, pred = () => true) => { let best = null, bd = 9; const p = ll2v(lat, lon); for (const l of L) { if (!pred(l)) continue; for (const q of l.pts) { const v = ll2v(q[1], q[0]), d = Math.hypot(p[0] - v[0], p[1] - v[1], p[2] - v[2]); if (d < bd) { bd = d; best = l; } } } return { l: best, km: bd * 6371 }; };
-const set = new Set(L.flatMap((l) => [l.p.slice(0, 2), l.p.slice(2)])); ok(['EU', 'AF', 'AM', 'PA', 'IN', 'AN'].every((k) => set.has(k)) && set.size === 6, '六大板块（课本图 2.20）');
-const h = near(28.0, 86.9, (l) => l.k !== 'slide'); ok(h.l.c === 'CCB' && h.l.p === 'EUIN' && h.km < 300, `珠穆朗玛峰在亚欧板块和印度洋板块的碰撞边界附近（约 ${h.km.toFixed(0)} 千米）`);
-const m = near(11.35, 142.2); ok(m.l.c === 'SUB' && m.km < 200, `马里亚纳海沟在俯冲边界上（约 ${m.km.toFixed(0)} 千米）`);
-const a = near(-32.65, -70.0, (l) => l.k !== 'slide'); ok(a.l.c === 'SUB' && a.l.p === 'AMPA' && a.km < 300, `安第斯山的阿空加瓜峰旁边是美洲板块和太平洋板块的俯冲边界（约 ${a.km.toFixed(0)} 千米）`);
-const r = near(-30, -13.5, (l) => l.k !== 'slide'); ok(r.l.c === 'OSR' && r.l.p === 'AFAM', '大西洋中脊是非洲板块和美洲板块之间的生长边界');
-const e = near(5, 36.6, (l) => l.k !== 'slide'); ok(e.l.c === 'CRB' && e.l.p === 'AFAF', '东非裂谷是非洲板块内部的张裂（课本的六大板块里它在非洲板块内）');
-const rs = near(20, 38.5, (l) => l.k !== 'slide'); ok(rs.l.k === 'grow', '红海中间是生长边界（课本第 30 页：红海还在不断扩张）');
-ok(Object.values(CLASS).filter((c) => c.k === 'grow').every((c) => /相离/.test(c.how)) && ['SUB', 'CCB'].every((k) => /相向/.test(CLASS[k].how)), '生长边界都是相离运动，消亡边界都是相向运动');
-const js = readFileSync(new URL('../../src/lessons/data/plates.js', import.meta.url), 'utf8'); ok(/Bird/.test(js), '边界数据写明了出处（Bird 2003, PB2002）');
+const raw = JSON.parse(readFileSync('/tmp/plates/pb_steps.json', 'utf8')).features;
+ok(L.length === raw.length && L.length === 5824, '全部 5824 个输入步段均保留（不冒称原始模型的 5819 步段）');
+ok(L.every((l, i) => { const p = raw[i].properties; return l.id === p.SEQNUM && l.c === p.STEPCLASS && l.left === p.PLATEBOUND.slice(0, 2) && l.right === p.PLATEBOUND.slice(3, 5) && l.polarity === p.PLATEBOUND[2] && l.subducting === (p.PLATEBOUND[2] === '/' ? l.right : p.PLATEBOUND[2] === '\\' ? l.left : null) && JSON.stringify(l.pts) === JSON.stringify([[p.STARTLONG, p.STARTLAT], [p.FINALLONG, p.FINALLAT]]); }), '逐步比对源代码、左右、极性、端点、类别，不排序、不删线');
+ok(L.filter((l) => ['MO', 'SL'].some((c) => l.left === c || l.right === c)).length === 50, 'MO / SL 涉及的 50 个步段齐全');
+ok(new Set(L.flatMap((l) => [l.left, l.right])).size === 52 && L.every((l) => NAMES[l.left] && NAMES[l.right]), '52 个具体板块都有中文名（AM 为阿穆尔，不是美洲）');
+ok(L.some((l) => l.c === 'OSR' && l.p.includes('PA') && l.p.includes('NZ')) && L.some((l) => l.c === 'OSR' && l.p.includes('PA') && l.p.includes('CO')), '东太平洋扩张边界 PA—NZ / PA—CO 未被合并删除');
+const near = (lat, lon) => nearestBoundary(L, lat, lon);
+ok(near(-32.65, -72).l.p === 'NZSA' && near(-32.65, -72).l.subducting === 'NZ', '安第斯为纳斯卡向南美下插');
+ok(near(38, 143.5).l.p === 'PAOK' && near(38, 143.5).l.subducting === 'PA', '日本海沟为太平洋向鄂霍次克下插');
+ok(near(-48, 165).l.p === 'PAAU' && !sectionSides(near(-48, 165).l).subLeft && sectionSides(near(-48, 165).l, true).subLeft, '新西兰南端右侧 AU 下插；反转剖面会交换左右和下插侧');
+ok(near(28.5, 85.2).l.c === 'CCB' && near(-30, -13.5).l.c === 'OSR' && near(5, 36.6).l.c === 'CRB', '喜马拉雅、大西洋中脊、东非案例类别正确');
+ok(near(39.91, -124.16).l.c === 'CTF' && near(39.91, -124.16).dist < 0.1, '39.91°N、124.16°W 命中转换边界，不跳去 CCB');
+const synthetic = [{ c: 'CTF', pts: [[179, 0], [-179, 0]] }, { c: 'CCB', pts: [[180, 1], [180, 2]] }];
+ok(nearestBoundary(synthetic, 0, 180).l.c === 'CTF' && nearestBoundary(synthetic, 0, 180).dist < 1e-6, '跨日期变更线短弧的内部点距离为零，不只比较端点');
+let sidesOK = true;
+for (const l of L) { const [a, b] = l.pts, strike = bearing(a[1], a[0], b[1], b[0]), leftNormal = new THREE.Vector3(...ll2v(a[1], a[0])).cross(new THREE.Vector3(...ll2v(b[1], b[0]))).normalize(); const [lat, lon] = dest(a[1], a[0], strike + 90, -10); if (leftNormal.dot(new THREE.Vector3(...ll2v(lat, lon))) <= 0) sidesOK = false; }
+ok(sidesOK, '所有有向线段的剖面负距离均在左侧（含冰岛斜向边界）');
+ok(CLASS.OCB.form === '挤压变形示意' && CLASS.CCB.form === '挤压变形示意', 'OCB 与 CCB 默认汇聚挤压，不确诊俯冲或大陆碰撞');
+const state = elevationState(GRID); ok(state.sample(0, 0) === null, '未加载不伪造零米'); state.load('bad'); ok(state.status === 'failed' && state.sample(0, 0) === null, '加载失败明确无值'); state.load(HEIGHT);
+ok(state.status === 'ready' && Math.abs(GRID.lat0 - 89.88333333333333) < 1e-8 && Math.abs(GRID.lon0 + 179.86666666666667) < 1e-8 && Math.abs(GRID.dlat + 0.25) < 1e-8, '保留真实原点、步长、节点配准');
+const csv = readFileSync('/tmp/plates/etopo.csv'); const rows = csv.toString().trim().split('\n').slice(2); let exact = true;
+for (let i = 0; i < rows.length; i += 997) { const [lat, lon, z] = rows[i].split(',').map(Number); if (state.sample(lat, lon) !== z) exact = false; }
+ok(exact && rows.length === GRID.width * GRID.height, '每隔 997 行比对 CSV 原整数高程，无 Canvas 8 位损失');
+ok(state.sample(0, -180) === state.sample(0, 180) && state.sample(0, 181) === state.sample(0, -179), '经度周期取样，日期变更线连续索引');
+ok(createHash('sha256').update(csv).digest('hex') === SOURCE.sha256['etopo.csv'] && createHash('sha256').update(readFileSync('/tmp/plates/pb_steps.json')).digest('hex') === SOURCE.sha256['pb_steps.json'], '来源 SHA256 与缓存一致');
+const uiSource = readFileSync(new URL('../../src/lessons/plates.js', import.meta.url), 'utf8');
+ok(!/实测|lowL|lowLeft|2500/.test(uiSource) && /即板块（图2.20）。这些板块/.test(uiSource), '无地形猜极性和地貌阈值；图号恢复原位置');
+// 真正的页面实例：检查实例矩阵变换后的圆锥尖端，不只检查模型函数的预期值。
+const bases = [`${process.env.HOME}/.cache/livebook-tools/package.json`, '/tmp/lbshot/package.json'];
+const pw = createRequire(bases.find((p) => existsSync(p.replace('package.json', 'node_modules/playwright-core/package.json'))))('playwright-core');
+const browser = await pw.chromium.launch({ executablePath: `${process.env.HOME}/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`, headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
+try {
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } }); const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => { window.WebSocket = class { addEventListener() {} removeEventListener() {} send() {} close() {} }; });
+  await page.goto(`http://127.0.0.1:${process.env.LB_PORT || 5189}/?book=dili-xb1#live=plates`);
+  await page.waitForFunction(() => window.__lb?.live?.active?.inst?.debug?.snapshot?.().status === 'ready');
+  await page.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('不猜了'))?.click());
+  const arrowResult = await page.evaluate(async () => {
+    const { default: lines } = await import('/src/lessons/data/plates.js'); const THREE = await import('/node_modules/three/build/three.module.js');
+    const { ll2v } = await import('/src/lessons/kit/plates.js'); const inst = window.__lb.live.active.inst, meshes = []; inst.group.traverse((o) => { if (o.isInstancedMesh) meshes.push(o); }); let checked = 0, correct = true;
+    for (const [ki, kind] of ['grow', 'die'].entries()) { const mesh = meshes[ki], list = lines.filter((l, i) => l.k === kind && i % 14 === 0); if (mesh.count !== list.length * 2) correct = false;
+      const pos = mesh.geometry.attributes.position; let tip = new THREE.Vector3(); for (let i = 0; i < pos.count; i++) { if (pos.getZ(i) > tip.z) tip.fromBufferAttribute(pos, i); } tip.normalize();
+      list.forEach((l, i) => { const a = new THREE.Vector3(...ll2v(l.pts[0][1], l.pts[0][0])), b = new THREE.Vector3(...ll2v(l.pts[1][1], l.pts[1][0])), normal = a.clone().cross(b).normalize(); for (let j = 0; j < 2; j++) { const m = new THREE.Matrix4(); mesh.getMatrixAt(i * 2 + j, m); const actual = tip.clone().transformDirection(m), location = new THREE.Vector3().setFromMatrixPosition(m), side = Math.sign(location.dot(normal)), signed = actual.dot(normal) * side; if (kind === 'grow' ? signed < 0.999 : signed > -0.999) correct = false; checked++; } });
+    }
+    return { correct, checked };
+  }); ok(arrowResult.correct && arrowResult.checked > 500, `页面实际圆锥尖端与边界法向点积正确（${arrowResult.checked} 个箭头）`);
+  for (const name of ['喜马拉雅山', '安第斯山', '大西洋中脊', '东非裂谷', '日本海沟']) { await page.getByRole('button', { name, exact: true }).click(); const pk = await page.evaluate(() => window.__lb.live.active.inst.debug.snapshot().pick); ok(pk?.preset?.[0] === name && pk.pr.every((p) => Number.isFinite(p.h)) && pk.pr.some((p) => p.h !== 0), `${name} 预设使用有效地形和案例元数据`); }
+  await page.evaluate(() => { window.plateCanvasText = []; const fill = CanvasRenderingContext2D.prototype.fillText; CanvasRenderingContext2D.prototype.fillText = function (text, ...args) { window.plateCanvasText.push({ text, chart: this.canvas.classList.contains('wx-map') }); return fill.call(this, text, ...args); }; });
+  await page.evaluate(() => { const d = window.__lb.live.active.inst.debug; window.heightWait = d.reloadHeight(new Promise((resolve) => { window.heightResolve = resolve; })); d.pick(39.91, -124.16); });
+  const loading = await page.evaluate(() => ({ s: window.__lb.live.active.inst.debug.snapshot(), text: document.body.innerText })); ok(loading.s.status === 'loading' && loading.s.pick === null && loading.text.includes('暂无') || loading.s.status === 'loading' && loading.s.pick === null && loading.text.includes('暂不提供高程'), '加载中点击不创建伪零米剖面，状态明确');
+  await page.evaluate(async () => { const { HEIGHT } = await import('/src/lessons/data/plates.js'); window.heightResolve(HEIGHT); await window.heightWait; });
+  const loaded = await page.evaluate(() => ({ s: window.__lb.live.active.inst.debug.snapshot(), text: document.body.innerText, chart: window.plateCanvasText.filter((r) => r.chart).map((r) => r.text) })); const pk = loaded.s.pick;
+  ok(loaded.s.status === 'ready' && pk.c === 'CTF' && pk.preset === null && loaded.text.includes('大陆转换边界') && loaded.chart.some((t) => t.includes('大陆转换边界')) && loaded.chart.some((t) => t.includes('最高约')) && pk.pr.every((p, i) => p.h === profile((a, b) => sampleHeight(state.data, GRID, a, b), pk.lat, pk.lon, pk.strike)[i].h), '加载后切片、图表数据、侧栏统一更新到实际点击的 CTF');
+  await page.evaluate(async () => { await window.__lb.live.active.inst.debug.reloadHeight(Promise.resolve('bad')); });
+  const failed = await page.evaluate(() => ({ s: window.__lb.live.active.inst.debug.snapshot(), text: document.body.innerText })); ok(failed.s.status === 'failed' && failed.s.pick === null && failed.text.includes('不可用'), '加载失败清空切片并显示不可用');
+  await page.evaluate(async () => { await window.__lb.live.active.inst.debug.reloadHeight(); });
+  const ocb = L.find((l) => l.c === 'OCB'), middle = new THREE.Vector3(...ll2v(ocb.pts[0][1], ocb.pts[0][0])).add(new THREE.Vector3(...ll2v(ocb.pts[1][1], ocb.pts[1][0]))).normalize(); await page.evaluate(([x, y, z]) => { window.plateCanvasText = []; window.__lb.live.active.inst.debug.pick(Math.asin(y) * 180 / Math.PI, Math.atan2(-z, x) * 180 / Math.PI); }, middle.toArray());
+  const actualOCB = await page.evaluate(() => window.__lb.live.active.inst.debug.snapshot().pick); const ocbText = await page.evaluate(() => window.plateCanvasText.map((r) => r.text)); ok(actualOCB.c === 'OCB' && ocbText.includes('汇聚挤压（不自动推断俯冲）') && !ocbText.includes('下插板片') && !ocbText.includes('局部部分熔融'), 'OCB 实际选中且只画挤压，无下插板片或部分熔融');
+  await page.getByRole('button', { name: '安第斯山', exact: true }).click(); await page.waitForTimeout(2400); await page.screenshot({ path: '/tmp/plates-andes.png' });
+  ok(errors.length === 0, `浏览器无运行错误${errors.length ? ': ' + errors.join('; ') : ''}`);
+} finally { await browser.close(); }
 process.exit(bad ? 1 : 0);

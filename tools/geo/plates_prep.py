@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
-"""板块活页的数据：NOAA ETOPO1（公有领域，经 ERDDAP 取 0.25° 子样）→ 地形晕渲贴图、高度贴图；
-Bird (2003) PB2002 板块边界（经 github.com/fraxen/tectonicplates）→ 按课本“六大板块”合并后的边界线。
+"""板块活页数据，可复现来源（下载日期：2026-11-07）：
+NOAA ERDDAP etopo180: Topography, ETOPO1, 0.0166667 degrees, Global
+(longitude -180 to 180), (Ice Sheet Surface)，ETOPO1 2009 冰面版。
+元数据：https://coastwatch.pfeg.noaa.gov/erddap/info/etopo180/index.html
+与输入 CSV 坐标一致的重建查询（原下载 URL 未随缓存保存）：
+https://coastwatch.pfeg.noaa.gov/erddap/griddap/etopo180.csv?altitude[8:15:10793][8:15:21593]
+原始网格 grid/node-registered，WGS84，经纬度为节点坐标，平均海平面基准；
+每 15 个节点取一值，不做区域平均。保存 CSV 真实原点、步长，北到南行序。
+边界：Bird (2003), doi:10.1029/2001GC000252；Hugo Ahlenius / Nordpil 转换。
+https://github.com/fraxen/tectonicplates/blob/master/GeoJSON/PB2002_steps.json
+极性定义：https://github.com/fraxen/tectonicplates/blob/master/original/README.md
+保留源文件全部步段（包括转换版的重复步段），不按六大板块合并或删线。
+输入 SHA256 写入生成数据 SOURCE；地形数值以 int16 小端保存，不经 Canvas 量化。
 用法：python3 tools/geo/plates_prep.py /tmp/plates/etopo.csv /tmp/plates/pb_steps.json
 """
-import sys, json, math
+import sys, json, math, hashlib, base64
 import numpy as np
 from PIL import Image
 ROOT = __import__('pathlib').Path(__file__).resolve().parent.parent.parent
@@ -12,11 +23,12 @@ rows = np.loadtxt(csv, delimiter=',', skiprows=2)
 lat, lon, z = rows[:, 0], rows[:, 1], rows[:, 2]
 la, lo = np.unique(lat), np.unique(lon)
 Z = np.zeros((len(la), len(lo)), np.float32); Z[np.searchsorted(la, lat), np.searchsorted(lo, lon)] = z
+assert len(rows) == len(la) * len(lo) and np.isfinite(Z).all()
+assert np.allclose(np.diff(la), 0.25) and np.allclose(np.diff(lo), 0.25)
 Z = Z[::-1]          # 第一行是北极
 H, W = Z.shape
 # 高度贴图：海底 −11000 … 陆地 +9000 米 → 16 位灰度
 hm = np.clip((Z + 11000) / 20000, 0, 1)
-Image.fromarray((hm * 65535).astype(np.uint16)).save(ROOT / 'src/lessons/data/earth_height.png')
 # 晕渲：分层设色 + 光照
 def ramp(v, stops):
     v = np.asarray(v); out = np.zeros(v.shape + (3,))
@@ -26,32 +38,34 @@ def ramp(v, stops):
 sea = ramp(Z, [(-11000, (12, 34, 78)), (-6000, (24, 62, 120)), (-3500, (40, 96, 158)), (-1000, (74, 140, 196)), (-200, (120, 176, 214)), (0, (150, 196, 222))])
 land = ramp(Z, [(0, (112, 150, 92)), (300, (140, 168, 100)), (1000, (186, 176, 120)), (2000, (170, 140, 98)), (3500, (150, 118, 92)), (5000, (196, 186, 176)), (6500, (246, 246, 246))])
 col = np.where((Z >= 0)[..., None], land, sea)
-LA = np.linspace(90, -90, H)[:, None] * np.ones((1, W)); LO = np.linspace(-180, 180, W)[None, :] * np.ones((H, 1))
-ice = (Z > 200) & ((LA < -62) | ((LA > 60) & (LO > -75) & (LO < -10)))          # 南极洲、格陵兰的冰盖：白色
-col = np.where(ice[..., None], ramp(Z, [(0, (226, 234, 240)), (3000, (246, 249, 252))]), col)
 gy, gx = np.gradient(Z)
-dx = gx / (111000 * 0.25 * np.cos(np.radians(np.linspace(90, -90, H)))[:, None].clip(0.05)) ; dy = gy / (111000 * 0.25)
+dx = gx / (111000 * 0.25 * np.cos(np.radians(la[::-1]))[:, None].clip(0.05)) ; dy = gy / (111000 * 0.25)
 nx, ny, nz = -dx * 8, dy * 8, np.ones_like(Z)
 n = np.sqrt(nx * nx + ny * ny + nz * nz); L = np.array([-0.5, 0.6, 0.62]); L /= np.linalg.norm(L)
 shade = (nx * L[0] + ny * L[1] + nz * L[2]) / n
 k = np.where(Z >= 0, 0.55 + 0.6 * shade, 0.8 + 0.25 * shade)[..., None]
 img = np.clip(col * k, 0, 255).astype(np.uint8)
 Image.fromarray(img).resize((2048, 1024), Image.LANCZOS).save(ROOT / 'src/lessons/data/earth_relief.jpg', quality=88)
-# 边界：六大板块（课本图 2.20）
-G = {}
-for g, codes in {'EU': 'EU AS AT YA AM OK ON SU PS MA BU MS BS TI BH', 'IN': 'IN AU AR CR NH NI TO KE FT SB SS WL BR', 'PA': 'PA NZ CO JF RI GP EA JZ MN NB CL', 'AM': 'NA SA CA SC ND PM AP', 'AF': 'AF SO', 'AN': 'AN SW'}.items():
-    for c in codes.split(): G[c] = g
+# 保留每个有向步段，代码前项在左、后项在右；/ 右侧下插，\ 左侧下插。
 KIND = {'OSR': 'grow', 'CRB': 'grow', 'SUB': 'die', 'OCB': 'die', 'CCB': 'die', 'OTF': 'slide', 'CTF': 'slide'}
-S = json.load(open(steps))['features']; lines = []; cur = None
+S = json.load(open(steps))['features']; out = []
 for f in S:
-    p = f['properties']; pb = p['PLATEBOUND'].replace('/', '-').replace('\\', '-'); a, b = pb.split('-')[:2] if '-' in pb else (None, None)          # PB2002 用 / 和 \ 表示俯冲的方向，这里只要两侧是谁
-    ga, gb = G.get(a[:2] if a else ''), G.get(b[:2] if b else '')
-    if not ga or not gb or (ga == gb and p['STEPCLASS'] != 'CRB'): cur = None; continue          # 同一大板块里面的边界不画，只留大陆上的裂谷（东非裂谷：非洲板块里努比亚、索马里两块之间张裂）
-    kind = KIND.get(p['STEPCLASS'])
-    p0, p1 = (round(p['STARTLONG'], 2), round(p['STARTLAT'], 2)), (round(p['FINALLONG'], 2), round(p['FINALLAT'], 2))
-    key = (kind, p['STEPCLASS'], ''.join(sorted([ga, gb])))
-    if cur and cur['key'] == key and abs(cur['pts'][-1][0] - p0[0]) < 0.2 and abs(cur['pts'][-1][1] - p0[1]) < 0.2 and abs(p0[0] - p1[0]) < 90: cur['pts'].append(list(p1))
-    else: cur = {'key': key, 'pts': [list(p0), list(p1)]}; lines.append(cur)
-out = [{'k': l['key'][0], 'c': l['key'][1], 'p': l['key'][2], 'pts': l['pts']} for l in lines]
-(ROOT / 'src/lessons/data/plates.js').write_text('// 六大板块的边界（按课本图 2.20 把 PB2002 的小板块并进六大板块，示意）。k：grow 生长边界、die 消亡边界、slide 错动（转换）边界；c：PB2002 的边界类别；p：两侧板块；pts：[经度, 纬度]。\n// 来源：Bird, P. (2003) An updated digital model of plate boundaries, G-cubed 4(3), 1027（PB2002，经 github.com/fraxen/tectonicplates）。\nexport default ' + json.dumps(out, separators=(',', ':')) + ';\n')
-print(len(out), 'lines', sum(len(l['pts']) for l in out), 'pts')
+    p = f['properties']; pb = p['PLATEBOUND']; left, polarity, right = pb[:2], pb[2], pb[3:5]
+    assert polarity in '-/\\' and p['STEPCLASS'] in KIND
+    out.append({'id': p['SEQNUM'], 'k': KIND[p['STEPCLASS']], 'c': p['STEPCLASS'], 'p': left + right,
+                'left': left, 'right': right, 'polarity': polarity,
+                'subducting': right if polarity == '/' else left if polarity == '\\' else None,
+                'pts': [[p['STARTLONG'], p['STARTLAT']], [p['FINALLONG'], p['FINALLAT']]]})
+grid = {'width': W, 'height': H, 'lat0': float(la[-1]), 'lon0': float(lo[0]),
+        'dlat': float(la[0] - la[1]), 'dlon': float(lo[1] - lo[0]), 'registration': 'grid/node', 'encoding': 'int16-le'}
+source = {'downloaded': '2026-11-07', 'version': 'ETOPO1 Ice Surface 2009',
+          'query': 'https://coastwatch.pfeg.noaa.gov/erddap/griddap/etopo180.csv?altitude[8:15:10793][8:15:21593]',
+          'queryNote': '按缓存坐标重建，原请求地址未保存',
+          'sha256': {__import__('pathlib').Path(p).name: hashlib.sha256(open(p, 'rb').read()).hexdigest() for p in [csv, steps]}}
+encoded = base64.b64encode(Z.astype('<i2').tobytes()).decode('ascii')
+(ROOT / 'src/lessons/data/plates.js').write_text('// Bird (2003) PB2002 全部有向步段；left/right 沿 pts 方向，polarity 保留原符号。自动生成，请改 plates_prep.py。\n'
+    + 'export const GRID = ' + json.dumps(grid) + ';\n'
+    + 'export const SOURCE = ' + json.dumps(source, ensure_ascii=False) + ';\n'
+    + 'export const HEIGHT = "' + encoded + '";\n'
+    + 'export default ' + json.dumps(out, separators=(',', ':')) + ';\n')
+print(len(out), 'steps', W, H, 'height grid')
