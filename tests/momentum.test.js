@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FLAG_WIDTH, gliderTrial, impactSpeeds } from '../src/lessons/kit/momentum.js';
+import { FLAG_WIDTH, gliderTrial, impactSpeeds, collisionMeasurements } from '../src/lessons/kit/momentum.js';
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-8, `${a} ≠ ${b}`);
 test('不等质量弹性碰撞：光电门遮光时间给出反向速度，动量和动能均守恒', () => {
   const m1 = 0.2,
@@ -58,4 +58,56 @@ test('较重入射滑块弹开后仍向右，分别用同一道门的两次记�
   close(0.3 * speeds[1] + 0.2 * speeds[0], 0.3 * 0.6);
   const [a, b] = run.positions(run.end);
   close(b - a, 0.11);
+});
+
+test('同一轮实测计时的反向速度带负号，动能各项仍为正', () => {
+  const r = collisionMeasurements([0.2, 0.3], [20, 25, 100], [1, 1, -1]);
+  assert.deepEqual(r.velocities, [0.5, 0.4, -0.1]);
+  close(r.kinetic[0], 0.025);
+  close(r.kinetic[1], 0.025);
+  close(r.momentum[0], 0.1);
+  close(r.momentum[1], 0.1);
+  assert.equal(r.relation, 'equal');
+  const reverse = collisionMeasurements([0.2, 0.3], [20, 25, 100], [-1, -1, 1]);
+  assert.deepEqual(reverse.kinetic, r.kinetic);
+  close(reverse.momentum[1], -r.momentum[1]);
+});
+
+test('0.1ms末位舍入的弹性碰撞不误判损失，粘连仍识别动能减少', () => {
+  for (const masses of [
+    [0.2, 0.3],
+    [0.3, 0.2],
+  ])
+    for (const launch of [0.17, 0.33, 0.57, 0.79]) {
+      for (const restitution of [0, 1]) {
+        const run = gliderTrial({ m1: masses[0], m2: masses[1], launch, restitution });
+        const selected = [
+          [0, 0],
+          [1, 1],
+          [0, 1],
+        ].map(([glider, stage]) => run.events.find((e) => e.glider === glider && e.stage === stage));
+        const times = selected.map((e) => +((e.exit - e.enter) * 1000).toFixed(1));
+        const result = collisionMeasurements(
+          masses,
+          times,
+          selected.map((e) => e.direction),
+        );
+        assert.equal(result.relation, restitution ? 'equal' : 'decrease');
+        const exactV = [launch, ...impactSpeeds(...masses, launch, 0, restitution).reverse()];
+        const exactEnergy = [
+          0.5 * masses[0] * launch ** 2,
+          0.5 * masses[0] * exactV[2] ** 2 + 0.5 * masses[1] * exactV[1] ** 2,
+        ];
+        for (let i = 0; i < 2; i++)
+          assert.ok(
+            result.energyBounds[0][i] <= exactEnergy[i] + 1e-12 && exactEnergy[i] <= result.energyBounds[1][i] + 1e-12,
+          );
+      }
+    }
+});
+
+test('动能比较来自数据而非端面标签，非法读数不可生成结论', () => {
+  assert.equal(collisionMeasurements([0.2, 0.3], [100, 20, 20], [1, 1, 1]).relation, 'increase');
+  assert.throws(() => collisionMeasurements([0.2, 0.3], [0, 20, 20], [1, 1, 1]));
+  assert.throws(() => collisionMeasurements([0.2, 0.3], [20, 20, 20], [1, 0, 1]));
 });

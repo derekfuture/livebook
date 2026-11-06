@@ -69,3 +69,31 @@ export function gliderTrial({ m1, m2, launch, restitution, x1 = -0.46, x2 = 0 })
   }
   return { collision, end, events, positions };
 }
+
+// 用原始计时读数分析同一轮；times 的顺序为甲碰前、乙碰后、甲碰后。
+// 计时显示到 0.1 ms，区间仅包含末位舍入，不冒充完整实验不确定度。
+export function collisionMeasurements(masses, times, directions) {
+  if (
+    masses.length !== 2 ||
+    times.length !== 3 ||
+    directions.length !== 3 ||
+    !masses.every((m) => Number.isFinite(m) && m > 0) ||
+    !times.every((t) => Number.isFinite(t) && t > 0.05) ||
+    !directions.every((d) => d === 1 || d === -1)
+  )
+    throw new RangeError('质量、三次计时和方向须有效');
+  const speeds = times.map((t) => (FLAG_WIDTH * 1000) / t);
+  const velocities = speeds.map((v, i) => v * directions[i]);
+  const energy = (v) => [0.5 * masses[0] * v[0] ** 2, 0.5 * masses[0] * v[2] ** 2 + 0.5 * masses[1] * v[1] ** 2];
+  const kinetic = energy(speeds);
+  const lower = energy(times.map((t) => (FLAG_WIDTH * 1000) / (t + 0.05)));
+  const upper = energy(times.map((t) => (FLAG_WIDTH * 1000) / (t - 0.05)));
+  const relation = upper[1] < lower[0] ? 'decrease' : lower[1] > upper[0] ? 'increase' : 'equal';
+  return {
+    velocities,
+    kinetic,
+    energyBounds: [lower, upper],
+    relation,
+    momentum: [masses[0] * velocities[0], masses[0] * velocities[2] + masses[1] * velocities[1]],
+  };
+}

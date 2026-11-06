@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { draggable, clamp } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { table, buttons, note, h } from './kit/ui.js';
-import { gliderTrial, FLAG_WIDTH } from './kit/momentum.js';
+import { gliderTrial, collisionMeasurements } from './kit/momentum.js';
 import { momentumRig, TRACK_Y } from './kit/momentumRig.js';
 
 export default {
@@ -19,8 +19,8 @@ export default {
   },
   conclusion: {
     quote: '水平气垫导轨上，碰撞前后两滑块的总动量在测量精度内相等。',
-    why: '比较的是两滑块组成的系统。气垫减小摩擦，水平导轨使沿轨道的外力近似为零。光电门给出遮光时间，遮光片宽度除以时间得到速率，再按运动方向确定速度正负。滑块粘连后共同运动，总动量仍可守恒。',
-    src: '人教版高中物理选择性必修第一册第 17–19 页，参考案例 1',
+    why: '比较的是两滑块组成的系统。气垫减小摩擦，水平导轨使沿轨道的外力近似为零。光电门给出遮光时间，遮光片宽度除以时间得到速率，再按运动方向确定速度正负。滑块粘连后共同运动，总动量仍可守恒，但总动能减少；弹性碰撞中总动能近似不变。动能按½mv²计算，反向速度平方后仍为正，动能减少不表示总能量不守恒。',
+    src: '人教版高中物理选择性必修第一册第 17–19 页参考案例 1；第21–22页碰撞前后动能分析',
   },
   create(ctx) {
     const rig = momentumRig(),
@@ -58,8 +58,8 @@ export default {
         { id: 'stick', title: '粘连碰撞', todo: '把搭扣装到两滑块相撞的一端，再推甲。', target: () => aim },
         {
           id: 'verify',
-          title: '核算总动量',
-          todo: '按实测时间求带符号的速度，比较两次碰撞的前后总动量。',
+          title: '比较动量和动能',
+          todo: '沿用两组实测数据，分别比较碰前后的总动量和总动能。',
           target: () => aim,
         },
       ],
@@ -81,7 +81,7 @@ export default {
       return run && nextEvent === run.events.length && time >= run.collision;
     }
     function guide() {
-      if (bar.finished) return say('两组总动量已核对。笔记本保留你的计时和计算结果。');
+      if (bar.finished) return say('两组动量和动能已核对。弹开时动能近似不变，粘连时减少；原计时记录保留。');
       if (!air) return say('点气源开关通气，看原来静止的滑块会不会自行漂移。', rig.power);
       if (Math.abs(tilt) > 1e-8)
         return say('气泡偏离中央。点左前方金色调平轮可近看，上下拖动让气泡回到两线中间。', rig.screw);
@@ -114,7 +114,7 @@ export default {
                 ].screen,
           );
         if (bar.has('elastic') && bar.has('stick'))
-          return say('两组遮光时间已记下。展开笔记本，用 10 mm 除以遮光时间，再比较总动量。');
+          return say('两组遮光时间已记下。展开笔记本，用原计时求速度，再比较总动量和总动能。');
         return say('把甲拖回导轨左侧起点，准备换另一种碰撞端面。', carts[0]);
       }
       if (sleeves[0] !== sleeves[1])
@@ -224,22 +224,45 @@ export default {
         '碰后甲速度 / (m/s)',
         '碰前总动量 / (kg·m/s)',
         '碰后总动量 / (kg·m/s)',
+        '碰前总动能 / J',
+        '碰后总动能 / J',
       ];
       const inputs = labels.map((label) =>
         h('input', { type: 'number', step: 'any', 'aria-label': label, style: 'width:6em' }),
       );
+      const relation = h(
+        'select',
+        { 'aria-label': '这组总动能怎样变化' },
+        h('option', { value: '' }, '选择动能比较结果'),
+        h('option', { value: 'equal' }, '前后近似相等'),
+        h('option', { value: 'decrease' }, '碰后减少'),
+        h('option', { value: 'increase' }, '碰后增加'),
+      );
+      const invalidate = () => {
+        if (row.accepted) {
+          row.accepted = false;
+          bar.undo('verify');
+        }
+      };
+      for (const el of [...inputs, relation]) el.addEventListener('input', invalidate);
       const box = h(
         'div',
         {},
-        note((row.sticky ? '粘连组' : '弹开组') + '：乙碰前静止。向右取正，速度保留三位小数，总动量保留三位小数。'),
-        ...inputs.map((el, i) => h('label', {}, labels[i] + ' ', el)),
+        note(
+          (row.sticky ? '粘连组' : '弹开组') +
+            '：沿用上表本组质量和计时，乙碰前静止。向右取正，速度和总动量保留三位小数，总动能保留五位小数。',
+        ),
+        note('总动量：m甲v甲＋m乙v乙；总动能：½m甲v甲²＋½m乙v乙²。质量用kg，动能没有方向。'),
+        ...inputs.map((el, i) => h('div', { class: 'read-row' }, h('label', {}, labels[i] + ' ', el))),
+        h('div', { class: 'read-row' }, h('label', {}, '这组总动能怎样变化 ', relation)),
         buttons([
           {
-            text: '核对这组动量',
+            text: '核对这组计算',
             onClick: () => {
               const v = inputs.map((el) => el.valueAsNumber),
-                expected = row.times.map((t, i) => (row.directions[i] * FLAG_WIDTH * 1000) / t);
-              if (expected.some((x, i) => !Number.isFinite(v[i]) || Math.abs(v[i] - x) > 0.002))
+                measured = collisionMeasurements(row.m, row.times, row.directions),
+                expected = measured.velocities;
+              if (expected.some((x, i) => !Number.isFinite(v[i]) || Math.abs(v[i] - x) > 0.00051))
                 return say('速度大小取 10 mm 除以对应的毫秒数。向左的速度要带负号。');
               const before = row.m[0] * v[0],
                 after = row.m[0] * v[2] + row.m[1] * v[1];
@@ -250,6 +273,15 @@ export default {
                 Math.abs(v[4] - after) > 0.0015
               )
                 return say('把质量换为 kg，各自乘带符号的速度，再把两块的动量相加。');
+              const kinetic = [0.5 * row.m[0] * v[0] ** 2, 0.5 * row.m[0] * v[2] ** 2 + 0.5 * row.m[1] * v[1] ** 2];
+              if (
+                kinetic.some((e, i) => !Number.isFinite(v[i + 5]) || v[i + 5] < 0 || Math.abs(v[i + 5] - e) > 0.000015)
+              )
+                return say('动能用½mv²：先把各块速度平方，再分别乘质量和½，最后相加；向左运动也有正动能。');
+              if (relation.value !== measured.relation)
+                return say(
+                  '根据本组两项总动能选比较结果。计时读数和保留三位小数的速度都有舍入，微小差别不能直接认作动能损失。',
+                );
               row.accepted = true;
               if ([false, true].every((mode) => stored.some((r) => r.sticky === mode && r.accepted)))
                 bar.done('verify');
@@ -258,7 +290,14 @@ export default {
                   v[3].toFixed(3) +
                   '，碰后 ' +
                   v[4].toFixed(3) +
-                  ' kg·m/s。' +
+                  ' kg·m/s；动能 ' +
+                  v[5].toFixed(5) +
+                  ' → ' +
+                  v[6].toFixed(5) +
+                  ' J。' +
+                  (measured.relation === 'equal'
+                    ? '读数与计算精度内近似相等。'
+                    : '粘连后部分动能转化为内能等，不能因此说总能量不守恒。') +
                   (bar.finished ? '两组均已核对。' : '继续核对另一组。'),
               );
             },
