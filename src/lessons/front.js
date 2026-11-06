@@ -336,13 +336,14 @@ export default {
       if (rainy) {          // 雨：冷锋大而斜（起风），暖锋、准静止锋细而密
         const slant = kind === 'cold' ? 10 : 2, n = kind === 'cold' ? 70 : 90, len = kind === 'cold' ? 16 : 10;
         g.strokeStyle = kind === 'cold' ? 'rgba(200,215,235,0.8)' : 'rgba(210,220,232,0.65)'; g.lineWidth = kind === 'cold' ? 1.4 : 1;
-        for (let i = 0; i < n; i++) { const x = (i * 37.7 + S.t * 60 * slant / 10) % (w + 20) - 10, y = ((i * 53.3 + S.t * 160) % (hh - 10)); g.beginPath(); g.moveTo(x, y); g.lineTo(x - slant, y + len); g.stroke(); }
+        for (let i = 0; i < n; i++) { const x = (i * 37.7 + S.t * 60 * slant / 10) % (w + 20) - 10, y = ((i * 53.3 + S.t * 160) % (hh - 10)); g.beginPath(); g.moveTo(x, y); g.lineTo(x + slant, y + len); g.stroke(); }          // 雨线往右下斜，和雨滴随风往右的运动一致
       }
       if (kind === 'cold' && (k === 'w1' || k === 'w2')) { g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 1.5; for (let i = 0; i < 4; i++) { const y = 46 + i * 12, x = (S.t * 90 + i * 70) % (w + 60) - 60; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 20, y - 5, x + 40, y); g.stroke(); } }          // 风
       if (k === 'w3') { for (const [x, y] of [[60, 34], [150, 22]]) { blob(x, y, 12, 'rgba(255,255,255,0.85)'); blob(x + 14, y + 2, 10, 'rgba(255,255,255,0.85)'); } }
       g.fillStyle = '#7fa65c'; g.fillRect(0, hh - 16, w, 16);          // 地面和你家
       g.fillStyle = '#f3ede1'; g.fillRect(140, hh - 28, 14, 12); g.fillRect(158, hh - 25, 12, 9); g.fillStyle = '#c7503c'; g.beginPath(); g.moveTo(137, hh - 28); g.lineTo(147, hh - 36); g.lineTo(157, hh - 28); g.fill(); g.beginPath(); g.moveTo(156, hh - 25); g.lineTo(164, hh - 31); g.lineTo(172, hh - 25); g.fill();
-      const temp = k === 'p' ? (/较暖/.test(wx.text) ? '较暖' : '较冷')          // 按你家此刻在哪团空气里：不靠文字猜
+      const airT = /较暖/.test(wx.text) ? '较暖' : /较冷/.test(wx.text) ? '较冷' : null;          // 云雨还没形成时，冷暖只看你家在哪团空气里（天气文字里写着）
+      const temp = (k === 'p' || S.form < 1) && airT ? airT
         : kind === 'cold' ? ({ w0: '较暖', w1: '较暖', w2: '降温', w3: '较冷' })[k] : kind === 'warm' ? ({ w0: '较冷', w1: '较冷', w2: '较冷', w3: '变暖' })[k] : (k === 'w0' ? '较暖' : '较冷');
       g.font = 'bold 13px sans-serif'; g.textAlign = 'left'; g.fillStyle = 'rgba(255,255,255,0.88)'; g.fillRect(6, 6, g.measureText(wx.text).width + 12, 20); g.fillStyle = '#23293a'; g.fillText(wx.text, 12, 21);
       g.textAlign = 'right'; g.fillStyle = 'rgba(255,255,255,0.88)'; g.fillRect(w - 84, hh - 38, 78, 18); g.fillStyle = temp === '降温' || temp === '较冷' ? '#2a62b8' : '#c8402e'; g.fillText(`气温：${temp}`, w - 10, hh - 24);
