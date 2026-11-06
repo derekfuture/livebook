@@ -13,6 +13,7 @@ from find_bbox import plan_rows
 ROOT = Path(__file__).resolve().parent.parent
 BOX = json.loads((ROOT / "tools" / "bbox-overrides.json").read_text())
 EXTRA_SPOTS = [
+    {"lesson": "freespring", "page": 38, "bbox": [101, 166, 153, 289], "label": "图2.1-4 · 翻开活页"},
     {"lesson": "pendulum", "page": 101, "bbox": [138, 236, 386, 416], "label": "图11.4-3 · 翻开活页"},
 ]
 TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "wuli-hs1": "物理 高中必修第一册", "wuli-hs2": "物理 高中必修第二册", "wuli-hs3": "物理 高中必修第三册", "wuli-hsx1": "物理 高中选择性必修第一册", "wuli-hsx2": "物理 高中选择性必修第二册", "wuli-hsx3": "物理 高中选择性必修第三册"}

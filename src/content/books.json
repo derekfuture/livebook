@@ -2583,6 +2583,11 @@
   "title": "物理 高中选择性必修第一册",
   "base": "/books/wuli-hsx1/",
   "lessons": {
+   "freespring": {
+    "title": "测量弹簧振子的周期",
+    "fig": "图2.2-3",
+    "sec": "简谐运动的描述"
+   },
    "forcedvibration": {
     "title": "研究受迫振动的频率",
     "fig": "图2.6-2",
@@ -2655,6 +2660,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "freespring",
+    "page": 41,
+    "bbox": [
+     442,
+     587,
+     498,
+     728
+    ],
+    "label": "图2.2-3 · 翻开活页"
+   },
    {
     "lesson": "forcedvibration",
     "page": 59,
@@ -2808,6 +2824,17 @@
      590
     ],
     "label": "图4.6-3 · 翻开活页"
+   },
+   {
+    "lesson": "freespring",
+    "page": 38,
+    "bbox": [
+     101,
+     166,
+     153,
+     289
+    ],
+    "label": "图2.1-4 · 翻开活页"
    }
   ]
  },

@@ -1,4 +1,5 @@
 {
+  "freespring": [442, 587, 498, 728],
   "thermistor": [65, 59, 537, 187],
   "photoresistor": [348, 596, 537, 696],
   "waxmotion": [58, 530, 244, 690],
