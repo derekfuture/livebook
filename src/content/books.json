@@ -2583,6 +2583,11 @@
   "title": "物理 高中选择性必修第一册",
   "base": "/books/wuli-hsx1/",
   "lessons": {
+   "springphase": {
+    "title": "观察两个小球的振动",
+    "fig": "图2.2-4",
+    "sec": "简谐运动的描述"
+   },
    "freespring": {
     "title": "测量弹簧振子的周期",
     "fig": "图2.2-3",
@@ -2660,6 +2665,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "springphase",
+    "page": 42,
+    "bbox": [
+     87,
+     506,
+     187,
+     575
+    ],
+    "label": "图2.2-4 · 翻开活页"
+   },
    {
     "lesson": "freespring",
     "page": 41,

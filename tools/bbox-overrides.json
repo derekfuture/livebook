@@ -1,4 +1,5 @@
 {
+  "springphase": [87, 506, 187, 575],
   "freespring": [442, 587, 498, 728],
   "thermistor": [65, 59, 537, 187],
   "photoresistor": [348, 596, 537, 696],
