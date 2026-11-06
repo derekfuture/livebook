@@ -113,12 +113,12 @@ function fmtNum(x) {
  * 坐标图。x/y: { label, min, max, ticks? }；series: [{ color, points: [[x,y]], line?, dots?, dash? }]
  * 调 draw() 重画；points 可以随时改。fit=true 时按数据自动放大坐标范围。
  */
-export function chart({ x, y, series = [], height = 170, fit = false, legend } = {}) {
+export function chart({ x, y, series = [], height = 170, fit = false, legend, preserveAspect = false } = {}) {
   // 画布按 2 倍再放大 2 倍画（共 4 倍），点一下图表可以放大看（投屏、手机上都看得清）
   const SC = 2;
   const canvas = h('canvas', { class: 'chart', width: 680 * SC, height: height * 2 * SC, title: '点一下放大' });
-  canvas.style.height = `${height}px`;
-  canvas.addEventListener('click', () => zoomChart(canvas, height));
+  canvas.style.height = preserveAspect ? 'auto' : `${height}px`;
+  canvas.addEventListener('click', () => zoomChart(canvas, preserveAspect ? null : height));
   const api = {
     el: h('div', {}, canvas, legend ? h('p', { class: 'note', html: legend }) : null),
     canvas, x, y, series,
@@ -178,7 +178,8 @@ function zoomChart(canvas, height) {
   const home = canvas.parentNode, next = canvas.nextSibling;
   const wrap = h('div', { class: 'chart-zoom' }, h('div', { class: 'chart-zoom-paper' }, canvas, h('small', {}, '点一下放回去')));
   canvas.style.height = '';
-  wrap.addEventListener('click', () => { canvas.style.height = `${height}px`; home.insertBefore(canvas, next); wrap.remove(); });
+  if (height === null) wrap.firstElementChild.style.width = `min(1100px, 92vw, calc((100vh - 100px) * ${canvas.width / canvas.height}))`;
+  wrap.addEventListener('click', () => { canvas.style.height = height === null ? 'auto' : `${height}px`; home.insertBefore(canvas, next); wrap.remove(); });
   document.body.append(wrap);
 }
 
