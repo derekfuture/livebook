@@ -4,7 +4,11 @@
 export const sst = (x, a) => { const normal = 29 - 3.5 * (x + 1) ** 1.3, warm = a > 0 ? a * 4.2 * Math.max(0, (x + 0.3) / 1.3) : a * 2.2 * Math.max(0, (x + 0.3) / 1.3); return normal + warm; };
 export const west = (a) => sst(-0.9, a), east = (a) => sst(0.9, a), diff = (a) => west(a) - east(a);
 /** 上升气流在哪（x）：正常在西边；厄尔尼诺时东移；拉尼娜时更偏西 */
-export const riseX = (a) => -0.7 + 0.95 * Math.max(0, a) + 0.12 * Math.min(0, a);
+export const riseX = (a) => -0.7 + 1.35 * Math.max(0, a) + 0.12 * Math.min(0, a);
+/** 下沉气流在哪：正常、拉尼娜在东边；厄尔尼诺时上升移到中东部，下沉移到西边 */
+export const sinkX = (a) => (a > 0.5 ? -0.8 : Math.min(0.92, riseX(a) + 1.35));
+/** 上升那里的雨有多大（0–1，示意）：东西温差越大，环流越强 */
+export const rainAmt = (a) => (a < -0.5 ? 1 : a > 0.5 ? 0.85 : 0.65);
 /** 东、西两岸的天气 */
 export function weather(a) {
   return {

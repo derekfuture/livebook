@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
-import { sst, west, east, diff, riseX, weather, upwell, stateName } from './kit/enso.js';
+import { sst, west, east, diff, riseX, sinkX, rainAmt, weather, upwell, stateName } from './kit/enso.js';
 
 const XL = -0.17, XR = 0.17, ZD = 0.05, SEA = 0.03, AIR = 0.085;
 const X = (u) => XL + (XR - XL) * (u + 1) / 2, U = (x) => ((x - XL) / (XR - XL)) * 2 - 1;          // 模型 x（−1…1）↔ 画面 x
@@ -28,7 +28,7 @@ export default {
   conclusion: {
     page: 78,
     quote: '正常年份，赤道附近太平洋中东部的表层海水温度较低，大气较稳定，气流下沉；西部海水温度较高，气流上升。有些年份，赤道附近太平洋中东部表层海水温度异常升高，这种现象被称为厄尔尼诺现象。厄尔尼诺现象发生后，赤道附近太平洋地区东、西部海面的温度差异减小。赤道附近的太平洋东部，如秘鲁和智利沿海，下沉气流减弱或消失，甚至出现上升气流，气候由原来的干燥少雨变为多雨，引发洪涝灾害。同时，赤道附近的太平洋西部，上升气流减弱或消失，气候由温润多雨转变为干燥少雨，带来旱灾或森林大火。……与厄尔尼诺现象相反，拉尼娜现象是指赤道附近太平洋中东部的表层海水温度异常降低的现象。',
-    why: '海水温度决定了上空的空气是升还是沉：哪里海水暖，那里的空气受热上升、成云下雨；哪里海水冷，空气下沉、干燥。正常年份暖水堆在西边，西边上升多雨、东边下沉干燥，上空连成一圈热力环流。厄尔尼诺时暖水到了中东部，上升的地方跟着东移：东边下起大雨，西边反而干旱。海温变一变，大气环流、各地的降水都跟着变——这就是海—气相互作用。',
+    why: '海面温度的分布影响上空的空气是升还是沉：相对暖的海面上空气容易受热上升、成云下雨，相对冷的海面上空气下沉、干燥。正常年份暖水堆在西边，西边上升多雨、东边下沉干燥，上空连成一圈热力环流。厄尔尼诺时暖水到了中东部，上升的地方跟着东移：东边下起大雨，西边反而干旱。海温变一变，大气环流、各地的降水都跟着变——这就是海—气相互作用。',
     src: '课本第 74–75 页 · 第四章 第三节 海—气相互作用',
   },
 
@@ -83,7 +83,7 @@ export default {
     const loops = new THREE.Group(); block.add(loops);
     const buildLoop = () => {
       for (const o of [...loops.children]) { loops.remove(o); o.geometry.dispose(); }
-      const xr = X(riseX(S.a)), xs = X(Math.min(0.92, riseX(S.a) + 1.35)), str = Math.max(0.25, diff(S.a) / 9.9), top = SEA + 0.015 + 0.04 * str, low = SEA + 0.006, z = ZD * 0.2;
+      const xr = X(riseX(S.a)), xs = X(sinkX(S.a)), str = Math.max(0.25, diff(S.a) / 9.9), top = SEA + 0.015 + 0.04 * str, low = SEA + 0.006, z = ZD * 0.2;
       const P = []; for (let i = 0; i <= 12; i++) P.push(new THREE.Vector3(xs + (xr - xs) * (i / 12), low, z)); for (let i = 1; i <= 4; i++) P.push(new THREE.Vector3(xr, low + (top - low) * (i / 4), z)); for (let i = 1; i <= 12; i++) P.push(new THREE.Vector3(xr + (xs - xr) * (i / 12), top, z)); for (let i = 1; i < 4; i++) P.push(new THREE.Vector3(xs, top - (top - low) * (i / 4), z));
       const c = new THREE.CatmullRomCurve3(P, true, 'catmullrom', 0.2), tube = new THREE.Mesh(new THREE.TubeGeometry(c, 90, 0.0009 + 0.0007 * str, 6, true), loopMat); tube.raycast = () => {}; loops.add(tube);
       for (const u of [0.15, 0.42, 0.62, 0.9]) { const hd = new THREE.Mesh(new THREE.ConeGeometry(0.0028, 0.008, 10), loopMat); hd.position.copy(c.getPointAt(u)); hd.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), c.getTangentAt(u)); hd.raycast = () => {}; loops.add(hd); }
@@ -99,13 +99,13 @@ export default {
     // ---- 暖水：海面下那团可以推的“暖水”（一个半透明的红色把手） ----
     const handle = new THREE.Mesh(new THREE.SphereGeometry(0.009, 20, 14), new THREE.MeshStandardMaterial({ color: 0xe0583a, transparent: true, opacity: 0.85, emissive: 0x5a1a10, emissiveIntensity: 0.4 })); block.add(handle);
     const handlePick = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); handlePick.userData.pick = true; handle.add(handlePick);
-    const tHint = tag('按住这团暖水，往东（右）推、往西（左）推', 'pill'), tScale = tag('教学示意 · 海温和环流的位置是示意', 'pill');
+    const tHint = tag('按住这团暖水，往东（右）推、往西（左）推', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 海温和环流的位置是示意 · 拖动只是切换状态，不是在模拟成因', 'pill');
     const tW = tag('', 'pill'), tE = tag('', 'pill'), tState = tag('', 'pill callout');
     tag('西太平洋（印度尼西亚一带）', 'pill').loc(block, XL + 0.02, -0.004, ZD + 0.01); tag('东太平洋（秘鲁沿海）', 'pill').loc(block, XR - 0.02, -0.004, ZD + 0.01);
     const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
 
     const layout = () => {
-      const wx = weather(S.a), hx = X(-0.55 + 0.9 * S.a);
+      const wx = weather(S.a), hx = X(-0.2 + 0.7 * S.a);          // 暖水把手只在看得见的海面里走
       handle.position.set(hx, SEA - 0.006, ZD + 0.004);
       paintSea(); paintTop(); buildLoop();
       const xr = X(riseX(S.a)); cloud.position.set(xr, AIR - 0.01, 0); cloud.scale.setScalar(0.8 + 0.4 * Math.max(0.3, diff(S.a) / 9.9));
@@ -140,7 +140,8 @@ export default {
       if (S.seen.has('el') && S.seen.has('la')) W.ui.unlock();
     };
     const events = () => {
-      const k = S.a > 0.6 ? 'el' : S.a < -0.6 ? 'la' : null;
+      const k = S.a > 0.6 ? 'el' : S.a < -0.6 ? 'la' : null, st = k || (Math.abs(S.a) < 0.3 ? 'normal' : S.lastSt);
+      if (st !== S.lastSt) { S.lastSt = st; W?.stSeg.set(st === 'la' ? 0 : st === 'el' ? 2 : st === 'normal' ? 1 : -1); if (st === 'normal' && S.seen.size) W?.ui.status('回到正常年份：暖水堆在西边，西边上升多雨，东边下沉干燥。'); else if (k && S.seen.has(k)) W?.ui.status(k === 'el' ? '又是<b>厄尔尼诺</b>：上升气流到了中东部，秘鲁沿海多雨，西边干旱。' : '又是<b>拉尼娜</b>：东西温差更大，原来的环流更强。'); }          // 状态变了：按钮、提示一起跟着变
       if (k && !S.seen.has(k)) { S.seen.add(k); callout.loc(block, k === 'el' ? XR - 0.03 : XL + 0.04, AIR + 0.02, 0).text(k === 'el' ? '东边下起大雨，西边干旱' : '东西温差更大了').show(true); calloutT = 4; drawLog(); W?.ui.status(k === 'el' ? '这就是<b>厄尔尼诺</b>：赤道附近太平洋中东部海水异常变暖。上升气流东移到了中东部：秘鲁沿海下起大雨，西边的岛上却干旱起火。再往西推试试。' : '这是<b>拉尼娜</b>：中东部海水异常变冷，东西温差更大，原来的环流更强了。'); }
     };
 
@@ -152,7 +153,7 @@ export default {
       move(rc) {
         const c = document.getElementById('c');
         if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(handlePick, false).length ? 'grab' : ''; return false; }
-        const p = onFront(rc.ray); if (!p) return true; const u = U(p.x - dx0); S.a = Math.max(-1, Math.min(1, (u + 0.55) / 0.9)); events(); layout(); return true;
+        const p = onFront(rc.ray); if (!p) return true; const u = U(p.x - dx0); S.a = Math.max(-1, Math.min(1, (u + 0.2) / 0.7)); events(); layout(); return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; return true; },
     };
@@ -173,14 +174,15 @@ export default {
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 130 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '表层海温（西 → 东）'), chart, read, guess.el, stSeg.el, acts.el, note('剖面上：红是暖水，蓝是冷水，白虚线是暖水层的底；上空的环：西边上升、东边下沉。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
-        W = { ui, chart, read, log };
+        W = { ui, chart, read, log, stSeg };
         ui.status('这是正常年份的赤道太平洋：暖水堆在西边，西边上升多雨、东边下沉干燥。按住那团<b>暖水</b>往东推。');
         layout(); drawLog();
       },
       update(dt) {
         S.t += dt; if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
         const xr = X(riseX(S.a)), b = AIR - 0.016;
-        for (let i = 0; i < NR; i++) { const [a, z, c] = rs[i], x = xr + (a - 0.5) * 0.04, y = b - ((c + S.t * 1.2) % 1) * (b - SEA); rp.set([x, y, (z - 0.5) * ZD * 1.6, x - 0.0006, Math.max(SEA, y - 0.006), (z - 0.5) * ZD * 1.6], i * 6); }
+        const ra = rainAmt(S.a), nOn = Math.round(NR * ra);          // 雨多雨少跟着状态变
+        for (let i = 0; i < NR; i++) { if (i >= nOn) { rp.set([0, -1, 0, 0, -1, 0], i * 6); continue; } const [a, z, c] = rs[i], x = xr + (a - 0.5) * 0.04 * (0.7 + 0.6 * ra), y = b - ((c + S.t * 1.2) % 1) * (b - SEA); rp.set([x, y, (z - 0.5) * ZD * 1.6, x - 0.0006, Math.max(SEA, y - 0.006), (z - 0.5) * ZD * 1.6], i * 6); }
         rain.geometry.attributes.position.needsUpdate = true;
         smoke.forEach((s, i) => { const t = (S.t * 0.3 + i / smoke.length) % 1; s.position.set(XL + 0.012 + t * 0.01, SEA + 0.01 + t * 0.03, -0.01 + (i % 3) * 0.012); s.scale.setScalar(0.008 + t * 0.016); s.material.opacity = (1 - t) * 0.8; });
         fish.forEach((f, i) => { f.position.x += Math.sin(S.t * 2 + i) * 0.00003; });
