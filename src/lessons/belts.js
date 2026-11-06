@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { BELTS, WINDS, windAt, relWind, beltNear, beltLat } from './kit/belts.js';
 
@@ -114,13 +115,15 @@ export default {
     const vaneM = new THREE.MeshBasicMaterial({ color: 0xc4462e }), vane = new THREE.Mesh(new THREE.ConeGeometry(0.0018, 0.009, 8), vaneM); vane.position.y = 0.018; boat.add(vane);          // 船上的风向标：指着风吹去的方向
     const boatPick = new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), new THREE.MeshBasicMaterial({ visible: false })); boatPick.position.y = 0.006; boatPick.userData.pick = true; boat.add(boatPick);
     const heading = (lat) => (lat < -40 ? 270 : 315);          // 麦哲伦船队：绕过南美南端往西；进了太平洋以后往西北
-    const tBoat = tag('', 'pill'), tHint = tag('按住小帆船，往北（上）推', 'pill'), tScale = tag('教学示意 · 环流圈的高度大大夸大了 · 不画海陆 · 风带界线和季节移动的度数是示意', 'pill');
-    const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
-    const say1 = (text, p) => { callout.loc(group, p.x + 0.03, p.y + 0.02, p.z).text(text).show(true); calloutT = 4; };
-    const tUD = [[0, '上升'], [30, '下沉'], [60, '上升'], [88, '下沉']].map(([lat, t]) => ({ lat, t: tag(t, 'pill') }));
-    const placeUD = () => { const cs = Math.cos(Math.PI * 0.16), sn = Math.sin(Math.PI * 0.16); tUD.forEach(({ lat, t }, i) => { const la = (lat + (Math.abs(lat) >= 88 ? 0 : S.shift)) * D2R, r = R * 1.22, x = -Math.cos(la) * r; t.loc(group, x * cs, CY + Math.sin(la) * r, -x * sn).show(S.rot); }); };
+    const tBoat = airLabel(group, '', { h: 0.0078, color: '#2c3245', icon: 'wind' }), tHint = tag('<span>按住小帆船</span><small>往北（上）推</small>', 'hint'), tScale = noteBadge(tag, '教学示意：环流圈的高度大大夸大了，不画海陆，风带界线和季节移动的度数是示意');
+    const callout = airLabel(group, '', { h: 0.008, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
+    callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
+    const say1 = (text, p) => { callout.position.set(p.x + 0.03, p.y + 0.02, p.z); callout.setText(text).setOn(true); calloutT = 4; };
+    const tUD = [[0, '上升'], [30, '下沉'], [60, '上升'], [80, '下沉']].map(([lat, t]) => ({ lat, t: airLabel(group, t, { h: 0.0095, color: '#2c3245', icon: t === '上升' ? 'up' : 'down', dim: 0 }) }));
+    const placeUD = () => { const cs = Math.cos(Math.PI * 0.16), sn = Math.sin(Math.PI * 0.16); tUD.forEach(({ lat, t }, i) => { const la = (lat + (Math.abs(lat) >= 80 ? 0 : S.shift)) * D2R, r = R * 1.22, x = -Math.cos(la) * r; t.position.set(x * cs, CY + Math.sin(la) * r, -x * sn); t.setOn(S.rot); }); };
     const tBelts = [];          // 右边轮廓上：每条气压带一个“高”“低”
-    for (const b of BELTS) tBelts.push({ b, t: tag(b.p === 'H' ? '高' : '低', 'pill') });
+    for (const b of BELTS) tBelts.push({ b, t: airLabel(group, b.p === 'H' ? '高' : '低', { h: 0.011, color: b.p === 'H' ? '#b03a2a' : '#1f4f86', dim: 0 }) });
+    const labels = [tBoat, callout, ...tUD.map((o) => o.t), ...tBelts.map((o) => o.t)];
 
     const placeBoat = () => {
       const f = enu(S.lat, 0), p = f.up.clone().multiplyScalar(R).add(new THREE.Vector3(0, CY, 0));
@@ -129,11 +132,11 @@ export default {
       const w = relWind(S.lat, hd, S.shift, S.rot), wd = f.east.clone().multiplyScalar(w.u).add(f.north.clone().multiplyScalar(w.v));
       vane.visible = w.speed >= 0.2; if (vane.visible) { const local = wd.clone().applyQuaternion(boat.quaternion.clone().invert()).normalize(); vane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), local); }
       const bn = beltNear(S.lat, S.shift, 2);          // 和“风很小”的判定用同一个宽度
-      tBoat.loc(group, p.x - 0.03, p.y + 0.006, p.z).text(`<b>${Math.abs(Math.round(S.lat))}°${S.lat >= 0 ? 'N' : 'S'}</b> ${S.rot ? (bn ? bn.name.replace(/^(北半球|南半球)/, '') : w.belt.replace(/^(北半球|南半球)/, '')) : ''} · ${w.dir} · <b>${w.rel}</b>`);
-      tHint.loc(group, p.x - 0.05, p.y - 0.012, p.z).show(!S.visited.size);
+      tBoat.position.set(p.x - 0.03, p.y + 0.006, p.z); tBoat.setText(`${Math.abs(Math.round(S.lat))}°${S.lat >= 0 ? 'N' : 'S'} ${S.rot ? (bn ? bn.name.replace(/^(北半球|南半球)/, '') : w.belt.replace(/^(北半球|南半球)/, '')) : ''} · ${w.dir} · ${w.rel}`);
+      tHint.loc(group, p.x + 0.05, p.y - 0.022, p.z).show(!S.visited.size);
       return { w, bn, p };
     };
-    const placeBeltTags = () => { const cs = Math.cos(Math.PI * 0.12), sn = Math.sin(Math.PI * 0.12); tBelts.forEach(({ b, t }) => { const lat = beltLat(b, S.shift) * D2R, r = R * 1.25, x = Math.cos(lat) * r; t.loc(group, x * cs, CY + Math.sin(lat) * r, -x * sn).show(S.rot); t.el.classList.toggle('hot', b.p === 'H'); }); tScale.loc(group, -R - 0.02, 0.004, R * 0.6); };
+    const placeBeltTags = () => { const cs = Math.cos(Math.PI * 0.12), sn = Math.sin(Math.PI * 0.12); tBelts.forEach(({ b, t }) => { const lat = beltLat(b, S.shift) * D2R, r = R * 1.25, x = Math.cos(lat) * r; t.position.set(x * cs, CY + Math.sin(lat) * r, -x * sn); t.setOn(S.rot); }); tScale.loc(group, -R - 0.06, 0.004, R * 0.6); };
 
     // ---- 侧栏：一张从北极到南极的条：气压带（高 / 低）和每个风带的风向；船在哪 ----
     const drawChart = (cur) => {
@@ -209,7 +212,7 @@ export default {
         ui.status('船在南美洲南端（约南纬 50°）。按住<b>小帆船</b>往北推，看一路上哪段逆风、哪段平静、哪段顺风。');
         layout2(); drawLog();
       },
-      update(dt) { if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); } },
+      update(dt) { labels.forEach((l) => l.tick(dt)); if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); } },
     };
   },
 };
