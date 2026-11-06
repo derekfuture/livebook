@@ -2302,6 +2302,11 @@
   "title": "地理 必修第一册",
   "base": "/books/dili-bx1/",
   "lessons": {
+   "water": {
+    "title": "水循环示意",
+    "fig": "图3.2",
+    "sec": "第三章第一节 水循环"
+   },
    "thermal": {
     "title": "热力环流的形成示意",
     "fig": "图2.11",
@@ -2309,6 +2314,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "water",
+    "page": 51,
+    "bbox": [
+     0,
+     398,
+     595,
+     712
+    ],
+    "label": "图3.2 · 翻开活页"
+   },
    {
     "lesson": "thermal",
     "page": 40,
