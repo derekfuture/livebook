@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastTemp, GYRES } from './kit/current.js';
 
@@ -92,7 +93,7 @@ export default {
     // ---- 风：大洋两边的空中一排小白箭头（信风向西、西风向东） ----
     const windArrows = new THREE.Group(); block.add(windArrows);
     for (const lat of [15, -15, 45, -45, -58]) { const dir = Math.abs(lat) < 30 ? -1 : 1; for (let x = -0.1; x <= 0.1; x += 0.05) { const a = new THREE.Mesh(new THREE.ConeGeometry(0.003, 0.012, 3), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 })); a.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2; a.position.copy(P3(x, nOf(lat) + (lat > 0 ? 0.004 : -0.004), G + 0.02)); a.raycast = () => {}; windArrows.add(a); } }
-    const tWind = [tag('信风（东北风）', 'pill'), tag('盛行西风', 'pill'), tag('信风（东南风）', 'pill'), tag('西风', 'pill')];
+    const tWind = ['信风（东北风）', '盛行西风', '信风（东南风）', '西风'].map((t) => airLabel(block, t, { h: 0.0085, color: '#1f4f86', icon: 'wind', dim: 0 }));
 
     // ---- 漂浮的海水：一粒粒，跟着洋流走 ----
     const NP = 420, pp = new Float32Array(NP * 3), parts = Array.from({ length: NP }, () => ({ x: XL + rnd() * (XR - XL), n: -NB + rnd() * 2 * NB, a: rnd() * 4 }));
@@ -124,18 +125,20 @@ export default {
     // ---- 沿岸的小城：北纬 60° 大洋两岸各一座 ----
     const town = (x, n) => { const g = new THREE.Group(); for (const [dx, dz, hh] of [[-0.003, 0, 0.004], [0.003, 0.003, 0.006], [0, -0.004, 0.003]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.004, hh, 0.004), new THREE.MeshLambertMaterial({ color: 0xf3ede1 })); b.position.set(dx, hh / 2, dz); g.add(b); } g.position.copy(P3(x, n)); block.add(g); return g; };
     const townW = town(XW - 0.012, nOf(60)), townE = town(XE + 0.012, nOf(60));
-    const tTownW = tag('', 'pill'), tTownE = tag('', 'pill');
-    const tHint = tag('在海上点一下：放一只玩具鸭', 'pill'), tScale = tag('教学示意 · 大洋和大陆是理想化的 · 流速、气温是示意 · 赤道逆流、季风洋流本模型省略', 'pill');
-    const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
-    const say1 = (text, x, n) => { callout.loc(block, x, G + 0.03, -n).text(text).show(true); calloutT = 4.5; };
-    const tGyre = GYRES.map((g2) => ({ g: g2, t: tag(g2[3].replace(/海区的大洋环流/, '环流'), 'pill') }));
+    const tTownW = airLabel(block, '', { h: 0.0085, color: '#2c3245', icon: 'thermo', dim: 0 }), tTownE = airLabel(block, '', { h: 0.0085, color: '#2c3245', icon: 'thermo', dim: 0 });
+    const tHint = tag('<span>在海上点一下</span><small>放一只玩具鸭</small>', 'hint'), tScale = noteBadge(tag, '教学示意：大洋和大陆是理想化的，流速、气温是示意；赤道逆流、季风洋流本模型省略');
+    const callout = airLabel(block, '', { h: 0.0085, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
+    callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
+    const say1 = (text, x, n) => { callout.position.set(x, G + 0.03, -n); callout.setText(text).setOn(true); calloutT = 4.5; };
+    const tGyre = GYRES.map((g2) => ({ g: g2, t: groundLabel(block, g2[3].replace(/海区的大洋环流/, '环流'), { x: 0, y: G + 0.0012, z: -nOf((g2[0] + g2[1]) / 2), h: 0.0095, color: '#12305a', opacity: 0.9 }) }));          // 环流的名字印在海面上
+    const labels = [...tWind, tTownW, tTownE, callout];
     const placeTags = () => {
       const on = S.w > 0.6;
-      tGyre.forEach(({ g: [a, b], t }) => t.loc(block, 0, G + 0.006, -nOf((a + b) / 2)).show(on && S.land));
-      [[15, 0], [45, 1], [-15, 2], [-55, 3]].forEach(([lat, i]) => tWind[i].loc(block, 0.085, G + 0.022, -nOf(lat)).show(S.blow || S.w > 0.05));
-      tTownW.loc(block, XW - 0.012, G + 0.014, -nOf(60)).text(`北纬 60° 西岸：最冷月约 ${coastTemp(60, 'west', true).toFixed(0)}℃`).show(S.w > 0.6 && S.land);
-      tTownE.loc(block, XE + 0.012, G + 0.014, -nOf(60)).text(`东岸：约 ${coastTemp(60, 'east', true).toFixed(0)}℃`).show(S.w > 0.6 && S.land); townW.visible = townE.visible = S.land;
-      tHint.loc(block, 0, G + 0.012, -nOf(20)).show(S.w > 0.6 && !S.ducks.length);
+      tGyre.forEach(({ t }) => (t.visible = on && S.land));
+      [[15, 0], [45, 1], [-15, 2], [-55, 3]].forEach(([lat, i]) => { tWind[i].position.set(0.085, G + 0.022, -nOf(lat)); tWind[i].setOn(S.blow || S.w > 0.05); });
+      tTownW.position.set(XW - 0.012, G + 0.014, -nOf(60)); tTownW.setText(`北纬 60° 西岸：最冷月约 ${coastTemp(60, 'west', true).toFixed(0)}℃`).setOn(S.w > 0.6 && S.land);
+      tTownE.position.set(XE + 0.012, G + 0.014, -nOf(60)); tTownE.setText(`东岸：约 ${coastTemp(60, 'east', true).toFixed(0)}℃`).setOn(S.w > 0.6 && S.land); townW.visible = townE.visible = S.land;
+      tHint.loc(block, 0, G + 0.012, -nOf(7)).show(S.w > 0.6 && !S.ducks.length);
       tScale.loc(block, XL + 0.08, G + 0.002, NB - 0.008);
       windArrows.visible = S.blow || S.w > 0.05;
     };
@@ -200,6 +203,7 @@ export default {
         drawChart(); drawLog();
       },
       update(dt) {
+        labels.forEach((l) => l.tick(dt));
         const d = Math.min(dt, 0.05), w0 = S.w;
         S.w = S.blow ? Math.min(1, S.w + d / 3) : Math.max(0, S.w - d / 3);          // 风吹起来，洋流慢慢建立；风停了，慢慢停下
         if (Math.abs(S.w - w0) > 1e-4) { placeArrows(); placeTags(); if (Math.floor(S.w * 10) !== Math.floor(w0 * 10)) drawChart(); }
