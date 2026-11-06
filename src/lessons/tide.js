@@ -51,7 +51,6 @@ export default {
     const sideM = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, 0.07), new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, alphaTest: 0.1 })); sideM.position.set(0, 0.035, ZD); block.add(sideM);
     const water = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 1, ZD * 2 - 0.0006), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, transparent: true, opacity: 0.72, depthWrite: false })); water.renderOrder = 4; block.add(water);
     const lineM = new THREE.LineDashedMaterial({ color: 0x2a3140, dashSize: 0.003, gapSize: 0.002, transparent: true, opacity: 0.55 });
-    const mark = (y, t) => { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(XL, y, ZD + 0.001), new THREE.Vector3(XR, y, ZD + 0.001)]), lineM); l.computeLineDistances(); block.add(l); const tg = tag(t, 'pill'); tg.loc(block, XL + 0.02, y, ZD + 0.002); return tg; };
 
     // ---- 潮间带上的紫菜网帘：一排排竹竿挂着网 ----
     const bamboo = new THREE.MeshLambertMaterial({ color: 0xc8a96a }), WET = new THREE.Color(0x26351f), DRY = new THREE.Color(0x7d8a52);          // 浸在水里的网帘颜色深，露出水面晒着的变浅
