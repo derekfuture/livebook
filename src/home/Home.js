@@ -391,11 +391,12 @@ function authorCard() {
   const card = h('div', { class: 'home-author' },
     h('div', { class: 'author-qr', role: 'dialog', 'aria-label': '公众号二维码' },
       h('img', { src: fileUrl('/brand/gzh-qr.jpg'), width: 132, height: 132, alt: '德里克的 AI 教学实验室 公众号二维码' }),
-      h('p', {}, '新的活页做好了，先在这里说'),
+      h('p', {}, '新的活页、新的尝试，都在这里分享'),
+      h('p', {}, '使用中遇到问题，或想交流 AI 教学，欢迎联系我。'),
       h('small', {}, '微信扫一扫，或在微信里长按识别')),
     h('button', { class: 'author-chip', 'aria-expanded': 'false', onclick: (e) => { e.stopPropagation(); toggle(); } },
       h('img', { src: fileUrl('/brand/gzh-avatar.jpg'), width: 30, height: 30, alt: '' }),
-      h('span', {}, h('b', {}, '德里克的 AI 教学实验室'), h('small', {}, '公众号 · 用 AI 做真实的教学实践'))));
+      h('span', {}, h('b', {}, '德里克的 AI 教学实验室'), h('small', {}, '用 AI 做真实的教学实践，一起探索未来教育'))));
   const toggle = (open = !card.classList.contains('open')) => {
     card.classList.toggle('open', open);
     card.querySelector('.author-chip').setAttribute('aria-expanded', String(open));
