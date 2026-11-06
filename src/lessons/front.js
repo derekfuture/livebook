@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { makeCloud } from './kit/cloud.js';
+import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 
 const LIFT = 0;                         // 地块直接放在书页上（已经放在两页正中间、放得很大，不用再浮起来）
@@ -280,10 +281,10 @@ export default {
       t.userData.pick = pick; block.add(t); return t;
     };
     const home = makeTown(0xc7503c, true), town = makeTown(0x8a93a3, false);
-    const homeTag = tag('', 'pill'), townTag = tag('', 'pill');
+    const homeTag = airLabel(block, '', { h: 0.011, color: '#2c3245', icon: 'home', dim: 0 }), townTag = airLabel(block, '', { h: 0.0085, color: '#4a4f5c', icon: 'home', dim: 0 });
 
     // ---- 标签 ----
-    const tCold = tag('冷气团', 'pill'), tWarm = tag('暖气团', 'pill'), tFront = tag('锋面', 'pill'), tHint = tag('', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 本例水汽充足', 'pill');
+    const tCold = airLabel(block, '冷气团', { h: 0.013, color: '#1f4f86', dim: 0 }), tWarm = airLabel(block, '暖气团', { h: 0.013, color: '#a8341f', dim: 0 }), tFront = airLabel(block, '锋面', { h: 0.0095, color: '#2c3245', dim: 0 }), tHint = tag('', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，本例水汽充足');
 
     // ---- 线稿 → 真实：头一次推的时候，一秒内铺开 ----
     const setReal = () => {
@@ -390,16 +391,15 @@ export default {
       home.position.set(S.home, G, 0.03); town.position.set(S.town, G, -0.025);
       const wx = (d) => (S.form < 1 ? plainAt(S.kind, d) : weatherAt(S.kind, d));
       const wHome = wx(S.home - S.xf), stuck = S.kind === 'still' && S.days >= 1 && wHome.k === 'w2';
-      homeTag.loc(block, S.home, G + 0.04, 0.035).text(`<b>${S.map ? 'P 城' : '你家'}</b> ${S.map && S.lift < 1 ? '？' : wHome.text}${stuck ? `，第 ${Math.floor(S.days) + 1} 天` : ''}`);
-      townTag.loc(block, S.town, G + (Math.abs(S.home - S.town) < 0.09 ? 0.075 : 0.02), -0.03).text(`<b>邻城</b> ${wx(S.town - S.xf).text}`);          // 两城靠近：邻城的牌子抬高，免得叠字
-      homeTag.el.classList.toggle('hot', wHome.k === 'w2');          // 你家正在下雨：牌子亮一下
+      homeTag.position.set(S.home, G + 0.04, 0.035); homeTag.setColor(wHome.k === 'w2' ? '#a8341f' : '#2c3245').setText(`${S.map ? 'P 城' : '你家'} ${S.map && S.lift < 1 ? '？' : wHome.text}${stuck ? `，第 ${Math.floor(S.days) + 1} 天` : ''}`).setOn(true);          // 你家正在下雨：字变红
+      townTag.position.set(S.town, G + (Math.abs(S.home - S.town) < 0.09 ? 0.075 : 0.02), -0.03); townTag.setText(`邻城 ${wx(S.town - S.xf).text}`);          // 两城靠近：邻城的牌子抬高，免得叠字
       const coldX = k.side < 0 ? S.xf - 0.09 : Math.min(XR - 0.03, S.xf + 0.08), warmX = k.side < 0 ? Math.min(XR - 0.03, S.xf + 0.07) : Math.max(XL + 0.03, S.xf - 0.09);
-      tCold.loc(block, coldX, G + 0.02, -ZD); tWarm.loc(block, warmX, G + 0.075, -0.05);          // 冷气团的名字在楔子里面靠后；锋面的名字在锋面上；“按住推”贴着推的箭头
-      tFront.loc(block, xAt(0.07), hAt(0.07) + 0.016, ZD);
+      tCold.position.set(coldX, G + 0.02, -ZD); tWarm.position.set(warmX, G + 0.075, -0.05);          // 冷气团的名字在楔子里面靠后；锋面的名字在锋面上；“按住推”贴着推的箭头
+      tFront.position.set(xAt(0.07), hAt(0.07) + 0.016, ZD);
       const intro = S.hintFor !== S.kind && !S.map; tCold.show(intro); tWarm.show(intro); tFront.show(intro);
       town.visible = !S.map; townTag.show(!S.map);          // 气团、锋面的名字只在开头标一下；推起来以后画面留给你家和邻城
       tScale.loc(block, XL + 0.05, -0.006, ZD + 0.01);
-      tHint.loc(block, Math.max(XL + 0.03, S.xf - 0.11), G + 0.03, ZD).text(S.map ? '按住左边的气团，往右推' : S.kind === 'warm' ? '按住暖气团，往右推' : '按住冷气团，往右推').show(S.map ? !S.lifting : S.hintFor !== S.kind);          // 看图推天气：不说是冷是暖，要你看符号
+      tHint.loc(block, Math.max(XL + 0.03, S.xf - 0.11), G + 0.03, ZD).text(S.map ? '<span>按住左边的气团</span><small>往右推</small>' : S.kind === 'warm' ? '<span>按住暖气团</span><small>往右推</small>' : '<span>按住冷气团</span><small>往右推</small>').show(S.map ? !S.lifting : S.hintFor !== S.kind);          // 看图推天气：不说是冷是暖，要你看符号
       setReal();
       drawSky(); placeExtras(); drawStation();
     };
@@ -516,7 +516,7 @@ export default {
     const coldTint = tint(0x5b8fd0), warmTint = tint(0xe8894a);
     const hatchTex = canvasTex(128, 128, (g, w) => { g.strokeStyle = 'rgba(40,70,120,0.85)'; g.lineWidth = 6; for (let x = -w; x < w * 2; x += 22) { g.beginPath(); g.moveTo(x, w); g.lineTo(x + w, 0); g.stroke(); } }); hatchTex.wrapS = hatchTex.wrapT = THREE.RepeatWrapping;
     const rainArea = new THREE.Mesh(new THREE.PlaneGeometry(1, ZD * 2), new THREE.MeshBasicMaterial({ map: hatchTex, transparent: true, opacity: 0, depthWrite: false })); rainArea.rotation.x = -Math.PI / 2; rainArea.position.y = G + 0.0016; rainArea.raycast = () => {}; rainArea.renderOrder = 4; block.add(rainArea);
-    const tRainArea = tag('雨区', 'pill');
+    const tRainArea = groundLabel(block, '雨区', { h: 0.011, color: '#1f4f86', opacity: 0.9 });          // 印在地上淋湿的那一片
 
     // ---- 换视角：同一时刻、同一个你家，三种看法 ----
     S.view = '3d';
@@ -535,8 +535,8 @@ export default {
     // ---- 指引：开头在气团上出现一串往右走的箭头（推这里、往这边推）；现象出现的那一刻，在它旁边说一句 ----
     const chevTex = canvasTex(64, 64, (g, w) => { g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 9; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(18, 12); g.lineTo(42, 32); g.lineTo(18, 52); g.stroke(); g.strokeStyle = 'rgba(40,90,80,0.9)'; g.lineWidth = 5; g.beginPath(); g.moveTo(18, 12); g.lineTo(42, 32); g.lineTo(18, 52); g.stroke(); });
     const chevs = [0, 1, 2].map(() => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: chevTex, transparent: true, depthWrite: false, depthTest: false })); m.scale.set(0.012, 0.012, 1); m.renderOrder = 20; m.raycast = () => {}; block.add(m); return m; });
-    const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
-    const say1 = (text, x, y, z) => { callout.loc(block, x, y, z).text(text).show(true); calloutT = 4.5; };          // 同一时刻只说一句，4 秒多以后收起
+    const callout = airLabel(block, '', { h: 0.0095, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
+    const say1 = (text, x, y, z) => { callout.position.set(x, y, z); callout.setText(text).setOn(true); calloutT = 4.5; };          // 同一时刻只说一句，4 秒多以后收起
 
     // ---- 你家的气象站：锋扫过你家时，气温、气压一点点画出来（侧栏）；另一种锋画过的留成虚线，好比一比 ----
     S.trace = { cold: [], warm: [], still: [], map: [] };
@@ -612,7 +612,7 @@ export default {
       coldTint.material.opacity = warmTint.material.opacity = mapV ? 0.34 : 0;
       const [r0, r1] = k.rain, ra = Math.max(XL, Math.min(S.xf + k.side * r0, S.xf + k.side * r1)), rb = Math.min(XR, Math.max(S.xf + k.side * r0, S.xf + k.side * r1)), on = mapV && S.form >= 1 ? 0.55 : 0;
       rainArea.scale.x = Math.max(1e-4, rb - ra); rainArea.position.x = (ra + rb) / 2; hatchTex.repeat.set((rb - ra) / 0.03, (ZD * 2) / 0.03); rainArea.material.opacity = on;
-      tRainArea.loc(block, (ra + rb) / 2, G + 0.004, -ZD + 0.01).show(on > 0);
+      tRainArea.position.set((ra + rb) / 2, G + 0.0016, -ZD + 0.012); tRainArea.visible = on > 0;
       placeTrees(); placeWet();
       sym.scale.set(mapV ? 1.7 : 1, 1, 1);          // 天气图上锋线符号放大一些（只放大沿推进方向的那一边，不伸出地块）
       frontMesh.visible = frontEdge.visible = cold.visible = S.rise > 0.02 && !mapV && !homeV;          // 站在地上看：只看天、云、雨和地面，不看画在空中的锋面          // 天气图：从上往下看只看地面——冷暖空气的淡色、雨区、锋线符号
@@ -653,6 +653,7 @@ export default {
         ui.status('地块上有你家和一座邻城。按住左边的<b>冷气团</b>往右推，看锋面扫过你家时，你家的天气怎么变。');
       },
       update(dt) {
+        [homeTag, townTag, tCold, tWarm, tFront, callout].forEach((l) => l.tick(dt));
         S.t += dt;
         if (S.map) { if (S.lifting && S.lift < 1) { S.lift = Math.min(1, S.lift + dt / 1.0); S.rise = S.lift; layout(); } else if (!S.lifting && S.rise !== 0) { S.rise = 0; layout(); } }
         else if (S.rise < 1) { S.rise = Math.min(1, S.rise + dt / 0.8); layout(); }          // 打开、换锋的时候：锋面立起来

@@ -54,6 +54,7 @@ const plane = (text, h, opt) => { const { tex, aspect } = textTex(text, opt); co
 /** 地名：平躺在地面上（y 是地面高度），rotY 可以让字顺着河、海岸转 */
 export function groundLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.009, rotY = 0, color = '#2b3a4f', opacity = 0.75, stroke = 'rgba(255,255,255,0.55)' } = {}) {
   const m = plane(text, h, { color, opacity, stroke, strokeW: 6 }); m.rotation.set(-Math.PI / 2, 0, rotY); m.position.set(x, y + 0.0006, z); parent.add(m);
+  m.show = (on) => { m.visible = on; return m; };
   m.setText = (t) => { const { tex, aspect } = textTex(t, { color, stroke, strokeW: 6 }); m.material.map = tex; m.geometry.dispose(); m.geometry = new THREE.PlaneGeometry(h * aspect, h); };
   return m;
 }
@@ -67,6 +68,7 @@ export function airLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.0075, color 
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })); s.scale.set(h * aspect, h, 1); s.position.set(x, y, z); s.raycast = () => {}; s.renderOrder = 14; parent.add(s);
   s.userData = { on: 1, want: 1, dim, h, color, icon, hold: 0 };
   s.setOn = (on, delay = 0) => { const u = s.userData, w = on ? 1 : u.dim; if (w > u.want && delay) u.hold = delay; u.want = w; return s; };          // delay：过一会儿再亮（几个过程按水走的顺序依次亮）
+  s.show = (on) => s.setOn(on);          // 和 tag 一样的写法
   s.setColor = (c) => { s.userData.color = c; return s; };          // 换颜色（下一次 setText 生效），比如气压高红、低蓝
   s.setText = (t, ic = s.userData.icon) => { s.userData.icon = ic; const r = textTex(t, { color: s.userData.color, icon: ic }); s.material.map = r.tex; s.scale.set(h * r.aspect, h, 1); return s; };
   s.tick = (dt) => { const u = s.userData; if (u.hold > 0) { u.hold -= dt; return; } u.on += (u.want - u.on) * Math.min(1, dt * 4); s.material.opacity = u.on; s.center.y = 0.5 + (1 - u.on) * 0.15; s.visible = u.on > 0.03; };          // 亮起来时轻轻往上浮一点
