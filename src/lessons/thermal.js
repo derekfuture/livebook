@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { faceLabel, airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, H, N, xOf, iOf, makeState, step, field, steady, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
 
@@ -168,12 +169,16 @@ export default {
     const placeArrows = () => { if (S.t - loopT > 0.25) { loopT = S.t; buildLoops(); } };
 
     // ---- 标签：A、B、C；气压高低（近地面、上空）；海峡两岸 ----
-    const tABC = Object.entries(ABC).map(([k, x]) => ({ x, t: tag(k, 'pill') }));
-    const tP = Object.values(ABC).flatMap((x) => [{ x, aloft: false, t: tag('', 'pill') }, { x, aloft: true, t: tag('', 'pill') }]);
+    // 地点的名字写在地面下岩层的剖面上；气压高低是红、蓝两色的字（不带底）；“受热”带一个热气的小图标
+    const SOILY = (GT - 0.003) / 2, HI = '#b03a2a', LO = '#1f4f86';
+    const tABC = Object.entries(ABC).map(([k, x]) => ({ x, t: faceLabel(block, k, { x, y: SOILY, z: D, h: 0.011, color: '#2a2218', stroke: 'rgba(255,250,240,0.6)' }) }));
+    const pLabel = () => airLabel(block, '', { h: 0.012, color: LO, dim: 0 });
+    const tP = Object.values(ABC).flatMap((x) => [{ x, aloft: false, t: pLabel() }, { x, aloft: true, t: pLabel() }]);
     const SEAX = { fj: -0.125, sea: 0.01, tw: 0.135 };
-    const tSea = [['福建', SEAX.fj], ['台湾海峡', SEAX.sea], ['台湾', SEAX.tw]].map(([s, x]) => ({ x, t: tag(s, 'pill') }));
-    const tPS = Object.values(SEAX).flatMap((x) => [{ x, aloft: false, t: tag('', 'pill') }, { x, aloft: true, t: tag('', 'pill') }]);
-    const tHint = tag('按住地面 A 处，给它加热', 'pill'), tHeat = tag('受热', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了，海峡剖面不按实际比例 · 温差、风速是示意 · 时间加快了', 'pill'), tIso = tag('等压面', 'pill');
+    const tSea = [['福建', SEAX.fj], ['台湾海峡', SEAX.sea], ['台湾', SEAX.tw]].map(([s, x]) => ({ x, t: faceLabel(block, s, { x, y: SOILY, z: D, h: 0.0105, color: '#22190f', stroke: 'rgba(255,250,240,0.75)' }) }));
+    const tPS = Object.values(SEAX).flatMap((x) => [{ x, aloft: false, t: pLabel() }, { x, aloft: true, t: pLabel() }]);
+    const tHint = tag('<span>按住地面 A 处</span><small>给它加热</small>', 'hint'), tHeat = airLabel(block, '受热', { h: 0.01, color: HI, icon: 'heat', dim: 0 }), tIso = faceLabel(block, '等压面', { x: XL + 0.03, y: GT + (ZK[2] + ZK[3]) / 2, z: D, h: 0.0105, color: '#1f4f86', stroke: 'rgba(255,255,255,0.7)' });
+    noteBadge(tag, '教学示意：竖直方向夸大了，海峡剖面不按实际比例；温差、风速是示意；时间加快了').loc(block, XL + 0.012, 0, D + 0.01);
     // 两岸的小城：房顶风向标
     const makeTown = () => {
       const t = new THREE.Group();
@@ -184,23 +189,23 @@ export default {
       t.userData.vane = vane; t.position.y = GT; block.add(t); return t;
     };
     const towns = { fj: makeTown(), tw: makeTown() }; towns.fj.position.x = COAST_W - 0.014; towns.tw.position.x = COAST_E + 0.014;
-    const tTown = { fj: tag('', 'pill'), tw: tag('', 'pill') };
+    const tTown = { fj: airLabel(block, '', { h: 0.0095, color: '#2c3245', icon: 'wind', dim: 0 }), tw: airLabel(block, '', { h: 0.0095, color: '#2c3245', icon: 'wind', dim: 0 }) };
+    const labels = [...tP, ...tPS].map((o) => o.t).concat([tHeat, tTown.fj, tTown.tw]);
     const surfU = (x) => field(S.st).at(x, H * 0.08)[0];
     const placeTags = () => {
       const free = S.mode === 'free', th = 0.8;
-      for (const { x, t } of tABC) t.loc(block, x, 0.002, D + 0.006).show(free);
-      for (const { x, aloft, t } of tP) { const p = pressure(S.st, x, aloft); t.loc(block, x + 0.012, GT + (aloft ? H * 0.93 : H * 0.07), D).text(p > 0 ? '高' : '低').show(free && Math.abs(p) > th); t.el.classList.toggle('hot', p > 0); }
-      for (const { x, t } of tSea) t.loc(block, x, 0.002, D + 0.006).show(!free);
-      for (const { x, aloft, t } of tPS) { const p = pressure(S.st, x, aloft); t.loc(block, x + 0.014, GT + (aloft ? H * 0.93 : H * 0.07), D).text(p > 0 ? '高' : '低').show(!free && Math.abs(p) > 0.5); t.el.classList.toggle('hot', p > 0); }
+      const press = (t, x, aloft, on) => { const p = pressure(S.st, x, aloft); t.position.set(x, GT + (aloft ? H * 0.93 : H * 0.07), D); t.setColor(p > 0 ? HI : LO).setText(p > 0 ? '高' : '低'); t.setOn(on && Math.abs(p) > (S.mode === 'free' ? th : 0.5)); };
+      for (const { x, t } of tABC) t.visible = free;
+      for (const { x, aloft, t } of tP) press(t, x + 0.012, aloft, free);
+      for (const { t } of tSea) t.visible = !free;
+      for (const { x, aloft, t } of tPS) press(t, x + 0.014, aloft, !free);
       for (const k of ['fj', 'tw']) {
         const tw = towns[k], u = surfU(tw.position.x), name = windName(u), fromSea = (k === 'fj') === (u < 0);
         tw.visible = !free; tw.userData.vane.rotation.y = u > 0 ? Math.PI : 0;          // 风向标的箭头指着风吹来的方向：西风指向西（−x）
-        tTown[k].loc(block, tw.position.x, GT + 0.03, 0).text(`<b>${k === 'fj' ? '福建沿海' : '台湾西岸'}</b> ${name}${name === '静风' ? '' : fromSea ? '（从海上吹来）' : '（从陆上吹来）'}`).show(!free);
+        tTown[k].position.set(tw.position.x, GT + 0.03, 0); tTown[k].setText(`${k === 'fj' ? '福建沿海' : '台湾西岸'} ${name}${name === '静风' ? '' : fromSea ? '（从海上吹来）' : '（从陆上吹来）'}`).setOn(!free);
       }
       tHint.loc(block, 0, GT + 0.02, D).show(free && !S.heated);
-      tHeat.loc(block, S.heatX ?? 0, GT - 0.012, D + 0.004).show(free && !!S.heat);          // 写在地面前沿下方，不压着“低”
-      tIso.loc(block, XL + 0.03, GT + (ZK[2] + ZK[3]) / 2, D).show(true);          // 放在左边两张等压面之间，不和右上角的气压标签挤在一起
-      tScale.loc(block, 0, GT + H + 0.008, -D);          // 写在空气槽顶上靠后，不压着地面的字母
+      tHeat.position.set((S.heatX ?? 0) + 0.045, GT + 0.006, D + 0.004); tHeat.setOn(free && !!S.heat);          // 贴着受热的地面，写在“低”的右边
     };
 
     // ---- 记录 ----
@@ -281,6 +286,7 @@ export default {
         setMode();
       },
       update(dt) {
+        labels.forEach((l) => l.tick(dt));
         S.t += dt; const d = Math.min(0.05, dt);
         if (S.mode === 'free') {
           if (S.heat && S.heatX != null) for (let i = 0; i < N; i++) S.st.th[i] = Math.min(7, S.st.th[i] + 5 * d * Math.exp(-((xOf(i) - S.heatX) ** 2) / 0.022 ** 2));

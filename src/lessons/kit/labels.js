@@ -14,6 +14,7 @@ export const ICONS = {
   flow: 'M2 9.5c2.5-2.6 4.5 2.6 7 0s4.5 2.6 7 0 4.5 2.6 6 1 M2 15.5c2.5-2.6 4.5 2.6 7 0s4.5 2.6 7 0 4.5 2.6 6 1',          // 地表径流：水波
   seep: 'M12 3v11 M8 10.5l4 4 4-4 M4 19h16 M7 22h10',          // 下渗：往地里去
   cycle: 'M19.5 13a7.5 7.5 0 1 1-2.2-6.3 M18 3v4.2h-4.2',          // 循环
+  heat: 'M6 21c-2.2-2.6 2.2-4.4 0-7s2.2-4.4 0-7 M12 19c-2.2-2.6 2.2-4.4 0-7s2.2-4.4 0-7 M18 21c-2.2-2.6 2.2-4.4 0-7s2.2-4.4 0-7',          // 受热：地面往上冒热气（和水汽同一个样子，颜色不同）
   sun: 'M16 12a4 4 0 1 1-8 0a4 4 0 1 1 8 0 M12 2.5v2.5 M12 19v2.5 M2.5 12h2.5 M19 12h2.5 M5.3 5.3l1.8 1.8 M16.9 16.9l1.8 1.8 M5.3 18.7l1.8-1.8 M16.9 7.1l1.8-1.8',          // 太阳
   moon: 'M15.5 3.5a8.5 8.5 0 1 0 5 12.8 7 7 0 0 1-5-12.8z',          // 月亮
 };
@@ -53,6 +54,7 @@ export function airLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.0075, color 
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })); s.scale.set(h * aspect, h, 1); s.position.set(x, y, z); s.raycast = () => {}; s.renderOrder = 14; parent.add(s);
   s.userData = { on: 1, want: 1, dim, h, color, icon, hold: 0 };
   s.setOn = (on, delay = 0) => { const u = s.userData, w = on ? 1 : u.dim; if (w > u.want && delay) u.hold = delay; u.want = w; return s; };          // delay：过一会儿再亮（几个过程按水走的顺序依次亮）
+  s.setColor = (c) => { s.userData.color = c; return s; };          // 换颜色（下一次 setText 生效），比如气压高红、低蓝
   s.setText = (t, ic = s.userData.icon) => { s.userData.icon = ic; const r = textTex(t, { color: s.userData.color, icon: ic }); s.material.map = r.tex; s.scale.set(h * r.aspect, h, 1); return s; };
   s.tick = (dt) => { const u = s.userData; if (u.hold > 0) { u.hold -= dt; return; } u.on += (u.want - u.on) * Math.min(1, dt * 4); s.material.opacity = u.on; s.center.y = 0.5 + (1 - u.on) * 0.15; s.visible = u.on > 0.03; };          // 亮起来时轻轻往上浮一点
   return s;
