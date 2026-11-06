@@ -774,6 +774,7 @@
   288
  ],
   "forceaddition": [277, 258, 534, 442],
+  "selfinductionon": [145, 254, 265, 364],
   "waveinterference": [395, 365, 538, 475],
   "lorentzbeam": [111, 592, 198, 682],
   "newtontube": [59, 160, 198, 312],
