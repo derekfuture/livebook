@@ -694,6 +694,11 @@ body.world-ui .tag3d.btn.view.on, .tag3d.btn.view.on { background: #8a4b10; colo
 .read-out small { color: #8a7a62; }
 .geo-views { transition: opacity .5s; }
 /* 画面角上的“示意”小标记：平时只两个字，鼠标移上去展开完整说明 */
-.tag3d.pill.note-badge { pointer-events: auto; cursor: help; font-size: 11px; padding: 2px 7px; opacity: .7; background: rgba(255,255,255,.75); }
+.tag3d.pill.note-badge { pointer-events: auto; cursor: help; font: 500 11px/1 var(--sans); letter-spacing: .14em; padding: 2px 0 3px; background: none; box-shadow: none; border-radius: 0; color: #4e4636; opacity: .8; border-bottom: 1px dotted currentColor; text-shadow: 0 0 6px #fbf8f0, 0 0 2px #fbf8f0; transition: opacity .2s; }          /* 角上的“示意”：一个带点线的小字，不是牌子 */
 .tag3d.pill.note-badge:hover { opacity: 1; }
-.tag3d.pill.note-badge:hover::before { content: attr(data-full); position: absolute; left: 0; bottom: 120%; white-space: nowrap; background: #fffdf6; color: #3a3226; padding: 5px 9px; border-radius: 4px; box-shadow: 0 3px 10px rgba(0,0,0,.18); font-size: 12px; }
+.tag3d.pill.note-badge:hover::before { content: attr(data-full); position: absolute; left: -4px; bottom: 170%; white-space: nowrap; background: #fffdf6; color: #3a3226; padding: 7px 11px; border-radius: 3px; box-shadow: 0 6px 18px rgba(40,30,10,.16), 0 0 0 .5px rgba(60,50,30,.15); font: 400 12px/1.5 var(--sans); letter-spacing: .02em; }
+/* 开场的操作提示：没有底，字带一圈纸色的柔光；主句轻轻呼吸，说明小一号 */
+.tag3d.hint { font: 500 13px/1.5 var(--sans); color: #463e30; text-align: center; letter-spacing: .04em; text-shadow: 0 0 10px #fbf8f0, 0 0 4px #fbf8f0, 0 0 2px #fbf8f0; }
+.tag3d.hint span { display: block; animation: hint-breath 2.8s ease-in-out infinite; }
+.tag3d.hint small { display: block; font-size: 11.5px; color: #7a6e5a; letter-spacing: .02em; }
+@keyframes hint-breath { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }

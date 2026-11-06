@@ -96,11 +96,18 @@ export default {
     for (let k = 0; k < 14; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(0.86, 0.88, 0.92), transparent: true, depthWrite: false })); const a = k / 14 * 6.28; s.position.set(Math.cos(a) * 0.018 * rnd(), (rnd() - 0.3) * 0.008, Math.sin(a) * 0.03 * rnd()); const r = 0.018 + rnd() * 0.012; s.scale.set(r, r * 0.75, 1); s.raycast = () => {}; cloud.add(s); }
     cloud.scale.setScalar(1.5);          // 云大一点：一眼看得到雨从哪片云下来
     const cloudPick = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, ZD * 1.6), new THREE.MeshBasicMaterial({ visible: false })); cloudPick.userData.pick = true; cloud.add(cloudPick);
-    const windArrow = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })); windArrow.raycast = () => {}; block.add(windArrow);
-    const placeWind = () => {          // 水汽输送：从海面上空指向云（云在陆地上时才画）
-      const on = cycleOf(S.cx).kind === 'big', a = (COAST + XR) / 2, b = S.cx + 0.03, y = CLOUD_Y - 0.008, P = [];
-      if (on) { const w = 0.002, e = b; P.push(a, y + w, 0, a, y - w, 0, e + 0.008, y - w, 0, a, y + w, 0, e + 0.008, y - w, 0, e + 0.008, y + w, 0, e + 0.008, y + 0.006, 0, e + 0.008, y - 0.006, 0, e, y, 0); }
-      windArrow.geometry.dispose(); windArrow.geometry = new THREE.BufferGeometry(); windArrow.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); windArrow.visible = on;
+    // 水汽输送：一道细长、微微拱起的箭头，从海面上空指向云（云在陆地上时才画）；身子从尾到头渐渐变粗，上面有一段段亮光往云那边走
+    const flowTex = canvasTex(256, 8, (g, w, hh) => { const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, 'rgba(255,255,255,0.4)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.4)'); gr.addColorStop(0.78, 'rgba(255,255,255,1)'); gr.addColorStop(0.86, 'rgba(255,255,255,0.4)'); gr.addColorStop(1, 'rgba(255,255,255,0.4)'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); }, { repeat: [1, 1] });
+    const windArrow = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x2a5a9a, map: flowTex, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false })); windArrow.raycast = () => {}; block.add(windArrow);
+    const windHead = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false })); windHead.raycast = () => {}; block.add(windHead);
+    const placeWind = () => {
+      const tail = (COAST + XR) / 2, tip = S.cx + 0.03, y = CLOUD_Y - 0.008, HL = 0.009, L = tail - tip, on = cycleOf(S.cx).kind === 'big' && L > HL * 2;
+      windArrow.visible = windHead.visible = on; if (!on) return;
+      const N = 32, P = [], U = [], I = [];
+      for (let k = 0; k <= N; k++) { const t = k / N, x = tail - (L - HL) * t, yy = y + 0.005 * Math.sin(Math.PI * t), hw = 0.0003 + 0.0007 * t; P.push(x, yy + hw, 0, x, yy - hw, 0); U.push((t * (L - HL)) / 0.04, 1, (t * (L - HL)) / 0.04, 0); if (k) I.push(2 * k - 2, 2 * k - 1, 2 * k, 2 * k - 1, 2 * k + 1, 2 * k); }
+      windArrow.geometry.dispose(); windArrow.geometry = new THREE.BufferGeometry(); windArrow.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); windArrow.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); windArrow.geometry.setIndex(I);
+      const bx = tip + HL, H = [tip, y, 0, bx + 0.0015, y + 0.0038, 0, bx, y, 0, tip, y, 0, bx, y, 0, bx + 0.0015, y - 0.0038, 0];          // 箭头两翼往后掠
+      windHead.geometry.dispose(); windHead.geometry = new THREE.BufferGeometry(); windHead.geometry.setAttribute('position', new THREE.Float32BufferAttribute(H, 3));
     };
 
     // ---- 一粒粒的水 ----
@@ -143,7 +150,7 @@ export default {
     const fInf = faceLabel(block, '下渗 → 地下径流', { x: 0.045, y: 0.024, z: ZD, h: 0.009, opacity: 0 });
     const aVap = airLabel(block, '蒸发', { x: COAST + 0.055, y: SEA_Y + 0.035, z: 0.02, h: 0.014 }), aTrans = airLabel(block, '水汽输送', { x: (COAST + XR) / 2, y: CLOUD_Y + 0.006, z: 0, h: 0.014 }), aRain = airLabel(block, '降水', { x: 0, y: CLOUD_Y - 0.04, z: 0, h: 0.014 });
     const aCyc = airLabel(block, '', { x: 0, y: CLOUD_Y + 0.03, z: 0, h: 0.017, color: '#a8352a' }), aHover = airLabel(block, '', { x: 0, y: 0, z: 0, h: 0.012, color: '#3a3226', dim: 0 }), aRun = airLabel(block, '地表径流', { x: -0.012, y: ground(-0.012) + 0.012, z: -0.006, h: 0.012, color: '#1d4f86', dim: 0 });
-    const tHint = tag('按住云，拖到别处：风把水汽送到哪，雨就下在哪', 'pill');
+    const tHint = tag('<span>按住云，拖到别处</span><small>风把水汽送到哪，雨就下在哪</small>', 'hint');          // 开场的提示：不用白底牌子，字带一圈纸色柔光
     noteBadge(tag, '教学示意：竖直方向夸大了，各环节的比例是示意').loc(block, XL + 0.012, -0.002, ZD + 0.01);
     const labels = [aVap, aTrans, aRain, aCyc, aHover, aRun];
     const placeTags = () => {
@@ -223,7 +230,7 @@ export default {
         ui.status('海面一直在蒸发。按住<b>云</b>拖到别处，看雨下在海上、平原、山那边，水各往哪走。');
         layout(); drawLog();
       },
-      update(dt) { labels.forEach((l) => l.tick(dt)); stepDots(Math.min(dt, 0.05)); if (W && Math.floor(S.cnt.out / 20) !== S.lastC) { S.lastC = Math.floor(S.cnt.out / 20); drawChart(); } },
+      update(dt) { labels.forEach((l) => l.tick(dt)); flowTex.offset.x -= dt * 0.5; stepDots(Math.min(dt, 0.05)); if (W && Math.floor(S.cnt.out / 20) !== S.lastC) { S.lastC = Math.floor(S.cnt.out / 20); drawChart(); } },
     };
   },
 };
