@@ -1,0 +1,215 @@
+// 高中地理 选择性必修1 第四章第二节 洋流（课本第 68–71 页，图 4.11 全球风带和世界洋流模式、活动“绘制世界洋流模式图”）。
+//
+// 一个问题（课本开头）：1992 年一艘货轮在太平洋上遇到风暴，几万只玩具鸭散落海面，后来在世界很多海岸陆续被发现。它们是怎么漂过去的？
+// 课本的图就是模型：图 4.11 那样一个理想化的大洋（不是真实地图，不画国界）：西边一块大陆、东边一块大陆，南纬 45° 以南四周是开阔的海。
+// 学生亲手做的：
+//   1. 让风吹起来：信风、西风吹动海面，海水被陆地挡住、转弯，慢慢转成几个大的环流；箭头红的是暖流、蓝的是寒流。
+//   2. 在海上点一下，放一只玩具鸭，看它跟着洋流漂到哪里。
+//   3. 假如没有大陆挡着：海水只随风带东西向流，转不成环流——洋流的方向还受海陆分布的影响。
+//   4. 看同纬度大洋两岸：北纬 60° 东岸暖、西岸冷；中低纬东岸有寒流，岸上成了沙漠；寒暖流交汇的地方有大渔场。
+// 教学示意：大洋、大陆都是理想化的；流速、气温是示意。
+import * as THREE from 'three';
+import { seg, buttons, note } from './kit/ui.js';
+import { canvasTex } from './kit/props.js';
+import { h } from '../ui/Panel.js';
+import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastTemp, GYRES } from './kit/current.js';
+
+const XL = -0.17, XR = 0.17, G = 0.016, SPEED = 2.2;
+const ASK = ['先猜一下（可以不猜）：在这个情境里，从北纬 20° 大洋中间放下的玩具鸭，会先往——', ['西漂', '东漂', '原地打转']];
+const rnd = (() => { let s = 21; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
+const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+export default {
+  id: 'current',
+  fig: '图4.11',
+  title: '洋流',
+  flow: 'explore',
+  ask: '一艘货轮在太平洋上遇到风暴，几万只玩具鸭散落海面，后来在世界很多海岸陆续被发现。它们是怎么漂过去的？',
+  need: '让风吹起来，看海水转成哪几个环流；放几只玩具鸭看它们漂到哪；再假设没有大陆比一比；看看同纬度大洋两岸差多少',
+  conclusion: {
+    page: 73,
+    quote: '盛行风吹拂海面，推动海水随风漂流，并且使上层海水带动下层海水流动，在海洋表层形成规模很大的洋流。洋流运动的方向还受海陆分布、地转偏向力等因素的影响。……信风驱动赤道南北两侧的海水由东向西流动，到达大洋西岸时，受到陆地阻挡，……大部分沿着海岸流向较高纬度海区。到中纬度海区时，在盛行西风吹拂下，洋流向东流去。到达大洋东岸时，又有一部分折向低纬度海区。这样就在中低纬度海区形成大洋环流，在北半球呈顺时针方向流动，在南半球呈逆时针方向流动。……在北半球中高纬度海区也形成大洋环流，它呈逆时针方向流动。……南极大陆外围，海面广阔。这里终年受西风影响，形成西风漂流。',
+    why: '风推着海面走：信风带里海水往西，西风带里海水往东。海水碰到大陆走不过去，只能沿着海岸拐弯，于是在一个个大洋里转成环流。从低纬流向高纬的洋流比所到之处的海水暖，是暖流；从高纬流向低纬的是寒流。暖流让沿岸暖湿，寒流让沿岸凉、干，所以同纬度的大洋两岸气温、景观可以差很多；寒暖流相遇的地方海水扰动，营养物质上涌，鱼多，成了大渔场。',
+    src: '课本第 68–71 页 · 第四章 第二节 洋流',
+  },
+
+  create({ tag }) {
+    const group = new THREE.Group();
+    const S = { w: 0, blow: false, land: true, ducks: [], saw: {}, guess: null };
+    let W = null;
+    const block = new THREE.Group(); group.add(block);
+    const P3 = (x, n, y = G) => new THREE.Vector3(x, y, -n);
+
+    // ---- 地块和地图：海、两块理想化的大陆（东西岸）、纬线 ----
+    const BASE = import.meta.env.BASE_URL || '/';
+    const strata = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace;
+    const sm2 = (rx, c) => { const t = strata.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.3); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, G - 0.001, NB * 2), [sm2(0.9, 0.9), sm2(0.9, 0.8), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm2(1.3, 0.97), sm2(1.3, 0.84)]); soil.position.y = (G - 0.001) / 2; block.add(soil);
+    const TW = 1400, TH = Math.round(1400 * (NB * 2) / (XR - XL));
+    const cv = document.createElement('canvas'); cv.width = TW; cv.height = TH; const mapTex = new THREE.CanvasTexture(cv); mapTex.colorSpace = THREE.SRGBColorSpace; mapTex.anisotropy = 8;
+    const PX = (x) => ((x - XL) / (XR - XL)) * TW, PY = (n) => ((NB - n) / (2 * NB)) * TH;
+    const meadow = new Image(); meadow.src = `${BASE}tex/geo/meadow-tile.jpg`;
+    const drawMap = () => {
+      const g = cv.getContext('2d');
+      const sea = g.createLinearGradient(0, 0, 0, TH); sea.addColorStop(0, '#9cc3dc'); sea.addColorStop(0.5, '#5f9fcf'); sea.addColorStop(1, '#a9cbe0'); g.fillStyle = sea; g.fillRect(0, 0, TW, TH);
+      const landPath = (x0, x1) => { g.beginPath(); g.moveTo(PX(x0), PY(NB)); for (let n = NB; n >= nOf(SOUTH_OPEN); n -= 0.002) { const wob = 0.004 * Math.sin(n * 90) + 0.003 * Math.sin(n * 37); g.lineTo(PX((x0 < 0 ? XW : XE) + (x0 < 0 ? wob : -wob) * 0), PY(n)); } g.lineTo(PX(x0), PY(nOf(SOUTH_OPEN))); g.closePath(); };
+      for (const [x0] of [[XL], [XR]]) {
+        landPath(x0, 0);
+        if (S.land) { if (meadow.complete && meadow.naturalWidth) { g.save(); g.clip(); g.fillStyle = g.createPattern(meadow, 'repeat'); g.fillRect(0, 0, TW, TH); g.fillStyle = 'rgba(244,240,222,0.25)'; g.fillRect(0, 0, TW, TH); g.restore(); } else { g.fillStyle = '#a8c47e'; g.fill(); } g.strokeStyle = '#f2ead2'; g.lineWidth = 6; g.stroke(); }
+      }
+      if (S.land) {
+        g.fillStyle = 'rgba(226,196,120,0.85)'; g.fillRect(PX(XE), PY(nOf(30)), PX(XE + 0.028) - PX(XE), PY(nOf(12)) - PY(nOf(30)));          // 东边大陆的西岸，中低纬：寒流经过，岸上是沙漠
+        g.fillStyle = 'rgba(226,196,120,0.85)'; g.fillRect(PX(XE), PY(nOf(-12)), PX(XE + 0.028) - PX(XE), PY(nOf(-30)) - PY(nOf(-12)));
+        g.fillStyle = 'rgba(60,110,50,0.75)'; g.fillRect(PX(XW - 0.028), PY(nOf(30)), PX(XW) - PX(XW - 0.028), PY(nOf(12)) - PY(nOf(30)));          // 西边大陆的东岸：暖流经过，湿润的森林
+        g.fillStyle = 'rgba(230,236,240,0.85)'; g.fillRect(PX(XW - 0.03), PY(nOf(70)), PX(XW) - PX(XW - 0.03), PY(nOf(52)) - PY(nOf(70)));          // 西边大陆东岸的高纬：寒流，冰天雪地的苔原
+        g.fillStyle = 'rgba(60,110,50,0.75)'; g.fillRect(PX(XE), PY(nOf(70)), PX(XE + 0.03) - PX(XE), PY(nOf(52)) - PY(nOf(70)));          // 东边大陆西岸的高纬：暖流，有森林
+      }
+      g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2; g.setLineDash([10, 8]); g.font = '600 30px "PingFang SC", sans-serif'; g.fillStyle = 'rgba(30,50,80,0.8)'; g.textBaseline = 'middle';
+      for (const lat of [60, 30, 0, -30, -60]) { g.beginPath(); g.moveTo(0, PY(nOf(lat))); g.lineTo(TW, PY(nOf(lat))); g.stroke(); g.fillText(lat === 0 ? '赤道' : `${Math.abs(lat)}°${lat > 0 ? 'N' : 'S'}`, PX(XW) + 10, PY(nOf(lat)) - 18); }
+      g.setLineDash([]);
+      if (S.land) { g.font = '600 34px "Songti SC", serif'; g.fillStyle = '#2a3a26'; g.fillText('渔场（寒暖流交汇）', PX(XW) + 20, PY(nOf(47))); for (let k = 0; k < 5; k++) { const X = PX(XW + 0.012 + k * 0.006), Y = PY(nOf(44.5)); g.fillStyle = 'rgba(30,60,90,0.9)'; g.beginPath(); g.ellipse(X, Y, 12, 5, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(X + 10, Y); g.lineTo(X + 18, Y - 6); g.lineTo(X + 18, Y + 6); g.fill(); } }
+      mapTex.needsUpdate = true;
+    };
+    meadow.onload = drawMap; drawMap();
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, NB * 2), new THREE.MeshBasicMaterial({ map: mapTex })); top.rotation.x = -Math.PI / 2; top.position.y = G + 0.0002; block.add(top);
+    const shadowTex = canvasTex(256, 256, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(60,45,30,0.4)'); gr.addColorStop(0.7, 'rgba(60,45,30,0.12)'); gr.addColorStop(1, 'rgba(60,45,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+    const shadow = new THREE.Mesh(new THREE.PlaneGeometry((XR - XL) * 1.08, NB * 2.2), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.0006; shadow.raycast = () => {}; shadow.userData.noFrame = true; group.add(shadow);
+
+    // ---- 洋流箭头：一格格摆在海上，红是暖流、蓝是寒流；风越大越清楚 ----
+    const pts = []; for (let x = XL + 0.01; x < XR; x += 0.019) for (let n = -NB + 0.01; n < NB; n += 0.017) pts.push([x, n]);          // 箭头摆得疏一点，画面不乱
+    const cone = new THREE.ConeGeometry(0.0022, 0.008, 8); cone.rotateX(Math.PI / 2);
+    const arrows = new THREE.InstancedMesh(cone, new THREE.MeshBasicMaterial({ vertexColors: false }), pts.length); arrows.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(pts.length * 3), 3); arrows.raycast = () => {}; block.add(arrows);
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), cW = new THREE.Color(0xd9472f), cC = new THREE.Color(0x1f4f9a), cN = new THREE.Color(0x7d93aa);
+    const placeArrows = () => {
+      pts.forEach(([x, n], k) => {
+        const [u, v] = vel(x, n, S.land), sp = Math.hypot(u, v) * S.w;
+        if (sp < 0.03 || isLand(x, n, S.land)) { m4.compose(P3(x, n, G + 0.001), q, sc.setScalar(1e-4)); arrows.setMatrixAt(k, m4); return; }
+        q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(u, 0, -v).normalize()); m4.compose(P3(x, n, G + 0.0015), q, sc.set(1, 1, Math.min(1.6, 0.5 + sp * 1.2))); arrows.setMatrixAt(k, m4);
+        const kd = kindOf(x, n, S.land); arrows.setColorAt(k, kd === '暖流' ? cW : kd === '寒流' ? cC : cN);
+      });
+      arrows.instanceMatrix.needsUpdate = true; arrows.instanceColor.needsUpdate = true;
+    };
+    // ---- 风：大洋两边的空中一排小白箭头（信风向西、西风向东） ----
+    const windArrows = new THREE.Group(); block.add(windArrows);
+    for (const lat of [15, -15, 45, -45, -58]) { const dir = Math.abs(lat) < 30 ? -1 : 1; for (let x = -0.1; x <= 0.1; x += 0.05) { const a = new THREE.Mesh(new THREE.ConeGeometry(0.003, 0.012, 3), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 })); a.rotation.z = dir > 0 ? -Math.PI / 2 : Math.PI / 2; a.position.copy(P3(x, nOf(lat) + (lat > 0 ? 0.004 : -0.004), G + 0.02)); a.raycast = () => {}; windArrows.add(a); } }
+    const tWind = [tag('信风（东北风）', 'pill'), tag('盛行西风', 'pill'), tag('信风（东南风）', 'pill'), tag('西风', 'pill')];
+
+    // ---- 漂浮的海水：一粒粒，跟着洋流走 ----
+    const NP = 420, pp = new Float32Array(NP * 3), parts = Array.from({ length: NP }, () => ({ x: XL + rnd() * (XR - XL), n: -NB + rnd() * 2 * NB, a: rnd() * 4 }));
+    const dotTex = canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    const dots = new THREE.Points(pg, new THREE.PointsMaterial({ size: 0.022, map: dotTex, color: 0xe8f4ff, transparent: true, opacity: 0.8, depthWrite: false })); dots.raycast = () => {}; dots.renderOrder = 6; block.add(dots);
+    const advect = (o, dt) => { for (let i = 0; i < 3; i++) { const [u, v] = vel(o.x, o.n, S.land); o.x += u * dt * SPEED * S.w / 3; o.n += v * dt * SPEED * S.w / 3; } if (!S.land || latOf(o.n) <= SOUTH_OPEN) { if (o.x > XR - 0.003) o.x = XL + 0.004; if (o.x < XL + 0.003) o.x = XR - 0.004; } };          // 没有陆地的地方：从东边流出去，又从西边流进来（地球是圆的）
+
+    // ---- 玩具鸭：点哪儿放哪儿，留下一路的轨迹 ----
+    const duckMat = new THREE.MeshStandardMaterial({ color: 0xf6c63a, roughness: 0.5, emissive: 0x5a4210, emissiveIntensity: 0.3 });
+    const addDuck = (x, n) => {
+      if (S.ducks.length >= 4) { const d0 = S.ducks.shift(); block.remove(d0.m, d0.line); d0.line.geometry.dispose(); }
+      const m = new THREE.Group(), body = new THREE.Mesh(new THREE.SphereGeometry(0.003, 12, 8), duckMat); body.scale.set(1.3, 0.8, 1); body.position.y = 0.002; m.add(body); const hd = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 10, 8), duckMat); hd.position.set(0.0026, 0.0045, 0); m.add(hd);
+      const MAX = 600, pos = new Float32Array(MAX * 3), geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setDrawRange(0, 0);
+      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xf6c63a })); line.raycast = () => {}; line.renderOrder = 7;
+      block.add(m, line); S.ducks.push({ x, n, m, line, pos, np: 0, t: 0, x0: x, n0: n });
+    };
+    const stepDucks = (dt) => {
+      for (const d of S.ducks) {
+        if (d.np >= 600) continue;
+        const px = d.x; advect(d, dt); d.t += dt;
+        if (Math.abs(d.x - px) > 0.1) { d.np = d.np; }          // 绕地球一圈回到西边：轨迹从新的地方接着画
+        if (isLand(d.x, d.n, S.land)) { d.x = px; }          // 碰到岸就停在岸边（被冲上海滩）
+        if (d.t > 0.05 || !d.np) { d.t = 0; d.pos.set([d.x, G + 0.0012, -d.n], d.np * 3); d.np++; d.line.geometry.setDrawRange(0, d.np); d.line.geometry.attributes.position.needsUpdate = true; }
+        d.m.position.copy(P3(d.x, d.n, G + 0.0006));
+      }
+    };
+
+    // ---- 沿岸的小城：北纬 60° 大洋两岸各一座 ----
+    const town = (x, n) => { const g = new THREE.Group(); for (const [dx, dz, hh] of [[-0.003, 0, 0.004], [0.003, 0.003, 0.006], [0, -0.004, 0.003]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.004, hh, 0.004), new THREE.MeshLambertMaterial({ color: 0xf3ede1 })); b.position.set(dx, hh / 2, dz); g.add(b); } g.position.copy(P3(x, n)); block.add(g); return g; };
+    town(XW - 0.012, nOf(60)); town(XE + 0.012, nOf(60));
+    const tTownW = tag('', 'pill'), tTownE = tag('', 'pill');
+    const tHint = tag('在海上点一下：放一只玩具鸭', 'pill'), tScale = tag('教学示意 · 大洋和大陆是理想化的 · 流速、气温是示意', 'pill');
+    const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
+    const say1 = (text, x, n) => { callout.loc(block, x, G + 0.03, -n).text(text).show(true); calloutT = 4.5; };
+    const tGyre = GYRES.map((g2) => ({ g: g2, t: tag(g2[3].replace(/海区的大洋环流/, '环流'), 'pill') }));
+    const placeTags = () => {
+      const on = S.w > 0.6;
+      tGyre.forEach(({ g: [a, b], t }) => t.loc(block, 0, G + 0.006, -nOf((a + b) / 2)).show(on && S.land));
+      [[15, 0], [45, 1], [-15, 2], [-55, 3]].forEach(([lat, i]) => tWind[i].loc(block, 0.085, G + 0.022, -nOf(lat)).show(S.blow || S.w > 0.05));
+      tTownW.loc(block, XW - 0.012, G + 0.014, -nOf(60)).text(`北纬 60° 西岸：最冷月约 ${coastTemp(60, 'west', S.land).toFixed(0)}℃`).show(S.w > 0.6);
+      tTownE.loc(block, XE + 0.012, G + 0.014, -nOf(60)).text(`东岸：约 ${coastTemp(60, 'east', S.land).toFixed(0)}℃`).show(S.w > 0.6);
+      tHint.loc(block, 0, G + 0.012, -nOf(20)).show(S.w > 0.6 && !S.ducks.length);
+      tScale.loc(block, XL + 0.08, G + 0.002, NB - 0.008);
+      windArrows.visible = S.blow || S.w > 0.05;
+    };
+
+    // ---- 侧栏：同纬度两岸比一比 ----
+    const drawChart = () => {
+      if (!W) return;
+      const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, on = S.w > 0.6;
+      g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh); g.font = '600 13px "PingFang SC", sans-serif'; g.textBaseline = 'middle'; g.fillStyle = '#3a3226'; g.textAlign = 'left';
+      g.fillText('同纬度的大洋两岸（最冷月气温，示意）', 8, 12);
+      const rows = [[60, '北纬 60°'], [25, '北纬 25°']], Z = 120, k = 3.2;
+      rows.forEach(([lat, nm], i) => {
+        const y = 36 + i * 46, tw = on ? coastTemp(lat, 'west', S.land) : coastTemp(lat, 'west', false) - 0 * 0, te = on ? coastTemp(lat, 'east', S.land) : tw;
+        g.fillStyle = '#3a3226'; g.fillText(nm, 8, y + 9);
+        for (const [t, side, yy] of [[tw, '西岸', y], [te, '东岸', y + 18]]) { g.fillStyle = t >= 0 ? '#d9673f' : '#3b6fb8'; const x0 = Z, x1 = Z + t * k; g.fillRect(Math.min(x0, x1), yy, Math.abs(x1 - x0), 13); g.fillStyle = '#3a3226'; g.fillText(`${side} ${t.toFixed(0)}℃`, t >= 0 ? x1 + 6 : x0 + 6, yy + 7); }
+      });
+      g.strokeStyle = '#3a3226'; g.beginPath(); g.moveTo(Z, 28); g.lineTo(Z, hh - 6); g.stroke();
+      W.read.innerHTML = on && S.land ? '北纬 60°：大洋<b>东岸</b>有暖流，比西岸暖得多（像欧洲西北部）；中低纬：大洋东岸有寒流，岸上干、成了沙漠，西岸有暖流、湿润。<br><small>气温是示意</small>' : on ? '假如没有大陆：海水只跟着风东西向流，两岸也就没有暖流、寒流的差别。' : '还没起风：海面上没有洋流，两岸只按纬度有冷暖。';
+    };
+    const drawLog = () => {
+      if (!W) return;
+      const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
+      if (S.saw.gyre) r('风吹起来：', '北半球中低纬转成顺时针的环流、中高纬逆时针；南半球中低纬逆时针；南纬 45° 以南是一路向东的西风漂流');
+      if (S.saw.duck) r('玩具鸭：', '跟着洋流漂，能漂到很远的海岸');
+      if (S.saw.noland) r('假如没有大陆：', '海水只随风带东西向流，转不成环流');
+      if (S.saw.coast) r('同纬度两岸：', '北纬 60° 东岸暖、西岸冷；中低纬东岸寒流、沙漠，西岸暖流、湿润；寒暖流交汇处有渔场');
+      if (S.guess != null && S.saw.duck) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：先往西漂（信风推着海水往西）`)));
+      W.log.replaceChildren(...rows);
+      if (S.saw.gyre && S.saw.duck && S.saw.noland) W.ui.unlock();
+    };
+
+    // ---- 指针：在海上点一下，放玩具鸭 ----
+    const plane = new THREE.Plane(), hit = new THREE.Vector3(), wq = new THREE.Vector3();
+    const onMap = (ray) => { block.updateMatrixWorld(); block.localToWorld(wq.set(0, G, 0)); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), wq); if (!ray.intersectPlane(plane, hit)) return null; const l = block.worldToLocal(hit.clone()); return l.x > XL && l.x < XR && Math.abs(l.z) < NB ? { x: l.x, n: -l.z } : null; };
+    const pointer = {
+      down(rc) { const m = onMap(rc.ray); if (!m || isLand(m.x, m.n, S.land)) return false; addDuck(m.x, m.n); if (S.w < 0.3) W?.ui.status('玩具鸭放下了，可是还没起风，海水不怎么动。按“让风吹起来”。'); else { S.saw.duck = true; drawLog(); say1('玩具鸭跟着洋流漂', m.x, m.n); } placeTags(); return true; },
+      move(rc) { const c = document.getElementById('c'); if (c) { const m = onMap(rc.ray); c.style.cursor = m && !isLand(m.x, m.n, S.land) ? 'crosshair' : ''; } return false; },
+      up() { return false; },
+    };
+
+    placeArrows(); placeTags();
+
+    return {
+      group,
+      card: false,
+      emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
+      size: { w: 0.36, d: 0.26, h: 0.05 },
+      view: { elev: 52, azim: 4, lookY: 0.25, frameMargin: 1.05 },
+      pointer,
+      mount(ui) {
+        const acts = buttons([
+          { text: '让风吹起来', onClick: () => { S.blow = !S.blow; acts.btns[0].textContent = S.blow ? '风停下' : '让风吹起来'; placeTags(); ui.status(S.blow ? '风吹起来了：<b>信风</b>推着赤道两侧的海水往西，<b>西风</b>推着中纬度的海水往东。看海水碰到大陆以后怎么走。' : '风停了，海水慢慢停下来。'); } },
+          { text: '重来', ghost: true, onClick: () => { S.w = 0; S.blow = false; S.land = true; S.saw = {}; S.guess = null; while (S.ducks.length) { const d = S.ducks.pop(); block.remove(d.m, d.line); d.line.geometry.dispose(); } landSeg.set(0); guess.set(-1); acts.btns[0].textContent = '让风吹起来'; callout.show(false); drawMap(); placeArrows(); placeTags(); drawChart(); drawLog(); ui.status('这是一个理想化的大洋，两边是大陆。先按<b>让风吹起来</b>。'); } },
+        ]);
+        const landSeg = seg('大陆', ['有大陆挡着', '假如没有大陆'], (_, i) => { S.land = !i; if (i) S.saw.noland = true; drawMap(); placeArrows(); placeTags(); drawChart(); drawLog(); ui.status(i ? '假如没有大陆挡着：海水只跟着风带东西向流，转不成环流。' : '有大陆挡着：海水碰到大陆只能拐弯，转成一个个环流。'); }, { value: 0 });
+        const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
+        const chart = h('canvas', { class: 'wx-map', width: 320, height: 130 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
+        ui.controls.append(h('div', { class: 'bar-title' }, '同纬度的大洋两岸'), chart, read, acts.el, guess.el, landSeg.el, note('洋流箭头：红色是暖流，蓝色是寒流，指着海水流去的方向。在海上点一下就放一只玩具鸭。'));
+        ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
+        W = { ui, chart, read, log };
+        ui.status('这是一个理想化的大洋（不是真实地图），西边、东边各一块大陆。先按<b>让风吹起来</b>。');
+        drawChart(); drawLog();
+      },
+      update(dt) {
+        const d = Math.min(dt, 0.05), w0 = S.w;
+        S.w = S.blow ? Math.min(1, S.w + d / 3) : Math.max(0, S.w - d / 3);          // 风吹起来，洋流慢慢建立；风停了，慢慢停下
+        if (Math.abs(S.w - w0) > 1e-4) { placeArrows(); placeTags(); if (Math.floor(S.w * 10) !== Math.floor(w0 * 10)) drawChart(); }
+        if (S.w > 0.9 && S.land && !S.saw.gyre) { S.saw.gyre = true; drawLog(); say1('海水碰到大陆拐弯，转成了环流', XW + 0.02, nOf(25)); }
+        if (S.w > 0.9 && S.land && !S.saw.coast && S.saw.gyre) { S.saw.coast = true; drawLog(); }
+        if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
+        for (let k = 0; k < NP; k++) { const o = parts[k]; advect(o, d); o.a += d; if (o.a > 6 || isLand(o.x, o.n, S.land) || Math.abs(o.n) > NB - 0.003) { do { o.x = XL + rnd() * (XR - XL); o.n = -NB + rnd() * 2 * NB; } while (isLand(o.x, o.n, S.land)); o.a = 0; } pp.set([o.x, G + 0.0016, -o.n], k * 3); }
+        pg.attributes.position.needsUpdate = true; dots.material.opacity = 0.2 + 0.6 * S.w;
+        stepDucks(d);
+      },
+    };
+  },
+};
