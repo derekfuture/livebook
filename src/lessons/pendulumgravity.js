@@ -1,9 +1,9 @@
 // 选择性必修一图 2.5-1。读尺、释放、起停计时均由学生操作；振动积分与停表共用实验时钟。
 import { gravityPendulumRig, SUSPEND, RULER_SPAN, RADIUS } from './kit/gravityPendulumRig.js';
-import { advancePendulum, pendulumEstimate, timingMark } from './kit/gravityPendulum.js';
+import { advancePendulum, pendulumEstimate, timingMark, pendulumSeries } from './kit/gravityPendulum.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { draggable, clamp } from './kit/interact.js';
-import { note, table, buttons, h } from './kit/ui.js';
+import { note, table, buttons, chart, h } from './kit/ui.js';
 
 const DEG = Math.PI / 180,
   MIN_OSCILLATIONS = 20;
@@ -20,8 +20,8 @@ export default {
   },
   conclusion: {
     quote: '小摆角下，用摆长和多次全振动的平均周期可以估算重力加速度。',
-    why: '摆长是悬点到球心的距离。用总时间 t 除以全振动次数 N 得到周期 T，再由 g = 4π²l/T² 计算。起停时对准同一位置、同一运动方向，多周期计时能减小反应时间在结果中的占比。',
-    src: '人教版高中物理选择性必修第一册第 51–53 页',
+    why: '摆长是悬点到球心的距离。用总时间 t 除以全振动次数 N 得到周期 T，再由 g = 4π²l/T² 计算。起停时对准同一位置、同一运动方向，多周期计时能减小反应时间在结果中的占比。改变摆长取得多组记录，T²–l图近似为过原点的直线，斜率k=4π²/g；T与l本身不成正比。',
+    src: '人教版高中物理选择性必修第一册第48页周期与摆长实验；第51–53页测量重力加速度',
   },
   create(ctx) {
     const rig = gravityPendulumRig(),
@@ -59,8 +59,13 @@ export default {
       steps: [
         { id: 'length', title: '量摆长', todo: '沿尺分别读取悬点和球心的位置。', target: () => aim },
         { id: 'time', title: '多周期计时', todo: '从静止释放，计至少 20 次全振动。', target: () => aim },
-        { id: 'repeat', title: '改摆长复测', todo: '调整线长，重复量长和计时。', target: () => aim },
-        { id: 'g', title: '估算重力加速度', todo: '用每组实测量计算 g，再取平均。', target: () => aim },
+        {
+          id: 'repeat',
+          title: '多摆长复测',
+          todo: '测至少四种摆长，总跨度至少20cm；每种都重新量长和计时。',
+          target: () => aim,
+        },
+        { id: 'g', title: '分析周期与摆长', todo: '用原数据计算周期和g，再比较T–l、T²–l图。', target: () => aim },
       ],
     });
     const say = (msg, obj = null) => {
@@ -71,8 +76,10 @@ export default {
       if (ui && document.body.classList.contains('predicting')) ui.go(1);
     };
     const aligned = () => Math.abs(rig.ruler.position.x + 0.024 - (SUSPEND.x - RADIUS - 0.003)) < 0.01;
+    const enough = () => samples.length >= 4 && pendulumSeries(samples).sufficient;
+    const repeatedLength = () => measured !== null && samples.some((s) => Math.abs(measured - s.l) < 0.049);
     function guide() {
-      if (bar.finished) return say('已根据两组实测数据求得重力加速度。');
+      if (bar.finished) return say('已用多组原数据比较周期与摆长，并估算重力加速度。');
       if (near)
         return say(
           near === 'top'
@@ -80,15 +87,17 @@ export default {
             : '点与球心齐平的毫米刻线，留意球的上下边缘。',
         );
       if (pending) return say('停表读数 ' + pending.t.toFixed(2) + ' s。展开笔记本，填写自己数的全振动次数。');
-      if (samples.length >= 2) return say('两种摆长已有记录。在笔记本用 t/N 求 T，再算 g 并取平均。');
+      if (enough()) return say('摆长范围已有充分记录。在原笔记本计算周期和g，再用两幅图比较关系。');
       if (started)
         return say(
           '起表方向为' + (started.dir > 0 ? '向右' : '向左') + '。数满至少 20 次全振动，在同向过中线时再按停表。',
           rig.key,
         );
-      if (samples.length === 1 && measured !== null && Math.abs(measured - samples[0].l) < 0.05)
+      if (samples.length > 0 && repeatedLength())
         return say(
-          running ? '先抓住摆球带回中线，停稳后改变摆长。' : '上下拖动线轴，改变摆长至少 5 cm，再用尺测量。',
+          running
+            ? '先抓住摆球带回中线，停稳后改变摆长。'
+            : '上下拖动线轴，选与已有记录相差至少5cm的摆长；总跨度需达20cm。',
           running ? rig.ball : rig.spool,
         );
       if (running)
@@ -98,7 +107,7 @@ export default {
             : watchView
               ? '看球心经过中线时的方向，按停表开始，记作第 0 次。'
               : '点停表近看，让球心和表盘同时留在视野中。',
-          measured === null ? rig.ball : rig.key,
+          measured === null ? rig.ball : watchView ? rig.key : rig.watch,
         );
       if (measured === null) {
         if (!aligned()) return say('把竖尺横向拖到悬线旁，让毫米刻线靠近悬点和球心。', rig.ruler);
@@ -117,7 +126,7 @@ export default {
       guide();
     }
     function look() {
-      if (running || pending || samples.length >= 2) {
+      if (running || pending || enough()) {
         guide();
         return;
       }
@@ -201,55 +210,155 @@ export default {
         say('本轮次数与同向过中线的记录不符。左右各经过一次才算一次全振动；可重新计时。');
         return;
       }
-      const sample = { ...pending, accepted: false };
+      const sample = { ...pending, t: +pending.t.toFixed(2), accepted: false };
       pending = null;
       samples.push(sample);
       log.el.hidden = false;
       log.add([sample.l.toFixed(3), String(n), sample.t.toFixed(2)]);
       bar.done('time');
-      if (samples.length >= 2) bar.done('repeat');
+      if (enough()) bar.done('repeat');
       clockRows.value = '';
       countForm.hidden = true;
-      if (samples.length >= 2) {
+      if (enough()) {
         buildReport();
         guide();
-      } else say('第一组已记录。抓住摆球带回中线停住，再调线轴改摆长。', rig.ball);
+      } else say('已记' + samples.length + '组。抓球回中线停住，再调线轴；需至少四种摆长、总跨度20cm。', rig.ball);
     }
     let countForm;
     function buildReport() {
+      report.replaceChildren();
       const values = samples.map(() => []);
+      const plots = h('div', { hidden: true });
+      let plotted = null;
+      const invalidate = () => {
+        plotted = null;
+        plots.hidden = true;
+        bar.undo('g');
+      };
+      report.append(note('用原表的t/N计算周期T（保留三位小数），再算每组g并取平均。核对后，在同一笔记本画两幅图。'));
       for (const [i, s] of samples.entries()) {
         const labels = ['第 ' + (i + 1) + ' 组周期 / s', '第 ' + (i + 1) + ' 组 g / (m/s²)'];
         for (const label of labels) {
           const el = h('input', { type: 'number', step: 'any', 'aria-label': label, style: 'width:6em' });
+          el.addEventListener('input', invalidate);
           values[i].push(el);
-          report.append(h('label', {}, label + ' ', el));
+          report.append(h('div', { class: 'read-row' }, h('label', {}, label + ' ', el)));
         }
       }
       const avg = h('input', { type: 'number', step: 'any', 'aria-label': '平均 g / (m/s²)', style: 'width:6em' });
+      avg.addEventListener('input', invalidate);
       report.append(
-        h('label', {}, '平均 g / (m/s²) ', avg),
+        h('div', { class: 'read-row' }, h('label', {}, '平均 g / (m/s²) ', avg)),
         buttons([
           {
-            text: '核对测量结果',
+            text: '核对并画图',
             onClick() {
               let sum = 0;
               for (const [i, s] of samples.entries()) {
                 const [t, g] = values[i].map((el) => el.valueAsNumber),
                   expected = pendulumEstimate(s.l, s.t, s.n);
-                if (!Number.isFinite(t) || Math.abs(t - expected.period) > 0.006)
-                  return say('第 ' + (i + 1) + ' 组先用总时间除以全振动次数，周期至少保留两位小数。');
-                if (!Number.isFinite(g) || Math.abs(g - expected.gravity) > 0.1)
-                  return say('第 ' + (i + 1) + ' 组请用米和秒，计算 4π²l/T²。');
+                if (!Number.isFinite(t) || Math.abs(t - expected.period) > 0.00051)
+                  return say('第' + (i + 1) + '组先用总时间除以全振动次数，周期保留三位小数。');
+                if (!Number.isFinite(g) || Math.abs(g - (4 * Math.PI ** 2 * s.l) / t ** 2) > 0.1)
+                  return say('第' + (i + 1) + '组请用米和秒，计算4π²l/T²。');
                 sum += g;
               }
               if (!Number.isFinite(avg.valueAsNumber) || Math.abs(avg.valueAsNumber - sum / samples.length) > 0.025)
-                return say('取你计算的两组 g 的算术平均值。');
-              bar.done('g');
-              say('两组实测的平均重力加速度为 ' + avg.valueAsNumber.toFixed(2) + ' m/s²。');
+                return say('取你计算的各组g的算术平均值。');
+              // 图上的T采用学生刚核对的值；继续改输入会撤回图和完成状态。
+              plotted = pendulumSeries(samples.map((s, i) => ({ ...s, t: values[i][0].valueAsNumber * s.n })));
+              bar.undo('g');
+              plots.replaceChildren();
+              plots.hidden = false;
+              const squares = table(['摆长 l / m', '周期 T / s', 'T² / s²']);
+              for (const r of plotted.rows) squares.add([r.l.toFixed(3), r.period.toFixed(3), r.squared.toFixed(4)]);
+              plots.append(
+                squares.el,
+                note(
+                  'T²由上面核对的T平方得到。圆点保留实测差别；棕色虚线是自由截距的直线拟合，不强迫过原点。点图可放大。',
+                ),
+              );
+              for (const [key, fit, label, max] of [
+                ['period', plotted.periodFit, 'T / s', 2.2],
+                ['squared', plotted.squaredFit, 'T² / s²', 4],
+              ]) {
+                const end = 0.9,
+                  line = [
+                    [0, fit.intercept],
+                    [end, fit.intercept + fit.slope * end],
+                  ];
+                const graph = chart({
+                  preserveAspect: true,
+                  x: { label: 'l / m', min: 0, max: end },
+                  y: {
+                    label,
+                    min: Math.min(0, fit.intercept * 1.2),
+                    max: Math.max(max, ...line.map((p) => p[1] * 1.08)),
+                  },
+                  series: [
+                    { color: '#a17e51', points: line, line: true, dash: true },
+                    { points: plotted.rows.map((r) => [r.l, r[key]]), line: false, dots: true },
+                  ],
+                  legend:
+                    label +
+                    '：拟合截距 ' +
+                    fit.intercept.toFixed(3) +
+                    '，斜率 ' +
+                    fit.slope.toFixed(3) +
+                    (key === 'period' ? ' s/m' : ' s²/m'),
+                });
+                plots.append(graph.el);
+              }
+              const choice = h(
+                'select',
+                { 'aria-label': '周期与摆长的关系' },
+                h('option', { value: '' }, '选择图像支持的关系'),
+                h('option', { value: 't' }, 'T与l近似成正比'),
+                h('option', { value: 'square' }, 'T²与l近似成正比'),
+                h('option', { value: 'inverse' }, 'T²与l近似成反比'),
+              );
+              const slopeG = h('input', {
+                type: 'number',
+                step: 'any',
+                'aria-label': '由斜率估算 g / (m/s²)',
+                style: 'width:6em',
+              });
+              for (const el of [choice, slopeG]) el.addEventListener('input', () => bar.undo('g'));
+              plots.append(
+                note(
+                  '比较两条拟合线的截距和点的分布，不能只看“像直线”就判断正比。由T²–l斜率k计算g=4π²/k；有限范围的测量只支持近似关系。',
+                ),
+                h('div', { class: 'read-row' }, h('label', {}, '周期与摆长的关系 ', choice)),
+                h('div', { class: 'read-row' }, h('label', {}, '由斜率估算 g / (m/s²) ', slopeG)),
+                buttons([
+                  {
+                    text: '核对图像分析',
+                    onClick() {
+                      if (choice.value !== 'square')
+                        return say('看哪一幅图更接近过原点的直线；T–l局部接近直线不等于T与l成正比。');
+                      if (
+                        !Number.isFinite(slopeG.valueAsNumber) ||
+                        plotted.slopeGravity === null ||
+                        Math.abs(slopeG.valueAsNumber - plotted.slopeGravity) > 0.1
+                      )
+                        return say('使用T²–l的斜率k，单位s²/m，计算4π²/k。');
+                      bar.done('g');
+                      say(
+                        '各组平均g=' +
+                          avg.valueAsNumber.toFixed(2) +
+                          '，斜率估算g=' +
+                          slopeG.valueAsNumber.toFixed(2) +
+                          ' m/s²。保留两种估算的差别。',
+                      );
+                    },
+                  },
+                ]).el,
+              );
+              say('原记录已画在两幅图中。比较截距和点的分布，再用T²–l斜率估算g。');
             },
           },
         ]).el,
+        plots,
       );
     }
     const manip = draggable(
@@ -350,17 +459,19 @@ export default {
                 guide();
                 return;
               }
-              if (
-                samples.length >= 2 ||
-                (samples.length === 1 && measured !== null && Math.abs(measured - samples[0].l) < 0.05)
-              ) {
-                say('先改变并重新测量摆长，再计第二组。', rig.spool);
+              if (enough() || (samples.length > 0 && repeatedLength())) {
+                say('先换一种未测过的摆长，重新用尺量长，再计时。', rig.spool);
                 return;
               }
               if (running && measured !== null && !watchView && !started) {
                 watchView = true;
                 bar.near(true);
-                ctx.look([-0.082, (SUSPEND.y - length + 0.35) / 2, 0.04], [0, 0.36, 1], 0.49, leave);
+                ctx.look(
+                  [-0.082, (SUSPEND.y - length + 0.35) / 2, 0.04],
+                  [0, 0.36, 1],
+                  Math.max(0.72, (Math.abs(SUSPEND.y - length - 0.35) + 0.2) * 2.6, (0.42 * innerWidth) / innerHeight),
+                  leave,
+                );
                 guide();
                 return;
               }
