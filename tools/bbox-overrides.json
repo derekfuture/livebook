@@ -1,4 +1,5 @@
 {
+  "staticshielding": [60, 106, 185, 200],
   "waverefraction": [60, 60, 197, 166],
   "longitudinalwave": [265, 374, 483, 472],
   "springphase": [87, 506, 187, 575],
