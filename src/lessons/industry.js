@@ -10,12 +10,15 @@
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, NL, NR, PLACES, RIVER, INDUSTRIES, WIND, coastX, evaluate, isSea, isMountain, nearRiver, swing } from './kit/industry.js';
 
 const G = 0.024;
 const KINDS = ['sugar', 'beer', 'alu', 'cloth', 'chip', 'petro'];
 const COLORS = { 原料运输: '#c9852e', 产品运输: '#d4523a', 动力: '#e0b52e', 劳动力: '#4f8f5a', 技术: '#4a6fb8' };
+const ICON = { 原料运输: 'ore', 产品运输: 'truck', 动力: 'bolt', 劳动力: 'person', 技术: 'gear' };
+const INKC = { 原料运输: '#8a5514', 产品运输: '#a8341f', 动力: '#8a6a08', 劳动力: '#2f6a3c', 技术: '#2f4f94' };          // 字用同一色相、深一些的颜色（黄色字在地图上看不清）
 const FROM = { 原料运输: null, 产品运输: 'city', 动力: 'hydro', 劳动力: null, 技术: 'univ' };
 const ASK = ['先猜一下（可以不猜）：在这个情境里，制糖厂建在哪儿总成本最低？', ['甘蔗田旁边', '大城市旁边', '港口旁边']];
 
@@ -100,11 +103,11 @@ export default {
     for (const [x, z, w, hh] of [[-0.009, 0.004, 0.012, 0.006], [0.005, -0.002, 0.01, 0.008]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, 0.009), wall); b.position.set(x, hh / 2, z); plant.add(b); const r = new THREE.Mesh(new THREE.BoxGeometry(w + 0.001, 0.0012, 0.0095), roofM); r.position.set(x, hh + 0.0006, z); plant.add(r); }
     const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0016, 0.016, 10), wall); stack.position.set(0.012, 0.008, 0.004); plant.add(stack);
     const pinPick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.045, 12), new THREE.MeshBasicMaterial({ visible: false })); pinPick.position.y = 0.022; pinPick.userData.pick = true; pin.add(pinPick);
-    const tPin = tag('拖这个“地点”，看看建在哪儿合适', 'pill');
+    const tPin = tag('<span>拖这个“地点”</span><small>看看建在哪儿合适</small>', 'hint');          // 开场的提示：不用白底牌子
 
     // ---- 各项成本：从各自的地方拉一条线到“地点”，线越粗这一项越贵（课本图 3.18 的那些箭头） ----
     const ribbons = {};
-    for (const k of Object.keys(COLORS)) { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: COLORS[k], transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 5; m.raycast = () => {}; block.add(m); ribbons[k] = { m, t: tag(k, 'pill') }; }
+    for (const k of Object.keys(COLORS)) { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: COLORS[k], transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide })); m.renderOrder = 5; m.raycast = () => {}; block.add(m); ribbons[k] = { m, t: airLabel(block, k, { h: 0.0085, color: INKC[k], icon: ICON[k], dim: 0 }) }; }
     const strip = (from, to, w) => {          // 从 from 到“地点”的一条带子，靠近“地点”一头带箭头
       const ax = from.x, an = from.n, bx = to.x, bn = to.n, L = Math.hypot(bx - ax, bn - an); if (L < 0.004) return [];
       const ux = (bx - ax) / L, un = (bn - an) / L, vx = -un * w, vn = ux * w, cut = Math.min(0.016, L * 0.4), ex = bx - ux * 0.012, en = bn - un * 0.012, hx = ex - ux * cut, hn = en - un * cut, y = G + 0.0012;
@@ -115,20 +118,21 @@ export default {
     const plumeTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(120,120,125,0.85)'); gr.addColorStop(1, 'rgba(120,120,125,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const plume = Array.from({ length: 14 }, () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: plumeTex, transparent: true, depthWrite: false })); s.raycast = () => {}; s.renderOrder = 9; block.add(s); return s; });
     const dirty = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x8a6a3a, transparent: true, opacity: 0.75, depthWrite: false })); dirty.renderOrder = 4; dirty.raycast = () => {}; block.add(dirty);
-    const fxTags = [tag('', 'pill callout'), tag('', 'pill callout')], savedTags = [tag('', 'pill'), tag('', 'pill'), tag('', 'pill')];
-    const tScale = tag('教学示意 · 区域是虚构的 · 成本数值只用来比较', 'pill'); tScale.loc(block, XL + 0.08, G + 0.002, -NR + 0.008);          // 放在地图北边（远处），不压着南边的盛行风说明
+    const fxTags = [0, 1].map(() => airLabel(block, '', { h: 0.0095, color: '#b03a2a', icon: 'warn', dim: 0 })), savedTags = [0, 1, 2].map(() => airLabel(block, '', { h: 0.008, color: '#3a3226', icon: 'flag', dim: 0 }));
+    const labels = [...Object.values(ribbons).map((r) => r.t), ...fxTags, ...savedTags];
+    noteBadge(tag, '教学示意：区域是虚构的，成本数值只用来比较').loc(block, XL + 0.02, G + 0.002, -NR + 0.008);          // 放在地图北边（远处），不压着南边的盛行风说明
 
     let phase = 0;
     const layout = () => {
       const I = INDUSTRIES[S.kind], p = S.p, ev = evaluate(S.kind, p), max = Math.max(...Object.values(ev.cost), 0.01);
       pin.position.copy(P3(p.x, p.n)); plant.visible = true;
-      tPin.loc(block, p.x, G + 0.05, -p.n).show(!S.moved);
+      tPin.loc(block, p.x, G + 0.09, -p.n).show(!S.moved);          // 提得高一点，不压地图上印的地名
       for (const k of Object.keys(COLORS)) {
         const r = ribbons[k], val = ev.cost[k], from = PLACES[k === '原料运输' ? I.mFrom : k === '劳动力' ? (Math.hypot(p.x - PLACES.county.x, p.n - PLACES.county.n) < 0.03 ? 'county' : 'city') : FROM[k]];
         const share = val / ev.total, show = share > 0.08;          // 只画占得多的几项，画面不乱
         const P = show ? strip(from, p, 0.0008 + 0.0042 * (val / max)) : [];
         r.m.geometry.dispose(); r.m.geometry = new THREE.BufferGeometry(); r.m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); r.m.visible = P.length > 0;
-        if (P.length) { const mx = (from.x + p.x) / 2, mn = (from.n + p.n) / 2; r.t.loc(block, mx, G + 0.006, -mn).text(`${k === '原料运输' ? `原料（${PLACES[I.mFrom].name}）` : k === '产品运输' ? '市场' : k}`).show(share > 0.18); } else r.t.show(false);
+        if (P.length) { const mx = (from.x + p.x) / 2, mn = (from.n + p.n) / 2; r.t.position.set(mx, G + 0.006, -mn); r.t.setText(`${k === '原料运输' ? `原料（${PLACES[I.mFrom].name}）` : k === '产品运输' ? '市场' : k}`).setOn(share > 0.18); } else r.t.setOn(false);
       }
       // 污水：从厂边最近的河段往下游一直到海
       const rv = nearRiver(p), Wfx = ev.fx.some((f) => f.k === 'water' || f.k === 'fish');
@@ -137,8 +141,8 @@ export default {
         const P = [], w = 0.0024; for (let i = 0; i < pts.length - 1; i++) { const [ax, an] = pts[i], [bx, bn] = pts[i + 1], L = Math.hypot(bx - ax, bn - an) || 1, vx = -(bn - an) / L * w, vn = (bx - ax) / L * w, y = G + 0.001; P.push(ax + vx, y, -(an + vn), ax - vx, y, -(an - vn), bx + vx, y, -(bn + vn), ax - vx, y, -(an - vn), bx - vx, y, -(bn - vn), bx + vx, y, -(bn + vn)); }
         dirty.geometry.dispose(); dirty.geometry = new THREE.BufferGeometry(); dirty.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); dirty.visible = true;
       } else dirty.visible = false;
-      savedTags.forEach((t, i) => { const sv = S.saved.filter((x) => x.kind === S.kind)[i]; if (sv) t.loc(block, sv.p.x, G + 0.012, -sv.p.n).text(sv.label).show(true); else t.show(false); });          // 记下的方案在地图上留个小牌子，好回看
-      fxTags.forEach((t, i) => { const f = ev.fx[i]; if (!f) { t.show(false); return; } const at = f.at === 'here' ? p : PLACES[f.at]; t.loc(block, at.x, G + 0.03 + i * 0.012, -at.n).text(f.text).show(true); });
+      savedTags.forEach((t, i) => { const sv = S.saved.filter((x) => x.kind === S.kind)[i]; if (sv) { t.position.set(sv.p.x, G + 0.012, -sv.p.n); t.setText(sv.label).setOn(true); } else t.setOn(false); });          // 记下的方案在地图上留个小牌子，好回看
+      fxTags.forEach((t, i) => { const f = ev.fx[i]; if (!f || !f.text) { t.setOn(false); return; } const at = f.at === 'here' ? p : PLACES[f.at]; t.position.set(at.x, G + 0.03 + i * 0.012, -at.n); t.setText(f.text).setOn(true); });
       drawBars(ev);
     };
 
@@ -205,6 +209,7 @@ export default {
         layout(); drawLog();
       },
       update(dt) {
+        labels.forEach((l) => l.tick(dt));
         phase += dt;
         const I = INDUSTRIES[S.kind];
         plume.forEach((s, i) => { const on = I.air; s.visible = on; if (!on) return; const t = (phase * 0.25 + i / plume.length) % 1, sx = S.p.x + 0.012 + WIND[0] * t * 0.09, sn = S.p.n + 0.004 + WIND[1] * t * 0.09; s.position.set(sx, G + 0.018 + t * 0.012, -sn); const sc = 0.006 + t * 0.02; s.scale.set(sc, sc, 1); s.material.opacity = (1 - t) * 0.7; });          // 烟从烟囱出来，顺着盛行风往西北飘
