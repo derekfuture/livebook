@@ -118,3 +118,23 @@ test('发光响应的指数同率极限仍为有限正值，重置清除磁能�
     assert.deepEqual(c.lampResponse, [0, 0]);
   }
 });
+
+test('拆下无储能线圈后灯支路仍可导通，禁止凭空删掉带电线圈的磁能', () => {
+  const c = new SelfInductionCircuit({ kind: 'turnOff' });
+  assert.equal(c.setCoilConnected(false), true);
+  c.switch(true);
+  c.advance(1);
+  close(c.current, 0);
+  close(c.observe().otherCurrent, 4 / 102);
+  close(c.observe().sourceCurrent, 4 / 102);
+  close(c.observe().inducedEmf, 0);
+  c.setCoilConnected(true);
+  c.advance(1);
+  const energy = c.observe().energy;
+  assert.equal(c.setCoilConnected(false), false);
+  close(c.observe().energy, energy);
+  c.switch(false);
+  c.advance(2);
+  assert.equal(c.setCoilConnected(false), true);
+  close(c.observe().energy, 0);
+});

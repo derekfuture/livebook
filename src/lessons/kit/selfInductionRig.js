@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { paint, inked } from '../../live/ink.js';
 import { Circuit, psuPart, switchPart, lampPart, rheostatPart, meterPart } from './circuit.js';
 import { canvasTex, textPlate } from './props.js';
+import { inductorPart } from './inductorPart.js';
 
 // 仅复用原有器材和布线绘制；电学状态全部由 selfInduction.js 推进，不调用直流求解器。
 export function selfInductionRig() {
@@ -35,45 +36,7 @@ export function selfInductionRig() {
     add(lampPart('A2', { Rhot: 100, rated: 4, fixedR: true }), [0.13, 0.035]),
   ];
   const meter = add(meterPart('V', { type: 'V', ranges: [6, 12] }), [0.25, -0.025]);
-  const coil = {
-    name: 'L',
-    kind: 'coil',
-    group: new THREE.Group(),
-    terminals: { a: [-0.067, 0.02, 0.013], b: [0.067, 0.02, 0.013] },
-  };
-  add(coil, [-0.08, -0.09]);
-  block(coil.group, 0.15, 0.008, 0.052, 0, 0.004, 0, 0xd3c8af);
-  block(coil.group, 0.125, 0.022, 0.022, 0, 0.031, 0, 0x65706c);
-  for (const x of [-0.048, 0.048]) block(coil.group, 0.008, 0.045, 0.044, x, 0.03, 0, 0x444f4d);
-  const helix = [];
-  for (let i = 0; i <= 960; i++) {
-    const q = i / 960;
-    helix.push(
-      new THREE.Vector3(
-        -0.044 + q * 0.088,
-        0.031 + 0.018 * Math.cos(q * 48 * Math.PI),
-        0.018 * Math.sin(q * 48 * Math.PI),
-      ),
-    );
-  }
-  coil.group.add(
-    new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(helix), 960, 0.001, 5, false), paint(0xa56c47)),
-  );
-  for (const side of [-1, 1]) {
-    const points = [
-      [side * 0.044, 0.049, 0],
-      [side * 0.05, 0.058, 0.004],
-      [side * 0.067, 0.022, 0.013],
-    ].map((p) => new THREE.Vector3(...p));
-    coil.group.add(
-      new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 20, 0.001, 6, false), paint(0xa56c47)),
-    );
-  }
-  for (const x of [-0.067, 0.067]) {
-    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.014, 12), paint(0x8d8c7d));
-    p.position.set(x, 0.015, 0.013);
-    coil.group.add(p);
-  }
+  const coil = add(inductorPart('L'), [-0.08, -0.09]);
   caption(coil.group, 'L', 0, 0.035);
   caption(balance.group, 'R · 调两灯等亮', 0, 0.065, 0.125);
   caption(common.group, 'R₁ · 调正常亮度', 0, 0.08, 0.125);

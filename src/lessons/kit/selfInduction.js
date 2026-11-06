@@ -29,6 +29,7 @@ export class SelfInductionCircuit {
   }
   reset() {
     this.closed = false;
+    this.coilConnected = true;
     this.current = 0;
     this.time = 0;
     this.lampResponse = this.kind === 'turnOn' ? [0, 0] : [0];
@@ -36,6 +37,13 @@ export class SelfInductionCircuit {
   // 断开电源并不切断两支路组成的回路，也不重置电感电流或灯丝余热。
   switch(closed) {
     this.closed = !!closed;
+  }
+  setCoilConnected(connected) {
+    // 拔下已储能线圈需要另建开路放电模型，不能把磁能凭空删掉。
+    if (!connected && Math.abs(this.current) > 1e-6) return false;
+    this.coilConnected = !!connected;
+    if (!connected) this.current = 0;
+    return true;
   }
   coefficients() {
     const a = this.coilResistance + (this.kind === 'turnOn' ? this.lampResistance : 0);
@@ -45,7 +53,7 @@ export class SelfInductionCircuit {
       a,
       b,
       resistance: this.closed ? a + (feed * b) / (feed + b) : a + b,
-      drive: this.closed ? (this.voltage * b) / (feed + b) : 0,
+      drive: this.closed && this.coilConnected ? (this.voltage * b) / (feed + b) : 0,
     };
   }
   observe() {

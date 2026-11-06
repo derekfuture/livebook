@@ -2660,6 +2660,11 @@
     "fig": "图2.4-1",
     "sec": "互感和自感"
    },
+   "selfinductionoff": {
+    "title": "观察断电自感",
+    "fig": "图2.4-3",
+    "sec": "互感和自感"
+   },
    "transformer": {
     "title": "探究变压器原、副线圈电压与匝数的关系",
     "fig": "图3.3-2",
@@ -2720,6 +2725,17 @@
      364
     ],
     "label": "图2.4-1 · 翻开活页"
+   },
+   {
+    "lesson": "selfinductionoff",
+    "page": 45,
+    "bbox": [
+     403,
+     565,
+     536,
+     659
+    ],
+    "label": "图2.4-3 · 翻开活页"
    },
    {
     "lesson": "transformer",
