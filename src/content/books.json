@@ -2591,6 +2591,11 @@
     "fig": "图3.3-3",
     "sec": "波的反射、折射和衍射"
    },
+   "ropesuperposition": {
+    "title": "观察波的叠加",
+    "fig": "图3.4-1",
+    "sec": "波的干涉"
+   },
    "waveinterference": {
     "title": "水波的干涉图样",
     "fig": "图3.4-2",
@@ -2700,6 +2705,17 @@
      488
     ],
     "label": "图3.3-3 · 翻开活页"
+   },
+   {
+    "lesson": "ropesuperposition",
+    "page": 78,
+    "bbox": [
+     58,
+     480,
+     245,
+     583
+    ],
+    "label": "图3.4-1 · 翻开活页"
    },
    {
     "lesson": "waveinterference",

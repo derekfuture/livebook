@@ -114,3 +114,14 @@ test('固定步长结果不依赖渲染帧率，重做同时清除两端状态',
   assert.equal(a.heat, 0);
   assert.equal(a.time, 0);
 });
+
+test('两米实操绳保持相同传播时长，两个驱动的能量平衡仍成立', () => {
+  const m = new RopeSuperposition({ length: 2, tension: 4 });
+  close(m.speed, 10);
+  close(m.length / m.speed, 0.2);
+  close(m.baseline(1), -0.049);
+  drive(m, 0.12, 0.06, 0.175);
+  assert.ok(Math.max(...m.y.slice(1, 80)) > 0.035);
+  assert.ok(Math.max(...m.y.slice(81, 160)) > 0.05);
+  close(m.handWork, m.energy() + m.heat, 2e-6);
+});

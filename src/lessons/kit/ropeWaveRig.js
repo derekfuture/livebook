@@ -5,7 +5,10 @@ export const ROPE_SCALE = 0.18,
   ROPE_Y = 0.22,
   ROPE_LEFT = -0.36,
   MARKER_INDEX = 40;
-export function ropeWaveRig(model) {
+export function ropeWaveRig(
+  model,
+  { twoHands = false, markerIndex = MARKER_INDEX, reference = true, scale = ROPE_SCALE } = {},
+) {
   const group = new THREE.Group();
   const cylinder = (parent, r, h, x, y, z, c) => {
     const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 24), paint(c));
@@ -13,7 +16,7 @@ export function ropeWaveRig(model) {
     parent.add(o);
     return o;
   };
-  for (const x of [ROPE_LEFT, ROPE_LEFT + model.length * ROPE_SCALE]) {
+  for (const x of [ROPE_LEFT, ROPE_LEFT + model.length * scale]) {
     block(group, 0.085, 0.012, 0.1, x, 0.006, 0, 0x607a7c);
     cylinder(group, 0.003, 0.3, x, 0.162, -0.025, 0x939d9b);
   }
@@ -33,7 +36,12 @@ export function ropeWaveRig(model) {
   pick.userData.pick = true;
   handle.add(pick);
   block(group, 0.018, 0.002, 0.008, ROPE_LEFT - 0.012, ROPE_Y, -0.025, 0xa65642);
-  block(group, 0.02, 0.018, 0.033, ROPE_LEFT + model.length * ROPE_SCALE, ROPE_Y, -0.013, 0x7c9290);
+  const rightHandle = twoHands ? handle.clone() : null;
+  if (rightHandle) {
+    rightHandle.scale.x = -1;
+    group.add(rightHandle);
+    block(group, 0.018, 0.002, 0.008, ROPE_LEFT + model.length * scale + 0.012, ROPE_Y, -0.025, 0xa65642);
+  } else block(group, 0.02, 0.018, 0.033, ROPE_LEFT + model.length * scale, ROPE_Y, -0.013, 0x7c9290);
   const count = model.segments + 1,
     sides = 8;
   const positions = new Float32Array(count * sides * 3),
@@ -58,15 +66,26 @@ export function ropeWaveRig(model) {
   group.add(marker);
   const knot = new THREE.Mesh(new THREE.SphereGeometry(0.004, 16, 12), paint(0xb94f3c));
   marker.add(knot);
+  if (twoHands) {
+    const markerPick = new THREE.Mesh(
+      new THREE.BoxGeometry(0.045, 0.045, 0.035),
+      new THREE.MeshBasicMaterial({ visible: false }),
+    );
+    markerPick.userData.pick = true;
+    marker.add(markerPick);
+  }
   block(marker, 0.012, 0.014, 0.0015, 0, -0.008, 0, 0xb94f3c);
   // A stationary reference behind the marker makes its material coordinate visible.
-  const markX = ROPE_LEFT + MARKER_INDEX * model.dx * ROPE_SCALE;
-  for (let i = 0; i < 9; i++) block(group, 0.0008, 0.005, 0.0008, markX, 0.165 + i * 0.012, -0.018, 0x8d978e);
-  cylinder(group, 0.0006, 0.27, markX, 0.143, -0.018, 0xb1b3a4);
-  block(group, 0.036, 0.008, 0.035, markX, 0.004, -0.018, 0xa79d82);
+  const markX = ROPE_LEFT + markerIndex * model.dx * scale;
+  if (reference) {
+    for (let i = 0; i < 9; i++) block(group, 0.0008, 0.005, 0.0008, markX, 0.165 + i * 0.012, -0.018, 0x8d978e);
+    cylinder(group, 0.0006, 0.27, markX, 0.143, -0.018, 0xb1b3a4);
+    block(group, 0.036, 0.008, 0.035, markX, 0.004, -0.018, 0xa79d82);
+  }
   function animate() {
     const s = model.observe();
-    handle.position.set(ROPE_LEFT, ROPE_Y + s.hand * ROPE_SCALE, 0);
+    handle.position.set(ROPE_LEFT, ROPE_Y + s.hand * scale, 0);
+    if (rightHandle) rightHandle.position.set(ROPE_LEFT + model.length * scale, ROPE_Y + s.rightHand * scale, 0);
     for (let i = 0; i < count; i++) {
       const p = s.points[i],
         before = s.points[Math.max(0, i - 1)],
@@ -81,8 +100,8 @@ export function ropeWaveRig(model) {
           c = Math.cos(a),
           z = Math.sin(a),
           k = (i * sides + j) * 3;
-        positions[k] = ROPE_LEFT + p.x * ROPE_SCALE + 0.002 * nx * c;
-        positions[k + 1] = ROPE_Y + p.y * ROPE_SCALE + 0.002 * ny * c;
+        positions[k] = ROPE_LEFT + p.x * scale + 0.002 * nx * c;
+        positions[k + 1] = ROPE_Y + p.y * scale + 0.002 * ny * c;
         positions[k + 2] = 0.002 * z;
         normals[k] = nx * c;
         normals[k + 1] = ny * c;
@@ -91,8 +110,8 @@ export function ropeWaveRig(model) {
     }
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.normal.needsUpdate = true;
-    marker.position.set(markX, ROPE_Y + s.points[MARKER_INDEX].y * ROPE_SCALE, 0);
+    marker.position.set(markX, ROPE_Y + s.points[markerIndex].y * scale, 0);
   }
   animate();
-  return { group, handle, marker, rope, animate, dispose() {} };
+  return { group, handle, rightHandle, marker, rope, animate, dispose() {} };
 }
