@@ -113,7 +113,7 @@ export default {
             ? '纸带不够长。向右拖回小车，用同一组槽码重新打带。'
             : compare && measured.has(run.load)
               ? '向右拖回小车；把 ' + next + ' 槽码拖到滑轮下的挂钩。'
-              : '点台面纸带，沿同一把尺测 ' + run.requiredSpeeds + ' 个时刻的车速。')
+              : '看刚取下的纸带。点它放大，比较小车先后经过不同点时的速度。')
         );
       if (finished) return progress + (run.recording ? '关计时器，再取下纸带。' : '点纸带取下，看上面留下了哪些点。');
       if (compare && measured.has(run.load))

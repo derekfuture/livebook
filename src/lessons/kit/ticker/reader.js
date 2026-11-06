@@ -35,7 +35,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
   const paperZero = -WIDTH / 2 + (LEFT / W) * WIDTH;
   const stripZ = Z + (184 / H - 0.5) * DEPTH;
   let transfer = 0;
-  function setStrip(marks, layout, carry = false) {
+  function setStrip(marks, layout, carry = false, onArrival) {
     cancelAnimationFrame(transfer);
     strip.visible = !!marks;
     if (!strip.visible) return;
@@ -64,6 +64,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       strip.position.lerpVectors(start, dest, u);
       strip.position.z += 0.07 * Math.sin(Math.PI * u);
       if (t < 1) transfer = requestAnimationFrame(travel);
+      else onArrival?.();
     }
     travel(began);
   }
@@ -190,12 +191,6 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     g.textAlign = align;
     g.fillText(text, x, y);
   }
-  function dot(x, y, r = 5, color = '#303940') {
-    g.fillStyle = color;
-    g.beginPath();
-    g.arc(x, y, r, 0, 2 * Math.PI);
-    g.fill();
-  }
   function drawProbe() {
     showBench();
     if (!probeIsTrial) {
@@ -286,7 +281,19 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       g.fillRect(x - 1, 132, 2, 22);
       label(name, x, 127, 38, color, align);
     }
-    dot(px(mm(c)), 156, 5, '#286a71');
+    // 圈住被测速的真实打点，露出点本身；两端的细线一直引到原尺。
+    if (!canContinue()) {
+      g.strokeStyle = '#286a71';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(px(mm(c)), 156, 9, 0, Math.PI * 2);
+      g.stroke();
+    }
+    for (const i of [a, b]) {
+      const x = px(mm(i));
+      g.fillStyle = i === a ? '#286a71' : '#a44730';
+      g.fillRect(x - 0.8, 161, 1.6, 28);
+    }
     // 已读的两处在原位留短线，学生换测量时刻仍能找到上一段。
     g.fillStyle = '#867b68';
     for (const values of sheet.used.values()) {
@@ -308,7 +315,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     const reading = (k) => (placed[k] || handle === k ? readings[k].toFixed(1) : '—');
     label('A ' + reading(0) + '    B ' + reading(1) + ' mm', RIGHT, 322, 34, '#554d42', 'right');
     if (message) label(message, W / 2, 362, 40, '#34404a', 'center');
-    const previous = sheet.points.find(([time]) => Math.abs(time - Number(timeAt(c))) > 0.001);
+    const previous = sheet.points.findLast(([time]) => Math.abs(time - Number(timeAt(c))) > 0.001);
     if (previous) {
       const index = sheet.origin + Math.round(previous[0] / PERIOD);
       const [start, end] = sheet.used.get(index);
@@ -319,8 +326,8 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       g.lineWidth = 2;
       g.beginPath();
       g.moveTo(left, 103);
-      g.lineTo(left, 90);
-      g.lineTo(right, 90);
+      g.lineTo(left, 72);
+      g.lineTo(right, 72);
       g.lineTo(right, 103);
       g.stroke();
       label('已测 ' + previous[0].toFixed(2) + ' s 处：' + previous[1].toFixed(3) + ' m/s', LEFT, 409, 34, '#575247');
@@ -332,7 +339,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       g.beginPath();
       g.arc(x, 156, 15, 0, Math.PI * 2);
       g.stroke();
-      label(timeAt(slots[nextUnmeasured()]) + ' s', x, 91, 33, '#286a71', 'center');
+      // 下一时刻可能正是本段的 B。动作提示留在步骤栏，纸上只圈要选的原点。
     }
     bench.needsUpdate = true;
   }
@@ -432,10 +439,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
         return;
       }
       const [x, y] = pixel(p);
-      if (probe) {
-        leave();
-        return;
-      }
+      if (probe) return;
       if (y < 184) {
         stopPan();
         panStart = { x, low };
@@ -523,8 +527,10 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
         return '这条纸带可测的时刻太少，回实验台换新带，先通电再放车。';
       if (slots.length === 1) return '这条纸带只能量一个时刻。回实验台，换新带，先通电再放车。';
       return placed[0]
-        ? '沿尺读 B。A 到 B 经过 10 个打点间隔，共 0.20 s。'
-        : '测中间点（' + timeAt(slots[slot]) + ' s）的速度：A、B 各距它 5 个打点间隔。先读 A 正下方的毫米刻度。';
+        ? '已读起点 A。读终点 B 下的刻度，两数相减就是小车在这 0.20 s 内走过的距离。'
+        : '圈内是计时起点后 ' +
+            timeAt(slots[slot]) +
+            ' s 的打点。要估计当时的车速，量它前后各 5 个间隔。先读 A 下的刻度。';
     },
     leave,
     drag,
@@ -538,11 +544,10 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       if (origin < 0) {
         leave();
         probe = run.marks;
-        setStrip(probe, layout);
         el.hidden = true;
         paper.visible = true;
         probeIsTrial = false;
-        inspect();
+        setStrip(probe, layout, true, inspect);
         return false;
       }
       sheets.push({ run, trial, origin, layout, points: [], used: new Map() });
@@ -557,11 +562,10 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
       panStart = null;
       handle = -1;
       probe = marks;
-      setStrip(marks, layout);
       el.hidden = true;
       paper.visible = true;
       probeIsTrial = true;
-      inspect();
+      setStrip(marks, layout, true, inspect);
     },
     stow() {
       stopPan();

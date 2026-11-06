@@ -258,7 +258,7 @@ export default {
       taken = true;
       rig.setPaperVisible(false);
       if (reader.add(run, trial++, rig.stripLayout(run))) {
-        status('取下了本轮纸带。对准 A、B 记录两个不同时刻的速度，用速度差除以时间差得到加速度。');
+        status('纸带已放到尺旁。A、B 两处的尺读数算出一个速度；沿原带再测一个时刻，才能比较车速的变化。');
       } else status('纸带缺少连续打点。检查是否通电及木板高度。');
       refresh();
     }
