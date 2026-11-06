@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
+import { groundLabel, faceLabel, airLabel, noteBadge } from './kit/labels.js';
 import { XL, XR, DIVIDE, COAST, FIELD, SURF, ground, SEA_Y, LAKE_X, LAKE_Y, cycleOf, split } from './kit/water.js';
 
 const ZD = 0.065, NX = 160, YB = 0, CLOUD_Y = 0.112;
@@ -134,22 +135,30 @@ export default {
     };
 
     // ---- 标签 ----
-    const tGW = tag('地下水（虚线是地下水面）', 'pill'); tGW.loc(block, -0.02, 0.012, ZD + 0.003);
-    const tCyc = tag('', 'pill callout'), tHint = tag('按住云，拖到别处：风把水汽送到哪，雨就下在哪', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 各环节的比例是示意', 'pill');
-    const tPlace = [[(COAST + XR) / 2, '海洋'], [(FIELD[0] + FIELD[1]) / 2, ''], [DIVIDE, '山（分水岭）'], [LAKE_X, '内陆湖']].map(([x, t]) => ({ x, t: tag(t, 'pill') }));
-    const tProc = { vap: tag('蒸发', 'pill'), trans: tag('水汽输送', 'pill'), rain: tag('降水', 'pill'), run: tag('地表径流', 'pill'), inf: tag('下渗 → 地下径流', 'pill') };
+    // ---- 画面里的字：地名写在地面、水面上；过程的名字贴着它发生的地方，发生时亮；剖面上的字写在剖面上 ----
+    const gSea = groundLabel(block, '海洋', { x: (COAST + XR) / 2 + 0.01, y: SEA_Y, z: 0.02, h: 0.02, color: '#173a63', opacity: 0.9 });
+    const gLake = groundLabel(block, '内陆湖', { x: LAKE_X, y: LAKE_Y, z: 0.0, h: 0.014, color: '#0f2c52', opacity: 0.9 });
+    const gField = groundLabel(block, SURF.bare.name.replace(/（.*）/, ''), { x: (FIELD[0] + FIELD[1]) / 2, y: ground((FIELD[0] + FIELD[1]) / 2) + 0.001, z: ZD * 0.86, h: 0.013, color: '#2e2010', opacity: 0.9 });
+    faceLabel(block, '地下水面（虚线）', { x: -0.045, y: 0.016, z: ZD, h: 0.008 });
+    const fInf = faceLabel(block, '下渗 → 地下径流', { x: 0.045, y: 0.024, z: ZD, h: 0.009, opacity: 0 });
+    const aVap = airLabel(block, '蒸发', { x: COAST + 0.055, y: SEA_Y + 0.035, z: 0.02, h: 0.014 }), aTrans = airLabel(block, '水汽输送', { x: (COAST + XR) / 2, y: CLOUD_Y + 0.006, z: 0, h: 0.014 }), aRain = airLabel(block, '降水', { x: 0, y: CLOUD_Y - 0.04, z: 0, h: 0.014 });
+    const aCyc = airLabel(block, '', { x: 0, y: CLOUD_Y + 0.03, z: 0, h: 0.017, color: '#a8352a' }), aHover = airLabel(block, '', { x: 0, y: 0, z: 0, h: 0.012, color: '#3a3226', dim: 0 }), aRun = airLabel(block, '地表径流', { x: -0.012, y: ground(-0.012) + 0.012, z: -0.006, h: 0.012, color: '#1d4f86', dim: 0 });
+    const tHint = tag('按住云，拖到别处：风把水汽送到哪，雨就下在哪', 'pill');
+    noteBadge(tag, '教学示意：竖直方向夸大了，各环节的比例是示意').loc(block, XL + 0.012, -0.002, ZD + 0.01);
+    const labels = [aVap, aTrans, aRain, aCyc, aHover, aRun];
     const placeTags = () => {
-      const cy = cycleOf(S.cx);
-      tPlace.forEach(({ x, t }, i) => { t.loc(block, x, (i === 0 ? SEA_Y : ground(x)) + 0.004, -ZD + 0.006); if (i === 1) t.text(SURF[S.surf].name.replace(/（.*）/, '')); });
-      tProc.trans.loc(block, (COAST + XR) / 2 - 0.03, CLOUD_Y, 0).show(cycleOf(S.cx).kind === 'big');
-      tProc.vap.text(cycleOf(S.cx).kind === 'land' ? '湖面、地面蒸发和植物蒸腾' : '蒸发').loc(block, cycleOf(S.cx).kind === 'land' ? LAKE_X : COAST + 0.06, (cycleOf(S.cx).kind === 'land' ? LAKE_Y + 0.012 : SEA_Y + 0.03), cycleOf(S.cx).kind === 'land' ? ZD * 0.8 : -0.02);
-      tProc.rain.loc(block, S.cx + 0.035, CLOUD_Y - 0.04, 0);
-      tProc.run.loc(block, Math.min(COAST - 0.02, Math.max(DIVIDE + 0.05, S.cx + 0.04)), ground(S.cx + 0.04) + 0.008, ZD * 0.6).show(cy.kind === 'big');
-      tProc.inf.loc(block, Math.min(COAST - 0.02, S.cx + 0.02), ground(S.cx) - 0.014, ZD + 0.004).show(cy.kind !== 'sea');
-      tCyc.loc(block, S.cx, CLOUD_Y + 0.025, 0).text(cy.name);
-      tHint.loc(block, S.cx, CLOUD_Y + 0.045, 0).show(!S.moved);
-      tScale.loc(block, XL + 0.06, -0.004, ZD + 0.01);
+      const cy = cycleOf(S.cx), land = cy.kind === 'land';
+      gField.setText(SURF[S.surf].name.replace(/（.*）/, ''));
+      aVap.setText(land ? '湖面、地面蒸发' : '蒸发'); aVap.position.set(land ? LAKE_X + 0.02 : COAST + 0.055, (land ? LAKE_Y : SEA_Y) + 0.035, 0.02); aVap.setOn(true);
+      aTrans.position.set((COAST + XR) / 2 - 0.02, CLOUD_Y + 0.008, 0); aTrans.setOn(cy.kind === 'big'); if (cy.kind !== 'big') aTrans.userData.want = 0;
+      aRain.position.set(S.cx + 0.038, CLOUD_Y - 0.035, 0); aRain.setOn(true);
+      aRun.setOn(cy.kind === 'big');          // 雨下在平原上，才有地表径流流进河里
+      fInf.material.opacity = cy.kind !== 'sea' ? 0.9 : 0; fInf.position.x = Math.min(COAST - 0.03, Math.max(XL + 0.04, S.cx + 0.01)); fInf.position.y = ground(fInf.position.x) - 0.013;
+      aCyc.setText(cy.name); aCyc.position.set(S.cx, CLOUD_Y + 0.034, 0);
+      tHint.loc(block, S.cx, CLOUD_Y + 0.05, 0).show(!S.moved);
     };
+    // 鼠标移到地面上：在那儿浮出这块地方的名字（平时不写，免得满屏都是字）
+    const hoverName = (x) => (Math.abs(x - DIVIDE) < 0.03 ? '山（分水岭）' : x < DIVIDE ? '内陆盆地' : x < COAST ? '沿海平原' : null);
 
     // ---- 侧栏：雨水去哪了（这块地方，这次的地面）；海洋进、出 ----
     const drawChart = () => {
@@ -188,7 +197,7 @@ export default {
       down(rc) { if (!rc.intersectObject(cloudPick, false).length) return false; const p = onY(rc.ray); dx0 = p ? p.x - S.cx : 0; S.drag = true; document.getElementById('c').style.cursor = 'grabbing'; return true; },
       move(rc) {
         const c = document.getElementById('c');
-        if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(cloudPick, false).length ? 'grab' : ''; return false; }
+        if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(cloudPick, false).length ? 'grab' : ''; const ht = rc.intersectObject(topMesh, false)[0], nm = ht && hoverName(block.worldToLocal(ht.point.clone()).x); if (nm) { const l = block.worldToLocal(ht.point.clone()); aHover.setText(nm); aHover.position.set(l.x, l.y + 0.012, l.z); aHover.userData.want = 1; } else aHover.userData.want = 0; return false; }
         const p = onY(rc.ray); if (!p) return true; S.cx = Math.max(XL + 0.03, Math.min(XR - 0.03, p.x - dx0)); S.moved = true; layout(); return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; note1(); return true; },
@@ -214,7 +223,7 @@ export default {
         ui.status('海面一直在蒸发。按住<b>云</b>拖到别处，看雨下在海上、平原、山那边，水各往哪走。');
         layout(); drawLog();
       },
-      update(dt) { stepDots(Math.min(dt, 0.05)); if (W && Math.floor(S.cnt.out / 20) !== S.lastC) { S.lastC = Math.floor(S.cnt.out / 20); drawChart(); } },
+      update(dt) { labels.forEach((l) => l.tick(dt)); stepDots(Math.min(dt, 0.05)); if (W && Math.floor(S.cnt.out / 20) !== S.lastC) { S.lastC = Math.floor(S.cnt.out / 20); drawChart(); } },
     };
   },
 };

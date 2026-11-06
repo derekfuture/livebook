@@ -693,3 +693,7 @@ body.world-ui .tag3d.btn.view.on, .tag3d.btn.view.on { background: #8a4b10; colo
 .read-out { font-size: 12px; line-height: 1.6; color: #3a3226; margin: 4px 0 10px; }
 .read-out small { color: #8a7a62; }
 .geo-views { transition: opacity .5s; }
+/* 画面角上的“示意”小标记：平时只两个字，鼠标移上去展开完整说明 */
+.tag3d.pill.note-badge { pointer-events: auto; cursor: help; font-size: 11px; padding: 2px 7px; opacity: .7; background: rgba(255,255,255,.75); }
+.tag3d.pill.note-badge:hover { opacity: 1; }
+.tag3d.pill.note-badge:hover::before { content: attr(data-full); position: absolute; left: 0; bottom: 120%; white-space: nowrap; background: #fffdf6; color: #3a3226; padding: 5px 9px; border-radius: 4px; box-shadow: 0 3px 10px rgba(0,0,0,.18); font-size: 12px; }
