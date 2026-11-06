@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { paint, inked } from '../../live/ink.js';
 import { canvasTex } from './props.js';
 import { battery, resistorPart } from './circuit.js';
+import { capacitorBody, capacitorSelector, capacitorVoltmeter } from './capacitorParts.js';
 
-const THROW = 0.6,
-  ARM = 0.047;
+const THROW = 0.6;
 export function capacitorRig() {
   const group = new THREE.Group(),
     textures = [];
@@ -29,25 +29,6 @@ export function capacitorRig() {
     textures.push(tex);
     return plane;
   }
-  function caption(parent, text, x, y, z, w) {
-    return plate(
-      parent,
-      w,
-      0.008,
-      x,
-      y,
-      z,
-      canvasTex(512, 128, (c, W, H) => {
-        c.fillStyle = '#e4dec7';
-        c.fillRect(0, 0, W, H);
-        c.fillStyle = '#273c3d';
-        c.font = 'bold 86px sans-serif';
-        c.textBaseline = 'middle';
-        c.textAlign = 'center';
-        c.fillText(text, W / 2, H / 2);
-      }),
-    );
-  }
   function wire(a, b, color, via = []) {
     const points = [a, ...via, b].map((p) => new THREE.Vector3(...p));
     if (points.length === 2) {
@@ -62,47 +43,17 @@ export function capacitorRig() {
   const source = battery('E', { cells: 4, emf: 1.5 });
   source.group.position.set(-0.157, 0, 0);
   group.add(source.group);
-  const sw = new THREE.Group();
+  const selector = capacitorSelector(),
+    { group: sw, hinge, throws, blade, handle } = selector;
   sw.position.set(-0.065, 0, -0.067);
   group.add(sw);
-  block(sw, 0.081, 0.007, 0.071, 0, 0.0035, -0.004, 0xcfc6af);
-  const pivotZ = 0.02,
-    hinge = peg(sw, 0, 0.012, pivotZ, 0x7b7560);
-  const throws = [1, 2].map((id) => {
-    const q = id === 1 ? -THROW : THROW,
-      x = ARM * Math.sin(q),
-      z = pivotZ - ARM * Math.cos(q);
-    const p = peg(sw, x, 0.012, z, 0x8c7855);
-    caption(sw, String(id), x, 0.0073, z + 0.012, 0.01);
-    return p;
-  });
-  const blade = new THREE.Group();
-  blade.position.set(0, 0.018, pivotZ);
-  sw.add(blade);
-  block(blade, 0.006, 0.0028, ARM, 0, 0, -ARM / 2, 0xa5a3a0);
-  const handle = peg(blade, 0, 0.006, -ARM + 0.005, 0x393f44);
   const resistor = resistorPart('R', { R: 1000 });
   resistor.group.position.set(-0.012, 0, 0.093);
   group.add(resistor.group);
-  const cap = new THREE.Group();
+  const capacitor = capacitorBody(),
+    { group: cap, positive, negative } = capacitor;
   cap.position.set(0.116, 0, 0.035);
   group.add(cap);
-  block(cap, 0.062, 0.006, 0.043, 0, 0.003, 0, 0xe6dfcf);
-  const positive = peg(cap, -0.022, 0.011, -0.002, 0xac4837),
-    negative = peg(cap, 0.022, 0.011, -0.002, 0x374149);
-  const can = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.035, 32), paint(0x416a68));
-  can.position.set(0, 0.025, 0);
-  cap.add(can);
-  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.0105, 0.0008, 32), paint(0xabb6ad));
-  lid.position.set(0, 0.043, 0);
-  cap.add(lid);
-  for (const sign of [-1, 1]) {
-    const lead = new THREE.Mesh(new THREE.CylinderGeometry(0.001, 0.001, 0.019, 12), paint(0x909b98));
-    lead.rotation.z = Math.PI / 2;
-    lead.position.set(sign * 0.014, 0.01, -0.002);
-    cap.add(lead);
-  }
-  caption(cap, '+  2200 μF  −', 0, 0.0063, 0.015, 0.056);
   const meter = new THREE.Group();
   meter.position.set(0.056, 0, -0.072);
   group.add(meter);
@@ -142,14 +93,10 @@ export function capacitorRig() {
   block(needle, 0.00055, 0.00035, armLength, 0, 0, -armLength / 2, 0x303737);
   const mPos = peg(meter, -0.027, 0.012, 0.028, 0xa44538),
     mNeg = peg(meter, 0.027, 0.012, 0.028, 0x323b40);
-  const digital = new THREE.Group();
+  const voltageMeter = capacitorVoltmeter(),
+    { group: digital, screen, positive: vPos, negative: vNeg } = voltageMeter;
   digital.position.set(0.156, 0, -0.07);
   group.add(digital);
-  block(digital, 0.062, 0.015, 0.046, 0, 0.0075, 0, 0x67746f);
-  const screenTex = canvasTex(512, 200, () => {});
-  const screen = plate(digital, 0.054, 0.025, 0, 0.0153, -0.006, screenTex);
-  const vPos = peg(digital, -0.02, 0.014, 0.017, 0xa44538),
-    vNeg = peg(digital, 0.02, 0.014, 0.017, 0x323b40);
   group.updateMatrixWorld(true);
   const at = (obj) => group.worldToLocal(obj.getWorldPosition(new THREE.Vector3())).toArray();
   const terminal = (part, name) =>
@@ -168,7 +115,6 @@ export function capacitorRig() {
   wire(at(negative), terminal(resistor, 'b'), 0x56615d);
   wire(at(positive), at(vPos), 0xbb5039);
   wire(at(negative), at(vNeg), 0x414b4b);
-  let digits;
   return {
     group,
     sw,
@@ -190,21 +136,13 @@ export function capacitorRig() {
     },
     draw(voltage, current) {
       needle.rotation.y = -angleFor(current * 1000);
-      const next = voltage.toFixed(2);
-      if (next === digits) return;
-      digits = next;
-      const c = screenTex.canvas.getContext('2d');
-      c.fillStyle = '#bdcbb1';
-      c.fillRect(0, 0, 512, 200);
-      c.fillStyle = '#293e36';
-      c.textAlign = 'center';
-      c.textBaseline = 'middle';
-      c.font = 'bold 106px monospace';
-      c.fillText(digits + ' V', 256, 100);
-      screenTex.needsUpdate = true;
+      voltageMeter.draw(voltage);
     },
     dispose() {
       textures.forEach((t) => t.dispose());
+      selector.dispose();
+      capacitor.dispose();
+      voltageMeter.dispose();
     },
   };
 }
