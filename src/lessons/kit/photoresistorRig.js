@@ -68,9 +68,10 @@ export function photoresistorRig() {
       const body = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.003, 40), paint(0xc5b48a));
       body.position.y = 0.0185;
       root.add(body);
-      face = new THREE.Mesh(new THREE.CircleGeometry(0.01, 40), new THREE.MeshBasicMaterial({ map: texture }));
+      face = new THREE.Mesh(new THREE.CircleGeometry(0.01, 40), new THREE.MeshLambertMaterial({ map: texture }));
       face.rotation.x = -Math.PI / 2;
       face.position.y = 0.0201;
+      face.receiveShadow = true;
       root.add(face);
     } else {
       face = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.024, 24), paint(0xb9a274));
@@ -110,6 +111,7 @@ export function photoresistorRig() {
   palm.scale.set(SHADE_PALM.rx, 0.007, SHADE_PALM.rz);
   palm.position.y = 0.007;
   hand.add(palm);
+  palm.castShadow = true;
   for (const f of SHADE_FINGERS) {
     const a = new THREE.Vector3(f.x1, 0.007, f.z1),
       b = new THREE.Vector3(f.x2, 0.007, f.z2);
@@ -117,10 +119,12 @@ export function photoresistorRig() {
     finger.position.copy(a).add(b).multiplyScalar(0.5);
     finger.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
     hand.add(finger);
+    finger.castShadow = true;
     for (const p of [a, b]) {
       const end = new THREE.Mesh(new THREE.SphereGeometry(f.r, 16, 10), skin);
       end.position.copy(p);
       hand.add(end);
+      end.castShadow = true;
     }
   }
   label('遮光手', 0.21, 0.173, 0.065);
@@ -143,6 +147,21 @@ export function photoresistorRig() {
   emitter.rotation.x = Math.PI / 2;
   emitter.position.y = 0.1524;
   lamp.add(emitter);
+  // 可见照射仍来自原灯头。显示亮度仅用于辨认光照范围，不作为照度计。
+  const beam = new THREE.SpotLight(0xfff3d4, 0.04, 0, 0.65, 0.8, 2);
+  beam.position.set(0, 0.1515, 0);
+  const target = new THREE.Object3D();
+  lamp.add(target, beam);
+  beam.target = target;
+  beam.visible = false;
+  beam.castShadow = true;
+  beam.shadow.mapSize.set(512, 512);
+  beam.shadow.camera.near = 0.002;
+  const lightScale = new THREE.Vector3();
+  function updateLight() {
+    const s = group.getWorldScale(lightScale).x;
+    beam.intensity = 0.04 * s * s;
+  }
   const power = block(lamp, 0.014, 0.005, 0.014, 0.016, 0.014, -0.07, 0xb66c4d);
   label('强光源', 0.085, -0.185, 0.08);
   function expose(fraction) {
@@ -151,6 +170,7 @@ export function photoresistorRig() {
     regular.window.scale.x = Math.max(0.001, f);
   }
   function illuminate(on) {
+    beam.visible = on;
     emitter.material.color.setHex(on ? 0xfff5c5 : 0x999c91);
     power.rotation.z = on ? -0.18 : 0;
   }
@@ -158,6 +178,7 @@ export function photoresistorRig() {
     return { x: part.group.position.x, y: 0.02, z: part.group.position.z };
   }
   function dispose() {
+    beam.dispose();
     meter.dispose();
     circuit.dispose();
     const geometries = new Set(),
@@ -188,6 +209,7 @@ export function photoresistorRig() {
     emitter,
     expose,
     illuminate,
+    updateLight,
     sensorPoint,
     dispose,
   };
