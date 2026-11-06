@@ -15,7 +15,7 @@ export const crack = (x, c) => sm(0.4, 0.9, c) * sm(0.35, 0.95, Math.cos((2 * Ma
 export const tight = (x, c) => sm(0.4, 0.9, c) * sm(0.35, 0.95, -Math.cos((2 * Math.PI * x) / LAM));
 /** 地面高度：c 挤压，e 外力侵蚀了多久（0–1） */
 export function surface(x, c, e) {
-  const erode = e * (0.022 + 0.05 * crack(x, c)) * (1 - 0.65 * tight(x, c));          // 裂隙多的地方冲得快；致密的地方冲得慢
+  const erode = e * (0.012 + 0.05 * sm(0.4, 0.9, c) * (1 + Math.cos((2 * Math.PI * x) / LAM)) / 2);          // 越靠近背斜轴（裂隙越多）冲得越快，越靠近向斜轴（致密）冲得越慢；平滑变化，倒置以后背斜是谷、向斜是山
   return Y0 + bend(x, c) - erode;
 }
 /** (x, y) 处是第几层（1 最老 … NLAY 最新；在最上一层上面就是 NLAY） */

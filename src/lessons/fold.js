@@ -120,12 +120,13 @@ export default {
     const probeMat = new THREE.MeshBasicMaterial({ color: 0x2a3140 });
     const probeObjs = [];
     const addProbe = (x) => {
-      if (S.probes.length >= 4) { S.probes.shift(); const o = probeObjs.shift(); block.remove(o.g); o.t.show(false); }
+      const near = S.probes.findIndex((q) => Math.abs(q.x - x) < 0.015); if (near >= 0) { S.probes[near].x = x; return; }          // 点在已有小旗旁边：挪那面旗，不再插一面叠在一起
+      if (S.probes.length >= 4) { S.probes.shift(); const o = probeObjs.shift(); block.remove(o.g); o.g.traverse((m) => { m.geometry?.dispose(); if (m.material !== probeMat) m.material?.dispose(); }); o.t.show(false); }
       const g = new THREE.Group(), pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 0.018, 6), probeMat); pole.position.y = 0.009; g.add(pole);
       const f = new THREE.Mesh(new THREE.PlaneGeometry(0.008, 0.005), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); f.position.set(0.004, 0.016, 0); g.add(f);
       block.add(g); const t = tag('', 'pill'); probeObjs.push({ g, t }); S.probes.push({ x });
     };
-    const placeProbes = () => probeObjs.forEach((o, i) => { const x = S.probes[i].x, y = surface(x, S.c, S.e), L = exposed(x, S.c, S.e); o.g.position.set(x, y, ZD * 0.4); o.t.loc(block, x, y + 0.024, ZD * 0.4).text(`第 ${L} 层 · ${AGE[L - 1]}`); });
+    const placeProbes = () => probeObjs.forEach((o, i) => { const x = S.probes[i].x, y = surface(x, S.c, S.e), L = exposed(x, S.c, S.e); o.g.position.set(x, y, ZD * 0.4); o.t.loc(block, x, y + 0.024 + (i % 2) * 0.014, ZD * 0.4).text(`第 ${L} 层 · ${AGE[L - 1]}`); });
 
     // ---- 侧栏：一张图——上面是地面高低，下面是整条地面露出来的岩层（颜色＋第几层） ----
     const drawChart = () => {
@@ -149,12 +150,15 @@ export default {
       const near = (x, a) => Math.abs(x - a) < 0.03, pa = S.probes.find((p) => near(p.x, 0)), ps = S.probes.find((p) => near(p.x, LAM / 2) || near(p.x, -LAM / 2));
       if (pa) r('背斜处取样：', `中间露出第 ${exposed(pa.x, S.c, S.e)} 层（${AGE[exposed(pa.x, S.c, S.e) - 1]}）`);
       if (ps) r('向斜处取样：', `中间露出第 ${exposed(ps.x, S.c, S.e)} 层（${AGE[exposed(ps.x, S.c, S.e) - 1]}）`);
-      if (S.guess != null && S.said.inv) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：变成谷地（背斜成谷）`)));
+      if (S.guess != null && S.said.inv) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：外力作用很久以后，变成谷地（背斜成谷）`)));
       W.log.replaceChildren(...rows);
       if (S.said.fold && S.said.inv && pa && ps) W.ui.unlock();
     };
     const events = () => {
       if (S.c > 0.6 && !S.said.fold) { S.said.fold = true; say1('拱起来的是背斜，弯下去的是向斜', LAM / 4, surface(LAM / 4, S.c, S.e) + 0.05, ZD); W?.ui.status('岩层被挤弯了：<b>背斜</b>向上拱，形成山岭；<b>向斜</b>向下弯，形成谷地。背斜顶上被拉开，出现了裂隙。现在拖<b>时间</b>，看外力长期作用以后会怎样。'); drawLog(); }
+      const inv = surface(0, S.c, S.e) < surface(LAM / 2, S.c, S.e);
+      if (S.said.inv && !inv && !S.said.back) { S.said.back = true; W?.ui.status('时间拖回去了：地形又回到刚挤出来的样子，背斜是山岭、向斜是谷地。'); }
+      if (inv) S.said.back = false;
       if (S.c > 0.6 && S.e > 0.7 && !S.said.inv && surface(0, S.c, S.e) < surface(LAM / 2, S.c, S.e)) { S.said.inv = true; say1('背斜成了谷地，向斜成了山岭', -LAM / 4, surface(LAM / 2, S.c, S.e) + 0.05, ZD); W?.ui.status('地形倒过来了：<b>背斜成谷、向斜成山</b>。可岩层还是原来那样弯着。在地面上点一点取样，看看中间和两边的岩层谁老谁新。'); drawLog(); }          // 写在背斜和向斜之间的上方，不压着取样的小旗
     };
     const layout = () => { shape(); placePlates(); placeTags(); placeProbes(); drawChart(); events(); };

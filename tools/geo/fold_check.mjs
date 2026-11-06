@@ -7,4 +7,7 @@ ok(surface(A, 1, 1) < surface(S1, 1, 1), `外力长期作用后倒置：背斜�
 ok(exposed(A, 1, 1) < exposed(A + 0.035, 1, 1), `背斜谷里：中心岩层老（第 ${exposed(A, 1, 1)} 层），两翼新（第 ${exposed(A + 0.035, 1, 1)} 层）`);
 ok(exposed(S1, 1, 1) > exposed(S1 - 0.035, 1, 1), `向斜山上：中心岩层新（第 ${exposed(S1, 1, 1)} 层），两翼老（第 ${exposed(S1 - 0.035, 1, 1)} 层）`);
 ok(surface(A, 0, 1) === surface(S1, 0, 1), '不挤压：岩层是平的，侵蚀均匀，地面也是平的');
+let mono = true; for (let x = 0; x + 0.004 <= LAM / 2; x += 0.004) if (surface(x + 0.004, 1, 1) < surface(x, 1, 1) - 1e-9) mono = false;
+ok(mono, '倒置以后，从背斜轴到向斜轴地面一路升高（向斜轴上就是山顶，不会两边高中间凹）');
+ok(surface(0, 1, 1) > 0.005, '侵蚀到最后，地面还在地块里（没有冲穿）');
 process.exit(bad ? 1 : 0);
