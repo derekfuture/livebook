@@ -30,7 +30,7 @@ export default {
   conclusion: {
     page: 56,
     quote: '海陆的热力差异影响海陆的气压分布。冬季，陆地降温比海洋快，陆地气温较低，出现冷高压。夏季，陆地增温比海洋快，陆地气温较高，出现热低压。……使纬向分布的气压带被分裂为一个个高、低气压中心。……海陆上气压中心的季节变化，引起一年中盛行风向随季节有规律地变换，形成季风。亚洲东部季风环流最为典型。冬季，强大的亚洲高压与北太平洋副极地低压和赤道低压之间，形成势力强大、干燥寒冷、范围很广的冬季风。夏季，北太平洋副热带高压势力大大增强，亚洲大陆上形成印度低压，太平洋暖湿气流就沿着北太平洋副热带高压的西部边缘，以东南风吹到亚洲东南岸，即东亚的东南季风。',
-    why: '陆地比海洋升温快、降温也快。冬季大陆冷，空气收缩下沉，近地面形成冷高压；夏季大陆热，空气受热上升，近地面形成热低压。海洋正好相反。于是冬季风从冷的大陆吹向海洋，干燥寒冷；夏季风从海洋吹向热的大陆，暖湿多雨。风从高压吹向低压，在北半球向右偏，所以东岸冬季是西北风、夏季是东南风。假如没有大陆，气压带只是一圈圈带状分布、随季节南北挪一点，就不会有冬夏倒过来的季风。（课本还讲了另一个原因：气压带、风带的季节移动，比如南亚的西南季风，本活页没有画。）',
+    why: '陆地比海洋升温快、降温也快。冬季大陆冷，空气收缩下沉，近地面形成冷高压；夏季大陆热，空气受热上升，近地面形成热低压。大洋上，原来的气压带被保留、加强：冬季是副极地低压，夏季是副热带高压（它们本来就是三圈环流形成的，不是海洋自己的热力环流）。于是冬季风从冷的大陆吹向海洋，干燥寒冷；夏季风从海洋吹向热的大陆，暖湿多雨。风从高压吹向低压，在北半球向右偏，所以东岸冬季是西北风、夏季是东南风。假如没有大陆，气压带只是一圈圈带状分布、随季节南北挪一点，就不会有冬夏倒过来的季风。（课本还讲了另一个原因：气压带、风带的季节移动，比如南亚的西南季风，本活页没有画。）',
     src: '课本第 50–53 页 · 第三章 第二节 气压带和风带',
   },
 
@@ -113,7 +113,7 @@ export default {
       colL.material.color.copy(MID).lerp(d < 0 ? COLD : HOT, Math.min(1, Math.abs(d))); colS.material.color.copy(MID).lerp(d > 0 ? COLD : HOT, Math.min(1, Math.abs(d) * 0.6));
       colL.visible = S.land; aColL.setOn(S.land); colS.visible = S.land; aColS.setOn(S.land);
       aColL.position.set(colL.position.x, 0.118, colL.position.z); aColL.setText(d < -0.3 ? '大陆比海洋冷：空气下沉' : d > 0.3 ? '大陆比海洋热：空气上升' : '海陆温差不大');
-      aColS.position.set(colS.position.x, 0.118, colS.position.z); aColS.setText(d < -0.3 ? '海洋比大陆暖：空气上升' : d > 0.3 ? '海洋比大陆凉：空气下沉' : '海陆温差不大');
+      aColS.position.set(colS.position.x, 0.118, colS.position.z); aColS.setText(d < -0.3 ? '大洋上：副极地低压加强' : d > 0.3 ? '大洋上：副热带高压加强' : '大洋上：原有的气压带');          // 大洋上不是单纯的热力环流：是原来就有的气压带被保留、加强（课本第 48—51 页）
     };
     const stepDots = (dt) => { const d = landT(S.m) - seaT(S.m); for (let i = 0; i < ND; i++) { const p = D[i], c = p.c ? colS : colL, vy = (p.c ? 1 : -1) * Math.sign(d) * -0.03 * Math.min(1, Math.abs(d) + 0.15); p.y += vy * dt * (p.c ? 0.6 : 1); if (p.y > 0.1) p.y -= 0.1; if (p.y < 0) p.y += 0.1; dpos.set(c.visible ? [c.position.x + Math.cos(p.a) * p.r, c.position.y + p.y, c.position.z + Math.sin(p.a) * p.r] : [0, -1, 0], i * 3); } dots.geometry.attributes.position.needsUpdate = true; };          // 大陆冷（d<0）：大陆那根往下沉、海洋那根往上升；热时反过来
 
@@ -150,13 +150,13 @@ export default {
       buildIso(); placeCenters(); placeWinds(); placeCols();
       hand.rotation.y = -((S.m - 1) / 12) * Math.PI * 2; aDial.setText(MON[mi()]);
       const cw = cityWeather(mi(), S.land); vane.rotation.y = Math.atan2(-cw.w[0], cw.w[1]) + Math.PI;          // 箭头转向风吹来的那边
-      aCity.position.set(X(CITY.x) - 0.006, 0.07, Z(CITY.lat)); aCity.setText(`${CITY.name} · ${cw.name}${S.land ? (cw.fromSea ? ' · 暖湿多雨' : ' · 干燥寒冷') : ''}`);
+      aCity.position.set(X(CITY.x) - 0.006, 0.07, Z(CITY.lat)); aCity.setText(`${CITY.name} · ${cw.name}${S.land && cw.season === 'winter' && !cw.fromSea ? ' · 干燥寒冷' : S.land && cw.season === 'summer' && cw.fromSea ? ' · 暖湿多雨' : ''}`);
       const wet = S.land && cw.fromSea && landT(S.m) > 0.3; rainCloud.visible = rain.visible = wet;
       tHint.loc(block, dial.position.x, 0.03, dial.position.z).show(!S.moved);
       gLand.visible = S.land; town.children.forEach((c) => { if (c.isMesh && c.geometry.type === 'BoxGeometry') c.visible = S.land; }); drawChart();          // 全是海洋时：大陆和房子都没了，只留风向标标着原来东岸城市的位置
     };
-    const note1 = () => { const m = mi(), key = S.land ? 'land' : 'sea'; if (!S.seen[key][m]) { S.seen[key][m] = cityWeather(m, S.land); drawLog(); say(m); } };
-    const say = (m) => { if (!W) return; const winter = m === 12 || m <= 2, summer = m >= 6 && m <= 8; if (!S.land) { if (winter || summer) W.ui.status(`假如全是海洋（${MON[m]}）：气压带一圈圈呈带状分布，东岸那里吹${cityWeather(m, false).name}。拨到另一个季节比一比，风会倒过来吗？`); return; } if (winter && !S.saidW) { S.saidW = true; W.ui.status(`${MON[m]}：大陆比海洋冷，空气收缩下沉，大陆上形成<b>冷高压</b>；风从大陆吹向海洋，东岸的城市吹<b>${cityWeather(m).name}</b>，干燥寒冷。再把月份盘拨到夏季。`); } if (summer && !S.saidS) { S.saidS = true; W.ui.status(`${MON[m]}：大陆比海洋热，空气受热上升，大陆上形成<b>热低压</b>；海洋上的副热带高压加强，暖湿空气从海上吹来，东岸吹<b>${cityWeather(m).name}</b>，多雨。风倒过来了。`); } };
+    const note1 = () => { const m = mi(), key = S.land ? 'land' : 'sea'; if (!S.seen[key][m]) { S.seen[key][m] = cityWeather(m, S.land); drawLog(); drawChart(); say(m); } };
+    const say = (m) => { if (!W) return; const winter = m === 12 || m <= 2, summer = m >= 6 && m <= 8; if (!S.land) { if (winter || summer) W.ui.status(`假如全是海洋（${MON[m]}）：气压带一圈圈呈带状分布，东岸那里吹${cityWeather(m, false).name}。拨到另一个季节比一比，风会倒过来吗？`); return; } if (winter && !S.saidW) { S.saidW = true; W.ui.status(`${MON[m]}：大陆比海洋冷，空气收缩下沉，大陆上形成<b>冷高压</b>；风从大陆吹向海洋，东岸的城市吹<b>${cityWeather(m).name}</b>，干燥寒冷。再把月份盘拨到夏季。`); } if (summer && !S.saidS) { S.saidS = true; W.ui.status(`${MON[m]}：大陆比海洋热，空气受热上升，大陆上形成<b>热低压</b>；大洋上的副热带高压加强，暖湿空气从海上吹来，东岸吹<b>${cityWeather(m).name}</b>，多雨。风倒过来了。`); } };
 
     // ---- 侧栏：东岸城市一年里每个月的风（拨过的月份才画） ----
     const drawChart = () => {
@@ -170,6 +170,7 @@ export default {
           const x = L + (m - 0.5) * cw, r = S.seen[key][m];
           if (mi() === m && (key === 'land') === S.land) { g.fillStyle = 'rgba(200,64,44,0.12)'; g.fillRect(x - cw / 2, y - 20, cw, 40); }
           if (!r) { g.fillStyle = '#c8bfae'; g.fillText('·', x - 2, y); continue; }
+          if (r.calm) { g.fillStyle = '#5a6a80'; g.font = '11px "PingFang SC", sans-serif'; g.textAlign = 'center'; g.fillText('静', x, y); continue; }          // 静风不画方向
           const a = Math.atan2(r.w[0], r.w[1]), L2 = 14; g.save(); g.translate(x, y); g.rotate(a); g.strokeStyle = g.fillStyle = key === 'land' ? (r.fromSea ? '#2f7d8c' : '#9a6a3a') : '#5a6a80'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(0, L2 / 2); g.lineTo(0, -L2 / 2 + 4); g.stroke(); g.beginPath(); g.moveTo(0, -L2 / 2 - 1); g.lineTo(-4, -L2 / 2 + 5); g.lineTo(4, -L2 / 2 + 5); g.fill(); g.restore();          // 箭头指着风往哪吹（上是北）
         }
       };

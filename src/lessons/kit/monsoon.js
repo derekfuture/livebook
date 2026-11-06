@@ -24,12 +24,14 @@ export function wind(x, lat, m, land = true) {
 }
 const DIRS = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
 /** 风从哪边吹来（风向） */
-export function windName([u, v]) { if (Math.hypot(u, v) < 0.05) return '静风'; const from = (Math.atan2(-u, -v) * 180) / Math.PI; return `${DIRS[Math.round(((from + 360) % 360) / 45) % 8]}风`; }
+export function windName([u, v]) { if (Math.hypot(u, v) < 0.05) return '静风';          // 和 cityWeather 的 calm 用同一个阈值
+ const from = (Math.atan2(-u, -v) * 180) / Math.PI; return `${DIRS[Math.round(((from + 360) % 360) / 45) % 8]}风`; }
 /** 风从哪个方向来（度，北 0、东 90） */
 export const windFrom = ([u, v]) => ((Math.atan2(-u, -v) * 180) / Math.PI + 360) % 360;
 /** 城市这个月的天气：风从海上来（夏季风）暖湿多雨；从大陆来（冬季风）干燥寒冷 */
 export function cityWeather(m, land = true) {
   const w = wind(CITY.x, CITY.lat, m, land), u = w[0], fromSea = u < 0;          // 风往西吹，就是从东边的海上吹来
-  return { w, name: windName(w), fromSea, text: !land ? '风向一年里变化不大' : fromSea ? '风从海上来：暖湿，多雨' : '风从大陆来：干燥寒冷' };
+  const winter = m === 12 || m <= 2, summer = m >= 6 && m <= 8, calm = Math.hypot(w[0], w[1]) < 0.05;
+  return { w, name: windName(w), fromSea, calm, season: winter ? 'winter' : summer ? 'summer' : 'mid', text: !land ? '风向一年里变化不大' : calm ? '静风' : winter && !fromSea ? '冬季风：从大陆吹来，干燥寒冷' : summer && fromSea ? '夏季风：从海上吹来，暖湿多雨' : fromSea ? '风从海上来（过渡季节）' : '风从大陆来（过渡季节）' };          // “干冷”“暖湿”只说冬夏季风，过渡季节只说风从哪来
 }
 export const monthName = (m) => `${m} 月`;
