@@ -24,6 +24,14 @@ const BOOK_ID = params.get('book');
  */
 async function bootBook(id, { stage = null, handoff = null } = {}) {
   const content = getBook(id);
+  document.body.classList.toggle('senior-book', /^wuli-hs/.test(content.id));
+  if (!document.querySelector('.landscape-hint')) {
+    const hint = document.createElement('div');
+    hint.className = 'landscape-hint';
+    hint.setAttribute('role', 'status');
+    hint.textContent = '请横屏使用实验，操作与电脑端一致。';
+    document.body.append(hint);
+  }
   const manifest = await getManifest(content.id);
   $('#book-title').textContent = content.full;
   document.title = `活页课本 · ${content.full}`;
