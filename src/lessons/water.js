@@ -136,9 +136,9 @@ export default {
 
     // ---- 标签 ----
     // ---- 画面里的字：地名写在地面、水面上；过程的名字贴着它发生的地方，发生时亮；剖面上的字写在剖面上 ----
-    const gSea = groundLabel(block, '海洋', { x: (COAST + XR) / 2 + 0.01, y: SEA_Y, z: 0.02, h: 0.018, color: '#173a63', opacity: 0.85, spacing: 0.8 });
-    const gLake = groundLabel(block, '内陆湖', { x: LAKE_X - 0.008, y: LAKE_Y, z: ZD * 0.45, h: 0.012, color: '#0f2c52', opacity: 0.85, spacing: 0.2 });
-    const gField = groundLabel(block, SURF.bare.name.replace(/（.*）/, ''), { x: (FIELD[0] + FIELD[1]) / 2, y: ground((FIELD[0] + FIELD[1]) / 2) + 0.001, z: ZD * 0.86, h: 0.012, color: '#2e2010', opacity: 0.85, spacing: 0.35 });
+    const gSea = groundLabel(block, '海洋', { x: (COAST + XR) / 2 + 0.01, y: SEA_Y, z: 0.02, h: 0.02, color: '#173a63', opacity: 0.9 });
+    const gLake = groundLabel(block, '内陆湖', { x: LAKE_X, y: LAKE_Y, z: 0.0, h: 0.014, color: '#0f2c52', opacity: 0.9 });
+    const gField = groundLabel(block, SURF.bare.name.replace(/（.*）/, ''), { x: (FIELD[0] + FIELD[1]) / 2, y: ground((FIELD[0] + FIELD[1]) / 2) + 0.001, z: ZD * 0.86, h: 0.013, color: '#2e2010', opacity: 0.9 });
     faceLabel(block, '地下水面（虚线）', { x: -0.045, y: 0.016, z: ZD, h: 0.008 });
     const fInf = faceLabel(block, '下渗 → 地下径流', { x: 0.045, y: 0.024, z: ZD, h: 0.009, opacity: 0 });
     const aVap = airLabel(block, '蒸发', { x: COAST + 0.055, y: SEA_Y + 0.035, z: 0.02, h: 0.014 }), aTrans = airLabel(block, '水汽输送', { x: (COAST + XR) / 2, y: CLOUD_Y + 0.006, z: 0, h: 0.014 }), aRain = airLabel(block, '降水', { x: 0, y: CLOUD_Y - 0.04, z: 0, h: 0.014 });
