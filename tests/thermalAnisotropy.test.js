@@ -29,7 +29,7 @@ test('圆斑和椭圆斑来自各向热流与熔化阈值，不是预设轮廓',
     shapes.push(m.shape(i));
   }
   near(shapes[0].ratio, 1, 1e-8);
-  assert.ok(shapes[1].ratio > 1.2);
+  assert.ok(shapes[1].ratio > 1.04 && shapes[1].ratio < 1.09);
   assert.ok(shapes.every((s) => s.count > 25));
 });
 test('电源功减散热等于烙铁和材料显潜热总增量', () => {
@@ -72,10 +72,12 @@ test('不同帧率和网格下保持同一物理趋势', () => {
     }
     return m;
   }
-  const a = run(49, 24),
-    b = run(65, 60);
-  assert.ok(a.shape(1).ratio > 1.2 && b.shape(1).ratio > 1.2);
-  near(a.shape(1).ratio, b.shape(1).ratio, 0.15);
+  const a = run(97, 24),
+    b = run(129, 60);
+  assert.ok(a.shape(1).ratio > 1.04 && b.shape(1).ratio > 1.04);
+  // Weak anisotropy must survive refinement; the interpolated early contour
+  // differs by less than one percentage point, not a whole-cell jump.
+  near(a.shape(1).ratio, b.shape(1).ratio, 0.01);
   near(a.iron, b.iron, 0.5);
 });
 test('石蜡熔化区间、非法输入与重做', () => {

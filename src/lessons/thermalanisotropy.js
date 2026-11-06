@@ -6,7 +6,7 @@ import { h, note, buttons } from './kit/ui.js';
 export default {
   id: 'thermalanisotropy',
   fig: '图2.4-4',
-  title: '观察样片的导热方向差异',
+  title: '观察玻璃和云母的导热差异',
   stampText: '实验',
   predict: {
     q: '从样片背面中央加热，熔蜡轮廓能告诉我们什么？',
@@ -15,8 +15,8 @@ export default {
   },
   conclusion: {
     quote: '熔化区域的方向差异可以反映样片沿不同方向的导热差异。',
-    why: '玻璃的名义面内导热系数相同，中心加热后近似圆形；本课按教材现象设置的各向异性示意片（教材云母情境），两个面内方向的系数不同，形成拉长的区域。不能只凭熔化面积判断各向异性，也不能把任何晶体的所有方向都说成不同。',
-    src: '人教版高中物理选择性必修第三册第32页，图2.4-4、2.4-5。右侧为各向异性示意片，不代表天然云母的实测导热张量。',
+    why: '玻璃的名义面内导热系数相同，中心加热后近似圆形；本课指定晶向的云母解理片，两个面内方向的导热系数略有不同，轮廓仅略微拉长。不能只凭熔化面积判断各向异性，也不能把任何晶体的所有方向都说成不同。',
+    src: '人教版高中物理选择性必修第三册第32页，图2.4-4、2.4-5。云母面内方向比参考 Jannettaz（1873）第53页的特定样片；并非所有云母都出现相同轮廓。',
   },
   create(ctx) {
     const model = new ThermalAnisotropy(),
@@ -43,7 +43,7 @@ export default {
       steps: [
         { id: 'power', title: '给烙铁通电', todo: '点前方电源开关，给原烙铁通电。', target: () => aim },
         { id: 'glass', title: '观察玻璃', todo: '拖烙铁手柄到玻璃背面中央，再向上推到接触。', target: () => aim },
-        { id: 'mica', title: '观察示意片', todo: '降低原烙铁，再移到示意片背面中央加热。', target: () => aim },
+        { id: 'mica', title: '观察云母片', todo: '降低原烙铁，再移到云母片背面中央加热。', target: () => aim },
         { id: 'compare', title: '比较方向', todo: '打开笔记本，比较保存的两个实际轮廓。', target: () => aim },
         { id: 'off', title: '断电收尾', todo: '降低烙铁并断电，观察余热。', target: () => aim },
       ],
@@ -87,8 +87,8 @@ export default {
         return say(
           shape.count < 65
             ? '保持背面中央接触，等中心周围出现可分辨的熔化区域。'
-            : '观察浅色石蜡退开的实际轮廓，再点样片保存这一刻的观察。',
-          rig.plates[near].wax,
+            : '近看同尺度放大的熔蜡轮廓，云母的方向差异很小。再点样片保存。',
+          null,
         );
       }
       if (!model.on) return say('点前方电源开关通电。没有接触样片时，烙铁只自身升温。', rig.button);
@@ -98,7 +98,7 @@ export default {
       if (i === null)
         return say(
           Math.abs(x - L.centers[wanted]) > 0.007
-            ? `拖绿色烙铁手柄：先向下降低，再横移到${wanted ? '右侧示意片' : '左侧玻璃'}的中央下方。`
+            ? `拖绿色烙铁手柄：先向下降低，再横移到${wanted ? '右侧云母片' : '左侧玻璃'}的中央下方。`
             : '横向位置已对准，向上推手柄，让尖端接触样片背面。',
           rig.handle,
         );
@@ -106,7 +106,7 @@ export default {
         return say('加热点偏离中央。先降低烙铁，横移对准样片中心，再向上接触。', rig.handle);
       if (model.iron < 70) return say('保持接触，等烙铁升温；石蜡不会在刚通电时立刻熔化。', rig.handle);
       if (model.shape(i).count < 65) return say('保持烙铁不动，看石蜡从加热点向周围逐渐熔开。', rig.plates[i].wax);
-      say(`点${i ? '示意' : '玻璃'}片近看熔化轮廓，再点一次保存观察。`, rig.plates[i].wax);
+      say(`点${i ? '云母' : '玻璃'}片近看熔化轮廓，再点一次保存观察。`, rig.plates[i].wax);
     }
     function move(p) {
       const nextX = clamp(p.x, -0.14, 0.14),
@@ -138,7 +138,7 @@ export default {
       if (near !== i) {
         near = i;
         bar.near(true);
-        ctx.look([L.centers[i], L.plateY, 0], [0, 1, 0.015], 0.19, leave);
+        ctx.look([L.centers[i], L.plateY, 0], [0, 1, 0.015], 0.08, leave);
         return guide();
       }
       const shape = model.shape(i);
@@ -151,13 +151,13 @@ export default {
       const snapshot = h('canvas', {
         width: 512,
         height: 512,
-        'aria-label': i ? '示意片实际熔蜡轮廓' : '玻璃实际熔蜡轮廓',
+        'aria-label': i ? '云母片实际熔蜡轮廓' : '玻璃实际熔蜡轮廓',
       });
       snapshot.style.width = '130px';
       snapshot.style.height = '130px';
-      snapshot.getContext('2d').drawImage(rig.plates[i].texture.canvas, 128, 128, 256, 256, 0, 0, 512, 512);
+      snapshot.getContext('2d').drawImage(rig.plates[i].texture.canvas, 160, 160, 192, 192, 0, 0, 512, 512);
       records[i] = { time: model.time, shape };
-      body.append(h('tr', {}, h('td', {}, i ? '各向异性示意片' : '玻璃'), h('td', {}, snapshot)));
+      body.append(h('tr', {}, h('td', {}, i ? '云母解理片' : '玻璃'), h('td', {}, snapshot)));
       bar.done(i ? 'mica' : 'glass');
       report.hidden = !records.every(Boolean);
       leave();
@@ -241,7 +241,7 @@ export default {
           'select',
           { 'aria-label': '导热方向比较' },
           h('option', { value: '' }, '比较两个轮廓'),
-          h('option', { value: 'right' }, '玻璃各方向相近，示意片有方向差异'),
+          h('option', { value: 'right' }, '玻璃各方向相近，云母片有方向差异'),
           h('option', { value: 'area' }, '只看面积大小就能判断各向异性'),
           h('option', { value: 'all' }, '所有晶体在所有方向的性质都不同'),
         );
@@ -276,7 +276,7 @@ export default {
           ),
           buttons([{ text: '全部重做', onClick: reset }]).el,
           note(
-            '右侧是各向异性示意片，用来解释教材图2.4-5的云母情境，不是天然云母样品的定量复现。本模型两个面内方向取3.2、1.6 W/(m·K)，为明确的名义参数，不是任意天然云母的实测值。不能把云母面内/面外的显著差异冒充解理面内差异；常见白云母解理面内可近似各向同性，晶向、品种和样片制备会影响观察。',
+            '右侧为指定晶向的云母解理片。Jannettaz（1873，第53页）报告某绿色云母解理片的热椭圆长短轴比为1.08；依据同文第13–14页，导热系数比取1.08²。短轴方向2.4 W/(m·K)仅为名义量级，并非该历史样片的实测绝对值。实际熔化轮廓由温度场产生，受有限热源、接触时间和散热影响；差异很小，请近看比较，不能推广为任意云母或所有晶体的固定形状。',
           ),
           note(
             '薄玻璃名义导热系数1.2 W/(m·K)，两方向相同。对实际温度场做二维热流计算，并保留石蜡54–58℃熔化区间的潜热、表面散热和烙铁余热。颜色只反映石蜡熔化分数，不用预制圆/椭圆图片。薄片沿厚度均温近似，忽略热接触压力变化和液态石蜡流动。',

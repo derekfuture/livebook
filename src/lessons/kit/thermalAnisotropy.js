@@ -1,12 +1,13 @@
-// Thin-sheet enthalpy finite-volume model. The mica in-plane pair below is an
-// explicitly nominal textbook illustration, NOT measured basal/cross-plane data.
+// Thin-sheet enthalpy finite-volume model. Mica cleavage-plane anisotropy follows
+// Jannettaz (1873), pp. 13–14, 53: one specimen had thermal-ellipse axis ratio 1.08.
+// kx/ky = 1.08²; the absolute 2.4 W/(m K) scale is nominal, not that measurement.
 export const THERMAL_SAMPLES = Object.freeze([
   Object.freeze({ id: 'glass', name: '玻璃片', kx: 1.2, ky: 1.2, thickness: 0.00045, rho: 2500, cp: 800 }),
   Object.freeze({
     id: 'mica',
-    name: '各向异性示意片（教材云母情境）',
-    kx: 3.2,
-    ky: 1.6,
+    name: '云母解理片（指定晶向样片）',
+    kx: 2.4 * 1.08 ** 2,
+    ky: 2.4,
     thickness: 0.0003,
     rho: 2800,
     cp: 800,
@@ -14,7 +15,7 @@ export const THERMAL_SAMPLES = Object.freeze([
 ]);
 export const THERMAL_CONFIG = Object.freeze({
   side: 0.07,
-  n: 65,
+  n: 97,
   ambient: 20,
   waxMassArea: 0.0108,
   waxCp: 2000,
@@ -181,30 +182,49 @@ export class ThermalAnisotropy {
     let weight = 0,
       x = 0,
       y = 0,
-      xx = 0,
-      yy = 0,
       count = 0,
-      max = 0;
+      max = 0,
+      xmin = Infinity,
+      xmax = -Infinity,
+      ymin = Infinity,
+      ymax = -Infinity;
+    const threshold = (p.meltLow + p.meltHigh) / 2;
+    const extend = (u, v) => {
+      xmin = Math.min(xmin, u);
+      xmax = Math.max(xmax, u);
+      ymin = Math.min(ymin, v);
+      ymax = Math.max(ymax, v);
+    };
     for (let j = 0; j < p.n; j++)
       for (let i = 0; i < p.n; i++) {
-        const f = meltFraction(s.T[j * p.n + i], p);
+        const a = j * p.n + i,
+          t = s.T[a],
+          u = (i + 0.5) * this.dx - p.side / 2,
+          v = (j + 0.5) * this.dx - p.side / 2;
+        for (const [b, du, dv] of [
+          [i + 1 < p.n ? a + 1 : a, this.dx, 0],
+          [j + 1 < p.n ? a + p.n : a, 0, this.dx],
+        ]) {
+          const other = s.T[b];
+          if (t < threshold !== other < threshold) {
+            const f = (threshold - t) / (other - t);
+            extend(u + f * du, v + f * dv);
+          }
+        }
+        const f = meltFraction(t, p);
         max = Math.max(max, f);
         if (f < 0.5) continue;
-        const u = (i + 0.5) * this.dx - p.side / 2,
-          v = (j + 0.5) * this.dx - p.side / 2;
         weight += f;
         x += u * f;
         y += v * f;
-        xx += u * u * f;
-        yy += v * v * f;
         count++;
       }
     if (!weight) return { count: 0, ratio: 1, x: 0, y: 0, max };
     x /= weight;
     y /= weight;
     return {
-      count,
-      ratio: Math.sqrt(Math.max(0, xx / weight - x * x) / Math.max(1e-14, yy / weight - y * y)),
+      count: count * (65 / p.n) ** 2,
+      ratio: (xmax - xmin) / Math.max(1e-14, ymax - ymin),
       x,
       y,
       max,
