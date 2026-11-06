@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { sst, west, east, diff, riseX, sinkX, rainAmt, weather, upwell, stateName } from './kit/enso.js';
 
@@ -87,9 +88,9 @@ export default {
       const P = []; for (let i = 0; i <= 12; i++) P.push(new THREE.Vector3(xs + (xr - xs) * (i / 12), low, z)); for (let i = 1; i <= 4; i++) P.push(new THREE.Vector3(xr, low + (top - low) * (i / 4), z)); for (let i = 1; i <= 12; i++) P.push(new THREE.Vector3(xr + (xs - xr) * (i / 12), top, z)); for (let i = 1; i < 4; i++) P.push(new THREE.Vector3(xs, top - (top - low) * (i / 4), z));
       const c = new THREE.CatmullRomCurve3(P, true, 'catmullrom', 0.2), tube = new THREE.Mesh(new THREE.TubeGeometry(c, 90, 0.0009 + 0.0007 * str, 6, true), loopMat); tube.raycast = () => {}; loops.add(tube);
       for (const u of [0.15, 0.42, 0.62, 0.9]) { const hd = new THREE.Mesh(new THREE.ConeGeometry(0.0028, 0.008, 10), loopMat); hd.position.copy(c.getPointAt(u)); hd.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), c.getTangentAt(u)); hd.raycast = () => {}; loops.add(hd); }
-      tUp.loc(block, xr, top + 0.01, z).text('上升'); tDown.loc(block, xs, top + 0.01, z).text('下沉');
+      tUp.position.set(xr, top + 0.01, z); tDown.position.set(xs, top + 0.01, z);
     };
-    const tUp = tag('上升', 'pill'), tDown = tag('下沉', 'pill');
+    const tUp = airLabel(block, '上升', { h: 0.0085, color: '#2c3245', icon: 'up' }), tDown = airLabel(block, '下沉', { h: 0.0085, color: '#2c3245', icon: 'down' });
     const cloudTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const cloud = new THREE.Group(); block.add(cloud);
     for (let k = 0; k < 12; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(0.78, 0.8, 0.86), transparent: true, depthWrite: false })); s.position.set((rnd() - 0.5) * 0.04, (rnd() - 0.3) * 0.012, (rnd() - 0.5) * 0.06); const r = 0.014 + rnd() * 0.01; s.scale.set(r, r * 0.8, 1); s.raycast = () => {}; cloud.add(s); }
@@ -99,10 +100,12 @@ export default {
     // ---- 暖水：海面下那团可以推的“暖水”（一个半透明的红色把手） ----
     const handle = new THREE.Mesh(new THREE.SphereGeometry(0.009, 20, 14), new THREE.MeshStandardMaterial({ color: 0xe0583a, transparent: true, opacity: 0.85, emissive: 0x5a1a10, emissiveIntensity: 0.4 })); block.add(handle);
     const handlePick = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); handlePick.userData.pick = true; handle.add(handlePick);
-    const tHint = tag('按住这团暖水，往东（右）推、往西（左）推', 'pill'), tScale = tag('教学示意 · 竖直方向夸大了 · 海温和环流的位置是示意 · 拖动只是切换状态，不是在模拟成因', 'pill');
-    const tW = tag('', 'pill'), tE = tag('', 'pill'), tState = tag('', 'pill callout');
-    tag('西太平洋（印度尼西亚一带）', 'pill').loc(block, XL + 0.02, -0.004, ZD + 0.01); tag('东太平洋（秘鲁沿海）', 'pill').loc(block, XR - 0.02, -0.004, ZD + 0.01);
-    const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
+    const tHint = tag('<span>按住这团暖水</span><small>往东（右）推、往西（左）推</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，海温和环流的位置是示意；拖动只是切换状态，不是在模拟成因');
+    const tW = airLabel(block, '', { h: 0.0095, color: '#2c3245', icon: 'thermo' }), tE = airLabel(block, '', { h: 0.0095, color: '#2c3245', icon: 'thermo' }), tState = airLabel(block, '', { h: 0.013, color: '#a8341f' });
+    faceLabel(block, '西太平洋（印度尼西亚一带）', { x: XL + 0.05, y: 0.007, z: ZD, h: 0.008, color: '#ffffff', stroke: 'rgba(15,30,70,0.6)' }); faceLabel(block, '东太平洋（秘鲁沿海）', { x: XR - 0.045, y: 0.007, z: ZD, h: 0.008, color: '#ffffff', stroke: 'rgba(15,30,70,0.6)' });          // 地名写在剖面底下
+    const callout = airLabel(block, '', { h: 0.0095, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
+    callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
+    const labels = [tUp, tDown, tW, tE, tState, callout];
 
     const layout = () => {
       const wx = weather(S.a), hx = X(-0.2 + 0.7 * S.a);          // 暖水把手只在看得见的海面里走
@@ -111,10 +114,10 @@ export default {
       const xr = X(riseX(S.a)); cloud.position.set(xr, AIR - 0.01, 0); cloud.scale.setScalar(0.8 + 0.4 * Math.max(0.3, diff(S.a) / 9.9));
       fire.visible = !wx.west.rain; flood.material.opacity = wx.east.rain ? 0.7 : 0; boats.visible = true;
       const up = upwell(S.a); upArrows.forEach((m) => { m.material.opacity = up; m.visible = up > 0.05; }); fish.forEach((f, i) => (f.visible = i < Math.round(up * 10 + 1)));          // 冷水上涌少了，营养物质少，鱼也少了
-      tW.loc(block, XL + 0.02, SEA + 0.03, -ZD).text(`<b>西部</b> ${west(S.a).toFixed(0)}℃ · ${wx.west.t}`); tE.loc(block, XR - 0.01, SEA + 0.04, -ZD).text(`<b>东部</b> ${east(S.a).toFixed(0)}℃ · ${wx.east.t}`);
-      tState.loc(block, 0, AIR + 0.025, 0).text(stateName(S.a));
+      tW.position.set(XL + 0.02, SEA + 0.03, -ZD); tW.setText(`西部 ${west(S.a).toFixed(0)}℃ · ${wx.west.t}`); tE.position.set(XR - 0.01, SEA + 0.04, -ZD); tE.setText(`东部 ${east(S.a).toFixed(0)}℃ · ${wx.east.t}`);
+      tState.position.set(0, AIR + 0.025, 0); tState.setText(stateName(S.a));
       tHint.loc(block, hx, SEA + 0.02, ZD).show(!S.seen.size);
-      tScale.loc(block, 0, -0.004, ZD + 0.01);
+      tScale.loc(block, -0.02, -0.004, ZD + 0.01);
       drawChart();
     };
 
@@ -142,7 +145,7 @@ export default {
     const events = () => {
       const k = S.a > 0.6 ? 'el' : S.a < -0.6 ? 'la' : null, st = k || (Math.abs(S.a) < 0.3 ? 'normal' : S.lastSt);
       if (st !== S.lastSt) { S.lastSt = st; W?.stSeg.set(st === 'la' ? 0 : st === 'el' ? 2 : st === 'normal' ? 1 : -1); if (st === 'normal' && S.seen.size) W?.ui.status('回到正常年份：暖水堆在西边，西边上升多雨，东边下沉干燥。'); else if (k && S.seen.has(k)) W?.ui.status(k === 'el' ? '又是<b>厄尔尼诺</b>：上升气流到了中东部，秘鲁沿海多雨，西边干旱。' : '又是<b>拉尼娜</b>：东西温差更大，原来的环流更强。'); }          // 状态变了：按钮、提示一起跟着变
-      if (k && !S.seen.has(k)) { S.seen.add(k); callout.loc(block, k === 'el' ? XR - 0.03 : XL + 0.04, AIR + 0.02, 0).text(k === 'el' ? '东边下起大雨，西边干旱' : '东西温差更大了').show(true); calloutT = 4; drawLog(); W?.ui.status(k === 'el' ? '这就是<b>厄尔尼诺</b>：赤道附近太平洋中东部海水异常变暖。上升气流东移到了中东部：秘鲁沿海下起大雨，西边的岛上却干旱起火。再往西推试试。' : '这是<b>拉尼娜</b>：中东部海水异常变冷，东西温差更大，原来的环流更强了。'); }
+      if (k && !S.seen.has(k)) { S.seen.add(k); callout.position.set(k === 'el' ? XR - 0.03 : XL + 0.04, AIR + 0.02, 0); callout.setText(k === 'el' ? '东边下起大雨，西边干旱' : '东西温差更大了').setOn(true); calloutT = 4; drawLog(); W?.ui.status(k === 'el' ? '这就是<b>厄尔尼诺</b>：赤道附近太平洋中东部海水异常变暖。上升气流东移到了中东部：秘鲁沿海下起大雨，西边的岛上却干旱起火。再往西推试试。' : '这是<b>拉尼娜</b>：中东部海水异常变冷，东西温差更大，原来的环流更强了。'); }
     };
 
     // ---- 拖暖水 ----
@@ -179,6 +182,7 @@ export default {
         layout(); drawLog();
       },
       update(dt) {
+        labels.forEach((l) => l.tick(dt));
         S.t += dt; if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) callout.show(false); }
         const xr = X(riseX(S.a)), b = AIR - 0.016;
         const ra = rainAmt(S.a), nOn = Math.round(NR * ra);          // 雨多雨少跟着状态变
