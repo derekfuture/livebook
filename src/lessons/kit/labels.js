@@ -1,20 +1,36 @@
 // 画面里的字：不再都用一样的白底牌子。四种：
 //   地名——直接写在地面、水面上（平躺着，不带底，像地图上的字）：groundLabel
-//   过程——贴着那支箭头、那股水写（朝着镜头，不带底，描一圈白边），只在它发生的时候亮：airLabel
+//   过程——贴着那支箭头、那股水写（朝着镜头，不带底，描一圈白边，前面一个小图标），只在它发生的时候亮：airLabel
 //   剖面上的字——写在切开的那一面上：faceLabel
 //   示意说明——角上一个小“示意”，鼠标移上去才展开：noteBadge（在 tag 上加一个 class，见 style.css）
 import * as THREE from 'three';
 
 const cache = new Map();
-/** 一张写着字的透明贴图（2 倍清晰度）；返回贴图和宽高比 */
-export function textTex(text, { color = '#24304a', stroke = 'rgba(255,255,255,0.9)', weight = 600, px = 64, font = '"PingFang SC", "Songti SC", sans-serif', strokeW = 10 } = {}) {
-  const key = [text, color, stroke, weight, px, font, strokeW].join('|');
+// 字前面的小图标（24×24 的线稿，和字同色、同一圈白边）：一眼看出是哪种过程
+export const ICONS = {
+  vapor: 'M6 21c-2.2-2.6 2.2-4.4 0-7s2.2-4.4 0-7 M12 19c-2.2-2.6 2.2-4.4 0-7s2.2-4.4 0-7 M18 21c-2.2-2.6 2.2-4.4 0-7s2.2-4.4 0-7',          // 蒸发：一缕缕往上冒的水汽
+  rain: 'M8 4l-2.4 5.5 M14 4l-2.4 5.5 M20 4l-2.4 5.5 M11 13l-2.4 5.5 M17 13l-2.4 5.5',          // 降水：斜着落的雨丝
+  wind: 'M3 9h10.5a3 3 0 1 0-3-3 M3 15h14.5a3 3 0 1 1-3 3',          // 水汽输送：风
+  flow: 'M2 9.5c2.5-2.6 4.5 2.6 7 0s4.5 2.6 7 0 4.5 2.6 6 1 M2 15.5c2.5-2.6 4.5 2.6 7 0s4.5 2.6 7 0 4.5 2.6 6 1',          // 地表径流：水波
+  seep: 'M12 3v11 M8 10.5l4 4 4-4 M4 19h16 M7 22h10',          // 下渗：往地里去
+  cycle: 'M19.5 13a7.5 7.5 0 1 1-2.2-6.3 M18 3v4.2h-4.2',          // 循环
+};
+/** 一张写着字的透明贴图（2 倍清晰度）；返回贴图和宽高比。icon：字前面加一个小图标（ICONS 里的名字） */
+export function textTex(text, { color = '#24304a', stroke = 'rgba(255,255,255,0.9)', weight = 600, px = 64, font = '"PingFang SC", "Songti SC", sans-serif', strokeW = 10, icon = null } = {}) {
+  const key = [text, color, stroke, weight, px, font, strokeW, icon].join('|');
   if (cache.has(key)) return cache.get(key);
   const c = document.createElement('canvas'), g = c.getContext('2d'); g.font = `${weight} ${px}px ${font}`;
-  const w = Math.ceil(g.measureText(text).width) + strokeW * 2 + 8, h = Math.ceil(px * 1.35) + strokeW;
-  c.width = w; c.height = h; g.font = `${weight} ${px}px ${font}`; g.textBaseline = 'middle'; g.textAlign = 'center'; g.lineJoin = 'round';
-  if (stroke) { g.strokeStyle = stroke; g.lineWidth = strokeW; g.strokeText(text, w / 2, h / 2); }
-  g.fillStyle = color; g.fillText(text, w / 2, h / 2);
+  const iw = icon ? px * 1.2 : 0, gap = icon && text ? px * 0.2 : 0, tw = text ? g.measureText(text).width : 0;
+  const w = Math.ceil(iw + gap + tw) + strokeW * 2 + 8, h = Math.ceil(px * 1.35) + strokeW;
+  c.width = w; c.height = h; g.font = `${weight} ${px}px ${font}`; g.textBaseline = 'middle'; g.textAlign = 'left'; g.lineJoin = 'round'; g.lineCap = 'round';
+  const x0 = strokeW + 4, tx = x0 + iw + gap;
+  if (icon) {
+    const sc = iw / 24, path = new Path2D(ICONS[icon]); g.save(); g.translate(x0, h / 2 - iw / 2); g.scale(sc, sc);
+    if (stroke) { g.strokeStyle = stroke; g.lineWidth = (strokeW + 4) / sc; g.stroke(path); }
+    g.strokeStyle = color; g.lineWidth = 2.7; g.stroke(path); g.restore();
+  }
+  if (stroke) { g.strokeStyle = stroke; g.lineWidth = strokeW; g.strokeText(text, tx, h / 2); }
+  g.fillStyle = color; g.fillText(text, tx, h / 2);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const r = { tex, aspect: w / h }; cache.set(key, r); return r;
 }
@@ -26,16 +42,16 @@ export function groundLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.009, rotY
   return m;
 }
 /** 剖面上的字：贴在切开的那一面（朝 +z） */
-export function faceLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.006, color = '#ffffff', opacity = 0.9, stroke = 'rgba(30,40,60,0.55)' } = {}) {
-  const m = plane(text, h, { color, opacity, stroke, strokeW: 8 }); m.position.set(x, y, z + 0.0008); parent.add(m); return m;
+export function faceLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.006, color = '#ffffff', opacity = 0.9, stroke = 'rgba(30,40,60,0.55)', icon = null } = {}) {
+  const m = plane(text, h, { color, opacity, stroke, strokeW: 8, icon }); m.position.set(x, y, z + 0.0008); parent.add(m); return m;
 }
 /** 过程的名字：朝着镜头，不带底；setOn(true / false) 让它亮起来或淡下去 */
-export function airLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.0075, color = '#1f3f75', dim = 0.18 } = {}) {
-  const { tex, aspect } = textTex(text, { color });
+export function airLabel(parent, text, { x = 0, y = 0, z = 0, h = 0.0075, color = '#1f3f75', dim = 0.18, icon = null } = {}) {
+  const { tex, aspect } = textTex(text, { color, icon });
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, depthTest: false })); s.scale.set(h * aspect, h, 1); s.position.set(x, y, z); s.raycast = () => {}; s.renderOrder = 14; parent.add(s);
-  s.userData = { on: 1, want: 1, dim, h, color };
+  s.userData = { on: 1, want: 1, dim, h, color, icon };
   s.setOn = (on) => { s.userData.want = on ? 1 : s.userData.dim; return s; };
-  s.setText = (t) => { const r = textTex(t, { color: s.userData.color }); s.material.map = r.tex; s.scale.set(h * r.aspect, h, 1); return s; };
+  s.setText = (t, ic = s.userData.icon) => { s.userData.icon = ic; const r = textTex(t, { color: s.userData.color, icon: ic }); s.material.map = r.tex; s.scale.set(h * r.aspect, h, 1); return s; };
   s.tick = (dt) => { const u = s.userData; u.on += (u.want - u.on) * Math.min(1, dt * 4); s.material.opacity = u.on; s.visible = u.on > 0.03; };
   return s;
 }
