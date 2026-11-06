@@ -2633,6 +2633,11 @@
     "fig": "图3.3-1",
     "sec": "波的反射、折射和衍射"
    },
+   "waverefraction": {
+    "title": "深浅水中的折射",
+    "fig": "图3.3-2",
+    "sec": "波的反射、折射和衍射"
+   },
    "ripplediffraction": {
     "title": "水波通过宽窄狭缝",
     "fig": "图3.3-3",
@@ -2779,6 +2784,17 @@
      531
     ],
     "label": "图3.3-1 · 翻开活页"
+   },
+   {
+    "lesson": "waverefraction",
+    "page": 76,
+    "bbox": [
+     60,
+     60,
+     197,
+     166
+    ],
+    "label": "图3.3-2 · 翻开活页"
    },
    {
     "lesson": "ripplediffraction",
