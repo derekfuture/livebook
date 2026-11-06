@@ -2969,6 +2969,11 @@
   "title": "物理 高中选择性必修第三册",
   "base": "/books/wuli-hsx3/",
   "lessons": {
+   "surfacetension": {
+    "title": "观察肥皂膜和棉线的变化",
+    "fig": "图2.5-2",
+    "sec": "液体"
+   },
    "brownianmotion": {
     "title": "用显微镜观察炭粒的运动",
     "fig": "图1.1-3",
@@ -2986,6 +2991,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "surfacetension",
+    "page": 40,
+    "bbox": [
+     58,
+     628,
+     530,
+     762
+    ],
+    "label": "图2.5-2 · 翻开活页"
+   },
    {
     "lesson": "brownianmotion",
     "page": 7,
