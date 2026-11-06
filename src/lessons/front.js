@@ -630,6 +630,7 @@ export default {
     return {
       group,
       card: false,          // 和化学一样：不垫台板；整块地浮在书页上方
+      emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.38, d: 0.14, h: 0.2 },
       view: { elev: 14, azim: 18, lookY: 0.45, frameMargin: 0.96 },          // 从右前方略低处看：近处那一面就是冷空气楔子的剖面
       pointer,

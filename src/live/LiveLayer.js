@@ -343,9 +343,10 @@ export class LiveLayer {
     A.t += A.closing ? -dt * 1.4 : dt;
     const t = A.t;
 
-    // 原图：先揭起来，再淡出
-    const lift = easeOut(clamp01(t / 0.5));
-    const fade = clamp01((t - 0.35) / 0.4);
+    // 原图：先揭起来，再淡出（emerge: 'flat'：原图平放在书页上不动，模型从它上面长出来时慢慢淡掉，看起来就是这张图立了起来）
+    const flat = A.inst.emerge === 'flat';
+    const lift = flat ? 0 : easeOut(clamp01(t / 0.5));
+    const fade = flat ? clamp01((t - 0.45) / 0.9) : clamp01((t - 0.35) / 0.4);
     A.card.position.y = A.from.y + lift * 0.14;
     A.card.rotation.x = -Math.PI / 2 + lift * 0.35;
     A.card.material.opacity = 1 - fade;
@@ -360,7 +361,8 @@ export class LiveLayer {
     const sy = Math.max(0.001, backOut(pop));
     A.root.scale.set(0.45 + 0.55 * easeOut(pop), sy, 0.45 + 0.55 * easeOut(pop));
     A.root.visible = pop > 0;
-    for (const tg of A.tags) tg.el.style.visibility = pop > 0.85 && !A.closing ? '' : 'hidden';
+    if (flat) for (const tg of A.tags) { const o = A.closing ? 0 : clamp01((pop - 0.8) / 0.2); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }          // 牌子跟着模型长好，慢慢浮出来，不一下子全蹦出来
+    else for (const tg of A.tags) tg.el.style.visibility = pop > 0.85 && !A.closing ? '' : 'hidden';
 
     if (!A.closing || t > 0.4) A.inst.update?.(dt, time);
     A.nb?.update(dt);

@@ -349,6 +349,7 @@ export default {
     return {
       group,
       card: false,
+      emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.32, d: 0.26, h: 0.18 },
       view: { elev: 30, azim: 10, lookY: 0.46, frameMargin: 1.06 },          // 要看清空气在图上怎么转，镜头比锋那张高一些
       pointer,

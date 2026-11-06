@@ -692,3 +692,4 @@ body.world-ui .tag3d.btn.view.on, .tag3d.btn.view.on { background: #8a4b10; colo
 .geo-views button.on { background: #8a4b10; color: #fff8e8; box-shadow: 0 3px 8px rgba(120,70,10,.35); }
 .read-out { font-size: 12px; line-height: 1.6; color: #3a3226; margin: 4px 0 10px; }
 .read-out small { color: #8a7a62; }
+.geo-views { transition: opacity .5s; }

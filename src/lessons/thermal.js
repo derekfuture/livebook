@@ -262,6 +262,7 @@ export default {
     return {
       group,
       card: false,
+      emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.36, d: 0.1, h: 0.18 },
       view: { elev: 12, azim: 16, lookY: 0.5, frameMargin: 1.22 },          // 正对剖面略偏一点：看得出等压面是一张张“面”
       pointer,
