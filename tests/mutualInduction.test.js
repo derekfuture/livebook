@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MutualInduction } from '../src/lessons/kit/mutualInduction.js';
+import { MutualInduction, couplingAtHeight } from '../src/lessons/kit/mutualInduction.js';
 const close = (a, b, e = 1e-9) => assert.ok(Math.abs(a - b) < e, `${a} != ${b}`);
 function peak(m, t = 0.5) {
   let lo = 0,
@@ -121,4 +121,15 @@ test('同一滑片行程，快移比慢移产生更明显偏转；停止后均�
     return peak;
   }
   assert.ok(run(0.04) > run(1) * 3);
+});
+
+test('同轴提起内线圈使耦合连续减弱，完全移远趋于零且始终被动', () => {
+  close(couplingAtHeight(0.01), 0.75);
+  let previous = 0.75;
+  for (let h = 0.011; h < 0.3; h += 0.001) {
+    const k = couplingAtHeight(h);
+    assert.ok(k > 0 && k < previous && k < 1);
+    previous = k;
+  }
+  assert.ok(couplingAtHeight(10) < 1e-7);
 });

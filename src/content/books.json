@@ -2382,6 +2382,11 @@
   "title": "物理 高中必修第三册",
   "base": "/books/wuli-hs3/",
   "lessons": {
+   "mutualinduction": {
+    "title": "探究感应电流产生的条件",
+    "fig": "图13.3-3",
+    "sec": "电磁感应现象及应用"
+   },
    "staticinduction": {
     "title": "观察静电感应",
     "fig": "图9.1-3",
@@ -2429,6 +2434,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "mutualinduction",
+    "page": 119,
+    "bbox": [
+     292,
+     518,
+     511,
+     626
+    ],
+    "label": "图13.3-3 · 翻开活页"
+   },
    {
     "lesson": "staticinduction",
     "page": 7,

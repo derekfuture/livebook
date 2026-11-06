@@ -120,3 +120,19 @@ export class MutualInduction {
     return this.observe();
   }
 }
+
+// 有限长内线圈轴上场沿外线圈高度取平均，再归一到完全插入时的耦合。
+// 忽略离轴场与绕组厚度，不作为实物互感标定；外观匝数仅作示意。
+export function couplingAtHeight(bottom) {
+  const average = (lower) => {
+    let sum = 0;
+    for (let i = 0; i < 24; i++) {
+      const y = 0.01 + (0.06 * (i + 0.5)) / 24;
+      const a = y - lower,
+        b = y - lower - 0.075;
+      sum += a / Math.hypot(0.021, a) - b / Math.hypot(0.021, b);
+    }
+    return sum / 24;
+  };
+  return 0.75 * Math.min(1, average(bottom) / average(0.01));
+}
