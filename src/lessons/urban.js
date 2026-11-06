@@ -31,7 +31,7 @@ export default {
   conclusion: {
     page: 32,
     quote: '城镇内部空间结构的形成是多种因素共同作用的结果，经济因素是影响城镇内部空间结构的主要因素……在市场竞争的环境下，一块土地用于哪一种活动，主要取决于各种活动愿意付出租金的高低。影响地租高低的因素主要有交通便捷程度和距离城镇中心远近两个方面。……城镇中心的土地利用可能性多，竞争强，因此地租高，交通可以在一定程度上改变土地利用的潜能。一般来说，穿过的道路越多，或者距交通干线越近，土地租金就越高；离城镇中心越近，土地租金也越高。',
-    why: '三类活动都愿意为离市中心近的地多付钱，但在乎的程度不同：商业最需要人流、最在乎位置，付租能力在市中心最高、往外掉得最快；工业要大片便宜的地，付租能力最低、掉得最慢；住宅在中间。每块地给出价最高的那一类，于是从市中心往外依次是商业区（OA）、住宅区（AB）、工业区（BC）。交通干线让沿线的地更“近”，三条线都被抬高，各区就沿着干线往外伸；新修干线、建副中心，城市的样子也跟着变。实际上，政策、文化、环境等因素也会影响城镇内部空间结构。',
+    why: '三类活动都愿意为离市中心近的地多付钱，但在乎的程度不同：商业最需要人流、最在乎位置，付租能力在市中心最高、往外掉得最快；工业要大片便宜的地，在市中心付租能力最低、往外掉得最慢；住宅在中间。每块地给出价最高的那一类，于是从市中心往外依次是商业区（OA）、住宅区（AB）、工业区（BC）。交通干线让沿线的地更“近”，三条线都被抬高，各区就沿着干线往外伸；新修干线、建副中心，城市的样子也跟着变。实际上，政策、文化、环境等因素也会影响城镇内部空间结构。',
     src: '课本第 26–28 页 · 第二章 第一节 乡村和城镇空间结构',
   },
 
@@ -96,7 +96,7 @@ export default {
       g.clearRect(0, 0, w, hh); g.fillStyle = 'rgba(255,253,246,0.86)'; g.fillRect(0, 0, w, hh);
       const sg = along(S.ang, o);
       for (const s of sg) { g.fillStyle = s.k ? USES[s.k].color : '#9fae6a'; g.globalAlpha = 0.85; g.fillRect(X(s.from), hh - 22, X(s.to) - X(s.from), 22); g.globalAlpha = 1; g.fillStyle = '#ffffff'; g.font = '600 18px "PingFang SC", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; if (X(s.to) - X(s.from) > 60) g.fillText(s.k ? USES[s.k].zone : '农田', (X(s.from) + X(s.to)) / 2, hh - 11); }
-      for (const k of KEYS) { g.strokeStyle = USES[k].color; g.lineWidth = 7; g.beginPath(); let first = true; for (let d = 0; d <= RMAX; d += 0.02) { const e = effDist(Math.cos(S.ang) * d, Math.sin(S.ang) * d, o), v = bid(k, e); if (v < 0) break; if (first) { g.moveTo(X(d), Y(v)); first = false; } else g.lineTo(X(d), Y(v)); } g.stroke(); }
+      for (const k of KEYS) { g.strokeStyle = USES[k].color; g.lineWidth = 7; g.beginPath(); let first = true; for (let d = 0; d <= RMAX; d += 0.02) { const e = effDist(Math.cos(S.ang) * d, Math.sin(S.ang) * d, o), v = bid(k, e); if (v < 0) { first = true; continue; } if (first) { g.moveTo(X(d), Y(v)); first = false; } else g.lineTo(X(d), Y(v)); } g.stroke(); }
       g.font = '600 26px "PingFang SC", sans-serif'; g.textAlign = 'left'; for (const k of KEYS) { const d = k === 'shop' ? 0.25 : k === 'home' ? 1.0 : 2.2, e = effDist(Math.cos(S.ang) * d, Math.sin(S.ang) * d, o); g.fillStyle = USES[k].color; g.fillText(USES[k].name, X(d) + 8, Y(bid(k, e)) - 14); }
       g.strokeStyle = 'rgba(58,50,38,0.55)'; g.setLineDash([6, 6]); g.lineWidth = 2; g.fillStyle = '#3a3226'; g.font = 'italic 600 20px "Times New Roman", serif'; g.textAlign = 'center';
       sg.forEach((s, i) => { if (i === 0) return; const x = X(s.from); g.beginPath(); g.moveTo(x, hh - 22); g.lineTo(x, 18); g.stroke(); g.fillText('ABCDEF'[i - 1], x, 12); });
@@ -126,8 +126,9 @@ export default {
       g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh);
       g.strokeStyle = '#3a3226'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(L, T); g.lineTo(L, B); g.lineTo(R, B); g.stroke();
       g.font = '11px "PingFang SC", sans-serif'; g.fillStyle = '#5a5040'; g.save(); g.translate(12, (T + B) / 2); g.rotate(-Math.PI / 2); g.textAlign = 'center'; g.fillText('土地租金', 0, 0); g.restore(); g.textAlign = 'center'; g.fillText('距市中心距离', (L + R) / 2, B + 28);
-      const curve = (ang, dash, width) => { for (const k of KEYS) { g.strokeStyle = USES[k].color; g.lineWidth = width; g.setLineDash(dash); g.beginPath(); let first = true; for (let d = 0; d <= RMAX; d += 0.02) { const v = bid(k, effDist(Math.cos(ang) * d, Math.sin(ang) * d, o)); if (v < 0) break; if (first) { g.moveTo(X(d), Y(v)); first = false; } else g.lineTo(X(d), Y(v)); } g.stroke(); } g.setLineDash([]); };
-      const on = onRoadNow(), other = on ? Math.PI / 4 + (S.newRoad ? Math.PI / 4 : 0) : BASE_ROADS[0];
+      const curve = (ang, dash, width) => { for (const k of KEYS) { g.strokeStyle = USES[k].color; g.lineWidth = width; g.setLineDash(dash); g.beginPath(); let first = true; for (let d = 0; d <= RMAX; d += 0.02) { const v = bid(k, effDist(Math.cos(ang) * d, Math.sin(ang) * d, o)); if (v < 0) { first = true; continue; } if (first) { g.moveTo(X(d), Y(v)); first = false; } else g.lineTo(X(d), Y(v)); } g.stroke(); } g.setLineDash([]); };
+      const on = onRoadNow(), rs = opt().roads.map((a) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)).sort((a, b) => a - b), cur = ((S.ang % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);          // 对照的方向：在干线上，就比旁边两条干线正中间；在两条干线之间，就比最近的那条干线
+      let other; if (on) { const i = rs.findIndex((a) => Math.abs(((a - cur + 3 * Math.PI) % (2 * Math.PI)) - Math.PI) < 0.06), a = rs[i], b = rs[(i + 1) % rs.length]; other = a + (((b - a) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) / 2; } else other = rs.reduce((best, a) => (Math.abs(((a - cur + 3 * Math.PI) % (2 * Math.PI)) - Math.PI) < Math.abs(((best - cur + 3 * Math.PI) % (2 * Math.PI)) - Math.PI) ? a : best), rs[0]);
       if (S.saw.on && S.saw.off) curve(other, [4, 4], 1.4);          // 两种方向都看过了：另一种画成虚线比一比
       curve(S.ang, [], 2.4);
       const sg = along(S.ang, o); g.fillStyle = '#3a3226'; g.font = 'italic 12px "Times New Roman", serif';
@@ -140,11 +141,11 @@ export default {
     const drawLog = () => {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
-      if (S.saw.on || S.saw.off) r('三条线：', '都随距市中心距离增大而递减；商业在市中心付得最多、降得最快，工业最少、降得最慢');
+      if (S.saw.on || S.saw.off) r('三条线：', `都随距市中心距离增大而递减；商业在市中心付得最多、降得最快，工业在市中心付得最少、降得最慢${S.sub ? '（建了副中心以后，那个方向上离副中心近的地方付租能力又升高了：只有一个中心时的“单调递减”不再适用于整条剖面）' : ''}`);
       if (S.segs.off) r('OA、AB、BC：', `由付租能力决定用途时，OA 是商业区，AB 是住宅区，BC 是工业区（两条干线之间：商业区 ${span(S.segs.off, 'shop')}，住宅区 ${span(S.segs.off, 'home')}，工业区 ${span(S.segs.off, 'fact')}）`);
       if (S.segs.on && S.segs.off) r('沿交通干线：', `三条线都被抬高，各区都往外伸（商业区 ${span(S.segs.on, 'shop')}，住宅区 ${span(S.segs.on, 'home')}）：同样离市中心，干线边上的租金更高`);
       if (S.tried?.road) r('修了新干线：', '沿线的地租升高，商业区、住宅区顺着它往外伸——交通可以改变土地利用的潜能');
-      if (S.tried?.sub) r('建了副中心：', '那里出现新的商业中心，周围的住宅区跟着变（像北京城市副中心那样，是政策带动的）');
+      if (S.tried?.sub) r('建了副中心：', '假设在那里新建一个商业副中心：那里出现新的商业区，周围的住宅区跟着变。课本里北京城市副中心的例子说明：政策也会改变城镇的空间结构');
       if (S.guess != null && S.segs.off) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：商业区`)));
       W.log.replaceChildren(...rows);
       const sg = along(S.ang, opt()); W.read.innerHTML = `剖面${onRoadNow() ? '在<b>交通干线</b>上' : '在<b>两条干线之间</b>'}：${sg.map((s) => `${s.k ? USES[s.k].zone : '农田'} ${s.from.toFixed(1)}–${s.to.toFixed(1)}`).join('，')}<br><small>距离、租金都是示意的相对值</small>`;
@@ -169,7 +170,7 @@ export default {
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; say(); return true; },
     };
-    const say = () => { if (!W) return; const on = onRoadNow(); if (on && !S.saidOn) { S.saidOn = true; W.ui.status('剖面转到了<b>交通干线</b>上：三条线都被抬高，商业区、住宅区、工业区都沿着干线伸得更远。再转到两条干线中间比一比。'); } else if (!on && !S.saidOff) { S.saidOff = true; W.ui.status('在两条干线之间：从市中心往外依次是<b>商业区（OA）、住宅区（AB）、工业区（BC）</b>，C 以外谁都付不起这个租金，是农田。再转到一条交通干线上看看。'); } };
+    const say = () => { if (!W) return; const on = onRoadNow(); if (on && !S.saidOn) { S.saidOn = true; W.ui.status('剖面转到了<b>交通干线</b>上：三条线都被抬高，商业区、住宅区、工业区都沿着干线伸得更远。再转到两条干线中间比一比。'); } else if (!on && !S.saidOff) { S.saidOff = true; W.ui.status('在两条干线之间：从市中心往外依次是<b>商业区（OA）、住宅区（AB）、工业区（BC）</b>，C 以外这三类城市用地都付不起租金，模型里画成城外的农田（没有算农业的地租）。再转到一条交通干线上看看。'); } };
     rebuild();
 
     return {
@@ -183,12 +184,12 @@ export default {
       mount(ui) {
         const acts = buttons([
           { text: '修一条新的交通干线（东北方向）', onClick: () => { S.newRoad = !S.newRoad; S.tried = { ...(S.tried || {}), road: true }; acts.btns[0].textContent = S.newRoad ? '拆掉新干线' : '修一条新的交通干线（东北方向）'; rebuild(); if (S.newRoad) ui.status('东北方向修了一条新干线：沿线的地租升高了。看看城市的样子怎么变，再把剖面转到新干线上。'); } },
-          { text: '建一个城市副中心（东南边）', onClick: () => { S.sub = !S.sub; S.tried = { ...(S.tried || {}), sub: true }; acts.btns[1].textContent = S.sub ? '撤掉副中心' : '建一个城市副中心（东南边）'; rebuild(); if (S.sub) ui.status('东南边建了一个<b>城市副中心</b>（像北京把市级机关搬到通州那样）：那里冒出一片新的高楼，周围的用地也跟着变。'); } },
+          { text: '建一个城市副中心（东南边）', onClick: () => { S.sub = !S.sub; S.tried = { ...(S.tried || {}), sub: true }; acts.btns[1].textContent = S.sub ? '撤掉副中心' : '建一个城市副中心（东南边）'; rebuild(); if (S.sub) ui.status('假设东南边建了一个<b>商业副中心</b>：那里冒出一片新的高楼，周围的用地也跟着变。（课本里北京把市级机关搬到通州、建城市副中心，说明政策也会影响城镇空间结构。）'); } },
         ]);
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const reset = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { ang: 0.38, newRoad: false, sub: false, moved: false, guess: null, saidOn: false, saidOff: false, tried: {} }); S.saw = { on: false, off: false }; S.segs = {}; acts.btns[0].textContent = '修一条新的交通干线（东北方向）'; acts.btns[1].textContent = '建一个城市副中心（东南边）'; guess.set(-1); rebuild(); ui.status(START); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 200 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '图 2.7：这个方向的付租能力'), chart, read, acts.el, guess.el, reset.el, note('紫红是商业、绿是住宅、蓝是工业（和课本图 2.7 一样）。鼠标停在城里任意一块地上，能看到三类活动各愿意出多少租金。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '图 2.7：这个方向的付租能力'), chart, read, acts.el, guess.el, reset.el, note('紫红是商业、绿是住宅、蓝是工业（和课本图 2.7 一样）。鼠标停在城里任意一块地上，能看到三类活动各愿意出多少租金。真实的功能区以某一类用地为主，常常也有别的用地，界线也没有这么分明。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log };
         ui.status(START);
