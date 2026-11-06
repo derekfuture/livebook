@@ -90,7 +90,7 @@ export function waxMotionRig() {
   group.add(traces);
   function makeTrace(color = 0xf1c979) {
     const geometry = new THREE.BufferGeometry();
-    const trace = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size: 0.0035, sizeAttenuation: true }));
+    const trace = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color, side: THREE.FrontSide }));
     trace.raycast = () => {};
     traces.add(trace);
     return trace;
@@ -98,9 +98,30 @@ export function waxMotionRig() {
   function drawTrace(trace, points) {
     // 点是教学位置记录，并非蜡块在黑板上留下的物理痕迹；不连接/拟合为预设直线。
     trace.geometry.dispose();
-    trace.geometry = new THREE.BufferGeometry().setFromPoints(
-      points.map((p) => new THREE.Vector3(p.x * WAX_SCALE, WAX_CENTER_Y + p.y * WAX_SCALE, -0.046)),
-    );
+    const vertices = [],
+      radius = 0.0018;
+    for (const p of points) {
+      const x = p.x * WAX_SCALE,
+        y = WAX_CENTER_Y + p.y * WAX_SCALE,
+        z = -0.046;
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2,
+          b = ((i + 1) / 12) * Math.PI * 2;
+        vertices.push(
+          x,
+          y,
+          z,
+          x + radius * Math.cos(a),
+          y + radius * Math.sin(a),
+          z,
+          x + radius * Math.cos(b),
+          y + radius * Math.sin(b),
+          z,
+        );
+      }
+    }
+    trace.geometry = new THREE.BufferGeometry();
+    trace.geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   }
   function draw(state, pose) {
     tube.position.x = pose.x * WAX_SCALE;

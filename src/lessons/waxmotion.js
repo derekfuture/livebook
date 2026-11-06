@@ -36,6 +36,7 @@ export default {
       points = [],
       nextSampleTime = 0,
       movedDistance = 0,
+      horizontalSamples = 0,
       lastX = x;
     let previousPointerAngle = 0;
     const pose = () => ({ x, angle });
@@ -65,10 +66,13 @@ export default {
       if (near) return bar.say('点间隔都是0.2秒。比较竖直上升、横移和停顿时的记录；看完可回到全景。');
       if (turning) return bar.say('抓住橡皮塞，缓慢沿右侧绕管中心转半圈；不要直接把塞子拉穿水管。');
       if (!vertical()) return bar.say('水管还倾斜着。抓住橡皮塞，继续沿圆弧转到正上方或正下方。');
+      if (bar.has('move') && !bar.has('compare')) return bar.say('点绿色固定背景，近看横移前后的原位置记录。');
       if (model.snapshot().atEnd && bar.has('flip'))
         return bar.say('蜡块已到管端。再把原水管翻转半圈即可重试，旧位置记录保留。');
       if (!bar.has('flip')) return bar.say('抓住水管上端的棕色橡皮塞，向右绕半圈，把它翻到下方。');
       if (!bar.has('rise')) return bar.say('先停住水管，观察蜡块上升；相邻位置点间距趋于相等时，再横移。');
+      if (!bar.has('move') && movedDistance > 0.3 && horizontalSamples < 5)
+        return bar.say('横移得有些快，位置点还不够比较。抓住管身再缓慢移动，留下一段连续的横移记录。');
       if (!bar.has('move')) return bar.say('抓住玻璃管中段，缓慢向右拖过至少三格；背景和尺保持不动。');
       if (!bar.has('compare')) return bar.say('点绿色固定背景，近看横移前后的原位置记录。');
       bar.say('变速、停顿的轨迹也会原样保留。可继续移动，或翻转原水管再试一次。');
@@ -83,13 +87,14 @@ export default {
       if (turning || moving) return;
       near = true;
       bar.near(true);
-      ctx.look([0, 0.25, -0.04], [0, 0.08, 1], 1.05, leave);
+      ctx.look([0, 0.25, -0.04], [0, 0.08, 1], Math.max(1.2, (0.72 * innerWidth) / innerHeight), leave);
       if (bar.has('move')) bar.done('compare');
       guide();
     }
     function beginRecord() {
       record = rig.makeTrace(records.length % 2 ? 0x9cd9ec : 0xf1c979);
       records.push(record);
+      movedDistance = horizontalSamples = 0;
       points = [];
       nextSampleTime = model.snapshot().time + 0.2;
     }
@@ -99,7 +104,7 @@ export default {
       angle = targetAngle = 0;
       x = WAX_START_X / WAX_SCALE;
       turning = moving = false;
-      steadyTime = nextSampleTime = movedDistance = 0;
+      steadyTime = nextSampleTime = movedDistance = horizontalSamples = 0;
       lastX = x;
       record = null;
       records = [];
@@ -218,6 +223,7 @@ export default {
           const h = Math.min(endTime - state.time, recording ? Math.max(0, nextSampleTime - state.time) : Infinity);
           state = model.step(h, control);
           if (recording && state.time >= nextSampleTime - 1e-9) {
+            if (points.length && Math.abs(state.x - points.at(-1).x) > 0.003) horizontalSamples++;
             points.push(state);
             rig.drawTrace(record, points);
             nextSampleTime += 0.2;
@@ -239,7 +245,7 @@ export default {
               bar.done('rise');
               guide();
             }
-            if (bar.has('rise') && !bar.has('move') && movedDistance > 0.3 && points.length >= 15) {
+            if (bar.has('rise') && !bar.has('move') && movedDistance > 0.3 && horizontalSamples >= 5) {
               bar.done('move');
               guide();
             }
