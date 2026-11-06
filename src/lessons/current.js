@@ -67,7 +67,7 @@ export default {
       g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2; g.setLineDash([10, 8]); g.font = '600 30px "PingFang SC", sans-serif'; g.fillStyle = 'rgba(30,50,80,0.8)'; g.textBaseline = 'middle';
       for (const lat of [60, 30, 0, -30, -60]) { g.beginPath(); g.moveTo(0, PY(nOf(lat))); g.lineTo(TW, PY(nOf(lat))); g.stroke(); g.fillText(lat === 0 ? '赤道' : `${Math.abs(lat)}°${lat > 0 ? 'N' : 'S'}`, PX(XW) + 10, PY(nOf(lat)) - 18); }
       g.setLineDash([]);
-      if (S.land) { g.font = '600 34px "Songti SC", serif'; g.fillStyle = '#2a3a26'; g.fillText('渔场（寒暖流交汇）', PX(XW) + 20, PY(nOf(47))); for (let k = 0; k < 5; k++) { const X = PX(XW + 0.012 + k * 0.006), Y = PY(nOf(44.5)); g.fillStyle = 'rgba(30,60,90,0.9)'; g.beginPath(); g.ellipse(X, Y, 12, 5, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(X + 10, Y); g.lineTo(X + 18, Y - 6); g.lineTo(X + 18, Y + 6); g.fill(); } }
+      if (S.land) { g.font = '600 34px "Songti SC", serif'; g.fillStyle = '#2a3a26'; g.fillText('渔场（寒暖流交汇）', PX(XW) + 20, PY(nOf(50.5))); for (let k = 0; k < 5; k++) { const X = PX(XW + 0.012 + k * 0.006), Y = PY(nOf(44.5)); g.fillStyle = 'rgba(30,60,90,0.9)'; g.beginPath(); g.ellipse(X, Y, 12, 5, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(X + 10, Y); g.lineTo(X + 18, Y - 6); g.lineTo(X + 18, Y + 6); g.fill(); } }
       mapTex.needsUpdate = true;
     };
     meadow.onload = drawMap; drawMap();
@@ -112,9 +112,9 @@ export default {
     };
     const stepDucks = (dt) => {
       for (const d of S.ducks) {
-        if (d.np >= 600) continue;
         const px = d.x; advect(d, dt); d.t += dt;
-        if (Math.abs(d.x - px) > 0.1) { d.np = d.np; }          // 绕地球一圈回到西边：轨迹从新的地方接着画
+        if (Math.abs(d.x - px) > 0.1) { d.np = 0; }          // 绕地球一圈从另一边回来：轨迹从新的地方重新画，不横穿整个海
+        if (d.np >= 600) { d.pos.copyWithin(0, 3); d.np--; }          // 轨迹太长：丢掉最老的一段，鸭子照样漂
         if (isLand(d.x, d.n, S.land)) { d.x = px; }          // 碰到岸就停在岸边（被冲上海滩）
         if (d.t > 0.05 || !d.np) { d.t = 0; d.pos.set([d.x, G + 0.0012, -d.n], d.np * 3); d.np++; d.line.geometry.setDrawRange(0, d.np); d.line.geometry.attributes.position.needsUpdate = true; }
         d.m.position.copy(P3(d.x, d.n, G + 0.0006));
@@ -123,9 +123,9 @@ export default {
 
     // ---- 沿岸的小城：北纬 60° 大洋两岸各一座 ----
     const town = (x, n) => { const g = new THREE.Group(); for (const [dx, dz, hh] of [[-0.003, 0, 0.004], [0.003, 0.003, 0.006], [0, -0.004, 0.003]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.004, hh, 0.004), new THREE.MeshLambertMaterial({ color: 0xf3ede1 })); b.position.set(dx, hh / 2, dz); g.add(b); } g.position.copy(P3(x, n)); block.add(g); return g; };
-    town(XW - 0.012, nOf(60)); town(XE + 0.012, nOf(60));
+    const townW = town(XW - 0.012, nOf(60)), townE = town(XE + 0.012, nOf(60));
     const tTownW = tag('', 'pill'), tTownE = tag('', 'pill');
-    const tHint = tag('在海上点一下：放一只玩具鸭', 'pill'), tScale = tag('教学示意 · 大洋和大陆是理想化的 · 流速、气温是示意', 'pill');
+    const tHint = tag('在海上点一下：放一只玩具鸭', 'pill'), tScale = tag('教学示意 · 大洋和大陆是理想化的 · 流速、气温是示意 · 赤道逆流、季风洋流本模型省略', 'pill');
     const callout = tag('', 'pill callout'); callout.show(false); let calloutT = 0;
     const say1 = (text, x, n) => { callout.loc(block, x, G + 0.03, -n).text(text).show(true); calloutT = 4.5; };
     const tGyre = GYRES.map((g2) => ({ g: g2, t: tag(g2[3].replace(/海区的大洋环流/, '环流'), 'pill') }));
@@ -133,8 +133,8 @@ export default {
       const on = S.w > 0.6;
       tGyre.forEach(({ g: [a, b], t }) => t.loc(block, 0, G + 0.006, -nOf((a + b) / 2)).show(on && S.land));
       [[15, 0], [45, 1], [-15, 2], [-55, 3]].forEach(([lat, i]) => tWind[i].loc(block, 0.085, G + 0.022, -nOf(lat)).show(S.blow || S.w > 0.05));
-      tTownW.loc(block, XW - 0.012, G + 0.014, -nOf(60)).text(`北纬 60° 西岸：最冷月约 ${coastTemp(60, 'west', S.land).toFixed(0)}℃`).show(S.w > 0.6);
-      tTownE.loc(block, XE + 0.012, G + 0.014, -nOf(60)).text(`东岸：约 ${coastTemp(60, 'east', S.land).toFixed(0)}℃`).show(S.w > 0.6);
+      tTownW.loc(block, XW - 0.012, G + 0.014, -nOf(60)).text(`北纬 60° 西岸：最冷月约 ${coastTemp(60, 'west', true).toFixed(0)}℃`).show(S.w > 0.6 && S.land);
+      tTownE.loc(block, XE + 0.012, G + 0.014, -nOf(60)).text(`东岸：约 ${coastTemp(60, 'east', true).toFixed(0)}℃`).show(S.w > 0.6 && S.land); townW.visible = townE.visible = S.land;
       tHint.loc(block, 0, G + 0.012, -nOf(20)).show(S.w > 0.6 && !S.ducks.length);
       tScale.loc(block, XL + 0.08, G + 0.002, NB - 0.008);
       windArrows.visible = S.blow || S.w > 0.05;
@@ -145,24 +145,24 @@ export default {
       if (!W) return;
       const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, on = S.w > 0.6;
       g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh); g.font = '600 13px "PingFang SC", sans-serif'; g.textBaseline = 'middle'; g.fillStyle = '#3a3226'; g.textAlign = 'left';
-      g.fillText('同纬度的大洋两岸（最冷月气温，示意）', 8, 12);
+      g.fillText('同纬度的大洋两岸（最冷月平均气温，示意）', 8, 12);
       const rows = [[60, '北纬 60°'], [25, '北纬 25°']], Z = 120, k = 3.2;
       rows.forEach(([lat, nm], i) => {
-        const y = 36 + i * 46, tw = on ? coastTemp(lat, 'west', S.land) : coastTemp(lat, 'west', false) - 0 * 0, te = on ? coastTemp(lat, 'east', S.land) : tw;
+        const y = 36 + i * 46, tw = coastTemp(lat, 'west', true), te = coastTemp(lat, 'east', true);          // 多年平均的气候：洋流常年这样流，两岸就常年这样差
         g.fillStyle = '#3a3226'; g.fillText(nm, 8, y + 9);
         for (const [t, side, yy] of [[tw, '西岸', y], [te, '东岸', y + 18]]) { g.fillStyle = t >= 0 ? '#d9673f' : '#3b6fb8'; const x0 = Z, x1 = Z + t * k; g.fillRect(Math.min(x0, x1), yy, Math.abs(x1 - x0), 13); g.fillStyle = '#3a3226'; g.fillText(`${side} ${t.toFixed(0)}℃`, t >= 0 ? x1 + 6 : x0 + 6, yy + 7); }
       });
       g.strokeStyle = '#3a3226'; g.beginPath(); g.moveTo(Z, 28); g.lineTo(Z, hh - 6); g.stroke();
-      W.read.innerHTML = on && S.land ? '北纬 60°：大洋<b>东岸</b>有暖流，比西岸暖得多（像欧洲西北部）；中低纬：大洋东岸有寒流，岸上干、成了沙漠，西岸有暖流、湿润。<br><small>气温是示意</small>' : on ? '假如没有大陆：海水只跟着风东西向流，两岸也就没有暖流、寒流的差别。' : '还没起风：海面上没有洋流，两岸只按纬度有冷暖。';
+      W.read.innerHTML = S.land ? '这是多年平均的样子：北纬 60° 大洋<b>东岸</b>有暖流经过，比西岸暖得多（像欧洲西北部）；中低纬大洋东岸有寒流，空气稳定、难以成雨，有助于形成沙漠；西岸有暖流，湿润。<br><small>气温是示意</small>' : '假如没有大陆：也就没有“两岸”，海水只跟着风东西向流。';
     };
     const drawLog = () => {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
-      if (S.saw.gyre) r('风吹起来：', '北半球中低纬转成顺时针的环流、中高纬逆时针；南半球中低纬逆时针；南纬 45° 以南是一路向东的西风漂流');
+      if (S.saw.gyre) r('风吹起来：', '北半球中低纬转成顺时针的环流、中高纬逆时针；南半球中低纬逆时针；南纬 45°—60° 是向东的西风漂流');
       if (S.saw.duck) r('玩具鸭：', '跟着洋流漂，能漂到很远的海岸');
       if (S.saw.noland) r('假如没有大陆：', '海水只随风带东西向流，转不成环流');
-      if (S.saw.coast) r('同纬度两岸：', '北纬 60° 东岸暖、西岸冷；中低纬东岸寒流、沙漠，西岸暖流、湿润；寒暖流交汇处有渔场');
-      if (S.guess != null && S.saw.duck) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：先往西漂（信风推着海水往西）`)));
+      if (S.saw.coast) r('同纬度两岸：', '北纬 60° 东岸暖、西岸冷；中低纬大洋东岸有寒流（有助于形成干旱的沙漠），西岸有暖流、湿润；寒暖流交汇处有渔场');
+      if (S.guess != null && S.saw.duck) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：你在${Math.abs(Math.round(S.first.lat))}°${S.first.lat >= 0 ? 'N' : 'S'}放的鸭子先往${S.first.dir}漂${Math.abs(S.first.lat - 20) < 8 ? '（信风推着海水往西）' : '（题目问的是北纬 20°，可以在那里再放一只）'}`)));
       W.log.replaceChildren(...rows);
       if (S.saw.gyre && S.saw.duck && S.saw.noland) W.ui.unlock();
     };
@@ -171,7 +171,7 @@ export default {
     const plane = new THREE.Plane(), hit = new THREE.Vector3(), wq = new THREE.Vector3();
     const onMap = (ray) => { block.updateMatrixWorld(); block.localToWorld(wq.set(0, G, 0)); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), wq); if (!ray.intersectPlane(plane, hit)) return null; const l = block.worldToLocal(hit.clone()); return l.x > XL && l.x < XR && Math.abs(l.z) < NB ? { x: l.x, n: -l.z } : null; };
     const pointer = {
-      down(rc) { const m = onMap(rc.ray); if (!m || isLand(m.x, m.n, S.land)) return false; addDuck(m.x, m.n); if (S.w < 0.3) W?.ui.status('玩具鸭放下了，可是还没起风，海水不怎么动。按“让风吹起来”。'); else { S.saw.duck = true; drawLog(); say1('玩具鸭跟着洋流漂', m.x, m.n); } placeTags(); return true; },
+      down(rc) { const m = onMap(rc.ray); if (!m || isLand(m.x, m.n, S.land)) return false; addDuck(m.x, m.n); if (S.w < 0.3) W?.ui.status('玩具鸭放下了，可是还没起风，海水不怎么动。按“让风吹起来”。'); else { const [u0] = vel(m.x, m.n, S.land); if (!S.saw.duck) S.first = { lat: latOf(m.n), dir: u0 < 0 ? '西' : '东' }; S.saw.duck = true; drawLog(); say1('玩具鸭跟着洋流漂', m.x, m.n); } placeTags(); return true; },
       move(rc) { const c = document.getElementById('c'); if (c) { const m = onMap(rc.ray); c.style.cursor = m && !isLand(m.x, m.n, S.land) ? 'crosshair' : ''; } return false; },
       up() { return false; },
     };

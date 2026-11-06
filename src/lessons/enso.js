@@ -79,6 +79,7 @@ export default {
 
     // ---- 上空的热力环流：一圈带箭头的环（上升的一侧有云、下雨） ----
     const loopMat = new THREE.MeshBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0.85 });
+    loopMat.userData.see = true;          // 箭头本来就套在环上
     const loops = new THREE.Group(); block.add(loops);
     const buildLoop = () => {
       for (const o of [...loops.children]) { loops.remove(o); o.geometry.dispose(); }
