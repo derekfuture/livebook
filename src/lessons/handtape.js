@@ -269,8 +269,8 @@ export default {
       }
       bar.say(
         [
-          '沿 D 点向下，在尺上点出它的位置。尺上数字是厘米，每小格 1 mm。',
-          'D 在 ' + readings[0] + ' mm。沿 G 点读尺，DG 有五个间隔，共 0.10 s。',
+          '沿 D 点在尺上读数：数字是厘米，每格 1 mm，估读到 0.1 mm。',
+          'D 在 ' + readings[0]?.toFixed(1) + ' mm。沿 G 点读尺，DG 有五个间隔，共 0.10 s。',
           'DG 段 ' + results[0]?.toFixed(3) + ' m/s。保留 D 的读数，沿 F 点读尺：三个间隔，共 0.06 s。',
         ][step],
       );
@@ -293,21 +293,21 @@ export default {
       if (!near || step >= 3) return;
       const j = [0, 5, 3][step],
         name = ['D', 'G', 'F'][step],
-        mm = Math.round((x - ZERO) * 1000);
+        mm = Math.round((x - ZERO) * 10000) / 10;
       if (Math.abs(mm - segment[j].x * 1000) > 1) {
         bar.say('再看 ' + name + ' 点正下方的刻线，每小格是 1 mm。');
         return;
       }
       readings[step] = mm;
       if (step) {
-        const dist = mm - readings[0],
+        const dist = Math.round((mm - readings[0]) * 10) / 10,
           dt = j * PERIOD,
           v = dist / 1000 / dt;
         results.push(v);
         const firstMoving = trace.marks.find((m) => m.x > trace.marks[0].x);
         const time = (segment[1].tick - firstMoving.tick) * PERIOD;
         records.el.hidden = false;
-        records.add([time.toFixed(2), 'D' + name, dist, dt.toFixed(2), v.toFixed(3)]);
+        records.add([time.toFixed(2), 'D' + name, dist.toFixed(1), dt.toFixed(2), v.toFixed(3)]);
         if (step === 2) {
           const previous = estimates.find((p) => p[0] === time);
           if (previous) previous[1] = v;
