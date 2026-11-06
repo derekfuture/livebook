@@ -324,7 +324,7 @@ function searchBox(books, manifests) {
       if (ch.page != null) entries.push({ kind: '章', title: ch.title, where: b.full, href: `?book=${b.id}#p=${ch.page}` });
       for (const s of ch.sections) if (s.page != null) entries.push({ kind: '节', title: s.title.replace(/^第.节\s*/, ''), where: `${b.full} · ${ch.title}`, href: `?book=${b.id}#p=${s.page}` });
     }
-    for (const [id, L] of Object.entries(c.lessons)) entries.push({ kind: '活页', title: L.title, where: `${b.full} · ${L.fig} · ${L.sec}`, href: `?book=${b.id}#live=${id}`, done: stamps.has(id) });
+    for (const [id, L] of Object.entries(c.lessons)) entries.push({ kind: '活页', title: L.title, where: `${b.full} · ${L.fig} · ${L.sec}`, cap: L.cap || '', href: `?book=${b.id}#live=${id}`, done: stamps.has(id) });          // cap：课本图题，搜得到但不显示
   }
   const input = h('input', { type: 'search', placeholder: '搜一节课或一张活页，比如“凸透镜”“电解水”' });
   const list = h('div', { class: 'search-list', hidden: true });
@@ -332,7 +332,7 @@ function searchBox(books, manifests) {
     const q = input.value.trim();
     list.innerHTML = '';
     if (!q) { list.hidden = true; return; }
-    const hits = entries.filter((e) => e.title.includes(q) || e.where.includes(q)).sort((a, b) => (a.kind === '活页' ? -1 : 0) - (b.kind === '活页' ? -1 : 0)).slice(0, 10);
+    const hits = entries.filter((e) => e.title.includes(q) || e.where.includes(q) || e.cap?.includes(q)).sort((a, b) => (a.kind === '活页' ? -1 : 0) - (b.kind === '活页' ? -1 : 0)).slice(0, 10);
     for (const e of hits) list.append(h('a', { href: e.href, class: 'search-item' }, h('i', { class: `k k-${e.kind}` }, e.kind), h('b', {}, e.title), h('span', {}, e.where)));
     if (!hits.length) list.append(h('div', { class: 'search-empty' }, '没有找到。试试换个词。'));
     list.hidden = false;

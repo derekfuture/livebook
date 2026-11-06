@@ -38,7 +38,12 @@ def main():
         title = title.replace("问题：", "")
         sec = re.sub(r"^[\d.]+\s*", "", r["sec"])
         b = books[r["book"]]
-        b["lessons"][r["id"]] = {"title": title, "fig": short_fig(fig), "sec": sec}
+        cap = title
+        if r["book"].startswith("dili-"):          # 地理一个活页讲一个知识点（可以用几张图）：名字用活页自己的标题，图题留着给搜索用
+            src = ROOT / "src" / "lessons" / f'{r["id"]}.js'
+            m = src.exists() and re.search(r"^  title: '([^']+)'", src.read_text(), re.M)
+            if m: title = m.group(1)
+        b["lessons"][r["id"]] = {"title": title, "fig": short_fig(fig), "sec": sec, **({"cap": cap} if cap != title else {})}
         b["spots"].append({"lesson": r["id"], "page": r["page"], "bbox": BOX[r["id"]], "label": f"{short_fig(fig)} · 翻开活页"})
     for s in EXTRA_SPOTS:
         for b in books.values():
