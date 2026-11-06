@@ -8,12 +8,12 @@ export const TANK_W = (NX - 1) * DX,
   TANK_D = (NZ - 1) * DX,
   WATER = 0.019,
   WALL_Z = BARRIER * DX - TANK_D / 2;
-export function rippleRig(tank, { interference = false, gain = 1 } = {}) {
+export function rippleRig(tank, { interference = false, reflection = false, gain = 1 } = {}) {
   const group = new THREE.Group();
   block(group, TANK_W + 0.018, 0.0164, TANK_D + 0.018, 0, 0.0082, 0, 0xcbc4af);
   for (const s of [-1, 1]) {
     const wallX = (s * (TANK_W + 0.006)) / 2;
-    for (const [a, b] of interference
+    for (const [a, b] of interference || reflection
       ? [[-TANK_D / 2 - 0.006, TANK_D / 2 + 0.006]]
       : [
           [-TANK_D / 2 - 0.006, WALL_Z - 0.002],
@@ -38,7 +38,7 @@ export function rippleRig(tank, { interference = false, gain = 1 } = {}) {
   const water = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: texture }));
   water.position.y = WATER;
   group.add(water);
-  const boards = (interference ? [] : [-1, 1]).map((s) => {
+  const boards = (interference || reflection ? [] : [-1, 1]).map((s) => {
     const b = new THREE.Group();
     // 板身的外端越过槽壁；沿壁收纳，内端的位置就是实际缝边。
     const plate = block(b, TANK_W / 2 + 0.009, 0.016, 0.005, 0, 0.024, WALL_Z + 0.00125, 0x855f39);
@@ -95,7 +95,7 @@ export function rippleRig(tank, { interference = false, gain = 1 } = {}) {
     const c = photo.getContext('2d');
     c.drawImage(canvas, 0, 0, photo.width, photo.height);
     const px = (m) => (m / DX + (NX - 1) / 2) * 2;
-    if (!interference) {
+    if (!interference && !reflection) {
       c.fillStyle = '#805e40';
       c.fillRect(0, BARRIER * 2, px(tank.left), 4);
       c.fillRect(px(tank.right), BARRIER * 2, photo.width - px(tank.right), 4);
