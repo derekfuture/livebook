@@ -1,4 +1,5 @@
 {
+  "amperefactors": [42, 50, 230, 216],
   "fourconductors": [225, 190, 520, 311],
   "capacitorsharing": [58, 247, 201, 338],
   "staticshielding": [60, 106, 185, 200],

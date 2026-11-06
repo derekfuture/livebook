@@ -2439,6 +2439,11 @@
     "fig": "图10.4-4",
     "sec": "电容器的电容"
    },
+   "amperefactors": {
+    "title": "探究安培力大小的影响因素",
+    "fig": "图13.2-1",
+    "sec": "磁感应强度"
+   },
    "fourconductors": {
     "title": "用串联电压比研究导体电阻",
     "fig": "图11.2-2",
@@ -2535,6 +2540,17 @@
      338
     ],
     "label": "图10.4-4 · 翻开活页"
+   },
+   {
+    "lesson": "amperefactors",
+    "page": 114,
+    "bbox": [
+     42,
+     50,
+     230,
+     216
+    ],
+    "label": "图13.2-1 · 翻开活页"
    },
    {
     "lesson": "fourconductors",
