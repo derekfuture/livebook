@@ -293,13 +293,13 @@ export default {
 
     // ---- 拖船：沿着正对镜头的经线 ----
     const pointer = {
-      down(rc) { if (!rc.intersectObject(boatPick, false).length) return false; stopSail(); S.drag = true; document.getElementById('c').style.cursor = 'grabbing'; return true; },
+      down(rc) { if (!rc.intersectObject(boatPick, false).length) return false; stopSail(); S.tackT = null; S.drag = true; document.getElementById('c').style.cursor = 'grabbing'; return true; },
       move(rc) {
         const c = document.getElementById('c');
         if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(boatPick, false).length ? 'grab' : ''; return false; }
         const hg = rc.intersectObject(globe, false)[0]; if (!hg) return true;          // 在地球表面上拖：碰到哪个纬度，船就到哪
         const l = globe.worldToLocal(hg.point.clone()).normalize();
-        S.lat = Math.max(-62, Math.min(62, Math.asin(l.y) / D2R)); S.visited.add(Math.round(S.lat / 10)); layout2(); return true;
+        S.lat = Math.max(-62, Math.min(62, Math.asin(l.y) / D2R)); S.visited.add(Math.round(S.lat / 10)); layout2(); const tx = sailing(S.lat, heading(), S.shift, S.rot).text; if (tx !== S.dragText) { S.dragText = tx; W?.ui.status(tx); } return true;          // 拖着走的时候，状态栏跟着当前航况变
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; W?.ui.status(`船在 ${Math.abs(Math.round(S.lat))}°${S.lat >= 0 ? 'N' : 'S'}：${sailing(S.lat, heading(), S.shift, S.rot).text}`); return true; },
     };
@@ -322,8 +322,8 @@ export default {
         const acts = buttons([{ text: '开船：从南美南端一路往北', onClick: () => {
           if (S.sail) { stopSail(); ui.status('船停了。再按“开船”接着走，也可以直接拖船。'); return; }
           if (!S.rot || S.shift !== 0) { S.resetNote = true; S.rot = true; S.shift = 0; rotSeg.set(0); seaSeg.set(1); seaSeg.el.style.opacity = 1; seaSeg.el.style.pointerEvents = ''; layout2(); }          // 开船按课本的情境：地球自转、春分秋分
-          if (S.lat >= END - 0.5) { S.lat = -52; S.lon = LON0; clearWake(); }          // 开到头了才从南美南端重新出发；中途停的从原地接着走
-          S.sail = true; S.mode = null; S.tackT = null; acts.btns[0].textContent = '停船';
+          if (S.lat >= END) { S.lat = -52; S.lon = LON0; S.tackT = null; clearWake(); }          // 开到头了才从南美南端重新出发；中途停的从原地接着走
+          S.sail = true; S.mode = null; acts.btns[0].textContent = '停船';          // 中途停船再开：换舷计时接着上次的走
         } }, { text: '重来', ghost: true, onClick: () => { ui.relock?.(); stopSail(); clearWake(); S.lon = LON0; S.mode = null; S.lat = -50; S.rot = true; S.shift = 0; S.saw = {}; S.guess = null; S.visited.clear(); rotSeg.set(0); seaSeg.set(1); seaSeg.el.style.opacity = 1; seaSeg.el.style.pointerEvents = ''; guess.set(-1); callout.show(false); layout2(); drawLog(); ui.status('船在南美洲南端（约南纬 50°）。按<b>开船</b>，或按住<b>小帆船</b>往北推，看一路上的风。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 210 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '气压带和风带（北 → 南）'), chart, read, h('div', { class: 'note' }, '白色流线和环流圈上的小珠子示意空气怎么流，快慢不代表风速；船走得快慢只表示这段航程难不难，不代表真实船速。跨赤道转向未模拟。船上箭头指气流吹去方向。无偏转模型：下垫面均匀、理想化纬向受热、太阳直射赤道。'), guess.el, rotSeg.el, seaSeg.el, acts.el, note('地球上红色是高压带，蓝色是低压带；小箭头、白色流线和船上气流方向箭头均指吹去方向，仅示意方向，不表示风速。季节迁移只示意带的位置；跨赤道区不显示固定信风方向，转向过程未模拟。无偏转模型假定下垫面均匀、太阳直射赤道、理想化纬向受热。'));
