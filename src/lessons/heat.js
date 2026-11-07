@@ -71,24 +71,66 @@ export default {
     };
     const earthHeight = (x, z) => GY - 0.001 + 0.0025 * Math.sin(x * 55 + 1) * Math.cos(z * 70) + 0.0005 * Math.sin(z * 170 + x * 130);
     const rockGrain = canvasTex(512, 256, (c, w, h) => { c.fillStyle = '#aaa18e'; c.fillRect(0, 0, w, h); for (let i = 0; i < 24; i++) { c.strokeStyle = 'rgba(68,60,48,0.12)'; c.beginPath(); for (let x = 0; x <= w; x += 8) c.lineTo(x, i * 12 + Math.sin(x / 60 + i) * 3); c.stroke(); } });
-    const slab = (cx, color, bump) => solidLand(cx, CW * 2, ZD * 2, (x, z) => GY + bump(x, z), new THREE.MeshStandardMaterial({ color, map: grain, roughness: 0.95, side: THREE.DoubleSide }), new THREE.MeshStandardMaterial({ color: cx === MX ? 0x8a8885 : 0xb4a186, map: cx === MX ? grain : rockGrain, roughness: 1, side: THREE.DoubleSide }));
+    // 地面的质感：月面是灰色的月壤，满是大大小小的坑；地面是草地；两块的侧面分别是月岩、土层
+    const sR = (() => { let q = 97; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })();
+    const regolith = canvasTex(1024, 1024, (g, w) => {
+      g.fillStyle = '#9d9b96'; g.fillRect(0, 0, w, w);
+      for (let i = 0; i < 26; i++) { const x = sR() * w, y = sR() * w, r = 80 + sR() * 220, gr = g.createRadialGradient(x, y, 0, x, y, r); const v = sR() < 0.5 ? '70,70,72' : '190,188,182'; gr.addColorStop(0, `rgba(${v},0.18)`); gr.addColorStop(1, `rgba(${v},0)`); g.fillStyle = gr; g.fillRect(0, 0, w, w); }          // 深浅不一的大片
+      for (let i = 0; i < 26000; i++) { const v = 90 + sR() * 120; g.fillStyle = `rgba(${v},${v},${v - 4},${0.12 + sR() * 0.3})`; g.fillRect(sR() * w, sR() * w, 1 + sR() * 1.6, 1 + sR() * 1.6); }          // 细细的月壤颗粒
+      for (let i = 0; i < 260; i++) { const x = sR() * w, y = sR() * w, r = 2 + Math.pow(sR(), 3) * 26; g.strokeStyle = `rgba(230,228,222,${0.35 + sR() * 0.3})`; g.lineWidth = Math.max(1, r * 0.22); g.beginPath(); g.arc(x + r * 0.12, y + r * 0.12, r, Math.PI * 0.9, Math.PI * 1.9); g.stroke(); g.strokeStyle = `rgba(55,54,52,${0.3 + sR() * 0.3})`; g.beginPath(); g.arc(x - r * 0.1, y - r * 0.1, r, Math.PI * -0.1, Math.PI * 0.9); g.stroke(); }          // 小坑：一边亮一边暗
+    });
+    const grass = canvasTex(1024, 1024, (g, w) => {
+      g.fillStyle = '#6f9b48'; g.fillRect(0, 0, w, w);
+      for (let i = 0; i < 30; i++) { const x = sR() * w, y = sR() * w, r = 90 + sR() * 200, gr = g.createRadialGradient(x, y, 0, x, y, r); const v = sR() < 0.5 ? '78,120,52' : '150,172,88'; gr.addColorStop(0, `rgba(${v},0.35)`); gr.addColorStop(1, `rgba(${v},0)`); g.fillStyle = gr; g.fillRect(0, 0, w, w); }
+      for (let i = 0; i < 30000; i++) { const x = sR() * w, y = sR() * w, l = 3 + sR() * 6, c = [[86, 132, 56], [118, 160, 70], [64, 104, 44], [140, 172, 84]][Math.floor(sR() * 4)]; g.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${0.35 + sR() * 0.4})`; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (sR() - 0.5) * 2.5, y - l); g.stroke(); }          // 一根根草
+      for (let i = 0; i < 260; i++) { g.fillStyle = ['#f4e9a8', '#ffffff', '#e8b8c8'][i % 3]; g.fillRect(sR() * w, sR() * w, 2, 2); }          // 零星的小花
+    });
+    const sideTex = (moon) => canvasTex(512, 256, (g, w, hh) => {
+      if (moon) { const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, '#8e8c88'); gr.addColorStop(0.22, '#7a7874'); gr.addColorStop(1, '#5e5c5a'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); for (let i = 0; i < 9000; i++) { const v = 70 + sR() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.2 + sR() * 0.35})`; g.fillRect(sR() * w, sR() * hh, 1.5, 1.5); } for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(${sR() < 0.5 ? '60,60,62' : '150,148,144'},0.5)`; g.beginPath(); g.ellipse(sR() * w, hh * (0.3 + sR() * 0.7), 3 + sR() * 8, 2 + sR() * 5, 0, 0, 7); g.fill(); } }          // 月壤下面是碎石和月岩
+      else { g.fillStyle = '#4a3622'; g.fillRect(0, 0, w, hh * 0.18); const gr = g.createLinearGradient(0, hh * 0.18, 0, hh); gr.addColorStop(0, '#8a6a44'); gr.addColorStop(1, '#b08f62'); g.fillStyle = gr; g.fillRect(0, hh * 0.18, w, hh); for (let i = 0; i < 9000; i++) { const v = sR(); g.fillStyle = `rgba(${v < 0.5 ? '60,42,24' : '200,170,120'},${0.15 + sR() * 0.25})`; g.fillRect(sR() * w, sR() * hh, 1.5, 1.5); } for (let i = 0; i < 60; i++) { g.fillStyle = 'rgba(170,150,120,0.7)'; g.beginPath(); g.ellipse(sR() * w, hh * (0.35 + sR() * 0.65), 2 + sR() * 5, 1.5 + sR() * 3, 0, 0, 7); g.fill(); } for (let i = 0; i < 70; i++) { g.strokeStyle = 'rgba(60,40,24,0.5)'; g.beginPath(); const x = sR() * w; g.moveTo(x, hh * 0.05); g.lineTo(x + (sR() - 0.5) * 8, hh * (0.1 + sR() * 0.16)); g.stroke(); } }          // 黑色的表土（有草根）下面是黄褐色的土
+    });
+    const slab = (cx, color, bump) => solidLand(cx, CW * 2, ZD * 2, (x, z) => GY + bump(x, z), new THREE.MeshStandardMaterial({ color: 0xffffff, map: cx === MX ? regolith : grass, roughness: cx === MX ? 1 : 0.92, side: THREE.DoubleSide }), new THREE.MeshStandardMaterial({ map: sideTex(cx === MX), roughness: 1, side: THREE.DoubleSide }));
+    void rockGrain; void grain;
     const craters = Array.from({ length: 9 }, () => [(rnd() - 0.5) * CW * 1.7, (rnd() - 0.5) * ZD * 1.7, 0.006 + rnd() * 0.01]);
     slab(MX, 0x9a9894, (x, z) => { let y = 0.001 * Math.sin(x * 130) * Math.sin(z * 160); for (const [cx, cz, r] of craters) { const d = Math.hypot(x - cx, z - cz) / r; if (d < 1.6) y += -0.0045 * Math.exp(-d * d * 3) + 0.0026 * Math.exp(-Math.pow((d - 1) / 0.22, 2)); } return y; });
     slab(EX, 0x7fae5a, (x, z) => earthHeight(x, z) - GY);
-    { const house = new THREE.Group(); const wall = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.01, 0.012), new THREE.MeshLambertMaterial({ color: 0xf1ebdd })); wall.position.y = 0.005; house.add(wall); const roof = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.007, 4).rotateY(Math.PI / 4), new THREE.MeshLambertMaterial({ color: 0xbf513b })); roof.position.y = 0.0135; house.add(roof); house.position.set(EX + 0.035, earthHeight(0.035, -0.028), -0.028); block.add(house);
+    { const moonH = (x, z) => { let y = 0.001 * Math.sin(x * 130) * Math.sin(z * 160); for (const [cx, cz, r] of craters) { const d = Math.hypot(x - cx, z - cz) / r; if (d < 1.6) y += -0.0045 * Math.exp(-d * d * 3) + 0.0026 * Math.exp(-Math.pow((d - 1) / 0.22, 2)); } return GY + y; };
+      const rg = new THREE.DodecahedronGeometry(0.0016, 0); { const pp = rg.attributes.position; for (let i = 0; i < pp.count; i++) pp.setXYZ(i, pp.getX(i) * (0.8 + 0.4 * Math.abs(Math.sin(i * 1.7))), pp.getY(i) * 0.65, pp.getZ(i) * (0.8 + 0.4 * Math.abs(Math.cos(i * 2.3)))); rg.computeVertexNormals(); }
+      const rocks = new THREE.InstancedMesh(rg, new THREE.MeshStandardMaterial({ color: 0x8e8c88, roughness: 1, flatShading: true }), 46), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sv = new THREE.Vector3(), pv = new THREE.Vector3(), e = new THREE.Euler();
+      for (let i = 0; i < 46; i++) { const x = (sR() - 0.5) * CW * 1.85, z = (sR() - 0.5) * ZD * 1.85; m4.compose(pv.set(MX + x, moonH(x, z) + 0.0004, z), q.setFromEuler(e.set(sR(), sR() * 6, sR())), sv.setScalar(0.4 + Math.pow(sR(), 2) * 1.6)); rocks.setMatrixAt(i, m4); }
+      rocks.raycast = () => {}; block.add(rocks); }          // 月面上散落的石块
+    { const house = new THREE.Group(), wallTex = canvasTex(256, 160, (g, w, hh) => { g.fillStyle = '#f2ece0'; g.fillRect(0, 0, w, hh); for (let i = 0; i < 1500; i++) { g.fillStyle = `rgba(150,130,100,${Math.random() * 0.08})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 2); } g.fillStyle = '#6a4a30'; g.fillRect(w * 0.42, hh * 0.42, w * 0.16, hh * 0.58); for (const x of [0.12, 0.7]) { g.fillStyle = '#3d5a78'; g.fillRect(w * x, hh * 0.3, w * 0.18, hh * 0.3); g.strokeStyle = '#f8f4ea'; g.lineWidth = 3; g.strokeRect(w * x, hh * 0.3, w * 0.18, hh * 0.3); g.beginPath(); g.moveTo(w * (x + 0.09), hh * 0.3); g.lineTo(w * (x + 0.09), hh * 0.6); g.stroke(); } g.fillStyle = 'rgba(120,100,80,0.35)'; g.fillRect(0, hh - 8, w, 8); });          // 白墙、木门、两扇窗
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.009, 0.011), new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 })); wall.position.y = 0.0045; house.add(wall);
+      const roofShape = new THREE.Shape(); roofShape.moveTo(-0.0082, 0); roofShape.lineTo(0, 0.0062); roofShape.lineTo(0.0082, 0); roofShape.lineTo(-0.0082, 0);
+      const roofTex = canvasTex(128, 128, (g, w) => { g.fillStyle = '#a8442e'; g.fillRect(0, 0, w, w); for (let y = 0; y < w; y += 10) { g.fillStyle = 'rgba(70,24,14,0.45)'; g.fillRect(0, y, w, 2); for (let x = (y / 10) % 2 ? 0 : 8; x < w; x += 16) g.fillRect(x, y, 2, 10); } });          // 一片片瓦
+      const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(roofShape, { depth: 0.0128, bevelEnabled: false }).translate(0, 0, -0.0064).rotateY(Math.PI / 2), new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.85 })); roof.position.y = 0.009; house.add(roof);          // 两坡的屋顶
+      const chimney = new THREE.Mesh(new THREE.BoxGeometry(0.0018, 0.004, 0.0018), new THREE.MeshStandardMaterial({ color: 0x8a6a58 })); chimney.position.set(0.003, 0.0135, 0.002); house.add(chimney); house.position.set(EX + 0.035, earthHeight(0.035, -0.028), -0.028); block.add(house);
       for (const [x, z] of [[EX + 0.055, -0.01], [EX - 0.05, -0.032]]) { const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.0008, 0.001, 0.008, 6), new THREE.MeshLambertMaterial({ color: 0x7a5636 })); tr.position.set(x, earthHeight(x - EX, z) + 0.004, z); block.add(tr); const cr = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 10, 8), new THREE.MeshLambertMaterial({ color: 0x4f8a3e })); cr.position.set(x, earthHeight(x - EX, z) + 0.012, z); block.add(cr); } }
 
     const trees = []; for (let i = 0; i < 100; i++) { const x = EX - CW + 0.007 + sceneryRandom() * (2 * CW - 0.014), z = -ZD + 0.005 + sceneryRandom() * 0.032; if (Math.hypot(x - EX - 0.035, z + 0.028) > 0.016) trees.push([x, z]); }
     grove(trees, (x, z) => earthHeight(x - EX, z), 0.7);
 
     // ---- 天空：月球那边一直是黑的（没有大气散射阳光）；地球那边白天是蓝的，夜里变暗；地球上面一层大气，顶上是大气上界 ----
-    const skyTex = (top, bot) => canvasTex(16, 128, (g, w, hh) => { const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, top); gr.addColorStop(1, bot); g.fillStyle = gr; g.fillRect(0, 0, w, hh); });
+    const skyTex = (kind) => canvasTex(1024, 512, (g, w, hh) => {          // 天幕：月球那边是星空；地球白天是蓝天（地平线发白、远处一层淡淡的云），夜里是深蓝的星空
+      const R2 = (() => { let q = kind.length * 131 + 7; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })(), gr = g.createLinearGradient(0, 0, 0, hh);
+      const stops = { space: [['#04060c', 0], ['#070b16', 0.6], ['#0d1324', 1]], day: [['#2b62a8', 0], ['#4f87c6', 0.38], ['#8fbbe0', 0.72], ['#d6e6f0', 1]], night: [['#070d22', 0], ['#101b3a', 0.65], ['#1f2d50', 1]] }[kind];
+      for (const [c, t] of stops) gr.addColorStop(t, c); g.fillStyle = gr; g.fillRect(0, 0, w, hh);
+      if (kind !== 'day') {
+        if (kind === 'space') { g.save(); g.translate(w * 0.5, hh * 0.45); g.rotate(-0.35); for (let i = 0; i < 2600; i++) { const x = (R2() - 0.5) * w * 1.4, y = (R2() + R2() + R2() - 1.5) * hh * 0.09; g.fillStyle = `rgba(200,210,240,${R2() * 0.12})`; g.fillRect(x, y, 2, 2); } g.restore(); }          // 淡淡的银河
+        for (let i = 0; i < (kind === 'space' ? 1400 : 500); i++) { const x = R2() * w, y = R2() * hh * (kind === 'space' ? 1 : 0.85), a = Math.pow(R2(), 2.2); g.fillStyle = `rgba(255,255,255,${0.25 + a * 0.75})`; const r = a > 0.85 ? 1.6 : a > 0.5 ? 1.1 : 0.7; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); if (a > 0.93) { const sg = g.createRadialGradient(x, y, 0, x, y, 7); sg.addColorStop(0, 'rgba(220,230,255,0.5)'); sg.addColorStop(1, 'rgba(220,230,255,0)'); g.fillStyle = sg; g.fillRect(x - 7, y - 7, 14, 14); } }
+      } else {
+        for (let i = 0; i < 26; i++) { const x = R2() * w, y = hh * (0.74 + R2() * 0.12), rw = 90 + R2() * 140, rh = 5 + R2() * 8, cg = g.createRadialGradient(x, y, 0, x, y, rw); cg.addColorStop(0, 'rgba(255,255,255,0.16)'); cg.addColorStop(1, 'rgba(255,255,255,0)'); g.save(); g.translate(x, y); g.scale(1, rh / rw); g.translate(-x, -y); g.fillStyle = cg; g.fillRect(x - rw, y - rw, rw * 2, rw * 2); g.restore(); }          // 远处一层薄云
+        g.fillStyle = 'rgba(120,150,165,0.55)'; g.beginPath(); g.moveTo(0, hh); for (let x = 0; x <= w; x += 8) g.lineTo(x, hh * 0.9 - 18 * Math.sin(x / 90) - 10 * Math.sin(x / 37 + 1)); g.lineTo(w, hh); g.fill();          // 远山
+      }
+    });
     const back = (cx, mat) => { const hgt = TOP + 0.02, g2 = new THREE.CylinderGeometry(CW, CW, hgt, 48, 1, true, Math.PI / 2, Math.PI); g2.scale(1, 1, ZD / CW); mat.side = THREE.DoubleSide; const m = new THREE.Mesh(g2, mat); m.position.set(cx, GY + hgt / 2 - 0.0005, 0); m.raycast = () => {}; block.add(m); return m; };          // 天幕：弯成半圈围在地块后面（像一个小舞台的天幕），不是一张立着的纸片
-    back(MX, new THREE.MeshBasicMaterial({ map: skyTex('#0b0f1c', '#1a1f2e') }));
-    const dayM = new THREE.MeshBasicMaterial({ map: skyTex('#3f78b8', '#bcd8ee') }), nightM = new THREE.MeshBasicMaterial({ map: skyTex('#0d1530', '#2a3a62'), transparent: true, opacity: 0 });
+    back(MX, new THREE.MeshBasicMaterial({ map: skyTex('space') }));
+    const dayM = new THREE.MeshBasicMaterial({ map: skyTex('day') }), nightM = new THREE.MeshBasicMaterial({ map: skyTex('night'), transparent: true, opacity: 0 });
     back(EX, dayM); const nightBack = back(EX, nightM); nightBack.position.z += 0.0005;
-    const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(Array.from({ length: 70 }).flatMap(() => { const th = Math.PI / 2 + rnd() * Math.PI; return [MX + Math.sin(th) * CW * 0.97, GY + 0.015 + rnd() * (TOP - 0.01), Math.cos(th) * ZD * 0.97]; }), 3)), new THREE.PointsMaterial({ color: 0xffffff, size: 0.0016, transparent: true, opacity: 0.8 })); stars.raycast = () => {}; block.add(stars);          // 星星贴在弯的天幕里面
-    const air = new THREE.Mesh(new THREE.BoxGeometry(CW * 2, TOP - GY, ZD * 2), new THREE.MeshLambertMaterial({ color: 0x9fc6ea, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide })); air.position.set(EX, GY + (TOP - GY) / 2, 0); air.renderOrder = 3; air.raycast = () => {}; block.add(air);
+    const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(Array.from({ length: 70 }).flatMap(() => { const th = Math.PI / 2 + rnd() * Math.PI; return [MX + Math.sin(th) * CW * 0.97, GY + 0.015 + rnd() * (TOP - 0.01), Math.cos(th) * ZD * 0.97]; }), 3)), new THREE.PointsMaterial({ color: 0xffffff, size: 0.0011, transparent: true, opacity: 0.8 })); stars.raycast = () => {}; block.add(stars);          // 星星贴在弯的天幕里面
+    const air = new THREE.Mesh(new THREE.BoxGeometry(CW * 2, TOP - GY, ZD * 2), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { hh: { value: (TOP - GY) / 2 } },
+      vertexShader: 'varying float vy; void main(){ vy = position.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'uniform float hh; varying float vy; void main(){ float t = clamp((vy + hh) / (2.0 * hh), 0.0, 1.0); float a = mix(0.26, 0.04, pow(t, 0.7)) + 0.12 * smoothstep(0.96, 1.0, t); gl_FragColor = vec4(mix(vec3(0.82,0.9,0.98), vec3(0.55,0.75,0.96), t), a); }' })); air.position.set(EX, GY + (TOP - GY) / 2, 0); air.renderOrder = 3; air.raycast = () => {}; block.add(air);          // 大气：贴近地面浓、往上越来越稀，顶上一道淡淡的亮边（大气上界）
     const lineM = new THREE.LineDashedMaterial({ color: 0x2a4a72, dashSize: 0.003, gapSize: 0.002, transparent: true, opacity: 0.7 });
     { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(EX - CW, TOP, ZD), new THREE.Vector3(EX + CW, TOP, ZD), new THREE.Vector3(EX + CW, TOP, -ZD)]), lineM); l.computeLineDistances(); block.add(l); }
     faceLabel(block, '大气上界', { x: EX + 0.012, y: TOP + 0.004, z: ZD, h: 0.0055, color: '#1f3f68', stroke: 'rgba(255,255,255,0.7)' });
@@ -104,21 +146,29 @@ export default {
 
     // ---- 太阳：在两块上空走一道弧，拖着它走就是换时刻 ----
     const SR = 0.17, SC = new THREE.Vector3(0, TOP + 0.03, -ZD * 0.2);
-    const sun = new THREE.Mesh(new THREE.SphereGeometry(0.011, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffd36a })); block.add(sun);
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(0.011, 32, 20), new THREE.MeshBasicMaterial({ color: 0xfff0b8 })); block.add(sun);
     const glowTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,225,140,0.9)'); gr.addColorStop(0.4, 'rgba(255,205,110,0.35)'); gr.addColorStop(1, 'rgba(255,200,100,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false })); glow.scale.set(0.06, 0.06, 1); glow.raycast = () => {}; sun.add(glow);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false })); glow.scale.set(0.075, 0.075, 1); glow.raycast = () => {}; sun.add(glow);
+    const corona = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, opacity: 0.6, blending: THREE.AdditiveBlending })); corona.scale.set(0.034, 0.034, 1); corona.raycast = () => {}; sun.add(corona);          // 里圈更亮的一层光
     const sunPick = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); sunPick.userData.pick = true; sun.add(sunPick);
     const sunAng = (t) => (Math.PI * (((t % 24) + 24) % 24 - 6)) / 12;          // 6 时在东边地平线（右），12 时在头顶，18 时落到西边（左）
 
     // ---- 一份份辐射：沿着几条“车道”走，颜色和课本图一样（太阳辐射黄、地面辐射橙、大气辐射红） ----
-    const C = { sun: 0xffcf3a, ground: 0xf08a3a, atm: 0xd8452e };
+    const C = { sun: 0xffd84a, ground: 0xff8a34, atm: 0xe0442c };
     const LANE = { mSun: MX - 0.04, mUp: MX + 0.035, eSun: EX - 0.05, eUp: EX - 0.005, eBack: EX + 0.035, eSpace: EX + 0.06 };
+    const streakTex = (wavy) => canvasTex(wavy ? 96 : 48, 320, (g, w, hh) => {          // 一份辐射画成一道带箭头的光：短波（太阳辐射）是直的，长波（地面辐射、大气辐射）是波浪形的
+      const head = hh * 0.84, path = (y) => w / 2 + (wavy ? Math.sin((y / hh) * Math.PI * 5) * w * 0.22 : 0);
+      const stroke = (lw, a) => { g.lineWidth = lw; g.lineCap = 'round'; for (let y = 0; y < head; y += 4) { g.strokeStyle = `rgba(255,255,255,${a * Math.pow(y / head, 1.6)})`; g.beginPath(); g.moveTo(path(y), y); g.lineTo(path(y + 4), y + 4); g.stroke(); } };
+      stroke(w * (wavy ? 0.16 : 0.34), 0.28); stroke(w * (wavy ? 0.07 : 0.14), 1);          // 外面一层柔光，里面一根亮芯；尾巴淡、头亮
+      const x0 = path(head); g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(x0 - w * (wavy ? 0.2 : 0.42), head); g.lineTo(x0 + w * (wavy ? 0.2 : 0.42), head); g.lineTo(x0, hh - 2); g.closePath(); g.fill();
+    });
     const arrowTex = canvasTex(32, 128, (g, w, hh) => { const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.7, 'rgba(255,255,255,0.9)'); gr.addColorStop(1, 'rgba(255,255,255,1)'); g.fillStyle = gr; g.beginPath(); g.moveTo(w * 0.35, 0); g.lineTo(w * 0.65, 0); g.lineTo(w * 0.65, hh * 0.72); g.lineTo(w * 0.95, hh * 0.72); g.lineTo(w / 2, hh); g.lineTo(w * 0.05, hh * 0.72); g.lineTo(w * 0.35, hh * 0.72); g.closePath(); g.fill(); });          // 一支往下指的小箭头
     const NP = 150, packs = [], pmats = {};
-    for (const k in C) pmats[k] = new THREE.MeshBasicMaterial({ color: C[k], map: arrowTex, transparent: true, depthWrite: false, side: THREE.DoubleSide });
-    const pgeo = new THREE.PlaneGeometry(0.0045, 0.014);
+    const STW = streakTex(false), LWW = streakTex(true); void arrowTex;
+    for (const k in C) pmats[k] = new THREE.MeshBasicMaterial({ color: C[k], map: k === 'sun' ? STW : LWW, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    const pgeo = new THREE.PlaneGeometry(0.0048, 0.023), lgeo = new THREE.PlaneGeometry(0.0072, 0.023);
     for (let i = 0; i < NP; i++) { const m = new THREE.Mesh(pgeo, pmats.sun); m.visible = false; m.raycast = () => {}; m.renderOrder = 6; block.add(m); packs.push({ m, on: false }); }
-    const spawn = (kind, x, y0, y1, fate = null) => { const p = packs.find((q) => !q.on); if (!p) return; Object.assign(p, { on: true, kind, x: x + (rnd() - 0.5) * 0.008, z: (rnd() - 0.5) * ZD * 1.2, y: y0, y0, y1, fate, t: 0 }); p.m.material = pmats[kind]; p.m.visible = true; };
+    const spawn = (kind, x, y0, y1, fate = null) => { const p = packs.find((q) => !q.on); if (!p) return; Object.assign(p, { on: true, kind, x: x + (rnd() - 0.5) * 0.008, z: (rnd() - 0.5) * ZD * 1.2, y: y0, y0, y1, fate, t: 0 }); p.m.material = pmats[kind]; p.m.geometry = kind === 'sun' ? pgeo : lgeo; p.m.visible = true; };
     const acc = {};
     const emit = (key, rate, dt, fn) => { acc[key] = (acc[key] || 0) + rate * dt; while (acc[key] >= 1) { acc[key] -= 1; fn(); } };
     const AIRMID = GY + (TOP - GY) * 0.55;
@@ -142,7 +192,7 @@ export default {
         if (done && p.fate === 'bounce') { Object.assign(p, { y0: p.y, y1: TOP + 0.02, fate: 'fade', x: p.x + 0.012 }); }
         else if (done) { p.on = false; p.m.visible = false; continue; }
         const up = p.y1 > p.y0, fade = p.fate === 'absorb' ? Math.min(1, Math.abs(p.y1 - p.y) / 0.012) : 1;
-        p.m.position.set(p.x, p.y, p.z); p.m.rotation.set(0, 0, up ? Math.PI : 0); p.m.material.opacity = 1; p.m.scale.setScalar(0.4 + 0.6 * fade);
+        p.m.position.set(p.x, p.y, p.z); p.m.rotation.set(0, 0, up ? Math.PI : 0); p.m.material.opacity = 1; p.m.scale.setScalar(0.45 + 0.55 * fade);
       }
     };
     const pLabels = { mSun: airLabel(block, '太阳辐射', { h: 0.0072, color: '#9a6a08', dim: 0 }), mUp: airLabel(block, '月球表面辐射', { h: 0.0072, color: '#a8541a', dim: 0 }), eSun: airLabel(block, '太阳辐射', { h: 0.0072, color: '#9a6a08', dim: 0 }), eUp: airLabel(block, '地面辐射', { h: 0.0072, color: '#a8541a', dim: 0 }), eBack: airLabel(block, '大气逆辐射', { h: 0.0072, color: '#a8341f', dim: 0 }), eSpace: airLabel(block, '大气辐射', { h: 0.0072, color: '#a8341f', dim: 0 }) };
@@ -150,11 +200,13 @@ export default {
 
     // ---- 两支温度计：一样的刻度，立在两块地面的前面 ----
     const thermo = (cx) => {
-      const g = new THREE.Group(), L = 0.07, glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, roughness: 0.1 });
-      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, L, 12), glass); tube.position.y = L / 2 + 0.004; g.add(tube);
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.0036, 14, 10), new THREE.MeshLambertMaterial({ color: 0xd83a2a })); bulb.position.y = 0.003; g.add(bulb);
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0012, 1, 8).translate(0, 0.5, 0), new THREE.MeshLambertMaterial({ color: 0xd83a2a })); col.position.y = 0.004; g.add(col);
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(0.012, L + 0.006), new THREE.MeshLambertMaterial({ map: canvasTex(64, 384, (c, w, hh) => { c.fillStyle = '#f8f5ec'; c.fillRect(0, 0, w, hh); c.fillStyle = '#3a3226'; c.font = '600 15px "PingFang SC", sans-serif'; c.textAlign = 'right'; for (let T = -150; T <= 150; T += 50) { const y = hh - 16 - ((T - TMIN) / (TMAX - TMIN)) * (hh - 32); c.fillRect(w - 12, y - 1, 12, 2); c.fillText(String(T), w - 15, y + 5); } c.fillStyle = '#2a5a9a'; const y0 = hh - 16 - ((0 - TMIN) / (TMAX - TMIN)) * (hh - 32); c.fillRect(0, y0 - 1, w, 2); }) })); board.position.set(-0.0085, L / 2 + 0.004, -0.0005); g.add(board);
+      const g = new THREE.Group(), L = 0.066, glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, roughness: 0.05, metalness: 0, clearcoat: 1 }), brassM = new THREE.MeshStandardMaterial({ color: 0xb89656, metalness: 0.7, roughness: 0.3 }), red = new THREE.MeshStandardMaterial({ color: 0xd8301f, roughness: 0.35, emissive: 0x3a0804 });
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0015, L, 16), glass); tube.position.y = L / 2 + 0.004; g.add(tube);          // 细细的玻璃管、红色的液柱、黄铜的帽和底座
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.0028, 18, 12), red); bulb.position.y = 0.0032; g.add(bulb);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.0008, 0.0008, 1, 10).translate(0, 0.5, 0), red); col.position.y = 0.004; g.add(col);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0018, 0.002, 16), brassM); cap.position.y = L + 0.005; g.add(cap);
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.0048, 0.0016, 24), brassM); foot.position.y = 0.0008; g.add(foot);
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(0.0095, L + 0.004), new THREE.MeshStandardMaterial({ roughness: 0.8, map: canvasTex(96, 640, (c, w, hh) => { c.fillStyle = '#f7f2e6'; c.fillRect(0, 0, w, hh); c.strokeStyle = '#b89656'; c.lineWidth = 3; c.strokeRect(1.5, 1.5, w - 3, hh - 3); const Y = (T) => hh - 20 - ((T - TMIN) / (TMAX - TMIN)) * (hh - 40); c.fillStyle = '#4a4034'; for (let T = -150; T <= 130; T += 10) c.fillRect(w - (T % 50 ? 12 : 20), Y(T) - 0.75, T % 50 ? 12 : 20, 1.5); c.font = '600 19px "PingFang SC", sans-serif'; c.textAlign = 'right'; for (let T = -150; T <= 100; T += 50) c.fillText(String(T), w - 24, Y(T) + 7); c.fillStyle = '#2a5a9a'; c.fillRect(6, Y(0) - 1.5, w - 12, 3); }) })); board.position.set(-0.0066, L / 2 + 0.004, -0.0005); g.add(board);          // 刻度板：每 10 ℃ 一小格，每 50 ℃ 一大格
       g.position.set(cx, GY, ZD * 0.78); block.add(g); g.userData = { col, L }; return g;
     };
     const thM = thermo(MX - CW + 0.02), thE = thermo(EX - CW + 0.02);
