@@ -1,5 +1,5 @@
 // 岩石圈物质循环的教学模型（纯数据，活页 rockcycle.js 和核对脚本共用）。课本选必1 第 22–24 页，图 2.7 岩浆岩、图 2.8 沉积岩、图 2.9 变质岩、图 2.10 岩石圈物质循环示意。
-// 跟着一块岩石走：它现在是哪一类、在哪；下一步能发生哪些作用（只有课本图 2.10 里有的箭头）。
+// 跟着一块岩石走：它现在是哪一类、在哪；下一步能发生哪些作用：课本图 2.10 的 10 根箭头，加上图上没画、课本第 24 页正文讲到的“沉积岩熔化成岩浆”（EXTRA）。
 // 变质岩的名字：页岩→板岩、石灰岩→大理岩是课本举的例子；花岗岩→片麻岩、砂岩→石英岩、砾岩→变质砾岩是常见的对应，课本没讲；玄武岩变质的产物随条件变，不写具体名字。
 // 岩浆冷却：侵入岩、喷出岩，花岗岩、玄武岩只是例子——具体岩种还取决于岩浆的成分。
 export const KIND = { magma: '岩浆', igneous: '岩浆岩', sediment: '沉积物', sedimentary: '沉积岩', metamorphic: '变质岩' };
@@ -25,7 +25,8 @@ for (const [id, r] of Object.entries(ROCK)) {
 for (const [id, r] of Object.entries(ROCK)) if (r.kind === 'metamorphic') ROCK[id + '_further'] = { ...r, name: '进一步变质的岩石', sub: '具体岩种取决于原岩成分及温度、压力等条件', origin: id };
 /** 只认可连续的花岗岩风化取出石英砂、再固结的具体转换边。 */
 export const provenGraniteSand = (path) => path.some((p, i) => p.id === 'granite' && path[i + 1]?.id === 'sand' && path[i + 1]?.proc.startsWith('抬升') && path[i + 2]?.id === 'sandstone' && path[i + 2]?.proc.startsWith('压实'));
-/** 这块岩石下一步能经历的作用（课本图 2.10 的箭头）：[{ proc, to, why }] */
+/** 这块岩石下一步能经历的作用（课本图 2.10 的箭头 + 正文补的沉积岩熔化）：[{ proc, to, why }] */
+export const EXTRA = ['sedimentary>magma'];          // 图 2.10 没画这根箭头；课本第 24 页：“这三类岩石……熔化，又成为新的岩浆”
 export function nexts(id) {
   const r = ROCK[id], out = [], source = r.origin || id;
   if (r.kind === 'magma') out.push({ proc: '冷却凝固（在岩石圈里）', to: 'granite', why: '以富硅岩浆侵入后慢慢冷却形成花岗岩为例；不是任意岩浆都能形成花岗岩' }, { proc: '冷却凝固（喷出地表）', to: 'basalt', why: '以玄武质岩浆喷出后冷却形成玄武岩为例；不是任意岩浆都能形成玄武岩' });
@@ -41,7 +42,8 @@ export function nexts(id) {
   return out;
 }
 // 固态变质与熔融条件：Physical Geology 3.2，https://opentextbc.ca/geology/chapter/3-2-magma-and-magma-formation/
-/** 自动演示的一条路线：先走从地下到地表再回到地下的一大圈（岩浆→花岗岩→石英砂→石英砂岩→石英岩→岩浆），再把图 2.10 里其余的箭头都走一遍。每一步都必须是 nexts() 里有的箭头。 */
+/** 自动演示的一条路线：先走从地下到地表再回到地下的一大圈（岩浆→花岗岩→石英砂→石英砂岩→石英岩→岩浆），再另取别的岩浆，把其余的箭头都走一遍（NEW：哪一步开始换了一份岩浆）。每一步都必须是 nexts() 里有的箭头。 */
 export const TOUR = ['granite', 'sand', 'sandstone', 'quartzite', 'magma', 'basalt', 'magma', 'granite', 'gneiss', 'gneiss_further', 'mud', 'shale', 'gravel', 'conglomerate', 'magma'];
 /** 路线的第 i 步：从 from 走到 TOUR[i] 的那条箭头 */
+export const NEW = { 5: '第一圈走完了。下面另取一份玄武质岩浆（成分和上一圈熔出来的不同），演示其余的箭头', 7: '再另取一份富硅岩浆' };
 export const tourStep = (from, i) => nexts(from).find((n) => n.to === TOUR[i]);
