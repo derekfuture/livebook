@@ -85,6 +85,7 @@ export class LiveLayer {
     const MODE = UI_MODE;
     const world = !!def.world && ['page', 'desk', 'card'].includes(MODE);
     const stand = MODE === 'stand' && innerWidth > 760;
+    let frameDir = null;          // 实验自己指定的取景方向（世界坐标）；没指定就用 view 里的 elev / azim
     const ctx = {
       THREE, ink, camera: stage.camera, root: scaler, world, mode: world ? MODE : 'panel',
       tag: (text, cls, onClick) => { const t = tag(text, cls, onClick); tags.push(t); return t; },
@@ -103,6 +104,8 @@ export class LiveLayer {
       },
       // 实验换了一套器材（场景）以后，按新器材重新取景
       reframe: () => requestAnimationFrame(() => this._reframe?.()),
+      // 换一个取景方向（实验的局部坐标，从模型指向镜头），按新方向把器材完整框进画面，镜头平滑地转过去
+      aim: (localDir) => { const q = new THREE.Quaternion(); scaler.getWorldQuaternion(q); frameDir = new THREE.Vector3(...localDir).normalize().applyQuaternion(q); requestAnimationFrame(() => this._reframe?.()); },
       back: () => this._back(),
     };
     ink.setLessonStyle(def.style);          // 实验自己的画风（例如 'paper'），只在搭这个实验的时候生效
@@ -254,7 +257,7 @@ export class LiveLayer {
     this._reframe = null;
     if (!world && !stand && v.auto !== false) {
       const A = this.active;
-      this._reframe = () => { if (this.active === A && !A.closing) { this._prevShot = null; this._lookExit = null; tagFocus(null); this._autoFrame(A, dir, v); } };
+      this._reframe = () => { if (this.active === A && !A.closing) { this._prevShot = null; this._lookExit = null; tagFocus(null); this._autoFrame(A, frameDir || dir, v); } };
       requestAnimationFrame(() => requestAnimationFrame(() => this._reframe?.()));
     }
     this.onChange?.(true);

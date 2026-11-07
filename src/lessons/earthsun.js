@@ -18,7 +18,7 @@ import { h } from '../ui/Panel.js';
 import reliefUrl from './data/earth_relief.jpg';
 import { D2R, R2D, EPS, decOf, dm, hm, dur, altText, sunAt, halfDay, noonAlt, snapSeason, noonText, skyJoin, skyX } from './kit/sun.js';
 
-const R = 0.125, SY = 0.1, ER = 0.046;          // 轨道半径、灯和地球仪中心的高度、地球仪半径
+const R = 0.11, SY = 0.096, ER = 0.05;          // 轨道半径、灯和地球仪中心的高度、地球仪半径
 const CITIES = [{ name: '摩尔曼斯克', lat: 68.97, lon: 33.08 }, { name: '哈尔滨', lat: 45.75, lon: 126.63 }, { name: '北京', lat: 40, lon: 116.4 }, { name: '广州', lat: 23.13, lon: 113.26 }, { name: '新加坡', lat: 1.3, lon: 103.82 }, { name: '悉尼', lat: -33.87, lon: 151.21 }];          // 经度只用来把城市摆在地球仪上的真实位置；昼长、正午太阳高度只看纬度
 const KEY = [{ name: '春分', lam: 0, date: '3 月 21 日前后' }, { name: '夏至', lam: 90, date: '6 月 21 日前后' }, { name: '秋分', lam: 180, date: '9 月 23 日前后' }, { name: '冬至', lam: 270, date: '12 月 22 日前后' }];
 const ASK = ['先猜一下（可以不猜）：在这个情境里，夏至这一天，哈尔滨的白天比广州——', ['长', '短', '一样长']];
@@ -41,7 +41,7 @@ export default {
     src: '课本第 10–12 页 · 第一章 第二节 地球运动的地理意义',
   },
 
-  create({ tag }) {
+  create({ tag, camera, aim }) {
     const group = new THREE.Group();
     const S = { th: thetaOf(0), t: 12, lat: 40, city: 2, other: 3, drag: null, play: false, rec: {}, guess: null, saw: new Set() };
     let W = null;
@@ -51,19 +51,22 @@ export default {
 
     // ---- 底座：一圈轨道，上面刻着二分二至 ----
     const ring = new THREE.Mesh(new THREE.TorusGeometry(R, 0.0022, 10, 160), brass); ring.rotation.x = Math.PI / 2; ring.position.y = 0.004; group.add(ring);
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(R + 0.024, 96), new THREE.MeshBasicMaterial({ color: 0xf6f1e4, transparent: true, opacity: 0.82 })); disc.rotation.x = -Math.PI / 2; disc.position.y = 0.0015; disc.raycast = () => {}; group.add(disc);          // 公转仪底下垫一层浅纸色，压住书页上密密的字
-    const keyTags = KEY.map((k) => { const a = thetaOf(k.lam) * D2R, p = new THREE.Vector3(Math.cos(a) * (R + 0.012), 0.006, -Math.sin(a) * (R + 0.012) - 0.004); const t = groundLabel(group, k.name, { x: p.x, y: 0.0025, z: p.z, h: 0.017, color: '#3a3020', opacity: 0.9 }); groundLabel(group, k.date, { x: p.x, y: 0.0025, z: p.z + 0.014, h: 0.0095, color: '#5a4d36', opacity: 0.85 }); const tick = new THREE.Mesh(new THREE.BoxGeometry(0.0015, 0.004, 0.012), brass); tick.position.set(Math.cos(a) * R, 0.004, -Math.sin(a) * R); tick.rotation.y = a; group.add(tick); return t; });          // 二分二至印在底座的纸面上：名字大，日期小一号、写在名字下面
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(R + 0.05, 96), new THREE.MeshBasicMaterial({ color: 0xf6f1e4, transparent: true, opacity: 0.82 })); disc.rotation.x = -Math.PI / 2; disc.position.y = 0.0015; disc.raycast = () => {}; disc.userData.noFrame = true; group.add(disc);          // 公转仪底下垫一层浅纸色，压住书页上密密的字
+    const floorTags = KEY.map((k) => { const a = thetaOf(k.lam) * D2R, anchor = new THREE.Group(); anchor.position.set(Math.cos(a) * (R + 0.026), 0.0025, -Math.sin(a) * (R + 0.026)); group.add(anchor); groundLabel(anchor, k.name, { h: 0.016, color: '#3a3020', opacity: 0.9 }); groundLabel(anchor, k.date, { z: 0.013, h: 0.009, color: '#5a4d36', opacity: 0.85 }); const tick = new THREE.Mesh(new THREE.BoxGeometry(0.0015, 0.004, 0.012), brass); tick.position.set(Math.cos(a) * R, 0.004, -Math.sin(a) * R); tick.rotation.y = a; group.add(tick); return anchor; });          // 二分二至印在底座的纸上；字每帧转向镜头，从哪边看都是正的
+    const camL = new THREE.Vector3();
+    const faceCam = () => { camera.getWorldPosition(camL); group.worldToLocal(camL); for (const t of floorTags) t.rotation.y = Math.atan2(camL.x - t.position.x, camL.z - t.position.z); };
     // 公转方向：轨道边上几个小箭头（从上往下看逆时针）
     for (let i = 0; i < 4; i++) { const a = (i * 90 + 45) * D2R, c = new THREE.Mesh(new THREE.ConeGeometry(0.003, 0.009, 8), brass); c.position.set(Math.cos(a) * R, 0.005, -Math.sin(a) * R); c.rotation.x = Math.PI / 2; c.rotation.z = 0; c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(-Math.sin(a), 0, -Math.cos(a))); group.add(c); }
 
     // ---- 太阳：一盏灯 ----
-    const SR = 0.048;          // 灯（太阳）比地球仪大一些：不按比例，但不让人以为太阳比地球小
-    const sunPost = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.007, SY - SR + 0.004, 16), dark); sunPost.position.y = (SY - SR + 0.004) / 2; group.add(sunPost);
-    const sunTex = canvasTex(512, 256, (g, w, hh) => { const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, '#ffcf6a'); gr.addColorStop(0.5, '#ffe9a8'); gr.addColorStop(1, '#ffcf6a'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,170,60' : '255,250,220'},${0.12 + Math.random() * 0.2})`; g.beginPath(); g.arc(Math.random() * w, Math.random() * hh, 1 + Math.random() * 2.5, 0, 7); g.fill(); } });          // 太阳表面一粒粒的“米粒组织”（示意）
-    const sun = new THREE.Mesh(new THREE.SphereGeometry(SR, 48, 32), new THREE.MeshBasicMaterial({ map: sunTex })); sun.position.y = SY; group.add(sun);
+    const SR = 0.019;          // 灯（太阳）：公转仪中间的一盏灯泡，比地球仪小，靠光晕显出它是光源（大小、距离不按比例）
+    const sunPost = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.006, SY - SR * 1.4, 16), dark); sunPost.position.y = (SY - SR * 1.4) / 2; group.add(sunPost);
+    const bulbTex = canvasTex(256, 128, (g, w, hh) => { const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, '#fff8e2'); gr.addColorStop(0.55, '#ffe9b0'); gr.addColorStop(1, '#ffd98a'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); });          // 磨砂灯泡：上亮下暖
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(SR, 40, 28), new THREE.MeshBasicMaterial({ map: bulbTex })); sun.position.y = SY; group.add(sun);
+    const socket = new THREE.Mesh(new THREE.CylinderGeometry(SR * 0.55, SR * 0.42, SR * 0.7, 24), brass); socket.position.y = SY - SR * 1.05; group.add(socket);          // 黄铜灯座
     const glowTex = canvasTex(256, 256, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,230,160,0.95)'); gr.addColorStop(0.35, 'rgba(255,200,110,0.45)'); gr.addColorStop(1, 'rgba(255,190,90,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false })); glow.scale.set(SR * 5, SR * 5, 1); glow.position.y = SY; glow.raycast = () => {}; group.add(glow);
-    const glow2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, opacity: 0.45, blending: THREE.AdditiveBlending })); glow2.scale.set(SR * 2.6, SR * 2.6, 1); glow2.position.y = SY; glow2.raycast = () => {}; group.add(glow2);          // 里圈一层亮的光晕
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false })); glow.scale.set(SR * 7, SR * 7, 1); glow.position.y = SY; glow.raycast = () => {}; group.add(glow);
+    const glow2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, opacity: 0.45, blending: THREE.AdditiveBlending })); glow2.scale.set(SR * 3.2, SR * 3.2, 1); glow2.position.y = SY; glow2.raycast = () => {}; group.add(glow2);          // 里圈一层亮的光晕
 
     // ---- 地球仪：小车沿轨道走，上面立着地球；地轴斜 23°26′，始终指向同一个方向 ----
     const cart = new THREE.Group(); group.add(cart);
@@ -82,7 +85,7 @@ export default {
           float d = dot(normalize(vN), normalize(sunDir));
           vec3 tex = texture2D(map, vUv).rgb;
           vec3 day = tex * 1.05;          // 真实的海陆（NOAA ETOPO1 地形）
-          vec3 night = tex * 0.16 + vec3(0.05,0.07,0.16);
+          vec3 night = tex * 0.3 + vec3(0.03,0.04,0.11);          // 夜里暗下来，但海陆还认得出
           float k = smoothstep(-0.035, 0.035, d);
           vec3 c = mix(night, day * (0.72 + 0.28 * max(d, 0.0)), k);
           c += vec3(1.0,0.85,0.55) * 0.18 * (1.0 - abs(d) / 0.06) * step(abs(d), 0.06);          // 晨昏线上淡淡一道暖光
@@ -116,6 +119,8 @@ export default {
 
     // ---- 摆好：按日期、时刻 ----
     const dec = () => decOf(lamOf(S.th));
+    // 取景：镜头总从“日地连线”的侧面看地球仪（地球仪在左、灯在右），晨昏线、地轴的倾斜方向都看得清；换日期时镜头平滑地转过去
+    const aimNow = () => { const a = S.th * D2R, e = 26 * D2R; aim?.([-Math.sin(a) * Math.cos(e), Math.sin(e), -Math.cos(a) * Math.cos(e)]); };
     const layout = () => {
       S.th = thetaOf(snapSeason(lamOf(S.th)));
       const a = S.th * D2R, ep = new THREE.Vector3(Math.cos(a) * R, 0, -Math.sin(a) * R);
@@ -129,7 +134,7 @@ export default {
       const d = dec(), sub = ec.clone().addScaledVector(sdir, ER * 1.01); subDot.position.copy(sub);
       ray.geometry.setFromPoints([new THREE.Vector3(0, SY, 0), sub]); ray.computeLineDistances();
       tSub.position.set(sub.x, sub.y - 0.016, sub.z); tSub.setText(`直射 ${latName(d * R2D)}`);
-      const np = new THREE.Vector3(0, ER * 1.25, 0).applyQuaternion(tilt.quaternion).add(new THREE.Vector3(ep.x, SY, ep.z)); nTag.position.set(np.x, np.y + 0.01, np.z);
+      const np = new THREE.Vector3(0, ER * 1.25, 0).applyQuaternion(tilt.quaternion).add(new THREE.Vector3(ep.x, SY, ep.z)); nTag.position.set(np.x, np.y + 0.022, np.z);
       home.updateMatrixWorld(true); const hp = home.getWorldPosition(new THREE.Vector3()), op = other.getWorldPosition(new THREE.Vector3()), gp = group.getWorldPosition(new THREE.Vector3());
       const hl = group.worldToLocal(hp.clone()), ol = group.worldToLocal(op.clone());
       homeTag.position.set(hl.x, hl.y + 0.018, hl.z); homeTag.setText(`你家 ${hm(S.t)}`);
@@ -201,7 +206,7 @@ export default {
         else { const hitG = rc.intersectObject(globe, false)[0]; if (hitG) { const l = spin.worldToLocal(hitG.point.clone()).normalize(); S.lat = Math.max(-89.5, Math.min(89.5, Math.asin(l.y) * R2D)); S.city = -1; W?.citySeg.set(-1); } }          // 可以一直拖到极圈以内，看极昼、极夜
         S.saw.add('moved'); layout(); return true;
       },
-      up() { if (!S.drag) return false; const was = S.drag; S.drag = null; document.getElementById('c').style.cursor = ''; if (was === 'flag') layout(); return true; },          // 小旗松手：在新的纬度记一次
+      up() { if (!S.drag) return false; const was = S.drag; S.drag = null; document.getElementById('c').style.cursor = ''; if (was === 'flag') layout(); if (was === 'cart') aimNow(); return true; },          // 推完地球仪松手：镜头转到新位置的侧面          // 小旗松手：在新的纬度记一次
     };
 
     layout();
@@ -212,17 +217,17 @@ export default {
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.32, d: 0.32, h: 0.14 },
-      view: { elev: 24, azim: -52, lookY: 0.42, frameMargin: 1.04 },
+      view: { elev: 26, azim: -40, lookY: 0.42, frameMargin: 1.04 },
       pointer,
       mount(ui) {
-        const dateSeg = seg('推到哪一天（也可以直接推地球仪）', KEY.map((k) => k.name), (_, i) => { S.th = thetaOf(KEY[i].lam); layout(); }, { value: 0 });
+        const dateSeg = seg('推到哪一天（也可以直接推地球仪）', KEY.map((k) => k.name), (_, i) => { S.th = thetaOf(KEY[i].lam); layout(); aimNow(); }, { value: 0 });
         const time = slider('时刻（地方真太阳时；也可以按住地球仪左右拖）', { min: 0, max: 24, step: 1 / 60, value: S.t, fmt: (v) => hm(v), onInput: (v) => { S.t = v; S.play = false; if (W) W.play.textContent = '转一天'; layout(); } });
         const citySeg = seg('你家在', CITIES.map((c) => c.name), (_, i) => { S.city = i; S.lat = CITIES[i].lat; layout(); }, { value: S.city });
         const otherSeg = seg('和哪座城比', CITIES.map((c) => c.name), (_, i) => { S.other = i; layout(); }, { value: S.other });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawTable(); }, { value: -1 });
         const acts = buttons([
           { text: '转一天', onClick: () => { S.play = !S.play; S.played = 0; acts.btns[0].textContent = S.play ? '停一下' : '转一天'; } },
-          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { th: thetaOf(0), t: 12, lat: 40, city: 2, other: 3, play: false, played: 0, rec: {}, guess: null, saw: new Set(), said: {} }); dateSeg.set(0); time.set(12); citySeg.set(2); otherSeg.set(3); guess.set(-1); acts.btns[0].textContent = '转一天'; layout(); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { th: thetaOf(0), t: 12, lat: 40, city: 2, other: 3, play: false, played: 0, rec: {}, guess: null, saw: new Set(), said: {} }); dateSeg.set(0); time.set(12); citySeg.set(2); otherSeg.set(3); guess.set(-1); acts.btns[0].textContent = '转一天'; layout(); aimNow(); } },
         ]);
         const sky = h('canvas', { class: 'wx-map', width: 320, height: 230 });
         const table = h('div', {});
@@ -230,9 +235,9 @@ export default {
         ui.data.append(h('div', { class: 'bar-title' }, '你记下的'), table);
         W = { ui, sky, table, time, citySeg, dateSeg, play: acts.btns[0] };
         ui.status('这是一台“灯 + 地球仪”：中间的灯是太阳。<b>推着地球仪</b>沿轨道走到夏至、冬至，看地轴的方向、太阳直射点和你家的天空怎么变。');
-        layout();
+        layout(); aimNow();
       },
-      update(dt) { sun.rotation.y += dt * 0.05;
+      update(dt) { faceCam();
         labels.forEach((l) => l.tick(dt));
         if (S.play) { S.t = (S.t + dt * 3) % 24; S.played = (S.played || 0) + dt * 3; if (S.played >= 24) { S.play = false; S.played = 0; if (W) W.play.textContent = '转一天'; } W?.time.set(S.t); layout(); }          // 转满一天自动停
       },
