@@ -1,0 +1,495 @@
+[
+  {
+    "id": "fdc1a869-f946-3f99-8917-a90564f41b92",
+    "title": "第一章 宇宙中的地球",
+    "rich_title": "第一章 宇宙中的地球",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "fdc1a869-f946-3f99-8917-a90564f41b92",
+    "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+    "create_time": "2023-06-15T19:04:42.017+0800",
+    "update_time": "2023-06-15T19:04:42.017+0800",
+    "child_nodes": [
+      {
+        "id": "a6e334ef-f2bd-306a-ab87-14c9b1bc37a5",
+        "title": "第一节 地球的宇宙环境",
+        "rich_title": "第一节 地球的宇宙环境",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fdc1a869-f946-3f99-8917-a90564f41b92/a6e334ef-f2bd-306a-ab87-14c9b1bc37a5",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:42.220+0800",
+        "update_time": "2023-06-15T19:04:42.220+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "75b0adf6-f424-3702-bad0-cfe561596679",
+        "title": "第二节 太阳对地球的影响",
+        "rich_title": "第二节 太阳对地球的影响",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fdc1a869-f946-3f99-8917-a90564f41b92/75b0adf6-f424-3702-bad0-cfe561596679",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:42.447+0800",
+        "update_time": "2023-06-15T19:04:42.447+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d76170e2-8300-3720-b503-e6a1cc5489ea",
+        "title": "第三节 地球的历史",
+        "rich_title": "第三节 地球的历史",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fdc1a869-f946-3f99-8917-a90564f41b92/d76170e2-8300-3720-b503-e6a1cc5489ea",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:42.651+0800",
+        "update_time": "2023-06-15T19:04:42.651+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5150eee9-087a-3424-be16-f661b134d500",
+        "title": "第四节 地球的圈层结构",
+        "rich_title": "第四节 地球的圈层结构",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fdc1a869-f946-3f99-8917-a90564f41b92/5150eee9-087a-3424-be16-f661b134d500",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:42.844+0800",
+        "update_time": "2023-06-15T19:04:42.844+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a05fe81d-e3db-35f8-8e17-be17ae9879f4",
+        "title": "问题研究  火星基地应该是什么样子",
+        "rich_title": "问题研究  火星基地应该是什么样子",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fdc1a869-f946-3f99-8917-a90564f41b92/a05fe81d-e3db-35f8-8e17-be17ae9879f4",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:43.035+0800",
+        "update_time": "2023-06-15T19:04:43.035+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "a307b05f-60b2-372f-b7cc-6d13f7adc35a",
+    "title": "第二章 地球上的大气",
+    "rich_title": "第二章 地球上的大气",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "a307b05f-60b2-372f-b7cc-6d13f7adc35a",
+    "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+    "create_time": "2023-06-15T19:04:43.236+0800",
+    "update_time": "2023-06-15T19:04:43.236+0800",
+    "child_nodes": [
+      {
+        "id": "eb074f37-1475-38d6-966b-de17f7a41bd1",
+        "title": "第一节 大气的组成和垂直分层",
+        "rich_title": "第一节 大气的组成和垂直分层",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a307b05f-60b2-372f-b7cc-6d13f7adc35a/eb074f37-1475-38d6-966b-de17f7a41bd1",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:43.445+0800",
+        "update_time": "2023-06-15T19:04:43.445+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "187766aa-ae00-390f-a242-f0a489b803d1",
+        "title": "第二节 大气受热过程和大气运动",
+        "rich_title": "第二节 大气受热过程和大气运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a307b05f-60b2-372f-b7cc-6d13f7adc35a/187766aa-ae00-390f-a242-f0a489b803d1",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:43.648+0800",
+        "update_time": "2023-06-15T19:04:43.648+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d98e40cc-0fd2-3a26-8d41-8b76aade4c4f",
+        "title": "问题研究 何时“蓝天”常在`",
+        "rich_title": "问题研究 何时“蓝天”常在`",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a307b05f-60b2-372f-b7cc-6d13f7adc35a/d98e40cc-0fd2-3a26-8d41-8b76aade4c4f",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:43.848+0800",
+        "update_time": "2023-06-15T19:04:43.848+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "2a708c1d-f231-3d77-8ab9-dafefd24f42f",
+    "title": "第三章 地球上的水",
+    "rich_title": "第三章 地球上的水",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "2a708c1d-f231-3d77-8ab9-dafefd24f42f",
+    "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+    "create_time": "2023-06-15T19:04:44.050+0800",
+    "update_time": "2023-06-15T19:04:44.050+0800",
+    "child_nodes": [
+      {
+        "id": "c0e3b47f-8fcb-3e4f-b4b5-440fae1481c8",
+        "title": "第一节 水循环",
+        "rich_title": "第一节 水循环",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2a708c1d-f231-3d77-8ab9-dafefd24f42f/c0e3b47f-8fcb-3e4f-b4b5-440fae1481c8",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:44.241+0800",
+        "update_time": "2023-06-15T19:04:44.241+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c1b1e65b-5cd4-3f10-997d-1ac6c7b720c1",
+        "title": "第二节 海水的性质",
+        "rich_title": "第二节 海水的性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2a708c1d-f231-3d77-8ab9-dafefd24f42f/c1b1e65b-5cd4-3f10-997d-1ac6c7b720c1",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:44.445+0800",
+        "update_time": "2023-06-15T19:04:44.445+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e287f258-8a62-3485-b87d-5e915c635cd8",
+        "title": "第三节 海水的运动",
+        "rich_title": "第三节 海水的运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2a708c1d-f231-3d77-8ab9-dafefd24f42f/e287f258-8a62-3485-b87d-5e915c635cd8",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:44.664+0800",
+        "update_time": "2023-06-15T19:04:44.664+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "924bf1ae-2119-3512-a26b-b39a2933a12d",
+        "title": "问题研究 能否淡化海冰解决环渤海地区淡水短缺问题",
+        "rich_title": "问题研究 能否淡化海冰解决环渤海地区淡水短缺问题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2a708c1d-f231-3d77-8ab9-dafefd24f42f/924bf1ae-2119-3512-a26b-b39a2933a12d",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:44.855+0800",
+        "update_time": "2023-06-15T19:04:44.855+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "e2027967-820c-3bf1-b1b2-233727f16ac5",
+    "title": "第四章 地貌",
+    "rich_title": "第四章 地貌",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "e2027967-820c-3bf1-b1b2-233727f16ac5",
+    "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+    "create_time": "2023-06-15T19:04:45.074+0800",
+    "update_time": "2023-06-15T19:04:45.074+0800",
+    "child_nodes": [
+      {
+        "id": "1c9f0b73-e4a3-3460-ad2b-bcfb9785a246",
+        "title": "第一节 常见地貌类型",
+        "rich_title": "第一节 常见地貌类型",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "e2027967-820c-3bf1-b1b2-233727f16ac5/1c9f0b73-e4a3-3460-ad2b-bcfb9785a246",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:45.269+0800",
+        "update_time": "2023-06-15T19:04:45.269+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0f8073be-b8f9-32f8-a033-537edfeacc16",
+        "title": "第二节 地貌的观察",
+        "rich_title": "第二节 地貌的观察",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "e2027967-820c-3bf1-b1b2-233727f16ac5/0f8073be-b8f9-32f8-a033-537edfeacc16",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:45.456+0800",
+        "update_time": "2023-06-15T19:04:45.456+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "601cdb11-245c-3095-bd23-7a1332ecbb14",
+        "title": "问题研究 如何提升我国西南喀斯特峰丛山地的经济发展水平",
+        "rich_title": "问题研究 如何提升我国西南喀斯特峰丛山地的经济发展水平",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "e2027967-820c-3bf1-b1b2-233727f16ac5/601cdb11-245c-3095-bd23-7a1332ecbb14",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:45.649+0800",
+        "update_time": "2023-06-15T19:04:45.649+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "e8d4fb8e-31d1-3bd7-bc5e-1c661e368c7c",
+    "title": "第五章 植被与土壤",
+    "rich_title": "第五章 植被与土壤",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "e8d4fb8e-31d1-3bd7-bc5e-1c661e368c7c",
+    "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+    "create_time": "2023-06-15T19:04:45.835+0800",
+    "update_time": "2023-06-15T19:04:45.835+0800",
+    "child_nodes": [
+      {
+        "id": "0b54d339-05c7-3e1c-a31f-ea74386fb6ab",
+        "title": "第一节 植被",
+        "rich_title": "第一节 植被",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "e8d4fb8e-31d1-3bd7-bc5e-1c661e368c7c/0b54d339-05c7-3e1c-a31f-ea74386fb6ab",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:46.049+0800",
+        "update_time": "2023-06-15T19:04:46.049+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "67e7a059-de1d-320f-95c5-adcb3b40786b",
+        "title": "第二节 土壤",
+        "rich_title": "第二节 土壤",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "e8d4fb8e-31d1-3bd7-bc5e-1c661e368c7c/67e7a059-de1d-320f-95c5-adcb3b40786b",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:46.245+0800",
+        "update_time": "2023-06-15T19:04:46.245+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9f655a0b-d34c-304c-b32a-c4592fb0195a",
+        "title": "问题研究  如何让城市不再“看海”",
+        "rich_title": "问题研究  如何让城市不再“看海”",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "e8d4fb8e-31d1-3bd7-bc5e-1c661e368c7c/9f655a0b-d34c-304c-b32a-c4592fb0195a",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:46.446+0800",
+        "update_time": "2023-06-15T19:04:46.446+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "0271f72a-c283-3daf-afa9-17bc04a7f721",
+    "title": "第六章 自然灾害",
+    "rich_title": "第六章 自然灾害",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "0271f72a-c283-3daf-afa9-17bc04a7f721",
+    "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+    "create_time": "2023-06-15T19:04:46.648+0800",
+    "update_time": "2023-06-15T19:04:46.648+0800",
+    "child_nodes": [
+      {
+        "id": "a5c9a2e9-9fb6-3922-ab9a-f2c982187ef8",
+        "title": "第一节 气象灾害",
+        "rich_title": "第一节 气象灾害",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0271f72a-c283-3daf-afa9-17bc04a7f721/a5c9a2e9-9fb6-3922-ab9a-f2c982187ef8",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:46.841+0800",
+        "update_time": "2023-06-15T19:04:46.841+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a7696e29-9555-3e4a-83f6-0f83aad9f47c",
+        "title": "第二节 地质灾害",
+        "rich_title": "第二节 地质灾害",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0271f72a-c283-3daf-afa9-17bc04a7f721/a7696e29-9555-3e4a-83f6-0f83aad9f47c",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:47.055+0800",
+        "update_time": "2023-06-15T19:04:47.055+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "96d426ae-45a3-3b91-aecd-e2cbe4bc0eba",
+        "title": "第三节 防灾减灾",
+        "rich_title": "第三节 防灾减灾",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0271f72a-c283-3daf-afa9-17bc04a7f721/96d426ae-45a3-3b91-aecd-e2cbe4bc0eba",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:47.253+0800",
+        "update_time": "2023-06-15T19:04:47.253+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f51d9891-a833-3fde-b033-12f924dc85dd",
+        "title": "第四节 地理信息技术在防灾减灾中的应用",
+        "rich_title": "第四节 地理信息技术在防灾减灾中的应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0271f72a-c283-3daf-afa9-17bc04a7f721/f51d9891-a833-3fde-b033-12f924dc85dd",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:47.462+0800",
+        "update_time": "2023-06-15T19:04:47.462+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e702b6a8-f02f-363c-870a-4260796c7933",
+        "title": "问题研究  救灾物资储备库应该建在哪里",
+        "rich_title": "问题研究  救灾物资储备库应该建在哪里",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0271f72a-c283-3daf-afa9-17bc04a7f721/e702b6a8-f02f-363c-870a-4260796c7933",
+        "tree_id": "1dd2eefb-e7b6-4ef0-ac84-dc4b2e48dcc2",
+        "create_time": "2023-06-15T19:04:47.651+0800",
+        "update_time": "2023-06-15T19:04:47.651+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]
