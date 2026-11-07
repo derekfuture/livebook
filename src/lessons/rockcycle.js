@@ -74,11 +74,12 @@ export default {
       g.fillStyle = '#7a675a'; g.fillRect(0, 0, w, hh);          // 底下的老岩石（基底）
       const LAY = [['#cdb08a', 'sand'], ['#9a8676', 'shale'], ['#d6cdb8', 'lime'], ['#b89870', 'sand'], ['#8a7868', 'shale'], ['#c6b49a', 'lime']];
       const bed = (x, k) => { const fold = 0.006 * Math.exp(-(((x + 0.02) / 0.06) ** 2)); return 0.072 - k * 0.0075 + fold * (1 - k * 0.12) + 0.0012 * Math.sin(x * 60 + k); };          // 沉积岩层：在山岭下面被挤得拱起来一点
-      for (let k = 5; k >= 0; k--) {
+      for (let k = 0; k < 6; k++) {          // 从上往下画：每一层只盖住自己下面，留下上一层
         g.fillStyle = LAY[k][0]; g.beginPath(); g.moveTo(0, hh);
         for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(k ? bed(x, k) + 0.0075 : Math.max(ground(x), bed(x, 0) + 0.0075))); }          // 最上面一层一直铺到地面
         g.lineTo(w, hh); g.fill();
       }
+      g.fillStyle = '#7a675a'; g.beginPath(); g.moveTo(0, hh); for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(bed(x, 5))); } g.lineTo(w, hh); g.fill();          // 沉积岩层下面的老岩石
       for (let k = 0; k < 6; k++) {          // 每一层的纹理：砂岩是点，页岩是细线，石灰岩是砖块
         const kind = LAY[k][1];
         for (let i = 0; i < w; i += kind === 'lime' ? 22 : 3) {
@@ -140,7 +141,7 @@ export default {
       for (let k = 0; k < p.count; k++) {
         const x = p.getX(k), z = p.getZ(k), y = H(x, z); p.setY(k, y);
         const r = Math.hypot(x - VX, (z - ZD) * 0.95), cx = coastX(z), n = 0.5 + 0.5 * Math.sin(x * 520 + z * 330) * Math.sin(z * 410 - x * 150);
-        const flow = Math.exp(-(((z - ZD + 0.03 + (x - VX) * 0.6) / 0.007) ** 2)) * sm(0.004, 0.012, r) * (1 - sm(0.035, 0.05, r));          // 一道冷下来的熔岩流，顺着火山的后坡流下来
+        const fx = x - VX, fz = z - ZD, along = fx * -0.45 + fz * -0.89, across = Math.abs(fx * 0.89 - fz * 0.45), flow = along > 0.003 && along < 0.05 ? Math.exp(-((across / (0.003 + along * 0.12)) ** 2)) * (1 - sm(0.04, 0.05, along)) : 0;          // 一道冷下来的熔岩流：从火山口翻出来，顺着后坡一路往下
         if (x >= cx) c.setHex(0xcdb98e).lerp(c2.setHex(0x8a7c68), sm(cx + 0.005, cx + 0.06, x));          // 海底：近岸沙，远处泥
         else if (r < 0.007) c.setHex(0x3a2a24);          // 火山口
         else if (r < 0.032) c.setHex(0x5a5048).lerp(c2.setHex(0x7a7a58), sm(0.022, 0.032, r));          // 火山锥：火山灰、熔岩
@@ -166,8 +167,8 @@ export default {
     const foam = new THREE.Line(new THREE.BufferGeometry().setFromPoints(line((u) => { const z = -ZD + 2 * ZD * u; return new THREE.Vector3(coastX(z) + 0.0012, SEA_Y + 0.0004, z); }, 60)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 })); foam.raycast = () => {}; block.add(foam);
     // 河：一条贴着河谷的水带，从山岭流进海
     {
-      const P = [], I = [], N = 80, x0 = -0.008, x1 = SEA_X + 0.006;
-      for (let i = 0; i <= N; i++) { const x = x0 + ((x1 - x0) * i) / N, z = RIV(x), wdt = 0.0016 + 0.0026 * (i / N); for (const s of [-1, 1]) P.push(x, H(x, z + s * wdt) + 0.0006, z + s * wdt); if (i) { const a = 2 * i - 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
+      const P = [], I = [], N = 80, x0 = -0.008, x1 = coastX(RIV(SEA_X)) + 0.002;
+      for (let i = 0; i <= N; i++) { const x = x0 + ((x1 - x0) * i) / N, z = RIV(x), wdt = 0.0016 + 0.0026 * (i / N), y = Math.max(H(x, z) + 0.0012, SEA_Y + 0.0003); for (const s of [-1, 1]) P.push(x, y, z + s * wdt); if (i) { const a = 2 * i - 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }          // 河面是平的（两岸一样高），到河口和海面接上，不顺着海底往下走
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setIndex(I); geo.computeVertexNormals();
       const river = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x4f94cc, side: THREE.DoubleSide })); river.raycast = () => {}; block.add(river);
     }
@@ -201,7 +202,7 @@ export default {
     // 剖面上的字：地方的名字
     const F = (t, x, y, c = '#ffffff') => faceLabel(block, t, { x, y, z: ZD, h: 0.0075, color: c, stroke: 'rgba(40,30,20,0.6)' });
     F('岩浆', AT.chamber[0], AT.chamber[1] - 0.012); F('侵入岩体', AT.intrusion[0] + 0.03, AT.intrusion[1] + 0.006); F('深处：高温、高压', AT.meta[0] + 0.02, AT.meta[1] - 0.012); F('一层层沉积岩', AT.buried[0] + 0.03, AT.buried[1] - 0.004);
-    noteBadge(tag, '教学示意：竖直方向压缩了；各个过程的时间尺度差别很大（熔岩冷却结壳可能只要几天，抬升、风化、搬运、变质往往要很长的地质年代），动画不按真实时间比例').loc(block, XL + 0.012, -0.002, ZD + 0.012);
+    noteBadge(tag, '教学示意：竖直方向压缩了；剖面上的点纹、细线、砖纹是地质图上表示砂岩、页岩、石灰岩的符号；侵入体周围的变质以受热为主（接触变质），深处的波纹表示有片理的变质岩，并非所有变质岩都有片理；海底近岸沙、远处泥和低处阔叶林、高处针叶林都只是这个场景里的一种情形；各个过程的时间尺度差别很大（熔岩冷却结壳可能只要几天，抬升、风化、搬运、变质往往要很长的地质年代），动画不按真实时间比例').loc(block, XL + 0.012, -0.002, ZD + 0.012);
 
     // ---- 那块做了记号的石头：样子跟着它是什么岩石变；岩浆时会发光 ----
     const rockCv = document.createElement('canvas'); rockCv.width = 128; rockCv.height = 128;
