@@ -439,7 +439,7 @@ export default {
       // 瓶：水、玻璃片（伸进东西时滑开）
       jars.forEach((j, k) => {
         const J = S.jars[k];
-        j.setWater(S.noWater && k === 3 ? 0 : J.water); j.plate.position.x += ((J.open ? 0.03 : 0) - j.plate.position.x) * Math.min(1, h * 8);      // 玻璃片推开 j.plate.visible = true;
+        j.setWater(S.noWater && k === 3 ? 0 : J.water); j.plate.position.x += ((J.open ? 0.03 : 0) - j.plate.position.x) * Math.min(1, h * 8); j.plate.visible = true;      // 玻璃片推开
         j.water.material.color.setHex(J.lime ? 0xdde9ed : CHEM.water);                    // 澄清石灰水：几乎无色
         milkK[k] = J.lime && J.co2 ? Math.min(1, milkK[k] + h * 0.6) : 0; jarMilk[k].set(milkK[k]); jarMilk[k].update(t);
       });

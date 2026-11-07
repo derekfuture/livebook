@@ -141,7 +141,7 @@ export default {
     const balLabel = label('二氧化锰', '#1d1d20', 0.022, 0.0072); balLabel.position.set(-0.0245, 0.0105, 0.0327); bal.add(balLabel);
 
     // ================= 药匙、量筒（5 mL 过氧化氢溶液）、细口瓶、酒精灯、带火星的木条 =================
-    const sp = spatula({ color: MN }); sp.rotation.order = 'YXZ';      // 先绕勺柄翻（倒药），再转朝向 sp.heap.visible = false;
+    const sp = spatula({ color: MN }); sp.rotation.order = 'YXZ'; sp.heap.visible = false;      // 先绕勺柄翻（倒药），再转朝向；药匙一开始是空的
     const spHeap = new THREE.Mesh(new THREE.SphereGeometry(0.0052, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), paint(MN, { keep: true })); spHeap.scale.set(1.25, 0.8, 0.95); spHeap.position.y = 0.0004; spHeap.visible = false; sp.add(spHeap);      // 勺里的二氧化锰（黑色，保留本色）
     const spPick = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.02), new THREE.MeshBasicMaterial({ visible: false })); spPick.position.x = 0.05; spPick.userData.pick = true; sp.add(spPick);
     group.add(sp);
@@ -505,7 +505,7 @@ export default {
       const stirTo = S.mno2 === 'tube' ? clamp(S.flow / 3, 0, 1) : 0;
       S.stir += (stirTo - S.stir) * Math.min(1, h * (stirTo > S.stir ? 4 : 0.45));
       liqMat.color.lerpColors(new THREE.Color(0xe6f0f3), new THREE.Color(0x55585e), S.stir * 0.85);
-      heap.visible = S.mno2 === 'tube';
+      heap.visible = S.mno2 === 'tube'; sp.heap.visible = S.mno2 === 'spoon';          // 二氧化锰在哪就画在哪：药匙里只在取了药、还没加进试管时有
       heap.scale.set(1, 1 - S.stir * 0.45, 1);
       const fh = clamp(S.flow / 8, 0, 1) * 0.007;
       froth.visible = fh > 0.0004 && S.vol > 0; froth.scale.y = fh; froth.position.y = lt - TB;
