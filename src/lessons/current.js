@@ -55,14 +55,14 @@ export default {
     };
     const grass = canvasTex(256, 256, (g, w) => { g.fillStyle = '#a7ae85'; g.fillRect(0, 0, w, w); for (let i = 0; i < 6000; i++) { g.fillStyle = i % 2 ? 'rgba(62,78,44,0.16)' : 'rgba(241,227,192,0.2)'; g.fillRect(((Math.sin(i * 127.1) * 43758.5 % 1 + 1) % 1) * w, ((Math.sin(i * 311.7) * 9631.9 % 1 + 1) % 1) * w, 1, 2); } });
     const landMat = new THREE.MeshStandardMaterial({ map: grass, roughness: 0.94, color: 0xffffff });
-    // 沿岸受洋流影响的地方（定性）：东边大陆西岸中低纬寒流经过，岸上是沙漠；西边大陆东岸暖流经过，是湿润的森林；高纬西边大陆东岸寒流，苔原冰雪；东边大陆西岸暖流，有森林
+    // 沿岸受洋流影响的地方（定性）：东边大陆西岸中低纬寒流经过，岸上是沙漠；西边大陆东岸暖流经过，是湿润的森林；高纬西边大陆东岸寒流，苔原（低矮的苔藓、草和矮灌木）；东边大陆西岸暖流，有森林
     const COAST = [[XE, XE + 0.028, 30, 12, 'desert'], [XE, XE + 0.028, -12, -30, 'desert'], [XW - 0.028, XW, 30, 12, 'forest'], [XW - 0.03, XW, 70, 52, 'tundra'], [XE, XE + 0.03, 70, 52, 'forest']];
     const inCoast = (x, z, kind) => COAST.some(([x0, x1, n0, n1, k]) => k === kind && x >= x0 && x <= x1 && -z <= nOf(n0) && -z >= nOf(n1));
     const coastMat = (a, b) => {
       const cvL = document.createElement('canvas'); cvL.width = 256; cvL.height = 1024; const g = cvL.getContext('2d');
       g.fillStyle = g.createPattern(grass.image, 'repeat'); g.fillRect(0, 0, 256, 1024);
       const U = (x) => ((x - a) / (b - a)) * 256, V = (n) => ((-nOf(n) - landZ + landDepth / 2) / landDepth) * 1024;
-      for (const [x0, x1, n0, n1, k] of COAST) { if (x1 < a || x0 > b) continue; const c = { desert: '226,196,120', forest: '52,100,46', tundra: '236,240,242' }[k], y0 = V(n0), y1 = V(n1), gr = g.createLinearGradient(0, y0 - 18, 0, y1 + 18); gr.addColorStop(0, `rgba(${c},0)`); gr.addColorStop(0.15, `rgba(${c},0.88)`); gr.addColorStop(0.85, `rgba(${c},0.88)`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; g.fillRect(U(x0), y0 - 18, U(x1) - U(x0), y1 - y0 + 36); }
+      for (const [x0, x1, n0, n1, k] of COAST) { if (x1 < a || x0 > b) continue; const c = { desert: '226,196,120', forest: '52,100,46', tundra: '150,152,112' }[k], y0 = V(n0), y1 = V(n1), gr = g.createLinearGradient(0, y0 - 18, 0, y1 + 18); gr.addColorStop(0, `rgba(${c},0)`); gr.addColorStop(0.15, `rgba(${c},0.88)`); gr.addColorStop(0.85, `rgba(${c},0.88)`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; g.fillRect(U(x0), y0 - 18, U(x1) - U(x0), y1 - y0 + 36); }
       const tex = new THREE.CanvasTexture(cvL); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.94 });
     };
     const landBottom = 0.005, landDepth = NB + nOf(-SOUTH_OPEN), landZ = (-NB - nOf(SOUTH_OPEN)) / 2;
@@ -165,7 +165,7 @@ export default {
     const town = (x, n) => { const g = new THREE.Group(); for (const [dx, dz, hh] of [[-0.003, 0, 0.004], [0.003, 0.003, 0.006], [0, -0.004, 0.003]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.004, hh, 0.004), new THREE.MeshLambertMaterial({ color: 0xf3ede1 })); b.position.set(dx, hh / 2, dz); g.add(b); } g.position.copy(P3(x, n, relief(x, -n))); block.add(g); return g; };
     const townW = town(XW - 0.012, nOf(60)), townE = town(XE + 0.012, nOf(60));
     const tTownW = airLabel(block, '', { h: 0.0085, color: '#2c3245', icon: 'thermo', dim: 0 }), tTownE = airLabel(block, '', { h: 0.0085, color: '#2c3245', icon: 'thermo', dim: 0 });
-    const tHint = tag('<span>在海上点一下</span><small>放一只玩具鸭</small>', 'hint'), tScale = noteBadge(tag, '教学示意：大洋和大陆是理想化的，流速是示意，沿岸影响仅定性比较；赤道逆流、季风洋流本模型省略');
+    const tHint = tag('<span>在海上点一下</span><small>放一只玩具鸭</small>', 'hint'), tScale = noteBadge(tag, '教学示意：大洋和大陆是理想化的；沿岸的沙漠、森林、苔原借用两岸典型景观（如北大西洋两岸），范围只是示意，苔原以低矮植被为主、不是冰原；流速是示意，沿岸影响仅定性比较；赤道逆流、季风洋流本模型省略');
     const callout = airLabel(block, '', { h: 0.0085, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
     callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
     const say1 = (text, x, n) => { callout.position.set(x, G + 0.03, -n); callout.setText(text).setOn(true); calloutT = 4.5; };

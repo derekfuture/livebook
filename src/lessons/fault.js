@@ -191,7 +191,7 @@ export default {
       const jitter = S.shake > 0 ? Math.sin(S.shake * 90) * 0.0015 * S.shake : 0;
       if (v) {
         const up = 0.022 * d, dn = 0.016 * d;
-        vBlocks[0].position.set(-0.004 * S.s + jitter, up, 0); vBlocks[1].position.set(jitter, -dn, 0); vBlocks[2].position.set(0.004 * S.s + jitter, 0, 0);
+        const open = S.broken ? 0.004 * S.s : 0; vBlocks[0].position.set(-open + jitter, up, 0); vBlocks[1].position.set(jitter, -dn, 0); vBlocks[2].position.set(open + jitter, 0, 0);          // 断开以前岩块连成一整块，断开以后才分开
         vBlocks[1].scale.y = 1; vBlocks[1].position.y = -dn;
         buildRidge(S.e * Math.min(1, d * 1.5)); plain.material.opacity = sm(0.3, 0.8, S.e) * d;
         { const th = 0.012 * sm(0.1, 1, S.e) * d; sediment.visible = th > 0.0005; sediment.scale.y = Math.max(1e-4, th); sediment.position.set(0, H0 + th / 2, 0); plain.position.y = H0 + th + 0.0006; }          // 泥沙越积越厚，下降的岩块上成了平原
@@ -201,7 +201,7 @@ export default {
         buildRidge(0); gully.forEach((m) => (m.material.opacity = 0));
       }
       dress(v ? S.e * Math.min(1, d * 1.5) : 0, v ? 0.012 * sm(0.1, 1, S.e) * d : 0);
-      const pre = S.broken ? 0 : sm(0.1, BREAK, S.s);          // 断开之前：裂纹越来越多
+      const pre = S.broken ? 0.55 : sm(0.1, BREAK, S.s);          // 断开之前：裂纹越来越多；断开以后断层沿线留着破碎的纹
       cracks[0].material.opacity = cracks[1].material.opacity = v ? pre * 0.9 : 0; cracks[2].material.opacity = v ? 0 : pre * 0.9;
       placeTags();
       drawChart();

@@ -12,7 +12,7 @@ import { slider, buttons, note, seg } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, noteBadge } from './kit/labels.js';
-import { STAGES, stageName, RATE, STEP, cave, terrainHeight, joint } from './kit/karst.js';
+import { STAGES, stageName, RATE, STEP, cave, terrainHeight, joint, shifting } from './kit/karst.js';
 
 const BW = 0.11, BD = 0.11, GAP = 0.022, H0 = 0.09, N = 96;          // 一块的宽、深；块与块的间隔；原来的地面高度；网格密度
 const BLOCKS = [{ key: 'wet', rock: 'limestone', clim: 'wet', name: '湿润地区 · 石灰岩', x: -(BW + GAP) }, { key: 'dry', rock: 'limestone', clim: 'dry', name: '干旱地区 · 石灰岩', x: 0 }, { key: 'gra', rock: 'granite', clim: 'wet', name: '湿润地区 · 花岗岩', x: BW + GAP }];
@@ -124,7 +124,7 @@ export default {
       }
       if (b.clim === 'dry') for (let k = 0; k < 800 && ns < 120; k++) { const x = (R() - 0.5) * BW * 0.95, z = (R() - 0.5) * BD * 0.95, hg = height(b, P, x, z); if (slopeAt(x, z) < 0.8 && R() < 0.4) { m4.compose(pv.set(x, hg - 0.0002, z), q4.identity(), sv.setScalar(0.7 + R() * 0.6)); u.shrubs.setMatrixAt(ns++, m4); } }          // 干旱：零星的灌丛
       u.houses.count = nh; u.trees.count = nt; u.shrubs.count = ns; u.houses.instanceMatrix.needsUpdate = true; u.trees.instanceMatrix.needsUpdate = true; if (u.trees.instanceColor) u.trees.instanceColor.needsUpdate = true; u.shrubs.instanceMatrix.needsUpdate = true;
-      const sn = b.rock === 'granite' ? null : stageName(t); u.stageL.setText(sn ?? (b.rock === 'granite' ? '不出现喀斯特形态' : t > 0 ? '刚开始溶蚀' : '')).setOn(S.time > 0);
+      const sn = b.rock === 'granite' ? null : stageName(t); u.stageL.setText(sn === '峰丛' && shifting(t) ? '峰丛 → 峰林（过渡中）' : sn ?? (b.rock === 'granite' ? '不出现喀斯特形态' : t > 0 ? '刚开始溶蚀' : '')).setOn(S.time > 0);
       if (sn) { (S.seen[b.key] ||= new Set()).add(sn); }
     };
     // 切面：一层层石灰岩（或花岗岩）、裂隙、地下的溶洞和钟乳石
@@ -205,7 +205,7 @@ export default {
         if (!ht) { aHover.userData.want = 0; return false; }
         const u = units.find((q) => q.top === ht.object), l = u.g.worldToLocal(ht.point.clone()), t = tOf(u.b), hg = l.y, lowFlat = hg < H0 - 0.04 && t > 0.3;
         const relTop = (hg - (H0 - 0.05 * sm(0.14, 0.62, t) - 0.008 * sm(0.75, 1, t))) / Math.max(0.001, H0 - 0.03), sn = stageName(t);          // 这一点比溶低的地面高出多少：高的是峰体，低平的是洼地
-        const nm = u.b.rock === 'granite' ? '花岗岩：不出现喀斯特形态（风化、侵蚀没有模拟）' : t < 0.05 ? '石灰岩的地面' : t < 0.18 ? '溶沟：顺着裂隙溶出的沟' : lowFlat && relTop < 0.08 ? (u.b.clim === 'wet' && t > 0.5 ? '洼地：底部平坦的，可以是坝子（农耕区）' : '洼地') : sn === '洼地' ? '洼地边上残留的岩体' : sn ? `${sn}${sn === '峰丛' ? '：基部相连的成片山峰' : sn === '峰林' ? '：一座座分开的峰' : ''}` : '石灰岩';
+        const nm = u.b.rock === 'granite' ? '花岗岩：不出现喀斯特形态（风化、侵蚀没有模拟）' : t < 0.05 ? '石灰岩的地面' : t < 0.18 ? '溶沟：顺着裂隙溶出的沟' : lowFlat && relTop < 0.08 ? (u.b.clim === 'wet' && t > 0.5 ? '洼地：底部平坦的，可以是坝子（农耕区）' : '洼地') : sn === '洼地' ? '洼地边上残留的岩体' : sn ? `${sn}${sn === '峰丛' ? (shifting(t) ? '：正在变成峰林，峰与峰之间的连接越来越低' : '：基部相连的成片山峰') : sn === '峰林' ? '：一座座分开的峰' : ''}` : '石灰岩';
         aHover.setText(nm); const wp = block.worldToLocal(ht.point.clone()); aHover.position.set(wp.x, wp.y + 0.012, wp.z); aHover.userData.want = 1; return false;
       },
     };

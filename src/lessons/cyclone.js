@@ -59,21 +59,58 @@ export default {
     const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL + 0.02, 0.15, ZN * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     frameBox.position.y = LIFT + 0.075; frameBox.raycast = () => {}; group.add(frameBox);
 
-    // ---- 地块：三层土，顶面是一张等压线图 ----
+
+    // 封闭高度地块：四周接到同一底面，纹理只作中性表面细节。
+    const solidLand = (cx, width, depth, height, material, sideMaterial) => {
+      const geo = new THREE.PlaneGeometry(width, depth, 96, 64); geo.rotateX(-Math.PI / 2);
+      const p = geo.attributes.position;
+      for (let i = 0; i < p.count; i++) p.setY(i, height(p.getX(i), p.getZ(i)));
+      geo.computeVertexNormals(); const mesh = new THREE.Mesh(geo, material); mesh.position.x = cx; block.add(mesh);
+      const positions = [], uv = [], indices = [];
+      for (let edge = 0; edge < 4; edge++) for (let i = 0; i <= 96; i++) {
+        const t = i / 96, x = edge < 2 ? (t - 0.5) * width : (edge === 2 ? -1 : 1) * width / 2, z = edge < 2 ? (edge === 0 ? -1 : 1) * depth / 2 : (t - 0.5) * depth;
+        const j = positions.length / 3, y = height(x, z); positions.push(x, y, z, x, 0, z); uv.push(t * 2, 1, t * 2, 0);
+        if (i < 96) indices.push(j, j + 1, j + 2, j + 1, j + 3, j + 2);
+      }
+      const wall = new THREE.BufferGeometry(); wall.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); wall.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); wall.setIndex(indices); wall.computeVertexNormals();
+      const sides = new THREE.Mesh(wall, sideMaterial); sides.position.x = cx; block.add(sides);
+      const bottom = new THREE.Mesh(new THREE.PlaneGeometry(width, depth).rotateX(Math.PI / 2), sideMaterial); bottom.position.x = cx; block.add(bottom); return mesh;
+    };
+    // 独立的装饰随机数不改变云雨、辐射粒子的原有随机序列。
+    let scenerySeed = 821; const sceneryRandom = () => ((scenerySeed = scenerySeed * 16807 % 2147483647) / 2147483647);
+    const grove = (points, height, scale = 1) => {
+      const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.00045, 0.00065, 0.004, 6).translate(0, 0.002, 0), new THREE.MeshStandardMaterial({ color: 0x735a40, roughness: 1 }), points.length);
+      const crowns = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.0032, 1).scale(1, 1.25, 1).translate(0, 0.006, 0), new THREE.MeshStandardMaterial({ roughness: 0.9 }), points.length);
+      const dummy = new THREE.Object3D(), color = new THREE.Color();
+      points.forEach(([x, z], i) => { dummy.position.set(x, height(x, z), z); dummy.rotation.y = sceneryRandom() * 6.28; dummy.scale.setScalar(scale * (0.7 + sceneryRandom() * 0.5)); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix); crowns.setMatrixAt(i, dummy.matrix); color.setHSL(0.25 + sceneryRandom() * 0.06, 0.32, 0.28 + sceneryRandom() * 0.13); crowns.setColorAt(i, color); });
+      trunks.raycast = crowns.raycast = () => {}; block.add(trunks, crowns);
+    };
+    // 乡村地形保持低于知识图层，河道与田野不承担气压或风向编码。
     const BASE = import.meta.env.BASE_URL || '/';
-    const strataTex = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`, (t) => { t.needsUpdate = true; }); strataTex.colorSpace = THREE.SRGBColorSpace; strataTex.wrapS = THREE.RepeatWrapping;
-    const sideM = (rep, c) => { const t = strataTex.clone(); t.repeat.set(rep, 1); t.wrapS = THREE.RepeatWrapping; return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
-    const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, G - 0.001, ZN * 2), [sideM(1.2, 0.9), sideM(1.2, 0.78), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sideM(1.5, 0.97), sideM(1.5, 0.82)]);          // 侧面是一层层的岩层（贴图），朝镜头那两面亮一点
-    soil.position.y = (G - 0.001) / 2; block.add(soil);
-    const rim = new THREE.LineSegments(new THREE.EdgesGeometry(soil.geometry), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); rim.raycast = () => {}; soil.add(rim);
+    const riverX = (z) => -0.09 + 0.016 * Math.sin(z * 30) + 0.006 * Math.sin(z * 68);
+    const landHeight = (x, z) => G - 0.006 + 0.0045 * Math.sin(x * 34 + 0.8) * Math.cos(z * 29) - 0.007 * Math.exp(-Math.pow((x - riverX(z)) / 0.009, 2));
+    const fieldTex = canvasTex(1024, 1024, (c, w) => {
+      c.fillStyle = '#94ad71'; c.fillRect(0, 0, w, w);
+      for (let j = 0; j < 10; j++) for (let i = 0; i < 9; i++) { c.fillStyle = ['#a6b77b', '#8fa76a', '#b5bc87', '#9bab73'][(i * 3 + j * 7) % 4]; c.fillRect(i * 120 + 2, j * 108 + 2, 116, 104); c.strokeStyle = 'rgba(69,91,42,0.12)'; for (let k = 0; k < 12; k++) { c.beginPath(); c.moveTo(i * 120 + 5, j * 108 + k * 9); c.lineTo(i * 120 + 115, j * 108 + k * 9); c.stroke(); } }
+      for (let i = 0; i < 22000; i++) { c.fillStyle = sceneryRandom() > 0.5 ? '#ffffff12' : '#273c2112'; c.fillRect(sceneryRandom() * w, sceneryRandom() * w, 2, 2); }
+    });
+    const strataTex = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`); strataTex.colorSpace = THREE.SRGBColorSpace; strataTex.wrapS = THREE.RepeatWrapping;
+    solidLand(0, XR - XL, ZN * 2, landHeight, lit(0xffffff, { map: fieldTex, side: THREE.DoubleSide }), lit(0xb8aa8e, { map: strataTex, side: THREE.DoubleSide }));
+    const waterGeo = new THREE.PlaneGeometry(0.013, ZN * 2, 8, 96); waterGeo.rotateX(-Math.PI / 2);
+    const wp = waterGeo.attributes.position;
+    for (let i = 0; i < wp.count; i++) { const z = wp.getZ(i), x = wp.getX(i); wp.setXYZ(i, x + riverX(z), G - 0.009 + 0.00018 * Math.sin(z * 780 + x * 900), z); }
+    waterGeo.computeVertexNormals(); const water = new THREE.Mesh(waterGeo, lit(0x6bafbb, { roughness: 0.27, metalness: 0.12, side: THREE.DoubleSide })); block.add(water);
+    for (const z of [-ZN, ZN]) { const face = new THREE.Mesh(new THREE.PlaneGeometry(0.013, 0.004), lit(0x518a98, { side: THREE.DoubleSide })); face.position.set(riverX(z), G - 0.011, z); block.add(face); }
+    const trees = []; for (let i = 0; i < 240; i++) { const x = XL + 0.008 + sceneryRandom() * 0.284, z = -ZN + 0.008 + sceneryRandom() * 0.224; if (Math.abs(x - riverX(z)) > 0.013 && Math.hypot(x, z) > 0.043 && Math.hypot(x - 0.07, z) > 0.025) trees.push([x, z]); }
+    grove(trees, landHeight, 0.8);
+    const villageWall = lit(0xe6decb), villageRoof = lit(0xa9785a);
+    for (let i = 0; i < 12; i++) { const x = 0.074 + (i % 4) * 0.014, z = -0.088 + Math.floor(i / 4) * 0.017, y = landHeight(x, z); const house = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.005, 0.009), villageWall); house.position.set(x, y + 0.0025, z); block.add(house); const roof = new THREE.Mesh(new THREE.ConeGeometry(0.007, 0.004, 4).rotateY(Math.PI / 4), villageRoof); roof.position.set(x, y + 0.007, z); block.add(roof); }
     const TW = 1600, TH = 1280;
-    const land = new Image(); land.onload = () => drawMapTex(); land.src = `${BASE}tex/geo/landscape-top.jpg`;
     const mapCanvas = document.createElement('canvas'); mapCanvas.width = TW; mapCanvas.height = TH;
     const mapTex = new THREE.CanvasTexture(mapCanvas); mapTex.colorSpace = THREE.SRGBColorSpace; mapTex.anisotropy = 8;
     const drawMapTex = () => {
       const g = mapCanvas.getContext('2d'), px = (x) => ((x - XL) / (XR - XL)) * TW, py = (n) => ((ZN - n) / (2 * ZN)) * TH;
-      if (land.complete && land.naturalWidth) { g.drawImage(land, 0, 0, TW, TH); g.fillStyle = 'rgba(250,248,236,0.6)'; g.fillRect(0, 0, TW, TH); }          // 底下是一片虚构的乡村（手绘贴图），上面蒙一层淡白，等压线才看得清
-      else { g.fillStyle = '#e9efd9'; g.fillRect(0, 0, TW, TH); }
+      g.clearRect(0, 0, TW, TH);
       g.lineJoin = 'round';
       const low = S.mode === 'low', levels = low ? [1000, 1002.5, 1005, 1007.5] : [1015, 1012.5, 1010, 1008.5];
       g.strokeStyle = '#b97a4f'; g.lineWidth = 3.5; g.fillStyle = '#9a4a1c'; g.font = '600 40px "Songti SC", serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -89,8 +126,8 @@ export default {
       g.textAlign = 'left'; g.fillText('北 ↑', 30, 44);
       mapTex.needsUpdate = true;
     };
-    const top = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZN * 2), new THREE.MeshBasicMaterial({ map: mapTex }));
-    top.rotation.x = -Math.PI / 2; top.position.y = G + 0.0002; block.add(top);
+    const top = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZN * 2), new THREE.MeshBasicMaterial({ map: mapTex, transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+    top.renderOrder = 4; top.rotation.x = -Math.PI / 2; top.position.y = G + 0.0002; block.add(top);
 
     // ---- 一缕缕空气：小团 + 身后的轨迹 ----
     const puffTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.7)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
@@ -186,10 +223,10 @@ export default {
     };
     const cloudTex = canvasTex(256, 256, (g, w) => {
       const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.85)'); gr.addColorStop(0.75, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(245,249,255,0.9)'); gr.addColorStop(0.75, 'rgba(199,215,233,0.42)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
       g.globalAlpha = 0.55; g.fillStyle = gr; g.fillRect(0, 0, w, w);
       for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2, r = w * 0.27, cx = w / 2 + Math.cos(a) * r, cy = w / 2 + Math.sin(a) * r * 0.85, rr = w * (0.13 + 0.05 * ((i * 7) % 3) / 2);
-        const gg = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gg.addColorStop(0, 'rgba(255,255,255,0.9)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fill(); }
+        const gg = g.createRadialGradient(cx, cy, 0, cx, cy, rr); gg.addColorStop(0, 'rgba(255,255,255,0.95)'); gg.addColorStop(0.55, 'rgba(236,243,251,0.65)'); gg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gg; g.beginPath(); g.arc(cx, cy, rr, 0, 7); g.fill(); }
     });
     const puffs = Array.from({ length: 60 }, () => { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, depthWrite: false })); m.renderOrder = 8; m.raycast = () => {}; m.userData.seed = [rnd(), rnd(), rnd(), rnd()]; block.add(m); return m; });
     const placeClouds = () => {
@@ -242,7 +279,7 @@ export default {
     };
     const homeWind = () => { const [vx, vn] = windAt(S.mode, hemi(), S.home[0], S.home[1]); return { vx, vn, ...windName(vx, vn) }; };
     const layoutHome = () => {
-      const [x, n] = S.home; home.position.copy(P(x, n, G));
+      const [x, n] = S.home; home.position.copy(P(x, n, landHeight(x, -n)));
       const w = homeWind(), blowing = S.released > 0;
       vane.visible = blowing && w.name !== '静风'; vane.rotation.y = Math.atan2(-w.vn, -w.vx);          // 风向标的箭头指着风吹来的方向
       homeTag.position.set(x, G + 0.04, -n); homeTag.setText(`你家 ${blowing ? `${w.name}${w.lean && w.lean !== w.name ? `（${w.lean}）` : ''} · ` : ''}${homeWx()}`);
