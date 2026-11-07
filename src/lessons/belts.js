@@ -13,7 +13,7 @@ import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
-import { BELTS, WINDS, windAt, relWind, beltNear, beltLat, sailing, tackLegs } from './kit/belts.js';
+import { BELTS, WINDS, windAt, relWind, beltNear, beltLat, sailing, tackLegs, tackTimes } from './kit/belts.js';
 
 const R = 0.075, CY = R + 0.02, D2R = Math.PI / 180;
 const SEASONS = [['1 月', -5], ['春分、秋分', 0], ['7 月', 5]];
@@ -185,7 +185,7 @@ export default {
     const ND = 26, dPos = new Float32Array(ND * 6), dGeo = new THREE.BufferGeometry(); dGeo.setAttribute('position', new THREE.BufferAttribute(dPos, 3));
     const rain = new THREE.LineSegments(dGeo, new THREE.LineBasicMaterial({ color: 0x5f7fa8, transparent: true, opacity: 0.8 })); rain.frustumCulled = false; cloud.add(rain);
     const drops = Array.from({ length: ND }, () => [(Math.random() - 0.5) * 0.013, Math.random(), (Math.random() - 0.5) * 0.006]);
-    [sun, cloud, rain].forEach((o) => { o.raycast = () => {}; });    S.lon = LON0; S.yaw = 0; S.tack = 1; S.tackT = 0.7; S.sail = false; S.mode = null;
+    [sun, cloud, rain].forEach((o) => { o.raycast = () => {}; });    S.lon = LON0; S.yaw = 0; S.tack = 1; S.tackT = null; S.sail = false; S.mode = null;
     const heading = () => 330;          // 航向北偏西 30°：船一路往西北偏北走（示意麦哲伦船队出海峡后北上），沿下面这条航线
     const tBoat = airLabel(group, '', { h: 0.0078, color: '#2c3245', icon: 'wind' }), tHint = tag('<span>按住小帆船</span><small>往北（上）推</small>', 'hint'), tScale = noteBadge(tag, '教学示意：环流圈的高度大大夸大了，不画海陆，风带界线和季节移动的度数是示意');
     const callout = airLabel(group, '', { h: 0.008, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
@@ -268,14 +268,17 @@ export default {
     const tickSail = (dt, t) => {
       const hd = heading(), sv = sailing(S.lat, hd, S.shift, S.rot), K = 8;          // K：最顺利时每秒沿航线走 8°（示意）
       if (sv.k !== S.mode) { S.mode = sv.k; W?.ui.status((S.resetNote ? '已恢复为地球自转、春秋分。' : '') + sv.text); S.resetNote = false; callout.show(false); calloutT = 0; }          // 换了一段航况，旧的那句话收掉
-      let h = hd, sp = K * sv.rate;
       const tk = sv.k === 'head' && tackLegs(S.lat, hd, S.shift, S.rot, NOGO);
-      if (tk) {          // 迎风换舷：目标航向在来风两侧 45° 的禁航区里，只能取禁航区两边能走的两个航向轮流走，平均下来沿着目标航向前进
-        S.tackT -= dt; if (S.tackT <= 0) { S.tack = -S.tack; S.tackT = 2.4 * (S.tack > 0 ? tk.a : tk.b) / (tk.a + tk.b) + 0.25; }
-        h = S.tack > 0 ? tk.h1 : tk.h2; sp = K * sv.rate * (tk.a + tk.b);          // 船沿换舷航向走得比沿航线的“前进”快
-      }
+      const go = (h, sp, d) => { const [dx, dy] = dirOf(h); S.lat = Math.min(END, S.lat + dy * sp * d); S.lon += (dx * sp * d) / Math.cos(S.lat * D2R); };
+      let h = hd;
+      if (tk) {          // 迎风换舷：目标航向在来风两侧 45° 的禁航区里，只能取禁航区两边能走的两个航向轮流走；两舷时长严格按 a:b，平均下来沿着目标航向前进
+        const [T1, T2] = tackTimes(tk), sp = K * sv.rate * (tk.a + tk.b);          // 船沿换舷航向走得比沿航线的“前进”快
+        if (S.tackT == null) { S.tack = 1; S.tackT = T1; }
+        for (let rem = dt; rem > 1e-9;) { const d = Math.min(rem, S.tackT); go(S.tack > 0 ? tk.h1 : tk.h2, sp, d); S.tackT -= d; rem -= d; if (S.tackT <= 1e-9) { S.tack = -S.tack; S.tackT = S.tack > 0 ? T1 : T2; } }          // 跨过换舷时刻的那点时间接着算到下一舷
+        h = S.tack > 0 ? tk.h1 : tk.h2;
+      } else { S.tackT = null; go(hd, K * sv.rate, dt); }
       S.yaw = sv.k === 'calm' || sv.k === 'doldrums' ? Math.sin(t * 0.7) * 14 : ((h - hd + 540) % 360) - 180;          // 没风：船头随便飘
-      const [dx, dy] = dirOf(h); S.lat = Math.min(END, S.lat + dy * sp * dt); S.lon += (dx * sp * dt) / Math.cos(S.lat * D2R); S.visited.add(Math.round(S.lat / 10));
+      S.visited.add(Math.round(S.lat / 10));
       wT -= dt; if (wT <= 0) { wT = 0.07; pushWake(boat.position); }
       moveBoat();
       if (S.lat >= END) { stopSail(); W?.ui.status('到了北纬 8° 附近，过了赤道低压带。一路上：西风带逆风，只能迎风换舷走之字形，前进很慢 → 副热带高压带风弱，几乎不动 → 东南信风顺风，最轻松 → 赤道低压带风弱多变、多对流雨，又难走了。'); }
@@ -298,7 +301,7 @@ export default {
         const l = globe.worldToLocal(hg.point.clone()).normalize();
         S.lat = Math.max(-62, Math.min(62, Math.asin(l.y) / D2R)); S.visited.add(Math.round(S.lat / 10)); layout2(); return true;
       },
-      up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; return true; },
+      up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; W?.ui.status(`船在 ${Math.abs(Math.round(S.lat))}°${S.lat >= 0 ? 'N' : 'S'}：${sailing(S.lat, heading(), S.shift, S.rot).text}`); return true; },
     };
 
     layout2();
@@ -313,15 +316,15 @@ export default {
       pointer,
       mount(ui) {
         const rotSeg = seg('地球', ['在自转', '理想化无偏转'], (_, i) => { stopSail(); S.rot = !i; if (i) { S.saw.norot = true; S.shift = 0; seaSegRef.set(1); } seaSegRef.el.style.opacity = i ? 0.4 : 1; seaSegRef.el.style.pointerEvents = i ? 'none' : ''; callout.show(false); calloutT = 0; layout2(); drawLog(); ui.status(i ? '理想化无地转偏转：下垫面均匀、理想化纬向受热、太阳直射赤道且没有地转偏向力时，每半球一个环流圈，近地面的风直直吹向赤道。三圈环流、信风、西风都没了。' : '地球在自转：空气一边流一边被偏转，形成三圈环流、七个气压带、六个风带。'); }, { value: 0 });
-        const seaSeg = seg('季节', SEASONS.map((x) => x[0]), (_, i) => { stopSail(); S.shift = SEASONS[i][1]; if (i !== 1) S.saw.season = true; callout.show(false); calloutT = 0; layout2(); drawLog(); }, { value: 1 });
+        const seaSeg = seg('季节', SEASONS.map((x) => x[0]), (_, i) => { const was = S.sail; stopSail(); S.shift = SEASONS[i][1]; if (i !== 1) S.saw.season = true; callout.show(false); calloutT = 0; layout2(); drawLog(); ui.status(`${was ? '换了季节，船先停下。' : ''}${SEASONS[i][0]}：气压带、风带${i === 1 ? '在春秋分的位置' : i === 2 ? '整体偏北' : '整体偏南'}。船在这里：${sailing(S.lat, heading(), S.shift, S.rot).text}`); }, { value: 1 });
         seaSegRef = seaSeg;          // 假如不自转：只看春分、秋分（季节移动先不考虑）
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([{ text: '开船：从南美南端一路往北', onClick: () => {
           if (S.sail) { stopSail(); ui.status('船停了。再按“开船”接着走，也可以直接拖船。'); return; }
           if (!S.rot || S.shift !== 0) { S.resetNote = true; S.rot = true; S.shift = 0; rotSeg.set(0); seaSeg.set(1); seaSeg.el.style.opacity = 1; seaSeg.el.style.pointerEvents = ''; layout2(); }          // 开船按课本的情境：地球自转、春分秋分
-          if (S.lat >= END - 0.5 || S.lat > -40) { S.lat = -52; S.lon = LON0; clearWake(); }
-          S.sail = true; S.mode = null; S.tack = 1; S.tackT = 0.65; acts.btns[0].textContent = '停船';
-        } }, { text: '重来', ghost: true, onClick: () => { ui.relock?.(); stopSail(); clearWake(); S.lon = LON0; S.mode = null; S.lat = -50; S.rot = true; S.shift = 0; S.saw = {}; S.guess = null; S.visited.clear(); rotSeg.set(0); seaSeg.set(1); guess.set(-1); callout.show(false); layout2(); drawLog(); ui.status('船在南美洲南端（约南纬 50°）。按<b>开船</b>，或按住<b>小帆船</b>往北推，看一路上的风。'); } }]);
+          if (S.lat >= END - 0.5) { S.lat = -52; S.lon = LON0; clearWake(); }          // 开到头了才从南美南端重新出发；中途停的从原地接着走
+          S.sail = true; S.mode = null; S.tackT = null; acts.btns[0].textContent = '停船';
+        } }, { text: '重来', ghost: true, onClick: () => { ui.relock?.(); stopSail(); clearWake(); S.lon = LON0; S.mode = null; S.lat = -50; S.rot = true; S.shift = 0; S.saw = {}; S.guess = null; S.visited.clear(); rotSeg.set(0); seaSeg.set(1); seaSeg.el.style.opacity = 1; seaSeg.el.style.pointerEvents = ''; guess.set(-1); callout.show(false); layout2(); drawLog(); ui.status('船在南美洲南端（约南纬 50°）。按<b>开船</b>，或按住<b>小帆船</b>往北推，看一路上的风。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 210 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '气压带和风带（北 → 南）'), chart, read, h('div', { class: 'note' }, '白色流线和环流圈上的小珠子示意空气怎么流，快慢不代表风速；船走得快慢只表示这段航程难不难，不代表真实船速。跨赤道转向未模拟。船上箭头指气流吹去方向。无偏转模型：下垫面均匀、理想化纬向受热、太阳直射赤道。'), guess.el, rotSeg.el, seaSeg.el, acts.el, note('地球上红色是高压带，蓝色是低压带；小箭头、白色流线和船上气流方向箭头均指吹去方向，仅示意方向，不表示风速。季节迁移只示意带的位置；跨赤道区不显示固定信风方向，转向过程未模拟。无偏转模型假定下垫面均匀、太阳直射赤道、理想化纬向受热。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);

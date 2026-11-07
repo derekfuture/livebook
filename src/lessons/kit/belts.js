@@ -62,3 +62,5 @@ export function tackLegs(lat, heading, shift = 0, rot = true, nogo = 45) {
   const d = (h) => [Math.sin((h * Math.PI) / 180), Math.cos((h * Math.PI) / 180)], h1 = from + nogo, h2 = from - nogo, [x1, y1] = d(h1), [x2, y2] = d(h2), [xc, yc] = d(heading), det = x1 * y2 - x2 * y1;
   return { from, h1: (h1 + 360) % 360, h2: (h2 + 360) % 360, a: (xc * y2 - x2 * yc) / det, b: (x1 * yc - xc * y1) / det };
 }
+/** 两舷各走多久（秒，动画用）：严格按 a:b，整个周期一起拉长保证短舷不少于 0.5 秒 */
+export function tackTimes(tk, cycle = 2.6, min = 0.5) { const k = Math.max(cycle / (tk.a + tk.b), min / Math.min(tk.a, tk.b)); return [k * tk.a, k * tk.b]; }
