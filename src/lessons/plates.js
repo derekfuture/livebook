@@ -11,12 +11,13 @@ import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, noteBadge } from './kit/labels.js';
-import { NAMES, SIX_NAMES, CLASS, OVERVIEW, ll2v, v2ll, profile, bearing, nearestBoundary, arrowFrame, sectionSides, elevationState, roundedHeight, sectionGeometry } from './kit/plates.js';
+import { NAMES, SIX_NAMES, CLASS, OVERVIEW, ll2v, v2ll, profile, dest, bearing, nearestBoundary, arrowFrame, sectionSides, elevationState, roundedHeight, sectionGeometry } from './kit/plates.js';
 import LINES, { GRID, HEIGHT } from './data/plates.js';
 import reliefUrl from './data/earth_relief.jpg';
 
 const R = 0.085, GC = new THREE.Vector3(-0.07, R + 0.022, 0), EXAG = 0.0042 / 9000;          // 地球半径、球心；1 米抬高多少（夸大，约 40 倍）
-const SL = { x: 0.105, w: 0.13, d: 0.04, base: 0.05 };          // 右边那块切片：中心、宽、厚、海平面在多高
+const SL = { w: 0.24, d: 0.1, base: 0.05, rows: 21 };          // 切开以后的切片：宽（2400 千米）、厚（沿边界方向 1000 千米）、海平面在多高；rows：沿边界方向采几条剖面
+const CUT = { slice: new THREE.Vector3(0.045, 0, 0.03), globe: new THREE.Vector3(-0.2, 0, -0.075), s: 0.5 };          // 切开以后轮到切片当主角：切片放大摆在画面中间，地球缩小退到左后方
 // 案例位置与解释：课本图 2.20—2.21；USGS This Dynamic Earth / Understanding plate motions。
 // 安第斯选在纳斯卡—南美段；日本海沟按 PB2002 标鄂霍次克—太平洋，不改称亚欧。
 const PRESETS = [['喜马拉雅山', 28.5, 85.2, '印度板块与亚欧板块大陆碰撞；印度板块在课本六大板块的划分里属于印度洋板块'], ['安第斯山', -32.65, -72, '纳斯卡板块向南美板块下方俯冲；南美板块在课本六大板块的划分里属于美洲板块'], ['大西洋中脊', -30, -13.5, '非洲板块与南美板块之间的洋底扩张'], ['东非裂谷', 5, 36.6, '非洲板块与索马里板块之间张裂；在课本六大板块的划分里属于非洲板块内部'], ['日本海沟', 38, 143.5, '太平洋板块向鄂霍次克板块下方俯冲（PB2002 划分）']];
@@ -36,14 +37,14 @@ export default {
     src: '课本原文节选（……表示删节）；第 29—30 页 · 第二章 第二节 构造地貌的形成',
   },
 
-  create({ tag, camera }) {
-    const group = new THREE.Group(), block = new THREE.Group(); group.add(block);
-    const S = { pick: null, seen: new Set(), drag: null, moved: false, rot: new THREE.Quaternion(), target: null };
+  create({ tag, camera, reframe }) {
+    const group = new THREE.Group(), block = new THREE.Group(), globeG = new THREE.Group(); group.add(block); block.add(globeG);          // globeG：地球连同底座，切开时一起缩小、退到一旁
+    const S = { k: 0, kTo: 0, e: 0, framed: true, pick: null, seen: new Set(), drag: null, moved: false, rot: new THREE.Quaternion(), target: null };
     let W = null; const terrain = elevationState(GRID); let pending = null;
     const hgt = (lat, lon) => terrain.sample(lat, lon);
 
     // ---- 地球：真实地形的晕渲贴图；顶点按高度往外推（夸大） ----
-    const pivot = new THREE.Group(); pivot.position.copy(GC); block.add(pivot);
+    const pivot = new THREE.Group(); pivot.position.copy(GC); globeG.add(pivot);
     const earthRot = new THREE.Group(); pivot.add(earthRot);
     const tex = new THREE.TextureLoader().load(reliefUrl); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
     tex.wrapS = THREE.RepeatWrapping; tex.offset.set((-180 - GRID.lon0 + GRID.dlon / 2) / (GRID.width * GRID.dlon), (-90 - GRID.lat0 - (GRID.height - 0.5) * GRID.dlat) / (-GRID.height * GRID.dlat));          // 贴图像元中心与真实采样节点对齐，接缝经度周期重复
@@ -61,7 +62,7 @@ export default {
       if (pending) { const q = pending; pending = null; choose(q.lat, q.lon, q.preset); } else { drawChart(); W?.ui.status(START); }
     };
     const atm = new THREE.Mesh(new THREE.SphereGeometry(R * 1.035, 64, 32), new THREE.MeshBasicMaterial({ color: 0x9cc6ef, transparent: true, opacity: 0.12, side: THREE.BackSide, depthWrite: false })); atm.raycast = () => {}; pivot.add(atm);          // 一圈淡淡的大气
-    { const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.036, 0.008, 48), new THREE.MeshStandardMaterial({ color: 0x8a6a40, metalness: 0.5, roughness: 0.4 })); stand.position.set(GC.x, 0.004, 0); block.add(stand); const ring = new THREE.Mesh(new THREE.TorusGeometry(R * 0.36, 0.0018, 8, 48), stand.material); ring.rotation.x = Math.PI / 2; ring.position.set(GC.x, 0.009, 0); block.add(ring); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.005, 0.016, 16), stand.material); post.position.set(GC.x, 0.014, 0); block.add(post); }          // 一个铜座托着
+    { const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.036, 0.008, 48), new THREE.MeshStandardMaterial({ color: 0x8a6a40, metalness: 0.5, roughness: 0.4 })); stand.position.set(GC.x, 0.004, 0); globeG.add(stand); const ring = new THREE.Mesh(new THREE.TorusGeometry(R * 0.36, 0.0018, 8, 48), stand.material); ring.rotation.x = Math.PI / 2; ring.position.set(GC.x, 0.009, 0); globeG.add(ring); const post = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.005, 0.016, 16), stand.material); post.position.set(GC.x, 0.014, 0); globeG.add(post); }          // 一个铜座托着
 
     // ---- 板块边界：红生长、绿汇聚、灰错动；箭头画在边界两侧，朝外（相离）或朝里（相向） ----
     const COL = { grow: 0xd8342c, die: 0x23a04e, slide: 0x8a8e96 };
@@ -85,15 +86,17 @@ export default {
     const mark = new THREE.Mesh(new THREE.SphereGeometry(0.0024, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffd23a })); mark.visible = false; earthRot.add(mark);
     const cutLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffd23a })); cutLine.visible = false; cutLine.raycast = () => {}; earthRot.add(cutLine);
     // ---- 切片：上面是ETOPO1 模型采样地形（夸大），前面画着两块板块怎么动 ----
-    const slice = new THREE.Group(); slice.position.set(SL.x, 0, 0); block.add(slice);
+    const slice = new THREE.Group(); slice.visible = false; block.add(slice);          // 没切开的时候不出现；切开时从地球上切开的那一点“拉出来”
     const faceCv = document.createElement('canvas'); faceCv.width = 1024; faceCv.height = 512; const faceTex = new THREE.CanvasTexture(faceCv); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.anisotropy = 8;
     const sFront = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: faceTex, side: THREE.DoubleSide, transparent: true })); slice.add(sFront);
     const sTop = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); slice.add(sTop);
-    const sSea = new THREE.Mesh(new THREE.BoxGeometry(SL.w, 0.0005, SL.d), new THREE.MeshLambertMaterial({ color: 0x3f7fb8, transparent: true, opacity: 0.5, depthWrite: false })); sSea.position.y = SL.base; sSea.renderOrder = 6; slice.add(sSea);
+    const sSea = new THREE.Mesh(new THREE.BoxGeometry(SL.w, 0.0005, SL.d), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, transparent: true, opacity: 0.32, depthWrite: false, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 2 })); sSea.position.y = SL.base; sSea.renderOrder = 6; slice.add(sSea);          // 海面往后让一点：海边的低地不和海面打架（不出条纹）
     const sBack = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({ color: 0x8a7a66, side: THREE.DoubleSide })); slice.add(sBack);
+    const sEnds = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); slice.add(sEnds);          // 两头和底面：切片是实心的一块
+    const tether = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xffd23a, dashSize: 0.004, gapSize: 0.003, transparent: true, opacity: 0 })); tether.raycast = () => {}; tether.frustumCulled = false; block.add(tether);          // 两条虚线：从地球上切线的两端连到切片两头，看得出切片是从哪切下来的
     const SV = (hm) => SL.base + hm * (0.028 / 9000);          // 切片上 1 米多高（比地球上夸大得更多，切片是近看）
     const blank = new THREE.Mesh(new THREE.BoxGeometry(SL.w, SL.base, SL.d), new THREE.MeshLambertMaterial({ color: 0xd8cbb4, transparent: true, opacity: 0.55 })); blank.position.y = SL.base / 2; slice.add(blank);          // 还没切的时候：一块空白的切片，等着
-    const aBlank = airLabel(slice, '在边界上点一下，这里会切开', { x: 0, y: SL.base + 0.012, z: 0, h: 0.0068, color: '#5a5040' });
+    const aBlank = airLabel(slice, '', { x: 0, y: SL.base + 0.012, z: 0, h: 0.0068, color: '#5a5040' }); blank.visible = false; aBlank.setOn(false);          // 旧的空白切片不再用：没切开时画面里只有地球
     const aForm = [0, 1].map(() => airLabel(slice, '', { h: 0.0072, color: '#a8341f', dim: 0 }));
     const aPlates = [0, 1].map(() => airLabel(slice, '', { h: 0.0068, color: '#1c2a44', dim: 0 }));
     const aSlice = airLabel(slice, '', { h: 0.0078, color: '#2c3245', dim: 0 });
@@ -108,28 +111,35 @@ export default {
       const cl = [];          // 切线：沿剖面方向画一道黄线
  for (let i = 0; i <= 40; i++) { const s = -1200 + 60 * i, [la2, lo2] = (() => { const D = 6371, d2 = s / D, la = nb.lat * Math.PI / 180, th = (nb.strike + 90) * Math.PI / 180, l2 = Math.asin(Math.sin(la) * Math.cos(d2) + Math.cos(la) * Math.sin(d2) * Math.cos(th)), o2 = nb.lon * Math.PI / 180 + Math.atan2(Math.sin(th) * Math.sin(d2) * Math.cos(la), Math.cos(d2) - Math.sin(la) * Math.sin(l2)); return [l2 * 180 / Math.PI, o2 * 180 / Math.PI]; })(); cl.push(new THREE.Vector3(...onR(la2, lo2, 1.038))); }
       cutLine.geometry.dispose(); cutLine.geometry = new THREE.BufferGeometry().setFromPoints(cl); cutLine.visible = true;
-      buildSlice(); turnTo(nb.lat, nb.lon); drawChart(); drawLog(); W?.ui.status(`${preset ? `<b>${preset[0]}</b>：${preset[3]}。<br>` : ''}<b>${C.name}</b>（${pairName(nb.l.p)}）：${C.how}。${nb.l.c === 'SUB' ? `下插板块：${NAMES[nb.l.subducting]}。` : ''}地表为 ETOPO1 地形模型采样值，地下为所选边界附近的机制示意。`);
+      buildSlice(); turnTo(nb.lat, nb.lon); S.e = 0; S.kTo = 1; S.framed = false; W?.backBtn && (W.backBtn.style.display = ''); drawChart(); drawLog();          // 轮到切片当主角 W?.ui.status(`${preset ? `<b>${preset[0]}</b>：${preset[3]}。<br>` : ''}<b>${C.name}</b>（${pairName(nb.l.p)}）：${C.how}。${nb.l.c === 'SUB' ? `下插板块：${NAMES[nb.l.subducting]}。` : ''}地表为 ETOPO1 地形模型采样值，地下为所选边界附近的机制示意。`);
     };
     const pairName = (p) => (p.slice(0, 2) === p.slice(2) ? `${NAMES[p.slice(0, 2)]}内部的张裂` : `${NAMES[p.slice(0, 2)]}和${NAMES[p.slice(2)]}`);
     // 切片的几何和前面的示意
     const buildSlice = () => {
       const pk = S.pick; if (!pk) return; blank.visible = false; aBlank.setOn(false); const pr = pk.pr, n = pr.length, X = (i) => -SL.w / 2 + (SL.w * i) / (n - 1);
-      const P = [], C2 = [], I = [], col = new THREE.Color();
-      for (let i = 0; i < n; i++) { const y = SV(pr[i].h); for (const z of [-SL.d / 2, SL.d / 2]) { P.push(X(i), y, z); col.set(pr[i].h < 0 ? 0x5a7f9a : pr[i].h > 4500 ? 0xe8e6e0 : pr[i].h > 2000 ? 0xa88a66 : 0x8fae64); C2.push(col.r, col.g, col.b); } if (i) { const a = 2 * i - 2; I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
+      // 顶面：沿边界方向（往后）再采 rows 条平行的 ETOPO1 剖面，拼成一块真实的地形；最前面那条就是剖面图的那一条
+      const rows = SL.rows, KM = SL.d * 10000 / (rows - 1), grid = [pr];
+      for (let k = 1; k < rows; k++) { const [la, lo] = dest(pk.lat, pk.lon, pk.strike, k * KM); grid.push(profile(hgt, la, lo, pk.strike, 1200, n)); }
+      const Z = (k) => SL.d / 2 - (SL.d * k) / (rows - 1), P = [], C2 = [], I = [], col = new THREE.Color(), shade = new THREE.Color();
+      for (let k = 0; k < rows; k++) for (let i = 0; i < n; i++) { const hm = grid[k][i].h, y = SV(hm); P.push(X(i), y, Z(k)); col.set(hm < -3000 ? 0x3d6f95 : hm < 0 ? 0x5d8fae : hm > 4500 ? 0xe9e7e2 : hm > 2000 ? 0x9a8064 : hm > 800 ? 0xa59a6a : 0x7fa25c); col.multiply(shade.setScalar(0.96 + 0.04 * ((Math.sin(i * 12.9898 + k * 78.233) * 43758.5453) % 1))); C2.push(col.r, col.g, col.b); if (k && i) { const a = (k - 1) * n + i - 1, b = k * n + i - 1; I.push(a, a + 1, b, a + 1, b + 1, b); } }          // 分层设色：深海、浅海、低地、高地、高山（雪线以上发白）
       sTop.geometry.dispose(); sTop.geometry = new THREE.BufferGeometry(); sTop.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); sTop.geometry.setAttribute('color', new THREE.Float32BufferAttribute(C2, 3)); sTop.geometry.setIndex(I); sTop.geometry.computeVertexNormals();
-      const face = (zf) => { const Q = [], U = [], J = []; for (let i = 0; i < n; i++) { const y = SV(pr[i].h); Q.push(X(i), y, zf, X(i), 0, zf); U.push(i / (n - 1), y / 0.1, i / (n - 1), 0); if (i) { const a = 2 * i - 2; J.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } } const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(Q, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g2.setIndex(J); g2.computeVertexNormals(); return g2; };
-      sFront.geometry.dispose(); sFront.geometry = face(SL.d / 2 + 0.0002); sBack.geometry.dispose(); sBack.geometry = face(-SL.d / 2);
+      const face = (zf, prof) => { const Q = [], U = [], J = []; for (let i = 0; i < n; i++) { const y = SV(prof[i].h); Q.push(X(i), y, zf, X(i), 0, zf); U.push(i / (n - 1), y / 0.1, i / (n - 1), 0); if (i) { const a = 2 * i - 2; J.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } } const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(Q, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g2.setIndex(J); g2.computeVertexNormals(); return g2; };
+      sFront.geometry.dispose(); sFront.geometry = face(SL.d / 2 + 0.0002, pr); sBack.geometry.dispose(); sBack.geometry = face(-SL.d / 2, grid[rows - 1]);
+      { const EP = [], EC = [], cTop = new THREE.Color(0x9a8a72), cBot = new THREE.Color(0xc46a32), push = (a, ca) => { EP.push(...a); EC.push(ca.r, ca.g, ca.b); };
+        for (const [i, x] of [[0, -SL.w / 2], [n - 1, SL.w / 2]]) for (let k = 1; k < rows; k++) { const z0 = Z(k - 1), z1 = Z(k), y0 = SV(grid[k - 1][i].h), y1 = SV(grid[k][i].h); for (const [a, ca] of [[[x, 0, z0], cBot], [[x, 0, z1], cBot], [[x, y1, z1], cTop], [[x, 0, z0], cBot], [[x, y1, z1], cTop], [[x, y0, z0], cTop]]) push(a, ca); }          // 两头：按每条剖面的端点围起来，下面软流层橙、上面岩石圈
+        for (const a of [[-SL.w / 2, 0.0004, SL.d / 2], [SL.w / 2, 0.0004, SL.d / 2], [SL.w / 2, 0.0004, -SL.d / 2], [-SL.w / 2, 0.0004, SL.d / 2], [SL.w / 2, 0.0004, -SL.d / 2], [-SL.w / 2, 0.0004, -SL.d / 2]]) push(a, cBot);
+        sEnds.geometry.dispose(); sEnds.geometry = new THREE.BufferGeometry(); sEnds.geometry.setAttribute('position', new THREE.Float32BufferAttribute(EP, 3)); sEnds.geometry.setAttribute('color', new THREE.Float32BufferAttribute(EC, 3)); sEnds.geometry.computeVertexNormals(); }
       paintSlice();
       // 任意剖面只报告采样极值，案例名称只由预设按钮提供，不绑定最高点或最低点。
       let hi = 0, lo = 0; pr.forEach((p, i) => { if (p.h > pr[hi].h) hi = i; if (p.h < pr[lo].h) lo = i; });
       const C = CLASS[pk.c], tagAt = (t, i, txt) => { t.position.set(X(i), SV(pr[i].h) + 0.012, SL.d / 2); t.setText(`${txt}约 ${roundedHeight(pr[i].h)} 米`).setOn(true); };
       tagAt(aForm[0], hi, '剖面最高点'); tagAt(aForm[1], lo, '剖面最低点');
       const [A, B] = sideNames(); aPlates[0].position.set(-SL.w / 2 + 0.02, 0.012, SL.d / 2 + 0.002); aPlates[0].setText(A).setOn(true); aPlates[1].position.set(SL.w / 2 - 0.02, 0.012, SL.d / 2 + 0.002); aPlates[1].setText(B).setOn(true);
-      aSlice.position.set(0, 0.11, 0); aSlice.setText(`${pk.preset ? pk.preset[0] + ' · ' : ''}${C.form}`).setOn(true);
+      aSlice.position.set(0, SL.base + 0.03, -SL.d / 2); aSlice.setText(`${pk.preset ? pk.preset[0] + ' · ' : ''}${C.form}`).setOn(true);
     };
     // 剖面负距离是有向边界的左侧，不用地形高低猜板块身份。
     const sideNames = () => { const sides = sectionSides(S.pick.line); return [NAMES[sides.left], NAMES[sides.right]]; };
-    const clearSlice = () => { blank.visible = true; aBlank.setOn(true); for (const m of [sTop, sFront, sBack]) { m.geometry.dispose(); m.geometry = new THREE.BufferGeometry(); } aForm.concat(aPlates, [aSlice]).forEach((t) => t.setOn(false)); mark.visible = cutLine.visible = false; };
+    const clearSlice = () => { S.kTo = 0; S.framed = false; for (const m of [sTop, sFront, sBack, sEnds]) { m.geometry.dispose(); m.geometry = new THREE.BufferGeometry(); } aForm.concat(aPlates, [aSlice]).forEach((t) => t.setOn(false)); mark.visible = cutLine.visible = false; };
     function paintSlice() {
       const pk = S.pick, g = faceCv.getContext('2d'), w = faceCv.width, hh = faceCv.height, n = pk.pr.length, X = (i) => (i / (n - 1)) * w, Y = (y) => hh - (y / 0.1) * hh, base = Y(SL.base);
       g.clearRect(0, 0, w, hh);
@@ -151,7 +161,7 @@ export default {
         arrow(ax, geom.slab(ax) + 25, sign * 100, geom.slab(ax + sign * 100) - geom.slab(ax));
         g.fillStyle = '#d8462c'; g.beginPath(); g.ellipse(wx, wy, 24, Math.min(12, (geom.slab(wx) - upperBottom(wx)) / 4), 0, 0, Math.PI * 2); g.fill();
         g.fillStyle = '#ffffff'; g.font = '600 20px "PingFang SC", sans-serif'; g.textAlign = 'center';
-        g.fillText('下插板片', mid + sign * 70, geom.slab(mid + sign * 70) + 32); g.fillText('地幔楔', wx, wy - 18); g.fillText('局部部分熔融', wx, wy + 28);
+        g.fillText('下插板片', mid + sign * 200, Math.min(hh - 40, geom.slab(mid + sign * 200) + 34)); g.fillText('地幔楔', wx - sign * 10, wy - 20); g.textAlign = sign > 0 ? 'left' : 'right'; g.fillText('局部部分熔融', wx + sign * 30, wy + 6); g.textAlign = 'center';          // 三处字错开，不叠在一起
         arrow(wx - sign * 35, geom.slab(wx) - 8, sign * 20, -24, '#d0e6f3');          // 板片释放流体，促进上覆地幔楔局部部分熔融
       } else if (k === 'CCB' || k === 'OCB') {
         crust(0, mid, hh * 0.36, '#c0a27a'); crust(mid, w, hh * 0.36, '#b4946c');
@@ -200,6 +210,21 @@ export default {
       W.log.replaceChildren(...rows); if (S.seen.size >= 3 && (S.seen.has('CCB') || S.seen.has('SUB'))) W.ui.unlock();
     };
 
+    // ---- 轮流当主角：切开以后切片放大到中间，地球缩小退到左后方；“回到地球”换回来 ----
+    const backToGlobe = () => { S.kTo = 0; S.framed = false; if (W) W.backBtn.style.display = 'none'; W?.ui.status('回到地球。再在别的边界上点一下，切开看。'); };
+    const tBack = tag('<span>回到地球</span>', 'view', backToGlobe);
+    const ease = (x) => x * x * (3 - 2 * x), vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3(), base0 = new THREE.Vector3(GC.x, 0, 0);
+    const stepView = (dt) => {
+      const sp = dt * 1.4; S.k = S.kTo > S.k ? Math.min(S.kTo, S.k + sp) : Math.max(S.kTo, S.k - sp); S.e = S.kTo ? Math.min(1, S.e + (S.k > 0.35 ? sp * 1.2 : 0)) : Math.max(0, S.e - sp * 1.6);          // 先让地球退开，切片再拉出来；回去时切片先缩回去
+      const k = ease(S.k), sc = 1 - (1 - CUT.s) * k; globeG.scale.setScalar(sc); vA.copy(base0).lerp(CUT.globe, k); globeG.position.copy(vA).addScaledVector(base0, -sc);
+      const e = ease(S.e); slice.visible = !!S.pick && S.e > 0.001;
+      if (slice.visible) { mark.getWorldPosition(vB); block.worldToLocal(vB); slice.position.copy(vB).lerp(CUT.slice, e); slice.scale.setScalar(0.04 + 0.96 * e); }          // 从地球上切开的那一点拉出来，长大、落到画面中间
+      const tOn = slice.visible && e > 0.25 && cutLine.visible; tether.material.opacity = tOn ? 0.85 * Math.min(1, (e - 0.25) / 0.4) : 0;
+      if (tOn) { const P = cutLine.geometry.attributes.position, n = S.pick.pr.length, a = vA.fromBufferAttribute(P, 0), pts = []; for (const [idx, i] of [[0, 0], [P.count - 1, n - 1]]) { vC.fromBufferAttribute(P, idx); earthRot.localToWorld(vC); block.worldToLocal(vC); const end = slice.localToWorld(new THREE.Vector3(i ? SL.w / 2 : -SL.w / 2, SV(S.pick.pr[i].h), SL.d / 2)); block.worldToLocal(end); pts.push(vC.x, vC.y, vC.z, end.x, end.y, end.z); } void a; tether.geometry.dispose(); tether.geometry = new THREE.BufferGeometry(); tether.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)); tether.computeLineDistances(); }
+      tBack.loc(block, CUT.globe.x, GC.y * CUT.s * 2 + 0.03, CUT.globe.z).show(S.kTo === 1 && S.k > 0.95);
+      if (!S.framed && S.k === S.kTo && (S.kTo ? S.e === 1 : S.e === 0)) { S.framed = true; reframe?.(); }          // 换好了：镜头按现在的东西重新取景
+    };
+
     // ---- 指针：拖地球转；点一下选边界 ----
     let down = null; const q0 = new THREE.Quaternion();
     const pointer = {
@@ -229,19 +254,20 @@ export default {
       debug: { pick: (lat, lon) => choose(lat, lon), snapshot: () => ({ status: terrain.status, pick: S.pick, pending }), reloadHeight: (promise = Promise.resolve(HEIGHT)) => loadElevation(promise) },
       mount(ui) {
         const pre = buttons(PRESETS.map((preset) => ({ text: preset[0], ghost: true, onClick: () => { S.moved = true; choose(preset[1], preset[2], preset); } })));
-        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.pick = null; pending = null; S.seen.clear(); S.moved = false; blank.visible = true; aBlank.setOn(true); for (const m of [sTop, sFront, sBack]) { m.geometry.dispose(); m.geometry = new THREE.BufferGeometry(); } mark.visible = cutLine.visible = false; aForm.concat(aPlates, [aSlice]).forEach((t) => t.setOn(false)); earthRot.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -1.5); drawChart(); drawLog(); ui.status(terrain.status === 'ready' ? START : terrain.status === 'failed' ? 'ETOPO1 地形数据不可用，暂无高程结论。' : 'ETOPO1 地形数据加载中，暂无高程结论。'); } }]);
+        const acts = buttons([{ text: '回到地球', onClick: backToGlobe }, { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.pick = null; pending = null; S.seen.clear(); S.moved = false; clearSlice(); S.e = 0; slice.visible = false; earthRot.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -1.5); drawChart(); drawLog(); ui.status(terrain.status === 'ready' ? START : terrain.status === 'failed' ? 'ETOPO1 地形数据不可用，暂无高程结论。' : 'ETOPO1 地形数据加载中，暂无高程结论。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 190 }), log = h('div', { class: 'timeline' });
         ui.controls.append(h('div', { class: 'bar-title' }, '剖面：ETOPO1 采样（约数）'), chart, h('div', { class: 'bar-title' }, '也可以直接去这些地方'), pre.el, acts.el, note('红线是生长边界，绿线是汇聚边界（含俯冲），灰线是转换边界。箭头朝外是相离，朝里是相向。'));
         ui.controls.append(h('a', { href: 'https://coastwatch.pfeg.noaa.gov/erddap/info/etopo180/index.html', target: '_blank', rel: 'noopener' }, 'ETOPO1 数据来源'), h('br'), h('a', { href: 'https://github.com/fraxen/tectonicplates/blob/master/original/README.md', target: '_blank', rel: 'noopener' }, 'PB2002 分类与极性说明'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
-        W = { ui, chart, log };
+        W = { ui, chart, log, backBtn: acts.btns[0] }; acts.btns[0].style.display = 'none';          // “回到地球”只在切开以后出现
         ui.status(terrain.status === 'ready' ? START : 'ETOPO1 地形数据加载中，暂无高程结论。'); drawChart(); drawLog();
       },
       update(dt) {
         labels.forEach((l) => l.tick(dt));
         if (S.target) { earthRot.quaternion.slerp(S.target, Math.min(1, dt * 3)); if (earthRot.quaternion.angleTo(S.target) < 0.002) S.target = null; }
         const cd = camDirLocal(); for (const l of plateL) { const n = l.userData.n.clone().applyQuaternion(earthRot.quaternion); l.userData.want = n.dot(cd) > 0.25 ? 1 : 0; }          // 转到背面的板块名字藏起来
-        tHint.loc(block, GC.x - R * 1.25, GC.y + R * 0.5, 0).show(!S.moved);
+        tHint.loc(block, GC.x - R * 1.25, GC.y + R * 0.5, 0).show(!S.moved); stepView(dt);
+        if (S.k > 0.5) for (const l of plateL) l.userData.want = 0;          // 地球缩小当配角时，板块名字先收起来
       },
     };
   },
