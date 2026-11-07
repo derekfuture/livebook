@@ -33,23 +33,31 @@ export default {
     src: '课本第 59–60 页 · 第三章 第三节 海水的运动（教材摘录，省略图号及脚注标记）',
   },
 
-  create({ tag }) {
+  create({ tag, reframe }) {
     const group = new THREE.Group();
-    const S = { D: 0, h: 6, play: false, drag: null, act: null, pick: null, seen: new Set(), did: {}, guess: null };
+    const S = { vk: 0, vTo: 0, framed: true, D: 0, h: 6, play: false, drag: null, act: null, pick: null, seen: new Set(), did: {}, guess: null };
     let W = null;
-    const block = new THREE.Group(); block.position.x = 0.075; group.add(block);
+    const block = new THREE.Group(); group.add(block);          // 海岸：平时是主角，放在中间
     const grain = canvasTex(256, 256, (g, w) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2200; i++) { const v = 150 + Math.random() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.2 + Math.random() * 0.3})`; g.fillRect(Math.random() * w, Math.random() * w, 1.6, 1.6); } }); grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.repeat.set(4, 2);
 
     // ---- 海岸：左边是陆地，往右是一段缓缓的潮间带滩涂，再往右是海底 ----
 
-    const NX = 120, geo = new THREE.PlaneGeometry(XR - XL, ZD * 2, NX, 1); geo.rotateX(-Math.PI / 2);
+    const NX = 120, NZ = 24, bump = (x, z) => (x < intertidal.hi ? 0.0018 : 0.0006) * Math.sin(x * 180 + z * 70) * Math.sin(z * 150 - x * 40) * Math.min(1, (ZD - z) / 0.012);          // 小起伏：前面切面处为 0，切面和课本的剖面一致
+    const ground = (x, z) => shore(x) + bump(x, z);
+    const geo = new THREE.PlaneGeometry(XR - XL, ZD * 2, NX, NZ); geo.rotateX(-Math.PI / 2);
     const col = new Float32Array(geo.attributes.position.count * 3); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    { const p = geo.attributes.position, c = new THREE.Color(); for (let k = 0; k < p.count; k++) { const x = p.getX(k); p.setY(k, shore(x)); c.set(x < intertidal.hi ? 0x9cbf6e : x < intertidal.lo ? 0x9d8e70 : 0xb9a57a); col.set([c.r, c.g, c.b], k * 3); } geo.computeVertexNormals(); }          // 岸上是草地，潮间带是灰褐的泥滩
+    { const p = geo.attributes.position, c = new THREE.Color(), c2 = new THREE.Color(); for (let k = 0; k < p.count; k++) { const x = p.getX(k), z = p.getZ(k), n = 0.5 + 0.5 * Math.sin(x * 610 + z * 330) * Math.sin(z * 470 - x * 190); p.setY(k, ground(x, z)); if (x < intertidal.hi - 0.004) c.setHex(0x8fb862).lerp(c2.setHex(0x9fbe6e), n * 0.6); else if (x < intertidal.hi + 0.006) c.setHex(0xcdb98a); else if (x < intertidal.lo) c.setHex(0x8f8268).lerp(c2.setHex(0x7a705c), n * 0.5); else c.setHex(0xb39f78).lerp(c2.setHex(0x9c8a68), n * 0.4); col.set([c.r, c.g, c.b], k * 3); } geo.computeVertexNormals(); }          // 岸上草地、一道沙滩，潮间带是灰褐的泥滩，再往外是海底的沙
     const land = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: grain })); block.add(land);
     const sideCv = document.createElement('canvas'); sideCv.width = 512; sideCv.height = 128;
-    { const g = sideCv.getContext('2d'); for (let i = 0; i < 512; i++) { const x = XL + (XR - XL) * (i / 511), ty = (1 - shore(x) / 0.07) * 128; g.fillStyle = '#9a7650'; g.fillRect(i, ty, 1, 6); g.fillStyle = '#c4a272'; g.fillRect(i, ty + 6, 1, 128); } }
+    { const g = sideCv.getContext('2d'); for (let i = 0; i < 512; i++) { const x = XL + (XR - XL) * (i / 511), ty = (1 - shore(x) / 0.07) * 128; g.fillStyle = '#7d5f40'; g.fillRect(i, ty, 1, 5); g.fillStyle = '#c4a272'; g.fillRect(i, ty + 5, 1, 128); } for (let y = 30; y < 128; y += 9) { g.fillStyle = `rgba(90,70,45,${0.12 + 0.1 * Math.sin(y)})`; g.fillRect(0, y, 512, 2); } g.globalCompositeOperation = 'destination-out'; for (let i = 0; i < 512; i++) { const x = XL + (XR - XL) * (i / 511), ty = (1 - shore(x) / 0.07) * 128; g.fillRect(i, 0, 1, ty); } }          // 剖面：土层、泥沙层，地面以上透明
     const sideTex = new THREE.CanvasTexture(sideCv); sideTex.colorSpace = THREE.SRGBColorSpace;
-    const sideM = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, 0.07), new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, alphaTest: 0.1 })); sideM.position.set(0, 0.035, ZD); block.add(sideM);
+    const sideM = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, 0.07), new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide })); sideM.position.set(0, 0.035, ZD); block.add(sideM);
+    const backM = sideM.clone(); backM.position.z = -ZD; block.add(backM);          // 背面也是同样的剖面：从哪个角度看都是实心的一块
+    { const P = []; for (const x of [XL, XR]) for (let k = 0; k < NZ; k++) { const z0 = -ZD + (2 * ZD * k) / NZ, z1 = z0 + (2 * ZD) / NZ, y0 = ground(x, z0), y1 = ground(x, z1); P.push(x, 0, z0, x, y0, z0, x, y1, z1, x, 0, z0, x, y1, z1, x, 0, z1); } P.push(XL, 0.0002, -ZD, XR, 0.0002, -ZD, XR, 0.0002, ZD, XL, 0.0002, -ZD, XR, 0.0002, ZD, XL, 0.0002, ZD); const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g2.computeVertexNormals(); block.add(new THREE.Mesh(g2, new THREE.MeshLambertMaterial({ color: 0xb08f62, side: THREE.DoubleSide }))); }          // 两头和底面
+    { const houseGeo = (() => { const parts = [[new THREE.BoxGeometry(0.0055, 0.004, 0.0075).translate(0, 0.002, 0), 0xf1ebe0], [new THREE.ConeGeometry(0.0055, 0.003, 4).rotateY(Math.PI / 4).scale(0.75, 1, 1).translate(0, 0.0055, 0), 0x8a4a3a]], P = [], Cc = [], c = new THREE.Color(); for (const [g3, hx] of parts) { const A = g3.toNonIndexed().attributes.position.array; P.push(...A); c.setHex(hx); for (let q = 0; q < A.length; q += 3) Cc.push(c.r, c.g, c.b); } const g4 = new THREE.BufferGeometry(); g4.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g4.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); g4.computeVertexNormals(); return g4; })();
+      const homes = new THREE.InstancedMesh(houseGeo, new THREE.MeshLambertMaterial({ vertexColors: true }), 14), trees = new THREE.InstancedMesh(new THREE.SphereGeometry(0.003, 7, 5).scale(1, 1.2, 1).translate(0, 0.0045, 0), new THREE.MeshLambertMaterial({ color: 0x4f8a3e }), 40), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), pv = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0), R2 = (k) => { const v = Math.sin(k * 91.7 + 3.1) * 43758.5453; return v - Math.floor(v); };
+      let nh = 0, nt = 0; for (let k = 0; k < 120 && (nh < 14 || nt < 40); k++) { const x = XL + 0.008 + R2(k) * (intertidal.hi - XL - 0.022), z = -ZD + 0.008 + R2(k + 50) * (2 * ZD - 0.03); if (R2(k + 99) < 0.4 && nh < 14) { m4.compose(pv.set(x, ground(x, z) - 0.0003, z), q.setFromAxisAngle(Y, R2(k + 7) < 0.5 ? 0 : Math.PI / 2), sc.setScalar(1)); homes.setMatrixAt(nh++, m4); } else if (nt < 40) { m4.compose(pv.set(x, ground(x, z) - 0.0003, z), q.identity(), sc.setScalar(0.7 + R2(k + 3) * 0.6)); trees.setMatrixAt(nt++, m4); } }
+      homes.count = nh; trees.count = nt; homes.raycast = trees.raycast = () => {}; block.add(homes, trees); }          // 岸上的渔村和树
     const water = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 1, ZD * 2 - 0.0006), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, transparent: true, opacity: 0.72, depthWrite: false })); water.renderOrder = 4; block.add(water);
     const lineM = new THREE.LineDashedMaterial({ color: 0x2a3140, dashSize: 0.003, gapSize: 0.002, transparent: true, opacity: 0.55 });
 
@@ -75,8 +83,9 @@ export default {
     for (let k = 0; k < 5; k++) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0014, 0.006, 6), new THREE.MeshLambertMaterial({ color: [0xd8553a, 0x3a6fb0, 0xe0b040][k % 3] })); const x = 0.02 + k * 0.012, z = 0.02 - (k % 2) * 0.02; p.position.set(x, shore(x) + 0.003, z); people.add(p); }          // 赶海的人
 
     // ---- 太阳—地球—月亮小盘（在海岸左边的书页上）：拖月亮绕地球走 ----
-    const orr = new THREE.Group(); orr.position.set(-0.2, 0.004, 0.03); orr.scale.setScalar(1.75); group.add(orr);          // 小盘放在海岸左前方的书页上，放大到和海岸差不多分量：月亮好按、好拖
+    const orr = new THREE.Group(); group.add(orr);          // 太阳—地球—月亮盘：平时缩小放在海岸左后方；点一下（或拖月亮）它就放大到中间当主角
     const disc = new THREE.Mesh(new THREE.CircleGeometry(0.05, 64), new THREE.MeshBasicMaterial({ color: 0x1f2735 })); disc.rotation.x = -Math.PI / 2; orr.add(disc);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.0016, 8, 96), new THREE.MeshStandardMaterial({ color: 0xb89656, metalness: 0.6, roughness: 0.35 })); rim.rotation.x = Math.PI / 2; orr.add(rim);          // 黄铜边：像一件仪器
     const earth = new THREE.Mesh(new THREE.SphereGeometry(0.009, 24, 16), new THREE.MeshLambertMaterial({ color: 0x4f8fc4, emissive: 0x10243a })); earth.position.y = 0.01; orr.add(earth);
     const bulge = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 24), new THREE.MeshBasicMaterial({ color: 0x8fc6ea, transparent: true, opacity: 0.55, depthWrite: false })); bulge.position.y = 0.01; orr.add(bulge);          // 鼓起来的海水（夸大）
     const bulgeBase = bulge.geometry.attributes.position.array.slice();
@@ -151,13 +160,33 @@ export default {
       const l = block.worldToLocal(ht.point.clone()), nm = o.userData.row != null ? `紫菜网帘：${S.netStates[o.userData.row]}` : o === staff ? '潮位尺' : o === pier ? '码头' : o.parent === ship ? '船' : l.x < intertidal.hi ? '岸上' : l.x < intertidal.lo ? '潮间带（滩涂）' : '海底';
       aHover.setText(nm); aHover.position.set(l.x, Math.max(l.y, MSL) + 0.014, l.z); aHover.userData.want = 1;
     };
+    // ---- 轮流当主角：海岸 ↔ 太阳—地球—月亮盘 ----
+    const V = { harbor: { b: new THREE.Vector3(0.02, 0, 0), bs: 1, o: new THREE.Vector3(-0.215, 0.004, -0.055), os: 1 }, orr: { b: new THREE.Vector3(0.225, 0, -0.085), bs: 0.42, o: new THREE.Vector3(-0.02, 0.004, 0.012), os: 2.6 } };
+    const showOrr = () => { if (S.vTo) return; S.vTo = 1; S.framed = false; W?.ui.status('太阳—地球—月亮盘：拖着月亮绕地球走，看引潮作用叠在一起还是互相抵消；右后方的小海岸跟着变。按“回到海边”换回来。'); };
+    const showHarbor = () => { if (!S.vTo) return; S.vTo = 0; S.framed = false; };
+    const tOrr = tag('<span>日地月 →</span>', 'view', showOrr), tBack = tag('<span>回到海边</span>', 'view', showHarbor);
+    const ease = (x) => x * x * (3 - 2 * x), v1 = new THREE.Vector3();
+    const fadeL = () => { const k = ease(S.vk); for (const l of [aLevel, aGround, aHover]) { l.material.opacity *= 1 - k; l.visible = l.visible && k < 0.95; } };          // 海岸缩小时它的字先收起来（在标签自己更新之后再压暗）
+    const stepView = (dt) => {
+      const sp = dt * 1.5; S.vk = S.vTo > S.vk ? Math.min(S.vTo, S.vk + sp) : Math.max(S.vTo, S.vk - sp); const k = ease(S.vk);
+      block.position.copy(v1.copy(V.harbor.b).lerp(V.orr.b, k)); block.scale.setScalar(V.harbor.bs + (V.orr.bs - V.harbor.bs) * k);
+      orr.position.copy(v1.copy(V.harbor.o).lerp(V.orr.o, k)); orr.scale.setScalar(V.harbor.os + (V.orr.os - V.harbor.os) * k);
+      tOrr.loc(orr, 0, 0.03, -0.035).show(!S.vTo && S.vk === 0); tBack.loc(block, 0, 0.12, -ZD).show(S.vTo === 1 && S.vk === 1);
+      if (!S.framed && S.vk === S.vTo) { S.framed = true; reframe?.(); }          // 换好了：镜头按现在的东西重新取景
+    };
+
     // ---- 指针：拖月亮；在曲线上挑时刻（在侧栏里，见 mount） ----
     const plane = new THREE.Plane(), hit = new THREE.Vector3();
     const pointer = {
-      down(rc) { if (!rc.intersectObject(moonPick, false).length) return false; S.drag = true; document.getElementById('c').style.cursor = 'grabbing'; return true; },
+      down(rc) {
+        if (rc.intersectObject(moonPick, false).length) { showOrr(); S.drag = true; document.getElementById('c').style.cursor = 'grabbing'; return true; }          // 抓住月亮：盘子同时放大到中间
+        if (!S.vTo && rc.intersectObjects([disc, rim], false).length) { showOrr(); return true; }
+        if (S.vTo && rc.intersectObject(land, false).length) { showHarbor(); return true; }
+        return false;
+      },
       move(rc) {
         const c = document.getElementById('c');
-        if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(moonPick, false).length ? 'grab' : ''; hover(rc); return false; }
+        if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(moonPick, false).length ? 'grab' : (!S.vTo && rc.intersectObjects([disc, rim], false).length) || (S.vTo && rc.intersectObject(land, false).length) ? 'pointer' : ''; if (!S.vTo) hover(rc); return false; }
         orr.updateMatrixWorld(); plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), orr.localToWorld(new THREE.Vector3(0, 0.01, 0))); if (!rc.ray.intersectPlane(plane, hit)) return true;
         const l = orr.worldToLocal(hit.clone()), a = Math.atan2(-l.z, l.x), nextD = (((a - Math.PI) / (2 * Math.PI) * SYN - S.h / 24) % SYN + SYN) % SYN; setDate(S, nextD);
         S.seen.add('moon'); noteState(); W?.day.set(Math.round(S.D)); layout(); return true;
@@ -171,29 +200,30 @@ export default {
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
-      size: { w: 0.5, d: 0.18, h: 0.09 },
-      view: { elev: 22, azim: 12, lookY: 0.4, frameMargin: 1.08 },
+      size: { w: 0.42, d: 0.18, h: 0.1 },
+      view: { elev: 24, azim: 12, lookY: 0.4, frameMargin: 1.04 },
       pointer,
       mount(ui) {
-        const time = slider('一天里的时刻（地方时）', { min: 0, max: 24, step: 1 / 60, value: S.h, fmt: timeText, onInput: (v) => { S.h = v; S.play = false; acts.btns[0].textContent = '让一天走'; S.seen.add('day'); layout(); drawLog(); } });
+        const time = slider('一天里的时刻（地方时）', { min: 0, max: 24, step: 1 / 60, value: S.h, fmt: timeText, onInput: (v) => { showHarbor(); S.h = v; S.play = false; acts.btns[0].textContent = '让一天走'; S.seen.add('day'); layout(); drawLog(); } });
         const day = slider('农历的日子（拖月亮吸附整日）', { min: 0, max: 29, step: 1, value: 0, fmt: (v) => lunarName(v), onInput: (v) => { setDate(S, v); noteState(); layout(); } });          // 换了日子：之前挑的时刻作废
         const actSeg = seg('选一件事，再在曲线上点一个时刻', Object.keys(ACTS).map((k) => ACTS[k].name), (_, i) => { S.act = Object.keys(ACTS)[i]; S.pick = null; layout(); ui.status(`${ACTS[S.act].name}：在上面的潮位曲线上<b>点一个时刻</b>，看看这时候行不行。`); }, { value: -1 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
-          { text: '让一天走', onClick: () => { if (S.h >= 24) S.h = 0; S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让一天走'; } },
+          { text: '让一天走', onClick: () => { showHarbor(); if (S.h >= 24) S.h = 0; S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让一天走'; } },
           { text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { D: 0, h: 6, play: false, act: null, pick: null, seen: new Set(), did: {}, guess: null, cmp: null }); time.set(6); day.set(0); actSeg.set(-1); guess.set(-1); acts.btns[0].textContent = '让一天走'; layout(); drawLog(); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 140, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         chart.onclick = (e) => { const r = chart.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width) * 320 - 30) / (320 - 38) * 24; if (t < 0 || t > 24) return; S.h = t; time.set(t); S.seen.add('day'); S.play = false; acts.btns[0].textContent = '让一天走';          // 挑时刻时先停下
           if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D, tideTrend(S.D, t).rising, t); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = { D: S.D, h: t, ok }; } layout(); drawLog(); };          // 点曲线：挑一个时刻
-        ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('海岸左边的小盘：太阳光从左边来，中间是地球（红点是港口），可以拖月亮。浅蓝水面按日月分潮合成，径向变形夸大。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('左后方的小盘是太阳—地球—月亮：点它（或直接拖月亮）就放大到中间。太阳光从左边来，中间是地球（红点是港口）。浅蓝水面按日月分潮合成，径向变形夸大。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, day, time, acts };
         ui.status('这是一段海岸：岸上有港口，滩涂上养着紫菜。先<b>拨时间</b>（或让一天走），看海水一天里怎么涨落。');
         layout(); drawLog();
       },
       update(dt) {
-        netMs.forEach((m, r) => m.color.lerp(S.netStates[r] === '全部出露' ? DRY : S.netStates[r] === '全部浸水' ? WET : WET.clone().lerp(DRY, 0.5), Math.min(1, dt * 1.5))); labels.forEach((l) => l.tick(dt));          // 网帘露出来慢慢晒干、变浅
+        stepView(dt);
+        netMs.forEach((m, r) => m.color.lerp(S.netStates[r] === '全部出露' ? DRY : S.netStates[r] === '全部浸水' ? WET : WET.clone().lerp(DRY, 0.5), Math.min(1, dt * 1.5))); labels.forEach((l) => l.tick(dt)); fadeL();          // 网帘露出来慢慢晒干、变浅
         if (S.play) { S.h = playHour(S.h, dt); if (S.h >= 24) { S.play = false; if (W) W.acts.btns[0].textContent = '重新播放当天'; } if (!S.seen.has('day')) { S.seen.add('day'); drawLog(); } W?.time.set(S.h); layout(); }
       },
     };
