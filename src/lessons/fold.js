@@ -25,7 +25,7 @@ const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
 // 装饰植被采用固定种子，树种与岩层无关；只按坡度减少数量。
 function woodland(parent, bounds, count) {
   const merge = (a, b) => {
-    const A = a.toNonIndexed(), B = b.toNonIndexed(), g = new THREE.BufferGeometry();
+    const A = (a.index ? a.toNonIndexed() : a), B = (b.index ? b.toNonIndexed() : b), g = new THREE.BufferGeometry();
     const pa = A.attributes.position.array, pb = B.attributes.position.array, p = new Float32Array(pa.length + pb.length), c = new Float32Array(p.length);
     p.set(pa); p.set(pb, pa.length);
     for (let i = 0; i < p.length; i += 3) c.set(i < pa.length ? [1, 1, 1] : [0.48, 0.34, 0.22], i);
