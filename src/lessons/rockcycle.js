@@ -49,45 +49,154 @@ export default {
     const S = { id: 'magma', path: [{ id: 'magma' }], anim: null, kinds: new Set(['magma']), arrows: new Set(), guess: null, moved: false, auto: null };          // auto：自动演示 { i: 走到第几步, wait: 两步之间停多久, paused }
     let W = null;
 
-    // ---- 地面：左边一座火山，中间一道山，右边海；剖面上画着岩层、岩浆房、侵入岩体和深处的高温带 ----
-    const ground = (x) => { const volc = 0.03 * Math.exp(-(((x + 0.105) / 0.03) ** 2)), ridge = 0.02 * Math.exp(-(((x + 0.02) / 0.035) ** 2)); return x < SEA_X ? TOP + volc + ridge - 0.012 * sm(SEA_X - 0.05, SEA_X, x) : SEA_Y - 0.02 - 0.008 * sm(SEA_X, XR, x); };          // 海底比海面低一截，往外更深
-    const faceCv = document.createElement('canvas'); faceCv.width = 1024; faceCv.height = 384;
+    // ---- 地块：一整块切开的地壳（有前、后、两头，从哪个角度看都是实心的）。左边一座火山（锥体的中心正好在前面的剖面上，剖面把它切成两半），
+    //      中间一道山岭，河从山岭流进右边的海；前面的剖面上画着岩层、岩浆房、侵入岩体、变质带和深处的高温 ----
+    const VX = -0.105, RIV = (x) => -0.012 + 0.014 * Math.sin(x * 38 + 0.6);          // 火山口的 x；河道中线的 z
+    const coastX = (z) => SEA_X + 0.009 * Math.sin((ZD - z) * 46) * sm(0, 0.03, ZD - z);          // 海岸线：前面的剖面上正好在 SEA_X，往后弯弯曲曲
+    const H = (x, z) => {
+      const r = Math.hypot(x - VX, (z - ZD) * 0.95), volc = 0.034 * Math.exp(-((r / 0.03) ** 2)) - 0.007 * Math.exp(-((r / 0.006) ** 2));          // 火山锥，顶上一个火山口
+      const ridge = 0.022 * Math.exp(-(((x + 0.02) / 0.034) ** 2)) * (1 + 0.28 * (Math.sin(z * 46 + 1.2) - Math.sin(ZD * 46 + 1.2)));          // 山岭往后有高有低，前面剖面上的高度不变
+      const cx = coastX(z);
+      if (x >= cx) return SEA_Y - 0.02 - 0.008 * sm(cx, XR, x) + 0.0012 * Math.sin(x * 210 + z * 90) * sm(0, 0.02, ZD - z);          // 海底：往外更深
+      const valley = x > -0.01 ? 0.0045 * Math.exp(-(((z - RIV(x)) / 0.008) ** 2)) * sm(-0.01, 0.01, x) : 0;          // 河谷
+      const bump = 0.0016 * Math.sin(x * 140 + z * 60) * Math.sin(z * 90 - x * 30) * sm(0, 0.02, ZD - z);          // 地面的小起伏（前面的剖面上不加，和课本的轮廓一致）
+      return TOP + volc + ridge - 0.012 * sm(cx - 0.05, cx, x) - valley + bump;
+    };
+    const ground = (x) => H(x, ZD);
+    const NX = 220, NZ = 48;
+
+    // 前面的剖面：一张大画布，按地质年代和成因分层
+    const faceCv = document.createElement('canvas'); faceCv.width = 2048; faceCv.height = 768;
     const faceTex = new THREE.CanvasTexture(faceCv); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.anisotropy = 8;
-    const PX = (x) => ((x - XL) / (XR - XL)) * faceCv.width, PY = (y) => faceCv.height - (y / 0.14) * faceCv.height;
+    const PX = (x) => ((x - XL) / (XR - XL)) * faceCv.width, PY = (y) => faceCv.height - (y / 0.14) * faceCv.height, PXs = (dx) => (dx / (XR - XL)) * faceCv.width, PYs = (dy) => (dy / 0.14) * faceCv.height;
     const paintFace = () => {
-      const g = faceCv.getContext('2d'), w = faceCv.width, hh = faceCv.height;
-      g.clearRect(0, 0, w, hh);
-      const LAY = ['#c9a77a', '#b8946a', '#a98a6a', '#9a8070', '#8c7666'];
-      for (let i = 0; i <= w; i += 2) { const x = XL + (i / w) * (XR - XL), top = PY(ground(x)); for (let k = 0; k < 5; k++) { const y0 = top + k * 26 + 6 * Math.sin(i / 70 + k); g.fillStyle = LAY[k]; g.fillRect(i, y0, 2, hh); } }          // 一层层岩层，顶上跟着地面
-      const deep = g.createLinearGradient(0, hh, 0, hh * 0.55); deep.addColorStop(0, 'rgba(190,70,40,0.55)'); deep.addColorStop(1, 'rgba(190,70,40,0)'); g.fillStyle = deep; g.fillRect(0, 0, w, hh);          // 越往深处越热
-      g.fillStyle = '#d8562a'; g.beginPath(); g.ellipse(PX(AT.chamber[0]), PY(AT.chamber[1]), 70, 34, 0, 0, 7); g.fill();          // 岩浆房
-      g.strokeStyle = '#d8562a'; g.lineWidth = 8; g.beginPath(); g.moveTo(PX(-0.1), PY(0.02)); g.bezierCurveTo(PX(-0.104), PY(0.06), PX(-0.106), PY(0.09), PX(-0.105), PY(0.112)); g.stroke();          // 通到火山口的通道
-      g.fillStyle = '#9c9a98'; g.beginPath(); g.ellipse(PX(AT.intrusion[0]), PY(AT.intrusion[1]), 44, 22, 0.2, 0, 7); g.fill(); g.strokeStyle = 'rgba(60,50,40,0.4)'; g.lineWidth = 2; g.stroke();          // 侵入岩体
-      const mz = g.createRadialGradient(PX(AT.meta[0]), PY(AT.meta[1]), 6, PX(AT.meta[0]), PY(AT.meta[1]), 80); mz.addColorStop(0, 'rgba(120,70,120,0.45)'); mz.addColorStop(1, 'rgba(120,70,120,0)'); g.fillStyle = mz; g.fillRect(0, 0, w, hh);          // 变质带：深处、靠近岩浆
-      for (let i = 0; i < 2200; i++) { g.fillStyle = `rgba(60,45,30,${Math.random() * 0.12})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 2); }
-      for (let i = 0; i <= w; i += 1) { const x = XL + (i / w) * (XR - XL), top = PY(ground(x)); g.clearRect(i, 0, 1, top); }          // 地面以上透明
+      const g = faceCv.getContext('2d'), w = faceCv.width, hh = faceCv.height, R = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
+      g.fillStyle = '#7a675a'; g.fillRect(0, 0, w, hh);          // 底下的老岩石（基底）
+      const LAY = [['#cdb08a', 'sand'], ['#9a8676', 'shale'], ['#d6cdb8', 'lime'], ['#b89870', 'sand'], ['#8a7868', 'shale'], ['#c6b49a', 'lime']];
+      const bed = (x, k) => { const fold = 0.006 * Math.exp(-(((x + 0.02) / 0.06) ** 2)); return 0.072 - k * 0.0075 + fold * (1 - k * 0.12) + 0.0012 * Math.sin(x * 60 + k); };          // 沉积岩层：在山岭下面被挤得拱起来一点
+      for (let k = 5; k >= 0; k--) {
+        g.fillStyle = LAY[k][0]; g.beginPath(); g.moveTo(0, hh);
+        for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(k ? bed(x, k) + 0.0075 : Math.max(ground(x), bed(x, 0) + 0.0075))); }          // 最上面一层一直铺到地面
+        g.lineTo(w, hh); g.fill();
+      }
+      for (let k = 0; k < 6; k++) {          // 每一层的纹理：砂岩是点，页岩是细线，石灰岩是砖块
+        const kind = LAY[k][1];
+        for (let i = 0; i < w; i += kind === 'lime' ? 22 : 3) {
+          const x = XL + (i / w) * (XR - XL), y0 = PY(bed(x, k) + 0.0075), y1 = PY(bed(x, k));
+          if (kind === 'sand') for (let n = 0; n < 2; n++) { g.fillStyle = `rgba(70,50,30,${0.15 + R() * 0.2})`; g.fillRect(i + R() * 3, y0 + R() * (y1 - y0), 1.6, 1.6); }
+          else if (kind === 'shale' && i % 9 === 0) { g.strokeStyle = 'rgba(50,40,35,0.22)'; g.lineWidth = 1; for (let n = 1; n < 4; n++) { const yy = y0 + ((y1 - y0) * n) / 4; g.beginPath(); g.moveTo(i, yy); g.lineTo(i + 9, yy + 0.4); g.stroke(); } }
+          else if (kind === 'lime') { g.strokeStyle = 'rgba(90,80,65,0.3)'; g.lineWidth = 1; const mid = (y0 + y1) / 2; g.beginPath(); g.moveTo(i, y0); g.lineTo(i, mid); g.moveTo(i + 11, mid); g.lineTo(i + 11, y1); g.moveTo(i, mid); g.lineTo(i + 22, mid); g.stroke(); }
+        }
+        g.strokeStyle = 'rgba(60,45,35,0.35)'; g.lineWidth = 1.2; g.beginPath(); for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(bed(x, k))); } g.stroke();          // 层面
+      }
+      // 火山锥：一层层熔岩和火山灰（黑灰相间，顺着锥面）
+      const base = (x) => ground(x) - Math.max(0, 0.034 * Math.exp(-(((x - VX) / 0.03) ** 2)) - 0.007 * Math.exp(-(((x - VX) / 0.006) ** 2))) + 0.0015;          // 火山堆起来以前的老地面：去掉火山锥那一截
+      for (let k = 0; k < 7; k++) { g.fillStyle = k % 2 ? '#4a4440' : '#6a5f58'; g.beginPath(); for (let i = -60; i <= 60; i++) { const x = VX + i * 0.001; g.lineTo(PX(x), PY(Math.max(ground(x) - k * 0.0028, base(x)))); } for (let i = 60; i >= -60; i--) { const x = VX + i * 0.001; g.lineTo(PX(x), PY(base(x))); } g.fill(); }          // 只画在老地面以上的锥体里
+      // 地面以上的部分最后擦掉；先画深处的东西
+      const deep = g.createLinearGradient(0, hh, 0, PY(0.04)); deep.addColorStop(0, 'rgba(200,70,30,0.6)'); deep.addColorStop(1, 'rgba(200,70,30,0)'); g.fillStyle = deep; g.fillRect(0, 0, w, hh);          // 越往深处越热
+      // 变质带：岩浆房、侵入岩体周围和深处，岩石被烤、被压，出现定向排列的纹理
+      const aure = (cx, cy, rx, ry) => { const gr = g.createRadialGradient(cx, cy, Math.min(rx, ry) * 0.6, cx, cy, Math.max(rx, ry) * 1.25); gr.addColorStop(0, 'rgba(118,82,128,0.5)'); gr.addColorStop(1, 'rgba(118,82,128,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(cx, cy, rx * 1.25, ry * 1.25, 0, 0, 7); g.fill(); };
+      aure(PX(AT.meta[0]), PY(AT.meta[1]), PXs(0.07), PYs(0.028)); aure(PX(AT.intrusion[0]), PY(AT.intrusion[1]), PXs(0.04), PYs(0.022));
+      g.strokeStyle = 'rgba(70,45,80,0.35)'; g.lineWidth = 1.4;
+      for (let k = 0; k < 9; k++) { g.beginPath(); for (let i = -110; i <= 110; i += 4) { const x = PX(AT.meta[0]) + i * 1.6, y = PY(AT.meta[1]) - 52 + k * 13 + 5 * Math.sin(i / 14 + k); g.lineTo(x, y); } g.stroke(); }          // 片理：一道道波状的纹
+      // 岩浆房和通到火山口的通道：中心发亮
+      const ch = [PX(AT.chamber[0]), PY(AT.chamber[1])], glow = g.createRadialGradient(ch[0], ch[1], 10, ch[0], ch[1], 230); glow.addColorStop(0, 'rgba(255,150,60,0.55)'); glow.addColorStop(1, 'rgba(255,120,40,0)'); g.fillStyle = glow; g.fillRect(0, 0, w, hh);
+      const mg = g.createRadialGradient(ch[0], ch[1] - 10, 8, ch[0], ch[1], 150); mg.addColorStop(0, '#ffd36a'); mg.addColorStop(0.45, '#f07a2a'); mg.addColorStop(1, '#a8301a'); g.fillStyle = mg;
+      g.beginPath(); g.ellipse(ch[0], ch[1], 150, 70, 0, 0, 7); g.fill();
+      g.strokeStyle = '#d8582a'; g.lineCap = 'round'; g.lineWidth = 16; g.beginPath(); g.moveTo(ch[0], ch[1] - 50); g.bezierCurveTo(PX(VX + 0.004), PY(0.06), PX(VX - 0.003), PY(0.095), PX(VX), PY(ground(VX))); g.stroke();
+      g.strokeStyle = '#ffb04a'; g.lineWidth = 5; g.stroke();          // 通道中间更亮
+      g.strokeStyle = 'rgba(255,170,80,0.5)'; g.lineWidth = 3; for (const [dx, dy] of [[-0.03, 0.03], [0.022, 0.026], [-0.012, 0.04]]) { g.beginPath(); g.moveTo(ch[0], ch[1]); g.quadraticCurveTo(PX(AT.chamber[0] + dx * 0.6), PY(AT.chamber[1] + dy * 0.4), PX(AT.chamber[0] + dx), PY(AT.chamber[1] + dy)); g.stroke(); }          // 岩浆顺着裂隙往上钻
+      // 侵入岩体（花岗岩）：浅色，带黑、白、粉的斑点
+      const ip = [PX(AT.intrusion[0]), PY(AT.intrusion[1])]; g.save(); g.beginPath(); g.ellipse(ip[0], ip[1], 100, 48, 0.2, 0, 7); g.fillStyle = '#d9c4b6'; g.fill(); g.clip();
+      for (let i = 0; i < 900; i++) { g.fillStyle = ['#2c2a2a', '#f6f0ea', '#c98a7a', '#9a8c84'][i % 4]; g.fillRect(ip[0] - 100 + R() * 200, ip[1] - 50 + R() * 100, 2 + R() * 4, 2 + R() * 3); }
+      g.restore(); g.strokeStyle = 'rgba(60,45,40,0.6)'; g.lineWidth = 2.5; g.beginPath(); g.ellipse(ip[0], ip[1], 100, 48, 0.2, 0, 7); g.stroke();
+      for (let i = 0; i < 9000; i++) { g.fillStyle = `rgba(50,35,25,${R() * 0.1})`; g.fillRect(R() * w, R() * hh, 2, 2); }          // 颗粒感
+      // 地表一道土层；地面以上透明
+      for (let i = 0; i <= w; i += 1) { const x = XL + (i / w) * (XR - XL), top = PY(ground(x)); g.fillStyle = x < SEA_X ? '#5e4632' : '#8a7a60'; g.fillRect(i, top, 1, x < SEA_X ? 7 : 4); g.clearRect(i, 0, 1, top); }
       faceTex.needsUpdate = true;
     };
-    const faceGeo = () => { const P = [], U = [], I = [], N = 200; for (let i = 0; i <= N; i++) { const x = XL + ((XR - XL) * i) / N, y = ground(x); P.push(x, y, ZD, x, 0, ZD); U.push(i / N, y / 0.14, i / N, 0); if (i) { const a = 2 * i - 2; I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals(); return g; };
-    const front = new THREE.Mesh(faceGeo(), new THREE.MeshLambertMaterial({ map: faceTex, transparent: true, side: THREE.DoubleSide })); block.add(front);
-    const sideM = new THREE.MeshLambertMaterial({ color: 0x9a8070 });
-    const back = new THREE.Mesh(faceGeo(), sideM); back.position.z = -2 * ZD; block.add(back);
-    for (const x of [XL, XR]) { const hgt = ground(x), e = new THREE.Mesh(new THREE.PlaneGeometry(2 * ZD, hgt), sideM); e.position.set(x, hgt / 2, 0); e.rotation.y = Math.PI / 2; block.add(e); }
-    const topGeo = new THREE.PlaneGeometry(XR - XL, 2 * ZD, 160, 20); topGeo.rotateX(-Math.PI / 2);
+    // 两头和后面：普通的层状岩石
+    const strata = canvasTex(512, 256, (g, w, hh) => {
+      const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, '#c4a882'); gr.addColorStop(0.55, '#a08670'); gr.addColorStop(1, '#7a675a'); g.fillStyle = gr; g.fillRect(0, 0, w, hh);
+      for (let k = 0; k < 16; k++) { g.strokeStyle = `rgba(60,45,35,${0.1 + Math.random() * 0.14})`; g.lineWidth = 1 + Math.random() * 2.5; g.beginPath(); const y0 = (k / 16) * hh * 0.6; for (let x = 0; x <= w; x += 16) g.lineTo(x, y0 + Math.sin(x / 70 + k) * 3); g.stroke(); }
+      for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(50,35,25,${Math.random() * 0.16})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 2); }
+      const deep = g.createLinearGradient(0, hh, 0, hh * 0.6); deep.addColorStop(0, 'rgba(190,70,40,0.45)'); deep.addColorStop(1, 'rgba(190,70,40,0)'); g.fillStyle = deep; g.fillRect(0, 0, w, hh);
+    });
+    const strip = (pts, flip) => {          // 一条竖着的墙：pts = [[x, z], ...]，从 0 到地面
+      const P = [], U = [], I = []; let s = 0;
+      pts.forEach(([x, z], i) => { if (i) s += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1]); const y = H(x, z); P.push(x, y, z, x, 0, z); U.push(s / (XR - XL), y / 0.14, s / (XR - XL), 0); if (i) { const a = 2 * i - 2; flip ? I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } });
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setIndex(I); geo.computeVertexNormals(); return geo;
+    };
+    const line = (fx, n) => Array.from({ length: n + 1 }, (_, i) => fx(i / n));
+    const front = new THREE.Mesh(strip(line((u) => [XL + (XR - XL) * u, ZD], NX)), new THREE.MeshLambertMaterial({ map: faceTex, side: THREE.DoubleSide })); block.add(front);
+    const sideM = new THREE.MeshLambertMaterial({ map: strata, side: THREE.DoubleSide });
+    block.add(new THREE.Mesh(strip(line((u) => [XL + (XR - XL) * u, -ZD], NX), true), sideM));
+    for (const x of [XL, XR]) block.add(new THREE.Mesh(strip(line((u) => [x, -ZD + 2 * ZD * u], NZ)), sideM));
+    // 顶面：按地方上色——火山上是黑色的熔岩和火山灰，山岭和平原长着草和树，海边是沙滩，海底近岸是沙、远一点是泥
+    const topGeo = new THREE.PlaneGeometry(XR - XL, 2 * ZD, NX, NZ); topGeo.rotateX(-Math.PI / 2);
     const tCol = new Float32Array(topGeo.attributes.position.count * 3); topGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
-    { const p = topGeo.attributes.position, c = new THREE.Color(); for (let k = 0; k < p.count; k++) { const x = p.getX(k), z = p.getZ(k), y = ground(x) + 0.002 * Math.sin(x * 120 + z * 80); p.setY(k, y); c.set(x > SEA_X - 0.004 ? 0xd8c69a : Math.abs(x + 0.105) < 0.02 && y > TOP + 0.015 ? 0x6a5a50 : y > TOP + 0.012 ? 0x8f8a6a : 0x8fae64); tCol.set([c.r, c.g, c.b], k * 3); } topGeo.computeVertexNormals(); }
-    const grain = canvasTex(256, 256, (g, w) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2400; i++) { const v = 150 + Math.random() * 100; g.fillStyle = `rgba(${v},${v},${v},${0.2 + Math.random() * 0.35})`; g.fillRect(Math.random() * w, Math.random() * w, 1.6, 1.6); } }, { repeat: [6, 2] });
+    {
+      const p = topGeo.attributes.position, c = new THREE.Color(), c2 = new THREE.Color();
+      for (let k = 0; k < p.count; k++) {
+        const x = p.getX(k), z = p.getZ(k), y = H(x, z); p.setY(k, y);
+        const r = Math.hypot(x - VX, (z - ZD) * 0.95), cx = coastX(z), n = 0.5 + 0.5 * Math.sin(x * 520 + z * 330) * Math.sin(z * 410 - x * 150);
+        const flow = Math.exp(-(((z - ZD + 0.03 + (x - VX) * 0.6) / 0.007) ** 2)) * sm(0.004, 0.012, r) * (1 - sm(0.035, 0.05, r));          // 一道冷下来的熔岩流，顺着火山的后坡流下来
+        if (x >= cx) c.setHex(0xcdb98e).lerp(c2.setHex(0x8a7c68), sm(cx + 0.005, cx + 0.06, x));          // 海底：近岸沙，远处泥
+        else if (r < 0.007) c.setHex(0x3a2a24);          // 火山口
+        else if (r < 0.032) c.setHex(0x5a5048).lerp(c2.setHex(0x7a7a58), sm(0.022, 0.032, r));          // 火山锥：火山灰、熔岩
+        else if (x > cx - 0.008) c.setHex(0xdcc79a);          // 沙滩
+        else c.setHex(0x7fa45a).lerp(c2.setHex(0x9aa86a), n * 0.6).lerp(c2.setHex(0x8a8a64), sm(TOP + 0.012, TOP + 0.024, y));          // 草地；山岭高处偏黄褐
+        if (flow > 0.05) c.lerp(c2.setHex(0x2e2a2a), Math.min(1, flow));
+        c.multiplyScalar(0.92 + 0.12 * n); tCol.set([c.r, c.g, c.b], k * 3);
+      }
+      topGeo.computeVertexNormals();
+    }
+    const grain = canvasTex(256, 256, (g, w) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2600; i++) { const v = 150 + Math.random() * 100; g.fillStyle = `rgba(${v},${v},${v},${0.2 + Math.random() * 0.35})`; g.fillRect(Math.random() * w, Math.random() * w, 1.6, 1.6); } }, { repeat: [8, 3] });
     block.add(new THREE.Mesh(topGeo, new THREE.MeshLambertMaterial({ vertexColors: true, map: grain })));
-    const sea = new THREE.Mesh(new THREE.BoxGeometry(XR - SEA_X, SEA_Y - ground(XR), 2 * ZD - 0.0008), new THREE.MeshLambertMaterial({ color: 0x5f9fcc, transparent: true, opacity: 0.55, depthWrite: false })); sea.position.set((SEA_X + XR) / 2, (SEA_Y + ground(XR)) / 2, 0); sea.renderOrder = 4; block.add(sea);
-    // 河：从山上流进海
-    const riverPts = []; for (let i = 0; i <= 30; i++) { const x = -0.01 + (SEA_X + 0.004) * (i / 30); riverPts.push(new THREE.Vector3(x, ground(x) + 0.001, -0.01 + 0.012 * Math.sin(i * 0.35))); }
-    const river = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(riverPts), 40, 0.0018, 6, false), new THREE.MeshBasicMaterial({ color: 0x5a9fd0 })); river.material.userData.see = true; river.raycast = () => {}; block.add(river);
+    // 火山口里的熔岩：发着光
+    const lavaPool = new THREE.Mesh(new THREE.CircleGeometry(0.0055, 24, 0, Math.PI), new THREE.MeshBasicMaterial({ color: 0xff7a2a })); lavaPool.rotation.x = -Math.PI / 2; lavaPool.position.set(VX, H(VX, ZD - 0.001) + 0.0015, ZD - 0.0002); lavaPool.raycast = () => {}; block.add(lavaPool);
+    // 海：一整块透明的水，前面的剖面上也看得见水和水下的沉积物
+    const seaM = new THREE.MeshPhongMaterial({ color: 0x4f93c8, transparent: true, opacity: 0.5, depthWrite: false, shininess: 80, specular: 0x9fc4e4, side: THREE.DoubleSide });
+    const seaTop = new THREE.Mesh(new THREE.PlaneGeometry(XR - SEA_X + 0.02, 2 * ZD, 60, 24), seaM); seaTop.geometry.rotateX(-Math.PI / 2); seaTop.position.set((SEA_X - 0.02 + XR) / 2, SEA_Y, 0); seaTop.renderOrder = 4; block.add(seaTop);
+    const seaBase = seaTop.geometry.attributes.position.array.slice();
+    const waterWall = (pts) => { const P = []; pts.forEach(([x, z], i) => { if (!i) return; const [x0, z0] = pts[i - 1], a = H(x0, z0), b = H(x, z); P.push(x0, SEA_Y, z0, x0, a, z0, x, b, z, x0, SEA_Y, z0, x, b, z, x, SEA_Y, z); }); const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.computeVertexNormals(); const m = new THREE.Mesh(geo, seaM); m.renderOrder = 4; m.raycast = () => {}; block.add(m); };
+    waterWall(line((u) => [SEA_X + (XR - SEA_X) * u, ZD + 0.0004], 40)); waterWall(line((u) => [coastX(-ZD) + (XR - coastX(-ZD)) * u, -ZD - 0.0004], 40)); waterWall(line((u) => [XR + 0.0004, -ZD + 2 * ZD * u], 24));
+    seaTop.raycast = () => {};
+    // 海岸的浪花：一条白线
+    const foam = new THREE.Line(new THREE.BufferGeometry().setFromPoints(line((u) => { const z = -ZD + 2 * ZD * u; return new THREE.Vector3(coastX(z) + 0.0012, SEA_Y + 0.0004, z); }, 60)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 })); foam.raycast = () => {}; block.add(foam);
+    // 河：一条贴着河谷的水带，从山岭流进海
+    {
+      const P = [], I = [], N = 80, x0 = -0.008, x1 = SEA_X + 0.006;
+      for (let i = 0; i <= N; i++) { const x = x0 + ((x1 - x0) * i) / N, z = RIV(x), wdt = 0.0016 + 0.0026 * (i / N); for (const s of [-1, 1]) P.push(x, H(x, z + s * wdt) + 0.0006, z + s * wdt); if (i) { const a = 2 * i - 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setIndex(I); geo.computeVertexNormals();
+      const river = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x4f94cc, side: THREE.DoubleSide })); river.raycast = () => {}; block.add(river);
+    }
+    // 树：山岭和平原上长着阔叶树，山岭高处是针叶树；火山上、沙滩上、河里不长
+    {
+      const crown = new THREE.SphereGeometry(0.0026, 7, 5).translate(0, 0.0045, 0), trunk = new THREE.CylinderGeometry(0.0004, 0.0005, 0.0026, 5).translate(0, 0.0013, 0), cone = new THREE.ConeGeometry(0.002, 0.0068, 6).translate(0, 0.0046, 0);
+      const mergeTree = (a, b) => { const g2 = new THREE.BufferGeometry(), A = a.toNonIndexed(), B = b.toNonIndexed(), pa = A.attributes.position.array, pb = B.attributes.position.array, P = new Float32Array(pa.length + pb.length); P.set(pa); P.set(pb, pa.length); g2.setAttribute('position', new THREE.BufferAttribute(P, 3)); const C = new Float32Array(P.length); for (let i = 0; i < pa.length; i += 3) C.set([1, 1, 1], i); for (let i = pa.length; i < P.length; i += 3) C.set([0.55, 0.4, 0.3], i); g2.setAttribute('color', new THREE.BufferAttribute(C, 3)); g2.computeVertexNormals(); return g2; };          // 树冠白色（按实例上色）、树干棕色
+      const kinds = { broad: mergeTree(crown, trunk), conifer: mergeTree(cone, trunk) }, MAXT = 900, R = (() => { let s = 29; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
+      const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), sv = new THREE.Vector3(), pv = new THREE.Vector3(), col = new THREE.Color();
+      for (const [k, geo] of Object.entries(kinds)) {
+        const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), MAXT); mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAXT * 3), 3); mesh.count = 0; mesh.raycast = () => {}; block.add(mesh);
+        for (let i = 0; i < 6000 && mesh.count < MAXT; i++) {
+          const x = XL + 0.004 + R() * (XR - XL - 0.008), z = -ZD + 0.004 + R() * (2 * ZD - 0.012), y = H(x, z), r = Math.hypot(x - VX, (z - ZD) * 0.95);
+          if (x > coastX(z) - 0.012 || r < 0.042 || (x > -0.012 && Math.abs(z - RIV(x)) < 0.007)) continue;
+          const high = y > TOP + 0.012, want = k === 'conifer' ? high : !high; if (!want || R() > (k === 'conifer' ? 0.7 : 0.55)) continue;
+          const s = 0.8 + R() * 0.5; pv.set(x, y - 0.0003, z); qq.setFromAxisAngle(new THREE.Vector3(0, 1, 0), R() * 6.28); sv.set(s, s, s); m4.compose(pv, qq, sv); mesh.setMatrixAt(mesh.count, m4);
+          col.setHex(k === 'conifer' ? 0x2e6238 : 0x3f8a3a).multiplyScalar(0.82 + R() * 0.32); mesh.setColorAt(mesh.count, col); mesh.count++;
+        }
+        mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+      }
+    }
     // 火山口的烟
     const smokeTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,0.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
-    const smoke = Array.from({ length: 8 }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0x9a9690, transparent: true, depthWrite: false, opacity: 0.5 })); s.userData.t = i / 8; s.raycast = () => {}; block.add(s); return s; });
+    const CRATER = new THREE.Vector3(VX, H(VX, ZD - 0.004), ZD - 0.006);
+    const smoke = Array.from({ length: 10 }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0x9a9690, transparent: true, depthWrite: false, opacity: 0.5 })); s.userData.t = i / 10; s.raycast = () => {}; block.add(s); return s; });
     for (const k of ['shore', 'shallow', 'deep']) AT[k][1] = ground(AT[k][0]) + 0.002;          // 沉积物落在海底上
     AT.buried[1] = ground(AT.buried[0]) - 0.022;
     AT.lava[1] = ground(AT.lava[0]) + 0.006;          // 喷出岩：熔岩先喷到地表上，在地表冷却
+    AT.peak[1] = ground(AT.peak[0]) + 0.004;
     paintFace();
     // 剖面上的字：地方的名字
     const F = (t, x, y, c = '#ffffff') => faceLabel(block, t, { x, y, z: ZD, h: 0.0075, color: c, stroke: 'rgba(40,30,20,0.6)' });
@@ -149,7 +258,7 @@ export default {
     };
     const layout = () => {
       const p = placeAt(ROCK[S.id].at); stone.position.copy(p); pile.position.copy(p); ring.position.set(p.x, p.y, p.z + 0.004);
-      const r = ROCK[S.id]; aName.position.set(p.x, p.y + 0.018, p.z); aName.setText(`${shortName(r)} · ${KIND[r.kind]}`);
+      const r = ROCK[S.id]; aName.position.set(p.x, p.y + 0.018, p.z); aName.setText(shortName(r) === KIND[r.kind] ? shortName(r) : `${shortName(r)} · ${KIND[r.kind]}`);
     };
 
     // ---- 侧栏：图 2.10 的循环图（走过的箭头亮起来） ----
@@ -235,7 +344,8 @@ export default {
       },
       update(dt, t) {
         labels.forEach((l) => l.tick(dt));
-        smoke.forEach((s) => { s.userData.t = (s.userData.t + dt * 0.12) % 1; const u = s.userData.t; s.position.set(-0.105 + u * 0.03, 0.118 + u * 0.05, -0.01); s.scale.setScalar(0.01 + u * 0.03); s.material.opacity = 0.5 * (1 - u); });
+        smoke.forEach((s) => { s.userData.t = (s.userData.t + dt * 0.12) % 1; const u = s.userData.t; s.position.set(CRATER.x + u * 0.03, CRATER.y + 0.004 + u * 0.05, CRATER.z - u * 0.02); s.scale.setScalar(0.01 + u * 0.03); s.material.opacity = 0.5 * (1 - u); });
+        { const P = seaTop.geometry.attributes.position.array; for (let i = 0; i < P.length; i += 3) P[i + 1] = seaBase[i + 1] + 0.0005 * Math.sin(seaBase[i] * 160 + (t || 0) * 1.6) * Math.sin(seaBase[i + 2] * 120 - (t || 0) * 1.1); seaTop.geometry.attributes.position.needsUpdate = true; seaTop.geometry.computeVertexNormals(); }          // 海面轻轻起伏
         if (S.id === 'magma' && !S.anim) rockMat.emissiveIntensity = 0.7 + 0.25 * Math.sin((t || 0) * 3);
         if (S.auto && !S.auto.paused && !S.anim) { S.auto.wait -= dt; if (S.auto.wait <= 0) { const n = tourStep(S.id, S.auto.i); if (!n) stopAuto(); else { if (NEW[S.auto.i]) S.newNote = NEW[S.auto.i]; stepTo(n); S.auto.i++; S.auto.wait = 1.4; } } }          // 自动演示：上一步停一会儿（读状态栏），再走下一步
         if (S.anim) {          // 暂停：正在走的这一步走完，下一步不走了
