@@ -8,6 +8,7 @@
 //   3. 在地面上点一点“取样”：看露出来的是哪一层。背斜：中间老、两边新；向斜：中间新、两边老。侧栏把整条地面露出的岩层排成一条带。
 // 教学示意：竖直方向夸大了，侵蚀阶段无时间标定；岩层厚度、侵蚀快慢都是示意。
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
@@ -19,6 +20,34 @@ const LAYC = ['#6f5038', '#8f6844', '#b0814f', '#c99e62', '#dbbb83', '#e9d4a2'];
 const AGE = ['最老', '较老', '偏老', '偏新', '较新', '最新'];
 const ASK = ['先猜一下（可以不猜）：在这个情境里，外力作用很久以后，背斜那里会是——', ['还是山岭', '变成谷地']];
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+
+// 装饰植被采用固定种子，树种与岩层无关；只按坡度减少数量。
+function woodland(parent, bounds, count) {
+  const merge = (a, b) => {
+    const A = a.toNonIndexed(), B = b.toNonIndexed(), g = new THREE.BufferGeometry();
+    const pa = A.attributes.position.array, pb = B.attributes.position.array, p = new Float32Array(pa.length + pb.length), c = new Float32Array(p.length);
+    p.set(pa); p.set(pb, pa.length);
+    for (let i = 0; i < p.length; i += 3) c.set(i < pa.length ? [1, 1, 1] : [0.48, 0.34, 0.22], i);
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.computeVertexNormals();
+    a.dispose(); b.dispose(); A.dispose(); B.dispose(); return g;
+  };
+  const shapes = [merge(new THREE.IcosahedronGeometry(0.0022, 1).scale(1, 1.15, 1).translate(0, 0.0044, 0), new THREE.CylinderGeometry(0.0003, 0.0005, 0.0036, 5).translate(0, 0.0018, 0)), merge(new THREE.ConeGeometry(0.002, 0.006, 7).translate(0, 0.0045, 0), new THREE.CylinderGeometry(0.0003, 0.0004, 0.0026, 5).translate(0, 0.0013, 0))];
+  const meshes = shapes.map((geo) => { const m = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), count); m.count = 0; m.raycast = () => {}; parent.add(m); return m; });
+  let seed = 31; const r = () => ((seed = seed * 16807 % 2147483647) / 2147483647);
+  const [x0, x1, z0, z1] = bounds, sites = Array.from({ length: count }, () => ({ x: x0 + 0.004 + r() * (x1 - x0 - 0.008), z: z0 + 0.004 + r() * (z1 - z0 - 0.008), s: 0.65 + r() * 0.65, t: r() > 0.45 ? 0 : 1, tone: r(), yaw: r() * 6.28 }));
+  const obj = new THREE.Object3D(), col = new THREE.Color();
+  return (height, avoid = () => false) => {
+    meshes.forEach((m) => { m.count = 0; });
+    for (const p of sites) {
+      const slope = Math.hypot(height(p.x + 0.0005, p.z) - height(p.x - 0.0005, p.z), height(p.x, p.z + 0.0005) - height(p.x, p.z - 0.0005)) / 0.001;
+      if (avoid(p.x, p.z) || slope > 0.45 + p.tone * 1.1) continue;
+      const m = meshes[p.t]; obj.position.set(p.x, height(p.x, p.z) - 0.00015, p.z); obj.rotation.y = p.yaw; obj.scale.setScalar(p.s); obj.updateMatrix();
+      m.setMatrixAt(m.count, obj.matrix); col.setHex(p.t ? 0x356347 : 0x577c3e).multiplyScalar(0.82 + p.tone * 0.38); m.setColorAt(m.count++, col);
+    }
+    meshes.forEach((m) => { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); });
+  };
+}
 
 export default {
   id: 'fold',
@@ -41,12 +70,17 @@ export default {
     const block = new THREE.Group(); group.add(block);
 
     // ---- 侧面（剖面）：按岩层画的贴图，每次挤、冲以后重画 ----
-    const SW = 1024, SH = 320, YMAX = 0.1;
+    const SW = 1536, SH = 512, YMAX = 0.1;
     const sideCv = document.createElement('canvas'); sideCv.width = SW; sideCv.height = SH;
     const sideTex = new THREE.CanvasTexture(sideCv); sideTex.colorSpace = THREE.SRGBColorSpace;
-    const topCv = document.createElement('canvas'); topCv.width = SW; topCv.height = 64;
+    const topCv = document.createElement('canvas'); topCv.width = SW; topCv.height = 256;
     const topTex = new THREE.CanvasTexture(topCv); topTex.colorSpace = THREE.SRGBColorSpace;
     const X = (u) => XL + (XR - XL) * u;
+    const grassCv = document.createElement('canvas'); grassCv.width = SW; grassCv.height = 256;
+    { const t = grassCv.getContext('2d'); for (let i = 0; i < SW; i++) for (let j = 0; j < 256; j++) {
+      const n = Math.sin(i * 0.14 + j * 0.12) * Math.sin(i * 0.037 - j * 0.081) * 9 + Math.sin(i * 4.7 + j * 8.3) * 5;
+      t.fillStyle = `rgb(${115 + n},${143 + n},${73 + n * 0.6})`; t.fillRect(i, j, 1, 1);
+    } }
     const paint = () => {
       const g = sideCv.getContext('2d'), img = g.createImageData(SW, SH), cols = LAYC.map((h2) => [parseInt(h2.slice(1, 3), 16), parseInt(h2.slice(3, 5), 16), parseInt(h2.slice(5, 7), 16)]);
       for (let i = 0; i < SW; i++) {
@@ -55,46 +89,63 @@ export default {
           const y = YMAX * (1 - j / (SH - 1)), k = (i + j * SW) * 4;
           if (y > top) { img.data[k + 3] = 0; continue; }
           const f = (y - b) / TH, L = Math.max(1, Math.min(NLAY, Math.floor(f) + 1)), edge = Math.abs(f - Math.round(f)) < 0.045 && f > 0.5 && f < NLAY - 0.5;          // 层与层之间一条细的深线
-          const n = 0.92 + 0.08 * Math.sin(i * 0.9 + j * 1.7) * Math.sin(j * 0.6 - i * 0.3), c = cols[L - 1];
+          const n = 0.94 + 0.07 * Math.sin(i * 0.9 + j * 1.7) * Math.sin(j * 0.6 - i * 0.3) - 0.055 * Math.pow(Math.max(0, Math.sin(f * 37 + Math.sin(x * 140) * 0.7)), 12), c = top - y < 0.0012 ? [100, 81, 51] : cols[L - 1];
           img.data[k] = c[0] * n * (edge ? 0.55 : 1); img.data[k + 1] = c[1] * n * (edge ? 0.55 : 1); img.data[k + 2] = c[2] * n * (edge ? 0.55 : 1); img.data[k + 3] = 255;
         }
       }
-      g.putImageData(img, 0, 0); sideTex.needsUpdate = true;
-      // 顶面：露出来的是哪一层（颜色），年轻的岩层上长着草；背斜顶上的裂隙画成一道道深缝
+      g.putImageData(img, 0, 0);
+      for (let k = 0; k < 2400; k++) {
+        const u = (k * 0.61803398875) % 1, v = (k * 0.41421356237) % 1, x = X(u), y = v * YMAX;
+        if (y > surface(x, S.c, S.e) - 0.0015) continue;
+        g.fillStyle = k % 3 ? 'rgba(58,43,29,0.17)' : 'rgba(255,241,209,0.16)'; g.fillRect(u * SW, (1 - v) * SH, 1.1 + (k % 3), 0.8 + (k % 2));
+      }
+      sideTex.needsUpdate = true;
+      // 草地颜色只表示地表装饰，不按岩层决定覆盖率。
       const t = topCv.getContext('2d');
-      for (let i = 0; i < SW; i++) { const x = X(i / (SW - 1)), L = exposed(x, S.c, S.e), grass = 0.55 * (1 - S.e * 0.6) + 0.15; t.fillStyle = LAYC[L - 1]; t.fillRect(i, 0, 1, 64); t.fillStyle = `rgba(120,160,80,${grass * (L >= 5 ? 1 : 0.5)})`; t.fillRect(i, 0, 1, 64); }
+      t.drawImage(grassCv, 0, 0); t.globalAlpha = 0.24;
+      for (let i = 0; i < SW; i++) { t.fillStyle = LAYC[exposed(X(i / (SW - 1)), S.c, S.e) - 1]; t.fillRect(i, 0, 1, 256); }
+      t.globalAlpha = 1;
       t.strokeStyle = 'rgba(60,40,25,0.8)'; t.lineWidth = 2;
-      for (let k = 0; k < 90; k++) { const u = (k * 0.618) % 1, x = X(u), cr = crack(x, S.c); if (cr < 0.25 || ((k * 37) % 100) / 100 > cr) continue; const i = u * SW, j = (k * 23) % 60; t.beginPath(); t.moveTo(i, j); t.lineTo(i + 3, j + 4); t.stroke(); }
+      for (let k = 0; k < 90; k++) { const u = (k * 0.618) % 1, x = X(u), cr = crack(x, S.c); if (cr < 0.25 || ((k * 37) % 100) / 100 > cr) continue; const i = u * SW, j = (k * 53) % 250; t.beginPath(); t.moveTo(i, j); t.lineTo(i + 3, j + 4); t.stroke(); }
       topTex.needsUpdate = true;
     };
 
     // ---- 地块的几何：顶面、前后两个剖面、两头 ----
-    const sideMat = new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, side: THREE.DoubleSide, alphaTest: 0.5 });
+    const sideMat = new THREE.MeshStandardMaterial({ roughness: 0.95, map: sideTex, transparent: true, side: THREE.DoubleSide, alphaTest: 0.5 });
     const front = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, YMAX), sideMat); front.position.set(0, YMAX / 2, ZD); block.add(front);
     const backM = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, YMAX), sideMat); backM.position.set(0, YMAX / 2, -ZD); backM.rotation.y = Math.PI; backM.scale.x = -1; block.add(backM);
-    const topGeo = new THREE.PlaneGeometry(XR - XL, ZD * 2, NX, 1); topGeo.rotateX(-Math.PI / 2);
-    const topMesh = new THREE.Mesh(topGeo, new THREE.MeshLambertMaterial({ map: topTex })); block.add(topMesh);
-    const ends = [XL, XR].map((x) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(ZD * 2, 1), new THREE.MeshBasicMaterial({ color: 0x9a7048 })); m.rotation.y = Math.PI / 2; m.position.x = x; block.add(m); return m; });
+    const topGeo = new THREE.PlaneGeometry(XR - XL, ZD * 2, NX, 40); topGeo.rotateX(-Math.PI / 2);
+    const topMesh = new THREE.Mesh(topGeo, new THREE.MeshStandardMaterial({ map: topTex, roughness: 1, side: THREE.DoubleSide })); block.add(topMesh);
+    const ends = [XL, XR].map((x) => {
+      const geo = new THREE.PlaneGeometry(ZD * 2, 1), uv = geo.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setX(i, x === XL ? 0.5 / SW : 1 - 0.5 / SW);
+      const m = new THREE.Mesh(geo, sideMat); m.rotation.y = Math.PI / 2; m.position.x = x; block.add(m); return m;
+    });
+    const bottom = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2), new THREE.MeshStandardMaterial({ color: 0x6f5038, roughness: 1, side: THREE.DoubleSide })); bottom.rotation.x = Math.PI / 2; block.add(bottom);
+    const visualHeight = (x, z) => surface(x, S.c, S.e) + 0.0009 * Math.sin(x * 135 + z * 72) * Math.sin(z * 113 - x * 48) * Math.max(0, 1 - (z / ZD) ** 2) * Math.max(0, 1 - (x / XR) ** 8);
+    const plant = woodland(block, [XL, XR, -ZD, ZD], 340);
+    let visualKey = '';
     const outline = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x4a3420, transparent: true, opacity: 0.6 })); outline.raycast = () => {}; block.add(outline);
     const shape = () => {
+      const key = `${S.c}:${S.e}`; if (key === visualKey) return; visualKey = key;
       const p = topGeo.attributes.position;
-      for (let k = 0; k < p.count; k++) p.setY(k, surface(p.getX(k), S.c, S.e));
+      for (let k = 0; k < p.count; k++) p.setY(k, visualHeight(p.getX(k), p.getZ(k)));
       p.needsUpdate = true; topGeo.computeVertexNormals(); topGeo.computeBoundingSphere();
-      ends.forEach((m, i) => { const hgt = surface(i ? XR : XL, S.c, S.e); m.scale.y = hgt; m.position.y = hgt / 2; });
+      ends.forEach((m, i) => { const hgt = surface(i ? XR : XL, S.c, S.e); m.scale.y = hgt; m.position.y = hgt / 2; const uv = m.geometry.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setY(k, k < 2 ? hgt / YMAX : 0); uv.needsUpdate = true; });
       const L = []; for (const z of [-ZD, ZD]) for (let i = 0; i < NX; i++) { const a = X(i / NX), b = X((i + 1) / NX); L.push(a, surface(a, S.c, S.e), z, b, surface(b, S.c, S.e), z); }
       for (const x of [XL, XR]) for (const z of [-ZD, ZD]) L.push(x, 0, z, x, surface(x, S.c, S.e), z);
       L.push(XL, 0, ZD, XR, 0, ZD, XL, 0, -ZD, XR, 0, -ZD);
       outline.geometry.dispose(); outline.geometry = new THREE.BufferGeometry(); outline.geometry.setAttribute('position', new THREE.Float32BufferAttribute(L, 3));
-      paint();
+      paint(); plant(visualHeight);
     };
     const shadowTex = canvasTex(256, 128, (g, w, hh) => { const gr = g.createRadialGradient(w / 2, hh / 2, 0, w / 2, hh / 2, w / 2); gr.addColorStop(0, 'rgba(60,45,30,0.4)'); gr.addColorStop(0.7, 'rgba(60,45,30,0.12)'); gr.addColorStop(1, 'rgba(60,45,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); });
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry((XR - XL) * 1.12, ZD * 2.5), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.0006; shadow.raycast = () => {}; shadow.userData.noFrame = true; group.add(shadow);
     const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL + 0.05, 0.1, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); frameBox.position.y = 0.05; frameBox.raycast = () => {}; group.add(frameBox);
 
     // ---- 挤压板：地块两头各一块，按住往里推 ----
-    const plateMat = new THREE.MeshStandardMaterial({ color: 0xb84a32, roughness: 0.5, emissive: 0x5a1a10, emissiveIntensity: 0.3 });
+    const plateMat = new THREE.MeshStandardMaterial({ color: 0xb84a32, roughness: 0.32, metalness: 0.48, emissive: 0x5a1a10, emissiveIntensity: 0.08 });
     const plates = [-1, 1].map((sd) => {
-      const g = new THREE.Group(), p = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.06, ZD * 2 + 0.01), plateMat); p.position.y = 0.04; g.add(p);
+      const g = new THREE.Group(), p = new THREE.Mesh(new RoundedBoxGeometry(0.006, 0.06, ZD * 2 + 0.01, 3, 0.0015), plateMat); p.position.y = 0.04; g.add(p);
       const ar = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.018, 16), plateMat); ar.rotation.z = sd > 0 ? Math.PI / 2 : -Math.PI / 2; ar.position.set(sd * 0.018, 0.04, 0); g.add(ar);          // 箭头朝里：挤压力的方向
       const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 0.02, 10), plateMat); sh.rotation.z = Math.PI / 2; sh.position.set(sd * 0.03, 0.04, 0); g.add(sh);
       const pick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, ZD * 2 + 0.02), new THREE.MeshBasicMaterial({ visible: false })); pick.position.set(sd * 0.02, 0.04, 0); pick.userData.pick = true; g.add(pick);

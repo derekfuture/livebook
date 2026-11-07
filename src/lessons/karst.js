@@ -12,7 +12,7 @@ import { slider, buttons, note, seg } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, noteBadge } from './kit/labels.js';
-import { STAGES, stageName, RATE, STEP, cave, terrainHeight } from './kit/karst.js';
+import { STAGES, stageName, RATE, STEP, cave, terrainHeight, joint } from './kit/karst.js';
 
 const BW = 0.11, BD = 0.11, GAP = 0.022, H0 = 0.09, N = 96;          // 一块的宽、深；块与块的间隔；原来的地面高度；网格密度
 const BLOCKS = [{ key: 'wet', rock: 'limestone', clim: 'wet', name: '湿润地区 · 石灰岩', x: -(BW + GAP) }, { key: 'dry', rock: 'limestone', clim: 'dry', name: '干旱地区 · 石灰岩', x: 0 }, { key: 'gra', rock: 'granite', clim: 'wet', name: '湿润地区 · 花岗岩', x: BW + GAP }];
@@ -41,7 +41,7 @@ export default {
     const tOf = (b) => Math.min(1, S.time * STEP * RATE[b.rock][b.clim]);
 
     // ---- 每块的山峰：在格点附近随机放一些锥形的峰（溶下去以后剩下的就是它们） ----
-    const peaksOf = (seed) => { const R = mkRnd(seed), P = []; for (let j = 0; j < 4; j++) for (let i = 0; i < 4; i++) P.push({ x: -BW / 2 + BW * (i + 0.5 + (R() - 0.5) * 0.6) / 4, z: -BD / 2 + BD * (j + 0.5 + (R() - 0.5) * 0.6) / 4, r: R(), k: 0.75 + R() * 0.5 }); return P; };
+    const peaksOf = (seed) => { const R = mkRnd(seed), P = []; for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) P.push({ x: -BW / 2 + BW * (i + 0.5 + (R() - 0.5) * 0.3) / 3, z: -BD / 2 + BD * (j + 0.5 + (R() - 0.5) * 0.3) / 3, r: R(), k: 0.75 + R() * 0.5 }); return P; };
     const height = (b, P, x, z) => terrainHeight(b, P, x, z, tOf(b), H0) + nz(x, z);
 
     // ---- 三块岩石：每块都是实心的一块地，前面切开；上面按岩性、气候长东西 ----
@@ -135,21 +135,23 @@ export default {
       if (b.rock === 'limestone') {
         // 地表的溶沟：顺着裂隙往下溶宽的 V 形缝
         const tops = []; for (let i = 0; i <= w; i += 2) tops.push(Y(height(b, P, -BW / 2 + (i / w) * BW, BD / 2)));
-        g.fillStyle = 'rgba(60,58,54,0.55)'; for (let i = 0; i < 11; i++) { const x0 = (i + 0.5) * (w / 11), d = 30 + 90 * sm(0, 0.3, t); if (t <= 0.01) break; const yt = tops[Math.round(x0 / 2)] ?? 0; g.beginPath(); g.moveTo(x0 - 7 * sm(0, 0.2, t) - 1, yt); g.lineTo(x0 + 7 * sm(0, 0.2, t) + 1, yt); g.lineTo(x0 + 1, yt + d); g.fill(); }
-        if (b.clim === 'wet') { g.fillStyle = 'rgba(150,80,50,0.55)'; for (let i = 0; i <= w; i += 2) g.fillRect(i, tops[i / 2], 2, 9); }          // 湿润地区地表一层红色的风化土
+        if (t > 0.01) { g.fillStyle = 'rgba(60,58,54,0.55)'; let prev = 0; for (let i = 1; i < w; i += 2) { const x = -BW / 2 + (i / w) * BW, jv = joint(x, BD / 2); if (jv > 0.6 && prev <= 0.6) { const d = (30 + 90 * sm(0, 0.3, t)) * (0.6 + 0.4 * jv), hw = 2 + 6 * sm(0, 0.2, t), yt = tops[(i - 1) / 2] ?? 0; g.beginPath(); g.moveTo(i - hw, yt); g.lineTo(i + hw, yt); g.lineTo(i + 1, yt + d); g.fill(); } prev = jv; } }          // 溶沟：就在顶面那两组节理和切面相交的地方，沿裂隙往下溶宽
+        if (b.clim === 'wet') { g.fillStyle = 'rgba(150,80,50,0.55)'; for (let i = 0; i <= w; i += 2) { const sl = Math.abs((tops[i / 2 + 1] ?? tops[i / 2]) - tops[i / 2]) / 2; if (sl < 0.9) g.fillRect(i, tops[i / 2], 2, sl < 0.25 ? 9 : 4); } }          // 风化土：平缓处和洼地厚一些，陡壁上断开（土壤覆盖只是示意）
         const c = cave(t), cx = w * 0.52, cy = Y(0.016), rx = 30 + 130 * c.size, ry = 10 + 34 * c.size;          // 溶洞在地下深处：比后来溶低的地面（坝子）还低
         if (c.size > 0.02) {
           const rr = (a) => 1 + 0.12 * Math.sin(3 * a + 1) + 0.08 * Math.sin(5 * a + 2) + 0.05 * Math.sin(9 * a);          // 洞壁不是规整的椭圆
           const outline = () => { g.beginPath(); for (let i = 0; i <= 64; i++) { const a = (i / 64) * Math.PI * 2, r = rr(a); g.lineTo(cx + Math.cos(a) * rx * r, cy + Math.sin(a) * ry * r * (Math.sin(a) > 0 ? 0.8 : 1)); } g.closePath(); };
           outline(); const cg = g.createRadialGradient(cx, cy, 4, cx, cy, rx * 1.1); cg.addColorStop(0, '#1c1a1a'); cg.addColorStop(0.75, '#2e2a26'); cg.addColorStop(1, '#5a5048'); g.fillStyle = cg; g.fill();
+          const wall = []; for (let i = 0; i <= 256; i++) { const a = (i / 256) * Math.PI * 2, r = rr(a); wall.push([cx + Math.cos(a) * rx * r, cy + Math.sin(a) * ry * r * (Math.sin(a) > 0 ? 0.8 : 1)]); }
+          const wallY = (x, up) => { let best = null; for (let i = 0; i < 256; i++) { const [x0, y0] = wall[i], [x1, y1] = wall[i + 1]; if ((x0 - x) * (x1 - x) > 0 || x0 === x1) continue; const y = y0 + ((x - x0) / (x1 - x0)) * (y1 - y0); if (best === null || (up ? y < best : y > best)) best = y; } return best; };          // 同一条洞壁轮廓上，这个横坐标的洞顶、洞底
           g.save(); outline(); g.clip();
           const rv = g.createLinearGradient(0, cy + ry * 0.5, 0, cy + ry); rv.addColorStop(0, '#5f9cc8'); rv.addColorStop(1, '#2f5f8a'); g.fillStyle = rv; g.beginPath(); g.ellipse(cx + rx * 0.42, cy + ry * 0.85, rx * 0.42, ry * 0.2, 0, 0, 7); g.fill();          // 地下河：在洞底一侧
           const R = mkRnd(9);
           for (let i = 0; i < 11; i++) {
-            const x = cx - rx * 0.78 + (i / 10) * rx * 1.56 + (R() - 0.5) * 8, half = ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2)), L1 = half * 0.9 * c.drip * (0.45 + R() * 0.55), L2 = half * 0.7 * c.drip * (0.45 + R() * 0.55), colm = c.column && i % 3 === 1, wd = 4 + R() * 3;
+            const x = cx - rx * 0.78 + (i / 10) * rx * 1.56 + (R() - 0.5) * 8, yTop = wallY(x, true), yBot = wallY(x, false); if (yTop === null || yBot === null) continue; const gap = yBot - yTop, L1 = gap * 0.45 * c.drip * (0.45 + R() * 0.55), L2 = gap * 0.35 * c.drip * (0.45 + R() * 0.55), colm = c.column && i % 3 === 1, wd = 4 + R() * 3;
             const cone = (x0, y0, len, dir) => { const gr = g.createLinearGradient(x0 - wd, 0, x0 + wd, 0); gr.addColorStop(0, '#bfae8e'); gr.addColorStop(0.45, '#f3e8cf'); gr.addColorStop(1, '#a8987a'); g.fillStyle = gr; g.beginPath(); g.moveTo(x0 - wd, y0); g.quadraticCurveTo(x0 - wd * 0.3, y0 + dir * len * 0.6, x0, y0 + dir * len); g.quadraticCurveTo(x0 + wd * 0.3, y0 + dir * len * 0.6, x0 + wd, y0); g.fill(); };
-            cone(x, cy - half, colm ? half : L1, 1);          // 石钟乳：从洞顶往下
-            if ((i % 2 === 0 || colm) && x < cx + rx * 0.05) cone(x, cy + half - 1, colm ? half : L2, -1);          // 石笋：从洞底往上（河槽那边不长）；和石钟乳连起来就是石柱
+            cone(x, yTop - 2, (colm ? gap / 2 : L1) + 2, 1);          // 石钟乳：从洞顶往下（起点埋进洞壁一点，贴着长）
+            if ((i % 2 === 0 || colm) && x < cx + rx * 0.05) cone(x, yBot + 2, (colm ? gap / 2 : L2) + 2, -1);          // 石笋：从洞底往上（河槽那边不长）；和石钟乳连起来就是石柱
           }
           g.restore();
           g.font = '600 26px "PingFang SC", sans-serif'; g.textAlign = 'left'; g.lineWidth = 5; g.strokeStyle = 'rgba(30,30,30,0.55)';
@@ -164,7 +166,7 @@ export default {
     }
     const aHover = airLabel(block, '', { h: 0.0075, color: '#3a3226', dim: 0 });
     const tHint = tag('<span>拖“经过的时间”</span><small>三块经历同样长的时间</small>', 'hint');
-    noteBadge(tag, '教学示意：时间大大压缩了；两块石灰岩的发育快慢只是示意的比较；展示的是一种典型演变，不代表每个地方都要依次经过各阶段；地下的石钟乳、石笋和地表的阶段没有固定对应；竖直方向夸大了；花岗岩的风化、侵蚀没有模拟').loc(block, -1.5 * BW - GAP + 0.01, -0.002, BD / 2 + 0.012);
+    noteBadge(tag, '教学示意：时间大大压缩了；地表的土壤覆盖只是示意，颜色不代表所有岩溶区；两块石灰岩的发育快慢只是示意的比较；展示的是一种典型演变，不代表每个地方都要依次经过各阶段；地下的石钟乳、石笋和地表的阶段没有固定对应；竖直方向夸大了；花岗岩的风化、侵蚀没有模拟').loc(block, -1.5 * BW - GAP + 0.01, -0.002, BD / 2 + 0.012);
     const labels = [aHover, ...units.flatMap((u) => [u.label, u.stageL])];
     const layoutAll = () => { units.forEach(rebuild); tHint.loc(block, 0, 0.18, 0).show(!S.moved); drawChart(); drawLog(); };
 

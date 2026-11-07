@@ -8,6 +8,7 @@
 //   3. 拖时间（风化、侵蚀）：抬升的岩块被风化侵蚀成陡峭的山；断层沿线岩石破碎，发育成沟谷、河流；下降的岩块里堆起泥沙，成了平原。
 // 教学示意：竖直方向夸大了，位移和演化阶段未作真实尺度标定；位移、岩层厚度都是示意。
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
@@ -21,6 +22,34 @@ const ASK = {
   hz: ['先猜一下（可以不猜）：在这个情境里，断开以后，横穿断层的公路会——', ['被错开', '还是一条直线', '被抬高']],
 };
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+
+// 装饰植被采用固定种子，树种与岩层无关；只按坡度减少数量。
+function woodland(parent, bounds, count) {
+  const merge = (a, b) => {
+    const A = a.toNonIndexed(), B = b.toNonIndexed(), g = new THREE.BufferGeometry();
+    const pa = A.attributes.position.array, pb = B.attributes.position.array, p = new Float32Array(pa.length + pb.length), c = new Float32Array(p.length);
+    p.set(pa); p.set(pb, pa.length);
+    for (let i = 0; i < p.length; i += 3) c.set(i < pa.length ? [1, 1, 1] : [0.48, 0.34, 0.22], i);
+    g.setAttribute('position', new THREE.BufferAttribute(p, 3)); g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.computeVertexNormals();
+    a.dispose(); b.dispose(); A.dispose(); B.dispose(); return g;
+  };
+  const shapes = [merge(new THREE.IcosahedronGeometry(0.0022, 1).scale(1, 1.15, 1).translate(0, 0.0044, 0), new THREE.CylinderGeometry(0.0003, 0.0005, 0.0036, 5).translate(0, 0.0018, 0)), merge(new THREE.ConeGeometry(0.002, 0.006, 7).translate(0, 0.0045, 0), new THREE.CylinderGeometry(0.0003, 0.0004, 0.0026, 5).translate(0, 0.0013, 0))];
+  const meshes = shapes.map((geo) => { const m = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), count); m.count = 0; m.raycast = () => {}; parent.add(m); return m; });
+  let seed = 31; const r = () => ((seed = seed * 16807 % 2147483647) / 2147483647);
+  const [x0, x1, z0, z1] = bounds, sites = Array.from({ length: count }, () => ({ x: x0 + 0.004 + r() * (x1 - x0 - 0.008), z: z0 + 0.004 + r() * (z1 - z0 - 0.008), s: 0.65 + r() * 0.65, t: r() > 0.45 ? 0 : 1, tone: r(), yaw: r() * 6.28 }));
+  const obj = new THREE.Object3D(), col = new THREE.Color();
+  return (height, avoid = () => false) => {
+    meshes.forEach((m) => { m.count = 0; });
+    for (const p of sites) {
+      const slope = Math.hypot(height(p.x + 0.0005, p.z) - height(p.x - 0.0005, p.z), height(p.x, p.z + 0.0005) - height(p.x, p.z - 0.0005)) / 0.001;
+      if (avoid(p.x, p.z) || slope > 0.45 + p.tone * 1.1) continue;
+      const m = meshes[p.t]; obj.position.set(p.x, height(p.x, p.z) - 0.00015, p.z); obj.rotation.y = p.yaw; obj.scale.setScalar(p.s); obj.updateMatrix();
+      m.setMatrixAt(m.count, obj.matrix); col.setHex(p.t ? 0x356347 : 0x577c3e).multiplyScalar(0.82 + p.tone * 0.38); m.setColorAt(m.count++, col);
+    }
+    meshes.forEach((m) => { m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.computeBoundingSphere(); });
+  };
+}
 
 export default {
   id: 'fault',
@@ -44,9 +73,19 @@ export default {
     const H0 = LAYERS.reduce((a, l) => a + l[1], 0);
 
     // ---- 岩块：每块是一叠四层的盒子（和课本图 2.17 一样的配色） ----
-    const grain = canvasTex(256, 256, (g, w) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2400; i++) { const v = 150 + Math.random() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.2 + Math.random() * 0.3})`; g.fillRect(Math.random() * w, Math.random() * w, 1.6, 1.6); } }); grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.repeat.set(4, 2);
-    const mats = LAYERS.map(([c]) => new THREE.MeshLambertMaterial({ color: c, map: grain }));
-    const edgeM = new THREE.LineBasicMaterial({ color: 0x3a2a1a, transparent: true, opacity: 0.45 });
+    const grain = canvasTex(512, 256, (g, w, hh) => {
+      g.fillStyle = '#f3f0e9'; g.fillRect(0, 0, w, hh);
+      let seed = 17; const r = () => ((seed = seed * 16807 % 2147483647) / 2147483647);
+      for (let i = 0; i < 8500; i++) { g.fillStyle = `rgba(64,53,42,${0.04 + r() * 0.15})`; g.fillRect(r() * w, r() * hh, 0.6 + r() * 1.3, 0.6 + r()); }
+      for (let j = 12; j < hh; j += 19) { g.strokeStyle = 'rgba(70,57,44,0.24)'; g.lineWidth = 1; g.beginPath(); for (let x = 0; x <= w; x += 4) g.lineTo(x, j + Math.sin(x * 0.04 + j) * 1.5); g.stroke(); }
+      for (let i = 0; i < 150; i++) { const x = r() * w, y = r() * hh; g.strokeStyle = `rgba(66,54,43,${0.06 + r() * 0.12})`; g.lineWidth = 0.65; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 8 + r() * 45, y + r() * 2); g.stroke(); }
+    }); grain.wrapS = grain.wrapT = THREE.RepeatWrapping; grain.repeat.set(2, 1); grain.anisotropy = 8;
+    const grass = canvasTex(512, 256, (g, w, hh) => {
+      for (let x = 0; x < w; x++) for (let z = 0; z < hh; z++) { const n = 8 * Math.sin(x * 0.11 + z * 0.17) * Math.sin(x * 0.04 - z * 0.08) + 5 * Math.sin(x * 4.7 + z * 8.3); g.fillStyle = `rgb(${115 + n},${143 + n},${73 + n * 0.6})`; g.fillRect(x, z, 1, 1); }
+    }); grass.anisotropy = 8;
+    const groundMat = new THREE.MeshStandardMaterial({ map: grass, roughness: 1, side: THREE.DoubleSide });
+    const mats = LAYERS.map(([c], i) => new THREE.MeshStandardMaterial({ color: i === 3 ? 0x786244 : c, map: grain, roughness: 0.96, side: THREE.DoubleSide }));
+    const edgeM = new THREE.LineBasicMaterial({ color: 0x3a2a1a, transparent: true, opacity: 0.24 });
     const makeBlock = (x0, x1, z0, z1) => {
       const g = new THREE.Group(); let y = 0;
       for (let i = 0; i < LAYERS.length; i++) { const t = LAYERS[i][1], m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, t, z1 - z0), mats[i]); m.position.set((x0 + x1) / 2, y + t / 2, (z0 + z1) / 2); const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), edgeM); e.raycast = () => {}; m.add(e); g.add(m); y += t; }
@@ -55,27 +94,62 @@ export default {
     const vBlocks = [makeBlock(XL, F1, -ZD, ZD), makeBlock(F1, F2, -ZD, ZD), makeBlock(F2, XR, -ZD, ZD)];
     const hBlocks = [makeBlock(XL, XR, -ZD, 0), makeBlock(XL, XR, 0, ZD)];
 
+    // 装饰网格和树都挂在各自岩块下，水平、垂直位移共用原有变换。
+    const scenery = [...vBlocks, ...hBlocks].map((g) => {
+      const { x0, x1, z0, z1 } = g.userData, geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0, 64, 28); geo.rotateX(-Math.PI / 2); geo.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
+      const mesh = new THREE.Mesh(geo, groundMat); mesh.raycast = () => {}; g.add(mesh);
+      return { g, mesh, plant: woodland(g, [x0, x1, z0, z1], g === hBlocks[0] || g === hBlocks[1] ? 125 : 80) };
+    });
+
     // 公路和小河（水平位移那种）：横穿断层；断开以后近处那一半跟着岩块挪
     const roadM = new THREE.MeshBasicMaterial({ color: 0x6b6e75 }), riverM = new THREE.MeshBasicMaterial({ color: 0x5f9fcc });
     const strip = (mat, x, w, parent, z0, z1) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, z1 - z0), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, H0 + 0.0006, (z0 + z1) / 2); m.raycast = () => {}; parent.add(m); return m; };
     for (const [i, z0, z1] of [[0, -ZD, 0], [1, 0, ZD]]) { strip(roadM, -0.06, 0.008, hBlocks[i], z0, z1); strip(riverM, 0.07, 0.01, hBlocks[i], z0, z1); }
 
     // ---- 风化侵蚀以后的地形：抬升的岩块上一道道陡的山脊；断层沿线的沟谷和河；下降的岩块上一片平原 ----
-    const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x8c9a6a, map: grain });
+    const ridgeMat = new THREE.MeshStandardMaterial({ map: grass, roughness: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const ridgeGeo = new THREE.BufferGeometry(), ridge = new THREE.Mesh(ridgeGeo, ridgeMat); ridge.raycast = () => {}; vBlocks[0].add(ridge);
     const CARVE = 0.016;          // 抬升的岩块最多被削低多少（示意）
+    let ridgeAmount = -1;
     const buildRidge = (amt) => {          // 西边那块被风化侵蚀：从原来的顶面往下削出一道道沟、留下尖尖的山脊（不比原来的顶面高）；四边落到削低以后的岩层顶上，和侧面接上
-      const NXr = 30, NZr = 12, P = [], I = [], x0 = XL, x1 = F1, base = H0 - CARVE * amt;
+      if (amt === ridgeAmount) return; ridgeAmount = amt;
+      const NXr = 64, NZr = 28, P = [], I = [], x0 = XL, x1 = F1, base = H0 - CARVE * amt;
       for (let j = 0; j <= NZr; j++) for (let i = 0; i <= NXr; i++) {
         const u = i / NXr, v = j / NZr, x = x0 + (x1 - x0) * u, z = -ZD + 2 * ZD * v, edge = Math.min(u, 1 - u, v, 1 - v);
         const peak = Math.pow(Math.max(0, Math.sin(u * Math.PI * 3.2 + v * 1.7) * 0.5 + 0.5), 1.4) * (0.75 + 0.25 * Math.sin(v * 9 + u * 3));
         P.push(x, base + CARVE * amt * peak * Math.min(1, edge * 8), z);
       }
       for (let j = 0; j < NZr; j++) for (let i = 0; i < NXr; i++) { const a = j * (NXr + 1) + i, b = a + NXr + 1; I.push(a, b, a + 1, a + 1, b, b + 1); }
-      ridgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); ridgeGeo.setIndex(I); ridgeGeo.computeVertexNormals(); ridge.visible = amt > 0.02;
+      ridgeGeo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); ridgeGeo.setIndex(I); const uv = []; for (let j = 0; j <= NZr; j++) for (let i = 0; i <= NXr; i++) uv.push(i / NXr, j / NZr); ridgeGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); ridgeGeo.computeVertexNormals(); ridgeGeo.computeBoundingSphere(); ridge.visible = amt > 0.02;
       const top = vBlocks[0].children, gTop = top[3], yTop = top[2], tY = LAYERS[2][1];          // 顶上的草皮和黄砂岩被削掉一截
       gTop.visible = amt <= 0.02;
       const keepY = Math.max(0.001, tY - Math.max(0, CARVE * amt - LAYERS[3][1])); yTop.scale.y = keepY / tY; yTop.position.y = H0 - LAYERS[3][1] - tY + keepY / 2;
+    };
+    // 山脊边缘补齐到剩余岩层的薄壁，避免侵蚀初段草皮撤去后露空。
+    const rim = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0x927950, map: grain, roughness: 1, side: THREE.DoubleSide })); rim.raycast = () => {}; vBlocks[0].add(rim);
+    let sceneryKey = '';
+    const dress = (amt, deposit) => {
+      const key = `${amt}:${deposit}`; if (key === sceneryKey) return; sceneryKey = key;
+      scenery.forEach(({ g, mesh, plant }) => {
+        const { x0, x1, z0, z1 } = g.userData, west = g === vBlocks[0], middle = g === vBlocks[1], horizontal = hBlocks.includes(g);
+        const height = (x, z) => {
+          const u = (x - x0) / (x1 - x0), v = (z - z0) / (z1 - z0), edge = Math.min(u, 1 - u, v, 1 - v);
+          if (west && amt > 0.02) {
+            const peak = Math.pow(Math.max(0, Math.sin(u * Math.PI * 3.2 + v * 1.7) * 0.5 + 0.5), 1.4) * (0.75 + 0.25 * Math.sin(v * 9 + u * 3));
+            return H0 - CARVE * amt + CARVE * amt * peak * Math.min(1, edge * 8);
+          }
+          const clearance = horizontal ? Math.min(1, Math.abs(x + 0.06) / 0.009, Math.abs(x - 0.07) / 0.01) : 1;
+          return H0 + 0.00008 + (middle ? deposit : 0) + (middle ? 0.00035 : 0.0008) * Math.sin(x * 148 + z * 67) ** 2 * Math.sin(z * 110 - x * 53) ** 2 * Math.max(0, Math.min(1, edge * 12)) * clearance;
+        };
+        const p = mesh.geometry.attributes.position;
+        for (let i = 0; i < p.count; i++) p.setY(i, height(p.getX(i), p.getZ(i)));
+        p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); mesh.visible = !(west && amt > 0.02);
+        plant(height, (x, z) => horizontal ? Math.abs(x + 0.06) < 0.009 || Math.abs(x - 0.07) < 0.011 || (x > 0.09 && z > 0.035) : middle && (Math.abs(x - F1) < 0.017 || Math.abs(x - F2) < 0.017));
+      });
+      const p = [], uv = [], top = H0 - CARVE * amt, low = Math.min(top, H0 - LAYERS[3][1]);
+      const points = [[XL, -ZD], [F1, -ZD], [F1, ZD], [XL, ZD], [XL, -ZD]];
+      for (let i = 0; i < 4; i++) { const [x, z] = points[i], [xx, zz] = points[i + 1]; p.push(x, low, z, x, top, z, xx, top, zz, x, low, z, xx, top, zz, xx, low, zz); uv.push(0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0); }
+      rim.geometry.dispose(); rim.geometry = new THREE.BufferGeometry(); rim.geometry.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); rim.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); rim.geometry.computeVertexNormals(); rim.visible = amt > 0.02;
     };
     const sediment = new THREE.Mesh(new THREE.BoxGeometry(F2 - F1 - 0.002, 1, ZD * 2 - 0.002), new THREE.MeshLambertMaterial({ color: 0xd9c98e, map: grain })); sediment.raycast = () => {}; vBlocks[1].add(sediment);          // 下降的岩块上一层层堆起来的泥沙
     const gully = [F1, F2].map((x) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.012, ZD * 2), new THREE.MeshBasicMaterial({ color: 0x5f9fcc, transparent: true, opacity: 0 })); m.rotation.x = -Math.PI / 2; m.raycast = () => {}; m.position.x = x; block.add(m); return m; });
@@ -85,15 +159,15 @@ export default {
     const cracks = [F1, F2, 'h'].map((f) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.01, H0), new THREE.MeshBasicMaterial({ map: crackTex, transparent: true, opacity: 0, depthWrite: false })); m.raycast = () => {}; if (f === 'h') { m.rotation.y = Math.PI / 2; m.position.set(XR + 0.0005, H0 / 2, 0); } else m.position.set(f, H0 / 2, ZD + 0.0005); block.add(m); return m; });
 
     // ---- 红板：两头各一块（垂直那种往外拉）；近处那半块上一个把手（水平那种往旁边推） ----
-    const plateMat = new THREE.MeshStandardMaterial({ color: 0xb84a32, roughness: 0.5, emissive: 0x5a1a10, emissiveIntensity: 0.3 });
+    const plateMat = new THREE.MeshStandardMaterial({ color: 0xb84a32, roughness: 0.32, metalness: 0.48, emissive: 0x5a1a10, emissiveIntensity: 0.08 });
     const plates = [-1, 1].map((sd) => {
-      const g = new THREE.Group(), p = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.05, ZD * 2 + 0.01), plateMat); p.position.y = 0.03; g.add(p);
+      const g = new THREE.Group(), p = new THREE.Mesh(new RoundedBoxGeometry(0.006, 0.05, ZD * 2 + 0.01, 3, 0.0015), plateMat); p.position.y = 0.03; g.add(p);
       const ar = new THREE.Mesh(new THREE.ConeGeometry(0.008, 0.018, 16), plateMat); ar.rotation.z = sd > 0 ? -Math.PI / 2 : Math.PI / 2; ar.position.set(sd * 0.022, 0.03, 0); g.add(ar);          // 箭头朝外：张力的方向
       const pick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, ZD * 2 + 0.02), new THREE.MeshBasicMaterial({ visible: false })); pick.position.set(sd * 0.018, 0.03, 0); pick.userData.pick = true; g.add(pick);
       g.userData = { sd, pick }; block.add(g); return g;
     });
     const handle = new THREE.Group(); hBlocks[1].add(handle);
-    { const p = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.012), plateMat); p.position.set(0.12, H0 + 0.008, ZD - 0.016); handle.add(p); for (const sd of [-1, 1]) { const ar = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.012, 14), plateMat); ar.rotation.z = sd > 0 ? -Math.PI / 2 : Math.PI / 2; ar.position.set(0.12 + sd * 0.022, H0 + 0.008, ZD - 0.016); handle.add(ar); } }
+    { const p = new THREE.Mesh(new RoundedBoxGeometry(0.03, 0.012, 0.012, 3, 0.002), plateMat); p.position.set(0.12, H0 + 0.008, ZD - 0.016); handle.add(p); for (const sd of [-1, 1]) { const ar = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.012, 14), plateMat); ar.rotation.z = sd > 0 ? -Math.PI / 2 : Math.PI / 2; ar.position.set(0.12 + sd * 0.022, H0 + 0.008, ZD - 0.016); handle.add(ar); } }
     const handlePick = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.03), new THREE.MeshBasicMaterial({ visible: false })); handlePick.position.set(0.12, H0 + 0.008, ZD - 0.016); handlePick.userData.pick = true; handle.add(handlePick);
 
     // ---- 影子、取景框、标签 ----
@@ -126,6 +200,7 @@ export default {
         const off = 0.05 * d * S.hdir; hBlocks[0].position.set(jitter, 0, 0); hBlocks[1].position.set(off + jitter, 0, 0);          // 往哪边推，近处这半块就往哪边错
         buildRidge(0); gully.forEach((m) => (m.material.opacity = 0));
       }
+      dress(v ? S.e * Math.min(1, d * 1.5) : 0, v ? 0.012 * sm(0.1, 1, S.e) * d : 0);
       const pre = S.broken ? 0 : sm(0.1, BREAK, S.s);          // 断开之前：裂纹越来越多
       cracks[0].material.opacity = cracks[1].material.opacity = v ? pre * 0.9 : 0; cracks[2].material.opacity = v ? 0 : pre * 0.9;
       placeTags();

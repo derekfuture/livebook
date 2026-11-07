@@ -55,13 +55,53 @@ export default {
     // ---- 地面：一格格的颜色跟着地面温度变（冷蓝、暖橙）；台湾海峡那个情境里中间是海 ----
     const strata = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL || '/'}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace; strata.wrapS = THREE.RepeatWrapping;
     const sm = (rep, c) => { const t = strata.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rep, 0.5); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
-    const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, GT - 0.003, D * 2), [sm(0.4, 0.9), sm(0.4, 0.78), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm(2.2, 0.97), sm(2.2, 0.82)]); soil.position.y = (GT - 0.003) / 2; block.add(soil);          // 地面下是一层层的岩层（手绘贴图）
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.014, D * 2), [sm(0.4, 0.9), sm(0.4, 0.78), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm(2.2, 0.97), sm(2.2, 0.82)]); soil.position.y = 0.007; block.add(soil);          // 地面下是一层层的岩层（手绘贴图）
     const soilE = new THREE.LineSegments(new THREE.EdgesGeometry(soil.geometry), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); soil.add(soilE);
-    const gGeo = new THREE.BoxGeometry(XR - XL, 0.003, D * 2, N, 1, 1), gCol = new Float32Array(gGeo.attributes.position.count * 3); gGeo.setAttribute('color', new THREE.BufferAttribute(gCol, 3));
+    const gGeo = new THREE.BoxGeometry(XR - XL, 0.003, D * 2, N * 2, 1, 24), gCol = new Float32Array(gGeo.attributes.position.count * 3); gGeo.setAttribute('color', new THREE.BufferAttribute(gCol, 3));
     const grain = canvasTex(512, 128, (g, w, hh) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, hh); for (let i = 0; i < 2600; i++) { const v = 150 + Math.random() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.12 + Math.random() * 0.2})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.6, i % 3 ? 1.6 : 3.5); } });
-    const groundTop = new THREE.Mesh(gGeo, new THREE.MeshBasicMaterial({ vertexColors: true, map: grain })); groundTop.position.y = GT - 0.0015; block.add(groundTop);          // 地面有一点点笔触质感；颜色里带着冷暖
+    const groundTop = new THREE.Mesh(gGeo, [sm(0.4, 0.9), sm(0.4, 0.82), lit(0xffffff, { vertexColors: true, map: grain }), sm(1, 0.8), sm(2.2, 0.97), sm(2.2, 0.82)]); groundTop.position.y = 0; block.add(groundTop);          // 地面有一点点笔触质感；颜色里带着冷暖
+    // 地面保持闭合：顶点只在切换情境时调整，温度仍逐格着色。
+    const relief = (x, z) => {
+      if (S.mode === 'sea' && !isLand(x)) return GT - 0.009 + 0.0006 * Math.sin(x * 180 + z * 90);
+      const ripple = 0.0006 * (1 + Math.sin(x * 170 + z * 110) * Math.cos(z * 180));
+      const hill = S.mode === 'sea' ? 0.003 * Math.exp(-(((x + 0.135) / 0.026) ** 2)) * Math.exp(-(((z + 0.012) / 0.022) ** 2)) : 0;
+      return GT + ripple + hill;
+    };
+    const landProps = new THREE.Group(); block.add(landProps);
+    const trunkGeo = new THREE.CylinderGeometry(0.0003, 0.00045, 0.002, 5), crownGeo = new THREE.IcosahedronGeometry(0.0018, 1);
+    const trunks = new THREE.InstancedMesh(trunkGeo, lit(0x79634b), 90), crowns = new THREE.InstancedMesh(crownGeo, lit(0x587b45), 90); landProps.add(trunks, crowns);
+    trunks.raycast = crowns.raycast = () => {};
+    const village = new THREE.Group(); landProps.add(village);
+    for (let k = 0; k < 7; k++) {
+      const house = new THREE.Group(), wall = new THREE.Mesh(new THREE.BoxGeometry(0.0032, 0.0026, 0.003), lit(0xd9cfb5)), roof = new THREE.Mesh(new THREE.ConeGeometry(0.0026, 0.0016, 4), lit(0x796b61));
+      wall.position.y = 0.0013; roof.position.y = 0.0031; roof.rotation.y = Math.PI / 4; house.add(wall, roof); house.position.set(-0.102 - (k % 4) * 0.006, 0, -0.014 + Math.floor(k / 4) * 0.007); village.add(house);
+    }
+    const waterGeo = new THREE.BoxGeometry(COAST_E - COAST_W, 0.0085, D * 2, 48, 1, 20);
+    const wp = waterGeo.attributes.position;
+    for (let k = 0; k < wp.count; k++) if (wp.getY(k) > 0) wp.setY(k, wp.getY(k) + 0.00016 * Math.sin(wp.getX(k) * 680 + wp.getZ(k) * 290));
+    waterGeo.computeVertexNormals();
+    const water = new THREE.Mesh(waterGeo, lit(0x72b7c6, { transparent: true, opacity: 0.42, roughness: 0.25, depthWrite: false })); water.position.set((COAST_W + COAST_E) / 2, GT - 0.0044, 0); water.raycast = () => {}; block.add(water);
+    const groundUpper = Array.from(gGeo.attributes.position.array).filter((_, i) => i % 3 === 1).map((y) => y > 0);
+    let terrainMode = null;
+    const shapeGround = () => {
+      if (terrainMode === S.mode) return;
+      terrainMode = S.mode;
+      const p = gGeo.attributes.position;
+      for (let k = 0; k < p.count; k++) p.setY(k, groundUpper[k] ? relief(p.getX(k), p.getZ(k)) : 0.014);
+      p.needsUpdate = true; gGeo.computeVertexNormals(); gGeo.computeBoundingSphere();
+      const dummy = new THREE.Object3D(); let count = 0;
+      for (let k = 0; k < 90; k++) {
+        const x = XL + 0.009 + ((Math.sin(k * 127.1 + 4) * 43758.5453 % 1 + 1) % 1) * (XR - XL - 0.018), z = -0.028 + ((Math.sin(k * 311.7 + 8) * 9631.912 % 1 + 1) % 1) * 0.024;
+        if ((S.mode === 'sea' && (!isLand(x) || (x > -0.13 && x < -0.095))) || Math.abs(x) < 0.038) continue;
+        dummy.position.set(x, relief(x, z) + 0.001, z); dummy.scale.setScalar(0.7 + (k % 5) * 0.1); dummy.updateMatrix(); trunks.setMatrixAt(count, dummy.matrix);
+        dummy.position.y += 0.002; dummy.scale.y *= 1.2; dummy.updateMatrix(); crowns.setMatrixAt(count++, dummy.matrix);
+      }
+      trunks.count = crowns.count = count; trunks.instanceMatrix.needsUpdate = crowns.instanceMatrix.needsUpdate = true;
+      village.visible = water.visible = S.mode === 'sea'; village.children.forEach((o) => { o.position.y = relief(o.position.x, o.position.z); });
+    };
     const cSoil = new THREE.Color(0xb9c98a), cGrass = new THREE.Color(0x8fbf66), cSea = new THREE.Color(0x5a9fcc), cHot = new THREE.Color(0xe8743a), cCold = new THREE.Color(0x6c8fd0), tmpC = new THREE.Color();
     const paintGround = () => {
+      shapeGround();
       const p = gGeo.attributes.position;
       for (let k = 0; k < p.count; k++) {
         const x = p.getX(k), i = iOf(x), th = S.st.th[i];
@@ -87,6 +127,8 @@ export default {
       backGeo.attributes.color.needsUpdate = true;
     };
     const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(XR - XL, H, D * 2)), new THREE.LineBasicMaterial({ color: 0x7d8a99, transparent: true, opacity: 0.5 })); frame.position.y = GT + H / 2; frame.raycast = () => {}; block.add(frame);
+
+    const lid = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, D * 2), lit(0xe8f4ff, { transparent: true, opacity: 0.055, roughness: 0.18, side: THREE.DoubleSide, depthWrite: false })); lid.rotation.x = -Math.PI / 2; lid.position.y = GT + H; lid.raycast = () => {}; block.add(lid);
 
     // ---- 等压面：一张张横穿空气槽的面；前沿一条实线，旁边一条虚线是它原来的位置 ----
     const NI = 80, sheets = ZK.map((zk) => {
