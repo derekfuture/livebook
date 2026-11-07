@@ -41,3 +41,16 @@ export function relWind(lat, heading, shift = 0, rot = true) {
 }
 
 // 单圈模型的理想化条件参见 NOAA：https://www.noaa.gov/jetstream/global/global-atmospheric-circulations
+
+/** 帆船走得快不快（0—1，只是示意，本模型不计算风速）：顺风快、侧风次之、逆风要走之字形最慢；
+ * 副热带高压带（马纬度）、赤道低压带（赤道无风带）一带风弱而多变，帆船几乎寸步难行；副极地低压带一带风大浪急、天气多变。 */
+export function sailing(lat, heading, shift = 0, rot = true) {
+  const bn = rot ? beltNear(lat, shift, 2) : null, w = relWind(lat, heading, shift, rot);          // 和 windAt 用同一个范围：气压带两侧各 2°
+  if (bn && bn.p === 'H') return { k: 'calm', rate: 0.15, text: `${bn.name.replace(/^(北半球|南半球)/, '')}：气流下沉，带中间水平气压差小，近地面风弱而多变，天气晴朗干热，帆船几乎走不动${bn.lat === -30 ? '（课本：麦哲伦船队在 30°S 附近“平静无风……航行十分艰难”）' : ''}` };
+  if (bn && bn.name === '赤道低压带') return { k: 'doldrums', rate: 0.16, text: '赤道低压带：气流上升，两边的信风在这里汇合，近地面风弱而多变，多对流雨，帆船很难走（航海上叫“赤道无风带”）' };
+  if (bn && bn.p === 'L') return { k: 'storm', rate: 0.45, text: `${bn.name.replace(/^(北半球|南半球)/, '')}：冷暖气流在这里相遇抬升，气旋多，多阴雨，风浪常常很大` };
+  if (!w.known) return { k: 'side', rate: 0.5, text: `${w.dir}：本模型不判定顺逆风` };          // 跨赤道转向区、无偏转模型的交汇处
+  if (w.rel === '顺风') return { k: 'tail', rate: 1, text: `${w.dir}从身后吹来：顺风，船走得快` };
+  if (w.rel === '逆风') return { k: 'head', rate: 0.28, text: `${w.dir}迎面吹来：逆风，帆船只能走之字形（迎风换舷），前进很慢` };
+  return { k: 'side', rate: 0.65, text: `${w.dir}从侧面吹来：侧风，船还能走` };
+}

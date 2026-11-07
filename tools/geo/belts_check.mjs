@@ -1,5 +1,5 @@
 // 核对气压带和风带：node tools/geo/belts_check.mjs（选必1 第 48–50 页）
-import { windAt, relWind, beltNear } from '../../src/lessons/kit/belts.js';
+import { windAt, relWind, beltNear, sailing } from '../../src/lessons/kit/belts.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const eq = (a, b, m) => ok(a === b, `${m}：${a}${a === b ? '' : `（应为 ${b}）`}`);
 eq(windAt(15).dir, '东北风', '北纬 15°（东北信风）'); eq(windAt(45).dir, '西南风', '北纬 45°（盛行西风）'); eq(windAt(75).dir, '东北风', '北纬 75°（极地东风）');
@@ -14,4 +14,8 @@ eq(windAt(60).dir, '近地面辐合', '60°N 水平辐合');
 eq(windAt(-60).dir, '近地面辐合', '60°S 水平辐合');
 for (const [lat, sh] of [[2, 5], [-2, -5]]) { eq(windAt(lat, sh).dir, '跨赤道转向未模拟', `${lat}° 季节移动不沿用原半球信风`); ok(!windAt(lat, sh).known, '跨赤道不画确定风向'); }
 eq(windAt(2, 5, false).dir, '北风', '无偏转模型固定直射赤道，忽略季节参数');
+// 开船（航向 330°，北偏西 30°）：西风带逆风 → 30°S 风弱几乎不动 → 东南信风顺风 → 赤道无风带；船速只是示意
+for (const [lat, k] of [[-50, 'head'], [-30, 'calm'], [-15, 'tail'], [0, 'doldrums'], [-60, 'storm']]) eq(sailing(lat, 330).k, k, `开船 ${lat}°`);
+ok(sailing(-15, 330).rate > sailing(-50, 330).rate && sailing(-50, 330).rate > sailing(-30, 330).rate, '顺风比逆风快，逆风比副高里快');
+ok(sailing(-30, 330).text.includes('麦哲伦') && !sailing(30, 330).text.includes('麦哲伦'), '只有 30°S 引麦哲伦');
 process.exit(bad ? 1 : 0);
