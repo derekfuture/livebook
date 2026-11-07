@@ -20,7 +20,8 @@ export function range(D) { let hi = -9, lo = 9; for (let h = 0; h <= 24; h += 0.
 /** 这一天出现几次高潮（极大值） */
 export function highs(D) { let n = 0, t = []; for (let h = 0; h < 24; h += 0.05) { const a = level(D, h - 0.05), b = level(D, h), c = level(D, h + 0.05); if (b > a && b >= c) { n++; t.push(h); } } return { n, t }; }
 export const lunarName = (D) => { const d = Math.round(D) % 30 + 1, n = ['初一', '初二', '初三', '初四', '初五', '初六', '初七', '初八', '初九', '初十']; return d <= 10 ? n[d - 1] : d < 20 ? `十${'一二三四五六七八九'[d - 11]}` : d === 20 ? '二十' : d < 30 ? `廿${'一二三四五六七八九'[d - 21]}` : '三十'; };
-export const phaseName = (D) => { const f = ((D % SYN) + SYN) % SYN / SYN; return f < 0.06 || f > 0.94 ? '新月' : Math.abs(f - 0.25) < 0.06 ? '上弦月' : Math.abs(f - 0.5) < 0.06 ? '满月' : Math.abs(f - 0.75) < 0.06 ? '下弦月' : f < 0.5 ? '月亮渐圆' : '月亮渐缺'; };
+/** 从地球上看到的月相（D 从初一 0 时算起的天数）：新月、上弦、满月、下弦只取前后约半天，中间是蛾眉月、盈凸月、亏凸月、残月（NASA：https://science.nasa.gov/moon/moon-phases/） */
+export const phaseName = (D) => { const f = ((D % SYN) + SYN) % SYN / SYN, T = 0.02; return f < T || f > 1 - T ? '新月' : Math.abs(f - 0.25) < T ? '上弦月' : Math.abs(f - 0.5) < T ? '满月' : Math.abs(f - 0.75) < T ? '下弦月' : f < 0.25 ? '蛾眉月' : f < 0.5 ? '盈凸月' : f < 0.75 ? '亏凸月' : '残月'; };
 
 // 同一连续时间驱动太阳参考系中的港口、月球和分潮。太阴日约 24 小时 50 分。
 // 依据：https://oceanservice.noaa.gov/education/tutorial_tides/tides05_lunarday.html

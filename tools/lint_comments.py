@@ -10,4 +10,7 @@ for f in sys.argv[1:]:
         if re.search(r'[A-Za-z_$][\w$.]*\([^)]*\);|\b(const|let|return|if)\b\s|=\s*[^=]', tail) and not re.search(r'[一-鿿]', tail[-12:] if tail.strip().endswith(';') else ''):
             if re.search(r';\s*$', tail.strip()) or re.search(r'\w\.\w+\(.*\);', tail):
                 print(f'{f}:{n}: {line.strip()[:160]}'); bad += 1
+                continue
+        if re.search(r'\?\.\w|\)\s*;|\bconst\s|\blet\s|\bnew THREE\b|=>(?!\s*\{\})', tail):          # 更严：注释里出现 ?. 、); 、const、new THREE、箭头函数，几乎一定是吞掉的代码
+            print(f'{f}:{n}: {line.strip()[:160]}'); bad += 1
 sys.exit(1 if bad else 0)

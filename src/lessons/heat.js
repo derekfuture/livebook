@@ -29,7 +29,7 @@ export default {
   need: '让一天走一遍，比一比两支温度计；看看地球比月球多了哪几种辐射；再给地球的天空加上浓密的低云，过一个白天或一个夜晚',
   conclusion: {
     page: 39,
-    quote: '到达地球表面的太阳辐射，被地面吸收和反射。地面因吸收太阳辐射而增温，同时又以长波辐射的形式把热量传递给近地面大气。……地面长波辐射是近地面大气主要的、直接的热源。……地面辐射的长波辐射除极少部分穿过大气，到达宇宙空间外，绝大部分（75%—95%）被对流层中的水汽、二氧化碳等吸收。……大气辐射除一小部分向上射向宇宙空间外，大部分向下射向地面，其方向与地面辐射方向相反，故称大气逆辐射。大气逆辐射把热量传给地面，这就在一定程度上补偿了地面辐射损失的热量，对地面起到了保温作用。天空有云，特别是浓密的低云时，大气逆辐射更强。',
+    quote: '到达地球表面的太阳辐射，被地面吸收和反射。地面因吸收太阳辐射而增温，同时又以长波辐射的形式把热量传递给近地面大气。……所以，地面长波辐射是近地面大气主要的、直接的热源，对流层大气的热量主要也是来源于此。……地面辐射的长波辐射除极少部分穿过大气，到达宇宙空间外，绝大部分（75%—95%）被对流层中的水汽、二氧化碳等吸收。……大气辐射除一小部分向上射向宇宙空间外，大部分向下射向地面，其方向与地面辐射方向相反，故称大气逆辐射。大气逆辐射把热量传给地面，这就在一定程度上补偿了地面辐射损失的热量，对地面起到了保温作用。天空有云，特别是浓密的低云时，大气逆辐射更强。',
     why: '月球几乎没有大气：白天阳光毫无削减地晒在表面，表面很快热到一百多摄氏度；夜里表面的辐射直接散到宇宙空间，没有东西还回来，就冷到零下一百多摄氏度。地球多了一层大气：白天它反射、吸收掉一部分太阳辐射，地面不会那么热；地面辐射的长波辐射绝大部分被大气吸收，大气又以大气逆辐射把热量还给地面，夜里地面就不会那么冷。所以地球的昼夜温差小得多。大气是重要原因，真实差异还受昼夜长度及地表热性质影响；这里不量化各因素贡献。浓密的低云让这两样都更明显：白天反射更多阳光，夜里逆辐射更强。',
     src: '课本第 34–35 页 · 第二章 第二节 大气受热过程和大气运动',
   },
@@ -128,12 +128,13 @@ export default {
     const dayM = new THREE.MeshBasicMaterial({ map: skyTex('day') }), nightM = new THREE.MeshBasicMaterial({ map: skyTex('night'), transparent: true, opacity: 0 });
     back(EX, dayM); const nightBack = back(EX, nightM); nightBack.position.z += 0.0005;
     const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(Array.from({ length: 70 }).flatMap(() => { const th = Math.PI / 2 + rnd() * Math.PI; return [MX + Math.sin(th) * CW * 0.97, GY + 0.015 + rnd() * (TOP - 0.01), Math.cos(th) * ZD * 0.97]; }), 3)), new THREE.PointsMaterial({ color: 0xffffff, size: 0.0011, transparent: true, opacity: 0.8 })); stars.raycast = () => {}; block.add(stars);          // 星星贴在弯的天幕里面
-    const air = new THREE.Mesh(new THREE.BoxGeometry(CW * 2, TOP - GY, ZD * 2), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { hh: { value: (TOP - GY) / 2 } },
+    const airGeo = new THREE.BoxGeometry(CW * 2, TOP - GY, ZD * 2); airGeo.setIndex([0, 1, 4, 5].flatMap((face) => Array.from(airGeo.index.array.slice(face * 6, face * 6 + 6)))); airGeo.clearGroups();          // 仅保留侧面，不把示意边界画成实体盖子
+    const air = new THREE.Mesh(airGeo, new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, uniforms: { hh: { value: (TOP - GY) / 2 } },
       vertexShader: 'varying float vy; void main(){ vy = position.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform float hh; varying float vy; void main(){ float t = clamp((vy + hh) / (2.0 * hh), 0.0, 1.0); float a = mix(0.26, 0.04, pow(t, 0.7)) + 0.12 * smoothstep(0.96, 1.0, t); gl_FragColor = vec4(mix(vec3(0.82,0.9,0.98), vec3(0.55,0.75,0.96), t), a); }' })); air.position.set(EX, GY + (TOP - GY) / 2, 0); air.renderOrder = 3; air.raycast = () => {}; block.add(air);          // 大气：贴近地面浓、往上越来越稀，顶上一道淡淡的亮边（大气上界）
+      fragmentShader: 'uniform float hh; varying float vy; void main(){ float t = clamp((vy + hh) / (2.0 * hh), 0.0, 1.0); float a = mix(0.26, 0.0, pow(t, 0.7)); gl_FragColor = vec4(mix(vec3(0.82,0.9,0.98), vec3(0.55,0.75,0.96), t), a); }' })); air.position.set(EX, GY + (TOP - GY) / 2, 0); air.renderOrder = 3; air.raycast = () => {}; block.add(air);          // 大气：贴近地面浓、往上越来越稀，顶端渐隐；虚线仅表示辐射收支示意边界
     const lineM = new THREE.LineDashedMaterial({ color: 0x2a4a72, dashSize: 0.003, gapSize: 0.002, transparent: true, opacity: 0.7 });
     { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(EX - CW, TOP, ZD), new THREE.Vector3(EX + CW, TOP, ZD), new THREE.Vector3(EX + CW, TOP, -ZD)]), lineM); l.computeLineDistances(); block.add(l); }
-    faceLabel(block, '大气上界', { x: EX + 0.012, y: TOP + 0.004, z: ZD, h: 0.0055, color: '#1f3f68', stroke: 'rgba(255,255,255,0.7)' });
+    faceLabel(block, '大气上界（辐射收支示意边界）', { x: EX, y: TOP + 0.004, z: ZD, h: 0.0042, color: '#1f3f68', stroke: 'rgba(255,255,255,0.7)' });
     faceLabel(block, '月球表面', { x: MX, y: GY / 2, z: ZD, h: 0.0068, color: '#ffffff', stroke: 'rgba(30,30,30,0.5)' });
     faceLabel(block, '地球表面', { x: EX, y: GY / 2, z: ZD, h: 0.0068, color: '#ffffff', stroke: 'rgba(30,40,20,0.5)' });
     // 浓密的低云
@@ -145,7 +146,7 @@ export default {
     cloud.visible = false;
 
     // ---- 太阳：在两块上空走一道弧，拖着它走就是换时刻 ----
-    const SR = 0.17, SC = new THREE.Vector3(0, TOP + 0.03, -ZD * 0.2);
+    const SR = MX * -1 + CW, SUN_RISE = 0.16, SC = new THREE.Vector3(0, GY - 0.0005, 0);
     const sun = new THREE.Mesh(new THREE.SphereGeometry(0.011, 32, 20), new THREE.MeshBasicMaterial({ color: 0xfff0b8 })); block.add(sun);
     const glowTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,225,140,0.9)'); gr.addColorStop(0.4, 'rgba(255,205,110,0.35)'); gr.addColorStop(1, 'rgba(255,200,100,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false })); glow.scale.set(0.075, 0.075, 1); glow.raycast = () => {}; sun.add(glow);
@@ -170,9 +171,11 @@ export default {
     for (let i = 0; i < NP; i++) { const m = new THREE.Mesh(pgeo, pmats.sun); m.visible = false; m.raycast = () => {}; m.renderOrder = 6; block.add(m); packs.push({ m, on: false }); }
     const spawn = (kind, x, y0, y1, fate = null) => { const p = packs.find((q) => !q.on); if (!p) return; Object.assign(p, { on: true, kind, x: x + (rnd() - 0.5) * 0.008, z: (rnd() - 0.5) * ZD * 1.2, y: y0, y0, y1, fate, t: 0 }); p.m.material = pmats[kind]; p.m.geometry = kind === 'sun' ? pgeo : lgeo; p.m.visible = true; };
     const acc = {};
+    const clearPacks = (shortOnly = false) => { for (const p of packs) if (!shortOnly || p.kind === 'sun') { p.on = false; p.m.visible = false; } for (const key of Object.keys(acc)) if (!shortOnly || ['mSun', 'mRefl', 'eSunR', 'eSunA', 'eSunG', 'eGroundRefl'].includes(key)) delete acc[key]; };
     const emit = (key, rate, dt, fn) => { acc[key] = (acc[key] || 0) + rate * dt; while (acc[key] >= 1) { acc[key] -= 1; fn(); } };
     const AIRMID = GY + (TOP - GY) * 0.55;
     const stepPacks = (dt, f) => {
+      if (f.sun <= 1e-9) clearPacks(true);
       const k = 1 / 120, sw = surfaceShortwave(f);          // 每秒放几份：辐射越强放得越多
       emit('mSun', sw.moonAbsorb * k, dt, () => spawn('sun', LANE.mSun, TOP + 0.01, GY + 0.002));
       emit('mRefl', sw.moonReflect * k, dt, () => spawn('sun', LANE.mSun, TOP + 0.01, GY + 0.002, 'bounce'));
@@ -199,6 +202,7 @@ export default {
     pLabels.mSun.position.set(LANE.mSun + 0.022, GY + 0.05, ZD * 0.7); pLabels.mUp.position.set(LANE.mUp + 0.024, GY + 0.075, ZD * 0.7); pLabels.eSun.position.set(LANE.eSun + 0.014, GY + 0.075, ZD * 0.7); pLabels.eUp.position.set(LANE.eUp + 0.006, GY + 0.022, ZD * 0.7); pLabels.eBack.position.set(LANE.eBack + 0.012, GY + 0.045, ZD * 0.7); pLabels.eSpace.position.set(LANE.eSpace - 0.004, TOP - 0.018, ZD * 0.7);
 
     // ---- 两支温度计：一样的刻度，立在两块地面的前面 ----
+    const temperatureToY = (T) => 0.004 + (Math.min(TMAX, Math.max(TMIN, T)) - TMIN) / (TMAX - TMIN) * 0.066;
     const thermo = (cx) => {
       const g = new THREE.Group(), L = 0.066, glass = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, roughness: 0.05, metalness: 0, clearcoat: 1 }), brassM = new THREE.MeshStandardMaterial({ color: 0xb89656, metalness: 0.7, roughness: 0.3 }), red = new THREE.MeshStandardMaterial({ color: 0xd8301f, roughness: 0.35, emissive: 0x3a0804 });
       const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0015, L, 16), glass); tube.position.y = L / 2 + 0.004; g.add(tube);          // 细细的玻璃管、红色的液柱、黄铜的帽和底座
@@ -206,11 +210,11 @@ export default {
       const col = new THREE.Mesh(new THREE.CylinderGeometry(0.0008, 0.0008, 1, 10).translate(0, 0.5, 0), red); col.position.y = 0.004; g.add(col);
       const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0018, 0.002, 16), brassM); cap.position.y = L + 0.005; g.add(cap);
       const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.0048, 0.0016, 24), brassM); foot.position.y = 0.0008; g.add(foot);
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(0.0095, L + 0.004), new THREE.MeshStandardMaterial({ roughness: 0.8, map: canvasTex(96, 640, (c, w, hh) => { c.fillStyle = '#f7f2e6'; c.fillRect(0, 0, w, hh); c.strokeStyle = '#b89656'; c.lineWidth = 3; c.strokeRect(1.5, 1.5, w - 3, hh - 3); const Y = (T) => hh - 20 - ((T - TMIN) / (TMAX - TMIN)) * (hh - 40); c.fillStyle = '#4a4034'; for (let T = -150; T <= 130; T += 10) c.fillRect(w - (T % 50 ? 12 : 20), Y(T) - 0.75, T % 50 ? 12 : 20, 1.5); c.font = '600 19px "PingFang SC", sans-serif'; c.textAlign = 'right'; for (let T = -150; T <= 100; T += 50) c.fillText(String(T), w - 24, Y(T) + 7); c.fillStyle = '#2a5a9a'; c.fillRect(6, Y(0) - 1.5, w - 12, 3); }) })); board.position.set(-0.0066, L / 2 + 0.004, -0.0005); g.add(board);          // 刻度板：每 10 ℃ 一小格，每 50 ℃ 一大格
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(0.0095, L + 0.004), new THREE.MeshStandardMaterial({ roughness: 0.8, map: canvasTex(96, 640, (c, w, hh) => { c.fillStyle = '#f7f2e6'; c.fillRect(0, 0, w, hh); c.strokeStyle = '#b89656'; c.lineWidth = 3; c.strokeRect(1.5, 1.5, w - 3, hh - 3); const Y = (T) => hh * (1 - (temperatureToY(T) - 0.002) / (L + 0.004)); c.fillStyle = '#4a4034'; for (let T = -150; T <= 130; T += 10) c.fillRect(w - (T % 50 ? 12 : 20), Y(T) - 0.75, T % 50 ? 12 : 20, 1.5); c.font = '600 19px "PingFang SC", sans-serif'; c.textAlign = 'right'; for (let T = -150; T <= 100; T += 50) c.fillText(String(T), w - 24, Y(T) + 7); c.fillStyle = '#2a5a9a'; c.fillRect(6, Y(0) - 1.5, w - 12, 3); }) })); board.position.set(-0.0066, L / 2 + 0.004, -0.0005); g.add(board);          // 刻度板：每 10 ℃ 一小格，每 50 ℃ 一大格
       g.position.set(cx, GY, ZD * 0.78); block.add(g); g.userData = { col, L }; return g;
     };
     const thM = thermo(MX - CW + 0.02), thE = thermo(EX - CW + 0.02);
-    const setThermo = (th, T) => { const f = (Math.min(TMAX, Math.max(TMIN, T)) - TMIN) / (TMAX - TMIN); th.userData.col.scale.y = Math.max(0.001, f * th.userData.L); };
+    const setThermo = (th, T) => { th.userData.col.scale.y = temperatureToY(T) - temperatureToY(TMIN); };
     const tM = airLabel(block, '', { h: 0.0078, color: '#2c3245', icon: 'thermo' }), tE = airLabel(block, '', { h: 0.0078, color: '#2c3245', icon: 'thermo' });
     tM.position.set(MX - CW + 0.02, GY + 0.088, ZD * 0.78); tE.position.set(EX - CW + 0.02, GY + 0.088, ZD * 0.78);
     const tHint = tag('<span>按住太阳，往左拖</span><small>太阳落下去，就是夜里</small>', 'hint');
@@ -220,7 +224,7 @@ export default {
     // ---- 摆好 ----
     const layout = () => {
       const a = sunAng(S.t), day = toa(S.t) > 0;
-      sun.position.set(SC.x + Math.cos(a) * SR, SC.y + Math.sin(a) * 0.045, SC.z); sun.visible = Math.sin(a) > -0.05;          // 太阳在两块的上空走一道扁弧
+      sun.position.set(SC.x + Math.cos(a) * SR, SC.y + Math.sin(a) * SUN_RISE, SC.z); sun.visible = Math.sin(a) >= -1e-9;          // 太阳中心在 6、18 时到达天幕底部地平线；轨迹为昼夜示意
       const n = Math.min(1, Math.max(0, (0.15 - Math.sin(a)) / 0.3)); nightM.opacity = n; stars.material.opacity = 0.8;
       cloud.visible = S.sky === 'cloud'; cloud.children.forEach((c) => c.material.color.setScalar(day ? 0.88 : 0.45));
       const Tm = S.st.m - K0, Tg = S.st.g - K0; setThermo(thM, Tm); setThermo(thE, Tg);
@@ -293,8 +297,8 @@ export default {
         const c = document.getElementById('c');
         if (!S.drag) { if (c) c.style.cursor = rc.intersectObject(sunPick, false).length ? 'grab' : ''; return false; }
         const p = onBack(rc.ray); if (!p) return true;
-        let a = Math.atan2((p.y - SC.y) / 0.045 * SR, p.x - SC.x); if (a < -Math.PI / 2) a += 2 * Math.PI; a = Math.max(-0.35, Math.min(Math.PI + 0.35, a));          // 太阳只往前走：往左拖是往后（时间往后），往右拖回去不倒流
-        const cur = ((S.t % 24) + 24) % 24, want = 6 + (a / Math.PI) * 12; let d = want - cur; if (d < -12) d += 24; if (d > 0 && d < 12) { advance(d); S.moved = true; W?.time.set(((S.t % 24) + 24) % 24); layout(); }
+        let a = Math.atan2((p.y - SC.y) / SUN_RISE * SR, p.x - SC.x); if (a < -Math.PI / 2) a += 2 * Math.PI; a = Math.max(-0.35, Math.min(Math.PI + 0.35, a));          // 太阳只往前走：往左拖是往后（时间往后），往右拖回去不倒流
+        const cur = ((S.t % 24) + 24) % 24, want = 6 + (a / Math.PI) * 12; let d = want - cur; if (d < -12) d += 24; if (d > 0 && d < 12) { advance(d); clearPacks(); S.moved = true; W?.time.set(((S.t % 24) + 24) % 24); layout(); }
         return true;
       },
       up() { if (!S.drag) return false; S.drag = false; document.getElementById('c').style.cursor = ''; drawLog(); return true; },
@@ -308,18 +312,18 @@ export default {
       size: { w: 0.36, d: 0.12, h: 0.16 },
       view: { elev: 25, azim: 12, lookY: 0.5, frameMargin: 1.12 },
       pointer,
-      debug: { state: () => structuredClone(S), run: (hours, sky) => { if (sky) S.sky = sky; for (let i = 0; i < hours * 4; i++) advance(0.25); layout(); drawLog(); } },
+      debug: { state: () => structuredClone(S), run: (hours, sky) => { clearPacks(); if (sky) S.sky = sky; for (let i = 0; i < hours * 4; i++) advance(0.25); layout(); drawLog(); } },
       mount(ui) {
-        const time = slider('时刻（只能往后拨，就像时间只往前走）', { min: 0, max: 23.9, step: 0.1, value: S.t, fmt: (v) => hm(v), onInput: (v) => { let d = v - (((S.t % 24) + 24) % 24); if (d < 0) d += 24; advance(d); S.moved = true; S.play = false; play.textContent = '让一天走'; layout(); drawLog(); } });
-        const skySeg = seg('地球的天空', ['晴天', '有云（浓密的低云）'], (_, i) => { S.sky = i ? 'cloud' : 'clear'; layout(); drawLog(); }, { value: 0 });
+        const time = slider('时刻（只能往后拨，就像时间只往前走）', { min: 0, max: 23.9, step: 0.1, value: S.t, fmt: (v) => hm(v), onInput: (v) => { let d = v - (((S.t % 24) + 24) % 24); if (d < 0) d += 24; advance(d); clearPacks(); S.moved = true; S.play = false; play.textContent = '让一天走'; layout(); drawLog(); } });
+        const skySeg = seg('地球的天空', ['晴天', '有云（浓密的低云）'], (_, i) => { S.sky = i ? 'cloud' : 'clear'; clearPacks(); layout(); drawLog(); }, { value: 0 });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
           { text: '让一天走', onClick: () => { S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让一天走'; } },
-          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); reset(); for (const p of packs) { p.on = false; p.m.visible = false; } time.set(10); skySeg.set(0); guess.set(-1); acts.btns[0].textContent = '让一天走'; layout(); drawLog(); ui.status(START); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); reset(); clearPacks(); time.set(10); skySeg.set(0); guess.set(-1); acts.btns[0].textContent = '让一天走'; layout(); drawLog(); ui.status(START); } },
         ]);
         const play = acts.btns[0];
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 250 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '两支温度计的读数'), chart, read, acts.el, time.el, skySeg.el, guess.el, note('黄箭头是太阳辐射（短波），橙箭头是地面辐射（长波），红箭头是大气辐射（长波）。黄色箭头从表面折返向上表示短波反射；橙色箭头向上变小、停住表示被大气吸收。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '两支温度计的读数'), chart, read, acts.el, time.el, skySeg.el, guess.el, note('黄箭头是太阳辐射（短波），橙箭头是地面辐射（长波），红箭头是大气辐射（长波）。直线、波浪形仅用于区分辐射类别，不表示真实传播路线或按比例绘制的波长。月面恒星、银河为背景示意，未模拟眩光、暗适应和曝光。黄色箭头从表面折返向上表示短波反射；橙色箭头向上变小、停住表示被大气吸收。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, time, play };
         ui.status(START);

@@ -38,7 +38,7 @@ export function nexts(id) {
     else out.push({ proc: '变质作用（再一次，未熔融）', to: source + '_further', why: '继续在固态发生变质，具体岩种取决于原岩成分和条件，不能认定仍保留原岩名' });
     out.push({ proc: '熔化', to: 'magma', why: '在适当温度、压力和挥发分条件下越过固相线，发生部分熔融形成岩浆；减压或加入水等挥发分可促熔，升压本身通常不是促熔机制。此处回到岩浆类别，未追踪熔体成分，后续凝固需另选相应成分的实例' });
   }
-  if (r.kind === 'sediment') out.push({ proc: '压实、固结', to: LITH[id], why: r.composition === 'carbonate' ? '碳酸盐沉积物经压实、胶结等成岩作用形成石灰岩，不会因粒径为砂级就变成石英砂岩' : '沉积物经压实、胶结等成岩作用固结；石英砂在此限定为形成石英砂岩的实例' });
+  if (r.kind === 'sediment') out.push({ proc: '压实、固结', to: LITH[id], why: r.composition === 'carbonate' ? '碳酸盐沉积物经压实、胶结等成岩作用形成石灰岩，不会因粒径为砂级就变成石英砂岩' : `沉积物经压实、胶结等成岩作用固结；本例中${r.name}形成${ROCK[LITH[id]].name}` });
   return out;
 }
 // 固态变质与熔融条件：Physical Geology 3.2，https://opentextbc.ca/geology/chapter/3-2-magma-and-magma-formation/

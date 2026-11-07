@@ -149,7 +149,7 @@ export default {
     // ---- 暖水：海面下那团可以推的“暖水”（一个半透明的红色把手） ----
     const handle = new THREE.Mesh(new THREE.SphereGeometry(0.009, 20, 14), new THREE.MeshStandardMaterial({ color: 0xe0583a, transparent: true, opacity: 0.85, emissive: 0x5a1a10, emissiveIntensity: 0.4 })); block.add(handle);
     const handlePick = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); handlePick.userData.pick = true; handle.add(handlePick);
-    const tHint = tag('<span>按住这团暖水</span><small>往东（右）推、往西（左）推</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，海温和环流的位置是示意；温跃层只示意东部加深、东西倾斜减小，未模拟西部变浅等变化；拖动只是切换状态，不是在模拟成因');
+    const tHint = tag('<span>按住这团暖水</span><small>往东（右）推、往西（左）推</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，海温和环流的位置是示意；厄尔尼诺时，示意东部温跃层加深、东西倾斜减小；拉尼娜时相反。西部深度变化未模拟；拖动只是切换状态，不是在模拟成因');
     const tW = airLabel(block, '', { h: 0.0095, color: '#2c3245', icon: 'thermo' }), tE = airLabel(block, '', { h: 0.0095, color: '#2c3245', icon: 'thermo' }), tState = airLabel(block, '', { h: 0.013, color: '#a8341f' });
     faceLabel(block, '西太平洋（印度尼西亚一带）', { x: XL + 0.05, y: 0.007, z: ZD, h: 0.008, color: '#ffffff', stroke: 'rgba(15,30,70,0.6)' }); faceLabel(block, '东太平洋（秘鲁沿海）', { x: XR - 0.045, y: 0.007, z: ZD, h: 0.008, color: '#ffffff', stroke: 'rgba(15,30,70,0.6)' });          // 地名写在剖面底下
     const callout = airLabel(block, '', { h: 0.0095, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;

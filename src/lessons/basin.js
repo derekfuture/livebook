@@ -6,15 +6,15 @@
 // 学生亲手做的：沿着时间线（1956 → 2016 年）往前走，泥沙多少按课本图 4.7 三个统计时段的实测年均输沙量——
 //   1. 问题：泥沙从黄土高原的冲沟冲进河，在下游淤下，河床越淤越高，大堤只能跟着加高。按“假如大堤失守”：看“地上悬河”一旦决口，水从高处冲向开封城（历史上的情形，课本：决口 1 500 余次）。
 //   2. 中游保持水土（50 年代就开始，一直在做）：黄土高原慢慢变绿，修起梯田、淤地坝。
-//   3. 小浪底：1999 年蓄水拦沙；2002—2015 年汛前调水调沙，亲手按一次，人造洪峰冲刷下游河床；“地上河”没有再长高。
-//   4. 入海口：入海流路几次改道；正在走水的河口仍在淤长，但入海泥沙少了，长得慢了；失去主流水沙补给的老河口，海岸后退。
+//   3. 小浪底：1999 年蓄水拦沙；2002—2004 年调水调沙试验，2005—2015 年每年汛前调水调沙；亲手按一次，人造洪峰冲刷下游河床；“地上河”没有再长高。
+//   4. 入海口：入海流路几次改道；主流河口在调水调沙期间仍在淤长，2016 年水沙极枯时又冲蚀后退；失去主流水沙补给的老河口，海岸后退。
 // 数据：kit/basin.js（课本图 4.7 的实测输沙量、核对过的年份；高度、三角洲伸缩只是示意）。tools/geo/basin_check.mjs 核对。
 import * as THREE from 'three';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
-import { STATIONS, ERAS, Y0, Y1, EVENTS, MOUTHS, eraOf, loadAt, mouthAt, flushYear, bedRel, leveeRel, soilRel, delta, shoreAt } from './kit/basin.js';
+import { STATIONS, ERAS, Y0, Y1, EVENTS, MOUTHS, ERODE_FROM, eraOf, loadAt, mouthAt, flushYear, bedRel, leveeRel, soilRel, delta, shoreAt } from './kit/basin.js';
 
 const XL = -0.19, XR = 0.19, ZD = 0.1, NX = 170, NZ = 90, PLAIN = 0.01, KM = 0.0016;          // 地块；平原（开封城里地面）的高度；1 米在画面上多高（竖直方向夸大）
 const DAM_S = 0.47, SB = 0.86, FLOOD = 3.5;          // 小浪底在河的哪一段；决口处；洪水位比河床高多少（示意）
@@ -31,11 +31,11 @@ export default {
   title: '黄河的调沙减淤',
   flow: 'explore',
   ask: '黄河下游原来有什么问题？中游保持水土、小浪底调水调沙，到底换来了什么？入海口又会怎样？',
-  need: '按一次“假如大堤失守”看看问题有多严重；沿着时间线从 1956 年走到 2016 年，在 2002—2015 年里按一次“汛前放水调沙”，再看看入海口的三角洲',
+  need: '按一次“假如大堤失守”看看问题有多严重；沿着时间线从 1956 年走到 2016 年，在 2002—2015 年里按一次“调水调沙”，再看看入海口的三角洲',
   conclusion: {
     page: 66,
     quote: '含沙量大是黄河最突出的水文特征。黄土高原水土流失严重，导致黄河挟带泥沙数量之多，居世界大河首位。黄河下游流经华北平原，坡度变小，流速缓慢，泥沙沉积使下游河床不断抬高，因此下游的黄河自古以“易淤、易决、易徙”而闻名。据历史文献记载，黄河下游决口泛滥1 500余次，较大的改道有20多次……为了防治水害，两岸不断加高大堤，使得黄河下游河床高出两岸地面，成为世界上著名的“地上悬河”（图4.5）。……中游的黄土高原是黄河流域的主要侵蚀区，水土保持是减少入黄泥沙的根本措施。……小浪底工程从2009年竣工到2015年，累计将下游河道中9.66亿吨淤沙送入大海，“地上河”没有再长高，黄河下游基本保持冲淤平衡。',
-    why: '中游黄土高原的泥沙大量冲进黄河，到了坡度变小的下游就淤下来，河床越淤越高；人们只能把大堤一次次加高，河床和大堤一起往上长，成了高出两岸的“地上悬河”。历史上一旦决口，水就从高处冲向平原（1949 年以后，靠加高加固大堤和防汛，黄河伏秋大汛没有决口，但悬河越悬越高，风险越来越大）。治理从两头下手：中游保持水土，从源头减少入黄泥沙；小浪底（1999 年蓄水，2001 年底主体工程完工，2009 年通过国家竣工验收）拦沙，并在汛前调水调沙，用人造洪峰冲刷下游河床，把淤沙送进大海。课本图 4.7 显示，和第一个时段比，各站的输沙量总体大幅减少（头道拐站第三时段比第二时段略有回升；减少里也有降水变化、上游水库、引水用水等的影响）；2009—2015 年 9.66 亿吨淤沙入海，“地上河”没有再长高，下游淤积得到缓解、防洪能力提高。入海的泥沙少了，河口一带的海岸也跟着变：失去主流水沙补给的老河口岸段被海浪侵蚀后退，主流入海的河口仍可能淤长，各岸段不一样——一个地方的治理，会牵动流域的另一头。',
+    why: '中游黄土高原的泥沙大量冲进黄河，到了坡度变小的下游就淤下来，河床越淤越高；人们只能把大堤一次次加高，河床和大堤一起往上长，成了高出两岸的“地上悬河”。历史上一旦决口，水就从高处冲向平原（1949 年以后，靠加高加固大堤和防汛，黄河伏秋大汛没有决口，但悬河越悬越高，风险越来越大）。治理从两头下手：中游保持水土，从源头减少入黄泥沙；小浪底（1999 年蓄水，2001 年底主体工程完工，2009 年通过国家竣工验收）拦沙，并调水调沙（2002—2004 年三次试验，2005 年起每年汛前进行），用人造洪峰冲刷下游河床，把淤沙送进大海。课本图 4.7 显示，和第一个时段比，各站的输沙量总体大幅减少（头道拐站第三时段比第二时段略有回升；减少里也有降水变化、上游水库、引水用水等的影响）；2009—2015 年 9.66 亿吨淤沙入海，“地上河”没有再长高，下游淤积得到缓解、防洪能力提高。入海的泥沙少了，河口一带的海岸也跟着变：失去主流水沙补给的老河口岸段被海浪侵蚀后退，主流入海的河口在来沙多的年份淤长、来沙极少的年份也会被冲蚀，各岸段不一样——一个地方的治理，会牵动流域的另一头。',
     src: '课本第 61–64 页 · 第四章 第一节 流域内协调发展',
   },
 
@@ -189,9 +189,14 @@ export default {
     const SANDC = new THREE.Color(0xe2c98e), MARSH = new THREE.Color(0x9cba6c), SEAB = new THREE.Color(0x3d78b8); void SANDC; void MARSH; void SEAB;
     const buildDelta = () => {
       const d = delta(S.y), p = dGeo.attributes.position, xs = (z) => shoreX(z, d), mo = mouthAt(S.y), mz = mo.z, load = Math.min(1, loadAt(S.y, '利津') / 10);
+      const path = (zEnd, over = 0) => { const out = []; for (let i = 0; i <= 40; i++) { const t = i / 40, z = RIVZ + (zEnd - RIVZ) * sm(0.3, 1, t), x = -DW + (xs(zEnd) + DW + over) * t; out.push(new THREE.Vector3(x, 0, z)); } return out; };          // 河道中线：从西边进来，弯到河口（over：越过岸线多少）
+      const near = (pts, x, z) => { let best = 1, at = 0; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], vx = b.x - a.x, vz = b.z - a.z, L2 = vx * vx + vz * vz, u = Math.max(0, Math.min(1, ((x - a.x) * vx + (z - a.z) * vz) / L2)), dd = Math.hypot(x - a.x - vx * u, z - a.z - vz * u); if (dd < best) { best = dd; at = (i + u) / (pts.length - 1); } } return [best, at]; };          // 到河道中线多远、在第几段
+      const main = path(mz, -0.0004), olds = MOUTHS.filter((m) => m.key !== mo.key && m.from <= S.y).map((m) => path(m.z, -0.0006)), halfW = (at) => 0.0026 + 0.0016 * at;
       for (let k = 0; k < p.count; k++) {
         const x = p.getX(k), z = p.getZ(k), dx = x - xs(z), land = dx < 0, n = hash(Math.floor(x * 900), Math.floor(z * 900));
-        p.setY(k, land ? landH(dx) : WATER);
+        let y = land ? landH(dx) : WATER;
+        if (land) { const [dm, at] = near(main, x, z), w = halfW(at); if (dm < w * 1.6) y -= 0.0009 * sm(w * 1.6, w * 0.6, dm); for (const q of olds) { const [dq] = near(q, x, z); if (dq < 0.004) y -= 0.0004 * sm(0.004, 0.0015, dq); } }          // 主河道刻出一道河槽，老河道（故道）是浅浅的一道洼
+        p.setY(k, y);
         if (land) {
           if (dx < -0.04) { const cx = Math.floor((x + 1) / 0.012), cz = Math.floor((z + 1) / 0.009); tc.copy(FARM[Math.floor(hash(cx, cz) * 4)]).multiplyScalar(0.94 + 0.08 * n); }          // 内陆：一块块农田
           else if (dx < -0.008) tc.copy(MARSH1).lerp(MARSH2, n * 0.7);          // 靠海：湿地
@@ -211,13 +216,13 @@ export default {
       edge(L2((u) => [-DW + 2 * DW * u, DD])); edge(L2((u) => [DW, DD - 2 * DD * u])); edge(L2((u) => [DW - 2 * DW * u, -DD])); edge(L2((u) => [-DW, -DD + 2 * DD * u]));
       dWall.geometry.dispose(); dWall.geometry = new THREE.BufferGeometry(); dWall.geometry.setAttribute('position', new THREE.Float32BufferAttribute(WP, 3)); dWall.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(WU, 2)); dWall.geometry.computeVertexNormals();
       dWater.geometry.dispose(); dWater.geometry = new THREE.BufferGeometry(); dWater.geometry.setAttribute('position', new THREE.Float32BufferAttribute(AP, 3)); dWater.geometry.computeVertexNormals();
-      // 河道：从西边进来，弯到当时的河口；越往下游越宽
-      const P = [], up = new THREE.Vector3(0, 1, 0), pts = [], path = (zEnd) => { const out = []; for (let i = 0; i <= 30; i++) { const t = i / 30, z = RIVZ + (zEnd - RIVZ) * sm(0.3, 1, t), x = -DW + (xs(zEnd) + DW + 0.003) * t; out.push(new THREE.Vector3(x, 0, z)); } return out; };
-      for (const v of path(mz)) { v.y = landH(-0.03) + 0.0004; pts.push(v); }
-      for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], t = new THREE.Vector3().subVectors(b, a).normalize(), w0 = 0.0026 + 0.0016 * (i / 30), w1 = 0.0026 + 0.0016 * ((i + 1) / 30), n0 = new THREE.Vector3().crossVectors(t, up).normalize(); P.push(a.x + n0.x * w0, a.y, a.z + n0.z * w0, b.x + n0.x * w1, b.y, b.z + n0.z * w1, b.x - n0.x * w1, b.y, b.z - n0.z * w1, a.x + n0.x * w0, a.y, a.z + n0.z * w0, b.x - n0.x * w1, b.y, b.z - n0.z * w1, a.x - n0.x * w0, a.y, a.z - n0.z * w0); }
+      // 河面：在河槽里，比两岸低；顺流慢慢降到海面，在河口接上海面
+      const P = [], up = new THREE.Vector3(0, 1, 0), pts = [];
+      main.forEach((v, i) => { const t = i / (main.length - 1), dxs = v.x - xs(v.z); v.y = Math.max(WATER + 0.00005, landH(Math.min(-0.0001, dxs)) - 0.0004) * (1 - sm(0.85, 1, t)) + (WATER + 0.00005) * sm(0.85, 1, t); pts.push(v); });
+      for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], t = new THREE.Vector3().subVectors(b, a).normalize(), w0 = halfW(i / (pts.length - 1)), w1 = halfW((i + 1) / (pts.length - 1)), n0 = new THREE.Vector3().crossVectors(t, up).normalize(); P.push(a.x + n0.x * w0, a.y, a.z + n0.z * w0, b.x + n0.x * w1, b.y, b.z + n0.z * w1, b.x - n0.x * w1, b.y, b.z - n0.z * w1, a.x + n0.x * w0, a.y, a.z + n0.z * w0, b.x - n0.x * w1, b.y, b.z - n0.z * w1, a.x - n0.x * w0, a.y, a.z - n0.z * w0); }
       dRiver.geometry.dispose(); dRiver.geometry = new THREE.BufferGeometry(); dRiver.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
       dRiver.material.color.copy(CLEAR).lerp(MUDDY, load);
-      const OC = []; for (const m of MOUTHS) { if (m.key === mo.key || m.from > S.y) continue; const q = path(m.z); for (let i = 0; i < q.length - 1; i++) { if (q[i + 1].x - xs(q[i + 1].z) > 0) break; OC.push(q[i].x, landH(-0.03) + 0.0003, q[i].z, q[i + 1].x, landH(-0.03) + 0.0003, q[i + 1].z); } }          // 已经不走主流的老河道（到海岸为止）
+      const OC = [], gy = (x, z) => landH(Math.min(-0.0001, x - xs(z))) - 0.0004 + 0.00008; for (const q of olds) for (let i = 0; i < q.length - 1; i++) { if (q[i + 1].x - xs(q[i + 1].z) > -0.0008) break; OC.push(q[i].x, gy(q[i].x, q[i].z), q[i].z, q[i + 1].x, gy(q[i + 1].x, q[i + 1].z), q[i + 1].z); }          // 已经不走主流的老河道：贴着地面、躺在浅洼里，画到海岸为止
       oldCh.geometry.dispose(); oldCh.geometry = new THREE.BufferGeometry(); oldCh.geometry.setAttribute('position', new THREE.Float32BufferAttribute(OC, 3));
       const fp = []; for (let i = 0; i <= 80; i++) { const z = -DD + (2 * DD * i) / 80, x = Math.min(DW, xs(z) + 0.0012); fp.push(new THREE.Vector3(x, WATER + 0.0004, z)); } foam.geometry.dispose(); foam.geometry = new THREE.BufferGeometry().setFromPoints(fp);
       const g1996 = delta(1996), gp = []; for (let i = 0; i <= 40; i++) { const z = -DD + (2 * DD * i) / 40; gp.push(new THREE.Vector3(shoreX(z, g1996), WATER + 0.0016, z)); } ghost.geometry.dispose(); ghost.geometry = new THREE.BufferGeometry().setFromPoints(gp); ghost.computeLineDistances(); ghost.visible = S.y > 2000;
@@ -292,7 +297,7 @@ export default {
     faceLabel(block, '开封城里的地面', { x: CITY[0] - 0.01, y: PLAIN - 0.004, z: ZD, h: 0.0072, color: '#ffffff', stroke: 'rgba(40,30,20,0.6)' });
     const measure = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xa8341f })); measure.raycast = () => {}; block.add(measure);          // 切面上一道红线：河床比城里地面高多少
     const tHint = tag('<span>先按“假如大堤失守”</span><small>再拖“年份”往后走</small>', 'hint');
-    noteBadge(tag, '教学示意：流域的形状、方向、竖直比例都是示意。泥沙多少、河水颜色、粒子多少按课本图 4.7 三个统计时段的实测年均输沙量（不在时段间插值，粒子只示意多少）；河床和大堤的高度、三角洲的伸缩只表示方向；“假如大堤失守”是历史上的情形，不是所选年份的事；输沙量减少也有降水、上游水库、引水用水等的作用').loc(block, XL + 0.012, -0.002, ZD + 0.012);
+    noteBadge(tag, '教学示意：流域的形状、方向、竖直比例都是示意。泥沙多少、河水颜色、粒子多少按课本图 4.7 三个统计时段的实测年均输沙量（不在时段间插值，粒子只示意多少）；河口外黄色的深浅和范围也只编码该时段的年均输沙量，不代表当年实测的水色、含沙量或羽流范围；河床和大堤的高度、三角洲的伸缩只表示方向；“假如大堤失守”是历史上的情形，不是所选年份的事；输沙量减少也有降水、上游水库、引水用水等的作用').loc(block, XL + 0.012, -0.002, ZD + 0.012);
     const aHover = airLabel(block, '', { h: 0.0101, color: '#3a3226', dim: 0 });
     const labels = [aPlat, aDam, aPlain, aKaifeng, aBed, aBreach, aFlush, aVeg, aHover, aMouth, aOld, aNew, aSea, aGhost, aLink, stLm, stXl, stLj];
 
@@ -306,7 +311,7 @@ export default {
       aVeg.setText(S.y >= 1987 ? '水土保持：梯田、淤地坝、林草' : '').setOn(S.y >= 1987);
       const sp = era().span.replace(' 年', ''); stLm.setText(`龙门站 ${sp} 年均 ${loadAt(S.y, '龙门')} 亿吨`); stXl.setText(`小浪底站 ${sp} 年均 ${loadAt(S.y, '小浪底')} 亿吨`); stLj.setText(`利津站 ${sp} 年均 ${loadAt(S.y, '利津')} 亿吨`);
       const mo = mouthAt(S.y), Ld = delta(S.y), dead = MOUTHS.filter((m) => m.to <= S.y && Ld[m.key] > 0.05);
-      aNew.setText(`主流入海：${mo.name}（${mo.from} 年起）${mo.key === 'q8' ? (S.y < 2002 ? '，一度后退' : '，又向海淤长') : '，向海淤长'}`).setOn(true); aNew.position.z = mo.z + 0.012;
+      aNew.setText(`主流入海：${mo.name}（${mo.from} 年起）${mo.key === 'q8' ? (S.y < 2002 ? '，一度后退' : S.y < ERODE_FROM ? '，调水调沙期间又向海淤长' : '，2016 年水沙极枯，河口附近冲蚀后退') : '，向海淤长'}`).setOn(true); aNew.position.z = mo.z + 0.012;
       aOld.setText(dead.length ? '老河口：失去主流水沙补给，海岸后退' : '').setOn(dead.length > 0); if (dead.length) aOld.position.z = dead[dead.length - 1].z - 0.008; aGhost.setOn(S.y > 2000);
       buildDelta();
       tHint.loc(block, 0.11, 0.07, ZD * 0.6).show(!S.moved && !S.vTo);
@@ -317,7 +322,7 @@ export default {
     const statusFor = (y) => {
       const mo = mouthAt(y), parts = [`<b>${Math.floor(y)} 年</b>（图 4.7 统计时段 ${era().span}）：中游的水土保持在做（50 年代就开始），范围一年年扩大。`];
       if (y >= EVENTS.damFill) parts.push('小浪底水库 1999 年蓄水，拦下大量泥沙。');
-      if (flushYear(y)) parts.push('这一年汛前有调水调沙：按<b>汛前放水调沙</b>看看。'); else if (y >= EVENTS.lastFlush + 1) parts.push('2016 年没有进行调水调沙。');
+      if (flushYear(y)) parts.push(`${Math.floor(y) < EVENTS.prodFrom ? `这一年进行了调水调沙试验（${{ 2002: '7 月', 2003: '9 月，利用秋汛', 2004: '6—7 月' }[Math.floor(y)]}）` : '这一年汛前进行了调水调沙'}：按<b>调水调沙</b>看看。`); else if (y >= EVENTS.lastFlush + 1) parts.push('2016 年没有进行调水调沙。');
       parts.push(`入海走的是${mo.name}（${mo.from} 年起）。`);
       return parts.join('');
     };
@@ -363,11 +368,11 @@ export default {
       if (!flushYear(S.y)) { W?.ui.status(S.y < EVENTS.firstFlush ? '调水调沙从 2002 年开始。把年份拖到 2002—2015 年。' : '2016 年没有进行调水调沙。把年份拖到 2002—2015 年。'); return; }
       if (S.breach) stopDemos();
       tHint.show(false); S.pulse = 2.4; S.did.flush = true; S.moved = true; aFlush.position.set(curve.getPointAt(0.72).x + 0.03, PLAIN + 0.05, curve.getPointAt(0.72).z); aFlush.setText('人造洪峰：冲刷下游河床，泥沙送进大海').setOn(true); drawLog();
-      W?.ui.status(`${Math.floor(S.y)} 年汛期以前，上中游的水库联动放水，在小浪底形成<b>人造洪峰</b>，冲刷下游河床。课本：${EVENTS.scourFrom}—${EVENTS.scourTo} 年累计把 <b>${EVENTS.scoured} 亿吨</b>淤沙送进大海，“地上河”没有再长高。`);
+      W?.ui.status(`${Math.floor(S.y) < EVENTS.prodFrom ? `${Math.floor(S.y)} 年调水调沙试验` : `${Math.floor(S.y)} 年汛前`}：小浪底水库集中放水（2004 年起联合上游万家寨、三门峡等水库调度），在下游形成<b>人造洪峰</b>，冲刷下游河床。课本：${EVENTS.scourFrom}—${EVENTS.scourTo} 年累计把 <b>${EVENTS.scoured} 亿吨</b>淤沙送进大海，“地上河”没有再长高。`);
     };
 
     // ---- 侧栏：图 4.7（四个站、三个时段，当前时段亮）；下面一条大事年表（年份都核对过） ----
-    const TL = [[1956, '50 年代起：中游水土保持一直在做', '#3f6a2a'], [1964, '1964 入海改走刁口河', '#5a5040'], [1976, '1976 改走清水沟', '#5a5040'], [1996, '1996 清 8 汊改道', '#5a5040'], [1999, '1999 小浪底蓄水（2001 主体完工，2009 竣工验收）', '#1f4f86'], [2002, '2002—2015 汛前调水调沙', '#1f4f86'], [2009, '2009—2015 9.66 亿吨淤沙入海', '#a8341f']];
+    const TL = [[1956, '50 年代起：中游水土保持一直在做', '#3f6a2a'], [1964, '1964 入海改走刁口河', '#5a5040'], [1976, '1976 改走清水沟', '#5a5040'], [1996, '1996 清 8 汊改道', '#5a5040'], [1999, '1999 小浪底蓄水（2001 主体完工，2009 竣工验收）', '#1f4f86'], [2002, '2002—2004 调水调沙试验，2005—2015 每年汛前', '#1f4f86'], [2009, '2009—2015 9.66 亿吨淤沙入海', '#a8341f']];
     const drawChart = () => {
       if (!W) return;
       const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, cur = ERAS.indexOf(era()), B0 = 138, T0 = 36, Y = (v) => B0 - (v / 14) * (B0 - T0), COLS = ['#5f9a72', '#8a74b0', '#c07a9a'];
@@ -392,9 +397,9 @@ export default {
       if (S.seen.has('b')) r('1987—2005 年均：', '小浪底站 5.46 亿吨/年，利津站 3.33 亿吨/年：比第一时段少了一大半');
       if (S.seen.has('c')) r('2006—2016 年均：', '小浪底站 0.55 亿吨/年，利津站 1.02 亿吨/年——利津站反而比小浪底站多，下游河道被冲刷、泥沙被带走是重要原因');
       if (S.did.flush) r('效果：', `${EVENTS.scourFrom}—${EVENTS.scourTo} 年累计 ${EVENTS.scoured} 亿吨淤沙送进大海，“地上河”没有再长高，下游淤积得到缓解、防洪能力提高（河床仍高出两岸）`);
-      if (S.did.delta) r('入海口：', '入海泥沙从 9.78 降到 1.02 亿吨/年（时段年均）。失去主流水沙补给的老河口（神仙沟、刁口河、清水沟一带），海岸被海浪侵蚀后退（刁口河 2010 年起有生态补水，不等于恢复为主流）；主流入海的清 8 汊河口 1996—2002 年一度后退，调水调沙以后又向海淤长。各岸段的变化不一样：下游的治理，牵动了河口');
+      if (S.did.delta) r('入海口：', '入海泥沙从 9.78 降到 1.02 亿吨/年（时段年均）。失去主流水沙补给的老河口（神仙沟、刁口河、清水沟一带），海岸被海浪侵蚀后退（刁口河 2010 年起有生态补水，不等于恢复为主流）；主流入海的清 8 汊河口 1996—2002 年一度后退，2002—2015 年调水调沙期间又向海淤长，2016 年水沙极枯、调水调沙中断，河口附近又被冲蚀后退。各岸段的变化不一样：下游的治理，牵动了河口');
       if (S.seen.has('c')) r('注意：', '和第一时段比，各站总体大幅减少（头道拐站第三时段比第二时段略有回升）；减少里也有降水变化、上游水库、引水用水等的影响');
-      if (S.guess != null && S.did.delta) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：各岸段不一样，老河口后退，主流河口调水调沙以后仍在淤长`)));
+      if (S.guess != null && S.did.delta) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：各岸段不一样，老河口后退，主流河口调水调沙期间仍在淤长`)));
       W.log.replaceChildren(...rows);
       W.read.innerHTML = `<b>${yr(S.y)}</b> · 图 4.7 统计时段 ${era().span}${damOn() ? ' · 小浪底水库已蓄水' : ''}${flushYear(S.y) ? ' · 有调水调沙' : ''}<br><small>泥沙多少按所在时段的年均值（图 4.7）；高度、三角洲伸缩是示意</small>`;
       if (S.seen.size === 3 && S.did.breach && S.did.flush && S.did.delta) W.ui.unlock();
@@ -426,13 +431,13 @@ export default {
         const acts = buttons([
           { text: '让时间走', onClick: () => { S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让时间走'; if (S.play && S.y >= Y1) { S.force = true; setYear(Y0); } } },
           { text: '假如大堤失守（历史上的情形）', onClick: () => startBreach() },
-          { text: '汛前放水调沙（2002—2015 年）', onClick: () => startFlush() },
+          { text: '调水调沙（2002—2015 年）', onClick: () => startFlush() },
         ]);
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const view = buttons([{ text: '看入海口（三角洲）', onClick: () => (S.vTo ? backUp() : showMouth()) }]);
         const reset = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); stopDemos(); backUp(); Object.assign(S, { y: Y0, play: false, breach: null, pulse: 0, moved: false, guess: null, scourY: null, force: true }); S.did = { breach: false, flush: false, delta: false }; S.seen = new Set(['a']); floodM.visible = false; aBreach.setOn(false); aFlush.setOn(false); acts.btns[0].textContent = '让时间走'; guess.set(-1); setYear(Y0); rebuild(); ui.status(START); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 300 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '泥沙和河床，一年年怎么变'), chart, read, year.el, eraSeg.el, acts.el, view.el, guess.el, reset.el, note('前面的切面就是课本图 4.5：大堤夹着的河床比开封城里的地面高。河水越黄，那一段一年过的沙越多（按图 4.7）。按“看入海口”换到黄河三角洲。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '泥沙和河床，一年年怎么变'), chart, read, year.el, eraSeg.el, acts.el, view.el, guess.el, reset.el, note('前面的切面就是课本图 4.5：大堤夹着的河床比开封城里的地面高。河水越黄，表示那一段所在统计时段的年均输沙量越大（按图 4.7）。按“看入海口”换到黄河三角洲。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, year, eraSeg, mouthBtn: view.btns[0] };
         ui.status(START);

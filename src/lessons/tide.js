@@ -43,7 +43,7 @@ export default {
 
     // ---- 海岸：左边是陆地，往右是一段缓缓的潮间带滩涂，再往右是海底 ----
 
-    const NX = 120, NZ = 24, bump = (x, z) => (x < intertidal.hi ? 0.0018 : 0.0006) * Math.sin(x * 180 + z * 70) * Math.sin(z * 150 - x * 40) * Math.min(1, (ZD - z) / 0.012);          // 小起伏：前面切面处为 0，切面和课本的剖面一致
+    const NX = 120, NZ = 24, bump = (x, z) => (x < intertidal.hi - 0.016 ? 0.0018 * Math.sin(x * 180 + z * 70) * Math.sin(z * 150 - x * 40) * Math.min(1, (ZD - z) / 0.012) * Math.min(1, (intertidal.hi - 0.016 - x) / 0.01) : 0);          // 小起伏只在岸上的草地；潮间带和海底严格按 shore(x)，潮位、网帘、搁浅的判断都按它算
     const ground = (x, z) => shore(x) + bump(x, z);
     const geo = new THREE.PlaneGeometry(XR - XL, ZD * 2, NX, NZ); geo.rotateX(-Math.PI / 2);
     const col = new Float32Array(geo.attributes.position.count * 3); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -114,7 +114,7 @@ export default {
     const staffPost = new THREE.Mesh(new THREE.BoxGeometry(0.0016, STAFF_LO - shore(STAFF_X), 0.0016), new THREE.MeshLambertMaterial({ color: 0x6b6f76 })); staffPost.position.set(STAFF_X, (STAFF_LO + shore(STAFF_X)) / 2, STAFF_Z - 0.001); block.add(staffPost);
     const aLevel = airLabel(block, '', { h: 0.011, color: '#1d3f70', icon: 'flow' }), aGround = airLabel(block, '搁浅', { h: 0.013, color: '#b03a2a', dim: 0 }), aHover = airLabel(block, '', { h: 0.011, color: '#3a3226', dim: 0 });
     const ship = new THREE.Group(); block.add(ship);
-    { const H = SHIP_DRAFT + 0.005, prof = (y0, y1) => { const sh = new THREE.Shape(), bowAt = (y) => 0.010 + 0.007 * Math.min(1, y / 0.012); sh.moveTo(-0.017, y0); sh.lineTo(bowAt(y0), y0); for (let k = 1; k <= 6; k++) { const y = y0 + ((y1 - y0) * k) / 6; sh.lineTo(bowAt(y), y); } sh.lineTo(-0.017, y1); sh.lineTo(-0.017, y0); return new THREE.ExtrudeGeometry(sh, { depth: 0.012, bevelEnabled: true, bevelThickness: 0.0006, bevelSize: 0.0005, bevelSegments: 2 }).translate(0, HULL_BOTTOM, -0.006); };          // 船身：平底（船底贴着 HULL_BOTTOM，搁浅判断不变），船头往上翘
+    { const H = SHIP_DRAFT + 0.005, prof = (y0, y1) => { const sh = new THREE.Shape(), bowAt = (y) => 0.010 + 0.007 * Math.min(1, y / 0.012); sh.moveTo(-0.017, y0); sh.lineTo(bowAt(y0), y0); for (let k = 1; k <= 6; k++) { const y = y0 + ((y1 - y0) * k) / 6; sh.lineTo(bowAt(y), y); } sh.lineTo(-0.017, y1); sh.lineTo(-0.017, y0); return new THREE.ExtrudeGeometry(sh, { depth: 0.012, bevelEnabled: false }).translate(0, HULL_BOTTOM, -0.006); };          // 不倒角：船底正好在 HULL_BOTTOM、船长正好 −0.017～0.017，和 kit/tide.js 的搁浅判断用同一个外形          // 船身：平底（船底贴着 HULL_BOTTOM，搁浅判断不变），船头往上翘
       const lower = new THREE.Mesh(prof(0, H * 0.68), new THREE.MeshStandardMaterial({ color: 0x9a3a28, roughness: 0.6 })); ship.add(lower);
       const upper = new THREE.Mesh(prof(H * 0.68, H), new THREE.MeshStandardMaterial({ color: 0xf1ede4, roughness: 0.6 })); ship.add(upper);
       const winTex = canvasTex(128, 64, (g, w, hh) => { g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, w, hh); g.fillStyle = '#2f4a66'; for (let x = 10; x < w - 10; x += 28) g.fillRect(x, 14, 18, 18); });
@@ -217,7 +217,7 @@ export default {
     // ---- 轮流当主角：海岸 ↔ 太阳—地球—月亮盘 ----
     const V = { harbor: { b: new THREE.Vector3(0.02, 0, 0), bs: 1, o: new THREE.Vector3(-0.215, 0.004, -0.055), os: 1 }, orr: { b: new THREE.Vector3(0.225, 0, -0.085), bs: 0.42, o: new THREE.Vector3(-0.02, 0.004, 0.012), os: 2.6 } };
     const showOrr = () => { if (S.vTo) return; S.vTo = 1; S.framed = false; W?.ui.status('太阳—地球—月亮盘：拖着月亮绕地球走，看引潮作用叠在一起还是互相抵消；右后方的小海岸跟着变。按“回到海边”换回来。'); };
-    const showHarbor = () => { if (!S.vTo) return; S.vTo = 0; S.framed = false; };
+    const showHarbor = (quiet) => { if (!S.vTo) return; S.vTo = 0; S.framed = false; if (!quiet) W?.ui.status('回到海边。拨时间（或让一天走），看海水一天里怎么涨落；点左后方的小盘可以再拖月亮。'); };          // 回到海边：状态栏也换回海边的话
     const tOrr = tag('<span>日地月 →</span>', 'view', showOrr), tBack = tag('<span>回到海边</span>', 'view', showHarbor);
     const ease = (x) => x * x * (3 - 2 * x), v1 = new THREE.Vector3();
     const fadeL = () => { const k = ease(S.vk); for (const l of [aLevel, aGround, aHover]) { l.material.opacity *= 1 - k; l.visible = l.visible && k < 0.95; } };          // 海岸缩小时它的字先收起来（在标签自己更新之后再压暗）
@@ -264,12 +264,12 @@ export default {
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
           { text: '让一天走', onClick: () => { showHarbor(); if (S.h >= 24) S.h = 0; S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让一天走'; } },
-          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { D: 0, h: 6, play: false, act: null, pick: null, seen: new Set(), did: {}, guess: null, cmp: null }); time.set(6); day.set(0); actSeg.set(-1); guess.set(-1); acts.btns[0].textContent = '让一天走'; layout(); drawLog(); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); showHarbor(true); Object.assign(S, { D: 0, h: 6, play: false, act: null, pick: null, seen: new Set(), did: {}, guess: null, cmp: null }); time.set(6); day.set(0); actSeg.set(-1); guess.set(-1); acts.btns[0].textContent = '让一天走'; layout(); drawLog(); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 140, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        chart.onclick = (e) => { const r = chart.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width) * 320 - 30) / (320 - 38) * 24; if (t < 0 || t > 24) return; S.h = t; time.set(t); S.seen.add('day'); S.play = false; acts.btns[0].textContent = '让一天走';          // 挑时刻时先停下
+        chart.onclick = (e) => { showHarbor(true); const r = chart.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width) * 320 - 30) / (320 - 38) * 24; if (t < 0 || t > 24) return; S.h = t; time.set(t); S.seen.add('day'); S.play = false; acts.btns[0].textContent = '让一天走';          // 挑时刻时先停下
           if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D, tideTrend(S.D, t).rising, t); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = { D: S.D, h: t, ok }; } layout(); drawLog(); };          // 点曲线：挑一个时刻
-        ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('左后方的小盘是太阳—地球—月亮：点它（或直接拖月亮）就放大到中间。太阳光从左边来，中间是地球（红点是港口）。浅蓝水面按日月分潮合成，径向变形夸大。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('左后方的小盘是太阳—地球—月亮：点它（或直接拖月亮）就放大到中间。太阳光从左边来，中间是地球（红点是港口）。浅蓝水面按日月分潮合成，径向变形夸大。盘上看的是三者的位置；月相的名字说的是从地球上看到的月亮形状。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, day, time, acts };
         ui.status('这是一段海岸：岸上有港口，滩涂上养着紫菜。先<b>拨时间</b>（或让一天走），看海水一天里怎么涨落。');

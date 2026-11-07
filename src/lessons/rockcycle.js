@@ -23,7 +23,7 @@ const rnd = (() => { let s = 61; return () => ((s = (s * 16807) % 2147483647) / 
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 // 地块里的几个地方（模型坐标，都在靠前的剖面上，看得见）
 export const AT = { chamber: [-0.1, 0.012], intrusion: [-0.045, 0.045], lava: [-0.105, 0.112], peak: [-0.02, TOP + 0.022], shore: [SEA_X + 0.004, SEA_Y - 0.004], shallow: [SEA_X + 0.04, SEA_Y - 0.008], deep: [SEA_X + 0.085, SEA_Y - 0.012], buried: [SEA_X + 0.05, 0.048], meta: [0.03, 0.022] };
-export const LOOK = { magma: { c: 0xff6a1f, e: 0xd84010 }, granite: { c: 0xd8b8a8, spot: true }, basalt: { c: 0x3c3c40, pore: true }, gravel: { c: 0x9a8a76, grain: 'gravel' }, sand: { c: 0xd8c08a, grain: 'sand' }, mud: { c: 0x8a7a66, grain: 'mud' }, shell: { c: 0xeae4d6, grain: 'shell' }, conglomerate: { c: 0x9a8a76, spot: true }, sandstone: { c: 0xd6b07a }, shale: { c: 0x6f6a66, band: true }, limestone: { c: 0xd9d3c4 }, slate: { c: 0x4a5560, band: true }, marble: { c: 0xf4f2ee }, gneiss: { c: 0xbcae9e, band: true }, quartzite: { c: 0xe8dcc8 }, metacong: { c: 0xa89a88, band: true } };
+export const LOOK = { magma: { c: 0xff6a1f, e: 0xd84010 }, granite: { c: 0xd8b8a8, spot: true }, basalt: { c: 0x3c3c40, pore: true }, gravel: { c: 0x9a8a76, grain: 'gravel' }, sand: { c: 0xd8c08a, grain: 'sand' }, mud: { c: 0x8a7a66, grain: 'mud' }, shell: { c: 0xeae4d6, grain: 'shell' }, conglomerate: { c: 0x9a8a76, pebble: true }, sandstone: { c: 0xd6b07a }, shale: { c: 0x6f6a66, band: true }, limestone: { c: 0xd9d3c4 }, slate: { c: 0x4a5560, band: true }, marble: { c: 0xf4f2ee }, gneiss: { c: 0xbcae9e, band: true }, quartzite: { c: 0xe8dcc8 }, metacong: { c: 0xa89a88, band: true } };
 LOOK.metabas = { c: 0x607067 };
 LOOK.lithsand = { c: 0x8b8170, grain: 'sand' }; LOOK.lithsandstone = { c: 0x8b8170 };
 for (const id of ['carbgravel', 'carbsand', 'carbmud']) LOOK[id] = { c: 0xd9d3c4, grain: ROCK[id].grain };
@@ -69,11 +69,12 @@ export default {
     const faceCv = document.createElement('canvas'); faceCv.width = 2048; faceCv.height = 768;
     const faceTex = new THREE.CanvasTexture(faceCv); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.anisotropy = 8;
     const PX = (x) => ((x - XL) / (XR - XL)) * faceCv.width, PY = (y) => faceCv.height - (y / 0.14) * faceCv.height, PXs = (dx) => (dx / (XR - XL)) * faceCv.width, PYs = (dy) => (dy / 0.14) * faceCv.height;
+    const LAY = [['#cdb08a', 'sand'], ['#9a8676', 'shale'], ['#d6cdb8', 'lime'], ['#b89870', 'sand'], ['#8a7868', 'shale'], ['#c6b49a', 'lime']];
+    const bed = (x, k) => { const fold = 0.006 * Math.exp(-(((x + 0.02) / 0.06) ** 2)); return 0.072 - k * 0.0075 + fold * (1 - k * 0.12) + 0.0012 * Math.sin(x * 60 + k); };          // 沉积岩层：在山岭下面被挤得拱起来一点
     const paintFace = () => {
       const g = faceCv.getContext('2d'), w = faceCv.width, hh = faceCv.height, R = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
       g.fillStyle = '#7a675a'; g.fillRect(0, 0, w, hh);          // 底下的老岩石（基底）
-      const LAY = [['#cdb08a', 'sand'], ['#9a8676', 'shale'], ['#d6cdb8', 'lime'], ['#b89870', 'sand'], ['#8a7868', 'shale'], ['#c6b49a', 'lime']];
-      const bed = (x, k) => { const fold = 0.006 * Math.exp(-(((x + 0.02) / 0.06) ** 2)); return 0.072 - k * 0.0075 + fold * (1 - k * 0.12) + 0.0012 * Math.sin(x * 60 + k); };          // 沉积岩层：在山岭下面被挤得拱起来一点
+
       for (let k = 0; k < 6; k++) {          // 从上往下画：每一层只盖住自己下面，留下上一层
         g.fillStyle = LAY[k][0]; g.beginPath(); g.moveTo(0, hh);
         for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(k ? bed(x, k - 1) : Math.max(ground(x), bed(x, 0) + 0.0075))); }          // 最上面一层一直铺到地面
@@ -116,23 +117,35 @@ export default {
       for (let i = 0; i <= w; i += 1) { const x = XL + (i / w) * (XR - XL), top = PY(ground(x)); g.fillStyle = x < SEA_X ? '#5e4632' : '#8a7a60'; g.fillRect(i, top, 1, x < SEA_X ? 7 : 4); g.clearRect(i, 0, 1, top); }
       faceTex.needsUpdate = true;
     };
-    // 两头和后面：普通的层状岩石
-    const strata = canvasTex(512, 256, (g, w, hh) => {
-      const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, '#c4a882'); gr.addColorStop(0.55, '#a08670'); gr.addColorStop(1, '#7a675a'); g.fillStyle = gr; g.fillRect(0, 0, w, hh);
-      for (let k = 0; k < 16; k++) { g.strokeStyle = `rgba(60,45,35,${0.1 + Math.random() * 0.14})`; g.lineWidth = 1 + Math.random() * 2.5; g.beginPath(); const y0 = (k / 16) * hh * 0.6; for (let x = 0; x <= w; x += 16) g.lineTo(x, y0 + Math.sin(x / 70 + k) * 3); g.stroke(); }
-      for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(50,35,25,${Math.random() * 0.16})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 2); }
-      const deep = g.createLinearGradient(0, hh, 0, hh * 0.6); deep.addColorStop(0, 'rgba(190,70,40,0.45)'); deep.addColorStop(1, 'rgba(190,70,40,0)'); g.fillStyle = deep; g.fillRect(0, 0, w, hh);
+    // 两端、背面与正面共用层底和岩性；岩层沿 z 方向延伸，表面起伏只裁切露头。
+    const strata = (xAt) => canvasTex(2048, 768, (g, w, hh) => {
+      g.fillStyle = '#7a675a'; g.fillRect(0, 0, w, hh);
+      for (let i = 0; i < w; i++) {
+        const x = xAt(i / (w - 1));
+        for (let k = 0; k < 6; k++) { const y0 = k ? PY(bed(x, k - 1)) : 0, y1 = PY(bed(x, k)); g.fillStyle = LAY[k][0]; g.fillRect(i, y0, 1, y1 - y0); g.fillStyle = 'rgba(60,45,35,0.38)'; g.fillRect(i, y1, 1, 1.5); }
+      }
+      for (let k = 0; k < 6; k++) {          // 每一层的纹理：砂岩是点，页岩是细线，石灰岩是砖块
+        const kind = LAY[k][1];
+        for (let i = 0; i < w; i += kind === 'lime' ? 22 : 3) {
+          const x = xAt(i / w), y0 = PY(k ? bed(x, k - 1) : 0.14), y1 = PY(bed(x, k));          // 第 k 层：上一层的底到这一层的底，填色、纹理、层面用同一套边界
+          if (kind === 'sand') for (let n = 0; n < 2; n++) { g.fillStyle = `rgba(70,50,30,${0.15 + Math.random() * 0.2})`; g.fillRect(i + Math.random() * 3, y0 + Math.random() * (y1 - y0), 1.6, 1.6); }
+          else if (kind === 'shale' && i % 9 === 0) { g.strokeStyle = 'rgba(50,40,35,0.22)'; g.lineWidth = 1; for (let n = 1; n < 4; n++) { const yy = y0 + ((y1 - y0) * n) / 4; g.beginPath(); g.moveTo(i, yy); g.lineTo(i + 9, yy + 0.4); g.stroke(); } }
+          else if (kind === 'lime') { g.strokeStyle = 'rgba(90,80,65,0.3)'; g.lineWidth = 1; const mid = (y0 + y1) / 2; g.beginPath(); g.moveTo(i, y0); g.lineTo(i, mid); g.moveTo(i + 11, mid); g.lineTo(i + 11, y1); g.moveTo(i, mid); g.lineTo(i + 22, mid); g.stroke(); }
+        }
+        g.strokeStyle = 'rgba(60,45,35,0.35)'; g.lineWidth = 1.2; g.beginPath(); for (let i = 0; i <= w; i += 4) { const x = xAt(i / w); g.lineTo(i, PY(bed(x, k))); } g.stroke();          // 层面
+      }
+      for (let i = 0; i < 16000; i++) { g.fillStyle = `rgba(50,35,25,${Math.random() * 0.14})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.5, 1.5); }
     });
     const strip = (pts, flip) => {          // 一条竖着的墙：pts = [[x, z], ...]，从 0 到地面
-      const P = [], U = [], I = []; let s = 0;
-      pts.forEach(([x, z], i) => { if (i) s += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1]); const y = H(x, z); P.push(x, y, z, x, 0, z); U.push(s / (XR - XL), y / 0.14, s / (XR - XL), 0); if (i) { const a = 2 * i - 2; flip ? I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } });
+      const P = [], U = [], I = [];
+      pts.forEach(([x, z], i) => { const y = H(x, z); P.push(x, y, z, x, 0, z); U.push(i / (pts.length - 1), y / 0.14, i / (pts.length - 1), 0); if (i) { const a = 2 * i - 2; flip ? I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } });
       const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setIndex(I); geo.computeVertexNormals(); return geo;
     };
     const line = (fx, n) => Array.from({ length: n + 1 }, (_, i) => fx(i / n));
     const front = new THREE.Mesh(strip(line((u) => [XL + (XR - XL) * u, ZD], NX)), new THREE.MeshLambertMaterial({ map: faceTex, side: THREE.DoubleSide })); block.add(front);
-    const sideM = new THREE.MeshLambertMaterial({ map: strata, side: THREE.DoubleSide });
+    const sideM = new THREE.MeshLambertMaterial({ map: strata((u) => XL + (XR - XL) * u), side: THREE.DoubleSide });
     block.add(new THREE.Mesh(strip(line((u) => [XL + (XR - XL) * u, -ZD], NX), true), sideM));
-    for (const x of [XL, XR]) block.add(new THREE.Mesh(strip(line((u) => [x, -ZD + 2 * ZD * u], NZ)), sideM));
+    for (const x of [XL, XR]) block.add(new THREE.Mesh(strip(line((u) => [x, -ZD + 2 * ZD * u], NZ)), new THREE.MeshLambertMaterial({ map: strata(() => x), side: THREE.DoubleSide })));
     // 顶面：按地方上色——火山上是黑色的熔岩和火山灰，山岭和平原长着草和树，海边是沙滩，海底近岸是沙、远一点是泥
     const topGeo = new THREE.PlaneGeometry(XR - XL, 2 * ZD, NX, NZ); topGeo.rotateX(-Math.PI / 2);
     const tCol = new Float32Array(topGeo.attributes.position.count * 3); topGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
@@ -216,9 +229,10 @@ export default {
       const L = LOOK[id], g = rockCv.getContext('2d'), c = '#' + L.c.toString(16).padStart(6, '0');
       g.fillStyle = c; g.fillRect(0, 0, 128, 128);
       if (L.spot) for (let i = 0; i < 260; i++) { g.fillStyle = ['#2a2a2a', '#f2ece4', '#c98a7a'][i % 3]; g.fillRect(Math.random() * 128, Math.random() * 128, 3 + Math.random() * 3, 3 + Math.random() * 3); }
+      if (L.pebble) for (let y = 12; y < 128; y += 23) for (let x = 12; x < 128; x += 25) { const r = 5 + rnd() * 5; g.beginPath(); g.ellipse(x + (rnd() - 0.5) * 7, y + (rnd() - 0.5) * 7, r, r * (0.65 + rnd() * 0.3), rnd() * Math.PI, 0, Math.PI * 2); g.fillStyle = ['#c5ba9e', '#665f55', '#a5a7a0', '#d3c7b2'][Math.floor(rnd() * 4)]; g.fill(); g.strokeStyle = '#5f5548'; g.lineWidth = 1.2; g.stroke(); }          // 圆状、次圆状砾石嵌在细粒基质和胶结物中，与花岗岩晶粒区分
       if (L.pore) for (let i = 0; i < 60; i++) { g.fillStyle = 'rgba(0,0,0,0.6)'; g.beginPath(); g.arc(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 3, 0, 7); g.fill(); }
       if (L.band) for (let y = 0; y < 128; y += 9) { g.fillStyle = `rgba(${id === 'gneiss' ? '40,30,30' : '20,20,30'},${0.25 + Math.random() * 0.2})`; g.fillRect(0, y + Math.sin(y) * 2, 128, 3 + Math.random() * 3); }
-      if (!L.spot && !L.pore && !L.band) for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.12})`; g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2); }
+      if (!L.spot && !L.pebble && !L.pore && !L.band) for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * 0.12})`; g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2); }
       rockTex.needsUpdate = true;
       rockMat.emissive.setHex(L.e ?? 0); rockMat.emissiveIntensity = L.e ? 0.9 : 0; rockMat.roughness = id === 'marble' ? 0.35 : 0.85;
       const isSed = ROCK[id].kind === 'sediment'; stone.visible = !isSed; pile.visible = isSed;

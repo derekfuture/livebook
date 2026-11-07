@@ -115,7 +115,7 @@ export default {
     const labels = [nTag, tSub, homeTag];
     const cartPick = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.03, 12), new THREE.MeshBasicMaterial({ visible: false })); cartPick.position.y = 0.016; cartPick.userData.pick = true; cart.add(cartPick);
     const tHint = tag('<span>推着地球仪沿轨道走</span><small>按住地球仪左右拖，它就自转</small>', 'hint');          // 开场的提示：不用白底牌子
-    noteBadge(tag, '教学示意：大小、距离不按比例').loc(group, -R - 0.02, 0.004, R + 0.012);
+    noteBadge(tag, '教学示意：灯泡代表太阳；大小、距离不按比例，昼夜按平行的太阳光计算').loc(group, -R - 0.02, 0.004, R + 0.012);
 
     // ---- 摆好：按日期、时刻 ----
     const dec = () => decOf(lamOf(S.th));
@@ -148,7 +148,7 @@ export default {
       const k = keyNear(), name = S.city >= 0 ? CITIES[S.city].name : latName(S.lat), d = dec(), lat = S.lat * D2R;
       let first = false;
       if (k && S.drag !== 'flag') {          // 拖着小旗走的时候不记（松手才记一次），不然一路上每个纬度都会记成一行
-        if (S.city < 0 && !S.rec[name]) { (S.custom ||= []).push(name); while (S.custom.length > 3) delete S.rec[S.custom.shift()]; }          // 自己拖出来的纬度最多留 3 行，多了把最早的去掉
+        if (S.city < 0 && !S.rec[name]) { S.custom = (S.custom || []).filter((n) => S.rec[n] && n !== name); S.custom.push(name); while (S.custom.length > 3) delete S.rec[S.custom.shift()]; }          // 自己拖出来的纬度最多留 3 行（只数表里现有的、不重复），多了把最早的去掉
         (S.rec[name] ||= {})[k.name] = { len: dayLen(lat, d), noon: noonAlt(lat, d) }; S.saw.add(k.name);
         if (W && !S.said?.[k.name + name]) { (S.said ||= {})[k.name + name] = 1; first = true; }
         if (['夏至', '冬至'].every((x) => S.rec[name]?.[x]) && (S.rec[name]['春分'] || S.rec[name]['秋分']) && Object.keys(S.rec).length >= 2) W?.ui.unlock();
@@ -227,11 +227,11 @@ export default {
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawTable(); }, { value: -1 });
         const acts = buttons([
           { text: '转一天', onClick: () => { S.play = !S.play; S.played = 0; acts.btns[0].textContent = S.play ? '停一下' : '转一天'; } },
-          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { th: thetaOf(0), t: 12, lat: 40, city: 2, other: 3, play: false, played: 0, rec: {}, guess: null, saw: new Set(), said: {} }); dateSeg.set(0); time.set(12); citySeg.set(2); otherSeg.set(3); guess.set(-1); acts.btns[0].textContent = '转一天'; layout(); aimNow(); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { th: thetaOf(0), t: 12, lat: 40, city: 2, other: 3, play: false, played: 0, rec: {}, custom: [], guess: null, saw: new Set(), said: {} }); dateSeg.set(0); time.set(12); citySeg.set(2); otherSeg.set(3); guess.set(-1); acts.btns[0].textContent = '转一天'; layout(); aimNow(); } },
         ]);
         const sky = h('canvas', { class: 'wx-map', width: 320, height: 230 });
         const table = h('div', {});
-        ui.controls.append(h('div', { class: 'bar-title' }, '你家的天空（实线是你家，虚线是比的那座城）'), sky, h('div', { class: 'note' }, '计算条件：地方真太阳时；太阳中心过几何地平线；忽略大气折射、太阳视半径和地形遮挡。不是城市实测预报。'), dateSeg.el, time.el, acts.el, citySeg.el, otherSeg.el, guess.el, note('地球仪上的红旗是你家：选城市时插在那座城市的真实位置，也可以直接把它拖到别的纬度（松手才记进表里）。昼长、正午太阳高度只看纬度；时刻都按各自的地方真太阳时。'));          // 天空小窗放在最上面：推地球仪的时候一眼就看得到
+        ui.controls.append(h('div', { class: 'bar-title' }, '你家的天空（实线是你家，虚线是比的那座城）'), sky, h('div', { class: 'note' }, '计算条件：地方真太阳时；太阳中心过几何地平线；忽略大气折射、太阳视半径和地形遮挡。不是城市实测预报。'), dateSeg.el, time.el, acts.el, citySeg.el, otherSeg.el, guess.el, note('地球仪上的红旗是你家：选城市时插在那座城市的真实位置，也可以直接把它拖到别的纬度（松手才记进表里）。昼长、正午太阳高度只看纬度。时间滑块是你家的地方真太阳时；另一座城市经度不同，此刻它的地方时也不同，虚线比的是它一整天的太阳路径。'));          // 天空小窗放在最上面：推地球仪的时候一眼就看得到
         ui.data.append(h('div', { class: 'bar-title' }, '你记下的'), table);
         W = { ui, sky, table, time, citySeg, dateSeg, play: acts.btns[0] };
         ui.status('这是一台“灯 + 地球仪”：中间的灯是太阳。<b>推着地球仪</b>沿轨道走到夏至、冬至，看地轴的方向、太阳直射点和你家的天空怎么变。');

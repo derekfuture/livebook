@@ -37,4 +37,6 @@ ok(['岩浆岩（图2.7）', '沉积岩（图2.8）', '变质岩（图2.9）'].e
   ok(EXTRA.length === 1 && EXTRA.every((e) => edges.has(e) && !FIG.includes(e)) && edges.size === 11, '正文补的“沉积岩熔化”单独标出、不算原图箭头');
   ok(NEW[5] && NEW[7] && TOUR[4] === 'magma' && TOUR[6] === 'magma', '熔成岩浆以后换成另一种成分的岩浆凝固时，明确说明“另取一份岩浆”');
   ok(at === 'magma' && TOUR.indexOf('magma') === 4, '先走完一大圈（岩浆→岩浆岩→沉积物→沉积岩→变质岩→岩浆），最后回到岩浆'); }
+for (const id of ['gravel', 'sand', 'mud', 'lithsand']) { const n = nexts(id).find((n) => n.proc === '压实、固结'); ok(n.why.includes(ROCK[id].name) && n.why.includes(ROCK[n.to].name), `${id}：成岩说明与当前沉积物及目标岩石一致`); }
+ok(!nexts('gravel')[0].why.includes('石英砂'), '砾石形成砾岩时不再沿用石英砂岩说明');
 process.exit(bad ? 1 : 0);

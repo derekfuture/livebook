@@ -156,7 +156,11 @@ export default {
     const plain = new THREE.Mesh(new THREE.PlaneGeometry(F2 - F1 - 0.004, ZD * 2 - 0.004), new THREE.MeshLambertMaterial({ color: 0xc6c98a, map: grain, transparent: true, opacity: 0 })); plain.rotation.x = -Math.PI / 2; plain.raycast = () => {}; vBlocks[1].add(plain); plain.position.set(0, H0 + 0.0008, 0);
     // 裂纹：还没断的时候，断层将要出现的地方先出现细细的裂纹
     const crackTex = canvasTex(64, 256, (g, w, hh) => { g.strokeStyle = 'rgba(30,20,10,0.9)'; g.lineWidth = 2; for (let k = 0; k < 3; k++) { g.beginPath(); let x = w / 2 + (k - 1) * 8; g.moveTo(x, 0); for (let y = 0; y < hh; y += 12) { x += (Math.random() - 0.5) * 8; g.lineTo(x, y); } g.stroke(); } });
-    const cracks = [F1, F2, 'h'].map((f) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.01, H0), new THREE.MeshBasicMaterial({ map: crackTex, transparent: true, opacity: 0, depthWrite: false })); m.raycast = () => {}; if (f === 'h') { m.rotation.y = Math.PI / 2; m.position.set(XR + 0.0005, H0 / 2, 0); } else m.position.set(f, H0 / 2, ZD + 0.0005); block.add(m); return m; });
+    const cracks = [];
+    const crackOn = (owner, x, z, turn = false) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.005, 1).translate(0, 0.5, 0), new THREE.MeshBasicMaterial({ map: crackTex, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); m.raycast = () => {}; m.rotation.y = turn ? Math.PI / 2 : 0; m.position.set(x, 0, z); owner.add(m); cracks.push(m); };          // 破碎纹只贴在所属岩块内侧的半条带上，随岩块移动
+    for (const [i, f] of [F1, F2].entries()) { crackOn(vBlocks[i], f - 0.0025, ZD + 0.0001); crackOn(vBlocks[i + 1], f + 0.0025, ZD + 0.0001); }
+    for (const [i, g] of hBlocks.entries()) crackOn(g, XR + 0.0001, i ? 0.0025 : -0.0025, true);
+
 
     // ---- 红板：两头各一块（垂直那种往外拉）；近处那半块上一个把手（水平那种往旁边推） ----
     const plateMat = new THREE.MeshStandardMaterial({ color: 0xb84a32, roughness: 0.32, metalness: 0.48, emissive: 0x5a1a10, emissiveIntensity: 0.08 });
@@ -202,9 +206,9 @@ export default {
       }
       dress(v ? S.e * Math.min(1, d * 1.5) : 0, v ? 0.012 * sm(0.1, 1, S.e) * d : 0);
       const pre = S.broken ? 0.55 : sm(0.1, BREAK, S.s);          // 断开之前：裂纹越来越多；断开以后断层沿线留着破碎的纹
-      cracks[0].material.opacity = cracks[1].material.opacity = v ? pre * 0.9 : 0; cracks[2].material.opacity = v ? 0 : pre * 0.9;
+      for (const m of cracks) { const height = H0 - (m.parent === vBlocks[0] && ridgeAmount > 0.02 ? CARVE * ridgeAmount : 0); m.scale.y = height; m.material.opacity = pre * 0.9; const uv = m.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, m.geometry.attributes.position.getY(i) * height / H0); uv.needsUpdate = true; }          // 按剩余岩体高度裁掉顶部纹理，避免纹理悬在被侵蚀掉的空间中
       placeTags();
-      drawChart();
+      drawChart(); currentStatus();
     };
     const placeTags = () => {
       const v = S.mode === 'v', d = D();
@@ -237,13 +241,22 @@ export default {
         W.read.innerHTML = S.broken ? `已经断开：水平错开 <b>${(0.05 * d / (XR - XL)).toFixed(2)} 倍初始地块宽度</b>（相对位移示意）<br><small>断层两侧的岩块沿断层水平移动</small>` : `${S.s < 0.05 ? '还没用力' : `岩层被推得绷紧了（离断开还差 ${Math.max(0, 100 - Math.round((S.s / BREAK) * 100))}%）`}<br><small>力超过岩层能承受的程度，才会断开</small>`;
       }
     };
+    const currentStatus = () => {
+      if (!W) return;
+      if (!S.broken || S.slip <= 0) W.ui.status(S.s > 0.15 ? '岩层正在受力，出现细小裂纹，但尚未发生断层错动。' : '岩层还连着。拖动红色受力装置，观察断裂与错动。');
+      else if (S.mode !== 'v') W.ui.status('当前：两侧岩块沿断层水平错开，横穿断层的公路、小河也被错开。卸载不会撤销已经发生的滑移。');
+      else if (S.e <= 0) W.ui.status('当前：岩层已断裂错动，西边相对抬升、中间相对下降；侵蚀、堆积阶段刚开始，尚未演示后期地貌。');
+      else if (S.e <= 0.7) W.ui.status('当前：断裂错动后的岩块正在经历风化侵蚀与堆积；抬升岩块逐渐被侵蚀，下降岩块逐渐积累泥沙。');
+      else W.ui.status('当前：已推进到后期演化示意。抬升岩块经风化侵蚀形成断块山，下降岩块积累泥沙；蓝色水带示意沿断层发育的河流，未模拟沟谷下切。');
+      if (S.mode === 'v' && S.e <= 0.7 && S.said.erode) { callout.show(false); calloutT = 0; }
+    };
     const drawLog = () => {
       if (!W) return;
       const rows = [], r = (b, t) => rows.push(h('div', { class: 'tl-row' }, h('b', {}, b), h('span', {}, t)));
-      if (S.said.strain) r('用力：', '先只是绷紧，出现细小的裂纹，岩层还连着');
-      if (S.said.vbreak) r('垂直位移：', '超过限度一下子断开，同一层岩层在断层两侧错开；本例西边岩块相对抬升，中间岩块相对下降');
-      if (S.said.erode) r('风化侵蚀很久：', '抬升的岩块常被风化侵蚀成断块山；相对下降的岩块常形成谷地、低地，积了泥沙；断层沿线岩石破碎，常发育成沟谷、河流');
-      if (S.said.hbreak) r('水平位移：', '岩块沿断层水平错开，横穿断层的公路、小河也被错开');
+      if (S.said.strain) r('曾观察到·用力：', '先只是绷紧，出现细小的裂纹，岩层还连着');
+      if (S.said.vbreak) r('曾观察到·垂直位移：', '超过限度一下子断开，同一层岩层在断层两侧错开；本例西边岩块相对抬升，中间岩块相对下降');
+      if (S.said.erode) r('曾观察到·后期演化：', '抬升的岩块常被风化侵蚀成断块山；相对下降的岩块常形成谷地、低地，积了泥沙；断层沿线岩石破碎，常发育成沟谷、河流');
+      if (S.said.hbreak) r('曾观察到·水平位移：', '岩块沿断层水平错开，横穿断层的公路、小河也被错开');
       const gv = S.guess.v, gh = S.guess.hz;
       if (gv != null && S.said.vbreak) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK.v[1][gv]}　实际：断开，有的岩块抬升、有的下降`)));
       if (gh != null && S.said.hbreak) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK.hz[1][gh]}　实际：被错开`)));
@@ -254,7 +267,7 @@ export default {
       const v = S.mode === 'v';
       if (S.s > 0.15 && !S.said.strain) { S.said.strain = true; W?.ui.status(`岩层被${v ? '拉紧' : '推得绷紧'}了，看${v ? '侧面' : '两头'}：出现了细小的<b>裂纹</b>，但岩层还连着。再用力。`); drawLog(); }
       if (!S.broken && S.s >= BREAK) { S.broken = true; S.shake = 1; if (v) { S.said.vbreak = true; say1('断开了！两边的岩层错开', 0, H0 + 0.04, ZD); W?.ui.status('超过了岩层能承受的程度，<b>一下子断开</b>，两边沿断裂面错开。本例里西边的岩块相对抬升，中间的岩块相对下降（实际哪块升、哪块降要看具体受力，这里只是一种情形）。对着侧面看，同一层岩层在断层两侧错开了。现在拖<b>演化阶段</b>，看风化侵蚀以后会怎样。'); } else { S.said.hbreak = true; say1('断开了！公路被错开', -0.06, H0 + 0.04, 0); W?.ui.status('断开以后，两侧的岩块沿断层<b>水平</b>错开，横穿断层的公路、小河也被错开了。'); } drawLog(); }
-      if (v && S.broken && S.e > 0.7 && !S.said.erode) { S.said.erode = true; say1('断层沿线成了河谷', F2, H0, ZD); W?.ui.status('风化侵蚀了很久：抬升的岩块被风化侵蚀成陡峭的<b>断块山</b>（像华山）；相对下降的岩块积了泥沙，成了<b>谷地、低地</b>（像渭河平原）；断层沿线岩石破碎，常发育成<b>沟谷、河流</b>。'); drawLog(); }
+      if (v && S.broken && S.e > 0.7 && !S.said.erode) { S.said.erode = true; say1('沿断层发育的河流示意', F2, H0, ZD); W?.ui.status('风化侵蚀了很久：抬升的岩块被风化侵蚀成陡峭的<b>断块山</b>（像华山）；相对下降的岩块积了泥沙，成了<b>谷地、低地</b>（像渭河平原）；断层沿线岩石破碎，常发育成<b>沟谷、河流</b>。'); drawLog(); }
     };
 
     // ---- 指针 ----
@@ -282,7 +295,7 @@ export default {
     layout();
 
     return {
-      debug: { S, layout, events, reset },
+      debug: { S, layout, events, reset, cracks },
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
@@ -290,7 +303,7 @@ export default {
       view: { elev: 24, azim: 24, lookY: 0.4, frameMargin: 1.08 },
       pointer,
       mount(ui) {
-        const modeSeg = seg('哪一种位移', ['垂直位移（拉断）', '水平位移（错开）'], (_, i) => { reset(i ? 'hz' : 'v', true); ui.status(i ? '这回岩层从中间断开、两边往不同方向走。按住近处那半块上的<b>把手</b>往旁边推。' : '按住两头的<b>红板</b>往外拉，给岩层加上张力。'); }, { value: 0 });
+        const modeSeg = seg('哪一种位移', ['垂直位移（拉断）', '水平位移（错开）'], (_, i) => { reset(i ? 'hz' : 'v', true); currentStatus(); }, { value: 0 });
         const time = slider('侵蚀、堆积阶段（无时间标定）', { min: 0, max: 100, value: 0, fmt: (v) => (v ? `阶段 ${v}/100` : '刚开始'), onInput: (v) => { S.e = v / 100; S.play = false; W.play.textContent = '推进演化'; events(); layout(); } });
         const guess = seg(...ASK.v, (_, i) => { S.guess.v = i; drawLog(); }, { value: -1 });
         const acts = buttons([
