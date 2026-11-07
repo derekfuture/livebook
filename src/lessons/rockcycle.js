@@ -130,6 +130,7 @@ export default {
     };
     const stepTo = (n) => {
       if (S.anim) return; const from = S.id;
+      if (from === 'magma' && S.path.length > 1) { const sep = n.to === 'basalt' ? '另取一份玄武质岩浆' : '另取一份富硅岩浆'; S.path.push({ id: 'magma', sep }); S.newNote ||= sep; drawLog(); }          // 熔出来的岩浆没追踪成分：再凝固就是另取一份相应成分的岩浆，手动、自动都一样
       const sw = n.proc.startsWith('抬升') ? 0.4 : n.proc.startsWith('变质') ? 0.5 : 0.92;          // 什么时候换样子：风化在被抬到地表以后，变质在深处半路上，冷却凝固、压实固结、熔化都在到了地方以后
       S.anim = { t: 0, dur: S.auto ? 2.6 : 3, curve: route(from, n.to, n.proc), from, to: n.to, proc: n.proc, why: n.why, mid: false, sw };
       aProc.setText(n.proc.replace(/（.*）/, '')).setOn(true); S.moved = true;
@@ -201,7 +202,7 @@ export default {
     const restart = () => { Object.assign(S, { id: 'magma', path: [{ id: 'magma' }], anim: null, moved: false }); S.kinds = new Set(['magma']); S.arrows = new Set(); aProc.setOn(false); aName.setOn(true); look(S.id); layout(); drawChart(); drawLog(); renderChoices(); dotAt(); };
     const toggleAuto = () => {
       if (!S.auto) { restart(); S.auto = { i: 0, wait: 0.8, paused: false }; W?.ui.status('自动演示：这块岩石现在是地下的<b>岩浆</b>，看它一步步走。'); }
-      else { S.auto.paused = !S.auto.paused; if (S.auto.paused) W?.ui.status(S.anim ? '这一步走完就停。' : '已暂停：可以按“继续”，也可以自己挑下一步。'); }
+      else { S.auto.paused = !S.auto.paused; W?.ui.status(S.auto.paused ? (S.anim ? '这一步走完就停。' : '已暂停：可以按“继续”，也可以自己挑下一步。') : S.anim ? '已继续，正在完成这一步。' : '已继续，准备走下一步。'); }
       setAutoBtn();
     };
     const renderChoices = () => {
@@ -236,7 +237,7 @@ export default {
         labels.forEach((l) => l.tick(dt));
         smoke.forEach((s) => { s.userData.t = (s.userData.t + dt * 0.12) % 1; const u = s.userData.t; s.position.set(-0.105 + u * 0.03, 0.118 + u * 0.05, -0.01); s.scale.setScalar(0.01 + u * 0.03); s.material.opacity = 0.5 * (1 - u); });
         if (S.id === 'magma' && !S.anim) rockMat.emissiveIntensity = 0.7 + 0.25 * Math.sin((t || 0) * 3);
-        if (S.auto && !S.auto.paused && !S.anim) { S.auto.wait -= dt; if (S.auto.wait <= 0) { const n = tourStep(S.id, S.auto.i); if (!n) stopAuto(); else { if (NEW[S.auto.i]) { S.newNote = NEW[S.auto.i]; S.path.push({ id: S.id, sep: NEW[S.auto.i].match(/另取一份[^（，]*/)[0] }); drawLog(); } stepTo(n); S.auto.i++; S.auto.wait = 1.4; } } }          // 自动演示：上一步停一会儿（读状态栏），再走下一步
+        if (S.auto && !S.auto.paused && !S.anim) { S.auto.wait -= dt; if (S.auto.wait <= 0) { const n = tourStep(S.id, S.auto.i); if (!n) stopAuto(); else { if (NEW[S.auto.i]) S.newNote = NEW[S.auto.i]; stepTo(n); S.auto.i++; S.auto.wait = 1.4; } } }          // 自动演示：上一步停一会儿（读状态栏），再走下一步
         if (S.anim) {          // 暂停：正在走的这一步走完，下一步不走了
           const a = S.anim; a.t = Math.min(1, a.t + dt / a.dur); const p = a.curve.getPointAt(a.t); dotAt();
           stone.position.copy(p); pile.position.copy(p); ring.position.set(p.x, p.y, p.z + 0.004); aProc.position.set(p.x, p.y + 0.02, p.z); aName.setOn(false);
