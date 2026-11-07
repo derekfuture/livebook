@@ -14,7 +14,7 @@ import { h } from '../ui/Panel.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { COAST, LATMAX, CITY, isLand, landT, seaT, pressure, wind, windName, windFrom, cityWeather } from './kit/monsoon.js';
 
-const XL = -0.17, XR = 0.17, ZS = 0.1, ZN = -0.1, G = 0.006;          // 地图左右、南（赤道，靠镜头）北（北纬 60°，往后）、地面高度
+const XL = -0.17, XR = 0.17, ZS = 0.1, ZN = -0.1, G = 0.018;          // 地图左右、南（赤道，靠镜头）北（北纬 60°，往后）、地面高度
 const X = (u) => XL + (XR - XL) * u, Z = (lat) => ZS + (ZN - ZS) * (lat / LATMAX), U = (x) => (x - XL) / (XR - XL), LAT = (z) => ((z - ZS) / (ZN - ZS)) * LATMAX;
 const ASK = ['先猜一下（可以不猜）：冬季，大陆上会形成高压还是低压？', ['高压', '低压', '和海洋上一样']];
 const rnd = (() => { let s = 29; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
@@ -41,26 +41,55 @@ export default {
     const mi = () => ((Math.round(S.m) - 1 + 12) % 12) + 1;
 
     // ---- 地图：一块切开的地块，西边大陆、东边大洋 ----
-    const NX = 90, NZ = 56, geo = new THREE.PlaneGeometry(XR - XL, ZS - ZN, NX, NZ); geo.rotateX(-Math.PI / 2);
+    const NX = 144, NZ = 96, geo = new THREE.PlaneGeometry(XR - XL, ZS - ZN, NX, NZ); geo.rotateX(-Math.PI / 2);
     const col = new Float32Array(geo.attributes.position.count * 3); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const grain = canvasTex(256, 256, (g, w) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2400; i++) { const v = 150 + Math.random() * 100; g.fillStyle = `rgba(${v},${v},${v},${0.2 + Math.random() * 0.3})`; g.fillRect(Math.random() * w, Math.random() * w, 1.6, 1.6); } }, { repeat: [4, 3] });
-    const surf = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: grain })); block.add(surf);
-    const base = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, G, ZS - ZN), [0, 0, 0, 0, 0, 0].map(() => new THREE.MeshLambertMaterial({ color: 0x8f7a5e }))); base.position.y = G / 2 - 0.0004; block.add(base);
+    const surf = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: grain, roughness: 0.7, side: THREE.DoubleSide })); block.add(surf);
+    const sectionTex = canvasTex(256, 256, (g, w) => {
+      g.fillStyle = '#c2b499'; g.fillRect(0, 0, w, w);
+      for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(65,60,50,${0.025 + (i % 7) * 0.013})`; g.fillRect((i * 67.7) % w, (i * 31.9) % w, 2, 1); }
+      for (let k = 0; k < 16; k++) { g.strokeStyle = 'rgba(80,70,55,0.08)'; g.beginPath(); for (let x = 0; x <= w; x += 4) g.lineTo(x, k * 17 + Math.sin(x / 45 + k) * 2); g.stroke(); }
+    });
+    const walls = new THREE.Mesh(new THREE.BufferGeometry(), [new THREE.MeshStandardMaterial({ vertexColors: true, map: sectionTex, roughness: 0.85, side: THREE.DoubleSide }), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.38, side: THREE.DoubleSide })]); block.add(walls);
+    const bottom = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZS - ZN), new THREE.MeshStandardMaterial({ color: 0x477da5, side: THREE.DoubleSide })); bottom.rotation.x = -Math.PI / 2; bottom.position.y = 0.0001; block.add(bottom);
+    // 海岸沿用原模型；青藏高原附近抬高，起伏在两个水平方向连续变化。
+    const terrainY = (x, z) => {
+      const u = U(x), lat = LAT(z);
+      if (!isLand(u, lat, S.land)) return G + 0.00022 * Math.sin(x * 510 + z * 190) * Math.sin(z * 650);
+      const edge = Math.min(1, Math.max(0, (COAST + 0.025 * Math.sin(lat / 7) - u) / 0.07), Math.max(0, (lat - 8) / 5));
+      const plateau = Math.exp(-(((u - 0.26) / 0.18) ** 4) - ((lat - 32) / 11) ** 4);
+      return G + 0.0035 + edge * (0.022 * plateau + 0.0028 * (0.5 + 0.5 * Math.sin(u * 47 + lat * 0.17)) * (0.65 + 0.35 * Math.cos(lat * 0.8 - u * 28)));
+    };
+    // 图示悬在地形上方，箭头整个足迹内取最高点，避免尖端插进坡面。
+    const symbolY = (x, z) => { let y = G; for (const dx of [-0.009, 0, 0.009]) for (const dz of [-0.009, 0, 0.009]) y = Math.max(y, terrainY(x + dx, z + dz)); return y; };
+    const buildWalls = () => {
+      const P = [], C = [], UV = [], groups = [], c = new THREE.Color();
+      const edge = (ax, az, bx, bz, n) => { for (let i = 0; i < n; i++) {
+        const t = i / n, v = (i + 1) / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, xx = ax + (bx - ax) * v, zz = az + (bz - az) * v, y = terrainY(x, z), yy = terrainY(xx, zz), land = isLand(U((x + xx) / 2), LAT((z + zz) / 2), S.land);
+        groups.push([P.length / 3, 6, land ? 0 : 1]);
+        P.push(x, 0, z, xx, 0, zz, x, y, z, xx, 0, zz, xx, yy, zz, x, y, z); UV.push(t, 0, v, 0, t, 1, v, 0, v, 1, t, 1);
+        for (const f of [0.65, 0.65, 1, 0.65, 1, 1]) { c.setHex(land ? 0xb4a488 : 0x619bc3).multiplyScalar(f); C.push(c.r, c.g, c.b); }
+      } };
+      edge(XL, ZN, XR, ZN, NX); edge(XR, ZN, XR, ZS, NZ); edge(XR, ZS, XL, ZS, NX); edge(XL, ZS, XL, ZN, NZ);
+      walls.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.computeVertexNormals(); for (const args of groups) g.addGroup(...args); walls.geometry = g;
+    };
+    const latLines = [];
     const LANDC = new THREE.Color(0xd9c79a), LANDS = new THREE.Color(0xa9c27a), SEA = new THREE.Color(0x6fa8d4), DEEP = new THREE.Color(0x4f88bf), tc = new THREE.Color();
     const shapeMap = () => {
       const p = geo.attributes.position;
       for (let k = 0; k < p.count; k++) {
         const x = p.getX(k), z = p.getZ(k), u = U(x), lat = LAT(z), l = isLand(u, lat, S.land);
-        p.setY(k, G + (l ? 0.0035 + 0.0012 * Math.sin(u * 30) * Math.sin(lat / 4) : 0));
+        p.setY(k, terrainY(x, z));
         if (l) tc.copy(LANDS).lerp(LANDC, Math.min(1, Math.max(0, (lat - 25) / 30) + 0.25 * Math.sin(u * 9))); else tc.copy(SEA).lerp(DEEP, Math.min(1, Math.abs(u - COAST) * 3));
         col.set([tc.r, tc.g, tc.b], k * 3);
       }
-      p.needsUpdate = true; geo.attributes.color.needsUpdate = true; geo.computeVertexNormals();
+      p.needsUpdate = true; geo.attributes.color.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere(); buildWalls();
+      for (const [line, lat] of latLines) { const points = []; for (let i = 0; i <= NX; i++) { const x = X(i / NX); points.push(new THREE.Vector3(x, symbolY(x, Z(lat)) + 0.001, Z(lat))); } line.geometry.dispose(); line.geometry = new THREE.BufferGeometry().setFromPoints(points); line.computeLineDistances(); }
     };
     // 纬线：赤道、北回归线、30°、60°
     const latM = new THREE.LineDashedMaterial({ color: 0x5a6a80, dashSize: 0.003, gapSize: 0.003, transparent: true, opacity: 0.55 });
-    for (const [lat, name] of [[0, '赤道'], [23.44, '北回归线'], [30, '30°N'], [60, '60°N']]) { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(XL, G + 0.0046, Z(lat)), new THREE.Vector3(XR, G + 0.0046, Z(lat))]), latM); l.computeLineDistances(); block.add(l); groundLabel(block, name, { x: XR - 0.018, y: G + 0.0006, z: Z(lat) - 0.004, h: 0.0055, color: '#2c3a52', opacity: 0.75 }); }
-    const gLand = groundLabel(block, '大　陆', { x: X(0.3), y: G + 0.004, z: Z(22), h: 0.013, color: '#5a4a2c', opacity: 0.6 });
+    for (const [lat, name] of [[0, '赤道'], [23.44, '北回归线'], [30, '30°N'], [60, '60°N']]) { const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(XL, G + 0.0046, Z(lat)), new THREE.Vector3(XR, G + 0.0046, Z(lat))]), latM); l.computeLineDistances(); block.add(l); latLines.push([l, lat]); groundLabel(block, name, { x: XR - 0.018, y: G + 0.0006, z: Z(lat) - 0.004, h: 0.0055, color: '#2c3a52', opacity: 0.75 }); }
+    const gLand = groundLabel(block, '大　陆', { x: X(0.3), y: G + 0.032, z: Z(22), h: 0.013, color: '#5a4a2c', opacity: 0.6 });
     const gSea = groundLabel(block, '大　洋', { x: X(0.82), y: G + 0.0008, z: Z(22), h: 0.013, color: '#173a63', opacity: 0.6 });
 
     // ---- 等压线（地面上的细线）和高、低压中心 ----
@@ -73,8 +102,8 @@ export default {
       for (let lev = -6; lev <= 6; lev += 0.6) for (let j = 0; j < GZ; j++) for (let i = 0; i < GX; i++) {          // 等压线：在每个小格里找穿过这个气压值的线段
         const v = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)], c = [pt(i, j), pt(i + 1, j), pt(i + 1, j + 1), pt(i, j + 1)], cut = [];
         for (let e = 0; e < 4; e++) { const a = v[e], b = v[(e + 1) % 4]; if ((a - lev) * (b - lev) < 0) { const t = (lev - a) / (b - a), A = c[e], B = c[(e + 1) % 4]; cut.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); } }
-        if (cut.length >= 2) P.push(cut[0][0], G + 0.0052, cut[0][1], cut[1][0], G + 0.0052, cut[1][1]);
-        if (cut.length === 4) P.push(cut[2][0], G + 0.0052, cut[2][1], cut[3][0], G + 0.0052, cut[3][1]);
+        if (cut.length >= 2) P.push(cut[0][0], symbolY(cut[0][0], cut[0][1]) + 0.002, cut[0][1], cut[1][0], symbolY(cut[1][0], cut[1][1]) + 0.002, cut[1][1]);
+        if (cut.length === 4) P.push(cut[2][0], symbolY(cut[2][0], cut[2][1]) + 0.002, cut[2][1], cut[3][0], symbolY(cut[3][0], cut[3][1]) + 0.002, cut[3][1]);
       }
       iso.geometry.dispose(); iso.geometry = new THREE.BufferGeometry(); iso.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
     };
@@ -83,7 +112,7 @@ export default {
       const found = [];
       for (let j = 2; j < GZ - 1; j++) for (let i = 2; i < GX - 1; i++) { const v = field[j * (GX + 1) + i]; let mx = true, mn = true; for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { if (!di && !dj) continue; const w = field[(j + dj) * (GX + 1) + i + di]; if (w >= v) mx = false; if (w <= v) mn = false; } if (mx || mn) found.push({ i, j, v, hi: mx }); }
       found.sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
-      centerL.forEach((t, k) => { const f = found[k]; if (!f || Math.abs(f.v) < 0.9) { t.setOn(false); return; } t.position.set(X(f.i / GX), G + 0.012, Z((f.j / GZ) * LATMAX)); t.setColor(f.hi ? '#b03a2a' : '#1f4f86').setText(f.hi ? '高' : '低').setOn(true); });
+      centerL.forEach((t, k) => { const f = found[k]; if (!f || Math.abs(f.v) < 0.9) { t.setOn(false); return; } t.position.set(X(f.i / GX), symbolY(X(f.i / GX), Z((f.j / GZ) * LATMAX)) + 0.009, Z((f.j / GZ) * LATMAX)); t.setColor(f.hi ? '#b03a2a' : '#1f4f86').setText(f.hi ? '高' : '低').setOn(true); });
     };
 
     // ---- 风：一支支扁箭头，指着风往哪吹；长短表示风大小 ----
@@ -93,7 +122,7 @@ export default {
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(); let k = 0;
       for (let j = 0; j < 9; j++) for (let i = 0; i < 14; i++) {
         const u = (i + 0.5) / 14, lat = 4 + (j + 0.5) * (52 / 9), [we, wn] = wind(u, lat, S.m, S.land), sp = Math.hypot(we, wn), L = Math.min(0.016, 0.004 + sp * 0.0011);
-        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-we, wn)); s.set(L * 0.5, 1, L); p.set(X(u), G + 0.0058 + (isLand(u, lat, S.land) ? 0.0035 : 0), Z(lat)); m4.compose(p, q, s); arrows.setMatrixAt(k++, m4);          // 北是 −z：往北吹的风箭头尖朝 −z
+        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-we, wn)); s.set(L * 0.5, 1, L); p.set(X(u), symbolY(X(u), Z(lat)) + 0.004, Z(lat)); m4.compose(p, q, s); arrows.setMatrixAt(k++, m4);          // 北是 −z：往北吹的风箭头尖朝 −z
       }
       arrows.instanceMatrix.needsUpdate = true;
     };
@@ -109,11 +138,11 @@ export default {
     const COLD = new THREE.Color(0x5f8fd0), HOT = new THREE.Color(0xe0743a), MID = new THREE.Color(0xe8e2d4);
     const placeCols = () => {
       const lt = landT(S.m), st = seaT(S.m), d = lt - st;
-      colL.position.set(X(0.32), G + 0.004, Z(42 - 7 * lt)); colS.position.set(X(0.86), G, Z(45 - 12 * lt));
+      colL.position.set(X(0.32), symbolY(X(0.32), Z(42 - 7 * lt)), Z(42 - 7 * lt)); colS.position.set(X(0.86), G, Z(45 - 12 * lt));
       colL.material.color.copy(MID).lerp(d < 0 ? COLD : HOT, Math.min(1, Math.abs(d))); colS.material.color.copy(MID).lerp(d > 0 ? COLD : HOT, Math.min(1, Math.abs(d) * 0.6));
       colL.visible = S.land; aColL.setOn(S.land); colS.visible = S.land; aColS.setOn(S.land);
-      aColL.position.set(colL.position.x, 0.118, colL.position.z); aColL.setText(d < -0.3 ? '大陆比海洋冷：空气下沉' : d > 0.3 ? '大陆比海洋热：空气上升' : '海陆温差不大');
-      aColS.position.set(colS.position.x, 0.118, colS.position.z); aColS.setText(d < -0.3 ? '大洋上：副极地低压加强' : d > 0.3 ? '大洋上：副热带高压加强' : '大洋上：原有的气压带');          // 大洋上不是单纯的热力环流：是原来就有的气压带被保留、加强（课本第 48—51 页）
+      aColL.position.set(colL.position.x, colL.position.y + 0.112, colL.position.z); aColL.setText(d < -0.3 ? '大陆比海洋冷：空气下沉' : d > 0.3 ? '大陆比海洋热：空气上升' : '海陆温差不大');
+      aColS.position.set(colS.position.x, colS.position.y + 0.112, colS.position.z); aColS.setText(d < -0.3 ? '大洋上：副极地低压加强' : d > 0.3 ? '大洋上：副热带高压加强' : '大洋上：原有的气压带');          // 大洋上不是单纯的热力环流：是原来就有的气压带被保留、加强（课本第 48—51 页）
     };
     const stepDots = (dt) => { const d = landT(S.m) - seaT(S.m); for (let i = 0; i < ND; i++) { const p = D[i], c = p.c ? colS : colL, vy = (p.c ? 1 : -1) * Math.sign(d) * -0.03 * Math.min(1, Math.abs(d) + 0.15); p.y += vy * dt * (p.c ? 0.6 : 1); if (p.y > 0.1) p.y -= 0.1; if (p.y < 0) p.y += 0.1; dpos.set(c.visible ? [c.position.x + Math.cos(p.a) * p.r, c.position.y + p.y, c.position.z + Math.sin(p.a) * p.r] : [0, -1, 0], i * 3); } dots.geometry.attributes.position.needsUpdate = true; };          // 大陆冷（d<0）：大陆那根往下沉、海洋那根往上升；热时反过来
 
@@ -149,6 +178,7 @@ export default {
     const layout = () => {
       S.m = mi();          // 全部展示先吸附到同一个整数月份
       buildIso(); placeCenters(); placeWinds(); placeCols();
+      town.position.y = terrainY(X(CITY.x), Z(CITY.lat)) + 0.0004;
       hand.rotation.y = -((S.m - 1) / 12) * Math.PI * 2; aDial.setText(MON[mi()]);
       const cw = cityWeather(mi(), S.land); vane.visible = !cw.calm; if (!cw.calm) vane.rotation.y = Math.atan2(-cw.w[0], cw.w[1]) + Math.PI;          // 箭头转向风吹来的那边
       aCity.position.set(X(CITY.x) - 0.006, 0.07, Z(CITY.lat)); aCity.setText(`${CITY.name} · ${cw.name}${S.land && cw.season === 'winter' && !cw.fromSea ? ' · 干燥寒冷' : S.land && cw.season === 'summer' && cw.fromSea ? ' · 暖湿多雨' : ''}`);
@@ -213,7 +243,7 @@ export default {
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
-      size: { w: 0.42, d: 0.22, h: 0.13 },
+      size: { w: 0.42, d: 0.22, h: 0.17 },
       view: { elev: 34, azim: 10, lookY: 0.35, frameMargin: 1.08 },
       pointer,
       debug: { month: (m, land = S.land) => { S.m = m; S.land = land; S.moved = true; shapeMap(); layout(); note1(); } },

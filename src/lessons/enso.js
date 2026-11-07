@@ -51,32 +51,79 @@ export default {
       g.strokeStyle = 'rgba(255,255,255,0.7)'; g.setLineDash([6, 5]); g.lineWidth = 2; g.beginPath(); for (let i = 0; i < SW; i += 4) { const u = (i / (SW - 1)) * 2 - 1, y = thermo(u, S.a) * SH; if (i) g.lineTo(i, y); else g.moveTo(i, y); } g.stroke(); g.setLineDash([]);
       tex.needsUpdate = true;
     };
-    const front = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, SEA), new THREE.MeshBasicMaterial({ map: tex })); front.position.set(0, SEA / 2, ZD); block.add(front);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, SEA, ZD * 2 - 0.002), new THREE.MeshBasicMaterial({ color: 0x2a5a8a })); back.position.y = SEA / 2; block.add(back);
-    const seaCv = document.createElement('canvas'); seaCv.width = 512; seaCv.height = 16; const seaTex = new THREE.CanvasTexture(seaCv); seaTex.colorSpace = THREE.SRGBColorSpace;
-    const seaTop = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2), new THREE.MeshBasicMaterial({ map: seaTex })); seaTop.rotation.x = -Math.PI / 2; seaTop.position.y = SEA + 0.0003; block.add(seaTop);
-    const paintTop = () => { const g = seaCv.getContext('2d'); for (let i = 0; i < 512; i++) { const u = (i / 511) * 2 - 1; g.fillStyle = col(sst(u, S.a)); g.fillRect(i, 0, 1, 16); } seaTex.needsUpdate = true; };          // 海面按表层水温着色：越红越暖
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, SEA), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })); front.position.set(0, SEA / 2, ZD); block.add(front);
+    const rear = front.clone(); rear.position.z = -ZD; block.add(rear);
+    const endSea = (u) => {
+      const g = new THREE.PlaneGeometry(ZD * 2, SEA), uv = g.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setX(i, u);
+      const m = new THREE.Mesh(g, front.material); m.rotation.y = Math.PI / 2; m.position.set(u ? XR : XL, SEA / 2, 0); block.add(m);
+    };
+    endSea(0); endSea(1);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2), new THREE.MeshBasicMaterial({ color: 0x2858a0, side: THREE.DoubleSide })); floor.rotation.x = -Math.PI / 2; floor.position.y = 0.0001; block.add(floor);
+    const seaCv = document.createElement('canvas'); seaCv.width = 512; seaCv.height = 128; const seaTex = new THREE.CanvasTexture(seaCv); seaTex.colorSpace = THREE.SRGBColorSpace;
+    const seaTop = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2, 150, 48), new THREE.MeshStandardMaterial({ map: seaTex, roughness: 0.36, metalness: 0.08, side: THREE.DoubleSide })); seaTop.rotation.x = -Math.PI / 2; seaTop.position.y = SEA + 0.0003; block.add(seaTop);
+    // 微波只改变法线与光泽，不改变海温配色，也不盖住剖面。
+    const waveP = seaTop.geometry.attributes.position;
+    for (let i = 0; i < waveP.count; i++) { const x = waveP.getX(i), z = waveP.getY(i), edge = Math.min(1, (ZD - Math.abs(z)) / 0.004, (XR - Math.abs(x)) / 0.004); waveP.setZ(i, Math.max(0, edge) * (0.00028 * Math.sin(x * 510 + z * 180) + 0.00016 * Math.sin(z * 740 - x * 230))); }
+    seaTop.geometry.computeVertexNormals();
+    // 断续的细波光沿海面铺开，保持原来的温度色带完整。
+    const glints = [], waveY = (x, z) => SEA + 0.0003 + 0.00028 * Math.sin(x * 510 - z * 180) + 0.00016 * Math.sin(-z * 740 - x * 230);
+    for (let k = 0; k < 220; k++) { const x = XL + 0.005 + ((k * 0.618034) % 1) * (XR - XL - 0.01), z = -ZD + 0.004 + ((k * 0.414214) % 1) * (2 * ZD - 0.008); for (let j = 0; j < 3; j++) { const a = x + j * 0.0007, b = a + 0.0007; glints.push(a, waveY(a, z) + 0.00015, z, b, waveY(b, z + 0.00012) + 0.00015, z + 0.00012); } }
+    const shine = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(glints, 3)), new THREE.LineBasicMaterial({ color: 0xfff4dc, transparent: true, opacity: 0.22, depthWrite: false })); shine.raycast = () => {}; block.add(shine);
+    const paintTop = () => { const g = seaCv.getContext('2d'), R2 = (() => { let q = 7; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })(); for (let i = 0; i < 512; i++) { const u = (i / 511) * 2 - 1; g.fillStyle = col(sst(u, S.a)); g.fillRect(i, 0, 1, 128); } g.fillStyle = 'rgba(30,100,160,0.22)'; g.fillRect(0, 0, 512, 128); for (let k = 0; k < 260; k++) { const x = R2() * 512, y = R2() * 128, l = 6 + R2() * 14; g.strokeStyle = `rgba(255,255,255,${0.08 + R2() * 0.14})`; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + l / 2, y - 1.5, x + l, y); g.stroke(); } seaTex.needsUpdate = true; };          // 海面按表层水温着色：越红越暖
     const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(XR - XL, SEA, ZD * 2)), new THREE.LineBasicMaterial({ color: 0x1f3550, transparent: true, opacity: 0.5 })); frame.position.y = SEA / 2; block.add(frame);
 
     // ---- 两岸：西边一串小岛（雨林、村子），东边秘鲁沿海（干的海岸、安第斯山） ----
-    const lit = (c) => new THREE.MeshLambertMaterial({ color: c });
+    const lit = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.88, side: THREE.DoubleSide });
+    const grain = canvasTex(256, 256, (g, w) => {
+      g.fillStyle = '#eeeeea'; g.fillRect(0, 0, w, w);
+      for (let i = 0; i < 4200; i++) { const x = (i * 73.31) % w, y = (i * 37.79) % w; g.fillStyle = `rgba(55,65,45,${0.04 + (i % 5) * 0.025})`; g.fillRect(x, y, 1, 2); }
+    }, { repeat: [3, 4] });
+    const rock = canvasTex(256, 256, (g, w) => {
+      g.fillStyle = '#b3a18a'; g.fillRect(0, 0, w, w);
+      for (let i = 0; i < 2400; i++) { g.fillStyle = `rgba(65,55,45,${0.03 + (i % 7) * 0.018})`; g.fillRect((i * 71.7) % w, (i * 29.3) % w, 2, 1); }
+      for (let k = 0; k < 15; k++) { g.strokeStyle = 'rgba(80,65,50,0.1)'; g.beginPath(); for (let x = 0; x <= w; x += 4) g.lineTo(x, k * 19 + 2 * Math.sin(x / 34 + k)); g.stroke(); }
+    });
+    // 四周与底面封闭；细微同色纹理仅表现切面质感，不指定岩性。
+    const solid = (x0, x1, z0, z1, height, color, nx = 36, nz = 36) => {
+      const geo = new THREE.PlaneGeometry(x1 - x0, z1 - z0, nx, nz); geo.rotateX(-Math.PI / 2); geo.translate((x0 + x1) / 2, 0, (z0 + z1) / 2);
+      const p = geo.attributes.position;
+      for (let i = 0; i < p.count; i++) p.setY(i, height(p.getX(i), p.getZ(i)));
+      geo.computeVertexNormals(); const mat = lit(color); mat.map = grain; const top = new THREE.Mesh(geo, mat); block.add(top);
+      const P = [], UV = [];
+      const edge = (ax, az, bx, bz, n) => { for (let i = 0; i < n; i++) { const t = i / n, v = (i + 1) / n, x = ax + (bx - ax) * t, z = az + (bz - az) * t, xx = ax + (bx - ax) * v, zz = az + (bz - az) * v, y = height(x, z), yy = height(xx, zz); P.push(x, 0, z, xx, 0, zz, x, y, z, xx, 0, zz, xx, yy, zz, x, y, z); UV.push(t, 0, v, 0, t, y / 0.06, v, 0, v, yy / 0.06, t, y / 0.06); } };
+      edge(x0, z0, x1, z0, nx); edge(x1, z0, x1, z1, nz); edge(x1, z1, x0, z1, nx); edge(x0, z1, x0, z0, nz);
+      const walls = new THREE.BufferGeometry(); walls.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); walls.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); walls.computeVertexNormals(); block.add(new THREE.Mesh(walls, new THREE.MeshStandardMaterial({ map: rock, roughness: 0.95, side: THREE.DoubleSide })));
+      const bottom = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), lit(0x8d806c)); bottom.rotation.x = -Math.PI / 2; bottom.position.set((x0 + x1) / 2, 0.0001, (z0 + z1) / 2); block.add(bottom);
+      return top;
+    };
     const islands = new THREE.Group(); block.add(islands);
-    for (const [x, z, r] of [[XL + 0.012, -0.02, 0.012], [XL + 0.03, 0.015, 0.01], [XL + 0.008, 0.03, 0.008]]) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), lit(0x5f9a48)); m.scale.y = 0.6; m.position.set(x, SEA, z); islands.add(m); }
-    const forest = new THREE.InstancedMesh(new THREE.ConeGeometry(0.002, 0.006, 6).translate(0, 0.003, 0), lit(0x2f6a30), 30); forest.raycast = () => {}; block.add(forest);
-    { const m4 = new THREE.Matrix4(); for (let k = 0; k < 30; k++) { const a = rnd() * 6.28, r = rnd() * 0.008, cx = [XL + 0.012, XL + 0.03, XL + 0.008][k % 3], cz = [-0.02, 0.015, 0.03][k % 3]; m4.makeTranslation(cx + Math.cos(a) * r, SEA + 0.004, cz + Math.sin(a) * r); forest.setMatrixAt(k, m4); } }
+    const islandSites = [[XL + 0.012, -0.02, 0.014], [XL + 0.03, 0.015, 0.012], [XL + 0.008, 0.03, 0.01]];
+    const islandHeight = (x, z, cx, cz, r) => SEA - 0.003 + 0.012 * Math.max(0, 1 - ((x - cx) / r) ** 2 - ((z - cz) / (r * 0.85)) ** 2) * (0.86 + 0.14 * Math.sin(x * 520) * Math.cos(z * 410));
+    for (const [cx, cz, r] of islandSites) solid(cx - r, cx + r, cz - r, cz + r, (x, z) => islandHeight(x, z, cx, cz, r), 0x779650, 28, 28);
+    const forest = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0017, 7, 5).scale(1, 1.25, 1).translate(0, 0.0034, 0), lit(0xffffff), 96), trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.0003, 0.00045, 0.0028, 5).translate(0, 0.0014, 0), lit(0x71563c), 96); forest.raycast = trunks.raycast = () => {}; block.add(forest, trunks);
+    { const m4 = new THREE.Matrix4(), c = new THREE.Color(); for (let k = 0; k < 96; k++) { const [cx, cz, r] = islandSites[k % 3], a = k * 2.39996, rr = Math.sqrt(((k * 37) % 97) / 97) * r * 0.65, x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr * 0.85; m4.makeScale(0.8 + (k % 5) * 0.09, 0.8 + (k % 7) * 0.08, 0.8 + (k % 5) * 0.09); m4.setPosition(x, islandHeight(x, z, cx, cz, r), z); forest.setMatrixAt(k, m4); trunks.setMatrixAt(k, m4); forest.setColorAt(k, c.setHex(0x426d36).multiplyScalar(0.85 + (k % 9) * 0.04)); } }
     const fire = new THREE.Group(); block.add(fire);
     const fireTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w * 0.7, 0, w / 2, w * 0.6, w / 2); gr.addColorStop(0, 'rgba(255,230,120,1)'); gr.addColorStop(0.4, 'rgba(255,120,40,0.9)'); gr.addColorStop(1, 'rgba(200,40,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     for (let k = 0; k < 6; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireTex, transparent: true, depthWrite: false })); s.position.set(XL + 0.008 + k * 0.005, SEA + 0.008, -0.02 + (k % 3) * 0.02); s.scale.set(0.008, 0.012, 1); s.raycast = () => {}; fire.add(s); }
     const smokeTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(110,105,100,0.7)'); gr.addColorStop(1, 'rgba(110,105,100,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const smoke = Array.from({ length: 8 }, () => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false })); s.raycast = () => {}; fire.add(s); return s; });
-    const coast = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, ZD * 2), lit(0xd8c08a)); coast.position.set(XR + 0.015, SEA - 0.006 + 0.006, 0); block.add(coast);          // 秘鲁的干旱海岸
-    const andesShape = new THREE.Shape(); andesShape.moveTo(0, 0); andesShape.lineTo(0.012, 0.03); andesShape.lineTo(0.02, 0.022); andesShape.lineTo(0.03, 0.036); andesShape.lineTo(0.04, 0); andesShape.closePath();
-    const andesGeo = new THREE.ExtrudeGeometry(andesShape, { depth: ZD * 2, bevelEnabled: false }); andesGeo.translate(0, 0, -ZD);
-    const andes = new THREE.Mesh(andesGeo, lit(0x9a7a58)); andes.position.set(XR + 0.012, SEA + 0.006, 0); block.add(andes);
+    const coastHeight = (x, z) => SEA + 0.006 + 0.0005 * Math.sin(z * 170) * Math.sin((x - XR) * 140);
+    solid(XR, XR + 0.052, -ZD, ZD, (x, z) => {
+      const t = (x - XR) / 0.052, ridge = Math.exp(-(((t - 0.66 - 0.055 * Math.sin(z * 93)) / 0.21) ** 2)), detail = 0.75 + 0.16 * Math.sin(z * 165) + 0.09 * Math.cos(z * 390 + t * 21);
+      return coastHeight(x, z) + 0.039 * ridge * detail * sm(0.17, 0.35, t);
+    }, 0xb7a17a, 46, 72);
     const town = new THREE.Group(); block.add(town); for (const [dx, dz] of [[0, 0], [0.005, 0.008], [-0.004, -0.008]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.004), lit(0xf3ede1)); b.position.set(XR + 0.006 + dx, SEA + 0.008, dz); town.add(b); }
     const flood = new THREE.Mesh(new THREE.PlaneGeometry(0.03, ZD * 2), new THREE.MeshBasicMaterial({ color: 0x6f6a4a, transparent: true, opacity: 0 })); flood.rotation.x = -Math.PI / 2; flood.position.set(XR + 0.015, SEA + 0.0062, 0); flood.raycast = () => {}; block.add(flood);          // 洪水：岸上积起一片浑水
     const boats = new THREE.Group(); block.add(boats);
-    for (let k = 0; k < 4; k++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.002, 0.003), lit(0xb8442e)); b.position.set(XR - 0.012 - (k % 2) * 0.01, SEA + 0.001, -0.03 + k * 0.02); boats.add(b); }
+    for (let k = 0; k < 4; k++) {
+      const boat = new THREE.Group(); boat.position.set(XR - 0.012 - (k % 2) * 0.01, SEA + 0.001, -0.03 + k * 0.02); boats.add(boat);
+      const hull = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), lit(0xb8442e)); hull.scale.set(0.004, 0.0015, 0.0018); boat.add(hull);
+      const deck = new THREE.Mesh(new THREE.BoxGeometry(0.0055, 0.0005, 0.0026), lit(0xd5bc89)); deck.position.y = 0.001; boat.add(deck);
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.0018, 0.002), lit(0xf2e9d7)); cabin.position.set(-0.0006, 0.002, 0); boat.add(cabin);
+      const window = new THREE.Mesh(new THREE.BoxGeometry(0.0013, 0.0006, 0.0021), lit(0x486477)); window.position.copy(cabin.position); boat.add(window);
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.00015, 0.0002, 0.005, 5), lit(0x625b50)); mast.position.set(0.0012, 0.003, 0); boat.add(mast);
+    }
     const fish = Array.from({ length: 10 }, () => { const f = new THREE.Mesh(new THREE.ConeGeometry(0.0012, 0.004, 6), lit(0xcfd8e0)); f.rotation.z = Math.PI / 2; f.position.set(XR - 0.01 - rnd() * 0.03, SEA * (0.4 + rnd() * 0.5), ZD + 0.0015); f.raycast = () => {}; block.add(f); return f; });          // 秘鲁沿岸的鱼（画在剖面上）
     const upArrows = [0, 1, 2].map((k) => { const m = new THREE.Mesh(new THREE.ConeGeometry(0.002, 0.007, 8), new THREE.MeshBasicMaterial({ color: 0x9ad0ff, transparent: true })); m.position.set(XR - 0.012 - k * 0.008, SEA * 0.4, ZD + 0.002); m.raycast = () => {}; block.add(m); return m; });          // 冷水上涌
 
@@ -95,7 +142,7 @@ export default {
     const tUp = airLabel(block, '上升', { h: 0.0085, color: '#2c3245', icon: 'up' }), tDown = airLabel(block, '下沉', { h: 0.0085, color: '#2c3245', icon: 'down' });
     const cloudTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const cloud = new THREE.Group(); block.add(cloud);
-    for (let k = 0; k < 12; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, color: new THREE.Color(0.78, 0.8, 0.86), transparent: true, depthWrite: false })); s.position.set((rnd() - 0.5) * 0.04, (rnd() - 0.3) * 0.012, (rnd() - 0.5) * 0.06); const r = 0.014 + rnd() * 0.01; s.scale.set(r, r * 0.8, 1); s.raycast = () => {}; cloud.add(s); }
+    for (let k = 0; k < 12; k++) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), new THREE.MeshStandardMaterial({ color: 0xdde2e9, roughness: 1 })); s.position.set((rnd() - 0.5) * 0.04, (rnd() - 0.3) * 0.012, (rnd() - 0.5) * 0.06); const r = 0.014 + rnd() * 0.01; s.scale.set(r * 1.2, r * 0.65, r); s.raycast = () => {}; cloud.add(s); }
     const rain = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x5f86b8, transparent: true, opacity: 0.7 })); rain.raycast = () => {}; block.add(rain);
     const NR = 140, rp = new Float32Array(NR * 6), rs = Array.from({ length: NR }, () => [rnd(), rnd(), rnd()]); rain.geometry.setAttribute('position', new THREE.BufferAttribute(rp, 3));
 
@@ -173,7 +220,7 @@ export default {
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
       size: { w: 0.42, d: 0.12, h: 0.11 },
-      view: { elev: 14, azim: 10, lookY: 0.5, frameMargin: 1.08 },
+      view: { elev: 24, azim: 10, lookY: 0.5, frameMargin: 1.08 },
       pointer,
       mount(ui) {
         const stSeg = seg('直接选', ['拉尼娜', '正常年份', '厄尔尼诺'], (_, i) => { S.a = i - 1; events(); layout(); }, { value: 1 });
