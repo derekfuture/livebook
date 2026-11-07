@@ -18,7 +18,8 @@ import { STATIONS, ERAS, Y0, Y1, EVENTS, MOUTHS, eraOf, loadAt, mouthAt, flushYe
 
 const XL = -0.19, XR = 0.19, ZD = 0.1, NX = 170, NZ = 90, PLAIN = 0.01, KM = 0.0016;          // 地块；平原（开封城里地面）的高度；1 米在画面上多高（竖直方向夸大）
 const DAM_S = 0.47, SB = 0.86, FLOOD = 3.5;          // 小浪底在河的哪一段；决口处；洪水位比河床高多少（示意）
-const MS = 0.72, DW = 0.105, DD = 0.09, SHORE0 = -0.035, LAND_Y = 0.008, SEA_Y = 0.006;          // 入海口那一块（放大示意）：缩放、半宽、半深；岸线基准；陆地、海面高度
+const DW = 0.105, DD = 0.09, SHORE0 = -0.035, LAND_Y = 0.008, SEA_Y = 0.006;          // 入海口那一块：半宽、半深；岸线基准；陆地、海面高度
+const CUT = { main: new THREE.Vector3(-0.2, 0, -0.11), mainS: 0.42, mouth: new THREE.Vector3(0.085, 0, 0.035), mouthS: 1.3 };          // 看入海口时：主地块缩小退到左后方，三角洲放大到中间
 const ASK = ['先猜一下（可以不猜）：入海的泥沙少了以后，河口一带的海岸会——', ['处处都长得更快', '各岸段不一样：有的后退，有的仍在淤长', '没有变化']];
 const rnd = (() => { let s = 53; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -38,9 +39,9 @@ export default {
     src: '课本第 61–64 页 · 第四章 第一节 流域内协调发展',
   },
 
-  create({ tag }) {
+  create({ tag, reframe }) {
     const group = new THREE.Group(), block = new THREE.Group(); group.add(block);
-    const S = { y: Y0, play: false, breach: null, pulse: 0, did: { breach: false, flush: false, delta: false }, seen: new Set(), moved: false, guess: null, scourY: null };
+    const S = { vk: 0, vTo: 0, ve: 0, framed: true, y: Y0, play: false, breach: null, pulse: 0, did: { breach: false, flush: false, delta: false }, seen: new Set(), moved: false, guess: null, scourY: null };
     let W = null;
     const era = () => eraOf(S.y), veg = () => soilRel(S.y), damOn = () => S.y >= EVENTS.damFill;
     const bed = () => 4 + 4 * bedRel(S.y), levee = () => 10 + 4 * leveeRel(S.y);          // 画面用的高度（只是示意，不写米数）：大堤比河床高一截；河床冲深时大堤不跟着变低
@@ -163,48 +164,85 @@ export default {
       floodTex.needsUpdate = true;
     };
 
-    // ---- 入海口：一块放大的黄河三角洲，紧贴在主地块的右后方（整体接近方形，演示时两块一眼都看得到） ----
-    const TILT = 0.3, inset = new THREE.Group(); inset.position.set(XR - DD * MS, 0, -ZD - 0.004); inset.rotation.x = TILT; group.add(inset);          // 放大图斜着立在主地块后面（前沿着地、后沿抬起），朝着看的人，不被平原挡住
-    const mouth = new THREE.Group(); mouth.scale.setScalar(MS); mouth.rotation.y = Math.PI / 2; mouth.position.set(0, 0, -DW * MS); inset.add(mouth);          // 转 90°：河从南边（靠主地块那边）进来，往北入渤海
-    { const L = 2 * DW * MS, x0 = inset.position.x - DD * MS, x1 = inset.position.x + DD * MS, z0 = inset.position.z, z1 = z0 - L * Math.cos(TILT), yt = L * Math.sin(TILT), v = [[x0, 0, z0], [x0, 0, z1], [x0, yt, z1], [x1, 0, z0], [x1, 0, z1], [x1, yt, z1]], f = [[0, 1, 2], [3, 5, 4], [1, 4, 5], [1, 5, 2]], P = []; for (const t of f) for (const k of t) P.push(...v[k]); const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); wg.computeVertexNormals(); const wedge = new THREE.Mesh(wg, new THREE.MeshLambertMaterial({ color: 0x8f7a5e, side: THREE.DoubleSide })); wedge.raycast = () => {}; group.add(wedge); }          // 底下一块楔形垫座，托住抬起的后沿
+    // ---- 入海口：黄河三角洲另做一块。平时收着，按“看入海口”轮到它当主角：主地块缩小退到左后方，三角洲从下游的出口拉出来放大到中间 ----
+    const mouth = new THREE.Group(); mouth.visible = false; group.add(mouth);
     const RIVZ = 0.0;          // 河从西边进来的位置；四个河口在 kit 的 MOUTHS 里（z：越往后越偏北）
     const shoreX = (z, L) => SHORE0 + shoreAt(z, L);
-    const DN = 80, dGeo = new THREE.PlaneGeometry(2 * DW, 2 * DD, DN, DN); dGeo.rotateX(-Math.PI / 2);
+    // 三角洲这块是实心的：顶面（陆地、潮滩、海面）、四周的岩壁和水体侧面都随岸线重建
+    const WATER = LAND_Y + 0.0003, DN = 120, dGeo = new THREE.PlaneGeometry(2 * DW, 2 * DD, DN, DN); dGeo.rotateX(-Math.PI / 2);          // WATER：海面高度
     const dCol = new Float32Array(dGeo.attributes.position.count * 3); dGeo.setAttribute('color', new THREE.BufferAttribute(dCol, 3));
-    const dMesh = new THREE.Mesh(dGeo, new THREE.MeshLambertMaterial({ vertexColors: true })); mouth.add(dMesh);
-    const dBase = new THREE.Mesh(new THREE.BoxGeometry(2 * DW, LAND_Y, 2 * DD), new THREE.MeshLambertMaterial({ color: 0x8f7a5e })); dBase.position.y = LAND_Y / 2 - 0.0003; mouth.add(dBase);
-    const dSea = new THREE.Mesh(new THREE.BoxGeometry(2 * DW, 0.001, 2 * DD), new THREE.MeshBasicMaterial({ color: 0x5f9bd2, transparent: true, opacity: 0.55, depthWrite: false })); dSea.position.y = LAND_Y + 0.0002; dSea.renderOrder = 4; dSea.raycast = () => {}; mouth.add(dSea);
+    const dGrain = canvasTex(256, 256, (g, w) => { g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, w); for (let i = 0; i < 2600; i++) { const v = 160 + Math.random() * 90; g.fillStyle = `rgba(${v},${v},${v},${0.18 + Math.random() * 0.3})`; g.fillRect(Math.random() * w, Math.random() * w, 1.5, 1.5); } }, { repeat: [5, 4] });
+    const dMesh = new THREE.Mesh(dGeo, new THREE.MeshLambertMaterial({ vertexColors: true, map: dGrain })); mouth.add(dMesh);
+    const layers = canvasTex(256, 64, (g, w, hh) => { for (let y = 0; y < hh; y += 2) { const v = 150 + 30 * Math.sin(y * 0.9) + Math.random() * 18; g.fillStyle = `rgb(${v + 22},${v + 8},${v - 18})`; g.fillRect(0, y, w, 2); } }, { repeat: [3, 1] });          // 三角洲是河流带来的泥沙一层层堆起来的：侧面是细细的沉积层
+    const dWall = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({ map: layers, side: THREE.DoubleSide })); mouth.add(dWall);
+    const dWater = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({ color: 0x3f7fb4, transparent: true, opacity: 0.72, side: THREE.DoubleSide, depthWrite: false })); dWater.renderOrder = 3; mouth.add(dWater);          // 海水的侧面
     const dRiver = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xa88a52 })); mouth.add(dRiver);
-    const ghost = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0x3a3226, dashSize: 0.003, gapSize: 0.002, transparent: true, opacity: 0.55 })); ghost.raycast = () => {}; mouth.add(ghost);          // 虚线：1986 年时的海岸线（三角洲长得最快的年代），好比一比后来伸缩了多少
-    const SANDC = new THREE.Color(0xe2c98e), MARSH = new THREE.Color(0x9cba6c), SEAB = new THREE.Color(0x3d78b8);
+    const oldCh = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x9a8a68, transparent: true, opacity: 0.85 })); oldCh.raycast = () => {}; mouth.add(oldCh);          // 故道：老河口当年走水的河道，主流改走别处以后留在地上
+    const foam = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 })); foam.raycast = () => {}; mouth.add(foam);          // 岸边的浪花
+    const ghost = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0x3a3226, dashSize: 0.003, gapSize: 0.002, transparent: true, opacity: 0.55 })); ghost.raycast = () => {}; mouth.add(ghost);          // 虚线：1996 年的海岸线，好比一比后来伸缩了多少
+    const reeds = new THREE.InstancedMesh(new THREE.ConeGeometry(0.0006, 0.0028, 5).translate(0, 0.0014, 0), new THREE.MeshLambertMaterial({ color: 0xffffff }), 700); reeds.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(700 * 3), 3); reeds.raycast = () => {}; mouth.add(reeds);          // 湿地里的芦苇
+    const houseG = (() => { const parts = [[new THREE.BoxGeometry(0.003, 0.0022, 0.004).translate(0, 0.0011, 0), 0xf1ebe0], [new THREE.ConeGeometry(0.003, 0.0016, 4).rotateY(Math.PI / 4).scale(0.72, 1, 0.96).translate(0, 0.003, 0), 0x6a5a4a]], P = [], Cc = [], c = new THREE.Color(); for (const [g2, hx] of parts) { const A = g2.toNonIndexed().attributes.position.array; P.push(...A); c.setHex(hx); for (let q = 0; q < A.length; q += 3) Cc.push(c.r, c.g, c.b); } const g3 = new THREE.BufferGeometry(); g3.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g3.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3)); g3.computeVertexNormals(); return g3; })();
+    const villages = new THREE.InstancedMesh(houseG, new THREE.MeshLambertMaterial({ vertexColors: true }), 40); villages.raycast = () => {}; villages.count = 0; mouth.add(villages);
+    const FARM = [0xc9c06a, 0x8fb05a, 0xa9a362, 0x7a9a4e].map((h2) => new THREE.Color(h2)), MARSH1 = new THREE.Color(0x7f9a58), MARSH2 = new THREE.Color(0xa39a6c), FLAT1 = new THREE.Color(0xcdbb8a), FLAT2 = new THREE.Color(0xa89a78), SHALLOW = new THREE.Color(0x86b4b6), DEEP = new THREE.Color(0x2f6aa0), PLUME = new THREE.Color(0xc4a468), c2 = new THREE.Color();
+    const hash = (a, b) => { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return v - Math.floor(v); };
+    const landH = (dx) => LAND_Y + 0.0007 + 0.0012 * Math.min(1, -dx / 0.03), bedH = (dx) => LAND_Y - 0.0016 - Math.min(0.004, dx * 0.06);          // 陆地往内陆略高；海底往外变深
+    const SANDC = new THREE.Color(0xe2c98e), MARSH = new THREE.Color(0x9cba6c), SEAB = new THREE.Color(0x3d78b8); void SANDC; void MARSH; void SEAB;
     const buildDelta = () => {
-      const d = delta(S.y), p = dGeo.attributes.position, xs = (z) => shoreX(z, d);
-      for (let k = 0; k < p.count; k++) { const x = p.getX(k), z = p.getZ(k), dx = x - xs(z), land = dx < 0; p.setY(k, land ? LAND_Y + 0.0012 * Math.min(1, -dx / 0.02) : LAND_Y - 0.002 - Math.min(0.003, dx * 0.05)); tc.copy(land ? (dx > -0.012 ? SANDC : MARSH) : SEAB); dCol.set([tc.r, tc.g, tc.b], k * 3); }
+      const d = delta(S.y), p = dGeo.attributes.position, xs = (z) => shoreX(z, d), mo = mouthAt(S.y), mz = mo.z, load = Math.min(1, loadAt(S.y, '利津') / 10);
+      for (let k = 0; k < p.count; k++) {
+        const x = p.getX(k), z = p.getZ(k), dx = x - xs(z), land = dx < 0, n = hash(Math.floor(x * 900), Math.floor(z * 900));
+        p.setY(k, land ? landH(dx) : WATER);
+        if (land) {
+          if (dx < -0.04) { const cx = Math.floor((x + 1) / 0.012), cz = Math.floor((z + 1) / 0.009); tc.copy(FARM[Math.floor(hash(cx, cz) * 4)]).multiplyScalar(0.94 + 0.08 * n); }          // 内陆：一块块农田
+          else if (dx < -0.008) tc.copy(MARSH1).lerp(MARSH2, n * 0.7);          // 靠海：湿地
+          else tc.copy(FLAT1).lerp(FLAT2, sm(-0.008, 0, dx));          // 岸边：潮滩
+        } else {
+          tc.copy(SHALLOW).lerp(DEEP, sm(0, 0.07, dx));          // 海：近岸浅、往外深
+          const plume = load * Math.exp(-(((z - mz) / (0.012 + dx * 0.5)) ** 2)) * Math.exp(-dx / 0.05);          // 主流河口外：河水带来的泥沙把海水染黄（入海泥沙越多，范围越大越黄）
+          tc.lerp(PLUME, Math.min(0.85, plume));
+        }
+        dCol.set([tc.r, tc.g, tc.b], k * 3);
+      }
       p.needsUpdate = true; dGeo.attributes.color.needsUpdate = true; dGeo.computeVertexNormals();
-      const mz = mouthAt(S.y).z, P = [], up = new THREE.Vector3(0, 1, 0), pts = [];          // 河道：从西边进来，弯到当时的河口
-      for (let i = 0; i <= 30; i++) { const t = i / 30, z = RIVZ + (mz - RIVZ) * sm(0.3, 1, t), x = -DW + (xs(mz) + DW + 0.003) * t; pts.push(new THREE.Vector3(x, LAND_Y + 0.0016, z)); }
-      for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], t = new THREE.Vector3().subVectors(b, a).normalize(), n = new THREE.Vector3().crossVectors(t, up).normalize().multiplyScalar(0.003); P.push(a.x + n.x, a.y, a.z + n.z, b.x + n.x, b.y, b.z + n.z, b.x - n.x, b.y, b.z - n.z, a.x + n.x, a.y, a.z + n.z, b.x - n.x, b.y, b.z - n.z, a.x - n.x, a.y, a.z - n.z); }
+      // 四周：沉积层的侧壁（到地面或海底）＋海水的侧面（海底到海面）
+      const topAt = (x, z) => { const dx = x - xs(z); return dx < 0 ? landH(dx) : bedH(dx); }, WP = [], WU = [], AP = [], NE = 60;
+      const edge = (pts) => { let s2 = 0; for (let i = 0; i < pts.length - 1; i++) { const [x0, z0] = pts[i], [x1, z1] = pts[i + 1], y0 = topAt(x0, z0), y1 = topAt(x1, z1), u0 = s2 / 0.2, u1 = (s2 += Math.hypot(x1 - x0, z1 - z0)) / 0.2; WP.push(x0, 0, z0, x1, 0, z1, x1, y1, z1, x0, 0, z0, x1, y1, z1, x0, y0, z0); WU.push(u0, 0, u1, 0, u1, y1 / 0.012, u0, 0, u1, y1 / 0.012, u0, y0 / 0.012); if (x0 - xs(z0) >= 0 || x1 - xs(z1) >= 0) { const b0 = Math.min(y0, WATER), b1 = Math.min(y1, WATER); AP.push(x0, b0, z0, x1, b1, z1, x1, WATER, z1, x0, b0, z0, x1, WATER, z1, x0, WATER, z0); } } };
+      const L2 = (f) => Array.from({ length: NE + 1 }, (_, i) => f(i / NE));
+      edge(L2((u) => [-DW + 2 * DW * u, DD])); edge(L2((u) => [DW, DD - 2 * DD * u])); edge(L2((u) => [DW - 2 * DW * u, -DD])); edge(L2((u) => [-DW, -DD + 2 * DD * u]));
+      dWall.geometry.dispose(); dWall.geometry = new THREE.BufferGeometry(); dWall.geometry.setAttribute('position', new THREE.Float32BufferAttribute(WP, 3)); dWall.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(WU, 2)); dWall.geometry.computeVertexNormals();
+      dWater.geometry.dispose(); dWater.geometry = new THREE.BufferGeometry(); dWater.geometry.setAttribute('position', new THREE.Float32BufferAttribute(AP, 3)); dWater.geometry.computeVertexNormals();
+      // 河道：从西边进来，弯到当时的河口；越往下游越宽
+      const P = [], up = new THREE.Vector3(0, 1, 0), pts = [], path = (zEnd) => { const out = []; for (let i = 0; i <= 30; i++) { const t = i / 30, z = RIVZ + (zEnd - RIVZ) * sm(0.3, 1, t), x = -DW + (xs(zEnd) + DW + 0.003) * t; out.push(new THREE.Vector3(x, 0, z)); } return out; };
+      for (const v of path(mz)) { v.y = landH(-0.03) + 0.0004; pts.push(v); }
+      for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], t = new THREE.Vector3().subVectors(b, a).normalize(), w0 = 0.0026 + 0.0016 * (i / 30), w1 = 0.0026 + 0.0016 * ((i + 1) / 30), n0 = new THREE.Vector3().crossVectors(t, up).normalize(); P.push(a.x + n0.x * w0, a.y, a.z + n0.z * w0, b.x + n0.x * w1, b.y, b.z + n0.z * w1, b.x - n0.x * w1, b.y, b.z - n0.z * w1, a.x + n0.x * w0, a.y, a.z + n0.z * w0, b.x - n0.x * w1, b.y, b.z - n0.z * w1, a.x - n0.x * w0, a.y, a.z - n0.z * w0); }
       dRiver.geometry.dispose(); dRiver.geometry = new THREE.BufferGeometry(); dRiver.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-      dRiver.material.color.copy(CLEAR).lerp(MUDDY, Math.min(1, loadAt(S.y, '利津') / 10));
-      const g1996 = delta(1996), gp = []; for (let i = 0; i <= 40; i++) { const z = -DD + (2 * DD * i) / 40; gp.push(new THREE.Vector3(shoreX(z, g1996), LAND_Y + 0.0022, z)); } ghost.geometry.dispose(); ghost.geometry = new THREE.BufferGeometry().setFromPoints(gp); ghost.computeLineDistances(); ghost.visible = S.y > 2000;
+      dRiver.material.color.copy(CLEAR).lerp(MUDDY, load);
+      const OC = []; for (const m of MOUTHS) { if (m.key === mo.key || m.from > S.y) continue; const q = path(m.z); for (let i = 0; i < q.length - 1; i++) { if (q[i + 1].x - xs(q[i + 1].z) > 0) break; OC.push(q[i].x, landH(-0.03) + 0.0003, q[i].z, q[i + 1].x, landH(-0.03) + 0.0003, q[i + 1].z); } }          // 已经不走主流的老河道（到海岸为止）
+      oldCh.geometry.dispose(); oldCh.geometry = new THREE.BufferGeometry(); oldCh.geometry.setAttribute('position', new THREE.Float32BufferAttribute(OC, 3));
+      const fp = []; for (let i = 0; i <= 80; i++) { const z = -DD + (2 * DD * i) / 80, x = Math.min(DW, xs(z) + 0.0012); fp.push(new THREE.Vector3(x, WATER + 0.0004, z)); } foam.geometry.dispose(); foam.geometry = new THREE.BufferGeometry().setFromPoints(fp);
+      const g1996 = delta(1996), gp = []; for (let i = 0; i <= 40; i++) { const z = -DD + (2 * DD * i) / 40; gp.push(new THREE.Vector3(shoreX(z, g1996), WATER + 0.0016, z)); } ghost.geometry.dispose(); ghost.geometry = new THREE.BufferGeometry().setFromPoints(gp); ghost.computeLineDistances(); ghost.visible = S.y > 2000;
+      // 芦苇长在湿地；村子在内陆
+      const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), sv = new THREE.Vector3(), pv = new THREE.Vector3(), rc = new THREE.Color(); let nr = 0;
+      for (let k = 0; k < 2400 && nr < 700; k++) { const x = -DW + 0.003 + hash(k, 1) * (2 * DW - 0.006), z = -DD + 0.003 + hash(k, 2) * (2 * DD - 0.006), dx = x - xs(z); if (dx > -0.009 || dx < -0.04) continue; if (pts.some((v) => Math.abs(v.x - x) < 0.004 && Math.abs(v.z - z) < 0.004)) continue; m4.compose(pv.set(x, landH(dx) - 0.0002, z), qq.setFromAxisAngle(up, hash(k, 3) * 6.28), sv.set(1, 0.7 + hash(k, 4) * 0.7, 1)); reeds.setMatrixAt(nr, m4); reeds.setColorAt(nr, rc.setHex(hash(k, 5) < 0.5 ? 0x6f8a46 : 0x9a8e58).multiplyScalar(0.85 + hash(k, 6) * 0.3)); nr++; }
+      reeds.count = nr; reeds.instanceMatrix.needsUpdate = true; reeds.instanceColor.needsUpdate = true;
+      if (!villages.count) { let nv = 0; for (const [cx, cz] of [[-0.085, -0.055], [-0.07, 0.06], [-0.045, -0.02]]) for (let k = 0; k < 12 && nv < 40; k++) { const x = cx + (hash(k, cx * 100) - 0.5) * 0.02, z = cz + (hash(k, cz * 100 + 7) - 0.5) * 0.016; if (pts.some((v) => Math.abs(v.x - x) < 0.006 && Math.abs(v.z - z) < 0.006)) continue; m4.compose(pv.set(x, landH(-0.05), z), qq.setFromAxisAngle(up, hash(k, 9) < 0.5 ? 0 : Math.PI / 2), sv.setScalar(1)); villages.setMatrixAt(nv++, m4); } villages.count = nv; villages.instanceMatrix.needsUpdate = true; }          // 村子不随年份变
       riverPts = pts;
     };
     let riverPts = [];
-    const aMouth = airLabel(mouth, '入海口：黄河三角洲', { x: 0, y: 0.05, z: 0, h: 0.0177, color: '#2c3245' });
-    const aOld = airLabel(mouth, '', { x: 0.03, y: 0.022, z: -0.06, h: 0.0131, color: '#8a3a2a', dim: 0 }), aNew = airLabel(mouth, '', { x: 0.04, y: 0.028, z: 0.03, h: 0.0131, color: '#2c3245', dim: 0 });
-    const aSea = airLabel(mouth, '渤海', { x: DW - 0.03, y: 0.016, z: -DD + 0.03, h: 0.0150, color: '#173a63' });
-    const aGhost = airLabel(mouth, '虚线：1996 年的海岸线', { x: -0.02, y: 0.02, z: DD - 0.015, h: 0.0125, color: '#5a5040', dim: 0 });
-    const linkY = PLAIN + 0.004;          // 顺流而下：从前面剖面那里出去的河，沿着地块外沿连到入海口那块的西边（河从那里进来）
-    const linkL = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0.074, linkY, ZD + 0.006), new THREE.Vector3(XR + 0.008, linkY, ZD + 0.006), new THREE.Vector3(XR + 0.008, linkY, -ZD + 0.006)]), new THREE.LineDashedMaterial({ color: 0x8a7a5e, dashSize: 0.004, gapSize: 0.003 })); linkL.computeLineDistances(); linkL.raycast = () => {}; group.add(linkL);
-    const frame = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new THREE.Vector3(a * (DW + 0.004), LAND_Y + 0.0035, b * (DD + 0.004)))), new THREE.LineBasicMaterial({ color: 0x5a5040, transparent: true, opacity: 0.7 })); frame.raycast = () => {}; mouth.add(frame);          // 放大框
-    const aLink = airLabel(group, '顺流而下 → 入海口（放大）', { x: XR + 0.02, y: 0.026, z: 0, h: 0.0084, color: '#5a5040' });
+    const aMouth = airLabel(mouth, '入海口：黄河三角洲', { x: 0, y: 0.05, z: 0, h: 0.0111, color: '#2c3245' });
+    const aOld = airLabel(mouth, '', { x: 0.03, y: 0.022, z: -0.06, h: 0.0082, color: '#8a3a2a', dim: 0 }), aNew = airLabel(mouth, '', { x: 0.04, y: 0.028, z: 0.03, h: 0.0082, color: '#2c3245', dim: 0 });
+    const aSea = airLabel(mouth, '渤海', { x: DW - 0.03, y: 0.016, z: -DD + 0.03, h: 0.0094, color: '#173a63' });
+    const aGhost = airLabel(mouth, '虚线：1996 年的海岸线', { x: -0.02, y: 0.02, z: DD - 0.015, h: 0.0078, color: '#5a5040', dim: 0 });
+    const linkL = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0x8a7a5e, dashSize: 0.004, gapSize: 0.003, transparent: true, opacity: 0 })); linkL.raycast = () => {}; linkL.frustumCulled = false; group.add(linkL);          // 顺流而下：主地块前面出去的河，连到三角洲西边河进来的地方
+    const frame = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new THREE.Vector3(a * (DW + 0.004), LAND_Y + 0.0035, b * (DD + 0.004)))), new THREE.LineBasicMaterial({ color: 0x5a5040, transparent: true, opacity: 0.7 })); frame.raycast = () => {}; mouth.add(frame);
+    const aLink = airLabel(group, '顺流而下', { h: 0.0084, color: '#5a5040' }); aLink.setOn(false);
 
     // ---- 水文站：龙门、小浪底、利津（和侧栏图 4.7 对得上） ----
     const stake = (parent, x, y, z) => { const g2 = new THREE.Group(); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 0.014, 6), new THREE.MeshLambertMaterial({ color: 0xe8e4da })); pole.position.y = 0.007; g2.add(pole); const flagM = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.0028, 0.0005), new THREE.MeshLambertMaterial({ color: 0x2f6fb0 })); flagM.position.set(0.0022, 0.0125, 0); g2.add(flagM); g2.position.set(x, y, z); parent.add(g2); return g2; };
     const lmP = curve.getPointAt(0.3), xldP = curve.getPointAt(DAM_S + 0.04);
     stake(block, lmP.x + 0.012, floorAt(0.3) + 0.004, lmP.z); stake(block, xldP.x + 0.012, PLAIN + 0.03, xldP.z);
     const stLm = airLabel(block, '', { x: lmP.x + 0.012, y: 0.07, z: lmP.z, h: 0.0081, color: '#1f4f86' }), stXl = airLabel(block, '', { x: xldP.x + 0.02, y: 0.062, z: xldP.z, h: 0.0081, color: '#1f4f86' });
-    stake(mouth, -DW + 0.03, LAND_Y, RIVZ + 0.008); const stLj = airLabel(mouth, '', { x: -DW + 0.03, y: 0.03, z: RIVZ + 0.008, h: 0.0129, color: '#1f4f86' });
+    stake(mouth, -DW + 0.03, LAND_Y, RIVZ + 0.008); const stLj = airLabel(mouth, '', { x: -DW + 0.03, y: 0.03, z: RIVZ + 0.008, h: 0.0081, color: '#1f4f86' });
 
     // ---- 一粒粒泥沙：按图 4.7 各站的年输沙量放；水库拦下、下游淤下、调水调沙时从河床冲起 ----
     const dotTex = canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
@@ -238,8 +276,8 @@ export default {
       for (let i = 0; i < NQ; i++) {
         const o = Q[i]; if (!o.on || riverPts.length < 2) { qpos.set([0, -1, 0], i * 3); continue; }
         o.t += dt * 0.35; if (o.t > 1.5) { o.on = false; continue; }
-        if (o.t <= 1) { const f = o.t * (riverPts.length - 1), j = Math.min(riverPts.length - 2, Math.floor(f)), a = riverPts[j], b = riverPts[j + 1], u = f - j; qpos.set([a.x + (b.x - a.x) * u, LAND_Y + 0.002, a.z + (b.z - a.z) * u + o.off], i * 3); }
-        else { const e = riverPts[riverPts.length - 1], u = (o.t - 1) / 0.5; qpos.set([e.x + o.out * u, LAND_Y + 0.0008, e.z + o.sp * u], i * 3); }
+        if (o.t <= 1) { const f = o.t * (riverPts.length - 1), j = Math.min(riverPts.length - 2, Math.floor(f)), a = riverPts[j], b = riverPts[j + 1], u = f - j; qpos.set([a.x + (b.x - a.x) * u, a.y + 0.0007, a.z + (b.z - a.z) * u + o.off], i * 3); }
+        else { const e = riverPts[riverPts.length - 1], u = (o.t - 1) / 0.5; qpos.set([e.x + o.out * u, WATER + 0.0005, e.z + o.sp * u], i * 3); }
       }
       dots2.geometry.attributes.position.needsUpdate = true;
     };
@@ -271,7 +309,7 @@ export default {
       aNew.setText(`主流入海：${mo.name}（${mo.from} 年起）${mo.key === 'q8' ? (S.y < 2002 ? '，一度后退' : '，又向海淤长') : '，向海淤长'}`).setOn(true); aNew.position.z = mo.z + 0.012;
       aOld.setText(dead.length ? '老河口：失去主流水沙补给，海岸后退' : '').setOn(dead.length > 0); if (dead.length) aOld.position.z = dead[dead.length - 1].z - 0.008; aGhost.setOn(S.y > 2000);
       buildDelta();
-      tHint.loc(block, 0.11, 0.07, ZD * 0.6).show(!S.moved);
+      tHint.loc(block, 0.11, 0.07, ZD * 0.6).show(!S.moved && !S.vTo);
       drawChart(); drawLog();
     };
     const rebuild = () => { shapeTop(); buildFaces(); layout(); };
@@ -291,13 +329,37 @@ export default {
     };
 
     // ---- 假如大堤失守：水位涨到堤顶，大堤决口，水冲向开封（历史上的情形，不是所选年份发生的事） ----
+    // ---- 轮流当主角：看入海口 ↔ 回到上游 ----
+    const mainL = [aPlat, aDam, aPlain, aKaifeng, aBed, aBreach, aFlush, aVeg, aHover, stLm, stXl], mouthL = [aMouth, aOld, aNew, aSea, aGhost, stLj];
+    const EXIT = new THREE.Vector3(0.074, PLAIN + 0.004, ZD + 0.004), ENTRY = new THREE.Vector3(-DW, LAND_Y + 0.002, RIVZ);          // 主地块上河出去的地方；三角洲上河进来的地方
+    const setMouthBtn = () => { if (W) W.mouthBtn.textContent = S.vTo ? '回到上游' : '看入海口（三角洲）'; };
+    const showMouth = () => { if (S.vTo) return; S.vTo = 1; S.framed = false; setMouthBtn(); W?.ui.status('入海口：黄河三角洲（放大）。拖“年份”或按“让时间走”，看各段海岸怎么变；按“回到上游”换回来。'); };
+    const backUp = () => { if (!S.vTo) return; S.vTo = 0; S.framed = false; setMouthBtn(); };
+    const tMouth = tag('<span>入海口 →</span>', 'view', showMouth), tBack = tag('<span>回到上游</span>', 'view', backUp);
+    const ease = (x) => x * x * (3 - 2 * x), vA = new THREE.Vector3(), vB = new THREE.Vector3();
+    const stepView = (dt) => {
+      const sp = dt * 1.4; S.vk = S.vTo > S.vk ? Math.min(S.vTo, S.vk + sp) : Math.max(S.vTo, S.vk - sp); S.ve = S.vTo ? Math.min(1, S.ve + (S.vk > 0.35 ? sp * 1.2 : 0)) : Math.max(0, S.ve - sp * 1.6);          // 先让主地块退开，三角洲再拉出来；回去时三角洲先收回去
+      const k = ease(S.vk), e = ease(S.ve), sc = 1 - (1 - CUT.mainS) * k; block.scale.setScalar(sc); block.position.copy(vA.set(0, 0, 0).lerp(CUT.main, k));
+      block.updateMatrixWorld(); vB.copy(EXIT); block.localToWorld(vB); group.worldToLocal(vB);
+      mouth.visible = S.ve > 0.001; mouth.position.copy(vB).lerp(CUT.mouth, e); mouth.scale.setScalar(0.04 + (CUT.mouthS - 0.04) * e);
+      const on = mouth.visible && e > 0.3; linkL.material.opacity = on ? 0.85 * Math.min(1, (e - 0.3) / 0.4) : 0;
+      if (on) { mouth.updateMatrixWorld(); const en = ENTRY.clone(); mouth.localToWorld(en); group.worldToLocal(en); const mid = vB.clone().lerp(en, 0.5); mid.y += 0.012; linkL.geometry.dispose(); linkL.geometry = new THREE.BufferGeometry().setFromPoints([vB, mid, en]); linkL.computeLineDistances(); aLink.position.set(mid.x, mid.y + 0.012, mid.z); }
+      aLink.setOn(on);
+      tMouth.loc(block, EXIT.x + 0.03, EXIT.y + 0.02, EXIT.z).show(!S.vTo && S.vk === 0);
+      tBack.loc(group, CUT.main.x, 0.07, CUT.main.z - 0.03).show(S.vTo === 1 && S.vk === 1); tHint.show(!S.moved && !S.vTo && S.vk === 0);
+      if (!S.framed && S.vk === S.vTo && S.ve === S.vTo) { S.framed = true; reframe?.(); }          // 换好了：镜头按现在的东西重新取景
+    };
+    const fadeLabels = () => { const k = ease(S.vk), e = ease(S.ve); for (const l of mainL) { l.material.opacity *= 1 - k; l.visible = l.visible && k < 0.97; } for (const l of mouthL) { l.material.opacity *= e; l.visible = l.visible && e > 0.03; } };          // 主地块缩小时它的字先收起来；三角洲的字只在它当主角时亮
+
     const startBreach = () => {
+      backUp();
       if (S.pulse > 0) stopDemos();
       tHint.show(false); S.breach = { t: 0 }; S.did.breach = true; floodM.visible = true; S.moved = true; drawLog();
       aBreach.position.set(bp.x + bn.x * 0.03, leveeY() + 0.02, bp.z + bn.z * 0.03); aBreach.setText('假如：洪水位逼近堤顶……');
       W?.ui.status('<b>假如大堤失守</b>（这是历史上反复发生过的情形，不是所选年份的事）：洪水来了，水位在高出两岸的河道里一路上涨，逼近堤顶……');
     };
     const startFlush = () => {
+      backUp();
       if (!flushYear(S.y)) { W?.ui.status(S.y < EVENTS.firstFlush ? '调水调沙从 2002 年开始。把年份拖到 2002—2015 年。' : '2016 年没有进行调水调沙。把年份拖到 2002—2015 年。'); return; }
       if (S.breach) stopDemos();
       tHint.show(false); S.pulse = 2.4; S.did.flush = true; S.moved = true; aFlush.position.set(curve.getPointAt(0.72).x + 0.03, PLAIN + 0.05, curve.getPointAt(0.72).z); aFlush.setText('人造洪峰：冲刷下游河床，泥沙送进大海').setOn(true); drawLog();
@@ -354,7 +416,7 @@ export default {
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
-      size: { w: 0.4, d: 0.36, h: 0.09 },
+      size: { w: 0.4, d: 0.22, h: 0.09 },
       view: { elev: 27, azim: 10, lookY: 0.3, frameMargin: 0.98 },
       pointer,
       debug: { year: (y) => { S.force = true; setYear(y); }, breach: () => startBreach(), flush: () => startFlush(), state: () => ({ y: S.y, breach: !!S.breach, pulse: S.pulse, did: S.did }) },
@@ -367,16 +429,17 @@ export default {
           { text: '汛前放水调沙（2002—2015 年）', onClick: () => startFlush() },
         ]);
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
-        const reset = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); stopDemos(); Object.assign(S, { y: Y0, play: false, breach: null, pulse: 0, moved: false, guess: null, scourY: null, force: true }); S.did = { breach: false, flush: false, delta: false }; S.seen = new Set(['a']); floodM.visible = false; aBreach.setOn(false); aFlush.setOn(false); acts.btns[0].textContent = '让时间走'; guess.set(-1); setYear(Y0); rebuild(); ui.status(START); } }]);
+        const view = buttons([{ text: '看入海口（三角洲）', onClick: () => (S.vTo ? backUp() : showMouth()) }]);
+        const reset = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); stopDemos(); backUp(); Object.assign(S, { y: Y0, play: false, breach: null, pulse: 0, moved: false, guess: null, scourY: null, force: true }); S.did = { breach: false, flush: false, delta: false }; S.seen = new Set(['a']); floodM.visible = false; aBreach.setOn(false); aFlush.setOn(false); acts.btns[0].textContent = '让时间走'; guess.set(-1); setYear(Y0); rebuild(); ui.status(START); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 300 }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '泥沙和河床，一年年怎么变'), chart, read, year.el, eraSeg.el, acts.el, guess.el, reset.el, note('前面的切面就是课本图 4.5：大堤夹着的河床比开封城里的地面高。河水越黄，那一段一年过的沙越多（按图 4.7）。右边那一小块是入海口的黄河三角洲。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '泥沙和河床，一年年怎么变'), chart, read, year.el, eraSeg.el, acts.el, view.el, guess.el, reset.el, note('前面的切面就是课本图 4.5：大堤夹着的河床比开封城里的地面高。河水越黄，那一段一年过的沙越多（按图 4.7）。按“看入海口”换到黄河三角洲。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
-        W = { ui, chart, read, log, year, eraSeg };
+        W = { ui, chart, read, log, year, eraSeg, mouthBtn: view.btns[0] };
         ui.status(START);
         drawChart(); drawLog();
       },
       update(dt) {
-        labels.forEach((l) => l.tick(dt)); stepDots(Math.min(dt, 0.05));
+        labels.forEach((l) => l.tick(dt)); stepView(dt); fadeLabels(); stepDots(Math.min(dt, 0.05));
         if (S.play) { const ny = S.y + dt * 4; if (ny >= Y1) S.play = false; setYear(Math.min(Y1, ny)); }          // 1 秒走 4 年
         if (S.pulse > 0) { S.pulse -= dt; jet.material.opacity = 0.75 * Math.min(1, S.pulse); jet.scale.z = 1 + 0.3 * Math.sin(S.pulse * 12); buildWater(); buildFaces(); if (S.pulse <= 0) { jet.material.opacity = 0; aFlush.setOn(false); buildWater(); } }
         if (S.breach) {
