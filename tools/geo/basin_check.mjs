@@ -1,5 +1,5 @@
 // 核对黄河调沙减淤：node tools/geo/basin_check.mjs（选必2 第 61–64 页，图 4.5、图 4.7）
-import { STATIONS, ERAS, EVENTS, MOUTHS, eraOf, loadAt, mouthAt, flushYear, bedRel, soilRel, delta } from '../../src/lessons/kit/basin.js';
+import { STATIONS, ERAS, EVENTS, MOUTHS, eraOf, loadAt, mouthAt, flushYear, bedRel, leveeRel, soilRel, delta } from '../../src/lessons/kit/basin.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const T47 = { 头道拐: [1.41, 0.39, 0.49], 龙门: [9.14, 4.33, 1.04], 小浪底: [13.33, 5.46, 0.55], 利津: [9.78, 3.33, 1.02] };
 ok(STATIONS.every((st, i) => ERAS.every((e, k) => e.load[i] === T47[st][k])), '四个站、三个时段的年均输沙量和课本图 4.7 一字不差');
@@ -13,5 +13,6 @@ ok(bedRel(1990) > bedRel(1960) && bedRel(2015) <= bedRel(2009) && bedRel(2016) >
 ok(soilRel(1956) > 0 && soilRel(2010) > soilRel(1980), '水土保持 50 年代就开始，范围逐步扩大');
 const L76 = delta(1976), L96 = delta(1996), L16 = delta(2016), L05 = delta(2005);
 ok(L96.dkh < L76.dkh && L16.dkh < L96.dkh, '刁口河 1976 年以后失去主流水沙补给，岸段后退');
-ok(L16.q8 > L05.q8 && L16.q8 - L05.q8 < L05.q8 - delta(1996).q8, '正在走水的河口仍在淤长，但入海泥沙少了，长得慢了（不再用“几乎不长”的阈值）');
+ok(delta(2002).q8 <= delta(1997).q8 && L16.q8 > delta(2002).q8, '清 8 汊河口 1996—2002 年一度后退，调水调沙以后向海淤长（Wu et al., 2021）；不按输沙量推历史速度');
+ok(leveeRel(2015) >= leveeRel(2002) && leveeRel(2002) > leveeRel(1960), '大堤随河床淤高而加高；河床冲深时大堤不跟着变低');
 process.exit(bad ? 1 : 0);

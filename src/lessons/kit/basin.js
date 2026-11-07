@@ -33,9 +33,20 @@ const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
 export const bedRel = (y) => 0.55 + 0.35 * sm(1956, 1999, y) - 0.1 * sm(2002, 2015, y);
 /** 水土保持的范围（0—1，示意）：50 年代就开始，逐步扩大 */
 export const soilRel = (y) => 0.15 + 0.85 * sm(1956, 2010, y);
-/** 三角洲各个河口的叶瓣往海里伸出多少（0—1，示意）：正在走水的河口按利津站入海泥沙长（泥沙越多长得越快）；失去主流水沙补给的老河口被海浪侵蚀后退 */
+/** 三角洲各个河口的叶瓣往海里伸出多少（0—1，只示意方向，不按输沙量算历史速度）。
+ * 主流入海的河口一般向海淤长，失去主流水沙补给的老河口被海浪侵蚀后退；清 8 汊河口 1996—2002 年一度后退，调水调沙以后又向海淤长
+ * （Wu et al., 2021, Water Resources Research, doi:10.1029/2021WR029581）。 */
 export function delta(y) {
   const L = { sxg: 0.3, dkh: 0, qsg: 0, q8: 0 };
-  for (let t = Y0; t < y; t += 0.25) { const act = mouthAt(t).key, sea = loadAt(t, '利津'); for (const k in L) L[k] = k === act ? Math.min(1, L[k] + sea * 0.0035 * 0.25) : Math.max(0, L[k] - 0.006 * 0.25 * (L[k] > 0.05 ? 1 : 0)); }
+  for (let t = Y0; t < y; t += 0.25) {
+    const act = mouthAt(t).key;
+    for (const k in L) {
+      if (k !== act) { L[k] = Math.max(0, L[k] - 0.006 * 0.25 * (L[k] > 0.05 ? 1 : 0)); continue; }
+      const rate = k === 'q8' ? (t < 2002 ? -0.004 : 0.012) : 0.025;          // 主流河口淤长（示意）；清 8 汊 1996—2002 年一度后退、2002 年以后淤长
+      L[k] = Math.min(1, Math.max(k === 'q8' ? 0.06 : 0, L[k] + rate * 0.25));
+    }
+  }
   return L;
 }
+/** 大堤高出地面（示意，0—1 同河床的尺度）：河床淤高时跟着加高；河床冲深时大堤不跟着变低 */
+export const leveeRel = (y) => bedRel(Math.min(y, 2002));
