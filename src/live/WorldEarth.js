@@ -181,7 +181,9 @@ export class WorldEarth {
       p.label.userData.want = hot && face > 0.15 ? 1 : 0;
       p.label.tick(dt);
       p.glow.material.opacity = (0.25 + 0.7 * p.hot) * this.fade * (1 - pk);
-      p.bead.scale.setScalar(1 + p.hot * 0.6); p.ring.scale.setScalar(1 + p.hot * 0.6);
+      const vis = Math.max(0, Math.min(1, (face - 0.2) / 0.18));          // 转到边上、背面的旗收起来（不在球边上支出一颗珠子）
+      p.bead.scale.setScalar((1 + p.hot * 0.6) * vis); p.ring.scale.setScalar((1 + p.hot * 0.6) * vis); p.g.children[0].scale.set(vis, vis, vis);
+      p.glow.material.opacity *= vis;
       p.g.visible = pk < 0.5 && this.pinsOn !== false;
       if (p.line) { p.line.material.opacity = p.hot * 0.95 * this.fade; p.line.visible = p.line.material.opacity > 0.01; }
     }

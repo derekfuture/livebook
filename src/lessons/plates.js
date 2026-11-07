@@ -210,9 +210,9 @@ export default {
       W.log.replaceChildren(...rows); if (S.seen.size >= 3 && (S.seen.has('CCB') || S.seen.has('SUB'))) W.ui.unlock();
     };
 
-    // ---- 轮流当主角：切开以后切片放大到中间，地球缩小退到左后方；“回到地球”换回来 ----
-    const backToGlobe = () => { S.kTo = 0; S.framed = false; if (W) W.backBtn.style.display = 'none'; W?.ui.status('回到地球。再在别的边界上点一下，切开看。'); };
-    const tBack = tag('<span>回到地球</span>', 'view', backToGlobe);
+    // ---- 轮流当主角：切开以后切片放大到中间，地球缩小退到左后方；“收起切片”换回来（“回到地球”留给地球主探索：回到这本书的地球目录） ----
+    const backToGlobe = () => { S.kTo = 0; S.framed = false; if (W) W.backBtn.style.display = 'none'; W?.ui.status('收起了切片，地球又在中间了。再在别的边界上点一下，切开看。'); };
+    const tBack = tag('<span>收起切片</span>', 'view', backToGlobe);
     const ease = (x) => x * x * (3 - 2 * x), vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3(), base0 = new THREE.Vector3(GC.x, 0, 0);
     const stepView = (dt) => {
       const sp = dt * 1.4; S.k = S.kTo > S.k ? Math.min(S.kTo, S.k + sp) : Math.max(S.kTo, S.k - sp); S.e = S.kTo ? Math.min(1, S.e + (S.k > 0.35 ? sp * 1.2 : 0)) : Math.max(0, S.e - sp * 1.6);          // 先让地球退开，切片再拉出来；回去时切片先缩回去
@@ -258,14 +258,14 @@ export default {
       debug: { pick: (lat, lon) => choose(lat, lon), snapshot: () => ({ status: terrain.status, pick: S.pick, pending }), reloadHeight: (promise = Promise.resolve(HEIGHT)) => loadElevation(promise) },
       mount(ui) {
         const pre = buttons(PRESETS.map((preset) => ({ text: preset[0], ghost: true, onClick: () => { S.moved = true; choose(preset[1], preset[2], preset); } })));
-        const acts = buttons([{ text: '回到地球', onClick: backToGlobe }, { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.pick = null; pending = null; S.seen.clear(); S.moved = false; clearSlice(); S.e = 0; slice.visible = false; earthRot.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -1.5); drawChart(); drawLog(); ui.status(terrain.status === 'ready' ? START : terrain.status === 'failed' ? 'ETOPO1 地形数据不可用，暂无高程结论。' : 'ETOPO1 地形数据加载中，暂无高程结论。'); } }]);
+        const acts = buttons([{ text: '收起切片', onClick: backToGlobe }, { text: '重来', ghost: true, onClick: () => { ui.relock?.(); S.pick = null; pending = null; S.seen.clear(); S.moved = false; clearSlice(); S.e = 0; slice.visible = false; earthRot.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -1.5); drawChart(); drawLog(); ui.status(terrain.status === 'ready' ? START : terrain.status === 'failed' ? 'ETOPO1 地形数据不可用，暂无高程结论。' : 'ETOPO1 地形数据加载中，暂无高程结论。'); } }]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 190 }), log = h('div', { class: 'timeline' });
         const sw = (c, t) => `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};vertical-align:-1px;margin:0 3px 0 8px"></span>${t}`;
         const legend = h('div', { class: 'note', html: `切片顶面的颜色只表示高程（米）：${sw('#3d6f95', '<−3000')}${sw('#5d8fae', '<0')}${sw('#7fa25c', '<800')}${sw('#a59a6a', '<2000')}${sw('#9a8064', '<4500')}${sw('#e9e7e2', '>4500')}` });          // 色标：白色只表示海拔高，不表示冰雪
         ui.controls.append(h('div', { class: 'bar-title' }, '剖面：ETOPO1 采样（约数）'), chart, legend, h('div', { class: 'bar-title' }, '也可以直接去这些地方'), pre.el, acts.el, note('红线是生长边界，绿线是汇聚边界（含俯冲），灰线是转换边界。箭头朝外是相离，朝里是相向。'));
         ui.controls.append(h('a', { href: 'https://coastwatch.pfeg.noaa.gov/erddap/info/etopo180/index.html', target: '_blank', rel: 'noopener' }, 'ETOPO1 数据来源'), h('br'), h('a', { href: 'https://github.com/fraxen/tectonicplates/blob/master/original/README.md', target: '_blank', rel: 'noopener' }, 'PB2002 分类与极性说明'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
-        W = { ui, chart, log, backBtn: acts.btns[0] }; acts.btns[0].style.display = 'none';          // “回到地球”只在切开以后出现
+        W = { ui, chart, log, backBtn: acts.btns[0] }; acts.btns[0].style.display = 'none';          // “收起切片”只在切开以后出现
         ui.status(terrain.status === 'ready' ? START : 'ETOPO1 地形数据加载中，暂无高程结论。'); drawChart(); drawLog();
       },
       update(dt) {

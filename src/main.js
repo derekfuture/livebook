@@ -195,6 +195,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     drawer.hidden = true; hideHint();
     document.body.classList.add('shelf-leave');
     if (live.isOpen) live.close();
+    world?.hide();          // 地球沉回书里，书再合上
     stage.calm = true;          // 不跟着鼠标晃：两边同一个画面
     const t0 = performance.now();
     const wait = () => {

@@ -38,7 +38,12 @@ export class World {
     this.locTag = tag('', 'w-loc btn', () => this.toHub());
     this.locTag.show(false);
     this.card = tag('', 'w-card'); this.card.show(false);
-    book.on((type) => { if (type === 'turned' && this.state === 'hub' && !this.busy) this._syncFromBook(); });
+    this.hint = tag('<span>拖着地球转一转</span><small>点一面旗，进到那张活页</small>', 'hint'); this.hint.show(false); this.touched = false;          // 开场的操作提示：做过一次就收
+    book.on((type) => {
+      if (this.state !== 'hub' || this.busy) return;
+      if (type === 'turnstart' || type === 'turned') { const r = (type === 'turned' ? book.current : book.anim?.to ?? book.current) !== this.hubLeaf; if (r !== !!this.reading) { this.reading = r; this.setFollow(() => this._hubPose(), 0.8, { world: true }); this._hubShot(); } }
+      if (type === 'turned') this._syncFromBook();
+    });
     stage.updaters.add((dt) => this.update(dt));
     addEventListener('resize', () => { if (this.state === 'hub' && !this.busy) this._hubShot(); });
   }
@@ -58,7 +63,11 @@ export class World {
 
   // ---------- 地球摆在哪：书上方（目录）、右上角、书里（还没升起来）、活页里那颗地球的位置 ----------
   _top() { return Math.max(this.book.topHeight('left'), this.book.topHeight('right')); }
-  _hubPose() { return { pos: new THREE.Vector3(0, this._top() + HUB_GAP + HUB_R, HUB_Z), r: HUB_R }; }
+  _hubPose() {
+    // 翻离了目录在看书：地球往上、往后让一让，小一点，书页露出来（发光的图能点）；翻回目录又回来
+    if (this.reading) { const r = HUB_R * 0.56; return { pos: new THREE.Vector3(0, this._top() + 0.5 + r, -this.book.H * 0.5 - r * 0.8), r }; }
+    return { pos: new THREE.Vector3(0, this._top() + HUB_GAP + HUB_R, HUB_Z), r: HUB_R };
+  }
   _sunkPose() { return { pos: new THREE.Vector3(0, this._top() + 0.01, HUB_Z), r: 0.004 }; }
   _locPose() {
     const cam = this.stage.camera; cam.updateMatrixWorld();
@@ -90,8 +99,8 @@ export class World {
   _hubShot(instant = false) {
     this.stage.cameraOffsetX = this.panel.el && !this.panel.el.hidden ? panelOffset() : 0;
     this.stage.cameraOffsetY = 0;
-    const P = this._hubPose(), el = THREE.MathUtils.degToRad(21);
-    const target = new THREE.Vector3(0, P.pos.y - HUB_R * 0.78, 0.18);          // 地球是主角，书整个托在下面
+    const P = this._hubPose(), el = THREE.MathUtils.degToRad(this.reading ? 34 : 21);
+    const target = this.reading ? new THREE.Vector3(0, this._top() + 0.3, -0.18) : new THREE.Vector3(0, P.pos.y - HUB_R * 0.78, 0.18);          // 地球是主角，书整个托在下面；看书时镜头抬高些，书页看得清
     const dist = this.stage.fitDistance(this.book.W * 2.18, (HUB_R * 2 + HUB_GAP) * 1.95, 1.0);
     this.stage.shot({ target, dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist, instant });
   }
@@ -141,7 +150,9 @@ export class World {
       this.cardFor = x;
       const real = this.textures.source.kind !== 'placeholder', [x0, y0, x1, y1] = it.spot.bbox, PW = this.book.PW, PH = this.book.PH;
       const extra = x.pn.extra;          // 活页补充的地方（课本这一节没有）：不配课本的图，写明是补充
-      this.card.text(extra ? `<b>${it.title}</b><small>${x.pn.name}：${extra}</small>` : `<div class="w-fig"${real ? '' : ' hidden'}></div><b>${it.title}</b><small>${it.fig} · 第 ${it.page} 页 · ${x.pn.name}</small>`);
+      this.card.text(`${extra ? '' : `<div class="w-fig"${real ? '' : ' hidden'}></div>`}<b>${it.title}</b><p class="w-q"></p><small>${extra ? `${x.pn.name}：${extra}` : `${it.fig} · 第 ${it.page} 页 · ${x.pn.name}`}</small>`);
+      // 活页开头的那个问题：地球给出地方，问题引着人进去（活页文件第一次指着时才加载，进去时就快了）
+      this.content.lessons[it.id]?.load().then((m) => { const q = this.cardFor === x && this.card.el.querySelector('.w-q'); if (q) q.innerHTML = String(m.default.ask || '').replace(/<[^>]+>/g, ''); });
       const fig = this.card.el.querySelector('.w-fig');
       if (real && fig && !extra) {
         Object.assign(fig.style, { aspectRatio: `${x1 - x0} / ${y1 - y0}`, backgroundSize: `${(PW / (x1 - x0)) * 100}% auto`, backgroundPosition: `${(x0 / (PW - (x1 - x0))) * 100}% ${(y0 / (PH - (y1 - y0))) * 100}%` });
@@ -156,14 +167,14 @@ export class World {
     if (this.state !== 'off') return;
     this.busy = true;
     try {
-      this.state = 'hub';
+      this.state = 'hub'; this.reading = false;
       if (this.book.current !== this.hubLeaf) { this.book.turnTo(this.hubLeaf); await this.until(() => !this.book.busy); }
       this._hubPanel(); this._hubShot();
       this.cur = this._sunkPose(); this.earth.root.visible = true;
       this.earth.spin.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0);
       const first = this.items.find((x) => x.anchor.kind === 'place');
       if (first) this.earth.turnTo(first.anchor.pins[0].lat, first.anchor.pins[0].lon, this.stage.camera);
-      await this.setFollow(() => this._hubPose(), 1.4);
+      await this.setFollow(() => this._hubPose(), 1.4, { world: true });          // 从书页正中直直升起来
     } finally { this.busy = false; }
   }
 
@@ -174,11 +185,17 @@ export class World {
     try {
       this.panel.close(); this._hover(null);
       this.state = 'book';
-      this.setFollow(() => this._sunkPose(), 0.8);
+      this.setFollow(() => this._sunkPose(), 0.8, { world: true });          // 沉回书里
       this.onBook?.();
       await this.wait(0.8);
       this.earth.root.visible = false;
     } finally { this.busy = false; }
+  }
+
+  /** 回书架之前：地球沉回书里，旗名、明信片都收掉 */
+  hide() {
+    this.state = 'book'; this.card.show(false); this.hint.show(false); this.locTag.show(false); this._hover(null);
+    this.setFollow(() => this._sunkPose(), 0.5, { world: true });
   }
 
   async wake() {
@@ -187,11 +204,11 @@ export class World {
     if (this.state === 'hub') return;
     this.busy = true;
     try {
-      this.state = 'hub';
+      this.state = 'hub'; this.reading = false;
       if (this.book.current !== this.hubLeaf) this.book.turnTo(this.hubLeaf);
       this._hubPanel(); this._hubShot();
       if (!this.earth.root.visible) { this.cur = this._sunkPose(); this.earth.root.visible = true; }
-      await this.setFollow(() => this._hubPose(), 1.2);
+      await this.setFollow(() => this._hubPose(), 1.2, { world: true });
     } finally { this.busy = false; }
   }
 
@@ -201,7 +218,7 @@ export class World {
     const it = this.items.find((x) => x.id === id);
     if (!it || this.busy) return;
     if (this.topic?.id === id && !opts.pn) return;
-    this.busy = true;
+    this.busy = true; this.touched = true;
     try {
       const a = it.anchor, kind = a.kind, pn = kind === 'place' ? (opts.pn || a.pins[0]) : null;
       this.card.show(false); this.cardFor = null;
@@ -288,10 +305,10 @@ export class World {
     if (this.state === 'hub') return;
     if (this.state === 'book' || this.state === 'off') return this.wake();
     this.busy = true;
+    const T = this.topic;
     try {
-      const T = this.topic;
       await this._closeTopic();
-      this.state = 'hub';
+      this.state = 'hub'; this.reading = false;
       this.earth.setPlain(0);
       this.earth.setLook({ pins: true, fade: 1 });
       this._uprightSpin();
@@ -331,6 +348,7 @@ export class World {
     const pin = this.earth.hitPin(rc);
     if (!pin && !this.earth.hitGlobe(rc)) return false;
     this.drag = { x: e?.clientX ?? 0, moved: false, pin, q0: this.earth.spin.quaternion.clone() };
+    this.touched = true;
     this.earth.target = null; this.idle = 0;
     document.getElementById('c').style.cursor = 'grabbing';
     return true;
@@ -381,12 +399,23 @@ export class World {
     this.idle += dt;
     if (this.state === 'hub' && !this.busy && !this.drag && !this.hovered && !this.earth.target && !this.earth.active && this.idle > 6) this.earth.spin.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.035));
     this.earth.update(dt, { camera: this.stage.camera, bookTop: this._top(), shadowK: this.state === 'hub' || this.state === 'off' ? 1 : 0.5 });
+    const showHint = this.state === 'hub' && !this.busy && !this.touched && !this.reading && this.items.some((x) => x.anchor.kind === 'place');
+    this.hint.show(showHint);
+    if (showHint) { const left = new THREE.Vector3().setFromMatrixColumn(this.stage.camera.matrixWorld, 0).multiplyScalar(-P.r * 1.05); this.hint.at(P.pos.clone().add(left).add(new THREE.Vector3(0, -P.r * 0.55, 0))); }
     // 角上那颗地球下面写着从哪里进来；指着它是“回到地球”
     const inLoc = this.state === 'topic' && !this.busy && this.topic?.kind !== 'globe';
     this.locTag.show(inLoc);
     if (inLoc) this.locTag.at(P.pos.clone().addScaledVector(new THREE.Vector3().setFromMatrixColumn(this.stage.camera.matrixWorld, 1), -P.r * 1.55));
     // 明信片：跟着指着的那面旗
-    if (this.cardFor?.pn) { const w = this.earth.pinWorld(this.cardFor.pn), right = new THREE.Vector3().setFromMatrixColumn(this.stage.camera.matrixWorld, 0); this.card.at(w.addScaledVector(right, (this.cardFor.pn.side ?? 1) < 0 ? -HUB_R * 0.62 : HUB_R * 0.62)); }
+    // 明信片：放在地球外面、和那面旗一样高，在旗名字的另一边（不挡住地球和旗）
+    if (this.cardFor?.pn) {
+      const cam = this.stage.camera, right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), w = this.earth.pinWorld(this.cardFor.pn);
+      const toRight = (this.cardFor.pn.side ?? 1) < 0;
+      const c = P.pos.clone(), edge = c.clone().addScaledVector(right, P.r * (toRight ? 1 : -1));
+      const sx = (v) => (v.clone().project(cam).x + 1) / 2 * innerWidth, half = (this.card.el.offsetWidth || 214) / 2 + 18;
+      const px = sx(edge) + (toRight ? half : -half), py = ((1 - w.clone().project(cam).y) / 2) * innerHeight;
+      this.card.el.style.left = '0'; this.card.at(new THREE.Vector3((px / innerWidth) * 2 - 1, 1 - (py / innerHeight) * 2, 0.5).unproject(cam));
+    }
     // 接着看：只在接得上的时候出现（比如板块切到了喜马拉雅）
     const A = this.live.active;
     if (A && !A.closing && A.inst) for (const b of this.panel.el?.querySelectorAll('.p-link[data-when]') || []) b.hidden = (A.inst.where ? A.inst.where() : b.dataset.when) !== b.dataset.when;
