@@ -43,10 +43,12 @@ export function delta(y) {
     for (const k in L) {
       if (k !== act) { L[k] = Math.max(0, L[k] - 0.006 * 0.25 * (L[k] > 0.05 ? 1 : 0)); continue; }
       const rate = k === 'q8' ? (t < 2002 ? -0.004 : 0.012) : 0.025;          // 主流河口淤长（示意）；清 8 汊 1996—2002 年一度后退、2002 年以后淤长
-      L[k] = Math.min(1, Math.max(k === 'q8' ? 0.06 : 0, L[k] + rate * 0.25));
+      L[k] = Math.min(1, Math.max(0, L[k] + rate * 0.25));          // 清 8 汊刚改道时就在清水沟叶瓣的侧翼，岸线由清水沟叶瓣决定；那几年那里随清水沟叶瓣一起后退
     }
   }
   return L;
 }
 /** 大堤高出地面（示意，0—1 同河床的尺度）：河床淤高时跟着加高；河床冲深时大堤不跟着变低 */
+/** 岸线伸出多少（和活页画法一致：各叶瓣叠加） */
+export const shoreAt = (z, L) => MOUTHS.reduce((a, m) => a + 0.075 * L[m.key] * Math.exp(-(((z - m.z) / 0.024) ** 2)), 0);
 export const leveeRel = (y) => bedRel(Math.min(y, 2002));

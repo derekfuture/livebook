@@ -14,7 +14,7 @@ import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
-import { STATIONS, ERAS, Y0, Y1, EVENTS, MOUTHS, eraOf, loadAt, mouthAt, flushYear, bedRel, leveeRel, soilRel, delta } from './kit/basin.js';
+import { STATIONS, ERAS, Y0, Y1, EVENTS, MOUTHS, eraOf, loadAt, mouthAt, flushYear, bedRel, leveeRel, soilRel, delta, shoreAt } from './kit/basin.js';
 
 const XL = -0.19, XR = 0.19, ZD = 0.1, NX = 170, NZ = 90, PLAIN = 0.01, KM = 0.0016;          // 地块；平原（开封城里地面）的高度；1 米在画面上多高（竖直方向夸大）
 const DAM_S = 0.47, SB = 0.86, FLOOD = 3.5;          // 小浪底在河的哪一段；决口处；洪水位比河床高多少（示意）
@@ -166,7 +166,7 @@ export default {
     // ---- 入海口：旁边另立一小块，黄河三角洲（示意） ----
     const mouth = new THREE.Group(); mouth.position.set(DX, 0, 0); group.add(mouth);
     const RIVZ = 0.0;          // 河从西边进来的位置；四个河口在 kit 的 MOUTHS 里（z：越往后越偏北）
-    const shoreX = (z, L) => SHORE0 + MOUTHS.reduce((a, m) => a + 0.075 * L[m.key] * Math.exp(-(((z - m.z) / 0.024) ** 2)), 0);
+    const shoreX = (z, L) => SHORE0 + shoreAt(z, L);
     const DN = 80, dGeo = new THREE.PlaneGeometry(2 * DW, 2 * DD, DN, DN); dGeo.rotateX(-Math.PI / 2);
     const dCol = new Float32Array(dGeo.attributes.position.count * 3); dGeo.setAttribute('color', new THREE.BufferAttribute(dCol, 3));
     const dMesh = new THREE.Mesh(dGeo, new THREE.MeshLambertMaterial({ vertexColors: true })); mouth.add(dMesh);
@@ -279,7 +279,7 @@ export default {
       parts.push(`入海走的是${mo.name}（${mo.from} 年起）。`);
       return parts.join('');
     };
-    const stopDemos = () => { const had = !!S.breach || S.pulse > 0; S.pulse = 0; jet.material.opacity = 0; aFlush.setOn(false); S.breach = null; floodM.visible = false; aBreach.setOn(false); for (const p of P) p.on = false; for (const q of Q) q.on = false; acc = { a: 0, b: 0, c: 0, scour: 0 }; if (had) rebuild(); };          // 换年份、两种演示互切、重来：演示停下，粒子清空，堤防、水面、剖面都恢复
+    const stopDemos = () => { const had = !!S.breach || S.pulse > 0; S.pulse = 0; jet.material.opacity = 0; aFlush.setOn(false); S.breach = null; floodM.visible = false; aBreach.setOn(false); for (const p of P) p.on = false; for (const q of Q) q.on = false; ppos.fill(0); qpos.fill(0); for (let i = 1; i < ppos.length; i += 3) ppos[i] = -1; for (let i = 1; i < qpos.length; i += 3) qpos[i] = -1; dots.geometry.attributes.position.needsUpdate = true; dots2.geometry.attributes.position.needsUpdate = true; acc = { a: 0, b: 0, c: 0, scour: 0 }; if (had) rebuild(); };          // 换年份、两种演示互切、重来：演示停下，粒子清空，堤防、水面、剖面都恢复
     const setYear = (y) => {
       const prev = S.y; S.y = Math.max(Y0, Math.min(Y1, y)); if (Math.floor(prev) === Math.floor(S.y) && !S.force) return; S.force = false;
       stopDemos(); S.seen.add(era().key); if (S.y >= 2010) S.did.delta = true;
