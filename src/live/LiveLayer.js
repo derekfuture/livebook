@@ -262,30 +262,31 @@ export class LiveLayer {
 
   /** 让实验器材（不含标签）刚好完整地落在画面的可用区域里：按针孔相机严格计算所需距离 */
   _autoFrame(A, dir, v) {
-    const stage = this.stage, box = new THREE.Box3(), tmp = new THREE.Box3(), m = new THREE.Matrix4();
+    const stage = this.stage, m = new THREE.Matrix4(), vtx = new THREE.Vector3(), pts = [];
     A.scaler.updateMatrixWorld(true);
     const inv = A.scaler.matrixWorld.clone().invert();
     A.inst.group.traverseVisible((o) => {
       if (!o.isMesh || o.isInstancedMesh || o.material?.visible === false || o.userData.pick || o.userData.noFrame) return;
       if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
       if (!o.geometry.boundingBox || o.geometry.boundingBox.isEmpty()) return;
-      tmp.copy(o.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld));
-      box.union(tmp);
+      m.multiplyMatrices(inv, o.matrixWorld);
+      const pos = o.geometry.attributes.position, bb = o.geometry.boundingBox;
+      if (pos && pos.count <= 60000 && !o.geometry.isInstancedBufferGeometry) { const step = Math.max(1, Math.floor(pos.count / 3000)); for (let i = 0; i < pos.count; i += step) pts.push(vtx.fromBufferAttribute(pos, i).applyMatrix4(m).clone()); return; }          // 用真实的顶点取景：圆盘、转过的地球仪不会因为包围盒的角而被框得太小（粗线 Line2 的顶点只是模板，仍用包围盒）
+      for (let i = 0; i < 8; i++) pts.push(new THREE.Vector3(i & 1 ? bb.max.x : bb.min.x, i & 2 ? bb.max.y : bb.min.y, i & 4 ? bb.max.z : bb.min.z).applyMatrix4(m));
     });
-    if (box.isEmpty()) return;
+    if (!pts.length) return;
     const s = A.s, to = A.to;
-    const center = box.getCenter(new THREE.Vector3()).multiplyScalar(s).add(to);
     const d = dir.clone().normalize(), right = new THREE.Vector3(0, 1, 0).cross(d).normalize(), up = d.clone().cross(right).normalize();
+    const W = pts.map((p) => p.multiplyScalar(s).add(to));
+    let r0 = Infinity, r1 = -Infinity, u0 = Infinity, u1 = -Infinity, f0 = Infinity, f1 = -Infinity;
+    for (const p of W) { const a = p.dot(right), b = p.dot(up), c = p.dot(d); r0 = Math.min(r0, a); r1 = Math.max(r1, a); u0 = Math.min(u0, b); u1 = Math.max(u1, b); f0 = Math.min(f0, c); f1 = Math.max(f1, c); }
+    const center = right.clone().multiplyScalar((r0 + r1) / 2).add(up.clone().multiplyScalar((u0 + u1) / 2)).add(d.clone().multiplyScalar((f0 + f1) / 2));          // 画面上居中：按投影后的左右、上下范围取中点
     const vfov = THREE.MathUtils.degToRad(stage.camera.fov), hfov = 2 * Math.atan(Math.tan(vfov / 2) * stage.camera.aspect);
     const uW = 1 - Math.abs(stage.cameraOffsetX * 2) / Math.max(1, innerWidth), uH = 1 - Math.abs(stage.cameraOffsetY * 2) / Math.max(1, innerHeight);
     const tH = Math.tan((hfov * uW) / 2), tV = Math.tan((vfov * uH) / 2);
-    const margin = v.frameMargin ?? 1.1;
+    const margin = (v.frameMargin ?? 1.1) * 1.06;          // 真实顶点取景比包围盒紧，留一点给模型上方的字
     let D = 0;
-    for (let i = 0; i < 8; i++) {
-      const c = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).multiplyScalar(s).add(to).sub(center);
-      const depth = c.dot(d);
-      D = Math.max(D, depth + (Math.abs(c.dot(right)) * margin) / tH, depth + (Math.abs(c.dot(up)) * margin) / tV);
-    }
+    for (const p of W) { const c = p.clone().sub(center), depth = c.dot(d); D = Math.max(D, depth + (Math.abs(c.dot(right)) * margin) / tH, depth + (Math.abs(c.dot(up)) * margin) / tV); }
     stage.shot({ target: center, dir: d, dist: D });
   }
 
