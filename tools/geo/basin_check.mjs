@@ -1,62 +1,18 @@
-import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
-// 核对黄河调沙减淤：node tools/geo/basin_check.mjs（选必2 第 61–64 页，图 4.7）
-import { loads, bedRise, run, RES_CAP, frameAt, configKey, configName, leveeResult, floodStatus, channelSection, MAX_YEARS } from '../../src/lessons/kit/basin.js';
+// 核对黄河调沙减淤：node tools/geo/basin_check.mjs（选必2 第 61–64 页，图 4.5、图 4.7）
+import { STATIONS, ERAS, EVENTS, eraOf, loadAt, bedAt, bedCounter, leveeAt, delta } from '../../src/lessons/kit/basin.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
-const near = (a, b, tol) => Math.abs(a - b) <= tol, ALL = { bio: true, farm: true, eng: true };
-const L0 = loads(), L1 = loads(ALL), L2 = loads({ ...ALL, dam: true, flush: true });
-ok(near(L0.inflow, 13.33, 0.01) && near(L0.sea, 9.78, 0.05), `不治理、没有水库：进入小浪底一带 ${L0.inflow.toFixed(2)}、入海 ${L0.sea.toFixed(2)} 亿吨（图 4.7，1956—1986 年小浪底站 13.33、利津站 9.78）`);
-ok(L0.mid / L0.inflow > 0.85, `按图 4.7 的 1956—1986 年，中游是主要来沙区：约占 ${(L0.mid / L0.inflow * 100).toFixed(0)}%（小浪底站和头道拐站之差，忽略了河段冲淤）`);
-ok(near(L1.inflow, 5.46, 0.6) && near(L1.sea / L1.inflow, 3.33 / 5.46, 0.15), `三类水土保持措施都做：进入小浪底一带约 ${L1.inflow.toFixed(2)}、入海约 ${L1.sea.toFixed(2)} 亿吨（量级和图 4.7 的 1987—2005 年 5.46、3.33 相当），下游照样淤三成左右`);
-ok(near(L2.out, 0.55, 0.1) && near(L2.sea, 1.02, 0.1), `再加小浪底水库（还没淤满）和调水调沙：下泄约 ${L2.out.toFixed(2)}、入海约 ${L2.sea.toFixed(2)} 亿吨（图 4.7，2006—2016 年小浪底站 0.55、利津站 1.02）`);
-ok(L2.sea > L2.out && bedRise(L2.deposit) < 0, '调水调沙以后，入海的沙比水库下泄的还多：下游河床被冲刷，淤沙送进大海');
-const no = run({ dam: true, flush: true }, { bed: 7.5 }, 20), yes = run({ ...ALL, dam: true, flush: true }, { bed: 7.5 }, 20);
-ok(no.bed > 7.5 + 0.5 && yes.bed < 7.5, `20 年后：只修水库、中游不治理，水库不到 10 年就淤满，下游河床又抬高到 ${no.bed.toFixed(1)} 米；中游治理加水库调沙，河床 ${yes.bed.toFixed(1)} 米，没有再长高`);
-const r10a = run({ dam: true }, { bed: 7.5 }, 10).res, r10b = run({ ...ALL, dam: true }, { bed: 7.5 }, 10).res; ok(r10a > r10b * 1.8, `10 年里水库淤进去的沙：中游不治理 ${r10a.toFixed(0)} 亿吨，治理后 ${r10b.toFixed(0)} 亿吨——中游减沙，水库才能用得更久`);
-const one = ['bio', 'farm', 'eng'].map((k) => loads({ [k]: true }).inflow); ok(one.every((v) => v < L0.inflow && v > L1.inflow), '每一类措施都减少入黄泥沙，三类结合最有效');
-const edge = loads({ dam: true }, RES_CAP - 0.1);
-ok(near(edge.trapped, 0.1, 1e-10) && near(edge.out + edge.trapped, edge.inflow, 1e-10), '剩余 0.1 亿吨时只拦 0.1，未拦住的全部下泄');
-for (let mask = 0; mask < 32; mask++) {
-  const cfg = Object.fromEntries(['bio', 'farm', 'eng', 'dam', 'flush'].map((k, i) => [k, !!(mask & (1 << i))])); let res = 0, valid = true;
-  for (let y = 0; y < 200; y++) { const l = loads(cfg, res); res += l.trapped; valid &&= res <= RES_CAP + 1e-10 && l.trapped >= 0 && near(l.inflow, l.out + l.trapped, 1e-10) && near(l.inflow, l.sea + l.deposit + l.trapped, 1e-10); }
-  ok(valid, `措施组合 ${mask}：200 年库存不超限，入库、出库、河床和入海收支守恒`);
-}
-const decade = run({ dam: true, flush: true }, { bed: 7.5 }, 10), long = run({ ...ALL, dam: true, flush: true }, { bed: 7.5 }, 50);
-ok(decade.res === RES_CAP && decade.first.sea < decade.last.sea && decade.last.full, '首十年跨过拦沙上限，首末年入海量不同，末年不再拦沙');
-ok(long.bed > 7.5 && long.last.deposit > 0, '50 年后全措施仍可能淤积，不支持长期不再长高的断言');
-const at85 = frameAt(decade, 8.5), f9 = decade.frames[8];
-ok(near(at85.loads.out, 9.306, 0.001) && at85.loads.deposit > 0 && at85.bed > f9.from.bed && near(at85.res, (f9.from.res + f9.res) / 2, 1e-10), '第 8.5 年：库存按第九年插值，下泄 9.306 亿吨、净淤积与河床上升一致');
-let synced = true;
-for (let k = 0; k <= 1000; k++) { const f = frameAt(decade, k / 100), i = Math.min(9, Math.floor(k / 100)), a = decade.frames[i]; synced &&= near(f.bed - a.from.bed, bedRise(f.loads.deposit) * (k / 100 - i), 1e-10) && near(f.res - a.from.res, f.loads.trapped * (k / 100 - i), 1e-10); }
-ok(synced, '首十年每 0.01 年检查：动画库存、河床与同一年泥沙收支一致，含整数年和结束边界');
-const stopped = run({}, decade, 10), restarted = run({ dam: true, flush: true }, stopped, 10);
-ok(stopped.res === RES_CAP && restarted.res === RES_CAP && restarted.first.trapped === 0, '满库后停用十年再启用：库存保留，不恢复拦沙容量');
-const partial = run({ dam: true }, { bed: 7.5 }, 3), paused = run({}, partial, 2), resumed = run({ dam: true }, paused, 1);
-ok(paused.res === partial.res && resumed.res > partial.res, '未满库停用再启用：库存连续累积');
-const configs = ['bio', 'farm', 'eng'].map((k) => ({ [k]: true }));
-ok(new Set(configs.map(configKey)).size === 3 && new Set(configs.map(configName)).size === 3, '三种单项措施的记录键和名称各自独立');
-const flood100 = run({}, { bed: 7.5 }, 100).bed + 3.5;
-ok(leveeResult(16, flood100).includes('仍低于') && leveeResult(20, 20).includes('齐平') && leveeResult(22, 20).includes('已高于'), '100 年后首次加堤仍不足；低于、齐平、高于洪水位分别提示');
-const source = readFileSync(new URL('../../src/lessons/basin.js', import.meta.url), 'utf8');
-const S = { dam: true, flush: true, res: 100, year: 10, bed: decade.bed, pulse: 0 }, noop = () => {};
-const control = runInNewContext(source.slice(source.indexOf('        const damSeg ='), source.indexOf('        const time = buttons')) + '; damSeg', { S, rebuild: noop, ui: { status: noop }, seg: (_label, _options, callback) => ({ callback, set: noop }) });
-control.callback('', 0); control.callback('', 2);
-ok(S.res === 100 && S.year === 10 && S.bed === decade.bed, '实际水库选项回调：停用再启用不会清空库存或改写年份、河床');
-const color = runInNewContext(source.slice(source.indexOf('    const conc ='), source.indexOf('    const buildWater =')) + '; conc', { S, L: () => at85.loads, DAM_S: 0.47 });
-const before = Array.from({ length: 101 }, (_, i) => color(i / 100)); S.pulse = 2;
-ok(before.every((v, i) => v === color(i / 100)), '实际河流配色函数：调沙脉冲不改变同一年度输沙量的颜色');
-const flood40 = run({}, { bed: 7.5 }, 40).bed + 3.5;
-ok(floodStatus(14, flood40).includes('已高于') && floodStatus(14, 14).includes('齐平') && floodStatus(14, 13.8).includes('接近') && floodStatus(14, 11).includes('低于'), '40 年超顶、齐平、接近和低于提示分别准确');
-ok(source.includes('aDanger.setText(floodStatus(') && source.includes('${floodStatus(S.levee, S.bed + FLOOD)}'), '画面与十年结束提示共用洪水位判据');
-let continuous = true;
-for (let mask = 0; mask < 32; mask++) {
-  const cfg = Object.fromEntries(['bio', 'farm', 'eng', 'dam', 'flush'].map((k, i) => [k, !!(mask & (1 << i))])); const r = run(cfg, { bed: 7.5 }, MAX_YEARS);
-  for (const bed of [7.5, ...r.beds]) { let last = Infinity; for (let i = 0; i <= 1000; i++) { const p = channelSection(i / 1000, bed); continuous &&= p.water <= last + 1e-12 && p.bed < p.particle && p.particle < p.water; last = p.water; } }
-}
-ok(channelSection(1, run({}, { bed: 7.5 }, MAX_YEARS).bed).water < 0.01 + 14 * 0.0016, '运行上限内常态水面低于原堤顶，超顶提示指假设洪水位');
-ok(continuous, '初始及全部 32 种配置的 50 年逐年检查：连续水面不逆坡，泥沙位于河床与水面之间');
-const capped = { year: MAX_YEARS, anim: null }; let capText = '';
-const pass = runInNewContext(source.slice(source.indexOf('    const passDecade ='), source.indexOf('    const finishDecade =')) + '; passDecade', { S: capped, MAX_YEARS, W: { ui: { status: (t) => { capText = t; } } } }); pass();
-ok(capped.anim === null && capText.includes('50 年'), '50 年实际按钮回调停止继续计算并提示重来');
-ok(source.includes('地上悬河”（图4.5）'), '课本引文恢复图4.5');
+const T47 = { 头道拐: [1.41, 0.39, 0.49], 龙门: [9.14, 4.33, 1.04], 小浪底: [13.33, 5.46, 0.55], 利津: [9.78, 3.33, 1.02] };
+ok(STATIONS.every((st, i) => ERAS.every((e, k) => e.load[i] === T47[st][k])), '四个站、三个时段的年均输沙量和课本图 4.7 一字不差');
+ok(ERAS.map((e) => e.span).join() === '1956—1986 年,1987—2005 年,2006—2016 年', '三个时段和图 4.7 一样');
+ok(eraOf(1986).key === 'pre' && eraOf(1987).key === 'soil' && eraOf(2016).key === 'flush' && loadAt(1990, '小浪底') === 5.46, '年份落在哪个时段、取哪个时段的值');
+ok(bedAt(1986) > 7 && bedAt(1960) < bedAt(1986), '治理前河床一路淤高，到 1986 年前后高出两岸 7 米以上（图 4.5）');
+ok((bedAt(2001) - bedAt(1987)) / 14 < (bedAt(1986) - bedAt(1956)) / 30, '水土保持以后，河床还在长高，但慢多了');
+ok(bedAt(2015) <= bedAt(2009) && bedAt(2016) > 0, `2009—2015 年“地上河”没有再长高（课本：${EVENTS.scoured} 亿吨淤沙入海），河床仍高出两岸`);
+ok(bedCounter(2016) > bedAt(2016) + 1, '对照：假如一直不治理，河床会比现在高得多');
+ok(leveeAt(1986) > leveeAt(1956) && leveeAt(1990) - bedAt(1990) > 3, '大堤跟着一次次加高，始终比河床高');
+ok(loadAt(2010, '利津') > loadAt(2010, '小浪底'), '调水调沙时段入海的沙比小浪底站还多：下游河床被冲刷');
+const d76 = delta(1976), d86 = delta(1986), d16 = delta(2016), d05 = delta(2005);
+ok(d76.old > delta(1956).old && d76.new === 0, '1976 年以前，泥沙从老河口入海，老河口一带往海里长');
+ok(d86.old < d76.old && d16.old < d86.old, '1976 年改道以后，老河口不再有泥沙补给，海岸后退');
+ok(d86.new - delta(1977).new > (d05.new - d86.new) * (10 / 19) && d16.new - d05.new < 0.02, '新河口：治理前长得快，水土保持以后慢了，调水调沙时段几乎不再往外长（示意）');
 process.exit(bad ? 1 : 0);
