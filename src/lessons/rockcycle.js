@@ -76,14 +76,14 @@ export default {
       const bed = (x, k) => { const fold = 0.006 * Math.exp(-(((x + 0.02) / 0.06) ** 2)); return 0.072 - k * 0.0075 + fold * (1 - k * 0.12) + 0.0012 * Math.sin(x * 60 + k); };          // 沉积岩层：在山岭下面被挤得拱起来一点
       for (let k = 0; k < 6; k++) {          // 从上往下画：每一层只盖住自己下面，留下上一层
         g.fillStyle = LAY[k][0]; g.beginPath(); g.moveTo(0, hh);
-        for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(k ? bed(x, k) + 0.0075 : Math.max(ground(x), bed(x, 0) + 0.0075))); }          // 最上面一层一直铺到地面
+        for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(k ? bed(x, k - 1) : Math.max(ground(x), bed(x, 0) + 0.0075))); }          // 最上面一层一直铺到地面
         g.lineTo(w, hh); g.fill();
       }
       g.fillStyle = '#7a675a'; g.beginPath(); g.moveTo(0, hh); for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(bed(x, 5))); } g.lineTo(w, hh); g.fill();          // 沉积岩层下面的老岩石
       for (let k = 0; k < 6; k++) {          // 每一层的纹理：砂岩是点，页岩是细线，石灰岩是砖块
         const kind = LAY[k][1];
         for (let i = 0; i < w; i += kind === 'lime' ? 22 : 3) {
-          const x = XL + (i / w) * (XR - XL), y0 = PY(bed(x, k) + 0.0075), y1 = PY(bed(x, k));
+          const x = XL + (i / w) * (XR - XL), y0 = PY(k ? bed(x, k - 1) : bed(x, 0) + 0.0075), y1 = PY(bed(x, k));          // 第 k 层：上一层的底到这一层的底，填色、纹理、层面用同一套边界
           if (kind === 'sand') for (let n = 0; n < 2; n++) { g.fillStyle = `rgba(70,50,30,${0.15 + R() * 0.2})`; g.fillRect(i + R() * 3, y0 + R() * (y1 - y0), 1.6, 1.6); }
           else if (kind === 'shale' && i % 9 === 0) { g.strokeStyle = 'rgba(50,40,35,0.22)'; g.lineWidth = 1; for (let n = 1; n < 4; n++) { const yy = y0 + ((y1 - y0) * n) / 4; g.beginPath(); g.moveTo(i, yy); g.lineTo(i + 9, yy + 0.4); g.stroke(); } }
           else if (kind === 'lime') { g.strokeStyle = 'rgba(90,80,65,0.3)'; g.lineWidth = 1; const mid = (y0 + y1) / 2; g.beginPath(); g.moveTo(i, y0); g.lineTo(i, mid); g.moveTo(i + 11, mid); g.lineTo(i + 11, y1); g.moveTo(i, mid); g.lineTo(i + 22, mid); g.stroke(); }
