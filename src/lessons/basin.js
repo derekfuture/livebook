@@ -18,7 +18,7 @@ import { STATIONS, ERAS, Y0, Y1, EVENTS, MOUTHS, eraOf, loadAt, mouthAt, flushYe
 
 const XL = -0.19, XR = 0.19, ZD = 0.1, NX = 170, NZ = 90, PLAIN = 0.01, KM = 0.0016;          // 地块；平原（开封城里地面）的高度；1 米在画面上多高（竖直方向夸大）
 const DAM_S = 0.47, SB = 0.86, FLOOD = 3.5;          // 小浪底在河的哪一段；决口处；洪水位比河床高多少（示意）
-const DX = 0.335, DW = 0.105, DD = 0.09, SHORE0 = -0.035, LAND_Y = 0.008, SEA_Y = 0.006;          // 入海口那一小块：中心、半宽、半深；岸线基准；陆地、海面高度
+const MS = 0.72, DW = 0.105, DD = 0.09, SHORE0 = -0.035, LAND_Y = 0.008, SEA_Y = 0.006;          // 入海口那一块（放大示意）：缩放、半宽、半深；岸线基准；陆地、海面高度
 const ASK = ['先猜一下（可以不猜）：入海的泥沙少了以后，河口一带的海岸会——', ['处处都长得更快', '各岸段不一样：有的后退，有的仍在淤长', '没有变化']];
 const rnd = (() => { let s = 53; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -163,8 +163,10 @@ export default {
       floodTex.needsUpdate = true;
     };
 
-    // ---- 入海口：旁边另立一小块，黄河三角洲（示意） ----
-    const mouth = new THREE.Group(); mouth.position.set(DX, 0, 0); group.add(mouth);
+    // ---- 入海口：一块放大的黄河三角洲，紧贴在主地块的右后方（整体接近方形，演示时两块一眼都看得到） ----
+    const TILT = 0.3, inset = new THREE.Group(); inset.position.set(XR - DD * MS, 0, -ZD - 0.004); inset.rotation.x = TILT; group.add(inset);          // 放大图斜着立在主地块后面（前沿着地、后沿抬起），朝着看的人，不被平原挡住
+    const mouth = new THREE.Group(); mouth.scale.setScalar(MS); mouth.rotation.y = Math.PI / 2; mouth.position.set(0, 0, -DW * MS); inset.add(mouth);          // 转 90°：河从南边（靠主地块那边）进来，往北入渤海
+    { const L = 2 * DW * MS, x0 = inset.position.x - DD * MS, x1 = inset.position.x + DD * MS, z0 = inset.position.z, z1 = z0 - L * Math.cos(TILT), yt = L * Math.sin(TILT), v = [[x0, 0, z0], [x0, 0, z1], [x0, yt, z1], [x1, 0, z0], [x1, 0, z1], [x1, yt, z1]], f = [[0, 1, 2], [3, 5, 4], [1, 4, 5], [1, 5, 2]], P = []; for (const t of f) for (const k of t) P.push(...v[k]); const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); wg.computeVertexNormals(); const wedge = new THREE.Mesh(wg, new THREE.MeshLambertMaterial({ color: 0x8f7a5e, side: THREE.DoubleSide })); wedge.raycast = () => {}; group.add(wedge); }          // 底下一块楔形垫座，托住抬起的后沿
     const RIVZ = 0.0;          // 河从西边进来的位置；四个河口在 kit 的 MOUTHS 里（z：越往后越偏北）
     const shoreX = (z, L) => SHORE0 + shoreAt(z, L);
     const DN = 80, dGeo = new THREE.PlaneGeometry(2 * DW, 2 * DD, DN, DN); dGeo.rotateX(-Math.PI / 2);
@@ -188,19 +190,21 @@ export default {
       riverPts = pts;
     };
     let riverPts = [];
-    const aMouth = airLabel(mouth, '入海口：黄河三角洲', { x: 0, y: 0.05, z: 0, h: 0.0111, color: '#2c3245' });
-    const aOld = airLabel(mouth, '', { x: 0.03, y: 0.022, z: -0.06, h: 0.0082, color: '#8a3a2a', dim: 0 }), aNew = airLabel(mouth, '', { x: 0.04, y: 0.028, z: 0.03, h: 0.0082, color: '#2c3245', dim: 0 });
-    const aSea = airLabel(mouth, '渤海', { x: DW - 0.03, y: 0.016, z: -DD + 0.03, h: 0.0094, color: '#173a63' });
-    const aGhost = airLabel(mouth, '虚线：1996 年的海岸线', { x: -0.02, y: 0.02, z: DD - 0.015, h: 0.0078, color: '#5a5040', dim: 0 });
-    const linkL = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(XR + 0.005, PLAIN + 0.01, ZD - 0.02), new THREE.Vector3(DX - DW - 0.005, LAND_Y + 0.01, RIVZ)]), new THREE.LineDashedMaterial({ color: 0x8a7a5e, dashSize: 0.004, gapSize: 0.003 })); linkL.computeLineDistances(); linkL.raycast = () => {}; group.add(linkL);
-    const aLink = airLabel(group, '顺流而下 →', { x: (XR + DX - DW) / 2, y: 0.03, z: ZD / 2, h: 0.0084, color: '#5a5040' });
+    const aMouth = airLabel(mouth, '入海口：黄河三角洲', { x: 0, y: 0.05, z: 0, h: 0.0177, color: '#2c3245' });
+    const aOld = airLabel(mouth, '', { x: 0.03, y: 0.022, z: -0.06, h: 0.0131, color: '#8a3a2a', dim: 0 }), aNew = airLabel(mouth, '', { x: 0.04, y: 0.028, z: 0.03, h: 0.0131, color: '#2c3245', dim: 0 });
+    const aSea = airLabel(mouth, '渤海', { x: DW - 0.03, y: 0.016, z: -DD + 0.03, h: 0.0150, color: '#173a63' });
+    const aGhost = airLabel(mouth, '虚线：1996 年的海岸线', { x: -0.02, y: 0.02, z: DD - 0.015, h: 0.0125, color: '#5a5040', dim: 0 });
+    const linkY = PLAIN + 0.004;          // 顺流而下：从前面剖面那里出去的河，沿着地块外沿连到入海口那块的西边（河从那里进来）
+    const linkL = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0.074, linkY, ZD + 0.006), new THREE.Vector3(XR + 0.008, linkY, ZD + 0.006), new THREE.Vector3(XR + 0.008, linkY, -ZD + 0.006)]), new THREE.LineDashedMaterial({ color: 0x8a7a5e, dashSize: 0.004, gapSize: 0.003 })); linkL.computeLineDistances(); linkL.raycast = () => {}; group.add(linkL);
+    const frame = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => new THREE.Vector3(a * (DW + 0.004), LAND_Y + 0.0035, b * (DD + 0.004)))), new THREE.LineBasicMaterial({ color: 0x5a5040, transparent: true, opacity: 0.7 })); frame.raycast = () => {}; mouth.add(frame);          // 放大框
+    const aLink = airLabel(group, '顺流而下 → 入海口（放大）', { x: XR + 0.02, y: 0.026, z: 0, h: 0.0084, color: '#5a5040' });
 
     // ---- 水文站：龙门、小浪底、利津（和侧栏图 4.7 对得上） ----
     const stake = (parent, x, y, z) => { const g2 = new THREE.Group(); const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 0.014, 6), new THREE.MeshLambertMaterial({ color: 0xe8e4da })); pole.position.y = 0.007; g2.add(pole); const flagM = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.0028, 0.0005), new THREE.MeshLambertMaterial({ color: 0x2f6fb0 })); flagM.position.set(0.0022, 0.0125, 0); g2.add(flagM); g2.position.set(x, y, z); parent.add(g2); return g2; };
     const lmP = curve.getPointAt(0.3), xldP = curve.getPointAt(DAM_S + 0.04);
     stake(block, lmP.x + 0.012, floorAt(0.3) + 0.004, lmP.z); stake(block, xldP.x + 0.012, PLAIN + 0.03, xldP.z);
     const stLm = airLabel(block, '', { x: lmP.x + 0.012, y: 0.07, z: lmP.z, h: 0.0081, color: '#1f4f86' }), stXl = airLabel(block, '', { x: xldP.x + 0.02, y: 0.062, z: xldP.z, h: 0.0081, color: '#1f4f86' });
-    stake(mouth, -DW + 0.03, LAND_Y, RIVZ + 0.008); const stLj = airLabel(mouth, '', { x: -DW + 0.03, y: 0.03, z: RIVZ + 0.008, h: 0.0081, color: '#1f4f86' });
+    stake(mouth, -DW + 0.03, LAND_Y, RIVZ + 0.008); const stLj = airLabel(mouth, '', { x: -DW + 0.03, y: 0.03, z: RIVZ + 0.008, h: 0.0129, color: '#1f4f86' });
 
     // ---- 一粒粒泥沙：按图 4.7 各站的年输沙量放；水库拦下、下游淤下、调水调沙时从河床冲起 ----
     const dotTex = canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
@@ -350,7 +354,7 @@ export default {
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
-      size: { w: 0.56, d: 0.22, h: 0.09 },
+      size: { w: 0.4, d: 0.36, h: 0.09 },
       view: { elev: 27, azim: 10, lookY: 0.3, frameMargin: 0.98 },
       pointer,
       debug: { year: (y) => { S.force = true; setYear(y); }, breach: () => startBreach(), flush: () => startFlush(), state: () => ({ y: S.y, breach: !!S.breach, pulse: S.pulse, did: S.did }) },
