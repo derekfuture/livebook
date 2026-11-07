@@ -17,7 +17,7 @@ import { h } from '../ui/Panel.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
 import { KIND, ROCK, nexts, provenGraniteSand, TOUR, tourStep, EXTRA, NEW } from './kit/rock.js';
 
-const XL = -0.19, XR = 0.19, ZD = 0.06, TOP = 0.085, SEA_X = 0.07, SEA_Y = 0.072;          // 地块；地面高度；海岸线在哪、海面多高
+const XL = -0.19, XR = 0.19, ZD = 0.085, TOP = 0.085, SEA_X = 0.07, SEA_Y = 0.072;          // 地块；地面高度；海岸线在哪、海面多高
 const ASK = '先猜一下（可以不猜）：一块花岗岩，最后有没有可能变成砂岩？';
 const rnd = (() => { let s = 61; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -328,8 +328,8 @@ export default {
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
-      size: { w: 0.4, d: 0.12, h: 0.14 },
-      view: { elev: 10, azim: 6, lookY: 0.45, frameMargin: 1.1 },
+      size: { w: 0.4, d: 0.17, h: 0.14 },
+      view: { elev: 17, azim: 6, lookY: 0.45, frameMargin: 1.04 },
       pointer: { down: () => false, move: () => false, up: () => false },
       debug: { go: (i) => { const n = nexts(S.id)[i]; stepTo(n); if (S.anim) S.anim.t = 0.999; } },
       mount(ui) {
