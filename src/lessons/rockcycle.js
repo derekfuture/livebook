@@ -7,13 +7,15 @@
 //   每一步自己挑“接下来它经历什么作用”——只能挑课本图 2.10 里有的箭头：冷却凝固、抬升风化侵蚀搬运沉积、压实固结、变质作用、熔化。
 //   石头就真的在地壳里走过去：从岩浆房升上来凝固成花岗岩、被抬到山顶风化成沙、顺着河流进海、埋下去压成砂岩、在深处未熔融时变质成石英岩、再熔化回岩浆……
 //   侧栏是图 2.10 的循环图：走过的箭头亮起来，并记下这块石头的“履历”。走一圈，就会发现每一类岩石都可以变成另外两类。
+//   也可以按“自动演示”：石头自己走——先从地下岩浆升上来、到地表风化、进海沉积、埋下去变质、再熔化回岩浆（一大圈），再把图 2.10 里其余箭头都走一遍；
+//   循环图上一颗红点沿着正在发生的那根箭头走，和地块里的石头同步。随时可以暂停（走完当前这一步就停），停下后点任意一步就换成自己挑。
 // 数据：kit/rock.js（tools/geo/rock_check.mjs 核对课本说法）。教学示意：竖直方向压缩了；各个过程的时间尺度差别很大，动画不按真实时间比例。
 import * as THREE from 'three';
 import { buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
-import { KIND, ROCK, nexts, provenGraniteSand } from './kit/rock.js';
+import { KIND, ROCK, nexts, provenGraniteSand, TOUR, tourStep } from './kit/rock.js';
 
 const XL = -0.19, XR = 0.19, ZD = 0.06, TOP = 0.085, SEA_X = 0.07, SEA_Y = 0.072;          // 地块；地面高度；海岸线在哪、海面多高
 const ASK = '先猜一下（可以不猜）：一块花岗岩，最后有没有可能变成砂岩？';
@@ -44,7 +46,7 @@ export default {
 
   create({ tag }) {
     const group = new THREE.Group(), block = new THREE.Group(); group.add(block);
-    const S = { id: 'magma', path: [{ id: 'magma' }], anim: null, kinds: new Set(['magma']), arrows: new Set(), guess: null, moved: false };
+    const S = { id: 'magma', path: [{ id: 'magma' }], anim: null, kinds: new Set(['magma']), arrows: new Set(), guess: null, moved: false, auto: null };          // auto：自动演示 { i: 走到第几步, wait: 两步之间停多久, paused }
     let W = null;
 
     // ---- 地面：左边一座火山，中间一道山，右边海；剖面上画着岩层、岩浆房、侵入岩体和深处的高温带 ----
@@ -128,14 +130,18 @@ export default {
     const stepTo = (n) => {
       if (S.anim) return; const from = S.id;
       const sw = n.proc.startsWith('抬升') ? 0.4 : n.proc.startsWith('变质') ? 0.5 : 0.92;          // 什么时候换样子：风化在被抬到地表以后，变质在深处半路上，冷却凝固、压实固结、熔化都在到了地方以后
-      S.anim = { t: 0, curve: route(from, n.to, n.proc), from, to: n.to, proc: n.proc, why: n.why, mid: false, sw };
+      S.anim = { t: 0, dur: S.auto ? 2.6 : 3, curve: route(from, n.to, n.proc), from, to: n.to, proc: n.proc, why: n.why, mid: false, sw };
       aProc.setText(n.proc.replace(/（.*）/, '')).setOn(true); S.moved = true;
+      if (S.auto) W?.ui.status(`第 ${S.auto.i + 1}/${TOUR.length} 步：${ROCK[from].name.replace(/（.*）$/, '')} 正在经历<b>${n.proc.replace(/（.*）/, '')}</b>……`);
+      drawChart();
     };
     const arrowKey = (a, b) => `${ROCK[a].kind}>${ROCK[b].kind}`;
     const finish = () => {
       const a = S.anim; S.anim = null; S.id = a.to; S.kinds.add(ROCK[a.to].kind); S.arrows.add(arrowKey(a.from, a.to)); S.path.push({ id: a.to, proc: a.proc });
-      aProc.setOn(false); look(S.id); layout();
-      const r = ROCK[S.id]; W?.ui.status(`经过<b>${a.proc.replace(/（.*）/, '')}</b>：${a.why}。现在它是<b>${r.name}</b>（${KIND[r.kind]}）${r.sub ? `，${r.sub}` : ''}。${S.id === 'magma' && S.path.length > 2 ? '它又回到了岩浆——绕了一圈。' : '接下来呢？'}`);
+      aProc.setOn(false); look(S.id); layout(); dotAt();
+      const r = ROCK[S.id], done = S.auto && S.auto.i >= TOUR.length;
+      W?.ui.status(`${S.auto ? `第 ${S.auto.i}/${TOUR.length} 步 · ` : ''}经过<b>${a.proc.replace(/（.*）/, '')}</b>：${a.why}。现在它是<b>${r.name}</b>（${KIND[r.kind]}）${r.sub ? `，${r.sub}` : ''}。${done ? '自动演示走完了：图 2.10 的每一根箭头都走过一遍，三类岩石都能变成另外两类，最后又回到岩浆。' : S.id === 'magma' && S.path.length > 2 ? '它又回到了岩浆——绕了一圈。' : S.auto ? '' : '接下来呢？'}`);
+      if (done) stopAuto();
       drawLog(); drawChart(); renderChoices();
     };
     const layout = () => {
@@ -146,17 +152,26 @@ export default {
     // ---- 侧栏：图 2.10 的循环图（走过的箭头亮起来） ----
     const NODES = { magma: [160, 34, '岩浆'], igneous: [270, 110, '岩浆岩'], sediment: [215, 200, '沉积物'], sedimentary: [105, 200, '沉积岩'], metamorphic: [50, 110, '变质岩'] };
     const EDGES = [['magma', 'igneous', '冷却凝固'], ['igneous', 'sediment', '抬升风化侵蚀搬运沉积'], ['sedimentary', 'sediment', '抬升风化…'], ['metamorphic', 'sediment', '抬升风化…'], ['sediment', 'sedimentary', '压实固结'], ['igneous', 'metamorphic', '变质作用'], ['sedimentary', 'metamorphic', '变质作用'], ['metamorphic', 'metamorphic', '变质作用'], ['igneous', 'magma', '熔化'], ['sedimentary', 'magma', '熔化'], ['metamorphic', 'magma', '熔化']];
+    const edgeGeo = (a, b) => {          // 循环图上一根箭头的位置：直线 [sx, sy, ex, ey, nx, ny]；变质岩自己指向自己是一小段圆弧
+      const [x0, y0] = NODES[a], [x1, y1] = NODES[b];
+      if (a === b) return { loop: true, cx: x0, cy: y0 - 24, r: 11, a0: 0.9, a1: Math.PI * 2 + 0.2 };
+      const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, off = (EDGES.some(([p, q]) => p === b && q === a) ? 6 : 0), nx = -uy * off, ny = ux * off;
+      return { ux, uy, nx, ny, sx: x0 + ux * 26 + nx, sy: y0 + uy * 14 + ny, ex: x1 - ux * 28 + nx, ey: y1 - uy * 16 + ny };
+    };
+    const edgeAt = (e, u) => (e.loop ? [e.cx + Math.cos(e.a1 + (e.a0 - e.a1) * u) * e.r, e.cy + Math.sin(e.a1 + (e.a0 - e.a1) * u) * e.r] : [e.sx + (e.ex - e.sx) * u, e.sy + (e.ey - e.sy) * u]);
     const drawChart = () => {
       if (!W) return;
+      const go = S.anim && `${ROCK[S.anim.from].kind}>${ROCK[S.anim.to].kind}`;          // 正在走的那根箭头
       const c = W.chart, g = c.getContext('2d'), w = c.width, hh = c.height, cur = ROCK[S.id].kind;
       g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, w, hh); g.textAlign = 'center'; g.textBaseline = 'middle';
+      const halo = (t, x, y) => { g.save(); g.lineWidth = 3.5; g.lineJoin = 'round'; g.strokeStyle = '#fbf8f0'; g.strokeText(t, x, y); g.fillStyle = '#a8341f'; g.fillText(t, x, y); g.restore(); };          // 箭头上的字描一圈纸色，压在线上也看得清
       for (const [a, b, t] of EDGES) {
-        const lit = S.arrows.has(`${a}>${b}`), [x0, y0] = NODES[a], [x1, y1] = NODES[b];
-        g.strokeStyle = lit ? '#c8402c' : 'rgba(120,110,90,0.35)'; g.fillStyle = g.strokeStyle; g.lineWidth = lit ? 2.6 : 1.4;
-        if (a === b) { g.beginPath(); g.arc(x0, y0 - 24, 11, 0.9, Math.PI * 2 + 0.2); g.stroke(); const ax = x0 + Math.cos(0.9) * 11, ay = y0 - 24 + Math.sin(0.9) * 11; g.beginPath(); g.moveTo(ax, ay); g.lineTo(ax + 6, ay - 4); g.lineTo(ax + 1, ay - 7); g.fill(); if (lit) { g.font = '10px "PingFang SC", sans-serif'; g.fillStyle = '#a8341f'; g.fillText(t, x0, y0 - 42); } continue; }          // 变质岩再次变质：自己指向自己
-        const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, off = (EDGES.some(([p, q]) => p === b && q === a) ? 6 : 0), nx = -uy * off, ny = ux * off, sx = x0 + ux * 26 + nx, sy = y0 + uy * 14 + ny, ex = x1 - ux * 28 + nx, ey = y1 - uy * 16 + ny;
+        const now = go === `${a}>${b}`, lit = now || S.arrows.has(`${a}>${b}`), [x0, y0] = NODES[a];
+        g.strokeStyle = now ? '#e8833a' : lit ? '#c8402c' : 'rgba(120,110,90,0.35)'; g.fillStyle = g.strokeStyle; g.lineWidth = now ? 3.2 : lit ? 2.6 : 1.4;
+        if (a === b) { g.beginPath(); g.arc(x0, y0 - 24, 11, 0.9, Math.PI * 2 + 0.2); g.stroke(); const ax = x0 + Math.cos(0.9) * 11, ay = y0 - 24 + Math.sin(0.9) * 11; g.beginPath(); g.moveTo(ax, ay); g.lineTo(ax + 6, ay - 4); g.lineTo(ax + 1, ay - 7); g.fill(); if (lit) { g.font = '10px "PingFang SC", sans-serif'; halo(t, x0, y0 - 42); } continue; }          // 变质岩再次变质：自己指向自己
+        const { ux, uy, nx, ny, sx, sy, ex, ey } = edgeGeo(a, b);
         g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.stroke(); g.beginPath(); g.moveTo(ex, ey); g.lineTo(ex - ux * 8 - uy * 4, ey - uy * 8 + ux * 4); g.lineTo(ex - ux * 8 + uy * 4, ey - uy * 8 - ux * 4); g.fill();
-        if (t && lit) { g.font = '10px "PingFang SC", sans-serif'; g.fillStyle = '#a8341f'; g.fillText(t, (sx + ex) / 2 + nx * 2.2, (sy + ey) / 2 + ny * 2.2 - 6); }
+        if (t && lit) { g.font = '10px "PingFang SC", sans-serif'; halo(t, (sx + ex) / 2 + nx * 2.2, (sy + ey) / 2 + ny * 2.2 - 6); }
       }
       for (const [k, [x, y, t]] of Object.entries(NODES)) { const been = S.kinds.has(k), now = cur === k; g.fillStyle = now ? '#c8402c' : been ? '#f3dfd4' : '#ffffff'; g.strokeStyle = now ? '#c8402c' : '#8a7a5e'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(x - 30, y - 14, 60, 28, 8); g.fill(); g.stroke(); g.font = '600 13px "PingFang SC", sans-serif'; g.fillStyle = now ? '#ffffff' : '#3a3226'; g.fillText(t, x, y); }
     };
@@ -172,11 +187,24 @@ export default {
       W.log.replaceChildren(...rows);
       if (rockKinds.length === 3 && S.path.length > 3 && S.id === 'magma') W.ui.unlock();
     };
+    const dotAt = () => {          // 循环图上的红点：沿正在走的那根箭头，和地块里的石头同步
+      if (!W) return; const a = S.anim; W.dot.style.opacity = a ? 1 : 0; if (!a) return;
+      const [x, y] = edgeAt(edgeGeo(ROCK[a.from].kind, ROCK[a.to].kind), a.t), k = W.chart.clientWidth / 320;
+      W.dot.style.transform = `translate(${x * k}px, ${y * k}px)`;
+    };
+    const setAutoBtn = () => { if (!W) return; W.autoBtn.textContent = !S.auto ? '自动演示：从岩浆走一圈' : S.auto.paused ? '继续' : '暂停'; W.choices.classList.toggle('busy', !!S.auto && !S.auto.paused); };
+    const stopAuto = () => { S.auto = null; setAutoBtn(); };
+    const restart = () => { Object.assign(S, { id: 'magma', path: [{ id: 'magma' }], anim: null, moved: false }); S.kinds = new Set(['magma']); S.arrows = new Set(); aProc.setOn(false); aName.setOn(true); look(S.id); layout(); drawChart(); drawLog(); renderChoices(); dotAt(); };
+    const toggleAuto = () => {
+      if (!S.auto) { restart(); S.auto = { i: 0, wait: 0.8, paused: false }; W?.ui.status('自动演示：这块岩石现在是地下的<b>岩浆</b>，看它一步步走。'); }
+      else S.auto.paused = !S.auto.paused;
+      setAutoBtn();
+    };
     const renderChoices = () => {
       if (!W) return;
       const list = nexts(S.id), r = ROCK[S.id];
       W.now.innerHTML = `现在它是 <b>${r.name}</b>（${KIND[r.kind]}）${r.sub ? `<br><small>${r.sub}</small>` : ''}`;
-      W.choices.replaceChildren(...list.map((n) => { return h('button', { class: 'go ghost choice', onclick: () => stepTo(n) }, n.proc); }));
+      W.choices.replaceChildren(...list.map((n) => { return h('button', { class: 'go ghost choice', onclick: () => { if (S.anim) return; if (S.auto) stopAuto(); stepTo(n); } }, n.proc); }));          // 自动演示暂停时点一步：换成自己挑
     };
 
     look(S.id); layout();
@@ -192,11 +220,11 @@ export default {
       mount(ui) {
         const choices = h('div', { class: 'btn-col' }), now = h('div', { class: 'read-out' });
         const guess = buttons([{ text: '猜：有可能', ghost: true, onClick: () => { S.guess = 1; drawLog(); } }, { text: '猜：不可能', ghost: true, onClick: () => { S.guess = 0; drawLog(); } }]);
-        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { id: 'magma', path: [{ id: 'magma' }], anim: null, guess: null, moved: false }); S.kinds = new Set(['magma']); S.arrows = new Set(); look(S.id); layout(); drawChart(); drawLog(); renderChoices(); ui.status(START); } }]);
-        const chart = h('canvas', { class: 'wx-map', width: 320, height: 230 }), log = h('div', { class: 'timeline' });
-        ui.controls.append(h('div', { class: 'bar-title' }, '图 2.10：走过的箭头会亮起来'), chart, now, h('div', { class: 'bar-title' }, '接下来，它经历什么作用？'), choices, h('p', { class: 'note' }, ASK), guess.el, acts.el, note('只能挑课本图 2.10 里有的箭头。地块上那块被红圈圈着的就是这块岩石，它会在示意剖面中移动。石英砂→石英砂岩→石英岩是限定实例；熔融后只保留岩浆类别，凝固分支需满足相应岩浆成分。'));
+        const acts = buttons([{ text: '自动演示：从岩浆走一圈', onClick: toggleAuto }, { text: '重来', ghost: true, onClick: () => { ui.relock?.(); stopAuto(); S.guess = null; restart(); ui.status(START); } }]);
+        const chart = h('canvas', { class: 'wx-map', width: 320, height: 230 }), log = h('div', { class: 'timeline' }), dot = h('span', { class: 'cycle-dot' });
+        ui.controls.append(h('div', { class: 'bar-title' }, '图 2.10：走过的箭头会亮起来'), h('div', { class: 'cycle-wrap' }, chart, dot), acts.el, now, h('div', { class: 'bar-title' }, '接下来，它经历什么作用？'), choices, h('p', { class: 'note' }, ASK), guess.el, note('只能挑课本图 2.10 里有的箭头。地块上那块被红圈圈着的就是这块岩石，它会在示意剖面中移动。石英砂→石英砂岩→石英岩是限定实例；熔融后只保留岩浆类别，凝固分支需满足相应岩浆成分。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
-        W = { ui, chart, log, choices, now };
+        W = { ui, chart, log, choices, now, dot, autoBtn: acts.btns[0] };
         ui.status(START);
         drawChart(); drawLog(); renderChoices();
       },
@@ -204,8 +232,9 @@ export default {
         labels.forEach((l) => l.tick(dt));
         smoke.forEach((s) => { s.userData.t = (s.userData.t + dt * 0.12) % 1; const u = s.userData.t; s.position.set(-0.105 + u * 0.03, 0.118 + u * 0.05, -0.01); s.scale.setScalar(0.01 + u * 0.03); s.material.opacity = 0.5 * (1 - u); });
         if (S.id === 'magma' && !S.anim) rockMat.emissiveIntensity = 0.7 + 0.25 * Math.sin((t || 0) * 3);
-        if (S.anim) {
-          const a = S.anim; a.t = Math.min(1, a.t + dt / 3); const p = a.curve.getPointAt(a.t);
+        if (S.auto && !S.auto.paused && !S.anim) { S.auto.wait -= dt; if (S.auto.wait <= 0) { const n = tourStep(S.id, S.auto.i); if (!n) stopAuto(); else { stepTo(n); S.auto.i++; S.auto.wait = 1.4; } } }          // 自动演示：上一步停一会儿（读状态栏），再走下一步
+        if (S.anim) {          // 暂停：正在走的这一步走完，下一步不走了
+          const a = S.anim; a.t = Math.min(1, a.t + dt / a.dur); const p = a.curve.getPointAt(a.t); dotAt();
           stone.position.copy(p); pile.position.copy(p); ring.position.set(p.x, p.y, p.z + 0.004); aProc.position.set(p.x, p.y + 0.02, p.z); aName.setOn(false);
           if (!a.mid && a.t > a.sw) { a.mid = true; look(a.to); }          // 作用发生的地方才换样子
           if (a.t >= 1) { aName.setOn(true); finish(); }

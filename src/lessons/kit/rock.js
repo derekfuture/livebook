@@ -41,3 +41,7 @@ export function nexts(id) {
   return out;
 }
 // 固态变质与熔融条件：Physical Geology 3.2，https://opentextbc.ca/geology/chapter/3-2-magma-and-magma-formation/
+/** 自动演示的一条路线：先走从地下到地表再回到地下的一大圈（岩浆→花岗岩→石英砂→石英砂岩→石英岩→岩浆），再把图 2.10 里其余的箭头都走一遍。每一步都必须是 nexts() 里有的箭头。 */
+export const TOUR = ['granite', 'sand', 'sandstone', 'quartzite', 'magma', 'basalt', 'magma', 'granite', 'gneiss', 'gneiss_further', 'mud', 'shale', 'gravel', 'conglomerate', 'magma'];
+/** 路线的第 i 步：从 from 走到 TOUR[i] 的那条箭头 */
+export const tourStep = (from, i) => nexts(from).find((n) => n.to === TOUR[i]);

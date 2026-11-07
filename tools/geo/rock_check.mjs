@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 // 核对岩石圈物质循环：node tools/geo/rock_check.mjs（选必1 第 22–24 页，图 2.10）
-import { ROCK, nexts, provenGraniteSand } from '../../src/lessons/kit/rock.js';
+import { ROCK, nexts, provenGraniteSand, TOUR, tourStep } from '../../src/lessons/kit/rock.js';
 let bad = 0; const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) bad++; };
 const kinds = (id) => [...new Set(nexts(id).map((n) => ROCK[n.to].kind))].sort().join();
 ok(kinds('magma') === 'igneous', '岩浆只能冷却凝固成岩浆岩');
@@ -29,4 +29,9 @@ const source = readFileSync(new URL('../../src/lessons/rockcycle.js', import.met
 const visuals = runInNewContext(source.slice(source.indexOf('const XL ='), source.indexOf('export default')).replaceAll('export const', 'const') + '; ({ AT, LOOK })', { ROCK });
 for (const id of seen) ok(Number.isFinite(visuals.LOOK[id]?.c) && visuals.AT[ROCK[id].at]?.every(Number.isFinite) && (ROCK[id].kind !== 'sediment' || ['gravel', 'sand', 'mud', 'shell'].includes(visuals.LOOK[id]?.grain)), `${id}：所有可达状态有有效外观、粒径显示及场景位置`);
 ok(['岩浆岩（图2.7）', '沉积岩（图2.8）', '变质岩（图2.9）'].every((t) => readFileSync(new URL('../../src/lessons/rockcycle.js', import.meta.url), 'utf8').includes(t)), '本轮文字复核：概念或引文图号准确');
+// 自动演示：每一步都是图 2.10 里有的箭头；图 2.10 的 11 个箭头（含变质岩再次变质）都走到；最后回到岩浆
+{ const K = (id) => ROCK[id].kind, edges = new Set(); let at = 'magma', legal = true; TOUR.forEach((to, i) => { const n = tourStep(at, i); if (!n) legal = false; else { edges.add(`${K(at)}>${K(to)}`); at = to; } });
+  ok(legal, `自动演示 ${TOUR.length} 步，每一步都是 nexts() 里的箭头`);
+  ok(edges.size === 11 && ['magma>igneous', 'igneous>sediment', 'sedimentary>sediment', 'metamorphic>sediment', 'sediment>sedimentary', 'igneous>metamorphic', 'sedimentary>metamorphic', 'metamorphic>metamorphic', 'igneous>magma', 'sedimentary>magma', 'metamorphic>magma'].every((e) => edges.has(e)), `自动演示走遍图 2.10 的 11 个箭头（实际 ${edges.size} 个）`);
+  ok(at === 'magma' && TOUR.indexOf('magma') === 4, '先走完一大圈（岩浆→岩浆岩→沉积物→沉积岩→变质岩→岩浆），最后回到岩浆'); }
 process.exit(bad ? 1 : 0);
