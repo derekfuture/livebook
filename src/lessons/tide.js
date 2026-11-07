@@ -35,6 +35,7 @@ export default {
   },
 
   create({ tag, reframe }) {
+    const START_T = '这是一段海岸：岸上有港口，滩涂上养着紫菜。先<b>拨时间</b>（或让一天走），看海水一天里怎么涨落。';          // 开场的话（重来时也用它）
     const group = new THREE.Group();
     const S = { vk: 0, vTo: 0, framed: true, D: 0, h: 6, play: false, drag: null, act: null, pick: null, seen: new Set(), did: {}, guess: null };
     let W = null;
@@ -264,15 +265,15 @@ export default {
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
           { text: '让一天走', onClick: () => { showHarbor(); if (S.h >= 24) S.h = 0; S.play = !S.play; acts.btns[0].textContent = S.play ? '停一下' : '让一天走'; } },
-          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); showHarbor(true); Object.assign(S, { D: 0, h: 6, play: false, act: null, pick: null, seen: new Set(), did: {}, guess: null, cmp: null }); time.set(6); day.set(0); actSeg.set(-1); guess.set(-1); acts.btns[0].textContent = '让一天走'; layout(); drawLog(); } },
+          { text: '重来', ghost: true, onClick: () => { ui.relock?.(); showHarbor(true); Object.assign(S, { D: 0, h: 6, play: false, act: null, pick: null, seen: new Set(), did: {}, guess: null, cmp: null }); time.set(6); day.set(0); actSeg.set(-1); guess.set(-1); acts.btns[0].textContent = '让一天走'; layout(); drawLog(); ui.status(START_T); } },
         ]);
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 140, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
-        chart.onclick = (e) => { showHarbor(true); const r = chart.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width) * 320 - 30) / (320 - 38) * 24; if (t < 0 || t > 24) return; S.h = t; time.set(t); S.seen.add('day'); S.play = false; acts.btns[0].textContent = '让一天走';          // 挑时刻时先停下
+        chart.onclick = (e) => { showHarbor(); const r = chart.getBoundingClientRect(), t = (((e.clientX - r.left) / r.width) * 320 - 30) / (320 - 38) * 24; if (t < 0 || t > 24) return; S.h = t; time.set(t); S.seen.add('day'); S.play = false; acts.btns[0].textContent = '让一天走';          // 挑时刻时先停下
           if (S.act) { const ok = ACTS[S.act].ok(level(S.D, t), S.D, tideTrend(S.D, t).rising, t); S.pick = { k: S.act, h: t, ok }; S.did[S.act] = { D: S.D, h: t, ok }; } layout(); drawLog(); };          // 点曲线：挑一个时刻
         ui.controls.append(h('div', { class: 'bar-title' }, '港口的潮位（点曲线可以挑时刻）'), chart, read, time.el, acts.el, day.el, actSeg.el, guess.el, note('左后方的小盘是太阳—地球—月亮：点它（或直接拖月亮）就放大到中间。太阳光从左边来，中间是地球（红点是港口）。浅蓝水面按日月分潮合成，径向变形夸大。盘上看的是三者的位置；月相的名字说的是从地球上看到的月亮形状。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log, day, time, acts };
-        ui.status('这是一段海岸：岸上有港口，滩涂上养着紫菜。先<b>拨时间</b>（或让一天走），看海水一天里怎么涨落。');
+        ui.status(START_T);
         layout(); drawLog();
       },
       update(dt, t) {
