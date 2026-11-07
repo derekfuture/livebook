@@ -18,6 +18,8 @@ const BOARD_PX = 400;          // 立板的网页宽度（像素）
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const backOut = (t) => { const c = 1.5; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const PIN_T = 1.15;          // 活页从地球上那一点长出来、落到书上要多久（秒）
 
 function holeTexture() {
   const c = document.createElement('canvas');
@@ -73,7 +75,8 @@ export class LiveLayer {
     hole.position.copy(figCenter).y -= 0.0005;
     hole.receiveShadow = true;
     hole.renderOrder = 2;
-    if (spot.noFigure) card.visible = hole.visible = false;          // 不从某张图上揭下来（地球目录）：书页上不留白块
+    const WD = spot.world || null;          // 地理的地球主探索：活页从地球上的一点长出来（pin）、整颗地球落下去换成活页里的（globe）、照旧从图里升起来（figure）
+    if (spot.noFigure || (WD && WD.mode !== 'figure')) card.visible = hole.visible = false;          // 不从某张图上揭下来：书页上不留白块
     stage.scene.add(card, hole);
 
     // 立体实验
@@ -207,7 +210,9 @@ export class LiveLayer {
       dist = stage.fitDistance(book.W * 1.6, book.H * 1.25, v.margin ?? 1.0);
     }
     this.bookShot = { target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist };
-    stage.shot({ target: look, dir, dist });
+    const holdShot = WD?.mode === 'globe';          // 整颗地球落下去：镜头等地球落好（release）再转到活页的取景
+    if (!holdShot) stage.shot({ target: look, dir, dist });
+    this._pendingShot = holdShot ? { target: look, dir, dist } : null;
 
     const pageNum = spot.page - book.manifest.pageOffset;
     let api, nb = null;
@@ -220,7 +225,7 @@ export class LiveLayer {
       this.panel.home.classList.remove('folded');
       // 预测阶段：隐藏标签和会泄露答案的现象（实验自己实现 predicting(on)）
       const onStep = (i) => { const on = i === 0; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
-      api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => this.close(), foldable: MODE === 'float' || stand,
+      api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => (WD?.onClose ? WD.onClose() : this.close()), closeText: WD?.closeText, crumb: WD?.crumb, links: WD?.links, foldable: MODE === 'float' || stand,
         onFold: (folded) => { if (!stand) stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8; } });
     }
     ctx.ui = api;
@@ -252,13 +257,14 @@ export class LiveLayer {
     document.body.classList.add('lesson-on');
     document.body.classList.toggle('stand-ui', !!board);
     ink.setLessonStyle(null);
-    this.active = { spot, def, inst, root, scaler, card, hole, crop, tags, nb, board, toggles, t: 0, from: figCenter, to: pageCenter, s, closing: false };
+    this.active = { spot, def, inst, root, scaler, card, hole, crop, tags, nb, board, toggles, t: 0, from: figCenter, to: pageCenter, s, closing: false, world: WD, hold: WD?.mode === 'globe' };
+    if (WD?.mode === 'pin' || WD?.mode === 'globe') { root.position.copy(WD.mode === 'pin' && WD.from ? WD.from() : pageCenter); root.visible = false; }
     this.opening = false;
     // 实验搭好以后，按器材实际占的范围重新取景（实验里写的 size 只是估计，常常不准：器材出画或者太小）
     this._reframe = null;
     if (!world && !stand && v.auto !== false) {
       const A = this.active;
-      this._reframe = () => { if (this.active === A && !A.closing) { this._prevShot = null; this._lookExit = null; tagFocus(null); this._autoFrame(A, frameDir || dir, v); } };
+      this._reframe = () => { if (this.active === A && !A.closing && !A.hold) { this._prevShot = null; this._lookExit = null; tagFocus(null); this._autoFrame(A, frameDir || dir, v); } };
       requestAnimationFrame(() => requestAnimationFrame(() => this._reframe?.()));
     }
     this.onChange?.(true);
@@ -303,11 +309,13 @@ export class LiveLayer {
     this._reframe();
   }
 
-  close({ quick = false } = {}) {
+  close({ quick = false, world = null } = {}) {
     const A = this.active;
     if (!A || A.closing) return;
     A.closing = true; tagFocus(null);
-    A.t = Math.min(A.t, quick ? 0.5 : 1.5);          // quick：马上要打开另一张活页（从地球目录飞进去），收得快一点
+    if (world) A.world = { ...(A.world || {}), ...world };          // 地球主探索：收回地球上那一点（pin）、换回地球（globe，一下子收掉）、沉回课本的图里（figure）
+    const wm = A.world?.mode;
+    A.t = wm === 'pin' ? Math.min(A.t, PIN_T) : wm === 'globe' ? 0.0001 : Math.min(A.t, quick ? 0.5 : 1.5);          // quick：马上要打开另一张活页，收得快一点
     this.panel.close();
     A.nb?.dispose(); A.nb = null;
     if (A.board) { A.board.closing = true; }
@@ -316,8 +324,16 @@ export class LiveLayer {
     this._lookExit = null;     // 旧实验的“回到原机位”回调不能留给下一个实验
     this.stage.cameraOffsetX = 0;
     this.stage.cameraOffsetY = 0;
-    if (this.bookShot) this.stage.shot(this.bookShot);
+    if (this.bookShot && !A.world) this.stage.shot(this.bookShot);          // 地球主探索：镜头由 World 接着安排
     document.body.classList.remove('lesson-on');
+  }
+
+  /** 整颗地球落下去以后：活页里的那颗地球（连同活页的其他东西）现出来 */
+  release() {
+    const A = this.active; if (!A) return;
+    A.hold = false;
+    if (this._pendingShot) { this.stage.shot(this._pendingShot); this._pendingShot = null; }
+    requestAnimationFrame(() => this._reframe?.());
   }
 
   _finishClose() {
@@ -348,6 +364,26 @@ export class LiveLayer {
     A.t += A.closing ? -dt * 1.4 : dt;
     const t = A.t;
 
+    const wm = A.world?.mode;
+    if (wm === 'pin' || wm === 'globe') {
+      A.card.visible = false; A.hole.visible = false;
+      if (wm === 'pin') {
+        // 从地球上那一点长出来：一边长大，一边沿一道弧线落到书页正中（收起时倒着走，回到角上那颗地球的旗里）
+        const k = clamp01(t / PIN_T), e = easeInOut(k), from = A.world.from?.() || A.from;
+        A.root.position.lerpVectors(from, A.to, e).y += Math.sin(Math.PI * e) * 0.18 * (1 - e * 0.5);
+        A.root.scale.setScalar(0.015 + 0.985 * e);          // 和位置一起走：在角上时还小，越近越大
+        A.root.visible = true;
+        for (const tg of A.tags) { const o = A.closing ? 0 : clamp01((k - 0.85) / 0.15); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }
+      } else {
+        A.root.position.copy(A.to); A.root.scale.setScalar(1);
+        A.root.visible = !A.hold && !A.closing;
+        for (const tg of A.tags) tg.el.style.visibility = !A.hold && !A.closing ? '' : 'hidden';
+      }
+      if (!A.closing || t > 0.4) A.inst.update?.(dt, time);
+      A.nb?.update(dt);
+      if (A.closing && t <= 0) this._finishClose();
+      return;
+    }
     // 原图：先揭起来，再淡出（emerge: 'flat'：原图平放在书页上不动，模型从它上面长出来时慢慢淡掉，看起来就是这张图立了起来）
     const flat = A.inst.emerge === 'flat';
     const lift = flat ? 0 : easeOut(clamp01(t / 0.5));

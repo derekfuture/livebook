@@ -279,8 +279,11 @@ export default {
 
     setMode();
 
+    let placeFn = null;
     return {
       group,
+      // 地球主探索：点台湾海峡那面旗进来，直接是海峡两岸的情境
+      place: (name) => placeFn?.(name),
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.36, d: 0.1, h: 0.18 },
@@ -288,6 +291,7 @@ export default {
       pointer,
       mount(ui) {
         const modeSeg = seg('看哪一个', ['地面受热不均（图 2.11）', '台湾海峡两岸'], (_, i) => { S.mode = i ? 'sea' : 'free'; setMode(); }, { value: 0 });
+        placeFn = (name) => { if (name === 'sea' && modeSeg.index !== 1) modeSeg.set(1, true); };
         const timeCtl = slider('时刻', { min: 0, max: 24, step: 0.25, value: S.hour, fmt: (v) => `${Math.floor(v)} 时${v % 1 ? ` ${Math.round((v % 1) * 60)} 分` : ''}`, onInput: (v) => { S.hour = v; S.play = false; W.play.textContent = '让时间走'; } });
         const guess = seg(...ASK.free, () => {}, { value: -1 });
         const logs = h('div', { class: 'timeline' });

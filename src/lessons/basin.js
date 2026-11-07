@@ -421,6 +421,8 @@ export default {
 
     return {
       group,
+      // 地球主探索：点黄河三角洲那面旗进来，直接看入海口
+      place: (name) => { if (name === 'mouth') showMouth(); },
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
       size: { w: 0.4, d: 0.22, h: 0.09 },

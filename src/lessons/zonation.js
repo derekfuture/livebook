@@ -249,8 +249,12 @@ export default {
     const switchMountain = (m) => { S.m = m; S.u = 0.93; if (m === 'cb') S.tried.add('cb'); rebuild(); drawLog(); };
     rebuild();
 
+    let placeFn = null;
     return {
       group,
+      // 地球主探索：点长白山那面旗进来，就是长白山；where：现在看的是哪座山
+      place: (name) => placeFn?.(name),
+      where: () => S.m,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
       size: { w: 0.4, d: 0.15, h: 0.17 },
@@ -259,6 +263,7 @@ export default {
       debug: { go: (u) => { S.u = u; S.moved = true; placeClimber(); drawLog(); sayZone(); }, set: (k, v) => { S[k] = v; rebuild(); drawLog(); } },
       mount(ui) {
         const mSeg = seg('看哪座山', ['喜马拉雅山脉（约 28°N）', '长白山（约 42°N）'], (_, i) => { switchMountain(i ? 'cb' : 'hima'); cutSl.el.style.display = lowBtn.el.style.display = i ? 'none' : ''; ui.status(i ? '<b>长白山</b>在东北，纬度比喜马拉雅高得多；中国境内的最高峰白云峰只有 2 691 米，山顶是火山口和天池。拖着登山的人从山脚爬上去，数数有几个带。' : '回到喜马拉雅山。'); }, { value: 0 });
+        placeFn = (name) => { const k = name === 'cb' ? 1 : 0; if (mSeg.index !== k) mSeg.set(k, true); };
         const cutSl = slider('假如山只有这么高（只对喜马拉雅）', { min: 4500, max: 8900, step: 100, value: 8900, fmt: (v) => (v >= 8900 ? '原样 8 848.86 米' : `${fmt(v)} 米`), onInput: (v) => { S.cut = v >= 8900 ? 8848.86 : v; if (v < 8900) { S.tried.add('cut'); S.cuts[v] = bandsBelow('hima', 'south', v).length; } rebuild(); drawLog(); ui.status(`当前喜马拉雅山高设为 <b>${fmt(S.cut)} 米</b>，南坡 ${bandsBelow('hima', 'south', S.cut).length} 个带；北坡按当前山麓假设计算，见侧栏。历次观察记录单独保留。`); } });
         const lowBtn = buttons([{ text: '假如北坡山麓也低到 1 000 米', onClick: () => { S.northLow = !S.northLow; S.saidN = false; lowBtn.btns[0].textContent = S.northLow ? '回到真实的北坡' : '假如北坡山麓也低到 1 000 米'; if (S.northLow) { S.tried.add('low'); ui.status('假如北坡山麓也低到 1 000 米：多出来的这一段画成了“？”。北坡仍是背风坡、降水少——它会长出南坡那么多种植被吗？想一想，再看侧栏。'); } else ui.status('回到真实北坡：山麓约 4 300 米，当前带数仍按设定的山高计算。'); rebuild(); drawLog(); } }]);
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });

@@ -309,6 +309,7 @@ export default {
     return {
       debug: { S, layout: layout2 },
       group: root,
+      globe,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
       size: { w: 0.3, d: 0.2, h: 0.2 },

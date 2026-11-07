@@ -56,7 +56,7 @@ export class Panel {
   setHost(el) { this.el = el || this.home; }
 
   /** def：实验定义（predict / conclusion / need…）；返回给实验用的接口。 */
-  open(def, { pageLabel, onClose, foldable = false, onFold, book, onStep } = {}) {
+  open(def, { pageLabel, onClose, foldable = false, onFold, book, onStep, closeText = '放回书里 ↩', crumb = null, links = null } = {}) {
     const el = this.el;
     const keep = [...el.querySelectorAll(':scope > .board-ear, :scope > .board-tab')];
     el.innerHTML = '';
@@ -69,7 +69,7 @@ export class Panel {
     this.unlocked = false;
     if (def.index) {          // 目录类的页（地球目录）：只有标题、一句介绍、一块控件区；没有“动手→对照课本原文”的步骤，也不盖章
       this.explore = true; this.statusEl = h('p', { class: 'status' }); this.controlsEl = h('div'); this.dataEl = h('div'); this.nowEl = h('div', { class: 'now' }, this.statusEl);
-      el.append(h('div', { class: 'p-head' }, h('div', { class: 'p-fig' }, def.fig), h('h2', { class: 'p-title' }, def.title), h('div', { class: 'p-acts' }, h('button', { class: 'p-close', onclick: () => onClose() }, '放回书里 ↩'))),
+      el.append(h('div', { class: 'p-head' }, h('div', { class: 'p-fig' }, def.fig), h('h2', { class: 'p-title' }, def.title), h('div', { class: 'p-acts' }, h('button', { class: 'p-close', onclick: () => onClose() }, closeText))),
         h('div', { class: 'p-body' }, h('div', { class: 'p-step' }, h('p', { class: 'q ask', html: def.ask }), this.nowEl, this.controlsEl, this.dataEl)));
       const noop = () => {};
       return { controls: this.controlsEl, data: this.dataEl, status: (msg) => { this.statusEl.innerHTML = msg || ''; }, need: noop, unlock: noop, relock: noop, prediction: () => null, now: this.nowEl, el: this.el, go: noop };
@@ -138,8 +138,10 @@ export class Panel {
         foldable ? h('span', { class: 'p-tuck', title: '收起', onclick: () => this.fold(true) }, '‹') : null,
         h('div', { class: 'p-fig' }, `${def.fig} · ${pageLabel}`),
         h('h2', { class: 'p-title' }, def.title),
+        crumb ? h('p', { class: 'p-from', html: crumb }) : null,          // 地球主探索：从地球上的哪里进来、进来的是什么
+        links?.length ? h('div', { class: 'p-links' }, links.map((l) => h('button', { class: 'p-link', 'data-when': l.when ?? false, onclick: l.onClick }, l.text))) : null,          // 接着看：同一个地方、同一个问题的下一张活页
         h('div', { class: 'p-acts' },
-          h('button', { class: 'p-close', onclick: () => onClose() }, '放回书里 ↩'))),
+          h('button', { class: 'p-close', onclick: () => onClose() }, closeText))),
       explore ? null : h('div', { class: 'p-tabs' }, tabs),
       h('div', { class: 'p-body' }, s1, s2, s3)].filter(Boolean));          // 空的不要放进去（不然会显示成“null”）
     this.go(0);

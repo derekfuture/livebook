@@ -631,8 +631,11 @@ export default {
     // 回到上面看 / 到你家地上看：镜头落到你家旁边，按人的视线高度往锋面来的方向看
     drawSym(); record(); layout();
 
+    let placeFn = null;
     return {
       group,
+      // 地球主探索：点昆明准静止锋那面旗进来，直接是准静止锋
+      place: (name) => placeFn?.(name),
       card: false,          // 和化学一样：不垫台板；整块地浮在书页上方
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.38, d: 0.14, h: 0.2 },
@@ -641,6 +644,7 @@ export default {
       dispose() { heroRestore(); viewBar.remove(); },
       mount(ui) {
         const kindSeg = seg('推哪一种锋', ['冷锋', '暖锋', '准静止锋', '看图推天气'], (_, i) => { if (i === 3) setMap(); else { const was = S.map; S.map = false; setKind(['cold', 'warm', 'still'][i], was); } layout(); }, { value: 0 });          // 从看图推天气回来：你家、邻城回到这种锋开头的位置
+        placeFn = (name) => { if (name === 'still' && kindSeg.index !== 2) kindSeg.set(2, true); };
         const guess = seg(...ASK.cold, () => {}, { value: -1 });
         const logs = h('div', { class: 'timeline' });
         const station = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('p', { class: 'note' });

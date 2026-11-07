@@ -6,6 +6,7 @@ import { mountImport } from './book/importPdf.js';
 import { Book } from './book/Book.js';
 import { Hotspots } from './book/Hotspots.js';
 import { LiveLayer } from './live/LiveLayer.js';
+import { World, worldBook } from './live/World.js';
 import { Panel, stamps, h } from './ui/Panel.js';
 import { updateTags } from './ui/tags.js';
 import { getBook, bookList, getManifest } from './content/index.js';
@@ -42,6 +43,8 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     if (open && a && content.lessons[a.spot.lesson]) { const L = content.lessons[a.spot.lesson]; rememberLast({ book: content.id, page: a.spot.page, lesson: a.spot.lesson, title: L.title, where: `${content.full} · ${L.fig} · ${L.sec}` }); bookmark.set(content.id, a.spot.page); }
   } });
   stage.updaters.add(() => updateTags(stage.camera));
+  // 高中地理：打开书，上方是这本书的地球主探索（src/live/World.js）
+  const world = worldBook(content.id) ? new World({ stage, book, live, panel, content, manifest, textures, onBook: () => bookShot() }) : null;
 
   // ---------- 机位：合上时对准封面，翻开后对准整个跨页 ----------
   const bookShot = (instant = false, keepView = false) => {
@@ -59,7 +62,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   };
   // 窗口大小变了（转屏、拖窗口）：没开实验就重新对准书；开着实验就按新的画面重新取景（正在凑近看时不打断）
   let rz = 0;
-  stage.onResize = () => { if (!live.isOpen) return bookShot(); clearTimeout(rz); rz = setTimeout(() => live.reframe(), 250); };
+  stage.onResize = () => { if (!live.isOpen) return world && world.state !== 'book' ? world.reframe() : bookShot(); clearTimeout(rz); rz = setTimeout(() => live.reframe(), 250); };
   bookShot(true);
 
   // ---------- 加载：先要封面和前几页 ----------
@@ -67,8 +70,8 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   const q0 = new URLSearchParams(location.hash.slice(1));
   // 没有原书页（占位页）时，不停在封面：直接翻开一张活页（有书签就翻开书签那里或之后的第一张，没有就第一张）
   const spotsInOrder = [...content.spots].sort((a, b) => a.page - b.page);
-  const autoSpot = source.kind === 'placeholder' ? (spotsInOrder.find((x) => x.page >= (bookmark.get(content.id) ?? 0)) || spotsInOrder[0]) : null;
-  const startPage = q0.has('live') ? content.spots.find((x) => x.lesson === q0.get('live'))?.page : q0.has('p') ? Number(q0.get('p')) : autoSpot ? autoSpot.page : bookmark.get(content.id);
+  const autoSpot = source.kind === 'placeholder' && !world ? (spotsInOrder.find((x) => x.page >= (bookmark.get(content.id) ?? 0)) || spotsInOrder[0]) : null;          // 地理的地球主探索：打开就是地球目录，不自动翻开活页
+  const startPage = q0.has('live') ? content.spots.find((x) => x.lesson === q0.get('live'))?.page : q0.has('p') ? Number(q0.get('p')) : autoSpot ? autoSpot.page : world ? 3 : bookmark.get(content.id);
   const firstPages = [...new Set([0, 1, 2, 3, 4, ...(startPage != null ? book.turnPages(book.leafForPage(startPage), 0) : [])])];
   if (startPage != null) textures.want(book.turnPages(book.leafForPage(startPage), 0).slice(-2));          // 目的地那个跨页的高清图也先要
   let started = false;
@@ -103,13 +106,12 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   };
   addEventListener('stamp', updateUI);
   book.on((type) => {
-    if (type === 'turned' || type === 'turncancel') { updateUI(); bookShot(false, book.current > 0 && book.current < book.leafCount); }
+    if (type === 'turned' || type === 'turncancel') { updateUI(); if (!world || world.state === 'book' || world.state === 'off') bookShot(false, book.current > 0 && book.current < book.leafCount); }          // 地球主探索时镜头由 World 安排
     if (type === 'turned' && book.current > 0) {
       const pg = book.spread[1] ?? book.spread[0];
       bookmark.set(content.id, pg);
       if (!live.isOpen) rememberLast({ book: content.id, page: pg, title: `${content.full} ${pageLabel()}`, where: '接着往下翻' });
     }
-    if (type === 'turned' && pendingAtlas) { pendingAtlas = false; setTimeout(openAtlas, 350); }
     if (type === 'turned' && pendingLesson) {
       const s = pendingLesson; pendingLesson = null;
       setTimeout(() => live.open(s), 350);
@@ -117,12 +119,18 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   });
   updateUI();
 
-  $('#btn-prev').onclick = () => !live.isOpen && book.prev();
-  $('#btn-next').onclick = () => !live.isOpen && book.next();
+  $('#btn-prev').onclick = () => !live.isOpen && !world?.busy && book.prev();
+  $('#btn-next').onclick = () => !live.isOpen && !world?.busy && book.next();
 
   // 翻到含有某页的跨页
   let pendingLesson = null;
   const gotoPage = (idx, then) => {
+    if (world) {          // 地球主探索：进活页走 World（上面不关、不重开，书跟着翻）；只翻页时先回到地球目录
+      if (then) return world.enter(then.lesson);
+      const go = () => book.turnTo(book.leafForPage(idx));
+      if (world.state === 'topic') return world.toHub().then(go);
+      return go();
+    }
     if (live.isOpen) live.close();
     const target = book.leafForPage(idx);
     if (book.current === target && !book.busy) { if (then) live.open(then); return; }
@@ -130,26 +138,9 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     book.turnTo(target);
   };
 
-  // ---------- 地球目录（地理）：这本书的活页都插在一颗地球上，点哪里飞过去、翻到那一页 ----------
-  let pendingAtlas = false;
-  const afterClosed = (fn) => { const w = () => (live.isOpen || live.opening ? setTimeout(w, 60) : fn()); w(); };
-  const atlasItems = () => content.spots.filter((s, i, a) => a.findIndex((x) => x.lesson === s.lesson) === i).map((s) => {
-    const L = content.lessons[s.lesson], ch = manifest.chapters.filter((c) => c.page != null && c.page <= s.page).pop();
-    return { id: s.lesson, title: L.title, fig: L.fig, sec: L.sec, page: s.page - manifest.pageOffset, chapterTitle: ch?.title || '' };
-  });
-  async function openAtlas() {
-    if (live.isOpen) { if (live.active?.spot?.lesson === 'atlas') return; live.close(); return afterClosed(openAtlas); }
-    if (book.current === 0 || book.current === book.leafCount) { pendingAtlas = true; book.turnTo(1); return; }          // 书还合着：先翻开
-    const def = (await import('./lessons/atlas.js')).default, page = book.spread[1] ?? book.spread[0];
-    live.open({ lesson: 'atlas', def, noFigure: true, page, bbox: [book.PW * 0.3, book.PH * 0.35, book.PW * 0.7, book.PH * 0.65], items: atlasItems(), bookName: content.full });
-  }
+  // ---------- 顶栏“地球”：回到这本书的地球主探索（收起了就再叫出来） ----------
   const globeBtn = $('#btn-globe');
-  if (globeBtn) { globeBtn.hidden = !String(content.id).startsWith('dili-'); globeBtn.onclick = () => { hideHint(); drawer.hidden = true; openAtlas(); }; }
-  addEventListener('livebook:open-lesson', (e) => {          // 地球目录里点了一面旗：收起地球，翻到那一页，打开那张活页
-    const s = content.spots.find((x) => x.lesson === e.detail?.id); if (!s) return;
-    if (live.isOpen) live.close({ quick: true });
-    afterClosed(() => gotoPage(s.page, s));
-  });
+  if (globeBtn) { globeBtn.hidden = !world; globeBtn.onclick = () => { hideHint(); drawer.hidden = true; world?.wake(); }; }
 
   // ---------- 目录 / 这本书的活页 ----------
   const drawer = $('#drawer');
@@ -186,7 +177,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
         seen.add(s.lesson);
         const info = content.lessons[s.lesson];
         const got = stamps.has(s.lesson);
-        body.append(h('div', { class: 'live-item', onclick: () => { drawer.hidden = true; gotoPage(s.page, s); } },
+        body.append(h('div', { class: 'live-item', onclick: () => { drawer.hidden = true; world ? world.enter(s.lesson) : gotoPage(s.page, s); } },
           h('div', { class: `seal ${got ? 'got' : ''}` }, got ? '已做' : '未做'),
           h('div', {}, h('h4', {}, info.title), h('p', {}, `${info.fig} · 第 ${s.page - off} 页 · ${info.sec}`))));
       }
@@ -254,6 +245,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       return;
     }
     if (e.button === 2 || e.shiftKey) { press = camPress(e, 'pan'); return; }
+    if (world) { ray.setFromCamera(ndc, stage.camera); if (world.pointerDown(ray, e)) { press = { world: true }; return; } }          // 地球主探索：拖地球、点旗、点角上的地球回去
     if (live.isOpen) { press = live.pointerDown(ndc, e) ? { live: true } : camPress(e, 'orbit'); return; }
     if (book.busy) return;
     ray.setFromCamera(ndc, stage.camera);
@@ -283,6 +275,8 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       canvas.style.cursor = 'grabbing';
       return;
     }
+    if (press?.world) { ray.setFromCamera(ndc, stage.camera); world.pointerMove(ray, e); return; }
+    if (world && !press) { ray.setFromCamera(ndc, stage.camera); if (world.pointerMove(ray, e)) { hotspots.setHover(null); return; } }
     if (live.isOpen) { live.pointerMove(ndc, e); return; }
     if (press && press.dir) {
       const dx = e.clientX - press.x, dy = e.clientY - press.y;
@@ -313,6 +307,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     touches.delete(e.pointerId);
     if (pinch) { if (touches.size < 2) { pinch = null; stage._interacting = false; } press = null; return; }
     const p = press; press = null;
+    if (p?.world) { world.pointerUp(); return; }
     if (p?.cam) {
       stage._interacting = false;
       canvas.style.cursor = '';
@@ -323,7 +318,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     }
     if (live.isOpen) { live.pointerUp(ndc, e); return; }
     if (!p) return;
-    if (p.spot) { hideHint(); live.open(p.spot); return; }
+    if (p.spot) { hideHint(); world ? world.enter(p.spot.lesson) : live.open(p.spot); return; }
     if (p.dragging) {
       const prog = book.anim?.p ?? 0;
       const flick = -p.v * p.dir > 0.5;
@@ -355,8 +350,8 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
 
   addEventListener('keydown', (e) => {
     if (e.target.closest?.('input, textarea')) return;
-    if (e.key === 'Escape') { if (live.isOpen) live.close(); else drawer.hidden = true; }
-    if (live.isOpen) return;
+    if (e.key === 'Escape') { if (world && world.state === 'topic') world.toHub(); else if (live.isOpen) live.close(); else drawer.hidden = true; }
+    if (live.isOpen || world?.busy) return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); book.next(); hideHint(); }
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); book.prev(); }
     if (e.key === 't' || e.key === 'T') openDrawer('toc');
@@ -368,13 +363,19 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   // ---------- 深链接：#p=23 翻到 PDF 第 23 页，#live=lever 直接打开实验 ----------
   function handleHash() {
     const q = new URLSearchParams(location.hash.slice(1));
+    if (world) {          // 地球主探索：#live=front 直接进那张活页；别的都从地球目录开始
+      hideHint();
+      const id = q.get('live');
+      if (id && content.lessons[id]) return world.enter(id, { quick: true });
+      if (q.has('p')) { const pg = Number(q.get('p')); return world.state === 'off' ? world.start().then(() => book.turnTo(book.leafForPage(pg))) : book.turnTo(book.leafForPage(pg)); }
+      return world.start();
+    }
     if (!q.has('live') && !q.has('p')) {      // 没指定：翻到上次的书签页（没有原书页时直接翻开活页）
       if (autoSpot) { hideHint(); setTimeout(() => gotoPage(autoSpot.page, autoSpot), 420); return; }
       const bm = bookmark.get(content.id);
       if (bm) { hideHint(); setTimeout(() => gotoPage(bm), 420); }
       return;
     }
-    if (q.get('live') === 'atlas') { hideHint(); setTimeout(openAtlas, 420); return; }
     if (q.has('live')) {
       const s = content.spots.find((x) => x.lesson === q.get('live'));
       if (s) { hideHint(); return gotoPage(s.page, s); }
@@ -383,7 +384,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   }
   addEventListener('hashchange', handleHash);
 
-  window.__lb = { stage, book, live, hotspots, textures };
+  window.__lb = { stage, book, live, hotspots, textures, world };
 }
 
 // 从书架拿书进来以后（地址栏已经改成 ?book=），按浏览器的“后退”：回到书架（重新加载）

@@ -721,3 +721,23 @@ body.world-ui .tag3d.btn.view.on, .tag3d.btn.view.on { background: #8a4b10; colo
 .atlas-kind.k-place { background: #fde6dc; color: #a8341f; }
 .atlas-kind.k-layer { background: #dde9f7; color: #1f4f86; }
 .atlas-kind.k-idea { background: #ece6d8; color: #6a5a40; }
+
+/* ---------- 地球主探索（高中地理） ---------- */
+.atlas-kind.k-globe { background: #dde9f7; color: #1f4f86; }
+.atlas-kind.k-idea { background: #ece6da; color: #6a5a40; }
+.p-from { margin: 8px 0 0; font: 12.5px/1.6 var(--sans); color: var(--ink2); }
+.p-from i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; box-shadow: 0 0 0 2px rgba(255,255,255,.8); }
+.p-from b { color: var(--ink); font-weight: 600; margin: 0 2px; }
+.p-links { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.p-link { align-self: flex-start; border: 0; background: none; padding: 2px 0; font: 12.5px/1.5 var(--sans); color: #8a4b10; text-align: left; cursor: pointer; border-bottom: 1px dashed rgba(138,75,16,.35); }
+.p-link:hover { color: #b25c12; border-bottom-color: rgba(178,92,18,.7); }
+.p-link[hidden] { display: none; }
+.tag3d.w-loc { display: flex; flex-direction: column; align-items: center; gap: 2px; background: none; box-shadow: none; animation: none; text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 0 10px rgba(255,255,255,.8); }
+.tag3d.w-loc b { font: 600 12.5px/1.2 var(--sans); color: #1c2a44; }
+.tag3d.w-loc small { font: 11.5px/1.2 var(--sans); color: #8a4b10; opacity: 0; transition: opacity .15s; }
+.tag3d.w-loc:hover small, .tag3d.w-loc.hover small { opacity: 1; }
+.tag3d.w-card { width: 168px; padding: 7px 7px 8px; background: #fffdf7; border-radius: 4px; box-shadow: 0 6px 18px rgba(40,30,15,.28), 0 0 0 1px rgba(120,100,70,.12); text-shadow: none; white-space: normal; transform-origin: center; }
+.tag3d.w-card .w-fig { width: 100%; background-repeat: no-repeat; background-color: #f3eee3; border-radius: 2px; margin-bottom: 6px; }
+.tag3d.w-card .w-fig[hidden] { display: none; }
+.tag3d.w-card b { display: block; font: 600 13px/1.35 var(--song); color: var(--ink); }
+.tag3d.w-card small { display: block; font: 11px/1.4 var(--sans); color: var(--ink2); margin-top: 2px; }

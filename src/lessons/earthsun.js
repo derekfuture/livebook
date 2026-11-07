@@ -214,6 +214,7 @@ export default {
     return {
       debug: { S, layout },
       group,
+      globe,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.32, d: 0.32, h: 0.14 },

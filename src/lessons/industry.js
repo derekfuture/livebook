@@ -187,9 +187,12 @@ export default {
 
     layout();
 
+    let placeFn = null;
     return {
       debug: { S, layout },
       group,
+      // 地球主探索：点上海金山卫那面旗进来，直接选石油化工厂
+      place: (name) => placeFn?.(name),
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.34, d: 0.24, h: 0.08 },
@@ -197,6 +200,7 @@ export default {
       pointer,
       mount(ui) {
         const kindSeg = seg('建哪一种工厂', KINDS.map((k) => INDUSTRIES[k].name), (_, i) => { S.kind = KINDS[i]; layout(); drawLog(); ui.status(`${INDUSTRIES[S.kind].name}：拖地图上的“地点”，看哪些因素把它往哪边拉。`); }, { value: 0 });
+        placeFn = (name) => { const k = KINDS.indexOf(name); if (k >= 0 && kindSeg.index !== k) kindSeg.set(k, true); };
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
         const acts = buttons([
           { text: '记下这个方案', onClick: () => { S.no[S.kind] = (S.no[S.kind] || 0) + 1; const n = S.saved.filter((s) => s.kind === S.kind).length; if (n >= 3) S.saved.splice(S.saved.findIndex((s) => s.kind === S.kind), 1); S.saved.push({ kind: S.kind, label: `方案${S.no[S.kind]}`, ev: evaluate(S.kind, S.p), p: { ...S.p } }); S.tried.add(S.kind); layout(); drawLog(); } },          // 编号一直往上加，不重名；最多留三个
