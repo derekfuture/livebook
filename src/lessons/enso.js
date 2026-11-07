@@ -15,7 +15,7 @@ import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { sst, west, east, diff, riseX, sinkX, rainAmt, weather, upwell, stateName, stateKey, circulation } from './kit/enso.js';
 
-const XL = -0.17, XR = 0.17, ZD = 0.05, SEA = 0.03, AIR = 0.085;
+const XL = -0.17, XR = 0.17, ZD = 0.085, SEA = 0.03, AIR = 0.085;          // ZD：大洋南北方向的半宽（做宽一点，像一片大洋而不是一条水道）
 const X = (u) => XL + (XR - XL) * (u + 1) / 2, U = (x) => ((x - XL) / (XR - XL)) * 2 - 1;          // 模型 x（−1…1）↔ 画面 x
 const ASK = ['先猜一下（可以不猜）：在这个情境里，太平洋中东部海水变暖以后，中东部降水可能——', ['减少', '增加', '没变化']];
 const rnd = (() => { let s = 31; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
@@ -98,11 +98,11 @@ export default {
       return top;
     };
     const islands = new THREE.Group(); block.add(islands);
-    const islandSites = [[XL + 0.012, -0.02, 0.014], [XL + 0.03, 0.015, 0.012], [XL + 0.008, 0.03, 0.01]];
+    const islandSites = [[XL + 0.014, -0.045, 0.016], [XL + 0.034, 0.012, 0.013], [XL + 0.01, 0.05, 0.012], [XL + 0.046, -0.012, 0.009]];          // 印度尼西亚一带的群岛（示意）
     const islandHeight = (x, z, cx, cz, r) => SEA - 0.003 + 0.012 * Math.max(0, 1 - ((x - cx) / r) ** 2 - ((z - cz) / (r * 0.85)) ** 2) * (0.86 + 0.14 * Math.sin(x * 520) * Math.cos(z * 410));
     for (const [cx, cz, r] of islandSites) solid(cx - r, cx + r, cz - r, cz + r, (x, z) => islandHeight(x, z, cx, cz, r), 0x779650, 28, 28);
     const forest = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0017, 7, 5).scale(1, 1.25, 1).translate(0, 0.0034, 0), lit(0xffffff), 96), trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.0003, 0.00045, 0.0028, 5).translate(0, 0.0014, 0), lit(0x71563c), 96); forest.raycast = trunks.raycast = () => {}; block.add(forest, trunks);
-    { const m4 = new THREE.Matrix4(), c = new THREE.Color(); for (let k = 0; k < 96; k++) { const [cx, cz, r] = islandSites[k % 3], a = k * 2.39996, rr = Math.sqrt(((k * 37) % 97) / 97) * r * 0.65, x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr * 0.85; m4.makeScale(0.8 + (k % 5) * 0.09, 0.8 + (k % 7) * 0.08, 0.8 + (k % 5) * 0.09); m4.setPosition(x, islandHeight(x, z, cx, cz, r), z); forest.setMatrixAt(k, m4); trunks.setMatrixAt(k, m4); forest.setColorAt(k, c.setHex(0x426d36).multiplyScalar(0.85 + (k % 9) * 0.04)); } }
+    { const m4 = new THREE.Matrix4(), c = new THREE.Color(); for (let k = 0; k < 96; k++) { const [cx, cz, r] = islandSites[k % islandSites.length], a = k * 2.39996, rr = Math.sqrt(((k * 37) % 97) / 97) * r * 0.65, x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr * 0.85; m4.makeScale(0.8 + (k % 5) * 0.09, 0.8 + (k % 7) * 0.08, 0.8 + (k % 5) * 0.09); m4.setPosition(x, islandHeight(x, z, cx, cz, r), z); forest.setMatrixAt(k, m4); trunks.setMatrixAt(k, m4); forest.setColorAt(k, c.setHex(0x426d36).multiplyScalar(0.85 + (k % 9) * 0.04)); } }
     const fire = new THREE.Group(); block.add(fire);
     const fireTex = canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w * 0.7, 0, w / 2, w * 0.6, w / 2); gr.addColorStop(0, 'rgba(255,230,120,1)'); gr.addColorStop(0.4, 'rgba(255,120,40,0.9)'); gr.addColorStop(1, 'rgba(200,40,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     for (let k = 0; k < 6; k++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireTex, transparent: true, depthWrite: false })); s.position.set(XL + 0.008 + k * 0.005, SEA + 0.008, -0.02 + (k % 3) * 0.02); s.scale.set(0.008, 0.012, 1); s.raycast = () => {}; fire.add(s); }
@@ -219,8 +219,8 @@ export default {
       group,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
-      size: { w: 0.42, d: 0.12, h: 0.11 },
-      view: { elev: 24, azim: 10, lookY: 0.5, frameMargin: 1.08 },
+      size: { w: 0.42, d: 0.19, h: 0.11 },
+      view: { elev: 30, azim: 10, lookY: 0.5, frameMargin: 1.04 },
       pointer,
       mount(ui) {
         const stSeg = seg('直接选', ['拉尼娜', '正常年份', '厄尔尼诺'], (_, i) => { S.a = i - 1; events(); layout(); }, { value: 1 });
