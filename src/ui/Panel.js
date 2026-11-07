@@ -67,6 +67,13 @@ export class Panel {
     this._onStep = onStep;
     this.prediction = null;
     this.unlocked = false;
+    if (def.index) {          // 目录类的页（地球目录）：只有标题、一句介绍、一块控件区；没有“动手→对照课本原文”的步骤，也不盖章
+      this.explore = true; this.statusEl = h('p', { class: 'status' }); this.controlsEl = h('div'); this.dataEl = h('div'); this.nowEl = h('div', { class: 'now' }, this.statusEl);
+      el.append(h('div', { class: 'p-head' }, h('div', { class: 'p-fig' }, def.fig), h('h2', { class: 'p-title' }, def.title), h('div', { class: 'p-acts' }, h('button', { class: 'p-close', onclick: () => onClose() }, '放回书里 ↩'))),
+        h('div', { class: 'p-body' }, h('div', { class: 'p-step' }, h('p', { class: 'q ask', html: def.ask }), this.nowEl, this.controlsEl, this.dataEl)));
+      const noop = () => {};
+      return { controls: this.controlsEl, data: this.dataEl, status: (msg) => { this.statusEl.innerHTML = msg || ''; }, need: noop, unlock: noop, relock: noop, prediction: () => null, now: this.nowEl, el: this.el, go: noop };
+    }
     // 探索模式（地理）：不分“预测、实验、结论”三步——开头一个生活里的问题，下面直接动手看，最后对照课本原文
     const explore = this.explore = def.flow === 'explore';
 
@@ -199,6 +206,7 @@ export class Panel {
    * - 控件区里直接放着的长说明，收进“怎么操作”里，需要时点开看。
    */
   arrange() {
+    if (this.def?.index) return;          // 目录页没有出题、说明这些块
     const rows = [...this.controlsEl.querySelectorAll('.btn-row')].filter((r) => r.hidden && (r.children.length !== 1 || !r.children[0].textContent.trim()) && !r.dataset.keep);     // 0 个按钮的是出题时才填的
     for (const r of rows) { r.classList.add('answers'); this.askEl.append(r); }
     const notes = [...this.controlsEl.children].filter((x) => x.matches('p.note') && x.textContent.length > 24);

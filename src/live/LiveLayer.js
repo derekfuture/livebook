@@ -51,7 +51,7 @@ export class LiveLayer {
     this.opening = true;
     const { book, stage, textures } = this;
     const side = book.sideOf(spot.page);
-    const def = (await this.content.lessons[spot.lesson].load()).default;
+    const def = spot.def || (await this.content.lessons[spot.lesson].load()).default;          // spot.def：已经加载好的活页（地球目录这种不在课本某张图上的）
 
     const [x0, y0, x1, y1] = spot.bbox;
     const a = book.pageToWorld(spot.page, x0, y0, 0.002), b = book.pageToWorld(spot.page, x1, y1, 0.002);
@@ -73,6 +73,7 @@ export class LiveLayer {
     hole.position.copy(figCenter).y -= 0.0005;
     hole.receiveShadow = true;
     hole.renderOrder = 2;
+    if (spot.noFigure) card.visible = hole.visible = false;          // 不从某张图上揭下来（地球目录）：书页上不留白块
     stage.scene.add(card, hole);
 
     // 立体实验
@@ -87,7 +88,7 @@ export class LiveLayer {
     const stand = MODE === 'stand' && innerWidth > 760;
     let frameDir = null;          // 实验自己指定的取景方向（世界坐标）；没指定就用 view 里的 elev / azim
     const ctx = {
-      THREE, ink, camera: stage.camera, root: scaler, world, mode: world ? MODE : 'panel',
+      THREE, ink, camera: stage.camera, root: scaler, world, mode: world ? MODE : 'panel', spot,
       tag: (text, cls, onClick) => { const t = tag(text, cls, onClick); tags.push(t); return t; },
       ui: null,
       // 让实验临时换个机位（例如“从光屏一侧透过透镜看”），back() 回到原来的机位
@@ -302,11 +303,11 @@ export class LiveLayer {
     this._reframe();
   }
 
-  close() {
+  close({ quick = false } = {}) {
     const A = this.active;
     if (!A || A.closing) return;
     A.closing = true; tagFocus(null);
-    A.t = Math.min(A.t, 1.5);
+    A.t = Math.min(A.t, quick ? 0.5 : 1.5);          // quick：马上要打开另一张活页（从地球目录飞进去），收得快一点
     this.panel.close();
     A.nb?.dispose(); A.nb = null;
     if (A.board) { A.board.closing = true; }
@@ -355,8 +356,8 @@ export class LiveLayer {
     A.card.rotation.x = -Math.PI / 2 + lift * 0.35;
     A.card.material.opacity = 1 - fade;
     A.card.scale.setScalar(1 + lift * 0.06 - fade * 0.3);
-    A.card.visible = fade < 1;
-    A.hole.material.opacity = clamp01(t / 0.3);
+    A.card.visible = fade < 1 && !A.spot.noFigure;
+    A.hole.material.opacity = clamp01(t / 0.3); A.hole.visible = !A.spot.noFigure;
 
     // 立体图：从原图的位置弹出来，移到页面中间
     const pop = clamp01((t - 0.4) / 0.9);
