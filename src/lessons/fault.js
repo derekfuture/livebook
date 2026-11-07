@@ -174,7 +174,7 @@ export default {
     const shadowTex = canvasTex(256, 128, (g, w, hh) => { const gr = g.createRadialGradient(w / 2, hh / 2, 0, w / 2, hh / 2, w / 2); gr.addColorStop(0, 'rgba(60,45,30,0.4)'); gr.addColorStop(0.7, 'rgba(60,45,30,0.12)'); gr.addColorStop(1, 'rgba(60,45,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); });
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry((XR - XL) * 1.15, ZD * 2.6), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.0006; shadow.raycast = () => {}; shadow.userData.noFrame = true; group.add(shadow);
     const frameBox = new THREE.Mesh(new THREE.BoxGeometry(XR - XL + 0.06, 0.1, ZD * 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); frameBox.position.y = 0.05; frameBox.raycast = () => {}; group.add(frameBox);
-    const tHint = tag('', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，位移和演化阶段未作真实尺度标定');
+    const tHint = tag('', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，位移和演化阶段未作真实尺度标定；断层沿线的蓝色水带是沿断层发育的河流示意，沟谷下切的过程没有画出');
     const tW = airLabel(block, '', { h: 0.0105, color: '#2c3245', dim: 0 }), tM = airLabel(block, '', { h: 0.0105, color: '#2c3245', dim: 0 }), tFault = [0, 1].map(() => faceLabel(block, '断层', { h: 0.0095, color: '#ffffff', stroke: 'rgba(40,30,20,0.6)' })), tRoad = airLabel(block, '公路被错开了', { h: 0.0105, color: '#a8341f', icon: 'warn', dim: 0 });
     const callout = airLabel(block, '', { h: 0.0095, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
     callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收

@@ -61,7 +61,7 @@ export default {
     endSea(0); endSea(1);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2), new THREE.MeshBasicMaterial({ color: 0x2858a0, side: THREE.DoubleSide })); floor.rotation.x = -Math.PI / 2; floor.position.y = 0.0001; block.add(floor);
     const seaCv = document.createElement('canvas'); seaCv.width = 512; seaCv.height = 128; const seaTex = new THREE.CanvasTexture(seaCv); seaTex.colorSpace = THREE.SRGBColorSpace;
-    const seaTop = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2, 150, 48), new THREE.MeshStandardMaterial({ map: seaTex, roughness: 0.36, metalness: 0.08, side: THREE.DoubleSide })); seaTop.rotation.x = -Math.PI / 2; seaTop.position.y = SEA + 0.0003; block.add(seaTop);
+    const seaTop = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2, 150, 48), new THREE.MeshBasicMaterial({ map: seaTex, side: THREE.DoubleSide })); seaTop.rotation.x = -Math.PI / 2; seaTop.position.y = SEA + 0.0003; block.add(seaTop);
     // 微波只改变法线与光泽，不改变海温配色，也不盖住剖面。
     const waveP = seaTop.geometry.attributes.position;
     for (let i = 0; i < waveP.count; i++) { const x = waveP.getX(i), z = waveP.getY(i), edge = Math.min(1, (ZD - Math.abs(z)) / 0.004, (XR - Math.abs(x)) / 0.004); waveP.setZ(i, Math.max(0, edge) * (0.00028 * Math.sin(x * 510 + z * 180) + 0.00016 * Math.sin(z * 740 - x * 230))); }
@@ -70,7 +70,7 @@ export default {
     const glints = [], waveY = (x, z) => SEA + 0.0003 + 0.00028 * Math.sin(x * 510 - z * 180) + 0.00016 * Math.sin(-z * 740 - x * 230);
     for (let k = 0; k < 220; k++) { const x = XL + 0.005 + ((k * 0.618034) % 1) * (XR - XL - 0.01), z = -ZD + 0.004 + ((k * 0.414214) % 1) * (2 * ZD - 0.008); for (let j = 0; j < 3; j++) { const a = x + j * 0.0007, b = a + 0.0007; glints.push(a, waveY(a, z) + 0.00015, z, b, waveY(b, z + 0.00012) + 0.00015, z + 0.00012); } }
     const shine = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(glints, 3)), new THREE.LineBasicMaterial({ color: 0xfff4dc, transparent: true, opacity: 0.22, depthWrite: false })); shine.raycast = () => {}; block.add(shine);
-    const paintTop = () => { const g = seaCv.getContext('2d'), R2 = (() => { let q = 7; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })(); for (let i = 0; i < 512; i++) { const u = (i / 511) * 2 - 1; g.fillStyle = col(sst(u, S.a)); g.fillRect(i, 0, 1, 128); } g.fillStyle = 'rgba(30,100,160,0.22)'; g.fillRect(0, 0, 512, 128); for (let k = 0; k < 260; k++) { const x = R2() * 512, y = R2() * 128, l = 6 + R2() * 14; g.strokeStyle = `rgba(255,255,255,${0.08 + R2() * 0.14})`; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + l / 2, y - 1.5, x + l, y); g.stroke(); } seaTex.needsUpdate = true; };          // 海面按表层水温着色：越红越暖
+    const paintTop = () => { const g = seaCv.getContext('2d'), R2 = (() => { let q = 7; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })(); for (let i = 0; i < 512; i++) { const u = (i / 511) * 2 - 1; g.fillStyle = col(sst(u, S.a)); g.fillRect(i, 0, 1, 128); } for (let k = 0; k < 260; k++) { const x = R2() * 512, y = R2() * 128, l = 6 + R2() * 14; g.strokeStyle = `rgba(255,255,255,${0.08 + R2() * 0.14})`; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + l / 2, y - 1.5, x + l, y); g.stroke(); } seaTex.needsUpdate = true; };          // 海面按表层水温着色：越红越暖
     const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(XR - XL, SEA, ZD * 2)), new THREE.LineBasicMaterial({ color: 0x1f3550, transparent: true, opacity: 0.5 })); frame.position.y = SEA / 2; block.add(frame);
 
     // ---- 两岸：西边一串小岛（雨林、村子），东边秘鲁沿海（干的海岸、安第斯山） ----
@@ -149,7 +149,7 @@ export default {
     // ---- 暖水：海面下那团可以推的“暖水”（一个半透明的红色把手） ----
     const handle = new THREE.Mesh(new THREE.SphereGeometry(0.009, 20, 14), new THREE.MeshStandardMaterial({ color: 0xe0583a, transparent: true, opacity: 0.85, emissive: 0x5a1a10, emissiveIntensity: 0.4 })); block.add(handle);
     const handlePick = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 6), new THREE.MeshBasicMaterial({ visible: false })); handlePick.userData.pick = true; handle.add(handlePick);
-    const tHint = tag('<span>按住这团暖水</span><small>往东（右）推、往西（左）推</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，海温和环流的位置是示意；拖动只是切换状态，不是在模拟成因');
+    const tHint = tag('<span>按住这团暖水</span><small>往东（右）推、往西（左）推</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，海温和环流的位置是示意；温跃层只示意东部加深、东西倾斜减小，未模拟西部变浅等变化；拖动只是切换状态，不是在模拟成因');
     const tW = airLabel(block, '', { h: 0.0095, color: '#2c3245', icon: 'thermo' }), tE = airLabel(block, '', { h: 0.0095, color: '#2c3245', icon: 'thermo' }), tState = airLabel(block, '', { h: 0.013, color: '#a8341f' });
     faceLabel(block, '西太平洋（印度尼西亚一带）', { x: XL + 0.05, y: 0.007, z: ZD, h: 0.008, color: '#ffffff', stroke: 'rgba(15,30,70,0.6)' }); faceLabel(block, '东太平洋（秘鲁沿海）', { x: XR - 0.045, y: 0.007, z: ZD, h: 0.008, color: '#ffffff', stroke: 'rgba(15,30,70,0.6)' });          // 地名写在剖面底下
     const callout = airLabel(block, '', { h: 0.0095, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;

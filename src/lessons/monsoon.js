@@ -122,7 +122,8 @@ export default {
       const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(); let k = 0;
       for (let j = 0; j < 9; j++) for (let i = 0; i < 14; i++) {
         const u = (i + 0.5) / 14, lat = 4 + (j + 0.5) * (52 / 9), [we, wn] = wind(u, lat, S.m, S.land), sp = Math.hypot(we, wn), L = Math.min(0.016, 0.004 + sp * 0.0011);
-        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-we, wn)); s.set(L * 0.5, 1, L); p.set(X(u), symbolY(X(u), Z(lat)) + 0.004, Z(lat)); m4.compose(p, q, s); arrows.setMatrixAt(k++, m4);          // 北是 −z：往北吹的风箭头尖朝 −z
+        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-we, wn)); s.set(L * 0.5, 1, L); if (sp < 0.05) s.setScalar(1e-4);          // 和 windName、cityWeather 同一个静风阈值
+        p.set(X(u), symbolY(X(u), Z(lat)) + 0.004, Z(lat)); m4.compose(p, q, s); arrows.setMatrixAt(k++, m4);          // 北是 −z：往北吹的风箭头尖朝 −z；风速近乎为零（静风）就不画有方向的箭头
       }
       arrows.instanceMatrix.needsUpdate = true;
     };
@@ -171,7 +172,7 @@ export default {
     const dialPick = new THREE.Mesh(new THREE.CylinderGeometry(DR, DR, 0.006, 24), new THREE.MeshBasicMaterial({ visible: false })); dialPick.userData.pick = true; dial.add(dialPick);
     const aDial = airLabel(block, '', { h: 0.0095, color: '#a8341f' }); aDial.position.set(dial.position.x, 0.016, dial.position.z - DR - 0.006);
     const tHint = tag('<span>转这个月份盘</span><small>拨到夏季（7 月前后）看看</small>', 'hint');
-    noteBadge(tag, '教学示意：大陆和大洋是理想化的，不是真实地图；气压、风速、海陆温差都是示意；固定右偏 45°仅示意中纬度近地面风向，不适用于赤道附近').loc(block, XL + 0.012, -0.002, ZS + 0.01);
+    noteBadge(tag, '教学示意：大陆和大洋是理想化的，不是真实地图；等压线表示海平面气压的相对分布，线条贴着地形只是为了显示，地形的动力、热力作用没有模拟；气压、风速、海陆温差都是示意；固定右偏 45°仅示意中纬度近地面风向，不适用于赤道附近').loc(block, XL + 0.012, -0.002, ZS + 0.01);
     const labels = [...centerL, aColL, aColS, aCity, aDial];
 
     // ---- 摆好 ----
