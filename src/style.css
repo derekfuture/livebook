@@ -822,3 +822,62 @@ body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(
 .hover-tip.on { opacity: 1; }
 .hover-tip::after { content: ""; position: absolute; left: 50%; top: -4px; width: 14px; height: 7px; margin-left: -7px; background: rgba(230,215,170,.75); transform: rotate(-4deg); }
 .ask-mini { margin: 0 0 10px; padding: 6px 10px; font: 13.5px/1.6 var(--song); color: #4a3f2e; background: rgba(176,114,58,.07); border-left: 2px solid rgba(176,114,58,.5); }
+
+/* ================= 地理世界：左边的目录页（像课本开头的目录：纸、粗细两道线、书名点线到张数/页码），不是活页那种问题卡 ================= */
+.geo-toc { position: fixed; left: 22px; top: 72px; z-index: 6; width: 292px; max-height: calc(100vh - 100px); display: flex; flex-direction: column; padding: 22px 22px 14px; color: #2a2f3d;
+  background: radial-gradient(120% 80% at 30% 0%, rgba(255,255,255,.55), transparent 60%), repeating-linear-gradient(0deg, rgba(120,100,60,.025) 0 1px, transparent 1px 3px), #f8f2e3;
+  border-radius: 3px; box-shadow: 0 18px 40px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.25), inset 0 0 0 1px rgba(120,100,60,.18), inset 0 0 40px rgba(160,130,80,.12);
+  transition: transform .55s cubic-bezier(.3,.8,.2,1), opacity .4s; }
+.geo-toc.folded { transform: translateX(calc(-100% - 40px)); }
+.geo-toc.leaving, .geo-toc-spine.leaving { opacity: 0; pointer-events: none; }
+.geo-toc .gt-tuck { position: absolute; right: 10px; top: 8px; border: 0; background: none; font: 26px/1 var(--song); color: #8a7d64; cursor: pointer; padding: 2px 6px; }
+.geo-toc .gt-tuck:hover { color: #1f4f8f; }
+.geo-toc .gt-pre { font: 12px/1 var(--song); letter-spacing: .32em; text-indent: .32em; color: #8a7d64; text-align: center; }
+.geo-toc .gt-title { margin: 10px 0 11px; font: 700 30px/1.15 var(--song); letter-spacing: .34em; text-indent: .34em; color: #1f2a44; text-align: center; }
+.geo-toc .gt-rule { height: 4px; border-top: 1.6px solid #2a2f3d; border-bottom: .8px solid #2a2f3d; }          /* 课本扉页那种一粗一细两道线 */
+.geo-toc .gt-sub { display: flex; justify-content: space-between; align-items: baseline; margin: 9px 0 8px; font: 12px/1.4 var(--song); color: #8a7d64; }
+.geo-toc .gt-sub span:nth-child(2) { font: 600 14px/1.4 var(--song); letter-spacing: .5em; text-indent: .5em; color: #2a2f3d; }
+.geo-toc .gt-list { overflow: auto; margin: 0 -8px; padding: 0 8px; }
+.geo-toc .gt-list::-webkit-scrollbar { width: 5px; } .geo-toc .gt-list::-webkit-scrollbar-thumb { background: rgba(120,100,60,.25); border-radius: 3px; }
+.geo-toc .gt-book, .geo-toc .gt-row { display: flex; align-items: baseline; width: 100%; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; padding: 0; }
+.geo-toc .gt-book { gap: 8px; padding: 8px 0; font: 600 15px/1.35 var(--song); letter-spacing: .04em; border-top: 1px solid rgba(120,100,60,.14); }
+.geo-toc .gt-book:first-child { border-top: 0; }
+.geo-toc .gt-book i { width: 9px; height: 9px; border-radius: 1px; flex: none; transform: translateY(-1px); box-shadow: 0 0 0 1.5px rgba(255,255,255,.8); }          /* 一本书一个颜色，和地球上的旗一样 */
+.geo-toc em { flex: 1; min-width: 14px; border-bottom: 1.6px dotted rgba(90,74,50,.42); transform: translateY(-4px); }          /* 点线连到张数、页码 */
+.geo-toc .gt-book b, .geo-toc .gt-row b { font: 500 13px/1 var(--song); color: #6a5d48; font-variant-numeric: tabular-nums; }
+.geo-toc .gt-book span { transition: color .2s; }
+.geo-toc .gt-book:hover span, .geo-toc .gt-book.on span { color: #1f4f8f; }
+.geo-toc .gt-lessons { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.3,.8,.2,1); }
+.geo-toc .gt-lessons.open { grid-template-rows: 1fr; }
+.geo-toc .gt-in { min-height: 0; overflow: hidden; }
+.geo-toc .gt-row { gap: 6px; padding: 5px 0 5px 17px; font: 13.5px/1.4 var(--song); color: #3a3326; }
+.geo-toc .gt-row small { flex: none; width: 40px; font: 11px/1 var(--sans); color: #9a8d76; }
+.geo-toc .gt-row span { transition: color .2s; }
+.geo-toc .gt-row:hover span, .geo-toc .gt-row.on span { color: #1f4f8f; }
+.geo-toc .gt-row:last-child { padding-bottom: 9px; }
+.geo-toc .gt-row.done span::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; background: #c8341f; transform: translateY(-2px); }          /* 盖过章的：一个小红点 */
+.geo-toc .gt-foot { margin: 8px 0 0; padding-top: 9px; border-top: 1px solid rgba(120,100,60,.22); font: 12px/1.6 var(--song); color: #8a7d64; }
+/* 收起以后：左边一条书脊（顶上一截红书签带），点它再打开 */
+.geo-toc-spine { position: fixed; left: 0; top: 50%; z-index: 6; transform: translate(-120%, -50%); padding: 22px 9px; border: 0; border-radius: 0 3px 3px 0; cursor: pointer; color: #2a2f3d;
+  background: repeating-linear-gradient(0deg, rgba(120,100,60,.025) 0 1px, transparent 1px 3px), #f3ead6; box-shadow: 0 8px 22px rgba(0,0,0,.4), inset 0 0 0 1px rgba(120,100,60,.2);
+  font: 600 14px/1.6 var(--song); letter-spacing: .5em; writing-mode: vertical-rl; transition: transform .45s cubic-bezier(.3,.8,.2,1) .15s, opacity .4s, background .2s; }
+.geo-toc-spine.on { transform: translate(0, -50%); }
+.geo-toc-spine:hover { background: #fff6e2; }
+.geo-toc-spine::after { content: ""; position: absolute; right: 7px; top: -5px; width: 6px; height: 24px; background: #b8322c; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+
+/* 右上角的看法：一条细金线的分段，选中的那一格是一张纸（滑过去）；下面是这一种的图例和“进到那张活页” */
+.geo-now .gv { margin-bottom: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 9px; pointer-events: auto; }
+.geo-now .gv-seg { position: relative; display: inline-flex; padding: 3px; border-radius: 999px; background: rgba(10,15,30,.45); box-shadow: inset 0 0 0 1px rgba(214,177,110,.5); backdrop-filter: blur(6px); }
+.geo-now .gv-seg button { position: relative; z-index: 1; border: 0; background: none; padding: 7px 16px; font: 600 13.5px/1 var(--song); letter-spacing: .16em; text-indent: .16em; color: #e9dfca; cursor: pointer; transition: color .35s; text-shadow: none; }
+.geo-now .gv-seg button:hover { color: #fff; }
+.geo-now .gv-seg button.on { color: #2a2218; }
+.geo-now .gv-thumb { position: absolute; left: 0; top: 3px; bottom: 3px; border-radius: 999px; background: linear-gradient(180deg, #fbf5e6, #ecdfbf); box-shadow: 0 2px 8px rgba(0,0,0,.35), inset 0 0 10px rgba(160,130,80,.18); transition: transform .45s cubic-bezier(.3,.8,.2,1), width .45s cubic-bezier(.3,.8,.2,1); }
+.geo-now .gv-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 13px; max-width: 290px; font: 12.5px/1.5 var(--sans); color: #e6dcc6; }
+.geo-now .gv-legend[hidden] { display: none; }
+.geo-now .gv-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.geo-now .gv-legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
+.geo-now .gv-legend i.sq { width: 11px; height: 11px; border-radius: 2px; opacity: .9; }
+.geo-now .gv-legend small { flex-basis: 100%; text-align: right; font-size: 11.5px; color: #a3aec4; }
+.geo-now .gv-go { border: 0; background: none; padding: 0; color: #f1d79f; font: 600 12.5px/1.4 var(--song); letter-spacing: .04em; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-shadow: 0 1px 8px rgba(5,9,20,.9); }
+.geo-now .gv-go:hover { color: #fff; }
+.geo-now.alt-view .gn-line, .geo-now.alt-view .gn-sky { display: none; }          /* 看板块、气压带时：时刻只留日期那一行 */

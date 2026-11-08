@@ -8,7 +8,7 @@ import { ll2v } from '../lessons/kit/plates.js';
 import { ANCHORS } from '../lessons/kit/atlas.js';
 import { bookList, getBook, getManifest, fileUrl } from '../content/index.js';
 import { tag, updateTags } from '../ui/tags.js';
-import { Panel, h, stamps } from '../ui/Panel.js';
+import { h, stamps } from '../ui/Panel.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { timeCard } from './timeCard.js';
 import { TERRAIN, loadTerrain, globePatch, frameAt, toLocal, elevAt, terrainBlock, blockPose } from './terrain.js';
@@ -120,7 +120,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
 
   // ---- 镜头：地球在中间偏上，书圈在下面，一起框进来 ----
   const shot = (instant = false) => {
-    const panelW = Math.min(380, innerWidth * 0.4) + 16;          // 目录占的宽度
+    const panelW = 22 + 336 + 24;          // 左边目录页占的宽度（.geo-toc：离边 22、宽 336），再留一点空
     stage.cameraOffsetX = panelOpen() ? panelW / 2 : 0; stage.cameraOffsetY = 0;
     const el = THREE.MathUtils.degToRad(15), dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el));
     // 要框进画面的：地球顶（上面留一行提示）、正前方那本书的名字、书圈左右两头。远近一直按“目录开着”算：收起目录只把画面挪到正中，不整体放大
@@ -138,36 +138,67 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   };
 
 
-  // ---- 侧栏：按书列出活页（颜色和旗一样） ----
-  const panel = new Panel($('#panel'));
-  const panelOpen = () => !$('#panel').hidden;
+  // ---- 左边：这个世界的“目录页”。像课本开头的目录：书名、点线、活页张数；点一本书，展开它的活页（点线连到页码）。
+  //      不是活页里那种问题、步骤的纸卡。可以收起成左边的一条书脊，点书脊再打开 ----
+  const bookName = (b) => b.full.replace(/^人教版\s*/, '').replace(/^地理\s*/, '');
+  const toc = h('aside', { class: 'geo-toc' });
+  const spine = h('button', { class: 'geo-toc-spine', title: '打开目录', onclick: () => setToc(true) }, h('span', {}, '目录'));
+  document.body.append(toc, spine);
+  const panelOpen = () => !toc.classList.contains('folded');
+  function setToc(on) { toc.classList.toggle('folded', !on); spine.classList.toggle('on', !on); shot(); }
+  const uiLeave = (on) => { toc.classList.toggle('leaving', on); spine.classList.toggle('leaving', on); };
   const rows = new Map(), groups = new Map();
   let frontId = null;
-  const setFront = (id) => { if (id === frontId) return; frontId = id; for (const [k, g] of groups) { g.classList.toggle('open', k === id); g.previousSibling?.classList.toggle('on', k === id); } };          // 侧栏只展开书圈正前方那本书的活页
-  const openPanel = () => {
-    const ui = panel.open({ id: 'geo-world', index: true, fig: '人教版 · 地理', title: '地理世界', ask: '课本里讲的这些事，发生在地球的哪里？' }, { onClose: () => { panel.close(); shot(); }, closeText: '收起 ‹' });
-    panel.el.classList.add('board');
-    const list = h('div', { class: 'atlas-list' });
+  const openBookList = (id) => { for (const [k, g] of groups) { g.el.classList.toggle('open', k === id); g.head.classList.toggle('on', k === id); } };
+  const setFront = (id) => { if (id === frontId) return; frontId = id; openBookList(id); };          // 书圈转到正前方的那本书，目录里就展开它
+  {
+    const list = h('div', { class: 'gt-list' });
     for (const b of books) {
-      const mine = items.filter((x) => x.book.id === b.id), grp = h('div', { class: 'atlas-grp' });
-      list.append(h('div', { class: 'atlas-ch', 'data-book': b.id, onclick: () => { const bo = bookObjs.find((x) => x.b.id === b.id); if (bo) spinTo(bo); } }, h('i', { style: `background:${BOOK_COLORS[b.id]}` }), b.full.replace(/^人教版\s*/, ''), h('em', {}, `${mine.length} 张`)), grp);
-      groups.set(b.id, grp);
+      const mine = items.filter((x) => x.book.id === b.id), bo = () => bookObjs.find((x) => x.b.id === b.id);
+      const head = h('button', { class: 'gt-book', onclick: () => { if (bo()) spinTo(bo()); openBookList(b.id); }, onmouseenter: () => { bookHot = bo(); }, onmouseleave: () => { bookHot = null; } },
+        h('i', { style: `background:${BOOK_COLORS[b.id]}` }), h('span', {}, bookName(b)), h('em'), h('b', {}, `${mine.length}`));
+      const inner = h('div', { class: 'gt-in' }), el = h('div', { class: 'gt-lessons' }, inner);          // 展开、收起：外层从 0 高变到原高（里面一层负责裁掉）
       for (const it of mine) {
-        const a = it.anchor, sub = a.kind === 'place' ? a.pins.map((p) => p.name.split('：')[0]).join('、') : a.note ? a.note.replace(/^整个地球：/, '') : '原理';
-        const row = h('button', { class: 'atlas-row', onclick: () => go(it), onmouseenter: () => hover({ it }, true), onmouseleave: () => hover(null, true) },
-          h('span', { class: `atlas-kind k-${a.kind}` }, { place: '地点', globe: '整个地球', idea: '原理' }[a.kind]), h('b', {}, it.title), h('small', {}, `${it.fig} · 第 ${it.page} 页 · ${sub}`));
+        const row = h('button', { class: 'gt-row', onclick: () => go(it), onmouseenter: () => hover({ it }, true), onmouseleave: () => hover(null, true) },
+          h('small', {}, it.fig), h('span', {}, it.title), h('em'), h('b', {}, `${it.page}`));
         if (stamps.has(it.id)) row.classList.add('done');
-        rows.set(it.id, row); grp.append(row);
+        rows.set(it.id, row); inner.append(row);
       }
+      groups.set(b.id, { el, head }); list.append(head, el);
     }
-    ui.controls.append(list);
-    ui.status(`${books.length} 本地理书、${items.length} 张活页。课本里举了具体地方的，地球上都插了一面旗，颜色是它所在的那本书。`);
-  };
-  openPanel();
+    toc.append(
+      h('button', { class: 'gt-tuck', title: '收起目录', onclick: () => setToc(false) }, '‹'),
+      h('div', { class: 'gt-pre' }, '人教版 · 初中 高中'),
+      h('h1', { class: 'gt-title' }, '地理世界'),
+      h('div', { class: 'gt-rule' }),
+      h('div', { class: 'gt-sub' }, h('span', {}, `${books.length} 册课本`), h('span', {}, '目 录'), h('span', {}, `${items.length} 张活页`)),
+      list,
+      h('p', { class: 'gt-foot' }, '拖着地球转一转；指着一面旗，看它在哪本书；点下去，翻到那一页'));
+  }
   shot(true);
-
-  const hint = tag('<span>拖着地球转一转</span><small>指着一面旗看它在哪本书；点下去，翻到那一页</small>', 'hint');
   let touched = false;
+
+  // ---- 看法：昼夜 / 板块 / 气压带，一次看一种。写在右上角“现在这一刻”的读数上面——右边这一列说的都是“地球上现在显示的是什么”。
+  //      选中的那一格是一张纸，滑过去；下面跟着这一种的图例和“进到那张活页” ----
+  const VIEWS = [['sun', '昼夜'], ['plates', '板块'], ['belts', '气压带']].map(([id, label]) => ({ id, label, it: items.find((x) => x.anchor.layer === id) })).filter((v) => v.it);
+  const LEGEND = {
+    plates: '<span><i style="background:#d8342c"></i>生长边界</span><span><i style="background:#23a04e"></i>汇聚边界</span><span><i style="background:#8a8e96"></i>转换边界</span>',          // 和板块那张活页同一套颜色、同样的叫法
+    belts: '<span><i class="sq" style="background:#e67a61"></i>高压带</span><span><i class="sq" style="background:#5785db"></i>低压带</span><small>理想模型：先假设地表均匀</small>',
+  };
+  let view = VIEWS[0];
+  const thumb = h('i', { class: 'gv-thumb' }), segs = VIEWS.map((v) => h('button', { 'data-id': v.id, onclick: () => setView(v) }, v.label));
+  const legend = h('div', { class: 'gv-legend', hidden: true }), enter = h('button', { class: 'gv-go', onclick: () => go(view.it) });
+  time.el.prepend(h('div', { class: 'gv' }, h('div', { class: 'gv-seg' }, thumb, ...segs), legend, enter));
+  function setView(v, init = false) {
+    view = v; earth.setLayer(layerOf(v.it));
+    segs.forEach((b) => b.classList.toggle('on', b.dataset.id === v.id));
+    const b = segs.find((x) => x.dataset.id === v.id); thumb.style.width = `${b.offsetWidth}px`; thumb.style.transform = `translateX(${b.offsetLeft}px)`;
+    legend.innerHTML = LEGEND[v.id] || ''; legend.hidden = !LEGEND[v.id];
+    enter.textContent = `进到“${v.it.title}” →`;
+    time.el.classList.toggle('alt-view', v.id !== 'sun');          // 看板块、气压带时，下面的时刻读数收起来，让出图例
+    if (!init && v.id === 'sun') earth.turnTo(time.city.lat, time.city.lon, stage.camera);
+  }
+  requestAnimationFrame(() => setView(view, true)); document.fonts?.ready.then(() => setView(view, true));          // 字体到了，格子宽度会变：再量一次
 
   // ---- 指着旗、书、侧栏的名字：旗亮、书亮、明信片 ----
   let hovered = null, cardFor = null;
@@ -177,7 +208,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (x?.pn && TERRAIN[x.pn.place]) loadTerrain(TERRAIN[x.pn.place]);          // 指着就先下这座山的地形和影像，点下去不用等
     for (const [id, r] of rows) r.classList.toggle('on', !!x && id === x.it.id);
     if (fromPanel && x?.it.anchor.kind === 'place') { const p = x.it.anchor.pins[0]; earth.turnTo(p.lat, p.lon, stage.camera); }
-    earth.setLayer(x?.it.anchor.kind === 'globe' ? layerOf(x.it) : null);          // 指着整个地球的活页（板块、气压带）时，地球上叠出那一层看看
+    earth.setLayer(x?.it.anchor.kind === 'globe' ? layerOf(x.it) : layerOf(view?.it));          // 指着整个地球的活页（板块、气压带）时，地球上叠出那一层看看；移开回到选着的看法
     if (!x?.pn) { card.show(false); cardFor = null; return; }
     if (cardFor !== x) {
       cardFor = x; const it = x.it, [x0, y0, x1, y1] = it.spot.bbox, man = manifests[it.book.id], PW = man.pageSize[0], PH = man.pageSize[1];
@@ -210,7 +241,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (leaving) return;
     leaving = { bo, url, corner, t: 0 }; touched = true; hover(null); card.show(false); bookHot = null;
     spinTo(bo);
-    $('#panel').classList.add('leaving');
+    uiLeave(true);
   }
   const DAY = { bg: new THREE.Color(0xe9e1d3), hemi: [new THREE.Color(0xfffaf2), new THREE.Color(0xb8a890), 1.75], sun: [new THREE.Color(0xfff6e8), 1.7, new THREE.Vector3(-2.2, 6.5, 3.2)] };          // 书里白天书桌的灯光（同 Stage.js）
   const hemi = (() => { let x = null; stage.scene.traverse((o) => { if (o.isHemisphereLight) x = o; }); return x; })();
@@ -282,7 +313,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     arriving = { L: transSetup(bo, false), raw: 1, t: 0, frames: 0 };
     transApply(arriving.L, 1);
     stage.shot({ ...arriving.L.shot, instant: true }); stage.cameraOffsetX = 0; stage.calm = true;
-    $('#panel').classList.add('leaving');
+    uiLeave(true);
   }
   function arriveStep(dt) {
     const A = arriving; A.t += dt;
@@ -298,7 +329,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     const bo = A.L.bo;          // 落回书圈：书放回原来的位置，材质恢复不透明
     bo.lean.attach(bo.mesh); bo.mesh.position.set(0, RING.h / 2, 0); bo.mesh.quaternion.identity(); bo.mesh.scale.setScalar(1); bo.label.show(true);
     for (const o of bookObjs) { o.mesh.castShadow = true; o.mesh.visible = true; for (const mt of o.mesh.material) { mt.depthWrite = true; mt.opacity = 1; } }
-    $('#panel').classList.remove('leaving');
+    uiLeave(false);
     arriving = null;
   }
   // 一个球在屏幕上的样子（位置、离镜头多远、看上去多大），和反过来按屏幕上的样子摆回去（同 World.js 的 _scr/_blend）
@@ -328,7 +359,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     const def = TERRAIN[pn.place];
     diving = { it, pn, bo, def, t: 0, phase: 'turn' };
     touched = true; hover(null); card.show(false); bookHot = null;
-    $('#panel').classList.add('leaving');
+    uiLeave(true);
     earth.turnTo(def.target[0], def.target[1], stage.camera); earth.setActive({ it, pn });
     loadTerrain(def).then(() => { if (!diving) return; diving.P = globePatch(def); earth.spin.add(diving.P.mesh, diving.P.cut); });
   }
@@ -393,7 +424,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       floor.material.opacity = 1; glowPool.material.opacity = 1; map.material.uniforms.fade.value = 1; orbit.material.opacity = 0.85; worldFade = 0; earth.cloudWant = 1; earth.haloM.uniforms.k.value = 1; earth.nowK = 1;
       stars.children.forEach((pt) => { pt.material.opacity = 1; }); earth.setLook({ pins: true }); earth.root.scale.setScalar(EARTH.r); earth.root.position.set(0, EARTH.y, 0);
       const L = D.light; hemi.color.copy(L.hc); hemi.groundColor.copy(L.hg); hemi.intensity = L.hi; stage.sun.color.copy(L.sc); stage.sun.intensity = L.si; stage.sun.position.copy(L.sp);
-      stage.calm = false; diving = null; $('#panel').classList.remove('leaving'); shot();
+      stage.calm = false; diving = null; uiLeave(false); shot();
       return;
     }
     if (D.phase === 'arrive') {
@@ -582,9 +613,8 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     }
     // 明信片跟着旗
     if (cardFor?.pn) { const cam = stage.camera, right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), w = earth.pinWorld(cardFor.pn), toRight = (cardFor.pn.side ?? 1) < 0, edge = earth.root.position.clone().addScaledVector(right, EARTH.r * (toRight ? 1 : -1)); const sx = (edge.clone().project(cam).x + 1) / 2 * innerWidth + (toRight ? 1 : -1) * ((card.el.offsetWidth || 214) / 2 + 22), sy = ((1 - w.clone().project(cam).y) / 2) * innerHeight; card.at(new THREE.Vector3((sx / innerWidth) * 2 - 1, 1 - (sy / innerHeight) * 2, 0.5).unproject(cam)); }
-    const E0 = new THREE.Vector3(0, EARTH.y, 0);          // 提示钉在地球不浮动时的位置上（地球轻轻浮着，字不跟着晃）
 
-    hint.at(E0.clone().add(new THREE.Vector3(0, EARTH.r + 0.2, 0))).show(!touched && !arriving && !diving);
+
     if (leaving) { leaving.t += dt; land(dt); }
     if (diving) diveStep(dt);
     if (arriving) arriveStep(dt);
