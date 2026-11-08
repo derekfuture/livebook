@@ -59,9 +59,9 @@ export default {
   },
   need: '把校园模型变成地图，看楼房、树木怎样变成符号；点没写名字的符号，补全图例；按指向标转好“八个方向”，读出图书馆在池塘的什么方向；用分规量校门到教学楼门口的距离，用线段比例尺读出、用数字比例尺算出实地距离',
   conclusion: {
-    crops: [{ page: 32, rect: [165, 205, 456, 285] }, { page: 32, rect: [200, 325, 292, 578] }],
+    crops: [{ page: 32, rect: [185, 198, 458, 306] }, { page: 32, rect: [200, 325, 292, 578] }],
     quote: '地图是运用各种符号，将地理事物按一定的比例缩小以后表示在平面上的图像。方向、图例和比例尺是地图的“语言”，阅读地图应当明确这些“语言”的含义。方向：有的地图用指向标指示方向，有的地图用经纬线指示方向。图例：对地图上各种符号和注记的说明。比例尺：表示图上距离比实地距离缩小的程度。比例尺 = 图上距离 / 实地距离。',
-    why: '模型压成地图：楼房、树木只剩从正上方看到的样子，用符号画在纸上；图例说明每个符号表示什么（蓝色的是<b>水体</b>，池塘、河流、湖泊都用它）。<br>这张图有指向标，指向标指向右上方：图书馆画在池塘正上方，按指向标读，在池塘的<b>西北</b>方向；按“上北下南”读成“北”就错了。<br>分规量得校门到教学楼门口图上 8.0 厘米，放到线段比例尺上是 80 米；用数字比例尺算：1∶1 000 表示图上 1 厘米代表实地 1 000 厘米（10 米），8.0 厘米 × 1 000 = 8 000 厘米 = <b>80 米</b>。',
+    why: '模型变成地图：从上方看各种东西的位置和占地范围，按比例缩小，再用符号和注记画在纸上；图例说明各种符号和注记表示什么（这张图用蓝色表示<b>水体</b>，那一块是池塘）。<br>这张图有指向标，指向标指向右上方：图书馆画在池塘正上方，按指向标读，在池塘的<b>西北</b>方向；按“上北下南”读成“北”就错了。<br>分规量得校门到教学楼门口图上 8.0 厘米，放到线段比例尺上是 80 米；用数字比例尺算：1∶1 000 表示图上 1 厘米代表实地 1 000 厘米（10 米），8.0 厘米 × 1 000 = 8 000 厘米 = <b>80 米</b>。',
     src: '课本七年级上册第 28—31 页 · 第二章 第一节 地图的阅读（地图的语言；阅读地图；活动：学习阅读地图）',
   },
 
@@ -245,7 +245,7 @@ export default {
         if (S.kT === 1 && !S.flat) {
           S.flat = true; done('flat'); sfx.clink?.({ freq: 660, gain: 0.03 });
           log(['模型压成地图', '楼房、树木只剩从正上方看到的样子，画成符号']);
-          status('楼房、树木都矮了下去，只剩<b>从正上方看到的样子</b>，用<b>符号</b>画在纸上：这就是地图。地图和模型一样大：图上 1 厘米代表实地 1 000 厘米（10 米），纸上写着比例尺 <b>1∶1 000</b>。图例里有三个符号还没写名字：点地图上的这些符号，看看它们是什么。');
+          status('从上方看，楼房、树木只剩<b>位置和占地范围</b>；按比例缩小，再用<b>符号和注记</b>画在纸上：这就是地图。地图和模型的平面比例都是 1∶1 000：图上 1 厘米代表实地 1 000 厘米（10 米），纸上写着比例尺 <b>1∶1 000</b>。图例里有三个符号还没写名字：点地图上的这些符号，看看它们是什么。');
         } else if (S.kT === 0) status('又变回了模型。地图上的每个符号，都对着模型里的一样东西。');
       },
       /** 点地图上的一样东西：它在纸上立起来，看清是什么；图例里没写名字的，写上 */
@@ -257,7 +257,7 @@ export default {
           S.named[key] = true; named[key] = true; drawPaper(); sfx.clink?.({ freq: 880, gain: 0.03 });
           log([`点开：${f.name}`, `图例：${f.legend}`]);
           const left = Object.keys(F).filter((k) => F[k].blank && !S.named[k]);
-          status(`点开的是<b>${f.name}</b>：图例里这个符号叫<b>“${f.legend}”</b>${key === 'pond' ? '——池塘、河流、湖泊都用这个蓝色的符号' : ''}。图例就是对地图上各种符号的说明。${left.length ? `还有 ${left.length} 个没写名字。` : '图例补全了。'}`);
+          status(`点开的是<b>${f.name}</b>：图例里这个符号叫<b>“${f.legend}”</b>${key === 'pond' ? '——这张图用蓝色表示水体，这一块表示池塘。阅读别的地图时，要看那张图的图例辨认具体的符号' : ''}。图例是对地图上各种符号和注记的说明。${left.length ? `还有 ${left.length} 个没写名字。` : '图例补全了。'}`);
           if (!left.length) done('legend');
         } else status(`这是<b>${f.name}</b>，图例里叫“${f.legend}”。`);
       },
@@ -274,7 +274,7 @@ export default {
           if (!S.dir) { S.dir = true; done('dir'); log(['八个方向放在池塘上，按指向标转好', `图书馆在池塘的${dname}方向`]); }
           status('“八个方向”按<b>指向标</b>转好了：它的“北”对着指向标，不朝正上方。看图书馆落在哪一格——它在池塘的什么方向？在左边作答。');
           if (!S.demo) W?.t1.open();
-        } else if (S.rose.on) status(`“八个方向”放在<b>${F[S.rose.on].name}</b>上，按指向标转好了。课本的问题是图书馆在<b>池塘</b>的什么方向：把它放到池塘上。`);
+        } else if (S.rose.on) status(`“八个方向”放在<b>${F[S.rose.on].name}</b>上，按指向标转好了。这张活页的问题是图书馆在<b>池塘</b>的什么方向：把它放到池塘上。`);
         else status('“八个方向”按指向标转好了。把它放到<b>池塘</b>上，看图书馆在池塘的什么方向。');
       },
       /** 分规的一只脚放到 p（靠近校门、教学楼门口就落在那一点上） */
@@ -287,21 +287,25 @@ export default {
       },
       tipsDone() {
         const g = at(...GATE), dr = at(...DOOR), [a, b] = S.tips, hit = (a.distanceTo(g) < 1e-4 && b.distanceTo(dr) < 1e-4) || (a.distanceTo(dr) < 1e-4 && b.distanceTo(g) < 1e-4);
-        if (hit && !S.measured) { S.measured = true; status('分规的两只脚分别扎在<b>校门</b>和<b>教学楼门口</b>：两脚张开的宽度就是图上距离。现在拿着分规顶上的铰链，把它挪到图上方的<b>线段比例尺</b>上，读出实地距离。'); }
+        if (hit && !S.measured) { S.measured = true; status('分规的两只脚分别扎在<b>校门</b>和<b>教学楼门口</b>：两脚张开的宽度就是图上距离。现在<b>保持开口</b>，拿着分规顶上的铰链，把它挪到图上方的<b>线段比例尺</b>上，读出实地距离。'); }
       },
       /** 拿着铰链平移整个分规；松手时靠近线段比例尺就放上去：一只脚对准 0 */
       moveBy(dx, dz) { for (const t of S.tips) { t.x += dx; t.z += dz; } S.onBar = false; S.glide = null; },
       dropDividers() {
         const mid = S.tips[0].clone().add(S.tips[1]).multiplyScalar(0.5), uv = uvOf(mid), spread = S.tips[0].distanceTo(S.tips[1]) / CM;
         if (Math.abs(uv.v - BAR.v) < 2.2 && uv.u > BAR.u0 - 2 && uv.u < BAR.u0 + BAR.len + 2) {
-          S.glide = { from: S.tips.map((t) => t.clone()), to: [at(BAR.u0, BAR.v), at(BAR.u0 + spread, BAR.v)], k: 0 }; S.onBar = true;          // 分规转过来、平平地落到比例尺上：一只脚对准 0（慢慢落过去，不是一下跳过去）
+          // 分规整个转过来、落到比例尺上：开口一直保持不变（只挪中心、转方向），一只脚对准 0——量好的距离原样搬过去
+          const [p0, p1] = S.tips, c0 = p0.clone().add(p1).multiplyScalar(0.5), a0 = Math.atan2(p1.z - p0.z, p1.x - p0.x), wrapA = (x) => Math.atan2(Math.sin(x), Math.cos(x));
+          const flip = Math.abs(wrapA(Math.PI - a0)) < Math.abs(wrapA(0 - a0));          // 转到哪一头近：0（第一只脚在左）还是 π（第二只脚在左）
+          const a1 = a0 + wrapA((flip ? Math.PI : 0) - a0), c1 = at(BAR.u0 + spread / 2, BAR.v);
+          S.glide = { c0, c1, a0, a1, r: (spread * CM) / 2, k: 0 }; S.onBar = true;
           const m = Math.round(spread * 10);          // 线段比例尺上读到 1 米
           if (spread > BAR.len + 0.01) { status(`两脚张开 ${spread.toFixed(1)} 厘米，比线段比例尺还长。`); return; }
           if (S.measured && Math.abs(spread - 8) < 0.05) {
             if (!S.read) { S.read = true; done('scale'); sfx.clink?.({ freq: 990, gain: 0.03 }); log(['分规量校门 → 教学楼门口', `图上 8.0 厘米，线段比例尺上读 ${m} 米`]); }
             status(`一只脚对准比例尺的 0，另一只脚落在 <b>${m} 米</b>：校门到教学楼门口的实地直线距离是 ${m} 米。再用数字比例尺算一遍，在左边作答。`);
             if (!S.demo) W?.t2.open();
-          } else status(`分规放到线段比例尺上了：两脚张开 ${spread.toFixed(1)} 厘米，代表实地 ${m} 米。课本的问题是量<b>校门</b>到<b>教学楼门口</b>：先把两只脚分别扎在这两点上。`);
+          } else status(`分规放到线段比例尺上了：两脚张开 ${spread.toFixed(1)} 厘米，代表实地 ${m} 米。这张活页要量的是<b>校门</b>到<b>教学楼门口</b>：先把两只脚分别扎在这两点上。`);
         }
       },
       reset() {
@@ -316,9 +320,9 @@ export default {
     const tip = tag('', 'pill');
     const drag = draggable(group, [
       { obj: knobPick, plane: 'xz', offset: 0.003, hint: '拖着滑块：模型 ↔ 地图', onDrag: (p) => A.slide((p.x - SL.x0) / (SL.x1 - SL.x0)), onEnd: () => A.release() },
-      { obj: rosePick, plane: 'xz', offset: TOP + 0.0008, hint: '拖着“八个方向”放到地图上', onStart: () => { S.rose.rotT = 0; sight.visible = false; }, onDrag: (p) => { S.rose.p.set(p.x, TOP + 0.0008, p.z); }, onEnd: () => A.dropRose(S.rose.p) },
+      { obj: rosePick, plane: 'xz', offset: TOP + 0.0008, hint: '抓住“八个方向”的外圈，拖到地图上', onStart: () => { S.rose.rotT = 0; sight.visible = false; }, onDrag: (p) => { S.rose.p.set(p.x, TOP + 0.0008, p.z); }, onEnd: () => A.dropRose(S.rose.p) },
       ...[0, 1].map((i) => ({ obj: tipPick[i], plane: 'xz', offset: TOP, hint: '拖着分规的这只脚', onDrag: (p) => A.tipTo(i, p), onEnd: () => A.tipsDone() })),
-      { obj: capPick, plane: 'xz', offset: TOP, hint: '拿着铰链挪动整个分规', onStart: (p) => { grip = p ? p.clone() : null; }, onDrag: (p) => { if (p && grip) { A.moveBy(p.x - grip.x, p.z - grip.z); grip.copy(p); } }, onEnd: () => A.dropDividers() },
+      { obj: capPick, plane: 'xz', offset: TOP, hint: '拿着铰链挪动整个分规（开口不变）', onStart: (p) => { grip = p ? p.clone() : null; }, onDrag: (p) => { if (p && grip) { A.moveBy(p.x - grip.x, p.z - grip.z); grip.copy(p); } }, onEnd: () => A.dropDividers() },
     ], { tip, taps: Object.values(feats).map((f) => ({ obj: f.pick, hint: () => (S.k > 0.5 ? `点一下：这个符号是什么？` : `这是${f.name}`), onTap: () => A.tap(f.key) })) });
 
     const bar = lessonBar({
@@ -400,7 +404,11 @@ export default {
       if (onPond) sector.rotation.z = -DIRS.indexOf(dirOf(F.lib.c[0] - F.pond.c[0], F.lib.c[1] - F.pond.c[1])) * Math.PI / 4;          // 扇形本来盖着“北”那一格；往顺时针转几格，盖住图书馆所在的那一格
       sight.visible = onPond;
       // 分规（落到比例尺上的那一下：两只脚一起滑过去）
-      if (S.glide) { const G = S.glide; G.k = Math.min(1, G.k + dt / 0.45); const e = G.k * G.k * (3 - 2 * G.k); S.tips.forEach((t, i) => t.lerpVectors(G.from[i], G.to[i], e)); if (G.k >= 1) S.glide = null; }
+      if (S.glide) {
+        const G = S.glide; G.k = Math.min(1, G.k + dt / 0.6); const e = G.k * G.k * (3 - 2 * G.k), c = G.c0.clone().lerp(G.c1, e), ang = G.a0 + (G.a1 - G.a0) * e, d = new THREE.Vector3(Math.cos(ang), 0, Math.sin(ang)).multiplyScalar(G.r);
+        S.tips[0].copy(c).sub(d); S.tips[1].copy(c).add(d); S.tips[0].y = S.tips[1].y = TOP;
+        if (G.k >= 1) S.glide = null;
+      }
       const [a, b] = S.tips, mid = TMP.copy(a).add(b).multiplyScalar(0.5), half = a.distanceTo(b) / 2, hgt = Math.sqrt(Math.max(1e-8, LEG * LEG - half * half));
       const hinge = mid.clone(); hinge.y = TOP + hgt;
       [a, b].forEach((t, i) => { const m = legs[i], d = hinge.clone().sub(t), L = d.length(); m.position.copy(t).addScaledVector(d, 0.5); m.scale.set(1, L, 1); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); tipPick[i].position.copy(t).add(new THREE.Vector3(0, 0.0075, 0)); });          // 拿针尖：拾取球在针尖上面一点（扎在校门上时，校门的符号边上还点得到）
@@ -419,29 +427,29 @@ export default {
       view: { elev: 34, azim: 0, lookY: 0.2, frameMargin: 1.08 },
       mount(ui) {
         ui.el.classList.add('xuean');
-        const t2 = think({ title: '想一想', status: (m) => ui.status(m),
+        const t2 = think({ title: '想一想', status,
           q: '数字比例尺 1∶1 000：校门到教学楼门口图上量得 8.0 厘米，实地距离是多少？',
           options: ['80 米', '8 米', '800 米'],
           wrong: ['1∶1 000 表示图上 1 厘米代表实地 1 000 厘米，也就是 10 米。8.0 厘米代表的是 8 000 厘米。', '8.0 × 1 000 = 8 000 厘米；100 厘米是 1 米，8 000 厘米是 80 米，不是 800 米。'],
           ok: '对：8.0 厘米 × 1 000 = 8 000 厘米 = 80 米，和线段比例尺上读出来的一样。比例尺 = 图上距离 / 实地距离。',
           onOk: () => { S.scaleOk = true; finish(); } });
-        const t1 = think({ title: '想一想', status: (m) => ui.status(m),
+        const t1 = think({ title: '想一想', status,
           q: '按指向标读：图书馆在池塘的什么方向？',
           options: ['西北', '北', '东北'],
-          wrong: ['“北”是按“上北下南”读的。这张图有指向标，指向标指向右上方——要按指向标辨别方向。看“八个方向”转好以后，图书馆落在哪一格。', '东北在“八个方向”的右上方那一格；图书馆在池塘正上方，落在“北”往左的那一格。'],
+          wrong: ['“北”是按“上北下南”读的。这张图有指向标，指向标指向右上方——要按指向标辨别方向。看“八个方向”转好以后，图书馆落在哪一格。', '“八个方向”的“北”要先对准右上方的指向标。转好以后，东北在图纸的正右方，西北在正上方；图书馆在池塘正上方，所以在池塘的西北方向。'],
           ok: '对：在有指向标的地图上，要按照指向标辨别方向。这张图的北方指向右上方，画在池塘正上方的图书馆，在池塘的西北方向。',
           onOk: () => { S.dirOk = true; finish(); } });
         const finish = () => { if (S.dirOk && S.scaleOk) { next.hidden = false; done('why'); } };
         const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
         const tbl = table(['做了什么', '看到的']);
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来', ghost: true, onClick: () => A.reset() }]).el);
-        const note = h('p', { class: 'fineprint', html: '说明：学校是编的，不是真实的地方。模型和地图一样大，都是 1∶1 000；楼房、树木的高度放大了 2 倍，看得清楚一些。分规的脚靠近两个红点会扎到点上；挪到比例尺附近松手，一只脚会对准 0。' });
+        const note = h('p', { class: 'fineprint', html: '说明：学校是编的，不是真实的地方。模型和地图的平面比例都是 1∶1 000；楼房、树木的高度另外放大了 2 倍，看得清楚一些。图上的厘米按这张纸的刻度读，不用尺子量屏幕。分规的脚靠近两个红点会扎到点上；挪到比例尺附近松手，一只脚会对准 0。' });
         ui.controls.append(t1.el, t2.el, next, more, note);
         ui.data.append(tbl.el);
         const dtl = ui.data.previousElementSibling; if (dtl?.classList.contains('bar-title')) dtl.textContent = '读到了什么';
         W = { tbl, t1, t2, next, status: (m) => ui.status(m) };
         bar.attach(ui);
-        status('图 2.2：方向、图例和比例尺是地图的“语言”。桌上是一所学校的模型，立在它自己的平面图上。先把纸前面的<b>滑块</b>拖到“地图”，看模型怎样变成地图。可以先看<b>老师演示</b>，也可以直接动手。');
+        status('图 2.2：方向、图例和比例尺是地图的“语言”。这张活页照课本的方法，读一张编出来的校园平面图：桌上是这所学校的模型，立在它自己的平面图上。先把纸前面的<b>滑块</b>拖到“地图”，看模型怎样变成地图。可以先看<b>老师演示</b>，也可以直接动手。');
       },
       update(dt) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k); },
       dispose() { bar.dispose(); tip.remove(); readTag.remove(); nameTag.remove(); },

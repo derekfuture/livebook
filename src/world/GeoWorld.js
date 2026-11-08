@@ -772,7 +772,7 @@ function polarMap(tex, ringR) {
         float coast = abs(seaAt(uv + vec2(e, 0.0)) - sea) + abs(seaAt(uv - vec2(e, 0.0)) - sea) + abs(seaAt(uv + vec2(0.0, e * 2.0)) - sea) + abs(seaAt(uv - vec2(0.0, e * 2.0)) - sea);
         float lum = dot(c, vec3(0.3, 0.55, 0.15));
         vec3 col = mix(mix(vec3(0.15, 0.14, 0.14), vec3(0.27, 0.23, 0.17), lum), vec3(0.045, 0.065, 0.12), sea);          // 暗铜色的底：比地球暗得多，衬着它，不和它抢
-        // 昼夜：和地球同一个太阳。夜里那一半沉下去，晨昏线上一道暖光（就是课本里从北极上方往下看的昼夜图）
+        // 昼夜：和地球同一个太阳。夜里那一半沉下去，晨昏线上一道暖光（以北极为中心的方位等距展开图上的昼夜分布，对照课本以北极为中心的昼夜图；它是展开图，不是从北极上方看到的球）
         float s = dot(d, normalize(sunL)), night = smoothstep(0.035, -0.035, s);
         col = mix(col * vec3(1.3, 1.18, 1.02) + vec3(0.02, 0.015, 0.0), col * vec3(0.34, 0.4, 0.56), night);
         col += texture2D(lights, uv).rgb * vec3(1.0, 0.78, 0.45) * 0.7 * night;          // 夜里那一半亮着城市灯光（和地球上同一张）

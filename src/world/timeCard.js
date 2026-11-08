@@ -93,9 +93,10 @@ export function timeCard({ earth }) {
     g.fillStyle = 'rgba(241,215,159,0.95)';
     if (noonP.alt > 0) g.fillText(`正午 ${noonP.alt.toFixed(1)}°`, X(noonP.az), Math.max(10, Y(noonP.alt) - 5));
     const half = (t.set - t.rise) * 7.5, rp = sunAt(cty.lat, dec, -half), sp = sunAt(cty.lat, dec, half);
-    g.fillStyle = 'rgba(167,178,200,0.95)';          // 日出、日落写在下面一行，左右两头（不压住弧的两端）
-    g.textAlign = 'left'; g.fillText(`日出 ${hm(t.rise)}`, 4, hor + 25);
-    g.textAlign = 'right'; g.fillText(`日落 ${hm(t.set)}`, W - 4, hor + 25);
+    g.fillStyle = 'rgba(167,178,200,0.95)';          // 日出、日落写在下面一行，各写在自己那一头（面朝北时日出在右手边）；不压住弧的两端
+    const riseLeft = X(rp.az) < X(sp.az);
+    g.textAlign = riseLeft ? 'left' : 'right'; g.fillText(`日出 ${hm(t.rise)}`, riseLeft ? 4 : W - 4, hor + 25);
+    g.textAlign = riseLeft ? 'right' : 'left'; g.fillText(`日落 ${hm(t.set)}`, riseLeft ? W - 4 : 4, hor + 25);
     g.fillStyle = 'rgba(241,215,159,0.7)'; for (const q of [rp, sp]) g.fillRect(X(q.az) - 1.5, hor - 1.5, 3, 3);
     const p = sunAt(cty.lat, dec, H);
     {

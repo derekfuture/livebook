@@ -53,21 +53,25 @@ export default {
     const pencilPick = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.012, 0.014), new THREE.MeshBasicMaterial({ visible: false })); pencilPick.userData.pick = true; pencil.add(pencilPick);
 
     let kept = null;          // 老师演示前学生标的点（演示完放回去）
-    const fresh = () => ({ demo: false, plotted: false, drawn: false, drawK: 0, drawing: false, read: false });
+    const fresh = () => ({ demo: false, plotted: false, drawn: false, drawK: 0, drawing: false, paused: false, read: false });
     S = fresh();
 
     const sheet = plotSheet(group, {
       kind: 'line', values: T41, yMin: -25, yMax: 25, yStep: 5, yTitle: '气温/℃', unit: '℃', snap: 0.6, tableTitle: '表 4.1　某地多年平均各月气温', rowTitle: '气温/℃', fmt: fmtT, tag,
       taps: [{ obj: pencilPick, hint: () => (sheet?.allOk() ? '点一下：用平滑的曲线把各点连起来' : '先把 12 个点都标好'), onTap: () => A.draw() }],
-      onGrab: () => { if (S.drawn || S.drawing) { sheet.drawCurve(0); sheet.showSpan(false); } },          // 画好以后又去拖点：曲线先收起来（放回表上的数再回来）
+      onGrab: () => {          // 画好以后（或正在连线时）又去拖点：曲线先收起来；正在画的停下，放回表上的数以后再点铅笔重新连
+        if (S.drawing) { S.drawing = false; S.drawK = 0; S.paused = true; }
+        if (S.drawn || S.paused) { sheet.drawCurve(0); sheet.showSpan(false); }
+      },
       onPlace: (m, good, v) => {
         if (good) {
           sfx.clink?.({ freq: 700 + m * 30, gain: 0.025 });
           if (S.drawn && sheet.allOk()) { sheet.drawCurve(1); if (S.read) sheet.showSpan(true, '年较差 43.4 ℃'); status(`${m} 月放回了 <b>${fmtT(T41[m - 1])} ℃</b>，曲线还是这一条。`); return; }
+          if (S.paused && sheet.allOk()) { S.paused = false; status(`${m} 月放回了 <b>${fmtT(T41[m - 1])} ℃</b>。刚才连线停下了：再点一下<b>铅笔</b>，重新用平滑的曲线把各点连起来。`); return; }
           status(`${m} 月：<b>${fmtT(T41[m - 1])} ℃</b>，标对了（离表上的数很近，点落在了 ${fmtT(T41[m - 1])} ℃ 上）。${sheet.allOk() ? '12 个点都标好了，点一下<b>铅笔</b>，用平滑的曲线把各点连起来。' : `还差 ${sheet.ok.filter((x) => !x).length} 个月。`}`);
         } else {
           const had = S.drawn || S.drawing || S.read;
-          if (had || S.plotted) { S.plotted = S.drawn = S.drawing = S.read = false; S.drawK = 0; sheet.drawCurve(0); sheet.showSpan(false); undo('plot', 'curve', 'read'); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; }          // 12 个点标好以后又改错了：标点、曲线、读图都作废，标对以后重新连线、读图
+          if (had || S.plotted || S.paused) { S.plotted = S.drawn = S.drawing = S.read = S.paused = false; S.drawK = 0; sheet.drawCurve(0); sheet.showSpan(false); if (!S.demo) W?.ui.relock?.(); undo('plot', 'curve', 'read'); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; }          // 12 个点标好以后又改错了：标点、曲线、读图、这一次的结论都作废（重新锁上），标对以后重新连线、读图
           status(`${m} 月拖到了 ${fmtT(v)} ℃；表上是 <b>${fmtT(T41[m - 1])} ℃</b>——${v > T41[m - 1] ? '高了' : '低了'}，对照纵坐标的刻度再拖一拖（每一大格 5 ℃，每一小格 1 ℃）。${had ? '这个点改了，曲线和下面的读图要等 12 个点都标对以后重新来。' : ''}`);
         }
         if (sheet.allOk()) { S.plotted = true; done('plot'); }
@@ -78,7 +82,7 @@ export default {
       draw() {
         if (!sheet.allOk()) { status(`还有 ${sheet.ok.filter((x) => !x).length} 个月的点没标好，标好了再连线。`); return; }
         if (S.drawn || S.drawing) return;
-        S.drawing = true; sfx.clink?.({ freq: 520, gain: 0.02 });
+        S.drawing = true; S.paused = false; sfx.clink?.({ freq: 520, gain: 0.02 });
         status('用平滑的曲线把各点连起来……');
       },
       reset() { S = fresh(); sheet.reset(); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; bar.undo('plot', 'curve', 'read'); status('坐标纸擦干净了，重新标点。'); },
@@ -157,13 +161,13 @@ export default {
       view: { elev: 24, azim: 0, lookY: 0.5, frameMargin: 1.1 },
       mount(ui) {
         ui.el.classList.add('xuean');
-        const t2 = think({ title: '想一想', status: (m) => ui.status(m),
+        const t2 = think({ title: '想一想', status,
           q: '归纳这个地方气温的年变化特点：',
           options: ['夏季气温较高，冬季在 0 ℃ 以下、很冷，气温年较差大', '一年四季气温差不多', '冬季气温比夏季高'],
           wrong: ['看你画的曲线：最高点和最低点差了 40 多摄氏度，差得很多。', '看曲线：1 月在最下面，7 月在最上面。'],
           ok: '对：这个地方夏季较热、冬季寒冷，气温年较差大（43.4 ℃）。可以掀开结论看看。',
           onOk: () => { if (!S.drawn) return; next.hidden = false; done('read'); S.read = true; sheet.showSpan(true, '年较差 43.4 ℃'); } });
-        const t1 = think({ title: '想一想', status: (m) => ui.status(m),
+        const t1 = think({ title: '想一想', status,
           q: '看曲线：最热月、最冷月的平均气温各是多少？气温年较差是多少？',
           options: ['最热月 7 月 23.3 ℃，最冷月 1 月 −20.1 ℃，年较差 43.4 ℃', '最热月 8 月 21.6 ℃，最冷月 12 月 −16.8 ℃，年较差 38.4 ℃', '最热月 7 月 23.3 ℃，最冷月 1 月 −20.1 ℃，年较差 3.2 ℃'],
           wrong: ['找曲线上最高、最低的那两个点：最高是 7 月，最低是 1 月。', '年较差是最热月平均气温减最冷月平均气温：23.3 − (−20.1) = 23.3 + 20.1 = 43.4 ℃。减去一个负数，等于加上它的相反数。'],
@@ -173,7 +177,7 @@ export default {
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来（擦掉重画）', ghost: true, onClick: () => A.reset() }]).el);
         const note = h('p', { class: 'fineprint', html: '说明：数据是课本表 4.1“某地多年平均各月气温”。点拖到离表上的数不到 0.6 ℃ 就算标对，会落在表上的数上。' });
         ui.controls.append(t1.el, t2.el, next, more, note);
-        W = { t1, t2, next, status: (m) => ui.status(m) };
+        W = { ui, t1, t2, next, status: (m) => ui.status(m) };
         bar.attach(ui);
         status('图 4.11：坐标纸的横坐标是 1—12 月，纵坐标 −25—25 ℃、每格 5 ℃（课本绘图步骤的前两步）。照着坐标纸上面的表 4.1，把 12 个月的点拖到对应的位置。可以先看<b>老师演示</b>，也可以直接动手。');
       },

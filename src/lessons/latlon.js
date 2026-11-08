@@ -197,6 +197,7 @@ export default {
           S.east = true; done('east');
           log([latTxt(lat), `${lonTxt(S.eastFrom)} → ${lonTxt(lon)}`, '往东走过 180° 经线：东经变成西经']);
           status(`越过了 <b>180° 经线</b>：刚才还是 <b>${lonTxt(S.eastFrom)}</b>，现在是 <b>${lonTxt(lon)}</b>——东经加到 180° 就到头了，再往东是<b>西经</b>，度数越来越小。经度最大是 180°，没有 360°。`);
+          checkAll();
         }
         if (S.held && !S.north && lat >= 88.5 && !S.said.pole) { S.said.pole = true; status(`快到北极了：<b>${latTxt(lat)}</b>。松手，小红旗会落到北极点上。`); }
         S.lat = lat; S.lon = lon; showFlag();
@@ -371,7 +372,7 @@ export default {
       mount(ui) {
         ui.el.classList.add('xuean');
         const ctx = () => [...W.tbl.el.querySelectorAll('tbody tr')].map((tr) => `<div>${[...tr.children].map((td) => td.innerHTML).join('，')}</div>`).join('');
-        const t1 = think({ title: '想一想', ctx, status: (m) => ui.status(m),
+        const t1 = think({ title: '想一想', ctx, status,
           q: '经度和纬度，下面哪种说法对？',
           options: ['经度从 0° 经线向东、向西各分 180°（E、W）；纬度从赤道向北、向南各分 90°（N、S）', '经度、纬度都从 0° 一直加到 360°', '经度、纬度都是从 0° 加到 90°'],
           wrong: ['看记录里往东走的那一行：过了 180° 经线，读数变成了西经、越来越小——经度没有 360°。', '看记录里往北走的那一行：纬度到北极是 90°；经度却能加到 180°。'],
@@ -387,7 +388,7 @@ export default {
         const dtl = ui.data.previousElementSibling; if (dtl?.classList.contains('bar-title')) dtl.textContent = '经纬度与对应地方（表 1.6）';
         W = { tbl, t1, next, status: (m) => ui.status(m) };
         bar.attach(ui);
-        ui.status('图 1.17：地球仪上经线、纬线相互交织，形成经纬网。拖着<b>小红旗</b>在球上走，亮着的红线是过它的经线、蓝线是过它的纬线；拖着球可以转到背面。可以先看<b>老师演示</b>，也可以直接动手。');
+        status('图 1.17：地球仪上经线、纬线相互交织，形成经纬网。拖着<b>小红旗</b>在球上走，亮着的红线是过它的经线、蓝线是过它的纬线；拖着球可以转到背面。可以先看<b>老师演示</b>，也可以直接动手。');
       },
       update(dt) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k); },
       dispose() { bar.dispose(); tip.remove(); clearMarks(); },

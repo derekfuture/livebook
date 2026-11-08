@@ -58,7 +58,7 @@ export default {
           status(`${m} 月：<b>${P42[m - 1]} 毫米</b>，画对了（离表上的数很近，柱子落在了 ${P42[m - 1]} 毫米上）。${sheet.allOk() ? '12 根柱子都画好了，在左边回答几个问题。' : `还差 ${sheet.ok.filter((x) => !x).length} 个月。`}`);
         } else {
           const had = S.plotted;
-          if (had) { S.plotted = S.read = false; undo('plot', 'read'); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; }          // 画好以后又改错了：读图作废，画对以后重新读
+          if (had) { S.plotted = S.read = false; if (!S.demo) W?.ui.relock?.(); undo('plot', 'read'); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; }          // 画好以后又改错了：读图、这一次的结论都作废（重新锁上），画对以后重新读
           status(`${m} 月拖到了 ${fmtP(v)} 毫米；表上是 <b>${P42[m - 1]} 毫米</b>——${v > P42[m - 1] ? '高了' : '低了'}，对照纵坐标的刻度再拖一拖（每一大格 25 毫米，每一小格 5 毫米）。${had ? '这根柱子改了，下面的读图要等 12 根柱子都画对以后重新来。' : ''}`);
         }
         if (sheet.allOk()) { S.plotted = true; done('plot'); if (!S.demo) W?.t1.open(); }
@@ -114,13 +114,13 @@ export default {
       view: { elev: 24, azim: 0, lookY: 0.5, frameMargin: 1.1 },
       mount(ui) {
         ui.el.classList.add('xuean');
-        const t2 = think({ title: '想一想', status: (m) => ui.status(m),
+        const t2 = think({ title: '想一想', status,
           q: '年降水量大约是多少？降水的季节变化有什么特点？',
           options: [`约 ${YEAR} 毫米；降水主要集中在夏季，冬季降水少`, '约 169 毫米；降水主要集中在夏季', `约 ${YEAR} 毫米；一年里各月降水差不多`],
           wrong: ['169 毫米只是 8 月一个月；年降水量要把 12 个月加起来。', '看柱子：8 月 169 毫米，2 月只有 5 毫米，各月差得很多。'],
           ok: `对：12 个月加起来约 ${YEAR} 毫米；降水主要集中在夏季（8 月最多），冬季降水少，季节变化比较大。可以掀开结论看看。`,
           onOk: () => { if (!S.plotted) return; next.hidden = false; done('read'); S.read = true; } });
-        const t1 = think({ title: '想一想', status: (m) => ui.status(m),
+        const t1 = think({ title: '想一想', status,
           q: '看柱状图：哪几个月降水量较多？哪几个月较少？',
           options: ['6—9 月较多（8 月最多），12 月至次年 2 月较少', '12 月至次年 2 月较多，6—9 月较少', '3—5 月最多'],
           wrong: ['看柱子：最高的几根在 6—9 月，12、1、2 月的柱子最矮。', '3—5 月的柱子只有 22、47、71 毫米，比 7、8 月矮得多。'],
@@ -130,7 +130,7 @@ export default {
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来（擦掉重画）', ghost: true, onClick: () => A.reset() }]).el);
         const note = h('p', { class: 'fineprint', html: '说明：数据是课本表 4.2“北半球某地多年平均各月降水量”。柱子拖到离表上的数不到 3.5 毫米就算画对，会落在表上的数上。' });
         ui.controls.append(t1.el, t2.el, next, more, note);
-        W = { t1, t2, next, status: (m) => ui.status(m) };
+        W = { ui, t1, t2, next, status: (m) => ui.status(m) };
         bar.attach(ui);
         status('图 4.20：坐标纸的横坐标是 1—12 月，纵坐标 0—200 毫米、每格 25 毫米（课本绘图步骤的前两步）。照着坐标纸上面的表 4.2，把 12 个月的柱子拖到对应的高度。可以先看<b>老师演示</b>，也可以直接动手。');
       },
