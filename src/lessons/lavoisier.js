@@ -1,12 +1,12 @@
 // 人教版化学九上第 30–31 页、图 2-2（PDF 索引 36）。
 // 定量部分是归一化教学模型：初始气体 100 份，其中氧气 21 份；其余 79 份合并表示。
-// 反应进度只用于压缩历史过程，不拟合汞氧化速率。用可拖动的进程轴推进，不把等待秒数当成实验操作。
+// 反应进度只用于压缩历史过程，不拟合汞氧化速率。反应自动加速呈现；炉门、瓶塞、药匙由学生直接操作。
 // 体积统一比较冷却后同温同压的值，忽略装置死体积和汞蒸气。
 // 2Hg + O2 → 2HgO；强热时 2HgO → 2Hg + O2，正反过程共享同一氧量。
 import * as THREE from 'three';
 import { paint, inked } from '../live/ink.js';
 import { glass2, flame2 } from './kit/chemfx.js';
-import { glassTube } from './kit/chem.js';
+import { glassTube, spatula } from './kit/chem.js';
 import { textPlate } from './kit/props.js';
 import { buttons } from './kit/ui.js';
 import { draggable } from './kit/interact.js';
@@ -17,7 +17,7 @@ import { h } from '../ui/Panel.js';
 
 const V = THREE.Vector3;
 const INITIAL = 100, OXYGEN = 21;
-const TIME_START = -0.23, TIME_END = 0.09, TIME_Z = 0.118;
+const HEAT_SECONDS = 4.5, DECOMPOSE_SECONDS = 3.5;
 const LEFT = -0.19, BELL = -0.035, RIGHT = 0.14, COLLECT = 0.26;
 const RED = 0xba4732, SILVER = 0xb8c1cd, BLUE = 0x2f7fd8;
 
@@ -96,7 +96,9 @@ export default {
     let W = null;
     const fresh = () => ({
       heated: 0, decomposed: 0, heating: false, strong: false, heat: 0,
-      read: false, transferred: false, transfer: 0, recovered: false,
+      read: false, transferred: false, recovered: false,
+      gates: [0, 0], capOff: [false, false], capCarry: [null, null], sealed: false,
+      spoonCarry: null, spoonPos: null, returnFrom: null, returnT: 0, powder: 'retort', pouring: 0, lastRead: -1, lastRecovery: -1,
       mixed: false, mix: 0, records: [], demo: false, near: false,
     });
     let S = fresh();
@@ -116,7 +118,7 @@ export default {
       obj.position.set(x, y, z); group.add(obj); return obj;
     }
     function label(text, x, y, z, width = 0.09) {
-      const obj = textPlate(text, { w: width, h: 0.012, color: '#2b3142', bg: '#fffaf0' });
+      const obj = textPlate(text, { w: width, h: 0.012, color: '#2b3142', bg: '#fffaf0', font: `bold ${Math.floor(Math.min(64, 460 / text.length, 512 * 0.012 / width * 0.75))}px PingFang SC, sans-serif` });
       obj.raycast = THREE.Mesh.prototype.raycast;
       obj.position.set(x, y, z); group.add(obj); return obj;
     }
@@ -176,18 +178,35 @@ export default {
     smallMetal.scale.y = 0.16;
     group.add(glassTube([new V(RIGHT, 0.109, 0), new V(RIGHT + 0.025, 0.135, 0),
       new V(COLLECT - 0.025, 0.125, 0), new V(COLLECT - 0.012, 0.03, 0), new V(COLLECT, 0.027, 0)]));
-    // 收集粉末采用取样盘动画，保持原容器中剩余气体的体积记录；没有把两套气路连通。
-    const sample = mesh(new THREE.SphereGeometry(0.015, 20, 12), red, LEFT, 0.12);
-    sample.scale.y = 0.3; sample.visible = false;
-    const heatControl = label('加热 / 停止', LEFT, 0.018, 0.052, 0.075);
-    const strongControl = label('强热 / 停止', RIGHT, 0.017, 0.037, 0.065);
-    const readControl = label('冷却并读数', BELL, 0.012, 0.067, 0.085);
-    const transferControl = label('收集红色粉末', LEFT, 0.012, 0.077, 0.10);
-    const mixControl = label('合并气体', COLLECT, 0.012, 0.063, 0.08);
-    const timeRail = mesh(new THREE.BoxGeometry(TIME_END - TIME_START, 0.002, 0.003), paint(0x9b9286), (TIME_START + TIME_END) / 2, 0.006, TIME_Z);
-    const timeKnob = mesh(new THREE.SphereGeometry(0.007, 20, 12), paint(0xd09548, { keep: true }), TIME_START, 0.009, TIME_Z);
-    for (let i = 0; i <= 12; i++) mesh(new THREE.BoxGeometry(0.001, 0.001, i % 3 ? 0.004 : 0.009), paint(0x9b9286), THREE.MathUtils.lerp(TIME_START, TIME_END, i / 12), 0.006, TIME_Z);
-    label('拖动推进', 0.19, 0.014, TIME_Z, 0.09);
+    // 取样口与封存阀是交互模型的结构简化，并非图 2-2 原器材复刻。
+    const mouths = [new V(LEFT, 0.158, 0), new V(RIGHT, 0.119, 0)];
+    const capHomes = mouths.map(p => p.clone().add(new V(0, 0.006, 0)));
+    const capRest = [new V(-0.275, 0.009, 0.035), new V(0.20, 0.009, 0.065)];
+    const caps = mouths.map((p, i) => {
+      const tube = mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.016, 24, 1, true), glass2(), p.x, p.y - 0.006);
+      tube.renderOrder = 9;
+      const cap = mesh(new THREE.CylinderGeometry(0.0095, 0.008, 0.014, 20), paint(0x967456, { keep: true }), capHomes[i].x, capHomes[i].y);
+      return cap;
+    });
+    const gates = [stove, burner].map((f, i) => {
+      const x = i ? RIGHT : LEFT, z = i ? 0.037 : 0.053;
+      const gate = new THREE.Mesh(new THREE.BoxGeometry(0.027, 0.023, 0.002), paint(0x514941, { keep: true })); group.add(gate);
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.004, 0.008), paint(0x292c30, { keep: true })); handle.position.z = 0.004; gate.add(handle);
+      gate.position.set(x, 0.033, z); return gate;
+    });
+    const valve = mesh(new THREE.BoxGeometry(0.026, 0.008, 0.008), paint(0x796552), -0.10, 0.153, 0.008);
+    const valveStem = mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.017, 12), metal, -0.10, 0.143, 0.008);
+    label('封存阀', -0.10, 0.174, 0.008, 0.045);
+    const spoon = spatula({ color: RED }); group.add(spoon); spoon.heap.material = red; spoon.heap.visible = false;
+    const SPOON_HOME = new V(0.015, 0.012, 0.087);
+    spoon.position.copy(SPOON_HOME);
+    const spoonPick = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.016, 0.018), new THREE.MeshBasicMaterial({ visible: false }));
+    spoonPick.position.x = 0.05; spoonPick.userData.pick = true; spoon.add(spoonPick);
+    const falling = Array.from({length: 12}, (_,i) => mesh(new THREE.IcosahedronGeometry(0.0014, 0), red, RIGHT, 0.10));
+    label('向右拉开炉门', LEFT, 0.01, 0.071, 0.095);
+    label('向右拉开炉门', RIGHT, 0.01, 0.049, 0.085);
+    label('药匙：取粉末 → 移入小容器', 0.07, 0.01, 0.118, 0.19);
+    const mixControl = label('合并结果对照', COLLECT, 0.012, 0.063, 0.09);
     const gasDots = Array.from({ length: 40 }, (_, i) => {
       const dot = mesh(new THREE.SphereGeometry(0.0018, 8, 6), paint(i < 8 ? BLUE : 0x939ba6, { keep: true }), 0, 0);
       dot.raycast = () => {};
@@ -214,63 +233,62 @@ export default {
     };
     mw.onClose = () => { if (!bar.playing) back(); };
     const A = {
-      heat() {
-        if (S.transferred) return status('红色粉末已收集到右侧的小容器，接下来点右边的强热。');
-        if (S.heated >= 1) return status('加热过程已完成。点玻璃钟罩，推进到冷却后并读数。');
-        S.heating = !S.heating;
-        S.heat = 1;
-        status(S.heating ? '炉火已点燃。向右拖动前方时间轴，推进历史上的 12 天；停下来就能细看汞表面的变化。' : '已停止加热。点钟罩冷却读数，或再次点炉子继续。');
+      gate(i, p) {
+        const x = i ? RIGHT : LEFT;
+        const k = THREE.MathUtils.clamp((p.x - x) / 0.035, 0, 1);
+        if (k > 0.1 && (S.capOff[i] || (i === 0 && S.sealed) || (i === 1 && !S.transferred))) {
+          return status(S.capOff[i] ? '先把瓶塞放回取样口，气路密闭后再加热。' : i ? '先用药匙把红色粉末移入小容器。' : '气体已封存，接下来取红色粉末。');
+        }
+        S.gates[i] = k;
+        S[i ? 'strong' : 'heating'] = k > 0.1;
       },
-      advance(value) {
-        if (!S.heating && !S.strong) return status('先点相应的炉子，再拖动进程轴。');
-        const key = S.transferred ? 'decomposed' : 'heated';
-        S[key] = Math.max(S[key], value >= 0.995 ? 1 : THREE.MathUtils.clamp(value, 0, 1));
-        // 进程只向前；回看用暂停观察或“再做一次”，不倒放化学反应。
-        if (S[key] >= 1) {
-          S.heating = S.strong = false;
-          if (key === 'heated') done('heat');
-          status('反应进程已完成。点气体容器，推进到冷却后并记录体积。');
+      cap(i, p) {
+        if (S.heat > 0.01 || S.heating || S.strong) return status('器材还热着：先把炉门推回去，火灭后会快速冷却。');
+        if (i === 0 && !S.sealed) return status('先向右拨封存阀，隔开钟罩里的剩余气体，再取下瓶塞。');
+        S.capCarry[i] = new V(p.x, Math.max(0.009, p.y), 0);
+        S.capOff[i] = S.capCarry[i].distanceTo(capHomes[i]) > 0.015;
+      },
+      capDrop(i) {
+        if (!S.capCarry[i]) return;
+        S.capOff[i] = S.capCarry[i].distanceTo(capHomes[i]) > 0.024;
+        S.capCarry[i] = null;
+      },
+      seal(p) {
+        if (!S.read) return status('先完成加热并关上炉门，冷却后观察记录会自动留下体积。');
+        S.sealed = p.x > -0.09;
+      },
+      spoonDrag(p) {
+        S.returnFrom = null;
+        const next = new V(p.x, THREE.MathUtils.clamp(p.y, 0.012, 0.24), 0);
+        const previous = S.spoonCarry || S.spoonPos || SPOON_HOME;
+        // 只有从取样口上方进入才允许取样，不让药匙横穿玻璃壁。
+        for (let i = 0; i < 2; i++) {
+          const m = mouths[i];
+          if (previous.y < m.y && Math.abs(previous.x - m.x) < 0.018 && Math.abs(next.x - m.x) >= 0.018) next.y = Math.max(next.y, m.y + 0.008);
+          if (Math.abs(next.x - m.x) < 0.036 && next.y < m.y && previous.y < m.y && Math.abs(previous.x - m.x) > 0.013) next.y = m.y + 0.008;
+          if (!S.capOff[i] && Math.abs(next.x - m.x) < 0.022 && next.y < m.y) next.y = m.y + 0.012;
+        }
+        S.spoonCarry = next; S.spoonPos = next.clone();
+        if (S.powder === 'retort' && S.read && S.sealed && S.capOff[0] && Math.abs(next.x - LEFT) < 0.012 && next.y < 0.12) {
+          S.powder = 'spoon'; status('红色粉末已在药匙里。先提起药匙，再移到右侧取样口上方。');
         }
       },
-      cool() { S.heating = S.strong = false; S.heat = 0; },
+      spoonDrop() { S.spoonCarry = null; },
       read() {
-        if (S.transferred) return status(S.mixed ? '合并后的气体为 100 份，原来的剩余气体读数保留在观察记录里。' : '这部分剩余气体已封存，冷却后的体积为 79 份。');
-        if (S.heated === 0) return status('初始空气记为 100 份。先点左边的加热，看看有什么变化。');
-        A.cool();
-        const remaining = INITIAL - consumed();
-        log(['加热后冷却', remaining.toFixed(1) + ' 份', '生成红色粉末；气体减少 ' + consumed().toFixed(1) + ' 份']);
-        status(S.heated < 1 ? '这次提前停止了加热，减少的体积还不到 21 份。继续加热后可以重新读数。' : '剩余气体 79 份，减少 21 份。减少的气体会不会留在红色粉末里？');
-        if (S.heated >= 1) { S.read = true; done('heat'); done('read'); }
-      },
-      transfer() {
-        if (!S.read) return status('先完成加热，并在冷却后读取剩余气体体积。');
-        if (S.transferred || S.transfer > 0) return;
-        S.transfer = 0.001; mw.close();
-        status('把生成的红色粉末收集到另一个小容器里，再加强热。取样和封存步骤用动画概括。');
-      },
-      strong() {
-        if (S.transfer > 0) A.finishTransfer();
-        if (!S.transferred) return status('先收集左边生成的红色粉末。');
-        if (S.decomposed >= 1) return status('红色粉末已经分解完，点右侧气体容器冷却并记录。');
-        S.strong = !S.strong;
-        S.heat = 1;
-        status(S.strong ? '向右拖动进程轴：红色粉末逐渐减少，银白色汞重新出现，氧气被收集。' : '已停止强热。可以先冷却读数，再继续。');
+        if (!S.heated || S.heating || S.heat > 0.01 || S.transferred || S.heated === S.lastRead) return;
+        S.lastRead = S.heated;
+        log(['冷却后', (INITIAL - consumed()).toFixed(1) + ' 份', '红色粉末生成；气体减少 ' + consumed().toFixed(1) + ' 份']);
+        if (S.heated >= 1) { S.read = true; done('heat'); done('read'); status('剩余气体为 79 份。向右拨封存阀，再提起瓶塞，用药匙取红色粉末。'); }
+        else status('提前关火，红色粉末和气体减少量都较少；拉开炉门可以继续。');
       },
       record() {
-        if (S.mixed || S.mix > 0) return status('氧气已与剩余气体合并，原来的 21 份读数保留在观察记录里。');
-        if (!S.transferred || !S.decomposed) return status('先收集红色粉末，再点右侧炉子并推进强热进程。');
-        A.cool();
-        if (S.decomposed < 1) {
-          log(['强热中途冷却', recovered().toFixed(1) + ' 份氧气', '仍有红色粉末，氧气尚未全部收回']);
-          return status('仍有红色粉末，收回的氧气少于原先减少的量。可以继续强热来比较。');
-        }
-        if (!S.recovered) log(['强热后冷却', recovered().toFixed(1) + ' 份氧气', '红色粉末消失、汞重现；与减少量相等']);
-        S.recovered = true; done('recover');
-        status('收回了 21 份氧气，恰好是原先减少的部分。可以把它与剩余气体合并。');
+        if (!S.transferred || !S.decomposed || S.strong || S.heat > 0.01 || S.decomposed === S.lastRecovery) return;
+        S.lastRecovery = S.decomposed;
+        log(['强热后冷却', recovered().toFixed(1) + ' 份氧气', S.decomposed < 1 ? '仍有红色粉末，可继续强热' : '粉末消失，汞重现；氧气与减少量相等']);
+        if (S.decomposed >= 1) { S.recovered = true; done('recover'); status('收回 21 份氧气，恰好等于先前减少的量。可查看合并结果对照。'); }
       },
-      finishTransfer() { S.transfer = 1; S.transferred = true; done('transfer'); },
       mix() {
-        if (!S.recovered) return status('先点右侧收集容器，冷却并记录完整的氧气体积，再合并比较。');
+        if (!S.recovered) return status('强热结束后关上炉门，冷却读数，再查看合并结果。');
         if (S.mixed || S.mix > 0) return;
         S.mix = 0.001; mw.close();
       },
@@ -279,61 +297,79 @@ export default {
         S = fresh(); mw.close(); W?.tbl.clear(); W?.question.close();
         if (W) W.next.hidden = true;
         bar.undo('heat', 'read', 'transfer', 'recover', 'mix', 'why');
-        status('点左侧炉子，拖动前方时间轴。无需等待倒计时。');
+        status('向右拉开左侧炉门，观察汞表面的变化。');
       },
     };
-    const drag = draggable(group, [{
-      obj: timeKnob, plane: 'xz', offset: 0.009,
-      hint: () => S.heating || S.strong ? '向右拖动推进反应；松手停在当前现象' : '先点炉子，再拖动进程轴',
-      onDrag: (p) => A.advance((p.x - TIME_START) / (TIME_END - TIME_START)),
-    }], { tip: tag('', 'pill'), taps: [
-      { obj: stove.body, hint: '点炉子开始或停止加热', onTap: A.heat },
-      { obj: airBell.glass, hint: '停止加热、推进到冷却后，记录剩余气体', onTap: A.read },
-      { obj: transferControl, hint: () => S.transferred ? '' : '收集粉末到右侧容器（取样过程概括）', onTap: A.transfer },
-      { obj: burner.body, hint: '点炉子开始或停止强热', onTap: A.strong },
-      { obj: oxygenBell.glass, hint: '停止强热、推进到冷却后，记录氧气', onTap: A.record },
-      { obj: mixControl, hint: () => S.mixed ? '' : '将两份气体合并比较（示意）', onTap: A.mix },
+    const drag = draggable(group, [
+      ...gates.map((obj, i) => ({ obj, plane: 'xy', offset: obj.position.z, keepOffset: true,
+        hint: '抓住炉门把手，向右拉开加热；向左推回关火', onDrag: p => A.gate(i, p) })),
+      { obj: valve, plane: 'xy', offset: 0.008, keepOffset: true, hint: '向右拨动，封存钟罩内剩余气体', onDrag: A.seal },
+      ...caps.map((obj, i) => ({ obj, plane: 'xy', keepOffset: true,
+        hint: '提起瓶塞放在一旁；加热前拖回取样口', onDrag: p => A.cap(i, p), onEnd: () => A.capDrop(i) })),
+      { obj: spoonPick, anchor: spoon, keepOffset: true, plane: 'xy',
+        hint: '拿起药匙，从左侧取样口伸入取粉，再提起移到右侧口上方', onDrag: A.spoonDrag, onEnd: A.spoonDrop },
+    ], { tip: tag('', 'pill'), taps: [
+      { obj: mixControl, hint: '查看两份气体合并的结果对照（示意）', onTap: A.mix },
     ] });
     const act = demoActs(drag, group);
+    const gateAt = (i, open) => new V((i ? RIGHT : LEFT) + (open ? 0.035 : 0), 0.033, i ? 0.037 : 0.053);
+    const scoopPath = [null, new V(LEFT, 0.19, 0), new V(LEFT, 0.111, 0), new V(LEFT, 0.19, 0), new V(RIGHT, 0.15, 0), new V(RIGHT, 0.13, 0)];
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'heat', title: '加热汞', todo: '点<b>左侧炉子</b>，向右拖动前方进程轴；停在任意阶段观察红色粉末。', target: () => S.heating ? timeKnob : stove.body },
-        { id: 'read', title: '冷却读数', todo: '点<b>左侧玻璃钟罩</b>，推进到停止加热、冷却后的状态，记录体积。', target: () => airBell.glass },
-        { id: 'transfer', title: '收集粉末', todo: '点<b>收集红色粉末</b>，把它移到右侧的小容器。', target: () => transferControl },
-        { id: 'recover', title: '强热粉末', todo: '点<b>右侧炉子</b>，拖动进程轴；再点右侧气体容器冷却并读数。', target: () => S.decomposed >= 1 ? oxygenBell.glass : S.strong ? timeKnob : burner.body },
-        { id: 'mix', title: '合并比较', todo: '点<b>合并气体</b>，看总体积能否恢复。', target: () => mixControl },
-        { id: 'why', title: '解释现象', todo: '对照左侧的观察记录，想一想减少的气体去了哪里。' },
+        { id: 'heat', title: '加热汞', todo: '抓住<b>左侧炉门把手</b>向右拉开，观察红色颗粒逐渐生成。', target: () => gates[0] },
+        { id: 'read', title: '关火读数', todo: '把<b>左侧炉门</b>向左推回。冷却已加速，稳定后自动留下观察记录。', target: () => gates[0] },
+        { id: 'transfer', title: '取粉末', todo: '向右拨<b>封存阀</b>，提起两侧<b>瓶塞</b>；拿药匙从左口伸入取粉，再提起移到右口上方倒入。', target: () => !S.sealed ? valve : !S.capOff[0] ? caps[0] : !S.capOff[1] ? caps[1] : spoonPick },
+        { id: 'recover', title: '强热粉末', todo: '把右侧<b>瓶塞</b>放回口上，拉开右侧炉门。粉末分解完后推回炉门，冷却比较氧气体积。', target: () => S.capOff[1] ? caps[1] : gates[1] },
+        { id: 'mix', title: '比较结果', todo: '比较自己留下的体积记录，查看两部分气体合并的结果示意。', target: () => mixControl },
+        { id: 'why', title: '解释现象', todo: '对照观察记录，解释原先减少的氧气去了哪里。' },
       ],
       reels: { demo: {
         label: '老师演示',
         ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => mw.close() }),
         shots: [
-          { cap: '点燃炉火，拖动进程轴推进历史上的 12 天。红色颗粒逐渐出现在汞表面。', dur: 5,
-            during: act.seq(act.tap(stove.body, 0.02), act.drag(timeKnob, new V(TIME_END, 0.009, TIME_Z), { t0: 0.12, t1: 0.9, release: 0.95 })) },
-          { cap: '点钟罩推进到冷却后读数：100 份变成 79 份。这里省略冷却等待，不表示瞬间冷却。', dur: 3, during: act.tap(airBell.glass, 0.12) },
-          { cap: '收集红色粉末，剩余气体另行保留。取样与封存过程概括呈现。', dur: 3, during: act.tap(transferControl, 0.12) },
-          { cap: '再点右侧炉子，推进强热。红色粉末减少，银白色汞重新出现，并放出氧气。', dur: 5,
-            during: act.seq(act.tap(burner.body, 0.02), act.drag(timeKnob, new V(TIME_END, 0.009, TIME_Z), { t0: 0.12, t1: 0.9, release: 0.95 })) },
-          { cap: '推进到冷却后记录：收回 21 份氧气，恰好等于原来减少的体积。', dur: 3, during: act.tap(oxygenBell.glass, 0.12) },
-          { cap: '将两份气体合并比较：79 + 21 = 100。减少的氧气并没有消失。', dur: 3, during: act.tap(mixControl, 0.12) },
+          { cap: '拉开炉门。加热过程加速呈现，红色颗粒逐渐生成。', dur: 6, during: act.drag(gates[0], gateAt(0, true), {t0: 0.02, t1: 0.15, release: 0.18}) },
+          { cap: '推回炉门关火，冷却后记录气体体积：79 份。', dur: 2, during: act.drag(gates[0], gateAt(0, false), {t0: 0.02, t1: 0.3, release: 0.35}) },
+          { cap: '封存剩余气体，提起两侧取样口的瓶塞。取样口与阀门是操作示意。', dur: 4,
+            during: act.seq(act.drag(valve, new V(-0.075, 0.153, 0.008), {t0: 0.02, t1: 0.2, release: 0.22}), act.drag(caps[0], capRest[0], {t0: 0.25, t1: 0.5, release: 0.52}), act.drag(caps[1], capRest[1], {t0: 0.56, t1: 0.8, release: 0.82})) },
+          { cap: '药匙从取样口伸入，取起红色粉末，提起后移到小容器口倒入。', dur: 5, during: act.path(spoonPick, scoopPath, {t0: 0.02, t1: 0.75, release: 0.98}) },
+          { cap: '塞好右侧瓶塞，再拉开炉门强热。红色粉末减少，汞与氧气重新出现。', dur: 6,
+            during: act.seq(act.drag(caps[1], capHomes[1], {t0: 0.02, t1: 0.15, release: 0.17}), act.drag(gates[1], gateAt(1, true), {t0: 0.2, t1: 0.3, release: 0.32})) },
+          { cap: '推回炉门，冷却后得到 21 份氧气，恰好等于原来减少的量。', dur: 2, during: act.drag(gates[1], gateAt(1, false), {t0: 0.02, t1: 0.3, release: 0.32}) },
+          { cap: '结果对照：79 份剩余气体加上 21 份氧气，恢复为 100 份。', dur: 2, during: act.tap(mixControl, 0.12) },
         ],
       } },
     });
     function update(dt, time) {
       const step = Math.min(dt, 1 / 30) * bar.update(dt);
-      // 学生掌握进程；松开滑块即停留，不再使用强制倒计时。
-      const progress = S.transferred ? S.decomposed : S.heated;
-      timeKnob.position.x = THREE.MathUtils.lerp(TIME_START, TIME_END, progress);
-      if (W?.timeline) {
-        W.timeline.value = String(progress * 100);
-        W.timeline.disabled = !S.heating && !S.strong;
-        W.timeText.textContent = S.transferred ? '强热进程 ' + Math.round(progress * 100) + '%' : '加热进程 ' + (progress * 12).toFixed(1) + ' / 12 天';
+      if (S.heating) { S.heated = Math.min(1, S.heated + step / HEAT_SECONDS); if (S.heated === 1) done('heat'); }
+      if (S.strong) S.decomposed = Math.min(1, S.decomposed + step / DECOMPOSE_SECONDS);
+      S.heat = S.heating || S.strong ? 1 : Math.max(0, S.heat - step / 0.65);
+      if (S.heat === 0) { A.read(); A.record(); }
+      gates.forEach((g,i) => { g.position.x = (i ? RIGHT : LEFT) + S.gates[i] * 0.035; });
+      valve.position.x = S.sealed ? -0.075 : -0.10;
+      caps.forEach((c,i) => { c.position.copy(S.capCarry[i] || (S.capOff[i] ? capRest[i] : capHomes[i])); c.rotation.z = S.capOff[i] && !S.capCarry[i] ? Math.PI : 0; });
+      const sp = S.spoonCarry || S.spoonPos;
+      spoon.position.copy(sp || SPOON_HOME);
+      spoon.rotation.z = sp && Math.abs(sp.x - LEFT) < 0.025 && sp.y < mouths[0].y + 0.012 ? Math.PI / 2 : 0;
+      spoon.rotation.x = 0;
+      spoon.heap.visible = S.powder === 'spoon';
+      const over = sp && S.capOff[1] && Math.abs(sp.x - RIGHT) < 0.012 && sp.y > mouths[1].y && sp.y < mouths[1].y + 0.03;
+      if (over && S.powder === 'spoon') {
+        S.pouring = Math.min(1, S.pouring + step / 0.5);
+        spoon.rotation.x = -S.pouring * Math.PI;
+        if (S.pouring === 1) { S.powder = 'small'; S.transferred = true; S.returnFrom = sp.clone(); S.returnT = 0; S.spoonCarry = null; S.spoonPos = null; spoon.rotation.x = 0; done('transfer'); status('粉末已倒入。把右侧瓶塞放回取样口，再拉开右侧炉门。'); }
+      } else if (S.powder === 'spoon') S.pouring = 0;
+      if (S.returnFrom) {
+        S.returnT = Math.min(1, S.returnT + step / 0.6);
+        spoon.position.lerpVectors(S.returnFrom, SPOON_HOME, S.returnT);
+        spoon.position.y += Math.sin(S.returnT * Math.PI) * 0.04;
+        if (S.returnT === 1) S.returnFrom = null;
       }
-      if (S.transfer > 0 && !S.transferred) {
-        S.transfer = Math.min(1, S.transfer + step / 0.45);
-        if (S.transfer === 1) A.finishTransfer();
-      }
+      falling.forEach((grain,i) => {
+        grain.visible = !!over && S.powder === 'spoon' && S.pouring > 0.15;
+        grain.position.set(RIGHT + Math.sin(i * 2.4) * 0.004, 0.13 - ((time * 3 + i / 12) % 1) * 0.055, Math.cos(i * 2.4) * 0.004);
+      });
       if (S.mix > 0 && !S.mixed) {
         S.mix = Math.min(1, S.mix + step / 0.5);
         if (S.mix === 1) {
@@ -345,12 +381,10 @@ export default {
       stove.fire.setOn(S.heating); burner.fire.setOn(S.strong);
       stove.fire.update(time); burner.fire.update(time);
       oxide.forEach((grain, i) => {
-        grain.visible = !S.transferred && i / oxide.length < S.heated;
+        grain.visible = S.powder === 'retort' && i / oxide.length < S.heated;
         const k = THREE.MathUtils.clamp(S.heated * oxide.length - i, 0, 1);
         grain.scale.set(k, k * 0.5, k * 0.85);
       });
-      sample.visible = S.transfer > 0 && !S.transferred;
-      sample.position.set(THREE.MathUtils.lerp(LEFT, RIGHT, S.transfer), 0.12 + Math.sin(S.transfer * Math.PI) * 0.075, 0);
       smallPowder.forEach((grain, i) => {
         const k = THREE.MathUtils.clamp((1 - S.decomposed) * smallPowder.length - i, 0, 1);
         grain.visible = S.transferred && k > 0;
@@ -373,10 +407,10 @@ export default {
           THREE.MathUtils.lerp(oxygenBell.base + oxygenBell.liquid.scale.y + 0.005 + (i % 3) / 3 * (0.081 - oxygenBell.liquid.scale.y), 0.075 + (i % 3) * 0.008, S.mix) + Math.sin(S.mix * Math.PI) * 0.09, Math.sin(angle) * 0.012);
       }
       leftCard.loc(group, -0.11, 0.19, 0).text('<div class="cc"><div class="cc-t">原来的空气</div><div class="cc-more">' +
-        (S.heat > 0.015 && !S.transferred ? '热态 · 点钟罩冷却读数' : remaining.toFixed(1) + ' / 100 份') +
+        (S.heat > 0.015 && !S.transferred ? '加热中 · 推回炉门关火' : remaining.toFixed(1) + ' / 100 份') +
         '<br><small>' + (S.transferred ? '已保留剩余气体' : '历史加热进程 ' + (S.heated * 12).toFixed(1) + ' / 12 天') + '</small></div></div>');
       rightCard.loc(group, 0.20, 0.16, 0).text('<div class="cc"><div class="cc-t">红色粉末放出的氧气</div><div class="cc-more">' +
-        (S.heat > 0.015 && S.transferred ? '热态 · 点容器冷却读数' : (recovered() * (1 - S.mix)).toFixed(1) + ' 份') +
+        (S.heat > 0.015 && S.transferred ? '加热中 · 推回炉门关火' : (recovered() * (1 - S.mix)).toFixed(1) + ' 份') +
         '<br><small>气体小点与合并过程为示意</small></div></div>');
       mw.set(microState()); mw.update(Math.min(step, 0.05));
     }
@@ -395,23 +429,13 @@ export default {
           onOk: () => { if (!S.mixed) return status('再把两部分气体合并，完成体积比较。'); done('why'); W.next.hidden = false; },
         });
         const controls = buttons([
-          { text: '加热 / 停止', onClick: A.heat },
-          { text: '冷却并读数', onClick: A.read },
-          { text: '收集红色粉末', onClick: A.transfer },
-          { text: '强热 / 停止', onClick: A.strong },
-          { text: '冷却并记录氧气', onClick: A.record },
-          { text: '合并气体', onClick: A.mix },
           { text: '看微观变化', ghost: true, onClick: openMicro },
+          { text: '合并结果对照', ghost: true, onClick: A.mix },
         ]);
-        const timeline = h('input', { type: 'range', min: '0', max: '100', step: '0.1', 'aria-label': '推进反应进程' });
-        timeline.style.width = '100%';
-        timeline.addEventListener('input', () => A.advance(Number(timeline.value) / 100));
-        const timeText = h('p', { class: 'fineprint' }, '加热进程 0 / 12 天');
-        const timeHelp = h('p', { class: 'fineprint' }, '点炉子后拖动进程轴，停下即可观察；冷却直接推进到完成状态，无需等待。进程只向前，重新观察请点“再做一次”。');
-        const note = h('p', { class: 'fineprint' }, '历史实验的教学模拟。汞及其化合物有毒，请勿自行复现。进程轴不表示真实反应速率；冷却、取样和合并步骤作概括，气体小点为示意；以初始气体 100 份归一化，体积统一按冷却后同温同压比较。');
-        const xuean = mountXuean(ui, { controls: [note, timeText, timeline, timeHelp, controls, question.el, moreBox([], A.reset)],
-          headers: ['操作', '体积', '观察'], intro: '点左侧炉子，再拖动前方进程轴，看红色粉末怎样出现。' });
-        W = { ...xuean, timeline, timeText, question, status: (m) => ui.status(m) };
+        const note = h('p', { class: 'fineprint' }, '拖动炉门、瓶塞和药匙来操作。反应与冷却已加速；取样口、封存阀为操作示意，不是历史器材复刻。汞及其化合物有毒，请勿自行复现。体积以初始 100 份归一化，在冷却后同温同压比较。');
+        const xuean = mountXuean(ui, { controls: [note, controls, question.el, moreBox([], A.reset)],
+          headers: ['操作', '体积', '观察'], intro: '抓住左侧炉门把手向右拉开，看汞表面生成红色粉末。' });
+        W = { ...xuean, question, status: (m) => ui.status(m) };
         bar.attach(ui);
       },
       update,
@@ -419,14 +443,19 @@ export default {
       debug: {
         get S() { return S; }, A, bar,
         qa: qaFlow(drag, [
-          { name: '加热汞', tap: stove.body },
-          { name: '推进加热进程', drag: timeKnob, to: new V(TIME_END, 0.009, TIME_Z) },
-          { name: '冷却读剩余气体', tap: airBell.glass },
-          { name: '收集粉末', tap: transferControl },
-          { name: '强热', tap: burner.body },
-          { name: '推进强热进程', drag: timeKnob, to: new V(TIME_END, 0.009, TIME_Z) },
-          { name: '冷却记录氧气', tap: oxygenBell.glass },
-          { name: '合并气体', tap: mixControl },
+          { name: '拉开左炉门', drag: gates[0], to: gateAt(0, true), wait: 6 },
+          { name: '推回炉门冷却', drag: gates[0], to: gateAt(0, false), wait: 1 },
+          { name: '封存剩余气体', drag: valve, to: new V(-0.075, 0.153, 0.008) },
+          { name: '取左瓶塞', drag: caps[0], to: capRest[0] },
+          { name: '取右瓶塞', drag: caps[1], to: capRest[1] },
+          { name: '药匙移到左口上方', drag: spoonPick, to: new V(LEFT, 0.19, 0) },
+          { name: '伸入取粉', drag: spoonPick, to: new V(LEFT, 0.111, 0) },
+          { name: '提起药匙', drag: spoonPick, to: new V(LEFT, 0.19, 0) },
+          { name: '移到右口倒入', drag: spoonPick, to: new V(RIGHT, 0.13, 0), wait: 1 },
+          { name: '放回右瓶塞', drag: caps[1], to: capHomes[1] },
+          { name: '拉开右炉门', drag: gates[1], to: gateAt(1, true), wait: 5 },
+          { name: '关火冷却', drag: gates[1], to: gateAt(1, false), wait: 1 },
+          { name: '合并结果对照', tap: mixControl },
           { name: '回答', run: () => W.question.el.querySelector('button').click() },
         ]),
       },
