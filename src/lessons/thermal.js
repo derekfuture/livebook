@@ -283,7 +283,7 @@ export default {
     return {
       group,
       // 地球主探索：点台湾海峡那面旗进来，直接是海峡两岸的情境；where：现在是哪个情境（海峡两岸对应课本第 34 页）
-      place: (name) => placeFn?.(name),
+      goPlace: (name) => placeFn?.(name),
       where: () => S.mode,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪

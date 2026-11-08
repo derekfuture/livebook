@@ -288,7 +288,7 @@ export default {
         earthRot.quaternion.fromArray(st.rot); S.target = null; drawLog(); stepView(0);
       },
       // 地球主探索：从别的活页带着地方进来（如垂直地带性的喜马拉雅）；where：现在切开的是哪个案例
-      place: (name) => { const pr = PRESETS.find((p) => p[0] === name); if (pr) { S.moved = true; choose(pr[1], pr[2], pr); } },
+      goPlace: (name) => { const pr = PRESETS.find((p) => p[0] === name); if (pr) { S.moved = true; choose(pr[1], pr[2], pr); } },
       where: () => S.pick?.preset?.[0] ?? null,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉

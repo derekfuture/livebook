@@ -422,7 +422,7 @@ export default {
     return {
       group,
       // 地球主探索：点黄河入海口那面旗进来，直接看入海口；where：现在看的是上游还是入海口（入海口对应课本第 64 页的思考）
-      place: (name) => { if (name === 'mouth') showMouth(); },
+      goPlace: (name) => { if (name === 'mouth') showMouth(); },
       where: () => (S.vTo ? 'mouth' : 'main'),
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉

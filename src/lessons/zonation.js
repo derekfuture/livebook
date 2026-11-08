@@ -262,7 +262,7 @@ export default {
     return {
       group,
       // 地球主探索：点长白山那面旗进来，就是长白山；where：现在看的是哪座山
-      place: (name) => placeFn?.(name),
+      goPlace: (name) => placeFn?.(name),
       where: () => S.m,
       // 回到地球再进来：山、山高、北坡假设、走过的带、猜的、这一次的情境都还在（“重来”才从头开始）
       save: () => ({ m: S.m, cut: S.cut, northLow: S.northLow, u: S.u, moved: S.moved, guess: S.guess, guessCb: S.guessCb, ctx: S.ctx, seen: { south: [...S.seen.south], north: [...S.seen.north], cb: [...S.seen.cb] }, tried: [...S.tried], cuts: { ...S.cuts } }),

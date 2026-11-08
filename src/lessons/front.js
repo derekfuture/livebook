@@ -635,7 +635,7 @@ export default {
     return {
       group,
       // 地球主探索：点昆明准静止锋那面旗进来，直接是准静止锋；where：现在推的是哪一种（换到准静止锋，书跟着翻到第 44 页）
-      place: (name) => placeFn?.(name),
+      goPlace: (name) => placeFn?.(name),
       where: () => (S.map ? 'map' : S.kind),
       card: false,          // 和化学一样：不垫台板；整块地浮在书页上方
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
