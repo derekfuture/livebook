@@ -15,6 +15,7 @@ export const TERRAIN = {
     name: '长白山', dem: cbDem, img: cbImg, lat: 42.17, lon: 127.95, size: 110, exag: 3,          // 从东边看：地形往西（镜头对面）多铺一些
     target: [42.18, 128.07], view: { az: 100, el: 26, km: 60 },          // 从东边看过去：北坡从右边的山脚一路升到左边的天池，侧面就是课本那张剖面的样子
     cut: { from: [42.37, 128.09], to: [42.028, 128.058], text: '北坡：从山脚（700 多米）到天池边（2 600 多米）' },
+    crop: [[41.97, 42.41], [127.86, 128.28]],          // 切出来落到书上的那一块：天池和整条北坡
     src: '卫星影像：Sentinel-2 cloudless 2016（EOX，含 Copernicus 数据）· 高程：AWS Terrain Tiles（SRTM 等）',
   },
 };
@@ -84,4 +85,60 @@ export function globePatch(def, segs = 220) {
   const cut = new LineSegments2(lg, new LineMaterial({ color: 0xffd28a, linewidth: 3, worldUnits: false, transparent: true, opacity: 0 }));
   cut.raycast = () => {}; cut.renderOrder = 3; cut.visible = false;
   return { mesh, cut, frame: F, place, lineAt, sunL };
+}
+
+/** 切出来的一块地形（当地平面，单位 km：x 东、y 上（高度放大 exag 倍）、z 南），带四面土色的侧壁，像一块地形模型。
+ *  crop：[[南纬, 北纬], [西经, 东经]] 只要这一块（从大地形里切出来）。返回 group（自己缩放到世界里）、顶面材质、画在上面的线 */
+export function terrainBlock(def, crop, segs = 160) {
+  const a = toLocal(def, crop[0][0], crop[1][0]), b = toLocal(def, crop[0][1], crop[1][1]);          // 西南角、东北角（km）
+  const x0 = a.x, x1 = b.x, y0 = a.y, y1 = b.y, ex = def.exag / 1000;
+  const top = new THREE.PlaneGeometry(1, 1, segs, Math.round(segs * (y1 - y0) / (x1 - x0)));
+  const pos = top.attributes.position, uv = top.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const x = x0 + uv.getX(i) * (x1 - x0), y = y0 + uv.getY(i) * (y1 - y0);
+    pos.setXYZ(i, x, elevAt(def, x, y) * ex + 0.0005, -y);
+    uv.setXY(i, x / def.size + 0.5, y / def.size + 0.5);          // 在整张影像里的位置
+  }
+  top.computeVertexNormals();
+  const sunL = new THREE.Vector3(0.45, 0.7, 0.55).normalize();          // 和贴在地球上时同一个太阳（东南方上午）
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, uniforms: { map: { value: def.tex }, sunL: { value: sunL }, k: { value: 1 }, hazeC: { value: new THREE.Color(0xc9d6e3) }, haze: { value: new THREE.Vector2(1e5, 2e5) } },
+    vertexShader: 'varying vec2 vUv; varying vec3 vN; varying float vD; void main(){ vUv = uv; vN = normal; vec4 w = modelMatrix * vec4(position, 1.0); vD = distance(w.xyz, cameraPosition); gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: `uniform sampler2D map; uniform vec3 sunL; uniform float k; uniform vec3 hazeC; uniform vec2 haze; varying vec2 vUv; varying vec3 vN; varying float vD;
+      void main(){ vec3 c = texture2D(map, vUv).rgb; float d = dot(normalize(vN), sunL);
+        c = mix(c * (0.55 + 0.7 * max(d, 0.0)), hazeC, smoothstep(haze.x, haze.y, vD) * 0.85);
+        gl_FragColor = vec4(c, k);
+        #include <colorspace_fragment>
+      }`,
+  });
+  const g = new THREE.Group(), topM = new THREE.Mesh(top, mat); topM.raycast = () => {}; g.add(topM);
+  // 侧壁：从地面边上一直到海平面，上浅下深的土色（只是模型的样子，不代表地下的岩层）
+  const P = [], C = [], idx = [], col = (t) => new THREE.Color(0x8a6a4a).lerp(new THREE.Color(0x3a2a1e), t);
+  const edge = (xa, ya, xb, yb) => {
+    const n = 60, base = P.length / 3;
+    for (let i = 0; i <= n; i++) {
+      const f = i / n, x = xa + (xb - xa) * f, y = ya + (yb - ya) * f, h = elevAt(def, x, y) * ex;
+      P.push(x, h, -y, x, 0, -y); const c0 = col(0), c1 = col(1); C.push(c0.r, c0.g, c0.b, c1.r, c1.g, c1.b);
+      if (i) { const k0 = base + (i - 1) * 2; idx.push(k0, k0 + 1, k0 + 2, k0 + 1, k0 + 3, k0 + 2); }
+    }
+  };
+  edge(x0, y0, x1, y0); edge(x1, y0, x1, y1); edge(x1, y1, x0, y1); edge(x0, y1, x0, y0);
+  const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); wg.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); wg.setIndex(idx);
+  const wallM = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1 });
+  const walls = new THREE.Mesh(wg, wallM); walls.raycast = () => {}; g.add(walls);
+  // 那条线
+  const A = toLocal(def, ...def.cut.from), B = toLocal(def, ...def.cut.to), pts = [];
+  for (let i = 0; i <= 80; i++) { const f = i / 80, x = A.x + (B.x - A.x) * f, y = A.y + (B.y - A.y) * f; pts.push(new THREE.Vector3(x, (elevAt(def, x, y) + 60) * ex, -y)); }
+  const lg = new LineSegmentsGeometry(); lg.setPositions(pts.flatMap((p, i) => (i ? [pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, p.x, p.y, p.z] : [])));
+  const cut = new LineSegments2(lg, new LineMaterial({ color: 0xffd28a, linewidth: 3, worldUnits: false, transparent: true, opacity: 0.95 })); cut.raycast = () => {}; g.add(cut);
+  const center = new THREE.Vector3((x0 + x1) / 2, 0, -(y0 + y1) / 2);
+  return { group: g, top: topM, mat, walls, wallM, cut, center, w: x1 - x0, d: y1 - y0, sunL };
+}
+
+/** 落到书上时这块地形摆在哪：书（合上时在 x 0…W、z −1…1）封面正上方，北朝右、东朝镜头；宽 width（世界单位，沿南北） */
+export function blockPose(blk, W, T, width = 1.5) {
+  const s = width / blk.d;
+  const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)));          // 局部的东→世界 +z（朝镜头）、上→上、南→ −x（北朝右）
+  const c = blk.center.clone().multiplyScalar(s).applyQuaternion(q);
+  return { pos: new THREE.Vector3(W / 2, T + 0.62, 0.02).sub(c), q, s };
 }

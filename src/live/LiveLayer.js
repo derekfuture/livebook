@@ -377,8 +377,10 @@ export class LiveLayer {
       if (wm === 'pin') {
         // 从地球上那一点长出来：一边长大，一边沿一道弧线落到书页正中（收起时倒着走，回到角上那颗地球的旗里）
         const k = clamp01(t / PIN_T), e = easeInOut(k), from = A.world.from?.() || A.from;
+        if (A.world.fromWidth && A.s0 == null) { A.root.scale.setScalar(1); A.root.updateMatrixWorld(true); const sz = new THREE.Box3().setFromObject(A.root).getSize(new THREE.Vector3()); A.s0 = Math.min(1, A.world.fromWidth / Math.max(0.05, sz.x)); }          // 从地形块长出来：起始大小和地形块一样宽
         A.root.position.lerpVectors(from, A.to, e).y += Math.sin(Math.PI * e) * 0.18 * (1 - e * 0.5) + A.liftCur;
-        A.root.scale.setScalar(0.015 + 0.985 * e);          // 和位置一起走：在角上时还小，越近越大
+        const s0 = A.s0 ?? 0.015; A.root.scale.setScalar(s0 + (1 - s0) * e);          // 和位置一起走：在角上时还小，越近越大
+        if (!A.closing) A.world.onGrow?.(k);
         A.root.visible = true;
         for (const tg of A.tags) { const o = A.closing ? 0 : clamp01((k - 0.85) / 0.15); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }
       } else {

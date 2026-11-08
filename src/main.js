@@ -83,9 +83,10 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       for (const l of [book.leftTop, book.rightTop]) l.refresh();
       $('#loader').classList.add('done');
       snapHold = document.documentElement.classList.contains('snap') ? 0.34 : 0;          // 从地理世界点进来：那边最后一帧盖着，等它淡出完了再翻书、挪镜头（不然两本书错开，有重影）
-      window.__dropSnap?.();
-      if (handoff) { book.group.visible = true; handoff(); }
-      handleHash();
+      const hq = new URLSearchParams(location.hash.slice(1));
+      const go = () => { window.__dropSnap?.(); if (handoff) { book.group.visible = true; handoff(); } handleHash(); };
+      if (world && hq.get('via') === 'block') world.prepareBlock(hq.get('place')).then(go, go);          // 从地理世界俯冲进来：先摆好那块地形（和那边最后一帧一样），再揭开
+      else go();
     }
   });
   stage.start();
