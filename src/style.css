@@ -813,17 +813,18 @@ body.geo-world { --gw-ink: #efe6d2; --gw-dim: #a3aec4; --gw-gold: #d6b16e; --gw-
 .tag3d.w-circle { font: 11.5px/1 var(--song); color: rgba(241,215,159,.85); letter-spacing: .14em; text-shadow: 0 0 6px rgba(5,9,20,.95); pointer-events: none; }
 .tag3d.w-sunhint { font: 12px/1 var(--sans); color: var(--gw-gold2); letter-spacing: .08em; text-shadow: 0 0 8px rgba(5,9,20,.95); pointer-events: none; }
 .tag3d.w-sunhint span { display: block; animation: hint-breath 2.8s ease-in-out infinite; }
-/* 看法：和书里一样的纸——米色纸签、墨色字；开着的那枚压一圈朱红（和盖章同一个红） */
-body.geo-world .tag3d.w-themes { gap: 8px; }
-body.geo-world .tag3d.w-themes button { background: #f8f2e3; border: 1px solid rgba(120,100,60,.35); color: #2a2f3d; box-shadow: 0 6px 16px rgba(0,0,0,.35), inset 0 0 18px rgba(160,130,80,.12); padding: 7px 15px 7px 9px; font: 600 13.5px/1 var(--song); letter-spacing: .12em; gap: 8px; border-radius: 3px; }
-body.geo-world .tag3d.w-themes button::before { display: none; }
-body.geo-world .tag3d.w-themes svg { width: 17px; height: 17px; fill: none; stroke: #5a4a32; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
-body.geo-world .tag3d.w-themes svg .fill { fill: #5a4a32; stroke: none; }
-body.geo-world .tag3d.w-themes button:hover { background: #fff8e8; transform: translateX(2px); }
-body.geo-world .tag3d.w-themes button.on { background: #fff6e2; color: #8a2a14; border: 1.5px solid #c8341f; box-shadow: 0 6px 16px rgba(0,0,0,.35), 0 0 0 3px rgba(200,52,31,.18); }
-body.geo-world .tag3d.w-themes button.on svg { stroke: #c8341f; } body.geo-world .tag3d.w-themes button.on svg .fill { fill: #c8341f; }
-body.geo-world .tag3d.w-enter { background: none; border: 0; box-shadow: none; padding: 0; }
-body.geo-world .tag3d.w-enter span { font: 600 13.5px/1.4 var(--song); color: #f5ecd8; letter-spacing: .08em; border-bottom: 1px solid rgba(245,236,216,.6); padding-bottom: 2px; text-shadow: 0 0 8px rgba(5,9,20,.95); }
+/* 看法：在左边纸卡目录的最上面，和书里侧栏的控件一样——墨色细线的小按钮，开着的那枚压一圈朱红（和盖章同一个红） */
+.atlas-views { margin: 2px 0 12px; padding: 0 0 12px; border-bottom: 1px dashed rgba(120,100,60,.35); }
+.atlas-views .av-title { font: 600 13px/1.4 var(--song); color: #8a7d64; letter-spacing: .12em; margin-bottom: 7px; }
+.atlas-views .av-btns { display: flex; gap: 8px; }
+.atlas-views .av-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 0; border: 1px solid rgba(120,100,60,.35); border-radius: 3px; background: rgba(255,253,247,.75); color: #2a2f3d; font: 600 14px/1 var(--song); letter-spacing: .1em; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+.atlas-views .av-btn svg { width: 16px; height: 16px; fill: none; stroke: #5a4a32; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.atlas-views .av-btn svg .fill { fill: #5a4a32; stroke: none; }
+.atlas-views .av-btn:hover { background: #fff6e2; border-color: rgba(176,114,58,.6); }
+.atlas-views .av-btn.on { background: #fff6e2; color: #8a2a14; border: 1.5px solid #c8341f; box-shadow: 0 0 0 3px rgba(200,52,31,.12); }
+.atlas-views .av-btn.on svg { stroke: #c8341f; } .atlas-views .av-btn.on svg .fill { fill: #c8341f; }
+.atlas-views .av-enter { display: block; margin-top: 9px; border: 0; background: none; padding: 0; color: #1f4f8f; font: 600 13.5px/1.4 var(--song); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.atlas-views .av-enter[hidden] { display: none; }
 /* 俯冲到了：北（金色罗盘针）、数据来源 */
 body.geo-world .geo-dive .gd-north i { border-bottom-color: var(--gw-gold2); }
 body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(--song); }

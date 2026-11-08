@@ -17,7 +17,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 
 const $ = (s) => document.querySelector(s);
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const EARTH = { y: 1.8, r: 0.92 };          // 地球：球心多高、多大
+const EARTH = { y: 1.86, r: 0.92 };          // 地球：球心多高、多大
 const RING = { r: 2.45, h: 0.92, tilt: 0.24 };          // 书圈：半径、书多高、往后仰多少
 const BOOK_COLORS = { 'dili-7s': '#4f9d4a', 'dili-bx1': '#3d6fb4', 'dili-bx2': '#c27a2c', 'dili-xb1': '#8a5aa0', 'dili-xb2': '#c0453a' };          // 一本书一个颜色：旗、书脊下的光、侧栏一致
 const SHORT = (full) => full.replace(/^人教版\s*/, '').replace(/^地理\s*/, '').replace('选择性必修', '选必');
@@ -116,7 +116,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const shot = (instant = false) => {
     stage.cameraOffsetX = panelOpen() ? Math.min(380, innerWidth * 0.4) / 2 + 8 : 0; stage.cameraOffsetY = 0;
     const el = THREE.MathUtils.degToRad(19);
-    stage.shot({ target: new THREE.Vector3(0, 1.12, 0.3), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist: stage.fitDistance(RING.r * 2 + 1.1, EARTH.y + EARTH.r + 0.75, 1.13), instant, minEl: 0.05 });          // 地球上方留出天空，不顶着屏幕上沿
+    stage.shot({ target: new THREE.Vector3(0, 1.1, 0.3), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist: stage.fitDistance(RING.r * 2 + 1.1, EARTH.y + EARTH.r + 0.75, 1.045), instant, minEl: 0.05 });          // 地球是主角要够大，上面只留一点天空
   };
 
   // ---- 侧栏：按书列出活页（颜色和旗一样） ----
@@ -125,6 +125,22 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const rows = new Map(), groups = new Map();
   let frontId = null;
   const setFront = (id) => { if (id === frontId) return; frontId = id; for (const [k, g] of groups) { g.classList.toggle('open', k === id); g.previousSibling?.classList.toggle('on', k === id); } };          // 侧栏只展开书圈正前方那本书的活页
+  // ---- “看法”：整个地球的主题（昼夜、板块、气压带），点了一直开着。放在左边纸卡目录的最上面（控件都在纸卡里，地球四周保持干净，和书里一样） ----
+  const themes = items.filter((x) => x.anchor.chip);
+  const ICON = {          // 小图标：墨色细线（昼夜：半明半暗的球；板块：一道裂开的边界；气压带：一条条纬向的带）
+    sun: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" class="fill"/></svg>',
+    plates: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M4.5 7.5l3 1.5 2-2 2.5 3 2-1 2 2.5"/></svg>',
+    belts: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M3.6 7h12.8M3 10h14M3.6 13h12.8"/></svg>',
+  };
+  let layerOn = null, viewBtns = [], enterLink = null;
+  const setView = (x) => {
+    layerOn = layerOn === x ? null : x;
+    earth.setLayer(layerOf(layerOn));
+    const sunOn = layerOn?.anchor.layer === 'sun'; time.focus(sunOn);          // 昼夜：右上角的读数亮起来，地球转到你在的地方
+    if (sunOn) earth.turnTo(time.city.lat, time.city.lon, stage.camera);
+    for (const bt of viewBtns) bt.classList.toggle('on', layerOn?.id === bt.dataset.id);
+    if (enterLink) { enterLink.hidden = !layerOn; enterLink.textContent = layerOn ? `进到“${layerOn.title}” →` : ''; }
+  };
   const openPanel = () => {
     const ui = panel.open({ id: 'geo-world', index: true, fig: '人教版 · 地理', title: '地理世界', ask: '课本里讲的这些事，发生在地球的哪里？' }, { onClose: () => { panel.close(); shot(); }, closeText: '收起 ‹' });
     panel.el.classList.add('board');
@@ -141,31 +157,14 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
         rows.set(it.id, row); grp.append(row);
       }
     }
-    ui.controls.append(list);
+    viewBtns = themes.map((x) => h('button', { class: 'av-btn', 'data-id': x.id, html: `${ICON[x.anchor.layer] || ''}<span>${x.anchor.chip}</span>`, onclick: () => setView(x) }));
+    enterLink = h('button', { class: 'av-enter', hidden: true, onclick: () => layerOn && go(layerOn) });
+    ui.controls.append(h('div', { class: 'atlas-views' }, h('div', { class: 'av-title' }, '看整个地球'), h('div', { class: 'av-btns' }, viewBtns), enterLink), list);
     ui.status(`${books.length} 本地理书、${items.length} 张活页。课本里举了具体地方的，地球上都插了一面旗，颜色是它所在的那本书。`);
   };
   openPanel();
   shot(true);
 
-  // ---- 地球旁的“看法”：整个地球的主题，点了一直开着 ----
-  const themes = items.filter((x) => x.anchor.chip);
-  const ICON = {          // 看法的小图标：金色细线（昼夜：半明半暗的球；板块：一道裂开的边界；气压带：一条条纬向的带）
-    sun: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" class="fill"/></svg>',
-    plates: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M4.5 7.5l3 1.5 2-2 2.5 3 2-1 2 2.5"/></svg>',
-    belts: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M3.6 7h12.8M3 10h14M3.6 13h12.8"/></svg>',
-  };
-  const chips = tag(themes.map((x) => `<button data-id="${x.id}">${ICON[x.anchor.layer] || ''}<span>${x.anchor.chip}</span></button>`).join(''), 'w-themes');
-  let layerOn = null;
-  chips.el.addEventListener('click', (e) => {
-    const bt = e.target.closest('button'); if (!bt) return; e.stopPropagation();
-    const it = themes.find((x) => x.id === bt.dataset.id); layerOn = layerOn === it ? null : it;
-    earth.setLayer(layerOf(layerOn));
-    const sunOn = layerOn?.anchor.layer === 'sun'; time.focus(sunOn);          // 昼夜：右上角的读数亮起来，地球转到你在的地方
-    if (sunOn) earth.turnTo(time.city.lat, time.city.lon, stage.camera);
-    for (const x of chips.el.children) x.classList.toggle('on', layerOn?.id === x.dataset.id);
-    enterBtn.text(layerOn ? `<span>进到“${layerOn.title}” ›</span>` : ''); enterBtn.show(!!layerOn);
-  });
-  const enterBtn = tag('', 'view w-enter', () => layerOn && go(layerOn)); enterBtn.show(false);
   const hint = tag('<span>拖着地球转一转</span><small>指着一面旗看它在哪本书；点下去，翻到那一页</small>', 'hint');
   let touched = false;
 
@@ -595,16 +594,14 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       sunOnGlobe.position.copy(earth.sunLocal).multiplyScalar(1.01);
       const vis = worldFade < 0.5 && !leaving && !diving;
       sunSpr.visible = sunCore.visible = vis; hours.visible = worldFade < 0.99;
-      sunTag.at(sunSpr.position.clone().add(new THREE.Vector3(0, 0.18, 0))).show(vis && !sunDragged && !hovered);
+      sunTag.at(sunSpr.position.clone().add(new THREE.Vector3(0, -0.02, 0.32))).show(vis && !sunDragged && !hovered);          // 写在太阳靠镜头这一侧（上面是书的名字）
       const camAz = Math.atan2(stage.camera.position.z, stage.camera.position.x) - 0.62;          // 刻线的名字写在前方偏右，不压住正前方那本书
       for (const c of circleTags) { const rr = (c.colat / 90) * RING.r; c.t.at(new THREE.Vector3(Math.cos(camAz) * rr, 0.02, Math.sin(camAz) * rr)).show(vis); }
     }
     // 明信片跟着旗
     if (cardFor?.pn) { const cam = stage.camera, right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), w = earth.pinWorld(cardFor.pn), toRight = (cardFor.pn.side ?? 1) < 0, edge = earth.root.position.clone().addScaledVector(right, EARTH.r * (toRight ? 1 : -1)); const sx = (edge.clone().project(cam).x + 1) / 2 * innerWidth + (toRight ? 1 : -1) * ((card.el.offsetWidth || 214) / 2 + 22), sy = ((1 - w.clone().project(cam).y) / 2) * innerHeight; card.at(new THREE.Vector3((sx / innerWidth) * 2 - 1, 1 - (sy / innerHeight) * 2, 0.5).unproject(cam)); }
-    const left = new THREE.Vector3().setFromMatrixColumn(stage.camera.matrixWorld, 0).multiplyScalar(-EARTH.r * 1.32), E0 = new THREE.Vector3(0, EARTH.y, 0);          // 按钮钉在地球不浮动时的位置上（地球轻轻浮着，按钮不跟着晃）
-    chips.at(E0.clone().add(left)); chips.show(!leaving && !arriving && !diving);
-    enterBtn.at(E0.clone().add(left).add(new THREE.Vector3(0, -EARTH.r * 0.62, 0)));
-    hint.at(E0.clone().add(new THREE.Vector3(0, EARTH.r * 1.32, 0))).show(!touched && !arriving && !diving);
+    const E0 = new THREE.Vector3(0, EARTH.y, 0);          // 提示钉在地球不浮动时的位置上（地球轻轻浮着，字不跟着晃）
+    hint.at(E0.clone().add(new THREE.Vector3(0, EARTH.r * 1.22, 0))).show(!touched && !arriving && !diving);
     if (leaving) { leaving.t += dt; land(dt); }
     if (diving) diveStep(dt);
     if (arriving) arriveStep(dt);
