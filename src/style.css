@@ -778,17 +778,26 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 .fb-delete:hover { background:#f2ded8;color:#803f2d; }
 .fb-status:empty { display:none; }
 .fb-actions { justify-content:flex-end;margin-top:20px; }
-.fb-account { display:flex;align-items:center;gap:24px;border-top:1px solid #e2dccf;background:#f5f2e9;padding:8px 30px; }
-.fb-account-code { display:block;flex-shrink:0;width:124px;height:124px;border:6px solid white;border-radius:5px; }
-.fb-account-label { display:block;font-size:11px;color:#74806d;margin-bottom:5px; }
-.fb-account b { display:block;font:600 19px/1.5 var(--song);color:#39493f; }
-.fb-account p { margin:7px 0 4px;font-size:13px;color:#61705e; }
-.fb-account small { display:block;font-size:12px;color:#7b806f; }
+.fb-account { display:flex;align-items:center;gap:11px;border-top:1px solid #e2dccf;background:#f5f2e9;padding:10px 30px; }
+.fb-account-avatar { flex-shrink:0;border-radius:50%; }
+.fb-account-copy { min-width:0; }
+.fb-account b { display:block;font:500 14px/1.5 var(--song);color:#39493f; }
+.fb-account small { display:block;font-size:11px;color:#7b806f;margin-top:3px; }
+.fb-account-entry { position:relative;margin-left:auto;flex-shrink:0; }
+.fb-account-trigger { display:flex;align-items:center;gap:8px;padding:2px 0 2px 8px;border:0;border-radius:6px;background:none;color:#61705e;font:12px var(--sans);cursor:pointer; }
+.fb-account-trigger img { display:block;border:3px solid #fff;border-radius:3px; }
+.fb-account-trigger:hover { color:#345c44;background:#e8ecdf; }
+.fb-qr-hover { display:none;position:absolute;right:0;bottom:calc(100% + 10px);padding:12px;border:1px solid #d6d9c9;border-radius:10px;background:#fffdf6;box-shadow:0 8px 28px #26382430;z-index:2; }
+.fb-qr-hover::after { content:'';position:absolute;top:100%;left:0;right:0;height:12px; }
+.fb-qr-hover img { display:block; }
+@media(hover:hover) { .fb-account-entry:hover .fb-qr-hover { display:block; } }
+.fb-qr-lightbox { width:280px;max-width:calc(100vw - 32px);padding:44px 20px 20px; }
 @media(max-width:640px) {
- .fb-account { padding:14px 20px;gap:14px; }
- .fb-account-code { width:108px;height:108px; }
- .fb-account b { font-size:15px; }
- .fb-account p,.fb-account small { font-size:11px;line-height:1.6; }
+ .fb-account { padding:10px 18px;gap:8px; }
+ .fb-account-avatar { display:none; }
+ .fb-account b { font-size:13px; }
+ .fb-account small { font-size:10px;line-height:1.5;max-width:205px; }
+ .fb-account-trigger { gap:5px;font-size:11px; }
 }
 @media(min-width:641px) {
  .fb-header { padding:16px 36px 12px; }

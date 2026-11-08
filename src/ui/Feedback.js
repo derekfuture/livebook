@@ -33,8 +33,8 @@ export function openFeedback(context = {}) {
   const count = h('span', {}, `${message.value.length} / 2000`);
   const status = h('p', {class:'fb-status',role:'status'});
   const preview = h('div', {class:'fb-images'});
-  function viewImage(src, title) {
-    const lightbox = h('dialog',{class:'fb-lightbox','aria-label':title},
+  function viewImage(src, title, compact = false) {
+    const lightbox = h('dialog',{class:compact ? 'fb-lightbox fb-qr-lightbox' : 'fb-lightbox','aria-label':title},
       h('button',{type:'button',class:'fb-close','aria-label':'关闭图片',onclick:()=>lightbox.close()},'×'),
       h('img',{src,alt:title}));
     lightbox.addEventListener('close',()=>lightbox.remove(),{once:true});
@@ -103,12 +103,17 @@ export function openFeedback(context = {}) {
     h('p',{id:'fb-contact-hint',class:'fb-contact-hint'},'如果愿意进一步交流，可以留下微信或邮箱。'),
     status,
     h('div',{class:'fb-actions'},h('button',{class:'fb-primary',type:'submit'},'提交反馈',svg(arrow))));
+  const qr = fileUrl('/brand/gzh-qr.jpg');
   const account = h('section',{class:'fb-account','aria-label':'公众号'},
-    h('img',{class:'fb-account-code',src:fileUrl('/brand/gzh-qr.jpg'),width:124,height:124,alt:'德里克的 AI 教学实验室公众号二维码'}),
-    h('div',{},h('span',{class:'fb-account-label'},'公众号'),
-      h('b',{},'德里克的 AI 教学实验室'),
-      h('p',{},'用 AI 做真实的教学实践，一起探索未来教育'),
-      h('small',{},'新的活页、新的尝试，都在这里分享。')));
+    h('img',{class:'fb-account-avatar',src:fileUrl('/brand/gzh-avatar.jpg'),width:32,height:32,alt:''}),
+    h('div',{class:'fb-account-copy'},h('b',{},'德里克的 AI 教学实验室'),
+      h('small',{},'用 AI 做真实的教学实践，一起探索未来教育')),
+    h('div',{class:'fb-account-entry'},
+      h('button',{type:'button',class:'fb-account-trigger','aria-label':'查看公众号二维码',
+        onclick:()=>viewImage(qr,'德里克的 AI 教学实验室公众号二维码',true)},
+        h('img',{src:qr,width:40,height:40,alt:''}),h('span',{},'公众号')),
+      h('div',{class:'fb-qr-hover','aria-hidden':'true'},
+        h('img',{src:qr,width:180,height:180,alt:''}))));
   dialog.append(
     h('button',{type:'button',class:'fb-close','aria-label':'关闭反馈',onclick:()=>dialog.close()},'×'),
     h('header',{class:'fb-header'},h('span',{class:'fb-kicker'},'活页课本 / 反馈与建议'),
