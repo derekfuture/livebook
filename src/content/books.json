@@ -2290,6 +2290,11 @@
   "title": "地理 八年级下册",
   "base": "/books/dili-8x/",
   "lessons": {
+   "jieqi": {
+    "title": "二十四节气的划分",
+    "fig": "图1",
+    "sec": "跨学科主题学习 了解二十四节气"
+   },
    "shuitu": {
     "title": "在相同条件下植被对水土流失的影响",
     "fig": "图7.29",
@@ -2297,6 +2302,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "jieqi",
+    "page": 14,
+    "bbox": [
+     58,
+     148,
+     445,
+     345
+    ],
+    "label": "图1 · 翻开活页"
+   },
    {
     "lesson": "shuitu",
     "page": 37,

@@ -291,7 +291,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     document.body.append(v.el);
   }
   const lensHint = h('div', { class: 'geo-lens-hint' }, '换个看法 · 可以多选'); document.body.append(lensHint);
-  let dnT = 1, dn = 1;          // 昼夜这一层开着没有（1 开：按此刻的太阳照；0 关：整颗地球白天的样子）
+  let dnT = 1, dn = 1, glareK = 1;          // 昼夜这一层开着没有（1 开：按此刻的太阳照；0 关：整颗地球白天的样子）
   function toggleLens(v, init = false) {
     if (!init) { if (lensOn.has(v.id)) lensOn.delete(v.id); else lensOn.add(v.id); }
     for (const x of LENS) { const on = lensOn.has(x.id); x.el.classList.toggle('on', on); x.orb.setAttribute('aria-pressed', String(on)); }
@@ -725,6 +725,11 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     dn += (dnT - dn) * Math.min(1, dt * 3); if (worldFade < 0.001 && !leaving && !diving) earth.nowK = dn;          // 昼夜这一层慢慢开、关
     const showLens = !leaving && !arriving && !diving && !toDesk && worldFade < 0.01; for (const v of LENS) v.el.classList.toggle('hidden', !showLens); lensHint.classList.toggle('hidden', !showLens);
     placeOverlay();
+    if (worldFade < 0.001 && !leaving && !diving && !arriving) {          // 太阳耀斑压在月亮下面那块读数上（中国的夜里常这样）：耀斑淡一点，字看得清
+      const q = sunGlare.position.clone().project(stage.camera), gx = ((q.x + 1) / 2) * innerWidth, gy = ((1 - q.y) / 2) * innerHeight, rb = time.el.getBoundingClientRect();
+      const over = q.z < 1 && gx > rb.left - 50 && gx < rb.right + 50 && gy > rb.top - 50 && gy < rb.bottom + 50;
+      glareK += ((over ? 0.28 : 1) - glareK) * Math.min(1, dt * 3); sunGlare.material.opacity = glareK;
+    }
     if (home.userData.n) {
       const face = earth.facing(home.userData.n, stage.camera), k = Math.max(0, Math.min(1, (face - 0.15) / 0.15)) * (1 - worldFade);
       homeM.opacity = 0.95 * k; homeRing.scale.setScalar(1 + 0.18 * Math.sin(performance.now() / 420));          // 轻轻一呼一吸，好找
