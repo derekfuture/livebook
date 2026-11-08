@@ -222,8 +222,9 @@ export default {
     const microAt = new V(LEFT, 0.14, 0);
     const mw = microWorld({ mode: 'holo', scene: mercuryScene(),
       place: () => ({ pos: group.localToWorld(microAt.clone()), scale: 0.007 * group.getWorldScale(new V()).x, cam: window.__lb.stage.camera }) });
+    const goBtn = tag('钻进汞表面看 ⊙', 'pill mw-go', () => openMicro());
     const openMicro = () => {
-      microAt.x = S.transferred ? RIGHT : LEFT;
+      microAt.set(S.transferred ? RIGHT : LEFT, S.transferred ? 0.105 : 0.14, 0);
       if (mw.isOpen) return mw.close();
       look([microAt.x, microAt.y + 0.045, microAt.z], [0.04, 0.25, 1], 0.3);
       mw.open(() => {
@@ -412,6 +413,9 @@ export default {
       rightCard.loc(group, 0.20, 0.16, 0).text('<div class="cc"><div class="cc-t">红色粉末放出的氧气</div><div class="cc-more">' +
         (S.heat > 0.015 && S.transferred ? '加热中 · 推回炉门关火' : (recovered() * (1 - S.mix)).toFixed(1) + ' 份') +
         '<br><small>气体小点与合并过程为示意</small></div></div>');
+      goBtn.loc(group, S.transferred ? RIGHT - 0.025 : LEFT - 0.025, S.transferred ? 0.155 : 0.195, 0.025)
+        .text(S.transferred ? '钻进红色粉末看 ⊙' : '钻进汞表面看 ⊙')
+        .show(!mw.isOpen && !bar.playing);
       mw.set(microState()); mw.update(Math.min(step, 0.05));
     }
     return {
