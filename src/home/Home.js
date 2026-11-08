@@ -194,6 +194,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
 
   function openBook(id) {
     if (leaving) return;
+    if (id.startsWith('dili-')) { try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ } location.href = `?subject=dili&focus=${id}`; return; }          // 地理：先进地理世界（一颗地球，所有地理课本围成一圈），这本书转到正前方
     const g = items.find((x) => x.userData.id === id);
     if (!g) { location.href = `?book=${id}`; return; }
     leaving = g; hover = null; showSlip(null); canvas.style.cursor = '';

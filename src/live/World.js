@@ -176,7 +176,7 @@ export class World {
       const extra = x.pn.extra;          // 活页补充的地方（课本这一节没有）：不配课本的图，写明是补充
       this.card.text(`${extra ? '' : `<div class="w-fig"${real ? '' : ' hidden'}></div>`}<b>${it.title}</b><p class="w-q"></p><small>${extra ? `${x.pn.name}：${extra}` : `${it.fig} · 第 ${it.page} 页 · ${x.pn.name}`}</small>`);
       // 活页开头的那个问题：地球给出地方，问题引着人进去（活页文件第一次指着时才加载，进去时就快了）
-      this.content.lessons[it.id]?.load().then((m) => { const q = this.cardFor === x && this.card.el.querySelector('.w-q'); if (q) q.innerHTML = String(m.default.ask || '').replace(/<[^>]+>/g, ''); });
+      this.content.lessons[it.id]?.load().then((m) => { const q = this.cardFor === x && this.card.el.querySelector('.w-q'); if (q) q.innerHTML = String(m.default.places?.[x.pn.place]?.ask || m.default.ask || '').replace(/<[^>]+>/g, ''); });          // 这个地方有自己的问题（长白山、准静止锋）就用它
       const fig = this.card.el.querySelector('.w-fig');
       if (real && fig && !extra) {
         Object.assign(fig.style, { aspectRatio: `${x1 - x0} / ${y1 - y0}`, backgroundSize: `${(PW / (x1 - x0)) * 100}% auto`, backgroundPosition: `${(x0 / (PW - (x1 - x0))) * 100}% ${(y0 / (PH - (y1 - y0))) * 100}%` });
@@ -261,6 +261,7 @@ export class World {
       for (const [k, r] of this.rows || []) r.classList.toggle('on', k === id);
       if (kind === 'globe') this.earth.setLayer(a.layer);          // 整个地球的主题：一点下去，地球上就是这一层
       if (pn) { this.earth.turnTo(pn.lat, pn.lon, this.stage.camera); if (!opts.quick) await this.wait(wasHub ? 0.75 : 0.4); }
+      if (opts.hold) await this.wait(opts.hold);          // 从地理世界换页面过来：上一页最后一帧还盖着，地球先摆在角上，等它淡出完了再翻书、挪镜头
       // 书翻到那一页（从旗进来的子情境翻到它自己那一页）：只翻一小叠
       const page = pn?.page ?? it.spot.page, leaf = this.book.leafForPage(page);
       if (mode === 'inplace') this.setFollow(this.hubPoseFn, 0.9, { world: true });          // 板块：地球就在书后上方，不挪走

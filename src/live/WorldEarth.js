@@ -15,6 +15,41 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 const D2R = Math.PI / 180;
 const V = (lat, lon, r = 1) => new THREE.Vector3(...ll2v(lat, lon)).multiplyScalar(r);
 
+/** 云：在显卡上算一次，烤成一张经纬网贴图（2048×1024）。噪声按球面上的三维位置取，所以经线 180° 和两极没有接缝；
+ *  噪声自己扭一扭（domain warp）出涡旋，东西向拉长（大气多沿纬线流）；按纬度调疏密：赤道辐合带一团团对流云、中纬度一条条锋面云带多，副热带少 */
+function bakeClouds(renderer) {
+  const rt = new THREE.WebGLRenderTarget(2048, 1024, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
+  const scene = new THREE.Scene(), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  const m = new THREE.ShaderMaterial({
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: `varying vec2 vUv;
+      float hash(vec3 p){ p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+      float noise(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+                   mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z); }
+      float fbm(vec3 p, int oct){ float a = 0.5, s = 0.0; for (int i = 0; i < 8; i++){ if (i >= oct) break; s += a * noise(p); p = p * 2.02 + vec3(3.1, 1.7, 5.3); a *= 0.5; } return s; }
+      void main(){
+        float phi = vUv.x * 6.2831853, th = (1.0 - vUv.y) * 3.14159265;
+        vec3 p = vec3(-cos(phi) * sin(th), cos(th), sin(phi) * sin(th));
+        float lat = degrees(asin(clamp(p.y, -1.0, 1.0))), L = abs(lat);
+        vec3 s = p * vec3(2.0, 3.6, 2.0);
+        vec3 q = vec3(fbm(s, 5), fbm(s + vec3(5.2, 1.3, 2.8), 5), fbm(s + vec3(1.7, 9.2, 4.1), 5));
+        vec3 r = vec3(fbm(s + 3.5 * q + vec3(8.3, 2.8, 1.1), 5), fbm(s + 3.5 * q + vec3(2.1, 7.4, 3.3), 5), 0.0);
+        float n = fbm(s * 1.3 + 2.6 * r, 7);
+        float itcz = exp(-pow((lat - 6.0) / 7.0, 2.0)), storm = exp(-pow((L - 52.0) / 14.0, 2.0)), dry = exp(-pow((L - 23.0) / 8.0, 2.0)), polar = smoothstep(70.0, 90.0, L);
+        float cover = 0.53 - 0.07 * itcz - 0.08 * storm + 0.09 * dry + 0.05 * polar;
+        float nn = mix(n, n * 0.55 + fbm(p * 22.0, 4) * 0.5, itcz * 0.7);
+        float c = smoothstep(cover, cover + 0.17, nn);
+        c *= 0.62 + 0.38 * fbm(p * 30.0 + r * 3.0, 4);
+        gl_FragColor = vec4(c, c, c, 1.0);
+      }`,
+  });
+  scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), m));
+  const prev = renderer.getRenderTarget(); renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(prev);
+  m.dispose();
+  return rt.texture;
+}
+
 /** 现在这一刻太阳直射在哪（纬度、经度，度）：天文年历的简化公式，误差在 1° 以内，够画晨昏线 */
 export function subsolar(date = new Date()) {
   const d = date.getTime() / 86400000 - 10957.5;          // 距 J2000.0（2000-01-01 12:00 UTC）的天数
@@ -29,8 +64,19 @@ export function subsolar(date = new Date()) {
   return { lat: dec / D2R, lon };
 }
 
+/** 夜空里的大气光：贴着地球边缘最亮，往外慢慢散掉（叠加混合，像真的在发光）。R 是光晕球的半径（地球是 1） */
+function glowShell(R) {
+  const limb = Math.sqrt(1 - 1 / (R * R));          // 地球边缘那一圈，光晕球面朝镜头的程度
+  return new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.BackSide, blending: THREE.AdditiveBlending, uniforms: { k: { value: 1 }, o: { value: 1 } },
+    vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: `uniform float k; uniform float o; varying vec3 vN; varying vec3 vV; void main(){ float d = abs(dot(normalize(vN), normalize(vV))); float a = pow(clamp(d / ${limb.toFixed(4)}, 0.0, 1.0), 2.6); gl_FragColor = vec4(vec3(0.38, 0.62, 1.0) * a * 0.95 * k * o, 1.0); }`,
+  });
+}
+
 export class WorldEarth {
-  constructor(stage) {
+  constructor(stage, { clouds = true, night = false } = {}) {
+    this.night = night;          // 地理世界（夜空里）：大气光更亮一点
     this.stage = stage;
     this.root = new THREE.Group();          // 位置和大小（缩放 = 半径）
     this.spin = new THREE.Group();          // 地球自己的朝向
@@ -40,7 +86,7 @@ export class WorldEarth {
 
     const tex = new THREE.TextureLoader().load(reliefUrl, (t) => this._oceanGloss(t.image));
     tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
-    this.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.78, metalness: 0, emissive: 0x0b1220, emissiveIntensity: 0.25 });
+    this.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.78, metalness: 0, emissive: 0x0b1220, emissiveIntensity: 0.25, bumpMap: tex, bumpScale: 2.2 });          // 晕渲图本身当起伏：山脉一面受光一面背光，更立体
     this.globe = new THREE.Mesh(new THREE.SphereGeometry(1, 160, 112), this.mat);
     this.globe.castShadow = false;
     this.spin.add(this.globe);
@@ -53,11 +99,17 @@ export class WorldEarth {
       vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
       fragmentShader: `uniform float k; uniform float o; varying vec3 vN; varying vec3 vV; void main(){ float r = 1.0 - abs(dot(normalize(vN), normalize(vV))); gl_FragColor = vec4(${col}, pow(r, ${pw.toFixed(1)}) * k * o); }`,
     });
-    this.haloM = rim(THREE.BackSide, 0.38, 3.0, 'vec3(0.36, 0.58, 0.95)');
+    this.haloM = night ? glowShell(1.1) : rim(THREE.BackSide, 0.38, 3.0, 'vec3(0.36, 0.58, 0.95)');
     this.hazeM = rim(THREE.FrontSide, 0.5, 2.6, 'vec3(0.62, 0.80, 1.0)');
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(1.028, 96, 64), this.haloM), haze = new THREE.Mesh(new THREE.SphereGeometry(1.003, 96, 64), this.hazeM);
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(night ? 1.1 : 1.028, 96, 64), this.haloM), haze = new THREE.Mesh(new THREE.SphereGeometry(1.003, 96, 64), this.hazeM);
     halo.raycast = haze.raycast = () => {};
     this.root.add(halo, haze);
+    // 薄云：按纬度疏密（赤道附近、中纬度多，副热带少）的一层，慢慢飘；只是让地球“活”起来的装饰，不是实况。开“看法”时淡下去
+    this.cloudK = clouds ? 1 : 0; this.cloudWant = this.cloudK;
+    if (clouds) {
+      this.cloudM = new THREE.MeshStandardMaterial({ color: 0xffffff, alphaMap: bakeClouds(stage.renderer), transparent: true, depthWrite: false, roughness: 1, opacity: 0.55 });
+      this.cloud = new THREE.Mesh(new THREE.SphereGeometry(1.012, 128, 96), this.cloudM); this.cloud.raycast = () => {}; this.spin.add(this.cloud);
+    }
 
     // 书页上的影子：一块柔和的圆影，跟着地球离书页的高度变淡
     const shTex = canvasTex(128, 128, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(40,30,20,0.42)'); gr.addColorStop(0.55, 'rgba(40,30,20,0.16)'); gr.addColorStop(1, 'rgba(40,30,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
@@ -171,6 +223,7 @@ export class WorldEarth {
   setPlain(k, color = this.plainColor ?? 0x86b4d4) { this.plainK = k; this.plainColor = color; }
 
   update(dt, { camera, bookTop = 0, shadowK = 1 }) {
+    if (this.cloud) { this.cloud.rotation.y += dt * 0.006; this.cloudK += ((this.layer ? 0.15 : this.cloudWant) - this.cloudK) * Math.min(1, dt * 3); this.cloudM.opacity = 0.55 * this.cloudK * this.fade; this.cloud.visible = this.cloudM.opacity > 0.01; }
     const k = Math.min(1, dt * 5);
     this.fade += ((this.fadeTo ?? 1) - this.fade) * Math.min(1, dt * 3.5);
     if (this.target) { this.spin.quaternion.slerp(this.target, Math.min(1, dt * 3.2)); if (this.spin.quaternion.angleTo(this.target) < 0.002) this.target = null; }
@@ -183,10 +236,10 @@ export class WorldEarth {
     this.plainM.opacity = pk; this.plain.visible = pk > 0.01; if (this.plainColor != null) this.plainM.color.set(this.plainColor);
     const same = (a, b) => a && b && a.it === b.it && (!a.pn || !b.pn || a.pn === b.pn);
     for (const p of this.pins) {
-      const hot = same(this.hot, p) || same(this.active, p) || (this.hot && !this.hot.pn && this.hot.it === p.it) || (this.active && !this.active.pn && this.active.it === p.it);
+      const hot = same(this.hot, p) || same(this.active, p) || (this.hot && !this.hot.pn && this.hot.it === p.it) || (this.active && !this.active.pn && this.active.it === p.it) || (this.hotBook && p.it.book?.id === this.hotBook);          // hotBook：地理世界里指着一本书，它的旗都亮
       p.hot += ((hot ? 1 : 0) - p.hot) * Math.min(1, dt * 7);
       const face = this.facing(p.n, camera);
-      p.label.userData.want = hot && face > 0.15 ? 1 : 0;
+      p.label.userData.want = hot && face > 0.15 && !(this.hotBook && !same(this.hot, p)) ? 1 : 0;          // 指着一本书时只亮旗，不把名字都写出来
       p.label.tick(dt);
       p.glow.material.opacity = (0.25 + 0.7 * p.hot) * this.fade * (1 - pk);
       const vis = Math.max(0, Math.min(1, (face - 0.2) / 0.18));          // 转到边上、背面的旗收起来（不在球边上支出一颗珠子）

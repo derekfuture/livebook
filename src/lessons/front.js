@@ -58,8 +58,10 @@ export function observedPass(log) {
 export { stationAt } from './kit/front.js';
 export function weatherAt(kind, d) { const w = modelWeatherAt(kind, d); return kind === 'still' && w.k === 'w2' ? { ...w, text: '正在下雨', s: '下雨' } : w; }
 
+const STILL_ASK = '冬季，南下的冷空气遇到云贵高原上的山脉阻挡，锋面停在昆明和贵阳之间。锋面停住不走，贵阳为什么会阴雨连绵？山那边的邻城（像昆明）又是什么天气？';
 export default {
   id: 'front',
+  places: { still: { ask: STILL_ASK } },          // 从地球上的昆明准静止锋进来时开头的问题（地球上的明信片也用它）
   fig: '图3.2',
   title: '锋与天气',
   flow: 'explore',
@@ -645,7 +647,7 @@ export default {
       dispose() { heroRestore(); viewBar.remove(); },
       mount(ui) {
         const kindSeg = seg('推哪一种锋', ['冷锋', '暖锋', '准静止锋', '看图推天气'], (_, i) => { if (i === 3) setMap(); else { const was = S.map; S.map = false; setKind(['cold', 'warm', 'still'][i], was); } layout(); }, { value: 0 });          // 从看图推天气回来：你家、邻城回到这种锋开头的位置
-        placeFn = (name) => { if (name !== 'still') return; if (kindSeg.index !== 2) kindSeg.set(2, true); ui.ask?.('冬季，南下的冷空气遇到云贵高原上的山脉阻挡，锋面停在昆明和贵阳之间。锋面停住不走，贵阳为什么会阴雨连绵？山那边的邻城（像昆明）又是什么天气？'); ui.need('先看准静止锋：把冷气团推到山脚，看你家（像贵阳）一天天的天气，再看邻城；冷锋、暖锋也各推过你家一次，就能对照课本原文'); };          // 从地球上的昆明准静止锋进来：开头的问题、要做的事跟着换
+        placeFn = (name) => { if (name !== 'still') return; if (kindSeg.index !== 2) kindSeg.set(2, true); ui.ask?.(STILL_ASK); ui.need('先看准静止锋：把冷气团推到山脚，看你家（像贵阳）一天天的天气，再看邻城；冷锋、暖锋也各推过你家一次，就能对照课本原文'); };          // 从地球上的昆明准静止锋进来：开头的问题、要做的事跟着换
         const guess = seg(...ASK.cold, () => {}, { value: -1 });
         const logs = h('div', { class: 'timeline' });
         const station = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('p', { class: 'note' });

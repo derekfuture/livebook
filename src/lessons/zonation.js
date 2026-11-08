@@ -29,6 +29,7 @@ const fmt = (m) => Math.round(m).toLocaleString('en-US').replace(/,/g, ' ');
 
 export default {
   id: 'zonation',
+  places: { cb: { ask: CB.ask } },          // 从地球上的长白山进来时开头的问题（地球上的明信片也用它）
   fig: '图5.12',
   title: '山地的垂直地带性',
   flow: 'explore',

@@ -100,6 +100,7 @@ export class Stage {
     desk.position.y = -0.002;
     desk.receiveShadow = true;
     this.scene.add(desk);
+    this.desk = desk;          // 地理世界里换成夜空时要藏起来
   }
 
   // ---- 用户自己调的视角（叠加在当前机位上；换机位时自动复位） ----

@@ -749,3 +749,23 @@ body.world-ui .tag3d.btn.view.on, .tag3d.btn.view.on { background: #8a4b10; colo
 .tag3d.w-themes button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(255,255,255,.8); }
 .tag3d.w-themes button:hover { background: #fff6e2; border-color: rgba(176,114,58,.55); }
 .tag3d.w-themes button.on { background: #2f3a52; color: #fff; border-color: #2f3a52; }
+
+/* ---- 地理世界（?subject=dili）：夜空里一颗地球，课本围成一圈 ---- */
+body.geo-world #hud-pager, body.geo-world #hint, body.geo-world #copy { display: none; }
+body.geo-world #hud-top .brand, body.geo-world #hud-top .brand b { color: #e9eef8; }
+body.geo-world #hud-top .brand span { color: #a9b6cf; }
+body.geo-world .tag3d.hint { color: #dfe7f5; text-shadow: 0 0 10px #0a1124, 0 0 4px #0a1124; }
+body.geo-world .tag3d.hint small { color: #9fb0cc; }
+.tag3d.w-booklabel { display: flex; flex-direction: column; align-items: center; gap: 1px; text-shadow: 0 0 8px #0a1124, 0 0 3px #0a1124; pointer-events: none; }
+.tag3d.w-booklabel b { font: 600 12.5px/1.2 var(--sans); color: #e6ecf7; white-space: nowrap; }
+.tag3d.w-booklabel small { font: 11px/1.2 var(--sans); color: #93a3bf; }
+.tag3d.w-booklabel.hot b { color: #ffe3b0; }
+body.geo-world #panel { transition: opacity .4s; }
+#panel.leaving { opacity: 0; transition: opacity .4s; }
+.atlas-grp { display: none; flex-direction: column; gap: 4px; }
+.atlas-grp.open { display: flex; }
+.atlas-ch { cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.atlas-ch:hover { background: rgba(176,114,58,.08); }
+.atlas-ch em { margin-left: auto; font: 11.5px/1 var(--sans); font-style: normal; color: #8a7d66; }
+.atlas-ch.on { color: #2a2218; }
+html.snap #loader { display: none; }          /* 换页面时上一页最后一帧盖着：底下不要再露出加载的那一屏 */
