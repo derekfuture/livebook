@@ -74,7 +74,20 @@ export default {
       const P = peaksOf(17 + bi * 31);
       const geo = new THREE.PlaneGeometry(BW, BD, N, N); geo.rotateX(-Math.PI / 2);
       const col = new Float32Array(geo.attributes.position.count * 3); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-      const top = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, map: grain })); g.add(top);
+      const topM = new THREE.MeshLambertMaterial({ vertexColors: true, map: grain });
+      if (b.rock === 'limestone') {          // 陡壁上按世界坐标三个方向投影石灰岩的纹理（层面、节理）：峰林的石壁像真的石头，不是光溜溜的锥
+        const lime = rockTextures('limestone').map;
+        topM.onBeforeCompile = (sh) => {
+          sh.uniforms.uLime = { value: lime }; sh.uniforms.uTile = { value: 1 / TILE };
+          sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; varying vec3 vWN;').replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * objectNormal);');
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D uLime; uniform float uTile; varying vec3 vWP; varying vec3 vWN;').replace('#include <color_fragment>', `#include <color_fragment>
+            { vec3 n = normalize(vWN), w = pow(abs(n), vec3(4.0)); w /= (w.x + w.y + w.z);
+              vec3 tri = texture2D(uLime, vWP.zy * uTile * 3.0).rgb * w.x + texture2D(uLime, vWP.xz * uTile * 3.0).rgb * w.y + texture2D(uLime, vWP.xy * uTile * 3.0).rgb * w.z;
+              float steep = 1.0 - smoothstep(0.45, 0.85, n.y);
+              diffuseColor.rgb *= mix(vec3(1.0), tri / vec3(0.46, 0.45, 0.42), steep * 0.85); }`);
+        };
+      }
+      const top = new THREE.Mesh(geo, topM); g.add(top);
       const cv = document.createElement('canvas'); cv.width = 1024; cv.height = 840; const ftex = new THREE.CanvasTexture(cv); ftex.colorSpace = THREE.SRGBColorSpace; ftex.anisotropy = 8;
       const bump = () => { const n = rockTextures(b.rock === 'granite' ? 'granite' : 'limestone').normalMap.clone(); n.repeat.set(BW / TILE, 0.1 / TILE); n.needsUpdate = true; return n; };          // 岩壁的凹凸（法线贴图，拷一份再设重复次数）
       const front = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ map: ftex, normalMap: bump(), normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.92, metalness: 0, emissive: 0xffffff, emissiveMap: ftex, emissiveIntensity: 0.1, side: THREE.DoubleSide })); g.add(front);
@@ -150,7 +163,7 @@ export default {
           const rv = g.createLinearGradient(0, cy + ry * 0.5, 0, cy + ry); rv.addColorStop(0, '#5f9cc8'); rv.addColorStop(1, '#2f5f8a'); g.fillStyle = rv; g.beginPath(); g.ellipse(cx + rx * 0.42, cy + ry * 0.85, rx * 0.42, ry * 0.2, 0, 0, 7); g.fill();          // 地下河：在洞底一侧
           const R = mkRnd(9);
           for (let i = 0; i < 11; i++) {
-            const x = cx - rx * 0.78 + (i / 10) * rx * 1.56 + (R() - 0.5) * 8, yTop = wallY(x, true), yBot = wallY(x, false); if (yTop === null || yBot === null) continue; const gap = yBot - yTop, L1 = gap * 0.5 * c.drip * (0.25 + R() * 0.75), L2 = gap * 0.22 * c.drip * (0.35 + R() * 0.65), colm = c.column && i % 3 === 1, wd = 3.5 + R() * 6;          // 长短、粗细不一；石笋矮胖，免得像一排牙
+            const skip = R() < 0.3, x = cx - rx * 0.78 + (i / 10) * rx * 1.56 + (R() - 0.5) * 26, yTop = wallY(x, true), yBot = wallY(x, false); if (skip || yTop === null || yBot === null) continue; const gap = yBot - yTop, L1 = gap * 0.5 * c.drip * (0.25 + R() * 0.75), L2 = gap * 0.22 * c.drip * (0.35 + R() * 0.65), colm = c.column && i % 3 === 1, wd = 3.5 + R() * 6;          // 长短、粗细不一；石笋矮胖，免得像一排牙
             const cone = (x0, y0, len, dir) => { const gr = g.createLinearGradient(x0 - wd, 0, x0 + wd, 0); gr.addColorStop(0, '#a99878'); gr.addColorStop(0.45, '#e6d6b4'); gr.addColorStop(1, '#93836a'); g.fillStyle = gr; g.beginPath(); g.moveTo(x0 - wd, y0); g.quadraticCurveTo(x0 - wd * 0.3, y0 + dir * len * 0.6, x0, y0 + dir * len); g.quadraticCurveTo(x0 + wd * 0.3, y0 + dir * len * 0.6, x0 + wd, y0); g.fill(); };
             cone(x, yTop - 2, (colm ? gap / 2 : L1) + 2, 1);          // 石钟乳：从洞顶往下（起点埋进洞壁一点，贴着长）
             if ((i % 2 === 0 || colm) && x < cx + rx * 0.05) cone(x, yBot + 2, (colm ? gap / 2 : L2) + 2, -1);          // 石笋：从洞底往上（河槽那边不长）；和石钟乳连起来就是石柱
