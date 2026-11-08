@@ -931,3 +931,10 @@ body.geo-cover #hud-top, body.geo-cover .geo-toc, body.geo-cover .geo-toc-spine,
 .geo-lens-hint.hidden { opacity: 0; }
 .geo-credit { position: fixed; right: 18px; bottom: 12px; z-index: 6; max-width: 560px; text-align: right; font: 10.5px/1.45 var(--sans); color: rgba(163,174,196,.6); pointer-events: none; transition: opacity .4s; }
 .geo-credit.hidden { opacity: 0; }
+/* 透镜右边的图例、“进到…”在能放的宽度里换行；窄屏（.peek）平时收起，指着透镜或刚点过时浮在左边一张小卡上；“此刻”的读数收窄 */
+.geo-lens .gl-legend small, .geo-lens .gl-go { white-space: normal; }
+.geo-lens.peek .gl-more { position: absolute; right: calc(100% - 68px + 84px); top: -4px; width: 210px; max-width: 210px; padding: 9px 12px; border-radius: 7px; background: rgba(10,15,30,.9); box-shadow: inset 0 0 0 1px rgba(214,177,110,.45), 0 12px 30px rgba(0,0,0,.45); backdrop-filter: blur(8px); opacity: 0; transform: translateX(8px); pointer-events: none; }
+.geo-lens.peek.on.hover .gl-more, .geo-lens.peek.on.just .gl-more { opacity: 1; transform: none; pointer-events: auto; }
+.geo-now.narrow .gn-when b { font-size: 22px; }
+.geo-now.narrow .gn-line { font-size: 12px; line-height: 1.45; }
+.geo-now.narrow .gn-sky { width: 100%; max-width: 260px; height: auto; }

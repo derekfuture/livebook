@@ -288,12 +288,14 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     v.orb = h('button', { class: 'gl-orb', title: v.tip, 'aria-pressed': 'false', onclick: () => toggleLens(v) }, lensIcon(v.id));
     v.more = h('div', { class: 'gl-more' }, h('div', { class: 'gl-legend', html: LEGEND[v.id] || '' }), h('button', { class: 'gl-go', onclick: () => go(v.it) }, `进到“${v.it.title}” →`));
     v.el = h('div', { class: 'geo-lens', 'data-id': v.id }, v.orb, h('b', { class: 'gl-name' }, v.label), v.more);
+    const over = (on) => { clearTimeout(v.hoverT); if (on) v.el.classList.add('hover'); else v.hoverT = setTimeout(() => v.el.classList.remove('hover'), 400); };          // 从透镜挪到图例卡上去点“进到…”，中间空一小段也不收起
+    for (const x of [v.orb, v.more]) { x.addEventListener('pointerenter', () => over(true)); x.addEventListener('pointerleave', () => over(false)); }
     document.body.append(v.el);
   }
   const lensHint = h('div', { class: 'geo-lens-hint' }, '换个看法 · 可以多选'); document.body.append(lensHint);
   let dnT = 1, dn = 1, glareK = 1;          // 昼夜这一层开着没有（1 开：按此刻的太阳照；0 关：整颗地球白天的样子）
   function toggleLens(v, init = false) {
-    if (!init) { if (lensOn.has(v.id)) lensOn.delete(v.id); else lensOn.add(v.id); }
+    if (!init) { if (lensOn.has(v.id)) lensOn.delete(v.id); else lensOn.add(v.id); clearTimeout(v.peekT); v.el.classList.add('just'); v.peekT = setTimeout(() => v.el.classList.remove('just'), 2600); }          // 刚点过：窄屏时图例也浮出来一会儿
     for (const x of LENS) { const on = lensOn.has(x.id); x.el.classList.toggle('on', on); x.orb.setAttribute('aria-pressed', String(on)); }
     earth.setLayers(lensLayers());
     dnT = lensOn.has('sun') ? 1 : 0; time.el.classList.toggle('dim', !lensOn.has('sun'));          // 昼夜关了：左边“此刻”的读数淡一点（时间还在走）
@@ -308,11 +310,17 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     const [cx, cy] = toPx(c), [ex, ey] = toPx(c.clone().addScaledVector(right, EARTH.r)), r = Math.hypot(ex - cx, ey - cy);
     const mc = moon.getWorldPosition(new THREE.Vector3()), [mx, my] = toPx(mc), [mex, mey] = toPx(mc.clone().addScaledVector(right, EARTH.r * 0.273)), mr = Math.hypot(mex - mx, mey - my);
     const panel = panelOpen() ? PANEL_W : 0;
-    const key = `${cx | 0},${cy | 0},${r | 0},${mx | 0},${my | 0},${panel}`; if (key === lensKey) return; lensKey = key;
-    const R = r + Math.max(64, r * 0.36), A = [-32, 0, 32];
-    LENS.forEach((v, i) => { const a = (A[i] * Math.PI) / 180; v.el.style.transform = `translate(${(cx + R * Math.cos(a)).toFixed(1)}px, ${(cy + R * Math.sin(a)).toFixed(1)}px)`; });
-    const a0 = (A[0] * Math.PI) / 180; lensHint.style.transform = `translate(${(cx + R * Math.cos(a0) - 34).toFixed(1)}px, ${(cy + R * Math.sin(a0) - 66).toFixed(1)}px)`;          // 提示写在最上面那一枚的上方
-    time.el.style.left = `${Math.max(panel + 18, mx - mr * 1.1).toFixed(1)}px`; time.el.style.top = `${(my + mr + 16).toFixed(1)}px`;
+    const key = `${cx | 0},${cy | 0},${r | 0},${mx | 0},${my | 0},${panel},${[...lensOn].join('')}`; if (key === lensKey) return; lensKey = key;
+    // 透镜右边能放多宽，图例和“进到…”就在多宽里换行；窄到放不下（4:3 投影、目录开着）：平时只留透镜和名字，指着它、刚点过它时，图例浮在左边一张小卡上
+    const R = r + Math.max(64, r * 0.36), orbRight = cx + R + 34, room = innerWidth - orbRight - 24, peek = room < 150;
+    for (const v of LENS) { v.el.classList.toggle('peek', peek); v.more.style.maxWidth = peek ? '' : `${Math.floor(room)}px`; }
+    const A = [-32, 0, 32].map((d) => (d * Math.PI) / 180);
+    LENS.forEach((v, i) => { v.el.style.transform = `translate(${(cx + R * Math.cos(A[i])).toFixed(1)}px, ${(cy + R * Math.sin(A[i])).toFixed(1)}px)`; });
+    lensHint.style.transform = `translate(${(cx + R * Math.cos(A[0]) - 34).toFixed(1)}px, ${(cy + R * Math.sin(A[0]) - 66).toFixed(1)}px)`;          // 提示写在最上面那一枚的上方
+    // “此刻”的读数挂在月亮下面；右边不能压到地球：放不下就收窄（字小一点、换行）
+    const left = Math.max(panel + 18, mx - mr * 1.1), maxW = cx - r * 1.12 - 24 - left;          // 地球外面还有一圈大气光，留出来
+    time.el.style.left = `${left.toFixed(1)}px`; time.el.style.top = `${(my + mr + 16).toFixed(1)}px`; time.el.style.width = `${Math.max(180, Math.min(300, maxW)).toFixed(0)}px`;
+    time.el.classList.toggle('narrow', maxW < 300);
   }
 
   // ---- 指着旗、书、侧栏的名字：旗亮、书亮、明信片 ----

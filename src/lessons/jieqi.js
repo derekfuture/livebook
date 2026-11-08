@@ -14,17 +14,17 @@ const DATES = '3月20日 4月5日 4月20日 5月5日 5月21日 6月5日 6月21�
 const mod = (a, n = 360) => (a % n + n) % n;
 const pos = (a, r = R, y = Y) => new THREE.Vector3(-r * Math.sin(a * RAD), y, -r * Math.cos(a * RAD));
 const dec = (a) => Math.asin(Math.sin(23.44 * RAD) * Math.sin(a * RAD)) / RAD;
-const latitude = (a) => { const d = dec(a); return Math.abs(d) < 0.05 ? '0.0°（赤道）' : `${Math.abs(d).toFixed(1)}°${d > 0 ? 'N' : 'S'}`; };
+const latitude = (a) => { const d = dec(a), mv = Math.cos(a * RAD) > 0.05 ? '，向北移' : Math.cos(a * RAD) < -0.05 ? '，向南移' : ''; return Math.abs(d) < 0.05 ? `0.0°（赤道${mv}）` : `${Math.abs(d).toFixed(1)}°${d > 0 ? 'N' : 'S'}${mv}`; };          // 直射点往哪移：黄经 270°—90°（冬至到夏至）向北，90°—270° 向南；二至那一刻不写
 
 export default {
   id: 'jieqi', fig: '图1', title: '二十四节气与地球公转', stampText: '探究', style: 'real', flow: 'explore',
   ask: '二十四节气把一年分成 24 段。为什么说它和地球公转紧密相关？立夏应该标在公转轨道上的什么位置？',
-  guess: { options: ['紧挨着夏至', '春分和夏至正中间', '紧挨着春分'], answer: 1 },
+  guess: { options: ['紧挨着夏至', '春分与夏至之间的角度中点', '紧挨着春分'], answer: 1 },
   need: '顺着公转方向拖着地球绕太阳走一圈，每到一个位置，把节气的名字标上去；看每个节气的大致日期和太阳直射点在哪；再回答几个问题',
   conclusion: {
     crops: [{ page: 13, rect: [64, 130, 480, 212] }, { page: 14, rect: [44, 88, 456, 128] }],
     quote: '二十四节气是我国古人了解一年中时间、气候和物候等方面变化规律而形成的知识体系，体现了中华民族的生产生活智慧。二十四节气指导着人们的农事生产，承载着深厚的精神文化内涵，影响着人们的日常生活。2016年，二十四节气被联合国教科文组织列入《人类非物质文化遗产代表作名录》。二十四节气与地球公转紧密相关。',
-    why: '太阳在黄道上的位置用黄经表示：从春分的 0° 起，每增加 15° 就到下一个节气，360° ÷ 24 = 15°。在公转轨道上，相邻两个节气也相隔 15°。<br>二分二至相隔 90°，四立各在它们之间的正中间：立夏在春分与夏至之间，立秋在夏至与秋分之间，立冬在秋分与冬至之间，立春在冬至与春分之间。<br>地轴倾斜方向保持不变，随着地球公转，太阳直射点在南、北回归线之间往返：春分、秋分在赤道，夏至在北回归线，冬至在南回归线。四立的直射纬度约为 16.3°N 或 16.3°S，并不是纬度的正中间。',
+    why: '从地球上看，太阳一年中在天球上的视运动轨迹叫黄道，太阳在黄道上的位置用黄经表示。从春分的 0° 起，太阳黄经每增加 15°，就到下一个节气，360° ÷ 24 = 15°。<br>本图用圆形公转轨道表示这些位置：相邻节气对应的两条日地连线，在太阳处形成 15° 的夹角。相邻的二分二至之间相差 90°，分成六个 15° 的小段；四立位于第三段的终点，也就是角度上的中间位置。角度间隔相等，不表示真实轨道距离或经过的天数相等。<br>在一年公转过程中，地轴的倾斜方向近似保持不变，太阳直射点在南、北回归线之间往返：春分、秋分在赤道，夏至在北回归线，冬至在南回归线。按本模型计算，立夏、立秋的直射纬度约为 16.3°N，立冬、立春约为 16.3°S（立春、立夏时直射点向北移，立秋、立冬时向南移）；四立处在角度的中点，并不表示直射纬度也取中间值。',
     src: '课本八年级下册第 9—10 页 · 跨学科主题学习 了解二十四节气（任务二：了解二十四节气与地球公转的关系）',
   },
   create({ tag, look, back }) {
@@ -104,9 +104,9 @@ export default {
       uL.value.copy(pos(S.angle, -1, 0)).transformDirection(group.matrixWorld);
       cards.forEach((c, i) => { c.visible = S.visited[i]; const t = S.flights[i] ?? 1; c.position.copy(stack).lerp(labelTargets[i], t); c.position.y += Math.sin(t * Math.PI) * 0.13 + 0.001; });
       const i = mod(Math.round(S.angle / 15), 24);
-      if (W) { W.read.innerHTML = `<b>${TERMS[i]}${Math.abs(mod(S.angle) - i * 15) > 0.4 ? '附近' : ''}</b> · ${DATES[i]}前后<br>直射点约 ${latitude(S.angle)}<br><small>黄经 ${mod(S.angle).toFixed(0)}° · 已标 ${count()} / 24</small>`; }
+      if (W) { W.read.innerHTML = `<b>${TERMS[i]}${Math.abs(mod(S.angle) - i * 15) > 0.4 ? '附近' : ''}</b> · 公历 ${DATES[i]}前后<br>直射点约 ${latitude(S.angle)}<br><small>黄经 ${mod(S.angle).toFixed(0)}° · 已标 ${count()} / 24</small>`; }
     };
-    const arrive = (n) => { const i = mod(n, 24); status(`${TERMS[i]} · ${DATES[i]}前后：直射点约 ${latitude(i * 15)}。继续逆时针走，地轴方向保持不变。`); if (!S.visited[i]) { S.visited[i] = true; S.flights[i] = 0; } if (n > 0 && i === 0) S.returned = true;
+    const arrive = (n) => { const i = mod(n, 24); status(`${TERMS[i]} · 公历 ${DATES[i]}前后：直射点约 ${latitude(i * 15)}。继续逆时针走，地轴方向保持不变。`); if (!S.visited[i]) { S.visited[i] = true; S.flights[i] = 0; } if (n > 0 && i === 0) S.returned = true;
       if (count() === 24 && S.returned && !S.demo && !bar.has('walk')) { bar.done('walk'); W?.questions[0].open(); status('一圈走完了，24 个节气都标齐了。绿色牌子是四立，看看它们和二分二至的位置，再回答问题。'); }
     };
     const move = (p) => {
@@ -124,7 +124,7 @@ export default {
       steps: [{ id: 'walk', title: '标齐节气', todo: '拖着<b>地球</b>，逆时针绕太阳走一圈，把节气标齐。', target: () => S.held ? null : globe }, { id: 'why', title: '想一想', todo: '看四立的位置，在左边回答三个问题。' }],
       reels: { demo: { label: '老师演示', ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { layout(); if (!S.demo && W) W.ui.status(S.message); } }), shots: [
         { cap: '从春分出发，逆时针每走 15°，落下一张节气牌。', dur: 6, during: act.path(pick, arc(0, 45), { t0: 0.05, t1: 0.9, release: 0.95 }) },
-        { cap: '立夏在春分与夏至的正中间，直射点约 16.3°N。继续走到夏至，北极一端歪向太阳。', dur: 6, during: act.path(pick, arc(45, 90), { t0: 0.15, t1: 0.9, release: 0.95 }) },
+        { cap: '立夏在春分与夏至之间的角度中点，直射点约 16.3°N。继续走到夏至，北极一端歪向太阳。', dur: 6, during: act.path(pick, arc(45, 90), { t0: 0.15, t1: 0.9, release: 0.95 }) },
         { cap: '经过立秋到秋分，太阳直射点从北回归线回到赤道。地轴的方向一直没变。', dur: 7, during: act.path(pick, arc(90, 180), { t0: 0.05, t1: 0.9, release: 0.95 }) },
         { cap: '经过冬至，再回到春分：一年一圈，24 个位置。下面换你自己做。', dur: 11, during: act.path(pick, arc(180, 360), { t0: 0.03, t1: 0.9, release: 0.95 }) },
       ] } },
@@ -139,13 +139,13 @@ export default {
         const read = h('div', { class: 'note' });
         const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
         const qs = [
-          ['二十四节气把公转轨道平分成 24 份，每一份是多少度？', ['15°（360° ÷ 24）', '24°', '30°'], '一圈是 360°，把它平均分成 24 份。', '每走 15°，就到下一个节气。'],
-          ['立春、立夏、立秋、立冬在轨道上的什么位置？', ['各在二分二至之间的正中间（比如立夏在春分和夏至中间）', '各在二分二至前面的一个刻点', '各与二分二至重合'], '二分二至之间有六小段，四立在第三段的终点。', '四立各离两边的二分二至 45°，正好在中间。'],
+          ['在这张圆形公转示意图中，以太阳为顶点，把一周 360° 分成 24 个等角间隔，每个间隔是多少度？', ['15°（360° ÷ 24）', '24°', '30°'], '一圈是 360°，分成 24 个相等的角。', '对：相邻两个节气对应的太阳黄经相差 15°。角度相等，不表示真实轨道路程或天数相等。'],
+          ['立春、立夏、立秋、立冬在轨道上的什么位置？', ['各在相邻的二分二至位置之间的角度中点（比如立夏在春分和夏至之间的 45° 处）', '各在二分二至前面的一个刻点', '各与二分二至重合'], '相邻的二分二至之间有六个 15° 的小段，四立在第三段的终点，也就是 45° 处。', '对：这里的“中间”指角度，不表示相隔天数、真实轨道弧长或直射纬度的一半。'],
           ['夏至前后，太阳直射点在哪？', ['北回归线附近（约 23.4°N）', '赤道', '南回归线'], '看夏至位置：北极一端歪向太阳，直射点在北半球。', '夏至直射北回归线附近；春分、秋分直射赤道，冬至直射南回归线附近。'],
         ];
         const questions = qs.map(([q, options, wrong, ok], i) => think({ q, options, wrong: [wrong, wrong], ok, status, onOk: () => { S.answers = i + 1; if (i < 2) questions[i + 1].open(); else { bar.done('why'); next.hidden = false; } } }));
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el,
-          h('p', { class: 'fineprint' }, '教学模型：轨道画成圆，球体和距离不按比例。从北极上空看，公转方向是逆时针（自西向东）。地轴指向北极星附近，与轨道面约成 66.5°。直射纬度按 δ = arcsin(sin 23.44° × sin 黄经) 计算；课本常取约 23.5°。日期为公历大致日期，每年可能差一两天。'));
+          h('p', { class: 'fineprint' }, '教学模型：公转轨道采用圆形近似，球体大小和距离不按比例；本图主要表示节气对应的角度位置。从北极上空看，公转方向是逆时针（自西向东）。在一年公转过程中，地轴的空间指向可近似看作不变，与轨道面约成 66.5°。直射纬度按 δ = arcsin(sin 23.44° × sin λ) 计算，λ 是太阳黄经（春分 0°、夏至 90°、秋分 180°、冬至 270°）；课本常取约 23.5°。日期为公历常见日期，具体年份的交节日期略有变化。'));
         ui.controls.append(read, ...questions.map((q) => q.el), next, more);
         W = { ui, read, questions, next }; bar.attach(ui); reset();
       },
