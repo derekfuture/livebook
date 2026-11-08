@@ -766,3 +766,40 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
   .fb-actions { flex-wrap:wrap; }
   .fb-primary { min-height:44px; }
 }
+
+.fb-attachment-row { display:flex;align-items:center;margin-top:8px; }
+.fb-add-images { display:flex;align-items:center;gap:6px;border:0;background:none;color:#526b58;padding:4px 0;font:12px var(--sans);cursor:pointer; }
+.fb-add-images:hover { color:#294d37; }
+.fb-images { display:flex;flex-wrap:wrap;gap:10px;margin-top:8px; }
+.fb-images:empty { display:none; }
+.fb-image { width:86px;height:68px;position:relative; }
+.fb-image .fb-thumb,.fb-image .fb-thumb img { width:100%;height:100%;object-fit:cover;aspect-ratio:auto; }
+.fb-delete { position:absolute;right:-6px;top:-6px;width:22px;height:22px;border:1px solid #dedbd0;border-radius:50%;background:#fffaf3;color:#4b554c;cursor:pointer;font:18px/1 var(--sans);box-shadow:0 1px 4px #0002; }
+.fb-delete:hover { background:#f2ded8;color:#803f2d; }
+.fb-status:empty { display:none; }
+.fb-actions { justify-content:flex-end;margin-top:20px; }
+.fb-account { position:relative;border-top:1px solid #e2dccf;background:#f5f2e9; }
+.fb-account summary { display:flex;align-items:center;gap:11px;padding:16px 30px;cursor:pointer;list-style:none; }
+.fb-account summary::-webkit-details-marker { display:none; }
+.fb-account summary>img { border-radius:50%; }
+.fb-account b { display:block;font:500 14px var(--song); }
+.fb-account small { display:block;font-size:11px;color:#7b806f;margin-top:3px; }
+.fb-account-action { margin-left:auto;font-size:11px;color:#5c7560;white-space:nowrap; }
+.fb-account summary:hover { background:#ebeede; }
+.fb-account-qr { text-align:center;padding:0 20px 18px; }
+.fb-account-qr img { border:8px solid white;border-radius:5px; }
+.fb-account summary:focus-visible { outline:3px solid #7b9983;outline-offset:-3px; }
+@media(max-width:640px) {
+ .fb-account summary { padding:15px 20px;gap:8px; }
+ .fb-account small { max-width:210px;line-height:1.5; }
+ .fb-account-action { font-size:10px; }
+}
+@media(min-width:641px) {
+ .fb-header { padding:22px 36px 18px; }
+ .fb-header h2 { font-size:26px;margin:6px 0; }
+ .fb-form { padding:20px 30px; }
+ .fb-form textarea { min-height:112px;height:112px; }
+ .fb-identity { margin-top:14px; }
+ .fb-actions { margin-top:14px;padding-top:14px; }
+ .fb-account summary { padding:12px 30px; }
+}
