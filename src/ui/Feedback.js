@@ -111,9 +111,8 @@ export function openFeedback(context = {}) {
     h('div',{class:'fb-account-entry'},
       h('button',{type:'button',class:'fb-account-trigger','aria-label':'查看公众号二维码',
         onclick:()=>viewImage(qr,'德里克的 AI 教学实验室公众号二维码',true)},
-        h('img',{src:qr,width:40,height:40,alt:''}),h('span',{},'公众号')),
-      h('div',{class:'fb-qr-hover','aria-hidden':'true'},
-        h('img',{src:qr,width:180,height:180,alt:''}))));
+        svg('<path d="M20 11a8 8 0 0 1-8 8H8l-5 3 1.5-5A8 8 0 1 1 20 11Z"/><path d="M8 9h7M8 13h5"/>'),
+        h('span',{},'公众号'),svg('<path d="M7 17 17 7M7 7h10v10"/>'))));
   dialog.append(
     h('button',{type:'button',class:'fb-close','aria-label':'关闭反馈',onclick:()=>dialog.close()},'×'),
     h('header',{class:'fb-header'},h('span',{class:'fb-kicker'},'活页课本 / 反馈与建议'),
