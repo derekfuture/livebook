@@ -14,10 +14,18 @@ export const cave = (t) => ({ size: Math.min(1, t / 0.45), drip: Math.max(0, Mat
 
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 export const joint = (x, z) => { const a = Math.abs(Math.sin((x * 0.92 + z * 0.39 + 0.004 * Math.sin(z * 90 + 1)) * 160)), b = Math.abs(Math.sin((z * 0.95 - x * 0.31 + 0.004 * Math.sin(x * 80)) * 140)); return Math.max((1 - a) ** 14, (1 - b) ** 14); };          // 岩石里两组节理（裂隙，略弯曲），溶沟顺着它们长
+/** 一座峰在 (x, z) 处的“锥度”（0 峰外 … 1 峰顶）：四壁一道道竖的溶槽（半径随方位起伏），往上一层层的岩坎（顺着层面）。只和位置有关 */
+export const peakCone = (p, x, z) => {
+  const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz); if (d >= 0.034 * p.k * 1.15) return 0;          // 离得远：不在这座峰上（先判断，省得算三角函数）
+  const a = Math.atan2(dz, dx), ph = p.r * 9.7;
+  const R = 0.034 * p.k * (1 + 0.075 * Math.sin(6 * a + ph) + 0.045 * Math.sin(11 * a + ph * 1.7) + 0.025 * Math.sin(19 * a + ph * 2.3));
+  const c = Math.max(0, 1 - d / R);
+  return c > 0 ? Math.min(1, c + 0.022 * Math.sin(c * 31 + ph) * c) : 0;
+};
 export const terrainHeight = (b, P, x, z, t, H0 = 0.09) => {
   if (b.rock === 'granite') return H0;          // 花岗岩地块保持不变：本活页不模拟其风化侵蚀
   const base = H0 - 0.05 * sm(0.14, 0.62, t) - 0.008 * sm(0.75, 1, t), c0 = 0.03 + 0.56 * sm(0.545, 0.575, t), hs = 1 - 0.78 * sm(0.84, 1, t);          // 地面一路溶低；峰的基部越来越窄（峰丛 → 峰林）；到最后峰也矮了（残丘）
-  let top = 0; for (const p of P) { if (p.r < 0.82 * sm(0.62, 0.92, t)) continue; const cone = Math.max(0, 1 - Math.hypot(x - p.x, z - p.z) / (0.034 * p.k)); top = Math.max(top, sm(c0, c0 + 0.42 * (1 - c0), cone) * (0.8 + 0.2 * Math.sqrt(cone)) * hs * (0.85 + 0.15 * p.r)); }          // 峰体四壁陡、顶部浑圆（像桂林的峰林）；越往后，留下的峰越少（孤峰）
+  let top = 0; for (const p of P) { if (p.r < 0.82 * sm(0.62, 0.92, t)) continue; const cone = peakCone(p, x, z); top = Math.max(top, sm(c0, c0 + 0.42 * (1 - c0), cone) * (0.8 + 0.2 * Math.sqrt(cone)) * hs * (0.85 + 0.15 * p.r)); }          // 峰体四壁陡、顶部浑圆（像桂林的峰林）；越往后，留下的峰越少（孤峰）
   let hgt = base + (H0 - base) * top;
   hgt -= 0.01 * sm(0, 0.16, t) * joint(x, z);          // 累计溶沟不回填；基面降低、残余峰体缩小，纯溶蚀中同一点高度不回升
   return Math.max(0.03, hgt);

@@ -23,6 +23,7 @@ export const ROCK = {
   marble: { name: '大理岩', base: [232, 230, 226] },
   loess: { name: '黄土', base: [214, 186, 132] },
   soil: { name: '土壤', base: [108, 82, 58] },
+  flowstone: { name: '流石', base: [208, 190, 156] },          // 溶洞洞壁：碳酸钙一层层流下来结成的，竖的流痕、帘子一样的褶
 };
 
 const N = 512;          // 贴图边长（像素），无缝平铺
@@ -77,6 +78,11 @@ function paint(kind, seed) {
       const fx = ((x / N) * 9 + md * 0.8) % 1, joint = Math.min(fx, 1 - fx) < 0.008 + grain(x, y * 0.2) * 0.008 ? 1 : 0;
       const paleo = Math.max(0, Math.sin((y + md * 8) * (Math.PI * 2 / N) * 3)) ** 8;
       put(x, y, gn * 16 + bg * 10 - joint * 42 - paleo * 6, gn * 14 + bg * 8 - joint * 42 - paleo * 22, gn * 10 - joint * 40 - paleo * 30, 0.6 + gn * 0.2 - joint * 0.6);
+    } else if (kind === 'flowstone') {          // 流石：竖着往下的流痕（有粗有细、略弯），横着一道道细的生长纹，湿润的地方深一点
+      const xs = x + Math.sin((y / N) * Math.PI * 2 * 3 + md * 5) * 10 + md * 30, streak = Math.sin((xs / N) * Math.PI * 2 * 26) * 0.5 + Math.sin((xs / N) * Math.PI * 2 * 9 + 1.3) * 0.5;
+      const ring = Math.sin((y + md * 14) * (Math.PI * 2 / N) * 48) * 0.5, wet = bg > 0.12 ? (bg - 0.12) * 1.6 : 0;
+      const t = streak * 16 + ring * 6 + gn * 10 + md * 12 - wet * 40;
+      put(x, y, t, t * 0.96, t * 0.88, 0.5 + streak * 0.3 + ring * 0.08 + gn * 0.1);
     } else if (kind === 'soil') {          // 土壤：团粒、往下扎的根，越往上越黑
       const dark = (1 - y / N) * 18, root = Math.abs(Math.sin((x + Math.sin(y * 0.05 + x * 0.01) * 14) * (Math.PI * 2 / N) * 26)) < 0.03 && mid(x * 2, y) > 0.55 ? 1 : 0;
       const t = gn * 30 + md * 18 - dark + root * 40;
