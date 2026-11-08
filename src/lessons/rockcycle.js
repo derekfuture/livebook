@@ -91,20 +91,20 @@ export default {
       g.font = '600 25px "PingFang SC", "Songti SC", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
       const name = (t, x, y) => { g.strokeStyle = 'rgba(40,28,20,0.7)'; g.lineWidth = 6; g.strokeText(t, PX(x), PY(y)); g.fillStyle = '#fffaf0'; g.fillText(t, PX(x), PY(y)); };
       for (let k = 0; k < 6; k++) { const x = 0.045, top = k ? bed(x, k - 1) : Math.min(ground(x), bed(x, 0) + 0.0075); name(ROCKNAME[LAY[k][1]], x, (top + bed(x, k)) / 2); }
-      name('更老的岩石', 0.16, 0.014);
+      name('基底岩石（以片麻岩为例）', 0.15, 0.014);
       // 火山锥：一层层熔岩和火山灰（黑灰相间，顺着锥面）
       const base = (x) => ground(x) - Math.max(0, 0.034 * Math.exp(-(((x - VX) / 0.03) ** 2)) - 0.007 * Math.exp(-(((x - VX) / 0.006) ** 2))) + 0.0015;          // 火山堆起来以前的老地面：去掉火山锥那一截
       for (let k = 0; k < 7; k++) { g.fillStyle = k % 2 ? '#4a4440' : '#6a5f58'; g.beginPath(); for (let i = -60; i <= 60; i++) { const x = VX + i * 0.001; g.lineTo(PX(x), PY(Math.max(ground(x) - k * 0.0028, base(x)))); } for (let i = 60; i >= -60; i--) { const x = VX + i * 0.001; g.lineTo(PX(x), PY(base(x))); } g.fill(); }          // 只画在老地面以上的锥体里
       // 地面以上的部分最后擦掉；先画深处的东西
       const deep = g.createLinearGradient(0, hh, 0, PY(0.04)); deep.addColorStop(0, 'rgba(200,70,30,0.42)'); deep.addColorStop(1, 'rgba(200,70,30,0)'); g.fillStyle = deep; g.fillRect(0, 0, w, hh);          // 越往深处越热
       // 变质带：岩浆房、侵入岩体周围和深处，岩石被烤、被压，出现定向排列的纹理
-      const aure = (cx, cy, rx, ry) => {          // 变质带：岩石被烤、被压，长出一道道弯弯的条带（片麻岩那样）；边上慢慢淡出去，不是一块硬边的斑
+      const aure = (cx, cy, rx, ry, kind = 'gneiss', k = 0.62) => {          // 变质带：岩石被烤、被压，长出一道道弯弯的条带（片麻岩那样）；边上慢慢淡出去，不是一块硬边的斑
         const c = document.createElement('canvas'); c.width = Math.ceil(rx * 2.6); c.height = Math.ceil(ry * 2.6); const q = c.getContext('2d');
-        const pt = q.createPattern(rockTextures('gneiss').map.image, 'repeat'); pt.setTransform(new DOMMatrix().scale(PXs(0.035) / 512)); q.fillStyle = pt; q.fillRect(0, 0, c.width, c.height);
-        q.globalCompositeOperation = 'destination-in'; q.setTransform(1, 0, 0, ry / rx, 0, 0); const gr = q.createRadialGradient(c.width / 2, (c.height / 2) * (rx / ry), 0, c.width / 2, (c.height / 2) * (rx / ry), rx * 1.25); gr.addColorStop(0, 'rgba(0,0,0,0.62)'); gr.addColorStop(0.7, 'rgba(0,0,0,0.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); q.fillStyle = gr; q.fillRect(0, 0, c.width, c.height * (rx / ry));
+        const pt = q.createPattern(rockTextures(kind).map.image, 'repeat'); pt.setTransform(new DOMMatrix().scale(PXs(0.035) / 512)); q.fillStyle = pt; q.fillRect(0, 0, c.width, c.height);
+        q.globalCompositeOperation = 'destination-in'; q.setTransform(1, 0, 0, ry / rx, 0, 0); const gr = q.createRadialGradient(c.width / 2, (c.height / 2) * (rx / ry), 0, c.width / 2, (c.height / 2) * (rx / ry), rx * 1.25); gr.addColorStop(0, `rgba(0,0,0,${k})`); gr.addColorStop(0.7, `rgba(0,0,0,${k * 0.6})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); q.fillStyle = gr; q.fillRect(0, 0, c.width, c.height * (rx / ry));
         g.drawImage(c, cx - c.width / 2, cy - c.height / 2);
       };
-      aure(PX(AT.meta[0]), PY(AT.meta[1]), PXs(0.062), PYs(0.022)); aure(PX(AT.intrusion[0]), PY(AT.intrusion[1]), PXs(0.03), PYs(0.016));
+      aure(PX(AT.meta[0]), PY(AT.meta[1]), PXs(0.062), PYs(0.022)); aure(PX(AT.intrusion[0]), PY(AT.intrusion[1]), PXs(0.03), PYs(0.016), 'quartzite', 0.42);          // 深处的区域变质带用片麻岩那样的条带；侵入体周围的接触变质带只是受热重结晶，用淡一些的石英岩质感，不画成片麻岩
       g.strokeStyle = 'rgba(70,45,80,0.35)'; g.lineWidth = 1.4;
       for (let k = 0; k < 9; k++) { g.beginPath(); for (let i = -110; i <= 110; i += 4) { const x = PX(AT.meta[0]) + i * 1.6, y = PY(AT.meta[1]) - 52 + k * 13 + 5 * Math.sin(i / 14 + k); g.lineTo(x, y); } g.stroke(); }          // 片理：一道道波状的纹
       // 岩浆房和通到火山口的通道：中心发亮
@@ -212,8 +212,8 @@ export default {
     paintFace();
     // 剖面上的字：地方的名字
     const F = (t, x, y, c = '#ffffff') => faceLabel(block, t, { x, y, z: ZD, h: 0.0075, color: c, stroke: 'rgba(40,30,20,0.6)' });
-    F('岩浆', AT.chamber[0], AT.chamber[1] - 0.012); F('侵入岩体', AT.intrusion[0] + 0.03, AT.intrusion[1] + 0.006); F('深处：高温、高压', AT.meta[0] + 0.02, AT.meta[1] - 0.012); F('一层层沉积岩', AT.buried[0] + 0.03, AT.buried[1] - 0.004);
-    noteBadge(tag, '教学示意：竖直方向压缩了；剖面上的点纹、细线、砖纹是地质图上表示砂岩、页岩、石灰岩的符号；侵入体周围的变质以受热为主（接触变质），深处的波纹表示有片理的变质岩，并非所有变质岩都有片理；海底近岸沙、远处泥和低处阔叶林、高处针叶林都只是这个场景里的一种情形；各个过程的时间尺度差别很大（熔岩冷却结壳可能只要几天，抬升、风化、搬运、变质往往要很长的地质年代），动画不按真实时间比例').loc(block, XL + 0.012, -0.002, ZD + 0.012);
+    F('岩浆', AT.chamber[0], AT.chamber[1] - 0.012); F('侵入岩体（以花岗岩为例）', AT.intrusion[0] + 0.042, AT.intrusion[1] + 0.006); F('接触变质带', AT.intrusion[0], AT.intrusion[1] - 0.021, '#f3ead8'); F('深处：高温、高压', AT.meta[0] + 0.02, AT.meta[1] - 0.012); F('一层层沉积岩', AT.buried[0] + 0.03, AT.buried[1] - 0.004);
+    noteBadge(tag, '教学示意：竖直方向压缩了；剖面上一层层的砂岩、页岩、石灰岩是一组示意沉积岩层，实际岩性组合和层序因沉积环境与地质历史而异；底下是本模型先形成的基底岩石（以片麻岩为例），后来被沉积岩覆盖；侵入体周围的变质以受热为主（接触变质），深处的波纹表示有片理的变质岩，并非所有变质岩都有片理；海底近岸沙、远处泥和低处阔叶林、高处针叶林都只是这个场景里的一种情形；各个过程的时间尺度差别很大（熔岩冷却结壳可能只要几天，抬升、风化、搬运、变质往往要很长的地质年代），动画不按真实时间比例').loc(block, XL + 0.012, -0.002, ZD + 0.012);
 
     // ---- 那块做了记号的石头：样子跟着它是什么岩石变；岩浆时会发光 ----
     const rockCv = document.createElement('canvas'); rockCv.width = 128; rockCv.height = 128;

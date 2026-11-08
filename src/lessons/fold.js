@@ -167,7 +167,7 @@ export default {
     // ---- 标签：背斜、向斜（在剖面上，按岩层怎么弯）；山岭、谷地（在地面上，按此刻的高低） ----
     const face = (t) => faceLabel(block, t, { h: 0.0095, color: '#ffffff', stroke: 'rgba(40,30,20,0.6)' });          // 背斜、向斜写在岩层剖面上，跟着岩层弯
     const tAnti = face('背斜'), tSyn = [face('向斜'), face('向斜')], tLand = [0, 1, 2].map(() => airLabel(block, '', { h: 0.011, color: '#2c3245', dim: 0 }));
-    const tPush = tag('<span>按住两头的红板往里推</span><small>挤压</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，侵蚀阶段无时间标定');
+    const tPush = tag('<span>按住两头的红板往里推</span><small>挤压</small>', 'hint'), tScale = noteBadge(tag, '教学示意：竖直方向夸大了，侵蚀阶段无时间标定；本模型简化为六层（课本图 2.15 是七层），1 层最老、6 层最新，编号表示形成先后，褶皱、侵蚀不会改变它；颜色只帮助区分，不代表岩石真实颜色与年代的固定对应');
     const callout = airLabel(block, '', { h: 0.009, color: '#a8341f', dim: 0 }); callout.setOn(false); let calloutT = 0;
     callout.show = (on) => callout.setOn(on);          // 一段话亮几秒就收
     const say1 = (text, x, y, z) => { callout.position.set(x, y, z); callout.setText(text).setOn(true); calloutT = 4.5; };

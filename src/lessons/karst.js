@@ -181,7 +181,7 @@ export default {
     }
     const aHover = airLabel(block, '', { h: 0.0075, color: '#3a3226', dim: 0 });
     const tHint = tag('<span>拖“经过的时间”</span><small>三块经历同样长的时间</small>', 'hint');
-    noteBadge(tag, '教学示意：时间大大压缩了；地表的土壤覆盖只是示意，颜色不代表所有岩溶区；两块石灰岩的发育快慢只是示意的比较；展示的是一种典型演变，不代表每个地方都要依次经过各阶段；地下的石钟乳、石笋和地表的阶段没有固定对应；竖直方向夸大了；花岗岩的风化、侵蚀没有模拟').loc(block, -1.5 * BW - GAP + 0.01, -0.002, BD / 2 + 0.012);
+    noteBadge(tag, '教学示意：时间大大压缩了；溶洞和裂隙的尺度作了示意性放大，不表示真实比例和形成时间；地表的土壤覆盖只是示意，颜色不代表所有岩溶区；两块石灰岩的发育快慢只是示意的比较；展示的是一种典型演变，不代表每个地方都要依次经过各阶段；地下的石钟乳、石笋和地表的阶段没有固定对应；竖直方向夸大了；花岗岩的风化、侵蚀没有模拟').loc(block, -1.5 * BW - GAP + 0.01, -0.002, BD / 2 + 0.012);
     const labels = [aHover, ...units.flatMap((u) => [u.label, u.stageL])];
     const layoutAll = () => { units.forEach(rebuild); tHint.loc(block, 0, 0.18, 0).show(!S.moved); drawChart(); drawLog(); };
 

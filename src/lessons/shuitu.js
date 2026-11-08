@@ -18,7 +18,7 @@ const SETS = [
   [cond('林草茂密', 0.9), cond('植被稀疏', 0.4), cond('地表裸露')],
   [cond('沙土', 0, '沙土'), cond('黏土', 0, '黏土')],
   [cond('缓坡 10°', 0, '黄土', 10), cond('陡坡 25°', 0, '黄土', 25)],
-  [cond('小雨', 0, '黄土', 20, 15), cond('暴雨')],
+  [cond('小雨（示意）', 0, '黄土', 20, 15), cond('暴雨（示意）')],          // 同样喷淋时间里雨量 15、45（只是内部参数，不对学生说是天气预报的雨量等级）
 ];
 function amount(c) {
   const soil = SOILS[c.soil];
@@ -35,7 +35,7 @@ export default {
   conclusion: {
     crops: [{ page: 36, rect: [186, 52, 462, 136] }, { page: 37, rect: [64, 52, 482, 232] }],
     quote: '黄土高原是世界上水土流失极为严重的地区之一。这里疏松的黄土在缺少植被保护的情况下，很容易发生水土流失。特别是每遇暴雨，泥沙俱下，水土流失尤为严重。造成黄土高原水土流失的原因，既有自然原因，也有人为原因（图7.28）。黄土土质疏松，多孔隙，易被流水侵蚀。地表裸露，缺乏植被保护。夏季降水集中，且多暴雨。人多地少，开发历史悠久，长期的过垦过牧导致生态环境恶化。修路、采矿等活动破坏地表。还有……',
-    why: '其他条件相同时，植被越茂密，量杯里的水和泥沙越少。枝叶挡雨、根系固土，地表径流也慢一些。<br>分别只改变一个条件：疏松的沙土比黏结紧密的黏土更容易流失；陡坡比缓坡流失多；同样时间里，暴雨比小雨流失多。数据是示意的比较，不是实测，不能用来预测真实地点。<br>黄土高原土质疏松、多孔隙，地表缺少植被保护，夏季降水集中且多暴雨；过垦过牧以及修路、采矿等活动又破坏地表，自然原因和人为原因共同加重了水土流失。',
+    why: '其他条件相同时，植被越茂密，收集到的地表径流和泥沙越少：枝叶和地表覆盖物减弱雨滴冲击，根系固土，部分雨水被截留或渗入土体，坡面径流也减缓。<br>分别只改变一个条件：本次模型设定的松散沙土比黏结较强的黏土流失泥沙多（只代表本模型；黄土也不等于沙土）；25° 坡比 10° 坡流失多；同样时间里，较强降雨比较弱降雨流失多。数值是预设参数呈现的趋势，不是实测，不能用来预测真实坡地。<br>黄土高原的黄土疏松、多孔隙；在缺少植被保护的坡面上，遇到夏季集中降水和暴雨，更容易发生水土流失；过垦过牧以及修路、采矿等破坏地表的活动，会加重这一过程。',
     src: '课本八年级下册第 32—33 页 · 第七章 第三节 世界最大的黄土堆积区——黄土高原（活动：分析水土流失的自然原因）',
   },
   create({ tag, look, back }) {
@@ -136,7 +136,7 @@ export default {
     ], reels: { demo: { label: '老师演示', seal: '演示', ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); } }), shots: [
       { cap: '同样的雨，三种植被。拖开阀门，看泥沙顺坡流下。', dur: 9, during: act.drag(grip, destination, { t0: 0.02, t1: 0.12, release: 0.15 }) },
       { cap: '裸露槽水多、浑，杯底泥沙厚；林草茂密的槽流失少。', dur: 3 },
-      ...[1, 2, 3].map((m) => ({ cap: ['','换成沙土和黏土：其他条件相同，比较泥沙。','只改坡度：陡坡冲出的泥沙更多。','同样时间：暴雨比小雨流失更多。'][m], dur: 10, during: act.seq(act.tap(keys[m], 0.01), act.drag(grip, destination, { t0: 0.18, t1: 0.27, release: 0.3 })) })),
+      ...[1, 2, 3].map((m) => ({ cap: ['','换成沙土和黏土：其他条件相同，比较泥沙。','只改坡度：陡坡冲出的泥沙更多。','同样时间：较强降雨（暴雨）比较弱降雨（小雨）流失更多（示意）。'][m], dur: 10, during: act.seq(act.tap(keys[m], 0.01), act.drag(grip, destination, { t0: 0.18, t1: 0.27, release: 0.3 })) })),
     ] } } });
     let clock = 0;
     const update = (dt) => {
@@ -148,11 +148,11 @@ export default {
           S.running = false; S.settle = 0; if (!S.seen.includes(S.mode)) S.seen.push(S.mode);
           if (!S.demo) {
             const cs = SETS[S.mode], nums = cs.map(amount);
-            W?.tbl.add([MODES[S.mode], cs.map((c) => `${c.name}：${c.soil} / ${c.slope}° / ${c.P}毫米`).join('<br>'), nums.map((a) => `${Math.round(a.R)}毫升`).join('<br>'), nums.map((a) => `${Math.round(a.S)}克`).join('<br>')]);
+            W?.tbl.add([MODES[S.mode], cs.map((c) => `${c.name}：${c.soil} · ${c.slope}° · ${c.P === 15 ? '较弱降雨' : '较强降雨'}${c.c ? ` · 植被${c.c >= 0.8 ? '茂密' : '稀疏'}` : ''}`).join('<br>'), nums.map((a) => `${Math.round(a.R)}毫升`).join('<br>'), nums.map((a) => `${Math.round(a.S)}克`).join('<br>')]);
             if (S.mode === 0) { done('rain'); if (!S.answers[0]) W?.t1.open(); }
             if (S.seen.filter((x) => x !== 0).length >= 2) { done('vars'); if (!S.answers[1]) W?.t2.open(); }
           }
-          sync(); status('雨停了。比较水位、浑浊程度和杯底泥沙层；记录已经留下，可以换条件再试。');
+          sync(); status('雨停了。比较每个量杯收集的径流和泥沙总量（杯底的泥沙层只是示意）；记录已经留下，可以换条件再试。');
         }
       } else S.settle = Math.min(1, S.settle + dt / 2);
       handle.rotation.z += ((S.running ? -1.3 : 0) - handle.rotation.z) * Math.min(1, dt * 5);
@@ -196,7 +196,7 @@ export default {
         o.rain.geometry.attributes.position.needsUpdate = true; o.grains.geometry.attributes.position.needsUpdate = true;
         o.grains.geometry.setDrawRange(0, Math.min(160, Math.max(2, Math.round(a.S * 6))));
         o.name.loc(rig, o.g.position.x, active ? 0.009 : -9, -0.25).text(cfg.name);
-        o.reading.loc(rig, o.g.position.x, active ? 0.008 : -9, 0.22).text(`${Math.round(a.R * o.fill)}毫升 · ${Math.round(a.S * o.fill)}克`);
+        o.reading.loc(rig, o.g.position.x, active ? 0.008 : -9, 0.22).text(`径流 ${Math.round(a.R * o.fill)} 毫升 · 泥沙共 ${Math.round(a.S * o.fill)} 克`);
       });
     };
     return {
@@ -206,12 +206,12 @@ export default {
         ui.el.classList.add('xuean');
         const choice = seg('比一比', MODES, (_, i) => select(i));
         const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
-        const t1 = think({ status, q: '在其他条件相同的情况下，植被状况对水土流失有什么影响？', options: ['植被越茂密，水土流失越少：枝叶挡住雨点，根系固住土壤，地表径流也慢一些', '植被越多，水土流失越多', '植被和水土流失没有关系'], wrong: ['看林草茂密槽下的量杯：水少、清，杯底泥沙薄。', '三个量杯里的水和泥沙不一样。回到植被组再比较。'], ok: '对，植被有保护土壤的作用。', onOk: () => answer(0) });
-        const t2 = think({ status, q: '土质、坡度、降水强度对水土流失有什么影响？', options: ['土质越疏松、坡越陡、降水强度越大（暴雨），水土流失越严重', '小雨持续得细密，所以同样时间比暴雨流失多', '黏土下渗少，所以一定比沙土更容易流失'], wrong: ['切到降水强度组：同样时间里，暴雨槽的泥沙更多。', '比杯底泥沙，不只比水量：沙土颗粒之间几乎不黏结，流失的泥沙更多。'], ok: '对，每次只改一个条件，再比较泥沙量。', onOk: () => answer(1) });
-        const t3 = think({ status, q: '为什么黄土高原的水土流失特别严重？', options: ['黄土土质疏松、多孔隙，地表裸露缺少植被，夏季降水集中且多暴雨；再加上过垦过牧、修路采矿破坏地表', '只因为暴雨，植被和人类活动都没有影响', '主要因为黄土黏结紧密，雨水冲不动'], wrong: ['植被组已经说明地表保护很重要；人类活动也会破坏地表。', '黄土疏松、多孔隙，容易被流水侵蚀。'], ok: '对，自然原因和人为原因共同作用。可以对照课本了。', onOk: () => answer(2) });
-        const tbl = table(['比什么', '各槽条件（依次）', '水量（示意）', '泥沙（示意）']);
+        const t1 = think({ status, q: '在其他条件相同的情况下，植被状况对水土流失有什么影响？', options: ['植被越茂密，水土流失越少：枝叶和地表覆盖物减弱雨滴冲击，根系固土，部分雨水被截留或渗入土体，坡面径流也减缓', '植被越多，水土流失越多', '植被和水土流失没有关系'], wrong: ['看林草茂密槽下的量杯：收集的径流少、清，泥沙总量也少。', '三个量杯收集的径流和泥沙不一样。回到植被组再比较。'], ok: '对：植被保护土壤，本组模拟中林草茂密的槽收集到的径流和泥沙都最少。', onOk: () => answer(0) });
+        const t2 = think({ status, q: '土质、坡度、降水强度对水土流失有什么影响？', options: ['其他条件相同时：本模型里松散的沙土比黏土流失多；陡坡比缓坡流失多；同样时间里，较强降雨（暴雨）比较弱降雨（小雨）流失多', '小雨持续得细密，所以同样时间比暴雨流失多', '黏土下渗少，所以一定比沙土更容易流失'], wrong: ['看降水强度组：同样时间里，较强降雨的槽收集的泥沙更多。', '水量少，不一定泥沙少。本次模型中的沙土黏结较弱，虽然径流略少，流出的泥沙总量仍较多；真实土壤还受下渗、颗粒组成和结构影响，不能只凭土质名称判断。'], ok: '对：每次只改一个条件，比较收集的泥沙总量。土质的比较只代表本次模型设定，不能推广为所有沙土和黏土的固定排序。', onOk: () => answer(1) });
+        const t3 = think({ status, q: '为什么黄土高原的水土流失特别严重？', options: ['黄土疏松、多孔隙；缺少植被保护的坡面遇到夏季集中降水和暴雨，容易发生水土流失；过垦过牧以及修路、采矿等破坏地表的活动会加重这一过程', '只因为暴雨，植被和人类活动都没有影响', '主要因为黄土黏结紧密，雨水冲不动'], wrong: ['植被组已经说明地表保护很重要；人类活动也会破坏地表。', '黄土疏松、多孔隙，容易被流水侵蚀。'], ok: '对，自然原因和人为原因共同作用。可以对照课本了。', onOk: () => answer(2) });
+        const tbl = table(['比什么', '各槽条件（依次）', '收集的地表径流（示意）', '收集的泥沙总量（示意）']);
         const reset = () => { if (S.demo) return; S = fresh(); sync(); tbl.clear(); [t1, t2, t3].forEach((t) => t.close()); next.hidden = true; ui.relock?.(); bar.undo('rain', 'vars', 'why'); status('从植被组重新开始，向右拖红色阀门。'); };
-        ui.controls.append(choice.el, t1.el, t2.el, t3.el, next, buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el, h('p', { class: 'fineprint' }, '数据是示意的比较，不是实测。每场喷淋时长相同：小雨15毫米、暴雨45毫米。每次只改变所选条件；其余保持裸露黄土、20°坡、暴雨（植被组除外）。水量以毫升、泥沙以克记录；冲沟与沉积厚度放大，不能据此预测真实流失量。'));
+        ui.controls.append(choice.el, t1.el, t2.el, t3.el, next, buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el, h('p', { class: 'fineprint' }, '本模拟用预设参数呈现所设条件下的变化趋势：径流是收集到的坡面地表径流；泥沙量是随径流流出的泥沙干质量（包括悬浮在水中和沉到杯底的），杯底的泥沙层只作便于观察的示意，不模拟沉降快慢。数值不是课本实测数据，未经真实土样实验校准。小雨、暴雨只表示同样喷淋时间里雨的强弱，不是天气预报的降雨等级。沙土、黏土是本组对照材料，土质比较只代表本次模型设定；黄土以粉砂为主，并不等于沙土。各组保持土槽大小、土层厚度、初始湿润程度和喷淋、收集时间一致，每组只改变要比较的条件；冲沟与沉积厚度放大了。'));
         ui.data.append(tbl.el); W = { ui, choice, next, t1, t2, t3, tbl }; bar.attach(ui); status('先比较植被：三个槽的土质、坡度和雨都一样。向右拖红色阀门，让雨下起来。');
       },
       update(dt) { update(Math.min(dt, 0.1) * bar.update(dt)); },
