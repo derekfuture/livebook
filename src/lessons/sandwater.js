@@ -40,7 +40,7 @@ const read05 = (t) => (Math.round(t * 2) / 2).toFixed(1);    // 温度计读到 
 // 真实数据：同在北纬 49.9°
 const REAL = [
   { name: '温尼伯（加拿大，大陆内部）', short: '温尼伯（大陆内部）', lat: '49.9°N', jan: -16.3, jul: 19.5, hot: 19.5, cold: -16.3, src: '加拿大环境与气候变化部，1991—2020 年气候标准值（温尼伯理查森机场）' },
-  { name: '锡利群岛（英国，大西洋中的小岛）', short: '锡利群岛（大西洋中的小岛）', lat: '49.9°N', jan: 8.2, jul: 16.6, hot: 17.0, cold: 8.2, src: '英国气象局，1991—2020 年平均（圣玛丽机场；最热是 8 月 17.0 ℃，最冷是 1、2 月 8.2 ℃）' },
+  { name: '锡利群岛（英国，大西洋中的小岛）', short: '锡利群岛（大西洋中的小岛）', lat: '49.9°N', jan: 8.2, jul: 16.6, hot: 17.0, cold: 8.125, src: '英国气象局，1991—2020 年平均（圣玛丽机场，按月平均最高、最低气温的平均算：最热为 8 月，约 17.0 ℃；最冷为 2 月，约 8.1 ℃；气温年较差约 8.9 ℃）' },
 ];
 
 export default {
@@ -193,7 +193,7 @@ export default {
         if (!inSun()) { S.lapse = { kind: 'rest', left: 60 }; status('放在室内阴凉处……'); }
         else { S.lapse = { kind: 'sun', left: 120 }; status('晒太阳……'); }
       },
-      reset() { S = fresh(); stream.clear(); grains.clear(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.real.hidden = true; W.next.hidden = true; } bar.undo('water', 'sand', 'rest', 'th', 'sun', 'wait', 'why'); status('全部重新摆好了，记录也清空了。'); },
+      reset() { W?.ui?.relock?.(); S = fresh(); stream.clear(); grains.clear(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.real.hidden = true; W.next.hidden = true; } bar.undo('water', 'sand', 'rest', 'th', 'sun', 'wait', 'why'); status('全部重新摆好了，记录也清空了。'); },
     };
 
     const drag = draggable(group, [
@@ -358,7 +358,7 @@ export default {
         ui.controls.append(t1.el, t2.el, t3.el, realTbl, next, more, note);
         ui.data.append(tbl.el);
         const dt = ui.data.previousElementSibling; if (dt?.classList.contains('bar-title')) dt.textContent = '观察记录';
-        W = { tbl, t1, t2, t3, real: realTbl, next, status: (m) => ui.status(m) };
+        W = { ui, tbl, t1, t2, t3, real: realTbl, next, status: (m) => ui.status(m) };
         bar.attach(ui);
         ui.status('图 4.16：桌上两只一样的烧杯、一台电子秤、一杯水、一盒干沙、两支温度计；左边是室内阴凉处，右边是阳光下。可以先看<b>老师演示</b>，也可以直接动手。');
       },

@@ -117,6 +117,9 @@ body.lesson-on #hint, body.lesson-on #copy { opacity: 0; }
 .ctl-label output { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .seg { display: flex; flex-wrap: wrap; gap: 6px; }
 .seg button { flex: 1 1 auto; border: 1.5px solid #e6dcc8; background: #fff; border-radius: 8px; padding: 8px 10px; font: 14px/1.2 var(--song); }
+.ctl.guess .seg button:disabled { cursor: default; opacity: .55; }
+.ctl.guess .seg button.on:disabled { opacity: 1; }
+.guess-note { color: var(--seal, #b03a2a); font: 12px/1.4 var(--sans); }
 .seg button.on { border-color: var(--pep); background: #f1f6fd; color: var(--pep); font-weight: 700; }
 .seg button .tick { color: #3f9b5b; margin-left: 3px; font-family: var(--sans); }
 input[type=range] { width: 100%; accent-color: var(--pep); }
@@ -357,6 +360,8 @@ body.home::after { content: ""; position: fixed; inset: 0; z-index: 2; pointer-e
 body.mood .home-brand b { color: #f4ead6; text-shadow: 0 2px 14px rgba(0,0,0,.35); }          /* 首页傍晚的窗光：四周暗，字用暖白 */
 body.mood .home-brand span { color: #d9c9a8; text-shadow: 0 1px 10px rgba(0,0,0,.35); }
 body.mood .home-copy { color: rgba(240,228,205,.5); }
+body.mood .home-search input { background: #f4ecdd; }          /* 傍晚：纸片也暖一点、不那么刺眼 */
+body.mood .note-card { filter: brightness(.94) saturate(.95); }
 .home-brand span { display: block; margin-top: 10px; font: 20px/1.4 "Kaiti SC", "STKaiti", "KaiTi", var(--song); color: #4a3f2f; letter-spacing: .2em; }      /* 标语：用楷体，像题在书上的一句话 */
 /* 搜索：一条纸 */
 .home-search { position: relative; width: min(440px, 46vw); }

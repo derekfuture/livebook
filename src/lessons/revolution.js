@@ -300,7 +300,7 @@ export default {
         if (S.on && S.arrived) arrive(S.arrived);
         status(`换成了 <b>${city().name}</b>（${city().lat}°N）：小旗插到了这里，高亮的是它那条纬线。记录清空了，重新走一圈。`);
       },
-      reset() { S = fresh(); placeCity(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; } bar.undo('light', 'b', 'c', 'd', 'a', 'why'); sky.close(); status('全部重新摆好了，记录也清空了。'); },
+      reset() { W?.ui?.relock?.(); S = fresh(); placeCity(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; } bar.undo('light', 'b', 'c', 'd', 'a', 'why'); sky.close(); status('全部重新摆好了，记录也清空了。'); },
     };
 
     const drag = draggable(group, [
@@ -429,7 +429,7 @@ export default {
         ui.controls.append(citySeg.el, t1.el, t2.el, next, more, note);
         ui.data.append(tbl.el);
         const dt = ui.data.previousElementSibling; if (dt?.classList.contains('bar-title')) dt.textContent = '观察记录';
-        W = { tbl, t1, t2, next, citySeg, status: (m) => ui.status(m) };
+        W = { ui, tbl, t1, t2, next, citySeg, status: (m) => ui.status(m) };
         bar.attach(ui);
         ui.status('图 1.24：中间一盏灯泡（光源），纸上画着公转轨道；地球仪是课本第 14 页那种自己做的泡沫球，地轴和桌面约成 66.5°，小旗插在北京。可以先看<b>老师演示</b>，也可以直接动手。');
       },

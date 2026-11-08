@@ -306,7 +306,7 @@ export default {
         }
       },
       reset() {
-        S = fresh(); for (const k of Object.keys(named)) delete named[k]; drawPaper(); setK(0); aim?.([0, Math.sin(34 * D2R), Math.cos(34 * D2R)]);
+        W?.ui?.relock?.(); S = fresh(); for (const k of Object.keys(named)) delete named[k]; drawPaper(); setK(0); aim?.([0, Math.sin(34 * D2R), Math.cos(34 * D2R)]);
         if (W) { W.tbl.clear(); W.t1.close(); W.t2.close(); W.next.hidden = true; }
         bar.undo('flat', 'legend', 'dir', 'scale', 'why'); status('全部重新摆好了：又是一座模型，分规、八个方向放回桌边。');
       },
@@ -444,7 +444,7 @@ export default {
         ui.controls.append(t1.el, t2.el, next, more, note);
         ui.data.append(tbl.el);
         const dtl = ui.data.previousElementSibling; if (dtl?.classList.contains('bar-title')) dtl.textContent = '读到了什么';
-        W = { tbl, t1, t2, next, status: (m) => ui.status(m) };
+        W = { ui, tbl, t1, t2, next, status: (m) => ui.status(m) };
         bar.attach(ui);
         status('图 2.2：方向、图例和比例尺是地图的“语言”。这张活页照课本的方法，读一张编出来的校园平面图：桌上是这所学校的模型，立在它自己的平面图上。先把纸前面的<b>滑块</b>拖到“地图”，看模型怎样变成地图。可以先看<b>老师演示</b>，也可以直接动手。');
       },

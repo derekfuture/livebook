@@ -184,10 +184,14 @@ export default {
         status(S.rain ? '下雨了：雨水顺着山坡最陡的方向往下流。看哪里的水<b>汇在一起</b>，哪里的水<b>向两边分开</b>。' : '雨停了。');
       },
       name(n, v) {
-        if (v === ANSWER[n]) { S.named[n] = true; W?.rows[n].tick(NAMES.indexOf(v)); status(`${CIRC[n]} 是<b>${v}</b>：${HOW[v]}。`); if (Object.keys(S.named).length === 7) { done('name'); W?.t1.open(); } }
-        else status(`${CIRC[n]} 不是${v}。` + (ANSWER[n] === '山谷' || ANSWER[n] === '山脊' ? '下一场雨看看：这里的雨水是汇过来，还是向两边分开？' : `看看 ${CIRC[n]} 周围的等高线是什么样子，对照课本图 2.10 的五种说法。`));
+        if (v === ANSWER[n]) { S.named[n] = true; W?.rows[n].tick(NAMES.indexOf(v)); status(`${CIRC[n]} 是<b>${v}</b>：${HOW[v]}。`); if (Object.keys(S.named).length === 7) { done('name'); W?.t1.open(); } return; }
+        if (S.named[n]) {          // 原来选对了，又改成别的：撤回这一项（勾去掉），七项没全对，后面的坡度题、结论也收回
+          const all = Object.keys(S.named).length === 7; delete S.named[n]; W?.rows[n].tick(NAMES.indexOf(ANSWER[n]), false);
+          if (all && !S.demo) { W?.ui?.relock?.(); bar.undo('name', 'slope'); W?.t1.close(); if (W) W.next.hidden = true; }
+        }
+        status(`${CIRC[n]} 不是${v}。` + (ANSWER[n] === '山谷' || ANSWER[n] === '山脊' ? '下一场雨看看：这里的雨水是汇过来，还是向两边分开？' : `看看 ${CIRC[n]} 周围的等高线是什么样子，对照课本图 2.10 的五种说法。`));
       },
-      reset() { const keep = S.demo; S = fresh(); S.demo = keep; water.clear(); drops.clear(); clearWet(); W?.rows && Object.values(W.rows).forEach((r) => r.set(-1)); if (W) { W.t1.close(); W.next.hidden = true; } bar.undo('rise', 'rain', 'name', 'slope'); status('放平了，记录也清空了。'); },
+      reset() { if (!S.demo) W?.ui?.relock?.(); const keep = S.demo; S = fresh(); S.demo = keep; water.clear(); drops.clear(); clearWet(); W?.rows && Object.values(W.rows).forEach((r) => { r.set(-1); NAMES.forEach((_, k) => r.tick(k, false)); }); if (W) { W.t1.close(); W.next.hidden = true; } bar.undo('rise', 'rain', 'name', 'slope'); status('放平了，记录也清空了。'); },
     };
 
     const drag = draggable(group, [], { taps: [
@@ -284,7 +288,7 @@ export default {
         const note = h('p', { class: 'fineprint', html: '说明：地形是按图 2.13 上的等高线算出来的（两条等高线之间按远近插值），竖直方向放大了，为了看清起伏。雨水沿最陡的下坡方向流。' });
         ui.controls.append(nameBox, t1.el, next, more, note);
         const dt = ui.data.previousElementSibling; if (dt?.classList.contains('bar-title')) dt.hidden = true;
-        W = { rows, t1, next, status: (m) => ui.status(m) };
+        W = { ui, rows, t1, next, status: (m) => ui.status(m) };
         bar.attach(ui);
         ui.status('图 2.13：某地的等高线地形图（单位：米）。可以先看<b>老师演示</b>，也可以直接动手：先点一下这张图，让它立起来。');
       },

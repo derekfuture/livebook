@@ -108,8 +108,11 @@ export class Panel {
     this.askMini = explore ? h('p', { class: 'ask-mini', html: p.q }) : null;          // 探索模式：动手那一页顶上留一行开头的问题（动手时还看得见在回答什么）
     // 探索模式也可以先猜一下（活页写了 guess：选项和答案）：选做，不拦着动手；做完了告诉他猜得对不对
     this.guessIdx = null;
-    const gBtns = explore && def.guess ? def.guess.options.map((o, i) => h('button', { onclick: () => { this.guessIdx = i; gBtns.forEach((b, k) => b.classList.toggle('on', k === i)); } }, o)) : null;
-    this.guessEl = gBtns ? h('div', { class: 'ctl guess' }, h('div', { class: 'ctl-label' }, '先猜一下（可以不猜）'), h('div', { class: 'seg' }, gBtns)) : null;
+    // 猜只算第一次：点了就记下、不能再改（看到答案以后再改的不能叫“先猜”）；“全部重来”（relock）才重新猜
+    const gBtns = explore && def.guess ? def.guess.options.map((o, i) => h('button', { onclick: () => { if (this.guessIdx != null) return; this.guessIdx = i; gBtns.forEach((b, k) => { b.classList.toggle('on', k === i); b.disabled = true; }); this.guessNote.hidden = false; } }, o)) : null;
+    this.gBtns = gBtns;
+    this.guessNote = h('small', { class: 'guess-note', hidden: true }, '已记下');
+    this.guessEl = gBtns ? h('div', { class: 'ctl guess' }, h('div', { class: 'ctl-label' }, h('span', {}, '先猜一下（可以不猜）'), this.guessNote), h('div', { class: 'seg' }, gBtns)) : null;
     const s2 = h('div', { class: 'p-step' },
       this.askMini,
       h('div', { class: 'bar-title' }, explore ? '动手看' : '动手试'),
@@ -243,18 +246,19 @@ export class Panel {
     this.flapFront.querySelector('span').textContent = this.explore ? '🔒 先动手看看' : '🔒 做完实验再掀开';
     this.need(this.def.need || '');
     this.toProve.disabled = true;
+    if (this.gBtns) { this.guessIdx = null; this.gBtns.forEach((b) => { b.classList.remove('on'); b.disabled = false; }); this.guessNote.hidden = true; }          // 重来：重新猜
     this.tabs?.[1]?.classList.remove('done');
     this.el.querySelector('.p-body').scrollTop = 0;
   }
 
   _openFlap() {
     if (!this.unlocked || this.flap.classList.contains('open')) return;
-    const p = this.def.predict;
-    // 这次没猜：回看上次的预测（以前做过的实验直接掀结论时）
-    const last = localStorage.getItem(`livebook.pick.${this.def.id}`);
-    const mine = this.prediction ?? (last != null && p.options[+last] != null ? +last : null);
-    const who = this.prediction == null ? '上次你的预测' : '你的预测';
     const v = this.verdictEl;
+    // 预测模式：这次没猜就回看上次的预测（以前做过的直接掀结论时）；探索模式没有 predict，不读旧的预测记录
+    const p = this.explore ? null : this.def.predict;
+    const last = p ? localStorage.getItem(`livebook.pick.${this.def.id}`) : null;
+    const mine = p ? this.prediction ?? (last != null && p.options[+last] != null ? +last : null) : null;
+    const who = this.prediction == null ? '上次你的预测' : '你的预测';
     if (this.explore) { const g = this._guessSay(); v.className = `verdict${g ? (this.guessIdx === this.def.guess.answer ? ' ok' : ' no') : ''}`; v.textContent = g; }          // 探索模式：先猜了就说猜得对不对；没猜不说“这次没有先预测”
     else if (mine == null) { v.className = 'verdict'; v.textContent = '这次没有先预测。对照实验看看课本的结论。'; }
     else if (mine === p.answer) { v.className = 'verdict ok'; v.textContent = `✓ ${who}「${p.options[mine]}」是对的。`; }

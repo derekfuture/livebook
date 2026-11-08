@@ -62,7 +62,7 @@ export default {
       },
     });
 
-    const A = { reset() { S = fresh(); sheet.reset(); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; bar.undo('plot', 'read'); status('坐标纸擦干净了，重新画柱子。'); } };
+    const A = { reset() { W?.ui?.relock?.(); S = fresh(); sheet.reset(); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; bar.undo('plot', 'read'); status('坐标纸擦干净了，重新画柱子。'); } };
 
     const bar = lessonBar({
       look, back, group,

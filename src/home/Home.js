@@ -26,7 +26,7 @@ import { earthCircle } from '../world/GeoWorld.js';
 const BOOK_H = 0.6;                // 桌上的书高；书里那本书高 2（Book.js），拿到书桌中间时放大过去
 const LEAF_T = 0.0017;             // 书里每张纸的厚度（同 Book.js）：按页数有厚有薄
 const GAPX = 0.86;                 // 一科和一科之间（左右）
-const STAGGER = 0.8;               // 一前一后错开多少
+const STAGGER = 0.6;               // 一前一后错开多少
 const ROW_Z = -2.3;                // 各科放在书桌靠里那一头；书桌中间（z = 0）是翻开书的地方——镜头低头看书时，这几份都在画面外
 const FAN_Z = -0.3;                // 摊开的那一排：离那几摞远一点，镜头低头看这一排时它们在画面外
 const STACK = { x: -0.21, z: -0.02 }, THING = { x: 0.31, z: -0.04 }, CARD = { x: -0.2, z: 0.42 };     // 一科里：一摞书、那件东西、桌签（在书前面）放在哪（x, z）
@@ -312,6 +312,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
       const want = !open && !leaving && hoverS === s ? 1 : 0;
       s.hot += (want - s.hot) * Math.min(1, dt * 7);
       s.card.userData.face.material.emissiveIntensity = 0.16 + s.hot * 0.12;
+      if (leaving?.world && leaving.s === s) continue;          // 飞去地理世界的那一个：下面单独转（不重复转两次）
       s.thing?.userData.tick(dt, s.hot, time);
     }
     for (const g of items) {
@@ -342,7 +343,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
         B.o.position.lerpVectors(B.p, end, k); B.o.position.y += Math.sin(Math.PI * k) * 0.12;
         B.o.scale.setScalar(B.sc + (R / B.R - B.sc) * k);
         B.o.quaternion.slerpQuaternions(B.q, new THREE.Quaternion(), k);          // 地轴转成竖直：地理世界里的地球北极朝上
-        L.s.thing.userData.tick(dt, 1 + k * 3, time);
+        L.s.thing.userData.tick(dt, 1 + 3 * Math.sin(Math.PI * Math.min(1, k)), time);          // 越转越快，快到地方时慢下来，接上地理世界里慢慢转的地球
         if (L.s.thing.userData.ballMat) L.s.thing.userData.ballMat.emissiveIntensity = k * 0.85;
       }
       if (L.t > 1.6 && !L.sent) { L.sent = true; try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ } location.href = `?subject=dili&focus=${L.focus}`; }
@@ -369,6 +370,8 @@ function windowLight(stage, target) {
   spot.map = goboTexture(); spot.castShadow = true; spot.shadow.mapSize.set(2048, 2048); spot.shadow.bias = -0.0002; spot.shadow.normalBias = 0.008;
   Object.assign(spot.shadow.camera, { near: 3, far: 22 });
   sc.add(spot, spot.target);
+  // 镜头这边补一点柔光（不投影）：照亮桌签、器物朝着人的那一面，窗光和长影子还在
+  const fill = new THREE.DirectionalLight(0xffeedd, 0); fill.position.copy(target).add(new THREE.Vector3(0.6, 2.2, 5)); fill.target.position.copy(target); sc.add(fill, fill.target);
   // 光里的浮尘：一小团慢慢飘的亮点，只在窗光照到的那一束里
   const NM = 90, mp = new Float32Array(NM * 3), seeds = Array.from({ length: NM }, (_, i) => ({ u: (Math.sin(i * 12.9) * 0.5 + 0.5) * 2 - 1, v: (Math.sin(i * 7.7 + 1) * 0.5 + 0.5) * 2 - 1, t: 0.03 + (Math.sin(i * 3.3) * 0.5 + 0.5) * 0.16, ph: i * 1.7 }));
   const dir = LIGHT.clone().normalize(), side = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), upv = new THREE.Vector3().crossVectors(dir, side).normalize();
@@ -386,7 +389,7 @@ function windowLight(stage, target) {
       sun.intensity = L(base.sI, dusk.sI, k); sun.color.copy(base.sC).lerp(dusk.sC, k);
       sc.background.copy(base.bg).lerp(dusk.bg, k); sc.fog.color.copy(base.fC).lerp(dusk.fC, k); sc.fog.near = L(base.fN, dusk.fN, k); sc.fog.far = L(base.fF, dusk.fF, k);
       if (desk) desk.color.copy(base.dC).lerp(dusk.dC, k);
-      spot.intensity = 4.4 * k; motes.material.opacity = 0.55 * k;
+      spot.intensity = 4.4 * k; fill.intensity = 0.55 * k; motes.material.opacity = 0.55 * k;
     },
     tick(dt, t) {
       if (target.distanceToSquared(aimAt) > 1e-8) { target.lerp(aimAt, Math.min(1, dt * 2.4)); spot.target.position.copy(target); spot.position.copy(target).add(LIGHT); }
@@ -398,7 +401,7 @@ function windowLight(stage, target) {
       });
       motes.geometry.attributes.position.needsUpdate = true;
     },
-    dispose() { api.set(0); sc.remove(spot, spot.target, motes); spot.map?.dispose(); spot.shadow.map?.dispose(); motes.geometry.dispose(); motes.material.map?.dispose(); motes.material.dispose(); },
+    dispose() { api.set(0); sc.remove(spot, spot.target, fill, fill.target, motes); spot.map?.dispose(); spot.shadow.map?.dispose(); motes.geometry.dispose(); motes.material.map?.dispose(); motes.material.dispose(); },
   };
   api.set(1);
   return api;
@@ -465,7 +468,7 @@ function tentCard(s) {
  */
 function prismThing() {
   const g = new THREE.Group(), s = 0.17, hh = (s * Math.sqrt(3)) / 2, L = 0.11;
-  const P = [[-s / 2, -hh / 3], [s / 2, -hh / 3], [0, (2 * hh) / 3]];          // 三角形的三个角（x, z），中心在原点：底边在后、顶角朝前
+  const P = [[-s / 2, hh / 3], [s / 2, hh / 3], [0, (-2 * hh) / 3]];          // 三角形的三个角（x, z），中心在原点：底边在前、顶角朝后——光往底边那边偏，彩虹落到前面空着的桌面上
   const shape = new THREE.Shape(P.map(([x, z]) => new THREE.Vector2(x, -z)));
   const geo = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false }); geo.rotateX(-Math.PI / 2);          // 立起来：y 从 0 到 L
   const body = new THREE.Group(); g.add(body);
@@ -502,7 +505,7 @@ function prismThing() {
   // 七种色光的分界（纳米）和颜色：红 橙 黄 绿 蓝 靛 紫
   const BOUND = [700, 645, 595, 555, 505, 462, 427, 400];
   const COLS = ['#e8352e', '#f28a1e', '#f2cf26', '#3fb54a', '#2f8fdc', '#3d4fc4', '#8a3fd0'].map((c) => new THREE.Color(c));
-  const PSI = 30 * D2R, A_IN = 52 * D2R, LEN_IN = 0.62, LEN_OUT = 0.6, BEAM = 0.04;          // 三棱镜转了多少、白光从哪个方向来（从左后方斜着照过来，擦过那摞书后面）、光带多长多宽
+  const PSI = 74 * D2R, A_IN = 52 * D2R, LEN_IN = 0.62, LEN_OUT = 0.5, BEAM = 0.04;          // 三棱镜转了多少、白光从哪个方向来（从左后方斜着照过来，擦过那摞书后面）、光带多长多宽
 
   // 光带：几块平铺在桌面上的四边形（白光一块、白光外面一圈淡淡的光晕、玻璃里一块、七种色光各一块），沿长度方向淡入淡出
   const NQ = 10, pos = new Float32Array(NQ * 12), uv = new Float32Array(NQ * 8), col = new Float32Array(NQ * 12), alp = new Float32Array(NQ * 4);

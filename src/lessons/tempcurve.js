@@ -82,7 +82,7 @@ export default {
         S.drawing = true; S.paused = false; sfx.clink?.({ freq: 520, gain: 0.02 });
         status('用平滑的曲线把各点连起来……');
       },
-      reset() { S = fresh(); sheet.reset(); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; bar.undo('plot', 'curve', 'read'); status('坐标纸擦干净了，重新标点。'); },
+      reset() { W?.ui?.relock?.(); S = fresh(); sheet.reset(); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; bar.undo('plot', 'curve', 'read'); status('坐标纸擦干净了，重新标点。'); },
     };
 
     const bar = lessonBar({

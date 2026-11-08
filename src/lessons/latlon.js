@@ -237,7 +237,7 @@ export default {
       /** 四件事（泰坦尼克号、往东走、往北走、五座城市）都做完了，才出“想一想” */
       todo() { return [!S.titanic && '插到“泰坦尼克号”失事地点', !S.east && '沿着纬线往东拖过 180° 经线', !S.north && '往北拖到北极', CITIES.some((c) => !S.found[c.name]) && '按表 1.6 找城市'].filter(Boolean); },
       reset() {
-        S = fresh(); clearMarks(); addMark(BEIJING, '北京（例）'); showFlag();
+        W?.ui?.relock?.(); S = fresh(); clearMarks(); addMark(BEIJING, '北京（例）'); showFlag();
         if (W) { W.tbl.clear(); W.tbl.add(['40°N', '116°E', '北京（课本的例子）']); W.t1.close(); W.next.hidden = true; }
         bar.undo('titanic', 'east', 'north', 'cities', 'why'); status('全部重新摆好了：小红旗回到 0°，0°，记录也清空了。');
       },
@@ -383,7 +383,7 @@ export default {
         ui.controls.append(t1.el, next, more, note);
         ui.data.append(tbl.el);
         const dtl = ui.data.previousElementSibling; if (dtl?.classList.contains('bar-title')) dtl.textContent = '经纬度与对应地方（表 1.6）';
-        W = { tbl, t1, next, status: (m) => ui.status(m) };
+        W = { ui, tbl, t1, next, status: (m) => ui.status(m) };
         bar.attach(ui);
         status('图 1.17：地球仪上经线、纬线相互交织，形成经纬网。拖着<b>小红旗</b>在球上走，亮着的红线是过它的经线、蓝线是过它的纬线；拖着球可以转到背面。可以先看<b>老师演示</b>，也可以直接动手。');
       },
