@@ -245,7 +245,7 @@ export default {
       move(rc) {
         const c = document.getElementById('c');
         if (!S.drag) {
-          if (c) c.style.cursor = rc.intersectObject(climbPick, false).length ? 'grab' : '';
+          if (c) { const on = rc.intersectObject(climbPick, false).length > 0; c.style.cursor = on ? 'grab' : ''; c.dataset.tip = on ? '拖着登山的人上山、下山' : ''; }
           const ht = rc.intersectObjects(S.m === 'cb' ? [lake, lakeFace, topMesh] : [topMesh], false)[0];
           if (ht) { const l = block.worldToLocal(ht.point.clone()), kd = ht.object === lake || ht.object === lakeFace ? null : surfaceBandAt(S.m, xm(l.x), (ZD - l.z) / (2 * ZD), opt()); aHover.setText(kd === null ? '天池（火山口湖）' : KIND[kd].name); aHover.position.set(l.x, l.y + 0.01, l.z); aHover.userData.want = 1; } else aHover.userData.want = 0;
           return false;

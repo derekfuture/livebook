@@ -74,10 +74,10 @@ export class Panel {
       const noop = () => {};
       return { controls: this.controlsEl, data: this.dataEl, status: (msg) => { this.statusEl.innerHTML = msg || ''; }, need: noop, unlock: noop, relock: noop, prediction: () => null, now: this.nowEl, el: this.el, go: noop };
     }
-    // 探索模式（地理）：不分“预测、实验、结论”三步——开头一个生活里的问题，下面直接动手看，最后对照课本原文
+    // 探索模式（高中地理）：和别的活页一样分三步、一样的纸卡和页签——只是第一步是一个生活里的问题（不选答案），第二步动手看，第三步对照课本原文
     const explore = this.explore = def.flow === 'explore';
 
-    const tabs = ['预测', '实验', '结论'].map((t, i) =>
+    const tabs = (explore ? ['想一想', '动手看', '对照课本'] : ['预测', '实验', '结论']).map((t, i) =>
       h('button', { class: 'p-tab', onclick: () => this.go(i) }, h('b', {}, String(i + 1)), t));
     this.tabs = tabs;
 
@@ -88,7 +88,7 @@ export class Panel {
     this.opts = opts;
     this.goBtn = h('button', { class: 'go ghost', onclick: () => this.go(1) }, '不猜了，直接动手 →');     // 预测是选做的：不猜也能做实验、看结论
     const s1 = explore
-      ? h('div', { class: 'p-step' }, this.askP = h('p', { class: 'q ask', html: p.q }))
+      ? h('div', { class: 'p-step' }, h('div', { class: 'bar-title' }, '想一想'), this.askP = h('p', { class: 'q ask', html: p.q }), h('button', { class: 'go', onclick: () => this.go(1) }, '开始动手 →'))
       : h('div', { class: 'p-step' },
         h('div', { class: 'bar-title' }, '想一想'),
         h('p', { class: 'q', html: p.q + (p.hint ? `<small>${p.hint}</small>` : '') }),
@@ -142,7 +142,7 @@ export class Panel {
         links?.length ? h('div', { class: 'p-links' }, links.map((l) => h('button', { class: 'p-link', 'data-when': l.when ?? false, onclick: l.onClick }, l.text))) : null,          // 接着看：同一个地方、同一个问题的下一张活页
         h('div', { class: 'p-acts' },
           h('button', { class: 'p-close', onclick: () => onClose() }, closeText))),
-      explore ? null : h('div', { class: 'p-tabs' }, tabs),
+      h('div', { class: 'p-tabs' }, tabs),
       h('div', { class: 'p-body' }, s1, s2, s3)].filter(Boolean));          // 空的不要放进去（不然会显示成“null”）
     this.go(0);
     this.need(def.need || '');
@@ -177,17 +177,11 @@ export class Panel {
   }
 
   go(i) {
-    if (this.explore) {          // 探索模式：问题、动手、课本原文一路排下来，不分页
-      this.step = Math.max(1, i);
-      this.steps.forEach((s, k) => (s.hidden = k === 2 && !this.unlocked));          // 课本原文那一块，能看了才出现
-      if (i === 2) this.steps[2].scrollIntoView({ behavior: 'smooth', block: 'start' });
-      this._onStep?.(this.step);
-      return;
-    }
     this.step = i;
     this.steps.forEach((s, k) => (s.hidden = k !== i));
     this.tabs.forEach((t, k) => t.classList.toggle('on', k === i));
-    if (i > 0 && this.prediction == null) this.tabs[0].classList.add('skip');     // 没猜就往下走了：预测标成“跳过”，不当成没完成
+    if (i > 0 && this.explore) this.tabs[0].classList.add('done');          // 探索模式：问题读过了就算这一步做完（没有要猜的）
+    else if (i > 0 && this.prediction == null) this.tabs[0].classList.add('skip');     // 没猜就往下走了：预测标成“跳过”，不当成没完成
     this.el.querySelector('.p-body').scrollTop = 0;
     this._onStep?.(i);
   }
@@ -232,7 +226,6 @@ export class Panel {
     this.flapFront.querySelector('span').textContent = '掀开看结论';
     this.flapFront.querySelector('small').textContent = '点一下纸片';
     this.needEl.textContent = pending ? `之前已经做完（可以看结论）。这一次${pending}` : this.explore ? '可以对照课本原文了。' : '实验做完了，可以去看结论。';
-    if (this.explore) this.steps[2].hidden = false;
     this.toProve.disabled = false;
     if (!fromHistory) this.tabs[1].classList.add('done');
   }
@@ -243,7 +236,6 @@ export class Panel {
     this.flap.classList.add('locked'); this.flap.classList.remove('open');
     this.flapFront.querySelector('span').textContent = this.explore ? '🔒 先动手看看' : '🔒 做完实验再掀开';
     this.need(this.def.need || '');
-    if (this.explore) this.steps[2].hidden = true;
     this.toProve.disabled = true;
     this.tabs?.[1]?.classList.remove('done');
     this.el.querySelector('.p-body').scrollTop = 0;
@@ -257,7 +249,8 @@ export class Panel {
     const mine = this.prediction ?? (last != null && p.options[+last] != null ? +last : null);
     const who = this.prediction == null ? '上次你的预测' : '你的预测';
     const v = this.verdictEl;
-    if (mine == null) { v.className = 'verdict'; v.textContent = '这次没有先预测。对照实验看看课本的结论。'; }
+    if (this.explore) { v.className = 'verdict'; v.textContent = ''; }          // 探索模式没有预测：不说“这次没有先预测”
+    else if (mine == null) { v.className = 'verdict'; v.textContent = '这次没有先预测。对照实验看看课本的结论。'; }
     else if (mine === p.answer) { v.className = 'verdict ok'; v.textContent = `✓ ${who}「${p.options[mine]}」是对的。`; }
     else { v.className = 'verdict no'; v.textContent = `${who}是「${p.options[mine]}」，对照实验再想一想。正确的是「${p.options[p.answer]}」。`; }
     this.flap.classList.add('open');

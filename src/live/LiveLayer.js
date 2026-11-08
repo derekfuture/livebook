@@ -224,7 +224,7 @@ export class LiveLayer {
       this.panel.home.classList.toggle('board', MODE === 'float');
       this.panel.home.classList.remove('folded');
       // 预测阶段：隐藏标签和会泄露答案的现象（实验自己实现 predicting(on)）
-      const onStep = (i) => { const on = i === 0; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
+      const onStep = (i) => { const on = i === 0 && !this.panel.explore; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
       api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => (WD?.onClose ? WD.onClose() : this.close()), closeText: WD?.closeText, crumb: WD?.crumb, links: WD?.links, figText: WD?.figText, foldable: MODE === 'float' || stand,
         onFold: (folded) => { if (!stand) stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8; } });
     }
@@ -254,7 +254,7 @@ export class LiveLayer {
     }
 
     this.hotspots.enabled = false;
-    document.body.classList.add('lesson-on');
+    document.body.classList.add('lesson-on'); document.getElementById('c').dataset.tip = '';
     document.body.classList.toggle('stand-ui', !!board);
     ink.setLessonStyle(null);
     this.active = { spot, def, inst, root, scaler, card, hole, crop, tags, nb, board, toggles, t: 0, from: figCenter, to: pageCenter, s, closing: false, world: WD, hold: WD?.mode === 'globe' };
@@ -353,7 +353,7 @@ export class LiveLayer {
     A.inst.dispose?.();
     for (const b of A.toggles || []) b.remove();
     applyShow(false);
-    document.getElementById('c').style.cursor = '';
+    document.getElementById('c').style.cursor = ''; document.getElementById('c').dataset.tip = ''; this._hoverTip(null);
     for (const t of A.tags) t.remove();
     ink.disposeTree(A.root);
     this.stage.scene.remove(A.root, A.card, A.hole);
@@ -458,6 +458,7 @@ export class LiveLayer {
   }
 
   pointerDown(ndc, e) {
+    this._hoverTip(null);
     const A = this.active;
     if (A && !A.closing && A.nb && A.nb.pointerDown(this._ray(ndc))) return true;
     if (!A || A.closing) return false;
@@ -486,8 +487,22 @@ export class LiveLayer {
 
   pointerMove(ndc, e) {
     const A = this.active;
-    if (!A || A.closing || !A.inst.pointer?.move) return false;
-    return !!A.inst.pointer.move(this._ray(ndc), e);
+    if (!A || A.closing || !A.inst.pointer?.move) { this._hoverTip(null); return false; }
+    const r = !!A.inst.pointer.move(this._ray(ndc), e);
+    if (A.def?.flow === 'explore') this._hoverTip(e);
+    return r;
+  }
+
+  /** 高中活页：鼠标停在能动的东西上（活页把光标设成 grab / pointer），旁边浮出一张小纸条说怎么动——和别的活页（kit/interact 的 tip）同一种纸条。
+   *  活页想写得具体一点，就在设光标时顺手设 canvas.dataset.tip（比如“拖着登山的人上山”） */
+  _hoverTip(e) {
+    const c = document.getElementById('c'), cur = c.style.cursor, on = !!e && (cur === 'grab' || cur === 'pointer');
+    if (!this._tipEl) { this._tipEl = document.createElement('div'); this._tipEl.className = 'hover-tip'; document.body.appendChild(this._tipEl); }
+    const el = this._tipEl;
+    if (!on) { el.classList.remove('on'); return; }
+    el.textContent = c.dataset.tip || (cur === 'grab' ? '按住拖动' : '点一下');
+    el.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 20}px)`;
+    el.classList.add('on');
   }
 
   pointerUp(ndc, e) {

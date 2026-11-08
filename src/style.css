@@ -813,41 +813,22 @@ body.geo-world { --gw-ink: #efe6d2; --gw-dim: #a3aec4; --gw-gold: #d6b16e; --gw-
 .tag3d.w-circle { font: 11.5px/1 var(--song); color: rgba(241,215,159,.85); letter-spacing: .14em; text-shadow: 0 0 6px rgba(5,9,20,.95); pointer-events: none; }
 .tag3d.w-sunhint { font: 12px/1 var(--sans); color: var(--gw-gold2); letter-spacing: .08em; text-shadow: 0 0 8px rgba(5,9,20,.95); pointer-events: none; }
 .tag3d.w-sunhint span { display: block; animation: hint-breath 2.8s ease-in-out infinite; }
-/* 看法：深色玻璃上的金色细线，开着的是一枚亮的金色 */
+/* 看法：和书里一样的纸——米色纸签、墨色字；开着的那枚压一圈朱红（和盖章同一个红） */
 body.geo-world .tag3d.w-themes { gap: 8px; }
-body.geo-world .tag3d.w-themes button { background: var(--gw-glass); border: 1px solid var(--gw-line); color: var(--gw-ink); box-shadow: 0 4px 14px rgba(0,0,0,.25); backdrop-filter: blur(6px); padding: 7px 15px 7px 9px; font: 600 13px/1 var(--sans); letter-spacing: .1em; gap: 8px; }
+body.geo-world .tag3d.w-themes button { background: #f8f2e3; border: 1px solid rgba(120,100,60,.35); color: #2a2f3d; box-shadow: 0 6px 16px rgba(0,0,0,.35), inset 0 0 18px rgba(160,130,80,.12); padding: 7px 15px 7px 9px; font: 600 13.5px/1 var(--song); letter-spacing: .12em; gap: 8px; border-radius: 3px; }
 body.geo-world .tag3d.w-themes button::before { display: none; }
-body.geo-world .tag3d.w-themes svg { width: 17px; height: 17px; fill: none; stroke: var(--gw-gold); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
-body.geo-world .tag3d.w-themes svg .fill { fill: var(--gw-gold); stroke: none; }
-body.geo-world .tag3d.w-themes button:hover { border-color: var(--gw-gold); background: rgba(214,177,110,.14); }
-body.geo-world .tag3d.w-themes button.on { background: linear-gradient(180deg, #f6e2b2, #cfa159); color: #20180c; border-color: #f6e2b2; box-shadow: 0 0 18px rgba(241,215,159,.45); }
-body.geo-world .tag3d.w-themes button.on svg { stroke: #20180c; } body.geo-world .tag3d.w-themes button.on svg .fill { fill: #20180c; }
+body.geo-world .tag3d.w-themes svg { width: 17px; height: 17px; fill: none; stroke: #5a4a32; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+body.geo-world .tag3d.w-themes svg .fill { fill: #5a4a32; stroke: none; }
+body.geo-world .tag3d.w-themes button:hover { background: #fff8e8; transform: translateX(2px); }
+body.geo-world .tag3d.w-themes button.on { background: #fff6e2; color: #8a2a14; border: 1.5px solid #c8341f; box-shadow: 0 6px 16px rgba(0,0,0,.35), 0 0 0 3px rgba(200,52,31,.18); }
+body.geo-world .tag3d.w-themes button.on svg { stroke: #c8341f; } body.geo-world .tag3d.w-themes button.on svg .fill { fill: #c8341f; }
 body.geo-world .tag3d.w-enter { background: none; border: 0; box-shadow: none; padding: 0; }
-body.geo-world .tag3d.w-enter span { font: 600 13px/1.4 var(--sans); color: var(--gw-gold2); letter-spacing: .06em; border-bottom: 1px solid rgba(241,215,159,.6); padding-bottom: 2px; text-shadow: 0 0 8px rgba(5,9,20,.95); }
-/* 目录：深色玻璃，金色细线 */
-body.geo-world #panel.board { background: linear-gradient(180deg, rgba(17,24,46,.82), rgba(10,15,30,.86)); color: var(--gw-ink); border-radius: 6px; transform: none; box-shadow: 0 22px 50px rgba(0,0,0,.45), inset 0 0 0 1px var(--gw-line); backdrop-filter: blur(10px) saturate(1.15); animation: none; }
-body.geo-world #panel.board .p-head { border-bottom: 1px solid var(--gw-line); }
-body.geo-world .board .p-fig { color: var(--gw-gold); }
-body.geo-world .board .p-title { color: var(--gw-ink); }
-body.geo-world .board .p-close { color: var(--gw-dim); }
-body.geo-world #panel .q, body.geo-world #panel .q.ask { color: var(--gw-ink); }
-body.geo-world .board .status { border-left-color: var(--gw-gold); color: #e6d6b2; }
-body.geo-world .board .p-body::-webkit-scrollbar-thumb { background: rgba(214,177,110,.3); }
-body.geo-world .atlas-ch { color: var(--gw-ink); }
-body.geo-world .atlas-ch:hover { background: rgba(214,177,110,.1); }
-body.geo-world .atlas-ch em { color: var(--gw-dim); }
-body.geo-world .atlas-ch i { box-shadow: 0 0 0 2px rgba(10,15,30,.9), 0 0 8px currentColor; }
-body.geo-world .atlas-row { background: rgba(255,255,255,.035); border-color: rgba(214,177,110,.16); color: var(--gw-ink); }
-body.geo-world .atlas-row small { color: var(--gw-dim); }
-body.geo-world .atlas-row:hover, body.geo-world .atlas-row.on { background: rgba(214,177,110,.13); border-color: rgba(214,177,110,.55); }
-body.geo-world .atlas-kind { background: none !important; border: 1px solid currentColor; }
-body.geo-world .atlas-kind.k-place { color: #f0b08e; } body.geo-world .atlas-kind.k-globe { color: #9cc0f0; } body.geo-world .atlas-kind.k-idea { color: #cfc2a2; }
-/* 指着旗浮出来的卡：深色玻璃，课本的图镶一道金边 */
-body.geo-world .tag3d.w-card { background: rgba(12,18,35,.88); box-shadow: 0 14px 36px rgba(0,0,0,.5), inset 0 0 0 1px var(--gw-line); backdrop-filter: blur(8px); }
-body.geo-world .tag3d.w-card b { color: var(--gw-gold2); }
-body.geo-world .tag3d.w-card .w-q { color: #e9e0cc; }
-body.geo-world .tag3d.w-card small { color: var(--gw-dim); }
-body.geo-world .tag3d.w-card .w-fig { box-shadow: 0 0 0 1px rgba(214,177,110,.45); }
+body.geo-world .tag3d.w-enter span { font: 600 13.5px/1.4 var(--song); color: #f5ecd8; letter-spacing: .08em; border-bottom: 1px solid rgba(245,236,216,.6); padding-bottom: 2px; text-shadow: 0 0 8px rgba(5,9,20,.95); }
 /* 俯冲到了：北（金色罗盘针）、数据来源 */
 body.geo-world .geo-dive .gd-north i { border-bottom-color: var(--gw-gold2); }
 body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(--song); }
+.verdict:empty { display: none; }
+/* 高中活页的悬停小纸条：和别的活页那张“说怎么动”的纸条一样（米色纸、手写体、顶上一截胶带） */
+.hover-tip { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .15s; background: #fdfaf1; color: #2c3245; font: 15px/1.15 "Hannotate SC", "HanziPen SC", "Kaiti SC", "STKaiti", serif; padding: 5px 9px 4px; border-radius: 2px; box-shadow: 0 2px 8px rgba(40,30,15,.22), 0 0 0 1px rgba(120,100,60,.15); white-space: nowrap; }
+.hover-tip.on { opacity: 1; }
+.hover-tip::after { content: ""; position: absolute; left: 50%; top: -4px; width: 14px; height: 7px; margin-left: -7px; background: rgba(230,215,170,.75); transform: rotate(-4deg); }

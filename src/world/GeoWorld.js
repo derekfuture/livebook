@@ -17,7 +17,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 
 const $ = (s) => document.querySelector(s);
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const EARTH = { y: 1.9, r: 0.92 };          // 地球：球心多高、多大
+const EARTH = { y: 1.8, r: 0.92 };          // 地球：球心多高、多大
 const RING = { r: 2.45, h: 0.92, tilt: 0.24 };          // 书圈：半径、书多高、往后仰多少
 const BOOK_COLORS = { 'dili-7s': '#4f9d4a', 'dili-bx1': '#3d6fb4', 'dili-bx2': '#c27a2c', 'dili-xb1': '#8a5aa0', 'dili-xb2': '#c0453a' };          // 一本书一个颜色：旗、书脊下的光、侧栏一致
 const SHORT = (full) => full.replace(/^人教版\s*/, '').replace(/^地理\s*/, '').replace('选择性必修', '选必');
@@ -67,6 +67,8 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const first = items.find((x) => x.anchor.kind === 'place' && x.book.id === focus) || items.find((x) => x.anchor.kind === 'place');
   earth.spin.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-90 - (first ? first.anchor.pins[0].lon : 105)) * Math.PI / 180);          // 镜头在正前方（+z，地球不转时是西经 90° 那一面）：把这本书的第一面旗转过来
   const map = polarMap(earth.mat.map, RING.r); map.position.y = 0.006; root.add(map);
+  const orbit = new THREE.Mesh(new THREE.TorusGeometry(RING.r, 0.009, 8, 220), new THREE.MeshBasicMaterial({ color: 0xe3c07c, transparent: true, opacity: 0.85, fog: false }));
+  orbit.rotation.x = Math.PI / 2; orbit.position.y = 0.012; orbit.raycast = () => {}; root.add(orbit);          // 书圈站着的那一圈（赤道）描一道金线，铜版的轮廓清楚
   // 铜版上的太阳：太阳直射点在哪，就在铜版上的哪里（离圆心越远纬度越低，在南北回归线两道刻线之间来回）。拖着它绕圈是换时刻，往里往外是换季节
   map.material.uniforms.lights.value = earth.nowU.nightMap?.value || null;
   const DIAL = { r0: 1.84, r1: 2.24 };
@@ -114,7 +116,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const shot = (instant = false) => {
     stage.cameraOffsetX = panelOpen() ? Math.min(380, innerWidth * 0.4) / 2 + 8 : 0; stage.cameraOffsetY = 0;
     const el = THREE.MathUtils.degToRad(19);
-    stage.shot({ target: new THREE.Vector3(0, 1.05, 0.3), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist: stage.fitDistance(RING.r * 2 + 1.1, EARTH.y + EARTH.r + 0.75, 1.06), instant, minEl: 0.05 });
+    stage.shot({ target: new THREE.Vector3(0, 1.12, 0.3), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist: stage.fitDistance(RING.r * 2 + 1.1, EARTH.y + EARTH.r + 0.75, 1.13), instant, minEl: 0.05 });          // 地球上方留出天空，不顶着屏幕上沿
   };
 
   // ---- 侧栏：按书列出活页（颜色和旗一样） ----
@@ -240,6 +242,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     for (const o of bookObjs) if (o !== bo) { o.mesh.castShadow = f < 0.01; o.mesh.visible = f < 0.995; for (const mt of o.mesh.material) { mt.depthWrite = f <= 0.001; mt.opacity = 1 - f; } }          // 淡掉的书不写深度：不然在半透明的书桌上挖出一个个洞，露出后面的夜空
     for (const m of [floor.material, glowPool.material]) m.opacity = 1 - f;
     map.material.uniforms.fade.value = 1 - f;
+    orbit.material.opacity = 0.85 * (1 - f);
     stars.children.forEach((pt) => { pt.material.opacity = 1 - f; });
     stage.desk.visible = f > 0.001; stage.desk.material.opacity = f;
     stage.scene.background = f > 0.999 ? DAY.bg : skyBg;          // 书桌完全不透明了才换掉夜空（不然隔着半透明的桌面一下变亮）
@@ -392,7 +395,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       earth.nowK = 1 - THREE.MathUtils.smoothstep(s, 0.15, 0.55);
       const fo = THREE.MathUtils.smoothstep(s, 0, 0.16);
       for (const o of bookObjs) { o.mesh.visible = fo < 0.99; for (const mt of o.mesh.material) { mt.opacity = 1 - fo; mt.depthWrite = fo < 0.01; } o.label.show(false); }
-      floor.material.opacity = 1 - fo; glowPool.material.opacity = 1 - fo; map.material.uniforms.fade.value = 1 - fo; worldFade = fo;
+      floor.material.opacity = 1 - fo; glowPool.material.opacity = 1 - fo; map.material.uniforms.fade.value = 1 - fo; orbit.material.opacity = 0.85 * (1 - fo); worldFade = fo;
       skyDome.material.uniforms.k.value = THREE.MathUtils.smoothstep(s, 0.6, 0.92); skyDome.position.copy(stage.camera.position);
       stars.children.forEach((pt) => { pt.material.opacity = 1 - THREE.MathUtils.smoothstep(s, 0.5, 0.85); });
       const hz = THREE.MathUtils.smoothstep(s, 0.22, 0.95), hn = dist * (1.1 + 3 * (1 - hz)), hf = dist * (3.2 + 7 * (1 - hz));          // 越近，远处的山蒙上的空气越厚（飞下去的路上，地形四周低分辨率的地球也蒙着一层，不像一张卡片）
@@ -409,7 +412,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       if (D.s > 0) return;
       earth.spin.remove(D.P.mesh, D.P.cut); skyDome.visible = false; stage.scene.fog = null; stage.camera.up.set(0, 1, 0);
       for (const o of bookObjs) { o.mesh.visible = true; for (const mt of o.mesh.material) { mt.opacity = 1; mt.depthWrite = true; } }
-      floor.material.opacity = 1; glowPool.material.opacity = 1; map.material.uniforms.fade.value = 1; worldFade = 0; earth.cloudWant = 1; earth.haloM.uniforms.k.value = 1; earth.nowK = 1;
+      floor.material.opacity = 1; glowPool.material.opacity = 1; map.material.uniforms.fade.value = 1; orbit.material.opacity = 0.85; worldFade = 0; earth.cloudWant = 1; earth.haloM.uniforms.k.value = 1; earth.nowK = 1;
       stars.children.forEach((pt) => { pt.material.opacity = 1; }); earth.setLook({ pins: true }); earth.root.scale.setScalar(EARTH.r); earth.root.position.set(0, EARTH.y, 0);
       const L = D.light; hemi.color.copy(L.hc); hemi.groundColor.copy(L.hg); hemi.intensity = L.hi; stage.sun.color.copy(L.sc); stage.sun.intensity = L.si; stage.sun.position.copy(L.sp);
       stage.calm = false; diving = null; $('#panel').classList.remove('leaving'); shot();
