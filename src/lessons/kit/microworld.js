@@ -16,6 +16,7 @@ import { h } from '../../ui/Panel.js';
 
 // 元素：颜色、画出来的半径（Å，大致按共价 / 离子半径缩小）
 const EL = {
+  Hg: [0xb7bfca, 0.62],
   C: [0x3d4350, 0.4], O: [0xe0483a, 0.36], H: [0xf2f1ec, 0.24], N: [0x4a78d8, 0.36],
   Na: [0x9b6fe0, 0.52], Cl: [0x4cbf63, 0.6], S: [0xe8c23c, 0.44],
   Al: [0xaab6c4, 0.66], Cu: [0xbf5a36, 0.62], Ag: [0xe9ecf1, 0.66],
@@ -28,6 +29,8 @@ const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 const pairOf = (cat, an) => { const z = ZION[cat], a = ZION[an], g = gcd(z, a); return [a / g, z / g]; };
 // 分子：原子 [元素, x, y, z]、键 [i, j, 几重键]、化学式、标签颜色（全息里用深色字）
 const MOL = {
+  Hg: { atoms: [['Hg', 0, 0, 0]], bonds: [], label: 'Hg', ink: '#657080' },
+  HgO: { atoms: [['Hg', 0, 0, 0], ['O', 0, 1.5, 0]], bonds: [[0, 1, 1]], labelY: 2.5, label: 'HgO', ink: '#b84933' },
   CO2: { atoms: [['C', 0, 0, 0], ['O', -1.16, 0, 0], ['O', 1.16, 0, 0]], bonds: [[0, 1, 2], [0, 2, 2]], label: 'CO₂', ink: '#23293a' },
   H2O: { atoms: [['O', 0, 0, 0], ['H', -0.76, 0.59, 0], ['H', 0.76, 0.59, 0]], bonds: [[0, 1, 1], [0, 2, 1]], label: 'H₂O', ink: '#1f6fa8' },
   H2CO3: { atoms: [['C', 0, 0, 0], ['O', 0, 1.21, 0], ['O', -1.17, -0.68, 0], ['O', 1.17, -0.68, 0], ['H', -1.95, -0.16, 0], ['H', 1.95, -0.16, 0]], bonds: [[0, 1, 2], [0, 2, 1], [0, 3, 1], [2, 4, 1], [3, 5, 1]], label: 'H₂CO₃', ink: '#b8233f', glow: 0xff5a78, glowBase: 0.18 },

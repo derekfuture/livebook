@@ -1530,6 +1530,11 @@
   "title": "化学 九年级上册",
   "base": "/books/huaxue-9s/",
   "lessons": {
+   "lavoisier": {
+    "title": "拉瓦锡研究空气成分",
+    "fig": "图2-2",
+    "sec": "课题1 我们周围的空气"
+   },
    "airoxygen": {
     "title": "探究空气中氧气含量的装置",
     "fig": "图2-4",
@@ -1627,6 +1632,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "lavoisier",
+    "page": 36,
+    "bbox": [
+     216,
+     486,
+     430,
+     643
+    ],
+    "label": "图2-2 · 翻开活页"
+   },
    {
     "lesson": "airoxygen",
     "page": 37,
