@@ -98,23 +98,23 @@ export default {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
     paperSheet(group, { w: 0.66, d: 0.27, x: 0.02 });
-    let W = null;
+    let W = null, renderedRecords = '', renderedMessage = '';
     const fresh = () => ({
-      heated: 0, decomposed: 0, heating: false, strong: false, heat: 0,
+      message: '向右拉开左侧炉门，观察汞表面的变化。', heated: 0, decomposed: 0, heating: false, strong: false, heat: 0,
       read: false, transferred: false, recovered: false,
       gates: [0, 0], capOff: [false, false], capCarry: [null, null], capMotion: [null, null], sealed: false, valveTurn: 0,
       spoonHeld: false, spoonCarry: null, spoonPos: null, returnFrom: null, returnT: 0, powder: 'retort', pouring: 0, lastRead: -1, lastRecovery: -1,
-      mixed: false, mix: 0, records: [], demo: false, near: false,
+      mixed: false, mix: 0, syringeGas: 0, delivered: 0, drawn: 0, rightSealed: false, dock: 1, connectorPos: null, records: [], demo: false, near: false,
     });
     let S = fresh();
     const consumed = () => OXYGEN * S.heated;
     const recovered = () => consumed() * S.decomposed;
     const bound = () => consumed() - recovered();
-    const status = (text) => S.demo ? bar.caption(text) : W?.status(text);
+    const status = (text) => { S.message=text; if(S.demo)bar.caption(text); else W?.status(text); };
     const done = (id) => { if (!S.demo) bar.done(id); };
     const log = (row) => {
       S.records.push(row);
-      if (!S.demo) W?.tbl.add(row);
+
     };
     const metal = paint(SILVER, { keep: true });
     const red = paint(RED, { keep: true });
@@ -175,14 +175,15 @@ export default {
       const basin = mesh(new THREE.LatheGeometry(basinProfile, 40), paint(0x697988), x, 0);
       const outside = mesh(new THREE.RingGeometry(radius * 0.94, radius * 1.5, 40), metal, x, 0.022);
       outside.rotation.x = -Math.PI / 2;
-      const profile = flat ? [[radius, 0.008], [radius, height], [0, height]] :
-        [[radius, 0.008], [radius, height * 0.8], [radius * 0.9, height * 0.95], [radius * 0.5, height], [0, height * 1.04]];
+      const profile = flat ? [[radius, 0.008], [radius, height], [0.004, height]] :
+        [[radius, 0.008], [radius, height * 0.8], [radius * 0.9, height * 0.95], [radius * 0.5, height], [0.004, height * 1.04]];
       const glass = mesh(new THREE.LatheGeometry(profile.map(p => new THREE.Vector2(...p)), 40), glass2({ base: 0.035, rim: 0.46 }), x, 0.009);
       glass.renderOrder = 9;
-      const knob = mesh(new THREE.SphereGeometry(radius * 0.14, 12, 8), glass2(), x, 0.009 + height * (flat ? 1 : 1.04) + radius * 0.10); knob.renderOrder = 9;
+      const top = 0.009 + height * (flat ? 1 : 1.04);
+      const knob = mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.012, 16, 1, true), glass2(), x, top + 0.005); knob.renderOrder = 9;
       const liquid = mesh(new THREE.CylinderGeometry(radius * 0.94, radius * 0.94, 1, 32), metal, x, 0.004);
       liquid.geometry.translate(0, 0.5, 0); liquid.scale.y = initialLevel;
-      return { basin, glass, knob, liquid, base: 0.004, height, radius, rim: 0.017, surface: 0.022 };
+      return { basin, glass, knob, port: new V(x, top + 0.012, 0), liquid, base: 0.004, height, radius, rim: 0.017, surface: 0.022 };
     }
     const airBell = bell(BELL, 0.032, 0.135, 0.018);
     const oxygenBell = bell(COLLECT, 0.024, 0.105, 0.110, true);
@@ -237,8 +238,30 @@ export default {
     const falling = Array.from({length: 12}, (_,i) => mesh(new THREE.IcosahedronGeometry(0.0014, 0), red, RIGHT, 0.10));
     label('向右拉开炉门', LEFT, 0.01, 0.071, 0.095);
     label('向右拉开炉门', RIGHT, 0.01, 0.049, 0.085);
-    label('药匙：取粉末 → 移入小容器', 0.07, 0.01, 0.118, 0.19);
-    const mixControl = label('合并结果对照', COLLECT, 0.012, 0.063, 0.09);
+    label('药匙', 0.04, 0.01, 0.108, 0.045);
+    // 密闭气体注射器：辅助转移器材，并非历史装置。接头脱开时两端自封。
+    const ports = [airBell.port, oxygenBell.port];
+    const syringeY = 0.024, syringeZ = 0.16, pistonStart = 0.015, stroke = 0.065;
+    const barrel = mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.075, 24, 1, true), glass2({base:.12,rim:.6}), 0.0475, syringeY, syringeZ);
+    barrel.rotation.z = Math.PI / 2; barrel.renderOrder = 9;
+    const syringeEnd = mesh(new THREE.CylinderGeometry(0.003, 0.009, 0.008, 24), metal, 0.006, syringeY, syringeZ); syringeEnd.rotation.z = Math.PI / 2;
+    const piston = mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.004, 20), paint(0x555b63), pistonStart, syringeY, syringeZ); piston.rotation.z = Math.PI / 2;
+    const rod = mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.081, 16), metal, 0.055, syringeY, syringeZ); rod.rotation.z = Math.PI / 2;
+    const plunger = mesh(new THREE.BoxGeometry(0.006, 0.025, 0.024), paint(0x796552, {keep:true}), 0.098, syringeY, syringeZ);
+    for (const x of [0.02, 0.075]) mesh(new THREE.BoxGeometry(0.008, 0.015, 0.026), paint(0x8c8377), x, 0.0075, syringeZ);
+    for (let j=0;j<=7;j++) mesh(new THREE.BoxGeometry(.0006,j%2?.004:.007,.0006),paint(0x555b63),pistonStart+j*stroke/7,syringeY,syringeZ+.009);
+    for(const x of [.010,.085]){const rim=mesh(new THREE.TorusGeometry(.009,.0007,6,24),metal,x,syringeY,syringeZ);rim.rotation.y=Math.PI/2;}
+    const connector = mesh(new THREE.CylinderGeometry(0.007, 0.005, 0.014, 20), paint(0x796552,{keep:true}), ...ports[1].toArray());
+    const portCaps = ports.map(p => mesh(new THREE.CylinderGeometry(0.004,0.004,0.004,16),metal,p.x,p.y-0.003,p.z));
+    const hose = new THREE.Mesh(new THREE.BufferGeometry(), glass2({base:.12,rim:.55})); hose.renderOrder=9;group.add(hose);
+    let hoseKey='';
+    const transferDots=Array.from({length:8},()=>mesh(new THREE.SphereGeometry(.0018,8,6),paint(BLUE,{keep:true}),0,0));
+    const syringeCard=tag('', 'pill');
+    label('气体注射器 · 辅助转移', 0.075, 0.012, 0.195, 0.18);
+    const rightValveAt=outlet.curve.getPoint(.21);
+    const rightValve=mesh(new THREE.BoxGeometry(.023,.006,.008),paint(0x796552,{keep:true}),rightValveAt.x,rightValveAt.y,.012);
+    const rightStem=mesh(new THREE.CylinderGeometry(.003,.003,.014,16),metal,rightValveAt.x,rightValveAt.y,.006);rightStem.rotation.x=Math.PI/2;
+    const rightValveTag=tag('旋塞 · 封存氧气','pill');
     const gasDots = Array.from({ length: 40 }, (_, i) => {
       const dot = mesh(new THREE.SphereGeometry(0.0018, 8, 6), paint(i < 8 ? BLUE : 0x939ba6, { keep: true }), 0, 0);
       dot.raycast = () => {};
@@ -272,6 +295,7 @@ export default {
       gate(i, p) {
         const x = i ? RIGHT : LEFT;
         const k = THREE.MathUtils.clamp((p.x - x) / 0.035, 0, 1);
+        if (k > 0.1 && i === 1 && S.rightSealed) return status('氧气已封存，接下来用注射器转移。');
         if (k > 0.1 && (S.capOff[i] || (i === 0 && S.sealed) || (i === 1 && !S.transferred))) {
           return status(S.capOff[i] ? '先把瓶塞放回取样口，气路密闭后再加热。' : i ? '先用药匙把红色粉末移入小容器。' : '气体已封存，接下来取红色粉末。');
         }
@@ -330,12 +354,43 @@ export default {
         if (!S.transferred || !S.decomposed || S.strong || S.heat > 0.01 || S.decomposed === S.lastRecovery) return;
         S.lastRecovery = S.decomposed;
         log(['强热后冷却', recovered().toFixed(1) + ' 份氧气', S.decomposed < 1 ? '仍有红色粉末，可继续强热' : '粉末消失，汞重现；氧气与减少量相等']);
-        if (S.decomposed >= 1) { S.recovered = true; done('recover'); status('收回 21 份氧气，恰好等于先前减少的量。可查看合并结果对照。'); }
+        if (S.decomposed >= 1) { S.recovered = true; done('recover'); status('收回 21 份氧气，恰好等于先前减少的量。关闭右侧旋塞封存氧气，再拉出注射器活塞抽取氧气。'); }
       },
-      mix() {
-        if (!S.recovered) return status('强热结束后关上炉门，冷却读数，再查看合并结果。');
-        if (S.mixed || S.mix > 0) return;
-        S.mix = 0.001; mw.close();
+      isolate(p) {
+        if (!S.recovered) return status('先关火冷却并记录收回的氧气，再关闭右侧旋塞。');
+        if (S.drawn > 0) return;
+        S.rightSealed = p.x >= rightValveAt.x + .022;
+      },
+      connect(p) {
+        if (!S.recovered || !S.rightSealed) return status('先冷却读数，再关闭右侧旋塞，隔开强热容器。');
+        S.dock = -1;
+        S.connectorPos = new V(p.x, Math.max(.03,p.y),0);
+      },
+      connectDrop() {
+        if (!S.connectorPos) return;
+        const port = ports.findIndex(p=>p.distanceTo(S.connectorPos)<.025);
+        if (port >= 0) { S.dock=port; S.connectorPos=null; status(port===0?'已接入剩余气体钟罩。向左推回活塞，注入氧气。':'已接入氧气钟罩。向右拉出活塞，抽取氧气。'); }
+        else status('接头离开时两端自封。把接头拖到任一钟罩顶部接口。');
+      },
+      pump(p) {
+        if (!S.recovered || !S.rightSealed) return status('先关火冷却，关闭右侧旋塞，再抽取氧气。');
+        if (S.dock < 0) return status('接头尚未接好，不能推拉气体。');
+        if (S.mixed) return;
+        const target=THREE.MathUtils.clamp((p.x-.098)/stroke,0,1)*OXYGEN;
+        if (S.dock===1) {
+          const amount=Math.min(Math.max(0,target-S.syringeGas),recovered()-S.drawn);
+          S.syringeGas+=amount;S.drawn+=amount;
+        } else {
+          const amount=Math.max(0,S.syringeGas-target);
+          S.syringeGas-=amount;S.delivered+=amount;
+        }
+        S.mix=S.delivered/OXYGEN;
+        if (S.delivered >= OXYGEN-1e-6) {
+          S.delivered=OXYGEN;S.syringeGas=0;S.mix=1;S.mixed=true;done('mix');
+          log(['密闭转移后', '100.0 份', '79 份剩余气体 + 实际注入 21 份氧气；氧气占 21%']);
+          status('氧气已全部注入。左侧恢复 100 份，氧气占 21%；对照转移前后的记录。');
+          if(!S.demo)W?.question.open();
+        }
       },
       reset() {
         if (bar.playing) bar.stop();
@@ -353,9 +408,10 @@ export default {
         hint: '提起瓶塞放在一旁；加热前拖回取样口', onDrag: p => A.cap(i, p), onEnd: () => A.capDrop(i) })),
       { obj: spoonPick, anchor: spoon, keepOffset: true, plane: 'xy',
         hint: '拿起药匙，从左侧取样口伸入取粉，再提起移到右侧口上方', onStart: () => { S.spoonHeld = true; }, onDrag: A.spoonDrag, onEnd: A.spoonDrop },
-    ], { tip: tag('', 'pill'), taps: [
-      { obj: mixControl, hint: '查看两份气体合并的结果对照（示意）', onTap: A.mix },
-    ] });
+      {obj:rightValve,plane:'xy',offset:.012,keepOffset:true,hint:'向右拖动旋塞，封存收集的氧气',onDrag:A.isolate},
+      {obj:connector,plane:'xy',keepOffset:true,hint:'提起密闭接头，移到左侧钟罩顶部接口',onDrag:A.connect,onEnd:A.connectDrop},
+      {obj:plunger,plane:'xy',offset:syringeZ,keepOffset:true,hint:'接右侧向右抽气；接左侧向左推回，注入氧气',onDrag:A.pump},
+    ], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const gateAt = (i, open) => new V((i ? RIGHT : LEFT) + (open ? 0.035 : 0), 0.033, i ? 0.037 : 0.053);
     const scoopPath = [null, new V(LEFT, 0.19, 0), new V(LEFT, 0.111, 0), new V(LEFT, 0.19, 0), new V(RIGHT, 0.15, 0), new V(RIGHT, 0.13, 0)];
@@ -366,7 +422,7 @@ export default {
         { id: 'read', title: '关火读数', todo: '把<b>左侧炉门</b>向左推回。冷却已加速，稳定后自动留下观察记录。', target: () => gates[0] },
         { id: 'transfer', title: '取粉末', todo: '向右拖动<b>旋塞手柄</b>转动关闭，提起两侧<b>瓶塞</b>；拿药匙从左口伸入取粉，再提起移到右口上方倒入。', target: () => !S.sealed ? valve : !S.capOff[0] ? caps[0] : !S.capOff[1] ? caps[1] : spoonPick },
         { id: 'recover', title: '强热粉末', todo: '把右侧<b>瓶塞</b>放回口上，拉开右侧炉门。粉末分解完后推回炉门，冷却比较氧气体积。', target: () => S.capOff[1] ? caps[1] : gates[1] },
-        { id: 'mix', title: '比较结果', todo: '比较自己留下的体积记录，查看两部分气体合并的结果示意。', target: () => mixControl },
+        { id: 'mix', title: '合并气体', todo: '关闭<b>右侧旋塞</b>；向右拉出<b>注射器活塞</b>抽氧气。把<b>接头</b>移到左钟罩顶部，再向左推回活塞，观察气量与液面。', target: () => !S.rightSealed ? rightValve : S.dock===1 && S.syringeGas>=OXYGEN-.01 ? connector : plunger },
         { id: 'why', title: '解释现象', todo: '对照观察记录，解释原先减少的氧气去了哪里。' },
       ],
       reels: { demo: {
@@ -381,7 +437,10 @@ export default {
           { cap: '塞好右侧瓶塞，再拉开炉门强热。红色粉末减少，汞与氧气重新出现。', dur: 6,
             during: act.seq(act.drag(caps[1], capHomes[1], {t0: 0.02, t1: 0.15, release: 0.17}), act.drag(gates[1], gateAt(1, true), {t0: 0.2, t1: 0.3, release: 0.32})) },
           { cap: '推回炉门，冷却后得到 21 份氧气，恰好等于原来减少的量。', dur: 2, during: act.drag(gates[1], gateAt(1, false), {t0: 0.02, t1: 0.3, release: 0.32}) },
-          { cap: '结果对照：79 份剩余气体加上 21 份氧气，恢复为 100 份。', dur: 2, during: act.tap(mixControl, 0.12) },
+          { cap: '关闭右侧旋塞，隔开强热容器。拉出活塞，将氧气抽入密闭注射器。', dur: 4,
+            during: act.seq(act.drag(rightValve,rightValveAt.clone().add(new V(.025,0,.012)),{t0:.02,t1:.2,release:.22}),act.drag(plunger,new V(.163,syringeY,syringeZ),{t0:.3,t1:.85,release:.9})) },
+          { cap: '将自封接头移到左侧钟罩，再推回活塞。氧气经导管进入剩余气体，气量恢复为 100 份。', dur: 5,
+            during: act.seq(act.path(connector,[null,ports[1].clone().add(new V(0,.04,0)),ports[0].clone().add(new V(0,.04,0)),ports[0]],{t0:.02,t1:.45,release:.48}),act.drag(plunger,new V(.098,syringeY,syringeZ),{t0:.55,t1:.9,release:.93})) },
         ],
       } },
     });
@@ -430,14 +489,20 @@ export default {
         grain.visible = !!over && S.powder === 'spoon' && S.pouring > 0.15;
         grain.position.set(RIGHT + Math.sin(i * 2.4) * 0.004, 0.13 - ((time * 3 + i / 12) % 1) * 0.069, Math.cos(i * 2.4) * 0.004);
       });
-      if (S.mix > 0 && !S.mixed) {
-        S.mix = Math.min(1, S.mix + step / 0.5);
-        if (S.mix === 1) {
-          S.mixed = true; done('mix');
-          log(['合并对照', INITIAL.toFixed(1) + ' 份', '计算对照：79 + 21；未模拟气体转移']);
-          if (!S.demo) W?.question.open();
-        }
+      rightValve.rotation.z=S.rightSealed?Math.PI/2:0;
+      rightValveTag.loc(group,rightValveAt.x,rightValveAt.y+.025,.012);
+      connector.position.copy(S.connectorPos || ports[Math.max(0,S.dock)]);
+      portCaps.forEach((c,i)=>{c.visible=S.dock!==i;});
+      const pumpK=S.syringeGas/OXYGEN;
+      piston.position.x=pistonStart+stroke*pumpK;rod.position.x=.055+stroke*pumpK;plunger.position.x=.098+stroke*pumpK;
+      const end=connector.position.clone();
+      const key=end.toArray().join(',');
+      if(key!==hoseKey){
+        const curve=new THREE.CatmullRomCurve3([new V(.002,syringeY,syringeZ),new V(-.02,syringeY,syringeZ),new V(-.03,.024,.22),new V(end.x+.065,.04,.23),new V(end.x+.065,Math.max(.09,end.y+.035),.06),end.clone().add(new V(0,.025,0)),end]);
+        hose.geometry.dispose();hose.geometry=new THREE.TubeGeometry(curve,64,.002,8,false);hoseKey=key;
       }
+      transferDots.forEach((dot,i)=>{dot.visible=i<Math.round(S.syringeGas/OXYGEN*8);dot.position.set(pistonStart+.003+(i+.5)/8*stroke*pumpK,syringeY+Math.sin(time+i)*.004,syringeZ+Math.cos(time+i)*.004);});
+      syringeCard.loc(group,.08,.008,.228).text('注射器 '+S.syringeGas.toFixed(1)+' 份 · '+(S.dock<0?'接头自封':S.dock===1?'接氧气':'接剩余气体'));
       stove.fire.setOn(S.heating); burner.fire.setOn(S.strong);
       stove.fire.update(time); burner.fire.update(time);
       oxide.forEach((grain, i) => {
@@ -456,40 +521,45 @@ export default {
       smallMetal.visible = S.decomposed > 0;
       smallMetal.scale.setScalar(Math.cbrt(S.decomposed));
       smallMetal.position.y = 0.060 + mercuryDropRadius;
-      const remaining = INITIAL - consumed();
+      const remaining = INITIAL - consumed() + S.delivered;
       airBell.liquid.scale.y = 0.018 + (INITIAL - remaining) / INITIAL * 0.105;
-      oxygenBell.liquid.scale.y = 0.110 - recovered() / OXYGEN * 0.074;
+      oxygenBell.liquid.scale.y = 0.110 - (recovered()-S.drawn) / OXYGEN * 0.074;
       for (let i = 0; i < gasDots.length; i++) {
         const dot = gasDots[i], angle = i * 2.4 + time * 0.25;
-        dot.visible = i >= 8 || i < Math.round(8 * (1 - S.heated));
+        dot.visible = i >= 8 || i < Math.round(8 * (1 - S.heated + S.delivered/OXYGEN));
         dot.position.set(BELL + Math.cos(angle) * 0.019, airBell.base + airBell.liquid.scale.y + 0.008 + (i % 7) / 7 * (0.113 - airBell.liquid.scale.y), Math.sin(angle) * 0.019);
       }
       for (let i = 0; i < returnedDots.length; i++) {
         const dot = returnedDots[i], angle = i * 2.4 + time * 0.3;
-        dot.visible = i < Math.round(S.decomposed * 8);
+        dot.visible = i < Math.round((recovered()-S.drawn)/OXYGEN * 8);
         const bottom = oxygenBell.base + oxygenBell.liquid.scale.y;
         dot.position.set(COLLECT + Math.cos(angle) * 0.012,
           bottom + 0.002 + (i % 3 + 0.5) / 3 * Math.max(0, 0.110 - bottom), Math.sin(angle) * 0.012);
       }
       leftCard.loc(group, -0.11, 0.19, 0).text('<div class="cc"><div class="cc-t">原气体 · 归一化模型</div><div class="cc-more">' +
         (S.heat > 0.015 && !S.transferred ? '加热中 · 推回炉门关火' : remaining.toFixed(1) + ' / 100 份') +
-        '<br><small>' + (S.transferred ? '已保留剩余气体' : '历史持续加热 12 天；此处加速') + '</small></div></div>');
+        '<br><small>' + (S.delivered>0 ? '已注入氧气 '+S.delivered.toFixed(1)+' 份 · 氧气占 '+(S.delivered/remaining*100).toFixed(1)+'%' : S.transferred ? '已保留剩余气体' : '历史持续加热 12 天；此处加速') + '</small></div></div>');
       rightCard.loc(group, 0.20, 0.16, 0).text('<div class="cc"><div class="cc-t">红色粉末放出的氧气</div><div class="cc-more">' +
-        (S.heat > 0.015 && S.transferred ? '加热中 · 推回炉门关火' : recovered().toFixed(1) + ' 份') +
+        (S.heat > 0.015 && S.transferred ? '加热中 · 推回炉门关火' : (recovered()-S.drawn).toFixed(1) + ' 份') +
         '<br><small>小点及液面定性示意；读数经同温同压折算</small></div></div>');
       if (mw.isOpen && (S.powder === 'spoon' || microPhase !== S.transferred)) mw.close();
       if (W?.history) {
         W.history.hidden = !S.read;
-        W.history.textContent = '课本记载：剩余气体不能支持燃烧、不能供给呼吸。' + (S.recovered ? '强热得到的氧气能支持燃烧。' : '') + (S.mixed ? '两部分合并后，气体性质恢复得与空气一样。合并体积为计算对照，装置保留两份气体，不演示跨空转移。' : '');
+        W.history.textContent = '课本记载：剩余气体不能支持燃烧、不能供给呼吸。' + (S.recovered ? '强热得到的氧气能支持燃烧。' : '') + (S.mixed ? '两部分合并后，气体性质恢复得与空气一样。本次已实际转移氧气并比较体积；燃烧、呼吸性质为课本记载，不由体积读数单独证明。' : '');
       }
-      goBtn.loc(group, S.transferred ? RIGHT - 0.025 : LEFT - 0.025, S.transferred ? 0.155 : 0.195, 0.025)
+      if (W) {
+        const rows=JSON.stringify(S.records);
+        if(rows!==renderedRecords){W.tbl.clear();S.records.forEach(row=>W.tbl.add(row,{highlight:false}));renderedRecords=rows;}
+        if(S.message!==renderedMessage){W.status(S.message);renderedMessage=S.message;}
+      }
+      goBtn.loc(group, S.transferred ? RIGHT - 0.06 : LEFT - 0.025, S.transferred ? 0.155 : 0.195, 0.025)
         .text(S.transferred ? '钻进小容器看 ⊙' : '钻进汞表面看 ⊙')
         .show(!mw.isOpen && !bar.playing && S.powder !== 'spoon');
       mw.set(microState()); mw.update(Math.min(step, 0.05));
     }
     return {
       group: root, pointer: wrapPointer(drag, bar), card: false, toggles: ['cards', 'steps'],
-      size: { w: 0.62, d: 0.22, h: 0.22 },
+      size: { w: 0.62, d: 0.32, h: 0.24 },
       view: { elev: 22, azim: 0, lookY: 0.45, frameMargin: 1.12 },
       mount(ui) {
         const question = think({
@@ -503,10 +573,10 @@ export default {
         });
         const controls = buttons([
           { text: '看微观变化', ghost: true, onClick: openMicro },
-          { text: '合并结果对照', ghost: true, onClick: A.mix },
+
         ]);
         const history = h('p', { class: 'fineprint' }); history.hidden = true;
-        const note = h('p', { class: 'fineprint' }, '拖动炉门、瓶塞和药匙来操作。反应与冷却已加速；取样口、封存阀为操作示意，不是历史器材复刻。汞及其化合物有毒，请勿自行复现。用现代空气组成为理想模型：初始 100 份、氧气 21 份，非历史实测。小点、液面是定性示意；读数按同温同压折算。');
+        const note = h('p', { class: 'fineprint' }, '拖动炉门、瓶塞和药匙来操作。反应与冷却已加速；取样口、封存阀与气体注射器为操作示意，不是历史器材复刻。汞及其化合物有毒，请勿自行复现。用现代空气组成为理想模型：初始 100 份、氧气 21 份，非历史实测。小点、液面是定性示意；读数按同温同压折算。');
         const xuean = mountXuean(ui, { controls: [note, controls, history, question.el, moreBox([], A.reset)],
           headers: ['操作', '体积', '观察'], intro: '抓住左侧炉门把手向右拉开，看汞表面生成红色粉末。' });
         W = { ...xuean, question, history, status: (m) => ui.status(m) };
@@ -516,7 +586,7 @@ export default {
       dispose() { mw.dispose(); bar.dispose(); },
       debug: {
         get S() { return S; }, A, bar,
-        audit: { neck, outlet, valveAt, valve, valveBody, valveStem, airBell, oxygenBell, retort, small, mercury, smallMetal, smallPowder, spoon, caps,
+        audit: { ports, connector, plunger, rightValve, rightValveAt, hose, neck, outlet, valveAt, valve, valveBody, valveStem, airBell, oxygenBell, retort, small, mercury, smallMetal, smallPowder, spoon, caps,
           micro: () => ({ open: mw.isOpen, particles: mw.ctx.mols?.map(m => m.kind) }),
           closeMicro: () => mw.close(), look, back },
         qa: qaFlow(drag, [
@@ -532,7 +602,12 @@ export default {
           { name: '放回右瓶塞', drag: caps[1], to: capHomes[1] },
           { name: '拉开右炉门', drag: gates[1], to: gateAt(1, true), wait: 5 },
           { name: '关火冷却', drag: gates[1], to: gateAt(1, false), wait: 1 },
-          { name: '合并结果对照', tap: mixControl },
+          { name: '封存氧气', drag:rightValve,to:rightValveAt.clone().add(new V(.025,0,.012)) },
+          { name: '抽取氧气', drag:plunger,to:new V(.163,syringeY,syringeZ) },
+          { name: '提起接头', drag:connector,to:ports[1].clone().add(new V(0,.04,0)) },
+          { name: '移到左接口上方', drag:connector,to:ports[0].clone().add(new V(0,.04,0)) },
+          { name: '接入剩余气体', drag:connector,to:ports[0] },
+          { name: '推入氧气', drag:plunger,to:new V(.098,syringeY,syringeZ),wait:1 },
           { name: '回答', run: () => W.question.el.querySelector('button').click() },
         ]),
       },

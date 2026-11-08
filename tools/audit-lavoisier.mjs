@@ -7,6 +7,7 @@ const { chromium } = createRequire(base)('playwright-core');
 const out = process.env.LB_AUDIT_OUT || new URL('../review/lavoisier-audit-2026-11-08', import.meta.url).pathname; mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: `${home}/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`, args: ['--use-angle=metal', '--enable-gpu'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.addInitScript(() => { window.WebSocket = class { addEventListener() {} removeEventListener() {} send() {} close() {} }; });
 const clickScene = async text => { const el = page.getByText(text, { exact: true }); await el.waitFor({ state: 'visible' }); await page.waitForTimeout(1000); const box = await el.boundingBox(); await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); await page.waitForFunction(() => __lb.live.active.inst.debug.audit.micro().open); };
 const errors = []; page.on('pageerror', e => errors.push(e.message));
 try {
@@ -25,7 +26,7 @@ try {
     for (const [tube, bell, x] of routes) {
       check(bell.rim < bell.surface, 'bell rim not immersed in mercury');
       bell.glass.geometry.computeBoundingBox();
-      check(bell.knob.position.y - bell.knob.geometry.parameters.radius <= bell.glass.position.y + bell.glass.geometry.boundingBox.max.y, 'bell knob floats above glass roof');
+      check(bell.knob.position.y - bell.knob.geometry.parameters.height/2 <= bell.glass.position.y + bell.glass.geometry.boundingBox.max.y, 'transfer port floats above roof');
       let crossings = 0, low = Infinity, wallHits = 0, floorHits = 0;
       const r = tube.geometry.parameters.radius;
       for (let j = 0; j <= 2000; j++) {
@@ -64,11 +65,19 @@ try {
     A.cap(1,p(.14,.125));A.capDrop(1);A.gate(1,p(.175,.033));step(1.2);A.gate(1,p(.14,.033));step(.8);check(!d.S.recovered&&d.S.decomposed<1,'partial decomposition accepted');
     A.gate(1,p(.175,.033));step(4);A.gate(1,p(.14,.033));step(.8);check(d.S.recovered,'oxygen record failed');
     check(Math.abs(d.audit.smallMetal.position.y - d.audit.smallMetal.geometry.parameters.radius*d.audit.smallMetal.scale.y - .060)<1e-6,'mercury drop floats above bottom');
-    const levels=[d.audit.airBell.liquid.scale.y,d.audit.oxygenBell.liquid.scale.y]; A.mix();step(.6);
-    check(d.S.mixed,'comparison failed');check(levels[0]===d.audit.airBell.liquid.scale.y&&levels[1]===d.audit.oxygenBell.liquid.scale.y,'comparison teleports physical gas');
+    A.pump(p(.163,.024,.16));check(d.S.syringeGas===0,'oxygen sucked from unisolated retort');
+    A.isolate(d.audit.rightValveAt.clone().add(p(.025,0,.012)));
+    const conservation=()=>check(Math.abs((21-d.S.drawn)+d.S.syringeGas+d.S.delivered-21)<1e-8,'oxygen not conserved across three vessels');
+    A.pump(p(.1305,.024,.16));step(.1);conservation();check(Math.abs(d.S.syringeGas-10.5)<1e-8,'partial draw ignored');
+    A.connect(p(.1,.2));A.connectDrop();A.pump(p(.098,.024,.16));check(Math.abs(d.S.syringeGas-10.5)<1e-8,'disconnected gas escaped');
+    A.connect(d.audit.ports[0]);A.connectDrop();A.pump(p(.098,.024,.16));step(.1);conservation();check(!d.S.mixed&&Math.abs(d.S.delivered-10.5)<1e-8,'partial transfer marked complete');
+    A.connect(d.audit.ports[1]);A.connectDrop();A.pump(p(.163,.024,.16));step(.1);conservation();check(Math.abs(d.S.syringeGas-10.5)<1e-8,'overdraw created gas');
+    A.connect(d.audit.ports[0]);A.connectDrop();A.pump(p(.098,.024,.16));step(.1);conservation();
+    check(d.S.mixed&&d.S.syringeGas===0&&d.S.delivered===21,'physical transfer incomplete');
+    check(Math.abs(d.audit.airBell.liquid.scale.y-.018)<1e-8&&Math.abs(d.audit.oxygenBell.liquid.scale.y-.110)<1e-8,'liquid levels do not follow transfer');
     const records=d.S.records;A.reset();step(.1);check(!d.S.heated&&!d.S.records.length&&!d.bar.finished,'reset incomplete');
-    d.bar.play('demo');step(27);check(d.S.mixed,'full teacher demonstration incomplete');step(2);check(!d.S.heated&&!d.S.records.length,'full demo did not restore');
-    return { records, interruptedDemoRestored:true, fullDemoRestored:true, wrongOrder:true, partialRuns:true, reset:true };
+    d.bar.play('demo');step(33.8);check(d.S.mixed,'full teacher demonstration incomplete');step(2);check(!d.S.heated&&!d.S.records.length,'full demo did not restore');
+    return { records, interruptedDemoRestored:true, fullDemoRestored:true, wrongOrder:true, partialRuns:true, reset:true, gasTransferConserved:true, partialTransfer:true, disconnectedSeal:true };
   });
   await clickScene('钻进汞表面看 ⊙');
   const before = await page.evaluate(() => __lb.live.active.inst.debug.audit.micro());
@@ -101,16 +110,21 @@ try {
   await page.setViewportSize({width:1440,height:900});
   const studentBeforeDemo = await page.evaluate(() => { const i=__lb.live.active.inst,d=i.debug,V=i.group.position.constructor;d.A.reset();d.A.gate(0,new V(-.155,.033,0));for(let j=0;j<90;j++)i.update(1/60,j/60);d.A.gate(0,new V(-.19,.033,0));for(let j=0;j<60;j++)i.update(1/60,j/60);return JSON.stringify(d.S); });
   await page.locator('.lb-demo').click();
-  for (const [shot, seconds] of [6,2,4,5,6,2,2].entries()) {
+  for (const [shot, seconds] of [6,2,4,5,6,2,4,5].entries()) {
     await page.waitForFunction(k => __lb.live.active.inst.debug.bar.shot === k, shot);
     await page.waitForTimeout(seconds * 650);
     await page.screenshot({path:`${out}/teacher-${shot + 1}.png`});
     if(shot>=4 && await page.evaluate(()=>!!__lb.live.active.inst.debug.S.spoonPos || __lb.live.active.inst.debug.S.spoonHeld))throw Error('teacher left spoon suspended after release');
   }
+  await page.waitForFunction(() => __lb.live.active.inst.debug.S.mixed);
+  await page.screenshot({path:`${out}/transfer-complete.png`});
+  const demoRecords=await page.locator('table.data tbody').innerText();
+  if(!demoRecords.includes('100.0')||!demoRecords.includes('密闭转移后'))throw Error('teacher notebook differs from demonstrated transfer');
   await page.waitForFunction(() => !__lb.live.active.inst.debug.bar.playing);
   const studentAfterDemo=await page.evaluate(()=>JSON.stringify(__lb.live.active.inst.debug.S));
   if(studentBeforeDemo!==studentAfterDemo)throw Error('real-time teacher playback mutated student state');
+  if((await page.locator('table.data tbody').innerText()).includes('密闭转移后'))throw Error('teacher notebook not restored');
   const report={geometry,physics,teacherUIRestored:true,micro:{liveForward,liveReverse,before:before.particles,after:after.particles,oxide:oxide.particles,recovered:recovered.particles},errors};
   writeFileSync(`${out}/audit.json`,JSON.stringify(report,null,2));
   if(errors.length)throw Error(errors.join(';'));console.log(JSON.stringify(report,null,2));
-} catch (error) { await page.screenshot({ path: `${out}/failure.png` }); console.log(await page.evaluate(() => ({ state: __lb.live.active.inst.debug.S, micro: __lb.live.active.inst.debug.audit.micro(), entry: [...document.querySelectorAll('.mw-go')].map(el => { const b=el.getBoundingClientRect(); return { text:el.textContent, box: [b.x,b.y,b.width,b.height], target: document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)?.outerHTML.slice(0,200) } }) }))); throw error; } finally { await browser.close(); }
+} catch (error) { console.error(error); await page.screenshot({ path: `${out}/failure.png` }); console.log(await page.evaluate(() => ({ state: __lb.live.active.inst.debug.S, micro: __lb.live.active.inst.debug.audit.micro(), entry: [...document.querySelectorAll('.mw-go')].map(el => { const b=el.getBoundingClientRect(); return { text:el.textContent, box: [b.x,b.y,b.width,b.height], target: document.elementFromPoint(b.x+b.width/2,b.y+b.height/2)?.outerHTML.slice(0,200) } }) }))); throw error; } finally { await browser.close(); }
