@@ -7,16 +7,26 @@ import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeome
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import cbDem from '../lessons/data/terrain/changbai.png';
 import cbImg from '../lessons/data/terrain/changbai.jpg';
+import qmDem from '../lessons/data/terrain/qomolangma.png';
+import qmImg from '../lessons/data/terrain/qomolangma.jpg';
 
 const R_KM = 6371, D2R = Math.PI / 180;
+const SRC = '卫星影像：Sentinel-2 cloudless 2020（EOX，含 Copernicus 数据，CC BY-NC-SA 4.0）· 高程：AWS Terrain Tiles（SRTM 等）';
 /** 每处地形：中心、边长（km）、高度放大几倍；target 是镜头看的那一点；view 从哪边看（az 镜头在目标的哪个方位，度，北 0 东 90）、俯角、看多宽（km）；cut 是画在地形上的那条线 */
 export const TERRAIN = {
   cb: {
     name: '长白山', dem: cbDem, img: cbImg, lat: 42.17, lon: 127.95, size: 110, exag: 3,          // 从东边看：地形往西（镜头对面）多铺一些
     target: [42.18, 128.07], view: { az: 100, el: 26, km: 60 },          // 从东边看过去：北坡从右边的山脚一路升到左边的天池，侧面就是课本那张剖面的样子
-    cut: { from: [42.37, 128.09], to: [42.028, 128.058], text: '北坡：从山脚（700 多米）到天池边（2 600 多米）' },
+    cut: { pts: [[42.37, 128.09], [42.028, 128.058]], text: '北坡：从山脚（700 多米）到天池边（2 600 多米）', nameAt: 1, textAt: 0.45 },          // nameAt、textAt：山名、说明写在线上走到哪儿
     crop: [[41.97, 42.41], [127.86, 128.28]],          // 切出来落到书上的那一块：天池和整条北坡
-    src: '卫星影像：Sentinel-2 cloudless 2016（EOX，含 Copernicus 数据）· 高程：AWS Terrain Tiles（SRTM 等）',
+    src: SRC,
+  },
+  hima: {
+    name: '喜马拉雅山脉', dem: qmDem, img: qmImg, lat: 27.93, lon: 86.93, size: 170, exag: 1.5,
+    target: [27.96, 86.88], view: { az: 95, el: 38, km: 165 },          // 从东边看：左边是南坡（尼泊尔的河谷），右边是北坡（青藏高原）
+    cut: { pts: [[27.3, 86.75], [27.988, 86.925], [28.62, 86.9]], text: '南坡从 1 000 米左右的河谷爬上珠峰（8 849 米），北坡脚下是 4 500 米左右的青藏高原', nameAt: 0.535, textAt: 0.22 },
+    crop: [[27.22, 28.66], [86.6, 87.15]],
+    src: SRC,
   },
 };
 
@@ -44,6 +54,14 @@ export function elevAt(def, x, y) {
 }
 /** 经纬度 → 当地平面（km） */
 export const toLocal = (def, lat, lon) => ({ x: (lon - def.lon) * 111.32 * Math.cos(def.lat * D2R), y: (lat - def.lat) * 111.32 });
+/** 那条线（几个点连起来）上走到 f（0—1）的那一点，当地平面 km */
+export function cutAt(def, f) {
+  const P = def.cut.pts.map((q) => toLocal(def, ...q)), L = [0];
+  for (let i = 1; i < P.length; i++) L.push(L[i - 1] + Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y));
+  const d = f * L[L.length - 1]; let i = 1; while (i < P.length - 1 && L[i] < d) i++;
+  const k = (d - L[i - 1]) / Math.max(1e-6, L[i] - L[i - 1]);
+  return { x: P[i - 1].x + (P[i].x - P[i - 1].x) * k, y: P[i - 1].y + (P[i].y - P[i - 1].y) * k };
+}
 
 /** 地球上这块地形的东、北、上三个方向（地球自己的坐标，半径 1；和 kit/plates.js 的 ll2v 一致） */
 export function frameAt(lat, lon) {
@@ -79,8 +97,8 @@ export function globePatch(def, segs = 220) {
   mat.toneMapped = false;
   const mesh = new THREE.Mesh(geo, mat); mesh.raycast = () => {}; mesh.renderOrder = 2;
   // 画在地形上的线：沿地面走，高出地面一点
-  const lineAt = (f) => { const a = toLocal(def, ...def.cut.from), b = toLocal(def, ...def.cut.to), x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f; return place(x, y, elevAt(def, x, y) + 60, new THREE.Vector3()); };
-  const pts = []; for (let i = 0; i <= 80; i++) pts.push(lineAt(i / 80));
+  const lineAt = (f) => { const q = cutAt(def, f); return place(q.x, q.y, elevAt(def, q.x, q.y) + 60, new THREE.Vector3()); };
+  const pts = []; for (let i = 0; i <= 120; i++) pts.push(lineAt(i / 120));
   const lg = new LineSegmentsGeometry(); lg.setPositions(pts.flatMap((p, i) => (i ? [pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, p.x, p.y, p.z] : [])));
   const cut = new LineSegments2(lg, new LineMaterial({ color: 0xffd28a, linewidth: 3, worldUnits: false, transparent: true, opacity: 0 }));
   cut.raycast = () => {}; cut.renderOrder = 3; cut.visible = false;
@@ -127,8 +145,8 @@ export function terrainBlock(def, crop, segs = 160) {
   const wallM = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1 });
   const walls = new THREE.Mesh(wg, wallM); walls.raycast = () => {}; g.add(walls);
   // 那条线
-  const A = toLocal(def, ...def.cut.from), B = toLocal(def, ...def.cut.to), pts = [];
-  for (let i = 0; i <= 80; i++) { const f = i / 80, x = A.x + (B.x - A.x) * f, y = A.y + (B.y - A.y) * f; pts.push(new THREE.Vector3(x, (elevAt(def, x, y) + 60) * ex, -y)); }
+  const pts = [];
+  for (let i = 0; i <= 120; i++) { const q = cutAt(def, i / 120); pts.push(new THREE.Vector3(q.x, (elevAt(def, q.x, q.y) + 60) * ex, -q.y)); }
   const lg = new LineSegmentsGeometry(); lg.setPositions(pts.flatMap((p, i) => (i ? [pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, p.x, p.y, p.z] : [])));
   const cut = new LineSegments2(lg, new LineMaterial({ color: 0xffd28a, linewidth: 3, worldUnits: false, transparent: true, opacity: 0.95 })); cut.raycast = () => {}; g.add(cut);
   const center = new THREE.Vector3((x0 + x1) / 2, 0, -(y0 + y1) / 2);

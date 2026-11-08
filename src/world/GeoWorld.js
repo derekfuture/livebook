@@ -420,10 +420,10 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       stage.camera.lookAt(stage.rig.cur.target);          // 镜头的上一直是当地的上（舞台每帧按世界的上 lookAt，这里再摆一次）
       // 画那条线：从山脚往山顶画过去
       const k = THREE.MathUtils.smoothstep(D.ta, 0.4, 1.8), lg = D.P.cut.geometry;
-      lg.instanceCount = Math.max(1, Math.round(80 * k)); D.P.cut.material.opacity = 0.95;
-      const top = earth.root.localToWorld(D.P.lineAt(1).clone().applyQuaternion(earth.spin.quaternion));
+      lg.instanceCount = Math.max(1, Math.round(120 * k)); D.P.cut.material.opacity = 0.95;
+      const top = earth.root.localToWorld(D.P.lineAt(D.def.cut.nameAt ?? 1).clone().applyQuaternion(earth.spin.quaternion));
       diveTag.text(`<b>${D.def.name}</b><small>真实地形 · 高度放大 ${D.def.exag} 倍</small>`).at(top).show(true);
-      const mid = earth.root.localToWorld(D.P.lineAt(0.45).clone().applyQuaternion(earth.spin.quaternion));
+      const mid = earth.root.localToWorld(D.P.lineAt(D.def.cut.textAt ?? 0.45).clone().applyQuaternion(earth.spin.quaternion));
       D.cutTag ||= tag('', 'w-cut'); D.cutTag.text(D.def.cut.text).at(mid).show(k > 0.6);
       diveHud.classList.add('on'); diveHud.querySelector('.gd-src').textContent = D.def.src;
       const c0 = D.F.clone().project(stage.camera), c1 = D.F.clone().addScaledVector(D.north, earth.root.scale.x * 5 / 6371).project(stage.camera);          // 北在画面上朝哪

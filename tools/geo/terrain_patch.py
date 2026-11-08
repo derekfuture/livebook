@@ -1,8 +1,9 @@
 # 地理世界“俯冲”用的一块真实地形：以某一点为中心、边长若干千米的正方形（当地的东—北平面）。
-#   python3 tools/geo/terrain_patch.py <名字> <纬度> <经度> <边长 km> [高程像素=768] [影像像素=2048] [缩放级=11]
+#   python3 tools/geo/terrain_patch.py <名字> <纬度> <经度> <边长 km> [高程像素=768] [影像像素=2048] [缩放级=11] [影像图层=s2cloudless-2020_3857]
 # 产出 src/lessons/data/terrain/<名字>.png（高程，Terrarium 编码：R*256+G+B/256-32768 米）和 <名字>.jpg（卫星影像）。
 # 数据：高程来自 AWS Terrain Tiles（Mapzen 汇编，SRTM、GMTED、ETOPO1 等公开数据）；
-#       影像来自 Sentinel-2 cloudless 2016（EOX IT Services GmbH，CC BY 4.0，含经过处理的 Copernicus Sentinel 2016 年数据）。
+#       影像来自 Sentinel-2 cloudless（EOX IT Services GmbH，含经过处理的 Copernicus Sentinel 数据）：默认 2020 年版（干净、颜色匀），CC BY-NC-SA 4.0（非商用，本项目是非商用的）；
+#       2016 年版是 CC BY 4.0。所有地方用同一个来源、同一个脚本，不一处处找。
 import math, os, sys, io, urllib.request
 import numpy as np
 from PIL import Image
@@ -11,13 +12,14 @@ name, lat0, lon0, size = sys.argv[1], float(sys.argv[2]), float(sys.argv[3]), fl
 dem_px = int(sys.argv[5]) if len(sys.argv) > 5 else 768
 img_px = int(sys.argv[6]) if len(sys.argv) > 6 else 2048
 Z = int(sys.argv[7]) if len(sys.argv) > 7 else 11
+LAYER = sys.argv[8] if len(sys.argv) > 8 else 's2cloudless-2020_3857'
 CACHE = '/tmp/geodata/tiles'
 os.makedirs(CACHE, exist_ok=True)
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'src', 'lessons', 'data', 'terrain')
 os.makedirs(OUT, exist_ok=True)
 SRC = {
     'dem': 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
-    'img': 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg',
+    'img': 'https://tiles.maps.eox.at/wmts/1.0.0/' + LAYER + '/default/g/{z}/{y}/{x}.jpg',
 }
 
 def tile_xy(lat, lon, z):          # Web 墨卡托：经纬度 → 第 z 级的像素坐标（瓦片 256 像素）；数组也行
@@ -26,7 +28,7 @@ def tile_xy(lat, lon, z):          # Web 墨卡托：经纬度 → 第 z 级的�
     return (np.asarray(lon) + 180) / 360 * n, (1 - np.log(np.tan(r) + 1 / np.cos(r)) / np.pi) / 2 * n
 
 def fetch(kind, z, x, y):
-    fn = os.path.join(CACHE, f'{kind}_{z}_{x}_{y}')
+    fn = os.path.join(CACHE, f'{kind}{"_" + LAYER if kind == "img" else ""}_{z}_{x}_{y}')
     if not os.path.exists(fn):
         req = urllib.request.Request(SRC[kind].format(z=z, x=x, y=y), headers={'User-Agent': 'livebook-terrain/1.0'})
         with urllib.request.urlopen(req, timeout=60) as r: data = r.read()
