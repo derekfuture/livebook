@@ -17,13 +17,19 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 
 const $ = (s) => document.querySelector(s);
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const EARTH = { y: 1.86, r: 0.92 };          // 地球：球心多高、多大
-const RING = { r: 2.45, h: 0.92, tilt: 0.24 };          // 书圈：半径、书多高、往后仰多少
+const EARTH = { y: 2.02, r: 1.12 };          // 地球：球心多高、多大（主角：比书圈大得多）
+const RING = { r: 2.05, h: 0.78, tilt: 0.24 };          // 书圈：半径、书多高、往后仰多少（衬在地球下面，不和它抢）
 const BOOK_COLORS = { 'dili-7s': '#4f9d4a', 'dili-bx1': '#3d6fb4', 'dili-bx2': '#c27a2c', 'dili-xb1': '#8a5aa0', 'dili-xb2': '#c0453a' };          // 一本书一个颜色：旗、书脊下的光、侧栏一致
 const SHORT = (full) => full.replace(/^人教版\s*/, '').replace(/^地理\s*/, '').replace('选择性必修', '选必');
 
+const WORLD_FOV = 21, BOOK_FOV = 30;          // 地理世界用长一点的镜头（视角窄）：地球显得大、前排的书不抢；书里是 30°（Stage.js），进书、回来时慢慢换过去
+/** 按书里的镜头（30°）算一个距离 */
+const atBookFov = (stage, fn) => { const c = stage.camera, f = c.fov; c.fov = BOOK_FOV; c.updateProjectionMatrix(); const r = fn(); c.fov = f; c.updateProjectionMatrix(); return r; };
+const setFov = (stage, f) => { if (Math.abs(stage.camera.fov - f) > 1e-4) { stage.camera.fov = f; stage.camera.updateProjectionMatrix(); } };
+
 export async function bootGeoWorld(stage, { focus = null } = {}) {
   document.body.classList.add('geo-world');
+  setFov(stage, WORLD_FOV);
   document.title = '活页课本 · 地理世界';
   $('#book-title').textContent = '地理世界';
   for (const id of ['#btn-globe', '#btn-toc', '#btn-live']) $(id).hidden = true;
@@ -51,9 +57,9 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const root = new THREE.Group(); stage.scene.add(root);
   const stars = starField(); root.add(stars);
   const floorA = grayRadial([[0, 255], [0.7, 200], [1, 0]]);          // 圆台边缘淡进夜空里（alphaMap 读的是颜色，不是透明度）
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(3.6, 96), new THREE.MeshStandardMaterial({ color: 0x1a2440, roughness: 0.6, metalness: 0.2, transparent: true, alphaMap: floorA, depthWrite: false }));
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(RING.r * 1.47, 96), new THREE.MeshStandardMaterial({ color: 0x1a2440, roughness: 0.6, metalness: 0.2, transparent: true, alphaMap: floorA, depthWrite: false }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; root.add(floor);
-  const glowPool = new THREE.Mesh(new THREE.CircleGeometry(1.6, 64), new THREE.MeshBasicMaterial({ map: radial('rgba(110,160,255,0.30)', 'rgba(110,160,255,0)'), transparent: true, depthWrite: false }));
+  const glowPool = new THREE.Mesh(new THREE.CircleGeometry(RING.r * 0.7, 64), new THREE.MeshBasicMaterial({ map: radial('rgba(110,160,255,0.30)', 'rgba(110,160,255,0)'), transparent: true, depthWrite: false }));
   glowPool.rotation.x = -Math.PI / 2; glowPool.position.y = 0.004; root.add(glowPool);          // 地球在圆台上投下一片淡淡的蓝光
   const key = new THREE.PointLight(0xffd9a8, 4, 8, 1.6); key.position.set(0, 1.6, 3.6); root.add(key);          // 一盏暖光照着书圈前面的书
 
@@ -71,7 +77,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   orbit.rotation.x = Math.PI / 2; orbit.position.y = 0.012; orbit.raycast = () => {}; root.add(orbit);          // 书圈站着的那一圈（赤道）描一道金线，铜版的轮廓清楚
   // 铜版上的太阳：太阳直射点在哪，就在铜版上的哪里（离圆心越远纬度越低，在南北回归线两道刻线之间来回）。拖着它绕圈是换时刻，往里往外是换季节
   map.material.uniforms.lights.value = earth.nowU.nightMap?.value || null;
-  const DIAL = { r0: 1.84, r1: 2.24 };
+  const DIAL = { r0: RING.r * 0.75, r1: RING.r * 0.915 };
   const hours = hourRing(DIAL.r0, DIAL.r1); hours.position.y = 0.009; root.add(hours);
   const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: radial('rgba(255,236,190,1)', 'rgba(255,190,90,0)', 0.35), transparent: true, depthWrite: false, fog: false }));
   sunSpr.scale.setScalar(0.42); sunSpr.renderOrder = 4; root.add(sunSpr);
@@ -114,13 +120,23 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
 
   // ---- 镜头：地球在中间偏上，书圈在下面，一起框进来 ----
   const shot = (instant = false) => {
-    stage.cameraOffsetX = panelOpen() ? Math.min(380, innerWidth * 0.4) / 2 + 8 : 0; stage.cameraOffsetY = 0;
-    const el = THREE.MathUtils.degToRad(19), off = stage.cameraOffsetX;
-    stage.cameraOffsetX = Math.min(380, innerWidth * 0.4) / 2 + 8;          // 远近一直按“目录开着”来算：收起目录时只把画面挪到正中，不整体放大（不然前排的书、铜版上的太阳被挤出下沿）
-    const dist = stage.fitDistance(RING.r * 2 + 1.1, EARTH.y + EARTH.r + 0.75, 1.045);
-    stage.cameraOffsetX = off;
-    stage.shot({ target: new THREE.Vector3(0, 1.1, 0.3), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist, instant, minEl: 0.05 });          // 地球是主角要够大，上面只留一点天空
+    const panelW = Math.min(380, innerWidth * 0.4) + 16;          // 目录占的宽度
+    stage.cameraOffsetX = panelOpen() ? panelW / 2 : 0; stage.cameraOffsetY = 0;
+    const el = THREE.MathUtils.degToRad(15), dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el));
+    // 要框进画面的：地球顶（上面留一行提示）、正前方那本书的名字、书圈左右两头。远近一直按“目录开着”算：收起目录只把画面挪到正中，不整体放大
+    const top = new THREE.Vector3(0, EARTH.y + EARTH.r, 0), bottom = new THREE.Vector3(0, -0.3, RING.r + 0.35), sides = [new THREE.Vector3(RING.r + 0.35, 0.4, 0), new THREE.Vector3(-RING.r - 0.35, 0.4, 0)];
+    const cam = new THREE.PerspectiveCamera(WORLD_FOV, innerWidth / innerHeight, 0.1, 200), wantTop = 1 - 2 * 0.1, wantBot = -1 + 2 * 0.05, usableX = (innerWidth - panelW) / innerWidth;
+    let ty = 1.3, dist = 14;
+    for (let i = 0; i < 40; i++) {
+      const tg = new THREE.Vector3(0, ty, 0.2);
+      cam.position.copy(tg).addScaledVector(dir, dist); cam.lookAt(tg); cam.updateMatrixWorld();
+      const yT = top.clone().project(cam).y, yB = bottom.clone().project(cam).y, xS = Math.max(...sides.map((p) => Math.abs(p.clone().project(cam).x)));
+      dist *= Math.max((yT - yB) / (wantTop - wantBot), xS / (usableX * 0.94));
+      ty += ((yT + yB) / 2 - (wantTop + wantBot) / 2) * dist * Math.tan(THREE.MathUtils.degToRad(WORLD_FOV) / 2) * 0.8;
+    }
+    stage.shot({ target: new THREE.Vector3(0, ty, 0.2), dir, dist, instant, minEl: 0.05 });
   };
+
 
   // ---- 侧栏：按书列出活页（颜色和旗一样） ----
   const panel = new Panel($('#panel'));
@@ -128,27 +144,6 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const rows = new Map(), groups = new Map();
   let frontId = null;
   const setFront = (id) => { if (id === frontId) return; frontId = id; for (const [k, g] of groups) { g.classList.toggle('open', k === id); g.previousSibling?.classList.toggle('on', k === id); } };          // 侧栏只展开书圈正前方那本书的活页
-  // ---- “看法”：整个地球的主题（昼夜、板块、气压带），点了一直开着。放在左边纸卡目录的最上面（控件都在纸卡里，地球四周保持干净，和书里一样） ----
-  const themes = items.filter((x) => x.anchor.chip);
-  const ICON = {          // 小图标：墨色细线（昼夜：半明半暗的球；板块：一道裂开的边界；气压带：一条条纬向的带）
-    sun: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" class="fill"/></svg>',
-    plates: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M4.5 7.5l3 1.5 2-2 2.5 3 2-1 2 2.5"/></svg>',
-    belts: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M3.6 7h12.8M3 10h14M3.6 13h12.8"/></svg>',
-  };
-  let layerOn = null, viewBtns = [], enterLink = null;
-  const setView = (x) => {
-    layerOn = layerOn === x ? null : x;
-    earth.setLayer(layerOf(layerOn));
-    const sunOn = layerOn?.anchor.layer === 'sun'; time.focus(sunOn);          // 昼夜：右上角的读数亮起来，地球转到你在的地方
-    if (sunOn) earth.turnTo(time.city.lat, time.city.lon, stage.camera);
-    for (const bt of viewBtns) bt.classList.toggle('on', layerOn?.id === bt.dataset.id);
-    if (enterLink) { enterLink.hidden = !layerOn; enterLink.textContent = layerOn ? `进到“${layerOn.title}” →` : ''; }
-  };
-  // 看法放回场景里：地球左边一列小纸签，和地球隔开一段（按地球在屏幕上的大小摆，不贴着它）
-  const views = h('div', { class: 'geo-views' });
-  viewBtns = themes.map((x) => h('button', { 'data-id': x.id, html: `${ICON[x.anchor.layer] || ''}<span>${x.anchor.chip}</span>`, onclick: (e) => { e.stopPropagation(); setView(x); } }));
-  enterLink = h('button', { class: 'gv-enter', hidden: true, onclick: (e) => { e.stopPropagation(); if (layerOn) go(layerOn); } });
-  views.append(...viewBtns, enterLink); document.body.append(views);
   const openPanel = () => {
     const ui = panel.open({ id: 'geo-world', index: true, fig: '人教版 · 地理', title: '地理世界', ask: '课本里讲的这些事，发生在地球的哪里？' }, { onClose: () => { panel.close(); shot(); }, closeText: '收起 ‹' });
     panel.el.classList.add('board');
@@ -182,7 +177,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (x?.pn && TERRAIN[x.pn.place]) loadTerrain(TERRAIN[x.pn.place]);          // 指着就先下这座山的地形和影像，点下去不用等
     for (const [id, r] of rows) r.classList.toggle('on', !!x && id === x.it.id);
     if (fromPanel && x?.it.anchor.kind === 'place') { const p = x.it.anchor.pins[0]; earth.turnTo(p.lat, p.lon, stage.camera); }
-    earth.setLayer(x?.it.anchor.kind === 'globe' ? layerOf(x.it) : layerOf(layerOn));
+    earth.setLayer(x?.it.anchor.kind === 'globe' ? layerOf(x.it) : null);          // 指着整个地球的活页（板块、气压带）时，地球上叠出那一层看看
     if (!x?.pn) { card.show(false); cardFor = null; return; }
     if (cardFor !== x) {
       cardFor = x; const it = x.it, [x0, y0, x1, y1] = it.spot.bbox, man = manifests[it.book.id], PW = man.pageSize[0], PH = man.pageSize[1];
@@ -211,10 +206,10 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     leave(bo, `?book=${it.book.id}#live=${it.id}${pn && pn !== it.anchor.pins?.[0] ? `&place=${encodeURIComponent(pn.place || pn.name)}` : ''}`, corner);          // 不是第一面旗（长白山、黄河入海口……）：带上是哪一面
   }
   function openBook(bo) { leave(bo, `?book=${bo.b.id}`, false); }
-  function leave(bo, url, corner, dive = null) {
+  function leave(bo, url, corner) {
     if (leaving) return;
-    leaving = { bo, url, corner, dive, t: 0 }; touched = true; hover(null); card.show(false); bookHot = null;
-    spinTo(bo); if (dive) { ringRot = ringTo; ring.rotation.y = ringRot; bo.g.rotation.y = bo.a; }          // 从山上回来：书圈早就看不见了，直接转好
+    leaving = { bo, url, corner, t: 0 }; touched = true; hover(null); card.show(false); bookHot = null;
+    spinTo(bo);
     $('#panel').classList.add('leaving');
   }
   const DAY = { bg: new THREE.Color(0xe9e1d3), hemi: [new THREE.Color(0xfffaf2), new THREE.Color(0xb8a890), 1.75], sun: [new THREE.Color(0xfff6e8), 1.7, new THREE.Vector3(-2.2, 6.5, 3.2)] };          // 书里白天书桌的灯光（同 Stage.js）
@@ -222,22 +217,21 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   let worldFade = 0;          // 0 夜空里的地理世界，1 换成了书桌（别的书、圆台、星星都淡掉了）
   const skyBg = stage.scene.background;
   /** 进书 / 从书里回来的过渡：书从书圈正前方落到桌面中间放平（书里合上的书那个位置），raw 0→1 是进去，1→0 是回来 */
-  function transSetup(bo, corner, dive = null) {
+  function transSetup(bo, corner) {
     const s = 2 / RING.h, W = bo.W * s, el = THREE.MathUtils.degToRad(64);
     root.updateMatrixWorld(true); root.attach(bo.mesh); bo.label.show(false);
-    if (dive) { bo.mesh.position.set(W / 2, (bo.T * s) / 2, 0); bo.mesh.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); bo.mesh.scale.setScalar(s); }          // 从山上回来：书已经在桌上了，等雾散开露出来
-    return { dive, fog0: dive ? [stage.scene.fog.near, stage.scene.fog.far] : null,
+    return {
       bo, corner, W, s,
       from: { p: bo.mesh.position.clone(), q: bo.mesh.quaternion.clone(), s: bo.mesh.scale.x },
       to: { p: new THREE.Vector3(W / 2, (bo.T * s) / 2, 0), q: new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)), s },
-      shot: { target: new THREE.Vector3(W / 2, 0, 0.06), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist: stage.fitDistance(W * 1.25, 2 * 1.2, 1.04) },          // 和书里合上的书同一个机位（main.js 的 bookShot）
+      shot: { target: new THREE.Vector3(W / 2, 0, 0.06), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist: atBookFov(stage, () => stage.fitDistance(W * 1.25, 2 * 1.2, 1.04)) },          // 和书里合上的书同一个机位（main.js 的 bookShot，书里的镜头）
       night: { hc: hemi.color.clone(), hg: hemi.groundColor.clone(), hi: hemi.intensity, sc: stage.sun.color.clone(), si: stage.sun.intensity, sp: stage.sun.position.clone() },
       e0: corner ? scr(earth.root.position, earth.root.scale.x) : null,
     };
   }
   function transApply(L, raw) {
-    if (L.dive) return transFromDive(L, raw);
     const bo = L.bo, k = ease(raw), f = THREE.MathUtils.smoothstep(raw, 0.25, 0.85);
+    setFov(stage, WORLD_FOV + (BOOK_FOV - WORLD_FOV) * k);          // 镜头一边走一边换成书里的
     // 书：从书圈里落到桌面中间，一边落一边放平、放大到书里那本书的大小
     bo.mesh.position.lerpVectors(L.from.p, L.to.p, k); bo.mesh.position.y += Math.sin(Math.PI * k) * 0.35;
     bo.mesh.quaternion.slerpQuaternions(L.from.q, L.to.q, ease(Math.min(1, raw * 1.15)));
@@ -266,35 +260,14 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       earth.root.scale.setScalar(EARTH.r + (0.004 - EARTH.r) * k);
     }
   }
-  /** 从山上回到书桌：先升进一片白茫茫的雾里（地形淡掉），雾里换成书桌、地球缩到右上角，雾再散开——和书里的第一帧对上 */
-  function transFromDive(L, raw) {
-    const D = L.dive, bo = L.bo, f = THREE.MathUtils.smoothstep(raw, 0.45, 0.95), w = THREE.MathUtils.smoothstep(raw, 0, 0.3);
-    D.P.mesh.material.uniforms.k.value = 1 - w; D.P.cut.material.opacity = 0.95 * (1 - w);
-    const fog = stage.scene.fog, fz = THREE.MathUtils.smoothstep(raw, 0.32, 1);
-    fog.color.set(0xc9d6e3).lerp(DAY.bg, fz);
-    if (raw < 0.32) { fog.near = L.fog0[0] + (0.02 - L.fog0[0]) * w; fog.far = L.fog0[1] + (0.3 - L.fog0[1]) * w; }          // 雾浓到什么都看不见（天空地平线那一圈和雾同一个颜色）
-    else { fog.near = 0.02 + (7 - 0.02) * ease(fz); fog.far = 0.3 + (18 - 0.3) * ease(fz); }
-    if (raw >= 0.3) {          // 雾最浓的时候：镜头一下换到书桌上方，大地球换成书里角上的那颗，书桌铺好
-      if (!L.swapped) {
-        L.swapped = true; D.P.mesh.visible = false; D.P.cut.visible = false; earth.setLook({ pins: true }); earth.cloudWant = 1; earth.setActive({ it: D.it, pn: D.pn }); stage.desk.visible = true;
-        stage.camera.up.set(0, 1, 0); stage.shot({ ...L.shot, instant: true });
-      }
-      placeScr(earth.root, cornerScr()); earth.turnTo(D.pn.lat, D.pn.lon, stage.camera);
-      earth.haloM.uniforms.k.value = 0.25;
-    }
-    stage.desk.material.opacity = f; bo.mesh.visible = raw >= 0.3;
-    for (const o of bookObjs) if (o !== bo) { o.mesh.visible = false; o.label.show(false); }
-    if (f > 0.999) { stage.scene.background = DAY.bg; skyDome.visible = false; } else skyDome.position.copy(stage.camera.position);
-    key.intensity = 0; worldFade = 1;
-  }
   function land(dt) {
     const G = leaving;
     if (!G.L) {
       if (Math.abs(ringTo - ringRot) > 0.45 && G.t < 1.2) return;          // 书先转到前面来（差不多到了就开始落）
-      G.L = transSetup(G.bo, G.corner, G.dive); G.raw = 0;
-      stage.cameraOffsetX = 0; stage.calm = true; if (!G.dive) stage.shot(G.L.shot);          // 从山上回来：镜头先不动，等雾浓了再换
+      G.L = transSetup(G.bo, G.corner); G.raw = 0;
+      stage.cameraOffsetX = 0; stage.calm = true; stage.shot(G.L.shot);
     }
-    G.raw = Math.min(1, G.raw + dt / (G.dive ? 1.7 : 1.25));
+    G.raw = Math.min(1, G.raw + dt / 1.25);
     transApply(G.L, G.raw);
     if (G.raw >= 1 && !G.sent && (stage.settled(0.004, { parallax: true }) || G.t > 3.2)) {
       G.sent = true;
@@ -456,7 +429,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     const el = THREE.MathUtils.degToRad(64);
     Object.assign(D, { phase: 'lift', tl: 0, blk, P0: blk.group.position.clone(), Q0: blk.group.quaternion.clone(), S0: blk.group.scale.x, end, R0: earth.root.scale.x, Cg: earth.root.position.clone(),
       C0: { t: stage.rig.cur.target.clone(), d: stage.rig.cur.dir.clone(), r: stage.rig.cur.dist, up: stage.camera.up.clone() },
-      C1: { t: new THREE.Vector3(W / 2, 0, 0.06), d: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), r: stage.fitDistance(W * 1.25, 2 * 1.2, 1.04) }, fog0: [stage.scene.fog.near, stage.scene.fog.far] });
+      C1: { t: new THREE.Vector3(W / 2, 0, 0.06), d: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), r: atBookFov(stage, () => stage.fitDistance(W * 1.25, 2 * 1.2, 1.04)) }, fog0: [stage.scene.fog.near, stage.scene.fog.far], fov0: stage.camera.fov });
     diveTag.show(false); D.cutTag?.show(false); diveHud.classList.remove('on'); D.P.cut.visible = false;
   }
   function liftStep(D, dt) {
@@ -470,6 +443,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     const C0 = D.C0, C1 = D.C1, dist = Math.exp(Math.log(C0.r) + (Math.log(C1.r) - Math.log(C0.r)) * k), dir = C0.d.clone().lerp(C1.d, k).normalize();
     const bc = b.center.clone().setY(0.1).applyMatrix4(b.group.matrixWorld), tgt = C0.t.clone().lerp(bc, THREE.MathUtils.smoothstep(u, 0, 0.25)).lerp(C1.t, THREE.MathUtils.smoothstep(u, 0.6, 1));          // 镜头一直看着这块地形（它不会跑出画面），最后才换成看书
     stage.rig.target.copy(tgt); stage.rig.dir.copy(dir); stage.rig.dist = dist; stage.rig.cur.target.copy(tgt); stage.rig.cur.dir.copy(dir); stage.rig.cur.dist = dist;
+    setFov(stage, D.fov0 + (BOOK_FOV - D.fov0) * k);
     const cam = stage.camera; cam.up.copy(C0.up).lerp(new THREE.Vector3(0, 1, 0), k).normalize(); cam.position.copy(tgt).addScaledVector(dir, dist); cam.lookAt(tgt);
     // 四周：起一层雾（这块地形不受雾的影响，一直清楚），雾最浓时把大地球换成角上那颗、铺好书桌，雾再散开
     const fog = stage.scene.fog, w = THREE.MathUtils.smoothstep(u, 0.05, 0.38), fz = THREE.MathUtils.smoothstep(u, 0.42, 1);
@@ -581,7 +555,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       bo.label.el.classList.toggle('hot', bo.hot > 0.5);
     }
     if (!leaving && !arriving && !diving) earth.root.position.y = EARTH.y + Math.sin(performance.now() / 2400) * 0.012;          // 一开始离开就不再浮动（从山上回来那一下，地球还是放大了几百倍的那颗，不能挪）          // 很轻地浮着
-    if (!drag && !hovered && !earth.target && !earth.active && !leaving && !diving && !layerOn) earth.spin.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.03));
+    if (!drag && !hovered && !earth.target && !earth.active && !leaving && !diving) earth.spin.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.03));
     earth.update(dt, { camera: stage.camera, bookTop: 0, shadowK: 0 });
     time.update(dt); time.show(!leaving && !arriving && !diving);
     if (home.userData.n) {
@@ -600,18 +574,17 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       sunOnGlobe.position.copy(earth.sunLocal).multiplyScalar(1.01);
       const vis = worldFade < 0.5 && !leaving && !diving;
       sunSpr.visible = sunCore.visible = vis; hours.visible = worldFade < 0.99;
-      sunTag.at(sunSpr.position.clone().add(new THREE.Vector3(0, -0.02, 0.32))).show(vis && !sunDragged && !hovered);          // 写在太阳靠镜头这一侧（上面是书的名字）
+      const sp = sunSpr.position.clone().add(new THREE.Vector3(0, -0.02, 0.32)), sx = sp.clone().project(stage.camera);
+      const clash = bookObjs.some((bo) => { const q = bo.label.pos.clone().project(stage.camera); return Math.abs(q.x - sx.x) * innerWidth < 130 && Math.abs(q.y - sx.y) * innerHeight < 70; });          // 压在书名上就不写
+      sunTag.at(sp).show(vis && !sunDragged && !hovered && !clash);          // 写在太阳靠镜头这一侧
       const camAz = Math.atan2(stage.camera.position.z, stage.camera.position.x) - 0.62;          // 刻线的名字写在前方偏右，不压住正前方那本书
       for (const c of circleTags) { const rr = (c.colat / 90) * RING.r; c.t.at(new THREE.Vector3(Math.cos(camAz) * rr, 0.02, Math.sin(camAz) * rr)).show(vis); }
     }
     // 明信片跟着旗
     if (cardFor?.pn) { const cam = stage.camera, right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), w = earth.pinWorld(cardFor.pn), toRight = (cardFor.pn.side ?? 1) < 0, edge = earth.root.position.clone().addScaledVector(right, EARTH.r * (toRight ? 1 : -1)); const sx = (edge.clone().project(cam).x + 1) / 2 * innerWidth + (toRight ? 1 : -1) * ((card.el.offsetWidth || 214) / 2 + 22), sy = ((1 - w.clone().project(cam).y) / 2) * innerHeight; card.at(new THREE.Vector3((sx / innerWidth) * 2 - 1, 1 - (sy / innerHeight) * 2, 0.5).unproject(cam)); }
     const E0 = new THREE.Vector3(0, EARTH.y, 0);          // 提示钉在地球不浮动时的位置上（地球轻轻浮着，字不跟着晃）
-    { const cam = stage.camera, c = E0.clone().project(cam), r = E0.clone().addScaledVector(new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), EARTH.r).project(cam);
-      const cx = ((c.x + 1) / 2) * innerWidth, cy = ((1 - c.y) / 2) * innerHeight, rpx = Math.abs(r.x - c.x) / 2 * innerWidth;
-      views.style.transform = `translate(${Math.round(cx - rpx - 44 - views.offsetWidth)}px, ${Math.round(cy - views.offsetHeight / 2)}px)`;
-      views.classList.toggle('hidden', !!(leaving || arriving || diving)); }
-    hint.at(E0.clone().add(new THREE.Vector3(0, EARTH.r * 1.22, 0))).show(!touched && !arriving && !diving);
+
+    hint.at(E0.clone().add(new THREE.Vector3(0, EARTH.r + 0.2, 0))).show(!touched && !arriving && !diving);
     if (leaving) { leaving.t += dt; land(dt); }
     if (diving) diveStep(dt);
     if (arriving) arriveStep(dt);

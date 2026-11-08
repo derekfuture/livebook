@@ -813,18 +813,6 @@ body.geo-world { --gw-ink: #efe6d2; --gw-dim: #a3aec4; --gw-gold: #d6b16e; --gw-
 .tag3d.w-circle { font: 11.5px/1 var(--song); color: rgba(241,215,159,.85); letter-spacing: .14em; text-shadow: 0 0 6px rgba(5,9,20,.95); pointer-events: none; }
 .tag3d.w-sunhint { font: 12px/1 var(--sans); color: var(--gw-gold2); letter-spacing: .08em; text-shadow: 0 0 8px rgba(5,9,20,.95); pointer-events: none; }
 .tag3d.w-sunhint span { display: block; animation: hint-breath 2.8s ease-in-out infinite; }
-/* 看法：地球左边一列小纸签（和书里的纸一样：米色纸、墨色字、细线图标），开着的那枚压一圈朱红；和地球隔开一段，不贴着 */
-.geo-views { position: fixed; left: 0; top: 0; z-index: 5; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; transition: opacity .4s; }          /* 右边齐着（离地球的距离不变），下面多出“进到…”那一行时纸签不跟着变宽 */
-.geo-views.hidden { opacity: 0; pointer-events: none; }
-.geo-views button { display: flex; align-items: center; gap: 6px; min-width: 88px; padding: 6px 12px 6px 8px; border: 1px solid rgba(120,100,60,.35); border-radius: 3px; background: #f8f2e3; color: #2a2f3d; font: 600 12.5px/1 var(--song); letter-spacing: .12em; cursor: pointer; box-shadow: 0 5px 14px rgba(0,0,0,.32), inset 0 0 14px rgba(160,130,80,.12); transition: background .15s, transform .15s, border-color .15s; }
-.geo-views button svg { width: 14px; height: 14px; fill: none; stroke: #5a4a32; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
-.geo-views button svg .fill { fill: #5a4a32; stroke: none; }
-.geo-views button:hover { background: #fff8e8; transform: translateX(2px); }
-.geo-views button.on { background: #fff6e2; color: #8a2a14; border: 1.5px solid #c8341f; box-shadow: 0 5px 14px rgba(0,0,0,.32), 0 0 0 3px rgba(200,52,31,.16); }
-.geo-views button.on svg { stroke: #c8341f; } .geo-views button.on svg .fill { fill: #c8341f; }
-.geo-views .gv-enter { background: none; border: 0; box-shadow: none; padding: 2px 0 0; color: #f5ecd8; font: 600 12.5px/1.4 var(--song); letter-spacing: .06em; text-decoration: underline; text-underline-offset: 3px; text-shadow: 0 0 8px rgba(5,9,20,.95); white-space: nowrap; }
-.geo-views .gv-enter:hover { transform: none; background: none; color: #fff; }
-.geo-views .gv-enter[hidden] { display: none; }
 /* 俯冲到了：北（金色罗盘针）、数据来源 */
 body.geo-world .geo-dive .gd-north i { border-bottom-color: var(--gw-gold2); }
 body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(--song); }
