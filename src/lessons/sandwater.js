@@ -29,7 +29,7 @@ const MAT = {
 };
 const BR = 0.035, BH = 0.085;                                // 烧杯（250 mL）
 const LV = (k, m) => (m / MAT[k].rho) * 1e-6 / (Math.PI * (BR - 0.0012) ** 2);       // 装了 m 克，有多高
-const SHADE_X = -0.105, SUN_X = 0.135;                       // 托盘在阴凉处 / 阳光下的位置
+const SHADE_X = -0.105, SUN_X = 0.135, TRAY_Z = -0.035;      // 托盘在阴凉处 / 阳光下的位置；往后放一点：一只烧杯放到前面的电子秤上时，不挡住托盘上的另一只
 const SLOT = { water: new THREE.Vector3(-0.042, 0, 0), sand: new THREE.Vector3(0.042, 0, 0) };      // 托盘上两个杯子的位置（相对托盘）
 const SCALE_P = new THREE.Vector3(-0.115, 0, 0.115), JUG_HOME = new THREE.Vector3(-0.2, 0, 0.12), BOX_HOME = new THREE.Vector3(-0.03, 0, 0.13);
 const TH_HOME = [new THREE.Vector3(0.235, 0.0066, 0.1), new THREE.Vector3(0.235, 0.0066, 0.12)];          // 平放在右前方（玻璃泡朝右）
@@ -85,7 +85,7 @@ export default {
     }), transparent: true, depthWrite: false })); sun.scale.setScalar(0.06); sun.position.set(SUN_X + 0.06, 0.2, -0.06); group.add(sun);
 
     // ================= 托盘、两只烧杯（水 / 沙） =================
-    const tray = new THREE.Group(); tray.position.set(SHADE_X, 0, 0); group.add(tray);
+    const tray = new THREE.Group(); tray.position.set(SHADE_X, 0, TRAY_Z); group.add(tray);
     const trayB = inked(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.005, 0.09), paint(0xd9b07a)), { width: 0.7 }); trayB.position.y = 0.0025; tray.add(trayB);
     for (const s of [-1, 1]) { const rim = inked(new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.008, 0.004), paint(0xc99c62)), { width: 0.5 }); rim.position.set(0, 0.006, s * 0.043); tray.add(rim); }
     for (const s of [-1, 1]) { const hd = inked(new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.007, 0.05), paint(0xc99c62)), { width: 0.5 }); hd.position.set(s * 0.093, 0.0045, 0); tray.add(hd); }      // 两头的把手
@@ -294,7 +294,7 @@ export default {
       stream.update(h, (q, d) => { q.v.y -= 0.6 * d; q.p.addScaledVector(q.v, d); return q.p.y > SCALE_TOP.y + LV('water', S.m.water); });
       grains.update(h, (q, d) => { q.v.y -= 0.6 * d; q.p.addScaledVector(q.v, d); return q.p.y > SCALE_TOP.y + LV('sand', S.m.sand); });
       // 托盘、烧杯、温度计的位置
-      const trayTo = S.trayCarry ? new THREE.Vector3(clamp(S.trayCarry.x, -0.17, 0.2), 0, clamp(S.trayCarry.z, -0.05, 0.05)) : new THREE.Vector3(S.trayAt === 'sun' ? SUN_X : SHADE_X, 0, 0);
+      const trayTo = S.trayCarry ? new THREE.Vector3(clamp(S.trayCarry.x, -0.17, 0.2), 0, clamp(S.trayCarry.z, -0.085, 0.015)) : new THREE.Vector3(S.trayAt === 'sun' ? SUN_X : SHADE_X, 0, TRAY_Z);
       tray.position.lerp(trayTo, S.trayCarry ? 0.5 : 0.25);
       for (const k of ['water', 'sand']) {
         const b = cups[k], want = cupWorld(k);
@@ -325,7 +325,7 @@ export default {
       card: false,
       toggles: ['cards', 'steps'],
       size: { w: 0.48, d: 0.28, h: 0.2 },
-      view: { elev: 24, azim: -4, lookY: 0.32, frameMargin: 1.04 },
+      view: { elev: 31, azim: -4, lookY: 0.3, frameMargin: 1.04 },          // 高一点往下看：电子秤上的烧杯不挡住后面托盘上的那只
       mount(ui) {
         ui.el.classList.add('xuean');
         const ctx = () => [...W.tbl.el.querySelectorAll('tbody tr')].map((tr) => `<div>${tr.children[0].innerHTML}：水 ${tr.children[1].innerHTML}，沙 ${tr.children[2].innerHTML}</div>`).join('');
