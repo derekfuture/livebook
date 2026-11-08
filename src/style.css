@@ -664,17 +664,23 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 @keyframes impBlink { 0%, 100% { box-shadow: 0 10px 28px rgba(0, 0, 0, .25), 0 0 0 0 rgba(255, 210, 138, 0); } 50% { box-shadow: 0 10px 28px rgba(0, 0, 0, .25), 0 0 0 5px rgba(255, 210, 138, .55); } }
 .ov-thumb.nopage { display: flex; align-items: center; justify-content: center; min-height: 92px; background: #f6f1e6; color: #7d8696; font: 15px/1 "Songti SC", "STSong", serif; letter-spacing: .04em; }
 
-/* Feedback: a quiet footer link and a labelled action beside the experiment. */
-.home-community { position:absolute; right:20px; bottom:25px; display:flex; align-items:center; gap:10px; font:12px var(--sans); color:#786d5c; }
-.home-community a { color:inherit; text-decoration:none; }
-.home-community a:hover { text-decoration:underline; }
-.feedback-entry { display:inline-flex; align-items:center; justify-content:center; gap:5px; cursor:pointer; font:13px var(--sans); }
-.home-community .feedback-entry { border:0; padding:3px 0; background:none; color:inherit; font:inherit; }
-.feedback-entry span { display:flex; align-items:center; }
-.home-community svg { width:16px; height:16px; }
-#viewctl .lesson-community { display:flex; flex-direction:column; align-items:flex-end; gap:7px; margin-bottom:9px; }
-#viewctl .feedback-entry { display:flex; font:13px var(--sans); width:auto; min-width:68px; height:34px; padding:0 9px; border-radius:9px; }
+/* Clearly labelled community actions, separate from experiment controls. */
+.home-community { position:absolute; right:20px; bottom:25px; display:flex; align-items:center; gap:10px; }
+.feedback-entry { display:inline-flex; align-items:center; justify-content:center; gap:7px; cursor:pointer; font:14px var(--sans); }
+.feedback-entry span, .github-entry span { display:flex; align-items:center; }
+.home-community .feedback-entry, .home-community .github-entry { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:42px; box-sizing:border-box; padding:0 14px; border:1px solid #c8b99e; border-radius:9px; background:#fffaf0; color:#343b46; box-shadow:0 2px 6px #49341f20; font:500 14px var(--sans); text-decoration:none; cursor:pointer; transition:background .16s, border-color .16s, box-shadow .16s, transform .16s; }
+.home-community svg { display:block; width:20px; height:20px; }
+.home-community .feedback-entry:hover, .home-community .github-entry:hover { background:#fff; border-color:#8f7957; box-shadow:0 4px 12px #49341f30; transform:translateY(-2px); }
+.home-community .feedback-entry:active, .home-community .github-entry:active { transform:translateY(1px); background:#eee5d5; box-shadow:none; }
+.home-community :focus-visible, #viewctl .feedback-entry:focus-visible { outline:3px solid #476b8c; outline-offset:3px; }
+#viewctl .lesson-community { display:flex; align-items:flex-end; margin-top:10px; padding-top:10px; border-top:1px solid #88745455; }
+#viewctl .feedback-entry { display:flex; font:14px var(--sans); width:auto; min-width:76px; height:38px; padding:0 10px; border-radius:9px; cursor:pointer; transition:transform .16s, box-shadow .16s; }
+#viewctl .feedback-entry:hover { transform:translateY(-2px); box-shadow:0 4px 10px #49341f30; }
+#viewctl .feedback-entry:active { transform:translateY(1px); }
 #viewctl { align-items:flex-end; }
+@media(prefers-reduced-motion:reduce) {
+  .home-community .feedback-entry, .home-community .github-entry, #viewctl .feedback-entry { transition:none; }
+}
 @media(max-width:760px) {
   .home-foot { flex-direction:row;flex-wrap:wrap;padding:0 12px;box-sizing:border-box;gap:6px 10px; }
   .home-community { position:static;width:100%;justify-content:center; }

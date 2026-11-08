@@ -245,7 +245,7 @@ export class LiveLayer {
     this.hotspots.enabled = false;
     document.body.classList.add('lesson-on');
     const community = lessonCommunity({lesson:spot.lesson, title:def.title, where: `${this.content.full || this.content.title || ''} · 第 ${pageNum} 页 · ${def.fig || ''}`});
-    document.getElementById('viewctl')?.prepend(community);
+    document.getElementById('viewctl')?.append(community);
     toggles.push(community);
     document.body.classList.toggle('stand-ui', !!board);
     ink.setLessonStyle(null);
