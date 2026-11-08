@@ -881,3 +881,5 @@ body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(
 .geo-now .gv-go { border: 0; background: none; padding: 0; color: #f1d79f; font: 600 12.5px/1.4 var(--song); letter-spacing: .04em; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-shadow: 0 1px 8px rgba(5,9,20,.9); }
 .geo-now .gv-go:hover { color: #fff; }
 .geo-now.alt-view .gn-line, .geo-now.alt-view .gn-sky { display: none; }          /* 看板块、气压带时：时刻只留日期那一行 */
+.geo-leak { position: fixed; inset: 0; z-index: 1; pointer-events: none; mix-blend-mode: screen; }          /* 太阳在画面外时，那一侧透进来的暖光 */
+body.geo-cover #hud-top, body.geo-cover .geo-toc, body.geo-cover .geo-toc-spine, body.geo-cover .geo-now, body.geo-cover #viewctl, body.geo-cover .tag3d { display: none !important; }          /* ?subject=dili&cover=1：封面用 */

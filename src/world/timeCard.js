@@ -51,7 +51,7 @@ export function timeCard({ earth }) {
     h('div', { class: 'gn-line' }, sub, liveBtn),
     h('div', { class: 'gn-line gn-city' }, '你在', pick, here, list),
     sky,
-    h('small', { class: 'gn-src' }, '夜间灯光：NASA 2016 年卫星合成 · 云是示意'));
+    h('small', { class: 'gn-src' }, '夜间灯光：NASA 2016 年卫星合成 · 月面：NASA LRO · 云和月亮的位置是示意'));
   document.body.append(el);
 
   let last = '';

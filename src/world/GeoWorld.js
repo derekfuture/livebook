@@ -11,6 +11,7 @@ import { tag, updateTags } from '../ui/tags.js';
 import { h, stamps } from '../ui/Panel.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { timeCard } from './timeCard.js';
+import moonUrl from '../lessons/data/moon.jpg';
 import { TERRAIN, loadTerrain, globePatch, frameAt, toLocal, elevAt, terrainBlock, blockPose } from './terrain.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
@@ -29,6 +30,7 @@ const setFov = (stage, f) => { if (Math.abs(stage.camera.fov - f) > 1e-4) { stag
 
 export async function bootGeoWorld(stage, { focus = null } = {}) {
   document.body.classList.add('geo-world');
+  if (new URLSearchParams(location.search).has('cover')) document.body.classList.add('geo-cover');          // 公众号封面：只留画面（地球、月亮、太阳、书圈），不要目录和读数
   setFov(stage, WORLD_FOV);
   document.title = '活页课本 · 地理世界';
   $('#book-title').textContent = '地理世界';
@@ -67,6 +69,53 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const earth = new WorldEarth(stage, { night: true, now: true });          // 现在这一刻的地球：太阳照在真实的位置，夜里亮着城市灯光
   const time = timeCard({ earth });
   const layerOf = (it) => (it?.anchor.layer === 'sun' ? null : it?.anchor.layer || null);          // 昼夜不用再叠一层：地球本来就是按真实的太阳照的
+
+  // ---- 太阳和月亮：地球还是主角。太阳在它此刻真实的方向（照亮地球的就是它）：转到画面里时是一团耀斑，被地球挡住一半时从地球边上透出来；
+  //      在画面外时，那一侧的画面边上透进一点暖光（像镜头被侧光照到）。月亮小小地挂在地球左上方的远处（位置是示意），也被同一个太阳照着 ----
+  const SUN_D = 40;
+  const sunTex = (() => {          // 耀斑：亮核 + 一圈柔光 + 几道细光芒
+    const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'), C = 256;
+    let gr = g.createRadialGradient(C, C, 0, C, C, C); gr.addColorStop(0, 'rgba(255,252,240,1)'); gr.addColorStop(0.04, 'rgba(255,244,215,0.95)'); gr.addColorStop(0.12, 'rgba(255,210,150,0.38)'); gr.addColorStop(0.35, 'rgba(255,175,100,0.08)'); gr.addColorStop(1, 'rgba(255,150,80,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 4; i++) {          // 四道很淡的光芒（镜头里的星芒），不是一朵“闪光贴纸”
+      const a = (i / 4) * Math.PI + 0.42, L = i % 2 ? 0.5 : 0.78;
+      g.save(); g.translate(C, C); g.rotate(a);
+      const lg = g.createLinearGradient(-C * L, 0, C * L, 0); lg.addColorStop(0, 'rgba(255,220,170,0)'); lg.addColorStop(0.5, 'rgba(255,236,200,0.32)'); lg.addColorStop(1, 'rgba(255,220,170,0)');
+      g.fillStyle = lg; g.fillRect(-C * L, -0.9, C * L * 2, 1.8); g.restore();
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const sunGlare = new THREE.Sprite(new THREE.SpriteMaterial({ map: sunTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  sunGlare.scale.setScalar(SUN_D * 0.26); sunGlare.renderOrder = -1; root.add(sunGlare);
+  const leak = h('div', { class: 'geo-leak' }); document.body.append(leak);
+  const moonTex = new THREE.TextureLoader().load(moonUrl); moonTex.colorSpace = THREE.SRGBColorSpace; moonTex.anisotropy = 4;
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(EARTH.r * 0.273, 64, 48), new THREE.MeshStandardMaterial({ map: moonTex, roughness: 1, metalness: 0 }));          // 月亮的半径是地球的 0.273
+  moon.raycast = () => {}; root.add(moon);
+  const sunW = new THREE.Vector3();
+  function skyStep(dt) {
+    sunW.copy(earth.sunLocal).applyQuaternion(earth.spin.quaternion);          // 太阳此刻在哪个方向（世界坐标）
+    sunGlare.position.copy(earth.root.position).addScaledVector(sunW, SUN_D);
+    if (!leaving && !arriving && !diving) stage.sun.position.copy(sunW).multiplyScalar(9);          // 书、铜版也被这个太阳照着
+    moon.rotation.y += dt * 0.004;
+    // 太阳在画面外：那一侧透进暖光；在画面里：耀斑自己就够了，只加一点
+    const cam = stage.camera, dc = sunW.clone().transformDirection(cam.matrixWorldInverse), k = 1 - worldFade;
+    const th = THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(-dc.z, -1, 1)));          // 太阳离镜头正前方多少度
+    let a = 0, x = 50, y = 50;
+    if (th < 14) { const q = cam.position.clone().addScaledVector(sunW, 50).project(cam); a = 0.2 * k; x = ((q.x + 1) / 2) * 100; y = ((1 - q.y) / 2) * 100; }          // 在画面里：耀斑旁边再晕开一点
+    else if (th < 115) {          // 在画面外：从那一侧的画面边上透进来，越偏越淡，转到身后就没有了
+      const u = new THREE.Vector2(dc.x, dc.y).normalize();
+      a = 0.5 * (1 - THREE.MathUtils.smoothstep(th, 55, 115)) * k;
+      x = 50 + u.x * 66; y = 50 - u.y * 66;
+    }
+    leak.style.background = `radial-gradient(circle at ${x.toFixed(1)}% ${y.toFixed(1)}%, rgba(255,214,160,${(a).toFixed(3)}) 0%, rgba(255,180,110,${(a * 0.35).toFixed(3)}) 28%, rgba(255,170,100,0) 62%)`;
+  }
+  /** 月亮挂在哪：按镜头摆在地球左上方的远处（屏幕上固定的位置，窗口比例变了也不跑出画面） */
+  function placeMoon(tg, dir, dist) {
+    const c = new THREE.PerspectiveCamera(WORLD_FOV, innerWidth / innerHeight, 0.1, 200); c.position.copy(tg).addScaledVector(dir, dist); c.lookAt(tg); c.updateMatrixWorld();
+    const e = earth.root.position.clone().project(c), p = new THREE.Vector3(e.x - 0.62, 0.56, 0.5).unproject(c), d = p.sub(c.position).normalize();
+    moon.position.copy(c.position).addScaledVector(d, (dist + 4.5) / d.dot(c.getWorldDirection(new THREE.Vector3())));
+  }
   earth.root.visible = true; earth.root.position.set(0, EARTH.y, 0); earth.root.scale.setScalar(EARTH.r);
   earth.setPins(items);
   earth.shadow.visible = false;
@@ -120,8 +169,8 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
 
   // ---- 镜头：地球在中间偏上，书圈在下面，一起框进来 ----
   const shot = (instant = false) => {
-    const panelW = 22 + 336 + 24;          // 左边目录页占的宽度（.geo-toc：离边 22、宽 336），再留一点空
-    stage.cameraOffsetX = panelOpen() ? panelW / 2 : 0; stage.cameraOffsetY = 0;
+    const cover = document.body.classList.contains('geo-cover'), panelW = cover ? 0 : 22 + 336 + 24;          // 左边目录页占的宽度（.geo-toc：离边 22、宽 336），再留一点空；封面不留
+    stage.cameraOffsetX = panelOpen() && !cover ? panelW / 2 : 0; stage.cameraOffsetY = 0;
     const el = THREE.MathUtils.degToRad(15), dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el));
     // 要框进画面的：地球顶（上面留一行提示）、正前方那本书的名字、书圈左右两头。远近一直按“目录开着”算：收起目录只把画面挪到正中，不整体放大
     const top = new THREE.Vector3(0, EARTH.y + EARTH.r, 0), bottom = new THREE.Vector3(0, -0.3, RING.r + 0.35), sides = [new THREE.Vector3(RING.r + 0.35, 0.4, 0), new THREE.Vector3(-RING.r - 0.35, 0.4, 0)];
@@ -135,6 +184,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       ty += ((yT + yB) / 2 - (wantTop + wantBot) / 2) * dist * Math.tan(THREE.MathUtils.degToRad(WORLD_FOV) / 2) * 0.8;
     }
     stage.shot({ target: new THREE.Vector3(0, ty, 0.2), dir, dist, instant, minEl: 0.05 });
+    placeMoon(new THREE.Vector3(0, ty, 0.2), dir, dist);
   };
 
 
@@ -274,6 +324,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     map.material.uniforms.fade.value = 1 - f;
     orbit.material.opacity = 0.85 * (1 - f);
     stars.children.forEach((pt) => { pt.material.opacity = 1 - f; });
+    sunGlare.material.opacity = 1 - f; moon.visible = f < 0.6;
     stage.desk.visible = f > 0.001; stage.desk.material.opacity = f;
     stage.scene.background = f > 0.999 ? DAY.bg : skyBg;          // 书桌完全不透明了才换掉夜空（不然隔着半透明的桌面一下变亮）
     if (f > 0.001) { stage.scene.fog ||= new THREE.Fog(DAY.bg.clone(), 60, 80); stage.scene.fog.near = 60 - 53 * f; stage.scene.fog.far = 80 - 62 * f; } else stage.scene.fog = null;
@@ -407,6 +458,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       floor.material.opacity = 1 - fo; glowPool.material.opacity = 1 - fo; map.material.uniforms.fade.value = 1 - fo; orbit.material.opacity = 0.85 * (1 - fo); worldFade = fo;
       skyDome.material.uniforms.k.value = THREE.MathUtils.smoothstep(s, 0.6, 0.92); skyDome.position.copy(stage.camera.position);
       stars.children.forEach((pt) => { pt.material.opacity = 1 - THREE.MathUtils.smoothstep(s, 0.5, 0.85); });
+      sunGlare.material.opacity = 1 - THREE.MathUtils.smoothstep(s, 0.25, 0.6); moon.visible = s < 0.35;          // 飞进大气里：太阳耀斑、月亮先收起来
       const hz = THREE.MathUtils.smoothstep(s, 0.22, 0.95), hn = dist * (1.1 + 3 * (1 - hz)), hf = dist * (3.2 + 7 * (1 - hz));          // 越近，远处的山蒙上的空气越厚（飞下去的路上，地形四周低分辨率的地球也蒙着一层，不像一张卡片）
       D.P.mesh.material.uniforms.haze.value.set(hn, hf); stage.scene.fog.near = hn; stage.scene.fog.far = hf;
       const f = THREE.MathUtils.smoothstep(s, 0.3, 0.9), L = D.light;
@@ -422,7 +474,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       earth.spin.remove(D.P.mesh, D.P.cut); skyDome.visible = false; stage.scene.fog = null; stage.camera.up.set(0, 1, 0);
       for (const o of bookObjs) { o.mesh.visible = true; for (const mt of o.mesh.material) { mt.opacity = 1; mt.depthWrite = true; } }
       floor.material.opacity = 1; glowPool.material.opacity = 1; map.material.uniforms.fade.value = 1; orbit.material.opacity = 0.85; worldFade = 0; earth.cloudWant = 1; earth.haloM.uniforms.k.value = 1; earth.nowK = 1;
-      stars.children.forEach((pt) => { pt.material.opacity = 1; }); earth.setLook({ pins: true }); earth.root.scale.setScalar(EARTH.r); earth.root.position.set(0, EARTH.y, 0);
+      stars.children.forEach((pt) => { pt.material.opacity = 1; }); sunGlare.material.opacity = 1; moon.visible = true; earth.setLook({ pins: true }); earth.root.scale.setScalar(EARTH.r); earth.root.position.set(0, EARTH.y, 0);
       const L = D.light; hemi.color.copy(L.hc); hemi.groundColor.copy(L.hg); hemi.intensity = L.hi; stage.sun.color.copy(L.sc); stage.sun.intensity = L.si; stage.sun.position.copy(L.sp);
       stage.calm = false; diving = null; uiLeave(false); shot();
       return;
@@ -588,6 +640,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (!leaving && !arriving && !diving) earth.root.position.y = EARTH.y + Math.sin(performance.now() / 2400) * 0.012;          // 一开始离开就不再浮动（从山上回来那一下，地球还是放大了几百倍的那颗，不能挪）          // 很轻地浮着
     if (!drag && !hovered && !earth.target && !earth.active && !leaving && !diving) earth.spin.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.03));
     earth.update(dt, { camera: stage.camera, bookTop: 0, shadowK: 0 });
+    skyStep(dt);
     time.update(dt); time.show(!leaving && !arriving && !diving);
     if (home.userData.n) {
       const face = earth.facing(home.userData.n, stage.camera), k = Math.max(0, Math.min(1, (face - 0.15) / 0.15)) * (1 - worldFade);
@@ -626,7 +679,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   if (backBo) arrive(backBo); else window.__dropSnap?.();
   stage.start();
   document.querySelector('#loader')?.classList.add('done');
-  window.__geo = { stage, earth, items, books, bookObjs, go, openBook, get busy() { return !!(leaving || arriving || diving); }, get diving() { return diving; } };
+  window.__geo = { stage, earth, time, items, books, bookObjs, go, openBook, get busy() { return !!(leaving || arriving || diving); }, get diving() { return diving; } };
 }
 
 /** 夜空：一张经纬网的天空图（离得远，糊一点没关系）：上深下浅的蓝，一道斜着的银河（噪声做的淡淡的光带，中间一条暗缝） */
@@ -689,18 +742,18 @@ function polarMap(tex, ringR) {
         float sea = seaAt(uv), e = 1.6 / 2048.0;
         float coast = abs(seaAt(uv + vec2(e, 0.0)) - sea) + abs(seaAt(uv - vec2(e, 0.0)) - sea) + abs(seaAt(uv + vec2(0.0, e * 2.0)) - sea) + abs(seaAt(uv - vec2(0.0, e * 2.0)) - sea);
         float lum = dot(c, vec3(0.3, 0.55, 0.15));
-        vec3 col = mix(mix(vec3(0.24, 0.20, 0.14), vec3(0.50, 0.40, 0.26), lum), vec3(0.06, 0.10, 0.20), sea);
-        col += vec3(0.95, 0.76, 0.45) * min(1.0, coast) * 0.55;
-        // 昼夜：和地球同一个太阳。夜里那一半暗下去，晨昏线上一道暖光（就是课本里从北极上方往下看的昼夜图）
+        vec3 col = mix(mix(vec3(0.15, 0.14, 0.14), vec3(0.27, 0.23, 0.17), lum), vec3(0.045, 0.065, 0.12), sea);          // 暗铜色的底：比地球暗得多，衬着它，不和它抢
+        // 昼夜：和地球同一个太阳。夜里那一半沉下去，晨昏线上一道暖光（就是课本里从北极上方往下看的昼夜图）
         float s = dot(d, normalize(sunL)), night = smoothstep(0.035, -0.035, s);
-        col = mix(col * vec3(1.45, 1.32, 1.12) + vec3(0.05, 0.04, 0.02), col * vec3(0.22, 0.26, 0.38), night);          // 昼半球亮成被太阳照着的铜，夜半球沉成深蓝
-        col += texture2D(lights, uv).rgb * vec3(1.0, 0.78, 0.45) * 0.9 * night;          // 夜里那一半亮着城市灯光（和地球上同一张）
-        col += vec3(1.0, 0.7, 0.36) * exp(-pow(s / 0.035, 2.0)) * 0.35;          // 晨昏线
+        col = mix(col * vec3(1.3, 1.18, 1.02) + vec3(0.02, 0.015, 0.0), col * vec3(0.34, 0.4, 0.56), night);
+        col += texture2D(lights, uv).rgb * vec3(1.0, 0.78, 0.45) * 0.7 * night;          // 夜里那一半亮着城市灯光（和地球上同一张）
+        col += vec3(0.95, 0.78, 0.48) * min(1.0, coast) * mix(0.62, 0.36, night);          // 海岸线像刻上去的金线
+        col += vec3(1.0, 0.7, 0.36) * exp(-pow(s / 0.035, 2.0)) * 0.26;          // 晨昏线
         // 刻线：北极圈、北回归线、赤道、南回归线；淡淡的经线每 30°
         float lonDeg = degrees(lon) + 180.0, gm = 1.0 - smoothstep(0.0, 0.7, abs(mod(lonDeg + 15.0, 30.0) - 15.0) / fwidth(lonDeg));
         float named = max(max(ring(colat, 23.44, 0.9), ring(colat, 66.56, 0.9)), ring(colat, 113.44, 0.9)), eq = ring(colat, 90.0, 1.4);
         col += vec3(0.88, 0.70, 0.42) * (gm * step(8.0, colat) * 0.12 + named * 0.5 + eq * 0.7);
-        float a = (1.0 - smoothstep(114.0, 122.0, colat)) * 0.8 + max(named, eq) * 0.2;
+        float a = (1.0 - smoothstep(104.0, 122.0, colat)) * 0.74 + max(named, eq) * 0.2;
         gl_FragColor = vec4(col, a * fade);
       }`,
   });
