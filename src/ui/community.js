@@ -1,4 +1,5 @@
 import { h } from './Panel.js';
+import { openFeedback } from './Feedback.js';
 
 const icon = (paths) => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
 const chat = icon('<path d="M20 11a8 8 0 0 1-8 8H8l-5 3 1.5-5A8 8 0 1 1 20 11Z"/><path d="M8 9h7M8 13h5"/>');
@@ -19,8 +20,8 @@ export function feedbackUrl(context = {}) {
 export function feedbackButton(context = {}) {
   return h('button', {
     class: 'feedback-entry',
-    title: '打开反馈问卷（新窗口）',
-    onclick: () => window.open(feedbackUrl(context), '_blank', 'noopener,noreferrer'),
+    title: '反馈与建议',
+    onclick: () => openFeedback(context),
   }, h('span', { html: chat }), h('span', {}, context.lesson ? '反馈' : '反馈与建议'));
 }
 export function lessonCommunity(context) {

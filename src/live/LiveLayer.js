@@ -244,7 +244,7 @@ export class LiveLayer {
 
     this.hotspots.enabled = false;
     document.body.classList.add('lesson-on');
-    const community = lessonCommunity({lesson:spot.lesson, title:def.title, where: `${this.content.full || this.content.title || ''} · 第 ${pageNum} 页 · ${def.fig || ''}`});
+    const community = lessonCommunity({capture:()=>this.stage.snapshot(Math.min(innerWidth,1280),Math.round(Math.min(innerWidth,1280)*innerHeight/innerWidth)), lesson:spot.lesson, title:def.title, where: `${this.content.full || this.content.title || ''} · 第 ${pageNum} 页 · ${def.fig || ''}`});
     document.getElementById('viewctl')?.append(community);
     toggles.push(community);
     document.body.classList.toggle('stand-ui', !!board);
