@@ -120,7 +120,7 @@ export default {
       status('雨正在下：沿坡面找泥沙，再看出水口和量杯。每次喷淋持续相同时间。');
     };
     // 桌前的四个条件键与左侧面板共用同一个切换动作。
-    const controls = new THREE.Group(); controls.position.set(0, 0.012, 0.285); rig.add(controls);
+    const controls = new THREE.Group(); controls.position.set(0, 0.012, 0.318); rig.add(controls);          // 往前挪一点，给量杯下面的读数让出地方
     box(controls, 0.46, 0.012, 0.038, wood, 0, 0, 0);
     const keys = MODES.map((name, i) => {
       const key = box(controls, 0.102, 0.008, 0.028, mat(0xe8dfcb), (i - 1.5) * 0.112, 0.01, 0);
