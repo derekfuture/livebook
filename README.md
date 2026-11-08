@@ -79,7 +79,7 @@ tools/gen_content.py      PLAN.md + bbox-overrides.json → src/content/books.js
 tools/strip_pages.sh      部署时去掉书页图片，只留封面
 src/book/                 3D 书：纸张弯曲翻页、纸堆厚度、贴图分级加载、发光热点；书页从哪来（导入的 PDF、本地书页图片、占位页）、导入课本
 src/content/editions.js   每本书对应哪一版教材：书名、页数、平台上的地址
-src/home/                 书架首页：从架上拿书、继续上次、活页总览
+src/home/                 书桌首页：每一科一摞书 + 一件东西 + 桌签；点一科摊开、拿一本进书；继续上次、活页总览
 src/live/                 把图从书页上揭下来、弹出立体实验；课本插图画风（描边 + 分层上色）
 src/lessons/<id>.js       每张活页一个文件：预测题、结论、场景、物理 / 化学模型、面板控件
 src/lessons/kit/          共用的器材和交互：电路、光具座、测力计、磁体、化学玻璃仪器（chem.js）、液体和火焰（chemfx.js）、
