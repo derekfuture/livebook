@@ -23,7 +23,7 @@ export function openFeedback(context = {}) {
   message.value = draft.message || '';
   const name = h('input', {id:'fb-name', maxlength:60, autocomplete:'name', placeholder:'如：王老师，初中化学'});
   name.value = draft.name ?? saved.name ?? '';
-  const contact = h('input', {id:'fb-contact', maxlength:160, placeholder:'微信或邮箱', autocomplete:'off'});
+  const contact = h('input', {id:'fb-contact', maxlength:160, placeholder:'微信或邮箱', autocomplete:'off', 'aria-describedby':'fb-contact-hint'});
   contact.value = draft.contact ?? saved.contact ?? '';
   const saveProfile = () => {
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify({name:name.value,contact:contact.value})); } catch {}
@@ -87,7 +87,7 @@ export function openFeedback(context = {}) {
     dialog.remove(); previous?.focus();
   },{once:true});
   message.addEventListener('input',()=>{ count.textContent=`${message.value.length} / 2000`; message.setCustomValidity(''); });
-  const field = (id,title,control) => h('label',{class:'fb-field',for:id},h('span',{},title,h('small',{},'选填')),control);
+  const field = (id,title,control) => h('label',{class:'fb-field',for:id},h('span',{},title),control);
   const form = h('form',{class:'fb-form',onsubmit:e=>{
     e.preventDefault();
     if (!message.value.trim()) {message.setCustomValidity('先写一点具体的问题或建议吧。');message.reportValidity();return;}
@@ -96,10 +96,11 @@ export function openFeedback(context = {}) {
     status.textContent = '暂未接通提交服务，内容已保留。';
   }});
   form.append(
-    h('div',{class:'fb-message-label'},h('label',{for:'fb-message'},'哪里可以更好？'),count),
+    h('div',{class:'fb-message-label'},h('label',{for:'fb-message'},'哪里可以更好？',h('span',{class:'fb-required','aria-hidden':'true'},'*')),count),
     message,
     h('div',{class:'fb-attachment-row'},h('button',{type:'button',class:'fb-add-images',onclick:()=>picker.click()},svg(camera),'添加图片'),picker),preview,
     h('div',{class:'fb-identity'},field('fb-name','怎么称呼你',name),field('fb-contact','联系方式',contact)),
+    h('p',{id:'fb-contact-hint',class:'fb-contact-hint'},'如果愿意进一步交流，可以留下微信或邮箱。'),
     status,
     h('div',{class:'fb-actions'},h('button',{class:'fb-primary',type:'submit'},'提交反馈',svg(arrow))));
   const account = h('details',{class:'fb-account'},

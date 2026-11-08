@@ -803,3 +803,5 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
  .fb-actions { margin-top:14px;padding-top:14px; }
  .fb-account summary { padding:12px 30px; }
 }
+.fb-required { color:#a64b3e;margin-left:5px; }
+.fb-contact-hint { color:#737c6e;font-size:12px;line-height:1.6;margin:9px 0 0; }
