@@ -51,13 +51,10 @@ export default {
   fig: '图1.17',
   title: '利用经纬网定位',
   stampText: '活动',
-  style: 'paper',
-  predict: {
-    q: '小红旗插在赤道和 0° 经线相交的地方，沿着赤道一直往东走。它的经度会怎样变？',
-    hint: '课本第 15–20 页：经线和经度、纬线和纬度、利用经纬网定位。',
-    options: ['越来越大，一直加到 360°', '加到 180° 以后变成西经，度数越来越小', '一直是东经，加到 180° 以后又从 0° 开始'],
-    answer: 1,
-  },
+  style: 'real',
+  flow: 'explore',
+  ask: '小红旗插在赤道和 0° 经线相交的地方，沿着赤道一直往东走。它的经度会怎样变？',
+  guess: { options: ['越来越大，一直加到 360°', '加到 180° 以后变成西经，度数越来越小', '一直是东经，加到 180° 以后又从 0° 开始'], answer: 1 },          // 动手看里的“先猜一下（可以不猜）”
   need: '把小红旗插到“泰坦尼克号”失事地点（41.73°N，49.95°W）；沿着纬线往东拖过 180° 经线、沿着经线往北拖到北极，看经度、纬度怎么变；再按表 1.6 的经纬度插旗，认识这些位置是哪五座城市',
   conclusion: {
     crops: [{ page: 23, rect: [60, 316, 360, 420] }],
@@ -378,7 +375,7 @@ export default {
           wrong: ['看记录里往东走的那一行：过了 180° 经线，读数变成了西经、越来越小——经度没有 360°。', '看记录里往北走的那一行：纬度到北极是 90°；经度却能加到 180°。'],
           ok: '对：经度向东、向西各 180°，东经用 E、西经用 W；纬度向北、向南各 90°，北纬用 N、南纬用 S。一条经线、一条纬线相交在一点，这一对经纬度就说清了它在哪里。可以掀开结论看看。',
           onOk: () => { next.hidden = false; done('why'); } });
-        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
+        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
         const tbl = table(['纬度', '经度', '地方']);
         tbl.add(['40°N', '116°E', '北京（课本的例子）']);
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来（清空记录）', ghost: true, onClick: () => A.reset() }]).el);

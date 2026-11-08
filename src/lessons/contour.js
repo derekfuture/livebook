@@ -68,13 +68,10 @@ export default {
   fig: '图2.13',
   title: '等高线地形图',
   stampText: '活动',
-  style: 'paper',
-  predict: {
-    q: '图 2.13 上，⑤ 那条虚线所在的地方，是山谷还是山脊？',
-    hint: '课本第 34 页活动：在等高线地形图上判读地形部位。',
-    options: ['山谷', '山脊', '看不出来'],
-    answer: 0,
-  },
+  style: 'real',
+  flow: 'explore',
+  ask: '图 2.13 上，⑤ 那条虚线所在的地方，是山谷还是山脊？',
+  guess: { options: ['山谷', '山脊', '看不出来'], answer: 0 },          // 动手看里的“先猜一下（可以不猜）”
   need: '把等高线地形图立起来，下一场雨看水往哪里流；识别图中 ①—⑦ 表示的地形部位，比较 ④ 和 ⑥ 的坡度差异',
   conclusion: {
     crops: [{ page: 36, rect: [40, 576, 462, 640] }, { page: 37, rect: [64, 150, 478, 336] }],
@@ -282,7 +279,7 @@ export default {
           wrong: ['侧过来看：哪一处的山坡更陡？再数数两处的等高线，哪里更密？', '⑥ 处的等高线挤得更紧。'],
           ok: '对：⑥ 处等高线密集，坡较陡；④ 处等高线稀疏，坡较缓。可以掀开结论看看。',
           onOk: () => { next.hidden = false; done('slope'); } });
-        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
+        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来', ghost: true, onClick: () => A.reset() }]).el);
         const note = h('p', { class: 'fineprint', html: '说明：地形是按图 2.13 上的等高线算出来的（两条等高线之间按远近插值），竖直方向放大了，为了看清起伏。雨水沿最陡的下坡方向流。' });
         ui.controls.append(nameBox, t1.el, next, more, note);

@@ -50,13 +50,10 @@ export default {
   fig: '图2.2',
   title: '地图的语言：方向、图例、比例尺',
   stampText: '阅读',
-  style: 'paper',
-  predict: {
-    q: '这张校园平面图的指向标指向右上方。图书馆画在池塘的正上方，图书馆在池塘的什么方向？',
-    hint: '课本第 29 页：在有指向标的地图上，要按照指向标辨别方向。',
-    options: ['北', '西北', '东北'],
-    answer: 1,
-  },
+  style: 'real',
+  flow: 'explore',
+  ask: '这张校园平面图的指向标指向右上方。图书馆画在池塘的正上方，图书馆在池塘的什么方向？',
+  guess: { options: ['北', '西北', '东北'], answer: 1 },          // 动手看里的“先猜一下（可以不猜）”
   need: '把校园模型变成地图，看楼房、树木怎样变成符号；点没写名字的符号，补全图例；按指向标转好“八个方向”，读出图书馆在池塘的什么方向；用分规量校门到教学楼门口的距离，用线段比例尺读出、用数字比例尺算出实地距离',
   conclusion: {
     crops: [{ page: 32, rect: [185, 198, 458, 306] }, { page: 32, rect: [200, 325, 292, 578] }],
@@ -440,7 +437,7 @@ export default {
           ok: '对：在有指向标的地图上，要按照指向标辨别方向。这张图的北方指向右上方，画在池塘正上方的图书馆，在池塘的西北方向。',
           onOk: () => { S.dirOk = true; finish(); } });
         const finish = () => { if (S.dirOk && S.scaleOk) { next.hidden = false; done('why'); } };
-        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
+        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
         const tbl = table(['做了什么', '看到的']);
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来', ghost: true, onClick: () => A.reset() }]).el);
         const note = h('p', { class: 'fineprint', html: '说明：学校是编的，不是真实的地方。模型和地图的平面比例都是 1∶1 000；楼房、树木的高度另外放大了 2 倍，看得清楚一些。图上的厘米按这张纸的刻度读，不用尺子量屏幕。分规的脚靠近两个红点会扎到点上；挪到比例尺附近松手，一只脚会对准 0。' });

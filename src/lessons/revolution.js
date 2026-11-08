@@ -77,13 +77,10 @@ export default {
   fig: '图1.24',
   title: '地球公转演示',
   stampText: '活动',
-  style: 'paper',
-  predict: {
-    q: '端着地球仪绕灯走一圈，地轴的倾斜方向一直不变。走到地轴北端歪向灯的那一边时，北京的白天比黑夜——',
-    hint: '课本第 26 页活动：演示地球公转，了解季节变换。',
-    options: ['长', '短', '一样长'],
-    answer: 0,
-  },
+  style: 'real',
+  flow: 'explore',
+  ask: '端着地球仪绕灯走一圈，地轴的倾斜方向一直不变。走到地轴北端歪向灯的那一边时，北京的白天比黑夜——',
+  guess: { options: ['长', '短', '一样长'], answer: 0 },          // 动手看里的“先猜一下（可以不猜）”
   need: '调暗房间、打开光源，按逆时针方向移动地球仪绕光源一圈（A → B → C → D → A），保持地轴的倾斜方向不变；观察同一纬度地带受光的变化，说出四个位置北半球的季节',
   conclusion: {
     crops: [{ page: 27, rect: [60, 472, 345, 664] }],
@@ -424,7 +421,7 @@ export default {
           wrong: ['看 B 处的记录：白天长、正午太阳高，获得的太阳光热多——是哪个季节？', '看 D 处的记录：白天短、正午太阳低——是哪个季节？'],
           ok: '对：B 处直射北回归线，北半球白天长、太阳高，是夏季；D 处直射南回归线，是冬季；A、C 直射赤道，地球从 A 逆时针走到 B，A 是春季、C 是秋季。',
           onOk: () => t2.open() });
-        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
+        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
         const citySeg = seg('你在哪个城市？（小旗插在这里）', CITIES.map((c) => c.name), (_, i) => A.setCity(i), { value: cityK });
         const tbl = table(['位置', '这一天（太阳直射、这座城市）']);
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来（清空记录）', ghost: true, onClick: () => A.reset() }]).el);

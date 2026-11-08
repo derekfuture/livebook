@@ -21,13 +21,10 @@ export default {
   fig: '图4.20',
   title: '绘制降水量柱状图',
   stampText: '活动',
-  style: 'paper',
-  predict: {
-    q: '表 4.2 是北半球某地多年平均各月降水量。画成柱状图以后，最高的几根柱子会集中在一年里的什么时候？',
-    hint: '课本第 81 页活动：绘制和阅读降水量柱状图。',
-    options: ['6—9 月（夏季和初秋）', '12 月至次年 2 月（冬季）', '一年里差不多一样高'],
-    answer: 0,
-  },
+  style: 'real',
+  flow: 'explore',
+  ask: '表 4.2 是北半球某地多年平均各月降水量。画成柱状图以后，最高的几根柱子会集中在一年里的什么时候？',
+  guess: { options: ['6—9 月（夏季和初秋）', '12 月至次年 2 月（冬季）', '一年里差不多一样高'], answer: 0 },          // 动手看里的“先猜一下（可以不猜）”
   need: '照着表 4.2，把 12 个月的降水量柱子拖到坐标纸上对应的高度；再说说哪几个月降水多、哪几个月少，年降水量大约多少，降水的季节变化有什么特点',
   conclusion: {
     crops: [{ page: 84, rect: [163, 52, 460, 154] }],
@@ -126,7 +123,7 @@ export default {
           wrong: ['看柱子：最高的几根在 6—9 月，12、1、2 月的柱子最矮。', '3—5 月的柱子只有 22、47、71 毫米，比 7、8 月矮得多。'],
           ok: '对：6—9 月降水较多（6 月 81、7 月 135、8 月 169、9 月 112 毫米），12 月、1 月、2 月较少（12、10、5 毫米）。',
           onOk: () => { if (S.plotted) t2.open(); } });
-        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
+        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来（擦掉重画）', ghost: true, onClick: () => A.reset() }]).el);
         const note = h('p', { class: 'fineprint', html: '说明：数据是课本表 4.2“北半球某地多年平均各月降水量”。柱子拖到离表上的数不到 3.5 毫米就算画对，会落在表上的数上。' });
         ui.controls.append(t1.el, t2.el, next, more, note);

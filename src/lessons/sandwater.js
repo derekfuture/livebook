@@ -48,13 +48,10 @@ export default {
   fig: '图4.16',
   title: '水和沙的温度变化实验',
   stampText: '活动',
-  style: 'paper',
-  predict: {
-    q: '相同质量的水和沙，一起放在阳光下晒 2 小时——哪个温度升得多？',
-    hint: '课本第 78 页活动：用模拟实验解释海洋和陆地气温变化的差异。',
-    options: ['沙', '水', '差不多'],
-    answer: 0,
-  },
+  style: 'real',
+  flow: 'explore',
+  ask: '相同质量的水和沙，一起放在阳光下晒 2 小时——哪个温度升得多？',
+  guess: { options: ['沙', '水', '差不多'], answer: 0 },          // 动手看里的“先猜一下（可以不猜）”
   need: '用相同的烧杯取相同质量的水和沙，在室内阴凉处放置一段时间；测量并记录温度，放到阳光下；2 小时后再测量、记录，比较变化幅度，解释 1 月、7 月同纬度海陆气温的差异',
   conclusion: {
     crops: [{ page: 82, rect: [60, 80, 440, 152] }, { page: 77, rect: [300, 270, 470, 362] }],
@@ -354,7 +351,7 @@ export default {
           wrong: ['看记录：哪个升高的度数多？', '算一算 2 小时前后的差。'],
           ok: '对：同样晒 2 小时，沙的温度变化幅度比水大得多——相同质量的水，升高 1 ℃ 要吸收的热量大约是沙的 5 倍。',
           onOk: () => t2.open() });
-        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
+        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
         const tbl = table(['', '水', '沙']);
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来（清空记录）', ghost: true, onClick: () => A.reset() }]).el);
         const note = h('p', { class: 'fineprint', html: '说明：温度是算出来的（近似）：晴天正午阳光约 700 W/m²；水的比热容 4.2 J/(g·℃)，干沙约 0.84 J/(g·℃)；沙吸收约 65% 的阳光，水约 36%（大部分透过水）；水还会蒸发散热；屋里 21 ℃，阳光下的空气 24 ℃。实际结果随天气变化。' });

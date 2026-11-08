@@ -106,10 +106,14 @@ export class Panel {
     this.needEl = h('p', { class: 'progress-need' });
     this.toProve = h('button', { class: 'go', disabled: true, onclick: () => this.go(2) }, explore ? '对照课本原文 →' : '去看结论 →');
     this.askMini = explore ? h('p', { class: 'ask-mini', html: p.q }) : null;          // 探索模式：动手那一页顶上留一行开头的问题（动手时还看得见在回答什么）
+    // 探索模式也可以先猜一下（活页写了 guess：选项和答案）：选做，不拦着动手；做完了告诉他猜得对不对
+    this.guessIdx = null;
+    const gBtns = explore && def.guess ? def.guess.options.map((o, i) => h('button', { onclick: () => { this.guessIdx = i; gBtns.forEach((b, k) => b.classList.toggle('on', k === i)); } }, o)) : null;
+    this.guessEl = gBtns ? h('div', { class: 'ctl guess' }, h('div', { class: 'ctl-label' }, '先猜一下（可以不猜）'), h('div', { class: 'seg' }, gBtns)) : null;
     const s2 = h('div', { class: 'p-step' },
       this.askMini,
       h('div', { class: 'bar-title' }, explore ? '动手看' : '动手试'),
-      this.nowEl, this.controlsEl, this.notesBox,
+      this.guessEl, this.nowEl, this.controlsEl, this.notesBox,
       explore ? null : h('div', { class: 'bar-title' }, '数据'),          // 探索模式：没有“数据”这一栏（要的话活页自己加标题）
       this.dataEl, this.toProve, this.needEl);
 
@@ -227,7 +231,7 @@ export class Panel {
     this.flap.classList.remove('locked');
     this.flapFront.querySelector('span').textContent = '掀开看结论';
     this.flapFront.querySelector('small').textContent = '点一下纸片';
-    this.needEl.textContent = pending ? `之前已经做完（可以看结论）。这一次${pending}` : this.explore ? '可以对照课本原文了。' : '实验做完了，可以去看结论。';
+    this.needEl.textContent = pending ? `之前已经做完（可以看结论）。这一次${pending}` : this.explore ? `可以对照课本原文了。${this._guessSay()}` : '实验做完了，可以去看结论。';
     this.toProve.disabled = false;
     if (!fromHistory) this.tabs[1].classList.add('done');
   }
@@ -251,13 +255,19 @@ export class Panel {
     const mine = this.prediction ?? (last != null && p.options[+last] != null ? +last : null);
     const who = this.prediction == null ? '上次你的预测' : '你的预测';
     const v = this.verdictEl;
-    if (this.explore) { v.className = 'verdict'; v.textContent = ''; }          // 探索模式没有预测：不说“这次没有先预测”
+    if (this.explore) { const g = this._guessSay(); v.className = `verdict${g ? (this.guessIdx === this.def.guess.answer ? ' ok' : ' no') : ''}`; v.textContent = g; }          // 探索模式：先猜了就说猜得对不对；没猜不说“这次没有先预测”
     else if (mine == null) { v.className = 'verdict'; v.textContent = '这次没有先预测。对照实验看看课本的结论。'; }
     else if (mine === p.answer) { v.className = 'verdict ok'; v.textContent = `✓ ${who}「${p.options[mine]}」是对的。`; }
     else { v.className = 'verdict no'; v.textContent = `${who}是「${p.options[mine]}」，对照实验再想一想。正确的是「${p.options[p.answer]}」。`; }
     this.flap.classList.add('open');
     this.flap.style.minHeight = `${this.answerEl.offsetHeight}px`;
     setTimeout(() => { this.sealEl.classList.add('on'); stamps.give(this.def.id); this.tabs[2].classList.add('done'); }, 950);
+  }
+
+  /** 探索模式里先猜的那一下：猜对了没有（没猜就空着） */
+  _guessSay() {
+    const g = this.def?.guess; if (!g || this.guessIdx == null) return '';
+    return this.guessIdx === g.answer ? `你先猜的“${g.options[this.guessIdx]}”是对的。` : `你先猜的是“${g.options[this.guessIdx]}”，实际是“${g.options[g.answer]}”。`;
   }
 
   /** 退出时存下这次的预测和数据表，下次进来能回看 */

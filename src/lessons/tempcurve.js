@@ -21,13 +21,10 @@ export default {
   fig: '图4.11',
   title: '绘制气温年变化曲线图',
   stampText: '活动',
-  style: 'paper',
-  predict: {
-    q: '表 4.1 是某地多年平均各月气温。不画图先估一估：这个地方的气温年较差（最热月平均气温减最冷月平均气温）大约是多少？',
-    hint: '课本第 74 页活动：绘制和阅读气温年变化曲线图。',
-    options: ['约 43 ℃', '约 23 ℃', '约 3 ℃'],
-    answer: 0,
-  },
+  style: 'real',
+  flow: 'explore',
+  ask: '表 4.1 是某地多年平均各月气温。不画图先估一估：这个地方的气温年较差（最热月平均气温减最冷月平均气温）大约是多少？',
+  guess: { options: ['约 43 ℃', '约 23 ℃', '约 3 ℃'], answer: 0 },          // 动手看里的“先猜一下（可以不猜）”
   need: '照着表 4.1，把 12 个月的气温点标在坐标纸上；用平滑的曲线把各点连起来；再找出最热月、最冷月的平均气温，算出气温年较差，说说这个地方气温的年变化特点',
   conclusion: {
     crops: [{ page: 77, rect: [305, 268, 472, 362] }],
@@ -173,7 +170,7 @@ export default {
           wrong: ['找曲线上最高、最低的那两个点：最高是 7 月，最低是 1 月。', '年较差是最热月平均气温减最冷月平均气温：23.3 − (−20.1) = 23.3 + 20.1 = 43.4 ℃。减去一个负数，等于加上它的相反数。'],
           ok: '对：最热月 7 月 23.3 ℃，最冷月 1 月 −20.1 ℃，年较差 = 23.3 − (−20.1) = 43.4 ℃。',
           onOk: () => { if (S.drawn) t2.open(); } });
-        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
+        const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来（擦掉重画）', ghost: true, onClick: () => A.reset() }]).el);
         const note = h('p', { class: 'fineprint', html: '说明：数据是课本表 4.1“某地多年平均各月气温”。点拖到离表上的数不到 0.6 ℃ 就算标对，会落在表上的数上。' });
         ui.controls.append(t1.el, t2.el, next, more, note);
