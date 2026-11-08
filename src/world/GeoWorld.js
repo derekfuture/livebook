@@ -115,8 +115,11 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   // ---- 镜头：地球在中间偏上，书圈在下面，一起框进来 ----
   const shot = (instant = false) => {
     stage.cameraOffsetX = panelOpen() ? Math.min(380, innerWidth * 0.4) / 2 + 8 : 0; stage.cameraOffsetY = 0;
-    const el = THREE.MathUtils.degToRad(19);
-    stage.shot({ target: new THREE.Vector3(0, 1.1, 0.3), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist: stage.fitDistance(RING.r * 2 + 1.1, EARTH.y + EARTH.r + 0.75, 1.045), instant, minEl: 0.05 });          // 地球是主角要够大，上面只留一点天空
+    const el = THREE.MathUtils.degToRad(19), off = stage.cameraOffsetX;
+    stage.cameraOffsetX = Math.min(380, innerWidth * 0.4) / 2 + 8;          // 远近一直按“目录开着”来算：收起目录时只把画面挪到正中，不整体放大（不然前排的书、铜版上的太阳被挤出下沿）
+    const dist = stage.fitDistance(RING.r * 2 + 1.1, EARTH.y + EARTH.r + 0.75, 1.045);
+    stage.cameraOffsetX = off;
+    stage.shot({ target: new THREE.Vector3(0, 1.1, 0.3), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist, instant, minEl: 0.05 });          // 地球是主角要够大，上面只留一点天空
   };
 
   // ---- 侧栏：按书列出活页（颜色和旗一样） ----

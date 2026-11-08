@@ -105,7 +105,9 @@ export class Panel {
     this.dataEl = h('div');
     this.needEl = h('p', { class: 'progress-need' });
     this.toProve = h('button', { class: 'go', disabled: true, onclick: () => this.go(2) }, explore ? '对照课本原文 →' : '去看结论 →');
+    this.askMini = explore ? h('p', { class: 'ask-mini', html: p.q }) : null;          // 探索模式：动手那一页顶上留一行开头的问题（动手时还看得见在回答什么）
     const s2 = h('div', { class: 'p-step' },
+      this.askMini,
       h('div', { class: 'bar-title' }, explore ? '动手看' : '动手试'),
       this.nowEl, this.controlsEl, this.notesBox,
       explore ? null : h('div', { class: 'bar-title' }, '数据'),          // 探索模式：没有“数据”这一栏（要的话活页自己加标题）
@@ -158,7 +160,7 @@ export class Panel {
       controls: this.controlsEl,
       data: this.dataEl,
       status: (msg) => { this.statusEl.innerHTML = msg || ''; },
-      ask: (html) => { if (this.askP) this.askP.innerHTML = html; },          // 换了情境（从地球上别的地方进来）：开头的问题跟着换
+      ask: (html) => { if (this.askP) this.askP.innerHTML = html; if (this.askMini) this.askMini.innerHTML = html; },          // 换了情境（从地球上别的地方进来）：开头的问题跟着换
       need: (msg) => this.need(msg),
       unlock: () => this.unlock(),
       relock: () => this.relock(),

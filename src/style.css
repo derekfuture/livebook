@@ -833,3 +833,4 @@ body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(
 .hover-tip { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .15s; background: #fdfaf1; color: #2c3245; font: 15px/1.15 "Hannotate SC", "HanziPen SC", "Kaiti SC", "STKaiti", serif; padding: 5px 9px 4px; border-radius: 2px; box-shadow: 0 2px 8px rgba(40,30,15,.22), 0 0 0 1px rgba(120,100,60,.15); white-space: nowrap; }
 .hover-tip.on { opacity: 1; }
 .hover-tip::after { content: ""; position: absolute; left: 50%; top: -4px; width: 14px; height: 7px; margin-left: -7px; background: rgba(230,215,170,.75); transform: rotate(-4deg); }
+.ask-mini { margin: 0 0 10px; padding: 6px 10px; font: 13.5px/1.6 var(--song); color: #4a3f2e; background: rgba(176,114,58,.07); border-left: 2px solid rgba(176,114,58,.5); }

@@ -15,15 +15,15 @@ const SRC = '卫星影像：Sentinel-2 cloudless 2020（EOX，含 Copernicus 数
 /** 每处地形：中心、边长（km）、高度放大几倍；target 是镜头看的那一点；view 从哪边看（az 镜头在目标的哪个方位，度，北 0 东 90）、俯角、看多宽（km）；cut 是画在地形上的那条线 */
 export const TERRAIN = {
   cb: {
-    name: '长白山', dem: cbDem, img: cbImg, lat: 42.17, lon: 127.95, size: 110, exag: 3,          // 从东边看：地形往西（镜头对面）多铺一些
-    target: [42.18, 128.07], view: { az: 100, el: 26, km: 60 },          // 从东边看过去：北坡从右边的山脚一路升到左边的天池，侧面就是课本那张剖面的样子
+    name: '长白山', dem: cbDem, img: cbImg, lat: 42.17, lon: 128.19, size: 110, exag: 3,          // 从西边看：地形往东（镜头对面）多铺一些
+    target: [42.18, 128.07], view: { az: 270, el: 26, km: 60 },          // 从西边看过去：北坡从左边的山脚一路升到右边的天池——和活页模型一样北坡在左，落到书上变成模型时方位不翻
     cut: { pts: [[42.37, 128.09], [42.028, 128.058]], text: '北坡：从山脚（700 多米）到天池边（2 600 多米）', nameAt: 1, textAt: 0.45 },          // nameAt、textAt：山名、说明写在线上走到哪儿
     crop: [[41.97, 42.41], [127.86, 128.28]],          // 切出来落到书上的那一块：天池和整条北坡
     src: SRC,
   },
   hima: {
     name: '喜马拉雅山脉', dem: qmDem, img: qmImg, lat: 27.93, lon: 86.93, size: 170, exag: 1.5,
-    target: [27.96, 86.88], view: { az: 95, el: 38, km: 165 },          // 从东边看：左边是南坡（尼泊尔的河谷），右边是北坡（青藏高原）
+    target: [27.96, 86.88], view: { az: 265, el: 38, km: 165 },          // 从西边看：左边是北坡（青藏高原），右边是南坡（尼泊尔的河谷）——和活页模型一样北坡在左
     cut: { pts: [[27.3, 86.75], [27.988, 86.925], [28.62, 86.9]], text: '南坡从 1 000 米左右的河谷爬上珠峰（8 849 米），北坡脚下是 4 500 米左右的青藏高原', nameAt: 0.535, textAt: 0.22 },
     crop: [[27.22, 28.66], [86.6, 87.15]],
     src: SRC,
@@ -153,10 +153,10 @@ export function terrainBlock(def, crop, segs = 160) {
   return { group: g, top: topM, mat, walls, wallM, cut, center, w: x1 - x0, d: y1 - y0, sunL };
 }
 
-/** 落到书上时这块地形摆在哪：书（合上时在 x 0…W、z −1…1）封面正上方，北朝右、东朝镜头；宽 width（世界单位，沿南北） */
+/** 落到书上时这块地形摆在哪：书（合上时在 x 0…W、z −1…1）封面正上方，北朝左、西朝镜头（和活页模型一样北坡在左）；宽 width（世界单位，沿南北） */
 export function blockPose(blk, W, T, width = 1.5) {
   const s = width / blk.d;
-  const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(-1, 0, 0)));          // 局部的东→世界 +z（朝镜头）、上→上、南→ −x（北朝右）
+  const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)));          // 局部的东→世界 −z（背着镜头）、上→上、南→ +x（北朝左）
   const c = blk.center.clone().multiplyScalar(s).applyQuaternion(q);
   return { pos: new THREE.Vector3(W / 2, T + 0.62, 0.02).sub(c), q, s };
 }
