@@ -2124,6 +2124,11 @@
   "title": "地理 七年级上册",
   "base": "/books/dili-7s/",
   "lessons": {
+   "latlon": {
+    "title": "利用经纬网定位",
+    "fig": "图1.17",
+    "sec": "第二节 地球与地球仪"
+   },
    "revolution": {
     "title": "地球公转演示",
     "fig": "图1.24",
@@ -2142,6 +2147,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "latlon",
+    "page": 23,
+    "bbox": [
+     150,
+     425,
+     328,
+     612
+    ],
+    "label": "图1.17 · 翻开活页"
+   },
    {
     "lesson": "revolution",
     "page": 30,
