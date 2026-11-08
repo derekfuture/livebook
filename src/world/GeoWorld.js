@@ -29,6 +29,7 @@ const atBookFov = (stage, fn) => { const c = stage.camera, f = c.fov; c.fov = BO
 const setFov = (stage, f) => { if (Math.abs(stage.camera.fov - f) > 1e-4) { stage.camera.fov = f; stage.camera.updateProjectionMatrix(); } };
 
 const PANEL_W = 22 + 336 + 24;          // 左边目录页占的宽度（.geo-toc：离边 22、宽 336），再留一点空
+const tocFits = (W) => W - PANEL_W >= 720;          // 窗口太窄（4:3 投影）：目录一开始收起成书脊，地球和读数、透镜才放得开
 
 /** 地理世界的机位：要框进画面的是地球顶（上面留一行提示）、正前方那本书的名字、书圈左右两头。远近一直按“目录开着”算：收起目录只把画面挪到正中，不整体放大 */
 function worldShot(W, H, panelW) {
@@ -51,7 +52,7 @@ export function earthCircle(W = innerWidth, H = innerHeight) {
   const { cam } = worldShot(W, H, PANEL_W), c = new THREE.Vector3(0, EARTH.y, 0).project(cam);
   const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), e = new THREE.Vector3(0, EARTH.y, 0).addScaledVector(right, EARTH.r).project(cam);
   const px = (v) => [((v.x + 1) / 2) * W, ((1 - v.y) / 2) * H], [cx, cy] = px(c), [ex, ey] = px(e);
-  return { cx: cx + PANEL_W / 2, cy, r: Math.hypot(ex - cx, ey - cy) };          // 目录页开着：画面整体往右挪半个目录宽
+  return { cx: cx + (tocFits(W) ? PANEL_W / 2 : 0), cy, r: Math.hypot(ex - cx, ey - cy) };          // 目录页开着：画面整体往右挪半个目录宽
 }
 
 export async function bootGeoWorld(stage, { focus = null } = {}) {
@@ -210,6 +211,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const toc = h('aside', { class: 'geo-toc' });
   const spine = h('button', { class: 'geo-toc-spine', title: '打开目录', onclick: () => setToc(true) }, h('span', {}, '目录'));
   document.body.append(toc, spine);
+  if (!tocFits(innerWidth)) { toc.classList.add('folded'); spine.classList.add('on'); }
   const panelOpen = () => !toc.classList.contains('folded');
   function setToc(on) { toc.classList.toggle('folded', !on); spine.classList.toggle('on', !on); shot(); }
   const uiLeave = (on) => { toc.classList.toggle('leaving', on); spine.classList.toggle('leaving', on); };
@@ -251,14 +253,19 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   shot(true);
   let touched = false;
 
-  // ---- 看法：昼夜 / 板块 / 气压带，像三枚透镜挂在地球右边。每一枚是一颗小地球，画着打开它以后地球的样子（一眼看得出能看什么）；
-  //      可以多选（板块和气压带一起看）。打开的那枚亮起来，旁边出图例和“进活页”。昼夜关掉：地球不按此刻的太阳照，整颗都是白天的样子 ----
+  // ---- 看法：昼夜 / 板块 / 气压带，三枚透镜竖着排在画面右边（不贴着地球，地球四周留出空）。每一枚是一颗小地球，画着打开它以后地球的样子（一眼看得出能看什么）；
+  //      可以多选（板块和气压带一起看）。打开的那枚亮起来，名字下面一行小图例；指着它浮出一张卡：说明、完整图例、“进到那张活页”。昼夜关掉：地球不按此刻的太阳照，整颗都是白天的样子 ----
   const LENS = [['sun', '昼夜', '此刻哪里是白天、哪里是黑夜'], ['plates', '板块', '全球的板块和板块边界'], ['belts', '气压带', '全球的气压带（理想模型）']]
     .map(([id, label, tip]) => ({ id, label, tip, it: items.find((x) => x.anchor.layer === id) })).filter((v) => v.it);
   const LEGEND = {
     sun: '<span><i style="background:linear-gradient(90deg,#0b1430,#f3c27a)"></i>晨昏线</span><span><i class="dot" style="background:#ffd27a"></i>夜里的城市灯光</span>',
     plates: '<span><i style="background:#d8342c"></i>生长边界</span><span><i style="background:#23a04e"></i>汇聚边界</span><span><i style="background:#8a8e96"></i>转换边界</span>',          // 和板块那张活页同一套颜色、同样的叫法
     belts: '<span><i class="sq" style="background:#e67a61"></i>高压带</span><span><i class="sq" style="background:#5785db"></i>低压带</span><small>假设地表均匀，也不随季节移动</small>',
+  };
+  const MINI = {
+    sun: '<span><i style="background:linear-gradient(90deg,#0b1430,#f3c27a)"></i>晨昏线</span><span><i class="dot" style="background:#ffd27a"></i>城市灯光</span>',
+    plates: '<span><i style="background:#d8342c"></i>生长</span><span><i style="background:#23a04e"></i>汇聚</span><span><i style="background:#8a8e96"></i>转换</span>',
+    belts: '<span><i class="sq" style="background:#e67a61"></i>高压</span><span><i class="sq" style="background:#5785db"></i>低压</span>',
   };
   const lensOn = new Set(['sun']);
   const lensLayers = () => [...lensOn].map((id) => layerOf(LENS.find((v) => v.id === id)?.it)).filter(Boolean);
@@ -286,8 +293,8 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   };
   for (const v of LENS) {
     v.orb = h('button', { class: 'gl-orb', title: v.tip, 'aria-pressed': 'false', onclick: () => toggleLens(v) }, lensIcon(v.id));
-    v.more = h('div', { class: 'gl-more' }, h('div', { class: 'gl-legend', html: LEGEND[v.id] || '' }), h('button', { class: 'gl-go', onclick: () => go(v.it) }, `进到“${v.it.title}” →`));
-    v.el = h('div', { class: 'geo-lens', 'data-id': v.id }, v.orb, h('b', { class: 'gl-name' }, v.label), v.more);
+    v.more = h('div', { class: 'gl-more' }, h('p', { class: 'gl-tip' }, v.tip), h('div', { class: 'gl-legend', html: LEGEND[v.id] || '' }), h('button', { class: 'gl-go', onclick: () => go(v.it) }, `进到“${v.it.title}” →`));
+    v.el = h('div', { class: 'geo-lens', 'data-id': v.id }, v.orb, h('b', { class: 'gl-name' }, v.label), h('div', { class: 'gl-mini', html: MINI[v.id] || '' }), v.more);
     const over = (on) => { clearTimeout(v.hoverT); if (on) v.el.classList.add('hover'); else v.hoverT = setTimeout(() => v.el.classList.remove('hover'), 400); };          // 从透镜挪到图例卡上去点“进到…”，中间空一小段也不收起
     for (const x of [v.orb, v.more]) { x.addEventListener('pointerenter', () => over(true)); x.addEventListener('pointerleave', () => over(false)); }
     document.body.append(v.el);
@@ -295,7 +302,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const lensHint = h('div', { class: 'geo-lens-hint' }, '换个看法 · 可以多选'); document.body.append(lensHint);
   let dnT = 1, dn = 1, glareK = 1;          // 昼夜这一层开着没有（1 开：按此刻的太阳照；0 关：整颗地球白天的样子）
   function toggleLens(v, init = false) {
-    if (!init) { if (lensOn.has(v.id)) lensOn.delete(v.id); else lensOn.add(v.id); clearTimeout(v.peekT); v.el.classList.add('just'); v.peekT = setTimeout(() => v.el.classList.remove('just'), 2600); }          // 刚点过：窄屏时图例也浮出来一会儿
+    if (!init) { if (lensOn.has(v.id)) lensOn.delete(v.id); else lensOn.add(v.id); clearTimeout(v.peekT); v.el.classList.toggle('just', lensOn.has(v.id)); if (lensOn.has(v.id)) v.peekT = setTimeout(() => v.el.classList.remove('just'), 2200); }          // 刚打开：说明卡浮出来一会儿（关掉时不出）
     for (const x of LENS) { const on = lensOn.has(x.id); x.el.classList.toggle('on', on); x.orb.setAttribute('aria-pressed', String(on)); }
     earth.setLayers(lensLayers());
     dnT = lensOn.has('sun') ? 1 : 0; time.el.classList.toggle('dim', !lensOn.has('sun'));          // 昼夜关了：左边“此刻”的读数淡一点（时间还在走）
@@ -311,16 +318,13 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     const mc = moon.getWorldPosition(new THREE.Vector3()), [mx, my] = toPx(mc), [mex, mey] = toPx(mc.clone().addScaledVector(right, EARTH.r * 0.273)), mr = Math.hypot(mex - mx, mey - my);
     const panel = panelOpen() ? PANEL_W : 0;
     const key = `${cx | 0},${cy | 0},${r | 0},${mx | 0},${my | 0},${panel},${[...lensOn].join('')}`; if (key === lensKey) return; lensKey = key;
-    // 透镜右边能放多宽，图例和“进到…”就在多宽里换行；窄到放不下（4:3 投影、目录开着）：平时只留透镜和名字，指着它、刚点过它时，图例浮在左边一张小卡上
-    const R = r + Math.max(64, r * 0.36), orbRight = cx + R + 34, room = innerWidth - orbRight - 24, peek = room < 150;
-    for (const v of LENS) { v.el.classList.toggle('peek', peek); v.more.style.maxWidth = peek ? '' : `${Math.floor(room)}px`; }
-    const A = [-32, 0, 32].map((d) => (d * Math.PI) / 180);
-    LENS.forEach((v, i) => { v.el.style.transform = `translate(${(cx + R * Math.cos(A[i])).toFixed(1)}px, ${(cy + R * Math.sin(A[i])).toFixed(1)}px)`; });
-    lensHint.style.transform = `translate(${(cx + R * Math.cos(A[0]) - 34).toFixed(1)}px, ${(cy + R * Math.sin(A[0]) - 66).toFixed(1)}px)`;          // 提示写在最上面那一枚的上方
-    // “此刻”的读数挂在月亮下面；右边不能压到地球：放不下就收窄（字小一点、换行）
-    const left = Math.max(panel + 18, mx - mr * 1.1), maxW = cx - r * 1.12 - 24 - left;          // 地球外面还有一圈大气光，留出来
-    time.el.style.left = `${left.toFixed(1)}px`; time.el.style.top = `${(my + mr + 16).toFixed(1)}px`; time.el.style.width = `${Math.max(180, Math.min(300, maxW)).toFixed(0)}px`;
-    time.el.classList.toggle('narrow', maxW < 300);
+    // 透镜：画面右边一列，上下以地球的中心为中；读数：目录右边、月亮下面，左对齐。两边都和地球（连同大气光）隔开一段
+    const GAP = 128, colX = innerWidth - 62 - 34, colY = Math.min(Math.max(cy, 96 + GAP), innerHeight - 150 - GAP);
+    LENS.forEach((v, i) => { v.el.style.transform = `translate(${colX.toFixed(1)}px, ${(colY + (i - 1) * GAP).toFixed(1)}px)`; });
+    lensHint.style.transform = `translate(${(colX + 34).toFixed(1)}px, ${(colY - GAP - 58).toFixed(1)}px) translateX(-100%)`;          // 提示写在最上面那一枚的上方，右对齐
+    const left = (panel ? panel + 6 : 58), halo = cx - r * 1.14, w = Math.max(180, Math.min(280, halo - 44 - left));
+    time.el.style.left = `${left.toFixed(1)}px`; time.el.style.top = `${Math.max(my + mr + 22, 120).toFixed(1)}px`; time.el.style.width = `${w.toFixed(0)}px`;
+    time.el.classList.toggle('narrow', w < 240); time.el.classList.toggle('tight', halo - 44 - left < 200);          // 实在窄：天空那条弧先不画
   }
 
   // ---- 指着旗、书、侧栏的名字：旗亮、书亮、明信片 ----
