@@ -770,26 +770,6 @@ body.geo-world #panel { transition: opacity .4s; }
 .atlas-ch.on { color: #2a2218; }
 html.snap #loader { display: none; }          /* 换页面时上一页最后一帧盖着：底下不要再露出加载的那一屏 */
 
-/* 地理世界右下角：现在这一刻 */
-.geo-time { position: fixed; right: 18px; top: 64px; z-index: 6; width: 300px; padding: 12px 14px 10px; background: rgba(252,249,241,0.96); border-radius: 6px; box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 0 0 1px rgba(120,100,70,0.15); font: 13px/1.5 var(--sans); color: #2f2a22; transition: opacity .4s, box-shadow .3s; }
-.geo-time.hidden { opacity: 0; pointer-events: none; }
-.geo-time.focus { box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 0 0 2px #f3d9a4, 0 0 24px rgba(243,217,164,0.55); }
-.geo-time .gt-head { display: flex; align-items: center; justify-content: space-between; }
-.geo-time .gt-head b { font: 600 15px/1.3 var(--song); color: #1f2a44; letter-spacing: .04em; }
-.geo-time .gt-now { border: 1px solid rgba(176,114,58,.5); background: #fff6e2; color: #8a4b10; border-radius: 999px; padding: 2px 10px; font: 12px/1.6 var(--sans); cursor: pointer; }
-.geo-time .gt-when { font: 600 13px/1.5 var(--sans); color: #3a3326; margin: 2px 0 6px; }
-.geo-time .gt-row { display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 6px; margin: 2px 0; color: #6a5d48; font-size: 12px; }
-.geo-time .gt-track { position: relative; padding-bottom: 2px; }
-.geo-time input[type=range] { width: 100%; accent-color: #b0723a; margin: 4px 0; }
-.geo-time .gt-marks { position: relative; height: 14px; }
-.geo-time .gt-marks span { position: absolute; transform: translateX(-50%); font-size: 10.5px; color: #8a7d66; cursor: pointer; white-space: nowrap; }
-.geo-time .gt-marks span:hover { color: #8a4b10; }
-.geo-time .gt-sub { font-size: 12px; color: #6a5d48; margin: 4px 0 6px; }
-.geo-time .gt-city { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: #4a3f2e; margin-bottom: 6px; }
-.geo-time .gt-city select { font: 600 12.5px/1.4 var(--sans); border: 1px solid rgba(120,100,70,.3); border-radius: 4px; background: #fff; padding: 1px 4px; }
-.geo-time .gt-here { flex-basis: 100%; color: #3a3326; }
-.geo-time .gt-sky { display: block; width: 268px; height: 90px; border-radius: 4px; }
-.geo-time .gt-src { display: block; margin-top: 5px; font-size: 10.5px; color: #9a8d76; }
 .tag3d.w-home { display: flex; flex-direction: column; align-items: flex-start; transform-origin: left center; text-shadow: 0 0 6px #0a1124, 0 0 3px #0a1124; pointer-events: none; margin-left: 46px; }
 .tag3d.w-home b { font: 600 12px/1.2 var(--sans); color: #fff; white-space: nowrap; }
 .tag3d.w-home small { font: 11px/1.2 var(--sans); color: #dfe7f5; }
@@ -809,3 +789,65 @@ body.geo-world .tag3d.w-themes button.on { background: #f3d9a4; color: #2a2218; 
 .geo-dive .gd-btns button { border: 0; border-radius: 999px; padding: 9px 18px; font: 600 14px/1 var(--sans); cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
 .geo-dive .gd-back { background: rgba(255,255,255,.85); color: #2f3a52; }
 .geo-dive .gd-go { background: #f3d9a4; color: #2a2218; }
+
+/* ================= 地理世界的一整套样式：夜空、铜版、金色细线。控件是场景的一部分，不是浮在上面的白色表单 ================= */
+body.geo-world { --gw-ink: #efe6d2; --gw-dim: #a3aec4; --gw-gold: #d6b16e; --gw-gold2: #f1d79f; --gw-line: rgba(214,177,110,.36); --gw-glass: rgba(12,18,35,.64); }
+/* 右上角：现在这一刻（一行字，没有框） */
+.geo-now { position: fixed; right: 26px; top: 66px; z-index: 6; width: 280px; text-align: right; color: var(--gw-ink); text-shadow: 0 1px 10px rgba(5,9,20,.9); transition: opacity .4s; pointer-events: none; }
+.geo-now.hidden { opacity: 0; }
+.geo-now .gn-when b { display: block; font: 600 26px/1.15 var(--song); letter-spacing: .12em; }
+.geo-now .gn-when span { display: block; margin-top: 3px; font: 13px/1.3 var(--sans); letter-spacing: .1em; color: var(--gw-gold2); }
+.geo-now .gn-line { margin-top: 6px; font: 12.5px/1.5 var(--sans); color: var(--gw-dim); letter-spacing: .04em; pointer-events: auto; }
+.geo-now .gn-sub { color: var(--gw-ink); }
+.geo-now .gn-live { margin-left: 10px; border: 0; background: none; padding: 0; color: var(--gw-gold2); font: 12.5px/1.5 var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.geo-now .gn-city { position: relative; }
+.geo-now .gn-pick { border: 0; background: none; padding: 0 2px 0 4px; margin-right: 6px; color: var(--gw-gold2); font: 600 12.5px/1.5 var(--sans); cursor: pointer; border-bottom: 1px dashed rgba(241,215,159,.55); }
+.geo-now .gn-list { position: absolute; right: 0; top: 24px; z-index: 2; width: 300px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 8px; background: rgba(10,15,30,.92); border: 1px solid var(--gw-line); border-radius: 6px; box-shadow: 0 14px 34px rgba(0,0,0,.5); backdrop-filter: blur(8px); text-shadow: none; }
+.geo-now .gn-list[hidden] { display: none; }
+.geo-now .gn-list button { border: 0; background: none; color: var(--gw-ink); font: 12.5px/1 var(--sans); padding: 7px 0; border-radius: 4px; cursor: pointer; }
+.geo-now .gn-list button:hover { background: rgba(214,177,110,.18); color: var(--gw-gold2); }
+.geo-now .gn-sky { display: block; width: 260px; height: 88px; margin: 6px 0 0 auto; }
+.geo-now .gn-src { display: block; margin-top: 4px; font: 10.5px/1.4 var(--sans); color: rgba(163,174,196,.7); }
+.geo-now.focus .gn-when b { color: var(--gw-gold2); }
+/* 铜版上的字：刻出来的金色小字 */
+.tag3d.w-circle { font: 11.5px/1 var(--song); color: rgba(241,215,159,.85); letter-spacing: .14em; text-shadow: 0 0 6px rgba(5,9,20,.95); pointer-events: none; }
+.tag3d.w-sunhint { font: 12px/1 var(--sans); color: var(--gw-gold2); letter-spacing: .08em; text-shadow: 0 0 8px rgba(5,9,20,.95); pointer-events: none; }
+.tag3d.w-sunhint span { display: block; animation: hint-breath 2.8s ease-in-out infinite; }
+/* 看法：深色玻璃上的金色细线，开着的是一枚亮的金色 */
+body.geo-world .tag3d.w-themes { gap: 8px; }
+body.geo-world .tag3d.w-themes button { background: var(--gw-glass); border: 1px solid var(--gw-line); color: var(--gw-ink); box-shadow: 0 4px 14px rgba(0,0,0,.25); backdrop-filter: blur(6px); padding: 7px 15px 7px 9px; font: 600 13px/1 var(--sans); letter-spacing: .1em; gap: 8px; }
+body.geo-world .tag3d.w-themes button::before { display: none; }
+body.geo-world .tag3d.w-themes svg { width: 17px; height: 17px; fill: none; stroke: var(--gw-gold); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+body.geo-world .tag3d.w-themes svg .fill { fill: var(--gw-gold); stroke: none; }
+body.geo-world .tag3d.w-themes button:hover { border-color: var(--gw-gold); background: rgba(214,177,110,.14); }
+body.geo-world .tag3d.w-themes button.on { background: linear-gradient(180deg, #f6e2b2, #cfa159); color: #20180c; border-color: #f6e2b2; box-shadow: 0 0 18px rgba(241,215,159,.45); }
+body.geo-world .tag3d.w-themes button.on svg { stroke: #20180c; } body.geo-world .tag3d.w-themes button.on svg .fill { fill: #20180c; }
+body.geo-world .tag3d.w-enter { background: none; border: 0; box-shadow: none; padding: 0; }
+body.geo-world .tag3d.w-enter span { font: 600 13px/1.4 var(--sans); color: var(--gw-gold2); letter-spacing: .06em; border-bottom: 1px solid rgba(241,215,159,.6); padding-bottom: 2px; text-shadow: 0 0 8px rgba(5,9,20,.95); }
+/* 目录：深色玻璃，金色细线 */
+body.geo-world #panel.board { background: linear-gradient(180deg, rgba(17,24,46,.82), rgba(10,15,30,.86)); color: var(--gw-ink); border-radius: 6px; transform: none; box-shadow: 0 22px 50px rgba(0,0,0,.45), inset 0 0 0 1px var(--gw-line); backdrop-filter: blur(10px) saturate(1.15); animation: none; }
+body.geo-world #panel.board .p-head { border-bottom: 1px solid var(--gw-line); }
+body.geo-world .board .p-fig { color: var(--gw-gold); }
+body.geo-world .board .p-title { color: var(--gw-ink); }
+body.geo-world .board .p-close { color: var(--gw-dim); }
+body.geo-world #panel .q, body.geo-world #panel .q.ask { color: var(--gw-ink); }
+body.geo-world .board .status { border-left-color: var(--gw-gold); color: #e6d6b2; }
+body.geo-world .board .p-body::-webkit-scrollbar-thumb { background: rgba(214,177,110,.3); }
+body.geo-world .atlas-ch { color: var(--gw-ink); }
+body.geo-world .atlas-ch:hover { background: rgba(214,177,110,.1); }
+body.geo-world .atlas-ch em { color: var(--gw-dim); }
+body.geo-world .atlas-ch i { box-shadow: 0 0 0 2px rgba(10,15,30,.9), 0 0 8px currentColor; }
+body.geo-world .atlas-row { background: rgba(255,255,255,.035); border-color: rgba(214,177,110,.16); color: var(--gw-ink); }
+body.geo-world .atlas-row small { color: var(--gw-dim); }
+body.geo-world .atlas-row:hover, body.geo-world .atlas-row.on { background: rgba(214,177,110,.13); border-color: rgba(214,177,110,.55); }
+body.geo-world .atlas-kind { background: none !important; border: 1px solid currentColor; }
+body.geo-world .atlas-kind.k-place { color: #f0b08e; } body.geo-world .atlas-kind.k-globe { color: #9cc0f0; } body.geo-world .atlas-kind.k-idea { color: #cfc2a2; }
+/* 指着旗浮出来的卡：深色玻璃，课本的图镶一道金边 */
+body.geo-world .tag3d.w-card { background: rgba(12,18,35,.88); box-shadow: 0 14px 36px rgba(0,0,0,.5), inset 0 0 0 1px var(--gw-line); backdrop-filter: blur(8px); }
+body.geo-world .tag3d.w-card b { color: var(--gw-gold2); }
+body.geo-world .tag3d.w-card .w-q { color: #e9e0cc; }
+body.geo-world .tag3d.w-card small { color: var(--gw-dim); }
+body.geo-world .tag3d.w-card .w-fig { box-shadow: 0 0 0 1px rgba(214,177,110,.45); }
+/* 俯冲到了：北（金色罗盘针）、数据来源 */
+body.geo-world .geo-dive .gd-north i { border-bottom-color: var(--gw-gold2); }
+body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(--song); }

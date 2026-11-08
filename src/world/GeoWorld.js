@@ -67,6 +67,18 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const first = items.find((x) => x.anchor.kind === 'place' && x.book.id === focus) || items.find((x) => x.anchor.kind === 'place');
   earth.spin.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-90 - (first ? first.anchor.pins[0].lon : 105)) * Math.PI / 180);          // 镜头在正前方（+z，地球不转时是西经 90° 那一面）：把这本书的第一面旗转过来
   const map = polarMap(earth.mat.map, RING.r); map.position.y = 0.006; root.add(map);
+  // 铜版上的太阳：太阳直射点在哪，就在铜版上的哪里（离圆心越远纬度越低，在南北回归线两道刻线之间来回）。拖着它绕圈是换时刻，往里往外是换季节
+  map.material.uniforms.lights.value = earth.nowU.nightMap?.value || null;
+  const DIAL = { r0: 1.84, r1: 2.24 };
+  const hours = hourRing(DIAL.r0, DIAL.r1); hours.position.y = 0.009; root.add(hours);
+  const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: radial('rgba(255,236,190,1)', 'rgba(255,190,90,0)', 0.35), transparent: true, depthWrite: false, fog: false }));
+  sunSpr.scale.setScalar(0.42); sunSpr.renderOrder = 4; root.add(sunSpr);
+  const sunCore = new THREE.Mesh(new THREE.SphereGeometry(0.055, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffe7a8, fog: false })); root.add(sunCore);
+  const sunPick = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), new THREE.MeshBasicMaterial({ visible: false })); root.add(sunPick);
+  const sunOnGlobe = new THREE.Sprite(new THREE.SpriteMaterial({ map: radial('rgba(255,240,200,1)', 'rgba(255,200,110,0)', 0.3), transparent: true, depthWrite: false, fog: false })); sunOnGlobe.scale.setScalar(0.09); earth.spin.add(sunOnGlobe);          // 地球上也标一下直射点
+  const circleTags = [['北回归线', 66.56], ['赤道', 90], ['南回归线', 113.44]].map(([name, colat]) => ({ colat, t: tag(name, 'w-circle') }));
+  const sunTag = tag('<span>拖动太阳</span>', 'w-sunhint');          // 呼吸的动画放在里面那层（放在外层会盖过藏起来用的透明度）
+  const plateAz = (lon, spinA) => -lon * Math.PI / 180 - spinA;          // 经度 → 铜版上的方位角（世界坐标 atan2(z, x)）
   // 你在这里：地球上一个白色的小圈（和活页的彩色小旗不一样），旁边写城市名
   const homeM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide });
   const home = new THREE.Group(), homeRing = new THREE.Mesh(new THREE.RingGeometry(0.02, 0.027, 40), homeM), homeDot = new THREE.Mesh(new THREE.CircleGeometry(0.008, 20), homeM);
@@ -135,18 +147,23 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
 
   // ---- 地球旁的“看法”：整个地球的主题，点了一直开着 ----
   const themes = items.filter((x) => x.anchor.chip);
-  const chips = tag(themes.map((x) => `<button data-id="${x.id}" style="--c:${x.color}">${x.anchor.chip}</button>`).join(''), 'w-themes');
+  const ICON = {          // 看法的小图标：金色细线（昼夜：半明半暗的球；板块：一道裂开的边界；气压带：一条条纬向的带）
+    sun: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 3a7 7 0 0 1 0 14z" class="fill"/></svg>',
+    plates: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M4.5 7.5l3 1.5 2-2 2.5 3 2-1 2 2.5"/></svg>',
+    belts: '<svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M3.6 7h12.8M3 10h14M3.6 13h12.8"/></svg>',
+  };
+  const chips = tag(themes.map((x) => `<button data-id="${x.id}">${ICON[x.anchor.layer] || ''}<span>${x.anchor.chip}</span></button>`).join(''), 'w-themes');
   let layerOn = null;
   chips.el.addEventListener('click', (e) => {
     const bt = e.target.closest('button'); if (!bt) return; e.stopPropagation();
     const it = themes.find((x) => x.id === bt.dataset.id); layerOn = layerOn === it ? null : it;
     earth.setLayer(layerOf(layerOn));
-    const sunOn = layerOn?.anchor.layer === 'sun'; time.focus(sunOn);          // 昼夜：右下角的时刻卡亮起来，地球转到你在的地方
+    const sunOn = layerOn?.anchor.layer === 'sun'; time.focus(sunOn);          // 昼夜：右上角的读数亮起来，地球转到你在的地方
     if (sunOn) earth.turnTo(time.city.lat, time.city.lon, stage.camera);
     for (const x of chips.el.children) x.classList.toggle('on', layerOn?.id === x.dataset.id);
-    enterBtn.text(layerOn ? `<span>进到“${layerOn.title}”</span>` : ''); enterBtn.show(!!layerOn);
+    enterBtn.text(layerOn ? `<span>进到“${layerOn.title}” ›</span>` : ''); enterBtn.show(!!layerOn);
   });
-  const enterBtn = tag('', 'view', () => layerOn && go(layerOn)); enterBtn.show(false);
+  const enterBtn = tag('', 'view w-enter', () => layerOn && go(layerOn)); enterBtn.show(false);
   const hint = tag('<span>拖着地球转一转</span><small>指着一面旗看它在哪本书；点下去，翻到那一页</small>', 'hint');
   let touched = false;
 
@@ -471,9 +488,10 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const canvas = $('#c'), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ac = new AbortController(), on = { signal: ac.signal };
   const setRay = (e) => { ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, stage.camera); };
   const hitBook = () => { const hit = ray.intersectObjects(bookObjs.map((x) => x.mesh), false)[0]; return hit ? bookObjs.find((x) => x.mesh === hit.object) : null; };
-  let drag = null, bookHot = null;
+  let drag = null, bookHot = null, sunDragged = false;
   canvas.addEventListener('pointerdown', (e) => {
     if (leaving || arriving || diving) return; setRay(e); canvas.setPointerCapture(e.pointerId);
+    if (sunSpr.visible && ray.intersectObject(sunPick, false).length) { drag = { sun: true, x: e.clientX, y: e.clientY, moved: false }; sunDragged = true; touched = true; canvas.style.cursor = 'grabbing'; return; }          // 拖铜版上的太阳
     const pin = earth.hitPin(ray), onEarth = earth.hitGlobe(ray), bo = !pin && !onEarth ? hitBook() : null;
     drag = { x: e.clientX, y: e.clientY, moved: false, pin, bo, earth: !!(pin || onEarth), q0: earth.spin.quaternion.clone(), r0: ringTo };
     if (drag.earth) earth.target = null;
@@ -481,6 +499,12 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   }, on);
   canvas.addEventListener('pointermove', (e) => {
     setRay(e);
+    if (drag?.sun) {          // 太阳拖到铜版上的哪一点：离圆心多远 → 直射点纬度（季节），方位 → 直射点经度（时刻）
+      const pt = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.09), new THREE.Vector3()); if (!pt) return;
+      const spinA = 2 * Math.atan2(earth.spin.quaternion.y, earth.spin.quaternion.w), lat = 90 - (Math.hypot(pt.x, pt.z) / RING.r) * 90, lon = -(Math.atan2(pt.z, pt.x) + spinA) * 180 / Math.PI;
+      time.setFromSun(lat, ((lon + 540) % 360) - 180);
+      return;
+    }
     if (drag) {
       const dx = e.clientX - drag.x; if (Math.abs(dx) + Math.abs(e.clientY - drag.y) > 4) drag.moved = true;
       if (drag.earth) earth.spin.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dx * 0.006).multiply(drag.q0));
@@ -492,10 +516,13 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (pin && (hovered?.it !== pin.it || hovered?.pn !== pin.pn)) hover(pin);
     else if (!pin && hovered?.pn) hover(null);
     const bo = pin ? null : hitBook(); bookHot = bo;
-    canvas.style.cursor = pin || bo ? 'pointer' : earth.hitGlobe(ray) ? 'grab' : '';
+    const onSun = !pin && sunSpr.visible && ray.intersectObject(sunPick, false).length > 0;
+    sunSpr.scale.setScalar(onSun ? 0.52 : 0.42);
+    canvas.style.cursor = onSun ? 'grab' : pin || bo ? 'pointer' : earth.hitGlobe(ray) ? 'grab' : '';
   }, on);
   const up = () => {
     const d = drag; drag = null; if (!d) return;
+    if (d.sun) { canvas.style.cursor = ''; return; }
     if (!d.moved && d.pin) go(d.pin.it, d.pin.pn);
     else if (!d.moved && d.bo) openBook(d.bo);
   };
@@ -555,7 +582,20 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       homeTag.at(home.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3().setFromMatrixColumn(stage.camera.matrixWorld, 0).multiplyScalar(0.02))).show(k > 0.5 && !leaving && !arriving);
     }
     stars.rotation.y += dt * 0.002;
-    map.material.uniforms.spin.value = 2 * Math.atan2(earth.spin.quaternion.y, earth.spin.quaternion.w);          // 台面上的投影图跟着地球转
+    const spinA = 2 * Math.atan2(earth.spin.quaternion.y, earth.spin.quaternion.w);
+    map.material.uniforms.spin.value = spinA;          // 台面上的投影图跟着地球转
+    map.material.uniforms.sunL.value.copy(earth.sunLocal);
+    if (earth.sub) {          // 铜版上的太阳、刻度环、地球上的直射点
+      const ph = plateAz(earth.sub.lon, spinA), rs = ((90 - earth.sub.lat) / 90) * RING.r;
+      sunSpr.position.set(Math.cos(ph) * rs, 0.09, Math.sin(ph) * rs); sunCore.position.copy(sunSpr.position); sunPick.position.copy(sunSpr.position);
+      hours.rotation.y = -ph;
+      sunOnGlobe.position.copy(earth.sunLocal).multiplyScalar(1.01);
+      const vis = worldFade < 0.5 && !leaving && !diving;
+      sunSpr.visible = sunCore.visible = vis; hours.visible = worldFade < 0.99;
+      sunTag.at(sunSpr.position.clone().add(new THREE.Vector3(0, 0.18, 0))).show(vis && !sunDragged && !hovered);
+      const camAz = Math.atan2(stage.camera.position.z, stage.camera.position.x) - 0.62;          // 刻线的名字写在前方偏右，不压住正前方那本书
+      for (const c of circleTags) { const rr = (c.colat / 90) * RING.r; c.t.at(new THREE.Vector3(Math.cos(camAz) * rr, 0.02, Math.sin(camAz) * rr)).show(vis); }
+    }
     // 明信片跟着旗
     if (cardFor?.pn) { const cam = stage.camera, right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), w = earth.pinWorld(cardFor.pn), toRight = (cardFor.pn.side ?? 1) < 0, edge = earth.root.position.clone().addScaledVector(right, EARTH.r * (toRight ? 1 : -1)); const sx = (edge.clone().project(cam).x + 1) / 2 * innerWidth + (toRight ? 1 : -1) * ((card.el.offsetWidth || 214) / 2 + 22), sy = ((1 - w.clone().project(cam).y) / 2) * innerHeight; card.at(new THREE.Vector3((sx / innerWidth) * 2 - 1, 1 - (sy / innerHeight) * 2, 0.5).unproject(cam)); }
     const left = new THREE.Vector3().setFromMatrixColumn(stage.camera.matrixWorld, 0).multiplyScalar(-EARTH.r * 1.32), E0 = new THREE.Vector3(0, EARTH.y, 0);          // 按钮钉在地球不浮动时的位置上（地球轻轻浮着，按钮不跟着晃）
@@ -619,14 +659,15 @@ let _dot; function starDot() { return (_dot ||= radial('rgba(255,255,255,1)', 'r
  *  像一块刻出来的铜版：海是深蓝，陆地是暗暗的铜色，海岸线描金；每 30° 一圈纬线、一条经线。spin 是地球绕地轴转了多少，图跟着转 */
 function polarMap(tex, ringR) {
   const m = new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, uniforms: { tex: { value: tex }, spin: { value: 0 }, R: { value: ringR }, fade: { value: 1 } },
+    transparent: true, depthWrite: false, uniforms: { tex: { value: tex }, lights: { value: null }, spin: { value: 0 }, R: { value: ringR }, fade: { value: 1 }, sunL: { value: new THREE.Vector3(1, 0, 0) } },
     vertexShader: 'varying vec2 vXZ; void main(){ vXZ = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `uniform sampler2D tex; uniform float spin; uniform float R; uniform float fade; varying vec2 vXZ;
+    fragmentShader: `uniform sampler2D tex; uniform sampler2D lights; uniform float spin; uniform float R; uniform float fade; uniform vec3 sunL; varying vec2 vXZ;
       float seaAt(vec2 uv){ vec3 c = texture2D(tex, uv).rgb; return step(c.r * 1.25, c.b) * step(c.g * 1.02, c.b); }
+      float ring(float colat, float at, float w){ return 1.0 - smoothstep(0.0, w, abs(colat - at) / fwidth(colat)); }
       void main(){
         vec2 w = vec2(vXZ.x, -vXZ.y);
         float r = length(w), colat = 90.0 * r / R;
-        if (colat > 104.0) discard;
+        if (colat > 122.0) discard;
         float az = atan(w.y, w.x) + spin, la = radians(90.0 - colat);
         vec3 d = vec3(cos(la) * cos(az), sin(la), cos(la) * sin(az));
         float lon = atan(-d.z, d.x), lat = asin(d.y);
@@ -635,18 +676,48 @@ function polarMap(tex, ringR) {
         float sea = seaAt(uv), e = 1.6 / 2048.0;
         float coast = abs(seaAt(uv + vec2(e, 0.0)) - sea) + abs(seaAt(uv - vec2(e, 0.0)) - sea) + abs(seaAt(uv + vec2(0.0, e * 2.0)) - sea) + abs(seaAt(uv - vec2(0.0, e * 2.0)) - sea);
         float lum = dot(c, vec3(0.3, 0.55, 0.15));
-        vec3 col = mix(mix(vec3(0.20, 0.17, 0.12), vec3(0.42, 0.34, 0.22), lum), vec3(0.05, 0.08, 0.16), sea);
+        vec3 col = mix(mix(vec3(0.24, 0.20, 0.14), vec3(0.50, 0.40, 0.26), lum), vec3(0.06, 0.10, 0.20), sea);
         col += vec3(0.95, 0.76, 0.45) * min(1.0, coast) * 0.55;
-        float gl = 1.0 - smoothstep(0.0, 0.7, abs(mod(colat + 15.0, 30.0) - 15.0) / fwidth(colat));
+        // 昼夜：和地球同一个太阳。夜里那一半暗下去，晨昏线上一道暖光（就是课本里从北极上方往下看的昼夜图）
+        float s = dot(d, normalize(sunL)), night = smoothstep(0.035, -0.035, s);
+        col = mix(col * vec3(1.45, 1.32, 1.12) + vec3(0.05, 0.04, 0.02), col * vec3(0.22, 0.26, 0.38), night);          // 昼半球亮成被太阳照着的铜，夜半球沉成深蓝
+        col += texture2D(lights, uv).rgb * vec3(1.0, 0.78, 0.45) * 0.9 * night;          // 夜里那一半亮着城市灯光（和地球上同一张）
+        col += vec3(1.0, 0.7, 0.36) * exp(-pow(s / 0.035, 2.0)) * 0.35;          // 晨昏线
+        // 刻线：北极圈、北回归线、赤道、南回归线；淡淡的经线每 30°
         float lonDeg = degrees(lon) + 180.0, gm = 1.0 - smoothstep(0.0, 0.7, abs(mod(lonDeg + 15.0, 30.0) - 15.0) / fwidth(lonDeg));
-        float eq = 1.0 - smoothstep(0.0, 1.4, abs(colat - 90.0) / fwidth(colat));
-        col += vec3(0.85, 0.68, 0.40) * (max(gl, gm * step(8.0, colat)) * 0.16 + eq * 0.7);
-        float a = (1.0 - smoothstep(92.0, 104.0, colat)) * 0.78 + eq * 0.2;
+        float named = max(max(ring(colat, 23.44, 0.9), ring(colat, 66.56, 0.9)), ring(colat, 113.44, 0.9)), eq = ring(colat, 90.0, 1.4);
+        col += vec3(0.88, 0.70, 0.42) * (gm * step(8.0, colat) * 0.12 + named * 0.5 + eq * 0.7);
+        float a = (1.0 - smoothstep(114.0, 122.0, colat)) * 0.8 + max(named, eq) * 0.2;
         gl_FragColor = vec4(col, a * fade);
       }`,
   });
-  const mesh = new THREE.Mesh(new THREE.CircleGeometry(ringR * 104 / 90, 160), m); mesh.rotation.x = -Math.PI / 2; mesh.raycast = () => {};
+  const mesh = new THREE.Mesh(new THREE.CircleGeometry(ringR * 122 / 90, 180), m); mesh.rotation.x = -Math.PI / 2; mesh.raycast = () => {};
   return mesh;
+}
+/** 24 小时的刻度环（铜版上，书圈里面一圈）：12 对着太阳直射的那条经线（正午）、0 在背面（子夜）——每条经线现在是几点（地方时），一眼读出来 */
+function hourRing(r0, r1) {
+  const N = 2048, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), C = N / 2, k = C / r1, ri = r0 * k, ro = r1 * k;
+  g.translate(C, C);
+  g.strokeStyle = 'rgba(224,186,118,0.55)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, ri + 2, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.arc(0, 0, ro - 3, 0, Math.PI * 2); g.stroke();
+  for (let m = 0; m < 96; m++) {          // 一刻钟一道
+    const a = -(m / 96) * Math.PI * 2, big = m % 4 === 0, len = big ? (ro - ri) * 0.42 : (ro - ri) * 0.18;
+    g.strokeStyle = big ? 'rgba(241,215,159,0.9)' : 'rgba(224,186,118,0.45)'; g.lineWidth = big ? 3 : 1.6;
+    g.beginPath(); g.moveTo(Math.cos(a) * (ro - 4), Math.sin(a) * (ro - 4)); g.lineTo(Math.cos(a) * (ro - 4 - len), Math.sin(a) * (ro - 4 - len)); g.stroke();
+  }
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let hh = 0; hh < 24; hh++) {          // 往东一小时（逆着从北极上方看的顺时针）晚一小时：hh 点在太阳方向往东 (hh−12)×15°
+    const a = -((hh - 12) / 24) * Math.PI * 2, rr = (ri + ro) / 2 - (ro - ri) * 0.12;
+    g.save(); g.rotate(a); g.translate(rr, 0); g.rotate(Math.PI / 2);
+    const key = hh % 6 === 0;
+    g.fillStyle = key ? 'rgba(255,230,178,1)' : 'rgba(232,198,136,0.92)'; g.font = `${key ? 700 : 500} ${key ? 48 : 36}px "Songti SC", serif`;
+    g.fillText(String(hh), 0, 0);
+    if (hh === 12 || hh === 0) { g.font = '600 30px "Songti SC", serif'; g.fillStyle = 'rgba(255,230,178,0.95)'; g.fillText(hh === 12 ? '正午' : '子夜', 0, 44); }
+    g.restore();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const mesh = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 192, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, fog: false }));
+  mesh.rotation.x = -Math.PI / 2; mesh.raycast = () => {};
+  const g2 = new THREE.Group(); g2.add(mesh); return g2;
 }
 /** 书背面：书的颜色，竖写书名（从后面看过去也认得出是哪一本） */
 function backTex(b, color) {
