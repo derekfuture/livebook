@@ -3,12 +3,14 @@
 // 点下去：书圈转过来，那本书转到正前方，飞到面前，翻开到那一页（换到书里，活页从旗上长出来）。
 // 也可以直接点一本书进去，或者在侧栏按书、按章找。地球旁的“看法”（昼夜、板块、气压带）点了一直开着。
 import * as THREE from 'three';
-import { WorldEarth, subsolar } from '../live/WorldEarth.js';
+import { WorldEarth } from '../live/WorldEarth.js';
+import { ll2v } from '../lessons/kit/plates.js';
 import { ANCHORS } from '../lessons/kit/atlas.js';
 import { bookList, getBook, getManifest, fileUrl } from '../content/index.js';
 import { tag, updateTags } from '../ui/tags.js';
 import { Panel, h, stamps } from '../ui/Panel.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { timeCard } from './timeCard.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 
@@ -55,13 +57,25 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const key = new THREE.PointLight(0xffd9a8, 4, 8, 1.6); key.position.set(0, 1.6, 3.6); root.add(key);          // 一盏暖光照着书圈前面的书
 
   // ---- 地球 ----
-  const earth = new WorldEarth(stage, { night: true });
+  const earth = new WorldEarth(stage, { night: true, now: true });          // 现在这一刻的地球：太阳照在真实的位置，夜里亮着城市灯光
+  const time = timeCard({ earth });
+  const layerOf = (it) => (it?.anchor.layer === 'sun' ? null : it?.anchor.layer || null);          // 昼夜不用再叠一层：地球本来就是按真实的太阳照的
   earth.root.visible = true; earth.root.position.set(0, EARTH.y, 0); earth.root.scale.setScalar(EARTH.r);
   earth.setPins(items);
   earth.shadow.visible = false;
   const first = items.find((x) => x.anchor.kind === 'place' && x.book.id === focus) || items.find((x) => x.anchor.kind === 'place');
   earth.spin.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-90 - (first ? first.anchor.pins[0].lon : 105)) * Math.PI / 180);          // 镜头在正前方（+z，地球不转时是西经 90° 那一面）：把这本书的第一面旗转过来
   const map = polarMap(earth.mat.map, RING.r); map.position.y = 0.006; root.add(map);
+  // 你在这里：地球上一个白色的小圈（和活页的彩色小旗不一样），旁边写城市名
+  const homeM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  const home = new THREE.Group(), homeRing = new THREE.Mesh(new THREE.RingGeometry(0.02, 0.027, 40), homeM), homeDot = new THREE.Mesh(new THREE.CircleGeometry(0.008, 20), homeM);
+  homeRing.raycast = homeDot.raycast = () => {}; home.add(homeRing, homeDot); earth.spin.add(home);
+  const homeTag = tag('', 'w-home');
+  time.onChange(({ city }) => {
+    const n = new THREE.Vector3(...ll2v(city.lat, city.lon));
+    home.position.copy(n).multiplyScalar(1.004); home.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n); home.userData.n = n;
+    homeTag.text(`<b>你在这里</b><small>${city.name}</small>`);
+  });
 
   // ---- 书圈：每本书立着，封面朝外，往后仰一点 ----
   const ring = new THREE.Group(); root.add(ring);
@@ -125,8 +139,9 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   chips.el.addEventListener('click', (e) => {
     const bt = e.target.closest('button'); if (!bt) return; e.stopPropagation();
     const it = themes.find((x) => x.id === bt.dataset.id); layerOn = layerOn === it ? null : it;
-    earth.setLayer(layerOn?.anchor.layer || null);
-    if (layerOn?.anchor.layer === 'sun') { const s = subsolar(); earth.turnTo(0, s.lon + 90, stage.camera); }
+    earth.setLayer(layerOf(layerOn));
+    const sunOn = layerOn?.anchor.layer === 'sun'; time.focus(sunOn);          // 昼夜：右下角的时刻卡亮起来，地球转到你在的地方
+    if (sunOn) earth.turnTo(time.city.lat, time.city.lon, stage.camera);
     for (const x of chips.el.children) x.classList.toggle('on', layerOn?.id === x.dataset.id);
     enterBtn.text(layerOn ? `<span>进到“${layerOn.title}”</span>` : ''); enterBtn.show(!!layerOn);
   });
@@ -141,7 +156,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     hovered = x; earth.setHot(x);
     for (const [id, r] of rows) r.classList.toggle('on', !!x && id === x.it.id);
     if (fromPanel && x?.it.anchor.kind === 'place') { const p = x.it.anchor.pins[0]; earth.turnTo(p.lat, p.lon, stage.camera); }
-    earth.setLayer(x?.it.anchor.kind === 'globe' ? x.it.anchor.layer : layerOn?.anchor.layer || null);
+    earth.setLayer(x?.it.anchor.kind === 'globe' ? layerOf(x.it) : layerOf(layerOn));
     if (!x?.pn) { card.show(false); cardFor = null; return; }
     if (cardFor !== x) {
       cardFor = x; const it = x.it, [x0, y0, x1, y1] = it.spot.bbox, man = manifests[it.book.id], PW = man.pageSize[0], PH = man.pageSize[1];
@@ -211,7 +226,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     hemi.color.lerpColors(n.hc, DAY.hemi[0], f); hemi.groundColor.lerpColors(n.hg, DAY.hemi[1], f); hemi.intensity = n.hi + (DAY.hemi[2] - n.hi) * f;
     stage.sun.color.lerpColors(n.sc, DAY.sun[0], f); stage.sun.intensity = n.si + (DAY.sun[1] - n.si) * f; stage.sun.position.lerpVectors(n.sp, DAY.sun[2], f);
     key.intensity = 4 * (1 - f);
-    earth.haloM.uniforms.k.value = 1 - 0.75 * f;
+    earth.haloM.uniforms.k.value = 1 - 0.75 * f; earth.nowK = 1 - f;          // 落到书桌上：地球换回书里那样的灯光（书里角上那颗地球是白天的样子）
     // 地球：有地方的活页缩到右上角（书里那颗地球一进去就在那儿）；别的沉进书里（书里的地球从书里升起来），回来时从书里升回去
     if (L.corner) {
       const E = cornerScr(), A = L.e0;
@@ -353,6 +368,12 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (!leaving?.L && !arriving) earth.root.position.y = EARTH.y + Math.sin(performance.now() / 2400) * 0.012;          // 很轻地浮着
     if (!drag && !hovered && !earth.target && !earth.active && !leaving && !layerOn) earth.spin.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.03));
     earth.update(dt, { camera: stage.camera, bookTop: 0, shadowK: 0 });
+    time.update(dt); time.show(!leaving && !arriving);
+    if (home.userData.n) {
+      const face = earth.facing(home.userData.n, stage.camera), k = Math.max(0, Math.min(1, (face - 0.15) / 0.15)) * (1 - worldFade);
+      homeM.opacity = 0.95 * k; homeRing.scale.setScalar(1 + 0.18 * Math.sin(performance.now() / 420));          // 轻轻一呼一吸，好找
+      homeTag.at(home.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3().setFromMatrixColumn(stage.camera.matrixWorld, 0).multiplyScalar(0.02))).show(k > 0.5 && !leaving && !arriving);
+    }
     stars.rotation.y += dt * 0.002;
     map.material.uniforms.spin.value = 2 * Math.atan2(earth.spin.quaternion.y, earth.spin.quaternion.w);          // 台面上的投影图跟着地球转
     // 明信片跟着旗

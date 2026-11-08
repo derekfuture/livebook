@@ -5,6 +5,7 @@
 // 地球自己的大小是 1（半径），摆在哪、多大由 World 每帧给（root 的位置和缩放）。
 import * as THREE from 'three';
 import reliefUrl from '../lessons/data/earth_relief.jpg';
+import nightUrl from '../lessons/data/earth_night.jpg';
 import { ll2v } from '../lessons/kit/plates.js';
 import { airLabel } from '../lessons/kit/labels.js';
 import { canvasTex } from '../lessons/kit/props.js';
@@ -65,18 +66,24 @@ export function subsolar(date = new Date()) {
 }
 
 /** 夜空里的大气光：贴着地球边缘最亮，往外慢慢散掉（叠加混合，像真的在发光）。R 是光晕球的半径（地球是 1） */
-function glowShell(R) {
+function glowShell(R, nowU) {
   const limb = Math.sqrt(1 - 1 / (R * R));          // 地球边缘那一圈，光晕球面朝镜头的程度
   return new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, side: THREE.BackSide, blending: THREE.AdditiveBlending, uniforms: { k: { value: 1 }, o: { value: 1 } },
+    transparent: true, depthWrite: false, side: THREE.BackSide, blending: THREE.AdditiveBlending, uniforms: { k: { value: 1 }, o: { value: 1 }, ...nowU },
     vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
-    fragmentShader: `uniform float k; uniform float o; varying vec3 vN; varying vec3 vV; void main(){ float d = abs(dot(normalize(vN), normalize(vV))); float a = pow(clamp(d / ${limb.toFixed(4)}, 0.0, 1.0), 2.6); gl_FragColor = vec4(vec3(0.38, 0.62, 1.0) * a * 0.95 * k * o, 1.0); }`,
+    // 真实的太阳（nowK）：受光那一侧的边缘亮，背光那一侧暗；太阳在地球背后时整圈逆光发亮
+    fragmentShader: `uniform float k; uniform float o; uniform vec3 sunView; uniform float nowK; varying vec3 vN; varying vec3 vV; void main(){ float d = abs(dot(normalize(vN), normalize(vV))); float a = pow(clamp(d / ${limb.toFixed(4)}, 0.0, 1.0), 2.6);
+      vec3 lb = vec3(normalize(vN.xy + 1e-5), 0.0); float lit = smoothstep(-0.3, 0.35, dot(lb, sunView)); float back = pow(max(0.0, -sunView.z), 3.0);
+      a *= mix(1.0, 0.1 + 0.9 * max(lit, back), nowK); gl_FragColor = vec4(vec3(0.38, 0.62, 1.0) * a * 0.95 * k * o, 1.0); }`,
   });
 }
 
 export class WorldEarth {
-  constructor(stage, { clouds = true, night = false } = {}) {
+  constructor(stage, { clouds = true, night = false, now = false } = {}) {
     this.night = night;          // 地理世界（夜空里）：大气光更亮一点
+    // now：现在这一刻的地球——太阳照在它此刻真实的位置（或拨到的时刻），夜里那一半亮着城市灯光。nowK 0—1 和平常的灯光之间过渡（落到书桌上时换回平常的）
+    this.sunLocal = new THREE.Vector3(1, 0, 0); this.nowK = now ? 1 : 0;
+    this.nowU = { sunView: { value: new THREE.Vector3(0, 0, 1) }, nowK: { value: this.nowK } };
     this.stage = stage;
     this.root = new THREE.Group();          // 位置和大小（缩放 = 半径）
     this.spin = new THREE.Group();          // 地球自己的朝向
@@ -87,6 +94,23 @@ export class WorldEarth {
     const tex = new THREE.TextureLoader().load(reliefUrl, (t) => this._oceanGloss(t.image));
     tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
     this.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.78, metalness: 0, emissive: 0x0b1220, emissiveIntensity: 0.25, bumpMap: tex, bumpScale: 2.2 });          // 晕渲图本身当起伏：山脉一面受光一面背光，更立体
+    if (now) {
+      const lights = new THREE.TextureLoader().load(nightUrl); lights.colorSpace = THREE.SRGBColorSpace; lights.anisotropy = 8;
+      this.nowU.nightMap = { value: lights };
+      this.mat.onBeforeCompile = (sh) => {          // 白天：太阳方向的漫反射 + 海面上的一点反光；夜里：城市灯光（NASA 2016 年合成）；晨昏线上一道暖色
+        Object.assign(sh.uniforms, this.nowU);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 sunView; uniform sampler2D nightMap; uniform float nowK;').replace('#include <opaque_fragment>', `{
+          vec3 Ls = normalize(sunView); float d = dot(normal, Ls), dayK = smoothstep(-0.08, 0.22, d), lam = max(d, 0.0);
+          vec3 Vv = normalize(vViewPosition), Hh = normalize(Ls + Vv);
+          float sea = 1.0 - smoothstep(0.55, 0.75, roughnessFactor), spec = pow(max(dot(normal, Hh), 0.0), 90.0) * sea * 0.55 * smoothstep(0.0, 0.25, d);
+          vec3 dayC = diffuseColor.rgb * (0.05 + 1.15 * lam) + vec3(1.0, 0.92, 0.8) * spec;
+          vec3 nightC = diffuseColor.rgb * vec3(0.03, 0.04, 0.07) + texture2D(nightMap, vMapUv).rgb * vec3(1.0, 0.78, 0.48) * 1.6;
+          vec3 nowC = mix(nightC, dayC, dayK) + diffuseColor.rgb * vec3(0.9, 0.38, 0.15) * 0.18 * exp(-pow(d / 0.09, 2.0));
+          outgoingLight = mix(outgoingLight, nowC, nowK);
+        }
+        #include <opaque_fragment>`);
+      };
+    }
     this.globe = new THREE.Mesh(new THREE.SphereGeometry(1, 160, 112), this.mat);
     this.globe.castShadow = false;
     this.spin.add(this.globe);
@@ -99,7 +123,7 @@ export class WorldEarth {
       vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
       fragmentShader: `uniform float k; uniform float o; varying vec3 vN; varying vec3 vV; void main(){ float r = 1.0 - abs(dot(normalize(vN), normalize(vV))); gl_FragColor = vec4(${col}, pow(r, ${pw.toFixed(1)}) * k * o); }`,
     });
-    this.haloM = night ? glowShell(1.1) : rim(THREE.BackSide, 0.38, 3.0, 'vec3(0.36, 0.58, 0.95)');
+    this.haloM = night ? glowShell(1.1, this.nowU) : rim(THREE.BackSide, 0.38, 3.0, 'vec3(0.36, 0.58, 0.95)');
     this.hazeM = rim(THREE.FrontSide, 0.5, 2.6, 'vec3(0.62, 0.80, 1.0)');
     const halo = new THREE.Mesh(new THREE.SphereGeometry(night ? 1.1 : 1.028, 96, 64), this.haloM), haze = new THREE.Mesh(new THREE.SphereGeometry(1.003, 96, 64), this.hazeM);
     halo.raycast = haze.raycast = () => {};
@@ -108,6 +132,15 @@ export class WorldEarth {
     this.cloudK = clouds ? 1 : 0; this.cloudWant = this.cloudK;
     if (clouds) {
       this.cloudM = new THREE.MeshStandardMaterial({ color: 0xffffff, alphaMap: bakeClouds(stage.renderer), transparent: true, depthWrite: false, roughness: 1, opacity: 0.55 });
+      if (now) this.cloudM.onBeforeCompile = (sh) => {          // 云也按真实的太阳受光：夜里的云淡下去，不挡住城市灯光
+        Object.assign(sh.uniforms, this.nowU);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 sunView; uniform float nowK;').replace('#include <opaque_fragment>', `{
+          float d = dot(normal, normalize(sunView)), lit = smoothstep(-0.12, 0.3, d);
+          vec3 nowC = diffuseColor.rgb * (0.03 + 0.9 * max(d, 0.0) + 0.1 * lit) + vec3(1.0, 0.5, 0.25) * 0.22 * exp(-pow(d / 0.1, 2.0));
+          outgoingLight = mix(outgoingLight, nowC, nowK); diffuseColor.a *= mix(1.0, mix(0.3, 1.0, lit), nowK);
+        }
+        #include <opaque_fragment>`);
+      };
       this.cloud = new THREE.Mesh(new THREE.SphereGeometry(1.012, 128, 96), this.cloudM); this.cloud.raycast = () => {}; this.spin.add(this.cloud);
     }
 
@@ -119,6 +152,7 @@ export class WorldEarth {
 
     this.pins = []; this.layer = null; this.layerK = { sun: 0, plates: 0, belts: 0 }; this.hot = null; this.active = null; this.target = null; this.fade = 1;
     this._layers();
+    this.setTime();
   }
 
   /** 海面比陆地光滑：按贴图的颜色（蓝的是海）做一张粗糙度图，太阳在海面上有一点反光 */
@@ -185,6 +219,9 @@ export class WorldEarth {
     }
   }
 
+  /** 太阳照在哪个时刻：现在（不给）或拨到的那一刻。直射点按天文年历的简化公式算（误差 1° 以内） */
+  setTime(date = new Date()) { const s = subsolar(date); this.sub = s; this.sunLocal.copy(V(s.lat, s.lon)); this.sunM.uniforms.s.value.copy(this.sunLocal); return s; }
+
   /** 指着的（hot）、正在看的（active）：都是 { it, pn } 或只有 it */
   setHot(x) { this.hot = x; }
   setActive(x) { this.active = x; }
@@ -223,6 +260,8 @@ export class WorldEarth {
   setPlain(k, color = this.plainColor ?? 0x86b4d4) { this.plainK = k; this.plainColor = color; }
 
   update(dt, { camera, bookTop = 0, shadowK = 1 }) {
+    camera.updateMatrixWorld();
+    this.nowU.sunView.value.copy(this.sunLocal).applyQuaternion(this.spin.getWorldQuaternion(new THREE.Quaternion())).transformDirection(camera.matrixWorldInverse); this.nowU.nowK.value = this.nowK;          // 太阳方向换到镜头的坐标里（着色器里的法线是镜头坐标）
     if (this.cloud) { this.cloud.rotation.y += dt * 0.006; this.cloudK += ((this.layer ? 0.15 : this.cloudWant) - this.cloudK) * Math.min(1, dt * 3); this.cloudM.opacity = 0.55 * this.cloudK * this.fade; this.cloud.visible = this.cloudM.opacity > 0.01; }
     const k = Math.min(1, dt * 5);
     this.fade += ((this.fadeTo ?? 1) - this.fade) * Math.min(1, dt * 3.5);
