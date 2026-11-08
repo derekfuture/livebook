@@ -2242,6 +2242,39 @@
    }
   ]
  },
+ "dili-8s": {
+  "id": "dili-8s",
+  "title": "地理 八年级上册",
+  "base": "/books/dili-8s/",
+  "lessons": {
+   "shushui": {
+    "title": "探究“束水攻沙”原理",
+    "fig": "图1",
+    "sec": "跨学科主题学习 探究“束水攻沙”原理",
+    "cap": "河流过水横截面示意"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "shushui",
+    "page": 57,
+    "bbox": [
+     68,
+     474,
+     462,
+     586
+    ],
+    "label": "图1 · 翻开活页"
+   }
+  ]
+ },
+ "dili-8x": {
+  "id": "dili-8x",
+  "title": "地理 八年级下册",
+  "base": "/books/dili-8x/",
+  "lessons": {},
+  "spots": []
+ },
  "dili-xb1": {
   "id": "dili-xb1",
   "title": "地理 选择性必修1",

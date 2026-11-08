@@ -20,7 +20,7 @@ const $ = (s) => document.querySelector(s);
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const EARTH = { y: 2.02, r: 1.12 };          // 地球：球心多高、多大（主角：比书圈大得多）
 const RING = { r: 2.05, h: 0.78, tilt: 0.24 };          // 书圈：半径、书多高、往后仰多少（衬在地球下面，不和它抢）
-const BOOK_COLORS = { 'dili-7s': '#4f9d4a', 'dili-bx1': '#3d6fb4', 'dili-bx2': '#c27a2c', 'dili-xb1': '#8a5aa0', 'dili-xb2': '#c0453a' };          // 一本书一个颜色：旗、书脊下的光、侧栏一致
+const BOOK_COLORS = { 'dili-7s': '#4f9d4a', 'dili-8s': '#2b8f86', 'dili-8x': '#8c7a3a', 'dili-bx1': '#3d6fb4', 'dili-bx2': '#c27a2c', 'dili-xb1': '#8a5aa0', 'dili-xb2': '#c0453a' };          // 一本书一个颜色：旗、书脊下的光、侧栏一致
 const SHORT = (full) => full.replace(/^人教版\s*/, '').replace(/^地理\s*/, '').replace('选择性必修', '选必');
 
 const WORLD_FOV = 21, BOOK_FOV = 30;          // 地理世界用长一点的镜头（视角窄）：地球显得大、前排的书不抢；书里是 30°（Stage.js），进书、回来时慢慢换过去
