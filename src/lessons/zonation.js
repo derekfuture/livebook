@@ -8,6 +8,7 @@
 //   3. 把山削低：山越低，带越少；换到长白山（纬度高、山又低）：只有 4 个带，山麓是针阔叶混交林。
 // 数据：kit/zonation.js（tools/geo/zonation_check.mjs 核对课本图 5.12）。教学示意：竖直方向夸大了，两座山的竖直比例不同；植被画成符号。
 import * as THREE from 'three';
+import { rockMat, worldUV } from './kit/strata.js';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
@@ -58,27 +59,22 @@ export default {
     const tCol = new Float32Array(topGeo.attributes.position.count * 3); topGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3));
     const topMesh = new THREE.Mesh(topGeo, new THREE.MeshLambertMaterial({ vertexColors: true, map: grain })); block.add(topMesh);
     // ---- 前面的剖面（像课本那张图）、后面和两头 ----
-    const rockTex = canvasTex(512, 256, (g, w, hh) => {
-      const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, '#cdb999'); gr.addColorStop(1, '#ab9a84'); g.fillStyle = gr; g.fillRect(0, 0, w, hh);
-      for (let k = 0; k < 14; k++) { g.strokeStyle = `rgba(70,55,40,${0.08 + Math.random() * 0.1})`; g.lineWidth = 1 + Math.random() * 3; g.beginPath(); const y0 = (k / 14) * hh; for (let x = 0; x <= w; x += 16) g.lineTo(x, y0 + Math.sin(x / 60 + k) * 4); g.stroke(); }
-      for (let i = 0; i < 1600; i++) { g.fillStyle = `rgba(60,45,30,${Math.random() * 0.18})`; g.fillRect(Math.random() * w, Math.random() * hh, 2, 2); }
-    });
-    const faceMat = new THREE.MeshLambertMaterial({ map: rockTex, side: THREE.DoubleSide });
+    const faceMat = rockMat('gneiss', { side: THREE.DoubleSide });
     const front = new THREE.Mesh(new THREE.BufferGeometry(), faceMat), back = new THREE.Mesh(new THREE.BufferGeometry(), faceMat), ends = new THREE.Mesh(new THREE.BufferGeometry(), faceMat); block.add(front, back, ends);
-    const soilM = new THREE.MeshLambertMaterial({ color: 0x6f5238, side: THREE.DoubleSide }), soil = new THREE.Mesh(new THREE.BufferGeometry(), soilM); block.add(soil);          // 剖面顶上一道深色的土层
+    const soilM = rockMat('soil', { side: THREE.DoubleSide }), soil = new THREE.Mesh(new THREE.BufferGeometry(), soilM); block.add(soil);          // 剖面顶上一道深色的土层
     const lakeM = new THREE.MeshLambertMaterial({ color: 0x3f7fb8, transparent: true, opacity: 0.9 }), lake = new THREE.Mesh(new THREE.BufferGeometry(), lakeM), lakeFace = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshLambertMaterial({ color: 0x4d8cc4, side: THREE.DoubleSide })); block.add(lake, lakeFace);          // 长白山：天池
     const faceStrip = (zf, flip) => {
       const P = [], U = [], I = [], Y = (x) => heightM(x, zf) * K();
       for (let i = 0; i <= NX; i++) { const x = XL + ((XR - XL) * i) / NX, y = Y(x); P.push(x, y, zf, x, 0, zf); U.push(i / NX, y / 0.16, i / NX, 0); if (i) { const a = 2 * i - 2; flip ? I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }
-      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals(); return g;
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals(); return worldUV(g, 0.035);
     };
     const buildFaces = () => {
       front.geometry.dispose(); front.geometry = faceStrip(ZD, false); back.geometry.dispose(); back.geometry = faceStrip(-ZD, true);
       const P = [], Y = (x, z) => heightM(x, z) * K();
       for (const x of [XL, XR]) for (let k = 0; k < NZ; k++) { const z0 = -ZD + (2 * ZD * k) / NZ, z1 = z0 + (2 * ZD) / NZ; P.push(x, 0, z0, x, Y(x, z0), z0, x, Y(x, z1), z1, x, 0, z0, x, Y(x, z1), z1, x, 0, z1); }
-      ends.geometry.dispose(); ends.geometry = new THREE.BufferGeometry(); ends.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); ends.geometry.computeVertexNormals();
+      ends.geometry.dispose(); ends.geometry = new THREE.BufferGeometry(); ends.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); ends.geometry.computeVertexNormals(); worldUV(ends.geometry, 0.035);
       const SP = []; for (let i = 0; i < NX; i++) { const x0 = XL + ((XR - XL) * i) / NX, x1 = XL + ((XR - XL) * (i + 1)) / NX, a = Y(x0, ZD), b = Y(x1, ZD), d = 0.0028, zf = ZD + 0.0002; SP.push(x0, a, zf, x0, a - d, zf, x1, b, zf, x0, a - d, zf, x1, b - d, zf, x1, b, zf); }
-      soil.geometry.dispose(); soil.geometry = new THREE.BufferGeometry(); soil.geometry.setAttribute('position', new THREE.Float32BufferAttribute(SP, 3));
+      soil.geometry.dispose(); soil.geometry = new THREE.BufferGeometry(); soil.geometry.setAttribute('position', new THREE.Float32BufferAttribute(SP, 3)); soil.geometry.computeVertexNormals(); worldUV(soil.geometry, 0.035);
       lake.visible = lakeFace.visible = S.m === 'cb';
       if (S.m === 'cb') {
         const C = MOUNTAINS.cb, ly = C.lake * K(), rx = LAKE_RADIUS * (XR - XL) / 2, LP = [], FP = [];          // 天池：切开一半的湖，水面和剖面上的一块蓝

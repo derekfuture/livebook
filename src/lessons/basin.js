@@ -10,6 +10,7 @@
 //   4. 入海口：入海流路几次改道；主流河口在调水调沙期间仍在淤长，2016 年水沙极枯时又冲蚀后退；失去主流水沙补给的老河口，海岸后退。
 // 数据：kit/basin.js（课本图 4.7 的实测输沙量、核对过的年份；高度、三角洲伸缩只是示意）。tools/geo/basin_check.mjs 核对。
 import * as THREE from 'three';
+import { rockMat, worldUV } from './kit/strata.js';
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
@@ -90,15 +91,29 @@ export default {
       p.needsUpdate = true; topGeo.attributes.color.needsUpdate = true; topGeo.computeVertexNormals(); topGeo.computeBoundingSphere();
     };
     // ---- 前面的切面（图 4.5）、后面、两头 ----
-    const soilTex = canvasTex(512, 128, (g, w, hh) => { const gr = g.createLinearGradient(0, 0, 0, hh); gr.addColorStop(0, '#c9a46a'); gr.addColorStop(1, '#9b7a52'); g.fillStyle = gr; g.fillRect(0, 0, w, hh); for (let k = 0; k < 12; k++) { g.strokeStyle = `rgba(80,55,30,${0.06 + Math.random() * 0.08})`; g.lineWidth = 1 + Math.random() * 2; g.beginPath(); const y0 = (k / 12) * hh; for (let x = 0; x <= w; x += 16) g.lineTo(x, y0 + Math.sin(x / 50 + k) * 2); g.stroke(); } });
-    const faceMat = new THREE.MeshLambertMaterial({ map: soilTex, side: THREE.DoubleSide });
+    const faceMat = [rockMat('loess', { side: THREE.DoubleSide }), rockMat('sandstone', { side: THREE.DoubleSide }), rockMat('mudstone', { side: THREE.DoubleSide, color: new THREE.Color(1.3, 1.35, 1.4) })];
     const front = new THREE.Mesh(new THREE.BufferGeometry(), faceMat), back = new THREE.Mesh(new THREE.BufferGeometry(), faceMat), ends = new THREE.Mesh(new THREE.BufferGeometry(), faceMat); block.add(front, back, ends);
-    const strip = (zf, flip) => { const P = [], U = [], I = []; for (let i = 0; i <= NX; i++) { const x = XL + ((XR - XL) * i) / NX, y = height(x, zf); P.push(x, y, zf, x, 0, zf); U.push(i / NX, y / 0.06, i / NX, 0); if (i) { const a = 2 * i - 2; flip ? I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals(); return g; };
+    const section = (paths) => {
+      const chunks = [[], [], []], g = new THREE.BufferGeometry();
+      for (const pts of paths) for (let i = 1; i < pts.length; i++) {
+        const [x0, z0] = pts[i - 1], [x1, z1] = pts[i], a = height(x0, z0), b = height(x1, z1);
+        const loess = platMask((x0 + x1) / 2, (z0 + z1) / 2) > 0.5;
+        // 黄土的竖直节理贯通切面；平原用浅色砂、泥冲积层，堤和河床仍按原高度截顶。
+        const levels = loess ? [0, Math.max(a, b)] : [0, 0.003, 0.0065, PLAIN, 0.015, 0.021, 0.028, Math.max(0.028, a, b)];
+        for (let k = 1; k < levels.length; k++) {
+          const al = Math.min(a, levels[k - 1]), ah = Math.min(a, levels[k]), bl = Math.min(b, levels[k - 1]), bh = Math.min(b, levels[k]);
+          if (ah <= al && bh <= bl) continue;
+          chunks[loess ? 0 : 1 + (k % 2)].push(x0, al, z0, x1, bh, z1, x0, ah, z0, x0, al, z0, x1, bl, z1, x1, bh, z1);
+        }
+      }
+      const P = []; chunks.forEach((chunk, i) => { g.addGroup(P.length / 3, chunk.length / 3, i); P.push(...chunk); });
+      g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.computeVertexNormals(); return worldUV(g, 0.045);
+    };
+    const strip = (zf, flip) => { const pts = Array.from({ length: NX + 1 }, (_, i) => [XL + (XR - XL) * i / NX, zf]); return section([flip ? pts.reverse() : pts]); };
     const waterFace = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0xb08a4a, side: THREE.DoubleSide })); block.add(waterFace);          // 切面上河里的水
     const buildFaces = () => {
       front.geometry.dispose(); front.geometry = strip(ZD, false); back.geometry.dispose(); back.geometry = strip(-ZD, true);
-      const P = []; for (const x of [XL, XR]) for (let k = 0; k < NZ; k++) { const z0 = -ZD + (2 * ZD * k) / NZ, z1 = z0 + (2 * ZD) / NZ; P.push(x, 0, z0, x, height(x, z0), z0, x, height(x, z1), z1, x, 0, z0, x, height(x, z1), z1, x, 0, z1); }
-      ends.geometry.dispose(); ends.geometry = new THREE.BufferGeometry(); ends.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); ends.geometry.computeVertexNormals();
+      ends.geometry.dispose(); ends.geometry = section([XL, XR].map((x) => Array.from({ length: NZ + 1 }, (_, k) => [x, -ZD + 2 * ZD * k / NZ])));
       const wl = waterAt(1), x0 = FRONT_X - 0.0065, x1 = FRONT_X + 0.0065, zf = ZD + 0.0004;
       waterFace.geometry.dispose(); waterFace.geometry = new THREE.BufferGeometry(); waterFace.geometry.setAttribute('position', new THREE.Float32BufferAttribute([x0, bedY(), zf, x1, bedY(), zf, x1, wl, zf, x0, bedY(), zf, x1, wl, zf, x0, wl, zf], 3));
     };

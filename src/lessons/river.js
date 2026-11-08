@@ -9,6 +9,7 @@
 //      接着拖时间：凸岸的渡口离江越来越远，脚下淤成了陆地；凹岸的渡口脚下的岸被冲塌。
 // 教学示意：竖直方向夸大了；时间大大加快（实际要经过漫长的地质年代）。
 import * as THREE from 'three';
+import { rockMat, worldUV } from './kit/strata.js';
 import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
@@ -105,13 +106,27 @@ export default {
     };
 
     // ---- 侧面：一层层的岩层（切面就是横剖面） ----
-    const strata = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL || '/'}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace; strata.wrapS = strata.wrapT = THREE.RepeatWrapping;          // 手绘的岩层（生成的贴图，可左右平铺）
-    const sides = [0.8, 0.86, 0.74, 0.97].map((c) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: strata, color: new THREE.Color(c, c, c), side: THREE.DoubleSide })); block.add(m); return m; });          // 四个侧面明暗不同；切面最亮
+    const strata = ['conglomerate', 'sandstone', 'shale', 'sandstone', 'soil'].map((kind) => rockMat(kind, { side: THREE.DoubleSide }));
+    const sides = Array.from({ length: 4 }, () => { const m = new THREE.Mesh(new THREE.BufferGeometry(), strata); block.add(m); return m; });
     const outline = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); outline.raycast = () => {}; block.add(outline);
-    const side = (m, pts) => {          // pts：沿着边的顶面点 [x, y, z]；从顶面一直到底（y = 0）
-      const P = [], U = [], I = [];
-      pts.forEach(([x, y, z], k) => { P.push(x, y, z, x, 0, z); const s = k / (pts.length - 1); U.push(s * 2.2, y / 0.075, s * 2.2, 0); if (k) { const a = (k - 1) * 2; I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } });
-      m.geometry.dispose(); m.geometry = new THREE.BufferGeometry(); m.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); m.geometry.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); m.geometry.setIndex(I); m.geometry.computeVertexNormals();
+    const side = (m, pts) => {
+      const g = new THREE.BufferGeometry(), P = [];
+      // 岩层保持原位；侵蚀切掉上部后，露出下面的岩石。土只留在原高地表层。
+      for (let layer = 0; layer < strata.length; layer++) {
+        const start = P.length / 3;
+        for (let k = 1; k < pts.length; k++) {
+          const bounds = ([x, y, z]) => {
+            const levels = [0, 0.016, 0.031, 0.043, topY(x) - 0.003, topY(x)];
+            return { x, z, lo: Math.min(y, levels[layer]), hi: Math.min(y, levels[layer + 1]) };
+          };
+          const a = bounds(pts[k - 1]), b = bounds(pts[k]);
+          if (a.hi <= a.lo && b.hi <= b.lo) continue;
+          P.push(a.x, a.hi, a.z, a.x, a.lo, a.z, b.x, b.hi, b.z, a.x, a.lo, a.z, b.x, b.lo, b.z, b.x, b.hi, b.z);
+        }
+        g.addGroup(start, P.length / 3 - start, layer);
+      }
+      g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.computeVertexNormals(); worldUV(g, 0.045);
+      m.geometry.dispose(); m.geometry = g;
     };
 
     const build = () => {
@@ -156,11 +171,10 @@ export default {
         if (ya > fy1 + 0.0008 || yb > fy1 + 0.0008 || gapAt(x1, za, t) < 0 || gapAt(x1, zb, t) < 0) continue;
         const X = x1 + 0.0003; A.push(X, ya, za, X, ya - th, za, X, yb - th, zb, X, ya, za, X, yb - th, zb, X, yb, zb);
       }
-      alluv.geometry.dispose(); alluv.geometry = new THREE.BufferGeometry(); alluv.geometry.setAttribute('position', new THREE.Float32BufferAttribute(A, 3)); alluv.visible = A.length > 0;
+      alluv.geometry.dispose(); alluv.geometry = new THREE.BufferGeometry(); alluv.geometry.setAttribute('position', new THREE.Float32BufferAttribute(A, 3)); alluv.geometry.computeVertexNormals(); worldUV(alluv.geometry, 0.035); alluv.visible = A.length > 0;
       knife.position.set(x1, 0, 0); placeRail(x1);
     };
-    const alluvTex = canvasTex(128, 32, (g, w, hh) => { g.fillStyle = '#e2cf93'; g.fillRect(0, 0, w, hh); for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(120,95,55,${0.25 + Math.random() * 0.35})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.5, 1.5); } });
-    const alluv = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: alluvTex, side: THREE.DoubleSide })); alluv.raycast = () => {}; block.add(alluv);
+    const alluv = new THREE.Mesh(new THREE.BufferGeometry(), rockMat('conglomerate', { side: THREE.DoubleSide, tint: 0xffedc7 })); alluv.raycast = () => {}; block.add(alluv);
     const cutWaterGeo = new THREE.BufferGeometry(), cutWater = new THREE.Mesh(cutWaterGeo, new THREE.MeshBasicMaterial({ color: 0x5aa3cc, transparent: true, opacity: 0.85, side: THREE.DoubleSide })); cutWater.raycast = () => {}; block.add(cutWater);
     const placeCutWater = (x, t) => {
       const banks = waterBanks(x, t), wy = waterY(x, t), P = [];
