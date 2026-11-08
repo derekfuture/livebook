@@ -17,7 +17,8 @@ export function openFeedback(context = {}) {
   const saved = readProfile();
   const draft = drafts.get(key) || {};
   const images = [...(draft.images || [])];
-  let reading = 0;
+  let reading = 0, sending = false, sent = false;
+  const submissionId = draft.id || crypto.randomUUID();
   const message = h('textarea', {id:'fb-message', rows:5, maxlength:2000, required:true,
     placeholder:'比如：拖动仪器时没有反应，或希望增加一个实验……'});
   message.value = draft.message || '';
@@ -83,17 +84,40 @@ export function openFeedback(context = {}) {
   const dialog = h('dialog',{class:'fb-dialog','aria-labelledby':'fb-title'});
   dialog.addEventListener('keydown',e=>e.stopPropagation());
   dialog.addEventListener('close',()=>{
-    drafts.set(key,{message:message.value,name:name.value,contact:contact.value,images});
+    if (sent) drafts.delete(key);
+    else drafts.set(key,{id:submissionId,message:message.value,name:name.value,contact:contact.value,images});
     dialog.remove(); previous?.focus();
   },{once:true});
   message.addEventListener('input',()=>{ count.textContent=`${message.value.length} / 2000`; message.setCustomValidity(''); });
   const field = (id,title,control) => h('label',{class:'fb-field',for:id},h('span',{},title),control);
-  const form = h('form',{class:'fb-form',onsubmit:e=>{
+  const form = h('form',{class:'fb-form',onsubmit:async e=>{
     e.preventDefault();
     if (!message.value.trim()) {message.setCustomValidity('先写一点具体的问题或建议吧。');message.reportValidity();return;}
     saveProfile();
-    // The UI is reviewable before the server endpoint is configured. Never fake delivery.
-    status.textContent = '暂未接通提交服务，内容已保留。';
+    if (sending || sent) return;
+    if (reading) {status.textContent='图片正在读取，请稍等。';return;}
+    sending=true;
+    const controls=[...form.querySelectorAll('button,input,textarea'),attach];
+    controls.forEach(el=>el.disabled=true);
+    const submit=form.querySelector('[type=submit]');
+    submit.textContent='正在提交…'; status.textContent='';
+    try {
+      const data=new FormData();
+      data.set('id',submissionId);data.set('message',message.value.trim());data.set('name',name.value.trim());data.set('contact',contact.value.trim());
+      data.set('source',[context.title || '活页课本首页',context.where,context.lesson].filter(Boolean).join(' · '));
+      data.set('page',location.origin+location.pathname+location.hash);
+      let total=0;
+      for(const image of images){const blob=await (await fetch(image.src)).blob();total+=blob.size;data.append('images',blob,image.name+(image.name.includes('.')?'':'.jpg'));}
+      if(total>20*1024*1024)throw new Error('图片总大小请控制在 20 MB 内。');
+      const response=await fetch('/api/feedback',{method:'POST',body:data});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok || !result.ok)throw new Error(result.error || '提交失败，内容已保留，请稍后重试。');
+      sent=true;drafts.delete(key);status.textContent='反馈已收到，谢谢你帮我们做得更好。';submit.textContent='已提交';
+    } catch(error) {
+      status.textContent=error.message || '网络连接失败，内容已保留，请重试。';
+      controls.forEach(el=>el.disabled=false);submit.textContent='提交反馈';
+    } finally {sending=false;}
+
   }});
   form.append(
     h('div',{class:'fb-message-label'},h('label',{for:'fb-message'},'哪里可以更好？',h('span',{class:'fb-required','aria-hidden':'true'},'*')),count),

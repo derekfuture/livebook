@@ -21,7 +21,7 @@ export function feedbackButton(context = {}) {
   return h('button', {
     class: 'feedback-entry',
     title: '反馈与建议',
-    onclick: () => openFeedback(context),
+    onclick: () => location.protocol === 'file:' ? window.open(feedbackUrl(context), '_blank', 'noopener,noreferrer') : openFeedback(context),
   }, h('span', { html: chat }), h('span', {}, context.lesson ? '反馈' : '反馈与建议'));
 }
 export function lessonCommunity(context) {
