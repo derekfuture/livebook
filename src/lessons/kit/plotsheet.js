@@ -2,7 +2,8 @@
 // 横坐标 12 个月、纵坐标按课本定好的取值范围和刻度画好（课本绘图步骤 1、2）。
 // 学生照着纸板最上面贴着的表格，一个月一个月地把点（气温）或柱子顶（降水）拖到对应的高度（步骤 3）；
 // 松手时离表格的数不到 snap，就落在表格的数上、变成红点（蓝柱）；不准就留着灰色，再对照表格拖一拖。
-// 曲线（步骤 4）：12 个点都标好以后，用平滑的曲线一段一段画出来。
+// 曲线（步骤 4）：12 个点都标好以后，用平滑的曲线一段一段画出来（单调的三次插值：曲线在两个点之间只升或只降，最高、最低就落在那两个点上，不会冲过头）。
+// 画好以后又去拖某个点：拖着的时候曲线先收起来；放回表上的数，曲线回来；放错了，由活页把“画好了”撤回（onGrab、onPlace）。
 import * as THREE from 'three';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
@@ -17,9 +18,9 @@ const MONTHS = 12;
 /**
  * plotSheet(group, opts) → { board, drag, markers, vals, ok, x(m), y(v), set(m, v), place(m), drawCurve(k), showSpan(on), tableHi(m), allOk() }
  * opts：kind 'line' | 'bar'；values（12 个，表格上的数）；yMin、yMax、yStep（纵坐标）；yTitle（如“气温/℃”）；unit（读数用）；snap（插对的范围）；
- *       tableTitle、rowTitle（表格的标题、那一行的名字）；fmt（数怎么写）；onPlace(m, ok)（松手时）；tag（ctx.tag）；taps（桌上别的能点的东西，如铅笔）
+ *       tableTitle、rowTitle（表格的标题、那一行的名字）；fmt（数怎么写）；onGrab(m)（抓起时）；onPlace(m, ok, v)（松手时）；tag（ctx.tag）；taps（桌上别的能点的东西，如铅笔）
  */
-export function plotSheet(group, { kind = 'line', values, yMin, yMax, yStep, yTitle, unit, snap, tableTitle, rowTitle, fmt = (v) => String(v), onPlace, tag, taps = [] }) {
+export function plotSheet(group, { kind = 'line', values, yMin, yMax, yStep, yTitle, unit, snap, tableTitle, rowTitle, fmt = (v) => String(v), onGrab, onPlace, tag, taps = [] }) {
   const W = 0.26, H = 0.235, TILT = 66 * D2R, T = 0.004;          // 纸板宽、高、和桌面的夹角、厚
   const PX0 = 0.036, PX1 = W - 0.014, PY0 = 0.024, PY1 = H - 0.078;          // 坐标区在纸板上的位置（从纸板左下角量）；最上面一条贴着表格
   const board = new THREE.Group(); board.position.set(-W / 2, 0.0065, -0.03); board.rotation.x = -(Math.PI / 2 - TILT); group.add(board);          // 纸板的下沿抬起一点：往后仰时背面的下角不钻进桌面
@@ -118,7 +119,7 @@ export function plotSheet(group, { kind = 'line', values, yMin, yMax, yStep, yTi
   const items = markers.map((mk, i) => ({
     obj: mk.pick, plane: 'xy', offset: SURF,
     hint: () => `${i + 1} 月：拖到 ${fmt(values[i])} ${unit}`,
-    onStart: () => { tableHi(i + 1); readAt(i); },
+    onStart: () => { tableHi(i + 1); readAt(i); onGrab?.(i + 1); },
     onDrag: (p) => { const v = Math.max(yMin, Math.min(yMax, vOf(p.y))); vals[i] = v; ok[i] = false; show(i); readAt(i); },
     onEnd: () => {
       const v = vals[i] ?? startV, good = Math.abs(v - values[i]) <= snap;
@@ -128,13 +129,25 @@ export function plotSheet(group, { kind = 'line', values, yMin, yMax, yStep, yTi
   }));
   const drag = draggable(board, items, { taps, tip: tag ? tag('', 'pill') : undefined });
 
-  // 曲线：12 个点用平滑的曲线连起来（Catmull–Rom），k 从 0 到 1 一段一段画出来
+  // 曲线：12 个点用平滑的曲线连起来，k 从 0 到 1 一段一段画出来。单调三次插值（Fritsch–Carlson）：每一段只升或只降，最高、最低正好是 7 月、1 月那两个点
+  const n = values.length, d = [], m = [];
+  for (let i = 0; i < n - 1; i++) d.push(values[i + 1] - values[i]);          // 相邻两个月差多少（横坐标每月一格）
+  for (let i = 0; i < n; i++) m.push(i === 0 ? d[0] : i === n - 1 ? d[n - 2] : d[i - 1] * d[i] > 0 ? (d[i - 1] + d[i]) / 2 : 0);          // 在最高、最低点（前后升降相反）斜率取 0
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i], r = a * a + b * b;
+    if (r > 9) { const t = 3 / Math.sqrt(r); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+  }
+  /** 曲线在第 u 月（1—12，可以是小数）的数值 */
+  const curveV = (u) => {
+    const i = Math.max(0, Math.min(n - 2, Math.floor(u - 1))), t = Math.max(0, Math.min(1, u - 1 - i)), t2 = t * t, t3 = t2 * t;
+    return (2 * t3 - 3 * t2 + 1) * values[i] + (t3 - 2 * t2 + t) * m[i] + (-2 * t3 + 3 * t2) * values[i + 1] + (t3 - t2) * m[i + 1];
+  };
   let curve = null;
   const drawCurve = (k) => {
     if (!curve) {
-      const pts = values.map((v, i) => new THREE.Vector3(x(i + 1), y(v), SURF + 0.0004));
-      const c = new THREE.CatmullRomCurve3(pts, false, 'centripetal'), N = 220, P = [];
-      for (let j = 0; j <= N; j++) { const q = c.getPoint(j / N); P.push(q.x, q.y, q.z); }
+      const SEG = 20, N = SEG * (n - 1), P = [];
+      for (let j = 0; j <= N; j++) { const u = 1 + j / SEG; P.push(x(u), y(curveV(u)), SURF + 0.0004); }
       const geo = new LineGeometry(); geo.setPositions(P);
       curve = new Line2(geo, new LineMaterial({ color: 0xd8342a, linewidth: 2.6, worldUnits: false })); curve.raycast = () => {}; board.add(curve);
       curve.userData.n = N;
@@ -157,7 +170,7 @@ export function plotSheet(group, { kind = 'line', values, yMin, yMax, yStep, yTi
     allOk: () => ok.every(Boolean),
     /** 演示、质检拖到第 m 月、数值 v 的位置（纸板自己的坐标，和学生拖的时候 onDrag 收到的一样） */
     pointOf: (m, v) => new THREE.Vector3(x(m), y(v), SURF),
-    drawCurve, showSpan, tableHi,
+    drawCurve, showSpan, tableHi, curveV,
     reset() { values.forEach((_, i) => { vals[i] = null; ok[i] = false; show(i); }); drawCurve(0); showSpan(false); drawTable(); },
     /** 老师演示前存下学生标的点，演示完放回去 */
     snapshot: () => ({ vals: [...vals], ok: [...ok] }),

@@ -100,12 +100,12 @@ export class WorldEarth {
       this.mat.onBeforeCompile = (sh) => {          // 白天：太阳方向的漫反射 + 海面上的一点反光；夜里：城市灯光（NASA 2016 年合成）；晨昏线上一道暖色
         Object.assign(sh.uniforms, this.nowU);
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 sunView; uniform sampler2D nightMap; uniform float nowK;').replace('#include <opaque_fragment>', `{
-          vec3 Ls = normalize(sunView); float d = dot(normal, Ls), dayK = smoothstep(-0.08, 0.22, d), lam = max(d, 0.0);
+          vec3 Ls = normalize(sunView); float d0 = dot(nonPerturbedNormal, Ls), d = dot(normal, Ls), dayK = smoothstep(-0.08, 0.22, d0), lam = max(d, 0.0);          // 昼夜、夜灯、晨昏线按球面本身的法线（d0）；山的明暗、海面反光才用起伏扰动过的法线（d）
           vec3 Vv = normalize(vViewPosition), Hh = normalize(Ls + Vv);
-          float sea = 1.0 - smoothstep(0.55, 0.75, roughnessFactor), spec = pow(max(dot(normal, Hh), 0.0), 90.0) * sea * 0.55 * smoothstep(0.0, 0.25, d);
+          float sea = 1.0 - smoothstep(0.55, 0.75, roughnessFactor), spec = pow(max(dot(normal, Hh), 0.0), 90.0) * sea * 0.55 * smoothstep(0.0, 0.25, d0);
           vec3 dayC = diffuseColor.rgb * (0.05 + 1.15 * lam) + vec3(1.0, 0.92, 0.8) * spec;
           vec3 nightC = diffuseColor.rgb * vec3(0.03, 0.04, 0.07) + texture2D(nightMap, vMapUv).rgb * vec3(1.0, 0.78, 0.48) * 1.6;
-          vec3 nowC = mix(nightC, dayC, dayK) + diffuseColor.rgb * vec3(0.9, 0.38, 0.15) * 0.18 * exp(-pow(d / 0.09, 2.0));
+          vec3 nowC = mix(nightC, dayC, dayK) + diffuseColor.rgb * vec3(0.9, 0.38, 0.15) * 0.18 * exp(-pow(d0 / 0.09, 2.0));
           outgoingLight = mix(outgoingLight, nowC, nowK);
         }
         #include <opaque_fragment>`);

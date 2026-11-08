@@ -25,35 +25,43 @@ export default {
   predict: {
     q: '表 4.2 是北半球某地多年平均各月降水量。画成柱状图以后，最高的几根柱子会集中在一年里的什么时候？',
     hint: '课本第 81 页活动：绘制和阅读降水量柱状图。',
-    options: ['夏季（6—9 月）', '冬季（12—2 月）', '一年里差不多一样高'],
+    options: ['6—9 月（夏季和初秋）', '12 月至次年 2 月（冬季）', '一年里差不多一样高'],
     answer: 0,
   },
   need: '照着表 4.2，把 12 个月的降水量柱子拖到坐标纸上对应的高度；再说说哪几个月降水多、哪几个月少，年降水量大约多少，降水的季节变化有什么特点',
   conclusion: {
-    crops: [{ page: 84, rect: [186, 52, 458, 132] }],
+    crops: [{ page: 84, rect: [163, 52, 460, 154] }],
     quote: '一个地区，一年内各月的降水量是有差别的。通常用各月降水量柱状图表示一个地区一年内降水的季节变化。不同地区降水的季节变化不同。有的地区，降水的季节变化比较小（图4.19甲地）；有的地区，降水的季节变化比较大（图4.19乙地）。',
-    why: `画出来的柱子：6—9 月高（81、135、169、112 毫米），8 月最多；12—2 月最矮（12、10、5 毫米）。<br>年降水量 = 12 个月相加 = <b>${YEAR} 毫米</b>，大约 750 毫米。<br>这个地方的降水集中在夏季，冬季降水少，降水的季节变化比较大。`,
+    why: `画出来的柱子：6—9 月高（81、135、169、112 毫米），8 月最多；12 月至次年 2 月最矮（12、10、5 毫米）。<br>年降水量 = 12 个月相加 = <b>${YEAR} 毫米</b>，大约 750 毫米；其中夏季（6—8 月）385 毫米，占一半多。<br>这个地方的降水主要集中在夏季，冬季降水少，降水的季节变化比较大。`,
     src: '课本七年级上册第 79—82 页 · 第四章 第三节 降水的变化与分布（活动：绘制和阅读降水量柱状图）',
   },
 
   create({ tag, look, back }) {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
-    let S = null, W = null;
-    const status = (m) => { if (!S.demo) W?.status(m); else bar.caption(m); };
+    let S = null, W = null, said = '';
+    const status = (m) => { if (!S.demo) { said = m; W?.status(m); } else bar.caption(m); };          // said：学生这边最后一句（老师演示完放回去）
     const done = (id) => { if (!S.demo) bar.done(id); };
+    const undo = (...ids) => { if (!S.demo) bar.undo(...ids); };
 
     paperSheet(group, { w: 0.32, d: 0.2, x: 0, z: 0.0 });
     let kept = null;          // 老师演示前学生标的点（演示完放回去）
-    const fresh = () => ({ demo: false, read: false });
+    const fresh = () => ({ demo: false, plotted: false, read: false });
     S = fresh();
 
     const sheet = plotSheet(group, {
       kind: 'bar', values: P42, yMin: 0, yMax: 200, yStep: 25, yTitle: '降水量/毫米', unit: '毫米', snap: 3.5, tableTitle: '表 4.2　北半球某地多年平均各月降水量', rowTitle: '降水量/毫米', fmt: fmtP, tag,
       onPlace: (m, good, v) => {
-        if (good) { sfx.clink?.({ freq: 600 + m * 30, gain: 0.025 }); status(`${m} 月：<b>${P42[m - 1]} 毫米</b>，画对了。${sheet.allOk() ? '12 根柱子都画好了，在左边回答几个问题。' : `还差 ${sheet.ok.filter((x) => !x).length} 个月。`}`); }
-        else status(`${m} 月拖到了 ${fmtP(v)} 毫米；表上是 <b>${P42[m - 1]} 毫米</b>——${v > P42[m - 1] ? '高了' : '低了'}，对照纵坐标的刻度再拖一拖（每一大格 25 毫米，每一小格 5 毫米）。`);
-        if (sheet.allOk()) { done('plot'); if (!S.demo) W?.t1.open(); }
+        if (good) {
+          sfx.clink?.({ freq: 600 + m * 30, gain: 0.025 });
+          if (S.plotted && sheet.allOk()) { status(`${m} 月放回了 <b>${P42[m - 1]} 毫米</b>，柱状图还是这一张。`); return; }
+          status(`${m} 月：<b>${P42[m - 1]} 毫米</b>，画对了（离表上的数很近，柱子落在了 ${P42[m - 1]} 毫米上）。${sheet.allOk() ? '12 根柱子都画好了，在左边回答几个问题。' : `还差 ${sheet.ok.filter((x) => !x).length} 个月。`}`);
+        } else {
+          const had = S.plotted;
+          if (had) { S.plotted = S.read = false; undo('plot', 'read'); W?.t1.close(); W?.t2.close(); if (W) W.next.hidden = true; }          // 画好以后又改错了：读图作废，画对以后重新读
+          status(`${m} 月拖到了 ${fmtP(v)} 毫米；表上是 <b>${P42[m - 1]} 毫米</b>——${v > P42[m - 1] ? '高了' : '低了'}，对照纵坐标的刻度再拖一拖（每一大格 25 毫米，每一小格 5 毫米）。${had ? '这根柱子改了，下面的读图要等 12 根柱子都画对以后重新来。' : ''}`);
+        }
+        if (sheet.allOk()) { S.plotted = true; done('plot'); if (!S.demo) W?.t1.open(); }
       },
     });
 
@@ -68,13 +76,16 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => ({ ...S, sheet: sheet.snapshot() }), set: (s) => { const { sheet: sn, ...rest } = s; S = rest; kept = sn || null; }, fresh, bar: () => bar, apply: () => { if (S.demo) { sheet.reset(); return; } if (kept) sheet.restore(kept); } }),
+          ...sandbox({ get: () => ({ ...S, sheet: sheet.snapshot() }), set: (s) => { const { sheet: sn, ...rest } = s; S = rest; kept = sn || null; }, fresh, bar: () => bar, apply: () => {
+            if (S.demo) { sheet.reset(); W?.status('老师演示中：看画面下面的字幕。你刚才画的柱子先存着，演示完放回来。'); return; }
+            if (kept) sheet.restore(kept); if (said) W?.status(said);
+          } }),
           shots: [
             { cap: '横坐标 12 个月，纵坐标 0—200 毫米、每格 25 毫米——课本绘图步骤的前两步已经画好。上面贴着表 4.2。', dur: 4.5 },
             { cap: '照着表格画柱子：1 月 10 毫米，柱子只到第一格的一小段。', dur: 4, during: dragTo(1, { t0: 0.1, t1: 0.75 }) },
             { cap: '8 月 169 毫米：拖到 150 和 175 之间、靠近 175 的地方。', dur: 4, during: dragTo(8, { t0: 0.1, t1: 0.75 }) },
             { cap: '其余的月份也一根一根画上去。', dur: 7, during: seq([2, 3, 4, 5, 6, 7, 9, 10, 11, 12].map((m, j) => dragTo(m, { t0: 0.04 + j * 0.09, t1: 0.1 + j * 0.09 }))) },
-            { cap: `柱子高的都在夏季（6—9 月），冬季很矮：降水集中在夏季。12 个月加起来，年降水量约 ${YEAR} 毫米。演示完了，下面换你自己画。`, dur: 6 },
+            { cap: `6—9 月的柱子高，8 月最高；12 月至次年 2 月很矮。降水主要集中在夏季（6—8 月），初秋也较多，冬季少。12 个月加起来，年降水量约 ${YEAR} 毫米。演示完了，下面换你自己画。`, dur: 7 },
           ],
         },
       },
@@ -105,23 +116,23 @@ export default {
         ui.el.classList.add('xuean');
         const t2 = think({ title: '想一想', status: (m) => ui.status(m),
           q: '年降水量大约是多少？降水的季节变化有什么特点？',
-          options: [`约 ${YEAR} 毫米；降水集中在夏季，冬季降水少`, '约 169 毫米；降水集中在夏季', `约 ${YEAR} 毫米；一年里各月降水差不多`],
-          wrong: ['169 毫米只是 8 月一个月；年降水量要把 12 个月加起来。', '看柱子：夏季的柱子比冬季高出十几倍，差得很多。'],
-          ok: `对：12 个月加起来约 ${YEAR} 毫米；降水集中在夏季（8 月最多），冬季降水少，季节变化比较大。可以掀开结论看看。`,
-          onOk: () => { next.hidden = false; done('read'); S.read = true; } });
+          options: [`约 ${YEAR} 毫米；降水主要集中在夏季，冬季降水少`, '约 169 毫米；降水主要集中在夏季', `约 ${YEAR} 毫米；一年里各月降水差不多`],
+          wrong: ['169 毫米只是 8 月一个月；年降水量要把 12 个月加起来。', '看柱子：8 月 169 毫米，2 月只有 5 毫米，各月差得很多。'],
+          ok: `对：12 个月加起来约 ${YEAR} 毫米；降水主要集中在夏季（8 月最多），冬季降水少，季节变化比较大。可以掀开结论看看。`,
+          onOk: () => { if (!S.plotted) return; next.hidden = false; done('read'); S.read = true; } });
         const t1 = think({ title: '想一想', status: (m) => ui.status(m),
           q: '看柱状图：哪几个月降水量较多？哪几个月较少？',
-          options: ['6—9 月较多（8 月最多），12—2 月较少', '12—2 月较多，6—9 月较少', '3—5 月最多'],
+          options: ['6—9 月较多（8 月最多），12 月至次年 2 月较少', '12 月至次年 2 月较多，6—9 月较少', '3—5 月最多'],
           wrong: ['看柱子：最高的几根在 6—9 月，12、1、2 月的柱子最矮。', '3—5 月的柱子只有 22、47、71 毫米，比 7、8 月矮得多。'],
-          ok: '对：6—9 月降水较多（7 月 135、8 月 169、9 月 112 毫米），12 月、1 月、2 月较少（12、10、5 毫米）。',
-          onOk: () => t2.open() });
+          ok: '对：6—9 月降水较多（6 月 81、7 月 135、8 月 169、9 月 112 毫米），12 月、1 月、2 月较少（12、10、5 毫米）。',
+          onOk: () => { if (S.plotted) t2.open(); } });
         const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来（擦掉重画）', ghost: true, onClick: () => A.reset() }]).el);
         const note = h('p', { class: 'fineprint', html: '说明：数据是课本表 4.2“北半球某地多年平均各月降水量”。柱子拖到离表上的数不到 3.5 毫米就算画对，会落在表上的数上。' });
         ui.controls.append(t1.el, t2.el, next, more, note);
         W = { t1, t2, next, status: (m) => ui.status(m) };
         bar.attach(ui);
-        ui.status('图 4.20：坐标纸的横坐标是 1—12 月，纵坐标 0—200 毫米、每格 25 毫米（课本绘图步骤的前两步）。照着坐标纸上面的表 4.2，把 12 个月的柱子拖到对应的高度。可以先看<b>老师演示</b>，也可以直接动手。');
+        status('图 4.20：坐标纸的横坐标是 1—12 月，纵坐标 0—200 毫米、每格 25 毫米（课本绘图步骤的前两步）。照着坐标纸上面的表 4.2，把 12 个月的柱子拖到对应的高度。可以先看<b>老师演示</b>，也可以直接动手。');
       },
       update(dt) { bar.update(dt); },
       dispose() { bar.dispose(); sheet.dispose(); },

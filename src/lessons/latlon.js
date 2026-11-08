@@ -58,7 +58,7 @@ export default {
     options: ['越来越大，一直加到 360°', '加到 180° 以后变成西经，度数越来越小', '一直是东经，加到 180° 以后又从 0° 开始'],
     answer: 1,
   },
-  need: '把小红旗插到“泰坦尼克号”失事地点（41.73°N，49.95°W）；沿着赤道往东拖过 180° 经线、沿着经线往北拖到北极，看经度、纬度怎么变；再按表 1.6 的经纬度插旗，找出五座城市',
+  need: '把小红旗插到“泰坦尼克号”失事地点（41.73°N，49.95°W）；沿着纬线往东拖过 180° 经线、沿着经线往北拖到北极，看经度、纬度怎么变；再按表 1.6 的经纬度插旗，认识这些位置是哪五座城市',
   conclusion: {
     crops: [{ page: 23, rect: [60, 316, 360, 420] }],
     quote: '在地球仪上，经线和纬线相互交织，形成经纬网（图1.17）。通常，我们会利用经纬网定位。地球表面任一地点的位置，可以用相交于该点的经线和纬线确定，用经纬度表示。例如，“泰坦尼克号”失事地点的经纬度位置为41.73°N，49.95°W（图1.17）。',
@@ -69,8 +69,8 @@ export default {
   create({ tag, look, back }) {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
-    let S = null, W = null;
-    const status = (m) => { if (!S.demo) W?.status(m); else bar.caption(m); };
+    let S = null, W = null, said = '';
+    const status = (m) => { if (!S.demo) { said = m; W?.status(m); } else bar.caption(m); };          // said：学生这边最后一句（老师演示完放回去）
     const done = (id) => { if (!S.demo) bar.done(id); };
     const log = (row) => { if (!S.demo) W?.tbl.add(row); };
 
@@ -134,7 +134,8 @@ export default {
     mer.geometry.rotateZ(-Math.PI / 2);          // 半圆从南极经过 0° 经线和赤道的交点到北极；再绕地轴转到这条经线
     let par = null, parLat = null;
     const setPar = (lat) => {
-      if (parLat != null && Math.abs(lat - parLat) < 0.2) return; parLat = lat;
+      if (parLat != null && Math.abs(lat - parLat) < 0.2 && (Math.abs(lat) >= 89.95) === (Math.abs(parLat) >= 89.95)) return; parLat = lat;
+      if (Math.abs(lat) >= 89.95) { if (par) { spin.remove(par); par.geometry.dispose(); par = null; } return; }          // 极点是一个点：没有纬线圈
       const rr = Math.max(0.0006, (R + 0.0008) * Math.cos(lat * D2R));
       if (par) { spin.remove(par); par.geometry.dispose(); }
       par = new THREE.Mesh(new THREE.TorusGeometry(rr, 0.00055, 8, 128), parM); par.rotation.x = Math.PI / 2; par.position.y = (R + 0.0008) * Math.sin(lat * D2R); par.renderOrder = 3; spin.add(par);
@@ -177,7 +178,7 @@ export default {
 
     const showFlag = () => {
       place(flag, S.lat, S.lon);
-      mer.rotation.y = S.lon * D2R;
+      mer.rotation.y = S.lon * D2R; mer.visible = Math.abs(S.lat) < 89.95;          // 在极点上，所有经线都经过这一点：不单亮哪一条
       setPar(S.lat);
     };
     showFlag();
@@ -197,22 +198,29 @@ export default {
           log([latTxt(lat), `${lonTxt(S.eastFrom)} → ${lonTxt(lon)}`, '往东走过 180° 经线：东经变成西经']);
           status(`越过了 <b>180° 经线</b>：刚才还是 <b>${lonTxt(S.eastFrom)}</b>，现在是 <b>${lonTxt(lon)}</b>——东经加到 180° 就到头了，再往东是<b>西经</b>，度数越来越小。经度最大是 180°，没有 360°。`);
         }
-        if (S.held && !S.north && lat >= 88.5) {
-          S.north = true; done('north');
-          log(['90°N', '—', '一直往北走到北极：纬度加到 90° 就到头了']);
-          status('到了<b>北极</b>：纬度是 <b>90°N</b>，再也加不上去了——纬度最大是 90°；所有经线都在这里汇成一点。');
-        }
+        if (S.held && !S.north && lat >= 88.5 && !S.said.pole) { S.said.pole = true; status(`快到北极了：<b>${latTxt(lat)}</b>。松手，小红旗会落到北极点上。`); }
         S.lat = lat; S.lon = lon; showFlag();
       },
       drop() {
         S.held = false;
+        if (S.lat >= 88.5) {          // 拖到北极附近松手：落到北极点上（纬度 90°N），再记下来
+          S.lat = 90; showFlag(); S.said.pole = false;
+          if (!S.north) {
+            S.north = true; done('north'); sfx.clink?.({ freq: 760, gain: 0.03 });
+            log(['90°N', '所有经线都经过', '一直往北走到北极：纬度加到 90° 就到头了']);
+            status('到了<b>北极</b>：纬度是 <b>90°N</b>，再也加不上去了——纬度最大是 90°。所有经线都在这里汇成一点，所以北极不用经度来说明位置。');
+            checkAll();
+          } else status('小红旗在<b>北极</b>：90°N，所有经线都在这里汇成一点。');
+          return;
+        }
         if (nOf(S.lat, S.lon).applyQuaternion(spin.quaternion).dot(camDir()) < 0.35) { let t = faceLon(S.lon); while (t - S.psiT > Math.PI) t -= 2 * Math.PI; while (t - S.psiT < -Math.PI) t += 2 * Math.PI; S.psiT = t; }          // 旗插在了背面：球转过来给你看
         const here = { lat: S.lat, lon: S.lon };
         const near = (p) => angDist(here, p) < TOL;
         if (!S.titanic && near(TITANIC)) {
           S.titanic = true; S.lat = TITANIC.lat; S.lon = TITANIC.lon; showFlag(); done('titanic'); sfx.clink?.({ freq: 880, gain: 0.03 });
           log([latTxt(TITANIC.lat, 2), lonTxt(TITANIC.lon, 2), `${TITANIC.name}（${TITANIC.where}）`]);
-          status(`插对了：<b>41.73°N，49.95°W</b>——${TITANIC.name}，在<b>北大西洋</b>。一条经线（49.95°W）和一条纬线（41.73°N）相交在这一点，用这一对经纬度就说清了它在哪里。`);
+          status(`插对了（离得很近，小红旗落到了这一点上）：<b>41.73°N，49.95°W</b>——${TITANIC.name}，在<b>北大西洋</b>。一条经线（49.95°W）和一条纬线（41.73°N）相交在这一点，用这一对经纬度就说清了它在哪里。`);
+          checkAll();
           return;
         }
         const c = CITIES.find((x) => !S.found[x.name] && near(x));
@@ -221,18 +229,28 @@ export default {
           log([latTxt(c.lat, 0), lonTxt(c.lon, 0), c.name]);
           const left = CITIES.filter((x) => !S.found[x.name]);
           status(`<b>${latTxt(c.lat, 0)}，${lonTxt(c.lon, 0)}</b> 是 <b>${c.name}</b>。${left.length ? `还有 ${left.length} 个：${left.map((x) => `${latTxt(x.lat, 0)}，${lonTxt(x.lon, 0)}`).join('；')}。` : '表 1.6 的五座城市都找到了。'}`);
-          if (!left.length) { done('cities'); if (!S.demo) W?.t1.open(); }
+          if (!left.length) done('cities');
+          checkAll();
           return;
         }
         status(`小红旗：<b>${latTxt(S.lat)}，${lonTxt(S.lon)}</b>——${where(here)}。`);
       },
       spinBy(dPsi) { S.psiT += dPsi; started = true; },
+      /** 四件事（泰坦尼克号、往东走、往北走、五座城市）都做完了，才出“想一想” */
+      todo() { return [!S.titanic && '插到“泰坦尼克号”失事地点', !S.east && '沿着纬线往东拖过 180° 经线', !S.north && '往北拖到北极', CITIES.some((c) => !S.found[c.name]) && '按表 1.6 找城市'].filter(Boolean); },
       reset() {
         S = fresh(); clearMarks(); addMark(BEIJING, '北京（例）'); showFlag();
         if (W) { W.tbl.clear(); W.tbl.add(['40°N', '116°E', '北京（课本的例子）']); W.t1.close(); W.next.hidden = true; }
         bar.undo('titanic', 'east', 'north', 'cities', 'why'); status('全部重新摆好了：小红旗回到 0°，0°，记录也清空了。');
       },
     };
+
+    function checkAll() {
+      if (S.demo) return;
+      const left = A.todo();
+      if (!left.length) { W?.t1.open(); return; }
+      if (S.found && CITIES.every((c) => S.found[c.name])) status(`${said} 还差：${left.join('；')}。都做完了再回答“想一想”。`);
+    }
 
     // 屏幕射线 → 球面上的经纬度（射线擦过球边时，取球边上最近的那一点）
     const rayLL = (ray) => {
@@ -257,7 +275,7 @@ export default {
       look, back, group,
       steps: [
         { id: 'titanic', title: '泰坦尼克号', todo: '课本图 1.17：把<b>小红旗</b>拖到“泰坦尼克号”失事地点——<b>41.73°N，49.95°W</b>。先沿着赤道找到那条经线，再沿着经线往北找纬线。', target: () => (S.held ? null : flag) },
-        { id: 'east', title: '往东走', todo: '把小红旗拖到赤道上，沿着赤道<b>一直往东拖</b>（拖到球边上，球会跟着转过来），拖过 <b>180° 经线</b>，看经度怎么变。', target: () => (S.held ? null : flag) },
+        { id: 'east', title: '往东走', todo: '沿着一条纬线（比如赤道）把小红旗<b>一直往东拖</b>（拖到球边上，球会跟着转过来），拖过 <b>180° 经线</b>，看经度怎么变。', target: () => (S.held ? null : flag) },
         { id: 'north', title: '往北走', todo: '沿着一条经线把小红旗<b>一直往北拖</b>，拖到<b>北极</b>，看纬度怎么变。', target: () => (S.held ? null : flag) },
         { id: 'cities', title: '找城市', todo: '表 1.6：按经纬度插旗——<b>51°N，0°</b>；<b>60°N，25°E</b>；<b>0°，79°W</b>；<b>30°N，120°E</b>；<b>23°S，43°W</b>。插对了，旗上会写出是哪座城市。', target: () => (S.held ? null : flag) },
         { id: 'why', title: '想一想', todo: '经度和纬度各分多少度、怎么表示？在左边作答。' },
@@ -265,7 +283,10 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { clearMarks(); addMark(BEIJING, '北京（例）'); for (const c of CITIES) if (S.found[c.name]) addMark(c, c.name); showFlag(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => {
+            clearMarks(); addMark(BEIJING, '北京（例）'); for (const c of CITIES) if (S.found[c.name]) addMark(c, c.name); showFlag();
+            if (S.demo) W?.status('老师演示中：看画面下面的字幕。你的小红旗和记录先存着，演示完放回来。'); else if (said) W?.status(said);
+          } }),
           shots: [
             { cap: '课本第 14 页那种自己做的地球仪：经线、纬线织成经纬网。小红旗插在 0°，0°——赤道和 0° 经线（本初子午线）相交的地方。', dur: 5, during: spinTo(-25, 0.05, 0.5) },
             { cap: '先找经线：沿着赤道往西拖，一直拖到 49.95°W 那条经线（50°W 旁边）。', dur: 5.5, cam: () => [C0.toArray(), [0, 0.2, 1], 0.2], during: llPath([[0, 0], [0, -49.95]], { t0: 0.08, t1: 0.82 }) },
@@ -335,7 +356,7 @@ export default {
       // 读数卡、找到的地方的名字：转到背面就不写
       const cd = camDir(), faces = (lat, lon) => nOf(lat, lon).applyQuaternion(spin.quaternion).dot(cd);
       const fp = group.worldToLocal(flagTop.getWorldPosition(new THREE.Vector3()));
-      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">小红旗</span></div><div class="cc-more"><div class="cc-obs">纬度 <b style="color:${BLUE}">${latTxt(S.lat, S.titanic && S.lat === TITANIC.lat ? 2 : 1)}</b>　经度 <b style="color:${RED}">${lonTxt(S.lon, S.titanic && S.lon === TITANIC.lon ? 2 : 1)}</b></div></div></div>`)
+      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">小红旗</span></div><div class="cc-more"><div class="cc-obs">纬度 <b style="color:${BLUE}">${latTxt(S.lat, S.titanic && S.lat === TITANIC.lat ? 2 : 1)}</b>　${Math.abs(S.lat) >= 89.95 ? '<span>所有经线都在这一点汇合</span>' : `经度 <b style="color:${RED}">${lonTxt(S.lon, S.titanic && S.lon === TITANIC.lon ? 2 : 1)}</b>`}</div></div></div>`)
         .loc(group, fp.x, fp.y, fp.z).show(faces(S.lat, S.lon) > 0.12 && !bar.playing);
       for (const m of marks) m.t.show(faces(m.p.lat, m.p.lon) > 0.2);
     };
@@ -353,7 +374,7 @@ export default {
         const t1 = think({ title: '想一想', ctx, status: (m) => ui.status(m),
           q: '经度和纬度，下面哪种说法对？',
           options: ['经度从 0° 经线向东、向西各分 180°（E、W）；纬度从赤道向北、向南各分 90°（N、S）', '经度、纬度都从 0° 一直加到 360°', '经度、纬度都是从 0° 加到 90°'],
-          wrong: ['看你往东拖的那一行：过了 180° 经线，读数变成了西经、越来越小——经度没有 360°。', '看你往北拖的那一行：纬度到北极是 90°；经度却能加到 180°。'],
+          wrong: ['看记录里往东走的那一行：过了 180° 经线，读数变成了西经、越来越小——经度没有 360°。', '看记录里往北走的那一行：纬度到北极是 90°；经度却能加到 180°。'],
           ok: '对：经度向东、向西各 180°，东经用 E、西经用 W；纬度向北、向南各 90°，北纬用 N、南纬用 S。一条经线、一条纬线相交在一点，这一对经纬度就说清了它在哪里。可以掀开结论看看。',
           onOk: () => { next.hidden = false; done('why'); } });
         const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '掀开课本上的结论 →');

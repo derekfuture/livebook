@@ -249,7 +249,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const VIEWS = [['sun', '昼夜'], ['plates', '板块'], ['belts', '气压带']].map(([id, label]) => ({ id, label, it: items.find((x) => x.anchor.layer === id) })).filter((v) => v.it);
   const LEGEND = {
     plates: '<span><i style="background:#d8342c"></i>生长边界</span><span><i style="background:#23a04e"></i>汇聚边界</span><span><i style="background:#8a8e96"></i>转换边界</span>',          // 和板块那张活页同一套颜色、同样的叫法
-    belts: '<span><i class="sq" style="background:#e67a61"></i>高压带</span><span><i class="sq" style="background:#5785db"></i>低压带</span><small>理想模型：先假设地表均匀</small>',
+    belts: '<span><i class="sq" style="background:#e67a61"></i>高压带</span><span><i class="sq" style="background:#5785db"></i>低压带</span><small>理想模型：假设地表均匀，也不随季节移动</small>',
   };
   let view = VIEWS[0];
   const thumb = h('i', { class: 'gv-thumb' }), segs = VIEWS.map((v) => h('button', { 'data-id': v.id, onclick: () => setView(v) }, v.label));
@@ -502,7 +502,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       const k = THREE.MathUtils.smoothstep(D.ta, 0.4, 1.8), lg = D.P.cut.geometry;
       lg.instanceCount = Math.max(1, Math.round(120 * k)); D.P.cut.material.opacity = 0.95;
       const top = earth.root.localToWorld(D.P.lineAt(D.def.cut.nameAt ?? 1).clone().applyQuaternion(earth.spin.quaternion));
-      diveTag.text(`<b>${D.def.name}</b><small>真实地形 · 高度放大 ${D.def.exag} 倍</small>`).at(top).show(true);
+      diveTag.text(`<b>${D.def.name}</b><small>真实高程 + 卫星影像（2020 年合成）· 高度放大 ${D.def.exag} 倍</small>`).at(top).show(true);
       const mid = earth.root.localToWorld(D.P.lineAt(D.def.cut.textAt ?? 0.45).clone().applyQuaternion(earth.spin.quaternion));
       D.cutTag ||= tag('', 'w-cut'); D.cutTag.text(D.def.cut.text).at(mid).show(k > 0.6);
       diveHud.classList.add('on'); diveHud.querySelector('.gd-src').textContent = D.def.src;

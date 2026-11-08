@@ -51,7 +51,7 @@ export function timeCard({ earth }) {
     h('div', { class: 'gn-line' }, sub, liveBtn),
     h('div', { class: 'gn-line gn-city' }, '你在', pick, here, list),
     sky,
-    h('small', { class: 'gn-src' }, '夜间灯光：NASA 2016 年卫星合成 · 月面：NASA LRO · 云和月亮的位置是示意'));
+    h('small', { class: 'gn-src' }, '夜间灯光：NASA 2016 年卫星合成 · 月面：NASA LRO · 云和月亮的位置是示意 · 昼长、日出日落按太阳中心碰到地平线算，不计大气折射'));
   document.body.append(el);
 
   let last = '';
@@ -67,24 +67,29 @@ export function timeCard({ earth }) {
       clock.textContent = `北京时间 ${pad(b.getUTCHours())}:${pad(b.getUTCMinutes())}`;
       sub.textContent = `太阳直射 ${latText(s.lat)}`;
       pick.textContent = city.name;
-      here.textContent = `昼长 ${Math.floor(len)} 时 ${pad(Math.round((len % 1) * 60))} 分 · 太阳${now.alt >= 0 ? `高 ${now.alt.toFixed(0)}°` : '在地平线下'}`;
+      const mins = Math.round(len * 60);          // 先取整到分钟再拆成时、分（不然 11.999 时会写成 11 时 60 分）
+      here.textContent = `昼长 ${Math.floor(mins / 60)} 时 ${pad(mins % 60)} 分 · 太阳${now.alt >= 0 ? `高 ${now.alt.toFixed(0)}°` : '在地平线下'}`;
       drawSky(sky, city, s.lat, H, { rise: noon - len / 2, set: noon + len / 2 });
     }
     for (const f of listeners) f({ city, sub: s, live, sim });
   }
 
-  /** 在这座城看天空：几根金线——地平线、今天太阳走的弧、正午高度、日出日落，现在的太阳 */
+  /** 在这座城看天空：几根金线——地平线、今天太阳走的弧、正午高度、日出日落，现在的太阳。
+   *  一圈地平线全画出来，中间是正午太阳所在的那一边：一般在正南；回归线之间的地方，太阳直射点在这座城北边的那些天，正午太阳在正北（面朝北，东在右手） */
   function drawSky(c, cty, dec, H, t) {
-    const g = c.getContext('2d'), W = c.width, Hh = c.height, top = 14, hor = Hh - 28, X = (az) => 10 + ((az - 45) / 270) * (W - 20), Y = (alt) => hor - (alt / 90) * (hor - top) * 1.15;
+    const noonP = sunAt(cty.lat, dec, 0), mid = dec > cty.lat ? 0 : 180;          // 画面中间对着正午太阳的方位：南（180）或北（0）
+    const g = c.getContext('2d'), W = c.width, Hh = c.height, top = 14, hor = Hh - 28, X = (az) => W / 2 + (wrap(az - mid) / 360) * (W - 16),          // 方位角顺时针变大：面朝哪边，往右手边都是方位角变大（面朝南，西在右；面朝北，东在右）
+       Y = (alt) => hor - (alt / 90) * (hor - top) * 1.15;
     g.clearRect(0, 0, W, Hh);
     g.strokeStyle = 'rgba(214,177,110,0.55)'; g.lineWidth = 1; g.beginPath(); g.moveTo(4, hor + 0.5); g.lineTo(W - 4, hor + 0.5); g.stroke();
     g.font = '10px system-ui, sans-serif'; g.textAlign = 'center'; g.fillStyle = 'rgba(167,178,200,0.9)';
-    for (const [n, az] of [['东', 90], ['南', 180], ['西', 270]]) { g.fillText(n, X(az), hor + 12); g.fillRect(X(az) - 0.5, hor - 2, 1, 4); }
+    const back = mid === 180 ? '北' : '南';
+    for (const [n, az] of [['东', 90], ['南', 180], ['西', 270], ['北', 0]]) { if (n === back) continue; g.fillText(n, X(az), hor + 12); g.fillRect(X(az) - 0.5, hor - 2, 1, 4); }
+    g.textAlign = 'left'; g.fillText(back, 2, hor + 12); g.textAlign = 'right'; g.fillText(back, W - 2, hor + 12); g.textAlign = 'center';          // 背后那个方向在两头
     g.strokeStyle = 'rgba(241,215,159,0.85)'; g.lineWidth = 1.3; g.beginPath();
-    let pen = false;
-    for (let hh = -180; hh <= 180; hh += 1.5) { const p = sunAt(cty.lat, dec, hh); if (p.alt < 0 || p.az < 45 || p.az > 315) { pen = false; continue; } if (!pen) { g.moveTo(X(p.az), Y(p.alt)); pen = true; } else g.lineTo(X(p.az), Y(p.alt)); }
+    let pen = false, lx = null;
+    for (let hh = -180; hh <= 180; hh += 1.5) { const p = sunAt(cty.lat, dec, hh), x = X(p.az); if (p.alt < 0 || (lx != null && Math.abs(x - lx) > W / 2)) { pen = false; lx = p.alt < 0 ? null : x; if (p.alt < 0) continue; } if (!pen) { g.moveTo(x, Y(p.alt)); pen = true; } else g.lineTo(x, Y(p.alt)); lx = x; }          // 极昼时太阳绕到背后：在两头断开
     g.stroke();
-    const noonP = sunAt(cty.lat, dec, 0);
     g.fillStyle = 'rgba(241,215,159,0.95)';
     if (noonP.alt > 0) g.fillText(`正午 ${noonP.alt.toFixed(1)}°`, X(noonP.az), Math.max(10, Y(noonP.alt) - 5));
     const half = (t.set - t.rise) * 7.5, rp = sunAt(cty.lat, dec, -half), sp = sunAt(cty.lat, dec, half);
@@ -93,7 +98,7 @@ export function timeCard({ earth }) {
     g.textAlign = 'right'; g.fillText(`日落 ${hm(t.set)}`, W - 4, hor + 25);
     g.fillStyle = 'rgba(241,215,159,0.7)'; for (const q of [rp, sp]) g.fillRect(X(q.az) - 1.5, hor - 1.5, 3, 3);
     const p = sunAt(cty.lat, dec, H);
-    if (p.az >= 45 && p.az <= 315) {
+    {
       const x = X(p.az), y = p.alt >= 0 ? Y(p.alt) : hor + 1;
       g.beginPath(); g.arc(x, y, 4, 0, Math.PI * 2);
       if (p.alt >= 0) { g.fillStyle = '#ffd77a'; g.shadowColor = 'rgba(255,210,120,0.95)'; g.shadowBlur = 10; g.fill(); g.shadowBlur = 0; }
@@ -101,7 +106,7 @@ export function timeCard({ earth }) {
     }
   }
 
-  /** 拖铜版上的小太阳：直射点拖到 (lat, lon)。纬度定日子（在这半年里找直射点纬度一样的那天：春夏往北走、秋冬往南走），经度定时刻（直射点每小时往西 15°） */
+  /** 拖铜版上的小太阳：直射点拖到 (lat, lon)。纬度定日子（在这半年里找直射点纬度一样的那天：冬至到夏至直射点往北移、夏至到冬至往南移），经度定时刻（直射点每小时往西 15°） */
   function setFromSun(lat, lon) {
     live = false;
     const y = bj(sim).getUTCFullYear(), base = Date.UTC(y, 0, 1) - 8 * 3600000;          // 北京时间这一年的 1 月 1 日 0 点
