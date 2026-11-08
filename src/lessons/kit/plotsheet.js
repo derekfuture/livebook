@@ -76,7 +76,7 @@ export function plotSheet(group, { kind = 'line', values, yMin, yMax, yStep, yTi
       vis = new THREE.Mesh(new THREE.SphereGeometry(0.0026, 16, 12), mat.dot); g.add(vis);
     } else {
       vis = new THREE.Mesh(new THREE.BoxGeometry(colW, 1, 0.0016), mat.bar); vis.geometry.translate(0, 0.5, 0); g.add(vis);
-      cap = new THREE.Mesh(new THREE.BoxGeometry(colW * 1.18, 0.0022, 0.0028), paint(0x26304a, { keep: true })); g.add(cap);          // 柱子顶上一道深色的边：拖它
+      cap = inked(new THREE.Mesh(new THREE.BoxGeometry(colW * 1.18, 0.0022, 0.0028), paint(0x26304a, { keep: true })), { width: 0.6, handle: true }); g.add(cap);          // 柱子顶上一道深色的边：拖它
     }
     const pick = new THREE.Mesh(new THREE.SphereGeometry(kind === 'line' ? 0.0062 : 0.0068, 10, 8), new THREE.MeshBasicMaterial({ visible: false })); pick.userData.pick = true; pick.userData.track = true; g.add(pick);
     markers.push({ m, g, vis, cap, pick });

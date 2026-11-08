@@ -494,7 +494,7 @@ function disposeTree(root) {
 
 /** 桌签：一张对折的卡片立在桌上，正面写着科目（楷体，字距拉开）、版本 · 几册 · 几张活页，顶上一道这一科的颜色 */
 function tentCard(s) {
-  const CW = 0.52, CH = 0.16, TILT = 12 * D2R;
+  const CW = 0.52, CH = 0.185, TILT = 12 * D2R;
   const W = 1024, H = Math.round((W * CH) / CW), c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.fillStyle = '#fbf8f0'; g.fillRect(0, 0, W, H);
@@ -502,7 +502,9 @@ function tentCard(s) {
   g.fillStyle = s.color; g.fillRect(0, 0, W, 9);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillStyle = '#2c3245'; g.font = '700 150px "Kaiti SC", "STKaiti", "KaiTi", serif'; g.fillText([...s.name].join(' '), W / 2, 172);
-  g.fillStyle = '#6b5f48'; g.font = '54px "Songti SC", "STSong", serif'; g.fillText(`${s.publisher} · ${s.books.length} 册 · ${s.leaves} 张活页`, W / 2, 268);
+  g.fillStyle = '#6b5f48'; g.font = '54px "Songti SC", "STSong", serif'; g.fillText(`${s.publisher} · ${s.books.length} 册 · ${s.leaves} 张活页`, W / 2, 262);
+  g.fillStyle = s.color; g.font = '700 54px "Songti SC", "STSong", serif';          // 点一下会怎样（第一次来的人一看就知道）
+  g.fillText(s.name === '地理' ? '点一下 · 进入地理世界' : s.books.length > 1 ? '点一下 · 展开课本' : '点一下 · 打开课本', W / 2, 340);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 16;
   const card = new THREE.Group();
   const face = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), new THREE.MeshLambertMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.16 }));          // 立着的面太阳照得少：自己亮一点，字才清楚

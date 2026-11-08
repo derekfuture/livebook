@@ -143,6 +143,7 @@ export default {
       const f = new THREE.Group(), L = big ? 0.017 : 0.011;
       const pin = new THREE.Mesh(new THREE.CylinderGeometry(big ? 0.0006 : 0.00045, big ? 0.0006 : 0.00045, L, 6), paint(0x3a3f4a, { keep: true })); pin.position.y = L / 2; f.add(pin);
       const cloth = new THREE.Mesh(new THREE.PlaneGeometry(big ? 0.0105 : 0.0068, big ? 0.0068 : 0.0044), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide })); cloth.position.set((big ? 0.0105 : 0.0068) / 2 + 0.0002, L - (big ? 0.0034 : 0.0022), 0); f.add(cloth);
+      if (big) inked(cloth, { width: 0.8, handle: true });          // 学生要拖的那面小红旗：描一道边，一眼看得出能抓
       const top = new THREE.Object3D(); top.position.y = L + 0.002; f.add(top);
       return { f, top };
     };

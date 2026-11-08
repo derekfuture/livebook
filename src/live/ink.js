@@ -104,9 +104,9 @@ export function inkLine(width = 1.6, color = INK, opacity = 1) {
 }
 
 /** 给网格加描边（按折角取边）。返回网格本身，方便链式写。 */
-export function inked(mesh, { angle = 28, width = 1.6, color = INK, opacity = 1 } = {}) {
+export function inked(mesh, { angle = 28, width = 1.6, color = INK, opacity = 1, handle = false } = {}) {
   if (STYLE === 'ink') { width *= 0.6; angle = Math.max(angle, 40); }
-  if (styleNow() === 'real') { width *= 0.6; opacity *= 0.35; angle = Math.max(angle, 35); }          // 真实画风：边线很淡，只帮着看清棱角
+  if (styleNow() === 'real') { if (handle) { width *= 0.9; opacity *= 0.85; } else { width *= 0.6; opacity *= 0.35; angle = Math.max(angle, 35); } }          // 真实画风：边线很淡，只帮着看清棱角；要拿在手里拖的东西（handle）描清楚一点，一眼看得出能抓
   const edges = new THREE.EdgesGeometry(mesh.geometry, angle);
   const g = new LineSegmentsGeometry().fromEdgesGeometry(edges);
   edges.dispose();
@@ -119,8 +119,8 @@ export function inked(mesh, { angle = 28, width = 1.6, color = INK, opacity = 1 
 }
 
 /** 外轮廓（反面放大一圈），给球、圆柱这种没有折角的物体勾边。 */
-export function hull(mesh, thickness = 0.012, color = INK) {
-  if (STYLE === 'ink' || styleNow() === 'real') { mesh.castShadow = mesh.receiveShadow = true; return mesh; }   // 轮廓由后期画；真实画风不勾外轮廓
+export function hull(mesh, thickness = 0.012, color = INK, { handle = false } = {}) {
+  if (STYLE === 'ink' || (styleNow() === 'real' && !handle)) { mesh.castShadow = mesh.receiveShadow = true; return mesh; }   // 轮廓由后期画；真实画风不勾外轮廓（要拖的东西除外）
   const m = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide });
   m.onBeforeCompile = (s) => {
     s.uniforms.uThick = { value: thickness };

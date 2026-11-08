@@ -44,8 +44,8 @@ export default {
     paperSheet(group, { w: 0.32, d: 0.2, x: 0, z: 0.0 });
     // 铅笔：点它，用平滑的曲线把各点连起来（课本步骤 4）
     const pencil = new THREE.Group(); pencil.position.set(0.105, 0.003, 0.088); pencil.rotation.y = 0.5; group.add(pencil);
-    { const body = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 0.07, 6), paint(0xe2b23a)), { width: 0.5 }); body.rotation.z = Math.PI / 2; pencil.add(body);
-      const tip = inked(new THREE.Mesh(new THREE.ConeGeometry(0.0028, 0.009, 6), paint(0xe9d2a6)), { width: 0.4 }); tip.rotation.z = Math.PI / 2; tip.position.x = 0.0395; pencil.add(tip);
+    { const body = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, 0.07, 6), paint(0xe2b23a)), { width: 0.6, handle: true }); body.rotation.z = Math.PI / 2; pencil.add(body);
+      const tip = inked(new THREE.Mesh(new THREE.ConeGeometry(0.0028, 0.009, 6), paint(0xe9d2a6)), { width: 0.5, handle: true }); tip.rotation.z = Math.PI / 2; tip.position.x = 0.0395; pencil.add(tip);
       const lead = new THREE.Mesh(new THREE.ConeGeometry(0.0009, 0.003, 6), paint(0x2a2f3a, { keep: true })); lead.rotation.z = Math.PI / 2; lead.position.x = 0.0445; pencil.add(lead); }
     const pencilPick = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.012, 0.014), new THREE.MeshBasicMaterial({ visible: false })); pencilPick.userData.pick = true; pencil.add(pencilPick);
 

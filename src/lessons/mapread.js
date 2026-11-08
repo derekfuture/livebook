@@ -193,7 +193,7 @@ export default {
       g.fillStyle = '#2a3040'; g.font = '700 60px "Songti SC", serif'; g.textBaseline = 'middle'; g.textAlign = 'center'; g.fillText('模型', 115, Hc / 2 + 2); g.fillText('地图', Wc - 115, Hc / 2 + 2);
     });
     const strip = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.02), new THREE.MeshLambertMaterial({ map: slTex })); strip.rotation.x = -Math.PI / 2; strip.position.set(0, 0.0006, SL.z); strip.raycast = () => {}; group.add(strip);
-    const knob = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.0065, 0.006, 24), paint(0xd9a24a)), { width: 0.7 }); knob.position.set(SL.x0, 0.003, SL.z); group.add(knob);
+    const knob = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.0065, 0.006, 24), paint(0xd9a24a)), { width: 0.8, handle: true }); knob.position.set(SL.x0, 0.003, SL.z); group.add(knob);
     const knobPick = new THREE.Mesh(new THREE.SphereGeometry(0.011, 12, 8), new THREE.MeshBasicMaterial({ visible: false })); knobPick.userData.pick = true; knobPick.userData.track = true; knob.add(knobPick);
 
     // ================= 八个方向（课本图 2.6）：一张圆纸片 =================
@@ -217,8 +217,8 @@ export default {
     const LEG = 0.065;          // 分规一条腿 6.5 厘米：张开 8 厘米时铰链还在 5 厘米高
     const dv = new THREE.Group(); group.add(dv);
     const steel = paint(0x9aa3ad, { keep: true });
-    const legs = [0, 1].map(() => { const m = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0006, 1, 8), steel), { width: 0.5 }); dv.add(m); return m; });
-    const cap = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0042, 0.0042, 0.006, 20), paint(0x55606e, { keep: true })), { width: 0.6 }); dv.add(cap);
+    const legs = [0, 1].map(() => { const m = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0006, 1, 8), steel), { width: 0.6, handle: true }); dv.add(m); return m; });
+    const cap = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0042, 0.0042, 0.006, 20), paint(0x55606e, { keep: true })), { width: 0.8, handle: true }); dv.add(cap);
     const tipPick = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 10, 8), new THREE.MeshBasicMaterial({ visible: false })); m.userData.pick = true; m.userData.track = true; dv.add(m); return m; });
     const capPick = new THREE.Mesh(new THREE.SphereGeometry(0.0095, 12, 8), new THREE.MeshBasicMaterial({ visible: false })); capPick.userData.pick = true; capPick.userData.track = true; dv.add(capPick);
     const DV_HOME = [new THREE.Vector3(0.124, TOP, 0.048), new THREE.Vector3(0.134, TOP, 0.048)];
