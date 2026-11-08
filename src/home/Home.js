@@ -9,6 +9,8 @@
 //   别的书收回那一摞，就在这个舞台上换成书里那本书。地理——地球仪的球从架子上飞起来、越来越大，正好飞到地理世界里地球的位置和大小，
 //   换页面时两个叠在一起（泡沫球化成真的地球）。
 // 从书里回来：书先合上，换页面时拿书里最后一帧盖着，这边画好了再揭开，书从书桌中间回到摊开的那一排里。
+// 光：傍晚的太阳从左后方的窗户斜照进来，窗格的影子落在桌上，几件东西拖着长长的影子，光里飘着一点浮尘；屋里别处暗下去。
+//   物理那束白光就是这窗光。进书时光慢慢回到书里白天的样子（两边交接的那一帧是同一个画面）；从书里回来再慢慢暗下来。
 // 屏幕上还有：继续上次 / 接着学（两张便签）、搜一节课或一张活页、活页总览。
 import * as THREE from 'three';
 import { getBook, bookList, getManifest, fileUrl, OFFLINE } from '../content/index.js';
@@ -70,6 +72,9 @@ export async function bootHome(stage, { enterBook = null } = {}) {
 
   const group = new THREE.Group();
   stage.scene.add(group);
+  const mood = windowLight(stage, new THREE.Vector3(0, 0, ROW_Z - 0.35));
+  let moodK = 1, moodT = 1, moodRate = 1;          // 1：窗光（首页）… 0：书里白天的光
+  document.body.classList.add('mood');
 
   // ---- 每一科：一摞书（从下往上是高年级到低年级，最上面是第一册，封面朝上，微微错开）、一件东西、一张桌签 ----
   const items = [];
@@ -117,6 +122,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     return { p: new THREE.Vector3(cx + k * s.sp, u.T / 2 + 0.001, FAN_Z + Math.abs(k) * 0.04), yaw: -k * 0.035, sc: 1 };
   };
   const deskPose = (g) => { const u = g.userData; return { p: new THREE.Vector3((u.W * u.sv) / 2, (u.T * u.sv) / 2, 0), yaw: 0, sc: u.sv }; };
+  const fanCenter = (s) => { const n = s.books.length; return new THREE.Vector3(Math.min(s.x * 0.6, -0.06 - (n * s.sp - 0.14) / 2), 0, FAN_Z - 0.05); };          // 摊开的那一排正中（窗光挪过去照它）
   // 在两个位置之间：摊开时先平着往外抽（错开了再落到桌上，几本书不会互相穿过去），收回时先抬到各自的高度再收拢
   const lerpPose = (A, B, k, kind) => {
     const e = ease(k), yk = kind === 'tofan' ? smooth(0.62, 1, k) : kind === 'tostack' ? smooth(0, 0.38, k) : e;
@@ -201,13 +207,13 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     if (open) closeFan(true);
     open = s; backBtn.hidden = false;
     for (const g of items) if (g.userData.s === s) move(g, fanPose(g), 'tofan');
-    fanShot(s);
+    fanShot(s); mood.focus(fanCenter(s));
   }
   function closeFan(quick = false) {
     const s = open; if (!s) return;
     open = null; backBtn.hidden = true; hoverB = null;
     for (const g of items) if (g.userData.s === s) { move(g, stackPose(g), 'tostack'); slipOf(g).show(false); }
-    if (!quick) homeShot();
+    if (!quick) { homeShot(); mood.focus(null); }
   }
   function openBook(id) {
     if (leaving) return;
@@ -217,7 +223,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     if (!g) { location.href = `?book=${id}`; return; }
     leaving = g; ui.classList.add('leaving'); canvas.style.cursor = '';
     for (const t of slips.values()) t.show(false);
-    move(g, deskPose(g), 'todesk');
+    move(g, deskPose(g), 'todesk'); moodT = 0; moodRate = 1 / 0.8;          // 书飞过去的这一秒里，光回到书里白天的样子
     for (const o of items) if (o !== g && o.userData.s === g.userData.s && o.userData.mode !== 'stack') move(o, stackPose(o), 'tostack');          // 别的书收回那一摞（镜头低头看书桌时它们在画面外）
     setTimeout(() => deskShot(g.userData), 160);
   }
@@ -237,7 +243,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     const u = g.userData;
     if (!enterBook) { location.href = `?book=${u.id}`; return; }
     history.pushState(null, '', `?book=${u.id}`);
-    ac.abort(); ui.remove(); for (const t of slips.values()) t.remove(); stage.updaters.delete(tick);
+    ac.abort(); ui.remove(); for (const t of slips.values()) t.remove(); stage.updaters.delete(tick); mood.dispose(); document.body.classList.remove('mood');
     for (const o of [...group.children]) if (o !== g) { group.remove(o); disposeTree(o); }          // 各科的纸、书、那几件东西都在镜头外面了：先收走；拿下来的这本留着，等书里那本书的封面画好了再收
     document.body.classList.remove('home'); document.body.classList.add('book-enter');
     document.documentElement.classList.remove('to-home');        // 从书里回到首页时 index.html 加的（藏起书里的按钮）：不去掉的话，再拿一本书进来，顶栏的目录、活页和翻页条都不见了
@@ -281,12 +287,14 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   if (ret) {
     const u = ret.userData, s = u.s;
     place(ret, deskPose(ret)); u.mode = 'held'; deskShot(u, true);
+    moodK = moodT = 0; mood.set(0);          // 和书里最后一帧一样亮；揭开截图以后窗光再慢慢出来
     ui.classList.add('leaving');          // 书回到那一排以后，屏幕上的纸片再浮出来
     // 书里最后一帧（合上的书）还盖在上面：等这本书的封面贴图好了（下面已经是同一个画面）再揭开
     waitCover = { g: ret, t: 0, frames: 0, go: () => {
       window.__dropSnap?.();
+      setTimeout(() => { moodT = 1; moodRate = 1 / 1.6; }, 340);
       setTimeout(() => {          // 盖着的截图淡出完了再动（不然有一两帧重影）
-        if (s.books.length > 1) { open = s; backBtn.hidden = false; move(ret, fanPose(ret), 'back'); for (const g of items) if (g.userData.s === s && g !== ret) move(g, fanPose(g), 'tofan'); fanShot(s); }
+        if (s.books.length > 1) { open = s; backBtn.hidden = false; move(ret, fanPose(ret), 'back'); for (const g of items) if (g.userData.s === s && g !== ret) move(g, fanPose(g), 'tofan'); fanShot(s); mood.focus(fanCenter(s)); }
         else { move(ret, stackPose(ret), 'back'); homeShot(); }
       }, 340);
       setTimeout(() => ui.classList.remove('leaving'), 1000);
@@ -298,6 +306,8 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   const tick = (dt) => {
     if (waitCover) { const w = waitCover; w.t += dt; if (w.g.userData.coverReady) w.frames++; if (w.frames > 2 || w.t > 1.6) { waitCover = null; w.go(); } }
     const time = performance.now() / 1000;
+    if (moodK !== moodT) { moodK = moodT > moodK ? Math.min(moodT, moodK + dt * moodRate) : Math.max(moodT, moodK - dt * moodRate); mood.set(moodK); }
+    mood.tick(dt, time);
     for (const s of subjects) {
       const want = !open && !leaving && hoverS === s ? 1 : 0;
       s.hot += (want - s.hot) * Math.min(1, dt * 7);
@@ -333,6 +343,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
         B.o.scale.setScalar(B.sc + (R / B.R - B.sc) * k);
         B.o.quaternion.slerpQuaternions(B.q, new THREE.Quaternion(), k);          // 地轴转成竖直：地理世界里的地球北极朝上
         L.s.thing.userData.tick(dt, 1 + k * 3, time);
+        if (L.s.thing.userData.ballMat) L.s.thing.userData.ballMat.emissiveIntensity = k * 0.85;
       }
       if (L.t > 1.6 && !L.sent) { L.sent = true; try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ } location.href = `?subject=dili&focus=${L.focus}`; }
     }
@@ -341,6 +352,78 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   stage.updaters.add(tick);
   stage.start();
   window.__home = { stage, items, subjects, openBook, openFan, closeFan, goWorld };          // 给测试、录屏脚本用（同书里的 window.__lb）
+}
+
+/**
+ * 首页的光：一扇窗（在左后方、画面外）透进来的傍晚阳光——一盏带窗格图案的聚光灯，投出窗格和窗外树叶的影子；屋里的天光调暗、偏冷，
+ * 远处的桌面没进暗处。set(k)：k = 1 首页的窗光，k = 0 书里白天的光（舞台原来的灯）；dispose()：拿走这盏灯，舞台的灯原样放回。
+ */
+function windowLight(stage, target) {
+  const sc = stage.scene, hemi = sc.children.find((o) => o.isHemisphereLight), sun = stage.sun;
+  const desk = stage.desk?.material;
+  const base = { hI: hemi.intensity, hC: hemi.color.clone(), hG: hemi.groundColor.clone(), sI: sun.intensity, sC: sun.color.clone(), bg: sc.background.clone(), fC: sc.fog.color.clone(), fN: sc.fog.near, fF: sc.fog.far, dC: desk?.color.clone() };
+  const dusk = { hI: 0.62, hC: new THREE.Color(0xa7b6d2), hG: new THREE.Color(0x5b4534), sI: 0.22, sC: new THREE.Color(0xffe2bd), bg: new THREE.Color(0x2b231d), fC: new THREE.Color(0x2b231d), fN: 5.2, fF: 12.5, dC: new THREE.Color(0xd6cbbd) };          // 桌面：窗光底下木头不那么橙
+  const LIGHT = new THREE.Vector3(-5.4, 6.4, -6.1);          // 窗在哪个方向（离那几科多远）：和物理那束白光的方向一致
+  const spot = new THREE.SpotLight(0xffe6c8, 0, 0, 0.19, 0.3, 0);
+  spot.position.copy(target).add(LIGHT); spot.target.position.copy(target);
+  spot.map = goboTexture(); spot.castShadow = true; spot.shadow.mapSize.set(2048, 2048); spot.shadow.bias = -0.0002; spot.shadow.normalBias = 0.008;
+  Object.assign(spot.shadow.camera, { near: 3, far: 22 });
+  sc.add(spot, spot.target);
+  // 光里的浮尘：一小团慢慢飘的亮点，只在窗光照到的那一束里
+  const NM = 90, mp = new Float32Array(NM * 3), seeds = Array.from({ length: NM }, (_, i) => ({ u: (Math.sin(i * 12.9) * 0.5 + 0.5) * 2 - 1, v: (Math.sin(i * 7.7 + 1) * 0.5 + 0.5) * 2 - 1, t: 0.03 + (Math.sin(i * 3.3) * 0.5 + 0.5) * 0.16, ph: i * 1.7 }));
+  const dir = LIGHT.clone().normalize(), side = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), upv = new THREE.Vector3().crossVectors(dir, side).normalize();
+  const motes = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(mp, 3)), new THREE.PointsMaterial({ color: 0xfff0d8, size: 0.022, map: dotTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  motes.frustumCulled = false; motes.raycast = () => {}; sc.add(motes);
+  const L = (a, b, k) => a + (b - a) * k;
+  let kNow = 0;
+  const aimAt = target.clone(), home = target.clone();          // 窗光照着哪里：平时是那几科，摊开一科时挪到摊开的那一排（光的方向不变，影子还是朝右前方）
+  const api = {
+    /** 窗光挪去照 p（null：回到那几科） */
+    focus(p) { aimAt.copy(p || home); },
+    set(k) {
+      kNow = k;
+      hemi.intensity = L(base.hI, dusk.hI, k); hemi.color.copy(base.hC).lerp(dusk.hC, k); hemi.groundColor.copy(base.hG).lerp(dusk.hG, k);
+      sun.intensity = L(base.sI, dusk.sI, k); sun.color.copy(base.sC).lerp(dusk.sC, k);
+      sc.background.copy(base.bg).lerp(dusk.bg, k); sc.fog.color.copy(base.fC).lerp(dusk.fC, k); sc.fog.near = L(base.fN, dusk.fN, k); sc.fog.far = L(base.fF, dusk.fF, k);
+      if (desk) desk.color.copy(base.dC).lerp(dusk.dC, k);
+      spot.intensity = 4.4 * k; motes.material.opacity = 0.55 * k;
+    },
+    tick(dt, t) {
+      if (target.distanceToSquared(aimAt) > 1e-8) { target.lerp(aimAt, Math.min(1, dt * 2.4)); spot.target.position.copy(target); spot.position.copy(target).add(LIGHT); }
+      if (kNow <= 0.001) return;
+      seeds.forEach((m, i) => {
+        const along = LIGHT.clone().multiplyScalar(m.t + Math.sin(t * 0.05 + m.ph) * 0.01);
+        const p = target.clone().addScaledVector(side, m.u * 1.6 + Math.sin(t * 0.13 + m.ph) * 0.05).addScaledVector(upv, m.v * 0.9 + Math.cos(t * 0.11 + m.ph) * 0.05).add(along);
+        mp.set([p.x, Math.max(0.03, p.y), p.z], i * 3);
+      });
+      motes.geometry.attributes.position.needsUpdate = true;
+    },
+    dispose() { api.set(0); sc.remove(spot, spot.target, motes); spot.map?.dispose(); spot.shadow.map?.dispose(); motes.geometry.dispose(); motes.material.map?.dispose(); motes.material.dispose(); },
+  };
+  api.set(1);
+  return api;
+}
+/** 窗格图案：一扇书房的格子窗（外框 + 两列三行的窗棂），光从格子里透过来，影子边是虚的；右上角窗外有几簇树叶的影子；越往边上光越弱 */
+function goboTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 1024; const g = c.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, 1024, 1024);
+  const X0 = 120, X1 = 904, Y0 = 90, Y1 = 934, COLS = 2, ROWS = 3, BAR = 14, cw = (X1 - X0) / COLS, ch = (Y1 - Y0) / ROWS;
+  g.filter = 'blur(16px)'; g.fillStyle = '#3a3630'; g.fillRect(X0, Y0, X1 - X0, Y1 - Y0);          // 窗棂的影子不是全黑：天光从旁边漏进来一点
+  g.fillStyle = '#fff3de';
+  for (let i = 0; i < COLS; i++) for (let j = 0; j < ROWS; j++) g.fillRect(X0 + i * cw + BAR / 2, Y0 + j * ch + BAR / 2, cw - BAR, ch - BAR);
+  let sd = 7; const r = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  g.filter = 'blur(18px)'; g.fillStyle = 'rgba(0,0,0,0.55)';
+  for (let i = 0; i < 40; i++) { g.beginPath(); g.ellipse(X1 - 20 - r() * 280, Y0 - 20 + r() * 260, 16 + r() * 40, 9 + r() * 20, r() * 3, 0, 7); g.fill(); }
+  g.filter = 'none';
+  const gr = g.createRadialGradient(512, 512, 120, 512, 512, 600); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.62)'); g.fillStyle = gr; g.fillRect(0, 0, 1024, 1024);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+/** 浮尘的小亮点 */
+function dotTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
 }
 
 /** 收走一棵物体树：几何体、材质、贴图都释放（描边的线材质是大家共用的，留着） */
@@ -520,7 +603,9 @@ function globeThing() {
   const tilt = new THREE.Group(); tilt.position.copy(C0); tilt.quaternion.setFromUnitVectors(Y, AXIS); g.add(tilt);
   for (const sg of [-1, 1]) { const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.0058, 0.0058, 0.008, 14), paint(0xf2efe6, { unique: true })); tape.position.y = sg * (R + 0.003); tilt.add(tape); }          // 两极贴的胶布
   const spin = new THREE.Group(); tilt.add(spin);
-  spin.add(hull(new THREE.Mesh(new THREE.SphereGeometry(R, 72, 48), new THREE.MeshLambertMaterial({ map: tex })), 0.0014));
+  const ballMat = new THREE.MeshLambertMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0 });          // 飞去地理世界时自己亮起来（离开窗光也不发灰）
+  spin.add(hull(new THREE.Mesh(new THREE.SphereGeometry(R, 72, 48), ballMat), 0.0014));
+  g.userData.ballMat = ballMat;
   g.userData.ball = tilt; g.userData.R = R;          // 进地理世界时，球（连胶布、毛线）从架子上飞走
   const yarn = new THREE.Mesh(new THREE.TorusGeometry(R + 0.0008, 0.0019, 8, 128), paint(0xc8462e, { keep: true, unique: true })); yarn.rotation.x = Math.PI / 2; spin.add(yarn);          // 毛线赤道
   spin.rotation.y = 2.2;

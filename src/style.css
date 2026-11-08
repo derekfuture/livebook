@@ -354,6 +354,9 @@ body.home::after { content: ""; position: fixed; inset: 0; z-index: 2; pointer-e
 .home-top { position: absolute; z-index: 1; left: 0; right: 0; top: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: max(22px, env(safe-area-inset-top)) 28px 0; pointer-events: none; }
 .home-top > * { pointer-events: auto; }
 .home-brand b { display: block; font: 700 30px/1 var(--song); letter-spacing: .14em; color: #2c3245; }
+body.mood .home-brand b { color: #f4ead6; text-shadow: 0 2px 14px rgba(0,0,0,.35); }          /* 首页傍晚的窗光：四周暗，字用暖白 */
+body.mood .home-brand span { color: #d9c9a8; text-shadow: 0 1px 10px rgba(0,0,0,.35); }
+body.mood .home-copy { color: rgba(240,228,205,.5); }
 .home-brand span { display: block; margin-top: 10px; font: 20px/1.4 "Kaiti SC", "STKaiti", "KaiTi", var(--song); color: #4a3f2f; letter-spacing: .2em; }      /* 标语：用楷体，像题在书上的一句话 */
 /* 搜索：一条纸 */
 .home-search { position: relative; width: min(440px, 46vw); }
