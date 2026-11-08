@@ -28,6 +28,32 @@ const WORLD_FOV = 21, BOOK_FOV = 30;          // 地理世界用长一点的镜�
 const atBookFov = (stage, fn) => { const c = stage.camera, f = c.fov; c.fov = BOOK_FOV; c.updateProjectionMatrix(); const r = fn(); c.fov = f; c.updateProjectionMatrix(); return r; };
 const setFov = (stage, f) => { if (Math.abs(stage.camera.fov - f) > 1e-4) { stage.camera.fov = f; stage.camera.updateProjectionMatrix(); } };
 
+const PANEL_W = 22 + 336 + 24;          // 左边目录页占的宽度（.geo-toc：离边 22、宽 336），再留一点空
+
+/** 地理世界的机位：要框进画面的是地球顶（上面留一行提示）、正前方那本书的名字、书圈左右两头。远近一直按“目录开着”算：收起目录只把画面挪到正中，不整体放大 */
+function worldShot(W, H, panelW) {
+  const el = THREE.MathUtils.degToRad(15), dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el));
+  const top = new THREE.Vector3(0, EARTH.y + EARTH.r, 0), bottom = new THREE.Vector3(0, -0.3, RING.r + 0.35), sides = [new THREE.Vector3(RING.r + 0.35, 0.4, 0), new THREE.Vector3(-RING.r - 0.35, 0.4, 0)];
+  const cam = new THREE.PerspectiveCamera(WORLD_FOV, W / H, 0.1, 200), wantTop = 1 - 2 * 0.1, wantBot = -1 + 2 * 0.05, usableX = (W - panelW) / W;
+  let ty = 1.3, dist = 14;
+  for (let i = 0; i < 40; i++) {
+    const tg = new THREE.Vector3(0, ty, 0.2);
+    cam.position.copy(tg).addScaledVector(dir, dist); cam.lookAt(tg); cam.updateMatrixWorld();
+    const yT = top.clone().project(cam).y, yB = bottom.clone().project(cam).y, xS = Math.max(...sides.map((p) => Math.abs(p.clone().project(cam).x)));
+    dist *= Math.max((yT - yB) / (wantTop - wantBot), xS / (usableX * 0.94));
+    ty += ((yT + yB) / 2 - (wantTop + wantBot) / 2) * dist * Math.tan(THREE.MathUtils.degToRad(WORLD_FOV) / 2) * 0.8;
+  }
+  return { target: new THREE.Vector3(0, ty, 0.2), dir, dist, cam };
+}
+
+/** 一打开地理世界，地球在屏幕上的哪儿、多大（像素：圆心 cx, cy，半径 r）：首页的地球仪飞到这里，换页面时正好和它叠在一起 */
+export function earthCircle(W = innerWidth, H = innerHeight) {
+  const { cam } = worldShot(W, H, PANEL_W), c = new THREE.Vector3(0, EARTH.y, 0).project(cam);
+  const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), e = new THREE.Vector3(0, EARTH.y, 0).addScaledVector(right, EARTH.r).project(cam);
+  const px = (v) => [((v.x + 1) / 2) * W, ((1 - v.y) / 2) * H], [cx, cy] = px(c), [ex, ey] = px(e);
+  return { cx: cx + PANEL_W / 2, cy, r: Math.hypot(ex - cx, ey - cy) };          // 目录页开着：画面整体往右挪半个目录宽
+}
+
 export async function bootGeoWorld(stage, { focus = null } = {}) {
   document.body.classList.add('geo-world');
   if (new URLSearchParams(location.search).has('cover')) document.body.classList.add('geo-cover');          // 公众号封面：只留画面（地球、月亮、太阳、书圈），不要目录和读数
@@ -167,24 +193,14 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const spinTo = (bo) => { let d = -bo.a - ringRot; d = ((d + Math.PI * 3) % (Math.PI * 2)) - Math.PI; ringTo = ringRot + d; };          // 转最短的那条路，让这本书到正前方
   const fb = bookObjs.find((x) => x.b.id === focus); if (fb) { spinTo(fb); ringRot = ringTo; }
 
-  // ---- 镜头：地球在中间偏上，书圈在下面，一起框进来 ----
+  // ---- 镜头：地球在中间偏上，书圈在下面，一起框进来（算法在下面的 worldShot） ----
   const shot = (instant = false) => {
-    const cover = document.body.classList.contains('geo-cover'), panelW = cover ? 0 : 22 + 336 + 24;          // 左边目录页占的宽度（.geo-toc：离边 22、宽 336），再留一点空；封面不留
+    const cover = document.body.classList.contains('geo-cover'), panelW = cover ? 0 : PANEL_W;
     stage.cameraOffsetX = panelOpen() && !cover ? panelW / 2 : 0; stage.cameraOffsetY = 0;
-    const el = THREE.MathUtils.degToRad(15), dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el));
-    // 要框进画面的：地球顶（上面留一行提示）、正前方那本书的名字、书圈左右两头。远近一直按“目录开着”算：收起目录只把画面挪到正中，不整体放大
-    const top = new THREE.Vector3(0, EARTH.y + EARTH.r, 0), bottom = new THREE.Vector3(0, -0.3, RING.r + 0.35), sides = [new THREE.Vector3(RING.r + 0.35, 0.4, 0), new THREE.Vector3(-RING.r - 0.35, 0.4, 0)];
-    const cam = new THREE.PerspectiveCamera(WORLD_FOV, innerWidth / innerHeight, 0.1, 200), wantTop = 1 - 2 * 0.1, wantBot = -1 + 2 * 0.05, usableX = (innerWidth - panelW) / innerWidth;
-    let ty = 1.3, dist = 14;
-    for (let i = 0; i < 40; i++) {
-      const tg = new THREE.Vector3(0, ty, 0.2);
-      cam.position.copy(tg).addScaledVector(dir, dist); cam.lookAt(tg); cam.updateMatrixWorld();
-      const yT = top.clone().project(cam).y, yB = bottom.clone().project(cam).y, xS = Math.max(...sides.map((p) => Math.abs(p.clone().project(cam).x)));
-      dist *= Math.max((yT - yB) / (wantTop - wantBot), xS / (usableX * 0.94));
-      ty += ((yT + yB) / 2 - (wantTop + wantBot) / 2) * dist * Math.tan(THREE.MathUtils.degToRad(WORLD_FOV) / 2) * 0.8;
-    }
-    stage.shot({ target: new THREE.Vector3(0, ty, 0.2), dir, dist, instant, minEl: 0.05 });
-    placeMoon(new THREE.Vector3(0, ty, 0.2), dir, dist);
+    const { target, dir, dist } = worldShot(innerWidth, innerHeight, panelW);
+    stage.shot({ target, dir, dist, instant, minEl: 0.05 });
+    if (instant) (stage._off ||= new THREE.Vector2()).set(stage.cameraOffsetX, stage.cameraOffsetY);          // 一下子到位：画面不从正中慢慢挪过去（首页飞过来的球要正好叠在地球上）
+    placeMoon(target, dir, dist);
   };
 
 
@@ -676,7 +692,13 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   let backFrom = null;
   try { backFrom = sessionStorage.getItem('livebook.worldFrom'); sessionStorage.removeItem('livebook.worldFrom'); } catch { /* 隐私模式 */ }
   const backBo = bookObjs.find((x) => x.b.id === backFrom);
-  if (backBo) arrive(backBo); else window.__dropSnap?.();
+  if (backBo) arrive(backBo);
+  else {          // 地球的贴图（白天、夜里的灯光）好了再揭开盖着的截图：从首页飞过来的那个泡沫球正好叠在地球上，揭开就是它变成了真的地球
+    const t0 = performance.now(); let n = 0;
+    const ready = () => earth.mat.map?.image && (!earth.nowU.nightMap || earth.nowU.nightMap.value.image);
+    const wait = () => { if ((ready() && ++n > 2) || performance.now() - t0 > 2500) window.__dropSnap?.(); else requestAnimationFrame(wait); };
+    wait();
+  }
   stage.start();
   document.querySelector('#loader')?.classList.add('done');
   window.__geo = { stage, earth, time, items, books, bookObjs, go, openBook, get busy() { return !!(leaving || arriving || diving); }, get diving() { return diving; } };
