@@ -141,6 +141,11 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     for (const bt of viewBtns) bt.classList.toggle('on', layerOn?.id === bt.dataset.id);
     if (enterLink) { enterLink.hidden = !layerOn; enterLink.textContent = layerOn ? `进到“${layerOn.title}” →` : ''; }
   };
+  // 看法放回场景里：地球左边一列小纸签，和地球隔开一段（按地球在屏幕上的大小摆，不贴着它）
+  const views = h('div', { class: 'geo-views' });
+  viewBtns = themes.map((x) => h('button', { 'data-id': x.id, html: `${ICON[x.anchor.layer] || ''}<span>${x.anchor.chip}</span>`, onclick: (e) => { e.stopPropagation(); setView(x); } }));
+  enterLink = h('button', { class: 'gv-enter', hidden: true, onclick: (e) => { e.stopPropagation(); if (layerOn) go(layerOn); } });
+  views.append(...viewBtns, enterLink); document.body.append(views);
   const openPanel = () => {
     const ui = panel.open({ id: 'geo-world', index: true, fig: '人教版 · 地理', title: '地理世界', ask: '课本里讲的这些事，发生在地球的哪里？' }, { onClose: () => { panel.close(); shot(); }, closeText: '收起 ‹' });
     panel.el.classList.add('board');
@@ -157,9 +162,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
         rows.set(it.id, row); grp.append(row);
       }
     }
-    viewBtns = themes.map((x) => h('button', { class: 'av-btn', 'data-id': x.id, html: `${ICON[x.anchor.layer] || ''}<span>${x.anchor.chip}</span>`, onclick: () => setView(x) }));
-    enterLink = h('button', { class: 'av-enter', hidden: true, onclick: () => layerOn && go(layerOn) });
-    ui.controls.append(h('div', { class: 'atlas-views' }, h('div', { class: 'av-title' }, '看整个地球'), h('div', { class: 'av-btns' }, viewBtns), enterLink), list);
+    ui.controls.append(list);
     ui.status(`${books.length} 本地理书、${items.length} 张活页。课本里举了具体地方的，地球上都插了一面旗，颜色是它所在的那本书。`);
   };
   openPanel();
@@ -601,6 +604,10 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     // 明信片跟着旗
     if (cardFor?.pn) { const cam = stage.camera, right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), w = earth.pinWorld(cardFor.pn), toRight = (cardFor.pn.side ?? 1) < 0, edge = earth.root.position.clone().addScaledVector(right, EARTH.r * (toRight ? 1 : -1)); const sx = (edge.clone().project(cam).x + 1) / 2 * innerWidth + (toRight ? 1 : -1) * ((card.el.offsetWidth || 214) / 2 + 22), sy = ((1 - w.clone().project(cam).y) / 2) * innerHeight; card.at(new THREE.Vector3((sx / innerWidth) * 2 - 1, 1 - (sy / innerHeight) * 2, 0.5).unproject(cam)); }
     const E0 = new THREE.Vector3(0, EARTH.y, 0);          // 提示钉在地球不浮动时的位置上（地球轻轻浮着，字不跟着晃）
+    { const cam = stage.camera, c = E0.clone().project(cam), r = E0.clone().addScaledVector(new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), EARTH.r).project(cam);
+      const cx = ((c.x + 1) / 2) * innerWidth, cy = ((1 - c.y) / 2) * innerHeight, rpx = Math.abs(r.x - c.x) / 2 * innerWidth;
+      views.style.transform = `translate(${Math.round(cx - rpx - 44 - views.offsetWidth)}px, ${Math.round(cy - views.offsetHeight / 2)}px)`;
+      views.classList.toggle('hidden', !!(leaving || arriving || diving)); }
     hint.at(E0.clone().add(new THREE.Vector3(0, EARTH.r * 1.22, 0))).show(!touched && !arriving && !diving);
     if (leaving) { leaving.t += dt; land(dt); }
     if (diving) diveStep(dt);
