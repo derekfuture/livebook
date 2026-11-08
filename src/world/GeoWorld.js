@@ -224,11 +224,18 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       const head = h('button', { class: 'gt-book', onclick: () => { if (bo()) spinTo(bo()); openBookList(b.id); }, onmouseenter: () => { bookHot = bo(); }, onmouseleave: () => { bookHot = null; } },
         h('i', { style: `background:${BOOK_COLORS[b.id]}` }), h('span', {}, bookName(b)), h('em'), h('b', {}, `${mine.length}`));
       const inner = h('div', { class: 'gt-in' }), el = h('div', { class: 'gt-lessons' }, inner);          // 展开、收起：外层从 0 高变到原高（里面一层负责裁掉）
-      for (const it of mine) {
-        const row = h('button', { class: 'gt-row', onclick: () => go(it), onmouseenter: () => hover({ it }, true), onmouseleave: () => hover(null, true) },
-          h('small', {}, it.fig), h('span', {}, it.title), h('em'), h('b', {}, `${it.page}`));
-        if (stamps.has(it.id)) row.classList.add('done');
-        rows.set(it.id, row); inner.append(row);
+      // 同一节有几张活页的（板块、褶皱、断层；大气受热、热力环流；气压带风带、季风……），先写这一节的名字，几张活页缩进排在下面——像课本的目录，看上去是一个个专题，不是一长串
+      const secs = new Map();
+      for (const it of mine) { const k = it.sec || it.id; if (!secs.has(k)) secs.set(k, []); secs.get(k).push(it); }
+      for (const [sec, list] of [...secs].sort((x, y) => Math.min(...x[1].map((i) => i.page)) - Math.min(...y[1].map((i) => i.page)))) {          // 按页码排（后来补的活页也排到它在书里的位置）
+        const grouped = list.length > 1;
+        if (grouped) inner.append(h('div', { class: 'gt-sec' }, h('span', {}, sec.replace(/^第.+?节\s*/, '')), h('em'), h('b', {}, `${Math.min(...list.map((x) => x.page))}`)));
+        for (const it of list.sort((x, y) => x.page - y.page)) {
+          const row = h('button', { class: `gt-row${grouped ? ' sub' : ''}`, onclick: () => go(it), onmouseenter: () => hover({ it }, true), onmouseleave: () => hover(null, true) },
+            h('small', {}, it.fig), h('span', {}, it.title), h('em'), h('b', {}, `${it.page}`));
+          if (stamps.has(it.id)) row.classList.add('done');
+          rows.set(it.id, row); inner.append(row);
+        }
       }
       groups.set(b.id, { el, head }); list.append(head, el);
     }

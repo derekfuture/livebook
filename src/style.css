@@ -857,6 +857,10 @@ body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(
 .geo-toc .gt-lessons.open { grid-template-rows: 1fr; }
 .geo-toc .gt-in { min-height: 0; overflow: hidden; }
 .geo-toc .gt-row { gap: 6px; padding: 5px 0 5px 17px; font: 13.5px/1.4 var(--song); color: #3a3326; }
+.geo-toc .gt-sec { display: flex; align-items: baseline; gap: 6px; padding: 7px 0 2px 17px; font: 600 12.5px/1.4 var(--song); letter-spacing: .06em; color: #7a6a4e; }          /* 同一节的几张活页：先写节名 */
+.geo-toc .gt-sec em { flex: 1; border-bottom: 1px dotted rgba(120,100,60,.35); transform: translateY(-3px); }
+.geo-toc .gt-sec b { font: 500 12px/1 var(--song); color: #8a7d64; font-variant-numeric: tabular-nums; }
+.geo-toc .gt-row.sub { padding-left: 29px; }
 .geo-toc .gt-row small { flex: none; width: 40px; font: 11px/1 var(--sans); color: #9a8d76; }
 .geo-toc .gt-row span { transition: color .2s; }
 .geo-toc .gt-row:hover span, .geo-toc .gt-row.on span { color: #1f4f8f; }
