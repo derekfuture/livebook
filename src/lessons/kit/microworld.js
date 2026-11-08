@@ -134,7 +134,7 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
   beam.innerHTML = '<defs><linearGradient id="mwg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.85"/><stop offset="1" stop-color="#9fc4ff" stop-opacity="0.15"/></linearGradient></defs><path fill="url(#mwg)"/>';
   const eq = h('div', { class: 'mw-eq' }), cap = h('div', { class: 'mw-cap' });
   const closeB = h('button', { class: 'mw-close', onclick: () => api.close() }, '回到桌上 ×');
-  const scale = h('div', { class: 'mw-scale' }, '放大约一亿倍 · 每个分子代表很多个');
+  const scale = h('div', { class: 'mw-scale' }, '微观示意 · 粒子数量与尺度经过简化');
   const port = h('div', { class: 'mw-port' });
   const hud = h('div', { class: 'mw-hud' }, eq, cap);
   const root = h('div', { class: 'mw', hidden: true }, dim, beam, port, hud, closeB, scale);
