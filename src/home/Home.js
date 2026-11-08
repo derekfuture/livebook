@@ -3,6 +3,7 @@
 // 点一本书：它从架子上抽出来、落到书桌中间，镜头跟着低头看——和书里一开始的样子一模一样；不重新加载页面，就在这个舞台上换成书里那本书，接着翻开到上次的书签页。
 // 从书里回来：书先合上，换页面时拿书里最后一帧盖着，这边画好了再揭开，书从书桌上放回架上。
 // 屏幕上还有：继续上次 / 接着学（贴在墙上的两张便签）、搜一节课或一张活页、活页总览。
+import { feedbackButton } from '../ui/community.js';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { getBook, bookList, bookHref, getManifest, fileUrl, OFFLINE } from '../content/index.js';
@@ -161,6 +162,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
       h('button', { class: 'paper-btn', onclick: () => openOverview(books, manifests, subjects, pagesOk) }, '⊞ 活页总览'),
       !OFFLINE && (FEATURES.offline || import.meta.env.DEV) ? offlineButton() : null,          // 开关在 src/features.js；离线版里不用再下载
       OFFLINE ? h('a', { class: 'home-copy', href: 'https://livebook.derekfuture.club/', target: '_blank', rel: 'noopener' }, '活页课本会持续更新，联网后可回到网站下载新版。') : null,
+      h('nav', { class: 'home-community', 'aria-label': '反馈与项目' }, feedbackButton(), h('span', {'aria-hidden':'true'}, '·'), h('a', {href:'https://github.com/derekfuture/livebook',target:'_blank',rel:'noopener noreferrer'}, 'GitHub ↗')),
       h('span', { class: 'home-copy' }, '书里可以导入你自己下载的课本 PDF，文件只在这台电脑上使用')));
   document.body.append(ui);
   document.querySelector('#loader')?.classList.add('done');
