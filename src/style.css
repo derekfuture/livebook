@@ -664,7 +664,7 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 @keyframes impBlink { 0%, 100% { box-shadow: 0 10px 28px rgba(0, 0, 0, .25), 0 0 0 0 rgba(255, 210, 138, 0); } 50% { box-shadow: 0 10px 28px rgba(0, 0, 0, .25), 0 0 0 5px rgba(255, 210, 138, .55); } }
 .ov-thumb.nopage { display: flex; align-items: center; justify-content: center; min-height: 92px; background: #f6f1e6; color: #7d8696; font: 15px/1 "Songti SC", "STSong", serif; letter-spacing: .04em; }
 
-/* Feedback preview: a quiet footer link and a labelled action beside the experiment. */
+/* Feedback: a quiet footer link and a labelled action beside the experiment. */
 .home-community { position:absolute; right:20px; bottom:25px; display:flex; align-items:center; gap:10px; font:12px var(--sans); color:#786d5c; }
 .home-community a { color:inherit; text-decoration:none; }
 .home-community a:hover { text-decoration:underline; }
@@ -674,31 +674,6 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 .home-community svg { width:16px; height:16px; }
 #viewctl .lesson-community { display:flex; flex-direction:column; align-items:flex-end; gap:7px; margin-bottom:9px; }
 #viewctl .feedback-entry { display:flex; font:13px var(--sans); width:auto; min-width:68px; height:34px; padding:0 9px; border-radius:9px; }
-.lesson-account { position:relative; }
-#viewctl .lesson-account-trigger { display:grid;place-items:center; }
-.lesson-account-popover { position:absolute; right:calc(100% + 12px); bottom:0; width:240px; box-sizing:border-box; padding:20px 18px; border:1px solid #ded2bd; border-radius:8px; background:#fdfaf1; color:#343a47; box-shadow:0 8px 30px #49341f30; text-align:center; }
-.lesson-account-popover::after { content:'';position:absolute;left:100%;top:0;bottom:0;width:14px; }
-.lesson-account-popover[hidden] { display:none; }
-.lesson-account-popover img { display:block; margin:0 auto 14px; padding:6px; background:white; }
-.lesson-account-popover b { font:600 15px var(--song); }
-.lesson-account-popover p { font:13px/1.6 var(--song);white-space:pre-line;margin:10px 0; }
-.lesson-account-popover small { display:block; font:11px/1.6 var(--sans);color:#887a63;margin-top:7px; }
-.feedback-dialog { width:min(460px,calc(100vw - 32px));max-height:calc(100dvh - 40px);box-sizing:border-box;border:1px solid #ded2bd;border-radius:12px;padding:28px;background:#fdfaf3;color:#343a47;box-shadow:0 20px 70px #38291544; }
-.feedback-dialog::backdrop { background:#30251b60; }
-.feedback-dialog h2 { font:600 23px var(--song);margin:0 0 12px; }
-.feedback-close { position:absolute;right:12px;top:9px;border:0;background:none;font:26px var(--sans);color:#82745f;cursor:pointer; }
-.feedback-intro { font:13px/1.7 var(--sans);color:#7a705f; }
-.feedback-context { padding:12px;background:#f1eadc;border-radius:6px;font:600 14px var(--song);margin:18px 0; }
-.feedback-context small { display:block;font:12px var(--sans);font-weight:400;margin-top:7px;color:#877b68; }
-.feedback-field { display:block;font:13px var(--sans);margin:15px 0; }
-.feedback-field > span { display:block;margin-bottom:8px; }
-.feedback-field input,.feedback-field textarea { display:block;box-sizing:border-box;width:100%;padding:10px 12px;border:1px solid #d9ceba;background:#fffdf8;border-radius:5px;font:14px/1.5 var(--sans);color:#343a47; }
-.feedback-field textarea { resize:vertical; }
-.feedback-field small { display:block;font:12px/1.5 var(--sans);color:#8a7b66;margin-top:7px; }
-.feedback-submit { width:100%;padding:11px;border:0;border-radius:5px;background:#465b6a;color:white;font:14px var(--sans); }
-.feedback-submit:disabled { opacity:.55;cursor:not-allowed; }
-.feedback-preview { font:11px var(--sans);color:#8a7b66;text-align:center;margin:12px 0 0; }
-@media(max-width:700px) { .home-community { position:static; } .lesson-account-popover { width:220px; } }
 #viewctl { align-items:flex-end; }
 @media(max-width:760px) {
   .home-foot { flex-direction:row;flex-wrap:wrap;padding:0 12px;box-sizing:border-box;gap:6px 10px; }
