@@ -166,20 +166,35 @@ export default {
     };
 
     // ---- 当前风场的流线：逐帧积分，不把调整中的气流强行画成闭合环流 ----
+    // 线上四个箭头顺着气流走（和空气粒一样快：风强走得快，风弱走得慢），一眼看出环流往哪边转；线和箭头都只建一次，每帧改位置，不闪
     const loopMat = new THREE.LineBasicMaterial({ color: 0x2a5a9a, transparent: true, opacity: 0.7 });
     const headMat = new THREE.MeshBasicMaterial({ color: 0x2a5a9a });
     const loops = new THREE.Group(); block.add(loops);
-    const placeArrows = () => {
-      for (const o of [...loops.children]) { loops.remove(o); o.geometry.dispose(); }
+    const coneGeo = new THREE.ConeGeometry(0.0036, 0.009, 10), UP = new THREE.Vector3(0, 1, 0);
+    const lanes = [-0.08, 0.08].map((x0) => {
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(602 * 3), 3));          // 流线最多 601 个点：先开够，每帧只改用到的那一段（setDrawRange）
+      const line = new THREE.Line(geo, loopMat); line.raycast = () => {}; line.frustumCulled = false; loops.add(line);
+      const heads = Array.from({ length: 4 }, () => { const m = new THREE.Mesh(coneGeo, headMat); m.raycast = () => {}; loops.add(m); return m; });
+      return { x0, line, heads, phase: 0 };
+    });
+    const placeArrows = (dt = 0) => {
       const F = field(S.st);
-      for (const x of [-0.08, 0.08]) {
-        const line = streamline(S.st, x, H * 0.25); if (line.length < 10) continue;
-        const pts = line.map(([px, z]) => new THREE.Vector3(px, GT + z, D * 0.55));
-        const tube = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), loopMat); tube.raycast = () => {}; loops.add(tube);
-        for (let k = 0; k < 4; k++) {
-          const p = pts[Math.floor((k + 0.5) * pts.length / 4)], [u, w] = F.at(p.x, p.y - GT), d = new THREE.Vector3(u, w, 0).normalize();
-          const head = new THREE.Mesh(new THREE.ConeGeometry(0.0036, 0.009, 10), headMat); head.position.copy(p); head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); head.raycast = () => {}; loops.add(head);
-        }
+      for (const L of lanes) {
+        const line = streamline(S.st, L.x0, H * 0.25), ok = line.length >= 10;
+        L.line.visible = ok; L.heads.forEach((m) => { m.visible = ok; });
+        if (!ok) continue;
+        const pts = line.map(([px, z]) => new THREE.Vector3(px, GT + z, D * 0.55)), cum = [0];
+        for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]));
+        const len = cum[cum.length - 1]; if (len < 1e-4) { L.line.visible = false; L.heads.forEach((m) => { m.visible = false; }); continue; }
+        const pa = L.line.geometry.attributes.position; pts.forEach((q, i) => pa.setXYZ(i, q.x, q.y, q.z)); pa.needsUpdate = true; L.line.geometry.setDrawRange(0, pts.length);
+        let sp = 0; for (let i = 0; i < pts.length; i += 8) { const [u, w] = F.at(pts[i].x, pts[i].y - GT); sp += Math.hypot(u, w); }
+        sp /= Math.ceil(pts.length / 8);
+        L.phase = (L.phase + (dt * sp) / len) % 1;          // 沿线走过的路程 = 风速 × 时间（和空气粒同一个速度）
+        L.heads.forEach((m, k) => {
+          const s0 = (((k / 4 + L.phase) % 1) * len); let i = 1; while (i < cum.length - 1 && cum[i] < s0) i++;
+          const a = pts[i - 1], b = pts[i], f = (s0 - cum[i - 1]) / Math.max(1e-9, cum[i] - cum[i - 1]);
+          m.position.lerpVectors(a, b, f); m.quaternion.setFromUnitVectors(UP, b.clone().sub(a).normalize());
+        });
       }
     };
 
@@ -316,7 +331,7 @@ export default {
           for (let i = 0; i < N; i++) S.st.th[i] = seaLandTemp(xOf(i), S.hour);
           step(S.st, d, { tauP: 0.6, tauS: 1.2 });
         }
-        moveDots(d); paintGround(); paintBack(); placeSheets(); placeArrows(); placeTags(); recordFree(); recordSea();
+        moveDots(d); paintGround(); paintBack(); placeSheets(); placeArrows(d); placeTags(); recordFree(); recordSea();
       },
     };
   },
