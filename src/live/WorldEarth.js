@@ -153,7 +153,15 @@ export class WorldEarth {
   /** 一点在地球上，朝不朝着镜头（1 正对，0 在边上，负数在背面） */
   facing(n, camera) { const c = new THREE.Vector3(); camera.getWorldPosition(c); const p = new THREE.Vector3(); this.root.getWorldPosition(p); const w = n.clone().applyQuaternion(this.spin.getWorldQuaternion(new THREE.Quaternion())); return w.dot(c.sub(p).normalize()); }
 
-  hitPin(rc) { if (!this.root.visible) return null; const h = rc.intersectObjects(this.pins.map((p) => p.pick), false)[0]; return h ? h.object.userData.pin : null; }
+  /** 点到哪面旗：只算看得见的旗（朝着镜头、没被地球挡住）。背面的旗视觉上收起了，也不能隔着地球点到 */
+  hitPin(rc) {
+    if (!this.root.visible) return null;
+    const g = rc.intersectObject(this.globe, false)[0], cam = rc.ray.origin;
+    const vis = this.pins.filter((p) => p.g.visible && p.bead.scale.x > 0.3);
+    const h = rc.intersectObjects(vis.map((p) => p.pick), false).find((x) => !g || x.distance <= g.distance + this.root.scale.x * 0.12);
+    void cam;
+    return h ? h.object.userData.pin : null;
+  }
   hitGlobe(rc) { return this.root.visible && rc.intersectObject(this.globe, false).length > 0; }
 
   /** 旗要不要、大气光多亮（0—1）：落到活页里的那颗地球上时都收掉 */

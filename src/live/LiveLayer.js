@@ -107,7 +107,7 @@ export class LiveLayer {
         tagFocus(tgt, dist * this.active.s * 0.35);
       },
       // 实验换了一套器材（场景）以后，按新器材重新取景
-      reframe: () => requestAnimationFrame(() => this._reframe?.()),
+      reframe: () => requestAnimationFrame(() => this._reframe?.()),          // 地球主探索的“就地”模式：交给 World 取景（spot.world.reframe）
       // 换一个取景方向（实验的局部坐标，从模型指向镜头），按新方向把器材完整框进画面，镜头平滑地转过去
       aim: (localDir) => { const q = new THREE.Quaternion(); scaler.getWorldQuaternion(q); frameDir = new THREE.Vector3(...localDir).normalize().applyQuaternion(q); requestAnimationFrame(() => this._reframe?.()); },
       back: () => this._back(),
@@ -225,7 +225,7 @@ export class LiveLayer {
       this.panel.home.classList.remove('folded');
       // 预测阶段：隐藏标签和会泄露答案的现象（实验自己实现 predicting(on)）
       const onStep = (i) => { const on = i === 0; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
-      api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => (WD?.onClose ? WD.onClose() : this.close()), closeText: WD?.closeText, crumb: WD?.crumb, links: WD?.links, foldable: MODE === 'float' || stand,
+      api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => (WD?.onClose ? WD.onClose() : this.close()), closeText: WD?.closeText, crumb: WD?.crumb, links: WD?.links, figText: WD?.figText, foldable: MODE === 'float' || stand,
         onFold: (folded) => { if (!stand) stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8; } });
     }
     ctx.ui = api;
@@ -262,7 +262,10 @@ export class LiveLayer {
     this.opening = false;
     // 实验搭好以后，按器材实际占的范围重新取景（实验里写的 size 只是估计，常常不准：器材出画或者太小）
     this._reframe = null;
-    if (!world && !stand && v.auto !== false) {
+    if (WD?.inplace && WD.reframe) {          // 就地（板块：地球就是书后上方那颗）：镜头由 World 安排
+      const A = this.active;
+      this._reframe = () => { if (this.active === A && !A.closing && !A.hold) { this._prevShot = null; this._lookExit = null; tagFocus(null); WD.reframe(A); } };
+    } else if (!world && !stand && v.auto !== false) {
       const A = this.active;
       this._reframe = () => { if (this.active === A && !A.closing && !A.hold) { this._prevShot = null; this._lookExit = null; tagFocus(null); this._autoFrame(A, frameDir || dir, v); } };
       requestAnimationFrame(() => requestAnimationFrame(() => this._reframe?.()));
@@ -332,9 +335,12 @@ export class LiveLayer {
   release() {
     const A = this.active; if (!A) return;
     A.hold = false;
-    if (this._pendingShot) { this.stage.shot(this._pendingShot); this._pendingShot = null; }
+    if (this._pendingShot && !A.world?.inplace) this.stage.shot(this._pendingShot);
+    this._pendingShot = null;
     requestAnimationFrame(() => this._reframe?.());
   }
+  /** 地球主探索：按给定方向把活页里看得见的东西框进画面（World 用） */
+  frame(A, dir, v = {}) { this._autoFrame(A, dir, v); }
 
   _finishClose() {
     const A = this.active;
@@ -365,17 +371,18 @@ export class LiveLayer {
     const t = A.t;
 
     const wm = A.world?.mode;
+    A.liftCur = (A.liftCur || 0) + ((A.lift || 0) - (A.liftCur || 0)) * Math.min(1, dt * 7);          // 书翻页时活页稍微抬起来让纸滑过去（World 设 A.lift）
     if (wm === 'pin' || wm === 'globe') {
       A.card.visible = false; A.hole.visible = false;
       if (wm === 'pin') {
         // 从地球上那一点长出来：一边长大，一边沿一道弧线落到书页正中（收起时倒着走，回到角上那颗地球的旗里）
         const k = clamp01(t / PIN_T), e = easeInOut(k), from = A.world.from?.() || A.from;
-        A.root.position.lerpVectors(from, A.to, e).y += Math.sin(Math.PI * e) * 0.18 * (1 - e * 0.5);
+        A.root.position.lerpVectors(from, A.to, e).y += Math.sin(Math.PI * e) * 0.18 * (1 - e * 0.5) + A.liftCur;
         A.root.scale.setScalar(0.015 + 0.985 * e);          // 和位置一起走：在角上时还小，越近越大
         A.root.visible = true;
         for (const tg of A.tags) { const o = A.closing ? 0 : clamp01((k - 0.85) / 0.15); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }
       } else {
-        A.root.position.copy(A.to); A.root.scale.setScalar(1);
+        A.root.position.copy(A.to); A.root.position.y += A.liftCur; A.root.scale.setScalar(1);
         A.root.visible = !A.hold && !A.closing;
         for (const tg of A.tags) tg.el.style.visibility = !A.hold && !A.closing ? '' : 'hidden';
       }
@@ -398,7 +405,7 @@ export class LiveLayer {
     // 立体图：从原图的位置弹出来，移到页面中间
     const pop = clamp01((t - 0.4) / 0.9);
     const move = easeOut(clamp01((t - 0.3) / 0.9));
-    A.root.position.lerpVectors(A.from, A.to, move);
+    A.root.position.lerpVectors(A.from, A.to, move); A.root.position.y += A.liftCur;
     const sy = Math.max(0.001, backOut(pop));
     A.root.scale.set(0.45 + 0.55 * easeOut(pop), sy, 0.45 + 0.55 * easeOut(pop));
     A.root.visible = pop > 0;

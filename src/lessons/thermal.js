@@ -9,7 +9,7 @@
 // 教学示意：竖直方向、温差、风速都是示意；时间加快了。
 import * as THREE from 'three';
 import { seg, buttons, note, slider } from './kit/ui.js';
-import { canvasTex } from './kit/props.js';
+import { canvasTex, texClones } from './kit/props.js';
 import { faceLabel, airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, H, N, xOf, iOf, makeState, step, field, settled, streamline, seaClock, isobar, pressure, seaLandTemp, windName, isLand, COAST_W, COAST_E } from './kit/thermal.js';
@@ -53,8 +53,8 @@ export default {
     frameBox.position.y = LIFT + (GT + H) / 2; frameBox.raycast = () => {}; group.add(frameBox);
 
     // ---- 地面：一格格的颜色跟着地面温度变（冷蓝、暖橙）；台湾海峡那个情境里中间是海 ----
-    const strata = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL || '/'}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace; strata.wrapS = THREE.RepeatWrapping;
-    const sm = (rep, c) => { const t = strata.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rep, 0.5); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
+    const strataT = texClones(`${import.meta.env.BASE_URL || '/'}tex/geo/strata-side.jpg`), strata = strataT.base; strata.wrapS = THREE.RepeatWrapping;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
+    const sm = (rep, c) => { const t = strataT.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rep, 0.5); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
     const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.014, D * 2), [sm(0.4, 0.9), sm(0.4, 0.78), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm(2.2, 0.97), sm(2.2, 0.82)]); soil.position.y = 0.007; block.add(soil);          // 地面下是一层层的岩层（手绘贴图）
     const soilE = new THREE.LineSegments(new THREE.EdgesGeometry(soil.geometry), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); soil.add(soilE);
     const gGeo = new THREE.BoxGeometry(XR - XL, 0.003, D * 2, N * 2, 1, 24), gCol = new Float32Array(gGeo.attributes.position.count * 3); gGeo.setAttribute('color', new THREE.BufferAttribute(gCol, 3));
@@ -282,8 +282,9 @@ export default {
     let placeFn = null;
     return {
       group,
-      // 地球主探索：点台湾海峡那面旗进来，直接是海峡两岸的情境
+      // 地球主探索：点台湾海峡那面旗进来，直接是海峡两岸的情境；where：现在是哪个情境（海峡两岸对应课本第 34 页）
       place: (name) => placeFn?.(name),
+      where: () => S.mode,
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.36, d: 0.1, h: 0.18 },

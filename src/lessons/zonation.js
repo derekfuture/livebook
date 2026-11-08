@@ -17,6 +17,12 @@ import { KIND, MOUNTAINS, elev, terrainHeight, surfaceBandAt, LAKE_RADIUS, sideO
 const XL = -0.19, XR = 0.19, ZD = 0.07, NX = 220, NZ = 44;
 const SCALE = { hima: 0.15 / 8848.86, cb: 0.1 / 2691 };          // 1 米在画面上多高（两座山不一样，侧栏的带谱按真实海拔画）
 const ASK = ['先猜一下（可以不猜）：喜马拉雅山南坡和北坡，哪边的植被类型多？', ['南坡多', '北坡多', '差不多']];
+// 从地球上的长白山进来：这一次研究的是长白山（问题、要做的事、猜的题、记录都换成长白山的；喜马拉雅当对比）
+const CB = {
+  ask: '长白山在东北，纬度比喜马拉雅高得多，山也低得多（白云峰 2 691 米）。从山脚走到山顶，会经过几个自然带？和喜马拉雅南坡比，少在哪里？',
+  need: '拖着登山的人从长白山山脚走到山顶，数一数有几个带；再换到喜马拉雅山，看看南坡',
+  guess: ['先猜一下（可以不猜）：长白山从山脚到山顶有几个自然带？', ['2 个', '4 个', '7 个']],
+};
 const rnd = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 const xm = (x) => ((x - XL) / (XR - XL)) * 2 - 1, xOf = (u) => XL + ((u + 1) / 2) * (XR - XL);
 const fmt = (m) => Math.round(m).toLocaleString('en-US').replace(/,/g, ' ');
@@ -221,10 +227,13 @@ export default {
       if (S.tried.has('low')) r('假如北坡山麓也低到 1 000 米：', '如果北坡仍是背风坡、降水较少，带谱不一定和南坡一样多；多出来的这一段长什么，要看那里的热量和水分条件去推断（课本问题 3）');
       for (const c of Object.keys(S.cuts).map(Number).sort((a, b) => b - a)) r(`把山削到 ${fmt(c)} 米：`, `南坡只剩 ${S.cuts[c]} 个带`);
       if (S.seen.cb.size) r('长白山（约 42°N）：', `${MOUNTAINS.cb.north.bands.filter((b) => S.seen.cb.has(b[0])).map((b) => KIND[b[0]].name).join(' → ')}${MOUNTAINS.cb.north.bands.every((b) => S.seen.cb.has(b[0])) ? '：一共 4 个带，山麓是针阔叶混交林' : ''}`);
-      if (S.guess != null && sDone && nDone && S.cut >= 8848 && !S.northLow) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：南坡植被类型较多；图示景观带南坡 7 个、北坡 3 个，包含积雪冰川带`)));
+      const cbAll = MOUNTAINS.cb.north.bands.every((b) => S.seen.cb.has(b[0]));
+      if (S.ctx === 'cb' && S.guessCb != null && cbAll) rows.unshift(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${CB.guess[1][S.guessCb]}　实际：长白山北坡 4 个带（喜马拉雅南坡 7 个）`)));
+      if (S.ctx === 'cb') { const cbRow = rows.find((x) => x.textContent.startsWith('长白山')); if (cbRow) rows.splice(rows.indexOf(cbRow), 1), rows.unshift(cbRow); if (!S.seen.cb.size) rows.unshift(h('div', { class: 'tl-row' }, h('b', {}, '长白山：'), h('span', {}, '还没走'))); }          // 长白山的记录排最前；喜马拉雅那几行是对比
+      if (S.ctx !== 'cb' && S.guess != null && sDone && nDone && S.cut >= 8848 && !S.northLow) rows.push(h('div', { class: 'tl-row' }, h('small', {}, `你猜：${ASK[1][S.guess]}　实际：南坡植被类型较多；图示景观带南坡 7 个、北坡 3 个，包含积雪冰川带`)));
       W.log.replaceChildren(...rows);
       W.read.innerHTML = `登山的人在 <b>${fmt(heightM(xOf(S.u), CZ))} 米</b>，${S.m === 'hima' ? (sideNow() === 'south' ? '南坡' : '北坡') : '长白山'}<br><small>按 0.6℃/100米估算，仅表示海拔影响，并非实测温差；${S.m === 'cb' ? '长白山北坡带谱参考《植物生态学报》2017，41(12):1228–1238 的研究资料，界线为约数' : '喜马拉雅带界参考课本图 5.12，未标数字的界线为示意约数'}</small>`;
-      if (sDone && nDone && (S.tried.has('low') || S.tried.has('cut') || S.seen.cb.size >= 3)) W.ui.unlock();
+      if (S.ctx === 'cb' ? cbAll && S.seen.south.size >= 1 : sDone && nDone && (S.tried.has('low') || S.tried.has('cut') || S.seen.cb.size >= 3)) W.ui.unlock();          // 长白山这一次：长白山的带都走过、也看过喜马拉雅南坡
     };
 
     // ---- 指针：拖登山的人；鼠标停在山坡上浮出那一带的名字 ----
@@ -249,12 +258,15 @@ export default {
     const switchMountain = (m) => { S.m = m; S.u = 0.93; if (m === 'cb') S.tried.add('cb'); rebuild(); drawLog(); };
     rebuild();
 
-    let placeFn = null;
+    let placeFn = null, restoreFn = null;
     return {
       group,
       // 地球主探索：点长白山那面旗进来，就是长白山；where：现在看的是哪座山
       place: (name) => placeFn?.(name),
       where: () => S.m,
+      // 回到地球再进来：山、山高、北坡假设、走过的带、猜的、这一次的情境都还在（“重来”才从头开始）
+      save: () => ({ m: S.m, cut: S.cut, northLow: S.northLow, u: S.u, moved: S.moved, guess: S.guess, guessCb: S.guessCb, ctx: S.ctx, seen: { south: [...S.seen.south], north: [...S.seen.north], cb: [...S.seen.cb] }, tried: [...S.tried], cuts: { ...S.cuts } }),
+      restore: (st) => restoreFn?.(st),
       card: false,
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉
       size: { w: 0.4, d: 0.15, h: 0.17 },
@@ -263,11 +275,21 @@ export default {
       debug: { go: (u) => { S.u = u; S.moved = true; placeClimber(); drawLog(); sayZone(); }, set: (k, v) => { S[k] = v; rebuild(); drawLog(); } },
       mount(ui) {
         const mSeg = seg('看哪座山', ['喜马拉雅山脉（约 28°N）', '长白山（约 42°N）'], (_, i) => { switchMountain(i ? 'cb' : 'hima'); cutSl.el.style.display = lowBtn.el.style.display = i ? 'none' : ''; ui.status(i ? '<b>长白山</b>在东北，纬度比喜马拉雅高得多；中国境内的最高峰白云峰只有 2 691 米，山顶是火山口和天池。拖着登山的人从山脚爬上去，数数有几个带。' : '回到喜马拉雅山。'); }, { value: 0 });
-        placeFn = (name) => { const k = name === 'cb' ? 1 : 0; if (mSeg.index !== k) mSeg.set(k, true); };
+        placeFn = (name) => { const k = name === 'cb' ? 1 : 0; if (mSeg.index !== k) mSeg.set(k, true); if (name === 'cb') { S.ctx = 'cb'; ui.ask(CB.ask); ui.need(CB.need); guess.el.hidden = true; guessCb.el.hidden = false; drawLog(); } };
+        restoreFn = (st) => {
+          if (!st) return;
+          Object.assign(S, { m: st.m, cut: st.cut, northLow: st.northLow, u: st.u, moved: st.moved, guess: st.guess, guessCb: st.guessCb, ctx: st.ctx, cuts: { ...st.cuts } });
+          S.seen = { south: new Set(st.seen.south), north: new Set(st.seen.north), cb: new Set(st.seen.cb) }; S.tried = new Set(st.tried);
+          mSeg.set(S.m === 'cb' ? 1 : 0); cutSl.set(S.cut >= 8848 ? 8900 : S.cut); lowBtn.btns[0].textContent = S.northLow ? '回到真实的北坡' : '假如北坡山麓也低到 1 000 米';
+          cutSl.el.style.display = lowBtn.el.style.display = S.m === 'cb' ? 'none' : ''; guess.set(S.guess ?? -1); guessCb.set(S.guessCb ?? -1);
+          if (S.ctx === 'cb') { ui.ask(CB.ask); ui.need(CB.need); guess.el.hidden = true; guessCb.el.hidden = false; }
+          rebuild(); placeClimber(); drawLog(); ui.status(`接着刚才的：${S.m === 'cb' ? '长白山' : `喜马拉雅山，山高 ${fmt(S.cut)} 米`}。`);
+        };
         const cutSl = slider('假如山只有这么高（只对喜马拉雅）', { min: 4500, max: 8900, step: 100, value: 8900, fmt: (v) => (v >= 8900 ? '原样 8 848.86 米' : `${fmt(v)} 米`), onInput: (v) => { S.cut = v >= 8900 ? 8848.86 : v; if (v < 8900) { S.tried.add('cut'); S.cuts[v] = bandsBelow('hima', 'south', v).length; } rebuild(); drawLog(); ui.status(`当前喜马拉雅山高设为 <b>${fmt(S.cut)} 米</b>，南坡 ${bandsBelow('hima', 'south', S.cut).length} 个带；北坡按当前山麓假设计算，见侧栏。历次观察记录单独保留。`); } });
         const lowBtn = buttons([{ text: '假如北坡山麓也低到 1 000 米', onClick: () => { S.northLow = !S.northLow; S.saidN = false; lowBtn.btns[0].textContent = S.northLow ? '回到真实的北坡' : '假如北坡山麓也低到 1 000 米'; if (S.northLow) { S.tried.add('low'); ui.status('假如北坡山麓也低到 1 000 米：多出来的这一段画成了“？”。北坡仍是背风坡、降水少——它会长出南坡那么多种植被吗？想一想，再看侧栏。'); } else ui.status('回到真实北坡：山麓约 4 300 米，当前带数仍按设定的山高计算。'); rebuild(); drawLog(); } }]);
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
-        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { m: 'hima', cut: 8848.86, northLow: false, u: 0.93, guess: null, moved: false, cuts: {}, saidN: false, saidS: false }); S.seen = { south: new Set(), north: new Set(), cb: new Set() }; S.tried = new Set(); mSeg.set(0); cutSl.set(8900); guess.set(-1); lowBtn.btns[0].textContent = '假如北坡山麓也低到 1 000 米'; cutSl.el.style.display = lowBtn.el.style.display = ''; rebuild(); drawLog(); ui.status(START); } }]);
+        const guessCb = seg(...CB.guess, (_, i) => { S.guessCb = i; drawLog(); }, { value: -1 }); guessCb.el.hidden = true;
+        const acts = buttons([{ text: '重来', ghost: true, onClick: () => { ui.relock?.(); Object.assign(S, { m: 'hima', cut: 8848.86, northLow: false, u: 0.93, guess: null, moved: false, cuts: {}, saidN: false, saidS: false }); S.seen = { south: new Set(), north: new Set(), cb: new Set() }; S.tried = new Set(); mSeg.set(0); cutSl.set(8900); guess.set(-1); lowBtn.btns[0].textContent = '假如北坡山麓也低到 1 000 米'; cutSl.el.style.display = lowBtn.el.style.display = ''; guessCb.set(-1); S.guessCb = null; rebuild(); drawLog(); ui.status(START); if (S.ctx === 'cb') placeFn('cb'); } }]);          // 从长白山进来的，重来还是从长白山开始
         const chart = h('canvas', { class: 'wx-map', width: 320, height: 250, style: 'cursor: pointer' }), read = h('div', { class: 'read-out' }), log = h('div', { class: 'timeline' });
         chart.onclick = (e) => {          // 点侧栏带谱的某一格：登山的人走到那一坡的那个海拔
           const r = chart.getBoundingClientRect(), px = ((e.clientX - r.left) / r.width) * chart.width, py = ((e.clientY - r.top) / r.height) * chart.height, G = chartGeom, i = px < G.L + 6 + G.colW + G.gap / 2 ? 0 : 1, m = ((G.bot - py) / (G.bot - G.top)) * G.H, key = COLS()[i][0];
@@ -276,7 +298,7 @@ export default {
           for (let u = -0.98; u <= 0.98; u += 0.004) { const sd = S.m === 'cb' ? 'cb' : sideOf('hima', u); if ((S.m === 'hima' && sd !== key) || (S.m === 'cb' && Math.sign(u) !== 1)) continue; const d = Math.abs(heightM(xOf(u), CZ) - m); if (d < bd) { bd = d; best = u; } }
           S.u = best; S.moved = true; placeClimber(); drawLog(); sayZone();
         };
-        ui.controls.append(h('div', { class: 'bar-title' }, '两坡的带谱（按真实海拔；走过才上色，点一格就走过去）'), chart, read, mSeg.el, cutSl.el, lowBtn.el, guess.el, acts.el, note('山上的植被是符号：圆的是阔叶树，尖的是针叶树，矮的是灌木，小草是草甸、草原，石块是荒漠。'));
+        ui.controls.append(h('div', { class: 'bar-title' }, '两坡的带谱（按真实海拔；走过才上色，点一格就走过去）'), chart, read, mSeg.el, cutSl.el, lowBtn.el, guess.el, guessCb.el, acts.el, note('山上的植被是符号：圆的是阔叶树，尖的是针叶树，矮的是灌木，小草是草甸、草原，石块是荒漠。'));
         ui.data.append(h('div', { class: 'bar-title' }, '你看到了什么'), log);
         W = { ui, chart, read, log };
         ui.status(START);

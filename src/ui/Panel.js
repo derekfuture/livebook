@@ -56,7 +56,7 @@ export class Panel {
   setHost(el) { this.el = el || this.home; }
 
   /** def：实验定义（predict / conclusion / need…）；返回给实验用的接口。 */
-  open(def, { pageLabel, onClose, foldable = false, onFold, book, onStep, closeText = '放回书里 ↩', crumb = null, links = null } = {}) {
+  open(def, { pageLabel, onClose, foldable = false, onFold, book, onStep, closeText = '放回书里 ↩', crumb = null, links = null, figText = null } = {}) {
     const el = this.el;
     const keep = [...el.querySelectorAll(':scope > .board-ear, :scope > .board-tab')];
     el.innerHTML = '';
@@ -88,7 +88,7 @@ export class Panel {
     this.opts = opts;
     this.goBtn = h('button', { class: 'go ghost', onclick: () => this.go(1) }, '不猜了，直接动手 →');     // 预测是选做的：不猜也能做实验、看结论
     const s1 = explore
-      ? h('div', { class: 'p-step' }, h('p', { class: 'q ask', html: p.q }))
+      ? h('div', { class: 'p-step' }, this.askP = h('p', { class: 'q ask', html: p.q }))
       : h('div', { class: 'p-step' },
         h('div', { class: 'bar-title' }, '想一想'),
         h('p', { class: 'q', html: p.q + (p.hint ? `<small>${p.hint}</small>` : '') }),
@@ -136,7 +136,7 @@ export class Panel {
       foldable ? h('div', { class: 'p-spine', onclick: () => this.fold(false) }, def.title) : null,
       h('div', { class: 'p-head' },
         foldable ? h('span', { class: 'p-tuck', title: '收起', onclick: () => this.fold(true) }, '‹') : null,
-        h('div', { class: 'p-fig' }, `${def.fig} · ${pageLabel}`),
+        h('div', { class: 'p-fig' }, figText || `${def.fig} · ${pageLabel}`),          // 地球主探索：子情境用自己那一页的图号、页码
         h('h2', { class: 'p-title' }, def.title),
         crumb ? h('p', { class: 'p-from', html: crumb }) : null,          // 地球主探索：从地球上的哪里进来、进来的是什么
         links?.length ? h('div', { class: 'p-links' }, links.map((l) => h('button', { class: 'p-link', 'data-when': l.when ?? false, onclick: l.onClick }, l.text))) : null,          // 接着看：同一个地方、同一个问题的下一张活页
@@ -158,6 +158,7 @@ export class Panel {
       controls: this.controlsEl,
       data: this.dataEl,
       status: (msg) => { this.statusEl.innerHTML = msg || ''; },
+      ask: (html) => { if (this.askP) this.askP.innerHTML = html; },          // 换了情境（从地球上别的地方进来）：开头的问题跟着换
       need: (msg) => this.need(msg),
       unlock: () => this.unlock(),
       relock: () => this.relock(),

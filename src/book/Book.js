@@ -255,14 +255,14 @@ export class Book {
     return out.filter((i) => i != null);
   }
 
-  /** 翻到第 target 张（翻很多张时只动画其中几张，其余“哗”地一下带过）。 */
-  turnTo(target) {
+  /** 翻到第 target 张（翻很多张时只动画其中几张，其余“哗”地一下带过）。max：最多动画几张（地理跟着探索自动翻页时只翻一小叠，不像扇纸片） */
+  turnTo(target, { max = 7 } = {}) {
     target = Math.max(0, Math.min(this.leafCount, Math.round(target)));
     if (this.anim) { this.queued = target; return; }
     const from = this.current, to = target;
     if (from === to) return;
     const dir = Math.sign(to - from), n = Math.abs(to - from);
-    const K = Math.min(n, 7), stagger = n === 1 ? 0 : 0.085, dur = n === 1 ? 0.9 : 0.7;
+    const K = Math.min(n, max), stagger = n === 1 ? 0 : max < 7 ? 0.13 : 0.085, dur = n === 1 ? 0.9 : max < 7 ? 0.8 : 0.7;
     const items = [];
     for (let k = 0; k < K; k++) {
       const off = K === 1 ? 0 : Math.round((k * (n - 1)) / (K - 1));

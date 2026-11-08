@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { stationAt, weatherAt as modelWeatherAt, frontPath } from './kit/front.js';
 import { seg, buttons, note } from './kit/ui.js';
-import { canvasTex } from './kit/props.js';
+import { canvasTex, texClones } from './kit/props.js';
 import { makeCloud } from './kit/cloud.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
@@ -97,8 +97,8 @@ export default {
     const ground = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.004, ZD * 2), groundMat)); ground.position.y = G - 0.002; block.add(ground);
     let yy = G - 0.004;
     const BASE = import.meta.env.BASE_URL || '/';
-    const strata = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace;
-    const sm = (rx, c) => { const t = strata.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.35); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
+    const strataT = texClones(`${BASE}tex/geo/strata-side.jpg`), strata = strataT.base;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
+    const sm = (rx, c) => { const t = strataT.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.35); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
     { const t = G - 0.004, m = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, t, ZD * 2), [sm(0.5, 0.9), sm(0.5, 0.8), lit(0x8fb276), lit(0x6b5236), sm(2.4, 0.97), sm(2.4, 0.84)])); m.position.y = yy - t / 2; block.add(m); }          // 地下是一层层的岩层（手绘贴图）
     const fields = new THREE.TextureLoader().load(`${BASE}tex/geo/landscape-top.jpg`); fields.colorSpace = THREE.SRGBColorSpace;          // 地面：一片手绘的乡村（田、树林、村子）
     fields.repeat.set(1, (ZD * 2) / (XR - XL) * 1.25); fields.offset.set(0, (1 - fields.repeat.y) / 2);          // 贴图是 5:4，地块又长又窄：取中间一条
@@ -634,8 +634,9 @@ export default {
     let placeFn = null;
     return {
       group,
-      // 地球主探索：点昆明准静止锋那面旗进来，直接是准静止锋
+      // 地球主探索：点昆明准静止锋那面旗进来，直接是准静止锋；where：现在推的是哪一种（换到准静止锋，书跟着翻到第 44 页）
       place: (name) => placeFn?.(name),
+      where: () => (S.map ? 'map' : S.kind),
       card: false,          // 和化学一样：不垫台板；整块地浮在书页上方
       emerge: 'flat',          // 课本的图平放在书页上，模型从它上面长出来、它慢慢淡掉：一张图立了起来，连贯不闪
       size: { w: 0.38, d: 0.14, h: 0.2 },
@@ -644,7 +645,7 @@ export default {
       dispose() { heroRestore(); viewBar.remove(); },
       mount(ui) {
         const kindSeg = seg('推哪一种锋', ['冷锋', '暖锋', '准静止锋', '看图推天气'], (_, i) => { if (i === 3) setMap(); else { const was = S.map; S.map = false; setKind(['cold', 'warm', 'still'][i], was); } layout(); }, { value: 0 });          // 从看图推天气回来：你家、邻城回到这种锋开头的位置
-        placeFn = (name) => { if (name === 'still' && kindSeg.index !== 2) kindSeg.set(2, true); };
+        placeFn = (name) => { if (name !== 'still') return; if (kindSeg.index !== 2) kindSeg.set(2, true); ui.ask?.('冬季，南下的冷空气遇到云贵高原上的山脉阻挡，锋面停在昆明和贵阳之间。锋面停住不走，贵阳为什么会阴雨连绵？山那边的邻城（像昆明）又是什么天气？'); ui.need('先看准静止锋：把冷气团推到山脚，看你家（像贵阳）一天天的天气，再看邻城；冷锋、暖锋也各推过你家一次，就能对照课本原文'); };          // 从地球上的昆明准静止锋进来：开头的问题、要做的事跟着换
         const guess = seg(...ASK.cold, () => {}, { value: -1 });
         const logs = h('div', { class: 'timeline' });
         const station = h('canvas', { class: 'wx-map', width: 320, height: 150 }), read = h('p', { class: 'note' });

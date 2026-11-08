@@ -9,7 +9,7 @@
 // 不打分：没有“正确答案”，只把每个方案的代价摆出来。教学示意：区域是虚构的，成本数值只用来比较。
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
-import { canvasTex } from './kit/props.js';
+import { canvasTex, texClones } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, NL, NR, PLACES, RIVER, INDUSTRIES, WIND, coastX, evaluate, isSea, isMountain, nearRiver, swing, landPoint } from './kit/industry.js';
@@ -45,8 +45,8 @@ export default {
 
     // ---- 地块：侧面是岩层，顶面是一张画出来的区域图 ----
     const BASE = import.meta.env.BASE_URL || '/';
-    const strata = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace;
-    const sm = (rx, c) => { const t = strata.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.4); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
+    const strataT = texClones(`${BASE}tex/geo/strata-side.jpg`), strata = strataT.base;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
+    const sm = (rx, c) => { const t = strataT.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.4); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
     const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, G - 0.001, NR - NL), [sm(0.9, 0.9), sm(0.9, 0.8), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm(1.3, 0.97), sm(1.3, 0.84)]);
     soil.position.y = (G - 0.001) / 2; block.add(soil);
     const rim = new THREE.LineSegments(new THREE.EdgesGeometry(soil.geometry), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); rim.raycast = () => {}; soil.add(rim);

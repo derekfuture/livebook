@@ -744,3 +744,8 @@ body.world-ui .tag3d.btn.view.on, .tag3d.btn.view.on { background: #8a4b10; colo
 .tag3d.w-card { width: 214px; }
 .tag3d.w-card .w-q { margin: 4px 0 0; font: 12.5px/1.55 var(--song); color: #3a3326; }
 .tag3d.w-card .w-q:empty { display: none; }
+.tag3d.w-themes { display: flex; flex-direction: column; gap: 6px; pointer-events: auto; text-shadow: none; }
+.tag3d.w-themes button { border: 1px solid rgba(120,100,70,.25); background: rgba(255,253,247,.92); color: #3a3326; border-radius: 999px; padding: 6px 13px 6px 11px; font: 600 13px/1 var(--sans); cursor: pointer; box-shadow: 0 2px 8px rgba(60,40,10,.12); display: flex; align-items: center; gap: 7px; }
+.tag3d.w-themes button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(255,255,255,.8); }
+.tag3d.w-themes button:hover { background: #fff6e2; border-color: rgba(176,114,58,.55); }
+.tag3d.w-themes button.on { background: #2f3a52; color: #fff; border-color: #2f3a52; }

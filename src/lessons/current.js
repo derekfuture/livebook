@@ -10,7 +10,7 @@
 // 教学示意：大洋、大陆都是理想化的；流速是示意，沿岸影响仅定性比较。
 import * as THREE from 'three';
 import { seg, buttons, note } from './kit/ui.js';
-import { canvasTex } from './kit/props.js';
+import { canvasTex, texClones } from './kit/props.js';
 import { airLabel, groundLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XW, XE, NB, latOf, nOf, SOUTH_OPEN, isLand, vel, kindOf, coastEffect, advance, windStep, recordDrop, GYRES } from './kit/current.js';
@@ -44,8 +44,8 @@ export default {
 
     // ---- 地块和地图：海、两块理想化的大陆（东西岸）、纬线 ----
     const BASE = import.meta.env.BASE_URL || '/';
-    const strata = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`); strata.colorSpace = THREE.SRGBColorSpace;
-    const sm2 = (rx, c) => { const t = strata.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.3); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
+    const strataT = texClones(`${BASE}tex/geo/strata-side.jpg`), strata = strataT.base;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
+    const sm2 = (rx, c) => { const t = strataT.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.3); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
     const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.005, NB * 2), [sm2(0.9, 0.9), sm2(0.9, 0.8), new THREE.MeshBasicMaterial({ color: 0x819b99 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm2(1.3, 0.97), sm2(1.3, 0.84)]); soil.position.y = 0.0025; block.add(soil);
     // 闭合海盆与大陆：海岸仍用模式图的直线边界，起伏不参与洋流计算。
     const landforms = new THREE.Group(); block.add(landforms);

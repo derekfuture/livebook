@@ -17,7 +17,7 @@ export const worldBook = (id) => /^dili-(bx|xb)/.test(String(id));
 
 const KIND_TEXT = { place: '地点', globe: '整个地球', idea: '原理' };
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const HUB_R = 0.6, HUB_GAP = 0.24, HUB_Z = 0.02;          // 地球目录：地球半径（书高 2）、离书页多高（低翻页的卷边约 0.14）、前后位置
+const HUB_R = 0.8, HUB_Y = 0.13, HUB_BACK = 0.03;          // 地球目录：地球半径（书高 2）；地球在书的后上方：底离桌面多高、离书的上沿多远——翻起来的纸（立起来约 1.4 高）只从它前面经过，碰不到
 const LOC = { rpx: 46, right: 30, top: 84, dist: 1.35 };          // 角上那颗地球：屏幕上的半径（像素）、离右边和上边多远、离镜头多远
 const panelOffset = () => (innerWidth > 760 ? Math.min(380, innerWidth * 0.4) / 2 + 8 : 0);
 const shortName = (pn) => pn.short || pn.name.split('：')[0];          // “厦门：台风‘莫兰蒂’登陆”在面板和角上只写“厦门”
@@ -34,16 +34,21 @@ export class World {
     this.jobs = []; this.tm = 0; this.busy = false;
     this.topic = null; this.idle = 0; this.drag = null; this.hubLayer = null;
     this.hubLeaf = Math.max(1, book.leafForPage(3));          // 目录：PDF 第 3、4 页（翻开第 2 张，右页是目录的第一页）
-    book.curl = 0.17;          // 书上方浮着地球：翻页时纸不立起来
+    book.curl = 0;          // 照常立起来翻（地球在书的后上方，碰不到）
     this.locTag = tag('', 'w-loc btn', () => this.toHub());
     this.locTag.show(false);
     this.card = tag('', 'w-card'); this.card.show(false);
     this.hint = tag('<span>拖着地球转一转</span><small>点一面旗，进到那张活页</small>', 'hint'); this.hint.show(false); this.touched = false;          // 开场的操作提示：做过一次就收
-    book.on((type) => {
-      if (this.state !== 'hub' || this.busy) return;
-      if (type === 'turnstart' || type === 'turned') { const r = (type === 'turned' ? book.current : book.anim?.to ?? book.current) !== this.hubLeaf; if (r !== !!this.reading) { this.reading = r; this.setFollow(() => this._hubPose(), 0.8, { world: true }); this._hubShot(); } }
-      if (type === 'turned') this._syncFromBook();
-    });
+    this.saved = {};          // 每张活页上次的操作（回到地球再进来接着用）
+    this.L = { r: HUB_R, y: HUB_Y, back: HUB_BACK, el: 17, ty: 0.58, tz: 0.42, fw: 2.02, fh: 0.95 };          // 地球目录的摆法和镜头（半径、底离桌面、离书多远；镜头仰角、看哪、框多大）
+    // 地球旁的“看法”：整个地球的主题（板块、昼夜、气压带），点了一直开着；再点一下回到地球目录
+    const themes = this.items.filter((x) => x.anchor.chip);
+    this.chips = tag(themes.map((x) => `<button data-id="${x.id}" style="--c:${x.color}">${x.anchor.chip}</button>`).join(''), 'w-themes');
+    this.chips.el.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; e.stopPropagation(); const id = b.dataset.id; if (this.topic?.id === id) this.toHub(); else this.enter(id); });
+    this.chips.el.addEventListener('mouseover', (e) => { const b = e.target.closest('button'); if (b && this.state === 'hub' && !this.busy) this._hover({ it: this.items.find((x) => x.id === b.dataset.id) }, true); });
+    this.chips.el.addEventListener('mouseleave', () => { if (this.state === 'hub' && !this.busy) this._hover(null, true); });
+    this.chips.show(false);
+    book.on((type) => { if (type === 'turned' && this.state === 'hub' && !this.busy) this._syncFromBook(); });          // 地球在书的后面，翻书不挡着书页，不用让开
     stage.updaters.add((dt) => this.update(dt));
     addEventListener('resize', () => { if (this.state === 'hub' && !this.busy) this._hubShot(); });
   }
@@ -63,12 +68,8 @@ export class World {
 
   // ---------- 地球摆在哪：书上方（目录）、右上角、书里（还没升起来）、活页里那颗地球的位置 ----------
   _top() { return Math.max(this.book.topHeight('left'), this.book.topHeight('right')); }
-  _hubPose() {
-    // 翻离了目录在看书：地球往上、往后让一让，小一点，书页露出来（发光的图能点）；翻回目录又回来
-    if (this.reading) { const r = HUB_R * 0.56; return { pos: new THREE.Vector3(0, this._top() + 0.5 + r, -this.book.H * 0.5 - r * 0.8), r }; }
-    return { pos: new THREE.Vector3(0, this._top() + HUB_GAP + HUB_R, HUB_Z), r: HUB_R };
-  }
-  _sunkPose() { return { pos: new THREE.Vector3(0, this._top() + 0.01, HUB_Z), r: 0.004 }; }
+  _hubPose() { const L = this.L; return { pos: new THREE.Vector3(0, L.y + L.r, -this.book.H / 2 - L.r - L.back), r: L.r }; }          // 书的后上方：书摊在前面，地球立在后面
+  _sunkPose() { return { pos: new THREE.Vector3(0, this._top() + 0.01, -this.book.H * 0.32), r: 0.004 }; }          // 从书页靠里的地方升起来
   _locPose() {
     const cam = this.stage.camera; cam.updateMatrixWorld();
     const nx = 1 - ((LOC.right + LOC.rpx) / innerWidth) * 2, ny = 1 - ((LOC.top + LOC.rpx) / innerHeight) * 2;
@@ -99,9 +100,9 @@ export class World {
   _hubShot(instant = false) {
     this.stage.cameraOffsetX = this.panel.el && !this.panel.el.hidden ? panelOffset() : 0;
     this.stage.cameraOffsetY = 0;
-    const P = this._hubPose(), el = THREE.MathUtils.degToRad(this.reading ? 34 : 21);
-    const target = this.reading ? new THREE.Vector3(0, this._top() + 0.3, -0.18) : new THREE.Vector3(0, P.pos.y - HUB_R * 0.78, 0.18);          // 地球是主角，书整个托在下面；看书时镜头抬高些，书页看得清
-    const dist = this.stage.fitDistance(this.book.W * 2.18, (HUB_R * 2 + HUB_GAP) * 1.95, 1.0);
+    const L = this.L, P = this._hubPose(), el = THREE.MathUtils.degToRad(L.el);
+    const target = new THREE.Vector3(0, P.pos.y * L.ty, P.pos.z * L.tz + this.book.H * 0.5 * (1 - L.tz));          // 地球在后、书在前，一起框进来
+    const dist = this.stage.fitDistance(this.book.W * L.fw, (L.r * 2 + this.book.H) * L.fh, 1.0);
     this.stage.shot({ target, dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist, instant });
   }
 
@@ -114,7 +115,7 @@ export class World {
 
   // ---------- 侧栏：这本书的目录（按章列出活页，颜色和旗一样） ----------
   _hubPanel() {
-    const def = { id: 'world-hub', index: true, fig: `${this.content.full} · 地球目录`, title: '这本书的活页，都从这颗地球出发', ask: '课本举的例子发生在哪里，地球上就插着旗；整个地球的事，指着它就叠在地球上；不在某一个地方的原理，从课本的图里升起来。<b>点一面旗或一个名字</b>，书会跟着翻到那一页。' };
+    const def = { id: 'world-hub', index: true, fig: `${this.content.full} · 地球目录`, title: '这本书的活页，都从这颗地球出发', ask: '课本里讲的这些事，发生在地球的哪里？' };
     const ui = this.panel.open(def, { onClose: () => this.sleep(), closeText: '收起地球 ↓' });
     this.panel.el.classList.add('board');
     const rows = this.rows = new Map(), list = h('div', { class: 'atlas-list' });
@@ -128,7 +129,7 @@ export class World {
     }
     ui.controls.append(list);
     const n = (k) => this.items.filter((x) => x.anchor.kind === k).length, parts = [['place', '插旗的'], ['globe', '整个地球的'], ['idea', '原理']].filter(([k]) => n(k)).map(([k, t]) => `${t} ${n(k)} 张`);
-    ui.status(`这本书一共 ${this.items.length} 张活页${parts.length > 1 ? `：${parts.join('，')}` : ''}。拖着地球可以转；也可以直接翻书，点课本上发光的图。`);
+    ui.status(`插旗的是课本举的例子，点一面旗进去${this.chips?.el.children.length ? '；地球左边的“看法”是整个地球的事' : ''}。也可以直接翻书，点课本上发光的图。`);          // 少讲怎么用，先让人看见地球上的东西
     this.hubUI = ui;
   }
 
@@ -168,7 +169,7 @@ export class World {
     this.busy = true;
     try {
       this.state = 'hub'; this.reading = false;
-      if (this.book.current !== this.hubLeaf) { this.book.turnTo(this.hubLeaf); await this.until(() => !this.book.busy); }
+      if (this.book.current !== this.hubLeaf) { this.book.turnTo(this.hubLeaf, { max: 3 }); await this.until(() => !this.book.busy); }
       this._hubPanel(); this._hubShot();
       this.cur = this._sunkPose(); this.earth.root.visible = true;
       this.earth.spin.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0);
@@ -205,7 +206,7 @@ export class World {
     this.busy = true;
     try {
       this.state = 'hub'; this.reading = false;
-      if (this.book.current !== this.hubLeaf) this.book.turnTo(this.hubLeaf);
+      if (this.book.current !== this.hubLeaf) this.book.turnTo(this.hubLeaf, { max: 3 });
       this._hubPanel(); this._hubShot();
       if (!this.earth.root.visible) { this.cur = this._sunkPose(); this.earth.root.visible = true; }
       await this.setFollow(() => this._hubPose(), 1.2, { world: true });
@@ -213,42 +214,91 @@ export class World {
   }
 
   // ---------- 进一张活页 ----------
-  /** opts.pn：从哪面旗进来（没给就用第一面）；opts.quick：深链接直接进，不等地球转 */
+  /** opts.pn：从哪面旗进来（没给就用第一面）；opts.quick：深链接直接进，不等地球转；opts.place：从别的活页带过来的地方 */
   async enter(id, opts = {}) {
     const it = this.items.find((x) => x.id === id);
     if (!it || this.busy) return;
-    if (this.topic?.id === id && !opts.pn) return;
+    const a = it.anchor, kind = a.kind, pn = kind === 'place' ? (opts.pn || a.pins[0]) : null;
+    if (this.topic?.id === id) {          // 已经在这张活页里：点了同一张活页的另一面旗（喜马拉雅→长白山），就地换地方，不关、不重开
+      const inst = this.live.active?.inst;
+      if (pn && pn !== this.topic.pn && inst?.place) { this.topic.pn = pn; this.earth.setActive({ it, pn }); this.earth.turnTo(pn.lat, pn.lon, this.stage.camera); inst.place(pn.place); this.locTag.text(`<b>${shortName(pn)}</b><small>回到地球</small>`); }
+      return;
+    }
     this.busy = true; this.touched = true;
     try {
-      const a = it.anchor, kind = a.kind, pn = kind === 'place' ? (opts.pn || a.pins[0]) : null;
       this.card.show(false); this.cardFor = null;
       const wasHub = this.state === 'hub';
       if (this.live.isOpen) await this._closeTopic();
-      if (this.state === 'book' || this.state === 'off') { this.earth.root.visible = true; this.cur = kind === 'place' ? this._locPose() : this._sunkPose(); this.follow = kind === 'globe' ? () => this._hubPose() : () => this._locPose(); this.anim = null; }          // 深链接直接进、或收起地球以后点了书上的图：地球从书里冒出来
+      const mode = kind === 'place' ? 'pin' : kind === 'globe' ? (a.inplace ? 'inplace' : 'globe') : 'figure';
+      if (this.state === 'book' || this.state === 'off') { this.earth.root.visible = true; this.cur = mode === 'pin' ? this._locPose() : this._sunkPose(); this.follow = mode === 'pin' || mode === 'figure' ? () => this._locPose() : () => this._hubPose(); this.anim = null; }          // 深链接直接进、或收起地球以后点了书上的图：地球从书里冒出来
       this.state = 'topic';
-      this.topic = { id, it, pn, kind };
-      if (kind !== 'globe') { this.earth.setPlain(0); this.earth.setLook({ pins: true, fade: 1 }); this.earth.root.visible = true; }
+      this.topic = { id, it, pn, kind, mode };
+      this.earth.setPlain(0); this.earth.setLook({ pins: mode !== 'inplace', fade: 1 }); this.earth.root.visible = true;
       this.earth.setHot(null); this.earth.setActive(pn ? { it, pn } : { it });
       for (const [k, r] of this.rows || []) r.classList.toggle('on', k === id);
-      if (kind === 'globe') this.earth.setLayer(a.layer);
+      if (kind === 'globe') this.earth.setLayer(a.layer);          // 整个地球的主题：一点下去，地球上就是这一层
       if (pn) { this.earth.turnTo(pn.lat, pn.lon, this.stage.camera); if (!opts.quick) await this.wait(wasHub ? 0.75 : 0.4); }
-      // 书翻到那一页；地球（不是整颗落下去的）缩到右上角
-      const leaf = this.book.leafForPage(it.spot.page);
-      if (kind !== 'globe') this.setFollow(() => this._locPose(), 1.0);
+      // 书翻到那一页（从旗进来的子情境翻到它自己那一页）：只翻一小叠
+      const page = pn?.page ?? it.spot.page, leaf = this.book.leafForPage(page);
+      if (mode === 'inplace') this.setFollow(() => this._hubPose(), 0.9, { world: true });          // 板块：地球就在书后上方，不挪走
+      else if (mode !== 'globe') this.setFollow(() => this._locPose(), 1.0);          // 有地方的、原理：地球缩到右上角
       this.panel.close();
-      if (kind !== 'globe' && (this.book.current !== leaf || this.book.busy)) this._bookShot();          // 地球让开，镜头低下来看书翻到那一页
-      if (this.book.current !== leaf || this.book.busy) { this.book.turnTo(leaf); await this.until(() => !this.book.busy && this.book.current === leaf); }
-      else if (!opts.quick) await this.wait(kind === 'globe' ? 0.15 : 0.45);
-      // 活页：从旗上长出来 / 整颗地球落下去 / 从课本的图里升起来
-      const mode = kind === 'place' ? 'pin' : kind === 'globe' ? 'globe' : 'figure';
-      this.live.open({ ...it.spot, world: { mode, from: pn ? () => this.earth.pinWorld(pn) : null, ...this._lessonPanel(it, pn) } });
+      const flip = this.book.current !== leaf || this.book.busy;
+      if (flip && mode !== 'globe' && mode !== 'inplace') this._bookShot();          // 镜头低下来看书翻到那一页
+      if (flip) { this.book.turnTo(leaf, { max: 3 }); await this.until(() => mode === 'pin' ? (!this.book.busy && this.book.current === leaf) || (this.book.anim && this.book.anim.to === leaf && this.book.anim.p > 0.72) : !this.book.busy && this.book.current === leaf); }          // 有地方的：书快翻完就开始从旗上长出来，落下时书已经翻好
+      else if (!opts.quick) await this.wait(mode === 'pin' || mode === 'figure' ? 0.45 : 0.15);
+      // 活页：从旗上长出来 / 整颗地球落下去 / 就在这颗地球上（板块） / 从课本的图里升起来
+      const W = { mode: mode === 'inplace' ? 'globe' : mode, inplace: mode === 'inplace', from: pn ? () => this.earth.pinWorld(pn) : null, figText: pn?.figText, reframe: mode === 'inplace' ? (A) => this._inplaceFrame(A) : null, ...this._lessonPanel(it, pn) };
+      this.live.open({ ...it.spot, page, world: W });
       await this.until(() => this.live.active && !this.live.opening);
-      const inst = this.live.active?.inst;
-      if (kind === 'globe') await this._landGlobe(it, inst);
-      if (pn?.place && inst?.place) inst.place(pn.place);
-      if (opts.place && inst?.place) inst.place(opts.place);
+      const A = this.live.active, inst = A?.inst, saved = this.saved[id];
+      if (mode === 'inplace') this._inplaceHandoff(A, saved);
+      else if (mode === 'globe') await this._landGlobe(it, inst);
+      // 带进来的地方、上次的操作：先恢复上次的；从别的地方进来（地方变了）就按新地方
+      const placeName = opts.place ?? pn?.place;
+      if (saved && inst?.restore && mode !== 'inplace' && (!placeName || saved.m === placeName || saved.place === placeName || !('m' in saved))) inst.restore(saved);
+      else if (placeName && inst?.place) inst.place(placeName);
       this.locTag.text(pn ? `<b>${shortName(pn)}</b><small>回到地球</small>` : '<small>回到地球</small>');
+      this.subFor = { page, t: 0 };
     } finally { this.busy = false; }
+  }
+
+  /** 板块：活页里的那颗地球摆到书后上方这颗地球的位置、同样大、同一个朝向，一帧之内换过去（看上去还是这颗地球，边界留着） */
+  _inplaceHandoff(A, saved) {
+    const inst = A.inst, P = this._hubPose(), loc = (v) => v.clone().sub(A.to).divideScalar(A.s);
+    const up = P.pos.clone().add(new THREE.Vector3(0, 0.36, -0.1));
+    inst.worldHome?.({ pos: loc(P.pos), r: P.r / A.s, retreat: { pos: loc(up), r: (P.r * 0.8) / A.s }, q: this.earth.spin.quaternion.clone() });
+    if (saved) inst.restore?.(saved);
+    this.live.release();
+    this.earth.root.visible = false;
+    this.follow = () => this._globePose(inst.globe); this.anim = null;
+    this._inplaceFrame(A);
+  }
+  /** 板块的镜头：没切开时和地球目录一样（地球在后、书在前）；切开后把切片和地球一起框进来 */
+  _inplaceFrame(A) {
+    if (!A.inst.sliceOut?.() || !A.inst.slice) return this._hubShot();
+    // 切片是主角：切片在画面中间偏下、放大，地球在它后上方（露出切线那一带）
+    const box = new THREE.Box3().setFromObject(A.inst.slice), c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()), G = this._globePose(A.inst.globe);
+    const el = THREE.MathUtils.degToRad(27), dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el));
+    this.stage.cameraOffsetX = this.panel.el && !this.panel.el.hidden ? panelOffset() : 0;
+    // 要框进来的点：整块切片，地球的下半个（切线在中间一带，顶上可以出画）
+    const pts = []; for (let i = 0; i < 8; i++) pts.push(new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z));
+    const right = new THREE.Vector3(0, 1, 0).cross(dir).normalize();
+    for (const [a, b] of [[0, -1], [0.92, -0.3], [-0.92, -0.3], [0.5, 0.35], [-0.5, 0.35]]) pts.push(G.pos.clone().addScaledVector(right, a * G.r).add(new THREE.Vector3(0, b * G.r, 0)));
+    this._fitPoints(pts, dir, 1.06);
+    void c; void size;
+  }
+  /** 按针孔相机算：给定方向，让这些点刚好都落在画面可用的区域里（面板让出的地方不算） */
+  _fitPoints(pts, dir, margin = 1.08) {
+    const st = this.stage, d = dir.clone().normalize(), right = new THREE.Vector3(0, 1, 0).cross(d).normalize(), up = d.clone().cross(right).normalize();
+    let r0 = Infinity, r1 = -Infinity, u0 = Infinity, u1 = -Infinity, f0 = Infinity, f1 = -Infinity;
+    for (const p of pts) { const a = p.dot(right), b = p.dot(up), c2 = p.dot(d); r0 = Math.min(r0, a); r1 = Math.max(r1, a); u0 = Math.min(u0, b); u1 = Math.max(u1, b); f0 = Math.min(f0, c2); f1 = Math.max(f1, c2); }
+    const center = right.clone().multiplyScalar((r0 + r1) / 2).add(up.clone().multiplyScalar((u0 + u1) / 2)).add(d.clone().multiplyScalar((f0 + f1) / 2));
+    const vfov = THREE.MathUtils.degToRad(st.camera.fov), hfov = 2 * Math.atan(Math.tan(vfov / 2) * st.camera.aspect);
+    const uW = 1 - Math.abs(st.cameraOffsetX * 2) / Math.max(1, innerWidth), uH = 1 - Math.abs(st.cameraOffsetY * 2) / Math.max(1, innerHeight);
+    const tH = Math.tan((hfov * uW) / 2), tV = Math.tan((vfov * uH) / 2);
+    let D = 0; for (const p of pts) { const c2 = p.clone().sub(center), depth = c2.dot(d); D = Math.max(D, depth + (Math.abs(c2.dot(right)) * margin) / tH, depth + (Math.abs(c2.dot(up)) * margin) / tV); }
+    st.shot({ target: center, dir: d, dist: D });
   }
 
   /** 活页的侧栏：标题下面写从哪里进来、进来的是什么；“回到地球”；接着看 */
@@ -283,6 +333,8 @@ export class World {
   async _closeTopic() {
     const A = this.live.active, T = this.topic;
     if (!A) { this.topic = null; return; }
+    if (T && A.inst.save) this.saved[T.id] = A.inst.save();          // 回来再进：接着刚才的
+    if (T?.mode === 'inplace' && A.inst.sliceOut?.()) { A.inst.sliceIn?.(); await this.wait(0.85); }          // 切片先收回切线里
     if (T?.kind === 'globe' && A.inst.globe) {
       const P = this._globePose(A.inst.globe);
       this.earth.spin.quaternion.copy(P.q); this.earth.target = null;
@@ -312,7 +364,7 @@ export class World {
       this.earth.setPlain(0);
       this.earth.setLook({ pins: true, fade: 1 });
       this._uprightSpin();
-      if (this.book.current !== this.hubLeaf) this.book.turnTo(this.hubLeaf);
+      if (this.book.current !== this.hubLeaf) this.book.turnTo(this.hubLeaf, { max: 3 });
       this._hubPanel(); this._hubShot();
       this.earth.setActive(T ? (T.pn ? { it: T.it, pn: T.pn } : { it: T.it }) : null);
       this.earth.setLayer(this.hubLayer);
@@ -329,6 +381,21 @@ export class World {
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
     if (up.y > 0.999) return;
     this.earth.turnTo(0, lon, this.stage.camera);
+  }
+
+  /** 活页里换了情境，书翻到那一页：活页稍微抬起来，纸从它下面滑过去，再落回书上 */
+  async _followPage(page, figText) {
+    const leaf = this.book.leafForPage(page), A = this.live.active;
+    this.subFor = { page }; this.subWant = null;
+    if (!A || this.book.current === leaf) return;
+    this.busy = true;
+    try {
+      A.lift = 0.34; await this.wait(0.3);
+      this.book.curl = 0.17; this.book.turnTo(leaf, { max: 1 }); await this.until(() => !this.book.busy);
+      this.book.curl = 0; A.lift = 0;
+      const el = this.panel.el?.querySelector('.p-fig'), T = this.topic;
+      if (el && T) el.textContent = figText || `${T.it.fig} · 课本第 ${page - this.manifest.pageOffset} 页`;
+    } finally { this.busy = false; }
   }
 
   /** 地球目录下翻书：翻到的那一页有活页，就在地球上把它亮出来 */
@@ -383,6 +450,7 @@ export class World {
   // ---------- 每帧 ----------
   update(dt) {
     this.tm += dt;
+    const A = this.live.active;
     for (const j of [...this.jobs]) if (j.fn ? j.fn() : this.tm >= j.t) { this.jobs.splice(this.jobs.indexOf(j), 1); j.res(); }
     if (this.state === 'off') return;
     let P = this.follow ? this.follow() : this.cur;
@@ -399,6 +467,16 @@ export class World {
     this.idle += dt;
     if (this.state === 'hub' && !this.busy && !this.drag && !this.hovered && !this.earth.target && !this.earth.active && this.idle > 6) this.earth.spin.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.035));
     this.earth.update(dt, { camera: this.stage.camera, bookTop: this._top(), shadowK: this.state === 'hub' || this.state === 'off' ? 1 : 0.5 });
+    // “看法”按钮：在地球左边（地球目录、板块里）
+    const chipsOn = this.chips.el.children.length > 0 && (this.state === 'hub' || (this.state === 'topic' && this.topic?.mode === 'inplace'));
+    this.chips.show(chipsOn);
+    if (chipsOn) { const H = this._hubPose(), left = new THREE.Vector3().setFromMatrixColumn(this.stage.camera.matrixWorld, 0).multiplyScalar(-H.r * 1.38); this.chips.at(H.pos.clone().add(left)); for (const b of this.chips.el.children) b.classList.toggle('on', this.topic?.id === b.dataset.id); }
+    // 活页里换了情境（准静止锋、海峡两岸、入海口）：书跟着翻到那一页（等它稳住半秒再翻）
+    if (this.state === 'topic' && !this.busy && A && !A.closing && A.inst?.where && this.topic?.it.anchor.sub) {
+      const T = this.topic, sub = T.it.anchor.sub[A.inst.where()], page = sub?.page ?? T.it.spot.page;
+      if (page !== this.subFor?.page) { if (this.subWant?.page === page) this.subWant.t += dt; else this.subWant = { page, t: 0 }; if (this.subWant.t > 0.5) this._followPage(page, sub?.figText); }
+      else this.subWant = null;
+    }
     const showHint = this.state === 'hub' && !this.busy && !this.touched && !this.reading && this.items.some((x) => x.anchor.kind === 'place');
     this.hint.show(showHint);
     if (showHint) { const left = new THREE.Vector3().setFromMatrixColumn(this.stage.camera.matrixWorld, 0).multiplyScalar(-P.r * 1.05); this.hint.at(P.pos.clone().add(left).add(new THREE.Vector3(0, -P.r * 0.55, 0))); }
@@ -417,7 +495,6 @@ export class World {
       this.card.el.style.left = '0'; this.card.at(new THREE.Vector3((px / innerWidth) * 2 - 1, 1 - (py / innerHeight) * 2, 0.5).unproject(cam));
     }
     // 接着看：只在接得上的时候出现（比如板块切到了喜马拉雅）
-    const A = this.live.active;
     if (A && !A.closing && A.inst) for (const b of this.panel.el?.querySelectorAll('.p-link[data-when]') || []) b.hidden = (A.inst.where ? A.inst.where() : b.dataset.when) !== b.dataset.when;
   }
 }

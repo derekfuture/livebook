@@ -6,12 +6,14 @@
 //   globe：活页本身就是一颗地球（昼夜、板块、气压带）：这颗地球直接落下去变成活页里的那颗；layer 是在地球目录里指着它时叠的那一层。
 //          plain：活页里的地球不画海陆（气压带：先假设地表均匀），落下去时海陆淡掉。
 //   idea：不在某一个地方的原理（岩石圈物质循环、褶皱、河谷、水循环、城市……）：照旧从课本的图里升起来，地球退到角上。
+//   inplace：整颗地球的主题就在书后上方那颗地球上看（板块）：不落成另一颗，边界一直开着，切片从它身上拉出来落到书上。chip：地球旁“看法”按钮上的字。
+//   page / sub：子情境对应的书页（PDF 页序）。pin.page：从这面旗进来翻到哪一页；sub[where]：活页里换到这个情境时书跟着翻到哪一页；figText：那时面板上写的图号和页码。
 // 坐标取到小数点后一两位，只用来在地球上找到那一带。side：名字写在旗的东边（1）还是西边（−1）；up：往北挪多少（避开挨着的名字）。
 export const ANCHORS = {
   // ---- 选择性必修1 ----
-  earthsun: { kind: 'globe', layer: 'sun', note: '整个地球：昼夜长短和正午太阳高度' },
+  earthsun: { kind: 'globe', layer: 'sun', chip: '昼夜', note: '整个地球：昼夜长短和正午太阳高度' },
   rockcycle: { kind: 'idea' },
-  plates: { kind: 'globe', layer: 'plates', note: '整个地球：板块和板块边界' },
+  plates: { kind: 'globe', layer: 'plates', inplace: true, chip: '板块', note: '整个地球：板块和板块边界' },
   fold: { kind: 'idea' },
   fault: {
     kind: 'place', pins: [{ lat: 34.48, lon: 110.08, name: '华山—渭河平原', side: -1, up: 0.004 }],          // 选必1 第 28 页：华山（断块山）、渭河平原（地堑）
@@ -19,10 +21,10 @@ export const ANCHORS = {
   },
   river: { kind: 'idea' },
   front: {
-    kind: 'place', pins: [{ lat: 25.8, lon: 104.2, name: '昆明准静止锋', side: -1, place: 'still' }],          // 选必1 第 44 页：昆明准静止锋，贵阳阴雨、昆明晴
+    kind: 'place', pins: [{ lat: 25.8, lon: 104.2, name: '昆明准静止锋', side: -1, place: 'still', page: 48, figText: '课本第 44 页 · 昆明准静止锋' }], sub: { still: { page: 48, figText: '课本第 44 页 · 昆明准静止锋' } },          // 选必1 第 44 页：昆明准静止锋，贵阳阴雨、昆明晴
     enter: '课本的例子：南下的冷空气遇云贵高原上的山脉阻挡，锋面在昆明和贵阳之间停滞，形成昆明准静止锋，给贵阳等地带来持续的阴雨。下面是教学示意的地块：你家在冷空气一侧，像贵阳；邻城在山那边，像昆明。',
   },
-  belts: { kind: 'globe', layer: 'belts', plain: 0x86b4d4, note: '整个地球：气压带和风带（先假设地表均匀）' },
+  belts: { kind: 'globe', layer: 'belts', chip: '气压带', plain: 0x86b4d4, note: '整个地球：气压带和风带（先假设地表均匀）' },
   monsoon: {
     kind: 'place', pins: [{ lat: 33, lon: 124.5, name: '东亚季风', side: 1, up: -0.002 }],          // 选必1 第 52 页图 3.14 东亚季风示意
     enter: '课本的例子：东亚季风。下面是理想化的北半球：西边一块大陆、东边一片大洋，不是真实地图。',
@@ -52,7 +54,7 @@ export const ANCHORS = {
   },
   heat: { kind: 'idea' },
   thermal: {
-    kind: 'place', pins: [{ lat: 24.0, lon: 119.6, name: '台湾海峡', side: 1, up: -0.002, place: 'sea' }],          // 必修第一册 第 34 页：《台海使槎录》
+    kind: 'place', pins: [{ lat: 24.0, lon: 119.6, name: '台湾海峡', side: 1, up: -0.002, place: 'sea', page: 38, figText: '图2.8 · 课本第 34 页 · 《台海使槎录》' }], sub: { sea: { page: 38, figText: '图2.8 · 课本第 34 页 · 《台海使槎录》' } },          // 必修第一册 第 34 页：《台海使槎录》
     enter: '课本开头的问题：台湾海峡两岸的风。下面是示意的海峡剖面，竖直方向夸大了。',
   },
   // ---- 必修第二册 ----
@@ -63,7 +65,7 @@ export const ANCHORS = {
   },
   // ---- 选择性必修2 ----
   basin: {
-    kind: 'place', pins: [{ lat: 34.8, lon: 114.3, name: '黄河下游（开封）', side: -1, place: 'main' }, { lat: 37.75, lon: 119.1, name: '黄河入海口', side: 1, up: 0.003, place: 'mouth' }],          // 选必2 第 61—64 页；入海口：第 64 页“思考”
+    kind: 'place', pins: [{ lat: 34.8, lon: 114.3, name: '黄河下游（开封）', side: -1, place: 'main' }, { lat: 37.75, lon: 119.1, name: '黄河入海口', side: 1, up: 0.003, place: 'mouth', page: 68, figText: '图4.9 · 课本第 64 页 · 思考：入海口' }], sub: { mouth: { page: 68, figText: '图4.9 · 课本第 64 页 · 思考：入海口' } },          // 选必2 第 61—64 页；入海口：第 64 页“思考”
     enter: '课本的例子：黄河下游的“地上河”（开封）、小浪底调水调沙；“思考”问到黄河入海口。下面的流域是示意，泥沙按课本图 4.7 的实测年均值。',
   },
 };
