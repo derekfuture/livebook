@@ -1,4 +1,4 @@
-// 首页书桌 → 点一科（摊开）→ 拿一本书进去（可以先设一个书签页，看翻页）→ 点“‹ 书架”放回去：用 CDP 的 screencast 把每一帧都录下来（截图太慢，会漏掉一两帧的闪烁）。
+// 首页书桌 → 点一科（摊开）→ 拿一本书进去（可以先设一个书签页，看翻页）→ 点“‹ 书桌”放回去：用 CDP 的 screencast 把每一帧都录下来（截图太慢，会漏掉一两帧的闪烁）。
 //   node tools/shelfcast.mjs [名字=go] [科目=物理] [摊开后第几本，从 0 数=0] [书签，如 huaxue-9s:40]
 // 帧存到 /tmp/lbqa/cast/<名字>-NNNN.jpg，再用 python3 tools/flash.py <名字> 看每帧亮度、找“突然变亮又变回去”的帧。
 import { createRequire } from 'module';

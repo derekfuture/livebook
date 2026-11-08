@@ -1,13 +1,13 @@
 // 首页：一张书桌。每一科在书桌靠里那一头：一摞这一科的课本，旁边放着这一科的一件东西，前面立着一张桌签——
 //   物理：一块三棱镜，一束白光从后面照进去，另一边在桌上散开成一道彩虹（按折射定律算的：红光偏折最少、紫光最多）；
 //   化学：一只锥形瓶，瓶里是蓝色的硫酸铜溶液；
-//   地理：课本七年级上册第 14 页自己做的那种泡沫球地球仪（经纬网、毛线赤道、铁丝地轴、橡皮泥底座，和七上活页里同一个）。
+//   地理：一个复古的桌面地球仪（黄铜子午圈、胡桃木底座），球面就是地理世界那颗地球：按此刻真实的太阳分出昼夜，夜里亮着城市灯光。
 //   桌签上写着科目、几册、几张活页。
 // 各科一前一后错开着往两边排（物理在前、化学在后、地理在前……；超过 6 科排成前后两排），科目多了镜头往后退一点就都装得下——不像书架那样一层一层往上摞、书越来越小。
 // 指着一科：那一摞书像扑克牌一样错开一点，那件东西动一下（三棱镜转一点、彩虹跟着摆；瓶子晃一晃，像振荡；地球仪转起来）。
 // 点一科：物理、化学——这一摞在桌上摊开成一排（下面一张小纸条：翻到哪、活页做了几张）；点一本，它落到书桌中间，和书里一开始的样子一模一样，
-//   别的书收回那一摞，就在这个舞台上换成书里那本书。地理——地球仪的球从架子上飞起来、越来越大，正好飞到地理世界里地球的位置和大小，
-//   换页面时两个叠在一起（泡沫球化成真的地球）。
+//   别的书收回那一摞，就在这个舞台上换成书里那本书。地理——屋里的窗光暗下去、变成夜空，星星出来，地球仪的球离开铜圈飞起来、越来越大，
+//   正好飞到地理世界里地球的位置、大小和朝向，换页面时两个叠在一起；从地理世界回来倒着放：地球落回铜圈，屋里的光再亮起来。
 // 从书里回来：书先合上，换页面时拿书里最后一帧盖着，这边画好了再揭开，书从书桌中间回到摊开的那一排里。
 // 光：傍晚的太阳从左后方的窗户斜照进来，窗格的影子落在桌上，几件东西拖着长长的影子，光里飘着一点浮尘；屋里别处暗下去。
 //   物理那束白光就是这窗光。进书时光慢慢回到书里白天的样子（两边交接的那一帧是同一个画面）；从书里回来再慢慢暗下来。
@@ -22,6 +22,11 @@ import { progress, bookmark } from './progress.js';
 import { paint, inked, hull, glassEdge } from '../live/ink.js';
 import { glass2, water2 } from '../lessons/kit/chemfx.js';
 import { earthCircle } from '../world/GeoWorld.js';
+import { subsolar } from '../live/WorldEarth.js';
+import { ll2v } from '../lessons/kit/plates.js';
+import { ANCHORS } from '../lessons/kit/atlas.js';
+import reliefUrl from '../lessons/data/earth_relief.jpg';
+import nightUrl from '../lessons/data/earth_night.jpg';
 
 const BOOK_H = 0.6;                // 桌上的书高；书里那本书高 2（Book.js），拿到书桌中间时放大过去
 const LEAF_T = 0.0017;             // 书里每张纸的厚度（同 Book.js）：按页数有厚有薄
@@ -102,11 +107,12 @@ export async function bootHome(stage, { enterBook = null } = {}) {
       items.push(g);
     }
     s.sp = Math.max(...items.filter((g) => g.userData.s === s).map((g) => g.userData.W)) + 0.14;          // 摊开时一本和一本之间
-    s.thing = s.name === '物理' ? prismThing() : s.name === '化学' ? flaskThing() : s.name === '地理' ? globeThing() : null;          // 以后的科目（语文、生物……）各配一件
+    s.thing = s.name === '物理' ? prismThing() : s.name === '化学' ? flaskThing() : s.name === '地理' ? deskGlobe() : null;          // 以后的科目（语文、生物……）各配一件
     if (s.thing) { s.thing.position.set(THING.x, 0, THING.z); s.thing.scale.setScalar(THING_S); root.add(s.thing); }
     const pick = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.42, 1.08), new THREE.MeshBasicMaterial({ visible: false })); pick.position.set(0.05, 0.21, 0.06); root.add(pick); s.pick = pick;
   }
 
+  const geoS = subjects.find((s) => s.name === '地理');
   // ---- 每本书该在哪（书桌的坐标） ----
   const toW = (s, x, y, z, yaw) => ({ p: new THREE.Vector3(x, y, z).applyAxisAngle(Y, s.yaw).add(new THREE.Vector3(s.x, 0, s.z)), yaw: s.yaw + yaw });
   const stackPose = (g) => {
@@ -122,6 +128,17 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     return { p: new THREE.Vector3(cx + k * s.sp, u.T / 2 + 0.001, FAN_Z + Math.abs(k) * 0.04), yaw: -k * 0.035, sc: 1 };
   };
   const deskPose = (g) => { const u = g.userData; return { p: new THREE.Vector3((u.W * u.sv) / 2, (u.T * u.sv) / 2, 0), yaw: 0, sc: u.sv }; };
+  // 地球仪的球在屏幕上的圆（圆心 cx、cy，半径 r，像素）：沿镜头的射线往里 D 远，球放到正好那么大——去地理世界的终点、从那边回来的起点
+  const ballAt = (C, B, D = 2.4) => {
+    const cam = stage.camera; ndc.set((C.cx / innerWidth) * 2 - 1, -(C.cy / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam);
+    const Rw = D * Math.sin(Math.atan((C.r / (innerHeight / 2)) * Math.tan((cam.fov * D2R) / 2)));
+    return { p: ray.ray.origin.clone().addScaledVector(ray.ray.direction, D), sc: Rw / B.R };
+  };
+  // 地理世界一打开时地球哪一面朝着镜头：那本书第一面插在具体地方的旗的经度（同 GeoWorld 的算法）；没有就用别的地理书的，再没有就 105°E
+  const worldLon0 = (focus) => {
+    const firstPlace = (bid) => { for (const sp of getBook(bid).spots) { const a = ANCHORS[sp.lesson]; if (a?.kind === 'place') return a.pins[0].lon; } return null; };
+    return firstPlace(focus) ?? books.filter((b) => b.subject === '地理').map((b) => firstPlace(b.id)).find((x) => x != null) ?? 105;
+  };
   const fanCenter = (s) => { const n = s.books.length; return new THREE.Vector3(Math.min(s.x * 0.6, -0.06 - (n * s.sp - 0.14) / 2), 0, FAN_Z - 0.05); };          // 摊开的那一排正中（窗光挪过去照它）
   // 在两个位置之间：摊开时先平着往外抽（错开了再落到桌上，几本书不会互相穿过去），收回时先抬到各自的高度再收拢
   const lerpPose = (A, B, k, kind) => {
@@ -235,7 +252,11 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     if (open) closeFan(true);
     stage.calm = true;          // 不跟着鼠标晃
     const ball = s.thing?.userData.ball;
-    if (ball) { stage.scene.attach(ball); ball.traverse((o) => { o.castShadow = false; }); leaving.ball = { o: ball, p: ball.position.clone(), q: ball.quaternion.clone(), sc: ball.scale.x, R: s.thing.userData.R }; }
+    if (ball) {
+      const T = s.thing.userData; T.bake();          // 球自己转过的角度并进铜圈的朝向里，再整个转到地理世界里地球的朝向
+      stage.scene.attach(ball); ball.traverse((o) => { o.castShadow = false; });
+      leaving.ball = { o: ball, p: ball.position.clone(), q: ball.quaternion.clone(), sc: ball.scale.x, R: T.R, q1: new THREE.Quaternion().setFromAxisAngle(Y, (-90 - worldLon0(f)) * D2R) };
+    }
   }
 
   // 书落到书桌中间、镜头停稳了：就在这个舞台上换成书里那本书
@@ -257,7 +278,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   const pickBook = () => { const fan = items.filter((g) => g.userData.s === open && g.userData.mode === 'fan'); const hit = ray.intersectObjects(fan.map((g) => g.userData.mesh), false)[0]; return hit ? fan.find((g) => g.userData.mesh === hit.object) : null; };
   const canvas = document.getElementById('c'), ac = new AbortController(), on = { signal: ac.signal };
   canvas.addEventListener('pointermove', (e) => {
-    if (leaving) return;
+    if (leaving || landing) return;
     aim(e);
     hoverB = open ? pickBook() : null;
     hoverS = open ? null : pickSubject();
@@ -266,7 +287,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   }, on);
   canvas.addEventListener('pointerleave', () => { hoverS = hoverB = null; }, on);
   canvas.addEventListener('click', (e) => {
-    if (leaving) return;
+    if (leaving || landing) return;
     aim(e);
     if (open) {
       const g = pickBook(); if (g) return openBook(g.userData.id);
@@ -283,7 +304,9 @@ export async function bootHome(stage, { enterBook = null } = {}) {
   let backFrom = null;
   try { backFrom = sessionStorage.getItem('livebook.homeFrom'); sessionStorage.removeItem('livebook.homeFrom'); } catch { /* 隐私模式 */ }
   const ret = items.find((g) => g.userData.id === backFrom);
-  let waitCover = null;
+  let fromWorld = null;
+  try { fromWorld = JSON.parse(sessionStorage.getItem('livebook.homeFromWorld') || 'null'); sessionStorage.removeItem('livebook.homeFromWorld'); } catch { /* 隐私模式 */ }
+  let waitCover = null, landing = null;
   if (ret) {
     const u = ret.userData, s = u.s;
     place(ret, deskPose(ret)); u.mode = 'held'; deskShot(u, true);
@@ -299,6 +322,14 @@ export async function bootHome(stage, { enterBook = null } = {}) {
       }, 340);
       setTimeout(() => ui.classList.remove('leaving'), 1000);
     } };
+  } else if (fromWorld && geoS?.thing) {
+    // 从地理世界回来：屋里还是夜空，地球仪的球在地理世界里地球的位置、大小、朝向上；揭开截图以后它落回铜圈，屋里的光再亮起来
+    homeShot(true); stage.calm = true; ui.style.transition = 'none'; ui.classList.add('leaving'); void ui.offsetWidth; ui.style.transition = '';          // 屏幕上的纸片先藏起来（不要淡出的过程）
+    const T = geoS.thing.userData, ball = T.ball; T.bake(); stage.scene.attach(ball); ball.traverse((o) => { o.castShadow = false; });
+    const start = ballAt(fromWorld, T); ball.position.copy(start.p); ball.scale.setScalar(start.sc); ball.quaternion.setFromAxisAngle(Y, fromWorld.spin);
+    mood.night(1); T.glow(1);
+    landing = { T, ball, p: start.p.clone(), sc: start.sc, q: ball.quaternion.clone(), t: -0.36 };          // 先等盖着的截图淡出（0.34 秒）
+    window.__dropSnap?.();
   } else { homeShot(true); window.__dropSnap?.(); }
   stage.onResize = () => { if (!leaving) (open ? fanShot(open, true) : homeShot(true)); };
 
@@ -331,22 +362,32 @@ export async function bootHome(stage, { enterBook = null } = {}) {
         }
       }
     }
+    if (landing) {          // 从地理世界回来：球落回铜圈，夜色退去，窗光回来
+      const Lg = landing; Lg.t += dt;
+      if (Lg.t < 0) { const st = ballAt(fromWorld, Lg.T); Lg.p.copy(st.p); Lg.sc = st.sc; Lg.ball.position.copy(st.p); Lg.ball.scale.setScalar(st.sc); }          // 截图还盖着：按画好的镜头摆准（刚启动时镜头的矩阵还没更新）
+      const k = ease(clamp01(Lg.t / 1.7)), th = Lg.T, stand = geoS.thing;
+      stand.updateWorldMatrix(true, false);
+      const slotP = stand.localToWorld(th.slot.p.clone()), slotQ = stand.getWorldQuaternion(new THREE.Quaternion()).multiply(th.slot.q), slotS = stand.getWorldScale(new THREE.Vector3()).x;
+      Lg.ball.position.lerpVectors(Lg.p, slotP, k); Lg.ball.position.y += Math.sin(Math.PI * k) * 0.1;
+      Lg.ball.scale.setScalar(Lg.sc + (slotS - Lg.sc) * k); Lg.ball.quaternion.slerpQuaternions(Lg.q, slotQ, k);
+      mood.night(1 - ease(clamp01((Lg.t - 0.3) / 1.4))); th.glow(1 - k);
+      if (Lg.t >= 1.7) {
+        stand.attach(Lg.ball); Lg.ball.position.copy(th.slot.p); Lg.ball.quaternion.copy(th.slot.q); Lg.ball.scale.setScalar(1); Lg.ball.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+        mood.night(0); th.glow(0); landing = null; stage.calm = false; ui.classList.remove('leaving');
+      }
+    }
     if (leaving?.world) {
       const L = leaving, B = L.ball; L.t += dt;
-      const k = ease(clamp01(L.t / 1.5));
+      const k = ease(clamp01((L.t - 0.15) / 1.6));
+      mood.night(ease(clamp01(L.t / 1.25)));          // 屋里暗成夜空，星星出来
       if (B) {
-        // 终点跟着现在的镜头算：屏幕上那个圆（圆心、半径）往里 D 远的地方，球放到正好那么大
-        const C = earthCircle(), D = 2.4, cam = stage.camera;
-        ndc.set((C.cx / innerWidth) * 2 - 1, -(C.cy / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam);
-        const R = D * Math.sin(Math.atan((C.r / (innerHeight / 2)) * Math.tan((cam.fov * D2R) / 2)));
-        const end = ray.ray.origin.clone().addScaledVector(ray.ray.direction, D);
-        B.o.position.lerpVectors(B.p, end, k); B.o.position.y += Math.sin(Math.PI * k) * 0.12;
-        B.o.scale.setScalar(B.sc + (R / B.R - B.sc) * k);
-        B.o.quaternion.slerpQuaternions(B.q, new THREE.Quaternion(), k);          // 地轴转成竖直：地理世界里的地球北极朝上
-        L.s.thing.userData.tick(dt, 1 + 3 * Math.sin(Math.PI * Math.min(1, k)), time);          // 越转越快，快到地方时慢下来，接上地理世界里慢慢转的地球
-        if (L.s.thing.userData.ballMat) L.s.thing.userData.ballMat.emissiveIntensity = k * 0.85;
+        const end = ballAt(earthCircle(), B);          // 终点跟着现在的镜头算
+        B.o.position.lerpVectors(B.p, end.p, k); B.o.position.y += Math.sin(Math.PI * k) * 0.12;
+        B.o.scale.setScalar(B.sc + (end.sc - B.sc) * k);
+        B.o.quaternion.slerpQuaternions(B.q, B.q1, k);          // 地轴转成竖直、经度转到地理世界里地球朝着镜头的那一面
+        L.s.thing.userData.glow(k);          // 全按此刻的昼夜亮起来，外面一圈淡蓝的大气
       }
-      if (L.t > 1.6 && !L.sent) { L.sent = true; try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ } location.href = `?subject=dili&focus=${L.focus}`; }
+      if (L.t > 1.9 && !L.sent) { L.sent = true; try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ } location.href = `?subject=dili&focus=${L.focus}`; }
     }
     updateTags(stage.camera);
   };
@@ -377,21 +418,35 @@ function windowLight(stage, target) {
   const dir = LIGHT.clone().normalize(), side = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), upv = new THREE.Vector3().crossVectors(dir, side).normalize();
   const motes = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(mp, 3)), new THREE.PointsMaterial({ color: 0xfff0d8, size: 0.022, map: dotTexture(), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
   motes.frustumCulled = false; motes.raycast = () => {}; sc.add(motes);
+  // 夜空（去地理世界的路上）：屋里的光全暗下去，桌子没进夜色，星星出来——和地理世界的天接得上
+  const NIGHT = { hI: 0.05, hC: new THREE.Color(0x1d2c52), hG: new THREE.Color(0x04060c), bg: new THREE.Color(0x0a1330), fN: 0.4, fF: 4.2 };
+  const SN = 700, sp = new Float32Array(SN * 3);
+  for (let i = 0; i < SN; i++) { const u = Math.sin(i * 91.7) * 0.5 + 0.5, v = Math.sin(i * 47.3 + 2) * 0.5 + 0.5, th = u * Math.PI * 2, ph = Math.acos(1 - v * 1.2); sp.set([Math.sin(ph) * Math.cos(th) * 30, Math.cos(ph) * 30 - 4, Math.sin(ph) * Math.sin(th) * 30], i * 3); }
+  const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(sp, 3)), new THREE.PointsMaterial({ color: 0xdfe8ff, size: 0.09, map: dotTexture(), transparent: true, opacity: 0, depthWrite: false, fog: false, blending: THREE.AdditiveBlending }));
+  stars.frustumCulled = false; stars.raycast = () => {}; stars.renderOrder = 55; sc.add(stars);
+  // 夜色的幕：罩在镜头四周，把整间屋子（连玻璃、彩虹）一起盖进夜色里；飞起来的地球画在幕的后面（renderOrder 更大），还看得见
+  const curtain = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: NIGHT.bg, side: THREE.BackSide, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false }));
+  curtain.renderOrder = 50; curtain.frustumCulled = false; curtain.raycast = () => {}; sc.add(curtain);
   const L = (a, b, k) => a + (b - a) * k;
-  let kNow = 0;
+  let kNow = 0, nNow = 0;
   const aimAt = target.clone(), home = target.clone();          // 窗光照着哪里：平时是那几科，摊开一科时挪到摊开的那一排（光的方向不变，影子还是朝右前方）
   const api = {
     /** 窗光挪去照 p（null：回到那几科） */
     focus(p) { aimAt.copy(p || home); },
-    set(k) {
-      kNow = k;
-      hemi.intensity = L(base.hI, dusk.hI, k); hemi.color.copy(base.hC).lerp(dusk.hC, k); hemi.groundColor.copy(base.hG).lerp(dusk.hG, k);
-      sun.intensity = L(base.sI, dusk.sI, k); sun.color.copy(base.sC).lerp(dusk.sC, k);
-      sc.background.copy(base.bg).lerp(dusk.bg, k); sc.fog.color.copy(base.fC).lerp(dusk.fC, k); sc.fog.near = L(base.fN, dusk.fN, k); sc.fog.far = L(base.fF, dusk.fF, k);
+    set(k, n = nNow) {
+      kNow = k; nNow = n;
+      hemi.intensity = L(L(base.hI, dusk.hI, k), NIGHT.hI, n); hemi.color.copy(base.hC).lerp(dusk.hC, k).lerp(NIGHT.hC, n); hemi.groundColor.copy(base.hG).lerp(dusk.hG, k).lerp(NIGHT.hG, n);
+      sun.intensity = L(base.sI, dusk.sI, k) * (1 - n); sun.color.copy(base.sC).lerp(dusk.sC, k);
+      sc.background.copy(base.bg).lerp(dusk.bg, k).lerp(NIGHT.bg, n); sc.fog.color.copy(base.fC).lerp(dusk.fC, k).lerp(NIGHT.bg, n);
+      sc.fog.near = L(L(base.fN, dusk.fN, k), NIGHT.fN, n); sc.fog.far = L(L(base.fF, dusk.fF, k), NIGHT.fF, n);
       if (desk) desk.color.copy(base.dC).lerp(dusk.dC, k);
-      spot.intensity = 4.4 * k; fill.intensity = 0.55 * k; motes.material.opacity = 0.55 * k;
+      spot.intensity = 4.4 * k * (1 - n); fill.intensity = 0.55 * k * (1 - n); motes.material.opacity = 0.55 * k * (1 - n); stars.material.opacity = n;
+      curtain.material.opacity = Math.min(1, n * 1.15); curtain.visible = n > 0.001;
     },
+    /** 去地理世界的路上暗成夜空（n = 0 傍晚 … 1 夜空） */
+    night(n) { api.set(kNow, n); },
     tick(dt, t) {
+      curtain.position.copy(stage.camera.position);
       if (target.distanceToSquared(aimAt) > 1e-8) { target.lerp(aimAt, Math.min(1, dt * 2.4)); spot.target.position.copy(target); spot.position.copy(target).add(LIGHT); }
       if (kNow <= 0.001) return;
       seeds.forEach((m, i) => {
@@ -401,7 +456,7 @@ function windowLight(stage, target) {
       });
       motes.geometry.attributes.position.needsUpdate = true;
     },
-    dispose() { api.set(0); sc.remove(spot, spot.target, fill, fill.target, motes); spot.map?.dispose(); spot.shadow.map?.dispose(); motes.geometry.dispose(); motes.material.map?.dispose(); motes.material.dispose(); },
+    dispose() { api.set(0, 0); sc.remove(spot, spot.target, fill, fill.target, motes, stars, curtain); stars.geometry.dispose(); stars.material.dispose(); curtain.geometry.dispose(); curtain.material.dispose(); spot.map?.dispose(); spot.shadow.map?.dispose(); motes.geometry.dispose(); motes.material.map?.dispose(); motes.material.dispose(); },
   };
   api.set(1);
   return api;
@@ -579,40 +634,58 @@ function flaskThing() {
   return g;
 }
 
-/** 地理：课本七年级上册第 14 页自己做的那种泡沫球地球仪（和七上活页里同一个）：经纬网、回归线和极圈画成虚线、毛线赤道，不画大陆。指着它：转起来 */
-function globeThing() {
-  const g = new THREE.Group(), R = 0.088, EPS = 23.5 * D2R, HC = 0.135, RW = R + 0.008;
-  const AXIS = new THREE.Vector3(Math.sin(EPS), Math.cos(EPS), 0), C0 = new THREE.Vector3(0, HC, 0);
-  const tex = (() => {
-    const c = document.createElement('canvas'); c.width = 2048; c.height = 1024; const x = c.getContext('2d'), Wc = 2048, Hc = 1024;
-    x.fillStyle = '#fbfaf5'; x.fillRect(0, 0, Wc, Hc);
-    for (let i = 0; i < 4000; i++) { x.fillStyle = `rgba(150,140,120,${Math.random() * 0.06})`; x.beginPath(); x.arc(Math.random() * Wc, Math.random() * Hc, 1 + Math.random() * 2, 0, 7); x.fill(); }     // 泡沫的小颗粒
-    const X = (lon) => ((lon + 180) / 360) * Wc, Yp = (lat) => ((90 - lat) / 180) * Hc;
-    x.strokeStyle = 'rgba(70,96,140,0.5)'; x.lineWidth = 1.6;
-    for (let lon = -180; lon < 180; lon += 15) { x.beginPath(); x.moveTo(X(lon), 0); x.lineTo(X(lon), Hc); x.stroke(); }
-    for (let lat = -75; lat <= 75; lat += 15) { x.beginPath(); x.moveTo(0, Yp(lat)); x.lineTo(Wc, Yp(lat)); x.stroke(); }
-    x.strokeStyle = '#2f3d5c'; x.lineWidth = 3;
-    for (const lon of [0, -180, 180]) { x.beginPath(); x.moveTo(X(lon), 0); x.lineTo(X(lon), Hc); x.stroke(); }
-    x.strokeStyle = '#3f74b0'; x.lineWidth = 3;
-    for (const lat of [23.5, -23.5, 66.5, -66.5]) { const k = 1 / Math.cos(lat * D2R); x.setLineDash([16 * k, 11 * k]); x.beginPath(); x.moveTo(0, Yp(lat)); x.lineTo(Wc, Yp(lat)); x.stroke(); }
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
-  })();
-  const wireM = paint(0x4f5560, { keep: true, unique: true });
-  const tube = (pts, r = 0.0021) => inked(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), Math.max(8, pts.length * 3), r, 8, false), wireM), { width: 0.6 });
-  for (const sg of [-1, 1]) g.add(tube([C0.clone().addScaledVector(AXIS, sg * (R + 0.006)), C0.clone().addScaledVector(AXIS, sg * (R + 0.012))]));          // 穿过两极的铁丝（地轴）露在外面的两头
-  { const pts = [C0.clone().addScaledVector(AXIS, R + 0.012)]; for (let i = 0; i <= 28; i++) { const th = EPS + ((Math.PI - EPS) * i) / 28; pts.push(C0.clone().add(new THREE.Vector3(Math.sin(th) * RW, Math.cos(th) * RW, 0))); }
-    pts.push(new THREE.Vector3(0, HC - RW - 0.01, 0), new THREE.Vector3(0, 0.032, 0)); g.add(tube(pts)); }          // 沿球外侧弯成半圆，再往下插进底座
-  const clay = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.023, 0.038, 0.034, 28), paint(0x9fd0c6, { keep: true, unique: true })), { width: 0.8 }); clay.position.y = 0.017; g.add(clay);
-  const tilt = new THREE.Group(); tilt.position.copy(C0); tilt.quaternion.setFromUnitVectors(Y, AXIS); g.add(tilt);
-  for (const sg of [-1, 1]) { const tape = new THREE.Mesh(new THREE.CylinderGeometry(0.0058, 0.0058, 0.008, 14), paint(0xf2efe6, { unique: true })); tape.position.y = sg * (R + 0.003); tilt.add(tape); }          // 两极贴的胶布
+/**
+ * 地理：一个复古的桌面地球仪——胡桃木底座、黄铜子午圈；球面就是地理世界那颗地球（同一张地形图），按此刻真实的太阳分出昼夜，夜里那一半亮着城市灯光
+ * （NASA 2016 年合成，同地理世界）。在桌上：一半是窗光照出来的样子，一半是它自己的昼夜（nowK）；飞去地理世界时全按此刻的昼夜亮起来，外面一圈淡蓝的大气。
+ * 指着它慢慢转。userData：ball（连地轴倾斜的那一层，飞走时整个拿走）、R、bake()、glow(k)、tick。
+ */
+function deskGlobe() {
+  const g = new THREE.Group(), R = 0.088, EPS = 23.5 * D2R, HC = 0.152, RM = R * 1.13;
+  const AXIS = new THREE.Vector3(Math.sin(EPS), Math.cos(EPS), 0), C0 = new THREE.Vector3(0, HC, 0), TILT = new THREE.Quaternion().setFromUnitVectors(Y, AXIS);
+  const ld = new THREE.TextureLoader(), day = ld.load(reliefUrl), night = ld.load(nightUrl);
+  day.colorSpace = night.colorSpace = THREE.SRGBColorSpace; day.anisotropy = 8;
+  const sub = subsolar(new Date());
+  const U = { sunL: { value: new THREE.Vector3(...ll2v(sub.lat, sub.lon)) }, nightMap: { value: night }, nowK: { value: 0.55 } };
+  const ballMat = new THREE.MeshStandardMaterial({ map: day, roughness: 0.5, metalness: 0, transparent: true });          // 透明那一队里画：排在夜色的幕后面
+  ballMat.fog = false;          // 暗成夜空时桌子没进雾里，这颗球不能跟着没进去
+  ballMat.onBeforeCompile = (sh) => {          // 昼夜、城市灯光、晨昏线一道暖光：和地理世界的地球同一个算法（球自己的坐标里算，跟着球转）
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vObjN;').replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvObjN = objectNormal;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vObjN; uniform vec3 sunL; uniform sampler2D nightMap; uniform float nowK;').replace('#include <opaque_fragment>', `{
+      float d = dot(normalize(vObjN), normalize(sunL)), dayK = smoothstep(-0.08, 0.22, d);
+      vec3 dayC = diffuseColor.rgb * (0.06 + 1.1 * max(d, 0.0));
+      vec3 nightC = diffuseColor.rgb * vec3(0.03, 0.04, 0.07) + texture2D(nightMap, vMapUv).rgb * vec3(1.0, 0.78, 0.48) * 1.6;
+      vec3 nowC = mix(nightC, dayC, dayK) + diffuseColor.rgb * vec3(0.9, 0.38, 0.15) * 0.18 * exp(-pow(d / 0.09, 2.0));
+      outgoingLight = mix(outgoingLight, nowC, nowK);
+    }
+    #include <opaque_fragment>`);
+  };
+  ballMat.customProgramCacheKey = () => 'deskglobe';
+  const brass = new THREE.MeshStandardMaterial({ color: 0xc69a4c, metalness: 0.55, roughness: 0.34, emissive: 0x3a2a10, emissiveIntensity: 0.25 });
+  const walnut = new THREE.MeshStandardMaterial({ color: 0x5b3a25, roughness: 0.48, metalness: 0 });
+  // 底座：车出来的胡桃木，顶上一截铜柱托着子午圈
+  const prof = [[0, 0], [0.047, 0], [0.05, 0.004], [0.046, 0.011], [0.032, 0.017], [0.018, 0.026], [0.012, 0.038], [0.0135, 0.042], [0, 0.042]].map(([r, y]) => new THREE.Vector2(r, y));
+  const base = new THREE.Mesh(new THREE.LatheGeometry(prof, 48), walnut); base.castShadow = base.receiveShadow = true; g.add(base);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.006, HC - RM - 0.042 + 0.002, 16), brass); stem.position.y = 0.042 + (HC - RM - 0.042) / 2; stem.castShadow = true; g.add(stem);
+  // 子午圈：一整圈黄铜，在地轴所在的那个竖直面里；两极各一根铜钉穿进球里
+  const tilt = new THREE.Group(); tilt.position.copy(C0); tilt.quaternion.copy(TILT); g.add(tilt);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(RM, 0.0028, 12, 120), brass); ring.castShadow = true; g.add(ring); ring.position.copy(C0); ring.quaternion.copy(TILT);
+  for (const sg of [-1, 1]) { const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, RM - R + 0.004, 10), brass); pin.position.copy(C0).addScaledVector(AXIS, sg * (R + (RM - R) / 2)); pin.quaternion.copy(TILT); g.add(pin); }
   const spin = new THREE.Group(); tilt.add(spin);
-  const ballMat = new THREE.MeshLambertMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0 });          // 飞去地理世界时自己亮起来（离开窗光也不发灰）
-  spin.add(hull(new THREE.Mesh(new THREE.SphereGeometry(R, 72, 48), ballMat), 0.0014));
-  g.userData.ballMat = ballMat;
-  g.userData.ball = tilt; g.userData.R = R;          // 进地理世界时，球（连胶布、毛线）从架子上飞走
-  const yarn = new THREE.Mesh(new THREE.TorusGeometry(R + 0.0008, 0.0019, 8, 128), paint(0xc8462e, { keep: true, unique: true })); yarn.rotation.x = Math.PI / 2; spin.add(yarn);          // 毛线赤道
-  spin.rotation.y = 2.2;
-  g.userData.tick = (dt, hot) => { spin.rotation.y += dt * (0.1 + hot * 1.2); };
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(R, 96, 64), ballMat); ball.castShadow = true; ball.receiveShadow = true; ball.renderOrder = 60; spin.add(ball);
+  // 大气：背面一层往外晕的淡蓝（飞起来才亮）
+  const haloM = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.BackSide, blending: THREE.AdditiveBlending, fog: false, uniforms: { k: { value: 0 } },
+    vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'uniform float k; varying vec3 vN; varying vec3 vV; void main(){ float r = 1.0 - abs(dot(normalize(vN), normalize(vV))); gl_FragColor = vec4(vec3(0.36, 0.58, 0.95), pow(r, 2.6) * 0.75 * k); }' });
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(R * 1.1, 64, 40), haloM); halo.raycast = () => {}; halo.renderOrder = 61; tilt.add(halo);
+  g.rotation.y = -0.85;          // 斜着摆：从镜头看过去，子午圈是一道斜着的弧，不是绕着球的一圈
+  spin.rotation.y = (-90 - 110) * D2R + 0.85;          // 桌上：亚洲这一面朝着屋里
+  Object.assign(g.userData, {
+    ball: tilt, R, slot: { p: C0.clone(), q: TILT.clone() },          // 球在铜圈里的位置、朝向（底座自己的坐标）：从地理世界回来时落回这里
+    bake() { tilt.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(Y, spin.rotation.y)); spin.rotation.y = 0; },          // 球自己转过的并进外面那一层
+    glow(k) { U.nowK.value = 0.55 + 0.45 * k; haloM.uniforms.k.value = k; },
+    tick(dt, hot) { spin.rotation.y += dt * (0.05 + hot * 0.7); },
+  });
   return g;
 }
 

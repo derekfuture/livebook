@@ -61,7 +61,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   document.title = '活页课本 · 地理世界';
   $('#book-title').textContent = '地理世界';
   for (const id of ['#btn-globe', '#btn-toc', '#btn-live']) $(id).hidden = true;
-  $('#btn-shelf').textContent = '‹ 书架';
+  $('#btn-shelf').textContent = '‹ 书桌';
 
   // ---- 这些书、它们的活页 ----
   const books = bookList().filter((b) => b.subject === '地理' && Object.keys(getBook(b.id).lessons).length);
@@ -616,7 +616,22 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   };
   canvas.addEventListener('pointerup', up, on); canvas.addEventListener('pointercancel', up, on);
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); stage.zoomBy(Math.exp(e.deltaY * (e.ctrlKey ? 0.012 : 0.0016))); }, { passive: false, signal: ac.signal });
-  $('#btn-shelf').onclick = () => { try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ } location.href = location.pathname; };
+  let toDesk = false;
+  $('#btn-shelf').onclick = () => {
+    if (toDesk) return; toDesk = true;
+    // 目录页、右上角的读数、旗上的字先淡掉（截图只截得到画面，截不到这些网页元素）：等它们淡完再截图换页面
+    uiLeave(true); time.el.classList.add('hidden'); document.body.classList.add('geo-leaving'); stage.calm = true;
+    setTimeout(() => {
+    try {
+      // 回书桌：记下地球此刻在屏幕上的哪儿、多大、哪一面朝外——书桌那边的地球仪从这里落回铜圈
+      const cam = stage.camera, c = earth.root.getWorldPosition(new THREE.Vector3()), e = c.clone().addScaledVector(new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), earth.root.scale.x);
+      const px = (v) => { const p = v.clone().project(cam); return [((p.x + 1) / 2) * innerWidth, ((1 - p.y) / 2) * innerHeight]; }, [cx, cy] = px(c), [ex, ey] = px(e);
+      sessionStorage.setItem('livebook.homeFromWorld', JSON.stringify({ cx, cy, r: Math.hypot(ex - cx, ey - cy), spin: 2 * Math.atan2(earth.spin.quaternion.y, earth.spin.quaternion.w) }));
+      sessionStorage.setItem('livebook.snap', stage.snapshot());
+    } catch { /* 存不下就直接换 */ }
+    location.href = location.pathname;
+    }, 450);
+  };
   stage.onResize = () => shot();
 
   // ---- 光线：指着的旗连到它所在的那本书（指着一本书时，连到这本书在地球正面的所有旗） ----
@@ -664,7 +679,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (!drag && !hovered && !earth.target && !earth.active && !leaving && !diving) earth.spin.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.03));
     earth.update(dt, { camera: stage.camera, bookTop: 0, shadowK: 0 });
     skyStep(dt);
-    time.update(dt); time.show(!leaving && !arriving && !diving);
+    time.update(dt); time.show(!leaving && !arriving && !diving && !toDesk);
     if (home.userData.n) {
       const face = earth.facing(home.userData.n, stage.camera), k = Math.max(0, Math.min(1, (face - 0.15) / 0.15)) * (1 - worldFade);
       homeM.opacity = 0.95 * k; homeRing.scale.setScalar(1 + 0.18 * Math.sin(performance.now() / 420));          // 轻轻一呼一吸，好找

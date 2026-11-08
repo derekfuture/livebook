@@ -809,6 +809,7 @@ body.geo-world { --gw-ink: #efe6d2; --gw-dim: #a3aec4; --gw-gold: #d6b16e; --gw-
 /* 右上角：现在这一刻（一行字，没有框） */
 .geo-now { position: fixed; right: 26px; top: 66px; z-index: 6; width: 280px; text-align: right; color: var(--gw-ink); text-shadow: 0 1px 10px rgba(5,9,20,.9); transition: opacity .4s; pointer-events: none; }
 .geo-now.hidden { opacity: 0; }
+body.geo-leaving .tag3d, body.geo-leaving #hud-top, body.geo-leaving .geo-leak { opacity: 0 !important; transition: opacity .35s; pointer-events: none; }          /* 地理世界回书桌：旗上的字、顶栏也淡掉，截图里只有画面 */
 .geo-now .gn-when b { display: block; font: 600 26px/1.15 var(--song); letter-spacing: .12em; }
 .geo-now .gn-when span { display: block; margin-top: 3px; font: 13px/1.3 var(--sans); letter-spacing: .1em; color: var(--gw-gold2); }
 .geo-now .gn-line { margin-top: 6px; font: 12.5px/1.5 var(--sans); color: var(--gw-dim); letter-spacing: .04em; pointer-events: auto; }
