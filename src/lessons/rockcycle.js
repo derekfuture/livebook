@@ -13,6 +13,8 @@
 import * as THREE from 'three';
 import { buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
+import { rockTextures, ROCK as ROCKS } from './kit/strata.js';
+const ROCKNAME = Object.fromEntries(Object.entries(ROCKS).map(([k, v]) => [k, v.name]));
 import { h } from '../ui/Panel.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
 import { KIND, ROCK, nexts, provenGraniteSand, TOUR, tourStep, EXTRA, NEW } from './kit/rock.js';
@@ -69,36 +71,40 @@ export default {
     const faceCv = document.createElement('canvas'); faceCv.width = 2048; faceCv.height = 768;
     const faceTex = new THREE.CanvasTexture(faceCv); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.anisotropy = 8;
     const PX = (x) => ((x - XL) / (XR - XL)) * faceCv.width, PY = (y) => faceCv.height - (y / 0.14) * faceCv.height, PXs = (dx) => (dx / (XR - XL)) * faceCv.width, PYs = (dy) => (dy / 0.14) * faceCv.height;
-    const LAY = [['#cdb08a', 'sand'], ['#9a8676', 'shale'], ['#d6cdb8', 'lime'], ['#b89870', 'sand'], ['#8a7868', 'shale'], ['#c6b49a', 'lime']];
+    const LAY = [['#cdb08a', 'sandstone'], ['#9a8676', 'shale'], ['#d6cdb8', 'limestone'], ['#b89870', 'sandstone'], ['#8a7868', 'shale'], ['#c6b49a', 'limestone']];          // 沉积岩层从上往下：砂岩、页岩、石灰岩……（贴图用 kit/strata.js 的真岩石）
+    const TILE = 0.06;          // 岩石贴图铺一遍在模型里多大（和别的活页一样）
+    const pat = (g, kind, fade = 0) => { const p = g.createPattern(rockTextures(kind).map.image, 'repeat'), k = PXs(TILE) / 512; p.setTransform(new DOMMatrix().scale(k)); return p; };
     const bed = (x, k) => { const fold = 0.006 * Math.exp(-(((x + 0.02) / 0.06) ** 2)); return 0.072 - k * 0.0075 + fold * (1 - k * 0.12) + 0.0012 * Math.sin(x * 60 + k); };          // 沉积岩层：在山岭下面被挤得拱起来一点
     const paintFace = () => {
       const g = faceCv.getContext('2d'), w = faceCv.width, hh = faceCv.height, R = (() => { let s = 7; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
-      g.fillStyle = '#7a675a'; g.fillRect(0, 0, w, hh);          // 底下的老岩石（基底）
+      g.fillStyle = pat(g, 'gneiss'); g.fillRect(0, 0, w, hh); g.fillStyle = 'rgba(70,52,44,0.45)'; g.fillRect(0, 0, w, hh);          // 底下更老的岩石（基底：变质岩、岩浆岩），压暗一点
 
-      for (let k = 0; k < 6; k++) {          // 从上往下画：每一层只盖住自己下面，留下上一层
-        g.fillStyle = LAY[k][0]; g.beginPath(); g.moveTo(0, hh);
+      for (let k = 0; k < 6; k++) {          // 从上往下画：每一层只盖住自己下面，留下上一层；每一层是自己那种岩石的样子
+        g.fillStyle = pat(g, LAY[k][1]); g.beginPath(); g.moveTo(0, hh);
         for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(k ? bed(x, k - 1) : Math.max(ground(x), bed(x, 0) + 0.0075))); }          // 最上面一层一直铺到地面
         g.lineTo(w, hh); g.fill();
       }
-      g.fillStyle = '#7a675a'; g.beginPath(); g.moveTo(0, hh); for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(bed(x, 5))); } g.lineTo(w, hh); g.fill();          // 沉积岩层下面的老岩石
-      for (let k = 0; k < 6; k++) {          // 每一层的纹理：砂岩是点，页岩是细线，石灰岩是砖块
-        const kind = LAY[k][1];
-        for (let i = 0; i < w; i += kind === 'lime' ? 22 : 3) {
-          const x = XL + (i / w) * (XR - XL), y0 = PY(k ? bed(x, k - 1) : bed(x, 0) + 0.0075), y1 = PY(bed(x, k));          // 第 k 层：上一层的底到这一层的底，填色、纹理、层面用同一套边界
-          if (kind === 'sand') for (let n = 0; n < 2; n++) { g.fillStyle = `rgba(70,50,30,${0.15 + R() * 0.2})`; g.fillRect(i + R() * 3, y0 + R() * (y1 - y0), 1.6, 1.6); }
-          else if (kind === 'shale' && i % 9 === 0) { g.strokeStyle = 'rgba(50,40,35,0.22)'; g.lineWidth = 1; for (let n = 1; n < 4; n++) { const yy = y0 + ((y1 - y0) * n) / 4; g.beginPath(); g.moveTo(i, yy); g.lineTo(i + 9, yy + 0.4); g.stroke(); } }
-          else if (kind === 'lime') { g.strokeStyle = 'rgba(90,80,65,0.3)'; g.lineWidth = 1; const mid = (y0 + y1) / 2; g.beginPath(); g.moveTo(i, y0); g.lineTo(i, mid); g.moveTo(i + 11, mid); g.lineTo(i + 11, y1); g.moveTo(i, mid); g.lineTo(i + 22, mid); g.stroke(); }
-        }
-        g.strokeStyle = 'rgba(60,45,35,0.35)'; g.lineWidth = 1.2; g.beginPath(); for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(bed(x, k))); } g.stroke();          // 层面
-      }
+      g.fillStyle = pat(g, 'gneiss'); g.beginPath(); g.moveTo(0, hh); for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(bed(x, 5))); } g.lineTo(w, hh); g.fill();          // 沉积岩层下面的老岩石
+      g.fillStyle = 'rgba(70,52,44,0.45)'; g.fill();
+      for (let k = 0; k < 6; k++) { g.strokeStyle = 'rgba(52,38,30,0.55)'; g.lineWidth = 1.6; g.beginPath(); for (let i = 0; i <= w; i += 4) { const x = XL + (i / w) * (XR - XL); g.lineTo(i, PY(bed(x, k))); } g.stroke(); }          // 层面
+      // 每一层写上是什么岩石（写在侵入岩体和海岸之间，六层都在的地方）；底下写“更老的岩石”
+      g.font = '600 25px "PingFang SC", "Songti SC", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      const name = (t, x, y) => { g.strokeStyle = 'rgba(40,28,20,0.7)'; g.lineWidth = 6; g.strokeText(t, PX(x), PY(y)); g.fillStyle = '#fffaf0'; g.fillText(t, PX(x), PY(y)); };
+      for (let k = 0; k < 6; k++) { const x = 0.045, top = k ? bed(x, k - 1) : Math.min(ground(x), bed(x, 0) + 0.0075); name(ROCKNAME[LAY[k][1]], x, (top + bed(x, k)) / 2); }
+      name('更老的岩石', 0.16, 0.014);
       // 火山锥：一层层熔岩和火山灰（黑灰相间，顺着锥面）
       const base = (x) => ground(x) - Math.max(0, 0.034 * Math.exp(-(((x - VX) / 0.03) ** 2)) - 0.007 * Math.exp(-(((x - VX) / 0.006) ** 2))) + 0.0015;          // 火山堆起来以前的老地面：去掉火山锥那一截
       for (let k = 0; k < 7; k++) { g.fillStyle = k % 2 ? '#4a4440' : '#6a5f58'; g.beginPath(); for (let i = -60; i <= 60; i++) { const x = VX + i * 0.001; g.lineTo(PX(x), PY(Math.max(ground(x) - k * 0.0028, base(x)))); } for (let i = 60; i >= -60; i--) { const x = VX + i * 0.001; g.lineTo(PX(x), PY(base(x))); } g.fill(); }          // 只画在老地面以上的锥体里
       // 地面以上的部分最后擦掉；先画深处的东西
-      const deep = g.createLinearGradient(0, hh, 0, PY(0.04)); deep.addColorStop(0, 'rgba(200,70,30,0.6)'); deep.addColorStop(1, 'rgba(200,70,30,0)'); g.fillStyle = deep; g.fillRect(0, 0, w, hh);          // 越往深处越热
+      const deep = g.createLinearGradient(0, hh, 0, PY(0.04)); deep.addColorStop(0, 'rgba(200,70,30,0.42)'); deep.addColorStop(1, 'rgba(200,70,30,0)'); g.fillStyle = deep; g.fillRect(0, 0, w, hh);          // 越往深处越热
       // 变质带：岩浆房、侵入岩体周围和深处，岩石被烤、被压，出现定向排列的纹理
-      const aure = (cx, cy, rx, ry) => { const gr = g.createRadialGradient(cx, cy, Math.min(rx, ry) * 0.6, cx, cy, Math.max(rx, ry) * 1.25); gr.addColorStop(0, 'rgba(118,82,128,0.5)'); gr.addColorStop(1, 'rgba(118,82,128,0)'); g.fillStyle = gr; g.beginPath(); g.ellipse(cx, cy, rx * 1.25, ry * 1.25, 0, 0, 7); g.fill(); };
-      aure(PX(AT.meta[0]), PY(AT.meta[1]), PXs(0.07), PYs(0.028)); aure(PX(AT.intrusion[0]), PY(AT.intrusion[1]), PXs(0.04), PYs(0.022));
+      const aure = (cx, cy, rx, ry) => {          // 变质带：岩石被烤、被压，长出一道道弯弯的条带（片麻岩那样）；边上慢慢淡出去，不是一块硬边的斑
+        const c = document.createElement('canvas'); c.width = Math.ceil(rx * 2.6); c.height = Math.ceil(ry * 2.6); const q = c.getContext('2d');
+        const pt = q.createPattern(rockTextures('gneiss').map.image, 'repeat'); pt.setTransform(new DOMMatrix().scale(PXs(0.035) / 512)); q.fillStyle = pt; q.fillRect(0, 0, c.width, c.height);
+        q.globalCompositeOperation = 'destination-in'; q.setTransform(1, 0, 0, ry / rx, 0, 0); const gr = q.createRadialGradient(c.width / 2, (c.height / 2) * (rx / ry), 0, c.width / 2, (c.height / 2) * (rx / ry), rx * 1.25); gr.addColorStop(0, 'rgba(0,0,0,0.62)'); gr.addColorStop(0.7, 'rgba(0,0,0,0.38)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); q.fillStyle = gr; q.fillRect(0, 0, c.width, c.height * (rx / ry));
+        g.drawImage(c, cx - c.width / 2, cy - c.height / 2);
+      };
+      aure(PX(AT.meta[0]), PY(AT.meta[1]), PXs(0.062), PYs(0.022)); aure(PX(AT.intrusion[0]), PY(AT.intrusion[1]), PXs(0.03), PYs(0.016));
       g.strokeStyle = 'rgba(70,45,80,0.35)'; g.lineWidth = 1.4;
       for (let k = 0; k < 9; k++) { g.beginPath(); for (let i = -110; i <= 110; i += 4) { const x = PX(AT.meta[0]) + i * 1.6, y = PY(AT.meta[1]) - 52 + k * 13 + 5 * Math.sin(i / 14 + k); g.lineTo(x, y); } g.stroke(); }          // 片理：一道道波状的纹
       // 岩浆房和通到火山口的通道：中心发亮
@@ -118,23 +124,15 @@ export default {
       faceTex.needsUpdate = true;
     };
     // 两端、背面与正面共用层底和岩性；岩层沿 z 方向延伸，表面起伏只裁切露头。
-    const strata = (xAt) => canvasTex(2048, 768, (g, w, hh) => {
-      g.fillStyle = '#7a675a'; g.fillRect(0, 0, w, hh);
-      for (let i = 0; i < w; i++) {
-        const x = xAt(i / (w - 1));
-        for (let k = 0; k < 6; k++) { const y0 = k ? PY(bed(x, k - 1)) : 0, y1 = PY(bed(x, k)); g.fillStyle = LAY[k][0]; g.fillRect(i, y0, 1, y1 - y0); g.fillStyle = 'rgba(60,45,35,0.38)'; g.fillRect(i, y1, 1, 1.5); }
+    const strata = (xAt) => canvasTex(2048, 768, (g, w, hh) => {          // 两头、背面：和正面同一套层底、同一种岩石
+      g.fillStyle = pat(g, 'gneiss'); g.fillRect(0, 0, w, hh); g.fillStyle = 'rgba(70,52,44,0.45)'; g.fillRect(0, 0, w, hh);
+      for (let k = 0; k < 6; k++) {
+        g.fillStyle = pat(g, LAY[k][1]); g.beginPath(); g.moveTo(0, hh);
+        for (let i = 0; i <= w; i += 4) { const x = xAt(i / w); g.lineTo(i, k ? PY(bed(x, k - 1)) : 0); }
+        g.lineTo(w, hh); g.fill();
       }
-      for (let k = 0; k < 6; k++) {          // 每一层的纹理：砂岩是点，页岩是细线，石灰岩是砖块
-        const kind = LAY[k][1];
-        for (let i = 0; i < w; i += kind === 'lime' ? 22 : 3) {
-          const x = xAt(i / w), y0 = PY(k ? bed(x, k - 1) : 0.14), y1 = PY(bed(x, k));          // 第 k 层：上一层的底到这一层的底，填色、纹理、层面用同一套边界
-          if (kind === 'sand') for (let n = 0; n < 2; n++) { g.fillStyle = `rgba(70,50,30,${0.15 + Math.random() * 0.2})`; g.fillRect(i + Math.random() * 3, y0 + Math.random() * (y1 - y0), 1.6, 1.6); }
-          else if (kind === 'shale' && i % 9 === 0) { g.strokeStyle = 'rgba(50,40,35,0.22)'; g.lineWidth = 1; for (let n = 1; n < 4; n++) { const yy = y0 + ((y1 - y0) * n) / 4; g.beginPath(); g.moveTo(i, yy); g.lineTo(i + 9, yy + 0.4); g.stroke(); } }
-          else if (kind === 'lime') { g.strokeStyle = 'rgba(90,80,65,0.3)'; g.lineWidth = 1; const mid = (y0 + y1) / 2; g.beginPath(); g.moveTo(i, y0); g.lineTo(i, mid); g.moveTo(i + 11, mid); g.lineTo(i + 11, y1); g.moveTo(i, mid); g.lineTo(i + 22, mid); g.stroke(); }
-        }
-        g.strokeStyle = 'rgba(60,45,35,0.35)'; g.lineWidth = 1.2; g.beginPath(); for (let i = 0; i <= w; i += 4) { const x = xAt(i / w); g.lineTo(i, PY(bed(x, k))); } g.stroke();          // 层面
-      }
-      for (let i = 0; i < 16000; i++) { g.fillStyle = `rgba(50,35,25,${Math.random() * 0.14})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.5, 1.5); }
+      g.fillStyle = pat(g, 'gneiss'); g.beginPath(); g.moveTo(0, hh); for (let i = 0; i <= w; i += 4) { const x = xAt(i / w); g.lineTo(i, PY(bed(x, 5))); } g.lineTo(w, hh); g.fill(); g.fillStyle = 'rgba(70,52,44,0.45)'; g.fill();
+      for (let k = 0; k < 6; k++) { g.strokeStyle = 'rgba(52,38,30,0.55)'; g.lineWidth = 1.6; g.beginPath(); for (let i = 0; i <= w; i += 4) { const x = xAt(i / w); g.lineTo(i, PY(bed(x, k))); } g.stroke(); }          // 层面
     });
     const strip = (pts, flip) => {          // 一条竖着的墙：pts = [[x, z], ...]，从 0 到地面
       const P = [], U = [], I = [];

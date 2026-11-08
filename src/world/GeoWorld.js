@@ -251,27 +251,69 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   shot(true);
   let touched = false;
 
-  // ---- 看法：昼夜 / 板块 / 气压带，一次看一种。写在右上角“现在这一刻”的读数上面——右边这一列说的都是“地球上现在显示的是什么”。
-  //      选中的那一格是一张纸，滑过去；下面跟着这一种的图例和“进到那张活页” ----
-  const VIEWS = [['sun', '昼夜'], ['plates', '板块'], ['belts', '气压带']].map(([id, label]) => ({ id, label, it: items.find((x) => x.anchor.layer === id) })).filter((v) => v.it);
+  // ---- 看法：昼夜 / 板块 / 气压带，像三枚透镜挂在地球右边。每一枚是一颗小地球，画着打开它以后地球的样子（一眼看得出能看什么）；
+  //      可以多选（板块和气压带一起看）。打开的那枚亮起来，旁边出图例和“进活页”。昼夜关掉：地球不按此刻的太阳照，整颗都是白天的样子 ----
+  const LENS = [['sun', '昼夜', '此刻哪里是白天、哪里是黑夜'], ['plates', '板块', '全球的板块和板块边界'], ['belts', '气压带', '全球的气压带（理想模型）']]
+    .map(([id, label, tip]) => ({ id, label, tip, it: items.find((x) => x.anchor.layer === id) })).filter((v) => v.it);
   const LEGEND = {
+    sun: '<span><i style="background:linear-gradient(90deg,#0b1430,#f3c27a)"></i>晨昏线</span><span><i class="dot" style="background:#ffd27a"></i>夜里的城市灯光</span>',
     plates: '<span><i style="background:#d8342c"></i>生长边界</span><span><i style="background:#23a04e"></i>汇聚边界</span><span><i style="background:#8a8e96"></i>转换边界</span>',          // 和板块那张活页同一套颜色、同样的叫法
-    belts: '<span><i class="sq" style="background:#e67a61"></i>高压带</span><span><i class="sq" style="background:#5785db"></i>低压带</span><small>理想模型：假设地表均匀，也不随季节移动</small>',
+    belts: '<span><i class="sq" style="background:#e67a61"></i>高压带</span><span><i class="sq" style="background:#5785db"></i>低压带</span><small>假设地表均匀，也不随季节移动</small>',
   };
-  let view = VIEWS[0];
-  const thumb = h('i', { class: 'gv-thumb' }), segs = VIEWS.map((v) => h('button', { 'data-id': v.id, onclick: () => setView(v) }, v.label));
-  const legend = h('div', { class: 'gv-legend', hidden: true }), enter = h('button', { class: 'gv-go', onclick: () => go(view.it) });
-  time.el.prepend(h('div', { class: 'gv' }, h('div', { class: 'gv-seg' }, thumb, ...segs), legend, enter));
-  function setView(v, init = false) {
-    view = v; earth.setLayer(layerOf(v.it));
-    segs.forEach((b) => b.classList.toggle('on', b.dataset.id === v.id));
-    const b = segs.find((x) => x.dataset.id === v.id); thumb.style.width = `${b.offsetWidth}px`; thumb.style.transform = `translateX(${b.offsetLeft}px)`;
-    legend.innerHTML = LEGEND[v.id] || ''; legend.hidden = !LEGEND[v.id];
-    enter.textContent = `进到“${v.it.title}” →`;
-    time.el.classList.toggle('alt-view', v.id !== 'sun');          // 看板块、气压带时，下面的时刻读数收起来，让出图例
-    if (!init && v.id === 'sun') earth.turnTo(time.city.lat, time.city.lon, stage.camera);
+  const lensOn = new Set(['sun']);
+  const lensLayers = () => [...lensOn].map((id) => layerOf(LENS.find((v) => v.id === id)?.it)).filter(Boolean);
+  const lensIcon = (id) => {          // 一颗小地球：海、几块陆地，再画上这一种看法的样子
+    const c = h('canvas', { width: 132, height: 132 }), g = c.getContext('2d'), C = 66, R = 58;
+    g.save(); g.beginPath(); g.arc(C, C, R, 0, 7); g.clip();
+    const sea = g.createRadialGradient(C - 20, C - 24, 6, C, C, R * 1.05); sea.addColorStop(0, '#5a9ad0'); sea.addColorStop(1, '#14315c'); g.fillStyle = sea; g.fillRect(0, 0, 132, 132);
+    g.fillStyle = '#6e9a55';
+    for (const [x, y, rx, ry, a] of [[40, 44, 22, 14, 0.5], [52, 62, 12, 20, 0.2], [86, 40, 20, 12, -0.3], [92, 70, 14, 18, 0.4], [70, 98, 18, 9, 0.1]]) { g.beginPath(); g.ellipse(x, y, rx, ry, a, 0, 7); g.fill(); }
+    if (id === 'sun') {          // 左半边是夜：暗下去，城市灯光一点点；晨昏线一道暖光
+      const sh = g.createLinearGradient(C - 22, 0, C + 8, 0); sh.addColorStop(0, 'rgba(5,9,24,0.9)'); sh.addColorStop(1, 'rgba(5,9,24,0)'); g.fillStyle = sh; g.fillRect(0, 0, C + 8, 132);
+      g.fillStyle = 'rgba(255,214,130,0.95)'; for (const [x, y] of [[30, 40], [38, 48], [44, 42], [48, 60], [52, 56], [36, 70], [26, 56], [56, 72], [42, 96], [60, 92]]) { g.beginPath(); g.arc(x, y, 1.6, 0, 7); g.fill(); }
+      const tl = g.createLinearGradient(C - 10, 0, C + 6, 0); tl.addColorStop(0, 'rgba(255,190,110,0)'); tl.addColorStop(0.5, 'rgba(255,190,110,0.55)'); tl.addColorStop(1, 'rgba(255,190,110,0)'); g.fillStyle = tl; g.fillRect(C - 10, 0, 16, 132);
+    } else if (id === 'plates') {          // 板块边界：红的、绿的、灰的弯线
+      g.lineWidth = 3.4; g.lineCap = 'round';
+      for (const [col, pts] of [['#e0453a', [[10, 50], [40, 58], [58, 84], [70, 124]]], ['#2fb35d', [[60, 8], [78, 34], [96, 48], [126, 56]]], ['#9aa0a8', [[20, 104], [46, 92], [62, 98]]], ['#e0453a', [[96, 90], [110, 104], [124, 98]]]]) { g.strokeStyle = col; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke(); }
+    } else if (id === 'belts') {          // 气压带：赤道低压（蓝）、副热带高压（红）、副极地低压（蓝）、极地高压（红）一条条横着
+      for (const [y, col] of [[C, '#4f7fda'], [C - 26, '#e67a61'], [C + 26, '#e67a61'], [C - 46, '#4f7fda'], [C + 46, '#4f7fda'], [C - 60, '#e67a61'], [C + 60, '#e67a61']]) { g.fillStyle = col; g.globalAlpha = 0.62; g.fillRect(0, y - 5, 132, 10); }
+      g.globalAlpha = 1;
+    }
+    g.restore();
+    const shade = g.createRadialGradient(C - 22, C - 26, R * 0.2, C, C, R); shade.addColorStop(0, 'rgba(255,255,255,0.16)'); shade.addColorStop(0.7, 'rgba(0,0,0,0)'); shade.addColorStop(1, 'rgba(0,0,10,0.38)'); g.fillStyle = shade; g.beginPath(); g.arc(C, C, R, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(160,200,255,0.55)'; g.lineWidth = 2; g.beginPath(); g.arc(C, C, R + 0.5, 0, 7); g.stroke();
+    return c;
+  };
+  for (const v of LENS) {
+    v.orb = h('button', { class: 'gl-orb', title: v.tip, 'aria-pressed': 'false', onclick: () => toggleLens(v) }, lensIcon(v.id));
+    v.more = h('div', { class: 'gl-more' }, h('div', { class: 'gl-legend', html: LEGEND[v.id] || '' }), h('button', { class: 'gl-go', onclick: () => go(v.it) }, `进到“${v.it.title}” →`));
+    v.el = h('div', { class: 'geo-lens', 'data-id': v.id }, v.orb, h('b', { class: 'gl-name' }, v.label), v.more);
+    document.body.append(v.el);
   }
-  requestAnimationFrame(() => setView(view, true)); document.fonts?.ready.then(() => setView(view, true));          // 字体到了，格子宽度会变：再量一次
+  const lensHint = h('div', { class: 'geo-lens-hint' }, '换个看法 · 可以多选'); document.body.append(lensHint);
+  let dnT = 1, dn = 1;          // 昼夜这一层开着没有（1 开：按此刻的太阳照；0 关：整颗地球白天的样子）
+  function toggleLens(v, init = false) {
+    if (!init) { if (lensOn.has(v.id)) lensOn.delete(v.id); else lensOn.add(v.id); }
+    for (const x of LENS) { const on = lensOn.has(x.id); x.el.classList.toggle('on', on); x.orb.setAttribute('aria-pressed', String(on)); }
+    earth.setLayers(lensLayers());
+    dnT = lensOn.has('sun') ? 1 : 0; time.el.classList.toggle('dim', !lensOn.has('sun'));          // 昼夜关了：左边“此刻”的读数淡一点（时间还在走）
+    if (!init && v.id === 'sun' && lensOn.has('sun')) earth.turnTo(time.city.lat, time.city.lon, stage.camera);
+  }
+  toggleLens(LENS[0], true);
+  // 每帧：透镜沿着地球的右边缘排开（跟着地球在屏幕上的位置走：收起目录、窗口变了都对）；“此刻”的读数挂在月亮下面，填上月亮和地球之间那一块
+  const toPx = (v) => { const q = v.clone().project(stage.camera); return [((q.x + 1) / 2) * innerWidth, ((1 - q.y) / 2) * innerHeight]; };
+  let lensKey = '';
+  function placeOverlay() {
+    const right = new THREE.Vector3().setFromMatrixColumn(stage.camera.matrixWorld, 0), c = earth.root.getWorldPosition(new THREE.Vector3());
+    const [cx, cy] = toPx(c), [ex, ey] = toPx(c.clone().addScaledVector(right, EARTH.r)), r = Math.hypot(ex - cx, ey - cy);
+    const mc = moon.getWorldPosition(new THREE.Vector3()), [mx, my] = toPx(mc), [mex, mey] = toPx(mc.clone().addScaledVector(right, EARTH.r * 0.273)), mr = Math.hypot(mex - mx, mey - my);
+    const panel = panelOpen() ? PANEL_W : 0;
+    const key = `${cx | 0},${cy | 0},${r | 0},${mx | 0},${my | 0},${panel}`; if (key === lensKey) return; lensKey = key;
+    const R = r + Math.max(64, r * 0.36), A = [-32, 0, 32];
+    LENS.forEach((v, i) => { const a = (A[i] * Math.PI) / 180; v.el.style.transform = `translate(${(cx + R * Math.cos(a)).toFixed(1)}px, ${(cy + R * Math.sin(a)).toFixed(1)}px)`; });
+    const a0 = (A[0] * Math.PI) / 180; lensHint.style.transform = `translate(${(cx + R * Math.cos(a0) - 34).toFixed(1)}px, ${(cy + R * Math.sin(a0) - 66).toFixed(1)}px)`;          // 提示写在最上面那一枚的上方
+    time.el.style.left = `${Math.max(panel + 18, mx - mr * 1.1).toFixed(1)}px`; time.el.style.top = `${(my + mr + 16).toFixed(1)}px`;
+  }
 
   // ---- 指着旗、书、侧栏的名字：旗亮、书亮、明信片 ----
   let hovered = null, cardFor = null;
@@ -281,7 +323,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (x?.pn && TERRAIN[x.pn.place]) loadTerrain(TERRAIN[x.pn.place]);          // 指着就先下这座山的地形和影像，点下去不用等
     for (const [id, r] of rows) r.classList.toggle('on', !!x && id === x.it.id);
     if (fromPanel && x?.it.anchor.kind === 'place') { const p = x.it.anchor.pins[0]; earth.turnTo(p.lat, p.lon, stage.camera); }
-    earth.setLayer(x?.it.anchor.kind === 'globe' ? layerOf(x.it) : layerOf(view?.it));          // 指着整个地球的活页（板块、气压带）时，地球上叠出那一层看看；移开回到选着的看法
+    earth.setLayers(x?.it.anchor.kind === 'globe' ? [...lensLayers(), layerOf(x.it)] : lensLayers());          // 指着整个地球的活页（板块、气压带）时，地球上叠出那一层看看；移开回到选着的看法
     if (!x?.pn) { card.show(false); cardFor = null; return; }
     if (cardFor !== x) {
       cardFor = x; const it = x.it, [x0, y0, x1, y1] = it.spot.bbox, man = manifests[it.book.id], PW = man.pageSize[0], PH = man.pageSize[1];
@@ -355,7 +397,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     hemi.color.lerpColors(n.hc, DAY.hemi[0], f); hemi.groundColor.lerpColors(n.hg, DAY.hemi[1], f); hemi.intensity = n.hi + (DAY.hemi[2] - n.hi) * f;
     stage.sun.color.lerpColors(n.sc, DAY.sun[0], f); stage.sun.intensity = n.si + (DAY.sun[1] - n.si) * f; stage.sun.position.lerpVectors(n.sp, DAY.sun[2], f);
     key.intensity = 4 * (1 - f);
-    earth.haloM.uniforms.k.value = 1 - 0.75 * f; earth.nowK = 1 - f;          // 落到书桌上：地球换回书里那样的灯光（书里角上那颗地球是白天的样子）
+    earth.haloM.uniforms.k.value = 1 - 0.75 * f; earth.nowK = dn * (1 - f);          // 落到书桌上：地球换回书里那样的灯光（书里角上那颗地球是白天的样子）
     // 地球：有地方的活页缩到右上角（书里那颗地球一进去就在那儿）；别的沉进书里（书里的地球从书里升起来），回来时从书里升回去
     if (L.corner) {
       const E = cornerScr(), A = L.e0;
@@ -680,6 +722,9 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     earth.update(dt, { camera: stage.camera, bookTop: 0, shadowK: 0 });
     skyStep(dt);
     time.update(dt); time.show(!leaving && !arriving && !diving && !toDesk);
+    dn += (dnT - dn) * Math.min(1, dt * 3); if (worldFade < 0.001 && !leaving && !diving) earth.nowK = dn;          // 昼夜这一层慢慢开、关
+    const showLens = !leaving && !arriving && !diving && !toDesk && worldFade < 0.01; for (const v of LENS) v.el.classList.toggle('hidden', !showLens); lensHint.classList.toggle('hidden', !showLens);
+    placeOverlay();
     if (home.userData.n) {
       const face = earth.facing(home.userData.n, stage.camera), k = Math.max(0, Math.min(1, (face - 0.15) / 0.15)) * (1 - worldFade);
       homeM.opacity = 0.95 * k; homeRing.scale.setScalar(1 + 0.18 * Math.sin(performance.now() / 420));          // 轻轻一呼一吸，好找

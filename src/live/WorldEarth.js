@@ -150,7 +150,7 @@ export class WorldEarth {
     this.shadow.rotation.x = -Math.PI / 2; this.shadow.renderOrder = 3; this.shadow.raycast = () => {};
     stage.scene.add(this.shadow);
 
-    this.pins = []; this.layer = null; this.layerK = { sun: 0, plates: 0, belts: 0 }; this.hot = null; this.active = null; this.target = null; this.fade = 1;
+    this.pins = []; this.layer = null; this.layers = new Set(); this.layerK = { sun: 0, plates: 0, belts: 0 }; this.hot = null; this.active = null; this.target = null; this.fade = 1;
     this._layers();
     this.setTime();
   }
@@ -225,7 +225,9 @@ export class WorldEarth {
   /** 指着的（hot）、正在看的（active）：都是 { it, pn } 或只有 it */
   setHot(x) { this.hot = x; }
   setActive(x) { this.active = x; }
-  setLayer(k) { this.layer = k; if (k === 'plates') this._loadPlates(); }
+  setLayer(k) { this.setLayers(k ? [k] : []); }
+  /** 同时叠几层（地理世界的“看法”可以多选：板块和气压带一起看） */
+  setLayers(list) { this.layers = new Set(list.filter(Boolean)); this.layer = [...this.layers][0] || null; if (this.layers.has('plates')) this._loadPlates(); }
 
   /** 地球只绕地轴转，把这一点的经线转到正对镜头（纬度不变，北一直朝上） */
   turnTo(lat, lon, camera) {
@@ -266,7 +268,7 @@ export class WorldEarth {
     const k = Math.min(1, dt * 5);
     this.fade += ((this.fadeTo ?? 1) - this.fade) * Math.min(1, dt * 3.5);
     if (this.target) { this.spin.quaternion.slerp(this.target, Math.min(1, dt * 3.2)); if (this.spin.quaternion.angleTo(this.target) < 0.002) this.target = null; }
-    for (const name of ['sun', 'plates', 'belts']) this.layerK[name] += ((this.layer === name ? 1 : 0) - this.layerK[name]) * k;
+    for (const name of ['sun', 'plates', 'belts']) this.layerK[name] += ((this.layers.has(name) ? 1 : 0) - this.layerK[name]) * k;
     this.sunM.uniforms.k.value = this.layerK.sun * this.fade; this.beltM.uniforms.k.value = this.layerK.belts * this.fade;
     for (const ln of this.plateG.children) { ln.material.opacity = this.layerK.plates * 0.95 * this.fade; ln.visible = ln.material.opacity > 0.01; }
     // 落到均匀地球上：盖上一层均匀的海，海陆慢慢淡掉

@@ -12,10 +12,11 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
+import { rockMat, worldUV, ROCK } from './kit/strata.js';
 import { h } from '../ui/Panel.js';
 
 const XL = -0.17, XR = 0.17, ZD = 0.07, F1 = -0.05, F2 = 0.05;          // 两条断层（垂直位移那一种）
-const LAYERS = [[0x8a9096, 0.022], [0xa05a46, 0.016], [0xd8a75c, 0.014], [0x7fae55, 0.004]];          // 从下往上：灰岩、红层、黄砂岩、地面（草）
+const LAYERS = [[0x8a9096, 0.022, 'limestone'], [0xa05a46, 0.016, 'redbed'], [0xd8a75c, 0.014, 'sandstone'], [0x7fae55, 0.004, 'soil']];          // 从下往上：石灰岩、红色砂岩、砂岩、地面的土（颜色留给示意图用，岩块用 kit/strata.js 的真岩石贴图）
 const BREAK = 0.35;          // 拉（推）到这个程度，岩层断开
 const ASK = {
   v: ['先猜一下（可以不猜）：在这个情境里，一直往外拉，岩层会——', ['越拉越长，不会断', '断开，有的岩块抬升、有的下降', '整块一起往下沉']],
@@ -84,15 +85,17 @@ export default {
       for (let x = 0; x < w; x++) for (let z = 0; z < hh; z++) { const n = 8 * Math.sin(x * 0.11 + z * 0.17) * Math.sin(x * 0.04 - z * 0.08) + 5 * Math.sin(x * 4.7 + z * 8.3); g.fillStyle = `rgb(${115 + n},${143 + n},${73 + n * 0.6})`; g.fillRect(x, z, 1, 1); }
     }); grass.anisotropy = 8;
     const groundMat = new THREE.MeshStandardMaterial({ map: grass, roughness: 1, side: THREE.DoubleSide });
-    const mats = LAYERS.map(([c], i) => new THREE.MeshStandardMaterial({ color: i === 3 ? 0x786244 : c, map: grain, roughness: 0.96, side: THREE.DoubleSide }));
+    const mats = LAYERS.map(([, , kind]) => rockMat(kind, { side: THREE.DoubleSide }));          // 每一层是哪种岩石，切面上看得出来（砂岩的颗粒和层理、石灰岩的层面和节理……）
     const edgeM = new THREE.LineBasicMaterial({ color: 0x3a2a1a, transparent: true, opacity: 0.24 });
     const makeBlock = (x0, x1, z0, z1) => {
       const g = new THREE.Group(); let y = 0;
-      for (let i = 0; i < LAYERS.length; i++) { const t = LAYERS[i][1], m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, t, z1 - z0), mats[i]); m.position.set((x0 + x1) / 2, y + t / 2, (z0 + z1) / 2); const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), edgeM); e.raycast = () => {}; m.add(e); g.add(m); y += t; }
+      for (let i = 0; i < LAYERS.length; i++) { const t = LAYERS[i][1], m = new THREE.Mesh(worldUV(new THREE.BoxGeometry(x1 - x0, t, z1 - z0), 0.06, { offset: [x0 * 7.3, i * 0.37] }), mats[i]); m.position.set((x0 + x1) / 2, y + t / 2, (z0 + z1) / 2); const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), edgeM); e.raycast = () => {}; m.add(e); g.add(m); y += t; }
       g.userData = { x0, x1, z0, z1 }; block.add(g); return g;
     };
     const vBlocks = [makeBlock(XL, F1, -ZD, ZD), makeBlock(F1, F2, -ZD, ZD), makeBlock(F2, XR, -ZD, ZD)];
     const hBlocks = [makeBlock(XL, XR, -ZD, 0), makeBlock(XL, XR, 0, ZD)];
+    // 每块岩块的切面上写上岩层的名字：断开以后，断层两边同一层（比如“砂岩”）错开多少一眼看得出
+    for (const g of [...vBlocks, hBlocks[1]]) { const { x0, x1 } = g.userData; let y = 0; LAYERS.forEach(([, t, kind], i) => { if (i < 3) faceLabel(g, ROCK[kind].name, { x: x0 + Math.min(0.04, (x1 - x0) * 0.32), y: y + t / 2, z: ZD, h: 0.0068, color: '#ffffff', stroke: 'rgba(30,24,16,0.65)' }); y += t; }); }
 
     // 装饰网格和树都挂在各自岩块下，水平、垂直位移共用原有变换。
     const scenery = [...vBlocks, ...hBlocks].map((g) => {
@@ -126,7 +129,7 @@ export default {
       const keepY = Math.max(0.001, tY - Math.max(0, CARVE * amt - LAYERS[3][1])); yTop.scale.y = keepY / tY; yTop.position.y = H0 - LAYERS[3][1] - tY + keepY / 2;
     };
     // 山脊边缘补齐到剩余岩层的薄壁，避免侵蚀初段草皮撤去后露空。
-    const rim = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0x927950, map: grain, roughness: 1, side: THREE.DoubleSide })); rim.raycast = () => {}; vBlocks[0].add(rim);
+    const rim = new THREE.Mesh(new THREE.BufferGeometry(), rockMat('sandstone', { side: THREE.DoubleSide })); rim.raycast = () => {}; vBlocks[0].add(rim);
     let sceneryKey = '';
     const dress = (amt, deposit) => {
       const key = `${amt}:${deposit}`; if (key === sceneryKey) return; sceneryKey = key;

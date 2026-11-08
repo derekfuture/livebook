@@ -50,9 +50,9 @@ export function timeCard({ earth }) {
     h('div', { class: 'gn-when' }, day, clock),
     h('div', { class: 'gn-line' }, sub, liveBtn),
     h('div', { class: 'gn-line gn-city' }, '你在', pick, here, list),
-    sky,
-    h('small', { class: 'gn-src' }, '夜间灯光：NASA 2016 年卫星合成 · 月面：NASA LRO · 云和月亮的位置是示意 · 昼长、日出日落按太阳中心碰到地平线算，不计大气折射'));
-  document.body.append(el);
+    sky);
+  const credit = h('small', { class: 'geo-credit' }, '夜间灯光：NASA 2016 年卫星合成 · 月面：NASA LRO · 云和月亮的位置是示意 · 昼长、日出日落按太阳中心碰到地平线算，不计大气折射');          // 数据来源放在右下角，不和读数挤在一起
+  document.body.append(el, credit);
 
   let last = '';
   function apply() {
@@ -132,7 +132,7 @@ export function timeCard({ earth }) {
     setFromSun,
     onChange(f) { listeners.add(f); f({ city, sub: earth.sub, live, sim }); },
     focus(on) { el.classList.toggle('focus', on); },
-    show(on) { el.classList.toggle('hidden', !on); },
+    show(on) { el.classList.toggle('hidden', !on); credit.classList.toggle('hidden', !on); },
     update(dt) { if (!live) return; acc += dt; if (acc < 1) return; acc = 0; sim = Date.now(); apply(); },          // 跟着现在走：每秒算一次
   };
 }

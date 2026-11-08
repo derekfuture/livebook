@@ -807,9 +807,10 @@ body.geo-world .tag3d.w-themes button.on { background: #f3d9a4; color: #2a2218; 
 /* ================= 地理世界的一整套样式：夜空、铜版、金色细线。控件是场景的一部分，不是浮在上面的白色表单 ================= */
 body.geo-world { --gw-ink: #efe6d2; --gw-dim: #a3aec4; --gw-gold: #d6b16e; --gw-gold2: #f1d79f; --gw-line: rgba(214,177,110,.36); --gw-glass: rgba(12,18,35,.64); }
 /* 右上角：现在这一刻（一行字，没有框） */
-.geo-now { position: fixed; right: 26px; top: 66px; z-index: 6; width: 280px; text-align: right; color: var(--gw-ink); text-shadow: 0 1px 10px rgba(5,9,20,.9); transition: opacity .4s; pointer-events: none; }
+.geo-now { position: fixed; left: 0; top: 0; z-index: 6; width: 300px; text-align: left; color: var(--gw-ink); text-shadow: 0 1px 10px rgba(5,9,20,.9); transition: opacity .4s; pointer-events: none; }          /* 挂在月亮下面（位置每帧由 GeoWorld 按月亮在屏幕上的位置定） */
+.geo-now.dim { opacity: .5; }
 .geo-now.hidden { opacity: 0; }
-body.geo-leaving .tag3d, body.geo-leaving #hud-top, body.geo-leaving .geo-leak { opacity: 0 !important; transition: opacity .35s; pointer-events: none; }          /* 地理世界回书桌：旗上的字、顶栏也淡掉，截图里只有画面 */
+body.geo-leaving .tag3d, body.geo-leaving #hud-top, body.geo-leaving .geo-leak, body.geo-leaving .geo-lens, body.geo-leaving .geo-lens-hint, body.geo-leaving .geo-credit { opacity: 0 !important; transition: opacity .35s; pointer-events: none; }          /* 地理世界回书桌：旗上的字、顶栏也淡掉，截图里只有画面 */
 .geo-now .gn-when b { display: block; font: 600 26px/1.15 var(--song); letter-spacing: .12em; }
 .geo-now .gn-when span { display: block; margin-top: 3px; font: 13px/1.3 var(--sans); letter-spacing: .1em; color: var(--gw-gold2); }
 .geo-now .gn-line { margin-top: 6px; font: 12.5px/1.5 var(--sans); color: var(--gw-dim); letter-spacing: .04em; pointer-events: auto; }
@@ -817,11 +818,11 @@ body.geo-leaving .tag3d, body.geo-leaving #hud-top, body.geo-leaving .geo-leak {
 .geo-now .gn-live { margin-left: 10px; border: 0; background: none; padding: 0; color: var(--gw-gold2); font: 12.5px/1.5 var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .geo-now .gn-city { position: relative; }
 .geo-now .gn-pick { border: 0; background: none; padding: 0 2px 0 4px; margin-right: 6px; color: var(--gw-gold2); font: 600 12.5px/1.5 var(--sans); cursor: pointer; border-bottom: 1px dashed rgba(241,215,159,.55); }
-.geo-now .gn-list { position: absolute; right: 0; top: 24px; z-index: 2; width: 300px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 8px; background: rgba(10,15,30,.92); border: 1px solid var(--gw-line); border-radius: 6px; box-shadow: 0 14px 34px rgba(0,0,0,.5); backdrop-filter: blur(8px); text-shadow: none; }
+.geo-now .gn-list { position: absolute; left: 0; top: 24px; z-index: 2; width: 300px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 8px; background: rgba(10,15,30,.92); border: 1px solid var(--gw-line); border-radius: 6px; box-shadow: 0 14px 34px rgba(0,0,0,.5); backdrop-filter: blur(8px); text-shadow: none; }
 .geo-now .gn-list[hidden] { display: none; }
 .geo-now .gn-list button { border: 0; background: none; color: var(--gw-ink); font: 12.5px/1 var(--sans); padding: 7px 0; border-radius: 4px; cursor: pointer; }
 .geo-now .gn-list button:hover { background: rgba(214,177,110,.18); color: var(--gw-gold2); }
-.geo-now .gn-sky { display: block; width: 260px; height: 88px; margin: 6px 0 0 auto; }
+.geo-now .gn-sky { display: block; width: 260px; height: 88px; margin: 8px 0 0 -6px; }
 .geo-now .gn-src { display: block; margin-top: 4px; font: 10.5px/1.4 var(--sans); color: rgba(163,174,196,.7); }
 .geo-now.focus .gn-when b { color: var(--gw-gold2); }
 /* 铜版上的字：刻出来的金色小字 */
@@ -901,4 +902,32 @@ body.geo-world .geo-dive .gd-north b { color: var(--gw-gold2); font-family: var(
 .geo-now .gv-go:hover { color: #fff; }
 .geo-now.alt-view .gn-line, .geo-now.alt-view .gn-sky { display: none; }          /* 看板块、气压带时：时刻只留日期那一行 */
 .geo-leak { position: fixed; inset: 0; z-index: 1; pointer-events: none; mix-blend-mode: screen; }          /* 太阳在画面外时，那一侧透进来的暖光 */
-body.geo-cover #hud-top, body.geo-cover .geo-toc, body.geo-cover .geo-toc-spine, body.geo-cover .geo-now, body.geo-cover #viewctl, body.geo-cover .tag3d { display: none !important; }          /* ?subject=dili&cover=1：封面用 */
+body.geo-cover #hud-top, body.geo-cover .geo-toc, body.geo-cover .geo-toc-spine, body.geo-cover .geo-now, body.geo-cover #viewctl, body.geo-cover .tag3d, body.geo-cover .geo-lens, body.geo-cover .geo-lens-hint, body.geo-cover .geo-credit { display: none !important; }          /* ?subject=dili&cover=1：封面用 */
+
+/* 地理世界：三枚“看法”透镜，挂在地球右边（位置每帧由 GeoWorld 按地球在屏幕上的位置定）。每一枚是一颗画着这种看法的小地球；可以多选 */
+.geo-lens { position: fixed; left: -34px; top: -34px; z-index: 7; display: grid; grid-template-columns: 68px auto; column-gap: 14px; align-items: center; pointer-events: none; transition: opacity .45s; }
+.geo-lens.hidden { opacity: 0; }
+.geo-lens.hidden * { pointer-events: none !important; }
+.geo-lens .gl-orb { grid-row: 1; grid-column: 1; position: relative; width: 68px; height: 68px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; pointer-events: auto; filter: saturate(.72) brightness(.86); transition: transform .35s cubic-bezier(.3,.8,.2,1), filter .35s; }
+.geo-lens .gl-orb canvas { display: block; width: 68px; height: 68px; border-radius: 50%; }
+.geo-lens .gl-orb::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 1.5px solid rgba(214,177,110,.42); transition: border-color .35s, box-shadow .35s; }
+.geo-lens .gl-orb:hover { transform: scale(1.08); filter: saturate(.85) brightness(.95); }
+.geo-lens.on .gl-orb { filter: none; }
+.geo-lens.on .gl-orb::after { border-color: #f1d79f; box-shadow: 0 0 0 3px rgba(241,215,159,.16), 0 0 24px rgba(241,215,159,.55); }
+.geo-lens .gl-name { grid-row: 2; grid-column: 1; margin-top: 9px; text-align: center; font: 600 13px/1 var(--song); letter-spacing: .22em; text-indent: .22em; color: #c9c0ad; text-shadow: 0 1px 8px rgba(5,9,20,.9); white-space: nowrap; }
+.geo-lens.on .gl-name { color: #f1d79f; }
+.geo-lens .gl-more { grid-row: 1 / span 2; grid-column: 2; display: flex; flex-direction: column; gap: 6px; opacity: 0; transform: translateX(-8px); transition: opacity .35s, transform .35s; }
+.geo-lens.on .gl-more { opacity: 1; transform: none; }
+.geo-lens.on .gl-more button { pointer-events: auto; }
+.geo-lens .gl-legend { display: flex; flex-direction: column; gap: 3px; font: 12px/1.4 var(--sans); color: #e6dcc6; text-shadow: 0 1px 6px rgba(5,9,20,.9); }
+.geo-lens .gl-legend span { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.geo-lens .gl-legend i { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
+.geo-lens .gl-legend i.sq { height: 8px; }
+.geo-lens .gl-legend i.dot { width: 6px; height: 6px; border-radius: 50%; margin: 0 5px; }
+.geo-lens .gl-legend small { font-size: 11px; color: rgba(214,205,186,.72); white-space: nowrap; }
+.geo-lens .gl-go { align-self: flex-start; border: 0; background: none; padding: 0; color: #f1d79f; font: 12.5px/1.4 var(--song); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; text-shadow: 0 1px 6px rgba(5,9,20,.9); }
+.geo-lens .gl-go:hover { color: #fff3d6; }
+.geo-lens-hint { position: fixed; left: 0; top: 0; z-index: 7; font: 12px/1 var(--song); letter-spacing: .16em; color: rgba(214,205,186,.66); pointer-events: none; white-space: nowrap; text-shadow: 0 1px 6px rgba(5,9,20,.9); transition: opacity .45s; }
+.geo-lens-hint.hidden { opacity: 0; }
+.geo-credit { position: fixed; right: 18px; bottom: 12px; z-index: 6; max-width: 560px; text-align: right; font: 10.5px/1.45 var(--sans); color: rgba(163,174,196,.6); pointer-events: none; transition: opacity .4s; }
+.geo-credit.hidden { opacity: 0; }

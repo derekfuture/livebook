@@ -12,12 +12,15 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { seg, slider, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, faceLabel, noteBadge } from './kit/labels.js';
+import { rockPixels } from './kit/strata.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, NLAY, TH, LAM, surface, layerAt, exposed, crack, bend, hasFold, terrain, terrainText, changeText } from './kit/fold.js';
 
 const ZD = 0.07, NX = 220;
 const LAYC = ['#6f5038', '#8f6844', '#b0814f', '#c99e62', '#dbbb83', '#e9d4a2'];          // 第 1 层（最老）到第 6 层（最新）
 const AGE = ['最老', '较老', '偏老', '偏新', '较新', '最新'];
+const LITH = ['limestone', 'shale', 'sandstone', 'limestone', 'shale', 'sandstone'];          // 每一层是什么岩石：借它的颗粒、层理、节理当细节（顺着褶皱弯），颜色仍按新老，侧栏的色条对得上
+const TILE = 0.03;          // 岩石纹理铺一遍多大
 const ASK = ['先猜一下（可以不猜）：在这个情境里，外力作用很久以后，背斜那里会是——', ['还是山岭', '变成谷地']];
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -82,7 +85,7 @@ export default {
       t.fillStyle = `rgb(${115 + n},${143 + n},${73 + n * 0.6})`; t.fillRect(i, j, 1, 1);
     } }
     const paint = () => {
-      const g = sideCv.getContext('2d'), img = g.createImageData(SW, SH), cols = LAYC.map((h2) => [parseInt(h2.slice(1, 3), 16), parseInt(h2.slice(3, 5), 16), parseInt(h2.slice(5, 7), 16)]);
+      const g = sideCv.getContext('2d'), img = g.createImageData(SW, SH), cols = LAYC.map((h2) => [parseInt(h2.slice(1, 3), 16), parseInt(h2.slice(3, 5), 16), parseInt(h2.slice(5, 7), 16)]), PXS = LITH.map((kd) => rockPixels(kd));
       for (let i = 0; i < SW; i++) {
         const x = X(i / (SW - 1)), b = bend(x, S.c), top = surface(x, S.c, S.e);
         for (let j = 0; j < SH; j++) {
@@ -90,10 +93,18 @@ export default {
           if (y > top) { img.data[k + 3] = 0; continue; }
           const f = (y - b) / TH, L = Math.max(1, Math.min(NLAY, Math.floor(f) + 1)), edge = Math.abs(f - Math.round(f)) < 0.045 && f > 0.5 && f < NLAY - 0.5;          // 层与层之间一条细的深线
           const n = 0.94 + 0.07 * Math.sin(i * 0.9 + j * 1.7) * Math.sin(j * 0.6 - i * 0.3) - 0.055 * Math.pow(Math.max(0, Math.sin(f * 37 + Math.sin(x * 140) * 0.7)), 12), c = top - y < 0.0012 ? [100, 81, 51] : cols[L - 1];
-          img.data[k] = c[0] * n * (edge ? 0.55 : 1); img.data[k + 1] = c[1] * n * (edge ? 0.55 : 1); img.data[k + 2] = c[2] * n * (edge ? 0.55 : 1); img.data[k + 3] = 255;
+          const P = PXS[L - 1], tn = P.n, tu = ((Math.floor(((x - XL) / TILE) * tn) % tn) + tn) % tn, tv = ((Math.floor(((y - b) / TILE) * tn) % tn) + tn) % tn, q = (tv * tn + tu) * 4;          // 纹理按“层里的位置”取：层理、节理跟着岩层一起弯
+          const d0 = 0.5 + 0.5 * P.data[q] / P.mean[0], d1 = 0.5 + 0.5 * P.data[q + 1] / P.mean[1], d2 = 0.5 + 0.5 * P.data[q + 2] / P.mean[2], e = edge ? 0.55 : 1;
+          img.data[k] = c[0] * n * d0 * e; img.data[k + 1] = c[1] * n * d1 * e; img.data[k + 2] = c[2] * n * d2 * e; img.data[k + 3] = 255;
         }
       }
       g.putImageData(img, 0, 0);
+      // 两头写上第几层、新老：背斜中间老、两翼新，对着数字就看得出
+      g.font = '700 24px "PingFang SC", "Songti SC", sans-serif'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      for (const [xl, align] of [[XL + 0.006, 'left'], [XR - 0.006, 'right']]) {
+        const i0 = ((xl - XL) / (XR - XL)) * (SW - 1), bb = bend(xl, S.c), top0 = surface(xl, S.c, S.e); g.textAlign = align;
+        for (let L = 1; L <= NLAY; L++) { const y = bb + (L - 0.5) * TH; if (y > top0 - 0.003) continue; const j = (1 - y / YMAX) * (SH - 1), t = L === 1 || L === NLAY ? `${L} ${AGE[L - 1]}` : String(L); g.strokeStyle = 'rgba(40,28,18,0.7)'; g.lineWidth = 5; g.strokeText(t, i0, j); g.fillStyle = '#fff8ea'; g.fillText(t, i0, j); }
+      }
       for (let k = 0; k < 2400; k++) {
         const u = (k * 0.61803398875) % 1, v = (k * 0.41421356237) % 1, x = X(u), y = v * YMAX;
         if (y > surface(x, S.c, S.e) - 0.0015) continue;

@@ -2289,8 +2289,26 @@
   "id": "dili-8x",
   "title": "地理 八年级下册",
   "base": "/books/dili-8x/",
-  "lessons": {},
-  "spots": []
+  "lessons": {
+   "shuitu": {
+    "title": "在相同条件下植被对水土流失的影响",
+    "fig": "图7.29",
+    "sec": "第三节 世界最大的黄土堆积区——黄土高原"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "shuitu",
+    "page": 37,
+    "bbox": [
+     70,
+     402,
+     470,
+     592
+    ],
+    "label": "图7.29 · 翻开活页"
+   }
+  ]
  },
  "dili-xb1": {
   "id": "dili-xb1",

@@ -3,11 +3,11 @@
 // 书桌上是一长条真实的地形：沿 36°N 切下来的一条“剖面带”（从昆仑山脉一带到黄海）。前面的切面就是地形剖面，顶上是那一带真实的地面，按海拔分层设色。
 // 学生：
 //   ① 拖着小旗沿剖面从西往东走，读出沿线的海拔；走进哪一级阶梯，那一级的范围和平均海拔就标出来（课本图 2.1 的三段）：地势西高东低，呈阶梯状；
-//   ② 点“沿 30°N 切开”（活动第 2 题）：剖面带换成 30°N 的，第二级阶梯里有低平的四川盆地，第三级阶梯里有皖南的山地，不如 36°N 典型；
-//   ③ 点“沿 105°E 切开”（活动第 3 题）：经线南北延伸，从云贵高原到内蒙古高原一路都在第二级阶梯上，显示不出三级阶梯；
+//   ② 点“沿 30°N 切开”（活动第 2 题）：剖面带换成 30°N 的，第二级阶梯里有低平的四川盆地，第三级阶梯里有皖南的山地，本组剖面中 36°N 的阶梯高差更容易辨认；
+//   ③ 点“沿 105°E 切开”（活动第 3 题）：经线南北延伸，从云贵高原到内蒙古高原主要位于第二级阶梯，显示不出三级阶梯；
 //   ④ 回答活动的三个问题。
 // 数据：AWS Terrain Tiles（SRTM 等公开高程数据），tools/geo/profile_strips.py 沿线取平均；线的两头都在我国境内，不画任何边界，只是地形剖面。
-// 竖直方向放大约 100 倍；顺着线按比例，三条线一个比例；横过线的宽度（0.5°）放大了，好看清顶上的地形。
+// 竖直方向放大约 140 倍；顺着线按比例，三条线一个比例；横过线的宽度（0.5°）放大了，好看清顶上的地形。
 import * as THREE from 'three';
 import { table, buttons } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
@@ -31,21 +31,21 @@ const READ_Y = Y0 + 7700 * KY;          // 小旗的读数写在最上面一排�
 // 三条剖面线：steps [起, 止, 第几级]；regions 小旗读数用的地名；face 切面上写的字 [坐标, 字, 写在多高（米）, 选项]
 const LINES = {
   '36N': {
-    name: '沿 36°N', sub: '昆仑山脉一带 → 黄海', ends: ['西', '东'], unit: '°E', tick: 5, sea: 120.4,
-    steps: [[80, 103, 1], [103, 113.9, 2], [113.9, 120.4, 3]],
-    regions: [[80, 99.5, '青藏高原（昆仑山脉一带）'], [99.5, 103, '青藏高原东北边缘（黄河谷地）'], [103, 104, '兰州附近（黄河）'], [104, 110.3, '黄土高原'], [110.3, 110.7, '黄河（晋陕之间）'], [110.7, 113.6, '黄土高原东部（山西的山地、盆地）'], [113.6, 114, '太行山脉'], [114, 116.8, '华北平原'], [116.8, 119.4, '鲁中山地'], [119.4, 120.4, '胶莱平原—青岛'], [120.4, 121, '黄海']],
-    face: [[90, '青 藏 高 原', 3000], [91.5, '昆仑山脉一带', 2100, { small: true }], [107.2, '黄 土 高 原', 800], [103.83, '兰州', 0, { dot: true }], [110.45, '黄河', 0, { river: true }], [115.9, '黄河', 0, { river: true }], [114.17, '太行山脉', 1800, { vertical: true, small: true }], [115.65, '华北平原', 330, { small: true }], [118.2, '鲁中山地', 1050, { small: true }], [120.7, '黄海', 330, { sea: true, small: true }]],
+    name: '沿 36°N', sub: '昆仑山脉一带 → 黄海', ends: ['西', '东'], unit: '°E', tick: 5, seaName: '黄海',
+    steps: [[80, 103, 1], [103, 113.9, 2], [113.9, null, 3]],
+    regions: [[80, 99.5, '青藏高原北部的山地、高原与盆地'], [99.5, 103, '青藏高原东北部的山地、盆地与黄河谷地'], [103, 104, '兰州附近的黄河谷地及周围山地'], [104, 110.3, '黄土高原'], [110.3, 110.7, '黄河晋陕峡谷及两侧山地'], [110.7, 113.6, '黄土高原东部（山西的山地、盆地）'], [113.6, 114, '太行山地及东麓过渡地带'], [114, 116.8, '华北平原'], [116.8, 119.4, '鲁中南山地丘陵及山间盆地'], [119.4, 121, '山东丘陵东南部及沿海地带']],
+    face: [[90, '青 藏 高 原', 3000], [107.2, '黄 土 高 原', 800], [103.83, '兰州', 0, { dot: true }], [110.45, '黄河', 0, { river: true }], [115.9, '黄河', 0, { river: true }], [114.17, '太行山脉', 1800, { vertical: true, small: true }], [115.65, '华北平原', 330, { small: true }], [118.2, '山东丘陵', 1050, { small: true }], [120.7, '黄海', 330, { sea: true, small: true }]],          // 切面上只写课本图那样的大地名（短）；小旗读数用上面 regions 的细分地名
   },
   '30N': {
-    name: '沿 30°N', sub: '西藏中部 → 东海', ends: ['西', '东'], unit: '°E', tick: 5, sea: 121.7,
-    steps: [[83, 102.8, 1], [102.8, 111.2, 2], [111.2, 121.7, 3]],
-    regions: [[83, 97.5, '青藏高原'], [97.5, 102.8, '横断山区'], [102.8, 106.6, '四川盆地'], [106.6, 111.2, '川东、鄂西的山地'], [111.2, 114.8, '长江中游平原（江汉平原、洞庭湖平原一带）'], [114.8, 116.6, '长江沿岸的平原和丘陵'], [116.6, 119.6, '皖南、浙西的山地丘陵（黄山一带）'], [119.6, 121.7, '杭州—宁绍平原'], [121.7, 122.2, '东海']],
-    face: [[90, '青 藏 高 原', 3000], [100.1, '横断山区', 2600], [104.7, '四 川 盆 地', 820], [109.1, '川东、鄂西山地', 2000], [113, '长江中游平原', 330, { small: true }], [118.1, '皖南山地', 1300, { small: true }], [120.15, '宁绍平原', 650, { small: true }], [122, '东海', 150, { sea: true, small: true }]],
+    name: '沿 30°N', sub: '西藏中部 → 东海', ends: ['西', '东'], unit: '°E', tick: 5, seaName: '东海',
+    steps: [[83, 102.8, 1], [102.8, 111.2, 2], [111.2, null, 3]],
+    regions: [[83, 97.5, '青藏高原'], [97.5, 102.8, '横断山区'], [102.8, 106.6, '四川盆地西缘及盆地内部'], [106.6, 111.2, '川东、鄂西的山地'], [111.2, 114.8, '长江中游平原及周缘丘陵，西端为山前过渡地带'], [114.8, 116.6, '长江沿岸的平原和丘陵'], [116.6, 119.6, '皖南、浙西的山地丘陵（黄山一带）'], [119.6, 122.2, '杭州附近的丘陵、富春江谷地—宁绍平原']],
+    face: [[90, '青 藏 高 原', 3000], [100.1, '横断山区', 2600], [104.7, '四川盆地', 820, { small: true }], [109.1, '川东、鄂西山地', 2000], [113, '长江中游平原', 330, { small: true }], [118.1, '皖南山地', 1300, { small: true }], [120.4, '宁绍平原', 650, { small: true }], [122, '东海', 150, { sea: true, small: true }]],
   },
   '105E': {
-    name: '沿 105°E', sub: '云南东部 → 阿拉善', ends: ['南', '北'], unit: '°N', tick: 5, sea: null,
+    name: '沿 105°E', sub: '云南东部 → 阿拉善', ends: ['南', '北'], unit: '°N', tick: 5, seaName: null,
     steps: [[24, 40.5, 2]],
-    regions: [[24, 28.4, '云贵高原'], [28.4, 32, '四川盆地'], [32, 34.6, '盆地北边的山地、秦岭西段'], [34.6, 37.4, '黄土高原'], [37.4, 40.5, '内蒙古高原西部（腾格里沙漠一带）']],
+    regions: [[24, 28.4, '云贵高原'], [28.4, 32, '四川盆地'], [32, 34.6, '盆地北边的山地、秦岭西段'], [34.6, 37.4, '黄土高原'], [37.4, 40.5, '内蒙古高原西部']],
     face: [[26.3, '云贵高原', 650], [30.2, '四川盆地', 900], [33.4, '秦岭西段等山地', 2750, { small: true }], [35.9, '黄土高原', 950, { small: true }], [38.75, '内蒙古高原西部', 420, { small: true }]],
   },
 };
@@ -53,17 +53,30 @@ const KEYS = ['36N', '30N', '105E'];
 const fmtM = (m) => { const r = Math.round(m); return r >= 1000 ? `${Math.floor(r / 1000)} ${String(r % 1000).padStart(3, '0')}` : String(r); };
 const ease = (x) => x * x * (3 - 2 * x);
 
-// 每条线重采样成 NA 个点、7 行（第 0 行在线上，往北或往西）；算出长度、各级阶梯的平均海拔
+// 每条线重采样成 NA 个点、7 行（第 0 行在线上，往北或往西）；算出长度、本剖面各区段的平均海拔
 const PROF = Object.fromEntries(KEYS.map((key) => {
   const R = STRIPS[key], L = LINES[key], na = R.na, nc = R.nc, r = (na - 1) / (NA - 1);
   const E = Array.from({ length: nc }, (_, j) => Float32Array.from({ length: NA }, (_, i) => {
     const a = i * r, lo = Math.max(0, Math.floor(a - r / 2)), hi = Math.min(na - 1, Math.ceil(a + r / 2));
+    // 海岸附近保留原始采样的海陆属性，避免平滑把海面抬高或把小岛抹平。
+    if (L.seaName && R.h.slice(j * na + lo, j * na + hi + 1).includes(0)) return R.h[j * na + Math.round(a)];
     if (r <= 1) { const k = Math.min(na - 2, Math.floor(a)), t = a - k; return R.h[j * na + k] * (1 - t) + R.h[j * na + k + 1] * t; }
     let s = 0; for (let k = lo; k <= hi; k++) s += R.h[j * na + k]; return s / (hi - lo + 1);
   }));
   const coord = (f) => R.a0 + f * (R.a1 - R.a0), fOf = (c) => (c - R.a0) / (R.a1 - R.a0);
-  const mean = (c0, c1) => { let s = 0, n = 0; for (let k = 0; k < na; k++) { const c = R.a0 + k * 0.05; if (c >= c0 - 1e-6 && c <= c1 + 1e-6) { s += R.h[k]; n++; } } return s / Math.max(1, n); };
-  return [key, { E, len: R.km * KXKM, coord, fOf, avg: L.steps.map(([c0, c1]) => Math.round(mean(c0, c1) / 100) * 100), seaF: L.sea == null ? 1 : fOf(L.sea) }];
+  // 原始线上采样中，相邻两个零高程点起算连续海段；海中正高程采样仍是岛屿。
+  const seaIndex = L.seaName ? R.h.slice(0, na - 1).findIndex((e, i) => e === 0 && R.h[i + 1] === 0) : -1;
+  const seaF = seaIndex < 0 ? 1 : seaIndex / (na - 1);
+  L.steps = L.steps.map(([c0, c1, lv]) => [c0, c1 ?? coord(seaF), lv]);
+  const sampleAt = (f) => R.h[Math.round(clamp(f, 0, 1) * (na - 1))];
+  const regionAt = (f) => {
+    const c = coord(f);
+    if (L.seaName && sampleAt(f) === 0) return L.seaName;
+    if (key === '30N' && f >= seaF) return '舟山群岛中的岛屿';
+    return L.regions.find(([c0, c1]) => c >= c0 && c <= c1)?.[2] ?? '';
+  };
+  const mean = (c0, c1) => { let s = 0, n = 0; for (let k = 0; k < na; k++) { const c = coord(k / (na - 1)); if (c >= c0 - 1e-6 && c <= c1 + 1e-6 && R.h[k] > 0) { s += R.h[k]; n++; } } return s / Math.max(1, n); };
+  return [key, { E, len: R.km * KXKM, coord, fOf, sampleAt, regionAt, avg: L.steps.map(([c0, c1]) => Math.round(mean(c0, c1) / 100) * 100), seaF }];
 }));
 
 export default {
@@ -75,11 +88,11 @@ export default {
   flow: 'explore',
   ask: '沿 36°N 把我国的陆地切开，从西往东看切面：地面的高低会是什么样子？',
   guess: { options: ['西边低、东边高', '西边高、东边低，一级一级降下来', '东西差不多一样高'], answer: 1 },          // 动手看里的“先猜一下（可以不猜）”
-  need: '拖着小旗沿 36°N 的剖面从西往东走，读出沿线的海拔，找出三级阶梯；再换成沿 30°N、沿 105°E 切开，比一比哪条剖面线显示的三级阶梯最典型',
+  need: '拖着小旗沿 36°N 的剖面从西往东走，读出沿线的海拔，找出三级阶梯；再换成沿 30°N、沿 105°E 切开，比较本组剖面中哪条线的阶梯高差更容易辨认',
   conclusion: {
     crops: [{ page: 28, rect: [42, 198, 458, 241] }, { page: 29, rect: [64, 50, 376, 156] }],
     quote: '“百川东到海”，反映了我国地势西高东低的总体趋势。我国陆地地势自西向东可以划分出三级阶梯（图2.1）。第一级阶梯平均海拔在4 000米以上，由“世界屋脊”——青藏高原构成。第二级阶梯的海拔一般在1 000—2 000米，以高原、盆地为主。第三级阶梯的海拔大多在500米以下，以平原、丘陵为主。我国陆地向海洋延伸的部分，形成广阔的大陆架。',
-    why: '沿 36°N 从西往东：青藏高原（昆仑山脉一带）这一段平均海拔约 4 400 米，是第一级阶梯；过了兰州附近，黄土高原这一段平均约 1 400 米，是第二级阶梯；过了太行山脉，华北平原、鲁中山地这一段平均约 100 米，是第三级阶梯——<b>地势西高东低，呈三级阶梯</b>。<br>沿 30°N 也是西高东低，但第二级阶梯里有低平的四川盆地（这一段平均只有约 700 米），第三级阶梯里有皖南的山地，台阶不如 36°N 分明；沿 105°E 这样的经线，从南到北几乎都在第二级阶梯上（平均约 1 300 米），显示不出三级阶梯——三级阶梯是<b>自西向东</b>排列的，要用东西方向的剖面线。<br>和地形图相比，地形剖面图把沿线地面的高低起伏直接画出来，阶梯一眼就能看出；但它只表示一条线上的情况。',
+    why: '沿 36°N 从西往东，青藏高原、黄土高原到华北平原和山东丘陵，反映了<b>地势西高东低，呈三级阶梯</b>。括线和表格中的平均海拔只代表本剖面所选区段，不代表整个地势阶梯。<br>沿 30°N 也能反映这一总体特征，但第二级阶梯中的四川盆地较低，第三级阶梯中又有皖南等地的山地丘陵，局部起伏比较明显。在本组剖面的比较中，36°N 的阶梯高差更容易辨认。每一级阶梯内部也有高低起伏，阶梯描述的是大范围地势特征。<br>本活动选取的 105°E、24°N—40.5°N 剖面，沿线主要位于第二级阶梯，不能完整显示我国由西向东逐级降低的三级阶梯。是否跨越不同阶梯，需要看具体线路经过哪些地区，不能仅凭它是一条经线来判断。<br>地形剖面图能直观显示沿剖面线地面的高低变化，便于比较不同地段的海拔，认识我国的地势特征；但它只表示一条线上的情况。',
     src: '课本八年级上册第 24—25 页 · 第二章 第一节 地形（地势西高东低，呈现三级阶梯；活动：用地形剖面图表示我国的地势特征）',
   },
 
@@ -138,7 +151,7 @@ export default {
       for (let j = 0; j < NC; j++) { const z = ZF - (j / (NC - 1)) * ZD, xl = xOf(0), xr = xOf(1); wallPos.set([xl, Y0 + cur.E[j][0] * KY, z, xl, 0, z], (NA * 4 + j * 2) * 3); wallPos.set([xr, Y0 + cur.E[j][NA - 1] * KY, z, xr, 0, z], (NA * 4 + NC * 2 + j * 2) * 3); }
       wallGeo.attributes.position.needsUpdate = true; wallGeo.computeBoundingSphere(); wallGeo.computeBoundingBox();
       face.scale.x = cur.len;
-      const x0 = xOf(Math.min(1, cur.seaF)), x1 = xOf(1); sea.visible = x1 - x0 > 0.001; sea.scale.x = Math.max(0.001, x1 - x0); sea.position.set((x0 + x1) / 2, Y0 - 0.0018, ZF - ZD / 2);
+      const x0 = xOf(Math.min(1, cur.seaF)), x1 = xOf(1); sea.visible = x1 - x0 > 0.001; sea.scale.x = Math.max(0.001, x1 - x0); sea.position.set((x0 + x1) / 2, Y0 - 0.00239, ZF - ZD / 2);
     };
 
     // ================= 切面前面的一层字（像课本图 2.1：地形区、兰州、黄河……），两头写西、东（或南、北），底座上标经纬度 =================
@@ -152,12 +165,13 @@ export default {
       const say = (text, x, y, { size = 44, color = '#2b2116', halo = 'rgba(255,250,238,0.75)', vertical = false } = {}) => {
         g.font = `700 ${size}px "Songti SC", "STSong", serif`; g.fillStyle = color; g.strokeStyle = halo; g.lineWidth = 7;
         if (vertical) { [...text].forEach((ch, k) => { const yy = y + k * size * 1.05; g.strokeText(ch, x, yy); g.fillText(ch, x, yy); }); return; }          // 竖排：第一个字在 y，往下写
-        g.strokeText(text, x, y); g.fillText(text, x, y);
+        const rows = text.length > 9 ? text.match(/.{1,7}/g) : [text];
+        rows.forEach((row, k) => { const yy = y + k * size * 1.1; g.strokeText(row, x, yy); g.fillText(row, x, yy); });
       };
       for (const [co, text, m, o = {}] of L.face) {
         if (o.dot) { const e = eOf(co), y = Y(e); g.fillStyle = '#fff'; g.strokeStyle = '#2b2116'; g.lineWidth = 4; g.beginPath(); g.arc(X(co), y, 10, 0, 7); g.fill(); g.stroke(); say(text, X(co) + 8, y - 44, { size: 38 }); continue; }
-        if (o.river) { say(text, X(co), Y(eOf(co)) - 34, { size: 32, color: '#2f78b7' }); continue; }
-        say(text, X(co), Y(m), { size: o.small ? 36 : 46, color: o.sea ? '#2f78b7' : '#2b2116', vertical: o.vertical });
+        if (o.river) { const y = Y(eOf(co)); g.fillStyle = '#2f78b7'; g.beginPath(); g.arc(X(co), y, 5, 0, Math.PI * 2); g.fill(); say(text, X(co), y - 34, { size: 32, color: '#2f78b7' }); continue; }
+        say(text, X(co), Y(m), { size: o.vertical ? 22 : o.small ? 32 : 46, color: o.sea ? '#2f78b7' : '#2b2116', vertical: o.vertical });
       }
       // 底座：两头写方向，中间每 5° 一个刻度
       g.fillStyle = 'rgba(255,248,232,0.9)'; g.font = '700 30px "Songti SC", serif';
@@ -196,7 +210,7 @@ export default {
         const [c0, c1, lv] = st, x0 = xOf(P.fOf(c0)), x1 = xOf(P.fOf(c1)), y = Y0 + BRACKET_M[lv] * KY;
         b.line.geometry.setPositions([x0, y, zf, x1, y, zf, x0, y, zf, x0 + ah, y + ah * 0.45, zf, x0, y, zf, x0 + ah, y - ah * 0.45, zf, x1, y, zf, x1 - ah, y + ah * 0.45, zf, x1, y, zf, x1 - ah, y - ah * 0.45, zf]);
         b.line.material.opacity = b.a;
-        b.tag.text(`${EK[lv]} · 平均约 ${fmtM(P.avg[k])} 米`).loc(group, (x0 + x1) / 2, y + 0.009, zf);
+        b.tag.text(`${S.line === '105E' ? '主要位于第二级阶梯' : EK[lv]} · 本剖面这段约 ${fmtM(P.avg[k])} 米`).loc(group, (x0 + x1) / 2, y + 0.009, zf);
       });
       // 分界的虚线：从地面竖到两边括线里高的那一条
       const cuts = []; L.steps.forEach(([c0, c1], k) => { if (!k) cuts.push([c0, k, k]); cuts.push([c1, k, Math.min(k + 1, L.steps.length - 1)]); });
@@ -218,6 +232,7 @@ export default {
     const probePick = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), new THREE.MeshBasicMaterial({ visible: false })); probePick.position.y = 0.022; probePick.userData.pick = true; probePick.userData.track = true; probe.add(probePick);
     const drop = polyline([new THREE.Vector3(), new THREE.Vector3(0, 0.01, 0)], { width: 1.4, color: 0xc8342a, dashed: true, dash: 0.003, gap: 0.0025 }); drop.renderOrder = 7; group.add(drop);
     const readTag = tag('', 'pill');
+    Object.assign(readTag.el.style, { maxWidth: '300px', whiteSpace: 'normal', textAlign: 'center', lineHeight: '1.35' });
 
     // ================= 换剖面线：剖面带前面三张小立牌 =================
     const cards = Object.fromEntries(KEYS.map((key, n) => {
@@ -248,11 +263,11 @@ export default {
     };
     const finishLine = (key) => {
       S.done[key] = true; const P = PROF[key], L = LINES[key];
-      const cell = (lv) => { const k = L.steps.findIndex((s) => s[2] === lv); return k < 0 ? '—' : `约 ${fmtM(P.avg[k])} 米`; };
+      const cell = (lv) => { const k = L.steps.findIndex((s) => s[2] === lv); return k < 0 ? '—' : `${key === '105E' ? '主要位于第二级阶梯；' : ''}本剖面这段平均约 ${fmtM(P.avg[k])} 米`; };
       log([L.name, cell(1), cell(2), cell(3)]);
-      if (key === '36N') { done('read'); status(`沿 36°N 走完了：西头的青藏高原平均约 ${fmtM(P.avg[0])} 米，中间的黄土高原约 ${fmtM(P.avg[1])} 米，过了太行山脉，华北平原、鲁中山地只有约 ${fmtM(P.avg[2])} 米——一级比一级低。在左边说说地势怎样变化；再点前面的<b>“沿 30°N 切开”</b>。`); if (!S.demo) W?.t1.open(); }
-      if (key === '30N') { done('cut30'); status(`沿 30°N 也是西高东低：青藏高原、横断山区约 ${fmtM(P.avg[0])} 米；可第二级阶梯这一段平均只有约 ${fmtM(P.avg[1])} 米（中间是低平的四川盆地），第三级阶梯里又有黄山一带的山地。和 36°N 比一比，在左边作答；再点<b>“沿 105°E 切开”</b>。`); if (!S.demo) W?.t2.open(); }
-      if (key === '105E') { done('cut105'); status(`沿 105°E 从南走到北：云贵高原、四川盆地、秦岭、黄土高原、内蒙古高原，几乎都在第二级阶梯上（平均约 ${fmtM(P.avg[0])} 米），看不出一级一级的台阶。在左边说说为什么。`); if (!S.demo) W?.t3.open(); }
+      if (key === '36N') { done('read'); status(`沿 36°N 走完了：本剖面第一级这段平均约 ${fmtM(P.avg[0])} 米，第二级这段平均约 ${fmtM(P.avg[1])} 米，第三级陆地这段平均约 ${fmtM(P.avg[2])} 米，反映了西高东低的总体趋势。每一级阶梯内部也有高低起伏。在左边作答，再点<b>“沿 30°N 切开”</b>。`); if (!S.demo) W?.t1.open(); }
+      if (key === '30N') { done('cut30'); status(`沿 30°N 也是西高东低：本剖面三级区段平均分别约 ${fmtM(P.avg[0])}、${fmtM(P.avg[1])}、${fmtM(P.avg[2])} 米。四川盆地较低，皖南等地又有山地丘陵，每一级阶梯内部也有高低起伏。在本组剖面的比较中，36°N 的阶梯高差更容易辨认。在左边作答，再点<b>“沿 105°E 切开”</b>。`); if (!S.demo) W?.t2.open(); }
+      if (key === '105E') { done('cut105'); status(`本活动选取的 105°E、24°N—40.5°N 剖面主要位于第二级阶梯，本剖面这段平均约 ${fmtM(P.avg[0])} 米，不能完整显示我国由西向东逐级降低的三级阶梯。在左边说说为什么。`); if (!S.demo) W?.t3.open(); }
     };
 
     const A = {
@@ -283,7 +298,7 @@ export default {
       steps: [
         { id: 'read', title: '沿 36°N', todo: '拖着剖面带上的<b>小旗</b>，从西头一直走到东头：读出沿线的海拔，看三级阶梯在哪里。', target: () => probe },
         { id: 'cut30', title: '沿 30°N', todo: '点前面的<b>“沿 30°N 切开”</b>，再拖着小旗从西走到东，和 36°N 比一比。', target: () => (S.line === '30N' ? probe : cards['30N'].g) },
-        { id: 'cut105', title: '沿经线', todo: '点<b>“沿 105°E 切开”</b>，拖着小旗从南走到北：沿经线的剖面能看出三级阶梯吗？', target: () => (S.line === '105E' ? probe : cards['105E'].g) },
+        { id: 'cut105', title: '沿经线', todo: '点<b>“沿 105°E 切开”</b>，拖着小旗从南走到北：本活动选取的 24°N—40.5°N 这一段能完整显示三级阶梯吗？', target: () => (S.line === '105E' ? probe : cards['105E'].g) },
         { id: 'why', title: '想一想', todo: '在左边回答活动的三个问题。' },
       ],
       reels: {
@@ -295,9 +310,9 @@ export default {
           } }),
           shots: [
             { cap: '沿 36°N 切下来的一条地形：前面的切面就是地形剖面。小旗从西往东走——青藏高原 4 000 多米，黄土高原一两千米，过了太行山脉，华北平原只有几十米。', dur: 12, during: sweep(0.05, 0.85) },
-            { cap: '换成沿 30°N 切开：也是西高东低，可第二级阶梯里有低平的四川盆地，第三级阶梯里有黄山一带的山地，台阶不如 36°N 分明。', dur: 12, during: act.seq(act.tap(cards['30N'].board, 0.03), sweep(0.2, 0.9)) },
-            { cap: '换成沿 105°E（经线）切开：从南到北几乎都在第二级阶梯上，看不出三级阶梯——三级阶梯是自西向东排列的。', dur: 11, during: act.seq(act.tap(cards['105E'].board, 0.03), sweep(0.22, 0.9)) },
-            { cap: '地形剖面图把沿线的高低起伏直接画出来，三级阶梯一眼就能看出；但要选东西方向、穿过三级阶梯的剖面线。演示完了，下面换你自己来。', dur: 6, during: act.tap(cards['36N'].board, 0.1) },
+            { cap: '换成沿 30°N 切开：也是西高东低，可第二级阶梯里有低平的四川盆地，第三级阶梯里有黄山一带的山地，在本组剖面的比较中，36°N 的阶梯高差更容易辨认。每一级阶梯内部也有高低起伏。', dur: 12, during: act.seq(act.tap(cards['30N'].board, 0.03), sweep(0.2, 0.9)) },
+            { cap: '本活动选取的 105°E、24°N—40.5°N 剖面主要位于第二级阶梯，不能完整显示我国由西向东逐级降低的三级阶梯。', dur: 11, during: act.seq(act.tap(cards['105E'].board, 0.03), sweep(0.22, 0.9)) },
+            { cap: '地形剖面图能直观显示沿线地面的高低变化，便于比较海拔。是否跨越不同阶梯，要看具体线路经过哪些地区。演示完了，下面换你自己来。', dur: 6, during: act.tap(cards['36N'].board, 0.1) },
           ],
         },
       },
@@ -324,13 +339,13 @@ export default {
       brk.forEach((b, k) => { const on = !morph && S.seen[S.line].includes(k); b.a += ((on ? 1 : 0) - b.a) * Math.min(1, dt * (on ? 4 : 10)); });
       layoutBrackets();
       // 小旗、读数
-      const f = S.f, x = xOf(f), y = yTop(f), e = eAt(f), P = PROF[S.line], L = LINES[S.line], c = P.coord(f);
+      const f = S.f, x = xOf(f), readX = xOf(clamp(f, 0.18, 0.82)), y = yTop(f), e = eAt(f), P = PROF[S.line], L = LINES[S.line], c = P.coord(f);
       probeY = probeY == null || morph ? y : probeY + (y - probeY) * Math.min(1, dt * 14);          // 爬上、走下陡坎时滑过去，不一帧一跳
       probe.position.set(x, probeY, ZF - 0.004);
-      drop.geometry.setPositions([x, READ_Y - 0.007, ZF + 0.0014, x, Y0, ZF + 0.0014]); drop.computeLineDistances();
-      const reg = L.regions.find(([c0, c1]) => c >= c0 && c <= c1), st = L.steps.find(([c0, c1]) => c >= c0 && c <= c1);
+      drop.geometry.setPositions([readX, READ_Y - 0.007, ZF + 0.0014, x, Y0, ZF + 0.0014]); drop.computeLineDistances();
+      const region = P.regionAt(f), isSea = !!L.seaName && P.sampleAt(f) === 0, st = L.steps.find(([c0, c1]) => c >= c0 && c <= c1);
       const where = `${L.unit === '°E' ? `${c.toFixed(1)}°E` : `${c.toFixed(1)}°N`}`;
-      readTag.text(morph ? '' : reg?.[2] === '黄海' || reg?.[2] === '东海' ? `${where} · ${reg[2]}` : `${where} · 海拔约 ${fmtM(Math.round(e / 10) * 10)} 米 · ${reg ? reg[2] : ''}${st ? ` · ${EK[st[2]]}` : ''}`).loc(group, x, READ_Y, ZF).show(!morph);
+      readTag.text(morph ? '' : isSea ? `${where} · ${region}` : `${where} · 海拔约 ${fmtM(Math.round(e / 10) * 10)} 米 · ${region}${st ? ` · ${S.line === '105E' ? '主要位于第二级阶梯' : EK[st[2]]}` : ''}`).loc(group, readX, READ_Y, ZF).show(!morph);
       ruler.position.x = xOf(0) - 0.016;
     };
 
@@ -352,31 +367,31 @@ export default {
           ok: '对：沿 36°N，西边的青藏高原平均海拔在 4 000 米以上，中间的黄土高原一般在 1 000—2 000 米，东边的华北平原在 500 米以下——地势西高东低，呈三级阶梯。“百川东到海”说的就是这个总体趋势。',
           onOk: () => { S.a1 = true; finish(); } });
         const t2 = think({ title: '想一想', status,
-          q: '活动第 2 题：沿 30°N 的剖面也能看出三级阶梯吗？和沿 36°N 比，哪个更典型？',
-          options: ['也能看出，但沿 36°N 更典型：沿 30°N 的第二级阶梯里有低平的四川盆地，第三级阶梯里有皖南的山地', '沿 30°N 更典型', '沿 30°N 完全看不出阶梯'],
-          wrong: ['看表里的数：沿 30°N 的第二级阶梯这一段平均只有约 700 米，四川盆地只有三四百米，台阶不分明。', '沿 30°N 也是西高东低：青藏高原、横断山区 4 000 多米，往东降到四川盆地，再降到长江中下游平原。只是中间那级台阶高低不平。'],
-          ok: '对：沿 30°N 也是西高东低，但第二级阶梯里有低平的四川盆地，第三级阶梯里又有黄山一带的山地，台阶高低不平；沿 36°N 三级阶梯分得更清楚，更典型。',
+          q: '活动第 2 题：沿 30°N 的剖面也能反映三级阶梯吗？在本组剖面的比较中，哪条线的阶梯高差更容易辨认？',
+          options: ['沿 30°N 也能反映总体西高东低、呈三级阶梯的地势特征；在本组剖面的比较中，36°N 的阶梯高差更容易辨认', '本组剖面中，沿 30°N 的阶梯高差更容易辨认', '沿 30°N 完全看不出阶梯'],
+          wrong: ['沿 30°N，第二级阶梯中的四川盆地较低，第三级阶梯中又有皖南等地的山地丘陵，局部起伏比较明显。', '沿 30°N 也能反映总体西高东低、呈三级阶梯的地势特征，不能只看局部起伏。'],
+          ok: '对：沿 30°N 也能反映我国总体西高东低、呈三级阶梯的地势特征。不过，第二级阶梯中的四川盆地较低，第三级阶梯中又有皖南等地的山地丘陵，局部起伏比较明显。在本组剖面的比较中，36°N 的阶梯高差更容易辨认。每一级阶梯内部也有高低起伏，阶梯描述的是大范围地势特征。',
           onOk: () => { S.a2 = true; finish(); } });
         const t3 = think({ title: '想一想', status,
-          q: '活动第 3 题：沿经线（比如 105°E）的剖面，能显示我国地势的三级阶梯吗？为什么？',
-          options: ['基本不能：三级阶梯是自西向东排列的，经线南北延伸，这条线从南到北几乎都在第二级阶梯上', '能，和沿纬线一样清楚', '能，而且是南高北低的三级阶梯'],
-          wrong: ['看剖面：沿 105°E 从云贵高原到内蒙古高原，几乎都在 1 000—2 000 米，中间夹着四川盆地，看不出一级一级的台阶。', '沿 105°E 南北两头差不多高（云贵高原、内蒙古高原都在 1 000 多米），没有南高北低。'],
-          ok: '对：我国地势的三级阶梯自西向东排列，阶梯之间的分界大致是南北方向的；经线也是南北方向，基本上只在一级阶梯里走（105°E 几乎都在第二级阶梯），显示不出三级阶梯。要用东西方向的剖面线。',
+          q: '活动第 3 题：本活动选取的 105°E、24°N—40.5°N 剖面，能完整显示我国地势的三级阶梯吗？为什么？',
+          options: ['不能完整显示：本活动选取的 105°E、24°N—40.5°N 剖面，沿线主要位于第二级阶梯', '能，和本组沿纬线的剖面一样清楚', '能，而且显示了南高北低的三级阶梯'],
+          wrong: ['本活动选取的这条剖面主要位于第二级阶梯，沿线包含高原、盆地和山地，不能完整显示三级阶梯。', '局部高低起伏不等于跨越三级阶梯，本活动选取的这条剖面主要位于第二级阶梯。'],
+          ok: '对本活动选取的 105°E、24°N—40.5°N 剖面而言，沿线主要位于第二级阶梯，不能完整显示我国由西向东逐级降低的三级阶梯。是否跨越不同阶梯，需要看具体线路经过哪些地区，不能仅凭它是一条经线来判断。',
           onOk: () => { S.a3 = true; t4.open(); finish(); } });
         const t4 = think({ title: '想一想', status,
           q: '活动第 1 题：和地形图相比，地形剖面图刻画我国的地势阶梯有什么优点？',
-          options: ['把沿线地面的高低起伏直接画出来，一眼就能看出一级一级的阶梯', '能显示各个地形区的位置和范围', '能显示各地的气温和降水'],
-          wrong: ['地形区的位置和范围要看地形图（平面图）；剖面图只沿一条线，长处是把高低起伏“立”起来。', '气温、降水不是地形剖面图表示的内容。'],
-          ok: '对：地形图用颜色表示高低，要对照图例才看得出；剖面图把沿线的高低起伏直接画出来，三级阶梯一眼就能看出。不过剖面图只表示一条线上的情况，所以要选合适的剖面线。',
+          options: ['能直观显示沿剖面线地面的高低变化，便于比较不同地段的海拔，认识我国的地势特征', '能完整显示各地形区在全国的平面分布和范围', '能显示各地的气温和降水'],
+          wrong: ['剖面图能显示沿线地形区的先后位置，但不能完整显示它们在全国的平面分布和范围；这要看地形图。', '气温、降水不是地形剖面图表示的内容。'],
+          ok: '对：地形剖面图能直观显示沿剖面线地面的高低变化，便于比较不同地段的海拔，认识我国的地势特征。不过它只表示一条线上的情况，要看具体线路经过哪些地区。',
           onOk: () => { S.a4 = true; finish(); } });
         const finish = () => { if (S.a1 && S.a2 && S.a3 && S.a4) { done('why'); next.hidden = false; } };
         const next = h('button', { class: 'go big-next', hidden: true, onclick: () => ui.go(2) }, '对照课本原文 →');
-        const tbl = table(['剖面线', '第一级阶梯', '第二级阶梯', '第三级阶梯'], { note: '每一格是这条线在那一级阶梯里的平均海拔（沿线每一点取附近约 5 千米的平均）。' });
+        const tbl = table(['剖面线', '第一级阶梯', '第二级阶梯', '第三级阶梯'], { note: '每一格只代表本剖面所选陆地区段的采样平均海拔，不代表整个地势阶梯；105°E 所选段主要位于第二级阶梯。' });
         const more = h('details', { class: 'more' }, h('summary', {}, '更多'), buttons([{ text: '全部重来', ghost: true, onClick: () => A.reset() }]).el);
-        const note = h('p', { class: 'fineprint', html: '说明：剖面是真实的高程数据（AWS Terrain Tiles，SRTM 等公开数据），沿线每一点取附近约 5 千米见方的平均海拔，所以和某一座城市、某一座山峰的海拔不完全一样。竖直方向放大约 100 倍；剖面带顺着线是按比例的（三条线一个比例），横过线的宽度（0.5°）放大了。线的两头都在我国境内，阶梯的分界按课本图 2.1 的分界线取近似位置。' });
+        const note = h('p', { class: 'fineprint', html: '说明：这是依据真实高程数据制作的近似剖面（AWS Terrain Tiles，SRTM 等公开数据）。原始采样间隔为 0.05°，读数为沿线附近约 5 千米范围的平均高程，并经过展示平滑，不是小旗落点的精确实测海拔。竖直方向放大约 140 倍；三条线顺着线采用同一比例。0.5° 的立体带宽只是展示，带北侧或西侧的地物不一定在剖面线上。海面按剖面数据中的零高程采样识别，30°N 东端为东海近海及舟山群岛，沿线交替经过海面与岛屿。阶梯均值排除海面，只代表所选剖面区段，不代表整个地势阶梯；阶梯内部的盆地、河谷和山地会造成明显起伏。阶梯分界为概略示意，实际过渡地带有一定宽度。' });
         ui.controls.append(t1.el, t2.el, t3.el, t4.el, next, more, note);
         ui.data.append(tbl.el);
-        const dtl = ui.data.previousElementSibling; if (dtl?.classList.contains('bar-title')) dtl.textContent = '各级阶梯的平均海拔';
+        const dtl = ui.data.previousElementSibling; if (dtl?.classList.contains('bar-title')) dtl.textContent = '本剖面各区段的平均海拔';
         W = { ui, tbl, t1, t2, t3, t4, next, status: (m) => ui.status(m) };
         bar.attach(ui);
         status('图 2.1：沿 36°N 把我国的陆地切开，切面就是地形剖面。拖着剖面带上的<b>小旗</b>，从西头走到东头，看沿线的海拔怎么变。可以先看<b>老师演示</b>，也可以直接动手。');
