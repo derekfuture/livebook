@@ -761,7 +761,7 @@ body.geo-world .tag3d.hint small { color: #9fb0cc; }
 .tag3d.w-booklabel small { font: 11px/1.2 var(--sans); color: #93a3bf; }
 .tag3d.w-booklabel.hot b { color: #ffe3b0; }
 body.geo-world #panel { transition: opacity .4s; }
-#panel.leaving { opacity: 0; transition: opacity .4s; }
+#panel.leaving { opacity: 0; transition: opacity .4s; pointer-events: none; }          /* 淡掉了也不能挡住下面的按钮 */
 .atlas-grp { display: none; flex-direction: column; gap: 4px; }
 .atlas-grp.open { display: flex; }
 .atlas-ch { cursor: pointer; padding: 4px 6px; border-radius: 6px; }
@@ -794,3 +794,18 @@ html.snap #loader { display: none; }          /* 换页面时上一页最后一�
 .tag3d.w-home b { font: 600 12px/1.2 var(--sans); color: #fff; white-space: nowrap; }
 .tag3d.w-home small { font: 11px/1.2 var(--sans); color: #dfe7f5; }
 body.geo-world .tag3d.w-themes button.on { background: #f3d9a4; color: #2a2218; border-color: #f3d9a4; box-shadow: 0 0 0 3px rgba(243,217,164,.28), 0 0 18px rgba(243,217,164,.5); }          /* 夜空里：开着的看法是亮的，不是深色 */
+/* 俯冲到了：北在哪、数据来源；山名、要切开看的那条线 */
+.geo-dive { position: fixed; left: 22px; bottom: 20px; right: 22px; z-index: 6; display: flex; align-items: flex-end; justify-content: space-between; pointer-events: none; opacity: 0; transition: opacity .5s; }
+.geo-dive.on { opacity: 1; }
+.geo-dive .gd-north { display: flex; flex-direction: column; align-items: center; gap: 2px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.geo-dive .gd-north i { display: block; width: 0; height: 0; border-left: 7px solid transparent; border-right: 7px solid transparent; border-bottom: 22px solid #fff; filter: drop-shadow(0 1px 3px rgba(0,0,0,.5)); }
+.geo-dive .gd-north b { font: 600 13px/1 var(--sans); }
+.geo-dive .gd-src { font: 11px/1.4 var(--sans); color: rgba(255,255,255,.85); text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.tag3d.w-dive { display: flex; flex-direction: column; align-items: center; text-shadow: 0 1px 6px rgba(0,0,0,.6), 0 0 2px rgba(0,0,0,.6); transform-origin: center bottom; margin-top: -26px; pointer-events: none; }
+.tag3d.w-dive b { font: 600 18px/1.2 var(--song); color: #fff; letter-spacing: .08em; }
+.tag3d.w-dive small { font: 11.5px/1.3 var(--sans); color: rgba(255,255,255,.9); }
+.tag3d.w-cut { max-width: 220px; font: 600 12.5px/1.45 var(--sans); color: #ffe7b8; text-shadow: 0 1px 4px rgba(0,0,0,.75); pointer-events: none; white-space: normal; }
+.geo-dive .gd-btns { display: flex; gap: 10px; pointer-events: auto; }
+.geo-dive .gd-btns button { border: 0; border-radius: 999px; padding: 9px 18px; font: 600 14px/1 var(--sans); cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.geo-dive .gd-back { background: rgba(255,255,255,.85); color: #2f3a52; }
+.geo-dive .gd-go { background: #f3d9a4; color: #2a2218; }
