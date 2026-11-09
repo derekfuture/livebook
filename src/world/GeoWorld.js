@@ -12,7 +12,7 @@ import { h, stamps } from '../ui/Panel.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { timeCard } from './timeCard.js';
 import moonUrl from '../lessons/data/moon.jpg';
-import { TERRAIN, loadTerrain, globePatch, frameAt, toLocal, elevAt } from './terrain.js';
+import { TERRAIN, loadTerrain, globePatch, frameAt, toLocal, elevAt, terrainBlock, bookCamera, blockStartRel } from './terrain.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 
@@ -584,17 +584,73 @@ export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
       diveHud.classList.add('on'); diveHud.querySelector('.gd-src').textContent = D.def.src;
       const c0 = D.F.clone().project(stage.camera), c1 = D.F.clone().addScaledVector(D.north, earth.root.scale.x * 5 / 6371).project(stage.camera);          // 北在画面上朝哪
       diveHud.querySelector('.gd-north i').style.transform = `rotate(${Math.atan2(-(c1.y - c0.y), c1.x - c0.x) * 180 / Math.PI + 90}deg)`;
-      if (D.ta > 2.0 && !D.fading) { D.fading = true; diveTag.show(false); D.cutTag?.show(false); diveHud.classList.remove('on'); }          // 看清了（线在 1.8 秒画完）：字先淡掉（截图只截得到画面）
-      if (D.ta > 2.35 && !D.sent) {          // 换到课本那一页：那边拿这一帧盖着，一边往后退一边淡掉，露出翻开的课本，活页从课本的图里立起来
-        D.sent = true;
-        try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ }
-        if (!window.__geoStay) location.href = `${bookHref(D.it.book.id)}#live=${D.it.id}&place=${encodeURIComponent(D.pn.place)}&via=dive`;
-      }
+      if (D.ta > 2.0) startLift(D);          // 看清了（线在 1.8 秒画完）：不用点，接着就进活页
       return;
     }
+    if (D.phase === 'lift') liftStep(D, dt);
   }
 
-
+  // ---- 切出来、拿起来：沿着那块地形的边切开，它从地面上升起来一截，侧壁露出来，四周的山退到一层暖色的薄雾后面；
+  // 镜头同时换到书里看它的角度和远近。停稳的这一帧就是书里的头一帧：书里已经翻在那一页，按同一个“镜头 → 地形块”的矩阵摆同样一块，
+  // 截图揭开时只有四周从山换成课本，它不动；接着它落到那一页上，变成活页的模型（src/live/World.js） ----
+  const veil = (() => {          // 薄雾：盖在地形、地球、天空上面；这块地形画在它后面，一直清楚
+    const m = new THREE.ShaderMaterial({ transparent: true, depthTest: false, depthWrite: false, uniforms: { c: { value: DAY.bg.clone() }, a: { value: 0 } },
+      vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'uniform vec3 c; uniform float a; void main(){ gl_FragColor = vec4(c, a); \n #include <colorspace_fragment>\n }' });
+    const v = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), m); v.frustumCulled = false; v.renderOrder = 5; v.raycast = () => {}; v.visible = false; stage.scene.add(v); return v;
+  })();
+  const LIFT_T = 1.05;
+  function startLift(D) {
+    const def = D.def, blk = terrainBlock(def, def.crop), Fc = frameAt(def.lat, def.lon);
+    blk.wallM.fog = false; blk.cut.material.fog = false; blk.wallM.opacity = 0;
+    for (const o of [blk.top, blk.walls, blk.cut]) o.renderOrder = 6;          // 在薄雾后面画
+    const basis = new THREE.Matrix4().makeBasis(Fc.east, Fc.up, Fc.north.clone().negate());          // 局部（东、上、南）→ 地球自己的坐标（半径 1）
+    const B0 = new THREE.Matrix4().compose(Fc.up.clone(), new THREE.Quaternion().setFromRotationMatrix(basis), new THREE.Vector3().setScalar(1 / 6371));
+    earth.root.updateMatrixWorld(true); B0.premultiply(earth.spin.matrixWorld);          // 起点（世界坐标）：和贴在地球上的那块地形重合
+    const S0 = new THREE.Vector3().setFromMatrixScale(B0).x, up = new THREE.Vector3().setFromMatrixColumn(B0, 1).normalize();
+    const B1 = B0.clone().premultiply(new THREE.Matrix4().makeTranslation(up.multiplyScalar(blk.d * 0.16 * S0)));          // 终点：从地面上升起来一截（约南北长度的 16%）
+    // 书里的镜头：书的宽按书圈里这本书（和书里一样大），翻到那一页时书页多高差一点点不要紧（书里按同一个矩阵摆，画面一样）
+    const s = 2 / RING.h, W = D.bo.W * s, top = D.bo.T * s * 0.6, dist = atBookFov(stage, () => stage.fitDistance(W * 2.3, 2 * 1.25, 1.0));
+    const rel = blockStartRel(blk, bookCamera(top, dist), top), lam = S0 / new THREE.Vector3().setFromMatrixScale(rel).x;
+    const C1 = B1.clone().multiply(new THREE.Matrix4().makeScale(lam, lam, lam).multiply(rel).invert());          // 地理世界这边的镜头：看这块地形和书里看它一模一样
+    stage.camera.updateMatrixWorld(true);
+    const L0 = B0.clone().invert().multiply(stage.camera.matrixWorld), L1 = B1.clone().invert().multiply(C1);          // 镜头在这块地形自己的坐标里：从现在这样，变成书里那样
+    const dec = (M) => { const p = new THREE.Vector3(), q = new THREE.Quaternion(), sc = new THREE.Vector3(); M.decompose(p, q, sc); return { p, q }; };
+    const c = blk.center.clone().setY(5), a = dec(L0), b = dec(L1);          // 镜头绕着转的那一点：这块地形的中心、半山腰的高度（局部坐标，km）
+    root.add(blk.group);
+    Object.assign(D, { phase: 'lift', tl: 0, blk, rel, B0, B1, S0, c, a, b, fov0: stage.camera.fov });
+    diveTag.show(false); D.cutTag?.show(false); diveHud.classList.remove('on'); D.P.cut.visible = false;
+    D.P.pit(def.crop); veil.visible = true; document.body.classList.add('geo-leaving');          // 顶栏也淡掉：截图里只有画面，换到书里时不会有按钮一下子没了
+    liftStep(D, 0);
+  }
+  function liftStep(D, dt) {
+    D.tl += dt;
+    const u = Math.min(1, D.tl / LIFT_T), k = ease(u), b = D.blk;
+    // 这块地形：侧壁出来，升起来
+    b.wallM.opacity = THREE.MathUtils.smoothstep(u, 0, 0.25); D.P.mesh.material.uniforms.holeK.value = THREE.MathUtils.smoothstep(u, 0.03, 0.3);          // 它原来在的地方留下一个坑
+    const B = D.B0.clone(); B.elements[12] += (D.B1.elements[12] - D.B0.elements[12]) * k; B.elements[13] += (D.B1.elements[13] - D.B0.elements[13]) * k; B.elements[14] += (D.B1.elements[14] - D.B0.elements[14]) * k;
+    root.updateMatrixWorld(true); new THREE.Matrix4().copy(root.matrixWorld).invert().multiply(B).decompose(b.group.position, b.group.quaternion, b.group.scale);
+    // 镜头：在这块地形自己的坐标里，从现在的位置平滑地挪到书里看它的位置（远近按对数走，朝向球面插值）
+    const va = D.a.p.clone().sub(D.c), vb = D.b.p.clone().sub(D.c), r = Math.exp(Math.log(va.length()) + (Math.log(vb.length()) - Math.log(va.length())) * k);
+    const p = D.c.clone().add(va.normalize().lerp(vb.normalize(), k).normalize().multiplyScalar(r)), q = D.a.q.clone().slerp(D.b.q, k);
+    const C = B.clone().multiply(new THREE.Matrix4().compose(p, q, new THREE.Vector3().setScalar(1 / D.S0))), cam = stage.camera;
+    C.decompose(cam.position, cam.quaternion, new THREE.Vector3());
+    cam.up.set(0, 1, 0).applyQuaternion(cam.quaternion);
+    setFov(stage, D.fov0 + (BOOK_FOV - D.fov0) * k);
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion), tgt = cam.position.clone().addScaledVector(fwd, stage.rig.cur.dist);          // 舞台的镜头参数也跟上（下一帧舞台先按它摆，这里再摆一次）
+    stage.rig.target.copy(tgt); stage.rig.cur.target.copy(tgt); stage.rig.dir.copy(fwd).negate(); stage.rig.cur.dir.copy(fwd).negate();
+    cam.updateMatrixWorld(true); skyDome.position.copy(cam.position);
+    // 四周：退到一层暖色的薄雾后面（还看得出是山）
+    veil.material.uniforms.a.value = 0.52 * THREE.MathUtils.smoothstep(u, 0.04, 0.9);
+    if (u >= 1 && !D.sent) {          // 停稳了：这一帧和书里的头一帧一样
+      D.sent = true;
+      const el = stage.renderer.domElement;
+      try { sessionStorage.setItem('livebook.snap', stage.snapshot(el.width, el.height)); } catch { try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ } }          // 按屏幕的实际像素截：揭开时这块地形不会从糊变清楚
+      try { sessionStorage.setItem('livebook.block', JSON.stringify({ place: D.pn.place, m: D.rel.elements.map((v) => +v.toFixed(7)) })); } catch { /* 书里就照常从地球上长出来 */ }
+      const it = D.it, pn = D.pn;
+      if (!window.__geoStay) location.href = `${bookHref(it.book.id)}#live=${it.id}&place=${encodeURIComponent(pn.place)}&via=block`;
+    }
+  }
 
   // ---- 指针 ----
   const canvas = $('#c'), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ac = new AbortController(), on = { signal: ac.signal };

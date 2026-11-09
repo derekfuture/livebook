@@ -21,6 +21,7 @@ const backOut = (t) => { const c = 1.5; return 1 + (c + 1) * Math.pow(t - 1, 3) 
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
 const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const PIN_T = 1.15;          // 活页从地球上那一点长出来、落到书上要多久（秒）
+const RISE_T = 0.95;          // 从切出来的那块地形的位置长高要多久（秒）
 
 function holeTexture() {
   const c = document.createElement('canvas');
@@ -381,12 +382,20 @@ export class LiveLayer {
     A.liftCur = (A.liftCur || 0) + ((A.lift || 0) - (A.liftCur || 0)) * Math.min(1, dt * 7);          // 书翻页时活页稍微抬起来让纸滑过去（World 设 A.lift）
     if (wm === 'pin' || wm === 'globe') {
       A.card.visible = false; A.hole.visible = false;
-      if (wm === 'pin') {
+      if (wm === 'pin' && A.world.rise && !A.closing) {
+        // 从切出来的那块地形的位置长高（地理世界俯冲进来）：宽窄和它一样，从扁的立起来（和别的活页从课本的图里立起来一样），它同时压扁、淡掉
+        const k = clamp01(t / RISE_T), g = easeOut(k), from = (A.riseFrom ||= (A.world.from?.() || A.from).clone());          // 起点在开始长的那一刻记下来（那块地形淡掉以后 from 就换成角上那颗地球的旗了，收起时用）
+        if (A.s0 == null) { A.root.scale.setScalar(1); A.root.updateMatrixWorld(true); const sz = new THREE.Box3().setFromObject(A.root).getSize(new THREE.Vector3()); A.s0 = Math.min(1.25, Math.max(0.7, (A.world.fromWidth || sz.x) / Math.max(0.05, sz.x))); }
+        A.root.position.lerpVectors(from, A.to, g); A.root.position.y += A.liftCur;
+        const sx = A.s0 + (1 - A.s0) * g; A.root.scale.set(sx, sx * Math.max(0.002, backOut(clamp01((t - 0.06) / (RISE_T - 0.06)))), sx);
+        A.world.onGrow?.(k);
+        A.root.visible = true;
+        for (const tg of A.tags) { const o = clamp01((k - 0.8) / 0.2); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }
+      } else if (wm === 'pin') {
         // 从地球上那一点长出来：一边长大，一边沿一道弧线落到书页正中（收起时倒着走，回到角上那颗地球的旗里）
         const k = clamp01(t / PIN_T), e = easeInOut(k), from = A.world.from?.() || A.from;
-        if (A.world.fromWidth && A.s0 == null) { A.root.scale.setScalar(1); A.root.updateMatrixWorld(true); const sz = new THREE.Box3().setFromObject(A.root).getSize(new THREE.Vector3()); A.s0 = Math.min(1, A.world.fromWidth / Math.max(0.05, sz.x)); }          // 从地形块长出来：起始大小和地形块一样宽
         A.root.position.lerpVectors(from, A.to, e).y += Math.sin(Math.PI * e) * 0.18 * (1 - e * 0.5) + A.liftCur;
-        const s0 = A.s0 ?? 0.015; A.root.scale.setScalar(s0 + (1 - s0) * e);          // 和位置一起走：在角上时还小，越近越大
+        const s0 = 0.015; A.root.scale.setScalar(s0 + (1 - s0) * e);          // 和位置一起走：在角上时还小，越近越大
         if (!A.closing) A.world.onGrow?.(k);
         A.root.visible = true;
         for (const tg of A.tags) { const o = A.closing ? 0 : clamp01((k - 0.85) / 0.15); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }

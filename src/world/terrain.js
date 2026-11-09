@@ -84,12 +84,15 @@ export function globePatch(def, segs = 220) {
   geo.computeVertexNormals();
   const sunL = new THREE.Vector3().copy(F.east).multiplyScalar(0.45).addScaledVector(F.north, -0.55).addScaledVector(F.up, 0.7).normalize();          // 东南方上午的太阳（和卫星拍的影子方向一致）
   const mat = new THREE.ShaderMaterial({
-    transparent: true, uniforms: { map: { value: def.tex }, sunL: { value: sunL }, k: { value: 0 }, hazeC: { value: new THREE.Color(0xc9d6e3) }, haze: { value: new THREE.Vector2(1e5, 2e5) } },
+    transparent: true, uniforms: { map: { value: def.tex }, sunL: { value: sunL }, k: { value: 0 }, hazeC: { value: new THREE.Color(0xc9d6e3) }, haze: { value: new THREE.Vector2(1e5, 2e5) }, hole: { value: new THREE.Vector4(2, 2, -1, -1) }, holeK: { value: 0 } },
     vertexShader: 'varying vec2 vUv; varying vec3 vN; varying float vD; void main(){ vUv = uv; vN = normal; vec4 w = modelMatrix * vec4(position, 1.0); vD = distance(w.xyz, cameraPosition); gl_Position = projectionMatrix * viewMatrix * w; }',
-    fragmentShader: `uniform sampler2D map; uniform vec3 sunL; uniform float k; uniform vec3 hazeC; uniform vec2 haze; varying vec2 vUv; varying vec3 vN; varying float vD;
+    fragmentShader: `uniform sampler2D map; uniform vec3 sunL; uniform float k; uniform vec3 hazeC; uniform vec2 haze; uniform vec4 hole; uniform float holeK; varying vec2 vUv; varying vec3 vN; varying float vD;
       void main(){ vec3 c = texture2D(map, vUv).rgb; float d = dot(normalize(vN), sunL);
         vec2 e = min(vUv, 1.0 - vUv); float edge = smoothstep(0.0, 0.2, min(e.x, e.y));          // 四边慢慢淡进地球里
-        c = mix(c * (0.55 + 0.7 * max(d, 0.0)), hazeC, smoothstep(haze.x, haze.y, vD) * 0.85);          // 远处蒙一层空气
+        c = c * (0.55 + 0.7 * max(d, 0.0));
+        float pit = step(hole.x, vUv.x) * step(vUv.x, hole.z) * step(hole.y, vUv.y) * step(vUv.y, hole.w);          // 切走那一块的地方：留下一个暗下去的坑
+        c *= 1.0 - pit * holeK * 0.72;          // 压暗（不换成一种颜色：森林、雪山上看起来都是一个坑）
+        c = mix(c, hazeC, smoothstep(haze.x, haze.y, vD) * 0.85);          // 远处蒙一层空气
         gl_FragColor = vec4(c, k * edge);
         #include <colorspace_fragment>
       }`,
@@ -102,7 +105,9 @@ export function globePatch(def, segs = 220) {
   const lg = new LineSegmentsGeometry(); lg.setPositions(pts.flatMap((p, i) => (i ? [pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, p.x, p.y, p.z] : [])));
   const cut = new LineSegments2(lg, new LineMaterial({ color: 0xffd28a, linewidth: 3, worldUnits: false, transparent: true, opacity: 0 }));
   cut.raycast = () => {}; cut.renderOrder = 3; cut.visible = false;
-  return { mesh, cut, frame: F, place, lineAt, sunL };
+  /** 切走 crop 那一块以后留下的坑（holeK 0—1：坑有多深色） */
+  const pit = (crop) => { const a = toLocal(def, crop[0][0], crop[1][0]), b = toLocal(def, crop[0][1], crop[1][1]); mat.uniforms.hole.value.set(a.x / def.size + 0.5, a.y / def.size + 0.5, b.x / def.size + 0.5, b.y / def.size + 0.5); };
+  return { mesh, cut, frame: F, place, lineAt, sunL, pit };
 }
 
 /** 切出来的一块地形（当地平面，单位 km：x 东、y 上（高度放大 exag 倍）、z 南），带四面土色的侧壁，像一块地形模型。
@@ -153,10 +158,23 @@ export function terrainBlock(def, crop, segs = 160) {
   return { group: g, top: topM, mat, walls, wallM, cut, center, w: x1 - x0, d: y1 - y0, sunL };
 }
 
-/** 落到书上时这块地形摆在哪：书（合上时在 x 0…W、z −1…1）封面正上方，北朝左、西朝镜头（和活页模型一样北坡在左）；宽 width（世界单位，沿南北） */
-export function blockPose(blk, W, T, width = 1.5) {
-  const s = width / blk.d;
-  const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)));          // 局部的东→世界 −z（背着镜头）、上→上、南→ +x（北朝左）
-  const c = blk.center.clone().multiplyScalar(s).applyQuaternion(q);
-  return { pos: new THREE.Vector3(W / 2, T + 0.62, 0.02).sub(c), q, s };
+// ---- 切出来的这块地形，从地理世界换到书里（两边共用）----
+// 书里的头一帧和地理世界的最后一帧一样：这块地形浮在镜头和书之间，书已经翻在活页那一页。地理世界按书里的镜头摆自己的镜头，
+// 把“镜头 → 地形块”的矩阵传过去，书里按它摆这一块。这一块落到那一页正中，活页的模型从它的位置长高，它同时压扁、淡掉。
+export const BLOCK_LEN = 1.4;          // 落到书上时（南北方向）多长：和活页的模型差不多宽（喜马拉雅的模型约 1.42），模型从它的位置原样长高
+const BLOCK_Q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, 0)));          // 局部的东→世界 −z（背着镜头）、上→上、南→ +x（北朝左，和活页模型一样北坡在左）
+/** 这块地形的底面中心放在 at（书里的世界坐标）时的摆法 */
+export function blockAt(blk, at) {
+  const s = BLOCK_LEN / blk.d;
+  return { pos: at.clone().sub(blk.center.clone().multiplyScalar(s).applyQuaternion(BLOCK_Q)), q: BLOCK_Q.clone(), s };
+}
+/** 书里看这一跨页的镜头（World._bookShot：仰角 48°，看着 (0, top, 0.08)，离 dist）：镜头的矩阵 */
+export function bookCamera(top, dist) {
+  const el = 48 * D2R, target = new THREE.Vector3(0, top, 0.08), pos = target.clone().addScaledVector(new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist);
+  return new THREE.Matrix4().lookAt(pos, target, new THREE.Vector3(0, 1, 0)).setPosition(pos);
+}
+/** 书里的头一帧这块地形在哪：在跨页中心和镜头之间（往镜头那边 45%）、再高一点点。返回“镜头 → 地形块”的矩阵（带缩放） */
+export function blockStartRel(blk, cam, top) {
+  const at = new THREE.Vector3(0, top, 0.08).lerp(new THREE.Vector3().setFromMatrixPosition(cam), 0.45).add(new THREE.Vector3(0, 0.05, 0)), P = blockAt(blk, at);
+  return cam.clone().invert().multiply(new THREE.Matrix4().compose(P.pos, P.q, new THREE.Vector3().setScalar(P.s)));
 }

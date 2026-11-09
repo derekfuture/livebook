@@ -11,6 +11,7 @@ import { WorldEarth, subsolar } from './WorldEarth.js';
 import { ANCHORS, NEXT, CHAPTER_COLORS, chapterOf } from '../lessons/kit/atlas.js';
 import { h } from '../ui/Panel.js';
 import { tag } from '../ui/tags.js';
+import { TERRAIN, loadTerrain, terrainBlock, blockAt, bookCamera } from '../world/terrain.js';
 
 /** 哪些书用地球主探索：高中地理（初中七年级那本照旧） */
 export const worldBook = (id) => /^dili-(bx|xb)/.test(String(id));
@@ -132,10 +133,9 @@ export class World {
   /** 看书翻页：整个跨页在画面中间 */
   _bookShot(instant = false) {
     this.stage.cameraOffsetX = 0; this.stage.cameraOffsetY = 0;
-    const el = THREE.MathUtils.degToRad(48), top = this._top();
+    const el = THREE.MathUtils.degToRad(48), top = this._top();          // 和 terrain.js 的 bookCamera 是同一个机位（切出来的那块地形按它摆）
     this.stage.shot({ target: new THREE.Vector3(0, top, 0.08), dir: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), dist: this.stage.fitDistance(this.book.W * 2.3, this.book.H * 1.25, 1.0), instant });
   }
-
 
   // ---------- 侧栏：这本书的目录（按章列出活页，颜色和旗一样） ----------
   _hubPanel() {
@@ -239,13 +239,29 @@ export class World {
 
   // ---------- 进一张活页 ----------
   /** opts.pn：从哪面旗进来（没给就用第一面）；opts.quick：深链接直接进，不等地球转；opts.place：从别的活页带过来的地方 */
-  /** 从地理世界俯冲进来（via=dive）：那边最后一帧是真实的山。这边先把课本翻到那一页、镜头看着这一跨页（地球进活页时直接摆在右上角），
-   *  那边的截图一边往后退一边淡掉，露出翻开的课本，活页再从课本的图里立起来 */
-  prepareDive(id) {
-    const it = this.items?.find((x) => x.id === id); if (!it) return;
+  /** 从地理世界切出一块地形进来（via=block）：那块地形的高程和影像先解开（和书页一起准备） */
+  preloadBlock(place) { const def = TERRAIN[place]; if (def) loadTerrain(def).catch(() => {}); }
+  /** 那边最后一帧：切出来的那块地形浮在半空，四周是蒙着薄雾的山。这边书先翻到那一页、镜头看着这一跨页，
+   *  再按那边传过来的“镜头 → 地形块”的矩阵摆同样一块：截图揭开时它不动，只有四周从山换成课本 */
+  async prepareBlock(id, place) {
+    const def = TERRAIN[place], it = this.items?.find((x) => x.id === id);
+    let rel = null; try { rel = JSON.parse(sessionStorage.getItem('livebook.block') || 'null'); sessionStorage.removeItem('livebook.block'); } catch { /* 没有就照常从地球上长出来 */ }
+    if (!def || !it || !rel || rel.place !== place) return;
+    this.content.lessons[id]?.load?.().catch(() => {});          // 活页的代码先下好：落到书页上就能接着长出来，不在那里停着等
     this.book.current = this.book.leafForPage(it.spot.page); this.book._rest();
+    this.stage.calm = true; this.stage.rig.parallax.set(0, 0);          // 不跟着鼠标晃：和那边的最后一帧对得上
     this._bookShot(true);
+    await loadTerrain(def);
+    const blk = terrainBlock(def, def.crop), cam = this.stage.camera;
+    blk.wallM.fog = false; blk.cut.material.fog = false; blk.mat.uniforms.haze.value.set(1e5, 2e5);
+    const k = window.__snapScale?.() || 1, fov = cam.fov;          // 等这边准备好的这一会儿，那张截图慢慢推近了一点：镜头也推近同样多（视角收窄），落下去时再放回来
+    if (k !== 1) { cam.fov = 2 * THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(fov) / 2) / k)); cam.updateProjectionMatrix(); }
+    bookCamera(this._top(), this.stage.rig.dist).multiply(new THREE.Matrix4().fromArray(rel.m)).decompose(blk.group.position, blk.group.quaternion, blk.group.scale);
+    this.stage.scene.add(blk.group);
+    this.block = { blk, s: blk.group.scale.x, fov, flat: 0, k: 1 };
   }
+  /** 地形块底面的中心（世界坐标）：活页的模型从这里长高 */
+  _blockFoot() { const b = this.block, g = b.blk.group; return b.blk.center.clone().applyMatrix4(g.matrixWorld); }
 
   async enter(id, opts = {}) {
     const it = this.items.find((x) => x.id === id);
@@ -281,8 +297,16 @@ export class World {
       if (flip && this.layout === 'lift' && (mode === 'pin' || mode === 'figure')) await this.wait(0.3);          // 地球先离开书脊上方，纸再立起来
       if (flip) { this.book.turnTo(leaf, { max: 3 }); await this.until(() => mode === 'pin' ? (!this.book.busy && this.book.current === leaf) || (this.book.anim && this.book.anim.to === leaf && this.book.anim.p > 0.72) : !this.book.busy && this.book.current === leaf); }          // 有地方的：书快翻完就开始从旗上长出来，落下时书已经翻好
       else if (!opts.quick) await this.wait(mode === 'pin' || mode === 'figure' ? 0.45 : 0.15);
-      // 活页：从旗上长出来 / 整颗地球落下去 / 就在这颗地球上（板块） / 从课本的图里升起来（从地理世界俯冲进来的也从图里立起来）
-      const W = { mode: opts.dive ? 'figure' : mode === 'inplace' ? 'globe' : mode, inplace: mode === 'inplace', from: !opts.dive && pn ? () => this.earth.pinWorld(pn) : null, figText: pn?.figText, reframe: mode === 'inplace' ? (A) => this._inplaceFrame(A) : null, ...this._lessonPanel(it, pn) };
+      const B = this.block;
+      if (B) {          // 从地理世界切出来的那块地形：先停一下（截图在淡掉，四周从山换成课本），再放到这一页正中，放稳了活页的模型就从它的位置长高
+        await this.wait(0.12);
+        const side = this.book.sideOf(page) || 'right', at = new THREE.Vector3(side === 'left' ? -this.book.W / 2 : this.book.W / 2, this.book.topHeight(side) + 0.004, 0.02), g = B.blk.group;
+        B.fall = { t: 0, dur: 0.72, p0: g.position.clone(), q0: g.quaternion.clone(), to: blockAt(B.blk, at), fov0: this.stage.camera.fov };
+        await this.until(() => B.fall.t >= B.fall.dur * 0.82);          // 快放稳时就开始长（放稳那一下不停住）
+      }
+      // 活页：从旗上长出来 / 整颗地球落下去 / 就在这颗地球上（板块） / 从课本的图里升起来 / 从切出来的那块地形的位置长高（真实地形 → 教学示意的模型）
+      const W = { mode: mode === 'inplace' ? 'globe' : mode, inplace: mode === 'inplace', from: pn ? () => (this.block ? this._blockFoot() : this.earth.pinWorld(pn)) : null, figText: pn?.figText, reframe: mode === 'inplace' ? (A) => this._inplaceFrame(A) : null, ...this._lessonPanel(it, pn) };
+      if (B) Object.assign(W, { rise: true, fromWidth: B.blk.d * B.s, onGrow: (k) => { if (this.block !== B) return; B.flat = Math.min(1, k / 0.55); B.k = 1 - THREE.MathUtils.smoothstep(k, 0.2, 0.55); if (k >= 0.55) { this._dropBlock(); this.stage.calm = false; } } });          // 模型一边长高，这块地形一边压扁、淡掉
       this.live.open({ ...it.spot, page, world: W });
       await this.until(() => this.live.active && !this.live.opening);
       const A = this.live.active, inst = A?.inst, saved = this.saved[id];
@@ -365,6 +389,7 @@ export class World {
 
   /** 收起正在看的活页：回到角上那颗地球的旗里 / 整颗地球升回来 / 沉回课本的图里 */
   async _closeTopic() {
+    if (this.block) { this._dropBlock(); this.stage.calm = false; }          // 切出来的那块地形还没淡完就收起：一起收掉
     const A = this.live.active, T = this.topic;
     if (!A) { this.topic = null; return; }
     if (T && A.inst.save) this.saved[T.id] = A.inst.save();          // 回来再进：接着刚才的
@@ -482,10 +507,25 @@ export class World {
   reframe() { if (this.state === 'hub' && !this.busy) this._hubShot(); }
 
   // ---------- 每帧 ----------
+  _dropBlock() {
+    const b = this.block; if (!b) return;
+    b.blk.group.removeFromParent(); b.blk.group.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); }); this.block = null;
+    const cam = this.stage.camera; if (cam.fov !== b.fov) { cam.fov = b.fov; cam.updateProjectionMatrix(); }
+  }
 
   update(dt) {
     this.tm += dt;
     const A = this.live.active;
+    if (this.block) {          // 切出来的那块地形：落到书页上（镜头的视角同时放回原来的），再一边压扁一边淡掉
+      const b = this.block, g = b.blk.group, F = b.fall;
+      if (F) {
+        F.t = Math.min(F.dur, F.t + dt); const k = ease(F.t / F.dur), cam = this.stage.camera;
+        g.position.lerpVectors(F.p0, F.to.pos, k); g.quaternion.slerpQuaternions(F.q0, F.to.q, k);
+        cam.fov = F.fov0 + (b.fov - F.fov0) * k; cam.updateProjectionMatrix();
+      }
+      g.scale.set(b.s, b.s * (1 - 0.94 * b.flat), b.s);
+      b.blk.mat.uniforms.k.value = b.k; b.blk.wallM.opacity = b.k; b.blk.cut.material.opacity = 0.95 * b.k; g.visible = b.k > 0.01;
+    }
     for (const j of [...this.jobs]) if (j.fn ? j.fn() : this.tm >= j.t) { this.jobs.splice(this.jobs.indexOf(j), 1); j.res(); }
     if (this.state === 'off') return;
     // 书页要从地球下面翻过去（地球低低地浮在书上方时）：先升起来，翻完再落回去

@@ -17,10 +17,11 @@
         if (!snap) return;
         S.removeItem('livebook.snap');
         d.classList.add('snap');
-        var st = document.createElement('style'), dive = location.hash.indexOf('via=dive') >= 0;          // 从地理世界俯冲进来：真实的山一边往后退、一边淡掉，露出翻开的课本
-        st.textContent = 'html.snap::after{content:"";position:fixed;inset:0;z-index:1000;pointer-events:none;background:#e9e1d3 url("' + snap + '") center/100% 100% no-repeat;transform-origin:50% 42%;' + (dive ? '-webkit-mask:radial-gradient(closest-side,#000 62%,transparent) center/320% 320% no-repeat;mask:radial-gradient(closest-side,#000 62%,transparent) center/320% 320% no-repeat;' : '') + 'transition:' + (dive ? 'opacity .9s ease .2s,transform 1s cubic-bezier(.3,.55,.25,1) .2s,-webkit-mask-size .7s ease-out,mask-size .7s ease-out' : 'opacity .28s ease') + '}html.snap.snap-out::after{opacity:0' + (dive ? ';transform:scale(.8);-webkit-mask-size:100% 100%;mask-size:100% 100%' : '') + '}';          // 往后退时四边是软的：遮罩先从画面外收进来，再开始退（不像一张照片在缩小）
+        var st = document.createElement('style'), block = location.hash.indexOf('via=block') >= 0;          // 从地理世界切出一块地形进来：等书里准备好的这一会儿，画面接着慢慢推近（不停在一张静止的图上），书里按推近了多少摆镜头（window.__snapScale）
+        st.textContent = 'html.snap::after{content:"";position:fixed;inset:0;z-index:1000;pointer-events:none;background:#e9e1d3 url("' + snap + '") center/100% 100% no-repeat;transition:opacity ' + (block ? '.34s' : '.28s') + ' ease' + (block ? ';animation:snap-push 2.6s cubic-bezier(.45,0,.55,1) forwards}@keyframes snap-push{to{transform:scale(1.05)}' : '') + '}html.snap.snap-out::after{opacity:0}';
         document.head.appendChild(st);
-        window.__dropSnap = function () { d.classList.add('snap-out'); setTimeout(function () { d.classList.remove('snap', 'snap-out'); st.remove(); }, dive ? 1200 : 320); };
+        window.__snapScale = function () { var m = getComputedStyle(d, '::after').transform, k = m && m.indexOf('matrix(') === 0 ? parseFloat(m.slice(7)) || 1 : 1; st.textContent += 'html.snap::after{animation:none;transform:scale(' + k + ')}'; return k; };          // 停在现在推近的地方，返回推近了多少倍
+        window.__dropSnap = function () { d.classList.add('snap-out'); setTimeout(function () { d.classList.remove('snap', 'snap-out'); st.remove(); }, block ? 380 : 320); };
         setTimeout(window.__dropSnap, 4000);          // 万一那边出了错，不能一直盖着
       } catch (e) {}
     })();
