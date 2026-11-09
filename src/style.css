@@ -1119,3 +1119,27 @@ body.geo-in-go .geo-lens[data-id="sun"] { --in: .85s; }
 body.geo-in-go .geo-lens[data-id="plates"] { --in: .95s; }
 body.geo-in-go .geo-lens[data-id="belts"] { --in: 1.05s; }
 body.geo-in-go :is(.geo-lens-hint, .geo-credit) { --in: 1.15s; }
+
+/* 手机（竖屏）上的地理世界：目录叠在画面上（不挪画面），透镜在底下排成一行（位置由 GeoWorld 定），读数在顶栏下面、不画天空的弧，出处缩成底下一行小字 */
+@media (max-width: 760px) {
+  body.geo-world .geo-toc { left: 10px; right: 10px; width: auto; top: 56px; max-height: calc(100vh - 72px); z-index: 9; box-sizing: border-box; }
+  body.geo-world .geo-lens-hint { display: none; }
+  .geo-lens { left: -28px; top: -28px; grid-template-columns: 56px; }
+  .geo-lens .gl-orb, .geo-lens .gl-orb canvas { width: 56px; height: 56px; }
+  .geo-lens .gl-name { margin-top: 8px; font-size: 12px; }
+  .geo-lens .gl-mini { gap: 6px; font-size: 10px; }
+  .geo-lens .gl-mini i { width: 9px; }
+  .geo-lens .gl-more { display: none; }
+  .geo-now .gn-sky { display: none; }
+  .geo-now .gn-when b { font-size: 20px; }
+  .geo-credit { left: 12px !important; right: 12px !important; bottom: 6px !important; font-size: 9px !important; line-height: 1.3 !important; text-align: center; }
+}
+
+/* 手机：书里的顶栏放一行（字小一点、不折行）；导入课本 PDF 在手机上用不上，先藏起来 */
+@media (max-width: 760px) {
+  #hud-top { padding-left: 12px; padding-right: 10px; gap: 8px; }
+  .brand b { font-size: 15px; letter-spacing: .06em; white-space: nowrap; }
+  .hud-actions { gap: 5px; flex-wrap: nowrap; }
+  .chip { padding: 6px 9px; font-size: 12px; white-space: nowrap; }
+  #btn-import { display: none; }
+}

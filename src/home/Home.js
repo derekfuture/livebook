@@ -70,9 +70,11 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   }
   // 摆放：一前一后错开着往两边排，两头朝中间转一点；超过 6 科就分成前后两排（每排还是一前一后）
   const N = subjects.length, two = N > 6, front = two ? Math.ceil(N / 2) : N;
+  const tall = innerWidth / innerHeight < 0.75 && N <= 4;          // 手机竖着拿：几科从近到远排成一列（左右稍微错开），镜头抬高往下看，每一科都大、好点
   subjects.forEach((s, i) => {
     const r = i < front ? 0 : 1, n = r ? N - front : front, ii = r ? i - front : i, k = ii - (n - 1) / 2;
     s.x = k * GAPX; s.z = ROW_Z - r * 1.4 - (ii % 2) * STAGGER; s.yaw = -k * 0.08;
+    if (tall) { s.x = ((i % 2) - 0.5) * 0.18; s.z = ROW_Z + 0.75 - i * 1.05; s.yaw = 0; }
     s.leaves = s.books.reduce((m, b) => m + Object.keys(getBook(b.id).lessons).length, 0);
     s.hot = 0;
   });
@@ -179,7 +181,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   // ---- 机位：把要看的东西（几个点）放进屏幕上空出来的那块（上面是标题和搜索框，右边是便签，下面是按钮），尽量大 ----
   let open = null, leaving = null, hoverS = null, hoverB = null;
   const frame = (pts, el, { bottom = 118 } = {}) => {
-    const rect = { l: 56, r: innerWidth - 56, t: 150, b: innerHeight - bottom };
+    const ph = innerWidth <= 760, rect = { l: ph ? 8 : 56, r: innerWidth - (ph ? 8 : 56), t: ph ? 158 : 150, b: innerHeight - bottom };          // 手机：左右几乎贴边，桌上的几摞书尽量大、好点
     const nb = ui.querySelector('.home-notes')?.getBoundingClientRect();          // 便签在右边一列（宽屏）或下面一行（4:3）：让开
     if (nb && nb.height > 0) { if (nb.left > innerWidth * 0.5) rect.r = nb.left - 36; else rect.b = Math.min(rect.b, nb.top - 24); }
     const cam = new THREE.PerspectiveCamera(stage.camera.fov, innerWidth / innerHeight, 0.02, 60);
@@ -204,7 +206,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const pts = [];
     for (const s of subjects) { pts.push(...corners(s.card)); if (s.thing) pts.push(...corners(s.thing.userData.body || s.thing)); }
     for (const g of items) { const P = stackPose(g), u = g.userData; for (const sx of [-1, 1]) for (const sz of [-1, 1]) pts.push(new THREE.Vector3((sx * u.W) / 2, u.T / 2, (sz * BOOK_H) / 2).applyAxisAngle(Y, P.yaw).add(P.p)); }
-    stage.shot({ ...frame(pts, THREE.MathUtils.degToRad(36)), instant, minEl: 0.05 });
+    stage.shot({ ...frame(pts, THREE.MathUtils.degToRad(tall ? 56 : 36)), instant, minEl: 0.05 });
   };
   const fanShot = (s, instant = false) => {
     stage.cameraOffsetX = 0;

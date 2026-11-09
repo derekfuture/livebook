@@ -30,9 +30,10 @@ const setFov = (stage, f) => { if (Math.abs(stage.camera.fov - f) > 1e-4) { stag
 
 const PANEL_W = 22 + 336 + 24;          // 左边目录页占的宽度（.geo-toc：离边 22、宽 336），再留一点空
 const tocFits = (W) => W - PANEL_W >= 720;          // 窗口太窄（4:3 投影）：目录一开始收起成书脊，地球和读数、透镜才放得开
+const isPhone = (W = innerWidth) => W <= 760;          // 手机：目录打开时叠在画面上（不挪画面），透镜排成底下一行，读数缩到顶上；地球放大，书圈两头可以出画
 
 /** 地理世界的机位：要框进画面的是地球顶（上面留一行提示）、正前方那本书的名字、书圈左右两头。远近一直按“目录开着”算：收起目录只把画面挪到正中，不整体放大 */
-function worldShot(W, H, panelW) {
+function worldShot(W, H, panelW, spill = 1) {          // spill：书圈左右两头可以超出画面多少（手机竖屏用，地球大一点、好点）
   const el = THREE.MathUtils.degToRad(15), dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el));
   const top = new THREE.Vector3(0, EARTH.y + EARTH.r, 0), bottom = new THREE.Vector3(0, -0.3, RING.r + 0.35), sides = [new THREE.Vector3(RING.r + 0.35, 0.4, 0), new THREE.Vector3(-RING.r - 0.35, 0.4, 0)];
   const cam = new THREE.PerspectiveCamera(WORLD_FOV, W / H, 0.1, 200), wantTop = 1 - 2 * 0.1, wantBot = -1 + 2 * 0.05, usableX = (W - panelW) / W;
@@ -41,12 +42,13 @@ function worldShot(W, H, panelW) {
     const tg = new THREE.Vector3(0, ty, 0.2);
     cam.position.copy(tg).addScaledVector(dir, dist); cam.lookAt(tg); cam.updateMatrixWorld();
     const yT = top.clone().project(cam).y, yB = bottom.clone().project(cam).y, xS = Math.max(...sides.map((p) => Math.abs(p.clone().project(cam).x)));
-    dist *= Math.max((yT - yB) / (wantTop - wantBot), xS / (usableX * 0.94));
+    dist *= Math.max((yT - yB) / (wantTop - wantBot), xS / (usableX * 0.94 * spill));
     ty += ((yT + yB) / 2 - (wantTop + wantBot) / 2) * dist * Math.tan(THREE.MathUtils.degToRad(WORLD_FOV) / 2) * 0.8;
   }
   return { target: new THREE.Vector3(0, ty, 0.2), dir, dist, cam };
 }
 
+const PHONE_SPILL = 1.38;          // 手机竖屏：书圈比屏幕宽这么多（两头出画），地球就大这么多
 let MOON = null;
 /** 书桌上点了地理、地球仪开始飞的时候才调（首屏不替地理世界做事）：先把月亮图下好（只是网络，不占主线程） */
 export function preloadWorld() {
@@ -55,10 +57,10 @@ export function preloadWorld() {
 
 /** 一打开地理世界，地球在屏幕上的哪儿、多大（像素：圆心 cx, cy，半径 r）：首页的地球仪飞到这里，换页面时正好和它叠在一起 */
 export function earthCircle(W = innerWidth, H = innerHeight) {
-  const { cam } = worldShot(W, H, PANEL_W), c = new THREE.Vector3(0, EARTH.y, 0).project(cam);
+  const phone = isPhone(W), { cam } = worldShot(W, H, phone ? 0 : PANEL_W, phone ? PHONE_SPILL : 1), c = new THREE.Vector3(0, EARTH.y, 0).project(cam);
   const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), e = new THREE.Vector3(0, EARTH.y, 0).addScaledVector(right, EARTH.r).project(cam);
   const px = (v) => [((v.x + 1) / 2) * W, ((1 - v.y) / 2) * H], [cx, cy] = px(c), [ex, ey] = px(e);
-  return { cx: cx + (tocFits(W) ? PANEL_W / 2 : 0), cy, r: Math.hypot(ex - cx, ey - cy) };          // 目录页开着：画面整体往右挪半个目录宽
+  return { cx: cx + (tocFits(W) && !phone ? PANEL_W / 2 : 0), cy, r: Math.hypot(ex - cx, ey - cy) };          // 目录页开着：画面整体往右挪半个目录宽
 }
 
 export const WORLD_SETTLE = 14;          // 从书桌飞过来：地球仪飞到这里时还差这么多度，揭开以后地球接着转过去（经度，度）
@@ -148,7 +150,7 @@ export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
   /** 月亮挂在哪：按镜头摆在地球左上方的远处（屏幕上固定的位置，窗口比例变了也不跑出画面） */
   function placeMoon(tg, dir, dist) {
     const c = new THREE.PerspectiveCamera(WORLD_FOV, innerWidth / innerHeight, 0.1, 200); c.position.copy(tg).addScaledVector(dir, dist); c.lookAt(tg); c.updateMatrixWorld();
-    const e = earth.root.position.clone().project(c), p = new THREE.Vector3(e.x - 0.62, 0.56, 0.5).unproject(c), d = p.sub(c.position).normalize();
+    const e = earth.root.position.clone().project(c), p = (isPhone() ? new THREE.Vector3(e.x + 0.6, 0.6, 0.5) : new THREE.Vector3(e.x - 0.62, 0.56, 0.5)).unproject(c), d = p.sub(c.position).normalize();          // 手机：左上角是读数，月亮放到右上
     moon.position.copy(c.position).addScaledVector(d, (dist + 4.5) / d.dot(c.getWorldDirection(new THREE.Vector3())));
   }
   earth.root.visible = true; earth.root.position.set(0, EARTH.y, 0); earth.root.scale.setScalar(EARTH.r);
@@ -209,9 +211,9 @@ export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
 
   // ---- 镜头：地球在中间偏上，书圈在下面，一起框进来（算法在下面的 worldShot） ----
   const shot = (instant = false) => {
-    const cover = document.body.classList.contains('geo-cover'), panelW = cover ? 0 : PANEL_W;
-    stage.cameraOffsetX = panelOpen() && !cover ? panelW / 2 : 0; stage.cameraOffsetY = 0;
-    const { target, dir, dist } = worldShot(innerWidth, innerHeight, panelW);
+    const cover = document.body.classList.contains('geo-cover'), phone = isPhone(), panelW = cover || phone ? 0 : PANEL_W;
+    stage.cameraOffsetX = panelOpen() && !cover && !phone ? panelW / 2 : 0; stage.cameraOffsetY = 0;
+    const { target, dir, dist } = worldShot(innerWidth, innerHeight, panelW, phone ? PHONE_SPILL : 1);
     stage.shot({ target, dir, dist, instant, minEl: 0.05 });
     if (instant) (stage._off ||= new THREE.Vector2()).set(stage.cameraOffsetX, stage.cameraOffsetY);          // 一下子到位：画面不从正中慢慢挪过去（首页飞过来的球要正好叠在地球上）
     placeMoon(target, dir, dist);
@@ -329,8 +331,14 @@ export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
     const right = new THREE.Vector3().setFromMatrixColumn(stage.camera.matrixWorld, 0), c = earth.root.getWorldPosition(new THREE.Vector3());
     const [cx, cy] = toPx(c), [ex, ey] = toPx(c.clone().addScaledVector(right, EARTH.r)), r = Math.hypot(ex - cx, ey - cy);
     const mc = moon.getWorldPosition(new THREE.Vector3()), [mx, my] = toPx(mc), [mex, mey] = toPx(mc.clone().addScaledVector(right, EARTH.r * 0.273)), mr = Math.hypot(mex - mx, mey - my);
-    const panel = panelOpen() ? PANEL_W : 0;
-    const key = `${cx | 0},${cy | 0},${r | 0},${mx | 0},${my | 0},${panel},${[...lensOn].join('')}`; if (key === lensKey) return; lensKey = key;
+    const phone = isPhone(), panel = panelOpen() && !phone ? PANEL_W : 0;
+    const key = `${cx | 0},${cy | 0},${r | 0},${mx | 0},${my | 0},${panel},${[...lensOn].join('')},${innerWidth},${innerHeight}`; if (key === lensKey) return; lensKey = key;
+    if (phone) {          // 手机：透镜在底下排成一行；读数在顶栏下面，只留几行字（不画天空那条弧）
+      const n = LENS.length, gap = Math.min(118, (innerWidth - 20) / n), y = innerHeight - 128;
+      LENS.forEach((v, i) => { v.el.style.transform = `translate(${(innerWidth / 2 + (i - (n - 1) / 2) * gap).toFixed(1)}px, ${y.toFixed(1)}px)`; });
+      time.el.style.left = '16px'; time.el.style.top = '58px'; time.el.style.width = `${Math.min(300, innerWidth - 32)}px`; time.el.classList.add('narrow', 'tight');
+      return;
+    }
     // 透镜：画面右边一列，上下以地球的中心为中；读数：目录右边、月亮下面，左对齐。两边都和地球（连同大气光）隔开一段
     const GAP = 128, colX = innerWidth - 62 - 34, colY = Math.min(Math.max(cy, 96 + GAP), innerHeight - 150 - GAP);
     LENS.forEach((v, i) => { v.el.style.transform = `translate(${colX.toFixed(1)}px, ${(colY + (i - 1) * GAP).toFixed(1)}px)`; });
