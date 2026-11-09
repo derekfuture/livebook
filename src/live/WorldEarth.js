@@ -78,16 +78,21 @@ function glowShell(R, nowU) {
   });
 }
 
-const SHARED = { day: null, night: null, gloss: null, wait: [] };
+const SHARED = { day: null, night: null, gloss: undefined, wait: [] };
 /** 地球的白天、夜里贴图：一页里只下一次、只传一次显卡（首页桌上的地球仪、地理世界的地球、书里角上的地球共用）；不要 dispose（userData.shared） */
 export function earthMaps() {
   if (!SHARED.day) {
     const L = new THREE.TextureLoader();
-    SHARED.day = L.load(reliefUrl, (t) => { SHARED.gloss = oceanGloss(t.image); for (const f of SHARED.wait.splice(0)) f(); });
+    SHARED.day = L.load(reliefUrl, () => { for (const f of SHARED.wait.splice(0)) f(); });
     SHARED.night = L.load(nightUrl);
     for (const t of [SHARED.day, SHARED.night]) { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.userData.shared = true; }
   }
   return SHARED;
+}
+/** 海面反光图：第一次要的时候才算（首页桌上的地球仪不用它）；白天图还没下好就返回 null */
+function glossMap() {
+  if (SHARED.gloss === undefined && SHARED.day?.image) SHARED.gloss = oceanGloss(SHARED.day.image);
+  return SHARED.gloss ?? null;
 }
 /** 海面反光：从晕渲图里认出海（蓝多于红、绿），海面光滑、陆地粗糙 */
 function oceanGloss(img) {
@@ -116,8 +121,8 @@ export class WorldEarth {
 
     const M = earthMaps(), tex = M.day;
     this.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.78, metalness: 0, emissive: 0x0b1220, emissiveIntensity: 0.25, bumpMap: tex, bumpScale: 2.2 });          // 晕渲图本身当起伏：山脉一面受光一面背光，更立体
-    const gloss = () => { if (M.gloss) { this.mat.roughnessMap = M.gloss; this.mat.roughness = 1; this.mat.needsUpdate = true; } };
-    if (M.gloss) { this.mat.roughnessMap = M.gloss; this.mat.roughness = 1; } else M.wait.push(gloss);
+    const gl = glossMap();
+    if (gl) { this.mat.roughnessMap = gl; this.mat.roughness = 1; } else M.wait.push(() => { const g2 = glossMap(); if (g2) { this.mat.roughnessMap = g2; this.mat.roughness = 1; this.mat.needsUpdate = true; } });          // 白天图已经在（从书桌接过来）：材质第一次编译就带上，不用再编译一次
     if (now) {
       const lights = M.night;
       this.nowU.nightMap = { value: lights };

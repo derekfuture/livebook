@@ -21,7 +21,7 @@ import { tag, updateTags } from '../ui/tags.js';
 import { progress, bookmark } from './progress.js';
 import { paint, inked, hull, glassEdge } from '../live/ink.js';
 import { glass2, water2 } from '../lessons/kit/chemfx.js';
-import { earthCircle, preloadWorld, prewarmWorld } from '../world/GeoWorld.js';
+import { earthCircle, preloadWorld } from '../world/GeoWorld.js';
 import { earthMaps } from '../live/WorldEarth.js';
 import { subsolar } from '../live/WorldEarth.js';
 import { ll2v } from '../lessons/kit/plates.js';
@@ -250,7 +250,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     if (leaving || !s) return;
     const f = focus || (last?.book && s.books.some((b) => b.id === last.book) ? last.book : s.books[0].id);
     leaving = { world: true, s, t: 0, focus: f }; ui.classList.add('leaving'); canvas.style.cursor = ''; hoverS = null;
-    preloadWorld();          // 飞的这一秒半里，地理世界地球的贴图先下好
+    preloadWorld();          // 飞的这一秒半里，先把月亮图下好（地球的贴图书桌上的地球仪本来就用着）
     if (open) closeFan(true);
     stage.calm = true;          // 不跟着鼠标晃
     const ball = s.thing?.userData.ball;
@@ -267,7 +267,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     if (!enterWorld) { try { sessionStorage.setItem('livebook.snap', shot); } catch { /* 存不下就直接换 */ } location.href = url; return; }
     const img = document.createElement('img'); img.className = 'inpage-snap'; img.src = shot; document.body.append(img);
     const C = earthCircle(), orbit = document.createElement('div'); orbit.className = 'inpage-orbit';          // 地球外面一道转着的金色轨道光：正在进去，不是卡住了
-    Object.assign(orbit.style, { left: `${C.cx}px`, top: `${C.cy}px`, width: `${C.r * 2.3}px`, height: `${C.r * 2.3}px` }); document.body.append(orbit); setTimeout(() => orbit.classList.add('on'), 110);
+    Object.assign(orbit.style, { left: `${C.cx}px`, top: `${C.cy}px`, width: `${C.r * 2.5}px`, height: `${C.r * 2.5}px` }); document.body.append(orbit); setTimeout(() => orbit.classList.add("on"), 60);
     window.__dropSnap = () => { window.__dropSnap = () => {}; img.classList.add('out'); orbit.classList.add('out'); setTimeout(() => { img.remove(); orbit.remove(); }, 360); };
     img.decode().catch(() => {}).then(() => {          // 截图真的盖上了，再收书桌（不然中间会露出一帧空舞台）
       history.pushState(null, '', url);
@@ -290,8 +290,6 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     document.documentElement.classList.remove('to-home');        // 从书里回到首页时 index.html 加的（藏起书里的按钮）：不去掉的话，再拿一本书进来，顶栏的目录、活页和翻页条都不见了
     enterBook(u.id, () => { stage.scene.remove(group); disposeTree(g); });
   }
-
-  if (subjects.some((x) => x.name === '地理')) (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(() => prewarmWorld(stage.renderer), { timeout: 5000 });          // 空闲时先替地理世界把夜空画好、贴图传上显卡
 
   // ---- 指针 ----
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
