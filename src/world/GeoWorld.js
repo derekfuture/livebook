@@ -487,9 +487,9 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   // 到了：标出地方、北在哪、画出要切开看的那条线（北坡从山脚到山顶），再进书。
   let diving = null;
   const skyDome = (() => {          // 进到大气里：一层天空（地平线发白、头顶蓝）罩在后面
-    const m = new THREE.ShaderMaterial({ depthWrite: false, depthTest: false, transparent: false, blending: THREE.CustomBlending, side: THREE.BackSide, uniforms: { k: { value: 0 } },          // 放在不透明的那一批里最先画（再画地球、地形），自己按透明度混合
+    const m = new THREE.ShaderMaterial({ depthWrite: false, depthTest: false, transparent: false, blending: THREE.CustomBlending, side: THREE.BackSide, uniforms: { k: { value: 0 }, warm: { value: 0 }, bg: { value: DAY.bg.clone() } },          // warm：切出来落到书上时，天空换成书桌的暖白          // 放在不透明的那一批里最先画（再画地球、地形），自己按透明度混合
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform float k; varying vec3 vD; void main(){ float t = clamp(vD.y * 1.4 + 0.15, 0.0, 1.0); vec3 c = mix(vec3(0.584, 0.672, 0.768), vec3(0.16, 0.30, 0.62), t); gl_FragColor = vec4(c, k); \n #include <colorspace_fragment>\n }' });
+      fragmentShader: 'uniform float k; uniform float warm; uniform vec3 bg; varying vec3 vD; void main(){ float t = clamp(vD.y * 1.4 + 0.15, 0.0, 1.0); vec3 c = mix(mix(vec3(0.584, 0.672, 0.768), vec3(0.16, 0.30, 0.62), t), bg, warm); gl_FragColor = vec4(c, k); \n #include <colorspace_fragment>\n }' });
     const d = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), m); d.renderOrder = -10; d.frustumCulled = false; d.raycast = () => {}; d.visible = false; stage.scene.add(d); return d;
   })();
   const diveHud = h('div', { class: 'geo-dive' }, h('div', { class: 'gd-north' }, h('i'), h('b', {}, '北')), h('small', { class: 'gd-src' }));
@@ -520,7 +520,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
         light: { hc: hemi.color.clone(), hg: hemi.groundColor.clone(), hi: hemi.intensity, sc: stage.sun.color.clone(), si: stage.sun.intensity, sp: stage.sun.position.clone() },
       });
       stage.calm = true; stage.resetView(); stage.cameraOffsetX = 0;
-      earth.setLook({ pins: false }); earth.setHot(null); earth.setActive(null); skyDome.visible = true;
+      earth.setLook({ pins: false }); earth.setHot(null); earth.setActive(null); skyDome.visible = true; skyDome.material.uniforms.warm.value = 0;
       stage.scene.fog = new THREE.Fog(0xc9d6e3, 1e5, 2e5);
       return;
     }
@@ -581,7 +581,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       diveHud.classList.add('on'); diveHud.querySelector('.gd-src').textContent = D.def.src;
       const c0 = D.F.clone().project(stage.camera), c1 = D.F.clone().addScaledVector(D.north, earth.root.scale.x * 5 / 6371).project(stage.camera);          // 北在画面上朝哪
       diveHud.querySelector('.gd-north i').style.transform = `rotate(${Math.atan2(-(c1.y - c0.y), c1.x - c0.x) * 180 / Math.PI + 90}deg)`;
-      if (D.ta > 2.8) startLift(D);          // 看清了：不用点，接着就进活页
+      if (D.ta > 2.2) startLift(D);          // 看清了（线在 1.8 秒画完）：不用点，接着就进活页
       return;
     }
     if (D.phase === 'lift') liftStep(D, dt);
@@ -606,7 +606,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   }
   function liftStep(D, dt) {
     D.tl += dt;
-    const u = Math.min(1, D.tl / 2.8), k = ease(u), b = D.blk, E = D.end;
+    const u = Math.min(1, D.tl / 2.3), k = ease(u), b = D.blk, E = D.end;
     // 这块地形：从地球上切出来（四周淡掉、侧壁出来），一边转一边缩，落到书的上方
     D.P.mesh.material.uniforms.k.value = 1 - THREE.MathUtils.smoothstep(u, 0, 0.09); b.wallM.opacity = THREE.MathUtils.smoothstep(u, 0.02, 0.16);
     b.group.position.lerpVectors(D.P0, E.pos, k);
@@ -619,7 +619,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     const cam = stage.camera; cam.up.copy(C0.up).lerp(new THREE.Vector3(0, 1, 0), k).normalize(); cam.position.copy(tgt).addScaledVector(dir, dist); cam.lookAt(tgt);
     // 四周：起一层雾（这块地形不受雾的影响，一直清楚），雾最浓时把大地球换成角上那颗、铺好书桌，雾再散开
     const fog = stage.scene.fog, w = THREE.MathUtils.smoothstep(u, 0.05, 0.38), fz = THREE.MathUtils.smoothstep(u, 0.42, 1);
-    fog.color.set(0xc9d6e3).lerp(DAY.bg, fz);
+    fog.color.set(0xc9d6e3).lerp(DAY.bg, THREE.MathUtils.smoothstep(u, 0, 0.45)); skyDome.material.uniforms.warm.value = THREE.MathUtils.smoothstep(u, 0, 0.45);          // 雾一起来就从山里的蓝灰转成书桌的暖白：四周是一团暖雾、书桌从雾里出来（不是一片空的淡蓝）
     if (u < 0.4) { fog.near = D.fog0[0] + (0.02 - D.fog0[0]) * w; fog.far = D.fog0[1] + (0.3 - D.fog0[1]) * w; }
     else { fog.near = 0.02 + (7 - 0.02) * ease(fz); fog.far = 0.3 + (18 - 0.3) * ease(fz); }
     if (u >= 0.4 && !D.swapped) {

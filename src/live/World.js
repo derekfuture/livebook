@@ -274,7 +274,7 @@ export class World {
       this.earth.setHot(null); this.earth.setActive(pn ? { it, pn } : { it });
       for (const [k, r] of this.rows || []) r.classList.toggle('on', k === id);
       if (kind === 'globe') this.earth.setLayer(a.layer);          // 整个地球的主题：一点下去，地球上就是这一层
-      if (pn) { this.earth.turnTo(pn.lat, pn.lon, this.stage.camera); if (!opts.quick) await this.wait(wasHub ? 0.75 : 0.4); }
+      if (pn) { this.earth.turnTo(pn.lat, pn.lon, this.stage.camera); if (!opts.quick) await this.wait(this.block ? 0.1 : wasHub ? 0.75 : 0.4); }          // 从地理世界俯冲进来：那边已经停过了，这边不再干等
       if (opts.hold) await this.wait(opts.hold);          // 从地理世界换页面过来：上一页最后一帧还盖着，地球先摆在角上，等它淡出完了再翻书、挪镜头
       // 书翻到那一页（从旗进来的子情境翻到它自己那一页）：只翻一小叠
       const page = pn?.page ?? it.spot.page, leaf = this.book.leafForPage(page);
@@ -283,14 +283,14 @@ export class World {
       if (mode !== 'inplace') this.panel.close();          // 板块：侧栏直接换成板块的（不先收起，镜头不晃）
       const flip = this.book.current !== leaf || this.book.busy;
       if (flip && mode !== 'globe' && mode !== 'inplace') this._bookShot(!!this.block);          // 镜头低下来看书翻到那一页（有地形块时退后一点，把浮在上面的它也框进来）
-      if (flip && this.layout === 'lift' && (mode === 'pin' || mode === 'figure')) await this.wait(0.3);          // 地球先离开书脊上方，纸再立起来
+      if (flip && this.layout === 'lift' && (mode === 'pin' || mode === 'figure')) await this.wait(this.block ? 0.1 : 0.3);          // 地球先离开书脊上方，纸再立起来
       if (this.block) this.block.want = new THREE.Vector3(0, 1.58, -0.8).sub(this.block.blk.center.clone().multiplyScalar(this.block.s).applyQuaternion(this.block.blk.group.quaternion));          // 地形块先升到书页翻不到的高度，挪到书脊后上方
       if (flip) { this.book.turnTo(leaf, { max: 3 }); await this.until(() => mode === 'pin' ? (!this.book.busy && this.book.current === leaf) || (this.book.anim && this.book.anim.to === leaf && this.book.anim.p > 0.72) : !this.book.busy && this.book.current === leaf); }          // 有地方的：书快翻完就开始从旗上长出来，落下时书已经翻好
       else if (!opts.quick) await this.wait(mode === 'pin' || mode === 'figure' ? 0.45 : 0.15);
       if (this.block) {          // 书翻好了：地形块落到这一页正上方，活页的模型就从它那里长出来
         await this.until(() => !this.book.busy);
         const b = this.block; b.want = new THREE.Vector3(0, this._top() + 0.42, 0.1).sub(b.blk.center.clone().multiplyScalar(b.s).applyQuaternion(b.blk.group.quaternion));
-        await this.wait(0.6);
+        await this.wait(0.45);
       }
       // 活页：从旗上长出来 / 整颗地球落下去 / 就在这颗地球上（板块） / 从课本的图里升起来
       const B = this.block, W = { mode: mode === 'inplace' ? 'globe' : mode, inplace: mode === 'inplace', from: B ? () => (this.block ? (this._lastBC = this._blockCenter()) : this._lastBC) : pn ? () => this.earth.pinWorld(pn) : null, figText: pn?.figText, reframe: mode === 'inplace' ? (A) => this._inplaceFrame(A) : null, ...this._lessonPanel(it, pn) };
