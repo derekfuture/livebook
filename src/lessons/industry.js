@@ -15,9 +15,18 @@ import { canvasTex, texClones } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { h } from '../ui/Panel.js';
 import { XL, XR, NL, NR, PLACES, RIVER, INDUSTRIES, WIND, coastX, evaluate, isSea, isMountain, nearRiver, swing, landPoint } from './kit/industry.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import sugarGlb from './data/industry/sugar.glb?url';
+import beerGlb from './data/industry/beer.glb?url';
+import aluGlb from './data/industry/alu.glb?url';
+import clothGlb from './data/industry/cloth.glb?url';
+import chipGlb from './data/industry/chip.glb?url';
+import petroGlb from './data/industry/petro.glb?url';
 
 const G = 0.024;
 const KINDS = ['sugar', 'beer', 'alu', 'cloth', 'chip', 'petro'];
+const PLANT_GLB = { sugar: sugarGlb, beer: beerGlb, alu: aluGlb, cloth: clothGlb, chip: chipGlb, petro: petroGlb };          // 六种工厂的模型：Tripo 照图生成、重拓扑到约 5 000 个三角面，tools/geo/blender_factory.py 再压小（每个 140–210 KB）
 const COLORS = { 原料运输: '#c9852e', 产品运输: '#d4523a', 动力: '#e0b52e', 劳动力: '#4f8f5a', 技术: '#4a6fb8' };
 const ICON = { 原料运输: 'ore', 产品运输: 'truck', 动力: 'bolt', 劳动力: 'person', 技术: 'gear' };
 const INKC = { 原料运输: '#8a5514', 产品运输: '#a8341f', 动力: '#8a6a08', 劳动力: '#2f6a3c', 技术: '#2f4f94' };          // 字用同一色相、深一些的颜色（黄色字在地图上看不清）
@@ -38,7 +47,7 @@ export default {
     src: '课本第 64–66 页 · 第三章 第二节 工业区位因素及其变化',
   },
 
-  create({ tag }) {
+  create({ tag, prewarm }) {
     const group = new THREE.Group();
     const S = { kind: 'sugar', p: { x: 0.03, n: -0.02 }, drag: false, saved: [], no: {}, tried: new Set(), guess: null, moved: false };
     let W = null;
@@ -103,6 +112,14 @@ export default {
     const wall = new THREE.MeshStandardMaterial({ color: 0xe9e4da, roughness: 0.8 }), roofM = new THREE.MeshStandardMaterial({ color: 0x7d8796, roughness: 0.7 });
     for (const [x, z, w, hh] of [[-0.009, 0.004, 0.012, 0.006], [0.005, -0.002, 0.01, 0.008]]) { const b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, 0.009), wall); b.position.set(x, hh / 2, z); plant.add(b); const r = new THREE.Mesh(new THREE.BoxGeometry(w + 0.001, 0.0012, 0.0095), roofM); r.position.set(x, hh + 0.0006, z); plant.add(r); }
     const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.0012, 0.0016, 0.016, 10), wall); stack.position.set(0.012, 0.008, 0.004); plant.add(stack);
+    // 选哪种工厂，“地点”下面就是哪种厂：糖厂边上堆着甘蔗，啤酒厂一排发酵罐，电解铝厂两条长车间连着高压线……模型下不来时才用上面的方块小厂房
+    const models = {}, loading = {}, failed = {}, gl = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    const showPlant = () => { plant.visible = !!failed[S.kind]; for (const k in models) models[k].visible = k === S.kind; };          // 还在下的那一下什么都不放（不先放方块再换成模型，免得一闪）
+    const loadPlant = (k) => (loading[k] ||= gl.loadAsync(PLANT_GLB[k]).then((r) => {
+      r.scene.traverse((o) => { if (!o.isMesh) return; const t = o.material.map; if (t) { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; } o.material = new THREE.MeshStandardMaterial({ map: t, roughness: 0.85, side: THREE.DoubleSide }); o.raycast = () => {}; });          // 两面都画：有的模型屋顶的面朝里
+      r.scene.scale.setScalar(0.034); r.scene.position.z = 0.012; pin.add(r.scene); models[k] = r.scene; showPlant(); prewarm?.();          // 最长的一边 3.4 厘米，和原来的方块小厂房差不多大；往镜头这边挪一点，红色的标立在厂子后面，不挡厂房
+    }).catch(() => { failed[k] = true; showPlant(); }));
+    loadPlant(S.kind).then(() => setTimeout(() => KINDS.reduce((q, k) => q.then(() => loadPlant(k)), Promise.resolve()), 1500));          // 当前这种先下；好了以后，别的几种一个一个在后台下好，换工厂时不用等
     const pinPick = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.045, 12), new THREE.MeshBasicMaterial({ visible: false })); pinPick.position.y = 0.022; pinPick.userData.pick = true; pin.add(pinPick);
     const tPin = tag('<span>拖这个“地点”</span><small>看看建在哪儿合适</small>', 'hint');          // 开场的提示：不用白底牌子
 
@@ -126,7 +143,7 @@ export default {
     let phase = 0;
     const layout = () => {
       const I = INDUSTRIES[S.kind], p = S.p, ev = evaluate(S.kind, p), max = Math.max(...Object.values(ev.cost), 0.01);
-      pin.position.copy(P3(p.x, p.n)); plant.visible = true;
+      pin.position.copy(P3(p.x, p.n)); showPlant(); loadPlant(S.kind);
       tPin.loc(block, p.x, G + 0.09, -p.n).show(!S.moved);          // 提得高一点，不压地图上印的地名
       for (const k of Object.keys(COLORS)) {
         const r = ribbons[k], val = ev.cost[k], from = PLACES[k === '原料运输' ? I.mFrom : k === '劳动力' ? (Math.hypot(p.x - PLACES.county.x, p.n - PLACES.county.n) < 0.03 ? 'county' : 'city') : FROM[k]];
