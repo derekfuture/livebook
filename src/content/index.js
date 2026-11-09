@@ -10,7 +10,8 @@ export const BOOK_IDS = Object.keys(books);
 export const OFFLINE = !!OFF;
 export const OFFLINE_DATA = OFF;
 /** 书的目录、页数（public/books/<id>/book.json） */
-export const getManifest = async (id) => (OFF ? OFF.books[id] : (await fetch(`${books[id].base}book.json`)).json());
+const manifests = new Map();          // 同一页里每本书只取一次（书桌一开始就取过了，进地理世界不用再等网络）
+export const getManifest = async (id) => { if (OFF) return OFF.books[id]; if (!manifests.has(id)) manifests.set(id, fetch(`${books[id].base}book.json`).then((r) => r.json())); return manifests.get(id); };
 /** 网站上的文件地址（封面、作者小签的图）；离线版换成打包好的那份 */
 export const fileUrl = (p) => OFF?.files[p] ?? p;
 

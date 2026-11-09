@@ -61,8 +61,9 @@ export function earthCircle(W = innerWidth, H = innerHeight) {
   return { cx: cx + (tocFits(W) ? PANEL_W / 2 : 0), cy, r: Math.hypot(ex - cx, ey - cy) };          // 目录页开着：画面整体往右挪半个目录宽
 }
 
-export async function bootGeoWorld(stage, { focus = null } = {}) {
-  document.body.classList.add('geo-world');
+export const WORLD_SETTLE = 14;          // 从书桌飞过来：地球仪飞到这里时还差这么多度，揭开以后地球接着转过去（经度，度）
+export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
+  document.body.classList.add('geo-world', 'geo-in-wait');          // 界面先藏着：地球露出来以后，书圈、目录、透镜、读数再一样一样出来（不一下子全冒出来）
   stage.resetView(); stage.calm = false;          // 从书桌直接接过来（同一个舞台）：书桌那边的视角偏移、“不跟鼠标晃”都清掉
   if (new URLSearchParams(location.search).has('cover')) document.body.classList.add('geo-cover');          // 公众号封面：只留画面（地球、月亮、太阳、书圈），不要目录和读数
   setFov(stage, WORLD_FOV);
@@ -154,7 +155,9 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   earth.setPins(items);
   earth.shadow.visible = false;
   const first = items.find((x) => x.anchor.kind === 'place' && x.book.id === focus) || items.find((x) => x.anchor.kind === 'place');
-  earth.spin.quaternion.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-90 - (first ? first.anchor.pins[0].lon : 105)) * Math.PI / 180);          // 镜头在正前方（+z，地球不转时是西经 90° 那一面）：把这本书的第一面旗转过来
+  const lon0 = first ? first.anchor.pins[0].lon : 105, spinQ = (lon) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), (-90 - lon) * Math.PI / 180);
+  earth.spin.quaternion.copy(spinQ(lon0 + settle));          // 镜头在正前方（+z，地球不转时是西经 90° 那一面）：把这本书的第一面旗转过来（从书桌飞过来的还差 settle 度，揭开后接着转）
+  const intro = { t: -1, q0: spinQ(lon0 + settle), q1: spinQ(lon0), settle };          // 揭开以后的进场：t 从 0 走到 1.6 秒
   const map = polarMap(earth.mat.map, RING.r); map.position.y = 0.006; root.add(map);
   const orbit = new THREE.Mesh(new THREE.TorusGeometry(RING.r, 0.009, 8, 220), new THREE.MeshBasicMaterial({ color: 0xe3c07c, transparent: true, opacity: 0.85, fog: false }));
   orbit.rotation.x = Math.PI / 2; orbit.position.y = 0.012; orbit.raycast = () => {}; root.add(orbit);          // 书圈站着的那一圈（赤道）描一道金线，铜版的轮廓清楚
@@ -725,7 +728,19 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   }
 
   // ---- 每帧 ----
+  // 进场：书圈、圆台、铜版从下面升上来淡进来（和俯冲时淡出去的是同一组东西）；地球接着转过最后那几度。界面跟着一样一样出来（CSS：body.geo-in-go）
+  const introApply = (k) => {
+    for (const o of bookObjs) { o.mesh.visible = k > 0.01; for (const mt of o.mesh.material) { mt.opacity = k; mt.depthWrite = k > 0.99; } o.label.show(k > 0.9); o.lamp.visible = k > 0.01; }
+    floor.material.opacity = k; glowPool.material.opacity = k; map.material.uniforms.fade.value = k; orbit.material.opacity = 0.85 * k; ring.position.y = -0.14 * (1 - k);
+  };
+  if (!backFrom) introApply(0);
+  const introStart = () => { if (intro.t >= 0) return; intro.t = 0; document.body.classList.remove('geo-in-wait'); document.body.classList.add('geo-in-go'); setTimeout(() => document.body.classList.remove('geo-in-go'), 2200); };
   stage.updaters.add((dt) => {
+    if (intro.t >= 0 && intro.t < 1.6) {
+      intro.t = Math.min(1.6, intro.t + dt);
+      introApply(1 - Math.pow(1 - THREE.MathUtils.smoothstep(intro.t, 0.15, 1.1), 2));
+      if (intro.settle) earth.spin.quaternion.slerpQuaternions(intro.q0, intro.q1, 1 - Math.pow(1 - intro.t / 1.6, 3));          // 先快后慢地停下
+    }
     ringRot += (ringTo - ringRot) * Math.min(1, dt * 4.5);
     ring.rotation.y = ringRot;
     for (const bo of bookObjs) { const w = Math.atan2(Math.sin(bo.a + ringRot), Math.cos(bo.a + ringRot)), f = THREE.MathUtils.smoothstep(Math.abs(w), 1.6, 2.3); bo.g.rotation.y = bo.a + (w * (0.55 + 0.45 * f) - w); }          // 封面朝外，前半圈再往镜头这边偏一半（两边的书也看得见封面）；后半圈照样朝外，露出书背
@@ -786,11 +801,11 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     updateTags(stage.camera);
   });
   const backBo = bookObjs.find((x) => x.b.id === backFrom);
-  if (backBo) arrive(backBo);
+  if (backBo) { arrive(backBo); intro.t = 1.6; document.body.classList.remove('geo-in-wait'); }
   else {          // 地球的贴图（白天、夜里的灯光）好了再揭开盖着的截图：从首页飞过来的那个泡沫球正好叠在地球上，揭开就是它变成了真的地球
     const t0 = performance.now(); let n = 0;
     const ready = () => earth.mat.map?.image && (!earth.nowU.nightMap || earth.nowU.nightMap.value.image);
-    const wait = () => { if ((ready() && ++n > 2) || performance.now() - t0 > 2500) window.__dropSnap?.(); else requestAnimationFrame(wait); };
+    const wait = () => { if ((ready() && ++n > 2) || performance.now() - t0 > 2500) { window.__dropSnap?.(); introStart(); } else requestAnimationFrame(wait); };
     wait();
   }
   stage.start();

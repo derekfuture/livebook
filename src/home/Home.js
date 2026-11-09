@@ -22,7 +22,7 @@ import { tag, updateTags } from '../ui/tags.js';
 import { progress, bookmark } from './progress.js';
 import { paint, inked, hull, glassEdge } from '../live/ink.js';
 import { glass2, water2 } from '../lessons/kit/chemfx.js';
-import { earthCircle, preloadWorld } from '../world/GeoWorld.js';
+import { earthCircle, preloadWorld, WORLD_SETTLE } from '../world/GeoWorld.js';
 import { earthMaps } from '../live/WorldEarth.js';
 import { subsolar } from '../live/WorldEarth.js';
 import { ll2v } from '../lessons/kit/plates.js';
@@ -260,7 +260,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     if (ball) {
       const T = s.thing.userData; T.bake();          // 球自己转过的角度并进铜圈的朝向里，再整个转到地理世界里地球的朝向
       stage.scene.attach(ball); ball.traverse((o) => { o.castShadow = false; });
-      leaving.ball = { o: ball, p: ball.position.clone(), q: ball.quaternion.clone(), sc: ball.scale.x, R: T.R, q1: new THREE.Quaternion().setFromAxisAngle(Y, (-90 - worldLon0(f)) * D2R) };
+      leaving.ball = { o: ball, p: ball.position.clone(), q: ball.quaternion.clone(), sc: ball.scale.x, R: T.R, q1: new THREE.Quaternion().setFromAxisAngle(Y, (-90 - worldLon0(f) - WORLD_SETTLE) * D2R) };          // 还差一点没转到：揭开以后地理世界里的地球接着转过去（不在这里停住）
     }
   }
 
@@ -278,7 +278,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
       document.body.classList.remove('mood', 'home'); document.documentElement.classList.remove('to-home');
       if (L.ball) { stage.scene.remove(L.ball.o); disposeTree(L.ball.o); }
       stage.scene.remove(group); disposeTree(group);
-      enterWorld(L.focus);
+      enterWorld(L.focus, { settle: WORLD_SETTLE });
     });
   }
 

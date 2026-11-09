@@ -1107,3 +1107,15 @@ body.geo-cover #hud-top, body.geo-cover .geo-toc, body.geo-cover .geo-toc-spine,
 .fb-success-summary small { font-size:11px;color:#818b7d; }
 .fb-success > .fb-primary { display:inline-flex; }
 @media(max-width:600px) { .fb-success { padding:36px 22px 30px; } .fb-success h2 {font-size:22px;} }
+
+/* 进地理世界：地球先露出来（接着转过最后那几度），书圈从下面升上来，目录、读数、透镜再一样一样淡进来——不一下子全冒出来 */
+body.geo-in-wait :is(.geo-toc, .geo-toc-spine, .geo-now, .geo-lens, .geo-lens-hint, .geo-credit, .tag3d) { opacity: 0 !important; translate: 0 10px; }
+body.geo-in-wait :is(.geo-toc, .geo-toc-spine) { translate: -22px 0; }
+body.geo-in-go :is(.geo-toc, .geo-toc-spine, .geo-now, .geo-lens, .geo-lens-hint, .geo-credit, .tag3d) { transition: opacity .75s ease var(--in, 0s), translate .9s cubic-bezier(.2, .7, .2, 1) var(--in, 0s) !important; }
+body.geo-in-go .tag3d { --in: .55s; }
+body.geo-in-go :is(.geo-toc, .geo-toc-spine) { --in: .45s; }
+body.geo-in-go .geo-now { --in: .7s; }
+body.geo-in-go .geo-lens[data-id="sun"] { --in: .85s; }
+body.geo-in-go .geo-lens[data-id="plates"] { --in: .95s; }
+body.geo-in-go .geo-lens[data-id="belts"] { --in: 1.05s; }
+body.geo-in-go :is(.geo-lens-hint, .geo-credit) { --in: 1.15s; }
