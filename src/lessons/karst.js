@@ -13,9 +13,6 @@ import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { rockTextures, rockMat, worldUV } from './kit/strata.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import towerUrl from './data/karst/tower1.glb?url';
-const TOWER_TEST = new URLSearchParams(location.search).get('towers') === 'blender';          // 试 Blender 做的峰：地址后面加 ?towers=blender
 import { STAGES, stageName, RATE, STEP, cave, terrainHeight, terrainFrom, peakCone, joint, shifting } from './kit/karst.js';
 
 const BW = 0.11, BD = 0.11, GAP = 0.022, H0 = 0.09, N = 128;          // 一块的宽、深；块与块的间隔；原来的地面高度；网格密度
@@ -135,17 +132,6 @@ export default {
       const C3 = u.cave3, near = S.near === u && C3.grp.visible, A = C3.at;
       for (const [k, t] of Object.entries(C3.names)) { const v = A[k]; t.show(!!(near && v)); if (v) t.loc(u.g, v.x, v.y + (k === 'stal' ? -0.003 : k === 'river' ? 0.0012 : 0.0035), v.z); }
     }
-    // Blender 做的峰：高矮按这座峰峰顶此刻的高度、粗细按峰体一半高处的宽度
-    let towerProto = null;
-    if (TOWER_TEST) new GLTFLoader().load(towerUrl, (gl) => { gl.scene.traverse((o) => { if (o.isMesh) { towerProto = o; o.castShadow = o.receiveShadow = true; o.material.roughness = 0.92; } }); units.forEach((u) => u.swap >= 0 && placeTower(u, tOf(u.b))); });
-    function placeTower(u, t) {
-      if (!towerProto) return;
-      const q = u.P[u.swap], top = terrainHeight(u.b, u.P, q.x, q.z, t, H0), base = H0 - 0.05 * sm(0.14, 0.62, t) - 0.008 * sm(0.75, 1, t), alive = !(q.r < 0.82 * sm(0.62, 0.92, t));
-      if (!u.tower) { u.tower = towerProto.clone(); u.tower.raycast = () => {}; u.tower.rotation.y = q.r * 6.28; u.g.add(u.tower); }
-      const hgt = top - base, c0 = 0.03 + 0.56 * sm(0.545, 0.575, t), halfR = 0.034 * q.k * (1 - (c0 + 0.21 * (1 - c0)));          // 峰体一半高处的半径（和原来的锥度一样算）
-      u.tower.visible = alive && hgt > 0.002;
-      u.tower.position.set(q.x, base - 0.002, q.z); u.tower.scale.set(halfR / 0.4, (hgt + 0.002) / 2.0, halfR / 0.4);          // 模型：高 2、半高处半径约 0.4
-    }
     const units = BLOCKS.map((b, bi) => {
       const g = new THREE.Group(); g.position.x = b.x; block.add(g);
       const P = peaksOf(17 + bi * 31);
@@ -187,9 +173,7 @@ export default {
         const n = p.count, cones = new Float32Array(n * P.length), jv = new Float32Array(n), nzv = new Float32Array(n);
         for (let k = 0; k < n; k++) { const x = p.getX(k), z = p.getZ(k); for (let i = 0; i < P.length; i++) cones[k * P.length + i] = peakCone(P[i], x, z); jv[k] = joint(x, z); nzv[k] = nz(x, z); }
         u.cache = { cones, jv, nzv };
-        if (TOWER_TEST && b.clim === 'wet') { u.swap = P.reduce((bi, q, i) => (q.r > 0.45 && (bi < 0 || q.z > P[bi].z) ? i : bi), -1); if (u.swap >= 0) for (let k = 0; k < n; k++) cones[k * P.length + u.swap] = 0; }          // 最前面一座留到最后的峰：地形里不画它
       }
-      if (u.swap >= 0 && u.cache) placeTower(u, t);
       if (u.cache) { const { cones, jv, nzv } = u.cache, m = P.length; for (let k = 0; k < p.count; k++) p.setY(k, terrainFrom(b, P, cones.subarray(k * m, k * m + m), jv[k], t, H0) + nzv[k]); }
       else for (let k = 0; k < p.count; k++) { const x = p.getX(k), z = p.getZ(k); p.setY(k, height(b, P, x, z)); }
       p.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere();
@@ -319,7 +303,7 @@ export default {
       size: { w: 0.38, d: 0.12, h: 0.16 },
       view: { elev: 22, azim: 10, lookY: 0.42, frameMargin: 1.08 },
       pointer,
-      debug: { units: () => units, time: (v) => { S.time = v; S.moved = true; layoutAll(); }, cave: () => units[0].cave3?.ok && enterCave(units[0]) },
+      debug: { time: (v) => { S.time = v; S.moved = true; layoutAll(); }, cave: () => units[0].cave3?.ok && enterCave(units[0]) },
       mount(ui) {
         const time = slider('经过的时间（示意，很长很长）', { min: 0, max: 8, step: 0.05, value: 0, fmt: (v) => (v ? `第 ${v.toFixed(1)} 段` : '刚开始'), onInput: (v) => { S.time = v; S.moved = true; S.play = false; acts.btns[0].textContent = '让时间走'; layoutAll(); } });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
