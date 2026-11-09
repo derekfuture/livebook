@@ -67,7 +67,7 @@ npm run dev        # http://127.0.0.1:5188
 
 部署：`./tools/deploy.sh`（Cloudflare Pages；会去掉书页图片，只留封面）。`./tools/deploy.sh --preview` 不上传，在本地 <http://127.0.0.1:5195> 打开和线上一样的版本。
 
-深链接：`?book=wuli-8x` 打开某本书（物理 `wuli-8s` `wuli-8x` `wuli-9`，化学 `huaxue-9s` `huaxue-9x`），`#p=23` 翻到 PDF 第 23 页，`#live=lever` 直接打开某张活页，`&pages=placeholder` 在本地假装没有书页图片（看线上没导入课本时的样子）。
+教材路径按科目、版本和册次排列，例如 `/physics/pep/grade-8-vol-2`（`pep` 表示人教版）。深链接：原有的 `?book=wuli-8x` 也可打开这本书（物理 `wuli-8s` `wuli-8x` `wuli-9`，化学 `huaxue-9s` `huaxue-9x`），`#p=23` 翻到 PDF 第 23 页，`#live=lever` 直接打开某张活页，`&pages=placeholder` 在本地假装没有书页图片（看线上没导入课本时的样子）。
 键盘：← → 翻页，T 目录，Esc 合上活页；老师演示时空格暂停。
 
 ## 目录结构

@@ -12,8 +12,9 @@
 // 光：傍晚的太阳从左后方的窗户斜照进来，窗格的影子落在桌上，几件东西拖着长长的影子，光里飘着一点浮尘；屋里别处暗下去。
 //   物理那束白光就是这窗光。进书时光慢慢回到书里白天的样子（两边交接的那一帧是同一个画面）；从书里回来再慢慢暗下来。
 // 屏幕上还有：继续上次 / 接着学（两张便签）、搜一节课或一张活页、活页总览。
+import { feedbackButton, githubButton } from '../ui/community.js';
 import * as THREE from 'three';
-import { getBook, bookList, getManifest, fileUrl, OFFLINE } from '../content/index.js';
+import { getBook, bookList, bookHref, getManifest, fileUrl, OFFLINE } from '../content/index.js';
 import { offlineButton } from './offlinePack.js';
 import { FEATURES } from '../features.js';
 import { stamps, h } from '../ui/Panel.js';
@@ -50,7 +51,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   const q = new URLSearchParams(location.hash.slice(1));
   if (q.has('live')) {
     const b = bookList().find((x) => getBook(x.id).lessons[q.get('live')]);
-    if (b) { location.replace(`?book=${b.id}${location.hash}`); return; }
+    if (b) { location.replace(`${bookHref(b.id)}${location.hash}`); return; }
   }
   document.body.classList.add('home');
   document.title = '活页课本';
@@ -169,6 +170,8 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
       backBtn,
       h('button', { class: 'paper-btn', onclick: () => openOverview(books, manifests, subjects, pagesOk) }, '⊞ 活页总览'),
       !OFFLINE && (FEATURES.offline || import.meta.env.DEV) ? offlineButton() : null,          // 开关在 src/features.js；离线版里不用再下载
+      OFFLINE ? h('a', { class: 'home-copy', href: 'https://livebook.derekfuture.club/', target: '_blank', rel: 'noopener' }, '活页课本会持续更新，联网后可回到网站下载新版。') : null,
+      h('nav', { class: 'home-community', 'aria-label': '反馈与项目' }, feedbackButton(), githubButton()),
       h('span', { class: 'home-copy' }, '书里可以导入你自己下载的课本 PDF，文件只在这台电脑上使用')));
   document.body.append(ui);
   document.querySelector('#loader')?.classList.add('done');
@@ -238,7 +241,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const s0 = subjects.find((s) => s.books.some((b) => b.id === id));
     if (id.startsWith('dili-')) return goWorld(s0, id);          // 地理：先进地理世界，这本书转到正前方
     const g = items.find((x) => x.userData.id === id);
-    if (!g) { location.href = `?book=${id}`; return; }
+    if (!g) { location.href = bookHref(id); return; }
     leaving = g; ui.classList.add('leaving'); canvas.style.cursor = '';
     for (const t of slips.values()) t.show(false);
     move(g, deskPose(g), 'todesk'); moodT = 0; moodRate = 1 / 0.8;          // 书飞过去的这一秒里，光回到书里白天的样子
@@ -282,8 +285,8 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   // 书落到书桌中间、镜头停稳了：就在这个舞台上换成书里那本书
   function enter(g) {
     const u = g.userData;
-    if (!enterBook) { location.href = `?book=${u.id}`; return; }
-    history.pushState(null, '', `?book=${u.id}`);
+    if (!enterBook) { location.href = bookHref(u.id); return; }
+    history.pushState(null, '', bookHref(u.id));
     ac.abort(); ui.remove(); for (const t of slips.values()) t.remove(); stage.updaters.delete(tick); mood.dispose(); document.body.classList.remove('mood');
     for (const o of [...group.children]) if (o !== g) { group.remove(o); disposeTree(o); }          // 各科的纸、书、那几件东西都在镜头外面了：先收走；拿下来的这本留着，等书里那本书的封面画好了再收
     document.body.classList.remove('home'); document.body.classList.add('book-enter');
@@ -721,7 +724,7 @@ function nextLesson(books, last) {
     const s = after.find((x) => !stamps.has(x.lesson)) || spots.find((x) => !stamps.has(x.lesson));
     if (s) {
       const L = c.lessons[s.lesson];
-      return { href: `?book=${bid}#live=${s.lesson}`, title: L.title, where: `${c.full} · ${L.fig} · ${L.sec}` };
+      return { href: `${bookHref(bid)}#live=${s.lesson}`, title: L.title, where: `${c.full} · ${L.fig} · ${L.sec}` };
     }
   }
   return null;
@@ -733,10 +736,10 @@ function searchBox(books, manifests) {
   for (const b of books) {
     const c = getBook(b.id), man = manifests[b.id];
     for (const ch of man.chapters) {
-      if (ch.page != null) entries.push({ kind: '章', title: ch.title, where: b.full, href: `?book=${b.id}#p=${ch.page}` });
-      for (const s of ch.sections) if (s.page != null) entries.push({ kind: '节', title: s.title.replace(/^第.节\s*/, ''), where: `${b.full} · ${ch.title}`, href: `?book=${b.id}#p=${s.page}` });
+      if (ch.page != null) entries.push({ kind: '章', title: ch.title, where: b.full, href: `${bookHref(b.id)}#p=${ch.page}` });
+      for (const s of ch.sections) if (s.page != null) entries.push({ kind: '节', title: s.title.replace(/^第.节\s*/, ''), where: `${b.full} · ${ch.title}`, href: `${bookHref(b.id)}#p=${s.page}` });
     }
-    for (const [id, L] of Object.entries(c.lessons)) entries.push({ kind: '活页', title: L.title, where: `${b.full} · ${L.fig} · ${L.sec}`, cap: L.cap || '', href: `?book=${b.id}#live=${id}`, done: stamps.has(id) });          // cap：课本图题，搜得到但不显示
+    for (const [id, L] of Object.entries(c.lessons)) entries.push({ kind: '活页', title: L.title, where: `${b.full} · ${L.fig} · ${L.sec}`, cap: L.cap || '', href: `${bookHref(b.id)}#live=${id}`, done: stamps.has(id) });          // cap：课本图题，搜得到但不显示
   }
   const input = h('input', { type: 'search', placeholder: '搜一节课或一张活页，比如“凸透镜”“电解水”' });
   const list = h('div', { class: 'search-list', hidden: true });
@@ -777,7 +780,7 @@ function openOverview(books, manifests, subjects, pagesOk) {
           backgroundPosition: `${(x0 / (PW - (x1 - x0))) * 100}% ${(y0 / (PH - (y1 - y0))) * 100}%`,
           aspectRatio: `${x1 - x0} / ${y1 - y0}`,
         });
-        return h('a', { class: 'ov-card', href: `?book=${bid}#live=${s.lesson}` }, thumb,
+        return h('a', { class: 'ov-card', href: `${bookHref(bid)}#live=${s.lesson}` }, thumb,
           h('b', {}, L.title), h('span', {}, `${L.fig} · 第 ${s.page - man.pageOffset} 页`), stamps.has(s.lesson) ? h('i', { class: 'ov-done' }, '已做') : null);
       })));
     }
@@ -802,11 +805,12 @@ function authorCard() {
   const card = h('div', { class: 'home-author' },
     h('div', { class: 'author-qr', role: 'dialog', 'aria-label': '公众号二维码' },
       h('img', { src: fileUrl('/brand/gzh-qr.jpg'), width: 132, height: 132, alt: '德里克的 AI 教学实验室 公众号二维码' }),
-      h('p', {}, '新的活页做好了，先在这里说'),
+      h('p', {}, '新的活页、新的尝试，都在这里分享'),
+      h('p', {}, '使用中遇到问题，或想交流 AI 教学，欢迎联系我。'),
       h('small', {}, '微信扫一扫，或在微信里长按识别')),
     h('button', { class: 'author-chip', 'aria-expanded': 'false', onclick: (e) => { e.stopPropagation(); toggle(); } },
       h('img', { src: fileUrl('/brand/gzh-avatar.jpg'), width: 30, height: 30, alt: '' }),
-      h('span', {}, h('b', {}, '德里克的 AI 教学实验室'), h('small', {}, '公众号 · 用 AI 做真实的教学实践'))));
+      h('span', {}, h('b', {}, '德里克的 AI 教学实验室'), h('small', {}, '用 AI 做真实的教学实践，一起探索未来教育'))));
   const toggle = (open = !card.classList.contains('open')) => {
     card.classList.toggle('open', open);
     card.querySelector('.author-chip').setAttribute('aria-expanded', String(open));

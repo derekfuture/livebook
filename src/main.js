@@ -9,16 +9,15 @@ import { LiveLayer } from './live/LiveLayer.js';
 import { World, worldBook } from './live/World.js';
 import { Panel, stamps, h } from './ui/Panel.js';
 import { updateTags } from './ui/tags.js';
-import { getBook, bookList, getManifest } from './content/index.js';
+import { getBook, bookList, bookHref, shelfHref, currentBookId, getManifest } from './content/index.js';
 import { bootHome } from './home/Home.js';
 import { bookmark, rememberLast } from './home/progress.js';
 import { bootGeoWorld } from './world/GeoWorld.js';
 
 const $ = (s) => document.querySelector(s);
 
-// 页面结构：没有 ?book= 就是首页（书架）；有就是那本书
 const params = new URLSearchParams(location.search);
-const BOOK_ID = params.get('book');
+const BOOK_ID = currentBookId();
 
 /**
  * 打开一本书。从书架上拿书进来时不重新加载页面：沿用同一个舞台（stage），书架那本书已经放大落在书桌上、镜头也已经就位；
@@ -169,7 +168,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       for (const b of bookList()) {
         const c = getBook(b.id);
         const done = Object.keys(c.lessons).filter((id) => stamps.has(id)).length;
-        body.append(h('div', { class: `live-item ${b.id === content.id ? 'cur' : ''}`, onclick: () => { location.href = `?book=${b.id}`; } },
+        body.append(h('div', { class: `live-item ${b.id === content.id ? 'cur' : ''}`, onclick: () => { location.href = bookHref(b.id); } },
           h('div', { class: 'seal book' }, b.vol.replace('年级', '').replace('全一册', '全')),
           h('div', {}, h('h4', {}, b.full), h('p', {}, `活页 ${Object.keys(c.lessons).length} 张 · 已盖章 ${done}`))));
       }
@@ -217,7 +216,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
         sessionStorage.setItem(toWorld ? 'livebook.worldFrom' : 'livebook.homeFrom', content.id);
         sessionStorage.setItem('livebook.snap', stage.snapshot());
       } catch { /* 隐私模式 / 存不下：照常换页面 */ }
-      location.href = toWorld ? `${location.pathname}?subject=dili&focus=${content.id}` : location.pathname;
+      location.href = toWorld ? `${shelfHref()}?subject=dili&focus=${content.id}` : shelfHref();
     };
     requestAnimationFrame(wait);
   };
@@ -396,7 +395,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   window.__lb = { stage, book, live, hotspots, textures, world };
 }
 
-// 从书架拿书进来以后（地址栏已经改成 ?book=），按浏览器的“后退”：回到书架（重新加载）
+// 从书架拿书进来以后（地址栏已经切到教材路径），按浏览器的“后退”：回到书架（重新加载）
 addEventListener('popstate', () => location.reload());
 
 

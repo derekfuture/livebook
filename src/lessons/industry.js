@@ -8,6 +8,8 @@
 // 最省的地方不一定能建：石化厂放在港口最省，可烟会顺着盛行风吹进城里；放在河上游，污水会流到水源地——影响直接在出事的地方标出来。
 // 不打分：没有“正确答案”，只把每个方案的代价摆出来。教学示意：区域是虚构的，成本数值只用来比较。
 import * as THREE from 'three';
+import strataJpg from './data/tex/strata-side.jpg';
+import meadowJpg from './data/tex/meadow-tile.jpg';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex, texClones } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
@@ -44,8 +46,7 @@ export default {
     const P3 = (x, n, y = G) => new THREE.Vector3(x, y, -n);
 
     // ---- 地块：侧面是岩层，顶面是一张画出来的区域图 ----
-    const BASE = import.meta.env.BASE_URL || '/';
-    const strataT = texClones(`${BASE}tex/geo/strata-side.jpg`), strata = strataT.base;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
+    const strataT = texClones(strataJpg), strata = strataT.base;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
     const sm = (rx, c) => { const t = strataT.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.4); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
     const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, G - 0.001, NR - NL), [sm(0.9, 0.9), sm(0.9, 0.8), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm(1.3, 0.97), sm(1.3, 0.84)]);
     soil.position.y = (G - 0.001) / 2; block.add(soil);
@@ -57,7 +58,7 @@ export default {
     const cv = document.createElement('canvas'); cv.width = TW; cv.height = TH;
     const mapTex = new THREE.CanvasTexture(cv); mapTex.colorSpace = THREE.SRGBColorSpace; mapTex.anisotropy = 8;
     const px = (x) => ((x - XL) / (XR - XL)) * TW, py = (n) => ((NR - n) / (NR - NL)) * TH;
-    const meadow = new Image(); meadow.src = `${BASE}tex/geo/meadow-tile.jpg`;
+    const meadow = new Image(); meadow.src = meadowJpg;
     const drawMap = () => {
       const g = cv.getContext('2d');
       if (meadow.complete && meadow.naturalWidth) { g.fillStyle = g.createPattern(meadow, 'repeat'); g.fillRect(0, 0, TW, TH); g.fillStyle = 'rgba(244,240,222,0.35)'; g.fillRect(0, 0, TW, TH); } else { g.fillStyle = '#b9cf8f'; g.fillRect(0, 0, TW, TH); }

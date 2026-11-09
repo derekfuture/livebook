@@ -9,6 +9,7 @@
 // 换个条件：南半球（向左偏）、假如地球不自转（没有地转偏向力，空气直直冲向中心）。
 // 教学示意：竖直方向夸大了；风和等压线的夹角取约 24°（地面摩擦使风斜穿等压线，实际常见 10°–45°，陆地上大、海面上小）；时间加快了。
 import * as THREE from 'three';
+import strataJpg from './data/tex/strata-side.jpg';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex } from './kit/props.js';
 import { airLabel, noteBadge } from './kit/labels.js';
@@ -86,7 +87,6 @@ export default {
       trunks.raycast = crowns.raycast = () => {}; block.add(trunks, crowns);
     };
     // 乡村地形保持低于知识图层，河道与田野不承担气压或风向编码。
-    const BASE = import.meta.env.BASE_URL || '/';
     const riverX = (z) => -0.09 + 0.016 * Math.sin(z * 30) + 0.006 * Math.sin(z * 68);
     const landHeight = (x, z) => G - 0.006 + 0.0045 * Math.sin(x * 34 + 0.8) * Math.cos(z * 29) - 0.007 * Math.exp(-Math.pow((x - riverX(z)) / 0.009, 2));
     const fieldTex = canvasTex(1024, 1024, (c, w) => {
@@ -94,7 +94,7 @@ export default {
       for (let j = 0; j < 10; j++) for (let i = 0; i < 9; i++) { c.fillStyle = ['#a6b77b', '#8fa76a', '#b5bc87', '#9bab73'][(i * 3 + j * 7) % 4]; c.fillRect(i * 120 + 2, j * 108 + 2, 116, 104); c.strokeStyle = 'rgba(69,91,42,0.12)'; for (let k = 0; k < 12; k++) { c.beginPath(); c.moveTo(i * 120 + 5, j * 108 + k * 9); c.lineTo(i * 120 + 115, j * 108 + k * 9); c.stroke(); } }
       for (let i = 0; i < 22000; i++) { c.fillStyle = sceneryRandom() > 0.5 ? '#ffffff12' : '#273c2112'; c.fillRect(sceneryRandom() * w, sceneryRandom() * w, 2, 2); }
     });
-    const strataTex = new THREE.TextureLoader().load(`${BASE}tex/geo/strata-side.jpg`); strataTex.colorSpace = THREE.SRGBColorSpace; strataTex.wrapS = THREE.RepeatWrapping;
+    const strataTex = new THREE.TextureLoader().load(strataJpg); strataTex.colorSpace = THREE.SRGBColorSpace; strataTex.wrapS = THREE.RepeatWrapping;
     solidLand(0, XR - XL, ZN * 2, landHeight, lit(0xffffff, { map: fieldTex, side: THREE.DoubleSide }), lit(0xb8aa8e, { map: strataTex, side: THREE.DoubleSide }));
     const waterGeo = new THREE.PlaneGeometry(0.013, ZN * 2, 8, 96); waterGeo.rotateX(-Math.PI / 2);
     const wp = waterGeo.attributes.position;

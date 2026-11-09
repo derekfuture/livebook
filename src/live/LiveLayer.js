@@ -1,3 +1,4 @@
+import { lessonCommunity } from '../ui/community.js';
 import * as THREE from 'three';
 import * as ink from './ink.js';
 import { tag, tagFocus } from '../ui/tags.js';
@@ -257,6 +258,9 @@ export class LiveLayer {
 
     this.hotspots.enabled = false;
     document.body.classList.add('lesson-on'); document.getElementById('c').dataset.tip = '';
+    const community = lessonCommunity({capture:()=>this.stage.snapshot(Math.min(innerWidth,1280),Math.round(Math.min(innerWidth,1280)*innerHeight/innerWidth)), lesson:spot.lesson, title:def.title, where: `${this.content.full || this.content.title || ''} · 第 ${pageNum} 页 · ${def.fig || ''}`});
+    document.getElementById('viewctl')?.append(community);
+    toggles.push(community);
     document.body.classList.toggle('stand-ui', !!board);
     ink.setLessonStyle(null);
     this.active = { spot, def, inst, root, scaler, card, hole, crop, tags, nb, board, toggles, t: 0, from: figCenter, to: pageCenter, s, closing: false, world: WD, hold: WD?.mode === 'globe' };

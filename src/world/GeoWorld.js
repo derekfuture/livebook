@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { WorldEarth } from '../live/WorldEarth.js';
 import { ll2v } from '../lessons/kit/plates.js';
 import { ANCHORS } from '../lessons/kit/atlas.js';
-import { bookList, getBook, getManifest, fileUrl } from '../content/index.js';
+import { bookList, getBook, getManifest, fileUrl, bookHref, shelfHref } from '../content/index.js';
 import { tag, updateTags } from '../ui/tags.js';
 import { h, stamps } from '../ui/Panel.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
@@ -371,9 +371,9 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (p && TERRAIN[p.place]) return dive(it, p, bo);          // 有真实地形的地方：先俯冲到那座山上
     if (p) { earth.turnTo(p.lat, p.lon, stage.camera); earth.setActive({ it, pn: p }); }
     const corner = it.anchor.kind === 'place' && /^dili-(bx|xb)/.test(it.book.id);          // 书里那颗地球：有地方的活页一进去就在右上角
-    leave(bo, `?book=${it.book.id}#live=${it.id}${pn && pn !== it.anchor.pins?.[0] ? `&place=${encodeURIComponent(pn.place || pn.name)}` : ''}`, corner);          // 不是第一面旗（长白山、黄河入海口……）：带上是哪一面
+    leave(bo, `${bookHref(it.book.id)}#live=${it.id}${pn && pn !== it.anchor.pins?.[0] ? `&place=${encodeURIComponent(pn.place || pn.name)}` : ''}`, corner);          // 不是第一面旗（长白山、黄河入海口……）：带上是哪一面
   }
-  function openBook(bo) { leave(bo, `?book=${bo.b.id}`, false); }
+  function openBook(bo) { leave(bo, bookHref(bo.b.id), false); }
   const hiCover = (bo) => { if (bo.coverHi) return; bo.coverHi = true; const t = loader.load(fileUrl(`${getBook(bo.b.id).base}hi/000.jpg`), () => { const m = bo.mesh.material[4], old = m.map; m.map = t; old?.dispose(); }); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; };          // 要飞到眼前的那本：换成大封面（下好了再换，换的时候不用重新编译）
   function leave(bo, url, corner) {
     if (leaving) return;
@@ -634,7 +634,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       D.sent = true;
       try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ }
       const it = D.it, pn = D.pn;
-      if (!window.__geoStay) location.href = `?book=${it.book.id}#live=${it.id}&place=${encodeURIComponent(pn.place)}&via=block`;
+      if (!window.__geoStay) location.href = `${bookHref(it.book.id)}#live=${it.id}&place=${encodeURIComponent(pn.place)}&via=block`;
     }
   }
 
@@ -695,7 +695,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
       sessionStorage.setItem('livebook.homeFromWorld', JSON.stringify({ cx, cy, r: Math.hypot(ex - cx, ey - cy), spin: 2 * Math.atan2(earth.spin.quaternion.y, earth.spin.quaternion.w) }));
       sessionStorage.setItem('livebook.snap', stage.snapshot());
     } catch { /* 存不下就直接换 */ }
-    location.href = location.pathname;
+    location.href = shelfHref();
     }, 450);
   };
   stage.onResize = () => shot();

@@ -8,6 +8,7 @@
 // 陆地白天增温快、夜晚降温快，两岸的风一天里反过来。
 // 教学示意：竖直方向、温差、风速都是示意；时间加快了。
 import * as THREE from 'three';
+import strataJpg from './data/tex/strata-side.jpg';
 import { seg, buttons, note, slider } from './kit/ui.js';
 import { canvasTex, texClones } from './kit/props.js';
 import { faceLabel, airLabel, noteBadge } from './kit/labels.js';
@@ -53,7 +54,7 @@ export default {
     frameBox.position.y = LIFT + (GT + H) / 2; frameBox.raycast = () => {}; group.add(frameBox);
 
     // ---- 地面：一格格的颜色跟着地面温度变（冷蓝、暖橙）；台湾海峡那个情境里中间是海 ----
-    const strataT = texClones(`${import.meta.env.BASE_URL || '/'}tex/geo/strata-side.jpg`), strata = strataT.base; strata.wrapS = THREE.RepeatWrapping;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
+    const strataT = texClones(strataJpg), strata = strataT.base; strata.wrapS = THREE.RepeatWrapping;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
     const sm = (rep, c) => { const t = strataT.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rep, 0.5); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
     const soil = new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.014, D * 2), [sm(0.4, 0.9), sm(0.4, 0.78), new THREE.MeshBasicMaterial({ color: 0x8fb276 }), new THREE.MeshBasicMaterial({ color: 0x6b5236 }), sm(2.2, 0.97), sm(2.2, 0.82)]); soil.position.y = 0.007; block.add(soil);          // 地面下是一层层的岩层（手绘贴图）
     const soilE = new THREE.LineSegments(new THREE.EdgesGeometry(soil.geometry), new THREE.LineBasicMaterial({ color: 0x5a4028, transparent: true, opacity: 0.45 })); soil.add(soilE);

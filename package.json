@@ -8,7 +8,7 @@
     "predev": "node tools/copy_pdfjs.mjs",
     "dev": "vite",
     "prebuild": "node tools/copy_pdfjs.mjs",
-    "build": "vite build",
+    "build": "vite build && node tools/build_feedback.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

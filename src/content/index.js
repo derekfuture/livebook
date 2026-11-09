@@ -42,3 +42,37 @@ export function bookList() {
     return { id, title: t, full: fullTitle(books[id]), subject, vol: rest.join(' ') || t, publisher: books[id].publisher || '人教版', ...(SUBJECTS[subject] || OTHER) };
   });
 }
+
+// Keep public paths stable when the display titles change. PEP = People's Education Press.
+const bookPaths = new Map([
+  ['wuli-8s', '/physics/pep/grade-8-vol-1'],
+  ['wuli-8x', '/physics/pep/grade-8-vol-2'],
+  ['wuli-9', '/physics/pep/grade-9'],
+  ['huaxue-9s', '/chemistry/pep/grade-9-vol-1'],
+  ['huaxue-9x', '/chemistry/pep/grade-9-vol-2'],
+  ['dili-7s', '/geography/pep/grade-7-vol-1'],
+  ['dili-8s', '/geography/pep/grade-8-vol-1'],
+  ['dili-8x', '/geography/pep/grade-8-vol-2'],
+  ['dili-bx1', '/geography/pep/compulsory-1'],
+  ['dili-bx2', '/geography/pep/compulsory-2'],
+  ['dili-xb1', '/geography/pep/selective-compulsory-1'],
+  ['dili-xb2', '/geography/pep/selective-compulsory-2'],
+]);
+
+export const bookHref = (id) => OFFLINE ? `?book=${id}` : bookPaths.get(id) ?? `/?book=${id}`;          // 还没定路径的书：照旧用 ?book=
+export const shelfHref = () => OFFLINE ? location.pathname : '/';
+
+export function currentBookId() {
+  const path = location.pathname.replace(/\/$/, '');
+  const legacy = new URLSearchParams(location.search);
+  for (const [id, bookPath] of bookPaths) {
+    if (!OFFLINE && path === bookPath) return id;
+  }
+  const id = legacy.get('book');
+  if (!OFFLINE && bookPaths.has(id)) {
+    legacy.delete('book');
+    const query = legacy.toString();
+    history.replaceState(history.state, '', bookHref(id) + (query ? '?' + query : '') + location.hash);
+  }
+  return id;
+}

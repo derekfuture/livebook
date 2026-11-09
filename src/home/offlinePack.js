@@ -28,6 +28,7 @@ export function offlineButton() {
         ? `一个压缩包（约 ${mb} MB）。解压到 U 盘或电脑上，双击里面的“活页课本.html”就能打开，不用联网。`
         : `一个网页文件（约 ${mb} MB）。放进 U 盘或拷到电脑上，双击就能打开，不用联网。` }),
       el('p', { className: 'imp-how', textContent: pdfs.length ? `这台电脑上导入过的课本会一起放进去：${names}。` : '在书里导入过课本 PDF 的话，会一起放进离线版。' }),
+      el('p', { className: 'imp-how', textContent: '离线版保存的是本次下载时的内容。活页课本会持续更新，想使用新内容，可以回到网站重新下载。关注「德里克的 AI 教学实验室」，了解更新消息。' }),
       acts(['下载', () => download(pdfs)], ['取消', hide, true]));
   };
 

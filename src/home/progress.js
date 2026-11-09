@@ -1,5 +1,5 @@
 // 学习进度：每本书的书签页（翻到哪了）、做过的实验、上一次打开的实验。都存在 localStorage。
-import { getBook } from '../content/index.js';
+import { getBook, bookHref } from '../content/index.js';
 import { stamps } from '../ui/Panel.js';
 
 const KEY = (id) => `livebook.bookmark.${id}`;
@@ -11,7 +11,7 @@ export const bookmark = {
 
 /** 记下“上次在做什么”，首页的“继续上次”用 */
 export function rememberLast({ book, page, lesson, title, where }) {
-  localStorage.setItem('livebook.last', JSON.stringify({ book, page, lesson, title, where, href: lesson ? `?book=${book}#live=${lesson}` : `?book=${book}#p=${page}` }));
+  localStorage.setItem('livebook.last', JSON.stringify({ book, page, lesson, title, where, href: bookHref(book) + (lesson ? `#live=${lesson}` : `#p=${page}`) }));
 }
 
 /** 一本书的进度：学到第几章、实验做了几个 */

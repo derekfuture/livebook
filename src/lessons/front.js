@@ -11,6 +11,8 @@
 // 教学示意：竖直方向夸大了（真实锋面很平缓，冷锋通常比暖锋陡）；雨区画的是课本图 3.3、3.4 的情形
 // （冷锋降水主要在锋后、紧挨锋线；暖锋降水在锋前、范围宽）。实际的锋，降水也可能在别的位置，或者没有降水。
 import * as THREE from 'three';
+import strataJpg from './data/tex/strata-side.jpg';
+import landscapeJpg from './data/tex/landscape-top.jpg';
 import { stationAt, weatherAt as modelWeatherAt, frontPath } from './kit/front.js';
 import { seg, buttons, note } from './kit/ui.js';
 import { canvasTex, texClones } from './kit/props.js';
@@ -98,11 +100,10 @@ export default {
     const groundMat = lit(0x9cc98a);
     const ground = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, 0.004, ZD * 2), groundMat)); ground.position.y = G - 0.002; block.add(ground);
     let yy = G - 0.004;
-    const BASE = import.meta.env.BASE_URL || '/';
-    const strataT = texClones(`${BASE}tex/geo/strata-side.jpg`), strata = strataT.base;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
+    const strataT = texClones(strataJpg), strata = strataT.base;          // 岩层侧面：几处用不同的重复次数，clone 等图到了再更新
     const sm = (rx, c) => { const t = strataT.clone(); t.wrapS = THREE.RepeatWrapping; t.repeat.set(rx, 0.35); return new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(c, c, c) }); };
     { const t = G - 0.004, m = edges(new THREE.Mesh(new THREE.BoxGeometry(XR - XL, t, ZD * 2), [sm(0.5, 0.9), sm(0.5, 0.8), lit(0x8fb276), lit(0x6b5236), sm(2.4, 0.97), sm(2.4, 0.84)])); m.position.y = yy - t / 2; block.add(m); }          // 地下是一层层的岩层（手绘贴图）
-    const fields = new THREE.TextureLoader().load(`${BASE}tex/geo/landscape-top.jpg`); fields.colorSpace = THREE.SRGBColorSpace;          // 地面：一片手绘的乡村（田、树林、村子）
+    const fields = new THREE.TextureLoader().load(landscapeJpg); fields.colorSpace = THREE.SRGBColorSpace;          // 地面：一片手绘的乡村（田、树林、村子）
     fields.repeat.set(1, (ZD * 2) / (XR - XL) * 1.25); fields.offset.set(0, (1 - fields.repeat.y) / 2);          // 贴图是 5:4，地块又长又窄：取中间一条
     const fieldMat = new THREE.MeshBasicMaterial({ map: fields, color: 0xf2f2ec, transparent: true, opacity: 0 });
     const field = new THREE.Mesh(new THREE.PlaneGeometry(XR - XL, ZD * 2), fieldMat); field.rotation.x = -Math.PI / 2; field.position.y = G + 0.0002; block.add(field);
