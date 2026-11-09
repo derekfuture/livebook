@@ -804,3 +804,16 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 }
 .fb-required { color:#a64b3e;margin-left:5px; }
 .fb-contact-hint { color:#737c6e;font-size:12px;line-height:1.6;margin:9px 0 0; }
+
+/* A distinct receipt, shown only after confirmed delivery. */
+.fb-success { padding:56px 36px 44px;text-align:center; }
+.fb-success-check { display:grid;place-items:center;width:52px;height:52px;margin:0 auto 24px;border-radius:50%;background:#e8ece4;color:#4e6b5c; }
+.fb-success-check .fb-icon { width:26px;height:26px; }
+.fb-success h2 { margin:0;font:26px/1.5 var(--song);font-weight:500;outline:none; }
+.fb-success-note { margin:18px 0 26px;color:#81877e; }
+.fb-success-summary { max-width:520px;margin:0 auto 30px;padding:20px 22px;border-radius:10px;background:#f0efe6;text-align:left; }
+.fb-success-summary strong { font-weight:600; }
+.fb-success-summary p { margin:12px 0 14px;color:#737c71;white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto; }
+.fb-success-summary small { font-size:11px;color:#818b7d; }
+.fb-success > .fb-primary { display:inline-flex; }
+@media(max-width:600px) { .fb-success { padding:36px 22px 30px; } .fb-success h2 {font-size:22px;} }

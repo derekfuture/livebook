@@ -112,7 +112,19 @@ export function openFeedback(context = {}) {
       const response=await fetch('/api/feedback',{method:'POST',body:data});
       const result=await response.json().catch(()=>({}));
       if(!response.ok || !result.ok)throw new Error(result.error || '提交失败，内容已保留，请稍后重试。');
-      sent=true;drafts.delete(key);status.textContent='反馈已收到，谢谢你帮我们做得更好。';submit.textContent='已提交';
+      sent=true;drafts.delete(key);
+      const back=h('button',{type:'button',class:'fb-primary',onclick:()=>dialog.close()},context.lesson ? '回到实验' : '回到首页');
+      dialog.replaceChildren(h('section',{class:'fb-success'},
+        h('div',{class:'fb-success-check','aria-hidden':'true'},svg('<path d="m5 12 4 4L19 6"/>')),
+        h('h2',{id:'fb-title',tabindex:'-1'},'谢谢你，让活页更好一点'),
+        h('p',{class:'fb-success-note',role:'status'},'反馈已收到。'),
+        h('div',{class:'fb-success-summary'},
+          h('strong',{},context.title || '活页课本首页'),
+          h('p',{},message.value.trim()),
+          h('small',{},images.length ? `已附页面信息和 ${images.length} 张图片` : '已附页面信息')),
+        back));
+      dialog.scrollTop=0;
+      dialog.querySelector('h2').focus({preventScroll:true});
     } catch(error) {
       status.textContent=error.message || '网络连接失败，内容已保留，请重试。';
       controls.forEach(el=>el.disabled=false);submit.textContent='提交反馈';
