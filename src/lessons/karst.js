@@ -132,6 +132,14 @@ export default {
       const C3 = u.cave3, near = S.near === u && C3.grp.visible, A = C3.at;
       for (const [k, t] of Object.entries(C3.names)) { const v = A[k]; t.show(!!(near && v)); if (v) t.loc(u.g, v.x, v.y + (k === 'stal' ? -0.003 : k === 'river' ? 0.0012 : 0.0035), v.z); }
     }
+    const faceBase = new Map();          // 切面的岩石底图（不随时间变）：每种岩石画一次，存着
+    const baseOf = (rock, w, hh) => { if (!faceBase.has(rock)) { const c = document.createElement('canvas'); c.width = w; c.height = hh; rockFace(rock, true)(c.getContext('2d'), w, hh); faceBase.set(rock, c); } return faceBase.get(rock); };
+    // 从刚算好的地形网格里读高度（双线性）：比按公式算快得多；网格的第 iz 行在 z = −BD/2 + iz·BD/N
+    const gridH = (u, x, z) => {
+      const a = u.geo.attributes.position.array, fx = Math.min(N, Math.max(0, ((x + BW / 2) / BW) * N)), fz = Math.min(N, Math.max(0, ((z + BD / 2) / BD) * N));
+      const ix = Math.min(N - 1, Math.floor(fx)), iz = Math.min(N - 1, Math.floor(fz)), tx = fx - ix, tz = fz - iz, k = iz * (N + 1) + ix, W1 = N + 1;
+      return (a[k * 3 + 1] * (1 - tx) + a[(k + 1) * 3 + 1] * tx) * (1 - tz) + (a[(k + W1) * 3 + 1] * (1 - tx) + a[(k + W1 + 1) * 3 + 1] * tx) * tz;
+    };
     const units = BLOCKS.map((b, bi) => {
       const g = new THREE.Group(); g.position.x = b.x; block.add(g);
       const P = peaksOf(17 + bi * 31);
@@ -169,6 +177,8 @@ export default {
     });
     const rebuild = (u) => {
       const { b, P, geo, col } = u, t = tOf(b), p = geo.attributes.position;
+      if (u.builtT != null && Math.abs(t - u.builtT) < (b.clim === 'dry' ? 0.004 : 1e-7) && u.builtNear === S.near) return;          // 花岗岩不变、干旱那块变得极慢：没变（或变得太少）就不重算
+      u.builtT = t; u.builtNear = S.near;
       if (!u.cache && b.rock !== 'granite') {          // 每个点到每座峰的锥度、节理、小起伏只和位置有关：第一次算好存着
         const n = p.count, cones = new Float32Array(n * P.length), jv = new Float32Array(n), nzv = new Float32Array(n);
         for (let k = 0; k < n; k++) { const x = p.getX(k), z = p.getZ(k); for (let i = 0; i < P.length; i++) cones[k * P.length + i] = peakCone(P[i], x, z); jv[k] = joint(x, z); nzv[k] = nz(x, z); }
@@ -190,7 +200,7 @@ export default {
       }
       geo.attributes.color.needsUpdate = true;
       // 前面的切面、两侧和后面：都是贴着地形的岩壁
-      const strip = (pts, flip) => { const P2 = [], U = [], I = []; let s = 0; pts.forEach(([x, z], i) => { if (i) s += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1]); const y = height(b, P, x, z); P2.push(x, y, z, x, 0, z); U.push(s / BW, y / 0.1, s / BW, 0); if (i) { const a = 2 * i - 2; flip ? I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }); const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(P2, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g2.setIndex(I); g2.computeVertexNormals(); return g2; };
+      const strip = (pts, flip) => { const P2 = [], U = [], I = []; let s = 0; pts.forEach(([x, z], i) => { if (i) s += Math.hypot(x - pts[i - 1][0], z - pts[i - 1][1]); const y = gridH(u, x, z); P2.push(x, y, z, x, 0, z); U.push(s / BW, y / 0.1, s / BW, 0); if (i) { const a = 2 * i - 2; flip ? I.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : I.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } }); const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(P2, 3)); g2.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g2.setIndex(I); g2.computeVertexNormals(); return g2; };
       const line = (f) => Array.from({ length: N + 1 }, (_, i) => f(i / N));
       u.front.geometry.dispose(); u.front.geometry = strip(line((v) => [-BW / 2 + BW * v, BD / 2]));
       const parts = [strip(line((v) => [-BW / 2, BD / 2 - BD * v])), strip(line((v) => [-BW / 2 + BW * v, -BD / 2])), strip(line((v) => [BW / 2, -BD / 2 + BD * v]))];          // 左、后、右：一圈连起来
@@ -200,14 +210,14 @@ export default {
       paintFace(u, t); if (u.cave3) growCave(u);
       // 坝子里的村子；树（湿润地区）和灌丛（干旱地区）
       const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), sv = new THREE.Vector3(), pv = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0), tcol = new THREE.Color(), R = mkRnd(3); let nh = 0, nt = 0, ns = 0;
-      const slopeAt = (x, z) => { const e = 0.0012; return Math.hypot(height(b, P, x + e, z) - height(b, P, x - e, z), height(b, P, x, z + e) - height(b, P, x, z - e)) / (2 * e); };
-      if (b.rock === 'limestone' && b.clim === 'wet' && t > 0.5) { let vc = null; for (let k = 0; k < 900 && nh < 18; k++) { const x = vc ? vc[0] + (R() - 0.5) * 0.026 : (R() - 0.5) * BW * 0.8, z = vc ? vc[1] + (R() - 0.5) * 0.02 : (R() - 0.5) * BD * 0.8; if (Math.abs(x) > BW * 0.46 || Math.abs(z) > BD * 0.46) continue; const hg = height(b, P, x, z); if (hg < base + 0.004 && slopeAt(x, z) < 0.6) { vc ||= [x, z]; q4.setFromAxisAngle(Y, (R() < 0.5 ? 0 : Math.PI / 2)); m4.compose(pv.set(x, hg, z), q4, sv.setScalar(1.3)); u.houses.setMatrixAt(nh++, m4); } } }          // 坝子里聚成一个村子
+      const hAt = (x, z) => gridH(u, x, z), slopeAt = (x, z) => { const e = 0.0012; return Math.hypot(hAt(x + e, z) - hAt(x - e, z), hAt(x, z + e) - hAt(x, z - e)) / (2 * e); };
+      if (b.rock === 'limestone' && b.clim === 'wet' && t > 0.5) { let vc = null; for (let k = 0; k < 900 && nh < 18; k++) { const x = vc ? vc[0] + (R() - 0.5) * 0.026 : (R() - 0.5) * BW * 0.8, z = vc ? vc[1] + (R() - 0.5) * 0.02 : (R() - 0.5) * BD * 0.8; if (Math.abs(x) > BW * 0.46 || Math.abs(z) > BD * 0.46) continue; const hg = hAt(x, z); if (hg < base + 0.004 && slopeAt(x, z) < 0.6) { vc ||= [x, z]; q4.setFromAxisAngle(Y, (R() < 0.5 ? 0 : Math.PI / 2)); m4.compose(pv.set(x, hg, z), q4, sv.setScalar(1.3)); u.houses.setMatrixAt(nh++, m4); } } }          // 坝子里聚成一个村子
       if (b.clim === 'wet') for (let k = 0; k < 4000 && nt < 520; k++) {
-        const x = (R() - 0.5) * BW * 0.95, z = (R() - 0.5) * BD * 0.95, hg = height(b, P, x, z), sl = slopeAt(x, z);
+        const x = (R() - 0.5) * BW * 0.95, z = (R() - 0.5) * BD * 0.95, hg = hAt(x, z), sl = slopeAt(x, z);
         const ok = b.rock === 'granite' ? R() < 0.55 : sl < 1.4 && !(t > 0.45 && hg < base + 0.008 && R() > 0.015) && R() < 0.7;          // 石灰岩：峰上、缓坡上长树；陡壁不长；坝子里是田，只有零星几棵
         if (!ok) continue; const s = 0.75 + R() * 0.5; q4.setFromAxisAngle(Y, R() * 6.28); m4.compose(pv.set(x, hg - 0.0003, z), q4, sv.setScalar(s)); u.trees.setMatrixAt(nt, m4); u.trees.setColorAt(nt, tcol.setHex(b.rock === 'granite' ? 0x3d7a36 : 0x3f8240).multiplyScalar(0.8 + R() * 0.35)); nt++;
       }
-      if (b.clim === 'dry') for (let k = 0; k < 800 && ns < 120; k++) { const x = (R() - 0.5) * BW * 0.95, z = (R() - 0.5) * BD * 0.95, hg = height(b, P, x, z); if (slopeAt(x, z) < 0.8 && R() < 0.4) { m4.compose(pv.set(x, hg - 0.0002, z), q4.identity(), sv.setScalar(0.7 + R() * 0.6)); u.shrubs.setMatrixAt(ns++, m4); } }          // 干旱：零星的灌丛
+      if (b.clim === 'dry') for (let k = 0; k < 800 && ns < 120; k++) { const x = (R() - 0.5) * BW * 0.95, z = (R() - 0.5) * BD * 0.95, hg = hAt(x, z); if (slopeAt(x, z) < 0.8 && R() < 0.4) { m4.compose(pv.set(x, hg - 0.0002, z), q4.identity(), sv.setScalar(0.7 + R() * 0.6)); u.shrubs.setMatrixAt(ns++, m4); } }          // 干旱：零星的灌丛
       u.houses.count = nh; u.trees.count = nt; u.shrubs.count = ns; u.houses.instanceMatrix.needsUpdate = true; u.trees.instanceMatrix.needsUpdate = true; if (u.trees.instanceColor) u.trees.instanceColor.needsUpdate = true; u.shrubs.instanceMatrix.needsUpdate = true;
       const sn = b.rock === 'granite' ? null : stageName(t); u.stageL.setText(sn === '峰丛' && shifting(t) ? '峰丛 → 峰林（过渡中）' : sn ?? (b.rock === 'granite' ? '不出现喀斯特形态' : t > 0 ? '刚开始溶蚀' : '')).setOn(S.time > 0);
       if (sn) { (S.seen[b.key] ||= new Set()).add(sn); }
@@ -216,10 +226,10 @@ export default {
     function paintFace(u, t) {
       if (u.b.rock === 'granite' && u.facePainted) return; u.facePainted = true;          // 花岗岩纹理只绘制一次，避免随时间重新随机生成
       const { cv, ftex, b, P } = u, g = cv.getContext('2d'), w = cv.width, hh = cv.height, X = (x) => ((x + BW / 2) / BW) * w, Y = (y) => hh - (y / 0.1) * hh;
-      g.clearRect(0, 0, w, hh); rockFace(b.rock, true)(g, w, hh);
+      g.clearRect(0, 0, w, hh); g.drawImage(baseOf(b.rock, w, hh), 0, 0);
       if (b.rock === 'limestone') {
         // 地表的溶沟：顺着裂隙往下溶宽的 V 形缝
-        const tops = []; for (let i = 0; i <= w; i += 2) tops.push(Y(height(b, P, -BW / 2 + (i / w) * BW, BD / 2)));
+        const tops = []; for (let i = 0; i <= w; i += 2) tops.push(Y(gridH(u, -BW / 2 + (i / w) * BW, BD / 2)));
         if (t > 0.01) { g.fillStyle = 'rgba(60,58,54,0.55)'; let prev = 0; for (let i = 1; i < w; i += 2) { const x = -BW / 2 + (i / w) * BW, jv = joint(x, BD / 2); if (jv > 0.6 && prev <= 0.6) { const d = (30 + 90 * sm(0, 0.3, t)) * (0.6 + 0.4 * jv), hw = 2 + 6 * sm(0, 0.2, t), yt = tops[(i - 1) / 2] ?? 0; g.beginPath(); g.moveTo(i - hw, yt); g.lineTo(i + hw, yt); g.lineTo(i + 1, yt + d); g.fill(); } prev = jv; } }          // 溶沟：就在顶面那两组节理和切面相交的地方，沿裂隙往下溶宽
         if (b.clim === 'wet') { g.fillStyle = 'rgba(150,80,50,0.55)'; for (let i = 0; i <= w; i += 2) { const sl = Math.abs((tops[i / 2 + 1] ?? tops[i / 2]) - tops[i / 2]) / 2; if (sl < 0.9) g.fillRect(i, tops[i / 2], 2, sl < 0.25 ? 9 : 4); } }          // 风化土：平缓处和洼地厚一些，陡壁上断开（土壤覆盖只是示意）
         const c = cave(t), cx = w * 0.52, cy = Y(0.0165), rx = 40 + 300 * c.size, ry = 18 + 96 * c.size; u.caveAt = { x: -BW / 2 + 0.52 * BW, y: 0.0165, rx: (rx / w) * BW, ry: (ry / hh) * 0.1, c };          // 溶洞画大一些（示意），洞里的石钟乳、石笋、石柱看得清          // 溶洞在地下深处：比后来溶低的地面（坝子）还低
@@ -231,10 +241,10 @@ export default {
           const say = (txt, x, y, cl) => { g.strokeText(txt, x, y); g.fillStyle = cl; g.fillText(txt, x, y); };
           if (S.near !== u) say('水往下渗：溶蚀、带走', 12, Y(0.044), '#d9ecff');          // 一样是水，在这里是溶蚀（凑近看洞时不写在切面上，免得字放得很大）
           if (c.drip > 0.05 && S.near !== u) say('滴水：CO₂ 逸出，碳酸钙沉淀', Math.max(8, cx - rx * 0.9), cy - ry - 12, '#fff2c8');          // 在洞里又是沉淀
-          if (t > 0.18 && t < 0.62) { g.strokeStyle = '#4f87b8'; g.lineWidth = 3; g.setLineDash([6, 5]); g.beginPath(); g.moveTo(X(0.012), Y(height(b, P, 0.012, BD / 2)) + 6); g.lineTo(cx - rx * 0.3, cy - ry * 0.8); g.stroke(); g.setLineDash([]); }          // 洼地底下有裂隙通到地下河（像大窝凼）
+          if (t > 0.18 && t < 0.62) { g.strokeStyle = '#4f87b8'; g.lineWidth = 3; g.setLineDash([6, 5]); g.beginPath(); g.moveTo(X(0.012), Y(gridH(u, 0.012, BD / 2)) + 6); g.lineTo(cx - rx * 0.3, cy - ry * 0.8); g.stroke(); g.setLineDash([]); }          // 洼地底下有裂隙通到地下河（像大窝凼）
         }
-      } else { g.fillStyle = 'rgba(120,80,50,0.5)'; for (let i = 0; i <= w; i += 2) { const x = -BW / 2 + (i / w) * BW; g.fillRect(i, Y(height(b, P, x, BD / 2)), 2, 10); } }          // 花岗岩上一层土
-      for (let i = 0; i <= w; i++) { const x = -BW / 2 + (i / w) * BW, top = Y(height(b, P, x, BD / 2)); g.clearRect(i, 0, 1, top); }
+      } else { g.fillStyle = 'rgba(120,80,50,0.5)'; for (let i = 0; i <= w; i += 2) { const x = -BW / 2 + (i / w) * BW; g.fillRect(i, Y(gridH(u, x, BD / 2)), 2, 10); } }          // 花岗岩上一层土
+      g.save(); g.beginPath(); g.moveTo(0, 0); for (let i = 0; i <= w; i += 2) { const x = -BW / 2 + (i / w) * BW; g.lineTo(i, Y(gridH(u, x, BD / 2))); } g.lineTo(w, 0); g.closePath(); g.globalCompositeOperation = 'destination-out'; g.fill(); g.restore();          // 地面以上透明（一次擦掉，不再一列列擦）
       ftex.needsUpdate = true;
     }
     const aHover = airLabel(block, '', { h: 0.0075, color: '#3a3226', dim: 0 });
