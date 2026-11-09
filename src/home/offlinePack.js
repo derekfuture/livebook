@@ -25,8 +25,8 @@ export function offlineButton() {
     const names = pdfs.map(([id]) => bookName(id, getBook(id).title)).join('、');
     show(el('b', { textContent: '下载离线版' }),
       el('p', { textContent: pdfs.length
-        ? `一个压缩包（约 ${mb} MB）。解压到 U 盘或电脑上，双击里面的“活页课本.html”就能打开，不用联网。`
-        : `一个网页文件（约 ${mb} MB）。放进 U 盘或拷到电脑上，双击就能打开，不用联网。` }),
+        ? `一个压缩包（约 ${mb} MB）。解压到 U 盘或电脑上，用 Chrome 或 Edge 打开里面的“活页课本.html”，不用联网。`
+        : `一个压缩包（约 ${mb} MB）。先解压，再用 Chrome 或 Edge 打开里面的“活页课本.html”，不用联网。` }),
       el('p', { className: 'imp-how', textContent: pdfs.length ? `这台电脑上导入过的课本会一起放进去：${names}。` : '在书里导入过课本 PDF 的话，会一起放进离线版。' }),
       el('p', { className: 'imp-how', textContent: '离线版保存的是本次下载时的内容。活页课本会持续更新，想使用新内容，可以回到网站重新下载。关注「德里克的 AI 教学实验室」，了解更新消息。' }),
       acts(['下载', () => download(pdfs)], ['取消', hide, true]));
@@ -38,8 +38,11 @@ export function offlineButton() {
       const r = await fetch('/offline.html');
       const html = r.ok && (r.headers.get('content-type') || '').includes('html') ? await r.blob() : null;
       if (!html || html.size < 1e6) throw new Error('网站上没有离线版');
-      if (!pdfs.length) { save(html, '活页课本.html'); return show(el('p', { textContent: '开始下载了：活页课本.html。放进 U 盘或拷到电脑上，双击打开。' }), acts(['好的', hide])); }
-      const files = [{ name: '活页课本/活页课本.html', data: new Uint8Array(await html.arrayBuffer()) }];
+      const instructions = '活页课本离线版\r\n\r\n1. 将整个压缩包解压到电脑或 U 盘，不要直接在压缩包内打开。\r\n2. 右键“活页课本.html”，选择“打开方式”→新版 Microsoft Edge 或 Google Chrome。\r\n3. 微信、QQ、网盘里的文件预览不能运行实验，请先下载到电脑。\r\n4. 如果有 books 文件夹，请与 HTML 放在一起，转发时发送整个压缩包。\r\n5. 原书页需要导入对应版本的教材 PDF；没有 PDF 也能使用实验。\r\n6. 这是下载时的内容快照，更新后请回网站重新下载：https://livebook.derekfuture.club/\r\n';
+      const files = [
+        { name: '活页课本/活页课本.html', data: new Uint8Array(await html.arrayBuffer()) },
+        { name: '活页课本/打开说明.txt', data: new TextEncoder().encode('\uFEFF' + instructions) },
+      ];
       for (const [i, [id, rec]] of pdfs.entries()) {
         await show(el('p', { textContent: `正在打包课本（${i + 1}/${pdfs.length}）……` }));
         const b64 = (await new Promise((ok, no) => { const f = new FileReader(); f.onload = () => ok(f.result); f.onerror = () => no(f.error); f.readAsDataURL(rec.blob); })).split(',')[1];

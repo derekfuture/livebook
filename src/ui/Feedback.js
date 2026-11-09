@@ -1,3 +1,4 @@
+import { feedbackDiagnostics } from './feedbackDiagnostics.js';
 import { h } from './Panel.js';
 import { fileUrl } from '../content/index.js';
 
@@ -103,6 +104,7 @@ export function openFeedback(context = {}) {
     submit.textContent='正在提交…'; status.textContent='';
     try {
       const data=new FormData();
+      data.set('diagnostics',feedbackDiagnostics());
       data.set('id',submissionId);data.set('message',message.value.trim());data.set('name',name.value.trim());data.set('contact',contact.value.trim());
       data.set('source',[context.title || '活页课本首页',context.where,context.lesson].filter(Boolean).join(' · '));
       data.set('page',location.origin+location.pathname+location.hash);

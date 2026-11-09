@@ -1,3 +1,4 @@
+import { feedbackDiagnostics } from './feedbackDiagnostics.js';
 import { h } from './Panel.js';
 import { openFeedback } from './Feedback.js';
 
@@ -14,6 +15,8 @@ export function feedbackUrl(context = {}) {
     : '首页反馈';
   url.searchParams.set('prefill_反馈来源', source);
   url.searchParams.set('hide_反馈来源', '1');
+  url.searchParams.set('prefill_诊断信息', feedbackDiagnostics());
+  url.searchParams.set('hide_诊断信息', '1');
   return url.href;
 }
 

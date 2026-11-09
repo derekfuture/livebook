@@ -61,6 +61,15 @@
   <section id="panel" hidden></section>
 
   <footer id="copy">课本页面来自本地教材文件，仅供个人学习使用</footer>
+  <noscript><p style="position:fixed;inset:25%;z-index:9999;background:#fffdf8;padding:24px;color:#23293a">请将文件下载到电脑，用新版 Chrome 或 Edge 打开。聊天软件的文件预览无法运行实验。</p></noscript>
+  <script>
+    window.addEventListener('error', function (event) {
+      var loader = document.getElementById('loader');
+      if (!loader || loader.classList.contains('done')) return;
+      var message = loader.querySelector('.loader-msg');
+      if (message) message.textContent = '启动失败。请将文件解压到电脑，用新版 Chrome 或 Edge 打开，勿在聊天软件内预览。错误：' + (event.message || '组件加载失败');
+    });
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

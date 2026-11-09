@@ -17,6 +17,7 @@ export default {
       const field=(key,max)=>{const v=form.get(key)??'';if(typeof v!=='string'||v.length>max)throw new Error('validation');return v.trim();};
       const message=field('message',2000), name=field('name',60), contact=field('contact',160), source=field('source',1000), page=field('page',2000);
       const id=field('id',36);
+      const diagnostics=field('diagnostics',3000);
       if(!message || !/^[0-9a-f-]{36}$/i.test(id)) return json({error:'请填写具体的问题或建议。'},400);
       const images=form.getAll('images');
       if(images.length>6 || images.some(f=>typeof f==='string'|| !['image/png','image/jpeg','image/webp','image/gif'].includes(f.type)||f.size>10*1024*1024)||images.reduce((s,f)=>s+f.size,0)>MAX) return json({error:'最多 6 张图片，单张 10 MB、合计 20 MB 以内。'},400);
@@ -32,6 +33,7 @@ export default {
         attachments.push({file_token:result.data.file_token});
       }
       const fields={'反馈内容':message,'怎么称呼你':name,'联系方式':contact,'反馈来源':source,'页面链接':page};
+      if(diagnostics)fields['诊断信息']=diagnostics;
       if(attachments.length)fields['图片附件']=attachments;
       const result=await api(`bitable/v1/apps/${BASE}/tables/${TABLE}/records?client_token=${id}`,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({fields})});
       if(!result.data?.record?.record_id)throw new Error('missing record');
