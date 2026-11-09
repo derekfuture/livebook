@@ -483,10 +483,13 @@ export class LiveLayer {
       await new Promise((ok) => (window.requestIdleCallback || setTimeout)(ok, { timeout: 1500 }));
       if (st.post || !this.active || this.active.closing) return;
       // 再把暂时看不见的东西都在画面左下角 1 个像素里真画一次：显卡第一次画某种材质（透明、实例……）时要准备的东西、贴图上传，都在这时做掉
-      const hidden = []; st.scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
-      try { r.setScissorTest(true); r.setScissor(0, 0, 1, 1); r.render(st.scene, st.camera); }
-      catch { /* 画不了就算了 */ }
-      finally { r.setScissorTest(false); for (const o of hidden) o.visible = false; }
+      requestAnimationFrame(() => {          // 放进这一帧的渲染里、跟在整幅画面后面画：不在两帧之间单独画（那样这一帧只剩 1 个像素，别的地方是空的，录屏会截到一帧空白）
+        if (st.post || !this.active || this.active.closing) return;
+        const hidden = []; st.scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+        try { r.setScissorTest(true); r.setScissor(0, 0, 1, 1); r.render(st.scene, st.camera); }
+        catch { /* 画不了就算了 */ }
+        finally { r.setScissorTest(false); for (const o of hidden) o.visible = false; }
+      });
     }, 120);
   }
 
