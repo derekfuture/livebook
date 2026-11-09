@@ -12,7 +12,7 @@ import { h, stamps } from '../ui/Panel.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { timeCard } from './timeCard.js';
 import moonUrl from '../lessons/data/moon.jpg';
-import { TERRAIN, loadTerrain, globePatch, frameAt, toLocal, elevAt, terrainBlock, blockPose } from './terrain.js';
+import { TERRAIN, loadTerrain, globePatch, frameAt, toLocal, elevAt } from './terrain.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 
@@ -490,9 +490,9 @@ export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
   // 到了：标出地方、北在哪、画出要切开看的那条线（北坡从山脚到山顶），再进书。
   let diving = null;
   const skyDome = (() => {          // 进到大气里：一层天空（地平线发白、头顶蓝）罩在后面
-    const m = new THREE.ShaderMaterial({ depthWrite: false, depthTest: false, transparent: false, blending: THREE.CustomBlending, side: THREE.BackSide, uniforms: { k: { value: 0 }, warm: { value: 0 }, bg: { value: DAY.bg.clone() } },          // warm：切出来落到书上时，天空换成书桌的暖白          // 放在不透明的那一批里最先画（再画地球、地形），自己按透明度混合
+    const m = new THREE.ShaderMaterial({ depthWrite: false, depthTest: false, transparent: false, blending: THREE.CustomBlending, side: THREE.BackSide, uniforms: { k: { value: 0 } },          // 放在不透明的那一批里最先画（再画地球、地形），自己按透明度混合
       vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform float k; uniform float warm; uniform vec3 bg; varying vec3 vD; void main(){ float t = clamp(vD.y * 1.4 + 0.15, 0.0, 1.0); vec3 c = mix(mix(vec3(0.584, 0.672, 0.768), vec3(0.16, 0.30, 0.62), t), bg, warm); gl_FragColor = vec4(c, k); \n #include <colorspace_fragment>\n }' });
+      fragmentShader: 'uniform float k; varying vec3 vD; void main(){ float t = clamp(vD.y * 1.4 + 0.15, 0.0, 1.0); vec3 c = mix(vec3(0.584, 0.672, 0.768), vec3(0.16, 0.30, 0.62), t); gl_FragColor = vec4(c, k); \n #include <colorspace_fragment>\n }' });
     const d = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), m); d.renderOrder = -10; d.frustumCulled = false; d.raycast = () => {}; d.visible = false; stage.scene.add(d); return d;
   })();
   const diveHud = h('div', { class: 'geo-dive' }, h('div', { class: 'gd-north' }, h('i'), h('b', {}, '北')), h('small', { class: 'gd-src' }));
@@ -523,7 +523,7 @@ export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
         light: { hc: hemi.color.clone(), hg: hemi.groundColor.clone(), hi: hemi.intensity, sc: stage.sun.color.clone(), si: stage.sun.intensity, sp: stage.sun.position.clone() },
       });
       stage.calm = true; stage.resetView(); stage.cameraOffsetX = 0;
-      earth.setLook({ pins: false }); earth.setHot(null); earth.setActive(null); skyDome.visible = true; skyDome.material.uniforms.warm.value = 0;
+      earth.setLook({ pins: false }); earth.setHot(null); earth.setActive(null); skyDome.visible = true;
       stage.scene.fog = new THREE.Fog(0xc9d6e3, 1e5, 2e5);
       return;
     }
@@ -584,62 +584,17 @@ export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
       diveHud.classList.add('on'); diveHud.querySelector('.gd-src').textContent = D.def.src;
       const c0 = D.F.clone().project(stage.camera), c1 = D.F.clone().addScaledVector(D.north, earth.root.scale.x * 5 / 6371).project(stage.camera);          // 北在画面上朝哪
       diveHud.querySelector('.gd-north i').style.transform = `rotate(${Math.atan2(-(c1.y - c0.y), c1.x - c0.x) * 180 / Math.PI + 90}deg)`;
-      if (D.ta > 2.2) startLift(D);          // 看清了（线在 1.8 秒画完）：不用点，接着就进活页
+      if (D.ta > 2.0 && !D.fading) { D.fading = true; diveTag.show(false); D.cutTag?.show(false); diveHud.classList.remove('on'); }          // 看清了（线在 1.8 秒画完）：字先淡掉（截图只截得到画面）
+      if (D.ta > 2.35 && !D.sent) {          // 换到课本那一页：那边拿这一帧盖着，一边往后退一边淡掉，露出翻开的课本，活页从课本的图里立起来
+        D.sent = true;
+        try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ }
+        if (!window.__geoStay) location.href = `${bookHref(D.it.book.id)}#live=${D.it.id}&place=${encodeURIComponent(D.pn.place)}&via=dive`;
+      }
       return;
     }
-    if (D.phase === 'lift') liftStep(D, dt);
   }
 
-  // ---- 地形切出来，落到书上：这块地形一直在画面里，四周从天空换成书桌（雾里换），地球缩到角上；落好就是书里的第一帧，书里接着翻到那一页、地形变成活页的模型 ----
-  function startLift(D) {
-    const def = D.def, blk = terrainBlock(def, def.crop), Fc = frameAt(def.lat, def.lon);
-    blk.wallM.fog = false; blk.cut.material.fog = false; blk.wallM.opacity = 0;
-    const basis = new THREE.Matrix4().makeBasis(Fc.east, Fc.up, Fc.north.clone().negate());          // 局部（东、上、南）→ 地球自己的坐标（半径 1）
-    const m = new THREE.Matrix4().compose(Fc.up.clone(), new THREE.Quaternion().setFromRotationMatrix(basis), new THREE.Vector3().setScalar(1 / 6371));
-    earth.root.updateMatrixWorld(true); m.premultiply(earth.spin.matrixWorld);
-    root.add(blk.group); m.decompose(blk.group.position, blk.group.quaternion, blk.group.scale);          // 起点：和贴在地球上的那块地形重合
-    const s = 2 / RING.h, bo = D.bo, W = bo.W * s, T = bo.T * s, end = blockPose(blk, W, T);
-    root.attach(bo.mesh); bo.mesh.position.set(W / 2, T / 2, 0); bo.mesh.quaternion.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); bo.mesh.scale.setScalar(s); bo.mesh.visible = false;
-    for (const mt of bo.mesh.material) { mt.opacity = 1; mt.depthWrite = true; }
-    const el = THREE.MathUtils.degToRad(64);
-    Object.assign(D, { phase: 'lift', tl: 0, blk, P0: blk.group.position.clone(), Q0: blk.group.quaternion.clone(), S0: blk.group.scale.x, end, R0: earth.root.scale.x, Cg: earth.root.position.clone(),
-      C0: { t: stage.rig.cur.target.clone(), d: stage.rig.cur.dir.clone(), r: stage.rig.cur.dist, up: stage.camera.up.clone() },
-      C1: { t: new THREE.Vector3(W / 2, 0, 0.06), d: new THREE.Vector3(0, Math.sin(el), Math.cos(el)), r: atBookFov(stage, () => stage.fitDistance(W * 1.25, 2 * 1.2, 1.04)) }, fog0: [stage.scene.fog.near, stage.scene.fog.far], fov0: stage.camera.fov });
-    diveTag.show(false); D.cutTag?.show(false); diveHud.classList.remove('on'); D.P.cut.visible = false;
-  }
-  function liftStep(D, dt) {
-    D.tl += dt;
-    const u = Math.min(1, D.tl / 2.3), k = ease(u), b = D.blk, E = D.end;
-    // 这块地形：从地球上切出来（四周淡掉、侧壁出来），一边转一边缩，落到书的上方
-    D.P.mesh.material.uniforms.k.value = 1 - THREE.MathUtils.smoothstep(u, 0, 0.09); b.wallM.opacity = THREE.MathUtils.smoothstep(u, 0.02, 0.16);
-    b.group.position.lerpVectors(D.P0, E.pos, k);
-    b.group.quaternion.slerpQuaternions(D.Q0, E.q, k); b.group.scale.setScalar(Math.exp(Math.log(D.S0) + (Math.log(E.s) - Math.log(D.S0)) * k));
-    // 镜头：跟着它，从山的东边斜看，变成在书桌上方看书
-    const C0 = D.C0, C1 = D.C1, dist = Math.exp(Math.log(C0.r) + (Math.log(C1.r) - Math.log(C0.r)) * k), dir = C0.d.clone().lerp(C1.d, k).normalize();
-    const bc = b.center.clone().setY(0.1).applyMatrix4(b.group.matrixWorld), tgt = C0.t.clone().lerp(bc, THREE.MathUtils.smoothstep(u, 0, 0.25)).lerp(C1.t, THREE.MathUtils.smoothstep(u, 0.6, 1));          // 镜头一直看着这块地形（它不会跑出画面），最后才换成看书
-    stage.rig.target.copy(tgt); stage.rig.dir.copy(dir); stage.rig.dist = dist; stage.rig.cur.target.copy(tgt); stage.rig.cur.dir.copy(dir); stage.rig.cur.dist = dist;
-    setFov(stage, D.fov0 + (BOOK_FOV - D.fov0) * k);
-    const cam = stage.camera; cam.up.copy(C0.up).lerp(new THREE.Vector3(0, 1, 0), k).normalize(); cam.position.copy(tgt).addScaledVector(dir, dist); cam.lookAt(tgt);
-    // 四周：起一层雾（这块地形不受雾的影响，一直清楚），雾最浓时把大地球换成角上那颗、铺好书桌，雾再散开
-    const fog = stage.scene.fog, w = THREE.MathUtils.smoothstep(u, 0.05, 0.38), fz = THREE.MathUtils.smoothstep(u, 0.42, 1);
-    fog.color.set(0xc9d6e3).lerp(DAY.bg, THREE.MathUtils.smoothstep(u, 0, 0.45)); skyDome.material.uniforms.warm.value = THREE.MathUtils.smoothstep(u, 0, 0.45);          // 雾一起来就从山里的蓝灰转成书桌的暖白：四周是一团暖雾、书桌从雾里出来（不是一片空的淡蓝）
-    if (u < 0.4) { fog.near = D.fog0[0] + (0.02 - D.fog0[0]) * w; fog.far = D.fog0[1] + (0.3 - D.fog0[1]) * w; }
-    else { fog.near = 0.02 + (7 - 0.02) * ease(fz); fog.far = 0.3 + (18 - 0.3) * ease(fz); }
-    if (u >= 0.4 && !D.swapped) {
-      D.swapped = true; D.P.mesh.visible = false; earth.setLook({ pins: true }); earth.cloudWant = 1; earth.setActive({ it: D.it, pn: D.pn }); stage.desk.visible = true; D.bo.mesh.visible = true;
-    }
-    if (D.swapped) { placeScr(earth.root, cornerScr()); earth.turnTo(D.pn.lat, D.pn.lon, stage.camera); earth.haloM.uniforms.k.value = 0.25; }
-    else { earth.root.scale.setScalar(D.R0 * (1 - 0.6 * THREE.MathUtils.smoothstep(u, 0.1, 0.38))); earth.root.position.copy(D.Cg); }          // 贴在地球上的那块先淡掉，地球再退          // 大地球往下退（球心不动、变小）：地形块像是从地面上升起来，不会钻到球面下面
-    const f = THREE.MathUtils.smoothstep(u, 0.5, 0.95);
-    stage.desk.material.opacity = f;
-    if (f > 0.999) { stage.scene.background = DAY.bg; skyDome.visible = false; } else skyDome.position.copy(cam.position);
-    if (u >= 1 && !D.sent) {          // 落好了：这一帧和书里的第一帧一样（合上的书、上面浮着这块地形、角上的地球）
-      D.sent = true;
-      try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ }
-      const it = D.it, pn = D.pn;
-      if (!window.__geoStay) location.href = `${bookHref(it.book.id)}#live=${it.id}&place=${encodeURIComponent(pn.place)}&via=block`;
-    }
-  }
+
 
   // ---- 指针 ----
   const canvas = $('#c'), ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ac = new AbortController(), on = { signal: ac.signal };

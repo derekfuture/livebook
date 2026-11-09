@@ -84,8 +84,8 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       snapHold = document.documentElement.classList.contains('snap') ? 0.34 : 0;          // 从地理世界点进来：那边最后一帧盖着，等它淡出完了再翻书、挪镜头（不然两本书错开，有重影）
       const hq = new URLSearchParams(location.hash.slice(1));
       const go = () => { window.__dropSnap?.(); if (handoff) { book.group.visible = true; handoff(); } handleHash(); };
-      if (world && hq.get('via') === 'block') world.prepareBlock(hq.get('place')).then(go, go);          // 从地理世界俯冲进来：先摆好那块地形（和那边最后一帧一样），再揭开
-      else go();
+      if (world && hq.get('via') === 'dive') { world.prepareDive(hq.get('live')); snapHold = 0.5; }          // 从地理世界俯冲进来：课本先翻到那一页，那边真实的山往后退着淡掉，淡到一半活页从图里立起来
+      go();
     }
   });
   stage.start();
@@ -374,7 +374,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     if (world) {          // 地球主探索：#live=front 直接进那张活页；别的都从地球目录开始
       hideHint();
       const id = q.get('live');
-      if (id && content.lessons[id]) { const pn = q.has('place') ? world.items?.find((x) => x.id === id)?.anchor.pins?.find((x) => x.place === q.get('place') || x.name === q.get('place')) : null; const hold = snapHold; snapHold = 0; return world.enter(id, { quick: true, pn, hold }); }          // &place=cb：从地理世界的哪一面旗进来
+      if (id && content.lessons[id]) { const pn = q.has('place') ? world.items?.find((x) => x.id === id)?.anchor.pins?.find((x) => x.place === q.get('place') || x.name === q.get('place')) : null; const hold = snapHold; snapHold = 0; return world.enter(id, { quick: true, pn, hold, dive: q.get('via') === 'dive' }); }          // &place=cb：从地理世界的哪一面旗进来
       if (q.has('p')) { const pg = Number(q.get('p')); return world.state === 'off' ? world.start().then(() => book.turnTo(book.leafForPage(pg))) : book.turnTo(book.leafForPage(pg)); }
       return world.start();
     }
