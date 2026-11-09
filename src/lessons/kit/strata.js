@@ -26,7 +26,8 @@ export const ROCK = {
   flowstone: { name: '流石', base: [208, 190, 156] },          // 溶洞洞壁：碳酸钙一层层流下来结成的，竖的流痕、帘子一样的褶
 };
 
-const N = 512;          // 贴图边长（像素），无缝平铺
+const N = 256;          // 贴图边长（像素），无缝平铺（256 够用：一块贴图在屏幕上本来就不大；现画 512 的要慢四倍）
+const PX = N / 512;          // 下面卵石、晶粒的大小是按 512 定的，按比例缩
 // ---------- 可平铺的值噪声 ----------
 const rand = (seed) => { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
 function noiseField(seed, cells) {          // cells 格的周期噪声，返回 f(x, y)（x、y 是 0—N 的像素坐标）
@@ -91,15 +92,15 @@ function paint(kind, seed) {
   }
   // 卵石、晶粒、气孔
   const disc = (cx, cy, rx, ry, rot, fn) => { const R = Math.ceil(Math.max(rx, ry)) + 1; for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) { const c = Math.cos(rot), s = Math.sin(rot), u = (i * c + j * s) / rx, v = (-i * s + j * c) / ry, d = u * u + v * v; if (d > 1) continue; const x = ((Math.round(cx) + i) % N + N) % N, y = ((Math.round(cy) + j) % N + N) % N; fn((y * N + x), d, u, v); } };
-  if (kind === 'conglomerate') for (let n = 0; n < 230; n++) {
-    const rx = 5 + r() * 16, ry = rx * (0.55 + r() * 0.35), tone = [[200, 196, 188], [150, 140, 128], [120, 92, 74], [226, 214, 190], [96, 98, 102]][Math.floor(r() * 5)];
+  if (kind === 'conglomerate') for (let n = 0; n < 230 * PX; n++) {          // 卵石比按面积算的多一倍：小贴图上看着不稀
+    const rx = (5 + r() * 16) * PX, ry = rx * (0.55 + r() * 0.35), tone = [[200, 196, 188], [150, 140, 128], [120, 92, 74], [226, 214, 190], [96, 98, 102]][Math.floor(r() * 5)];
     disc(r() * N, r() * N, rx, ry, r() * Math.PI, (k, d, u, v) => { const sh = (1 - d) * 0.6 - (u + v) * 0.12; col[k * 3] = tone[0] * (0.82 + sh * 0.4); col[k * 3 + 1] = tone[1] * (0.82 + sh * 0.4); col[k * 3 + 2] = tone[2] * (0.82 + sh * 0.4); hgt[k] = 0.6 + Math.sqrt(1 - d) * 0.5; });
   }
-  if (kind === 'granite') for (let n = 0; n < 2600; n++) {
-    const p = r(), tone = p < 0.42 ? [236, 226, 214] : p < 0.7 ? [214, 158, 140] : p < 0.88 ? [168, 170, 176] : [40, 38, 40], s = p < 0.88 ? 2 + r() * 4.5 : 1 + r() * 2.2;
+  if (kind === 'granite') for (let n = 0; n < 2600 * PX * PX; n++) {
+    const p = r(), tone = p < 0.42 ? [236, 226, 214] : p < 0.7 ? [214, 158, 140] : p < 0.88 ? [168, 170, 176] : [40, 38, 40], s = (p < 0.88 ? 2 + r() * 4.5 : 1 + r() * 2.2) * PX;
     disc(r() * N, r() * N, s, s * (0.6 + r() * 0.5), r() * Math.PI, (k, d) => { col[k * 3] = tone[0] * (0.92 + (1 - d) * 0.1); col[k * 3 + 1] = tone[1] * (0.92 + (1 - d) * 0.1); col[k * 3 + 2] = tone[2] * (0.92 + (1 - d) * 0.1); hgt[k] = 0.5 + (p < 0.88 ? 0.25 : -0.1); });
   }
-  if (kind === 'basalt') for (let n = 0; n < 320; n++) { const s = 1.2 + r() * 3.6; disc(r() * N, r() * N, s, s * (0.7 + r() * 0.3), r() * Math.PI, (k, d) => { col[k * 3] *= 0.45; col[k * 3 + 1] *= 0.45; col[k * 3 + 2] *= 0.45; hgt[k] = 0.15 + d * 0.3; }); }
+  if (kind === 'basalt') for (let n = 0; n < 320 * PX * PX; n++) { const s = (1.2 + r() * 3.6) * PX; disc(r() * N, r() * N, s, s * (0.7 + r() * 0.3), r() * Math.PI, (k, d) => { col[k * 3] *= 0.45; col[k * 3 + 1] *= 0.45; col[k * 3 + 2] *= 0.45; hgt[k] = 0.15 + d * 0.3; }); }
   return { col, hgt };
 }
 

@@ -21,7 +21,8 @@ import { tag, updateTags } from '../ui/tags.js';
 import { progress, bookmark } from './progress.js';
 import { paint, inked, hull, glassEdge } from '../live/ink.js';
 import { glass2, water2 } from '../lessons/kit/chemfx.js';
-import { earthCircle } from '../world/GeoWorld.js';
+import { earthCircle, preloadWorld, prewarmWorld } from '../world/GeoWorld.js';
+import { earthMaps } from '../live/WorldEarth.js';
 import { subsolar } from '../live/WorldEarth.js';
 import { ll2v } from '../lessons/kit/plates.js';
 import { ANCHORS } from '../lessons/kit/atlas.js';
@@ -43,8 +44,8 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const hash = (a, b) => { const x = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return x - Math.floor(x); };
 
-/** enterBook(id, handoff)：在同一个舞台上打开那本书（main.js 的 bootBook）；没有就换页面 */
-export async function bootHome(stage, { enterBook = null } = {}) {
+/** enterBook(id, handoff)：在同一个舞台上打开那本书（main.js 的 bootBook）；enterWorld(focus)：在同一个舞台上打开地理世界；没有就换页面 */
+export async function bootHome(stage, { enterBook = null, enterWorld = null } = {}) {
   // 旧链接 /#live=convex：找到那张活页所在的书，直接打开
   const q = new URLSearchParams(location.hash.slice(1));
   if (q.has('live')) {
@@ -249,6 +250,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     if (leaving || !s) return;
     const f = focus || (last?.book && s.books.some((b) => b.id === last.book) ? last.book : s.books[0].id);
     leaving = { world: true, s, t: 0, focus: f }; ui.classList.add('leaving'); canvas.style.cursor = ''; hoverS = null;
+    preloadWorld();          // 飞的这一秒半里，地理世界地球的贴图先下好
     if (open) closeFan(true);
     stage.calm = true;          // 不跟着鼠标晃
     const ball = s.thing?.userData.ball;
@@ -257,6 +259,24 @@ export async function bootHome(stage, { enterBook = null } = {}) {
       stage.scene.attach(ball); ball.traverse((o) => { o.castShadow = false; });
       leaving.ball = { o: ball, p: ball.position.clone(), q: ball.quaternion.clone(), sc: ball.scale.x, R: T.R, q1: new THREE.Quaternion().setFromAxisAngle(Y, (-90 - worldLon0(f)) * D2R) };
     }
+  }
+
+  // 地球仪飞到位：截一张图盖着（和地理世界一打开的画面叠在一起），收走书桌，在这个舞台上搭地理世界；地理世界的地球贴图好了就揭开（window.__dropSnap）
+  function toWorld(L) {
+    const url = `?subject=dili&focus=${L.focus}`, shot = stage.snapshot();
+    if (!enterWorld) { try { sessionStorage.setItem('livebook.snap', shot); } catch { /* 存不下就直接换 */ } location.href = url; return; }
+    const img = document.createElement('img'); img.className = 'inpage-snap'; img.src = shot; document.body.append(img);
+    const C = earthCircle(), orbit = document.createElement('div'); orbit.className = 'inpage-orbit';          // 地球外面一道转着的金色轨道光：正在进去，不是卡住了
+    Object.assign(orbit.style, { left: `${C.cx}px`, top: `${C.cy}px`, width: `${C.r * 2.3}px`, height: `${C.r * 2.3}px` }); document.body.append(orbit); setTimeout(() => orbit.classList.add('on'), 110);
+    window.__dropSnap = () => { window.__dropSnap = () => {}; img.classList.add('out'); orbit.classList.add('out'); setTimeout(() => { img.remove(); orbit.remove(); }, 360); };
+    img.decode().catch(() => {}).then(() => {          // 截图真的盖上了，再收书桌（不然中间会露出一帧空舞台）
+      history.pushState(null, '', url);
+      ac.abort(); ui.remove(); for (const t of slips.values()) t.remove(); stage.updaters.delete(tick); mood.dispose();
+      document.body.classList.remove('mood', 'home'); document.documentElement.classList.remove('to-home');
+      if (L.ball) { stage.scene.remove(L.ball.o); disposeTree(L.ball.o); }
+      stage.scene.remove(group); disposeTree(group);
+      enterWorld(L.focus);
+    });
   }
 
   // 书落到书桌中间、镜头停稳了：就在这个舞台上换成书里那本书
@@ -270,6 +290,8 @@ export async function bootHome(stage, { enterBook = null } = {}) {
     document.documentElement.classList.remove('to-home');        // 从书里回到首页时 index.html 加的（藏起书里的按钮）：不去掉的话，再拿一本书进来，顶栏的目录、活页和翻页条都不见了
     enterBook(u.id, () => { stage.scene.remove(group); disposeTree(g); });
   }
+
+  if (subjects.some((x) => x.name === '地理')) (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(() => prewarmWorld(stage.renderer), { timeout: 5000 });          // 空闲时先替地理世界把夜空画好、贴图传上显卡
 
   // ---- 指针 ----
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -387,7 +409,7 @@ export async function bootHome(stage, { enterBook = null } = {}) {
         B.o.quaternion.slerpQuaternions(B.q, B.q1, k);          // 地轴转成竖直、经度转到地理世界里地球朝着镜头的那一面
         L.s.thing.userData.glow(k);          // 全按此刻的昼夜亮起来，外面一圈淡蓝的大气
       }
-      if (L.t > 1.9 && !L.sent) { L.sent = true; try { sessionStorage.setItem('livebook.snap', stage.snapshot()); } catch { /* 存不下就直接换 */ } location.href = `?subject=dili&focus=${L.focus}`; }
+      if (L.t >= 1.76 && !L.sent) { L.sent = true; toWorld(L); }          // 球一停稳就接过去
     }
     updateTags(stage.camera);
   };
@@ -488,7 +510,7 @@ function dotTexture() {
 function disposeTree(root) {
   root.traverse((o) => {
     o.geometry?.dispose();
-    for (const m of [].concat(o.material || [])) { if (m.isLineMaterial) continue; m.map?.dispose(); m.emissiveMap?.dispose(); m.dispose(); }
+    for (const m of [].concat(o.material || [])) { if (m.isLineMaterial) continue; for (const t of [m.map, m.emissiveMap]) if (t && !t.userData.shared) t.dispose(); m.dispose(); }          // 共用的贴图（地球）不扔
   });
 }
 
@@ -644,8 +666,7 @@ function flaskThing() {
 function deskGlobe() {
   const g = new THREE.Group(), R = 0.088, EPS = 23.5 * D2R, HC = 0.152, RM = R * 1.13;
   const AXIS = new THREE.Vector3(Math.sin(EPS), Math.cos(EPS), 0), C0 = new THREE.Vector3(0, HC, 0), TILT = new THREE.Quaternion().setFromUnitVectors(Y, AXIS);
-  const ld = new THREE.TextureLoader(), day = ld.load(reliefUrl), night = ld.load(nightUrl);
-  day.colorSpace = night.colorSpace = THREE.SRGBColorSpace; day.anisotropy = 8;
+  const { day, night } = earthMaps();          // 和地理世界的地球同一份贴图：接过去时不用再下、再传显卡
   const sub = subsolar(new Date());
   const U = { sunL: { value: new THREE.Vector3(...ll2v(sub.lat, sub.lon)) }, nightMap: { value: night }, nowK: { value: 0.55 } };
   const ballMat = new THREE.MeshStandardMaterial({ map: day, roughness: 0.5, metalness: 0, transparent: true });          // 透明那一队里画：排在夜色的幕后面

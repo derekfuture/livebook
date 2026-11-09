@@ -940,3 +940,13 @@ body.geo-cover #hud-top, body.geo-cover .geo-toc, body.geo-cover .geo-toc-spine,
 .geo-now.narrow .gn-line { font-size: 12px; line-height: 1.45; }
 .geo-now.narrow .gn-sky { width: 100%; max-width: 260px; height: auto; }
 .geo-now.tight .gn-sky { display: none; }
+
+/* 书桌 → 地理世界（同一个页面里接过去）：飞到位的那一帧截图盖在最上面，地理世界画好了再淡掉 */
+.inpage-snap { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; z-index: 10000; pointer-events: none; transition: opacity .32s ease; }
+.inpage-snap.out { opacity: 0; }
+.inpage-orbit { position: fixed; z-index: 10001; pointer-events: none; transform: translate(-50%, -50%); border-radius: 50%; opacity: 0; transition: opacity .35s ease; }
+.inpage-orbit.on { opacity: 1; }
+.inpage-orbit::before { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(241,215,159,.16); }
+.inpage-orbit::after { content: ""; position: absolute; inset: -1px; border-radius: 50%; background: conic-gradient(from 0deg, rgba(241,215,159,0) 0deg, rgba(241,215,159,0) 250deg, rgba(241,215,159,.9) 352deg, rgba(255,246,222,1) 360deg); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px)); mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px)); animation: orbit-spin 1.4s linear infinite; filter: drop-shadow(0 0 6px rgba(241,215,159,.8)); }
+.inpage-orbit.out { opacity: 0; transition-duration: .3s; }
+@keyframes orbit-spin { to { transform: rotate(360deg); } }

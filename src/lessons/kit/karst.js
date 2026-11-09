@@ -22,11 +22,13 @@ export const peakCone = (p, x, z) => {
   const c = Math.max(0, 1 - d / R);
   return c > 0 ? Math.min(1, c + 0.022 * Math.sin(c * 31 + ph) * c) : 0;
 };
-export const terrainHeight = (b, P, x, z, t, H0 = 0.09) => {
+/** 地形高度：cones[i] 是这一点在第 i 座峰上的锥度（peakCone），jv 是节理（joint）；这两样只和位置有关，可以先算好存着（拖时间时只算下面这些） */
+export const terrainFrom = (b, P, cones, jv, t, H0 = 0.09) => {
   if (b.rock === 'granite') return H0;          // 花岗岩地块保持不变：本活页不模拟其风化侵蚀
-  const base = H0 - 0.05 * sm(0.14, 0.62, t) - 0.008 * sm(0.75, 1, t), c0 = 0.03 + 0.56 * sm(0.545, 0.575, t), hs = 1 - 0.78 * sm(0.84, 1, t);          // 地面一路溶低；峰的基部越来越窄（峰丛 → 峰林）；到最后峰也矮了（残丘）
-  let top = 0; for (const p of P) { if (p.r < 0.82 * sm(0.62, 0.92, t)) continue; const cone = peakCone(p, x, z); top = Math.max(top, sm(c0, c0 + 0.42 * (1 - c0), cone) * (0.8 + 0.2 * Math.sqrt(cone)) * hs * (0.85 + 0.15 * p.r)); }          // 峰体四壁陡、顶部浑圆（像桂林的峰林）；越往后，留下的峰越少（孤峰）
+  const base = H0 - 0.05 * sm(0.14, 0.62, t) - 0.008 * sm(0.75, 1, t), c0 = 0.03 + 0.56 * sm(0.545, 0.575, t), hs = 1 - 0.78 * sm(0.84, 1, t), alive = 0.82 * sm(0.62, 0.92, t);          // 地面一路溶低；峰的基部越来越窄（峰丛 → 峰林）；到最后峰也矮了（残丘）
+  let top = 0; for (let i = 0; i < P.length; i++) { const p = P[i], cone = cones[i]; if (p.r < alive || cone <= 0) continue; top = Math.max(top, sm(c0, c0 + 0.42 * (1 - c0), cone) * (0.8 + 0.2 * Math.sqrt(cone)) * hs * (0.85 + 0.15 * p.r)); }          // 峰体四壁陡、顶部浑圆（像桂林的峰林）；越往后，留下的峰越少（孤峰）
   let hgt = base + (H0 - base) * top;
-  hgt -= 0.01 * sm(0, 0.16, t) * joint(x, z);          // 累计溶沟不回填；基面降低、残余峰体缩小，纯溶蚀中同一点高度不回升
+  hgt -= 0.01 * sm(0, 0.16, t) * jv;          // 累计溶沟不回填；基面降低、残余峰体缩小，纯溶蚀中同一点高度不回升
   return Math.max(0.03, hgt);
 };
+export const terrainHeight = (b, P, x, z, t, H0 = 0.09) => (b.rock === 'granite' ? H0 : terrainFrom(b, P, P.map((p) => peakCone(p, x, z)), joint(x, z), t, H0));

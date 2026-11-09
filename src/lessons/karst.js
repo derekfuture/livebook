@@ -13,7 +13,7 @@ import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { rockTextures, rockMat, worldUV } from './kit/strata.js';
-import { STAGES, stageName, RATE, STEP, cave, terrainHeight, joint, shifting } from './kit/karst.js';
+import { STAGES, stageName, RATE, STEP, cave, terrainHeight, terrainFrom, peakCone, joint, shifting } from './kit/karst.js';
 
 const BW = 0.11, BD = 0.11, GAP = 0.022, H0 = 0.09, N = 128;          // 一块的宽、深；块与块的间隔；原来的地面高度；网格密度
 const BLOCKS = [{ key: 'wet', rock: 'limestone', clim: 'wet', name: '湿润地区 · 石灰岩', x: -(BW + GAP) }, { key: 'dry', rock: 'limestone', clim: 'dry', name: '干旱地区 · 石灰岩', x: 0 }, { key: 'gra', rock: 'granite', clim: 'wet', name: '湿润地区 · 花岗岩', x: BW + GAP }];
@@ -90,7 +90,7 @@ export default {
       geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.computeVertexNormals(); worldUV(geo, 0.6);
       return geo;
     })();
-    const domeMat = rockMat('flowstone', { side: THREE.BackSide, tint: 0x8a7d6c }); domeMat.vertexColors = true; domeMat.emissiveIntensity = 0.04; domeMat.normalScale.set(1.6, 1.6);          // 洞壁是流石的样子（竖的流痕），不是外面的层面、节理
+    const domeMat = rockMat('flowstone', { side: THREE.BackSide, tint: 0x8a7d6c }); domeMat.vertexColors = true; domeMat.emissiveIntensity = 0.1; domeMat.normalScale.set(1.6, 1.6);          // 洞壁是流石的样子（竖的流痕），不是外面的层面、节理；洞里不放灯（一盏点光会让整个场景每个像素都多算一次），洞壁自己亮一点
     // 钟乳石的形状：一节节往下收细、带几道“滴水环”（绕 y 轴转出来的旋转体；底在 y = 0，尖在 y = −1）
     const dripGeo = (() => { const pts = []; for (let i = 0; i <= 14; i++) { const v = i / 14, r = Math.max(0.02, (1 - v) ** 1.25 * (1 + 0.12 * Math.sin(v * 22))); pts.push(new THREE.Vector2(r, -v)); } return new THREE.LatheGeometry(pts, 10); })();
     const columnGeo = (() => { const pts = []; for (let i = 0; i <= 18; i++) { const v = i / 18, r = 0.42 + 0.58 * Math.abs(v * 2 - 1) ** 1.6 + 0.07 * Math.sin(v * 30); pts.push(new THREE.Vector2(r, -v)); } return new THREE.LatheGeometry(pts, 12); })();          // 石柱：中间细、两头粗（上半是石钟乳、下半是石笋）
@@ -107,18 +107,16 @@ export default {
       const pick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.004), new THREE.MeshBasicMaterial({ visible: false })); g.add(pick);          // 洞口：点它钻进去看
       const names = { stal: tag('石钟乳', 'pill'), mite: tag('石笋', 'pill'), col: tag('石柱', 'pill'), river: tag('地下河', 'pill') };
       for (const t of Object.values(names)) t.show(false);
-      const lamp = new THREE.PointLight(0xffd9a8, 0, 0, 2); g.add(lamp);          // 洞里一点暖光：洞壁、钟乳石有明暗，看得出是个洞（亮度按这张活页在屏幕上的大小算）
-      return { grp, dome, lake, drips, cols, pick, names, lamp, at: {} };
+      return { grp, dome, lake, drips, cols, pick, names, at: {} };
     }
     const m4c = new THREE.Matrix4(), qc = new THREE.Quaternion(), vc = new THREE.Vector3(), sc = new THREE.Vector3(), FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
     function growCave(u) {
       const C3 = u.cave3, at = u.caveAt, c = at?.c;
-      const on = !!c && c.size > 0.02; C3.grp.visible = on; C3.drips.visible = C3.cols.visible = on; C3.lamp.visible = on; C3.pick.visible = false; C3.ok = on && c.size > 0.3; if (!on) return;
+      const on = !!c && c.size > 0.02; C3.grp.visible = on; C3.drips.visible = C3.cols.visible = on; C3.pick.visible = false; C3.ok = on && c.size > 0.3; if (!on) return;
       const rx = at.rx, ry = at.ry, rz = Math.min(BD * 0.42, rx * 0.85);          // 洞往岩块里伸多深
       C3.grp.position.set(at.x, at.y, BD / 2); C3.grp.scale.set(rx, ry, rz);
       C3.lake.position.set(0.32, -0.49, -0.42); C3.lake.scale.set(0.42, 0.3, 1);          // 地下河：洞底靠右那一侧（洞的单位坐标）
       C3.pick.position.set(at.x, at.y, BD / 2 + 0.002); C3.pick.scale.set(rx * 2, ry * 2, 1);
-      const ws = u.g.getWorldScale(new THREE.Vector3()).x; C3.lamp.position.set(at.x - rx * 0.15, at.y + ry * 0.1, BD / 2 - rz * 0.35); C3.lamp.distance = rx * 2.6 * ws; C3.lamp.intensity = 4.4 * (ry * 1.6 * ws) ** 2 * c.size;
       C3.at = { river: new THREE.Vector3(at.x + 0.5 * rx, at.y - 0.49 * ry, BD / 2 - 0.2 * rz) };          // 地下河的字：写在水面靠前那一边
       const floorY = -ry * 0.5;
       let nd = 0, nc = 0;
@@ -171,7 +169,13 @@ export default {
     });
     const rebuild = (u) => {
       const { b, P, geo, col } = u, t = tOf(b), p = geo.attributes.position;
-      for (let k = 0; k < p.count; k++) { const x = p.getX(k), z = p.getZ(k); p.setY(k, height(b, P, x, z)); }
+      if (!u.cache && b.rock !== 'granite') {          // 每个点到每座峰的锥度、节理、小起伏只和位置有关：第一次算好存着
+        const n = p.count, cones = new Float32Array(n * P.length), jv = new Float32Array(n), nzv = new Float32Array(n);
+        for (let k = 0; k < n; k++) { const x = p.getX(k), z = p.getZ(k); for (let i = 0; i < P.length; i++) cones[k * P.length + i] = peakCone(P[i], x, z); jv[k] = joint(x, z); nzv[k] = nz(x, z); }
+        u.cache = { cones, jv, nzv };
+      }
+      if (u.cache) { const { cones, jv, nzv } = u.cache, m = P.length; for (let k = 0; k < p.count; k++) p.setY(k, terrainFrom(b, P, cones.subarray(k * m, k * m + m), jv[k], t, H0) + nzv[k]); }
+      else for (let k = 0; k < p.count; k++) { const x = p.getX(k), z = p.getZ(k); p.setY(k, height(b, P, x, z)); }
       p.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere();
       const nrm = geo.attributes.normal, base = H0 - 0.05 * sm(0.14, 0.62, t) - 0.008 * sm(0.75, 1, t);          // 溶低的地面（和溶蚀模型里的一样）
       for (let k = 0; k < p.count; k++) {

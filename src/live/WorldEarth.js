@@ -78,6 +78,29 @@ function glowShell(R, nowU) {
   });
 }
 
+const SHARED = { day: null, night: null, gloss: null, wait: [] };
+/** 地球的白天、夜里贴图：一页里只下一次、只传一次显卡（首页桌上的地球仪、地理世界的地球、书里角上的地球共用）；不要 dispose（userData.shared） */
+export function earthMaps() {
+  if (!SHARED.day) {
+    const L = new THREE.TextureLoader();
+    SHARED.day = L.load(reliefUrl, (t) => { SHARED.gloss = oceanGloss(t.image); for (const f of SHARED.wait.splice(0)) f(); });
+    SHARED.night = L.load(nightUrl);
+    for (const t of [SHARED.day, SHARED.night]) { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.userData.shared = true; }
+  }
+  return SHARED;
+}
+/** 海面反光：从晕渲图里认出海（蓝多于红、绿），海面光滑、陆地粗糙 */
+function oceanGloss(img) {
+  try {
+    const w = 1024, h = 512, c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
+    const d = g.getImageData(0, 0, w, h), p = d.data;
+    for (let i = 0; i < p.length; i += 4) { const sea = p[i + 2] > p[i] * 1.25 && p[i + 2] > p[i + 1] * 1.02; const v = sea ? 120 : 230; p[i] = p[i + 1] = p[i + 2] = v; }
+    g.putImageData(d, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.userData.shared = true; return t;
+  } catch { return null; }          // 读不到像素（离线版的跨域）：整颗球一样粗糙
+}
+
 export class WorldEarth {
   constructor(stage, { clouds = true, night = false, now = false } = {}) {
     this.night = night;          // 地理世界（夜空里）：大气光更亮一点
@@ -91,11 +114,12 @@ export class WorldEarth {
     this.root.visible = false;
     stage.scene.add(this.root);
 
-    const tex = new THREE.TextureLoader().load(reliefUrl, (t) => this._oceanGloss(t.image));
-    tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const M = earthMaps(), tex = M.day;
     this.mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.78, metalness: 0, emissive: 0x0b1220, emissiveIntensity: 0.25, bumpMap: tex, bumpScale: 2.2 });          // 晕渲图本身当起伏：山脉一面受光一面背光，更立体
+    const gloss = () => { if (M.gloss) { this.mat.roughnessMap = M.gloss; this.mat.roughness = 1; this.mat.needsUpdate = true; } };
+    if (M.gloss) { this.mat.roughnessMap = M.gloss; this.mat.roughness = 1; } else M.wait.push(gloss);
     if (now) {
-      const lights = new THREE.TextureLoader().load(nightUrl); lights.colorSpace = THREE.SRGBColorSpace; lights.anisotropy = 8;
+      const lights = M.night;
       this.nowU.nightMap = { value: lights };
       this.mat.onBeforeCompile = (sh) => {          // 白天：太阳方向的漫反射 + 海面上的一点反光；夜里：城市灯光（NASA 2016 年合成）；晨昏线上一道暖色
         Object.assign(sh.uniforms, this.nowU);
@@ -156,16 +180,6 @@ export class WorldEarth {
   }
 
   /** 海面比陆地光滑：按贴图的颜色（蓝的是海）做一张粗糙度图，太阳在海面上有一点反光 */
-  _oceanGloss(img) {
-    try {
-      const w = 1024, h = 512, c = document.createElement('canvas'); c.width = w; c.height = h;
-      const g = c.getContext('2d'); g.drawImage(img, 0, 0, w, h);
-      const d = g.getImageData(0, 0, w, h), p = d.data;
-      for (let i = 0; i < p.length; i += 4) { const sea = p[i + 2] > p[i] * 1.25 && p[i + 2] > p[i + 1] * 1.02; const v = sea ? 120 : 230; p[i] = p[i + 1] = p[i + 2] = v; }
-      g.putImageData(d, 0, 0);
-      const t = new THREE.CanvasTexture(c); this.mat.roughnessMap = t; this.mat.roughness = 1; this.mat.needsUpdate = true;
-    } catch { /* 读不到像素（离线版的跨域）：整颗球一样粗糙 */ }
-  }
 
   _layers() {
     const sun = subsolar();

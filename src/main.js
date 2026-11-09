@@ -403,7 +403,7 @@ addEventListener('popstate', () => location.reload());
 // ?subject=dili：地理世界（一颗地球，所有地理课本围成一圈在它下面；src/world/GeoWorld.js）
 const start = params.get('subject') === 'dili' ? bootGeoWorld(new Stage($('#c')), { focus: params.get('focus') }) : BOOK_ID ? bootBook(BOOK_ID) : (() => {
   const stage = new Stage($('#c'));
-  return bootHome(stage, { enterBook: (id, handoff) => bootBook(id, { stage, handoff }) });
+  return bootHome(stage, { enterBook: (id, handoff) => bootBook(id, { stage, handoff }), enterWorld: (focus) => bootGeoWorld(stage, { focus }) });
 })();
 start.catch((err) => {
   console.error(err);

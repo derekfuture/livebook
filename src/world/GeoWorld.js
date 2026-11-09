@@ -3,7 +3,7 @@
 // 点下去：书圈转过来，那本书转到正前方，飞到面前，翻开到那一页（换到书里，活页从旗上长出来）。
 // 也可以直接点一本书进去，或者在侧栏按书、按章找。地球旁的“看法”（昼夜、板块、气压带）点了一直开着。
 import * as THREE from 'three';
-import { WorldEarth } from '../live/WorldEarth.js';
+import { WorldEarth, earthMaps } from '../live/WorldEarth.js';
 import { ll2v } from '../lessons/kit/plates.js';
 import { ANCHORS } from '../lessons/kit/atlas.js';
 import { bookList, getBook, getManifest, fileUrl } from '../content/index.js';
@@ -12,6 +12,8 @@ import { h, stamps } from '../ui/Panel.js';
 import { Line2 } from 'three/examples/jsm/lines/Line2.js';
 import { timeCard } from './timeCard.js';
 import moonUrl from '../lessons/data/moon.jpg';
+import reliefUrl from '../lessons/data/earth_relief.jpg';
+import nightUrl from '../lessons/data/earth_night.jpg';
 import { TERRAIN, loadTerrain, globePatch, frameAt, toLocal, elevAt, terrainBlock, blockPose } from './terrain.js';
 import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
@@ -47,6 +49,20 @@ function worldShot(W, H, panelW) {
   return { target: new THREE.Vector3(0, ty, 0.2), dir, dist, cam };
 }
 
+/** 书桌上点了地理、地球仪开始飞的时候就调：先把地理世界地球的贴图下好、解码好（THREE.Cache 留着，WorldEarth 再要时直接拿到） */
+export function preloadWorld() {
+  THREE.Cache.enabled = true;
+  const L = new THREE.ImageLoader();
+  for (const u of [reliefUrl, nightUrl, moonUrl]) L.load(u);
+}
+let SKY = null, MOON = null;
+/** 首页空闲时调：地理世界的夜空图先画好（要 70 多毫秒），月亮贴图先下好，都先传上显卡；地理世界启动时直接用 */
+export function prewarmWorld(renderer) {
+  SKY ||= skyTex(); if (!MOON) { MOON = new THREE.TextureLoader().load(moonUrl, (t) => renderer?.initTexture(t)); MOON.colorSpace = THREE.SRGBColorSpace; MOON.anisotropy = 4; }
+  renderer?.initTexture(SKY);
+  const M = earthMaps(); for (const t of [M.day, M.night, M.gloss]) if (t?.image) renderer?.initTexture(t);
+}
+
 /** 一打开地理世界，地球在屏幕上的哪儿、多大（像素：圆心 cx, cy，半径 r）：首页的地球仪飞到这里，换页面时正好和它叠在一起 */
 export function earthCircle(W = innerWidth, H = innerHeight) {
   const { cam } = worldShot(W, H, PANEL_W), c = new THREE.Vector3(0, EARTH.y, 0).project(cam);
@@ -57,6 +73,7 @@ export function earthCircle(W = innerWidth, H = innerHeight) {
 
 export async function bootGeoWorld(stage, { focus = null } = {}) {
   document.body.classList.add('geo-world');
+  stage.resetView(); stage.calm = false;          // 从书桌直接接过来（同一个舞台）：书桌那边的视角偏移、“不跟鼠标晃”都清掉
   if (new URLSearchParams(location.search).has('cover')) document.body.classList.add('geo-cover');          // 公众号封面：只留画面（地球、月亮、太阳、书圈），不要目录和读数
   setFov(stage, WORLD_FOV);
   document.title = '活页课本 · 地理世界';
@@ -79,7 +96,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
 
   // ---- 环境：木桌换成夜空（深蓝、星星、一道淡淡的银河）。地上一块圆台，台面上刻着这颗地球的北极投影图（跟着地球一起转） ----
   stage.desk.visible = false; stage.desk.material.transparent = true; stage.desk.material.needsUpdate = true;          // 书桌、书一开始就按半透明画（opacity 1 时和不透明一样）：半路改 transparent 要重新编译着色器，不改就淡不掉
-  stage.scene.background = skyTex();
+  stage.scene.background = SKY || skyTex();
   stage.scene.fog = null;
   stage.scene.traverse((o) => { if (o.isHemisphereLight) { o.color.set(0x9db2d8); o.groundColor.set(0x141a2c); o.intensity = 0.5; } });
   Object.assign(stage.sun, { intensity: 3.2 }); stage.sun.color.set(0xfff4e6); stage.sun.position.set(-3.6, 5.4, 4.6);          // 主光从左上前方来：地球右下边缘落进晨昏里，有体积
@@ -116,7 +133,7 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
   const sunGlare = new THREE.Sprite(new THREE.SpriteMaterial({ map: sunTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   sunGlare.scale.setScalar(SUN_D * 0.26); sunGlare.renderOrder = -1; root.add(sunGlare);
   const leak = h('div', { class: 'geo-leak' }); document.body.append(leak);
-  const moonTex = new THREE.TextureLoader().load(moonUrl); moonTex.colorSpace = THREE.SRGBColorSpace; moonTex.anisotropy = 4;
+  const moonTex = MOON || new THREE.TextureLoader().load(moonUrl); moonTex.colorSpace = THREE.SRGBColorSpace; moonTex.anisotropy = 4;
   const moon = new THREE.Mesh(new THREE.SphereGeometry(EARTH.r * 0.273, 64, 48), new THREE.MeshStandardMaterial({ map: moonTex, roughness: 1, metalness: 0 }));          // 月亮的半径是地球的 0.273
   moon.raycast = () => {}; root.add(moon);
   const sunW = new THREE.Vector3();
@@ -174,14 +191,17 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     homeTag.text(`<b>你在这里</b><small>${city.name}</small>`);
   });
 
+  let backFrom = null;          // 从哪本书里回来的（那本书从书里的位置飞回书圈）
+  try { backFrom = sessionStorage.getItem('livebook.worldFrom'); sessionStorage.removeItem('livebook.worldFrom'); } catch { /* 隐私模式 */ }
   // ---- 书圈：每本书立着，封面朝外，往后仰一点 ----
   const ring = new THREE.Group(); root.add(ring);
   const loader = new THREE.TextureLoader(), bookObjs = [];
   books.forEach((b, i) => {
     const man = manifests[b.id], W = (RING.h * man.pageSize[0]) / man.pageSize[1], T = (Math.floor(man.pageCount / 2) + 1) * 0.0017 * RING.h / 2;          // 放大到书里那本书的大小（高 2）时，正好是书里合上的书那么厚
-    const cover = loader.load(fileUrl(`${getBook(b.id).base}hi/000.jpg`), () => { const bo = bookObjs.find((x) => x.b === b); if (bo) bo.coverReady = true; }); cover.colorSpace = THREE.SRGBColorSpace; cover.anisotropy = 8;
+    const big = b.id === backFrom, cover = loader.load(fileUrl(`${getBook(b.id).base}${big ? 'hi' : 'lo'}/000.jpg`), () => { const bo = bookObjs.find((x) => x.b === b); if (bo) { bo.coverReady = true; bo.coverHi = big; } }); cover.colorSpace = THREE.SRGBColorSpace; cover.anisotropy = 8;          // 书圈里的书在屏幕上小：先用小封面；从书里回来的那本（一开始就很大）用大封面
     const paper = new THREE.MeshStandardMaterial({ color: 0xf1ebde, roughness: 0.9, transparent: true }), back = new THREE.MeshStandardMaterial({ map: backTex(b, BOOK_COLORS[b.id]), roughness: 0.7, transparent: true });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(W, RING.h, T), [paper, paper, paper, paper, new THREE.MeshStandardMaterial({ map: cover, roughness: 0.6, transparent: true }), back]);          // 封面朝 +z（朝外）
+    const coverMat = new THREE.MeshStandardMaterial({ map: cover, roughness: 0.6, transparent: true });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(W, RING.h, T), [paper, paper, paper, paper, coverMat, back]);          // 封面朝 +z（朝外）
     mesh.castShadow = true; mesh.position.y = RING.h / 2;
     const g = new THREE.Group(), lean = new THREE.Group(); lean.add(mesh); g.add(lean); lean.rotation.x = -RING.tilt; ring.add(g);
     const a = (i / books.length) * Math.PI * 2;
@@ -364,8 +384,10 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     leave(bo, `?book=${it.book.id}#live=${it.id}${pn && pn !== it.anchor.pins?.[0] ? `&place=${encodeURIComponent(pn.place || pn.name)}` : ''}`, corner);          // 不是第一面旗（长白山、黄河入海口……）：带上是哪一面
   }
   function openBook(bo) { leave(bo, `?book=${bo.b.id}`, false); }
+  const hiCover = (bo) => { if (bo.coverHi) return; bo.coverHi = true; const t = loader.load(fileUrl(`${getBook(bo.b.id).base}hi/000.jpg`), () => { const m = bo.mesh.material[4], old = m.map; m.map = t; old?.dispose(); }); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; };          // 要飞到眼前的那本：换成大封面（下好了再换，换的时候不用重新编译）
   function leave(bo, url, corner) {
     if (leaving) return;
+    hiCover(bo);
     leaving = { bo, url, corner, t: 0 }; touched = true; hover(null); card.show(false); bookHot = null;
     spinTo(bo);
     uiLeave(true);
@@ -773,8 +795,6 @@ export async function bootGeoWorld(stage, { focus = null } = {}) {
     if (arriving) arriveStep(dt);
     updateTags(stage.camera);
   });
-  let backFrom = null;
-  try { backFrom = sessionStorage.getItem('livebook.worldFrom'); sessionStorage.removeItem('livebook.worldFrom'); } catch { /* 隐私模式 */ }
   const backBo = bookObjs.find((x) => x.b.id === backFrom);
   if (backBo) arrive(backBo);
   else {          // 地球的贴图（白天、夜里的灯光）好了再揭开盖着的截图：从首页飞过来的那个泡沫球正好叠在地球上，揭开就是它变成了真的地球
