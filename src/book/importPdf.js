@@ -1,5 +1,6 @@
 // 导入课本 PDF。没导入时，右上角“导入课本”下面冒出一个小提示框（先闪几下）：可以导入，也可以点“不用了”，以后就不再出现。
 // 文件只存在这台电脑的浏览器里（IndexedDB），不上传；导入以后书页、插图、结论原文都用这份课本。
+import { rememberImportError, clearImportError } from '../ui/feedbackDiagnostics.js';
 import { PdfSource } from './PageSource.js';
 import { putPdf, removePdf } from './pdfStore.js';
 import { EDITIONS, bookName as nameOf } from '../content/editions.js';
@@ -38,7 +39,13 @@ export function mountImport({ content, manifest, source }) {
 
   const save = async (file, n) => {
     say('正在保存到这台电脑……');
-    await putPdf(content.id, { blob: file, name: file.name, size: file.size, pages: n, at: Date.now() });
+    try {
+      await putPdf(content.id, { blob: file, name: file.name, size: file.size, pages: n, at: Date.now() });
+    } catch (e) {
+      rememberImportError(e, 'save');
+      console.warn('保存教材失败', e);
+      return say('浏览器未能保存教材。请检查可用空间，并在普通浏览窗口中重试。', ['重新选择', () => input.click()], ['关闭', hide, true]);
+    }
     say('导入好了，正在打开……');
     setTimeout(() => location.reload(), 400);
   };
@@ -46,7 +53,14 @@ export function mountImport({ content, manifest, source }) {
     if (!file || !/pdf$/i.test(file.type || file.name)) return say('请选择课本的 PDF 文件。', ['重新选择', () => input.click()], ['关闭', hide, true]);
     say('正在读取……');
     let src;
-    try { src = await PdfSource.open(content.id, await file.arrayBuffer()); } catch (e) { return say('这个文件打不开，换一个试试。', ['重新选择', () => input.click()], ['关闭', hide, true]); }
+    try { src = await PdfSource.open(content.id, await file.arrayBuffer()); } catch (e) {
+      rememberImportError(e, 'read');
+      console.warn('读取教材失败', e);
+      const text = e.name === 'PasswordException' ? '这份 PDF 有密码保护，请先解锁后再导入。'
+        : e.name === 'InvalidPDFException' ? '这份文件不是有效的 PDF，或下载不完整，请重新下载后再试。'
+        : 'PDF 读取组件未能正常运行。请使用新版 Chrome 或 Edge 打开后重试；也可以刷新页面重新加载组件。';
+      return say(text, ['重新选择', () => input.click()], ['关闭', hide, true]); }
+    clearImportError();
     const n = src.pageCount;
     if (n !== pages) return say(`这份 PDF 有 <b>${n}</b> 页，这本是 <b>${pages}</b> 页，可能不是同一版，书页会对不上。`, ['仍然使用', () => save(file, n)], ['重新选择', () => input.click(), true]);
     save(file, n);

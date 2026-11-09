@@ -22,7 +22,16 @@ async function tx(store, mode, fn) {
 
 /** 导入的 PDF：{ blob, name, size, pages, at } */
 export const getPdf = (bookId) => tx('pdf', 'readonly', (s) => s.get(bookId)).catch(() => null);
-export const putPdf = (bookId, rec) => tx('pdf', 'readwrite', (s) => s.put(rec, bookId));
+export async function putPdf(bookId, rec) {
+  const db = await open();
+  return new Promise((resolve, reject) => {
+    const t = db.transaction(['pdf', 'lo'], 'readwrite');
+    t.objectStore('pdf').put(rec, bookId);
+    t.objectStore('lo').delete(IDBKeyRange.bound(`${bookId}/`, `${bookId}/￿`));
+    t.oncomplete = () => { db.close(); resolve(); };
+    t.onerror = t.onabort = () => { db.close(); reject(t.error); };
+  });
+}
 export async function removePdf(bookId) {
   await tx('pdf', 'readwrite', (s) => s.delete(bookId));
   await tx('lo', 'readwrite', (s) => s.delete(IDBKeyRange.bound(`${bookId}/`, `${bookId}/￿`)));

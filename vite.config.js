@@ -3,6 +3,7 @@ import { offlineData } from './tools/offline_data.mjs';
 
 // 网站：npm run dev / npm run build。离线版（U 盘上双击打开）：node tools/build_offline.mjs（vite build --mode offline，再合成一个 HTML）
 export default defineConfig(({ mode }) => ({
+  define: { __APP_BUILD__: JSON.stringify(new Date().toISOString()) },
   server: { port: 5188, host: '127.0.0.1' },
   plugins: [offlineData(mode === 'offline')],
   ...(mode === 'offline' && {

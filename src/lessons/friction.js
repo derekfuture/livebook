@@ -53,11 +53,11 @@ export default {
     group.add(post);
     const hTag = tag('', 'pill');
 
-    const S = { surf: 0, nW: 0, mode: 'hand', xb: -0.16, vb: 0, xr: 0, bx: 0, bv: 0, F: 0, steady: 0, rows: [], drag: false };
+    const S = { surf: 0, nW: 0, mode: 'hand', xb: -0.16, vb: 0, xr: 0, bx: 0, bv: 0, F: 0, steady: 0, sample: null, rows: [], drag: false };
     const mu = () => BOARDS[S.surf].mu, N = () => GB + GW * S.nW, fk = () => mu() * N(), fs = () => 1.2 * mu() * N();
-    const reset = () => { S.xb = -0.16; S.vb = 0; S.bx = 0; S.bv = 0; S.xr = S.xb + BW / 2 + HOOK + 0.004; S.F = 0; S.steady = 0; };
+    let W = null, cur = null, cancelReading = () => {}, ask = () => {};
+    const reset = () => { S.xb = -0.16; S.vb = 0; S.bx = 0; S.bv = 0; S.xr = S.xb + BW / 2 + HOOK + 0.004; S.F = 0; S.steady = 0; S.sample = null; cur = null; cancelReading(); };
     reset();
-    let W = null, ask = () => {};
 
     const pick = new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), new THREE.MeshBasicMaterial({ visible: false }));
     pick.userData.pick = true;
@@ -73,7 +73,7 @@ export default {
       block.position.set(S.xb, BY, Z);
       ws.forEach((w, i) => (w.visible = i < S.nW));
       const ext = S.F * FM.PER_N;
-      sc.set(S.F);
+      sc.set(cur?.f ?? S.F);
       sc.position.set(S.xb + BW / 2 + 0.004 + HOOK + ext - 0.0, BY + 0.02, Z + 0.0);
       post.position.set(sc.position.x + 0.012, 0.03, Z);
       post.visible = S.mode === 'board';
@@ -93,18 +93,19 @@ export default {
         const mode = seg('怎样拉', ['手拉测力计，拉木块', '改进：测力计固定，拉木板'], (_, k) => { S.mode = k ? 'board' : 'hand'; reset(); if (k) S.xr = 0; W.status(k ? '测力计的圆环固定在右边的支架上。<b>按住木板向左拖</b>——快一点慢一点都可以，看测力计的示数。' : '<b>按住测力计的圆环向右拖</b>，尽量让木块匀速滑动。'); });
         const choices = buttons([0, 1, 2].map((j) => ({ text: '', ghost: true, onClick: () => answer(j) })));
         choices.el.hidden = true;
+        cancelReading = () => { choices.el.hidden = true; };
         S.guard = guard(choices.el, () => `${S.surf}|${S.nW}|${S.mode}`, () => { cur = null; ui.status("条件变了（换了木板、钩码或拉法），刚才那道读数题作废。"); });     // 条件变了，待答的题作废
         const tb = table(['次数', '接触面', '压力 F压/N', '滑动摩擦力 f/N']);
-        let cur = null;
+
         ask = () => {
-          if (S.steady < 0.5) return ui.status(S.mode === 'hand' ? '示数还不稳定：木块要<b>匀速</b>滑动时，拉力才等于滑动摩擦力。拖得慢一点、稳一点。' : '先拖动木板，让木块和木板之间相对滑动。');
+          if (!S.sample) return ui.status(S.mode === 'hand' ? '示数还不稳定：木块要<b>匀速</b>滑动时，拉力才等于滑动摩擦力。拖得慢一点、稳一点。' : '先拖动木板，让木块和木板之间相对滑动。');
           if (S.rows.some((r) => r.surf === S.surf && r.n === S.nW)) return ui.status('这种情况已经记过了，换压力或换木板。');
-          const f = Math.round(fk() * 10) / 10;
+          const f = S.sample.f;
           const opts = [...new Set([f, +(f + 0.2).toFixed(1), +(f - 0.2).toFixed(1)])].filter((x) => x > 0).sort(() => Math.random() - 0.5);
           cur = { f, opts, surf: S.surf, n: S.nW };
           choices.btns.forEach((b, j) => { b.hidden = j >= opts.length; b.textContent = `${opts[j]?.toFixed(1)} N`; });
           choices.el.hidden = false; S.guard?.arm();
-          ui.status(S.mode === 'hand' ? '木块在匀速滑动，看指针：测力计的示数是多少？' : '木块相对木板在滑动（相对桌面不动），示数稳定了。看指针：测力计的示数是多少？');
+          ui.status('已保留刚才稳定滑动时的读数，指针显示这次测量值。测力计的示数是多少？');
         };
         const answer = (j) => {
           if (!cur) return;
@@ -147,11 +148,13 @@ export default {
           S.xb = xr0 - BW / 2 - 0.004 - HOOK - S.F / K;
           const sliding = Math.abs(S.bv) > 0.004;
           S.steady = sliding && Math.abs(S.F - fk()) < 0.08 ? S.steady + dt : Math.max(0, S.steady - dt * 3);
-          if (S.steady > 0.8) W?.goal.done('improve');
+          if (S.steady >= 0.5) W?.goal.done('improve');
           W?.out.set('s', sliding ? '木板在动，木块相对桌面静止' : '静止');
         }
+        if (S.steady >= 0.5 && !S.sample) { S.sample = {f: Math.round(fk() * 10) / 10}; W?.status('已捕捉到稳定滑动的读数，松开鼠标后点<b>读数并记录…</b>。'); }
         layout();
-        W?.out.set('f', S.F, 1); W?.out.set('p', N(), 1);
+        if (cur) W?.out.set('s', '查看刚才稳定滑动的读数');
+        W?.out.set('f', cur?.f ?? S.F, 1); W?.out.set('p', N(), 1);
       },
       debug: { S },
     };

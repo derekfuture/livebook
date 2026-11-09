@@ -165,7 +165,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
       h('div', { class: 'home-brand' }, h('b', {}, '活页课本'), h('span', {}, '纸上得来，不再浅')),
       searchBox(books, manifests)),
     h('section', { class: 'home-notes' },
-      last ? h('a', { class: 'note-card', href: last.href }, h('small', {}, '继续上次'), h('b', {}, last.title), h('span', {}, last.where)) : null,
+      last ? h('a', { class: 'note-card', href: bookHref(last.book) + (last.lesson ? `#live=${last.lesson}` : `#p=${last.page || 0}`) }, h('small', {}, '继续上次'), h('b', {}, last.title), h('span', {}, last.where)) : null,
       next ? h('a', { class: 'note-card next', href: next.href }, h('small', {}, last ? '接着学' : '从这里开始'), h('b', {}, next.title), h('span', {}, next.where)) : null),
     authorCard(),
     h('footer', { class: 'home-foot' },
