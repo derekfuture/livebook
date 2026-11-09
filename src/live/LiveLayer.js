@@ -93,10 +93,12 @@ export class LiveLayer {
     const ctx = {
       THREE, ink, camera: stage.camera, root: scaler, world, mode: world ? MODE : 'panel', spot,
       tag: (text, cls, onClick) => { const t = tag(text, cls, onClick); tags.push(t); return t; },
+      prewarm: () => this._prewarm(),          // 活页里后加载的模型、材质好了以后调：在后台把它们的着色器先编好
       ui: null,
       // 让实验临时换个机位（例如“从光屏一侧透过透镜看”），back() 回到原来的机位
       look: (localTarget, localDir, dist, onExit, opts = {}) => {
         this._lookExit = onExit || null;
+        stage.zoomMin = opts.minZoom ?? null;          // opts.minZoom：这一处最多拉近到多少倍
         const tgt = scaler.localToWorld(new THREE.Vector3(...localTarget));
         const q = new THREE.Quaternion(); scaler.getWorldQuaternion(q);
         this._prevShot ||= {
@@ -260,6 +262,7 @@ export class LiveLayer {
     this.active = { spot, def, inst, root, scaler, card, hole, crop, tags, nb, board, toggles, t: 0, from: figCenter, to: pageCenter, s, closing: false, world: WD, hold: WD?.mode === 'globe' };
     if (WD?.mode === 'pin' || WD?.mode === 'globe') { root.position.copy(WD.mode === 'pin' && WD.from ? WD.from() : pageCenter); root.visible = false; }
     this.opening = false;
+    this._prewarm();
     // 实验搭好以后，按器材实际占的范围重新取景（实验里写的 size 只是估计，常常不准：器材出画或者太小）
     this._reframe = null;
     if (WD?.inplace && WD.reframe) {          // 就地（板块：地球就是书后上方那颗）：镜头由 World 安排
@@ -466,8 +469,26 @@ export class LiveLayer {
     return false;
   }
 
+  /** 在后台把场景里所有材质的着色器编好（包括暂时看不见的东西）：它们第一次露面时不再卡一下 */
+  _prewarm() {
+    const st = this.stage, r = st.renderer;
+    clearTimeout(this._warmT);
+    this._warmT = setTimeout(async () => {
+      try { await r.compileAsync?.(st.scene, st.camera); } catch { /* 编不了就算了：第一次露面时再编 */ }
+      await new Promise((ok) => setTimeout(ok, 1600));          // 等打开活页的动画走完再画（不让它在飞进来的路上卡一下）
+      await new Promise((ok) => (window.requestIdleCallback || setTimeout)(ok, { timeout: 1500 }));
+      if (st.post || !this.active || this.active.closing) return;
+      // 再把暂时看不见的东西都在画面左下角 1 个像素里真画一次：显卡第一次画某种材质（透明、实例……）时要准备的东西、贴图上传，都在这时做掉
+      const hidden = []; st.scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+      try { r.setScissorTest(true); r.setScissor(0, 0, 1, 1); r.render(st.scene, st.camera); }
+      catch { /* 画不了就算了 */ }
+      finally { r.setScissorTest(false); for (const o of hidden) o.visible = false; }
+    }, 120);
+  }
+
   _back() {
     this._lookExit = null;
+    this.stage.zoomMin = null;
     tagFocus(null);
     const shot = this._prevShot;
     if (!shot) return;
@@ -479,6 +500,7 @@ export class LiveLayer {
   }
 
   exitLook() {
+    this.stage.zoomMin = null;
     if (!this._prevShot && !this._lookExit) return;
     const onExit = this._lookExit;
     this._back();

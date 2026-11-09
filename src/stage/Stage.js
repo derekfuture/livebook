@@ -109,7 +109,7 @@ export class Stage {
   orbit(dx, dy) { const u = this.user; u.yaw -= dx * 0.006; u.pitch += dy * 0.005; u.pitch = Math.max(-1.2, Math.min(1.2, u.pitch)); }
   zoomBy(f, ndc) {
     const u = this.user, before = u.zoom;
-    u.zoom = Math.max(0.12, Math.min(2.6, u.zoom * f));
+    u.zoom = Math.max(this.zoomMin ?? 0.12, Math.min(2.6, u.zoom * f));          // zoomMin：凑近看某处时（比如钻进溶洞口）不让再往里拉，免得穿过岩壁
     // 以鼠标指着的地方为中心缩放：把目标点朝那里挪一点
     if (ndc) {
       const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, this.camera);

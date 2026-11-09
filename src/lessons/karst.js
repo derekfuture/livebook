@@ -13,6 +13,9 @@ import { canvasTex } from './kit/props.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { rockTextures, rockMat, worldUV } from './kit/strata.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import roomUrl from './data/karst/cave_room.glb?url';
+import kitUrl from './data/karst/cave_kit.glb?url';          // tools/geo/blender_cave.py 烘出来的洞室、钟乳石（光照烘在贴图里）
 import { STAGES, stageName, RATE, STEP, cave, terrainHeight, terrainFrom, peakCone, joint, shifting } from './kit/karst.js';
 
 const BW = 0.11, BD = 0.11, GAP = 0.022, H0 = 0.09, N = 128;          // 一块的宽、深；块与块的间隔；原来的地面高度；网格密度
@@ -35,7 +38,7 @@ export default {
     src: '课本第 66–68 页 · 第四章 第一节 常见地貌类型',
   },
 
-  create({ tag, look }) {
+  create({ tag, look, prewarm }) {
     const group = new THREE.Group(), block = new THREE.Group(); group.add(block);
     const S = { time: 0, play: false, seen: {}, moved: false, guess: null, near: null };          // near：正凑近看哪一块的溶洞
     let W = null;
@@ -70,7 +73,7 @@ export default {
       void withCave;
     };
     // ---- 3D 溶洞：从切面的洞口往里是一个穹顶（洞壁不规则，洞底平），一侧是地下河；洞顶往下长石钟乳，洞底往上长石笋，连起来是石柱 ----
-    const caveRim = (a3) => (1 + 0.12 * Math.sin(-3 * a3 + 1) + 0.08 * Math.sin(-5 * a3 + 2) + 0.05 * Math.sin(-9 * a3)) * (Math.sin(a3) < 0 ? 0.8 : 1);          // 洞口（和穹顶前缘）在各个方向上的半径：原来画的那条轮廓；洞底那一半扁一些
+    const caveRim = (a3) => (1 + 0.12 * Math.sin(-3 * a3 + 1) + 0.08 * Math.sin(-5 * a3 + 2) + 0.05 * Math.sin(-9 * a3)) * (0.9 + 0.1 * Math.tanh(Math.sin(a3) * 5));          // 洞口（和穹顶前缘）在各个方向上的半径；下半圈扁一些（平滑过渡）。tools/geo/blender_cave.py 里是同一个式子，改的话两边一起改
     const flatFloor = (y) => (y < -0.5 ? -0.5 + (y + 0.5) * 0.12 : y);          // 洞底基本是平的
     const rimPt = (a3) => { const r = caveRim(a3); return [Math.cos(a3) * r, flatFloor(Math.sin(a3) * r)]; };          // 洞口轮廓上的一点（洞的单位坐标，y 朝上）
     const domeGeo = (() => {
@@ -80,7 +83,8 @@ export default {
         let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);          // 后半个球：z ≤ 0（朝岩块里面）
         const a3 = Math.atan2(y, x), rim = caveRim(a3), dz = -z;
         const mask = Math.min(1, dz * 4); let f = 1; for (const [p1, p2, fr] of bump) f += 0.035 * Math.sin(a3 * fr + p1) * Math.sin(dz * fr * 2 + p2) * mask;          // 洞壁凹凸（洞口那一圈不动：和切面上挖的洞口对得上）
-        f += mask * (0.028 * Math.sin(a3 * 17 + dz * 3) + 0.018 * Math.sin(a3 * 31 - dz * 7) + 0.02 * Math.sin(dz * 23 + a3 * 5));          // 洞壁上一道道竖的“石帘”褶皱和小的凹凸
+        const az = Math.atan2(x, Math.max(1e-6, -z)) + 0.18 * Math.sin(y * 5 + 1), wall = Math.max(0, Math.min(1, (0.55 - Math.abs(y + 0.05)) / 0.3));          // 绕竖轴的方位角：竖的石帘褶顺着它排；只在洞壁那一圈
+        f += mask * wall * (0.03 * Math.sin(az * 26) + 0.018 * Math.sin(az * 47 + 1.3) + 0.01 * Math.sin(az * 83 + y * 9));
         x *= rim * f; y *= rim * f; z *= f * (0.9 + 0.1 * Math.cos(a3 * 2));
         y = flatFloor(y);
         pos.setXYZ(i, x, y, z);
@@ -96,8 +100,35 @@ export default {
     const columnGeo = (() => { const pts = []; for (let i = 0; i <= 18; i++) { const v = i / 18, r = 0.42 + 0.58 * Math.abs(v * 2 - 1) ** 1.6 + 0.07 * Math.sin(v * 30); pts.push(new THREE.Vector2(r, -v)); } return new THREE.LatheGeometry(pts, 12); })();          // 石柱：中间细、两头粗（上半是石钟乳、下半是石笋）
     const dripMat = new THREE.MeshStandardMaterial({ color: 0xf3e9d4, roughness: 0.42, metalness: 0, emissive: 0x6a4c26, emissiveIntensity: 0.42 });          // 碳酸钙：米白、湿润有光泽；洞里暖光
     const waterMat = new THREE.MeshStandardMaterial({ color: 0x4fb3c8, roughness: 0.08, metalness: 0.2, emissive: 0x0f4a5c, emissiveIntensity: 0.7, transparent: true, opacity: 0.9 });          // 地下河：清，偏青绿
+    // Blender 烘好的洞室、钟乳石：后台加载，好了就换上（不受光的材质：光和阴影都在贴图里，不加灯、不算光）
+    const STAL = ['stalactite_a', 'stalactite_b', 'stalactite_c'], MITE = ['stalagmite_a', 'stalagmite_b'];
+    const CURT = [[-0.38, -0.72], [0.12, -0.8], [0.46, -0.62], [-0.68, -0.42]];          // 石帘挂在洞后壁、侧壁上（洞的单位坐标 x、z）
+    let ROOM = null, KIT = null;
+    const unlit = (o, side = THREE.FrontSide) => { const t = o.material.map; if (t) { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 2; } return new THREE.MeshBasicMaterial({ map: t, side }); };          // 只画正面：洞室的面朝洞里，钟乳石的面朝外
+    const geoOf = (o) => { o.updateWorldMatrix(true, false); return o.geometry.clone().applyMatrix4(o.matrixWorld); };
+    const warm = (obj) => { obj.frustumCulled = false; obj.raycast = () => {}; group.add(obj); prewarm?.(); setTimeout(() => group.remove(obj), 1500); };          // 加载好就先放一份很小的在场景里：后台编好着色器、传好贴图，不等到洞第一次出现时才卡一下
+    const gl = new GLTFLoader();
+    gl.load(roomUrl, (r) => { r.scene.traverse((o) => { if (o.isMesh && !ROOM) ROOM = { geo: geoOf(o), mat: unlit(o) }; }); if (!ROOM) return; measure(ROOM.geo); const wr = new THREE.Mesh(ROOM.geo, ROOM.mat); wr.scale.setScalar(1e-5); warm(wr); units.forEach((u) => { if (u.cave3) { u.cave3.dome.geometry = ROOM.geo; u.cave3.dome.material = ROOM.mat; u.builtT = null; } }); layoutAll(); });
+    gl.load(kitUrl, (r) => {
+      const k = {}; r.scene.traverse((o) => {
+        if (!o.isMesh) return; const g2 = geoOf(o), p2 = g2.attributes.position; let len = 0, rad = 0, w = 0;
+        for (let i = 0; i < p2.count; i++) len = Math.max(len, Math.abs(p2.getY(i)));
+        for (let i = 0; i < p2.count; i++) { const y = Math.abs(p2.getY(i)); if (y < len * 0.06) rad = Math.max(rad, Math.hypot(p2.getX(i), p2.getZ(i))); w = Math.max(w, Math.abs(p2.getX(i))); }          // 根部的半径（石帘：半宽）
+        k[o.name] = { geo: g2, mat: unlit(o), len, rad: o.name === 'curtain' ? w : rad };
+      });
+      if (!STAL.concat(MITE, ['column', 'curtain']).every((n) => k[n])) return;
+      KIT = k; for (const n in k) { const im = new THREE.InstancedMesh(k[n].geo, k[n].mat, 1); im.setMatrixAt(0, new THREE.Matrix4().makeScale(1e-5, 1e-5, 1e-5)); warm(im); }          // 真画一个（很小）：数量为 0 时着色器、贴图不会准备
+      units.forEach((u) => { if (u.cave3) { makeKit(u.cave3); u.builtT = null; } }); layoutAll();
+    });
+    const measure = (geo) => {          // 换了洞室：每个钟乳石的点重新量洞顶、洞底有多高（洞的单位坐标）
+      const pos = geo.attributes.position;
+      for (const sp of SPOTS) { let top = -9, bot = 9; for (let i = 0; i < pos.count; i++) { if (Math.abs(pos.getX(i) - sp.x) < 0.045 && Math.abs(pos.getZ(i) - sp.z) < 0.045) { const y = pos.getY(i); if (y > -0.3) top = Math.max(top, y); else bot = Math.min(bot, y); } } sp.roof = top > -9 ? top : sp.roof; sp.floor = bot < 9 ? bot : -0.5; }
+      for (const cp of CURTS) { let top = -9; for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getX(i) - cp.x) < 0.06 && Math.abs(pos.getZ(i) - cp.z) < 0.06 && pos.getY(i) > -0.3) top = Math.max(top, pos.getY(i)); cp.roof = top > -9 ? top : 0.4; }
+    };
+    const makeKit = (C3) => { C3.kit = {}; for (const n of STAL.concat(MITE, ['column', 'curtain'])) { const im = new THREE.InstancedMesh(KIT[n].geo, KIT[n].mat, n === 'curtain' ? CURT.length : SPOTS.length); im.count = 0; im.raycast = () => {}; im.frustumCulled = false; C3.grp.parent.add(im); C3.kit[n] = im; } C3.drips.visible = C3.cols.visible = false; };
     const ROOF = (x, z) => { const pos = domeGeo.attributes.position; let best = -1; for (let i = 0; i < pos.count; i++) { if (Math.abs(pos.getX(i) - x) < 0.05 && Math.abs(pos.getZ(i) - z) < 0.05) best = Math.max(best, pos.getY(i)); } return best; };          // 穹顶在 (x, z) 正上方的高度（洞的单位坐标）：钟乳石正好长在洞顶上
-    const SPOTS = (() => { const R = mkRnd(77), L = []; for (let i = 0; i < 90 && L.length < 34; i++) { const x = -0.82 + R() * 1.64, z = -(0.12 + R() * 0.7); if (x * x + z * z > 0.8) continue; L.push({ x, z, len: 0.35 + R() * 0.65, w: 0.7 + R() * 0.6, up: R() < 0.55, col: false, roof: 0 }); } for (const sp of L) sp.roof = ROOF(sp.x, sp.z); [3, 8, 13, 21].forEach((i) => { if (L[i]) L[i].col = true; }); return L; })();          // 洞里哪些地方长：一部分石钟乳下面对着长石笋，三处连成石柱
+    const SPOTS = (() => { const R = mkRnd(77), L = []; for (let i = 0; i < 90 && L.length < 34; i++) { const x = -0.82 + R() * 1.64, z = -(0.12 + R() * 0.7); if (x * x + z * z > 0.8) continue; L.push({ x, z, len: 0.35 + R() * 0.65, w: 0.7 + R() * 0.6, up: R() < 0.55, col: false, roof: 0 }); } for (const sp of L) sp.roof = ROOF(sp.x, sp.z); [3, 8, 13, 21].forEach((i) => { if (L[i]) L[i].col = true; }); return L; })();
+    const CURTS = CURT.map(([x, z]) => ({ x, z, roof: 0.4 }));          // 洞里哪些地方长：一部分石钟乳下面对着长石笋，三处连成石柱
     function makeCave(g) {
       const grp = new THREE.Group(); grp.visible = false; g.add(grp);
       const dome = new THREE.Mesh(domeGeo, domeMat); dome.raycast = () => {}; grp.add(dome);
@@ -112,21 +143,39 @@ export default {
     const m4c = new THREE.Matrix4(), qc = new THREE.Quaternion(), vc = new THREE.Vector3(), sc = new THREE.Vector3(), FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI);
     function growCave(u) {
       const C3 = u.cave3, at = u.caveAt, c = at?.c;
-      const on = !!c && c.size > 0.02; C3.grp.visible = on; C3.drips.visible = C3.cols.visible = on; C3.pick.visible = false; C3.ok = on && c.size > 0.3; if (!on) return;
+      const on = !!c && c.size > 0.02; C3.grp.visible = on; C3.drips.visible = C3.cols.visible = on && !C3.kit; C3.pick.visible = false; C3.ok = on && c.size > 0.3;
+      if (C3.kit) for (const k in C3.kit) C3.kit[k].visible = on;
+      if (!on) return;
       const rx = at.rx, ry = at.ry, rz = Math.min(BD * 0.42, rx * 0.85);          // 洞往岩块里伸多深
       C3.grp.position.set(at.x, at.y, BD / 2); C3.grp.scale.set(rx, ry, rz);
       C3.lake.position.set(0.32, -0.49, -0.42); C3.lake.scale.set(0.42, 0.3, 1);          // 地下河：洞底靠右那一侧（洞的单位坐标）
       C3.pick.position.set(at.x, at.y, BD / 2 + 0.002); C3.pick.scale.set(rx * 2, ry * 2, 1);
       C3.at = { river: new THREE.Vector3(at.x + 0.5 * rx, at.y - 0.49 * ry, BD / 2 - 0.2 * rz) };          // 地下河的字：写在水面靠前那一边
       const floorY = -ry * 0.5;
+      if (C3.kit) { growKit(C3, at, c, rx, ry, rz); placeNames(u); return; }
       let nd = 0, nc = 0;
       for (const sp of SPOTS) {
         const X = at.x + sp.x * rx, Z = BD / 2 + sp.z * rz, top = at.y + sp.roof * ry, bot = at.y + floorY, gap = top - bot; if (sp.roof < -0.2 || gap < 0.002) continue;
         if (sp.col && c.column) { m4c.compose(vc.set(X, top + 0.0006, Z), qc.identity(), sc.set(0.0016 * sp.w, gap + 0.0012, 0.0016 * sp.w)); C3.cols.setMatrixAt(nc++, m4c); if (!C3.at.col) C3.at.col = new THREE.Vector3(X, bot + gap * 0.5, Z); continue; }
         const l1 = gap * (sp.col ? 0.48 : 0.62 * sp.len) * c.drip; if (l1 > 0.0004) { m4c.compose(vc.set(X, top + 0.0006, Z), qc.identity(), sc.set(Math.max(0.0005, l1 * 0.16 * sp.w), l1 + 0.0006, Math.max(0.0005, l1 * 0.16 * sp.w))); C3.drips.setMatrixAt(nd++, m4c); if (l1 > gap * 0.22 && sp.x > -0.35 && sp.x < 0.25 && (!C3.at.stal || l1 > C3.at.stalL)) { C3.at.stal = new THREE.Vector3(X, top - l1, Z); C3.at.stalL = l1; } }          // “石钟乳”写在中间一根长的下面          // 石钟乳：从洞顶往下
-        if ((sp.up || sp.col) && sp.x < 0.1) { const l2 = gap * (sp.col ? 0.46 : 0.3 * sp.len) * c.drip; if (l2 > 0.0004) { m4c.compose(vc.set(X, bot - 0.0004, Z), FLIP, sc.set(Math.max(0.0006, l2 * 0.26 * sp.w), l2 + 0.0004, Math.max(0.0006, l2 * 0.26 * sp.w))); C3.drips.setMatrixAt(nd++, m4c); if (l2 > gap * 0.1 && sp.x < -0.4 && (!C3.at.mite || sp.x < C3.at.miteX)) { C3.at.mite = new THREE.Vector3(X, bot + l2, Z); C3.at.miteX = sp.x; } } }          // “石笋”写在靠左的一根上，和“石钟乳”分开          // 石笋：从洞底往上，矮胖（地下河那边不长）
+        if ((sp.up || sp.col) && sp.x < 0.1) { const l2 = gap * (sp.col ? 0.46 : 0.3 * sp.len) * c.drip; if (l2 > 0.0004) { m4c.compose(vc.set(X, bot - 0.0004, Z), FLIP, sc.set(Math.max(0.0006, l2 * 0.26 * sp.w), l2 + 0.0004, Math.max(0.0006, l2 * 0.26 * sp.w))); C3.drips.setMatrixAt(nd++, m4c); if (l2 > gap * 0.1 && sp.x < -0.2 && sp.x > -0.6 && (!C3.at.mite || sp.x < C3.at.miteX)) { C3.at.mite = new THREE.Vector3(X, bot + l2, Z); C3.at.miteX = sp.x; } } }          // “石笋”写在靠左、但从洞口看得见的一根上          // “石笋”写在靠左的一根上，和“石钟乳”分开          // 石笋：从洞底往上，矮胖（地下河那边不长）
       }
       C3.drips.count = nd; C3.cols.count = nc; placeNames(u); C3.drips.instanceMatrix.needsUpdate = true; C3.cols.instanceMatrix.needsUpdate = true;
+    }
+    // Blender 的钟乳石：位置、长短的规则和原来一样（cave(t) 决定长多少）；不绕竖轴转（光烘在贴图里，转了光就不对了）
+    function growKit(C3, at, c, rx, ry, rz) {
+      const n = {}; for (const k in C3.kit) n[k] = 0;
+      const put = (name, x, y, z, r, len) => { const im = C3.kit[name], K2 = KIT[name]; if (n[name] >= im.instanceMatrix.count) return; m4c.compose(vc.set(x, y, z), qc.identity(), sc.set(r / K2.rad, len / K2.len, r / K2.rad)); im.setMatrixAt(n[name]++, m4c); };
+      C3.at.stal = C3.at.mite = C3.at.col = null;
+      SPOTS.forEach((sp, i) => {
+        const X = at.x + sp.x * rx, Z = BD / 2 + sp.z * rz, top = at.y + sp.roof * ry, bot = at.y + (sp.floor ?? -0.5) * ry, gap = top - bot; if (sp.roof < -0.2 || gap < 0.002) return;
+        if (sp.col && c.column) { put('column', X, bot - 0.0004, Z, 0.0021 * sp.w, gap + 0.0012); if (!C3.at.col) C3.at.col = new THREE.Vector3(X, bot + gap * 0.5, Z); return; }
+        const l1 = gap * (sp.col ? 0.48 : 0.62 * sp.len) * c.drip;
+        if (l1 > 0.0004) { put(STAL[i % 3], X, top + 0.0006, Z, Math.max(0.0005, l1 * 0.15 * sp.w), l1 + 0.0006); if (l1 > gap * 0.22 && sp.x > -0.35 && sp.x < 0.25 && (!C3.at.stal || l1 > C3.at.stalL)) { C3.at.stal = new THREE.Vector3(X, top - l1, Z); C3.at.stalL = l1; } }
+        if ((sp.up || sp.col) && sp.x < 0.1) { const l2 = gap * (sp.col ? 0.46 : 0.3 * sp.len) * c.drip; if (l2 > 0.0004) { put(MITE[i % 2], X, bot - 0.0004, Z, Math.max(0.0006, l2 * 0.32 * sp.w), l2 + 0.0004); if (l2 > gap * 0.1 && sp.x < -0.2 && sp.x > -0.6 && (!C3.at.mite || sp.x < C3.at.miteX)) { C3.at.mite = new THREE.Vector3(X, bot + l2, Z); C3.at.miteX = sp.x; } } }          // “石笋”写在靠左、但从洞口看得见的一根上
+      });
+      if (c.drip > 0.15) for (const cp of CURTS) { const top = at.y + cp.roof * ry, len = (top - (at.y - 0.5 * ry)) * 0.42 * Math.min(1, (c.drip - 0.15) / 0.6); if (len > 0.001) put('curtain', at.x + cp.x * rx, top + 0.0006, BD / 2 + cp.z * rz, rx * 0.22, len); }          // 石帘：洞顶顺着裂隙往下滴，结成一片帘子（比石钟乳晚一点长出来）
+      for (const k in C3.kit) { C3.kit[k].count = n[k]; C3.kit[k].instanceMatrix.needsUpdate = true; C3.kit[k].visible = C3.grp.visible; }
     }
     function placeNames(u) {          // 洞里的标签：只在凑近看这一块的溶洞时显示；钟乳石、石笋、石柱长出来了才写
       const C3 = u.cave3, near = S.near === u && C3.grp.visible, A = C3.at;
@@ -235,7 +284,7 @@ export default {
         const c = cave(t), cx = w * 0.52, cy = Y(0.0165), rx = 40 + 300 * c.size, ry = 18 + 96 * c.size; u.caveAt = { x: -BW / 2 + 0.52 * BW, y: 0.0165, rx: (rx / w) * BW, ry: (ry / hh) * 0.1, c };          // 溶洞画大一些（示意），洞里的石钟乳、石笋、石柱看得清          // 溶洞在地下深处：比后来溶低的地面（坝子）还低
         if (c.size > 0.02) {
           const outline = (k = 1) => { g.beginPath(); for (let i = 0; i <= 96; i++) { const [ux, uy] = rimPt((i / 96) * Math.PI * 2); g.lineTo(cx + ux * rx * k, cy - uy * ry * k); } g.closePath(); };          // 和 3D 洞的穹顶前缘同一条轮廓（洞的单位坐标，画布的 y 朝下）
-          g.save(); outline(1.18); const rim = g.createRadialGradient(cx, cy, Math.min(rx, ry) * 0.7, cx, cy, Math.max(rx, ry) * 1.2); rim.addColorStop(0, 'rgba(40,32,24,0.55)'); rim.addColorStop(1, 'rgba(40,32,24,0)'); g.fillStyle = rim; g.fill(); g.restore();          // 洞口外一圈暗下去
+          g.save(); outline(1.18); const rim = g.createRadialGradient(cx, cy, Math.min(rx, ry) * 0.7, cx, cy, Math.max(rx, ry) * 1.2); rim.addColorStop(0, 'rgba(40,32,24,0.28)'); rim.addColorStop(1, 'rgba(40,32,24,0)'); g.fillStyle = rim; g.fill(); g.restore();          // 洞口外一圈暗下去
           g.save(); outline(0.97); g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000'; g.fill(); g.restore();          // 挖空：从洞口看进去是 3D 的洞（比穹顶小一点，穹顶的边藏在岩壁后面）
           g.font = '600 26px "PingFang SC", sans-serif'; g.textAlign = 'left'; g.lineWidth = 5; g.strokeStyle = 'rgba(30,30,30,0.55)';
           const say = (txt, x, y, cl) => { g.strokeText(txt, x, y); g.fillStyle = cl; g.fillText(txt, x, y); };
@@ -285,9 +334,10 @@ export default {
     const caveHit = (rc) => rc.intersectObjects(units.filter((u) => u.cave3?.ok).map((u) => { u.cave3.pick.visible = true; return u.cave3.pick; }), false)[0];
     const pickCave = (rc) => { const ht = caveHit(rc); for (const u of units) if (u.cave3) u.cave3.pick.visible = false; return ht ? units.find((q) => q.cave3?.pick === ht.object) : null; };
     const enterCave = (u) => {          // 镜头到洞口前面、稍微往下看进去
-      const at = u.caveAt; group.updateMatrixWorld(true); const c = group.worldToLocal(u.g.localToWorld(new THREE.Vector3(at.x, at.y - at.ry * 0.15, BD / 2 - at.rx * 0.3)));
+      const at = u.caveAt; group.updateMatrixWorld(true); const c = group.worldToLocal(u.g.localToWorld(new THREE.Vector3(at.x, at.y - at.ry * 0.3, BD / 2 - at.rx * 0.35)));          // 稍微从上往下看进洞里：洞底的地下河、石笋看得见
       S.near = u; paintFace(u, tOf(u.b)); units.forEach((q) => q.cave3 && placeNames(q));
-      look([c.x, c.y, c.z], [0, 0.045, 1], Math.max(0.11, at.rx * 3.2), () => { S.near = null; paintFace(u, tOf(u.b)); units.forEach((q) => q.cave3 && placeNames(q)); });
+      aHover.userData.want = 0;
+      look([c.x, c.y, c.z], [0, 0.17, 1], Math.max(0.11, at.rx * 3.2), () => { S.near = null; paintFace(u, tOf(u.b)); units.forEach((q) => q.cave3 && placeNames(q)); }, { minZoom: 0.5 });          // 洞口前最多再拉近一倍：不会穿过岩壁
       W?.ui.status('钻到溶洞口：洞顶往下长的是<b>石钟乳</b>，洞底往上长的是<b>石笋</b>，两个连起来就是<b>石柱</b>；洞底一侧是<b>地下河</b>。含碳酸氢钙的水从洞顶滴下来，二氧化碳逸出，碳酸钙一点点沉淀下来。');
     };
     const pointer = {
@@ -295,7 +345,8 @@ export default {
       up: () => false,
       move(rc) {
         const cu = pickCave(rc); if (cvs()) cvs().style.cursor = cu ? 'pointer' : '';
-        if (cu) { aHover.setText(S.near === cu ? '溶洞' : '溶洞：点一下，钻进去看'); const wp = block.worldToLocal(cu.g.localToWorld(new THREE.Vector3(cu.caveAt.x, cu.caveAt.y + cu.caveAt.ry + 0.008, BD / 2))); aHover.position.copy(wp); aHover.userData.want = 1; return false; }
+        if (cu && S.near === cu) { aHover.userData.want = 0; return false; }          // 已经在洞口了：不再提示
+        if (cu) { aHover.setText('溶洞：点一下，钻进去看'); const wp = block.worldToLocal(cu.g.localToWorld(new THREE.Vector3(cu.caveAt.x, cu.caveAt.y + cu.caveAt.ry + 0.008, BD / 2))); aHover.position.copy(wp); aHover.userData.want = 1; return false; }
         const ht = rc.intersectObjects(units.map((u) => u.top), false)[0];
         if (!ht) { aHover.userData.want = 0; return false; }
         const u = units.find((q) => q.top === ht.object), l = u.g.worldToLocal(ht.point.clone()), t = tOf(u.b), hg = l.y, lowFlat = hg < H0 - 0.04 && t > 0.3;
@@ -313,7 +364,7 @@ export default {
       size: { w: 0.38, d: 0.12, h: 0.16 },
       view: { elev: 22, azim: 10, lookY: 0.42, frameMargin: 1.08 },
       pointer,
-      debug: { time: (v) => { S.time = v; S.moved = true; layoutAll(); }, cave: () => units[0].cave3?.ok && enterCave(units[0]) },
+      debug: { units: () => units, time: (v) => { S.time = v; S.moved = true; layoutAll(); }, cave: () => units[0].cave3?.ok && enterCave(units[0]) },
       mount(ui) {
         const time = slider('经过的时间（示意，很长很长）', { min: 0, max: 8, step: 0.05, value: 0, fmt: (v) => (v ? `第 ${v.toFixed(1)} 段` : '刚开始'), onInput: (v) => { S.time = v; S.moved = true; S.play = false; acts.btns[0].textContent = '让时间走'; layoutAll(); } });
         const guess = seg(...ASK, (_, i) => { S.guess = i; drawLog(); }, { value: -1 });
