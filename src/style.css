@@ -817,3 +817,8 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 .fb-success-summary small { font-size:11px;color:#818b7d; }
 .fb-success > .fb-primary { display:inline-flex; }
 @media(max-width:600px) { .fb-success { padding:36px 22px 30px; } .fb-success h2 {font-size:22px;} }
+
+.fb-contact-row { display:flex;gap:8px; }
+.fb-contact-type { flex:0 0 72px;width:72px;border:1px solid #d5d8cb;border-radius:8px;background:#fffefa;color:#323e38;padding:10px 8px;font:13px var(--sans); }
+.fb-contact-row input { min-width:0; }
+.fb-contact-type:focus-visible { outline:2px solid #688775;outline-offset:2px; }

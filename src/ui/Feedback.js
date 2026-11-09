@@ -25,13 +25,22 @@ export function openFeedback(context = {}) {
   message.value = draft.message || '';
   const name = h('input', {id:'fb-name', maxlength:60, autocomplete:'name', placeholder:'如：王老师，初中化学'});
   name.value = draft.name ?? saved.name ?? '';
-  const contact = h('input', {id:'fb-contact', maxlength:160, placeholder:'微信或邮箱', autocomplete:'off', 'aria-describedby':'fb-contact-hint'});
-  contact.value = draft.contact ?? saved.contact ?? '';
+  const contact = h('input', {id:'fb-contact', maxlength:160, placeholder:'请输入微信号', autocomplete:'off', 'aria-describedby':'fb-contact-hint'});
+  contact.value = draft.contact ?? (saved.contactType ? saved.contact : '') ?? '';
+  const contactType = h('select', {class:'fb-contact-type','aria-label':'联系方式类型'},
+    h('option',{value:'wechat'},'微信'),h('option',{value:'qq'},'QQ'));
+  contactType.value = (draft.contactType ?? saved.contactType) === 'qq' ? 'qq' : 'wechat';
+  const updateContactType = () => {
+    contact.placeholder = contactType.value === 'qq' ? '请输入 QQ 号' : '请输入微信号';
+    contact.inputMode = contactType.value === 'qq' ? 'numeric' : 'text';
+  };
+  updateContactType();
   const saveProfile = () => {
-    try { localStorage.setItem(PROFILE_KEY, JSON.stringify({name:name.value,contact:contact.value})); } catch {}
+    try { localStorage.setItem(PROFILE_KEY, JSON.stringify({name:name.value,contact:contact.value,contactType:contactType.value})); } catch {}
   };
   name.addEventListener('input', saveProfile);
   contact.addEventListener('input', saveProfile);
+  contactType.addEventListener('change',()=>{updateContactType();saveProfile();});
   const count = h('span', {}, `${message.value.length} / 2000`);
   const status = h('p', {class:'fb-status',role:'status'});
   const preview = h('div', {class:'fb-images'});
@@ -86,7 +95,7 @@ export function openFeedback(context = {}) {
   dialog.addEventListener('keydown',e=>e.stopPropagation());
   dialog.addEventListener('close',()=>{
     if (sent) drafts.delete(key);
-    else drafts.set(key,{id:submissionId,message:message.value,name:name.value,contact:contact.value,images});
+    else drafts.set(key,{id:submissionId,message:message.value,name:name.value,contact:contact.value,contactType:contactType.value,images});
     dialog.remove(); previous?.focus();
   },{once:true});
   message.addEventListener('input',()=>{ count.textContent=`${message.value.length} / 2000`; message.setCustomValidity(''); });
@@ -98,14 +107,14 @@ export function openFeedback(context = {}) {
     if (sending || sent) return;
     if (reading) {status.textContent='图片正在读取，请稍等。';return;}
     sending=true;
-    const controls=[...form.querySelectorAll('button,input,textarea'),attach];
+    const controls=[...form.querySelectorAll('button,input,textarea,select'),attach];
     controls.forEach(el=>el.disabled=true);
     const submit=form.querySelector('[type=submit]');
     submit.textContent='正在提交…'; status.textContent='';
     try {
       const data=new FormData();
       data.set('diagnostics',feedbackDiagnostics());
-      data.set('id',submissionId);data.set('message',message.value.trim());data.set('name',name.value.trim());data.set('contact',contact.value.trim());
+      data.set('id',submissionId);data.set('message',message.value.trim());data.set('name',name.value.trim());data.set('contact',contact.value.trim() ? `${contactType.value === 'qq' ? 'QQ' : '微信'}：${contact.value.trim()}` : '');
       data.set('source',[context.title || '活页课本首页',context.where,context.lesson].filter(Boolean).join(' · '));
       data.set('page',location.origin+location.pathname+location.hash);
       let total=0;
@@ -137,8 +146,8 @@ export function openFeedback(context = {}) {
     h('div',{class:'fb-message-label'},h('label',{for:'fb-message'},'哪里可以更好？',h('span',{class:'fb-required','aria-hidden':'true'},'*')),count),
     message,
     h('div',{class:'fb-attachment-row'},h('button',{type:'button',class:'fb-add-images',onclick:()=>picker.click()},svg(camera),'添加图片'),picker),preview,
-    h('div',{class:'fb-identity'},field('fb-name','怎么称呼你',name),field('fb-contact','联系方式',contact)),
-    h('p',{id:'fb-contact-hint',class:'fb-contact-hint'},'如果愿意进一步交流，可以留下微信或邮箱。'),
+    h('div',{class:'fb-identity'},field('fb-name','怎么称呼你',name),h('div',{class:'fb-field'},h('span',{},h('label',{for:'fb-contact'},'联系方式')),h('div',{class:'fb-contact-row'},contactType,contact))),
+    h('p',{id:'fb-contact-hint',class:'fb-contact-hint'},'如果愿意进一步交流，可以留下微信或 QQ。'),
     status,
     h('div',{class:'fb-actions'},h('button',{class:'fb-primary',type:'submit'},'提交反馈',svg(arrow))));
   const qr = fileUrl('/brand/gzh-qr.jpg');
