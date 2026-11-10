@@ -83,12 +83,12 @@ export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
       if (d.keepOffset && p) { root.updateMatrixWorld(true); const w = (d.anchor || hit).getWorldPosition(new THREE.Vector3()); delta = root.worldToLocal(w).sub(p); }
       // onStart / onDrag 拿到的都是“物体该在的位置”（加上了抓取偏移），两边可以直接相减
       const p0 = p && delta ? p.clone().add(delta) : p;
-      active = { d, start: p0, moved: false, delta };
+      active = { d, start: p0, moved: false, delta, screen: e ? { x: e.clientX, y: e.clientY } : null, direction: ray.ray.direction.clone() };
       showHint(null);
       d.onStart?.(p0);
       return true;
     },
-    move(ray) {
+    move(ray, e) {
       if (!active) {
         const hit = hitAny(ray, all().filter((d) => d.enabled?.() !== false).map((d) => d.obj));
         const item = hit && all().find((x) => x.obj === hit);
@@ -98,14 +98,23 @@ export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
         return false;
       }
       canvas().style.cursor = 'grabbing';
+      // 兼有点击和拖动的器材，轻微抖动不能吞掉点击，也不能提前触发拖动副作用。
+      if (active.d.onTap && !active.moved) {
+        const moved = active.screen && e
+          ? Math.hypot(e.clientX - active.screen.x, e.clientY - active.screen.y) > 5
+          : ray.ray.direction.angleTo(active.direction) > 0.005;
+        if (!moved) return true;
+        active.moved = true;
+      }
       const p = rayToLocal(ray, root, active.d.plane || 'xy', active.d.offset || 0);
       if (p && active.delta) p.add(active.delta);
       if (p && active.d.onDrag) { active.moved = true; active.d.onDrag(p, active.start); }
       return true;
     },
-    up() {
+    up(ray, e) {
       if (!active) return false;
-      const d = active.d, moved = active.moved;
+      const d = active.d, cancelled = e?.type === 'pointercancel';
+      const moved = active.moved || cancelled || !!(active.screen && e && Math.hypot(e.clientX - active.screen.x, e.clientY - active.screen.y) > 5);
       active = null;
       canvas().style.cursor = '';
       d.onEnd?.(moved);

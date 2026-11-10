@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { seg, slider, buttons, goals, note, table, chart } from './kit/ui.js';
 import { Circuit, battery, switchPart, meterPart, resistorPart, rheostatPart } from './kit/circuit.js';
-import { Bench } from './kit/bench.js';
+import { Bench, nets } from './kit/bench.js';
 
 const RS = [5, 10, 15, 20, 25];
 const COLORS = ['#1f6fb8', '#d9483b', '#2e8b57', '#a0522d', '#7b4bb3'];
@@ -66,6 +66,16 @@ export default {
     const record = () => {
       if (!sw.closed || A.reverse || V.reverse || A.over || V.over) return W.status('电路有问题，先让两个电表都正常偏转。');
       const { u, i } = reading();
+      const f = nets(C);
+      const vEnds = ['3', '15'].filter(t => C.wires.some(w => w.a === `V.${t}` || w.b === `V.${t}`));
+      const vOn = vEnds.length === 1 && [f('V.-'), f(`V.${vEnds[0]}`)].sort().join() === [f('R.a'), f('R.b')].sort().join();
+      const pEnds = ['A', 'B', 'C', 'D'].filter(t => C.wires.some(w => w.a === `P.${t}` || w.b === `P.${t}`));
+      const pI = Math.max(Math.abs(Rh.Iap || 0), Math.abs(Rh.Ipb || 0));
+      if (!Number.isFinite(u) || !Number.isFinite(i) || u <= 0 || i <= 0 || !vOn ||
+          Math.abs(Math.abs(A.value) - Math.abs(R.I)) > 0.005 || pI < 0.005 ||
+          pEnds.filter(t => t < 'C').length !== 1 || !pEnds.some(t => t >= 'C')) {
+        return W.status('电路连接不完整或接法不对，不能记录：电流表、定值电阻和滑动变阻器应串联，电压表并联在定值电阻两端。');
+      }
       if (S.mode === 0) {
         const list = S.iu.get(R.R) || [];
         if (list.some((p) => Math.abs(p[0] - u) < 0.05)) return W.status('这个电压已经记过了，移动滑片换一个电压。');

@@ -80,6 +80,11 @@ export default {
       if (!W || !A) return;
       if (ev.msg) return W.status(ev.msg);
       const c = check();
+      const { u, i } = reading();
+      if (S.ask && (c.k !== 'ok' || S.ask.u !== u || S.ask.i !== i)) {
+        W.drop();
+        return W.status('电路变了，刚才那组读数作废。请检查电路后重新记录。');
+      }
       if (ev.toggled === 'S' && sw.closed && c.k === 'ok') {
         const pEnd = ['A', 'B'].find((k) => C.wires.some((w) => w.a === `P.${k}` || w.b === `P.${k}`));
         const rIn = pEnd === 'A' ? P.pos : 1 - P.pos;
@@ -90,8 +95,6 @@ export default {
       if (c.k === 'none') return W.status('电路中没有电流：检查电路是不是断开了。');
       if (c.msg) return W.status(c.msg);
       W.goal.done('wire');
-      const { u, i } = reading();
-      if (S.ask && (S.ask.u !== u || S.ask.i !== i)) { W.drop(); return W.status('电路变了，刚才那组读数作废。'); }
       if (!S.ask) W.status('两个电表都有示数了。读一读两个电表，点“记下这组数据”；移动滑片，多测几组。');
     };
 
