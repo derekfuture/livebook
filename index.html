@@ -17,10 +17,11 @@
         if (!snap) return;
         S.removeItem('livebook.snap');
         d.classList.add('snap');
-        var st = document.createElement('style');
-        st.textContent = 'html.snap::after{content:"";position:fixed;inset:0;z-index:1000;pointer-events:none;background:#e9e1d3 url("' + snap + '") center/100% 100% no-repeat;transition:opacity .28s ease}html.snap.snap-out::after{opacity:0}';
+        var st = document.createElement('style'), block = location.hash.indexOf('via=block') >= 0;          // 从地理世界切出一块地形进来：等书里准备好的这一会儿，画面接着慢慢推近（不停在一张静止的图上），书里按推近了多少摆镜头（window.__snapScale）
+        st.textContent = 'html.snap::after{content:"";position:fixed;inset:0;z-index:1000;pointer-events:none;background:#e9e1d3 url("' + snap + '") center/100% 100% no-repeat;transition:opacity ' + (block ? '.34s' : '.28s') + ' ease' + (block ? ';animation:snap-push 2.6s cubic-bezier(.45,0,.55,1) forwards}@keyframes snap-push{to{transform:scale(1.05)}' : '') + '}html.snap.snap-out::after{opacity:0}';
         document.head.appendChild(st);
-        window.__dropSnap = function () { d.classList.add('snap-out'); setTimeout(function () { d.classList.remove('snap', 'snap-out'); st.remove(); }, 320); };
+        window.__snapScale = function () { var m = getComputedStyle(d, '::after').transform, k = m && m.indexOf('matrix(') === 0 ? parseFloat(m.slice(7)) || 1 : 1; st.textContent += 'html.snap::after{animation:none;transform:scale(' + k + ')}'; return k; };          // 停在现在推近的地方，返回推近了多少倍
+        window.__dropSnap = function () { d.classList.add('snap-out'); setTimeout(function () { d.classList.remove('snap', 'snap-out'); st.remove(); }, block ? 380 : 320); };
         setTimeout(window.__dropSnap, 4000);          // 万一那边出了错，不能一直盖着
       } catch (e) {}
     })();
@@ -39,7 +40,8 @@
   <header id="hud-top">
     <div class="brand"><b>活页课本</b><span id="book-title"></span></div>
     <div class="hud-actions">
-      <button id="btn-shelf" class="chip" title="回到书架，换一本书">‹ 书架</button>
+      <button id="btn-shelf" class="chip" title="回到书桌，换一本书">‹ 书桌</button>
+      <button id="btn-globe" class="chip" title="地球目录：这本书的活页都在地球上" hidden>地球</button>
       <button id="btn-toc" class="chip" title="目录 (T)">目录</button>
       <button id="btn-live" class="chip chip-live" title="这本书的活页">✦ 活页 <em id="stamp-count">0/0</em></button>
     </div>

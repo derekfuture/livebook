@@ -1,0 +1,359 @@
+[
+  {
+    "id": "84e86aca-8c7f-4166-9b29-1b661d3018e2",
+    "title": "第一章 从世界看中国",
+    "rich_title": "第一章 从世界看中国",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "84e86aca-8c7f-4166-9b29-1b661d3018e2",
+    "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+    "create_time": "2025-07-29T15:44:43.403+0800",
+    "update_time": "2025-07-29T15:44:43.403+0800",
+    "child_nodes": [
+      {
+        "id": "6609b022-1af8-4dcc-a9ed-529d16580b90",
+        "title": "第一节 疆域",
+        "rich_title": "第一节 疆域",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "84e86aca-8c7f-4166-9b29-1b661d3018e2/6609b022-1af8-4dcc-a9ed-529d16580b90",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.435+0800",
+        "update_time": "2025-07-29T15:44:43.435+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fb9f84a1-f658-43bf-aeea-9533833437b3",
+        "title": "第二节 人口",
+        "rich_title": "第二节 人口",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "84e86aca-8c7f-4166-9b29-1b661d3018e2/fb9f84a1-f658-43bf-aeea-9533833437b3",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.454+0800",
+        "update_time": "2025-07-29T15:44:43.454+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4afae100-acbb-479b-8cac-da637dd26cdc",
+        "title": "第三节 民族",
+        "rich_title": "第三节 民族",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "84e86aca-8c7f-4166-9b29-1b661d3018e2/4afae100-acbb-479b-8cac-da637dd26cdc",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.475+0800",
+        "update_time": "2025-07-29T15:44:43.475+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "27078878-ee97-41d9-9c63-fd73a81a285b",
+    "title": "第二章 中国的自然环境",
+    "rich_title": "第二章 中国的自然环境",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "27078878-ee97-41d9-9c63-fd73a81a285b",
+    "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+    "create_time": "2025-07-29T15:44:43.496+0800",
+    "update_time": "2025-07-29T15:44:43.496+0800",
+    "child_nodes": [
+      {
+        "id": "981af2c8-b511-4798-964a-d4039d56fb59",
+        "title": "第一节 地形",
+        "rich_title": "第一节 地形",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "27078878-ee97-41d9-9c63-fd73a81a285b/981af2c8-b511-4798-964a-d4039d56fb59",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.525+0800",
+        "update_time": "2025-07-29T15:44:43.525+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ea7d9b8d-0efb-4d23-9e8a-6da781bfba76",
+        "title": "第二节 气候",
+        "rich_title": "第二节 气候",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "27078878-ee97-41d9-9c63-fd73a81a285b/ea7d9b8d-0efb-4d23-9e8a-6da781bfba76",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.545+0800",
+        "update_time": "2025-07-29T15:44:43.545+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9c595f2e-94c6-46d4-854c-70415170e2ef",
+        "title": "第三节 河流与湖泊",
+        "rich_title": "第三节 河流与湖泊",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "27078878-ee97-41d9-9c63-fd73a81a285b/9c595f2e-94c6-46d4-854c-70415170e2ef",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.563+0800",
+        "update_time": "2025-07-29T15:44:43.563+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "c4c24704-92c1-44b9-ae1c-1879b2c0cc12",
+    "title": "【跨学科主题学习】探究“束水攻沙”原理",
+    "rich_title": "【跨学科主题学习】探究“束水攻沙”原理",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "c4c24704-92c1-44b9-ae1c-1879b2c0cc12",
+    "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+    "create_time": "2025-07-29T15:44:43.586+0800",
+    "update_time": "2025-07-29T15:44:43.586+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "849174b6-b06e-443c-b3fe-3b3d5effdfc9",
+    "title": "第三章 中国的自然资源",
+    "rich_title": "第三章 中国的自然资源",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "849174b6-b06e-443c-b3fe-3b3d5effdfc9",
+    "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+    "create_time": "2025-07-29T15:44:43.605+0800",
+    "update_time": "2025-07-29T15:44:43.605+0800",
+    "child_nodes": [
+      {
+        "id": "de439938-36d3-462d-88fa-454c2ebb6ebb",
+        "title": "第一节 土地资源",
+        "rich_title": "第一节 土地资源",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "849174b6-b06e-443c-b3fe-3b3d5effdfc9/de439938-36d3-462d-88fa-454c2ebb6ebb",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.623+0800",
+        "update_time": "2025-07-29T15:44:43.623+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "bba912d6-c5b9-4c02-bcea-966af5dd44d7",
+        "title": "第二节 水资源",
+        "rich_title": "第二节 水资源",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "849174b6-b06e-443c-b3fe-3b3d5effdfc9/bba912d6-c5b9-4c02-bcea-966af5dd44d7",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.643+0800",
+        "update_time": "2025-07-29T15:44:43.643+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cd08402b-c510-453d-80b6-c505e2f58d9d",
+        "title": "第三节 矿产资源",
+        "rich_title": "第三节 矿产资源",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "849174b6-b06e-443c-b3fe-3b3d5effdfc9/cd08402b-c510-453d-80b6-c505e2f58d9d",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.664+0800",
+        "update_time": "2025-07-29T15:44:43.664+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d6c02808-b9b8-483a-8558-b3f173361b8e",
+        "title": "第四节 海洋资源",
+        "rich_title": "第四节 海洋资源",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "849174b6-b06e-443c-b3fe-3b3d5effdfc9/d6c02808-b9b8-483a-8558-b3f173361b8e",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.685+0800",
+        "update_time": "2025-07-29T15:44:43.685+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "1dde580a-37d3-4beb-8930-1cf5bcf61120",
+    "title": "【跨学科主题学习】认识我国的“世界灌溉工程遗产”",
+    "rich_title": "【跨学科主题学习】认识我国的“世界灌溉工程遗产”",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "1dde580a-37d3-4beb-8930-1cf5bcf61120",
+    "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+    "create_time": "2025-07-29T15:44:43.720+0800",
+    "update_time": "2025-07-29T15:44:43.720+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "f4be443f-0000-47e4-921d-967c4259ace9",
+    "title": "第四章 中国的经济发展",
+    "rich_title": "第四章 中国的经济发展",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "f4be443f-0000-47e4-921d-967c4259ace9",
+    "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+    "create_time": "2025-07-29T15:44:43.738+0800",
+    "update_time": "2025-07-29T15:44:43.738+0800",
+    "child_nodes": [
+      {
+        "id": "b1d4a036-1d76-45de-b5fa-c42e0e328d7f",
+        "title": "第一节 农业",
+        "rich_title": "第一节 农业",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f4be443f-0000-47e4-921d-967c4259ace9/b1d4a036-1d76-45de-b5fa-c42e0e328d7f",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.754+0800",
+        "update_time": "2025-07-29T15:44:43.754+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "72f9e7a3-daea-4515-8d82-60cddaf21eef",
+        "title": "第二节 工业",
+        "rich_title": "第二节 工业",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f4be443f-0000-47e4-921d-967c4259ace9/72f9e7a3-daea-4515-8d82-60cddaf21eef",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.773+0800",
+        "update_time": "2025-07-29T15:44:43.773+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b9788b63-984c-4b2d-b0ca-0c2e188e2307",
+        "title": "第三节 交通运输",
+        "rich_title": "第三节 交通运输",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f4be443f-0000-47e4-921d-967c4259ace9/b9788b63-984c-4b2d-b0ca-0c2e188e2307",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.792+0800",
+        "update_time": "2025-07-29T15:44:43.792+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "227028a6-1c0f-450e-9100-fe1a48def8b8",
+    "title": "第五章 建设美丽中国",
+    "rich_title": "第五章 建设美丽中国",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "227028a6-1c0f-450e-9100-fe1a48def8b8",
+    "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+    "create_time": "2025-07-29T15:44:43.811+0800",
+    "update_time": "2025-07-29T15:44:43.811+0800",
+    "child_nodes": [
+      {
+        "id": "56b1ecba-ab96-4398-8407-72388435d43c",
+        "title": "第一节 自然灾害与防灾减灾",
+        "rich_title": "第一节 自然灾害与防灾减灾",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "227028a6-1c0f-450e-9100-fe1a48def8b8/56b1ecba-ab96-4398-8407-72388435d43c",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.827+0800",
+        "update_time": "2025-07-29T15:44:43.827+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fc25bedf-631d-4fba-a6c5-87008146ad9c",
+        "title": "第二节 环境保护与发展",
+        "rich_title": "第二节 环境保护与发展",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "227028a6-1c0f-450e-9100-fe1a48def8b8/fc25bedf-631d-4fba-a6c5-87008146ad9c",
+        "tree_id": "ca93ec1e-9d0d-4df7-8da0-eaa8e1cbf7e3",
+        "create_time": "2025-07-29T15:44:43.848+0800",
+        "update_time": "2025-07-29T15:44:43.848+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

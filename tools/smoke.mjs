@@ -63,7 +63,7 @@ await Promise.all(Array.from({ length: Math.min(PAR, queue.length) }, async () =
     const errs = [];
     page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.text()); });
     page.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
-    await page.goto(`${process.env.LB_URL || 'http://127.0.0.1:5188/'}?book=${bid}#live=${id}`);
+    await page.goto(`${process.env.LB_URL || `http://127.0.0.1:${process.env.LB_PORT || 5188}/`}?book=${bid}#live=${id}`);
     // 等实验真的打开，再多等一会儿让前几帧跑起来（每帧的 update 出错也能抓到）
     let open = false;
     for (let i = 0; i < 80 && !open; i++) { open = await page.evaluate(() => !!window.__lb?.live?.active?.inst && !window.__lb.live.opening); if (!open) await page.waitForTimeout(100); }

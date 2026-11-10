@@ -6,7 +6,7 @@ import fitz
 sys.path.insert(0, str(Path(__file__).parent))
 from find_bbox import plan_rows, LIB, PDF
 
-docs = {b: fitz.open(LIB / f"{p}.pdf") for b, p in PDF.items()}
+docs = {b: fitz.open(p) for b, p in PDF.items()}
 rows = [r for r in plan_rows() if not sys.argv[1:] or r["id"] in sys.argv[1:]]
 cols, tw = 3, 420
 for k in range(0, len(rows), 6):

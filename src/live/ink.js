@@ -84,7 +84,9 @@ export function paint(color, { unique = false, keep = false, ...opts } = {}) {
   if (!unique && mats.has(key)) return mats.get(key);
   const plain = !keep && !opts.transparent && !opts.map;
   const ink = st === 'ink' && plain, paper = st === 'paper' && plain;
-  const m = ink || paper ? new THREE.MeshLambertMaterial({ color: 0xffffff, ...opts }) : new THREE.MeshToonMaterial({ color, gradientMap: ramp, ...opts });
+  // “真实”画风（地理活页 style: 'real'，和高中地理一套）：东西是它本来的颜色，哑光、有明暗；自己亮一点点，背光面不发黑
+  const m = st === 'real' ? new THREE.MeshStandardMaterial({ color, roughness: 0.86, metalness: 0, emissive: color, emissiveIntensity: 0.12, ...opts })
+    : ink || paper ? new THREE.MeshLambertMaterial({ color: 0xffffff, ...opts }) : new THREE.MeshToonMaterial({ color, gradientMap: ramp, ...opts });
   if (ink) hatch(m, color);
   if (paper) paperHatch(m, color);
   if (!unique) { mats.set(key, m); shared.add(m); }
@@ -102,8 +104,9 @@ export function inkLine(width = 1.6, color = INK, opacity = 1) {
 }
 
 /** 给网格加描边（按折角取边）。返回网格本身，方便链式写。 */
-export function inked(mesh, { angle = 28, width = 1.6, color = INK, opacity = 1 } = {}) {
+export function inked(mesh, { angle = 28, width = 1.6, color = INK, opacity = 1, handle = false } = {}) {
   if (STYLE === 'ink') { width *= 0.6; angle = Math.max(angle, 40); }
+  if (styleNow() === 'real') { if (handle) { width *= 0.9; opacity *= 0.85; } else { width *= 0.6; opacity *= 0.35; angle = Math.max(angle, 35); } }          // 真实画风：边线很淡，只帮着看清棱角；要拿在手里拖的东西（handle）描清楚一点，一眼看得出能抓
   const edges = new THREE.EdgesGeometry(mesh.geometry, angle);
   const g = new LineSegmentsGeometry().fromEdgesGeometry(edges);
   edges.dispose();
@@ -116,8 +119,8 @@ export function inked(mesh, { angle = 28, width = 1.6, color = INK, opacity = 1 
 }
 
 /** 外轮廓（反面放大一圈），给球、圆柱这种没有折角的物体勾边。 */
-export function hull(mesh, thickness = 0.012, color = INK) {
-  if (STYLE === 'ink') { mesh.castShadow = mesh.receiveShadow = true; return mesh; }   // 轮廓由后期画
+export function hull(mesh, thickness = 0.012, color = INK, { handle = false } = {}) {
+  if (STYLE === 'ink' || (styleNow() === 'real' && !handle)) { mesh.castShadow = mesh.receiveShadow = true; return mesh; }   // 轮廓由后期画；真实画风不勾外轮廓（要拖的东西除外）
   const m = new THREE.MeshBasicMaterial({ color, side: THREE.BackSide });
   m.onBeforeCompile = (s) => {
     s.uniforms.uThick = { value: thickness };

@@ -1,0 +1,391 @@
+[
+  {
+    "id": "3b77c818-fa2c-3676-937d-26ddc708c83b",
+    "title": "第一章 地球的运动",
+    "rich_title": "第一章 地球的运动",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "3b77c818-fa2c-3676-937d-26ddc708c83b",
+    "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+    "create_time": "2023-06-15T19:04:49.300+0800",
+    "update_time": "2023-06-15T19:04:49.300+0800",
+    "child_nodes": [
+      {
+        "id": "d669523a-ae65-3f1c-a03b-d691aa8a3f35",
+        "title": "第一节 地球的自转和公转",
+        "rich_title": "第一节 地球的自转和公转",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3b77c818-fa2c-3676-937d-26ddc708c83b/d669523a-ae65-3f1c-a03b-d691aa8a3f35",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:49.502+0800",
+        "update_time": "2023-06-15T19:04:49.502+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6fb98545-7ca0-38b0-8073-a990e0da7a92",
+        "title": "第二节 地球运动的地理意义",
+        "rich_title": "第二节 地球运动的地理意义",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3b77c818-fa2c-3676-937d-26ddc708c83b/6fb98545-7ca0-38b0-8073-a990e0da7a92",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:49.697+0800",
+        "update_time": "2023-06-15T19:04:49.697+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "72da7440-a96f-364a-8cd2-2616cb3123e7",
+        "title": "问题研究 人类是否需要人造月亮",
+        "rich_title": "问题研究 人类是否需要人造月亮",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3b77c818-fa2c-3676-937d-26ddc708c83b/72da7440-a96f-364a-8cd2-2616cb3123e7",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:49.918+0800",
+        "update_time": "2023-08-09T00:28:28.832+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "12e16bac-a4ab-36a3-b86b-6cd25d0523c9",
+    "title": "第二章 地表形态的塑造",
+    "rich_title": "第二章 地表形态的塑造",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "12e16bac-a4ab-36a3-b86b-6cd25d0523c9",
+    "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+    "create_time": "2023-06-15T19:04:50.120+0800",
+    "update_time": "2023-06-15T19:04:50.120+0800",
+    "child_nodes": [
+      {
+        "id": "db8802df-b249-3fb7-bc93-620acf722e2f",
+        "title": "第一节 塑造地表形态的力量",
+        "rich_title": "第一节 塑造地表形态的力量",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "12e16bac-a4ab-36a3-b86b-6cd25d0523c9/db8802df-b249-3fb7-bc93-620acf722e2f",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:50.338+0800",
+        "update_time": "2023-06-15T19:04:50.338+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "23e7381d-b986-3e6b-876f-1e4f7c014d0c",
+        "title": "第二节 构造地貌的形成",
+        "rich_title": "第二节 构造地貌的形成",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "12e16bac-a4ab-36a3-b86b-6cd25d0523c9/23e7381d-b986-3e6b-876f-1e4f7c014d0c",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:50.540+0800",
+        "update_time": "2023-06-15T19:04:50.540+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fcf9e5d4-ba24-3d3d-a350-3961a2176605",
+        "title": "第三节 河流地貌的发育",
+        "rich_title": "第三节 河流地貌的发育",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "12e16bac-a4ab-36a3-b86b-6cd25d0523c9/fcf9e5d4-ba24-3d3d-a350-3961a2176605",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:50.741+0800",
+        "update_time": "2023-06-15T19:04:50.741+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a27ed4b7-9e98-3e47-a04f-d2a727445181",
+        "title": "问题研究 崇明岛的未来是什么样子",
+        "rich_title": "问题研究 崇明岛的未来是什么样子",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "12e16bac-a4ab-36a3-b86b-6cd25d0523c9/a27ed4b7-9e98-3e47-a04f-d2a727445181",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:50.947+0800",
+        "update_time": "2023-06-15T19:04:50.947+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "3c9ec249-34f7-39e9-90d8-6a7161f05394",
+    "title": "第三章 大气的运动",
+    "rich_title": "第三章 大气的运动",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "3c9ec249-34f7-39e9-90d8-6a7161f05394",
+    "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+    "create_time": "2023-06-15T19:04:51.150+0800",
+    "update_time": "2023-06-15T19:04:51.150+0800",
+    "child_nodes": [
+      {
+        "id": "45e9df34-93a5-35b7-a90d-5c2d5388b8ad",
+        "title": "第一节 常见天气系统",
+        "rich_title": "第一节 常见天气系统",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3c9ec249-34f7-39e9-90d8-6a7161f05394/45e9df34-93a5-35b7-a90d-5c2d5388b8ad",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:51.354+0800",
+        "update_time": "2023-06-15T19:04:51.354+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "92f1b34d-6bfc-3c75-9abf-75dd7b78678f",
+        "title": "第二节 气压带和风带",
+        "rich_title": "第二节 气压带和风带",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3c9ec249-34f7-39e9-90d8-6a7161f05394/92f1b34d-6bfc-3c75-9abf-75dd7b78678f",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:51.580+0800",
+        "update_time": "2023-06-15T19:04:51.580+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a6bf7055-f54f-3c0c-a964-bc0028fc584a",
+        "title": "第三节 气压带和风带对气候的影响",
+        "rich_title": "第三节 气压带和风带对气候的影响",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3c9ec249-34f7-39e9-90d8-6a7161f05394/a6bf7055-f54f-3c0c-a964-bc0028fc584a",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:51.778+0800",
+        "update_time": "2023-06-15T19:04:51.778+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a8ff7235-26e2-3ff2-bb59-6cdaa3a8e5ba",
+        "title": "问题研究 阿联酋“造山引雨”是否可行",
+        "rich_title": "问题研究 阿联酋“造山引雨”是否可行",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3c9ec249-34f7-39e9-90d8-6a7161f05394/a8ff7235-26e2-3ff2-bb59-6cdaa3a8e5ba",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:51.984+0800",
+        "update_time": "2023-06-15T19:04:51.984+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "ac309d85-7049-36c8-b3da-7599ebd27c14",
+    "title": "第四章 水的运动",
+    "rich_title": "第四章 水的运动",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "ac309d85-7049-36c8-b3da-7599ebd27c14",
+    "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+    "create_time": "2023-06-15T19:04:52.190+0800",
+    "update_time": "2023-06-15T19:04:52.190+0800",
+    "child_nodes": [
+      {
+        "id": "e2ee2aca-3a1f-3a43-baba-8ca2d412badc",
+        "title": "第一节 陆地水体及其相互关系",
+        "rich_title": "第一节 陆地水体及其相互关系",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ac309d85-7049-36c8-b3da-7599ebd27c14/e2ee2aca-3a1f-3a43-baba-8ca2d412badc",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:52.389+0800",
+        "update_time": "2023-06-15T19:04:52.389+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6475771a-b5e3-3a0d-ab37-35d736394eb0",
+        "title": "第二节 洋流",
+        "rich_title": "第二节 洋流",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ac309d85-7049-36c8-b3da-7599ebd27c14/6475771a-b5e3-3a0d-ab37-35d736394eb0",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:52.590+0800",
+        "update_time": "2023-06-15T19:04:52.590+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c13979a6-cbb0-39f2-a194-7f6b24625e0c",
+        "title": "第三节 海—气相互作用",
+        "rich_title": "第三节 海—气相互作用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ac309d85-7049-36c8-b3da-7599ebd27c14/c13979a6-cbb0-39f2-a194-7f6b24625e0c",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:52.787+0800",
+        "update_time": "2023-06-15T19:04:52.787+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "13bbc954-fe8d-3a88-9a4f-6b19a8f0c0c4",
+        "title": "问题研究 能否利用南极冰山解决沙特阿拉伯的缺水问题",
+        "rich_title": "问题研究 能否利用南极冰山解决沙特阿拉伯的缺水问题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "ac309d85-7049-36c8-b3da-7599ebd27c14/13bbc954-fe8d-3a88-9a4f-6b19a8f0c0c4",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:52.981+0800",
+        "update_time": "2023-08-09T00:28:31.717+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "9f0dd550-f505-3ab0-a780-00d09fef7ff9",
+    "title": "第五章 自然环境的整体性与差异性",
+    "rich_title": "第五章 自然环境的整体性与差异性",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "9f0dd550-f505-3ab0-a780-00d09fef7ff9",
+    "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+    "create_time": "2023-06-15T19:04:53.186+0800",
+    "update_time": "2023-06-15T19:04:53.186+0800",
+    "child_nodes": [
+      {
+        "id": "34f22573-6a14-30bb-9537-45307f9135e0",
+        "title": "第一节 自然环境的整体性",
+        "rich_title": "第一节 自然环境的整体性",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "9f0dd550-f505-3ab0-a780-00d09fef7ff9/34f22573-6a14-30bb-9537-45307f9135e0",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:53.391+0800",
+        "update_time": "2023-06-15T19:04:53.391+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6b7d3c9c-fed9-3a56-ac5b-029f10e19414",
+        "title": "第二节 自然环境的地域差异性",
+        "rich_title": "第二节 自然环境的地域差异性",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "9f0dd550-f505-3ab0-a780-00d09fef7ff9/6b7d3c9c-fed9-3a56-ac5b-029f10e19414",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:53.588+0800",
+        "update_time": "2023-06-15T19:04:53.588+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a9785e53-9d27-32b0-b886-0e226ca951f9",
+        "title": "问题研究 如何看待我国西北地区城市引进欧洲冷季型草坪",
+        "rich_title": "问题研究 如何看待我国西北地区城市引进欧洲冷季型草坪",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "9f0dd550-f505-3ab0-a780-00d09fef7ff9/a9785e53-9d27-32b0-b886-0e226ca951f9",
+        "tree_id": "a2ad5d87-4cdc-47ef-ade4-81ae5d589bec",
+        "create_time": "2023-06-15T19:04:53.791+0800",
+        "update_time": "2023-06-15T19:04:53.791+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

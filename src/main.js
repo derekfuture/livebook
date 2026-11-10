@@ -6,14 +6,17 @@ import { mountImport } from './book/importPdf.js';
 import { Book } from './book/Book.js';
 import { Hotspots } from './book/Hotspots.js';
 import { LiveLayer } from './live/LiveLayer.js';
+import { World, worldBook } from './live/World.js';
 import { Panel, stamps, h } from './ui/Panel.js';
 import { updateTags } from './ui/tags.js';
 import { getBook, bookList, bookHref, shelfHref, currentBookId, getManifest } from './content/index.js';
 import { bootHome } from './home/Home.js';
 import { bookmark, rememberLast } from './home/progress.js';
+import { bootGeoWorld } from './world/GeoWorld.js';
 
 const $ = (s) => document.querySelector(s);
 
+const params = new URLSearchParams(location.search);
 const BOOK_ID = currentBookId();
 
 /**
@@ -37,9 +40,11 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   const live = new LiveLayer({ stage, book, textures, hotspots, panel, content, onChange: (open) => {
     updateUI();
     const a = live.active;
-    if (open && a) { const L = content.lessons[a.spot.lesson]; rememberLast({ book: content.id, page: a.spot.page, lesson: a.spot.lesson, title: L.title, where: `${content.full} · ${L.fig} · ${L.sec}` }); bookmark.set(content.id, a.spot.page); }
+    if (open && a && content.lessons[a.spot.lesson]) { const L = content.lessons[a.spot.lesson]; rememberLast({ book: content.id, page: a.spot.page, lesson: a.spot.lesson, title: L.title, where: `${content.full} · ${L.fig} · ${L.sec}` }); bookmark.set(content.id, a.spot.page); }
   } });
   stage.updaters.add(() => updateTags(stage.camera));
+  // 高中地理：打开书，上方是这本书的地球主探索（src/live/World.js）
+  const world = worldBook(content.id) ? new World({ stage, book, live, panel, content, manifest, textures, onBook: () => bookShot() }) : null;
 
   // ---------- 机位：合上时对准封面，翻开后对准整个跨页 ----------
   const bookShot = (instant = false, keepView = false) => {
@@ -57,7 +62,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   };
   // 窗口大小变了（转屏、拖窗口）：没开实验就重新对准书；开着实验就按新的画面重新取景（正在凑近看时不打断）
   let rz = 0;
-  stage.onResize = () => { if (!live.isOpen) return bookShot(); clearTimeout(rz); rz = setTimeout(() => live.reframe(), 250); };
+  stage.onResize = () => { if (!live.isOpen) return world && world.state !== 'book' ? world.reframe() : bookShot(); clearTimeout(rz); rz = setTimeout(() => live.reframe(), 250); };
   bookShot(true);
 
   // ---------- 加载：先要封面和前几页 ----------
@@ -65,19 +70,23 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   const q0 = new URLSearchParams(location.hash.slice(1));
   // 没有原书页（占位页）时，不停在封面：直接翻开一张活页（有书签就翻开书签那里或之后的第一张，没有就第一张）
   const spotsInOrder = [...content.spots].sort((a, b) => a.page - b.page);
-  const autoSpot = source.kind === 'placeholder' ? (spotsInOrder.find((x) => x.page >= (bookmark.get(content.id) ?? 0)) || spotsInOrder[0]) : null;
-  const startPage = q0.has('live') ? content.spots.find((x) => x.lesson === q0.get('live'))?.page : q0.has('p') ? Number(q0.get('p')) : autoSpot ? autoSpot.page : bookmark.get(content.id);
+  const autoSpot = source.kind === 'placeholder' && !world ? (spotsInOrder.find((x) => x.page >= (bookmark.get(content.id) ?? 0)) || spotsInOrder[0]) : null;          // 地理的地球主探索：打开就是地球目录，不自动翻开活页
+  const startPage = q0.has('live') ? content.spots.find((x) => x.lesson === q0.get('live'))?.page : q0.has('p') ? Number(q0.get('p')) : autoSpot ? autoSpot.page : world ? 3 : bookmark.get(content.id);
   const firstPages = [...new Set([0, 1, 2, 3, 4, ...(startPage != null ? book.turnPages(book.leafForPage(startPage), 0) : [])])];
   if (startPage != null) textures.want(book.turnPages(book.leafForPage(startPage), 0).slice(-2));          // 目的地那个跨页的高清图也先要
-  let started = false;
+  if (world && q0.get('via') === 'block') world.preloadBlock(q0.get('place'));          // 从地理世界切出一块地形进来：那块地形的高程和影像（浏览器里已经有了）先解开，和书页一起准备
+  let started = false, snapHold = 0;
   textures.preload(firstPages, (p, firstReady) => {
     $('#loader').style.setProperty('--p', p);
     if (firstReady && !started) {
       started = true;
       for (const l of [book.leftTop, book.rightTop]) l.refresh();
       $('#loader').classList.add('done');
-      if (handoff) { book.group.visible = true; handoff(); }
-      handleHash();
+      snapHold = document.documentElement.classList.contains('snap') ? 0.34 : 0;          // 从地理世界点进来：那边最后一帧盖着，等它淡出完了再翻书、挪镜头（不然两本书错开，有重影）
+      const hq = new URLSearchParams(location.hash.slice(1));
+      const go = () => { window.__dropSnap?.(); if (handoff) { book.group.visible = true; handoff(); } handleHash(); };
+      if (world && hq.get('via') === 'block') { snapHold = 0; world.prepareBlock(hq.get('live'), hq.get('place')).then(go, go); }          // 从地理世界切出一块地形进来：书先翻到那一页，那块地形摆在和那边最后一帧一样的地方，再揭开（只有四周从山换成课本）
+      else go();
     }
   });
   stage.start();
@@ -101,7 +110,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   };
   addEventListener('stamp', updateUI);
   book.on((type) => {
-    if (type === 'turned' || type === 'turncancel') { updateUI(); bookShot(false, book.current > 0 && book.current < book.leafCount); }
+    if (type === 'turned' || type === 'turncancel') { updateUI(); if (!world || world.state === 'book' || world.state === 'off') bookShot(false, book.current > 0 && book.current < book.leafCount); }          // 地球主探索时镜头由 World 安排
     if (type === 'turned' && book.current > 0) {
       const pg = book.spread[1] ?? book.spread[0];
       bookmark.set(content.id, pg);
@@ -114,18 +123,28 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   });
   updateUI();
 
-  $('#btn-prev').onclick = () => !live.isOpen && book.prev();
-  $('#btn-next').onclick = () => !live.isOpen && book.next();
+  $('#btn-prev').onclick = () => !live.isOpen && !world?.busy && book.prev();
+  $('#btn-next').onclick = () => !live.isOpen && !world?.busy && book.next();
 
   // 翻到含有某页的跨页
   let pendingLesson = null;
   const gotoPage = (idx, then) => {
+    if (world) {          // 地球主探索：进活页走 World（上面不关、不重开，书跟着翻）；只翻页时先回到地球目录
+      if (then) return world.enter(then.lesson);
+      const go = () => book.turnTo(book.leafForPage(idx));
+      if (world.state === 'topic') return world.toHub().then(go);
+      return go();
+    }
     if (live.isOpen) live.close();
     const target = book.leafForPage(idx);
     if (book.current === target && !book.busy) { if (then) live.open(then); return; }
     pendingLesson = then || null;
     book.turnTo(target);
   };
+
+  // ---------- 顶栏“地球”：回到这本书的地球主探索（收起了就再叫出来） ----------
+  const globeBtn = $('#btn-globe');
+  if (globeBtn) { globeBtn.hidden = !world; globeBtn.onclick = () => { hideHint(); drawer.hidden = true; world?.wake(); }; }
 
   // ---------- 目录 / 这本书的活页 ----------
   const drawer = $('#drawer');
@@ -162,7 +181,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
         seen.add(s.lesson);
         const info = content.lessons[s.lesson];
         const got = stamps.has(s.lesson);
-        body.append(h('div', { class: 'live-item', onclick: () => { drawer.hidden = true; gotoPage(s.page, s); } },
+        body.append(h('div', { class: 'live-item', onclick: () => { drawer.hidden = true; world ? world.enter(s.lesson) : gotoPage(s.page, s); } },
           h('div', { class: `seal ${got ? 'got' : ''}` }, got ? '已做' : '未做'),
           h('div', {}, h('h4', {}, info.title), h('p', {}, `${info.fig} · 第 ${s.page - off} 页 · ${info.sec}`))));
       }
@@ -173,6 +192,9 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   $('#btn-toc').onclick = () => (!drawer.hidden && $('#drawer-title').textContent === '目录' ? (drawer.hidden = true) : openDrawer('toc'));
   $('#btn-live').onclick = () => openDrawer('live');
   // 回到书架：先合上书（开着活页就先收起），镜头回到合上的样子；把这一帧留给书架那边，换页面时先盖着，那边画好了再揭开——这本书接着从书桌上放回架上
+  // 地理书回到地理世界（书圈里这本书转到正前方）：一样先合上书，那边接着这一帧把书升回书圈
+  const toWorld = content.id.startsWith('dili-');
+  if (toWorld) { $('#btn-shelf').textContent = '‹ 地理世界'; $('#btn-shelf').title = '回到地理世界：所有地理课本和那颗地球'; }
   let toShelf = false;
   $('#btn-shelf').onclick = () => {
     if (toShelf) return;
@@ -180,6 +202,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     drawer.hidden = true; hideHint();
     document.body.classList.add('shelf-leave');
     if (live.isOpen) live.close();
+    world?.hide();          // 地球沉回书里，书再合上
     stage.calm = true;          // 不跟着鼠标晃：两边同一个画面
     const t0 = performance.now();
     const wait = () => {
@@ -188,13 +211,13 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
         // 一边合书，镜头一边回到合上的样子（不等翻完再挪）
         stage.shot({ target: new THREE.Vector3(book.W / 2, 0, 0.06), dir: new THREE.Vector3(0, Math.sin(THREE.MathUtils.degToRad(64)), Math.cos(THREE.MathUtils.degToRad(64))), dist: stage.fitDistance(book.W * 1.25, book.H * 1.2, 1.04) });
       }
-      const settled = !live.isOpen && !book.busy && book.current === 0 && stage.settled(0.004, { parallax: true });
+      const settled = !live.isOpen && !book.busy && book.current === 0 && !world?.busy && stage.settled(0.004, { parallax: true });
       if (!settled && performance.now() - t0 < 4000) { requestAnimationFrame(wait); return; }
       try {
-        sessionStorage.setItem('livebook.homeFrom', content.id);
+        sessionStorage.setItem(toWorld ? 'livebook.worldFrom' : 'livebook.homeFrom', content.id);
         sessionStorage.setItem('livebook.snap', stage.snapshot());
       } catch { /* 隐私模式 / 存不下：照常换页面 */ }
-      location.href = shelfHref();
+      location.href = toWorld ? `${shelfHref()}?subject=dili&focus=${content.id}` : shelfHref();
     };
     requestAnimationFrame(wait);
   };
@@ -230,6 +253,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       return;
     }
     if (e.button === 2 || e.shiftKey) { press = camPress(e, 'pan'); return; }
+    if (world) { ray.setFromCamera(ndc, stage.camera); if (world.pointerDown(ray, e)) { press = { world: true }; return; } }          // 地球主探索：拖地球、点旗、点角上的地球回去
     if (live.isOpen) { press = live.pointerDown(ndc, e) ? { live: true } : camPress(e, 'orbit'); return; }
     if (book.busy) return;
     ray.setFromCamera(ndc, stage.camera);
@@ -259,6 +283,8 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       canvas.style.cursor = 'grabbing';
       return;
     }
+    if (press?.world) { ray.setFromCamera(ndc, stage.camera); world.pointerMove(ray, e); return; }
+    if (world && !press) { ray.setFromCamera(ndc, stage.camera); if (world.pointerMove(ray, e)) { hotspots.setHover(null); return; } }
     if (live.isOpen) { live.pointerMove(ndc, e); return; }
     if (press && press.dir) {
       const dx = e.clientX - press.x, dy = e.clientY - press.y;
@@ -289,6 +315,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     touches.delete(e.pointerId);
     if (pinch) { if (touches.size < 2) { pinch = null; stage._interacting = false; } press = null; return; }
     const p = press; press = null;
+    if (p?.world) { world.pointerUp(); return; }
     if (p?.cam) {
       stage._interacting = false;
       canvas.style.cursor = '';
@@ -299,7 +326,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     }
     if (live.isOpen) { live.pointerUp(ndc, e); return; }
     if (!p) return;
-    if (p.spot) { hideHint(); live.open(p.spot); return; }
+    if (p.spot) { hideHint(); world ? world.enter(p.spot.lesson) : live.open(p.spot); return; }
     if (p.dragging) {
       const prog = book.anim?.p ?? 0;
       const flick = -p.v * p.dir > 0.5;
@@ -331,8 +358,8 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
 
   addEventListener('keydown', (e) => {
     if (e.target.closest?.('input, textarea')) return;
-    if (e.key === 'Escape') { if (live.isOpen) live.close(); else drawer.hidden = true; }
-    if (live.isOpen) return;
+    if (e.key === 'Escape') { if (world && world.state === 'topic') world.toHub(); else if (live.isOpen) live.close(); else drawer.hidden = true; }
+    if (live.isOpen || world?.busy) return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); book.next(); hideHint(); }
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); book.prev(); }
     if (e.key === 't' || e.key === 'T') openDrawer('toc');
@@ -344,6 +371,14 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   // ---------- 深链接：#p=23 翻到 PDF 第 23 页，#live=lever 直接打开实验 ----------
   function handleHash() {
     const q = new URLSearchParams(location.hash.slice(1));
+    if (snapHold && !(world && q.get('live'))) { const t = snapHold; snapHold = 0; setTimeout(handleHash, t * 1000); return; }          // 上一页最后一帧还盖着：淡出完了再翻书（地球主探索的活页自己等，先把角上的地球摆好）
+    if (world) {          // 地球主探索：#live=front 直接进那张活页；别的都从地球目录开始
+      hideHint();
+      const id = q.get('live');
+      if (id && content.lessons[id]) { const pn = q.has('place') ? world.items?.find((x) => x.id === id)?.anchor.pins?.find((x) => x.place === q.get('place') || x.name === q.get('place')) : null; const hold = snapHold; snapHold = 0; return world.enter(id, { quick: true, pn, hold }); }          // &place=cb：从地理世界的哪一面旗进来
+      if (q.has('p')) { const pg = Number(q.get('p')); return world.state === 'off' ? world.start().then(() => book.turnTo(book.leafForPage(pg))) : book.turnTo(book.leafForPage(pg)); }
+      return world.start();
+    }
     if (!q.has('live') && !q.has('p')) {      // 没指定：翻到上次的书签页（没有原书页时直接翻开活页）
       if (autoSpot) { hideHint(); setTimeout(() => gotoPage(autoSpot.page, autoSpot), 420); return; }
       const bm = bookmark.get(content.id);
@@ -358,16 +393,17 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   }
   addEventListener('hashchange', handleHash);
 
-  window.__lb = { stage, book, live, hotspots, textures };
+  window.__lb = { stage, book, live, hotspots, textures, world };
 }
 
 // 从书架拿书进来以后（地址栏已经切到教材路径），按浏览器的“后退”：回到书架（重新加载）
 addEventListener('popstate', () => location.reload());
 
 
-const start = BOOK_ID ? bootBook(BOOK_ID) : (() => {
+// ?subject=dili：地理世界（一颗地球，所有地理课本围成一圈在它下面；src/world/GeoWorld.js）
+const start = params.get('subject') === 'dili' ? bootGeoWorld(new Stage($('#c')), { focus: params.get('focus') }) : BOOK_ID ? bootBook(BOOK_ID) : (() => {
   const stage = new Stage($('#c'));
-  return bootHome(stage, { enterBook: (id, handoff) => bootBook(id, { stage, handoff }) });
+  return bootHome(stage, { enterBook: (id, handoff) => bootBook(id, { stage, handoff }), enterWorld: (focus, opts) => bootGeoWorld(stage, { focus, ...opts }) });
 })();
 start.catch((err) => {
   console.error(err);

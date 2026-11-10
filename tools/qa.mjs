@@ -69,6 +69,7 @@ const inPage = () => {
           const shape = s.geometry.parameters;
           if (s.geometry.type === 'TorusGeometry' &&
               Math.hypot(Math.hypot(l.x, l.y) - shape.radius, l.z) > shape.tube + t.geometry.parameters.radius) continue;
+          if (s.geometry.type === 'SphereGeometry' && Math.hypot(l.x, l.y, l.z) > shape.radius + t.geometry.parameters.radius) continue;          // 球按球算，不按它的包围盒（绕在球外面的铁丝不算穿过）
           if (s.geometry.type === 'CylinderGeometry' && shape.openEnded) {
             const fraction = l.y / shape.height + 0.5;
             const radius = shape.radiusBottom + fraction * (shape.radiusTop - shape.radiusBottom);
@@ -164,7 +165,7 @@ async function check(browser, id) {
   const errs = [];
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|WebGL: INVALID/.test(m.text())) errs.push(m.text()); });
-  await p.goto(`http://127.0.0.1:5188/?book=${book}#live=${id}`);
+  await p.goto(`http://127.0.0.1:${process.env.LB_PORT || 5188}/?book=${book}#live=${id}`);
   // 等到实验真的打开（不是固定等几秒）
   for (let i = 0; i < 60; i++) { if (await p.evaluate(() => !!window.__lb?.live?.active?.inst && !window.__lb.live.opening)) break; await p.waitForTimeout(150); }
   await p.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('不猜了'))?.click());
@@ -270,13 +271,13 @@ async function check(browser, id) {
       const inst = __lb.live.active.inst, g = inst.group.children[0], bar = inst.debug.bar;
       const top = (o) => { while (o.parent && o.parent !== g) o = o.parent; return o; };
       const label = (it) => { const h = typeof it.hint === 'function' ? it.hint() : it.hint; return (h || '').replace(/<[^>]+>/g, '').slice(0, 16); };
-      const items = inst.pointer.items(), tops = [...new Set(items.map((it) => top(it.obj)))];
-      const names = tops.map((t) => { const it = items.find((x) => top(x.obj) === t); return label(it) || t.name || t.type; });
+      const items = inst.pointer.items(), tops = [...new Set(items.map((it) => (it.obj.userData.track ? it.obj : top(it.obj))))];          // userData.track：在器材内部移动、转动的东西（地球仪上的小旗、转动的球）按它自己算
+      const names = tops.map((t) => { const it = items.find((x) => x.obj === t || top(x.obj) === t); return label(it) || t.name || t.type; });
       const L = window.__demoLog = { names, frames: [] };
       const V = g.position.constructor, inv = () => g.matrixWorld.clone().invert();
       const tick = () => {
         if (!bar.playing) { if (L.frames.length) { L.done = true; return; } }
-        else { g.updateMatrixWorld(true); const iv = inv(); L.frames.push({ shot: bar.shot, cap: bar.reel && document.querySelector('.lbar .lb-txt')?.textContent, pos: tops.map((t) => { const v = t.getWorldPosition(new V()).applyMatrix4(iv); return [v.x, v.y, v.z, t.visible ? 1 : 0]; }) }); }
+        else { g.updateMatrixWorld(true); const iv = inv(); L.frames.push({ shot: bar.shot, cap: bar.reel && document.querySelector('.lbar .lb-txt')?.textContent, pos: tops.map((t) => { const v = t.getWorldPosition(new V()).applyMatrix4(iv), q = t.getWorldQuaternion(new t.quaternion.constructor()); return [v.x, v.y, v.z, t.visible ? 1 : 0, q.x, q.y, q.z, q.w]; }) }); }
         requestAnimationFrame(tick);
       };
       bar.play('demo'); requestAnimationFrame(tick);
@@ -290,7 +291,8 @@ async function check(browser, id) {
       if (k < 4) continue;                                   // 刚开始：演示换上一套新器材，器材回到原位，不算
       L.names.forEach((nm, j) => {
         const d = Math.hypot(b.pos[j][0] - a.pos[j][0], b.pos[j][1] - a.pos[j][1], b.pos[j][2] - a.pos[j][2]);
-        if (b.pos[j][3] && a.pos[j][3]) moved[j] += d;
+        const turn = a.pos[j].length > 4 ? 2 * Math.acos(Math.min(1, Math.abs(a.pos[j][4] * b.pos[j][4] + a.pos[j][5] * b.pos[j][5] + a.pos[j][6] * b.pos[j][6] + a.pos[j][7] * b.pos[j][7]))) : 0;          // 转了多少（弧度）：转动的球也算动过
+        if (b.pos[j][3] && a.pos[j][3]) moved[j] += d + turn * 0.02;
         const c = F[k + 1], d2 = c ? Math.hypot(c.pos[j][0] - b.pos[j][0], c.pos[j][1] - b.pos[j][1], c.pos[j][2] - b.pos[j][2]) : 0;
         // 一帧跳过去、下一帧就停住 = 瞬移（滑过去的话下一帧还在走）
         if (d > 0.015 && d2 < d * 0.25 && b.pos[j][3] && a.pos[j][3]) { const key = nm + '@' + b.shot; if (!jumps.has(key)) jumps.set(key, { nm, shot: b.shot, d, cap: b.cap }); }

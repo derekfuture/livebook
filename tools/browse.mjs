@@ -39,7 +39,7 @@ const page = await browser.newPage({ viewport: { width: +(process.env.W || 1440)
 const errs = [];
 page.on('pageerror', (e) => errs.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
-await page.goto('http://127.0.0.1:5188' + urlPath);
+await page.goto(`http://127.0.0.1:${process.env.LB_PORT || 5188}` + urlPath);
 await page.waitForTimeout(3500);
 for (const s of steps) {
   try {

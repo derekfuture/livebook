@@ -15,8 +15,9 @@ from pathlib import Path
 import fitz  # PyMuPDF
 
 ROOT = Path(__file__).resolve().parent.parent
-# 教材 PDF 所在目录：设环境变量 LIVEBOOK_PDF_DIR，里面放 八年级上册.pdf、八年级下册.pdf、九年级全一册.pdf（及 *.目录树.json）
-LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
+# 教材 PDF 放在 pdf/<科目>/<版本>/<册>.pdf（旁边是同名的 .目录树.json），路径统一从 tools/pdf_paths.py 取
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pdf_paths import LIB, pdf_path, toc_path
 # 人工核对过的章节起始页（印刷页码），有就以它为准：可选，设环境变量 LIVEBOOK_VERIFIED_TOC 指向 .tsv
 VERIFIED_TOC = Path(os.environ.get("LIVEBOOK_VERIFIED_TOC", ROOT / "pdf" / "章节与选点.tsv")).expanduser()
 
@@ -25,8 +26,8 @@ BOOKS = {
         "code": "8a",
         "title": "物理 八年级上册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "八年级上册.pdf",
-        "toc": LIB / "八年级上册.目录树.json",
+        "pdf": pdf_path("wuli-8s"),
+        "toc": toc_path("wuli-8s"),
         "first_body_index": 5,
         "page_offset": 6,
     },
@@ -34,8 +35,8 @@ BOOKS = {
         "code": "9",
         "title": "物理 九年级全一册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "九年级全一册.pdf",
-        "toc": LIB / "九年级全一册.目录树.json",
+        "pdf": pdf_path("wuli-9"),
+        "toc": toc_path("wuli-9"),
         "first_body_index": 5,
         "page_offset": 6,
     },
@@ -43,8 +44,8 @@ BOOKS = {
         "code": "8b",
         "title": "物理 八年级下册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "八年级下册.pdf",
-        "toc": LIB / "八年级下册.目录树.json",
+        "pdf": pdf_path("wuli-8x"),
+        "toc": toc_path("wuli-8x"),
         "first_body_index": 5,   # 目录页之后的第一页，查找章节标题从这里开始
         "page_offset": 4,        # 印刷页码 = PDF 页序 - 4
     },
@@ -52,8 +53,8 @@ BOOKS = {
         "code": "c9a",
         "title": "化学 九年级上册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "化学" / "九年级上册.pdf",
-        "toc": LIB / "化学" / "九年级上册.目录树.json",
+        "pdf": pdf_path("huaxue-9s"),
+        "toc": toc_path("huaxue-9s"),
         "first_body_index": 5,
         "page_offset": 6,
     },
@@ -61,9 +62,85 @@ BOOKS = {
         "code": "c9b",
         "title": "化学 九年级下册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "化学" / "九年级下册.pdf",
-        "toc": LIB / "化学" / "九年级下册.目录树.json",
+        "pdf": pdf_path("huaxue-9x"),
+        "toc": toc_path("huaxue-9x"),
         "first_body_index": 4,
+        "page_offset": 4,
+    },
+    "dili-7s": {
+        "code": "g7a",
+        "title": "地理 七年级上册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("dili-7s"),
+        "toc": toc_path("dili-7s"),
+        "first_body_index": 5,
+        "page_offset": 4,
+        # 自动查找找错 / 找不到的（印刷页码，取自课本目录页）
+        "toc_printed": {"第一章 地球": 5, "第一节 地球的宇宙环境": 6, "【跨学科主题学习】美化校园": 41, "【跨学科主题学习】探索外来食料作物传播史": 117},
+    },
+    "dili-8s": {
+        "code": "g8a",
+        "title": "地理 八年级上册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("dili-8s"),
+        "toc": toc_path("dili-8s"),
+        "first_body_index": 5,
+        "page_offset": 4,
+        # 印刷页码，照课本目录页
+        "toc_printed": {"第一章 从世界看中国": 1, "第一节 疆域": 2, "第二节 人口": 13, "第三节 民族": 18, "第二章 中国的自然环境": 23, "第一节 地形": 24, "第二节 气候": 31, "第三节 河流与湖泊": 42,
+                        "【跨学科主题学习】探究“束水攻沙”原理": 53, "第三章 中国的自然资源": 57, "第一节 土地资源": 58, "第二节 水资源": 64, "第三节 矿产资源": 70, "第四节 海洋资源": 75,
+                        "【跨学科主题学习】认识我国的“世界灌溉工程遗产”": 82, "第四章 中国的经济发展": 85, "第一节 农业": 86, "第二节 工业": 93, "第三节 交通运输": 101,
+                        "第五章 建设美丽中国": 109, "第一节 自然灾害与防灾减灾": 110, "第二节 环境保护与发展": 118},
+    },
+    "dili-8x": {
+        "code": "g8b",
+        "title": "地理 八年级下册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("dili-8x"),
+        "toc": toc_path("dili-8x"),
+        "first_body_index": 5,
+        "page_offset": 4,
+        "toc_printed": {"第六章 中国的地理差异": 1, "【跨学科主题学习】了解二十四节气": 9, "第七章 北方地区": 11, "第七章 北方地区/第一节 自然特征与农业": 12,
+                        "第七章 北方地区/第二节 “白山黑水”——东北三省": 18, "第七章 北方地区/第三节 世界最大的黄土堆积区——黄土高原": 27, "第七章 北方地区/第四节 祖国的首都——北京": 37,
+                        "第八章 南方地区": 47, "第八章 南方地区/第一节 自然特征与农业": 48, "第八章 南方地区/第二节 “鱼米之乡”——长江三角洲地区": 54,
+                        "第八章 南方地区/第三节 特别行政区——香港和澳门": 62, "第八章 南方地区/第四节 祖国的神圣领土——台湾省": 69, "【跨学科主题学习】认识地名的由来和演变": 75,
+                        "第九章 西北地区": 77, "第九章 西北地区/第一节 自然特征与农业": 78, "第九章 西北地区/第二节 干旱的宝地——塔里木盆地": 84,
+                        "第十章 青藏地区": 89, "第十章 青藏地区/第一节 自然特征与农业": 90, "第十章 青藏地区/第二节 “中华水塔”——三江源地区": 97, "第十一章 奋进中的中国": 103},
+    },
+    "dili-bx1": {
+        "code": "gb1",
+        "title": "地理 必修第一册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("dili-bx1"),
+        "toc": toc_path("dili-bx1"),
+        "first_body_index": 5,
+        "page_offset": 4,
+    },
+    "dili-bx2": {
+        "code": "gb2",
+        "title": "地理 必修第二册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("dili-bx2"),
+        "toc": toc_path("dili-bx2"),
+        "first_body_index": 5,
+        "page_offset": 4,
+    },
+    "dili-xb1": {
+        "code": "gx1",
+        "title": "地理 选择性必修1",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("dili-xb1"),
+        "toc": toc_path("dili-xb1"),
+        "first_body_index": 5,
+        "page_offset": 4,
+    },
+    "dili-xb2": {
+        "code": "gx2",
+        "title": "地理 选择性必修2",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("dili-xb2"),
+        "toc": toc_path("dili-xb2"),
+        "first_body_index": 5,
         "page_offset": 4,
     },
 }
@@ -120,6 +197,20 @@ def apply_verified(chapters, code, offset):
     return chapters
 
 
+def apply_printed(chapters, fixed, offset):
+    """BOOKS 里写明的印刷页码（课本目录页上的），覆盖自动查找的结果。"""
+    for c in chapters:
+        if c["title"] in fixed:
+            c["page"] = fixed[c["title"]] + offset
+        for sec in c["sections"]:
+            key = f'{c["title"]}/{sec["title"]}'          # 好几章都有“第一节 自然特征与农业”：写成“章/节”区分
+            if key in fixed:
+                sec["page"] = fixed[key] + offset
+            elif sec["title"] in fixed:
+                sec["page"] = fixed[sec["title"]] + offset
+    return chapters
+
+
 def main(book_id):
     cfg = BOOKS[book_id]
     out = ROOT / "public" / "books" / book_id
@@ -146,7 +237,7 @@ def main(book_id):
         "pageCount": doc.page_count,
         "pageSize": [round(rect.width, 3), round(rect.height, 3)],
         "pageOffset": cfg["page_offset"],
-        "chapters": apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"]),
+        "chapters": apply_printed(apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"]), cfg.get("toc_printed", {}), cfg["page_offset"]),
     }
     (out / "book.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print("写入", out / "book.json")

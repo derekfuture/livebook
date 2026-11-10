@@ -19,6 +19,9 @@ const BOARD_PX = 400;          // 立板的网页宽度（像素）
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const backOut = (t) => { const c = 1.5; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const PIN_T = 1.15;          // 活页从地球上那一点长出来、落到书上要多久（秒）
+const RISE_T = 0.95;          // 从切出来的那块地形的位置长高要多久（秒）
 
 function holeTexture() {
   const c = document.createElement('canvas');
@@ -52,7 +55,7 @@ export class LiveLayer {
     this.opening = true;
     const { book, stage, textures } = this;
     const side = book.sideOf(spot.page);
-    const def = (await this.content.lessons[spot.lesson].load()).default;
+    const def = spot.def || (await this.content.lessons[spot.lesson].load()).default;          // spot.def：已经加载好的活页（地球目录这种不在课本某张图上的）
 
     const [x0, y0, x1, y1] = spot.bbox;
     const a = book.pageToWorld(spot.page, x0, y0, 0.002), b = book.pageToWorld(spot.page, x1, y1, 0.002);
@@ -74,6 +77,8 @@ export class LiveLayer {
     hole.position.copy(figCenter).y -= 0.0005;
     hole.receiveShadow = true;
     hole.renderOrder = 2;
+    const WD = spot.world || null;          // 地理的地球主探索：活页从地球上的一点长出来（pin）、整颗地球落下去换成活页里的（globe）、照旧从图里升起来（figure）
+    if (spot.noFigure || (WD && WD.mode !== 'figure')) card.visible = hole.visible = false;          // 不从某张图上揭下来：书页上不留白块
     stage.scene.add(card, hole);
 
     // 立体实验
@@ -86,24 +91,29 @@ export class LiveLayer {
     const MODE = UI_MODE;
     const world = !!def.world && ['page', 'desk', 'card'].includes(MODE);
     const stand = MODE === 'stand' && innerWidth > 760;
+    let frameDir = null;          // 实验自己指定的取景方向（世界坐标）；没指定就用 view 里的 elev / azim
     const ctx = {
-      THREE, ink, camera: stage.camera, root: scaler, world, mode: world ? MODE : 'panel',
+      THREE, ink, camera: stage.camera, root: scaler, world, mode: world ? MODE : 'panel', spot,
       tag: (text, cls, onClick) => { const t = tag(text, cls, onClick); tags.push(t); return t; },
+      prewarm: () => this._prewarm(),          // 活页里后加载的模型、材质好了以后调：在后台把它们的着色器先编好
       ui: null,
       // 让实验临时换个机位（例如“从光屏一侧透过透镜看”），back() 回到原来的机位
-      look: (localTarget, localDir, dist, onExit) => {
+      look: (localTarget, localDir, dist, onExit, opts = {}) => {
         this._lookExit = onExit || null;
+        stage.zoomMin = opts.minZoom ?? null;          // opts.minZoom：这一处最多拉近到多少倍
         const tgt = scaler.localToWorld(new THREE.Vector3(...localTarget));
         const q = new THREE.Quaternion(); scaler.getWorldQuaternion(q);
         this._prevShot ||= {
           target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist, minEl: stage.rig.minEl,
           yaw: stage.user.yaw, pitch: stage.user.pitch, zoom: stage.user.zoom, pan: stage.user.pan.clone(),
         };
-        stage.shot({ target: tgt, dir: new THREE.Vector3(...localDir).applyQuaternion(q), dist: dist * this.active.s * lookFit(stage), minEl: Math.abs(localDir[1]) < 0.05 ? 0 : 0.17 });     // 方向几乎水平：就是要平视（读量筒、温度计）
+        stage.shot({ target: tgt, dir: new THREE.Vector3(...localDir).applyQuaternion(q), dist: dist * this.active.s * lookFit(stage), minEl: opts.minEl ?? (Math.abs(localDir[1]) < 0.05 ? 0 : 0.17) });     // 方向几乎水平：就是要平视（读量筒、温度计）          // opts.minEl：允许相机低于目标（站在地上抬头看）
         tagFocus(tgt, dist * this.active.s * 0.35);
       },
       // 实验换了一套器材（场景）以后，按新器材重新取景
-      reframe: () => requestAnimationFrame(() => this._reframe?.()),
+      reframe: () => requestAnimationFrame(() => this._reframe?.()),          // 地球主探索的“就地”模式：交给 World 取景（spot.world.reframe）
+      // 换一个取景方向（实验的局部坐标，从模型指向镜头），按新方向把器材完整框进画面，镜头平滑地转过去
+      aim: (localDir) => { const q = new THREE.Quaternion(); scaler.getWorldQuaternion(q); frameDir = new THREE.Vector3(...localDir).normalize().applyQuaternion(q); requestAnimationFrame(() => this._reframe?.()); },
       back: () => this._back(),
     };
     ink.setLessonStyle(def.style);          // 实验自己的画风（例如 'paper'），只在搭这个实验的时候生效
@@ -113,11 +123,14 @@ export class LiveLayer {
     // 放在这一页中间，按页面大小缩放（书即学案模式：留在原图的位置，页面下半部分要留给表格）
     const size = inst.size;   // { w, d, h }（实验自己的单位，米）
     const inPage = world && MODE === 'page';
+    const spread = !inPage && inst.place === 'spread';          // 放在两页正中间、按整个对开页放大（地理：模型是主角，书还在）
     const pageCenter = inPage
       ? book.pageToWorld(spot.page, book.PW / 2, (y0 + y1) / 2 + 20, 0.004)
+      : spread ? new THREE.Vector3(0, Math.max(book.topHeight('left'), book.topHeight('right')) + 0.004, 0.02)
       : new THREE.Vector3(side === 'left' ? -book.W / 2 : book.W / 2, book.topHeight(side) + 0.004, 0.02);
     const s = inPage
       ? Math.min((book.W * 0.94) / size.w, (book.H * 0.34) / size.d)
+      : spread ? Math.min((book.W * 1.7) / size.w, (book.H * 0.8) / size.d) * (inst.scale || 1)
       : Math.min((book.W * 0.96) / size.w, (book.H * 0.62) / size.d) * (inst.scale || 1);
     scaler.scale.setScalar(s);
     root.position.copy(figCenter);
@@ -201,7 +214,9 @@ export class LiveLayer {
       dist = stage.fitDistance(book.W * 1.6, book.H * 1.25, v.margin ?? 1.0);
     }
     this.bookShot = { target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist };
-    stage.shot({ target: look, dir, dist });
+    const holdShot = WD?.mode === 'globe';          // 整颗地球落下去：镜头等地球落好（release）再转到活页的取景
+    if (!holdShot) stage.shot({ target: look, dir, dist });
+    this._pendingShot = holdShot ? { target: look, dir, dist } : null;
 
     const pageNum = spot.page - book.manifest.pageOffset;
     let api, nb = null;
@@ -213,8 +228,8 @@ export class LiveLayer {
       this.panel.home.classList.toggle('board', MODE === 'float');
       this.panel.home.classList.remove('folded');
       // 预测阶段：隐藏标签和会泄露答案的现象（实验自己实现 predicting(on)）
-      const onStep = (i) => { const on = i === 0; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
-      api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => this.close(), foldable: MODE === 'float' || stand,
+      const onStep = (i) => { const on = i === 0 && !this.panel.explore; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
+      api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => (WD?.onClose ? WD.onClose() : this.close()), closeText: WD?.closeText, crumb: WD?.crumb, links: WD?.links, figText: WD?.figText, foldable: MODE === 'float' || stand,
         onFold: (folded) => { if (!stand) stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8; } });
     }
     ctx.ui = api;
@@ -243,19 +258,24 @@ export class LiveLayer {
     }
 
     this.hotspots.enabled = false;
-    document.body.classList.add('lesson-on');
+    document.body.classList.add('lesson-on'); document.getElementById('c').dataset.tip = '';
     const community = lessonCommunity({capture:()=>this.stage.snapshot(Math.min(innerWidth,1280),Math.round(Math.min(innerWidth,1280)*innerHeight/innerWidth)), lesson:spot.lesson, title:def.title, where: `${this.content.full || this.content.title || ''} · 第 ${pageNum} 页 · ${def.fig || ''}`});
     document.getElementById('viewctl')?.append(community);
     toggles.push(community);
     document.body.classList.toggle('stand-ui', !!board);
     ink.setLessonStyle(null);
-    this.active = { spot, def, inst, root, scaler, card, hole, crop, tags, nb, board, toggles, t: 0, from: figCenter, to: pageCenter, s, closing: false };
+    this.active = { spot, def, inst, root, scaler, card, hole, crop, tags, nb, board, toggles, t: 0, from: figCenter, to: pageCenter, s, closing: false, world: WD, hold: WD?.mode === 'globe' };
+    if (WD?.mode === 'pin' || WD?.mode === 'globe') { root.position.copy(WD.mode === 'pin' && WD.from ? WD.from() : pageCenter); root.visible = false; }
     this.opening = false;
+    this._prewarm();
     // 实验搭好以后，按器材实际占的范围重新取景（实验里写的 size 只是估计，常常不准：器材出画或者太小）
     this._reframe = null;
-    if (!world && !stand && v.auto !== false) {
+    if (WD?.inplace && WD.reframe) {          // 就地（板块：地球就是书后上方那颗）：镜头由 World 安排
       const A = this.active;
-      this._reframe = () => { if (this.active === A && !A.closing) { this._prevShot = null; this._lookExit = null; tagFocus(null); this._autoFrame(A, dir, v); } };
+      this._reframe = () => { if (this.active === A && !A.closing && !A.hold) { this._prevShot = null; this._lookExit = null; tagFocus(null); WD.reframe(A); } };
+    } else if (!world && !stand && v.auto !== false) {
+      const A = this.active;
+      this._reframe = () => { if (this.active === A && !A.closing && !A.hold) { this._prevShot = null; this._lookExit = null; tagFocus(null); this._autoFrame(A, frameDir || dir, v); } };
       requestAnimationFrame(() => requestAnimationFrame(() => this._reframe?.()));
     }
     this.onChange?.(true);
@@ -263,30 +283,31 @@ export class LiveLayer {
 
   /** 让实验器材（不含标签）刚好完整地落在画面的可用区域里：按针孔相机严格计算所需距离 */
   _autoFrame(A, dir, v) {
-    const stage = this.stage, box = new THREE.Box3(), tmp = new THREE.Box3(), m = new THREE.Matrix4();
+    const stage = this.stage, m = new THREE.Matrix4(), vtx = new THREE.Vector3(), pts = [];
     A.scaler.updateMatrixWorld(true);
     const inv = A.scaler.matrixWorld.clone().invert();
     A.inst.group.traverseVisible((o) => {
       if (!o.isMesh || o.isInstancedMesh || o.material?.visible === false || o.userData.pick || o.userData.noFrame) return;
       if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
       if (!o.geometry.boundingBox || o.geometry.boundingBox.isEmpty()) return;
-      tmp.copy(o.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld));
-      box.union(tmp);
+      m.multiplyMatrices(inv, o.matrixWorld);
+      const pos = o.geometry.attributes.position, bb = o.geometry.boundingBox;
+      if (pos && pos.count <= 60000 && !o.geometry.isInstancedBufferGeometry) { const step = Math.max(1, Math.floor(pos.count / 3000)); for (let i = 0; i < pos.count; i += step) pts.push(vtx.fromBufferAttribute(pos, i).applyMatrix4(m).clone()); return; }          // 用真实的顶点取景：圆盘、转过的地球仪不会因为包围盒的角而被框得太小（粗线 Line2 的顶点只是模板，仍用包围盒）
+      for (let i = 0; i < 8; i++) pts.push(new THREE.Vector3(i & 1 ? bb.max.x : bb.min.x, i & 2 ? bb.max.y : bb.min.y, i & 4 ? bb.max.z : bb.min.z).applyMatrix4(m));
     });
-    if (box.isEmpty()) return;
+    if (!pts.length) return;
     const s = A.s, to = A.to;
-    const center = box.getCenter(new THREE.Vector3()).multiplyScalar(s).add(to);
     const d = dir.clone().normalize(), right = new THREE.Vector3(0, 1, 0).cross(d).normalize(), up = d.clone().cross(right).normalize();
+    const W = pts.map((p) => p.multiplyScalar(s).add(to));
+    let r0 = Infinity, r1 = -Infinity, u0 = Infinity, u1 = -Infinity, f0 = Infinity, f1 = -Infinity;
+    for (const p of W) { const a = p.dot(right), b = p.dot(up), c = p.dot(d); r0 = Math.min(r0, a); r1 = Math.max(r1, a); u0 = Math.min(u0, b); u1 = Math.max(u1, b); f0 = Math.min(f0, c); f1 = Math.max(f1, c); }
+    const center = right.clone().multiplyScalar((r0 + r1) / 2).add(up.clone().multiplyScalar((u0 + u1) / 2)).add(d.clone().multiplyScalar((f0 + f1) / 2));          // 画面上居中：按投影后的左右、上下范围取中点
     const vfov = THREE.MathUtils.degToRad(stage.camera.fov), hfov = 2 * Math.atan(Math.tan(vfov / 2) * stage.camera.aspect);
     const uW = 1 - Math.abs(stage.cameraOffsetX * 2) / Math.max(1, innerWidth), uH = 1 - Math.abs(stage.cameraOffsetY * 2) / Math.max(1, innerHeight);
     const tH = Math.tan((hfov * uW) / 2), tV = Math.tan((vfov * uH) / 2);
-    const margin = v.frameMargin ?? 1.1;
+    const margin = (v.frameMargin ?? 1.1) * 1.06;          // 真实顶点取景比包围盒紧，留一点给模型上方的字
     let D = 0;
-    for (let i = 0; i < 8; i++) {
-      const c = new THREE.Vector3(i & 1 ? box.max.x : box.min.x, i & 2 ? box.max.y : box.min.y, i & 4 ? box.max.z : box.min.z).multiplyScalar(s).add(to).sub(center);
-      const depth = c.dot(d);
-      D = Math.max(D, depth + (Math.abs(c.dot(right)) * margin) / tH, depth + (Math.abs(c.dot(up)) * margin) / tV);
-    }
+    for (const p of W) { const c = p.clone().sub(center), depth = c.dot(d); D = Math.max(D, depth + (Math.abs(c.dot(right)) * margin) / tH, depth + (Math.abs(c.dot(up)) * margin) / tV); }
     stage.shot({ target: center, dir: d, dist: D });
   }
 
@@ -299,11 +320,13 @@ export class LiveLayer {
     this._reframe();
   }
 
-  close() {
+  close({ quick = false, world = null } = {}) {
     const A = this.active;
     if (!A || A.closing) return;
     A.closing = true; tagFocus(null);
-    A.t = Math.min(A.t, 1.5);
+    if (world) A.world = { ...(A.world || {}), ...world };          // 地球主探索：收回地球上那一点（pin）、换回地球（globe，一下子收掉）、沉回课本的图里（figure）
+    const wm = A.world?.mode;
+    A.t = wm === 'pin' ? Math.min(A.t, PIN_T) : wm === 'globe' ? 0.0001 : Math.min(A.t, quick ? 0.5 : 1.5);          // quick：马上要打开另一张活页，收得快一点
     this.panel.close();
     A.nb?.dispose(); A.nb = null;
     if (A.board) { A.board.closing = true; }
@@ -312,9 +335,20 @@ export class LiveLayer {
     this._lookExit = null;     // 旧实验的“回到原机位”回调不能留给下一个实验
     this.stage.cameraOffsetX = 0;
     this.stage.cameraOffsetY = 0;
-    if (this.bookShot) this.stage.shot(this.bookShot);
+    if (this.bookShot && !A.world) this.stage.shot(this.bookShot);          // 地球主探索：镜头由 World 接着安排
     document.body.classList.remove('lesson-on');
   }
+
+  /** 整颗地球落下去以后：活页里的那颗地球（连同活页的其他东西）现出来 */
+  release() {
+    const A = this.active; if (!A) return;
+    A.hold = false;
+    if (this._pendingShot && !A.world?.inplace) this.stage.shot(this._pendingShot);
+    this._pendingShot = null;
+    requestAnimationFrame(() => this._reframe?.());
+  }
+  /** 地球主探索：按给定方向把活页里看得见的东西框进画面（World 用） */
+  frame(A, dir, v = {}) { this._autoFrame(A, dir, v); }
 
   _finishClose() {
     const A = this.active;
@@ -327,7 +361,7 @@ export class LiveLayer {
     A.inst.dispose?.();
     for (const b of A.toggles || []) b.remove();
     applyShow(false);
-    document.getElementById('c').style.cursor = '';
+    document.getElementById('c').style.cursor = ''; document.getElementById('c').dataset.tip = ''; this._hoverTip(null);
     for (const t of A.tags) t.remove();
     ink.disposeTree(A.root);
     this.stage.scene.remove(A.root, A.card, A.hole);
@@ -344,24 +378,57 @@ export class LiveLayer {
     A.t += A.closing ? -dt * 1.4 : dt;
     const t = A.t;
 
-    // 原图：先揭起来，再淡出
-    const lift = easeOut(clamp01(t / 0.5));
-    const fade = clamp01((t - 0.35) / 0.4);
+    const wm = A.world?.mode;
+    A.liftCur = (A.liftCur || 0) + ((A.lift || 0) - (A.liftCur || 0)) * Math.min(1, dt * 7);          // 书翻页时活页稍微抬起来让纸滑过去（World 设 A.lift）
+    if (wm === 'pin' || wm === 'globe') {
+      A.card.visible = false; A.hole.visible = false;
+      if (wm === 'pin' && A.world.rise && !A.closing) {
+        // 从切出来的那块地形的位置长高（地理世界俯冲进来）：宽窄和它一样，从扁的立起来（和别的活页从课本的图里立起来一样），它同时压扁、淡掉
+        const k = clamp01(t / RISE_T), g = easeOut(k), from = (A.riseFrom ||= (A.world.from?.() || A.from).clone());          // 起点在开始长的那一刻记下来（那块地形淡掉以后 from 就换成角上那颗地球的旗了，收起时用）
+        if (A.s0 == null) { A.root.scale.setScalar(1); A.root.updateMatrixWorld(true); const sz = new THREE.Box3().setFromObject(A.root).getSize(new THREE.Vector3()); A.s0 = Math.min(1.25, Math.max(0.7, (A.world.fromWidth || sz.x) / Math.max(0.05, sz.x))); }
+        A.root.position.lerpVectors(from, A.to, g); A.root.position.y += A.liftCur;
+        const sx = A.s0 + (1 - A.s0) * g; A.root.scale.set(sx, sx * Math.max(0.002, backOut(clamp01((t - 0.06) / (RISE_T - 0.06)))), sx);
+        A.world.onGrow?.(k);
+        A.root.visible = true;
+        for (const tg of A.tags) { const o = clamp01((k - 0.8) / 0.2); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }
+      } else if (wm === 'pin') {
+        // 从地球上那一点长出来：一边长大，一边沿一道弧线落到书页正中（收起时倒着走，回到角上那颗地球的旗里）
+        const k = clamp01(t / PIN_T), e = easeInOut(k), from = A.world.from?.() || A.from;
+        A.root.position.lerpVectors(from, A.to, e).y += Math.sin(Math.PI * e) * 0.18 * (1 - e * 0.5) + A.liftCur;
+        const s0 = 0.015; A.root.scale.setScalar(s0 + (1 - s0) * e);          // 和位置一起走：在角上时还小，越近越大
+        if (!A.closing) A.world.onGrow?.(k);
+        A.root.visible = true;
+        for (const tg of A.tags) { const o = A.closing ? 0 : clamp01((k - 0.85) / 0.15); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }
+      } else {
+        A.root.position.copy(A.to); A.root.position.y += A.liftCur; A.root.scale.setScalar(1);
+        A.root.visible = !A.hold && !A.closing;
+        for (const tg of A.tags) tg.el.style.visibility = !A.hold && !A.closing ? '' : 'hidden';
+      }
+      if (!A.closing || t > 0.4) A.inst.update?.(dt, time);
+      A.nb?.update(dt);
+      if (A.closing && t <= 0) this._finishClose();
+      return;
+    }
+    // 原图：先揭起来，再淡出（emerge: 'flat'：原图平放在书页上不动，模型从它上面长出来时慢慢淡掉，看起来就是这张图立了起来）
+    const flat = A.inst.emerge === 'flat';
+    const lift = flat ? 0 : easeOut(clamp01(t / 0.5));
+    const fade = flat ? clamp01((t - 0.45) / 0.9) : clamp01((t - 0.35) / 0.4);
     A.card.position.y = A.from.y + lift * 0.14;
     A.card.rotation.x = -Math.PI / 2 + lift * 0.35;
     A.card.material.opacity = 1 - fade;
     A.card.scale.setScalar(1 + lift * 0.06 - fade * 0.3);
-    A.card.visible = fade < 1;
-    A.hole.material.opacity = clamp01(t / 0.3);
+    A.card.visible = fade < 1 && !A.spot.noFigure;
+    A.hole.material.opacity = clamp01(t / 0.3); A.hole.visible = !A.spot.noFigure;
 
     // 立体图：从原图的位置弹出来，移到页面中间
     const pop = clamp01((t - 0.4) / 0.9);
     const move = easeOut(clamp01((t - 0.3) / 0.9));
-    A.root.position.lerpVectors(A.from, A.to, move);
+    A.root.position.lerpVectors(A.from, A.to, move); A.root.position.y += A.liftCur;
     const sy = Math.max(0.001, backOut(pop));
     A.root.scale.set(0.45 + 0.55 * easeOut(pop), sy, 0.45 + 0.55 * easeOut(pop));
     A.root.visible = pop > 0;
-    for (const tg of A.tags) tg.el.style.visibility = pop > 0.85 && !A.closing ? '' : 'hidden';
+    if (flat) for (const tg of A.tags) { const o = A.closing ? 0 : clamp01((pop - 0.8) / 0.2); tg.el.style.visibility = o > 0 ? '' : 'hidden'; tg.el.style.opacity = o; }          // 牌子跟着模型长好，慢慢浮出来，不一下子全蹦出来
+    else for (const tg of A.tags) tg.el.style.visibility = pop > 0.85 && !A.closing ? '' : 'hidden';
 
     if (!A.closing || t > 0.4) A.inst.update?.(dt, time);
     A.nb?.update(dt);
@@ -407,6 +474,7 @@ export class LiveLayer {
   }
 
   pointerDown(ndc, e) {
+    this._hoverTip(null);
     const A = this.active;
     if (A && !A.closing && A.nb && A.nb.pointerDown(this._ray(ndc))) return true;
     if (!A || A.closing) return false;
@@ -414,8 +482,29 @@ export class LiveLayer {
     return false;
   }
 
+  /** 在后台把场景里所有材质的着色器编好（包括暂时看不见的东西）：它们第一次露面时不再卡一下 */
+  _prewarm() {
+    const st = this.stage, r = st.renderer;
+    clearTimeout(this._warmT);
+    this._warmT = setTimeout(async () => {
+      try { await r.compileAsync?.(st.scene, st.camera); } catch { /* 编不了就算了：第一次露面时再编 */ }
+      await new Promise((ok) => setTimeout(ok, 1600));          // 等打开活页的动画走完再画（不让它在飞进来的路上卡一下）
+      await new Promise((ok) => (window.requestIdleCallback || setTimeout)(ok, { timeout: 1500 }));
+      if (st.post || !this.active || this.active.closing) return;
+      // 再把暂时看不见的东西都在画面左下角 1 个像素里真画一次：显卡第一次画某种材质（透明、实例……）时要准备的东西、贴图上传，都在这时做掉
+      requestAnimationFrame(() => {          // 放进这一帧的渲染里、跟在整幅画面后面画：不在两帧之间单独画（那样这一帧只剩 1 个像素，别的地方是空的，录屏会截到一帧空白）
+        if (st.post || !this.active || this.active.closing) return;
+        const hidden = []; st.scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+        try { r.setScissorTest(true); r.setScissor(0, 0, 1, 1); r.render(st.scene, st.camera); }
+        catch { /* 画不了就算了 */ }
+        finally { r.setScissorTest(false); for (const o of hidden) o.visible = false; }
+      });
+    }, 120);
+  }
+
   _back() {
     this._lookExit = null;
+    this.stage.zoomMin = null;
     tagFocus(null);
     const shot = this._prevShot;
     if (!shot) return;
@@ -427,6 +516,7 @@ export class LiveLayer {
   }
 
   exitLook() {
+    this.stage.zoomMin = null;
     if (!this._prevShot && !this._lookExit) return;
     const onExit = this._lookExit;
     this._back();
@@ -435,8 +525,22 @@ export class LiveLayer {
 
   pointerMove(ndc, e) {
     const A = this.active;
-    if (!A || A.closing || !A.inst.pointer?.move) return false;
-    return !!A.inst.pointer.move(this._ray(ndc), e);
+    if (!A || A.closing || !A.inst.pointer?.move) { this._hoverTip(null); return false; }
+    const r = !!A.inst.pointer.move(this._ray(ndc), e);
+    if (A.def?.flow === 'explore') this._hoverTip(e);
+    return r;
+  }
+
+  /** 高中活页：鼠标停在能动的东西上（活页把光标设成 grab / pointer），旁边浮出一张小纸条说怎么动——和别的活页（kit/interact 的 tip）同一种纸条。
+   *  活页想写得具体一点，就在设光标时顺手设 canvas.dataset.tip（比如“拖着登山的人上山”） */
+  _hoverTip(e) {
+    const c = document.getElementById('c'), cur = c.style.cursor, on = !!e && (cur === 'grab' || cur === 'pointer');
+    if (!this._tipEl) { this._tipEl = document.createElement('div'); this._tipEl.className = 'hover-tip'; document.body.appendChild(this._tipEl); }
+    const el = this._tipEl;
+    if (!on) { el.classList.remove('on'); return; }
+    el.textContent = c.dataset.tip || (cur === 'grab' ? '按住拖动' : '点一下');
+    el.style.transform = `translate(${e.clientX + 16}px, ${e.clientY + 20}px)`;
+    el.classList.add('on');
   }
 
   pointerUp(ndc, e) {

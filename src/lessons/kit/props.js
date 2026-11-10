@@ -8,6 +8,14 @@ export const C = {
 };
 
 /** 画布贴图。draw(g, w, h)。 */
+/** 一张贴图在几处用不同的重复次数（地块侧面的岩层）：clone 的时候图可能还没到——先不标记更新（不然 three 会警告“没有图”），图到了再一起更新。clone 和原图共用同一份图 */
+export function texClones(url) {
+  const pend = [];
+  const base = new THREE.TextureLoader().load(url, () => { for (const t of pend) t.needsUpdate = true; pend.length = 0; });
+  base.colorSpace = THREE.SRGBColorSpace;
+  return { base, clone() { const t = base.clone(); if (!base.image) { t.version = 0; pend.push(t); } return t; } };
+}
+
 export function canvasTex(w, h, draw, { repeat, srgb = true } = {}) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;

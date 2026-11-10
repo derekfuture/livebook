@@ -6,7 +6,7 @@ import * as THREE from 'three';
 //   张 j：正面 = PDF 第 2j-1 页，背面 = PDF 第 2j 页
 // 翻过 current 张之后，左页 = 第 current-1 张的背面，右页 = 第 current 张的正面。
 
-const NX = 44;                    // 每张纸沿宽度方向的分段数（弯曲用）
+const NX = 80;                    // 每张纸沿宽度方向的分段数（弯曲用；低翻页的卷边要细一点才圆）
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 // 书页在书脊处被装订压下去的弧度：u = 离书脊的距离 / 页宽
@@ -19,6 +19,7 @@ class Leaf {
     const nx = NX, nz = 1, count = (nx + 1) * (nz + 1);
     this.xs = new Float32Array(nx + 1);
     this.ys = new Float32Array(nx + 1);
+    this.th = new Float32Array(nx + 1);
     const pos = (this.pos = new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     const nrm = (this.nrm = new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     pos.setUsage(THREE.DynamicDrawUsage); nrm.setUsage(THREE.DynamicDrawUsage);
@@ -75,23 +76,29 @@ class Leaf {
    * t：0 = 平躺在右侧，1 = 平躺在左侧。yR / yL：两侧纸堆的顶面高度。
    * bend > 0 时纸的外缘领先（向前翻），< 0 时向后翻。
    */
-  pose(t, yR, yL, bend = 0, gut = 1) {
+  pose(t, yR, yL, bend = 0, gut = 1, curl = 0) {
     const { W } = this.book, nx = NX, ds = W / nx, xs = this.xs, ys = this.ys;
     const s = Math.sin(Math.PI * t);
-    const y0 = yR + (yL - yR) * t + s * 0.01;
+    const low = curl > 0 && t > 0 && t < 1;
+    const y0 = yR + (yL - yR) * t + (low ? 0 : s * 0.01);
     xs[0] = 0; ys[0] = y0;
     let x = 0, y = y0;
+    // 低翻页（地理：书上方浮着地球）：纸不立起来，从外缘卷起一道窄窄的卷边，卷边扫过书脊落到另一边，整张纸始终贴着书页
+    // curl = 卷边占页宽的几分之一；往前翻时卷边从右页外缘往书脊走，往回翻时从左页外缘往书脊走（bend 的正负表示方向）
+    const back = bend < 0, p = back ? 1 - t : t, c = 1 + curl / 2 - p * (1 + curl);
     for (let i = 1; i <= nx; i++) {
       const u = (i - 0.5) / nx;
-      const th = Math.min(Math.PI, Math.max(0, Math.PI * t + bend * s * u * u));
+      const th = low ? (back ? Math.PI * (1 - smooth(c - curl / 2, c + curl / 2, u)) : Math.PI * smooth(c - curl / 2, c + curl / 2, u))
+        : Math.min(Math.PI, Math.max(0, Math.PI * t + bend * s * u * u));
       x += ds * Math.cos(th); y += ds * Math.sin(th);
-      xs[i] = x; ys[i] = y;
+      xs[i] = x; ys[i] = y; this.th[i] = th;
     }
-    // 躺平时贴着纸堆，在书脊处弯下去
+    this.th[0] = this.th[1];
+    // 躺平时贴着纸堆，在书脊处弯下去（低翻页：每一段看它此刻躺在哪一边）
     const wR = 1 - smooth(0, 0.14, t), wL = smooth(0.86, 1, t);
     for (let i = 0; i <= nx; i++) {
-      const g = (gutter(i / nx) - 1) * gut;
-      ys[i] += wR * yR * g + wL * yL * g;
+      const g = (gutter(i / nx) - 1) * gut, f = this.th[i] / Math.PI;
+      ys[i] += low ? (1 - f) * yR * g + f * yL * g : wR * yR * g + wL * yL * g;
     }
     const pos = this.pos, nrm = this.nrm, row = nx + 1;
     for (let i = 0; i <= nx; i++) {
@@ -134,6 +141,7 @@ export class Book {
     this.H = 2;
     this.W = (this.H * pw) / ph;
     this.T = 0.0017;                                   // 每张纸的厚度
+    this.curl = 0;                                     // > 0：低翻页（纸不立起来，卷边扫过去），地理的地球浮在书上方时用
     this.leafCount = Math.floor(this.count / 2) + 1;
     this.current = 0;
     this.anim = null;
@@ -247,14 +255,14 @@ export class Book {
     return out.filter((i) => i != null);
   }
 
-  /** 翻到第 target 张（翻很多张时只动画其中几张，其余“哗”地一下带过）。 */
-  turnTo(target) {
+  /** 翻到第 target 张（翻很多张时只动画其中几张，其余“哗”地一下带过）。max：最多动画几张（地理跟着探索自动翻页时只翻一小叠，不像扇纸片） */
+  turnTo(target, { max = 7 } = {}) {
     target = Math.max(0, Math.min(this.leafCount, Math.round(target)));
     if (this.anim) { this.queued = target; return; }
     const from = this.current, to = target;
     if (from === to) return;
     const dir = Math.sign(to - from), n = Math.abs(to - from);
-    const K = Math.min(n, 7), stagger = n === 1 ? 0 : 0.085, dur = n === 1 ? 0.9 : 0.7;
+    const K = Math.min(n, max), stagger = n === 1 ? 0 : max < 7 ? 0.13 : 0.085, dur = n === 1 ? 0.9 : max < 7 ? 0.8 : 0.7;
     const items = [];
     for (let k = 0; k < K; k++) {
       const off = K === 1 ? 0 : Math.round((k * (n - 1)) / (K - 1));
@@ -340,7 +348,7 @@ export class Book {
     a.items.forEach((it, i) => {
       const t = a.dir > 0 ? lps[i] : 1 - lps[i];
       const liftR = a.dir > 0 ? under(it.order) : onTop(it.order), liftL = a.dir > 0 ? onTop(it.order) : under(it.order);
-      it.leaf.pose(t, nR * T + T + liftR, nL * T + T + liftL, 0.55 * a.dir, g);
+      it.leaf.pose(t, nR * T + T + liftR, nL * T + T + liftL, 0.55 * a.dir, g, this.curl);
     });
 
     const finished = a.drag ? (a.release != null && a.p === a.release) : a.p >= 1;

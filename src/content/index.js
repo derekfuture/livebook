@@ -10,7 +10,8 @@ export const BOOK_IDS = Object.keys(books);
 export const OFFLINE = !!OFF;
 export const OFFLINE_DATA = OFF;
 /** 书的目录、页数（public/books/<id>/book.json） */
-export const getManifest = async (id) => (OFF ? OFF.books[id] : (await fetch(`${books[id].base}book.json`)).json());
+const manifests = new Map();          // 同一页里每本书只取一次（书桌一开始就取过了，进地理世界不用再等网络）
+export const getManifest = async (id) => { if (OFF) return OFF.books[id]; if (!manifests.has(id)) manifests.set(id, fetch(`${books[id].base}book.json`).then((r) => r.json())); return manifests.get(id); };
 /** 网站上的文件地址（封面、作者小签的图）；离线版换成打包好的那份 */
 export const fileUrl = (p) => OFF?.files[p] ?? p;
 
@@ -27,10 +28,11 @@ export function getBook(id) {
   return { ...b, full: fullTitle(b), lessons, spots: b.spots.filter((s) => lessons[s.lesson]), planned: Object.keys(b.lessons).length };
 }
 
-// 科目：书名“物理 八年级上册”的前半截。颜色取自课本封面（物理偏青蓝、化学偏紫），首页的分隔标签、书的侧边用它
+// 科目：书名“物理 八年级上册”的前半截。颜色取自课本封面（物理偏青蓝、化学偏紫、地理偏青绿），首页的分隔标签、书的侧边用它
 export const SUBJECTS = {
   物理: { color: '#2f7bb5', side: 0x3f7cb0 },
   化学: { color: '#6a58b0', side: 0x5d58a6 },
+  地理: { color: '#2f8f7a', side: 0x3f8c78 },
 };
 const OTHER = { color: '#7a6a4a', side: 0x8a7a5a };
 export const subjectOf = (title) => title.split(' ')[0];
@@ -49,9 +51,16 @@ const bookPaths = new Map([
   ['wuli-9', '/physics/pep/grade-9'],
   ['huaxue-9s', '/chemistry/pep/grade-9-vol-1'],
   ['huaxue-9x', '/chemistry/pep/grade-9-vol-2'],
+  ['dili-7s', '/geography/pep/grade-7-vol-1'],
+  ['dili-8s', '/geography/pep/grade-8-vol-1'],
+  ['dili-8x', '/geography/pep/grade-8-vol-2'],
+  ['dili-bx1', '/geography/pep/compulsory-1'],
+  ['dili-bx2', '/geography/pep/compulsory-2'],
+  ['dili-xb1', '/geography/pep/selective-compulsory-1'],
+  ['dili-xb2', '/geography/pep/selective-compulsory-2'],
 ]);
 
-export const bookHref = (id) => OFFLINE ? `?book=${id}` : bookPaths.get(id);
+export const bookHref = (id) => OFFLINE ? `?book=${id}` : bookPaths.get(id) ?? `/?book=${id}`;          // 还没定路径的书：照旧用 ?book=
 export const shelfHref = () => OFFLINE ? location.pathname : '/';
 
 export function currentBookId() {

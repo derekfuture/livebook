@@ -1,0 +1,1774 @@
+[
+  {
+    "id": "fb628a3f-8024-3055-82dd-fe4607278b20",
+    "title": "第一章 人口",
+    "rich_title": "第一章 人口",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "fb628a3f-8024-3055-82dd-fe4607278b20",
+    "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+    "create_time": "2023-06-15T19:04:59.237+0800",
+    "update_time": "2023-06-15T19:04:59.237+0800",
+    "child_nodes": [
+      {
+        "id": "f938312e-dbf7-3eae-adb1-e785fe74c617",
+        "title": "第一节 人口分布",
+        "rich_title": "第一节 人口分布",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fb628a3f-8024-3055-82dd-fe4607278b20/f938312e-dbf7-3eae-adb1-e785fe74c617",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:04:59.446+0800",
+        "update_time": "2023-06-15T19:04:59.446+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f8d31084-3c54-3830-8aef-feda019f7feb",
+        "title": "第二节 人口迁移",
+        "rich_title": "第二节 人口迁移",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fb628a3f-8024-3055-82dd-fe4607278b20/f8d31084-3c54-3830-8aef-feda019f7feb",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:04:59.645+0800",
+        "update_time": "2023-06-15T19:04:59.645+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a315dc10-1b5b-364b-bf02-0c48f0dbe460",
+        "title": "第三节 人口容量",
+        "rich_title": "第三节 人口容量",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fb628a3f-8024-3055-82dd-fe4607278b20/a315dc10-1b5b-364b-bf02-0c48f0dbe460",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:04:59.842+0800",
+        "update_time": "2023-06-15T19:04:59.842+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a072b679-38de-3b45-afc4-4f44ac554214",
+        "title": "问题研究 如何看待农民工现象",
+        "rich_title": "问题研究 如何看待农民工现象",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "fb628a3f-8024-3055-82dd-fe4607278b20/a072b679-38de-3b45-afc4-4f44ac554214",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:00.057+0800",
+        "update_time": "2023-06-15T19:05:00.057+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "cbdcb53e-9deb-3e49-9207-f5be639ae2bb",
+    "title": "第二章 乡村和城镇",
+    "rich_title": "第二章 乡村和城镇",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "cbdcb53e-9deb-3e49-9207-f5be639ae2bb",
+    "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+    "create_time": "2023-06-15T19:05:00.269+0800",
+    "update_time": "2023-06-15T19:05:00.269+0800",
+    "child_nodes": [
+      {
+        "id": "47da04fc-004d-3b36-8ee9-f2b2b0ccaf87",
+        "title": "第一节 乡村和城镇空间结构",
+        "rich_title": "第一节 乡村和城镇空间结构",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "cbdcb53e-9deb-3e49-9207-f5be639ae2bb/47da04fc-004d-3b36-8ee9-f2b2b0ccaf87",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:00.468+0800",
+        "update_time": "2023-06-15T19:05:00.468+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9f45a2c3-cabd-3ce8-ad68-1b8a5b20a9e5",
+        "title": "第二节 城镇化",
+        "rich_title": "第二节 城镇化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "cbdcb53e-9deb-3e49-9207-f5be639ae2bb/9f45a2c3-cabd-3ce8-ad68-1b8a5b20a9e5",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:00.661+0800",
+        "update_time": "2023-06-15T19:05:00.661+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2c4e39ba-78e1-367f-a37b-1bcba945b7dc",
+        "title": "第三节 地域文化与城乡景观",
+        "rich_title": "第三节 地域文化与城乡景观",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "cbdcb53e-9deb-3e49-9207-f5be639ae2bb/2c4e39ba-78e1-367f-a37b-1bcba945b7dc",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:00.857+0800",
+        "update_time": "2023-06-15T19:05:00.857+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6ba4281c-ffb0-3abf-a337-8d730572f3c7",
+        "title": "问题研究 从市中心到郊区，你选择住在哪里",
+        "rich_title": "问题研究 从市中心到郊区，你选择住在哪里",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "cbdcb53e-9deb-3e49-9207-f5be639ae2bb/6ba4281c-ffb0-3abf-a337-8d730572f3c7",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:01.059+0800",
+        "update_time": "2023-06-15T19:05:01.059+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "ac6838b5-a070-399b-9a9f-9f3e8bd7f278",
+    "title": "第三章 产业区位因素",
+    "rich_title": "第三章 产业区位因素",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "ac6838b5-a070-399b-9a9f-9f3e8bd7f278",
+    "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+    "create_time": "2023-06-15T19:05:01.257+0800",
+    "update_time": "2023-06-15T19:05:01.257+0800",
+    "child_nodes": [
+      {
+        "id": "bac2d668-b0be-3f31-a84a-4aa7f9897c39",
+        "title": "第一节 农业区位因素及其变化",
+        "rich_title": "第一节 农业区位因素及其变化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ac6838b5-a070-399b-9a9f-9f3e8bd7f278/bac2d668-b0be-3f31-a84a-4aa7f9897c39",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:01.449+0800",
+        "update_time": "2023-06-15T19:05:01.449+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "7e673fd7-2bd3-3afd-86f1-45c098c56aeb",
+        "title": "第二节 工业区位因素及其变化",
+        "rich_title": "第二节 工业区位因素及其变化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ac6838b5-a070-399b-9a9f-9f3e8bd7f278/7e673fd7-2bd3-3afd-86f1-45c098c56aeb",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:01.650+0800",
+        "update_time": "2023-06-15T19:05:01.650+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "486d7c38-bac5-33d7-beed-d5b851ba99dd",
+        "title": "第三节 服务业区位因素及其变化",
+        "rich_title": "第三节 服务业区位因素及其变化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ac6838b5-a070-399b-9a9f-9f3e8bd7f278/486d7c38-bac5-33d7-beed-d5b851ba99dd",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:01.824+0800",
+        "update_time": "2023-06-15T19:05:01.824+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "dbe80089-5afb-3648-92d7-5df9aadb5ff2",
+        "title": "问题研究 实体商店何去何从",
+        "rich_title": "问题研究 实体商店何去何从",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ac6838b5-a070-399b-9a9f-9f3e8bd7f278/dbe80089-5afb-3648-92d7-5df9aadb5ff2",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:02.000+0800",
+        "update_time": "2023-06-15T19:05:02.000+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "17d36dd9-a965-3527-b481-60f9d16abe02",
+    "title": "第四章 交通运输布局与区域发展",
+    "rich_title": "第四章 交通运输布局与区域发展",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "17d36dd9-a965-3527-b481-60f9d16abe02",
+    "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+    "create_time": "2023-06-15T19:05:02.211+0800",
+    "update_time": "2023-06-15T19:05:02.211+0800",
+    "child_nodes": [
+      {
+        "id": "52a6c605-7949-3ddc-9fcb-c5c90d0823d8",
+        "title": "第一节 区域发展对交通运输布局的影响",
+        "rich_title": "第一节 区域发展对交通运输布局的影响",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "17d36dd9-a965-3527-b481-60f9d16abe02/52a6c605-7949-3ddc-9fcb-c5c90d0823d8",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:02.412+0800",
+        "update_time": "2023-06-15T19:05:02.412+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4fa5b46a-e01d-3d10-91b6-04f8b60ca076",
+        "title": "第二节 交通运输布局对区域发展的影响",
+        "rich_title": "第二节 交通运输布局对区域发展的影响",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "17d36dd9-a965-3527-b481-60f9d16abe02/4fa5b46a-e01d-3d10-91b6-04f8b60ca076",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:02.610+0800",
+        "update_time": "2023-06-15T19:05:02.610+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8d39c691-f473-3a89-a395-da97bff34a78",
+        "title": "问题研究 城市交通如何疏堵",
+        "rich_title": "问题研究 城市交通如何疏堵",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "17d36dd9-a965-3527-b481-60f9d16abe02/8d39c691-f473-3a89-a395-da97bff34a78",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:02.818+0800",
+        "update_time": "2023-06-15T19:05:02.818+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "56eb8e47-a558-340a-a403-a98b8e70807d",
+    "title": "第五章 环境与发展",
+    "rich_title": "第五章 环境与发展",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "56eb8e47-a558-340a-a403-a98b8e70807d",
+    "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+    "create_time": "2023-06-15T19:05:03.016+0800",
+    "update_time": "2023-06-15T19:05:03.016+0800",
+    "child_nodes": [
+      {
+        "id": "3eddabac-d9d3-3a81-8b9b-13df35306471",
+        "title": "第一节 人类面临的主要环境问题",
+        "rich_title": "第一节 人类面临的主要环境问题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "56eb8e47-a558-340a-a403-a98b8e70807d/3eddabac-d9d3-3a81-8b9b-13df35306471",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:03.209+0800",
+        "update_time": "2023-06-15T19:05:03.209+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "057d8ce2-669b-3cb1-8841-6810ef59ae9a",
+        "title": "第二节 走向人地协调——可持续发展",
+        "rich_title": "第二节 走向人地协调——可持续发展",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "56eb8e47-a558-340a-a403-a98b8e70807d/057d8ce2-669b-3cb1-8841-6810ef59ae9a",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:03.402+0800",
+        "update_time": "2023-06-15T19:05:03.402+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6a8d8ee3-34cf-3339-ab8c-21e7bbb7c6b2",
+        "title": "第三节 中国国家发展战略举例",
+        "rich_title": "第三节 中国国家发展战略举例",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "56eb8e47-a558-340a-a403-a98b8e70807d/6a8d8ee3-34cf-3339-ab8c-21e7bbb7c6b2",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:03.594+0800",
+        "update_time": "2023-06-15T19:05:03.594+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "257ce857-8fa0-3cd9-999d-b3054d538712",
+        "title": "问题研究 低碳食品知多少",
+        "rich_title": "问题研究 低碳食品知多少",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "56eb8e47-a558-340a-a403-a98b8e70807d/257ce857-8fa0-3cd9-999d-b3054d538712",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:03.797+0800",
+        "update_time": "2023-06-15T19:05:03.797+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5",
+    "title": "其他",
+    "rich_title": "其他",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials",
+      "hidden": false
+    },
+    "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5",
+    "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+    "create_time": "2023-06-15T19:05:06.192+0800",
+    "update_time": "2024-07-16T16:23:55.775+0800",
+    "child_nodes": [
+      {
+        "id": "9bcb9742-a78e-39ff-9043-744da77dc221",
+        "title": "中国地理（旧版人教版选修三）",
+        "rich_title": "中国地理（旧版人教版选修三）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:06.404+0800",
+        "update_time": "2024-07-16T16:24:28.147+0800",
+        "child_nodes": [
+          {
+            "id": "0636b5a9-35f1-397c-ae23-da5528b72855",
+            "title": "中国分区地理——东北地区",
+            "rich_title": "中国分区地理——东北地区",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/0636b5a9-35f1-397c-ae23-da5528b72855",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:06.599+0800",
+            "update_time": "2023-06-15T19:05:06.599+0800",
+            "child_nodes": [
+              {
+                "id": "1a8052a7-77b4-37d5-a15c-7ff5489656a1",
+                "title": "位置和自然特征",
+                "rich_title": "位置和自然特征",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/0636b5a9-35f1-397c-ae23-da5528b72855/1a8052a7-77b4-37d5-a15c-7ff5489656a1",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:06.813+0800",
+                "update_time": "2023-06-15T19:05:06.813+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "41d5e9c9-2eb5-3b76-9dd3-e5c6eef1a7ac",
+                "title": "区域可持续发展之第一产业",
+                "rich_title": "区域可持续发展之第一产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/0636b5a9-35f1-397c-ae23-da5528b72855/41d5e9c9-2eb5-3b76-9dd3-e5c6eef1a7ac",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:07.008+0800",
+                "update_time": "2023-06-15T19:05:07.008+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "a8191334-b6cc-3614-bb54-09edeeb5674b",
+                "title": "区域发展之第二、三产业",
+                "rich_title": "区域发展之第二、三产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/0636b5a9-35f1-397c-ae23-da5528b72855/a8191334-b6cc-3614-bb54-09edeeb5674b",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:07.194+0800",
+                "update_time": "2023-06-15T19:05:07.194+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "07b7385d-7272-3889-af68-a38bdc5acae4",
+                "title": "环境问题与治理",
+                "rich_title": "环境问题与治理",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/0636b5a9-35f1-397c-ae23-da5528b72855/07b7385d-7272-3889-af68-a38bdc5acae4",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:07.374+0800",
+                "update_time": "2023-06-15T19:05:07.374+0800",
+                "child_nodes": null
+              }
+            ]
+          },
+          {
+            "id": "16501d35-140f-36ea-af6d-5d4056b0b60f",
+            "title": "中国分区地理——华北地区",
+            "rich_title": "中国分区地理——华北地区",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/16501d35-140f-36ea-af6d-5d4056b0b60f",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:07.582+0800",
+            "update_time": "2023-06-15T19:05:07.582+0800",
+            "child_nodes": [
+              {
+                "id": "2a56e994-1009-3bb1-ac60-edf7f35d39fe",
+                "title": "位置和自然特征",
+                "rich_title": "位置和自然特征",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/16501d35-140f-36ea-af6d-5d4056b0b60f/2a56e994-1009-3bb1-ac60-edf7f35d39fe",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:07.772+0800",
+                "update_time": "2023-06-15T19:05:07.772+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "35784895-df56-3a78-8abc-9c8c7134d287",
+                "title": "区域可持续发展之第一产业",
+                "rich_title": "区域可持续发展之第一产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/16501d35-140f-36ea-af6d-5d4056b0b60f/35784895-df56-3a78-8abc-9c8c7134d287",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:07.968+0800",
+                "update_time": "2023-06-15T19:05:07.968+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "056d29fc-49f2-394a-8587-1ff06778597b",
+                "title": "区域发展之第二、三产业",
+                "rich_title": "区域发展之第二、三产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/16501d35-140f-36ea-af6d-5d4056b0b60f/056d29fc-49f2-394a-8587-1ff06778597b",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:08.173+0800",
+                "update_time": "2023-06-15T19:05:08.173+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "97aa45ce-1c38-310d-a172-108e1e6e95c6",
+                "title": "环境问题与治理",
+                "rich_title": "环境问题与治理",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/16501d35-140f-36ea-af6d-5d4056b0b60f/97aa45ce-1c38-310d-a172-108e1e6e95c6",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:08.372+0800",
+                "update_time": "2023-06-15T19:05:08.372+0800",
+                "child_nodes": null
+              }
+            ]
+          },
+          {
+            "id": "8966f18d-27b6-3ead-97e0-71348859887f",
+            "title": "中国分区—南方地区（长江中下游地区）",
+            "rich_title": "中国分区—南方地区（长江中下游地区）",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8966f18d-27b6-3ead-97e0-71348859887f",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:08.569+0800",
+            "update_time": "2023-06-15T19:05:08.569+0800",
+            "child_nodes": [
+              {
+                "id": "9cf2db24-0a33-3d16-8afe-14744ff6c201",
+                "title": "位置和自然特征",
+                "rich_title": "位置和自然特征",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8966f18d-27b6-3ead-97e0-71348859887f/9cf2db24-0a33-3d16-8afe-14744ff6c201",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:08.767+0800",
+                "update_time": "2023-06-15T19:05:08.767+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "d4246e6b-2278-342e-bfe3-914380c8319c",
+                "title": "区域发展之第一产业",
+                "rich_title": "区域发展之第一产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8966f18d-27b6-3ead-97e0-71348859887f/d4246e6b-2278-342e-bfe3-914380c8319c",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:08.977+0800",
+                "update_time": "2023-06-15T19:05:08.977+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "0887b4a7-c299-3944-a24d-6691dfeed760",
+                "title": "区域发展之第二、三产业",
+                "rich_title": "区域发展之第二、三产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8966f18d-27b6-3ead-97e0-71348859887f/0887b4a7-c299-3944-a24d-6691dfeed760",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:09.220+0800",
+                "update_time": "2023-06-15T19:05:09.220+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "303c1ce7-9e65-37b2-9cbc-57724cc65934",
+                "title": "环境问题与治理",
+                "rich_title": "环境问题与治理",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8966f18d-27b6-3ead-97e0-71348859887f/303c1ce7-9e65-37b2-9cbc-57724cc65934",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:09.425+0800",
+                "update_time": "2023-06-15T19:05:09.425+0800",
+                "child_nodes": null
+              }
+            ]
+          },
+          {
+            "id": "8b93e8e9-3a61-3dc6-bd41-af060670a6f1",
+            "title": "中国分区—南方地区（南部沿海）",
+            "rich_title": "中国分区—南方地区（南部沿海）",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8b93e8e9-3a61-3dc6-bd41-af060670a6f1",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:09.610+0800",
+            "update_time": "2023-06-15T19:05:09.610+0800",
+            "child_nodes": [
+              {
+                "id": "20abce17-b226-3bdf-802c-27443901e20c",
+                "title": "位置和自然特征",
+                "rich_title": "位置和自然特征",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8b93e8e9-3a61-3dc6-bd41-af060670a6f1/20abce17-b226-3bdf-802c-27443901e20c",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:09.808+0800",
+                "update_time": "2023-06-15T19:05:09.808+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "a113815d-ee85-31eb-b58f-8d17455b07ce",
+                "title": "区域发展之第一产业",
+                "rich_title": "区域发展之第一产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8b93e8e9-3a61-3dc6-bd41-af060670a6f1/a113815d-ee85-31eb-b58f-8d17455b07ce",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:10.005+0800",
+                "update_time": "2023-06-15T19:05:10.005+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "1710100c-595d-36aa-9ff9-e6cb50ad6e95",
+                "title": "区域发展之第二、三产业",
+                "rich_title": "区域发展之第二、三产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8b93e8e9-3a61-3dc6-bd41-af060670a6f1/1710100c-595d-36aa-9ff9-e6cb50ad6e95",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:10.200+0800",
+                "update_time": "2023-06-15T19:05:10.200+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "1e30ea14-c0d8-3ca7-8a58-34d263bad675",
+                "title": "环境问题与治理",
+                "rich_title": "环境问题与治理",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/8b93e8e9-3a61-3dc6-bd41-af060670a6f1/1e30ea14-c0d8-3ca7-8a58-34d263bad675",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:10.410+0800",
+                "update_time": "2023-06-15T19:05:10.410+0800",
+                "child_nodes": null
+              }
+            ]
+          },
+          {
+            "id": "cb9e3380-8c20-3038-8bb2-a350a79ae313",
+            "title": "中国分区—南方地区（西南地区）",
+            "rich_title": "中国分区—南方地区（西南地区）",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/cb9e3380-8c20-3038-8bb2-a350a79ae313",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:10.623+0800",
+            "update_time": "2023-06-15T19:05:10.623+0800",
+            "child_nodes": [
+              {
+                "id": "f3825633-e8fb-3799-a9d1-47f2838c6afc",
+                "title": "位置和自然特征",
+                "rich_title": "位置和自然特征",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/cb9e3380-8c20-3038-8bb2-a350a79ae313/f3825633-e8fb-3799-a9d1-47f2838c6afc",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:10.830+0800",
+                "update_time": "2023-06-15T19:05:10.830+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "d0d70057-18ea-35b2-870b-2cb8edcb9b82",
+                "title": "区域发展之第一产业",
+                "rich_title": "区域发展之第一产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/cb9e3380-8c20-3038-8bb2-a350a79ae313/d0d70057-18ea-35b2-870b-2cb8edcb9b82",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:11.023+0800",
+                "update_time": "2023-06-15T19:05:11.023+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "c27f372e-c91d-3771-b6cd-23fef276f0f5",
+                "title": "区域发展之第二、三产业",
+                "rich_title": "区域发展之第二、三产业",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/cb9e3380-8c20-3038-8bb2-a350a79ae313/c27f372e-c91d-3771-b6cd-23fef276f0f5",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:11.215+0800",
+                "update_time": "2023-06-15T19:05:11.215+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "b83fe82d-1f00-3f6e-9cff-361c9aaed724",
+                "title": "环境问题与治理",
+                "rich_title": "环境问题与治理",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/cb9e3380-8c20-3038-8bb2-a350a79ae313/b83fe82d-1f00-3f6e-9cff-361c9aaed724",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:11.425+0800",
+                "update_time": "2023-06-15T19:05:11.425+0800",
+                "child_nodes": null
+              }
+            ]
+          },
+          {
+            "id": "df8674b2-81b9-366c-b256-9d249e84b26f",
+            "title": "中国分区—西北地区",
+            "rich_title": "中国分区—西北地区",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/df8674b2-81b9-366c-b256-9d249e84b26f",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:11.615+0800",
+            "update_time": "2023-06-15T19:05:11.615+0800",
+            "child_nodes": [
+              {
+                "id": "5cb91c37-6155-3122-a9dc-f443b105546d",
+                "title": "位置和自然特征",
+                "rich_title": "位置和自然特征",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/df8674b2-81b9-366c-b256-9d249e84b26f/5cb91c37-6155-3122-a9dc-f443b105546d",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:11.831+0800",
+                "update_time": "2023-06-15T19:05:11.831+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "7c4e920b-6e48-332f-a1af-3a4a93794dc7",
+                "title": "区域发展",
+                "rich_title": "区域发展",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/df8674b2-81b9-366c-b256-9d249e84b26f/7c4e920b-6e48-332f-a1af-3a4a93794dc7",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:12.028+0800",
+                "update_time": "2023-06-15T19:05:12.028+0800",
+                "child_nodes": null
+              }
+            ]
+          },
+          {
+            "id": "d790920f-17e8-345a-9016-5687e86d10c6",
+            "title": "中国分区—青藏地区",
+            "rich_title": "中国分区—青藏地区",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/d790920f-17e8-345a-9016-5687e86d10c6",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:12.236+0800",
+            "update_time": "2023-06-15T19:05:12.236+0800",
+            "child_nodes": [
+              {
+                "id": "ae539455-d1d3-3da6-b052-9a8d53ce9dec",
+                "title": "位置和自然特征",
+                "rich_title": "位置和自然特征",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/d790920f-17e8-345a-9016-5687e86d10c6/ae539455-d1d3-3da6-b052-9a8d53ce9dec",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:12.420+0800",
+                "update_time": "2023-06-15T19:05:12.420+0800",
+                "child_nodes": null
+              },
+              {
+                "id": "36a34703-a013-38cd-bce2-8d13e28dc5a4",
+                "title": "区域发展",
+                "rich_title": "区域发展",
+                "description": null,
+                "chapter_type": null,
+                "language": "zh-CN",
+                "custom_properties": {
+                  "tree_type": "teachingmaterials",
+                  "hidden": false
+                },
+                "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/d790920f-17e8-345a-9016-5687e86d10c6/36a34703-a013-38cd-bce2-8d13e28dc5a4",
+                "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+                "create_time": "2023-06-15T19:05:12.625+0800",
+                "update_time": "2023-06-15T19:05:12.625+0800",
+                "child_nodes": null
+              }
+            ]
+          },
+          {
+            "id": "46d8ea9e-c528-3e52-a862-e0903e4d1ae2",
+            "title": "中国疆域",
+            "rich_title": "中国疆域",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/46d8ea9e-c528-3e52-a862-e0903e4d1ae2",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:12.823+0800",
+            "update_time": "2023-06-15T19:05:12.823+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "f98ae89d-e2bb-3766-81ab-24345e14d471",
+            "title": "中国人口",
+            "rich_title": "中国人口",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/f98ae89d-e2bb-3766-81ab-24345e14d471",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:13.025+0800",
+            "update_time": "2023-06-15T19:05:13.025+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "a14b1d4a-0f54-39ca-88ba-b9afebe9a9af",
+            "title": "中国民族",
+            "rich_title": "中国民族",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/a14b1d4a-0f54-39ca-88ba-b9afebe9a9af",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:13.217+0800",
+            "update_time": "2023-06-15T19:05:13.217+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "e8ce16e7-c35e-3918-a2df-d33caf032cb1",
+            "title": "本周内容回顾与作业讲解",
+            "rich_title": "本周内容回顾与作业讲解",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/e8ce16e7-c35e-3918-a2df-d33caf032cb1",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:13.409+0800",
+            "update_time": "2023-06-15T19:05:13.409+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "9d73a085-b60d-3bb6-85e6-07b4c82b5706",
+            "title": "中国地形地势",
+            "rich_title": "中国地形地势",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/9d73a085-b60d-3bb6-85e6-07b4c82b5706",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:13.601+0800",
+            "update_time": "2023-06-15T19:05:13.601+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "ddfdf61b-941d-3e11-876c-a4f15bc15f5a",
+            "title": "中国地形的地理意义",
+            "rich_title": "中国地形的地理意义",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/ddfdf61b-941d-3e11-876c-a4f15bc15f5a",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:13.793+0800",
+            "update_time": "2023-06-15T19:05:13.793+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "910e095d-2d0b-367d-b3d0-d7581367f260",
+            "title": "描述地形特征",
+            "rich_title": "描述地形特征",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/910e095d-2d0b-367d-b3d0-d7581367f260",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:14.001+0800",
+            "update_time": "2023-06-15T19:05:14.001+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "58e70e90-fe13-36cb-a2a2-900115bf74bb",
+            "title": "中国地形习题课",
+            "rich_title": "中国地形习题课",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/58e70e90-fe13-36cb-a2a2-900115bf74bb",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:14.190+0800",
+            "update_time": "2023-06-15T19:05:14.190+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "d38d86de-b357-3798-8a88-ed84c00b3748",
+            "title": "我国温度带和干湿区的划分",
+            "rich_title": "我国温度带和干湿区的划分",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/d38d86de-b357-3798-8a88-ed84c00b3748",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:14.385+0800",
+            "update_time": "2023-06-15T19:05:14.385+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "e0f0eab0-c926-3767-8ae9-892ab18c9b5e",
+            "title": "中国气候的形成因素",
+            "rich_title": "中国气候的形成因素",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/e0f0eab0-c926-3767-8ae9-892ab18c9b5e",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:14.588+0800",
+            "update_time": "2023-06-15T19:05:14.588+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "33eef8fe-f444-3ebd-bf9c-3348a2ebdbc6",
+            "title": "气候对区域环境的影响——以西北地区为例",
+            "rich_title": "气候对区域环境的影响——以西北地区为例",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/33eef8fe-f444-3ebd-bf9c-3348a2ebdbc6",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:14.806+0800",
+            "update_time": "2023-06-15T19:05:14.806+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "c906956d-d346-3270-9c36-cf3ad84d0a17",
+            "title": "中国气候习题课",
+            "rich_title": "中国气候习题课",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/c906956d-d346-3270-9c36-cf3ad84d0a17",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:15.009+0800",
+            "update_time": "2023-06-15T19:05:15.009+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "4dc926c9-fa75-371a-9841-d60543ae8d58",
+            "title": "我国外流区主要河流和湖泊的特征",
+            "rich_title": "我国外流区主要河流和湖泊的特征",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/4dc926c9-fa75-371a-9841-d60543ae8d58",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:15.209+0800",
+            "update_time": "2023-06-15T19:05:15.209+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "b5c885cb-84d0-3800-acd4-13dbf51f4009",
+            "title": "我国内流区主要河流和湖泊的特征",
+            "rich_title": "我国内流区主要河流和湖泊的特征",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/b5c885cb-84d0-3800-acd4-13dbf51f4009",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:15.400+0800",
+            "update_time": "2023-06-15T19:05:15.400+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "f0a998cb-9a6d-3a3e-bfc6-9b59f3d72e5f",
+            "title": "中国自然地理环境特征和区域差异",
+            "rich_title": "中国自然地理环境特征和区域差异",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/f0a998cb-9a6d-3a3e-bfc6-9b59f3d72e5f",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:15.596+0800",
+            "update_time": "2023-06-15T19:05:15.596+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "dab88950-9f40-393a-b7b4-18809a124687",
+            "title": "中国水环境习题课",
+            "rich_title": "中国水环境习题课",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/dab88950-9f40-393a-b7b4-18809a124687",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:15.814+0800",
+            "update_time": "2023-06-15T19:05:15.814+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "02ce2f0a-e20f-3ea2-ab7d-33978921499b",
+            "title": "中国社会经济的区域特征与差异",
+            "rich_title": "中国社会经济的区域特征与差异",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/9bcb9742-a78e-39ff-9043-744da77dc221/02ce2f0a-e20f-3ea2-ab7d-33978921499b",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:16.010+0800",
+            "update_time": "2023-06-15T19:05:16.010+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "b9f8db94-5348-318b-9d69-e0234931679d",
+        "title": "旅游地理（旧版人教版选修三）",
+        "rich_title": "旅游地理（旧版人教版选修三）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:16.200+0800",
+        "update_time": "2024-07-16T16:24:38.564+0800",
+        "child_nodes": [
+          {
+            "id": "751ba3b3-fa18-3486-ab99-8a9cda9aefc1",
+            "title": "现代旅游的特点及其对区域发展的意义",
+            "rich_title": "现代旅游的特点及其对区域发展的意义",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/751ba3b3-fa18-3486-ab99-8a9cda9aefc1",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:16.410+0800",
+            "update_time": "2023-06-15T19:05:16.410+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "0db3f1e3-82a3-372d-8c71-873fd512aa0c",
+            "title": "旅游资源的分类和特性",
+            "rich_title": "旅游资源的分类和特性",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/0db3f1e3-82a3-372d-8c71-873fd512aa0c",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:16.596+0800",
+            "update_time": "2023-06-15T19:05:16.596+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "29576533-4bc0-3d5b-b766-f3fa64f85837",
+            "title": "旅游地理习题课",
+            "rich_title": "旅游地理习题课",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/29576533-4bc0-3d5b-b766-f3fa64f85837",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:16.780+0800",
+            "update_time": "2023-06-15T19:05:16.780+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "04347836-bfc3-3062-b273-60a32e6fbe19",
+            "title": "旅游资源开发条件的评价",
+            "rich_title": "旅游资源开发条件的评价",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/04347836-bfc3-3062-b273-60a32e6fbe19",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:16.959+0800",
+            "update_time": "2023-06-15T19:05:16.959+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "1edac2b6-0ac7-3d88-98bb-986902e44612",
+            "title": "我国的旅游资源",
+            "rich_title": "我国的旅游资源",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/1edac2b6-0ac7-3d88-98bb-986902e44612",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:17.150+0800",
+            "update_time": "2023-06-15T19:05:17.150+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "79c2dfc6-7998-3278-9c2c-3ea943163328",
+            "title": "旅游景观的审美特征和观赏方法",
+            "rich_title": "旅游景观的审美特征和观赏方法",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/79c2dfc6-7998-3278-9c2c-3ea943163328",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:17.344+0800",
+            "update_time": "2023-06-15T19:05:17.344+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "161bde85-a1fb-3573-8bcb-028ae2b66cff",
+            "title": "旅游资源评价探究课",
+            "rich_title": "旅游资源评价探究课",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/161bde85-a1fb-3573-8bcb-028ae2b66cff",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:17.529+0800",
+            "update_time": "2023-06-15T19:05:17.529+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "6fcb3330-3b2d-386e-8042-83ae5c6adc60",
+            "title": "中外旅游景观欣赏",
+            "rich_title": "中外旅游景观欣赏",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/6fcb3330-3b2d-386e-8042-83ae5c6adc60",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:20.728+0800",
+            "update_time": "2023-06-15T19:05:20.728+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "5c666809-8e67-3e1c-977d-82fb8d7ec8bb",
+            "title": "旅游规划",
+            "rich_title": "旅游规划",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/5c666809-8e67-3e1c-977d-82fb8d7ec8bb",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:20.932+0800",
+            "update_time": "2023-06-15T19:05:20.932+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "718ab2d2-a020-38cd-80a7-b1d981ae3780",
+            "title": "旅游活动设计",
+            "rich_title": "旅游活动设计",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/718ab2d2-a020-38cd-80a7-b1d981ae3780",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:21.119+0800",
+            "update_time": "2023-06-15T19:05:21.119+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "913bbd1b-8542-393f-9bd9-e1881ec0b348",
+            "title": "旅游开发与环境保护",
+            "rich_title": "旅游开发与环境保护",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/b9f8db94-5348-318b-9d69-e0234931679d/913bbd1b-8542-393f-9bd9-e1881ec0b348",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:21.305+0800",
+            "update_time": "2023-06-15T19:05:21.305+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "8f92b048-53b4-30fd-8e9d-9f9c06881a75",
+        "title": "世界地理（旧版人教版选修三）",
+        "rich_title": "世界地理（旧版人教版选修三）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/8f92b048-53b4-30fd-8e9d-9f9c06881a75",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:21.516+0800",
+        "update_time": "2024-07-16T16:24:42.994+0800",
+        "child_nodes": [
+          {
+            "id": "0a4ea2fb-489e-3ff7-a07f-31858cd73c07",
+            "title": "世界海洋与陆地",
+            "rich_title": "世界海洋与陆地",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/8f92b048-53b4-30fd-8e9d-9f9c06881a75/0a4ea2fb-489e-3ff7-a07f-31858cd73c07",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:21.712+0800",
+            "update_time": "2023-06-15T19:05:21.712+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "fcf30bba-2538-3cfd-9ce8-b90ebee14b4a",
+            "title": "世界海洋与陆地习题课",
+            "rich_title": "世界海洋与陆地习题课",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/8f92b048-53b4-30fd-8e9d-9f9c06881a75/fcf30bba-2538-3cfd-9ce8-b90ebee14b4a",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:21.916+0800",
+            "update_time": "2023-06-15T19:05:21.916+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "ff3345f0-dc46-3f70-8137-2e4a66900fb3",
+            "title": "世界特殊气候区域及其成因",
+            "rich_title": "世界特殊气候区域及其成因",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/8f92b048-53b4-30fd-8e9d-9f9c06881a75/ff3345f0-dc46-3f70-8137-2e4a66900fb3",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:22.135+0800",
+            "update_time": "2023-06-15T19:05:22.135+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "be028422-d52c-3113-8684-5eeb2a4ec2c6",
+            "title": "世界区域地形特征及影响",
+            "rich_title": "世界区域地形特征及影响",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/8f92b048-53b4-30fd-8e9d-9f9c06881a75/be028422-d52c-3113-8684-5eeb2a4ec2c6",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:22.342+0800",
+            "update_time": "2023-06-15T19:05:22.342+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "16220db8-b2d5-3d8a-a2e2-4ac464dba7b9",
+            "title": "世界气候及地形习题课",
+            "rich_title": "世界气候及地形习题课",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/8f92b048-53b4-30fd-8e9d-9f9c06881a75/16220db8-b2d5-3d8a-a2e2-4ac464dba7b9",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:22.533+0800",
+            "update_time": "2023-06-15T19:05:22.533+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "9a1413d1-7690-3dca-9b54-d68b5d6c91cc",
+            "title": "气候对地理环境的影响",
+            "rich_title": "气候对地理环境的影响",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/8f92b048-53b4-30fd-8e9d-9f9c06881a75/9a1413d1-7690-3dca-9b54-d68b5d6c91cc",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:22.751+0800",
+            "update_time": "2023-06-15T19:05:22.751+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "aea14055-c9ce-30da-8fa6-f123599548b6",
+        "title": "高考复习",
+        "rich_title": "高考复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6",
+        "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+        "create_time": "2023-06-15T19:05:03.996+0800",
+        "update_time": "2023-06-15T19:05:03.996+0800",
+        "child_nodes": [
+          {
+            "id": "4cc4f495-6887-3d29-85e8-385180e26402",
+            "title": "气候专题（上）",
+            "rich_title": "气候专题（上）",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/4cc4f495-6887-3d29-85e8-385180e26402",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:04.198+0800",
+            "update_time": "2023-06-15T19:05:04.198+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "9712bb3b-29fe-3a9b-b860-2da3231c1449",
+            "title": "高中地理知识点串讲",
+            "rich_title": "高中地理知识点串讲",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/9712bb3b-29fe-3a9b-b860-2da3231c1449",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:04.404+0800",
+            "update_time": "2023-06-15T19:05:04.404+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "51e13e40-e733-3972-8c07-26b505cd241a",
+            "title": "高考地理复习（一）",
+            "rich_title": "高考地理复习（一）",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/51e13e40-e733-3972-8c07-26b505cd241a",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:04.603+0800",
+            "update_time": "2023-06-15T19:05:04.603+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "6bff76dd-2bfb-367c-9fc2-10e6b69d58da",
+            "title": "高考地理复习（二）",
+            "rich_title": "高考地理复习（二）",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/6bff76dd-2bfb-367c-9fc2-10e6b69d58da",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:04.806+0800",
+            "update_time": "2023-06-15T19:05:04.806+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "9077a371-04bf-3321-8beb-4d35957143d7",
+            "title": "高考地理复习（三）",
+            "rich_title": "高考地理复习（三）",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/9077a371-04bf-3321-8beb-4d35957143d7",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:05.008+0800",
+            "update_time": "2023-06-15T19:05:05.008+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "35919d9f-527c-367d-acc0-55618b7ec629",
+            "title": "强化知识重组精准区域认知",
+            "rich_title": "强化知识重组精准区域认知",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/35919d9f-527c-367d-acc0-55618b7ec629",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:05.202+0800",
+            "update_time": "2023-06-15T19:05:05.202+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "7c0844c1-f693-3783-9eb6-ac96a5044aaf",
+            "title": "深度关联概念参透热点问题",
+            "rich_title": "深度关联概念参透热点问题",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/7c0844c1-f693-3783-9eb6-ac96a5044aaf",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:05.410+0800",
+            "update_time": "2023-06-15T19:05:05.410+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "1c8d9095-c5a2-3eb7-a115-d7cd4f919dc8",
+            "title": "成因类试题的复习备考",
+            "rich_title": "成因类试题的复习备考",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/1c8d9095-c5a2-3eb7-a115-d7cd4f919dc8",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:05.598+0800",
+            "update_time": "2023-06-15T19:05:05.598+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "c0a6565f-f555-3b28-be92-fad2bfaa0c50",
+            "title": "过程类试题的复习备考",
+            "rich_title": "过程类试题的复习备考",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/c0a6565f-f555-3b28-be92-fad2bfaa0c50",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:05.799+0800",
+            "update_time": "2023-06-15T19:05:05.799+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "48be8ac2-a4e1-36a4-9171-f4e2af074bdf",
+            "title": "综合题的备考策略",
+            "rich_title": "综合题的备考策略",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "ec0802b5-73f3-3e35-b12c-8cb4aaef3cc5/aea14055-c9ce-30da-8fa6-f123599548b6/48be8ac2-a4e1-36a4-9171-f4e2af074bdf",
+            "tree_id": "00500324-9635-443b-8021-1d92f27075ab",
+            "create_time": "2023-06-15T19:05:05.998+0800",
+            "update_time": "2023-06-15T19:05:05.998+0800",
+            "child_nodes": null
+          }
+        ]
+      }
+    ]
+  }
+]

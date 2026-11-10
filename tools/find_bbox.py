@@ -10,16 +10,17 @@ from pathlib import Path
 import fitz
 
 ROOT = Path(__file__).resolve().parent.parent
-# 教材 PDF 所在目录：设环境变量 LIVEBOOK_PDF_DIR，里面放 八年级上册.pdf、八年级下册.pdf、九年级全一册.pdf（及 *.目录树.json）
-LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
-PDF = {"wuli-8s": "八年级上册", "wuli-8x": "八年级下册", "wuli-9": "九年级全一册", "huaxue-9s": "化学/九年级上册", "huaxue-9x": "化学/九年级下册"}
+# 教材 PDF 放在 pdf/<科目>/<版本>/<册>.pdf，路径统一从 tools/pdf_paths.py 取
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pdf_paths import LIB, pdf_path
+PDF = {b: pdf_path(b) for b in ("wuli-8s", "wuli-8x", "wuli-9", "huaxue-9s", "huaxue-9x", "dili-7s")}          # 这几本的插图按图注找位置
 OVERRIDE = ROOT / "tools" / "bbox-overrides.json"   # 自动框不准时手工改这里
 
 
 def plan_rows():
     book, rows = None, []
     for line in (ROOT / "PLAN.md").read_text(encoding="utf-8").splitlines():
-        m = re.search(r"\b((?:wuli|huaxue)-\w+)（", line)
+        m = re.search(r"\b((?:wuli|huaxue|dili)-\w+)（", line)
         if line.startswith("## ") and m:
             book = m.group(1)
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
@@ -72,7 +73,7 @@ def figure_bbox(page, fig_label):
 def main():
     sheet = "--sheet" in sys.argv
     overrides = json.loads(OVERRIDE.read_text()) if OVERRIDE.exists() else {}
-    docs = {b: fitz.open(LIB / f"{p}.pdf") for b, p in PDF.items()}
+    docs = {b: fitz.open(p) for b, p in PDF.items()}
     out = {}
     for row in plan_rows():
         page = docs[row["book"]][row["page"]]
