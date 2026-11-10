@@ -75,10 +75,12 @@ export class Bench {
 
   pointer() {
     return {
-      down: (ray) => {
+      down: (ray, e) => {
         if (!this.enabled) return false;
         const hit = this._hit(ray);
         if (!hit) return false;
+        this.pressPoint = e ? { x: e.clientX, y: e.clientY } : null;
+        this.pressDirection = ray.ray.direction.clone();
         if (hit.term) {
           if (this.circuit.wires.length >= this.maxWires) { this.onChange?.(this.circuit, { msg: '导线太多了，先拆掉几根（点导线就能拆）。' }); return true; }
           this.drag = { from: hit.term, moved: false };
@@ -93,12 +95,16 @@ export class Bench {
         }
         return false;
       },
-      move: (ray) => {
+      move: (ray, e) => {
         const hit = this.enabled ? this._hit(ray) : null;
         this.hover = hit?.term || null;
         const c = document.getElementById('c');
         if (!this.drag) { c.style.cursor = hit ? (hit.term ? 'crosshair' : 'pointer') : ''; return !!hit; }
-        this.drag.moved = true;
+        // 鼠标、触控板和触屏的轻微抖动仍然算点击；连线和滑片仍实时跟手。
+        const moved = this.pressPoint && e
+          ? Math.hypot(e.clientX - this.pressPoint.x, e.clientY - this.pressPoint.y) > 5
+          : ray.ray.direction.angleTo(this.pressDirection) > 0.005;
+        this.drag.moved ||= moved;
         if (this.drag.from) {
           // 临时导线：从起点接线柱到鼠标（鼠标所在的桌面高度）
           const a = this.circuit.terminalWorld(this.drag.from);
@@ -113,11 +119,13 @@ export class Bench {
         }
         return true;
       },
-      up: () => {
+      up: (ray, e) => {
         const d = this.drag;
         this.drag = null;
         this.temp.visible = false;
         if (!d) return false;
+        if (e?.type === 'pointercancel') return true;
+        if (this.pressPoint && e && Math.hypot(e.clientX - this.pressPoint.x, e.clientY - this.pressPoint.y) > 5) d.moved = true;
         const C = this.circuit;
         if (d.from) {
           if (d.to) {

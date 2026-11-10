@@ -1108,6 +1108,10 @@ body.geo-cover #hud-top, body.geo-cover .geo-toc, body.geo-cover .geo-toc-spine,
 .fb-success > .fb-primary { display:inline-flex; }
 @media(max-width:600px) { .fb-success { padding:36px 22px 30px; } .fb-success h2 {font-size:22px;} }
 
+.fb-contact-row { display:flex;gap:8px; }
+.fb-contact-type { flex:0 0 72px;width:72px;border:1px solid #d5d8cb;border-radius:8px;background:#fffefa;color:#323e38;padding:10px 8px;font:13px var(--sans); }
+.fb-contact-row input { min-width:0; }
+.fb-contact-type:focus-visible { outline:2px solid #688775;outline-offset:2px; }
 /* 进地理世界：地球先露出来（接着转过最后那几度），书圈从下面升上来，目录、读数、透镜再一样一样淡进来——不一下子全冒出来 */
 body.geo-in-wait :is(.geo-toc, .geo-toc-spine, .geo-now, .geo-lens, .geo-lens-hint, .geo-credit, .tag3d) { opacity: 0 !important; translate: 0 10px; }
 body.geo-in-wait :is(.geo-toc, .geo-toc-spine) { translate: -22px 0; }
