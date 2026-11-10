@@ -63,9 +63,12 @@ source = {'downloaded': '2026-11-07', 'version': 'ETOPO1 Ice Surface 2009',
           'queryNote': '按缓存坐标重建，原请求地址未保存',
           'sha256': {__import__('pathlib').Path(p).name: hashlib.sha256(open(p, 'rb').read()).hexdigest() for p in [csv, steps]}}
 encoded = base64.b64encode(Z.astype('<i2').tobytes()).decode('ascii')
+# 两个文件：边界线（地理世界的“板块”看法也用，不该连带下载高程）、高程网格（只有“板块运动”活页用）
 (ROOT / 'src/lessons/data/plates.js').write_text('// Bird (2003) PB2002 全部有向步段；left/right 沿 pts 方向，polarity 保留原符号。自动生成，请改 plates_prep.py。\n'
+    + '// 这里只有板块边界线（地理世界的“板块”看法也用）；全球高程网格在 plates_height.js，只有“板块运动”那张活页加载。\n'
+    + 'export default ' + json.dumps(out, separators=(',', ':')) + ';\n')
+(ROOT / 'src/lessons/data/plates_height.js').write_text('// 全球高程网格（ETOPO1，0.25°，int16 小端，base64）：只有“板块运动”那张活页用。自动生成，请改 plates_prep.py。\n'
     + 'export const GRID = ' + json.dumps(grid) + ';\n'
     + 'export const SOURCE = ' + json.dumps(source, ensure_ascii=False) + ';\n'
-    + 'export const HEIGHT = "' + encoded + '";\n'
-    + 'export default ' + json.dumps(out, separators=(',', ':')) + ';\n')
+    + 'export const HEIGHT = "' + encoded + '";\n')
 print(len(out), 'steps', W, H, 'height grid')

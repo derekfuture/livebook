@@ -95,8 +95,16 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
       const b = s.books[j], man = manifests[b.id];
       const W = (BOOK_H * man.pageSize[0]) / man.pageSize[1], T = Math.max(0.018, ((Math.floor(man.pageCount / 2) + 1) * LEAF_T * BOOK_H) / 2);
       const g = new THREE.Group();
-      const cover = loader.load(fileUrl(`${getBook(b.id).base}hi/000.jpg`), () => { g.userData.coverReady = true; });
-      cover.colorSpace = THREE.SRGBColorSpace; cover.anisotropy = 8;
+      // 桌上那几摞书用中等大小的封面（mid，720 高，一张几十 KB）；摊开一科、拿起一本时再换高清的（hiCover）。
+      // 高清封面一张近 1 MB，十几本书一起下，首屏要 9 MB。离线版里封面本来就缩过，直接用；没有 mid 的（旧的本地书页）退回高清
+      const base = getBook(b.id).base, hiUrl = fileUrl(`${base}hi/000.jpg`);
+      const tex = (t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+      const cover = tex(loader.load(OFFLINE ? hiUrl : fileUrl(`${base}mid/000.jpg`), () => { g.userData.coverReady = true; if (OFFLINE) g.userData.coverHi = g.userData.coverHiReady = true; },
+        undefined, () => g.userData.hiCover()));
+      g.userData.hiCover = () => {
+        const u = g.userData; if (u.coverHi) return; u.coverHi = true;
+        const t = tex(loader.load(hiUrl, () => { const old = face.map; face.map = t; if (old !== t) old?.dispose(); u.coverReady = u.coverHiReady = true; }));
+      };
       const pages = new THREE.MeshLambertMaterial({ color: 0xf1ebde }), back = new THREE.MeshLambertMaterial({ color: b.side }), face = new THREE.MeshLambertMaterial({ map: cover });
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(W, T, BOOK_H), [pages, pages, face, back, pages, pages]);   // 封面在 +y；书脊和书口都是纸色（和书里那本书一样）
       mesh.castShadow = mesh.receiveShadow = true; g.add(mesh); group.add(g);
@@ -227,7 +235,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     if (open === s || leaving) return;
     if (open) closeFan(true);
     open = s; backBtn.hidden = false;
-    for (const g of items) if (g.userData.s === s) move(g, fanPose(g), 'tofan');
+    for (const g of items) if (g.userData.s === s) { move(g, fanPose(g), 'tofan'); g.userData.hiCover(); }          // 摊开来看得大：换高清封面
     fanShot(s); mood.focus(fanCenter(s));
   }
   function closeFan(quick = false) {
@@ -242,7 +250,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     if (id.startsWith('dili-')) return goWorld(s0, id);          // 地理：先进地理世界，这本书转到正前方
     const g = items.find((x) => x.userData.id === id);
     if (!g) { location.href = bookHref(id); return; }
-    leaving = g; ui.classList.add('leaving'); canvas.style.cursor = '';
+    leaving = g; ui.classList.add('leaving'); canvas.style.cursor = ''; g.userData.hiCover();
     for (const t of slips.values()) t.show(false);
     move(g, deskPose(g), 'todesk'); moodT = 0; moodRate = 1 / 0.8;          // 书飞过去的这一秒里，光回到书里白天的样子
     for (const o of items) if (o !== g && o.userData.s === g.userData.s && o.userData.mode !== 'stack') move(o, stackPose(o), 'tostack');          // 别的书收回那一摞（镜头低头看书桌时它们在画面外）
@@ -332,7 +340,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   let waitCover = null, landing = null;
   if (ret) {
     const u = ret.userData, s = u.s;
-    place(ret, deskPose(ret)); u.mode = 'held'; deskShot(u, true);
+    place(ret, deskPose(ret)); u.mode = 'held'; deskShot(u, true); u.hiCover();          // 这本书占满画面，要和书里最后一帧一样清楚
     moodK = moodT = 0; mood.set(0);          // 和书里最后一帧一样亮；揭开截图以后窗光再慢慢出来
     ui.classList.add('leaving');          // 书回到那一排以后，屏幕上的纸片再浮出来
     // 书里最后一帧（合上的书）还盖在上面：等这本书的封面贴图好了（下面已经是同一个画面）再揭开
@@ -340,7 +348,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
       window.__dropSnap?.();
       setTimeout(() => { moodT = 1; moodRate = 1 / 1.6; }, 340);
       setTimeout(() => {          // 盖着的截图淡出完了再动（不然有一两帧重影）
-        if (s.books.length > 1) { open = s; backBtn.hidden = false; move(ret, fanPose(ret), 'back'); for (const g of items) if (g.userData.s === s && g !== ret) move(g, fanPose(g), 'tofan'); fanShot(s); mood.focus(fanCenter(s)); }
+        if (s.books.length > 1) { open = s; backBtn.hidden = false; move(ret, fanPose(ret), 'back'); for (const g of items) if (g.userData.s === s && g !== ret) { move(g, fanPose(g), 'tofan'); g.userData.hiCover(); } fanShot(s); mood.focus(fanCenter(s)); }
         else { move(ret, stackPose(ret), 'back'); homeShot(); }
       }, 340);
       setTimeout(() => ui.classList.remove('leaving'), 1000);
@@ -358,7 +366,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
 
   // ---- 每帧 ----
   const tick = (dt) => {
-    if (waitCover) { const w = waitCover; w.t += dt; if (w.g.userData.coverReady) w.frames++; if (w.frames > 2 || w.t > 1.6) { waitCover = null; w.go(); } }
+    if (waitCover) { const w = waitCover; w.t += dt; if (w.g.userData.coverHiReady) w.frames++; if (w.frames > 2 || w.t > 1.6) { waitCover = null; w.go(); } }
     const time = performance.now() / 1000;
     if (moodK !== moodT) { moodK = moodT > moodK ? Math.min(moodT, moodK + dt * moodRate) : Math.max(moodT, moodK - dt * moodRate); mood.set(moodK); }
     mood.tick(dt, time);

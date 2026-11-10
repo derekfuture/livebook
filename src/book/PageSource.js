@@ -5,12 +5,9 @@
 //   3. 都没有：我们自己画的占位页（自己的纸、页眉页码、淡灰线代替正文、活页的位置留着图号）。
 // 每种来源都提供：image(kind, i) → 上下翻转好的 ImageBitmap（给 three.js 贴图）；url(kind, i) → 图片地址（给界面里的截图用，没有就是 null）。
 import './pdfCompatibility.js';
-import * as pdfjs from 'pdfjs-dist/legacy/build/pdf.mjs';
-import WorkerConstructor from './pdf.worker.js?worker&inline';
 import { getPdf, getLo, putLo } from './pdfStore.js';
 import { OFFLINE, OFFLINE_DATA, fileUrl } from '../content/index.js';
 
-// A bundled worker avoids a separate worker download and works in offline packages.
 const fromB64 = (s) => (Uint8Array.fromBase64 ? Uint8Array.fromBase64(s) : Uint8Array.from(atob(s), (c) => c.charCodeAt(0)));
 // 离线版：双击打开的网页不能从文件夹里读文件、起 worker，pdf.js 要的字库、解码器、worker 代码都打包在 HTML 里
 class EmbeddedData {
@@ -20,8 +17,6 @@ class EmbeddedData {
     return fromB64(s);
   }
 }
-let pdfPort = null;
-const sharedPdfWorker = () => (pdfPort ||= new WorkerConstructor());
 const HEIGHT = { hi: 2048, lo: 480 };          // 和 tools/render_pages.py 一样
 const pad = (i) => String(i).padStart(3, '0');
 const flip = (src) => createImageBitmap(src, { imageOrientation: 'flipY' });
@@ -55,7 +50,7 @@ class Queue {
 export class PdfSource {
   constructor(bookId, pdf) { this.kind = 'pdf'; this.bookId = bookId; this.pdf = pdf; this.q = new Queue(); this.urls = new Map(); }
   static async open(bookId, data) {
-    pdfjs.GlobalWorkerOptions.workerPort = sharedPdfWorker();
+    const pdfjs = (await import('./pdfEngine.js')).engine();          // pdf.js 很大，用到时才加载（见 pdfEngine.js）
     const files = OFFLINE
       ? { BinaryDataFactory: EmbeddedData, useWorkerFetch: false, cMapUrl: 'embedded/', standardFontDataUrl: 'embedded/', wasmUrl: 'embedded/' }
       : { cMapUrl: '/pdfjs/cmaps/', standardFontDataUrl: '/pdfjs/standard_fonts/', wasmUrl: '/pdfjs/wasm/', iccUrl: '/pdfjs/iccs/' };

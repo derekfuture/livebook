@@ -8,6 +8,7 @@ pdf/**
 !pdf/**/*.目录树.json
 public/books/*/hi
 public/books/*/lo
+public/books/*/mid
 tools/*.private.txt
 tools/figures.json
 

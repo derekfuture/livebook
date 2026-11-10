@@ -5,4 +5,6 @@ set -euo pipefail
 DIST=${1:-dist}
 find "$DIST/books" -path '*/hi/*.jpg' ! -name '000.jpg' -delete
 find "$DIST/books" -path '*/lo/*.jpg' ! -name '000.jpg' -delete
+# public/ 里别的地方留着的课本书页（比如早期样稿用的 public/mock/）也不能上线：只有 books/ 下的封面可以
+rm -rf "$DIST/mock"
 echo "书页图片已从 $DIST 删除，只留封面：$(find "$DIST/books" -name '*.jpg' | wc -l | tr -d ' ') 张"

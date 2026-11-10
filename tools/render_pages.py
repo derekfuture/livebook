@@ -147,6 +147,7 @@ BOOKS = {
 
 HI_HEIGHT = 2048
 LO_HEIGHT = 480
+MID_HEIGHT = 720          # 只给封面：书桌首页上那几摞书用（hi 的封面一张近 1 MB，十几本书首屏要下 9 MB）
 
 
 def find_page(doc, title, start):
@@ -216,11 +217,13 @@ def main(book_id):
     out = ROOT / "public" / "books" / book_id
     (out / "hi").mkdir(parents=True, exist_ok=True)
     (out / "lo").mkdir(parents=True, exist_ok=True)
+    (out / "mid").mkdir(parents=True, exist_ok=True)
 
     doc = fitz.open(cfg["pdf"])
     rect = doc[1].rect
     for i, page in enumerate(doc):
-        for sub, height, quality in (("hi", HI_HEIGHT, 86), ("lo", LO_HEIGHT, 72)):
+        sizes = (("hi", HI_HEIGHT, 86), ("lo", LO_HEIGHT, 72)) + ((("mid", MID_HEIGHT, 82),) if i == 0 else ())
+        for sub, height, quality in sizes:
             target = out / sub / f"{i:03d}.jpg"
             if target.exists():
                 continue

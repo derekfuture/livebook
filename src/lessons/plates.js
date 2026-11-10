@@ -12,7 +12,8 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { h } from '../ui/Panel.js';
 import { airLabel, noteBadge } from './kit/labels.js';
 import { NAMES, SIX_NAMES, CLASS, OVERVIEW, ll2v, v2ll, profile, dest, bearing, nearestBoundary, arrowFrame, sectionSides, elevationState, roundedHeight, sectionGeometry } from './kit/plates.js';
-import LINES, { GRID, HEIGHT } from './data/plates.js';
+import LINES from './data/plates.js';
+import { GRID, HEIGHT } from './data/plates_height.js';          // 高程网格 2.8 MB，和边界线分开放：地理世界的“板块”看法只要边界线
 import reliefUrl from './data/earth_relief.jpg';
 
 const R = 0.085, GC = new THREE.Vector3(-0.07, R + 0.022, 0), EXAG = 0.0042 / 9000;          // 地球半径、球心；1 米抬高多少（夸大，约 40 倍）
