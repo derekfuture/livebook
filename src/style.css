@@ -1143,3 +1143,36 @@ body.geo-in-go :is(.geo-lens-hint, .geo-credit) { --in: 1.15s; }
   .chip { padding: 6px 9px; font-size: 12px; white-space: nowrap; }
   #btn-import { display: none; }
 }
+
+/* 首页左下角一行浅色小字（作者 2026-11-10：各种按钮太乱）：作者小签 · 反馈与建议 · GitHub · 下载离线版；活页总览在右上搜索框下面；摊开一科时的“‹ 全部科目”在右下 */
+.home-line { position: absolute; z-index: 2; left: max(22px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; align-items: center; flex-wrap: wrap; row-gap: 4px;
+  font: 13px/1.2 var(--sans); letter-spacing: .03em; color: rgba(60,50,35,.62); }
+body.mood .home-line { color: rgba(240,228,205,.74); text-shadow: 0 1px 8px rgba(0,0,0,.35); }
+.home-sep { font-style: normal; margin: 0 11px; opacity: .55; }
+.home-link, .home-line .feedback-entry, .home-line .github-entry { display: inline-flex; align-items: center; gap: 0; border: 0; padding: 4px 0; min-height: 0; background: none; box-shadow: none; border-radius: 0;
+  font: inherit; letter-spacing: inherit; color: inherit; text-decoration: none; cursor: pointer; transform: none; }
+.home-line .feedback-entry svg, .home-line .github-entry svg { display: none; }
+.home-link:hover, .home-line .feedback-entry:hover, .home-line .github-entry:hover { color: #fff3d6; background: none; box-shadow: none; transform: none; text-decoration: underline; text-underline-offset: 4px; }
+body:not(.mood) .home-link:hover, body:not(.mood) .home-line .feedback-entry:hover, body:not(.mood) .home-line .github-entry:hover { color: #1f4f8f; }
+.home-line .home-author { position: relative; left: auto; right: auto; top: auto; bottom: auto; z-index: 3; }
+.home-line .author-chip { gap: 8px; padding: 2px 0; background: none; box-shadow: none; border-radius: 0; color: inherit; }
+.home-line .author-chip img { width: 22px; height: 22px; }
+.home-line .author-chip b { font: inherit; letter-spacing: inherit; color: inherit; }
+.home-line .author-chip small { display: none; }
+.home-line .author-chip:hover b { color: #fff3d6; text-decoration: underline; text-underline-offset: 4px; }
+.home-line .author-qr { left: -6px; bottom: calc(100% + 12px); }
+.home-find { display: flex; flex-direction: column; align-items: flex-end; gap: 9px; }
+.home-overview { font: 600 14px/1 var(--song); letter-spacing: .12em; color: #2c3245; padding: 6px 2px; }
+body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4); }
+.home-foot { left: auto; right: max(22px, env(safe-area-inset-right)); justify-content: flex-end; }
+@media (max-width: 760px) {
+  .home-line { left: 12px; right: 12px; justify-content: center; font-size: 12px; bottom: max(10px, env(safe-area-inset-bottom)); }
+  .home-sep { margin: 0 7px; }
+  .home-line .home-author { right: auto; top: auto; bottom: auto; }
+  .home-line .author-chip { padding: 2px 0; border-radius: 0; }
+  .home-line .author-chip span { display: inline; }
+  .home-line .author-qr { left: 0; right: auto; top: auto; bottom: calc(100% + 10px); }
+  .home-find { width: 100%; }
+  .home-notes { bottom: 64px; }
+  .home-foot { right: 12px; bottom: max(56px, env(safe-area-inset-bottom)); }
+}

@@ -163,24 +163,22 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   const ui = h('div', { id: 'home' },
     h('header', { class: 'home-top' },
       h('div', { class: 'home-brand' }, h('b', {}, '活页课本'), h('span', {}, '纸上得来，不再浅')),
-      searchBox(books, manifests)),
+      h('div', { class: 'home-find' }, searchBox(books, manifests),          // 找内容的放一起：搜索框，下面是活页总览
+        h('button', { class: 'home-link home-overview', onclick: () => openOverview(books, manifests, subjects, pagesOk) }, '⊞ 活页总览'))),
     h('section', { class: 'home-notes' },
       last ? h('a', { class: 'note-card', href: bookHref(last.book) + (last.lesson ? `#live=${last.lesson}` : `#p=${last.page || 0}`) }, h('small', {}, '继续上次'), h('b', {}, last.title), h('span', {}, last.where)) : null,
       next ? h('a', { class: 'note-card next', href: next.href }, h('small', {}, last ? '接着学' : '从这里开始'), h('b', {}, next.title), h('span', {}, next.where)) : null),
-    authorCard(),
-    h('footer', { class: 'home-foot' },
-      backBtn,
-      h('button', { class: 'paper-btn', onclick: () => openOverview(books, manifests, subjects, pagesOk) }, '⊞ 活页总览'),
-      !OFFLINE && (FEATURES.offline || import.meta.env.DEV) ? offlineButton() : null,          // 开关在 src/features.js；离线版里不用再下载
-      OFFLINE ? h('a', { class: 'home-copy', href: 'https://livebook.derekfuture.club/', target: '_blank', rel: 'noopener' }, '活页课本会持续更新，联网后可回到网站下载新版。') : null,
-      h('nav', { class: 'home-community', 'aria-label': '反馈与项目' }, feedbackButton(), githubButton()),
-      h('span', { class: 'home-copy' }, '书里可以导入你自己下载的课本 PDF，文件只在这台电脑上使用')));
+    h('footer', { class: 'home-foot' }, backBtn),          // 摊开一科时的“‹ 全部科目”
+    homeLine(          // 左下角一行浅色小字：作者小签（指着出二维码）· 反馈与建议 · GitHub · 下载离线版（作者 2026-11-10：首页各种按钮太乱，收成一行）
+      authorCard(), feedbackButton(), githubButton(),
+      !OFFLINE && (FEATURES.offline || import.meta.env.DEV) ? offlineButton({ link: true }) : null,          // 开关在 src/features.js；离线版里不用再下载
+      OFFLINE ? h('a', { class: 'home-link', href: 'https://livebook.derekfuture.club/', target: '_blank', rel: 'noopener' }, '联网后可回网站下载新版') : null));
   document.body.append(ui);
   document.querySelector('#loader')?.classList.add('done');
 
   // ---- 机位：把要看的东西（几个点）放进屏幕上空出来的那块（上面是标题和搜索框，右边是便签，下面是按钮），尽量大 ----
   let open = null, leaving = null, hoverS = null, hoverB = null;
-  const frame = (pts, el, { bottom = 118 } = {}) => {
+  const frame = (pts, el, { bottom = 76 } = {}) => {          // 下面只剩左下角一行小字：给桌上的几科多留点地方
     const ph = innerWidth <= 760, rect = { l: ph ? 8 : 56, r: innerWidth - (ph ? 8 : 56), t: ph ? 158 : 150, b: innerHeight - bottom };          // 手机：左右几乎贴边，桌上的几摞书尽量大、好点
     const nb = ui.querySelector('.home-notes')?.getBoundingClientRect();          // 便签在右边一列（宽屏）或下面一行（4:3）：让开
     if (nb && nb.height > 0) { if (nb.left > innerWidth * 0.5) rect.r = nb.left - 36; else rect.b = Math.min(rect.b, nb.top - 24); }
@@ -803,6 +801,13 @@ function openOverview(books, manifests, subjects, pagesOk) {
 }
 
 // 左下角的作者小签：公众号头像 + 名字；悬停（手机上点一下）展开二维码。只放在首页，书里和活页里不打扰。
+/** 左下角那一行：几样东西排成一行，中间用“·”隔开 */
+function homeLine(...items) {
+  const kids = [];
+  for (const it of items.filter(Boolean)) { if (kids.length) kids.push(h('i', { class: 'home-sep', 'aria-hidden': 'true' }, '·')); kids.push(it); }
+  return h('nav', { class: 'home-line', 'aria-label': '关于、反馈与下载' }, ...kids);
+}
+
 function authorCard() {
   const card = h('div', { class: 'home-author' },
     h('div', { class: 'author-qr', role: 'dialog', 'aria-label': '公众号二维码' },

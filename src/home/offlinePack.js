@@ -6,10 +6,10 @@ import { bookName } from '../content/editions.js';
 import { getBook } from '../content/index.js';
 
 const el = (tag, attrs = {}, ...kids) => { const e = Object.assign(document.createElement(tag), attrs); for (const k of kids.flat()) if (k != null) e.append(k); return e; };
-const HTML_MB = 12;          // 离线版 HTML 大约多大（提示里估算大小用）
+const HTML_MB = 24;          // 离线版 HTML 大约多大（提示里估算大小用；2026-11-10 加了地理以后约 24 MB）
 
-export function offlineButton() {
-  const btn = el('button', { className: 'paper-btn', textContent: '⤓ 下载离线版' });
+export function offlineButton({ link = false } = {}) {          // link：首页左下角那一行里的小字样式
+  const btn = el('button', { className: link ? 'home-link' : 'paper-btn', textContent: link ? '下载离线版' : '⤓ 下载离线版' });
   const tip = el('div', { className: 'imp-tip up', hidden: true });
   document.body.append(tip);
   const place = () => { const r = btn.getBoundingClientRect(); tip.style.left = `${Math.max(12, r.left + r.width / 2 - 165)}px`; tip.style.bottom = `${innerHeight - r.top + 12}px`; };
