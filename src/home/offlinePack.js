@@ -9,7 +9,7 @@ const el = (tag, attrs = {}, ...kids) => { const e = Object.assign(document.crea
 const HTML_MB = 24;          // 离线版 HTML 大约多大（提示里估算大小用；2026-11-10 加了地理以后约 24 MB）
 
 export function offlineButton({ link = false } = {}) {          // link：首页左下角那一行里的小字样式
-  const btn = el('button', { className: link ? 'home-link' : 'paper-btn', textContent: link ? '下载离线版' : '⤓ 下载离线版' });
+  const btn = el('button', { className: link ? 'home-link home-offline' : 'paper-btn', textContent: link ? '下载离线版' : '⤓ 下载离线版' });
   const tip = el('div', { className: 'imp-tip up', hidden: true });
   document.body.append(tip);
   const place = () => { const r = btn.getBoundingClientRect(); tip.style.left = `${Math.max(12, r.left + r.width / 2 - 165)}px`; tip.style.bottom = `${innerHeight - r.top + 12}px`; };

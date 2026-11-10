@@ -1,3 +1,4 @@
+import './polyfills.js';          // 先补上老浏览器缺的几个小函数（要在别的模块之前）
 import * as THREE from 'three';
 import { Stage } from './stage/Stage.js';
 import { PageTextures } from './book/PageTextures.js';

@@ -54,6 +54,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     if (b) { location.replace(`${bookHref(b.id)}${location.hash}`); return; }
   }
   document.body.classList.add('home');
+  stage.enableTilt();          // 手机：跟着手机的倾斜轻轻转一点
   document.title = '活页课本';
   const books = bookList().filter((b) => Object.keys(getBook(b.id).lessons).length);     // 还没有做好活页的书先不上桌
   const manifests = Object.fromEntries(await Promise.all(books.map(async (b) => [b.id, await getManifest(b.id)])));
@@ -134,10 +135,11 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const c = new THREE.Vector3(u.stack.x - px, 0, u.stack.z - pz).applyAxisAngle(Y, a);
     return { ...toW(s, px + c.x, u.stack.y, pz + c.z, u.stack.yaw + a), sc: 1 };
   };
+  const fanZ = tall ? FAN_Z + 0.9 : FAN_Z;          // 手机竖排时最近的那一摞往前挪了，摊开的这一排也往前挪，那几摞才在画面外（不然桌签从标题栏底下露出来）
   const fanPose = (g) => {
     const u = g.userData, s = u.s, n = s.books.length, k = u.j - (n - 1) / 2;
     const cx = Math.min(s.x * 0.6, -0.06 - (n * s.sp - 0.14) / 2);          // 摊在书桌中间偏左：拿一本落到书桌中间（x > 0 那一半）时不会碰到别的书
-    return { p: new THREE.Vector3(cx + k * s.sp, u.T / 2 + 0.001, FAN_Z + Math.abs(k) * 0.04), yaw: -k * 0.035, sc: 1 };
+    return { p: new THREE.Vector3(cx + k * s.sp, u.T / 2 + 0.001, fanZ + Math.abs(k) * 0.04), yaw: -k * 0.035, sc: 1 };
   };
   const deskPose = (g) => { const u = g.userData; return { p: new THREE.Vector3((u.W * u.sv) / 2, (u.T * u.sv) / 2, 0), yaw: 0, sc: u.sv }; };
   // 地球仪的球在屏幕上的圆（圆心 cx、cy，半径 r，像素）：沿镜头的射线往里 D 远，球放到正好那么大——去地理世界的终点、从那边回来的起点
@@ -151,7 +153,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const firstPlace = (bid) => { for (const sp of getBook(bid).spots) { const a = ANCHORS[sp.lesson]; if (a?.kind === 'place') return a.pins[0].lon; } return null; };
     return firstPlace(focus) ?? books.filter((b) => b.subject === '地理').map((b) => firstPlace(b.id)).find((x) => x != null) ?? 105;
   };
-  const fanCenter = (s) => { const n = s.books.length; return new THREE.Vector3(Math.min(s.x * 0.6, -0.06 - (n * s.sp - 0.14) / 2), 0, FAN_Z - 0.05); };          // 摊开的那一排正中（窗光挪过去照它）
+  const fanCenter = (s) => { const n = s.books.length; return new THREE.Vector3(Math.min(s.x * 0.6, -0.06 - (n * s.sp - 0.14) / 2), 0, fanZ - 0.05); };          // 摊开的那一排正中（窗光挪过去照它）
   // 在两个位置之间：摊开时先平着往外抽（错开了再落到桌上，几本书不会互相穿过去），收回时先抬到各自的高度再收拢
   const lerpPose = (A, B, k, kind) => {
     const e = ease(k), yk = kind === 'tofan' ? smooth(0.62, 1, k) : kind === 'tostack' ? smooth(0, 0.38, k) : e;
@@ -187,7 +189,8 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   // ---- 机位：把要看的东西（几个点）放进屏幕上空出来的那块（上面是标题和搜索框，右边是便签，下面是按钮），尽量大 ----
   let open = null, leaving = null, hoverS = null, hoverB = null;
   const frame = (pts, el, { bottom = 76 } = {}) => {          // 下面只剩左下角一行小字：给桌上的几科多留点地方
-    const ph = innerWidth <= 760, rect = { l: ph ? 8 : 56, r: innerWidth - (ph ? 8 : 56), t: ph ? 158 : 150, b: innerHeight - bottom };          // 手机：左右几乎贴边，桌上的几摞书尽量大、好点
+    const ph = innerWidth <= 760, top = ui.querySelector('.home-top')?.getBoundingClientRect();
+    const rect = { l: ph ? 8 : 56, r: innerWidth - (ph ? 8 : 56), t: ph && top ? top.bottom + 14 : 150, b: innerHeight - bottom };          // 手机：左右几乎贴边、从标题栏下面开始，桌上的几摞书尽量大、好点
     const nb = ui.querySelector('.home-notes')?.getBoundingClientRect();          // 便签在右边一列（宽屏）或下面一行（4:3）：让开
     if (nb && nb.height > 0) { if (nb.left > innerWidth * 0.5) rect.r = nb.left - 36; else rect.b = Math.min(rect.b, nb.top - 24); }
     const cam = new THREE.PerspectiveCamera(stage.camera.fov, innerWidth / innerHeight, 0.02, 60);
@@ -459,7 +462,11 @@ function windowLight(stage, target) {
   const curtain = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), new THREE.MeshBasicMaterial({ color: NIGHT.bg, side: THREE.BackSide, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false }));
   curtain.renderOrder = 50; curtain.frustumCulled = false; curtain.raycast = () => {}; sc.add(curtain);
   const L = (a, b, k) => a + (b - a) * k;
-  let kNow = 0, nNow = 0;
+  let kNow = 0, nNow = 0, fogOff = 0;
+  // 雾从那几科身后才开始（电脑上看那几科时镜头离它们约 4.7）。手机竖着拿时几科排成一列，镜头要退到 9 左右才框得下，
+  // 雾还按电脑的距离算的话，书和桌签都蒙在雾里发黑（作者 2026-11-10：手机首页书本都是黑的）。镜头比这个远多少，雾就往后挪多少
+  const FOG_REF = 4.75;
+  const fog = () => { sc.fog.near = L(L(base.fN, dusk.fN + fogOff, kNow), NIGHT.fN, nNow); sc.fog.far = L(L(base.fF, dusk.fF + fogOff, kNow), NIGHT.fF, nNow); };
   const aimAt = target.clone(), home = target.clone();          // 窗光照着哪里：平时是那几科，摊开一科时挪到摊开的那一排（光的方向不变，影子还是朝右前方）
   const api = {
     /** 窗光挪去照 p（null：回到那几科） */
@@ -469,7 +476,7 @@ function windowLight(stage, target) {
       hemi.intensity = L(L(base.hI, dusk.hI, k), NIGHT.hI, n); hemi.color.copy(base.hC).lerp(dusk.hC, k).lerp(NIGHT.hC, n); hemi.groundColor.copy(base.hG).lerp(dusk.hG, k).lerp(NIGHT.hG, n);
       sun.intensity = L(base.sI, dusk.sI, k) * (1 - n); sun.color.copy(base.sC).lerp(dusk.sC, k);
       sc.background.copy(base.bg).lerp(dusk.bg, k).lerp(NIGHT.bg, n); sc.fog.color.copy(base.fC).lerp(dusk.fC, k).lerp(NIGHT.bg, n);
-      sc.fog.near = L(L(base.fN, dusk.fN, k), NIGHT.fN, n); sc.fog.far = L(L(base.fF, dusk.fF, k), NIGHT.fF, n);
+      fog();
       if (desk) desk.color.copy(base.dC).lerp(dusk.dC, k);
       spot.intensity = 4.4 * k * (1 - n); fill.intensity = 0.55 * k * (1 - n); motes.material.opacity = 0.55 * k * (1 - n); stars.material.opacity = n;
       curtain.material.opacity = Math.min(1, n * 1.15); curtain.visible = n > 0.001;
@@ -478,6 +485,8 @@ function windowLight(stage, target) {
     night(n) { api.set(kNow, n); },
     tick(dt, t) {
       curtain.position.copy(stage.camera.position);
+      const off = Math.max(0, stage.rig.cur.dist * stage.user.cur.zoom - FOG_REF);          // 跟着镜头现在的远近（镜头在走时雾也慢慢跟上，不会一下子变）
+      if (Math.abs(off - fogOff) > 0.005) { fogOff = off; fog(); }
       if (target.distanceToSquared(aimAt) > 1e-8) { target.lerp(aimAt, Math.min(1, dt * 2.4)); spot.target.position.copy(target); spot.position.copy(target).add(LIGHT); }
       if (kNow <= 0.001) return;
       seeds.forEach((m, i) => {
@@ -812,7 +821,7 @@ function openOverview(books, manifests, subjects, pagesOk) {
 /** 左下角那一行：几样东西排成一行，中间用“·”隔开 */
 function homeLine(...items) {
   const kids = [];
-  for (const it of items.filter(Boolean)) { if (kids.length) kids.push(h('i', { class: 'home-sep', 'aria-hidden': 'true' }, '·')); kids.push(it); }
+  for (const it of items.filter(Boolean)) { if (kids.length) kids.push(h('i', { class: 'home-sep' + (it.classList?.contains('home-offline') ? ' home-offline' : ''), 'aria-hidden': 'true' }, '·')); kids.push(it); }          // 分隔点跟着后面那一项：手机上藏“下载离线版”时连点一起藏
   return h('nav', { class: 'home-line', 'aria-label': '关于、反馈与下载' }, ...kids);
 }
 

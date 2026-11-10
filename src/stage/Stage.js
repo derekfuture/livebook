@@ -59,6 +59,7 @@ export class Stage {
     this.cameraOffsetX = 0;   // 屏幕上给侧边面板让出位置（像素，正数 = 画面中心右移）
     this.cameraOffsetY = 0;   // 正数 = 画面中心上移（手机上面板在下半屏）
     addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;          // 手指拖的时候不算（手机上的视差跟着手机的倾斜走，见 enableTilt）
       this.rig.pointer.set((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);
     });
 
@@ -68,6 +69,35 @@ export class Stage {
     this.timer.connect?.(document);
     this.resize();
     addEventListener('resize', () => this.resize());
+  }
+
+  /** 手机上的视差：手机一歪，画面跟着轻轻转一点，像隔着一块玻璃看桌上的东西（电脑上是跟着鼠标）。首页书桌和地理世界开。
+   *  按“眼睛相对屏幕挪了”来转：手机往右歪 ≈ 眼睛往左挪，和鼠标往右一样；手机顶往外倒 ≈ 眼睛往上挪，和鼠标往下一样。
+   *  不管手机怎么拿，都以“刚才那个姿势”为准（基准几秒钟慢慢跟上），所以只有动的时候有感觉，不会一直歪着。
+   *  安卓等直接就有；iPhone 要先问一次“运动与方向”的权限，而且只能在点一下的那一刻问：第一次点画面时还没收到过就问；拒绝过就不再问 */
+  enableTilt() {
+    if (this._tilt || !('DeviceOrientationEvent' in window) || !matchMedia('(pointer: coarse)').matches) return;
+    const T = (this._tilt = { live: false, base: null, last: 0 });
+    const on = (e) => {
+      if (e.beta == null || e.gamma == null) return;
+      T.live = true;
+      const a = ((screen.orientation?.angle ?? window.orientation ?? 0) % 360 + 360) % 360;
+      const [x, y] = a === 90 ? [e.beta, -e.gamma] : a === 270 ? [-e.beta, e.gamma] : a === 180 ? [-e.gamma, -e.beta] : [e.gamma, e.beta];          // 换成屏幕上的左右、上下
+      const now = e.timeStamp || performance.now(), dt = T.last ? Math.min(0.2, (now - T.last) / 1000) : 0; T.last = now;
+      if (!T.base || Math.abs(x - T.base.x) > 50 || Math.abs(y - T.base.y) > 50) T.base = { x, y };          // 头一回、或者一下子翻过去了（竖起来时角度会跳）：从这里重新算
+      const k = 1 - Math.exp(-dt / 2.5); T.base.x += (x - T.base.x) * k; T.base.y += (y - T.base.y) * k;          // 基准约 2.5 秒跟上
+      const c = (v) => Math.max(-1, Math.min(1, v / 12));          // 歪 12° 就到头（和鼠标移到屏幕边上一样）
+      this.rig.pointer.set(c(x - T.base.x), c(y - T.base.y));
+    };
+    addEventListener('deviceorientation', on);          // 没有权限时收不到，不碍事
+    if (typeof DeviceOrientationEvent.requestPermission !== 'function') return;
+    try { if (localStorage.getItem('livebook.tilt') === 'no') return; } catch { /* 隐私模式 */ }
+    const ask = () => {
+      this.canvas.removeEventListener('touchend', ask);
+      if (T.live) return;          // 已经收到了（安卓新版也有这个函数，但不用问）
+      DeviceOrientationEvent.requestPermission().then((r) => { if (r !== 'granted') try { localStorage.setItem('livebook.tilt', 'no'); } catch { /* 隐私模式 */ } }).catch(() => {});
+    };
+    this.canvas.addEventListener('touchend', ask);
   }
 
   _desk() {
@@ -192,7 +222,7 @@ export class Stage {
       r.cur.target.lerp(r.target, k);
       r.cur.dir.lerp(r.dir, k).normalize();
       r.cur.dist += (r.dist - r.cur.dist) * k;
-      r.parallax.lerp(this.calm ? new THREE.Vector2() : r.pointer, 1 - Math.exp(-dt * (this.calm ? 6 : 2)));      // calm：换场景前不跟着鼠标晃
+      r.parallax.lerp(this.calm ? new THREE.Vector2() : r.pointer, 1 - Math.exp(-dt * (this.calm ? 6 : this._tilt?.live ? 5 : 2)));      // calm：换场景前不跟着鼠标晃；跟着手机倾斜时跟得快一点（不然像飘着）
 
       // 用户视角（平滑跟随）
       const u = this.user, uk = 1 - Math.exp(-dt * 10);

@@ -1180,3 +1180,28 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
   .home-notes { bottom: 64px; }
   .home-foot { right: 12px; bottom: max(56px, env(safe-area-inset-bottom)); }
 }
+
+/* 手机首页（作者 2026-11-10：上下的界面太大，书桌只剩中间一小块）：标题、标语、活页总览排一行，搜索框矮一点；
+   便签缩成两张小条（一行标题、一行出处）；底下那一行小字不折行——“下载离线版”是给电脑、U 盘用的，手机上不放 */
+@media (max-width: 760px) {
+  .home-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 9px 10px; padding: max(12px, env(safe-area-inset-top)) 14px 0; }
+  .home-brand { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
+  .home-brand b { font-size: 21px; letter-spacing: .1em; white-space: nowrap; }
+  .home-brand span { margin-top: 0; font-size: 12.5px; letter-spacing: .08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-find { display: contents; }
+  .home-overview { grid-column: 2; grid-row: 1; font-size: 12.5px; letter-spacing: .06em; padding: 4px 0; white-space: nowrap; }
+  .home-search { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .home-search input { padding: 9px 12px; font-size: 13.5px; }
+  .home-notes { left: 10px; right: 10px; bottom: max(38px, calc(env(safe-area-inset-bottom) + 28px)); gap: 8px; }
+  .note-card { padding: 7px 10px 8px; box-shadow: 0 3px 8px rgba(90,70,20,.22); }
+  .note-card::before { top: -6px; width: 34px; height: 11px; margin-left: -17px; }
+  .note-card small { font-size: 10.5px; margin-bottom: 3px; letter-spacing: .06em; }
+  .note-card b { font-size: 14px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+  .note-card span { margin-top: 2px; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .home-line { font-size: 11.5px; flex-wrap: nowrap; white-space: nowrap; bottom: max(9px, env(safe-area-inset-bottom)); }
+  .home-line .author-chip { gap: 6px; }
+  .home-line .author-chip img { width: 18px; height: 18px; }
+  .home-line .home-sep { margin: 0 6px; }
+  .home-line .home-offline { display: none; }
+  .home-foot { bottom: max(112px, calc(env(safe-area-inset-bottom) + 102px)); }
+}

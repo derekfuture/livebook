@@ -65,6 +65,7 @@ export function earthCircle(W = innerWidth, H = innerHeight) {
 
 export const WORLD_SETTLE = 14;          // 从书桌飞过来：地球仪飞到这里时还差这么多度，揭开以后地球接着转过去（经度，度）
 export async function bootGeoWorld(stage, { focus = null, settle = 0 } = {}) {
+  stage.enableTilt();          // 手机：跟着手机的倾斜轻轻转一点（从书桌过来时已经开了）
   document.body.classList.add('geo-world', 'geo-in-wait');          // 界面先藏着：地球露出来以后，书圈、目录、透镜、读数再一样一样出来（不一下子全冒出来）
   stage.resetView(); stage.calm = false;          // 从书桌直接接过来（同一个舞台）：书桌那边的视角偏移、“不跟鼠标晃”都清掉
   if (new URLSearchParams(location.search).has('cover')) document.body.classList.add('geo-cover');          // 公众号封面：只留画面（地球、月亮、太阳、书圈），不要目录和读数

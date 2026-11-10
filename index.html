@@ -69,7 +69,7 @@
       var loader = document.getElementById('loader');
       if (!loader || loader.classList.contains('done')) return;
       var message = loader.querySelector('.loader-msg');
-      if (message) message.textContent = '启动失败。请将文件解压到电脑，用新版 Chrome 或 Edge 打开，勿在聊天软件内预览。错误：' + (event.message || '组件加载失败');
+      if (message) message.textContent = (location.protocol === 'file:' ? '启动失败。请将文件解压到电脑，用新版 Chrome 或 Edge 打开，勿在聊天软件内预览。' : '这个浏览器打不开活页课本的 3D 画面。请换新版的 Chrome、Edge 或 Safari 再试（用电脑打开最好）。') + '错误：' + (event.message || '组件加载失败');
     });
   </script>
   <script type="module" src="/src/main.js"></script>
