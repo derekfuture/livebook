@@ -6,14 +6,15 @@ from pathlib import Path
 import fitz
 
 ROOT = Path(__file__).resolve().parent.parent
-# 教材 PDF 所在目录：设环境变量 LIVEBOOK_PDF_DIR，里面放 八年级上册.pdf、八年级下册.pdf、九年级全一册.pdf（及 *.目录树.json）
-LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
-PDF = {"wuli-8s": "八年级上册", "wuli-8x": "八年级下册", "wuli-9": "九年级全一册"}
+# 教材 PDF 放在 pdf/<科目>/<版本>/<册>.pdf，路径统一从 tools/pdf_paths.py 取
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pdf_paths import LIB, pdf_path
+PDF = {b: pdf_path(b) for b in ("wuli-8s", "wuli-8x", "wuli-9")}
 CAP = re.compile(r"^图\s*(\d+\.\d+\s*[-–]\s*\d+)\s*(.*)$")
 
 def main(book_id):
     man = json.loads((ROOT / "public/books" / book_id / "book.json").read_text())
-    doc = fitz.open(LIB / f"{PDF[book_id]}.pdf")
+    doc = fitz.open(PDF[book_id])
     secs = [(s["page"], f'{c["title"]} {s["title"]}') for c in man["chapters"] for s in c["sections"] if s["page"]]
     secs.sort()
     out = []

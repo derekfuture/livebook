@@ -56,22 +56,17 @@
 
 ## 运行
 
-仓库里不带教材 PDF（版权归出版社），只带章节目录 `*.目录树.json`。教材 PDF 请自己准备（见上面的版本），放进 `pdf/`，文件名和目录树对应：
+仓库里不带教材 PDF（版权归出版社），只带章节目录 `*.目录树.json`。教材 PDF 请自己准备（见上面的版本），按 `pdf/<科目>/<版本>/<册>.pdf` 放，和仓库里已有的目录树放在同一个文件夹：
 
 ```
-pdf/八年级上册.pdf
-pdf/八年级下册.pdf
-pdf/九年级全一册.pdf
-pdf/化学/九年级上册.pdf
-pdf/化学/九年级下册.pdf
-pdf/地理/七年级上册.pdf
-pdf/地理/八年级上册.pdf
-pdf/地理/八年级下册.pdf
-pdf/地理/必修第一册.pdf
-pdf/地理/必修第二册.pdf
-pdf/地理/选择性必修1.pdf
-pdf/地理/选择性必修2.pdf
+pdf/
+├── 物理/人教版/  八年级上册.pdf  八年级下册.pdf  九年级全一册.pdf
+├── 化学/人教版/  九年级上册.pdf  九年级下册.pdf
+└── 地理/人教版/  七年级上册.pdf  八年级上册.pdf  八年级下册.pdf
+                  必修第一册.pdf  必修第二册.pdf  选择性必修1.pdf  选择性必修2.pdf
 ```
+
+每本书对应哪个文件写在 `tools/pdf_paths.py`；运行 `python3 tools/pdf_paths.py` 可以看哪几本已经放好。
 
 然后：
 
@@ -82,7 +77,7 @@ npm run pages      # 把 pdf/ 里的教材渲染成书页贴图，写到 public/
 npm run dev        # http://127.0.0.1:5188
 ```
 
-想用别的目录里的 PDF，设环境变量 `LIVEBOOK_PDF_DIR` 指向它。
+想用别的目录里的 PDF，设环境变量 `LIVEBOOK_PDF_DIR` 指向它（里面的结构和 `pdf/` 一样）。
 
 部署：`./tools/deploy.sh`（Cloudflare Pages；会去掉书页图片，只留封面）。`./tools/deploy.sh --preview` 不上传，在本地 <http://127.0.0.1:5195> 打开和线上一样的版本。
 离线版：`node tools/build_offline.mjs` → `dist-offline/活页课本.html`（部署时会先做这一步，放到网站上供下载）。Cloudflare 单个文件不能超过 25 MiB，离线版要控制在这个大小以内。

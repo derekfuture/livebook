@@ -2,15 +2,10 @@ node_modules
 dist/
 .DS_Store
 
-# 教材：pdf/ 里只收章节目录；教材 PDF 版权归出版社，不入库（自己准备，见 README）。由 PDF 生成的书页贴图不入库
-pdf/*
-!pdf/*.目录树.json
-!pdf/化学/
-pdf/化学/*
-!pdf/化学/*.目录树.json
-!pdf/地理/
-pdf/地理/*
-!pdf/地理/*.目录树.json
+# 教材：pdf/<科目>/<版本>/ 里只收章节目录（*.目录树.json）；教材 PDF 版权归出版社，不入库（自己准备，见 README）。由 PDF 生成的书页贴图不入库
+pdf/**
+!pdf/**/
+!pdf/**/*.目录树.json
 public/books/*/hi
 public/books/*/lo
 tools/*.private.txt

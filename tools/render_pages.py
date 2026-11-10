@@ -15,8 +15,9 @@ from pathlib import Path
 import fitz  # PyMuPDF
 
 ROOT = Path(__file__).resolve().parent.parent
-# 教材 PDF 所在目录：设环境变量 LIVEBOOK_PDF_DIR，里面放 八年级上册.pdf、八年级下册.pdf、九年级全一册.pdf（及 *.目录树.json）
-LIB = Path(os.environ.get("LIVEBOOK_PDF_DIR", ROOT / "pdf")).expanduser()
+# 教材 PDF 放在 pdf/<科目>/<版本>/<册>.pdf（旁边是同名的 .目录树.json），路径统一从 tools/pdf_paths.py 取
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from pdf_paths import LIB, pdf_path, toc_path
 # 人工核对过的章节起始页（印刷页码），有就以它为准：可选，设环境变量 LIVEBOOK_VERIFIED_TOC 指向 .tsv
 VERIFIED_TOC = Path(os.environ.get("LIVEBOOK_VERIFIED_TOC", ROOT / "pdf" / "章节与选点.tsv")).expanduser()
 
@@ -25,8 +26,8 @@ BOOKS = {
         "code": "8a",
         "title": "物理 八年级上册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "八年级上册.pdf",
-        "toc": LIB / "八年级上册.目录树.json",
+        "pdf": pdf_path("wuli-8s"),
+        "toc": toc_path("wuli-8s"),
         "first_body_index": 5,
         "page_offset": 6,
     },
@@ -34,8 +35,8 @@ BOOKS = {
         "code": "9",
         "title": "物理 九年级全一册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "九年级全一册.pdf",
-        "toc": LIB / "九年级全一册.目录树.json",
+        "pdf": pdf_path("wuli-9"),
+        "toc": toc_path("wuli-9"),
         "first_body_index": 5,
         "page_offset": 6,
     },
@@ -43,8 +44,8 @@ BOOKS = {
         "code": "8b",
         "title": "物理 八年级下册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "八年级下册.pdf",
-        "toc": LIB / "八年级下册.目录树.json",
+        "pdf": pdf_path("wuli-8x"),
+        "toc": toc_path("wuli-8x"),
         "first_body_index": 5,   # 目录页之后的第一页，查找章节标题从这里开始
         "page_offset": 4,        # 印刷页码 = PDF 页序 - 4
     },
@@ -52,8 +53,8 @@ BOOKS = {
         "code": "c9a",
         "title": "化学 九年级上册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "化学" / "九年级上册.pdf",
-        "toc": LIB / "化学" / "九年级上册.目录树.json",
+        "pdf": pdf_path("huaxue-9s"),
+        "toc": toc_path("huaxue-9s"),
         "first_body_index": 5,
         "page_offset": 6,
     },
@@ -61,8 +62,8 @@ BOOKS = {
         "code": "c9b",
         "title": "化学 九年级下册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "化学" / "九年级下册.pdf",
-        "toc": LIB / "化学" / "九年级下册.目录树.json",
+        "pdf": pdf_path("huaxue-9x"),
+        "toc": toc_path("huaxue-9x"),
         "first_body_index": 4,
         "page_offset": 4,
     },
@@ -70,8 +71,8 @@ BOOKS = {
         "code": "g7a",
         "title": "地理 七年级上册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "地理" / "七年级上册.pdf",
-        "toc": LIB / "地理" / "七年级上册.目录树.json",
+        "pdf": pdf_path("dili-7s"),
+        "toc": toc_path("dili-7s"),
         "first_body_index": 5,
         "page_offset": 4,
         # 自动查找找错 / 找不到的（印刷页码，取自课本目录页）
@@ -81,8 +82,8 @@ BOOKS = {
         "code": "g8a",
         "title": "地理 八年级上册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "地理" / "八年级上册.pdf",
-        "toc": LIB / "地理" / "八年级上册.目录树.json",
+        "pdf": pdf_path("dili-8s"),
+        "toc": toc_path("dili-8s"),
         "first_body_index": 5,
         "page_offset": 4,
         # 印刷页码，照课本目录页
@@ -95,8 +96,8 @@ BOOKS = {
         "code": "g8b",
         "title": "地理 八年级下册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "地理" / "八年级下册.pdf",
-        "toc": LIB / "地理" / "八年级下册.目录树.json",
+        "pdf": pdf_path("dili-8x"),
+        "toc": toc_path("dili-8x"),
         "first_body_index": 5,
         "page_offset": 4,
         "toc_printed": {"第六章 中国的地理差异": 1, "【跨学科主题学习】了解二十四节气": 9, "第七章 北方地区": 11, "第七章 北方地区/第一节 自然特征与农业": 12,
@@ -110,8 +111,8 @@ BOOKS = {
         "code": "gb1",
         "title": "地理 必修第一册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "地理" / "必修第一册.pdf",
-        "toc": LIB / "地理" / "必修第一册.目录树.json",
+        "pdf": pdf_path("dili-bx1"),
+        "toc": toc_path("dili-bx1"),
         "first_body_index": 5,
         "page_offset": 4,
     },
@@ -119,8 +120,8 @@ BOOKS = {
         "code": "gb2",
         "title": "地理 必修第二册",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "地理" / "必修第二册.pdf",
-        "toc": LIB / "地理" / "必修第二册.目录树.json",
+        "pdf": pdf_path("dili-bx2"),
+        "toc": toc_path("dili-bx2"),
         "first_body_index": 5,
         "page_offset": 4,
     },
@@ -128,8 +129,8 @@ BOOKS = {
         "code": "gx1",
         "title": "地理 选择性必修1",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "地理" / "选择性必修1.pdf",
-        "toc": LIB / "地理" / "选择性必修1.目录树.json",
+        "pdf": pdf_path("dili-xb1"),
+        "toc": toc_path("dili-xb1"),
         "first_body_index": 5,
         "page_offset": 4,
     },
@@ -137,8 +138,8 @@ BOOKS = {
         "code": "gx2",
         "title": "地理 选择性必修2",
         "publisher": "人民教育出版社",
-        "pdf": LIB / "地理" / "选择性必修2.pdf",
-        "toc": LIB / "地理" / "选择性必修2.目录树.json",
+        "pdf": pdf_path("dili-xb2"),
+        "toc": toc_path("dili-xb2"),
         "first_body_index": 5,
         "page_offset": 4,
     },
