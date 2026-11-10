@@ -307,8 +307,9 @@ export class World {
       // 活页：从旗上长出来 / 整颗地球落下去 / 就在这颗地球上（板块） / 从课本的图里升起来 / 从切出来的那块地形的位置长高（真实地形 → 教学示意的模型）
       const W = { mode: mode === 'inplace' ? 'globe' : mode, inplace: mode === 'inplace', from: pn ? () => (this.block ? this._blockFoot() : this.earth.pinWorld(pn)) : null, figText: pn?.figText, reframe: mode === 'inplace' ? (A) => this._inplaceFrame(A) : null, ...this._lessonPanel(it, pn) };
       if (B) Object.assign(W, { rise: true, fromWidth: B.blk.d * B.s, onGrow: (k) => { if (this.block !== B) return; B.flat = Math.min(1, k / 0.55); B.k = 1 - THREE.MathUtils.smoothstep(k, 0.2, 0.55); if (k >= 0.55) { this._dropBlock(); this.stage.calm = false; } } });          // 模型一边长高，这块地形一边压扁、淡掉
-      this.live.open({ ...it.spot, page, world: W });
-      await this.until(() => this.live.active && !this.live.opening);
+      this.live.open({ ...it.spot, page, world: W }).catch(() => {});          // 拿不到活页的代码时，下面不再干等（main.js 会刷新页面）
+      await this.until(() => (this.live.active && !this.live.opening) || this.live.openError);
+      if (this.live.openError) return;
       const A = this.live.active, inst = A?.inst, saved = this.saved[id];
       if (mode === 'inplace') this._inplaceHandoff(A, saved);
       else if (mode === 'globe') await this._landGlobe(it, inst);

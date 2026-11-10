@@ -14,10 +14,23 @@ import { getBook, bookList, bookHref, shelfHref, currentBookId, getManifest } fr
 import { bootHome } from './home/Home.js';
 import { bookmark, rememberLast } from './home/progress.js';
 import { bootGeoWorld } from './world/GeoWorld.js';
+import { helpButton, firstLesson, firstStamp } from './ui/tips.js';
 
 const $ = (s) => document.querySelector(s);
 
 const params = new URLSearchParams(location.search);
+
+// 网站更新以后，开着的旧页面再去拿旧文件（活页的代码等）会拿不到：服务器上已经换成新的，回来的是网页，点了活页没反应。
+// 自动刷新一次拿新的；正在打开的那张活页记进地址，刷新完直接打开。半分钟内刷过还不行（多半是断网），就不再刷，说一声
+addEventListener('vite:preloadError', (e) => {
+  e.preventDefault();
+  let t = 0; try { t = Number(sessionStorage.getItem('livebook.reload')) || 0; } catch { /* 隐私模式 */ }
+  if (Date.now() - t < 30000) { window.__lbFail?.('load', e.payload?.message); return; }
+  try { sessionStorage.setItem('livebook.reload', String(Date.now())); } catch { /* 隐私模式 */ }
+  const id = window.__lb?.live?.loadingId;
+  if (id) history.replaceState(null, '', `${location.pathname}${location.search}#live=${encodeURIComponent(id)}`);
+  location.reload();
+});
 const BOOK_ID = currentBookId();
 
 /**
@@ -40,6 +53,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   const panel = new Panel($('#panel'));
   const live = new LiveLayer({ stage, book, textures, hotspots, panel, content, onChange: (open) => {
     updateUI();
+    if (open) firstLesson(stage);          // 第一次打开活页：怎么转、放大、复位（纸条贴在右下角的视角按钮旁）
     const a = live.active;
     if (open && a && content.lessons[a.spot.lesson]) { const L = content.lessons[a.spot.lesson]; rememberLast({ book: content.id, page: a.spot.page, lesson: a.spot.lesson, title: L.title, where: `${content.full} · ${L.fig} · ${L.sec}` }); bookmark.set(content.id, a.spot.page); }
   } });
@@ -110,6 +124,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     $('#stamp-count').textContent = `${ids.filter((id) => stamps.has(id)).length}/${ids.length}`;
   };
   addEventListener('stamp', updateUI);
+  addEventListener('stamp', firstStamp);          // 第一次做完一张活页：在“反馈”旁提一句
   book.on((type) => {
     if (type === 'turned' || type === 'turncancel') { updateUI(); if (!world || world.state === 'book' || world.state === 'off') bookShot(false, book.current > 0 && book.current < book.leafCount); }          // 地球主探索时镜头由 World 安排
     if (type === 'turned' && book.current > 0) {
@@ -350,9 +365,10 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
 
   // 右下角的视角按钮
   const viewctl = h('div', { id: 'viewctl' },
-    h('button', { title: '放大（滚轮 / 双指捏合）', onclick: () => { stage.zoomBy(0.8); updateViewCtl(); } }, '＋'),
-    h('button', { title: '缩小', onclick: () => { stage.zoomBy(1.25); updateViewCtl(); } }, '－'),
-    h('button', { class: 'reset', title: '复位视角（双击空白处）', onclick: () => { stage.resetView(); updateViewCtl(); } }, '⟲'));
+    h('button', { class: 'zoom-in', title: '放大（滚轮 / 双指捏合）', onclick: () => { stage.zoomBy(0.8); updateViewCtl(); } }, '＋'),
+    h('button', { class: 'zoom-out', title: '缩小', onclick: () => { stage.zoomBy(1.25); updateViewCtl(); } }, '－'),
+    h('button', { class: 'reset', title: '复位视角（双击空白处）', onclick: () => { stage.resetView(); updateViewCtl(); } }, '⟲'),
+    helpButton());          // “?”：怎么用（一张操作说明卡）
   document.body.append(viewctl);
   function updateViewCtl() { setTimeout(() => viewctl.classList.toggle('changed', stage.viewChanged), 30); }
   stage.updaters.add(() => { if (stage._interacting) updateViewCtl(); });
@@ -408,5 +424,6 @@ const start = params.get('subject') === 'dili' ? bootGeoWorld(new Stage($('#c'))
 })();
 start.catch((err) => {
   console.error(err);
-  $('.loader-msg').textContent = '加载失败：' + err.message;
+  if (window.__lbFail) window.__lbFail(null, err?.message || String(err));          // 打不开时的说明卡（index.html）
+  else $('.loader-msg').textContent = '加载失败：' + err.message;
 });

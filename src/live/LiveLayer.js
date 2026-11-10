@@ -55,7 +55,13 @@ export class LiveLayer {
     this.opening = true;
     const { book, stage, textures } = this;
     const side = book.sideOf(spot.page);
-    const def = spot.def || (await this.content.lessons[spot.lesson].load()).default;          // spot.def：已经加载好的活页（地球目录这种不在课本某张图上的）
+    // spot.def：已经加载好的活页（地球目录这种不在课本某张图上的）。活页的代码拿不到（网站更新后开着的旧页面、断网）：
+    // 不能一直卡在“正在打开”，不然哪张都打不开了；main.js 的 vite:preloadError 会自动刷新一次
+    this.loadingId = spot.lesson; this.openError = null;
+    let def;
+    try { def = spot.def || (await this.content.lessons[spot.lesson].load()).default; }
+    catch (err) { this.opening = false; this.openError = err; throw err; }
+    finally { this.loadingId = null; }
 
     const [x0, y0, x1, y1] = spot.bbox;
     const a = book.pageToWorld(spot.page, x0, y0, 0.002), b = book.pageToWorld(spot.page, x1, y1, 0.002);
