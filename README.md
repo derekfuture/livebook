@@ -123,5 +123,5 @@ tools/smoke.mjs、qa.mjs   冒烟测试（每张活页能不能打开）、质�
 
 ## 版权
 
-- 代码以 MIT 许可证开源，见 [LICENSE](LICENSE)。
+- 采用 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hans)，见 [LICENSE](LICENSE)：个人学习、学校教学可以免费使用、修改、转发，需署名并用同样协议；不可商用，商用请联系作者。
 - 仓库和网站都不带教材 PDF 和课本书页（网站上只有封面）。看原书页请自行导入这一版教材的 PDF，文件只在这台电脑的浏览器里使用，不上传，仅供个人学习使用。
