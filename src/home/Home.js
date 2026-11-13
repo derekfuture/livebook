@@ -180,7 +180,9 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
       next ? h('a', { class: 'note-card next', href: next.href }, h('small', {}, last ? '接着学' : '从这里开始'), h('b', {}, next.title), h('span', {}, next.where)) : null),
     h('footer', { class: 'home-foot' }, backBtn),          // 摊开一科时的“‹ 全部科目”
     homeLine(          // 左下角一行浅色小字：作者小签（指着出二维码）· 反馈与建议 · GitHub · 下载离线版（作者 2026-11-10：首页各种按钮太乱，收成一行）
-      authorCard(), feedbackButton(), githubButton(),
+      authorCard(),
+      h('a', { class: 'home-link', href: 'https://derekfuture.club/', target: '_blank', rel: 'noopener', title: '德里克未来：作者主页和联系方式（新窗口）' }, '联系我'),          // 作者 2026-11-13：主站 derekfuture.club 也是联系方式；交流群、微信都放在那边，公众号里不放（导流规范）
+      feedbackButton(), githubButton(),
       !OFFLINE && (FEATURES.offline || import.meta.env.DEV) ? offlineButton({ link: true }) : null,          // 开关在 src/features.js；离线版里不用再下载
       OFFLINE ? h('a', { class: 'home-link', href: 'https://livebook.derekfuture.club/', target: '_blank', rel: 'noopener' }, '联网后可回网站下载新版') : null));
   document.body.append(ui);
