@@ -89,14 +89,28 @@ export default {
     const plugClear = (piv) => piv.plug.parent === group && Math.hypot(piv.plug.position.x - piv.position.x, piv.plug.position.z - piv.position.z) > 0.012;
     const drops = new Particles({ max: 60, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: 0xe4eef2, base: 0.5 }) }); group.add(drops.mesh);
     const cards = XS.map(() => { const c = tag('', 'cond'); c.px = [0, -64]; return c; });
+    // 倒错了溶剂：照样倒进去（做错有真实的后果），那支试管上出现“倒掉，重加”——像实验室里一样倒掉、换一粒新的再加（反馈 2026-11-14：操作错了没法后退）
+    const dumps = XS.map((_, k) => tag('倒掉，重加', 'pill', () => A.dump(k)));
+    const isWrong = (k) => !!S.t[k].solv && S.t[k].solv !== SOLV[k];
+    const twinOf = (k) => SOLUTE.findIndex((s, j) => j !== k && s === SOLUTE[k]);          // 同一种溶质的另一支：本来要和它比
+    const wrongPour = (k, nm) => status(`第 ${k + 1} 支该加<b>${SOLV[k]}</b>：${NAME[SOLUTE[k]]}加${nm}是第 ${twinOf(k) + 1} 支做的，这样比不出${NAME[SOLUTE[k]]}在${SOLV[k]}里怎样。点试管上的“倒掉，重加”。`);
+    const rowOf = (k) => { const T = S.t[k], ok = SOLU[SOLUTE[k] + T.solv] >= 1; return [NAME[SOLUTE[k]], T.solv, ok ? `溶解，溶液呈<b>${SOLUTE[k] === 'I' ? '紫红色' : '紫色'}</b>` : `<b>几乎不溶</b>，${T.solv}几乎无色，固体还在`]; };
 
-    const fresh = () => ({ demo: false, t: XS.map(() => ({ v: 0, solv: null, dis: 0, shake: 0, logged: false, seen: 0 })), carry: null, carryN: null, tilt: 0 });
+    const fresh = () => ({ demo: false, t: XS.map(() => ({ v: 0, solv: null, dis: 0, shake: 0, logged: false, seen: 0, drain: 0 })), logs: [], carry: null, carryN: null, tilt: 0 });
     S = fresh();
 
     const A = {
       bDrag(nm, p) { if (!p) return; S.carry = p.clone(); S.carryN = nm; },
       bDrop() { S.carry = null; },
-      shakeTap(k) { const T = S.t[k]; if (T.v < 2) return status('先往这支试管里加 5 mL 溶剂。'); T.shake = 1; sfx.clink({ freq: 1700, gain: 0.02 }); },
+      shakeTap(k) { const T = S.t[k]; if (T.drain) return; if (T.v < 2) return status('先往这支试管里加 5 mL 溶剂。'); T.shake = 1; sfx.clink({ freq: 1700, gain: 0.02 }); },
+      dump(k) { const T = S.t[k]; if (!T.solv || T.drain) return; T.drain = 1e-4; },
+      // 倒空以后：这支回到刚开始的样子（新的一粒溶质），记录里删掉它那一行
+      emptied(k) {
+        const T = S.t[k], was = T.logged;
+        Object.assign(T, { v: 0, solv: null, dis: 0, shake: 0, seen: 0, logged: false, drain: 0 });
+        if (was && !S.demo) { S.logs = S.logs.filter((j) => j !== k); W?.tbl.clear(); for (const j of S.logs) W?.tbl.add(rowOf(j), { highlight: false }); bar.undo('shake', 'why'); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; } }
+        status(`倒掉了，换了一粒新的${NAME[SOLUTE[k]]}。往第 ${k + 1} 支加 5 mL <b>${SOLV[k]}</b>。`);
+      },
       reset() { S = fresh(); drops.clear(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; } bar.undo('add', 'shake', 'why'); status('全部重新摆好了，记录也清空了。'); },
     };
     const drag = draggable(group, ['水', '汽油'].map((nm) => ({ obj: bottles[nm].pick, plane: 'xy', offset: 0, hint: `${nm}：拖到试管口，倒 5 mL（第一、三支加水，第二、四支加汽油）`, onStart: (p) => A.bDrag(nm, p), onDrag: (p) => A.bDrag(nm, p), onEnd: () => A.bDrop() })),
@@ -137,15 +151,11 @@ export default {
         else if (held) {
           const mouth = S.carry.clone().add(new THREE.Vector3(0, BH - 0.03, 0));
           const k = XS.findIndex((x) => Math.abs(mouth.x - x) < 0.02 && Math.abs(mouth.y - (T_Y + T_LEN)) < 0.03);
-          // 这支试管该加另一种溶剂：瓶子停在上面不倒，说一声（以前能倒错，倒错了就再也凑不齐四支，又没法撤回——反馈 2026-11-14）
-          const wrong = k >= 0 && SOLV[k] !== nm;
-          if (wrong && S.warnK !== k) status(`第 ${k + 1} 支要加<b>${SOLV[k]}</b>。${nm}倒进第 ${SOLV.flatMap((s, j) => (s === nm ? [j + 1] : [])).join('、')} 支。`);
-          S.warnK = wrong ? k : null;
-          const ok = k >= 0 && !wrong && S.t[k].v < 5 && (!S.t[k].solv || S.t[k].solv === nm);
+          const ok = k >= 0 && !S.t[k].drain && S.t[k].v < 5 && (!S.t[k].solv || S.t[k].solv === nm);
           piv.position.lerp(ok ? MOUTH(k).add(S.tilt > 1.3 ? new THREE.Vector3(0.005, 0.004, 0) : new THREE.Vector3(0.014, 0.035, 0)) : k >= 0 ? MOUTH(k).add(new THREE.Vector3(0.014, 0.07, 0)) : mouth, 0.3);
           S.tilt += ((ok ? 1.85 : 0) - S.tilt) * Math.min(1, h * 4); piv.rotation.z = S.tilt;
           // 瓶口真到了这支试管口才倒（拿着从别的试管上方经过时不倒）
-          if (ok && S.tilt > 1.5 && piv.position.distanceTo(MOUTH(k).add(new THREE.Vector3(0.005, 0.004, 0))) < 0.005) { const T = S.t[k]; T.solv = nm; T.v = Math.min(5, T.v + 4 * h); if (Math.random() < h * 25) drops.spawn({ p: MOUTH(k).add(new THREE.Vector3(0.003, 0, 0)), v: new THREE.Vector3(0, -0.05, 0), size: 0.0011, life: 0.8 }); if (S.t.every((x, j) => x.v >= 4.9 && x.solv === SOLV[j])) done('add'); }
+          if (ok && S.tilt > 1.5 && piv.position.distanceTo(MOUTH(k).add(new THREE.Vector3(0.005, 0.004, 0))) < 0.005) { const T = S.t[k]; if (!T.solv && SOLV[k] !== nm) wrongPour(k, nm); T.solv = nm; T.v = Math.min(5, T.v + 4 * h); if (Math.random() < h * 25) drops.spawn({ p: MOUTH(k).add(new THREE.Vector3(0.003, 0, 0)), v: new THREE.Vector3(0, -0.05, 0), size: 0.0011, life: 0.8 }); if (S.t.every((x, j) => x.v >= 4.9 && x.solv === SOLV[j])) done('add'); }
         } else { piv.position.lerp(piv.HOME, 0.25); if (S.carryN !== nm || !S.carry) { piv.rotation.z *= 0.8; } }
       }
       if (!S.carry) S.tilt *= 0.8;
@@ -160,15 +170,35 @@ export default {
         tb.liq.material.opacity = 0.5 + 0.45 * (sol >= 1 ? T.dis : 0); tb.liq.material.transparent = true;
         tb.grain.scale.setScalar(Math.max(0.05, 1 - (sol >= 1 ? T.dis : 0)));
         tb.grain.visible = !(sol >= 1 && T.dis > 0.95);
-        if (T.v >= 4.9 && T.shake > 0.05) T.seen += h;
+        tb.position.y = T_Y; tb.rotation.x = 0;
+        if (T.drain) {
+          // 倒掉：从架子上提起来，往后倒过来倒空，放回原处，再放一粒新的（1.4 秒）
+          T.drain = Math.min(1, T.drain + h / 1.4);
+          const u = T.drain, sm = THREE.MathUtils.smoothstep;
+          const lift = sm(u, 0, 0.22) * (1 - sm(u, 0.8, 1)), tip = sm(u, 0.2, 0.42) * (1 - sm(u, 0.6, 0.8));
+          tb.position.y = T_Y + lift * 0.095; tb.rotation.x = -tip * 2.3; tb.rotation.z = 0;
+          if (tip > 0.75 && T.v > 0) {
+            T.v = Math.max(0, T.v - h * 16);
+            const a = tip * 2.3, mouth = new THREE.Vector3(XS[k], tb.position.y + T_LEN * Math.cos(a), -T_LEN * Math.sin(a));
+            if (Math.random() < h * 50) drops.spawn({ p: mouth, v: new THREE.Vector3(0, -0.04, -0.02), size: 0.0012, life: 0.6 });
+          }
+          tb.grain.visible = u < 0.4 || u > 0.85; if (u > 0.85) tb.grain.scale.setScalar(Math.max(0.05, sm(u, 0.85, 1)));
+          if (u >= 1) A.emptied(k);
+        }
+        if (T.v >= 4.9 && T.shake > 0) T.seen += h;          // 振荡的整段都算（以前到 0.05 就停，一次振荡只攒到 1.46 秒左右，帧率低时差一点到不了 1.5 秒，记不下来）
         if (T.seen > 1.5 && !T.logged) {
           T.logged = true;
           const ok = sol >= 1;
-          log([NAME[SOLUTE[k]], T.solv, ok ? `溶解，溶液呈<b>${SOLUTE[k] === 'I' ? '紫红色' : '紫色'}</b>` : `<b>几乎不溶</b>，${T.solv}几乎无色，固体还在`]);
+          if (!S.demo) S.logs.push(k);
+          log(rowOf(k));
           status(`${NAME[SOLUTE[k]]} + ${T.solv}：${ok ? '溶解了' : '几乎不溶'}。`);
-          if (S.t.every((x) => x.logged)) { done('shake'); W?.t1.open(); }
+          // 四支都记下了：溶质、溶剂两两配齐，才能比——有一支加错了，就还比不出来
+          if (S.t.every((x, j) => x.logged && x.solv === SOLV[j])) { done('shake'); W?.t1.open(); }
+          else if (S.t.every((x) => x.logged)) { const j = S.t.findIndex((_, i) => isWrong(i)); status(`第 ${j + 1} 支加的是${S.t[j].solv}：${NAME[SOLUTE[j]]}在${SOLV[j]}里怎样还没做，比不出来。点它上面的“倒掉，重加”。`); }
         }
-        cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${NAME[SOLUTE[k]]} + ${T.solv || '？'}</span>${T.logged ? `<span class="cc-res">${sol >= 1 ? '溶解' : '几乎不溶'}</span>` : ''}</div></div>`).loc(group, XS[k], T_Y + T_LEN, 0).show(T.v > 0.5);
+        const warn = isWrong(k) ? `<span class="cc-res" style="color:#b0391f">该加${SOLV[k]}</span>` : '';
+        cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${NAME[SOLUTE[k]]} + ${T.solv || '？'}</span>${T.logged ? `<span class="cc-res">${sol >= 1 ? '溶解' : '几乎不溶'}</span>` : ''}${warn}</div></div>`).loc(group, XS[k], T_Y + T_LEN, 0).show(T.v > 0.5);
+        dumps[k].loc(group, XS[k], T_Y + T_LEN * 0.45, 0.014).show(!S.demo && isWrong(k) && !T.drain);
       });
     };
 
