@@ -1231,6 +1231,14 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
 @media (max-width: 760px) {
   body.lesson-on #viewctl { bottom: calc(52vh + 18px); }
 }
+/* 手机看书时最下面一行：翻页条离屏幕下沿远一点——有的 App 里的浏览器（百度 App）底栏会盖住页面最下面一截，翻页条被压住（反馈 2026-11-12）；
+   右下角的按钮放到翻页条上面，不和它挤在同一高度；“需要原书页，可自行导入…”这行字在手机上用不上（手机上不能导入），藏起来，免得压在页码上 */
+@media (max-width: 760px) {
+  #hud-pager { bottom: max(30px, calc(env(safe-area-inset-bottom) + 12px)); }
+  #viewctl { bottom: max(88px, calc(env(safe-area-inset-bottom) + 70px)); }
+  #hint { bottom: 88px; width: calc(100vw - 132px); white-space: normal; word-break: keep-all; text-align: center; line-height: 1.5; }          /* 第一次的提示：在翻页条上面，左右让开右下角那列按钮（窄屏上折成两行） */
+  #copy { display: none; }
+}
 @media (max-width: 760px) and (pointer: coarse) {
   #viewctl .zoom-in, #viewctl .zoom-out { display: none; }
 }
