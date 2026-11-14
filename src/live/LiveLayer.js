@@ -1,4 +1,5 @@
 import { lessonCommunity } from '../ui/community.js';
+import { rememberRuntimeError } from '../ui/runtimeErrors.js';
 import * as THREE from 'three';
 import * as ink from './ink.js';
 import { tag, tagFocus } from '../ui/tags.js';
@@ -345,6 +346,9 @@ export class LiveLayer {
     document.body.classList.remove('lesson-on');
   }
 
+  /** 活页正在收回书里（约一秒）时，要马上翻页：不等动画，直接收完 */
+  finishClosing() { if (this.active?.closing) this._finishClose(); }
+
   /** 整颗地球落下去以后：活页里的那颗地球（连同活页的其他东西）现出来 */
   release() {
     const A = this.active; if (!A) return;
@@ -358,21 +362,21 @@ export class LiveLayer {
 
   _finishClose() {
     const A = this.active;
-    if (A.board) {
+    // 每一步单独接住：哪一步出错（例如某张活页自己的 dispose），后面照样收拾干净，最后一定回到“没开着活页”——不然书就再也翻不动了
+    const safe = (fn) => { try { fn(); } catch (err) { rememberRuntimeError(err, `close ${A.spot?.lesson || ''}`); } };
+    if (A.board) safe(() => {
       this.stage.cssScene.remove(A.board.obj);
       A.board.el.remove();
       for (const m of [A.board.backing, A.board.foot]) { this.stage.scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
       this.panel.setHost(null);
-    }
-    A.inst.dispose?.();
-    for (const b of A.toggles || []) b.remove();
-    applyShow(false);
-    document.getElementById('c').style.cursor = ''; document.getElementById('c').dataset.tip = ''; this._hoverTip(null);
-    for (const t of A.tags) t.remove();
-    ink.disposeTree(A.root);
-    this.stage.scene.remove(A.root, A.card, A.hole);
-    A.card.geometry.dispose(); A.card.material.dispose(); A.crop.dispose();
-    A.hole.geometry.dispose(); A.hole.material.map.dispose(); A.hole.material.dispose();
+    });
+    safe(() => A.inst.dispose?.());
+    safe(() => { for (const b of A.toggles || []) b.remove(); applyShow(false); });
+    safe(() => { document.getElementById('c').style.cursor = ''; document.getElementById('c').dataset.tip = ''; this._hoverTip(null); });
+    safe(() => { for (const t of A.tags) t.remove(); });
+    safe(() => this.stage.scene.remove(A.root, A.card, A.hole));
+    safe(() => ink.disposeTree(A.root));
+    safe(() => { A.card.geometry.dispose(); A.card.material.dispose(); A.crop.dispose(); A.hole.geometry.dispose(); A.hole.material.map.dispose(); A.hole.material.dispose(); });
     this.active = null;
     this.hotspots.enabled = true;
     this.onChange?.(false);

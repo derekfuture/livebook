@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
-import { paint, hull, inked, glassEdge } from '../../live/ink.js';
+import { paint, hull, inked, glassEdge, polyline } from '../../live/ink.js';
 import { canvasTex, glowTexture } from './props.js';
 
 const V2 = (x, y) => ({ x, y });
@@ -195,14 +195,29 @@ export function lensMesh({ r = 0.04, convex = true, thick = 0.012, color = 0xbfe
     pts.push(new THREE.Vector2(half, y));
   }
   // Lathe 绕 y 轴旋转，得到“一半”的轮廓：这里直接做成绕 x 轴的旋转体
-  const shape = [];
+  // 轮廓从边缘侧面的正中出发，绕一圈再回到这里，边缘的侧面是封上的。以前侧面空着：凹透镜边缘厚，看上去成了两片弯弯的薄壳、上下两头还翘出尖角（反馈 2026-11-14“凹透镜模型错误”）
+  const shape = [new THREE.Vector2(r, 0)];
   for (let i = N; i >= 0; i--) shape.push(new THREE.Vector2(pts[i].y, -pts[i].x));
   for (let i = 0; i <= N; i++) shape.push(new THREE.Vector2(pts[i].y, pts[i].x));
+  shape.push(new THREE.Vector2(r, 0));
   const geo = new THREE.LatheGeometry(shape, 40);
   geo.rotateZ(Math.PI / 2);
   const m = new THREE.Mesh(geo, paint(color, { unique: true, transparent: true, opacity: 0.5, depthWrite: false }));
   m.renderOrder = 9;
   glassEdge(m, 0.0012);
+  if (!convex) {
+    // 凹透镜从侧面看，外轮廓是边缘那一圈（一个长条），“中间薄、边缘厚”看不出来：照课本的画法，把穿过光轴的那个截面的轮廓描出来，透过玻璃看得见
+    const P = (h, y) => new THREE.Vector3(-h, y, 0);          // 截面在 z = 0 的平面上（和上面 rotateZ 之后的坐标一致）
+    const loop = [];
+    for (let i = N; i >= 0; i--) loop.push(P(pts[i].x, pts[i].y));
+    for (let i = 1; i <= N; i++) loop.push(P(pts[i].x, -pts[i].y));
+    for (let i = N; i >= 0; i--) loop.push(P(-pts[i].x, -pts[i].y));
+    for (let i = 1; i <= N; i++) loop.push(P(-pts[i].x, pts[i].y));
+    loop.push(loop[0].clone());
+    const line = polyline(loop, { width: 1.3, color: 0x4f7287, opacity: 0.8 });
+    line.renderOrder = 10;
+    m.add(line);
+  }
   return m;
 }
 

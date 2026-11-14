@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import { InkPost } from './InkPost.js';
 import { STYLE } from '../live/ink.js';
+import { rememberRuntimeError } from '../ui/runtimeErrors.js';
 
 // 渲染器、灯光、书桌和相机。相机不直接设位置，而是追一个“机位”（目标点 + 方向 + 距离），
 // 换机位时平滑过去，鼠标移动时再加一点视差，让书像真的摆在桌上。
@@ -216,6 +217,7 @@ export class Stage {
     this._started = true;
     const tmp = new THREE.Vector3();
     const loop = () => {
+      requestAnimationFrame(loop);          // 先约好下一帧：这一帧哪里出错，画面也不会从此停住（以前放在最后，一次报错整页就卡死：活页收不回去、翻页按钮没反应）
       this.timer.update();
       const dt = Math.min(this.timer.getDelta(), 1 / 20);
       const r = this.rig, k = 1 - Math.exp(-dt * 4.2);
@@ -244,10 +246,11 @@ export class Stage {
       if (Math.abs(off.x) > 0.5 || Math.abs(off.y) > 0.5) this.camera.setViewOffset(innerWidth, innerHeight, -off.x, off.y, innerWidth, innerHeight);
       else if (this.camera.view?.enabled) this.camera.clearViewOffset();
 
-      for (const fn of this.updaters) fn(dt, this.timer.getElapsed());
-      if (this.post) this.post.render(dt); else this.renderer.render(this.scene, this.camera);
-      if (this.cssScene.children.length) this.css.render(this.cssScene, this.camera);
-      requestAnimationFrame(loop);
+      for (const fn of this.updaters) { try { fn(dt, this.timer.getElapsed()); } catch (err) { rememberRuntimeError(err, 'frame'); } }          // 一个更新出错，别的照常（活页照样收回、书照样翻）
+      try {
+        if (this.post) this.post.render(dt); else this.renderer.render(this.scene, this.camera);
+        if (this.cssScene.children.length) this.css.render(this.cssScene, this.camera);
+      } catch (err) { rememberRuntimeError(err, 'render'); }
     };
     requestAnimationFrame(loop);
   }

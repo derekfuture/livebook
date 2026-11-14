@@ -139,8 +139,10 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   });
   updateUI();
 
-  $('#btn-prev').onclick = () => !live.isOpen && !world?.busy && book.prev();
-  $('#btn-next').onclick = () => !live.isOpen && !world?.busy && book.next();
+  // 翻页按钮：活页刚点了“放回书里”、还在收的那一秒里点，也要翻得动（先把它收完）
+  const turnPage = (dir) => { if (world?.busy) return; live.finishClosing(); if (live.isOpen) return; if (dir < 0) book.prev(); else book.next(); };
+  $('#btn-prev').onclick = () => turnPage(-1);
+  $('#btn-next').onclick = () => turnPage(1);
 
   // 翻到含有某页的跨页
   let pendingLesson = null;

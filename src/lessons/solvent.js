@@ -137,7 +137,11 @@ export default {
         else if (held) {
           const mouth = S.carry.clone().add(new THREE.Vector3(0, BH - 0.03, 0));
           const k = XS.findIndex((x) => Math.abs(mouth.x - x) < 0.02 && Math.abs(mouth.y - (T_Y + T_LEN)) < 0.03);
-          const ok = k >= 0 && S.t[k].v < 5 && (!S.t[k].solv || S.t[k].solv === nm);
+          // 这支试管该加另一种溶剂：瓶子停在上面不倒，说一声（以前能倒错，倒错了就再也凑不齐四支，又没法撤回——反馈 2026-11-14）
+          const wrong = k >= 0 && SOLV[k] !== nm;
+          if (wrong && S.warnK !== k) status(`第 ${k + 1} 支要加<b>${SOLV[k]}</b>。${nm}倒进第 ${SOLV.flatMap((s, j) => (s === nm ? [j + 1] : [])).join('、')} 支。`);
+          S.warnK = wrong ? k : null;
+          const ok = k >= 0 && !wrong && S.t[k].v < 5 && (!S.t[k].solv || S.t[k].solv === nm);
           piv.position.lerp(ok ? MOUTH(k).add(S.tilt > 1.3 ? new THREE.Vector3(0.005, 0.004, 0) : new THREE.Vector3(0.014, 0.035, 0)) : k >= 0 ? MOUTH(k).add(new THREE.Vector3(0.014, 0.07, 0)) : mouth, 0.3);
           S.tilt += ((ok ? 1.85 : 0) - S.tilt) * Math.min(1, h * 4); piv.rotation.z = S.tilt;
           // 瓶口真到了这支试管口才倒（拿着从别的试管上方经过时不倒）
