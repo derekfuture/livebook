@@ -20,7 +20,7 @@ OVERRIDE = ROOT / "tools" / "bbox-overrides.json"   # 自动框不准时手工�
 def plan_rows():
     book, rows = None, []
     for line in (ROOT / "PLAN.md").read_text(encoding="utf-8").splitlines():
-        m = re.search(r"\b((?:wuli|huaxue|dili)-\w+)（", line)
+        m = re.search(r"\b((?:wuli|huaxue|dili|shuxue)-\w+)（", line)
         if line.startswith("## ") and m:
             book = m.group(1)
         cells = [c.strip() for c in line.strip().strip("|").split("|")]

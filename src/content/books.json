@@ -2735,5 +2735,99 @@
     "label": "图4.5 · 翻开活页"
    }
   ]
+ },
+ "shuxue-7s": {
+  "id": "shuxue-7s",
+  "title": "数学 七年级上册",
+  "base": "/books/shuxue-7s/",
+  "draft": true,
+  "lessons": {
+   "seesaw": {
+    "title": "有理数的乘法",
+    "fig": "思考",
+    "sec": "有理数的乘法"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "seesaw",
+    "page": 44,
+    "bbox": [
+     44,
+     308,
+     456,
+     434
+    ],
+    "label": "思考 · 翻开活页"
+   }
+  ]
+ },
+ "shuxue-8s": {
+  "id": "shuxue-8s",
+  "title": "数学 八年级上册",
+  "base": "/books/shuxue-8s/",
+  "draft": true,
+  "lessons": {
+   "anglesum": {
+    "title": "三角形的内角",
+    "fig": "图13.3-1",
+    "sec": "三角形的内角"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "anglesum",
+    "page": 17,
+    "bbox": [
+     112,
+     440,
+     438,
+     556
+    ],
+    "label": "图13.3-1 · 翻开活页"
+   }
+  ]
+ },
+ "shuxue-8x": {
+  "id": "shuxue-8x",
+  "title": "数学 八年级下册",
+  "base": "/books/shuxue-8x/",
+  "draft": true,
+  "lessons": {
+   "xiantu": {
+    "title": "勾股定理",
+    "fig": "图20.1-5",
+    "sec": "勾股定理及其应用"
+   },
+   "walkgraph": {
+    "title": "函数的图象",
+    "fig": "图22.2-6",
+    "sec": "函数的表示"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "xiantu",
+    "page": 30,
+    "bbox": [
+     62,
+     522,
+     420,
+     656
+    ],
+    "label": "图20.1-5 · 翻开活页"
+   },
+   {
+    "lesson": "walkgraph",
+    "page": 109,
+    "bbox": [
+     176,
+     552,
+     366,
+     676
+    ],
+    "label": "图22.2-6 · 翻开活页"
+   }
+  ]
  }
 }

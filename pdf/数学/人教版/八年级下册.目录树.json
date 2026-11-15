@@ -1,0 +1,488 @@
+[
+  {
+    "id": "fa9afdc6-3a97-40ec-9f27-c157b6006235",
+    "title": "第十九章　二次根式",
+    "rich_title": "第十九章　二次根式",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "fa9afdc6-3a97-40ec-9f27-c157b6006235",
+    "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+    "create_time": "2026-02-25T15:17:16.118+0800",
+    "update_time": "2026-02-25T15:17:16.118+0800",
+    "child_nodes": [
+      {
+        "id": "a5b7776c-9421-4530-9cfe-270970a5060f",
+        "title": "19.1　二次根式及其性质",
+        "rich_title": "19.1　二次根式及其性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "fa9afdc6-3a97-40ec-9f27-c157b6006235/a5b7776c-9421-4530-9cfe-270970a5060f",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.137+0800",
+        "update_time": "2026-02-25T15:17:16.137+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "df942401-5228-4b9c-b254-70934b66914c",
+        "title": "19.2　二次根式的乘法与除法",
+        "rich_title": "19.2　二次根式的乘法与除法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "fa9afdc6-3a97-40ec-9f27-c157b6006235/df942401-5228-4b9c-b254-70934b66914c",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.157+0800",
+        "update_time": "2026-02-25T15:17:16.157+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ee10ff4e-654f-459e-9352-66f80a6ea4e3",
+        "title": "19.3　二次根式的加法与减法",
+        "rich_title": "19.3　二次根式的加法与减法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "fa9afdc6-3a97-40ec-9f27-c157b6006235/ee10ff4e-654f-459e-9352-66f80a6ea4e3",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.176+0800",
+        "update_time": "2026-02-25T15:17:16.176+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "afbf3157-87bc-4858-b314-b8e93c3ee219",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "fa9afdc6-3a97-40ec-9f27-c157b6006235/afbf3157-87bc-4858-b314-b8e93c3ee219",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.196+0800",
+        "update_time": "2026-02-25T15:17:16.196+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "07f3e646-0dc5-4588-a7d3-66b0325359f8",
+    "title": "第二十章　勾股定理",
+    "rich_title": "第二十章　勾股定理",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "07f3e646-0dc5-4588-a7d3-66b0325359f8",
+    "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+    "create_time": "2026-02-25T15:17:16.215+0800",
+    "update_time": "2026-02-25T15:17:16.215+0800",
+    "child_nodes": [
+      {
+        "id": "44b4fb84-88c2-4959-af1b-b8093508d7e2",
+        "title": "20.1　勾股定理及其应用",
+        "rich_title": "20.1　勾股定理及其应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "07f3e646-0dc5-4588-a7d3-66b0325359f8/44b4fb84-88c2-4959-af1b-b8093508d7e2",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.233+0800",
+        "update_time": "2026-02-25T15:17:16.233+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3db432b8-b0b1-4baf-8226-9b579f5fcb91",
+        "title": "20.2　勾股定理的逆定理及其应用",
+        "rich_title": "20.2　勾股定理的逆定理及其应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "07f3e646-0dc5-4588-a7d3-66b0325359f8/3db432b8-b0b1-4baf-8226-9b579f5fcb91",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.254+0800",
+        "update_time": "2026-02-25T15:17:16.254+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "60c2efd6-45c3-48b4-be90-a42f7b505eb4",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "07f3e646-0dc5-4588-a7d3-66b0325359f8/60c2efd6-45c3-48b4-be90-a42f7b505eb4",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.273+0800",
+        "update_time": "2026-02-25T15:17:16.273+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "be891035-27ae-44a3-8fb9-6d63e116f458",
+    "title": "第二十一章　四边形",
+    "rich_title": "第二十一章　四边形",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "be891035-27ae-44a3-8fb9-6d63e116f458",
+    "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+    "create_time": "2026-02-25T15:17:16.293+0800",
+    "update_time": "2026-02-25T15:17:16.293+0800",
+    "child_nodes": [
+      {
+        "id": "b1843ac8-f201-4059-a2a6-1b2171a38267",
+        "title": "21.1　四边形及多边形",
+        "rich_title": "21.1　四边形及多边形",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "be891035-27ae-44a3-8fb9-6d63e116f458/b1843ac8-f201-4059-a2a6-1b2171a38267",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.310+0800",
+        "update_time": "2026-02-25T15:17:16.310+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "089a54d0-7d1a-4ec1-aaf3-6ee0593895e8",
+        "title": "21.2　平行四边形",
+        "rich_title": "21.2　平行四边形",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "be891035-27ae-44a3-8fb9-6d63e116f458/089a54d0-7d1a-4ec1-aaf3-6ee0593895e8",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.331+0800",
+        "update_time": "2026-02-25T15:17:16.331+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "04514e16-8938-4bc8-a388-b12eb0af80be",
+        "title": "21.3　特殊的平行四边形",
+        "rich_title": "21.3　特殊的平行四边形",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "be891035-27ae-44a3-8fb9-6d63e116f458/04514e16-8938-4bc8-a388-b12eb0af80be",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.350+0800",
+        "update_time": "2026-02-25T15:17:16.350+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d8743e89-7fd2-4c47-9c22-f26488c8d4a3",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "be891035-27ae-44a3-8fb9-6d63e116f458/d8743e89-7fd2-4c47-9c22-f26488c8d4a3",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.370+0800",
+        "update_time": "2026-02-25T15:17:16.370+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "b85c984f-232c-49a9-b053-41e000b1f2c3",
+    "title": "第二十二章　函数",
+    "rich_title": "第二十二章　函数",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "b85c984f-232c-49a9-b053-41e000b1f2c3",
+    "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+    "create_time": "2026-02-25T15:17:16.390+0800",
+    "update_time": "2026-02-25T15:17:16.390+0800",
+    "child_nodes": [
+      {
+        "id": "bd32dc23-c38f-4a1f-ab64-83adeb456a83",
+        "title": "22.1　函数的概念",
+        "rich_title": "22.1　函数的概念",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b85c984f-232c-49a9-b053-41e000b1f2c3/bd32dc23-c38f-4a1f-ab64-83adeb456a83",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.411+0800",
+        "update_time": "2026-02-25T15:17:16.411+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "bd858596-8c28-497a-a7ed-9caedae5917a",
+        "title": "22.2　函数的表示",
+        "rich_title": "22.2　函数的表示",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b85c984f-232c-49a9-b053-41e000b1f2c3/bd858596-8c28-497a-a7ed-9caedae5917a",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.431+0800",
+        "update_time": "2026-02-25T15:17:16.431+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "44ce21f2-7f4e-4a60-a8b5-dd1a8ed0806b",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b85c984f-232c-49a9-b053-41e000b1f2c3/44ce21f2-7f4e-4a60-a8b5-dd1a8ed0806b",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.450+0800",
+        "update_time": "2026-02-25T15:17:16.450+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "56d4bc39-1279-4224-aa29-a5bc803cb268",
+    "title": "第二十三章　一次函数",
+    "rich_title": "第二十三章　一次函数",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "56d4bc39-1279-4224-aa29-a5bc803cb268",
+    "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+    "create_time": "2026-02-25T15:17:16.470+0800",
+    "update_time": "2026-02-25T15:17:16.470+0800",
+    "child_nodes": [
+      {
+        "id": "50baf564-bf8d-4844-8ac7-53306b1391ab",
+        "title": "23.1　一次函数的概念",
+        "rich_title": "23.1　一次函数的概念",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "56d4bc39-1279-4224-aa29-a5bc803cb268/50baf564-bf8d-4844-8ac7-53306b1391ab",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.496+0800",
+        "update_time": "2026-02-25T15:17:16.496+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "eeb1ecbc-da76-410e-a461-edcb03d9dcfe",
+        "title": "23.2　一次函数的图象和性质",
+        "rich_title": "23.2　一次函数的图象和性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "56d4bc39-1279-4224-aa29-a5bc803cb268/eeb1ecbc-da76-410e-a461-edcb03d9dcfe",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.515+0800",
+        "update_time": "2026-02-25T15:17:16.515+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f22f4662-881a-4ca9-bad6-2a4fd5dca52a",
+        "title": "23.3　一次函数与方程 （组）、不等式",
+        "rich_title": "23.3　一次函数与方程 （组）、不等式",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "56d4bc39-1279-4224-aa29-a5bc803cb268/f22f4662-881a-4ca9-bad6-2a4fd5dca52a",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.536+0800",
+        "update_time": "2026-02-25T15:17:16.536+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0148a990-d219-4b86-a8ae-5a10fa2916d6",
+        "title": "23.4　实际问题与一次函数",
+        "rich_title": "23.4　实际问题与一次函数",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "56d4bc39-1279-4224-aa29-a5bc803cb268/0148a990-d219-4b86-a8ae-5a10fa2916d6",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.557+0800",
+        "update_time": "2026-02-25T15:17:16.557+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5f404ef0-a84f-460f-bc62-8a6064952dbb",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "56d4bc39-1279-4224-aa29-a5bc803cb268/5f404ef0-a84f-460f-bc62-8a6064952dbb",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.577+0800",
+        "update_time": "2026-02-25T15:17:16.577+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "e98b2cde-d554-4d39-975d-700b106e3d75",
+    "title": "第二十四章　数据的分析",
+    "rich_title": "第二十四章　数据的分析",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "e98b2cde-d554-4d39-975d-700b106e3d75",
+    "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+    "create_time": "2026-02-25T15:17:16.595+0800",
+    "update_time": "2026-02-25T15:17:16.595+0800",
+    "child_nodes": [
+      {
+        "id": "9fb3eca2-f6f5-4395-88f0-6d8d8819d45f",
+        "title": "24.1　数据的集中趋势",
+        "rich_title": "24.1　数据的集中趋势",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e98b2cde-d554-4d39-975d-700b106e3d75/9fb3eca2-f6f5-4395-88f0-6d8d8819d45f",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.612+0800",
+        "update_time": "2026-02-25T15:17:16.612+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2e436e57-66c0-4734-8f4f-7b74fffdcd92",
+        "title": "24.2　数据的离散程度",
+        "rich_title": "24.2　数据的离散程度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e98b2cde-d554-4d39-975d-700b106e3d75/2e436e57-66c0-4734-8f4f-7b74fffdcd92",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.630+0800",
+        "update_time": "2026-02-25T15:17:16.630+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ff2f69fc-ecd4-4813-853f-0caffe3b958c",
+        "title": "24.3　数据的四分位数",
+        "rich_title": "24.3　数据的四分位数",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e98b2cde-d554-4d39-975d-700b106e3d75/ff2f69fc-ecd4-4813-853f-0caffe3b958c",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.659+0800",
+        "update_time": "2026-02-25T15:17:16.659+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9450805e-886f-41b9-a031-c2e0759229a2",
+        "title": "24.4　数据的分组",
+        "rich_title": "24.4　数据的分组",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e98b2cde-d554-4d39-975d-700b106e3d75/9450805e-886f-41b9-a031-c2e0759229a2",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.680+0800",
+        "update_time": "2026-02-25T15:17:16.680+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4f036c1e-6d6d-4fec-8286-7645f6ef7cae",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e98b2cde-d554-4d39-975d-700b106e3d75/4f036c1e-6d6d-4fec-8286-7645f6ef7cae",
+        "tree_id": "ac01a19f-5e3d-4a9d-becd-ae42a865601e",
+        "create_time": "2026-02-25T15:17:16.699+0800",
+        "update_time": "2026-02-25T15:17:16.699+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

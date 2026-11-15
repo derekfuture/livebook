@@ -1,0 +1,183 @@
+{
+  "id": "shuxue-8s",
+  "title": "数学 八年级上册",
+  "publisher": "人民教育出版社",
+  "pageCount": 182,
+  "pageSize": [
+    521.575,
+    737.008
+  ],
+  "pageOffset": 6,
+  "chapters": [
+    {
+      "title": "第十三章 三角形",
+      "page": 7,
+      "sections": [
+        {
+          "title": "13.1 三角形的概念",
+          "page": 8
+        },
+        {
+          "title": "13.2 与三角形有关的线段",
+          "page": 11
+        },
+        {
+          "title": "13.3 三角形的内角与外角",
+          "page": 17
+        },
+        {
+          "title": "数学活动",
+          "page": null
+        },
+        {
+          "title": "小结",
+          "page": 44
+        }
+      ]
+    },
+    {
+      "title": "综合与实践 确定匀质薄板的重心位置",
+      "page": null,
+      "sections": []
+    },
+    {
+      "title": "第十四章 全等三角形",
+      "page": 44,
+      "sections": [
+        {
+          "title": "14.1 全等三角形及其性质",
+          "page": null
+        },
+        {
+          "title": "14.2 三角形全等的判定",
+          "page": 45
+        },
+        {
+          "title": "14.3 角的平分线",
+          "page": 54
+        },
+        {
+          "title": "数学活动",
+          "page": null
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "第十五章 轴对称",
+      "page": 67,
+      "sections": [
+        {
+          "title": "15.1 图形的轴对称",
+          "page": 68
+        },
+        {
+          "title": "15.2 画轴对称的图形",
+          "page": 78
+        },
+        {
+          "title": "15.3 等腰三角形",
+          "page": 84
+        },
+        {
+          "title": "数学活动",
+          "page": null
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "综合与实践 最短路径问题",
+      "page": 100,
+      "sections": []
+    },
+    {
+      "title": "第十六章 整式的乘法",
+      "page": 103,
+      "sections": [
+        {
+          "title": "16.1 幂的运算",
+          "page": 104
+        },
+        {
+          "title": "16.2 整式的乘法",
+          "page": 104
+        },
+        {
+          "title": "16.3 乘法公式",
+          "page": 118
+        },
+        {
+          "title": "数学活动",
+          "page": null
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "第十七章 因式分解",
+      "page": 129,
+      "sections": [
+        {
+          "title": "17.1 用提公因式法分解因式",
+          "page": 130
+        },
+        {
+          "title": "17.2 用公式法分解因式",
+          "page": 134
+        },
+        {
+          "title": "数学活动",
+          "page": null
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "第十八章 分式",
+      "page": 143,
+      "sections": [
+        {
+          "title": "18.1 分式及其基本性质",
+          "page": 144
+        },
+        {
+          "title": "18.2 分式的乘法与除法",
+          "page": 152
+        },
+        {
+          "title": "18.3 分式的加法与减法",
+          "page": 158
+        },
+        {
+          "title": "18.4 整数指数幂",
+          "page": 164
+        },
+        {
+          "title": "18.5 分式方程",
+          "page": 170
+        },
+        {
+          "title": "数学活动",
+          "page": null
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    }
+  ]
+}

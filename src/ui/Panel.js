@@ -176,6 +176,7 @@ export class Panel {
       now: this.nowEl,
       el: this.el,
       go: (i) => this.go(i),
+      fold: (on) => this.fold(on),          // 收起 / 展开面板（数学的活页：纸面要大，面板先收成一条书脊，做完再展开）
     };
   }
 
