@@ -54,9 +54,13 @@ export default {
       if (ev.msg) return W.status(ev.msg);
       W.out.set('l', [lit(L1) ? 'L₁ 亮' : L1.screwed ? 'L₁ 不亮' : 'L₁ 拧下了', lit(L2) ? 'L₂ 亮' : L2.screwed ? 'L₂ 不亮' : 'L₂ 拧下了'].join('，'));
       W.out.set('s', [S, S1, S2].map((x) => `${x.name.replace('1', '₁').replace('2', '₂')}${x.closed ? '合' : '断'}`).join(' '));
-      if (bat.short) return W.status('<b>电源被短路了！</b>快把那根导线拆掉。');
+      // 连接方式要两个灯都亮着才确认；改了接线（连、拆导线），之前确认的就作废，等重新亮起来再说——
+      // 以前只在确认时写、从不清掉：拆光导线、连成没接电源的一圈，还一直显示“并联”（反馈 2026-11-15 的截图）
       const k = kind();
-      if (k) { mode = k; W.out.set('k', k === 'series' ? '串联' : '并联'); }
+      if (k) mode = k;
+      else if (ev.added || ev.removed) mode = null;
+      W.out.set('k', mode === 'series' ? '串联' : mode === 'parallel' ? '并联' : '—');
+      if (bat.short) return W.status('<b>电源被短路了！</b>快把那根导线拆掉。');
       if (k === 'series') { W.goal.done('series'); return W.status('两个灯<b>串联</b>：电流只有一条路，依次通过 L₁ 和 L₂。试试拧下一个灯（点一下灯泡），再试试断开不同位置的开关。'); }
       if (k === 'parallel') { W.goal.done('parallel'); return W.status('两个灯<b>并联</b>：两个灯的两端分别连在一起，电流分成两条支路。试试拧下一个灯，再试试只断开支路上的开关。'); }
       // 拧下 / 断开开关之后看到的现象
