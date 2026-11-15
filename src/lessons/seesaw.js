@@ -51,10 +51,10 @@ export default {
       }
       g.strokeStyle = 'rgba(35,41,58,0.85)'; g.lineWidth = px * 0.00065; g.beginPath(); g.moveTo(X(P(-3.8, 0)[0]), Y(C0[1])); g.lineTo(X(P(3.8, 0)[0]), Y(C0[1])); g.stroke();          // 0 线
       g.fillStyle = '#6a7080'; g.font = `500 ${px * 0.0056}px ${SERIF}`; g.textAlign = 'left'; g.textBaseline = 'middle';
-      for (const y of [9, 6, 3, -3, -6, -9]) g.fillText(num(y), X(P(3.55, 0)[0]), Y(P(0, y)[1]));
+      for (const y of [9, 6, 3, -3, -6, -9]) g.fillText(num(y), X(P(4.5, 0)[0]), Y(P(0, y)[1]));
       g.font = `400 ${px * 0.0058}px "Kaiti SC", "STKaiti", serif`;
-      g.fillText('后一个乘数', X(P(4.0, 0)[0]), Y(P(0, -0.95)[1]));
-      g.fillText('积', X(P(3.55, 0)[0]), Y(P(0, 10.2)[1]));
+      g.fillText('后一个乘数', X(P(4.05, 0)[0]), Y(P(0, -0.95)[1]));
+      g.fillText('积', X(P(4.5, 0)[0]), Y(P(0, 10.2)[1]));
     } });
     group.add(paper.group);
     const root = paper.group;
@@ -106,9 +106,13 @@ export default {
         const i = n + 3, sl = n > 0 ? k : m, si = n > 0 ? ki : mi, y = sl * n, p = P(n, y), ok = n > 0 || S.locked;
         pegs[i].position.set(p[0], 0.0024, -p[1]);
         setPin(pegs[i], !ok ? ZERO : Math.abs(y) < 0.02 ? ZERO : y > 0 ? RED : BLACK);
-        vals[i].say(whole && (ok || si !== 0) ? num(si * n) : '').at(p[0] + 0.0098 + (si * n < 0 ? 0.0014 : 0), p[1] + 0.0002).ink(!ok ? '#a39c88' : si * n > 0 ? '#c22d24' : si * n < 0 ? '#23293a' : '#7a7566');
+        vals[i].say(whole && (ok || si !== 0) ? num(si * n) : '').at(p[0] + (n > 0 ? 1 : -1) * (0.0098 + (si * n < 0 ? 0.0014 : 0)), p[1] + 0.0002).ink(!ok ? '#a39c88' : si * n > 0 ? '#c22d24' : si * n < 0 ? '#23293a' : '#7a7566');
       }
-      for (let n = -3; n <= 3; n++) { const sl = n > 0 ? k : m, below = n === 0 ? true : sl * n < -0.02, x = n === 0 ? (k < -0.02 || m < -0.02 ? -0.55 : 0.55) : 0.34; axis[n + 3].at(P(n + x, 0)[0], P(0, n !== 0 && below ? 0.95 : -0.95)[1]); }
+      for (let n = -3; n <= 3; n++) {          // 轴上的数：负的写在竖线左边，正的写在右边；钉子在 0 线下面时写到线上面去；0 写在尺子不经过的那个角上
+        if (n === 0) { axis[3].at(P(0.5, 0)[0], P(0, k < -0.02 ? 0.95 : -0.95)[1]); continue; }
+        const below = (n > 0 ? k : m) * n < -0.02;
+        axis[n + 3].at(P(n + (n > 0 ? 0.34 : -0.42), 0)[0], P(0, below ? 0.95 : -0.95)[1]);
+      }
       // 台阶：每退一格（后一个乘数减 1）积变多少。右边三级跟着右半截，左边三级跟着左半截
       for (let j = 0; j < 6; j++) {
         const n = 3 - j, q = n - 1, sl = j < 3 ? k : m, si = Math.round(sl), on = Math.abs(sl) > 0.02, bad = j >= 3 && !S.locked && Math.abs(m - k) > 1e-3;
