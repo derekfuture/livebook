@@ -26,14 +26,16 @@ export default {
   create({ tag }) {
     const group = new THREE.Group();
     const C = new Circuit();
-    const bat = C.add(battery('E', { cells: 2 }), [0.03, -0.085]);
-    const S = C.add(switchPart('S'), [-0.11, -0.085]);
-    const S1 = C.add(switchPart('S1'), [-0.13, 0.05]);
-    const S2 = C.add(switchPart('S2'), [0.13, 0.05]);
-    const L1 = C.add(lampPart('L1'), [-0.05, 0.05]);
-    const L2 = C.add(lampPart('L2'), [0.05, 0.05]);
+    // 摆法照课本图15.3-4：上面一排干路（开关 S、电源），下面两条支路上下排（S₁→L₁、S₂→L₂）。
+    // 以前四样排成一排，连并联要拉一根绕一大圈的线（反馈 2026-11-15：连并联很不顺手，初学者不直观）
+    const bat = C.add(battery('E', { cells: 2 }), [0.07, -0.088]);
+    const S = C.add(switchPart('S'), [-0.075, -0.088]);
+    const S1 = C.add(switchPart('S1'), [-0.075, 0.002]);
+    const L1 = C.add(lampPart('L1'), [0.07, 0.002]);
+    const S2 = C.add(switchPart('S2'), [-0.075, 0.09]);
+    const L2 = C.add(lampPart('L2'), [0.07, 0.09]);
     group.add(C.group);
-    for (const [txt, x, z] of [['电源', 0.03, -0.12], ['开关 S', -0.11, -0.115], ['开关 S₁', -0.13, 0.08], ['开关 S₂', 0.13, 0.08], ['L₁', -0.05, 0.085], ['L₂', 0.05, 0.085]]) tag(txt, 'pill').loc(group, x, 0.005, z);
+    for (const [txt, x, z] of [['电源', 0.07, -0.118], ['开关 S', -0.075, -0.116], ['开关 S₁', -0.075, 0.03], ['L₁', 0.07, 0.036], ['开关 S₂', -0.075, 0.118], ['L₂', 0.07, 0.124]]) tag(txt, 'pill').loc(group, x, 0.005, z);
     void bat;
 
     let W = null;
@@ -83,8 +85,9 @@ export default {
     const demo = (k) => {
       C.clearWires();
       for (const x of [S, S1, S2]) x.closed = true;
-      if (k === 'series') C.wire('E.+', 'S.b').wire('S.a', 'L1.a').wire('L1.b', 'L2.a').wire('L2.b', 'E.-');
-      else C.wire('E.+', 'S.b').wire('S.a', 'S1.a').wire('S1.b', 'L1.a').wire('S.a', 'S2.b').wire('S2.a', 'L2.b').wire('L1.b', 'E.-').wire('L2.a', 'E.-');
+      // 串联：S → 电源 → L₁ → L₂ → S₂ → 沿左边回到 S（一条路，两个开关都在这条路上）；并联：照图15.3-4，左边、右边各连成一条竖线，两条支路并在中间
+      if (k === 'series') C.wire('S.b', 'E.-').wire('E.+', 'L1.b').wire('L1.a', 'L2.b').wire('L2.a', 'S2.b').wire('S2.a', 'S.a', { points: [[-0.128, 0.012, 0.1], [-0.128, 0.012, -0.08]] });
+      else C.wire('S.b', 'E.-').wire('S.a', 'S1.a').wire('S1.a', 'S2.a').wire('S1.b', 'L1.a').wire('S2.b', 'L2.a').wire('E.+', 'L1.b').wire('L1.b', 'L2.b');
       L1.screwed = L2.screwed = true;
       C.solve(); judge(C);
     };

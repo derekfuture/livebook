@@ -153,6 +153,34 @@ export class Circuit {
     return this.branches.filter((b) => b.part.name === partName && b.main !== false).reduce((s, b) => s + b.I, 0);
   }
 
+  /** 从 from（元件 fromName 上的接线柱）直着拉到 to（另一头接线柱 toId）的路上，有没有压过别的器材（桌面上的投影） */
+  _blocked(fromName, toId, from, to) {
+    const [toName] = splitId(toId);
+    for (const q of this.parts.values()) {
+      if (q.name === fromName) continue;
+      const f = this._footprint(q), last = q.name === toName ? 0.8 : 0.97;          // 另一头的元件：只看接线柱前面那一段（从它自己身上跨过去才算）
+      for (let t = 0.03; t <= last; t += 0.035) {
+        const x = from.x + (to.x - from.x) * t, z = from.z + (to.z - from.z) * t;
+        if (x > f.x0 && x < f.x1 && z > f.z0 && z < f.z1) return true;
+      }
+    }
+    return false;
+  }
+
+  /** 元件在桌面上占的地方（电路坐标里的 x、z 范围），算一次记下来（元件不会挪） */
+  _footprint(p) {
+    if (p._foot) return p._foot;
+    this.group.updateMatrixWorld(true);
+    const inv = this.group.matrixWorld.clone().invert(), m = new THREE.Matrix4(), box = new THREE.Box3(), bb = new THREE.Box3();
+    p.group.traverse((o) => {
+      if (!o.isMesh || !o.geometry || o.material?.visible === false || o.userData.term) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      box.union(bb.copy(o.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv, o.matrixWorld)));
+    });
+    const pad = 0.003;
+    return (p._foot = { x0: box.min.x - pad, x1: box.max.x + pad, z0: box.min.z - pad, z1: box.max.z + pad });
+  }
+
   // ---- 3D 导线 + 电流点 ----
   _buildWires() {
     this._dirty = false;
@@ -173,7 +201,11 @@ export class Circuit {
         const local = new THREE.Vector3(...p.terminals[tn]);
         const toLocal = p.group.worldToLocal(this.group.localToWorld(other.clone()));
         const pts = [local.clone().add(new THREE.Vector3(0, 0.003, isMeter ? 0.023 : 0.018))];
-        if ((isMeter || p.kind === 'switch') && toLocal.z < 0.025) {
+        // 开关：另一头和它差不多齐、在同一侧、中间又没有别的器材（比如旁边的灯）就直接过去——以前也一律从侧面绕到后面再折回来，导线成了一个个尖尖的“N”（反馈 2026-11-15 的截图）；
+        // 另一头在后面、在开关另一侧（要从闸刀上面跨过去）、或者中间隔着别的器材（比如要接到电池另一头），照旧绕到后面走
+        const level = toLocal.z >= -0.02 && toLocal.z < 0.025 && Math.sign(toLocal.x - local.x) === Math.sign(local.x);
+        const around = isMeter ? toLocal.z < 0.025 : toLocal.z < 0.025 && !(level && !this._blocked(pn, id === w.a ? w.b : w.a, at, other));
+        if ((isMeter || p.kind === 'switch') && around) {
           const x = isMeter ? (toLocal.x < local.x ? -1 : 1) * 0.052 : Math.sign(local.x) * 0.04;
           const z = isMeter ? 0.035 : 0.018;
           pts.push(new THREE.Vector3(x, local.y + 0.003, z), new THREE.Vector3(x, local.y + 0.003, -0.035));
