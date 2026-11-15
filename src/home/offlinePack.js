@@ -10,11 +10,13 @@ import { rememberRuntimeError } from '../ui/runtimeErrors.js';
 const el = (tag, attrs = {}, ...kids) => { const e = Object.assign(document.createElement(tag), attrs); for (const k of kids.flat()) if (k != null) e.append(k); return e; };
 const HTML_MB = 24;          // 离线版 HTML 大约多大（提示里估算大小用；2026-11-10 加了地理以后约 24 MB）
 const ZIP_NAME = '活页课本（离线版）.zip';
+const ZIP_MB = 15;          // 网站上那个压缩包大约多大（Cloudflare 回 HEAD 时不带文件大小，提示里就用这个数；2026-11-15 是 14.5 MB）
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // 不带课本的离线版：部署时已经在网站上做好了压缩包（/offline.zip，tools/build_offline.mjs）。有的话就让浏览器直接下载它——
-// 下载栏里有进度、网断了能接着下、迅雷之类的下载软件也接得住；不用先把 24 MB 拿进网页再打包（那一步断了只能从头来，反馈 2026-11-15）。
-// 返回压缩包大小（字节），没有（本地开发、网站上没放）返回 null
+// 下载栏里有进度、失败了可以在下载栏里点重试、迅雷之类的下载软件也接得住；不用先把 24 MB 拿进网页再打包（那一步出错整个就失败了，反馈 2026-11-15）。
+// （Cloudflare Pages 不支持断点续传：网断了浏览器只能从头重下）
+// 有就返回压缩包大小（字节；不知道大小时是 0），没有（本地开发、网站上没放）返回 null
 async function serverZip() {
   try { const r = await fetch('/offline.zip', { method: 'HEAD', cache: 'no-store' }); return r.ok && /zip/.test(r.headers.get('content-type') || '') ? Number(r.headers.get('content-length')) || 0 : null; }
   catch { return null; }
@@ -64,7 +66,7 @@ export function offlineButton({ link = false } = {}) {          // link：首页
     if (!tip.hidden) return hide();
     const pdfs = await allPdfs();
     const zipBytes = pdfs.length ? null : await serverZip();
-    const mb = zipBytes ? Math.max(1, Math.round(zipBytes / 1e6)) : Math.round(HTML_MB + pdfs.reduce((s, [, r]) => s + r.size * 1.34, 0) / 1e6);
+    const mb = zipBytes != null ? Math.max(1, Math.round(zipBytes / 1e6) || ZIP_MB) : Math.round(HTML_MB + pdfs.reduce((s, [, r]) => s + r.size * 1.34, 0) / 1e6);
     const names = pdfs.map(([id]) => bookName(id, getBook(id).title)).join('、');
     show(el('b', { textContent: '下载离线版' }),
       el('p', { textContent: pdfs.length

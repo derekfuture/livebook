@@ -24,7 +24,8 @@ fs.copyFileSync(`${dir}/活页课本.html`, 'public/offline.html');
 console.log(`离线版 → ${dir}/活页课本.html（${(fs.statSync(`${dir}/活页课本.html`).size / 1e6).toFixed(1)} MB）`);
 
 // 不带课本的压缩包也在这里做好，部署到 /offline.zip：网站上点“下载离线版”（没导入过课本时）就是浏览器直接下载它——
-// 下载栏里有进度、断了能接着下、下载软件也接得住（反馈 2026-11-15：在网页里先拿 24 MB 再打包，中途一断就失败）。
+// 下载栏里有进度、失败了能在下载栏里重试、下载软件也接得住（反馈 2026-11-15：在网页里先拿 24 MB 再打包，哪一步出错都整个失败）。
+// 大小变了的话，顺手改一下 src/home/offlinePack.js 里的 ZIP_MB（Cloudflare 回 HEAD 时不带大小，提示里用它）。
 // 里面和网页里打的包一样：活页课本/活页课本.html + 活页课本/打开说明.txt；用 deflate 压缩（约为 HTML 的六成），文件名标 UTF-8
 const zipped = zipFiles([
   { name: '活页课本/活页课本.html', data: Buffer.from(html, 'utf8') },
