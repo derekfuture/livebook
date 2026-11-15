@@ -25,3 +25,4 @@ public/pdfjs/
 # 离线版（node tools/build_offline.mjs 生成；部署时随网站放在 /offline.html）
 dist-offline/
 public/offline.html
+public/offline.zip

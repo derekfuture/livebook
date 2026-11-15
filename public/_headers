@@ -4,6 +4,9 @@
   Cache-Control: public, max-age=0, must-revalidate
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+/offline.zip
+  Content-Disposition: attachment; filename="livebook-offline.zip"; filename*=UTF-8''%E6%B4%BB%E9%A1%B5%E8%AF%BE%E6%9C%AC%EF%BC%88%E7%A6%BB%E7%BA%BF%E7%89%88%EF%BC%89.zip
+  Cache-Control: public, max-age=0, must-revalidate
 /books/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 /*

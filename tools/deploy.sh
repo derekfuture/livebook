@@ -12,7 +12,7 @@ OFFLINE=$(node --input-type=module -e "const { FEATURES } = await import('./src/
 rm -rf dist
 if [ "$OFFLINE" = 1 ]; then node tools/build_offline.mjs; fi
 npm run build
-if [ "$OFFLINE" != 1 ]; then rm -f dist/offline.html; fi          # public/ 里可能留着本地做的那份
+if [ "$OFFLINE" != 1 ]; then rm -f dist/offline.html dist/offline.zip; fi          # public/ 里可能留着本地做的那份
 # 线上不放课本书页，只留封面；用户自己导入课本 PDF（见 src/book/PageSource.js）
 "$ROOT/tools/strip_pages.sh" "$ROOT/dist"
 if [ "${1:-}" = "--preview" ]; then exec npx vite preview --host 127.0.0.1 --port 5195 --strictPort; fi
