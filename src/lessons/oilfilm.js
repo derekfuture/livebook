@@ -32,7 +32,7 @@ export default {
   title: '用油膜法估测油酸分子的大小',
   stampText: '估测',
   predict: {
-    q: '要用油膜面积估测分子大小，分子式 d = V/S 中的 V 应取哪个体积？',
+    q: '要用油膜面积估测分子大小，估算公式 d = V/S 中的 V 应取哪个体积？',
     options: ['一滴溶液中纯油酸的体积', '整滴油酸酒精溶液的体积', '浅盘里水的体积'],
     answer: 0,
     hint: '溶液铺开后，酒精溶入水中并挥发。',
@@ -533,6 +533,7 @@ export default {
         panel.data.append(rows.el, calibrationRecord, calForm, answerForm);
         panel.notes.append(
           note('每小格边长 1 cm。用同一针头缓慢滴液，标定时至少数 10 滴；可留更多滴数以减小读尺和挂滴造成的误差。'),
+          note('示意：油膜面积按单层厚度约 2 nm（油酸分子长度的量级）算出来，铺开的快慢也是示意；数出的大小用来练习估测方法，不是真实测量。'),
           buttons([
             {
               text: '重新标定滴数',
