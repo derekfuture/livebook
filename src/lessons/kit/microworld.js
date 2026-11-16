@@ -1191,7 +1191,8 @@ export function dissolveScene() {
     },
     step(c, st, dt) {
       c.view.film = st.water ? FILM : 0; c.view.paper = null; c.view.liquid = 0xb4e0f2;
-      c.view.speed = 1 + 1.6 * (st.stir || 0);
+      c.view.speed = 1;          // 搅拌不会让分子的热运动变快（温度没变）；它让溶液整体流动起来——下面给溶液里的微粒加一股绕着转的流动
+      if ((st.stir || 0) > 0.05) for (const m of c.mols) if (!m.fixed && !m.busy && !m.leaving) { const p = m.g.position, r = Math.hypot(p.x, p.z) || 1; m.g.position.x += (-p.z / r) * st.stir * 1.6 * dt; m.g.position.z += (p.x / r) * st.stir * 1.6 * dt; }
       if (st.water && c.count('H2O') < NW && Math.random() < dt * 4) c.add('H2O', c.V([c.rnd(-3, 3), FILM - 0.6, c.rnd(-3, 3)]));
       if (st.salt && !crystal(c).length && !c.count('Na+')) for (const [p, k] of sites) c.add(k, p.clone(), { fixed: true });
       // 溶解：水分子把晶体表面的离子一个个拉进水里（外面、上面的先走）
@@ -1212,7 +1213,7 @@ export function dissolveScene() {
       const eq = `<span style="font-size:0.8em">氯化钠溶解：${f('Na+')} 和 ${f('Cl-')} 分散到水分子中间</span>`;
       const cap = !st.salt ? '烧杯里还没有氯化钠' : !st.water ? `氯化钠晶体：${f('Na+')}、${f('Cl-')} 一个挨一个排得整整齐齐。还没加水`
         : left === tot ? '水倒进去了：水分子撞着晶体表面'
-        : left ? `水分子把晶体表面的离子<b>一个个拉进水里</b>——已经溶解 ${tot - left} 个，还剩 ${left} 个${st.stir > 0.2 ? '；搅拌让水分子动得更快，溶解得更快' : '；用玻璃棒搅拌会快一些'}`
+        : left ? `水分子把晶体表面的离子<b>一个个拉进水里</b>——已经溶解 ${tot - left} 个，还剩 ${left} 个${st.stir > 0.2 ? '；搅拌使溶液流动起来，晶体表面不断接触到新的水，溶解得更快' : '；用玻璃棒搅拌会快一些'}`
         : `晶体全部溶解了：${f('Na+')}、${f('Cl-')} <b>均匀地分散在水里</b>，看不见了——这就是溶液`;
       return { eq, cap, on: true };
     },

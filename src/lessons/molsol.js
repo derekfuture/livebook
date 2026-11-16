@@ -46,7 +46,7 @@ export default {
   },
   need: '检漏；计算 5.85 g；称量；溶解；沿玻璃棒转移到 100 mL 容量瓶；洗涤 2～3 次；加水到刻度线下 1～2 cm，用胶头滴管定容；盖塞摇匀；装瓶贴标签',
   conclusion: {
-    crops: [{ page: 61, rect: [64, 545, 385, 622] }, { page: 63, rect: [61, 197, 290, 305] }],
+    crops: [{ page: 61, rect: [64, 545, 385, 634] }, { page: 63, rect: [61, 197, 290, 305] }],
     quote: '物质的量浓度表示单位体积的溶液里所含溶质B的物质的量，也称为B的物质的量浓度，符号为cB。……容量瓶上标有温度（一般为20 ℃）和容积，表示在所指温度下，液体的凹液面与容量瓶颈部的刻度线相切时，溶液体积恰好与瓶上标注的容积相等。',
     formula: 'c(NaCl) = n(NaCl) ÷ V = (5.85 g ÷ 58.5 g/mol) ÷ 0.100 L = 1.00 mol/L',
     why: '浓度由两样东西决定：真正进了容量瓶的溶质（n），和定容后溶液的体积（V）。<br><b>n 少了，浓度偏小</b>：转移时洒到瓶外、烧杯和玻璃棒没洗（内壁上还沾着溶液）。<br><b>V 不准</b>：定容时<b>俯视</b>刻度线，以为到了、其实水加少了，V 偏小，浓度<b>偏大</b>；<b>仰视</b>相反，浓度<b>偏小</b>；加水超过刻度线，V 偏大，浓度偏小，只能重新配制（吸出一部分也不行，溶质也被吸走了）。',
@@ -121,13 +121,13 @@ export default {
     sight.renderOrder = 12; group.add(sight);
     const salts = new Particles({ max: 140, geometry: new THREE.DodecahedronGeometry(1, 0), material: paint(0xf6f6f2, { keep: true }) }); group.add(salts.mesh);
     const drops = new Particles({ max: 120, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: CHEM.water, base: 0.5 }) }); drops.mesh.renderOrder = 8; group.add(drops.mesh);
-    const balCard = tag('', 'cond'), flCard = tag('', 'cond'), bkCard = tag('', 'cond');
+    const balCard = tag('', 'cond'), flCard = tag('', 'cond'), bkCard = tag('', 'cond'), botCard = tag('', 'cond');
 
     // ================= 状态 =================
     const fresh = () => ({ demo: false, near: false, checked: false, checkT: 0, paperOn: false, tareG: 0, panSalt: 0, spoonAt: false, paperFly: 0,
       bkSalt: 0, bkWater: 0, dis: 0, stir: 0, flSalt: 0, flVol: 0, spilled: 0, pours: 0, washes: 0, rinsing: false, rinseVol: 0, swirled: false, swirlT: 0,
       rod: 'rest', rodP: ROD_REST.clone(), wbP: WB.clone(), bkP: BK.clone(), carry: null, carryP: null, dropT: 0, drops: 0, nearMark: false, atMark: false, over: false,
-      stopper: false, shakeT: 0, shaken: false, bottled: false, view: S ? S.view : 'flat', said: {}, lastRodX: null });
+      stopper: false, shakeT: 0, shaken: false, bottled: false, pourT: 0, dropPark: false, dropHold: false, dropDone: false, pourOn: false, view: S ? S.view : 'flat', said: {}, lastRodX: null });
     let S = null; S = fresh();
     const status = (m) => { if (!S.demo) W?.status(m); };
     const done = (id) => { if (!S.demo) bar.done(id); };
@@ -167,8 +167,9 @@ export default {
       tapFlask() {
         if (!S.checked) return A.check();
         if (S.stopper) return status(S.shaken ? '已经摇匀了。点一下<b>试剂瓶</b>，装瓶贴标签。' : '正在摇匀……');
+        if (S.rod === 'fl') return status('先把<b>玻璃棒</b>从容量瓶口拿开（拖回桌上），再摇动、盖塞。');
         if (S.atMark || S.over) { S.stopper = true; S.shakeT = 0.0001; return status('盖好瓶塞，一手按住瓶塞、一手托住瓶底，反复上下颠倒，摇匀。'); }
-        if (S.flVol > 1 && !S.swirled) { S.swirlT = 0.0001; S.swirled = true; done('swirl'); return status('轻轻摇动容量瓶，使溶液混合均匀。然后用<b>洗瓶</b>往容量瓶里加水，加到刻度线下 1～2 cm。'); }
+        if (S.flVol > 1 && !S.swirled) { if (S.bkWater > FILM + 0.5) return status('烧杯里还有洗涤液没倒完。'); S.swirlT = 0.0001; S.swirled = true; done('swirl'); return status('轻轻摇动容量瓶，使溶液混合均匀。然后用<b>洗瓶</b>往容量瓶里加水，加到刻度线下 1～2 cm。'); }
         if (S.flVol > 1) { S.swirlT = 0.0001; return status(L() < fl.markY - 0.02 ? '摇匀了一下。接着加水，到刻度线下 1～2 cm 时改用<b>胶头滴管</b>。' : '还没到刻度线：用<b>胶头滴管</b>一滴一滴地加，直到凹液面与刻度线相切。'); }
         status('容量瓶里还没有溶液。先在烧杯里把 NaCl 溶解。');
       },
@@ -177,18 +178,19 @@ export default {
         if (!S.shaken) return status(S.atMark || S.over ? '先盖好瓶塞摇匀（点一下<b>容量瓶</b>），再装瓶。' : '溶液还没配好：定容、摇匀以后再装瓶。');
         S.bottled = true; done('bottle'); drawLabel(); sfx.clink({ freq: 1600, gain: 0.03 });
         const c = conc(), dev = (c - 1) * 100;
-        log(['装瓶，贴标签', `NaCl 溶液 1.00 mol/L`, `按实际进了容量瓶的 NaCl 和定容的体积算：<b>${c.toFixed(3)} mol/L</b>${Math.abs(dev) < 0.15 ? '（就是 1.00 mol/L）' : dev > 0 ? '（<b>偏大</b>）' : '（<b>偏小</b>）'}`]);
+        log(['装瓶，贴标签', '标签：NaCl 溶液 1.00 mol/L（要配的浓度）', `实际配成：<b>${c.toFixed(3)} mol/L</b>${Math.abs(dev) < 0.15 ? '（就是 1.00 mol/L）' : dev > 0 ? '（<b>偏大</b>，这次没配准）' : '（<b>偏小</b>，这次没配准）'}`]);
+        S.pourT = 0.0001;
         status(`装进试剂瓶，贴好了标签。进了容量瓶的 NaCl ${S.flSalt.toFixed(3)} g（${(S.flSalt / M).toFixed(4)} mol），溶液 ${S.flVol.toFixed(2)} mL，浓度 <b>${c.toFixed(3)} mol/L</b>。`);
         if (W) { W.t1.open(); } far();
       },
-      reset() { const v = S.view; if (bar.playing) bar.stop(); S = fresh(); S.view = v; mic.close(); salts.clear(); drops.clear(); W?.tbl.clear(); far(); botLabel.visible = false; botLiq.scale.y = 0.0001; if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; } bar.undo('check', 'paper', 'weigh', 'dissolve', 'transfer', 'wash', 'swirl', 'settle', 'shake', 'bottle'); status('器材重新摆好了。先点一下<b>容量瓶</b>检漏。'); },
+      reset() { if (bar.playing) bar.stop(); S = fresh(); S.view = 'flat'; W?.viewSeg?.set(0); far(); syncScene(); mic.close(); salts.clear(); drops.clear(); W?.tbl.clear(); far(); botLabel.visible = false; botLiq.scale.y = 0.0001; if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; } bar.undo('check', 'paper', 'weigh', 'dissolve', 'transfer', 'wash', 'swirl', 'settle', 'shake', 'bottle'); status('器材重新摆好了。先点一下<b>容量瓶</b>检漏。'); },
     };
     // 演示开始 / 结束：画面上的东西按（换回来的）状态重新摆好——演示里正转着、抬着的容量瓶，放回原处
     const syncScene = () => {
       salts.clear(); drops.clear(); mic.close();
       fl.group.position.copy(FL); fl.group.rotation.set(0, 0, 0); S.checkT = S.checkT > 0 ? 0.0001 : 0; S.shakeT = S.shakeT > 0 ? 0.0001 : 0; S.swirlT = 0;
       if (S.bottled) drawLabel(); else botLabel.visible = false;
-      botLiq.scale.y = S.bottled ? 0.05 : 0.0001;
+      botLiq.scale.y = S.bottled ? 0.05 : 0.0001; S.pourT = 0;
     };
     const drawLabel = () => { const cv = labTex.image, g = cv.getContext('2d'); g.fillStyle = '#fffaf0'; g.fillRect(0, 0, 256, 160); g.strokeStyle = '#c23a3a'; g.lineWidth = 6; g.strokeRect(6, 6, 244, 148); g.fillStyle = '#23293a'; g.font = 'bold 40px "Songti SC", serif'; g.textAlign = 'center'; g.fillText('NaCl 溶液', 128, 62); g.font = 'bold 40px "Times New Roman", serif'; g.fillText('1.00 mol/L', 128, 118); labTex.needsUpdate = true; botLabel.visible = true; };
 
@@ -275,7 +277,7 @@ export default {
                 act.drag(bkPick, () => docks.bk[0].at(), { t0: 0.27, t1: 0.35, release: 0.5, until: () => S.bkWater <= FILM + 0.01 }),
                 act.drag(wbPick, () => docks.wb[0].at(), { t0: 0.52, t1: 0.6, release: 0.74, until: () => S.bkWater >= 10 }),
                 act.drag(bkPick, () => docks.bk[0].at(), { t0: 0.76, t1: 0.84, release: 0.98, until: () => S.bkWater <= FILM + 0.01 })) },
-            { cap: '轻轻摇动容量瓶，使溶液混合均匀。', dur: 3, cam: [[FL.x, 0.09, FL.z], [0.05, 0.25, 1], 0.4], during: act.tap(fl.pick, 0.1) },
+            { cap: '拿开玻璃棒，轻轻摇动容量瓶，使溶液混合均匀。', dur: 4, cam: [[FL.x, 0.09, FL.z], [0.05, 0.25, 1], 0.4], during: act.seq(act.drag(rodPick, () => ROD_REST.clone().setY(0.09), { t0: 0.02, t1: 0.3, release: 0.35 }), act.tap(fl.pick, 0.55)) },
             { cap: '加水到刻度线下 1～2 cm，改用胶头滴管滴加，到凹液面与刻度线相切（视线平视）。', dur: 9, speed: 2.4, cam: [[FL.x, 0.12, FL.z], [0.0, 0.0, 1], 0.2],
               during: act.seq(act.drag(wbPick, () => docks.wb[1].at(), { t0: 0.03, t1: 0.12, release: 0.6, until: () => L() >= fl.markY - 0.012 }),
                 act.drag(dropPick, () => dBot.tipHome.clone(), { t0: 0.62, t1: 0.63, release: 0.99, until: () => S.atMark || S.over })) },
@@ -344,13 +346,13 @@ export default {
       } else if (S.rod === 'fl') { rGoal = docks.rod[1].at(); rTilt = 0.05; }
       S.rodP.lerp(rGoal, 0.25); rod.position.copy(S.rodP); rod.rotation.z += (rTilt - rod.rotation.z) * 0.3;
       // 溶解：搅拌加快（不搅也会慢慢溶）
-      if (S.bkSalt > 0 && S.bkWater > 2 && S.dis < 1) {
+      if (S.bkSalt > 1e-6 && S.bkWater > 2 && S.dis < 1) {
         const room = Math.min(1, S.bkWater * 0.36 / Math.max(0.01, S.bkSalt * 1));          // 20 ℃ 溶解度约 36 g/100 g 水
         S.dis = Math.min(room, S.dis + dt * (0.03 + S.stir * 0.5)); S.stir = Math.max(0, S.stir - dt * 0.25);          // 时间压缩：搅拌几秒就溶完（示意）
         if (S.dis >= 0.98 && !S.said.dis) { S.said.dis = true; S.dis = 1; done('dissolve'); log(['溶解', `加水约 ${S.bkWater.toFixed(0)} mL，玻璃棒搅拌`, 'NaCl 全部溶解，溶液无色透明']); status('全部溶解了。把<b>玻璃棒</b>插进容量瓶口，准备转移。'); }
       }
-      crystals.visible = S.bkSalt > 0.02 && S.dis < 0.995 && S.bkWater < BH * 0.85 * Math.PI * BR * BR * 1e6 + 1;
-      crystals.scale.set(1, 0.4, 1).multiplyScalar(Math.cbrt(Math.max(0.0001, (S.pours ? 0 : S.bkSalt) * (1 - S.dis)) / TARGET) || 0.01);
+      crystals.visible = S.bkSalt * (1 - S.dis) > 0.02;
+      crystals.scale.set(1, 0.4, 1).multiplyScalar(Math.cbrt(Math.max(0.0001, S.bkSalt * (1 - S.dis)) / TARGET) || 0.01);
       // 烧杯：拿到玻璃棒上端，倾斜，溶液沿玻璃棒流进容量瓶（没有玻璃棒引流：从杯口直接倒，约一成洒到外面）
       const bDock = S.carry === 'bk' && S.carryP && dockNear('bk', S.carryP);
       const bGoal = S.carry === 'bk' ? (bDock ? bDock.at() : S.carryP?.clone().setY(Math.max(0.0, S.carryP.y - 0.05)) ?? BK) : BK;
@@ -358,8 +360,8 @@ export default {
       const pour = bDock && S.bkP.distanceTo(bDock.at()) < 0.004 && S.bkWater > FILM && !S.stopper;
       bk.rotation.z += ((bDock ? BK_TILT : 0) - bk.rotation.z) * 0.18;
       if (pour && bk.rotation.z > BK_TILT - 0.15) {
-        const dv = Math.min(14 * dt, S.bkWater - FILM), ds = S.bkSalt * dv / S.bkWater, spill = S.rod === 'fl' ? 0 : 0.12;
-        S.bkWater -= dv; S.bkSalt -= ds; S.flVol += dv * (1 - spill); S.flSalt += ds * (1 - spill); S.spilled += ds * spill;
+        const dv = Math.min(14 * dt, S.bkWater - FILM), sol = S.bkSalt * S.dis, ds = sol * dv / S.bkWater, spill = S.rod === 'fl' ? 0 : 0.12;
+        S.bkWater -= dv; S.bkSalt -= ds; S.dis = S.bkSalt > 1e-9 ? Math.max(0, sol - ds) / S.bkSalt : 1; S.flVol += dv * (1 - spill); S.flSalt += ds * (1 - spill); S.spilled += ds * spill;
         if (!S.pourOn) { S.pourOn = true; S.pours += 1;
           if (S.pours === 1 && S.dis < 0.98 && !S.demo) status('NaCl 还没全部溶解就开始转移了……没溶解的固体留在烧杯里。'); }
         if (spill > 0 && !S.said['spill' + S.pours]) { S.said['spill' + S.pours] = true; status('没有用玻璃棒引流：溶液从杯口直接往瓶口倒，<b>有一部分洒到了瓶外</b>。'); }
@@ -371,18 +373,18 @@ export default {
       }
       // 胶头滴管：点一下，拿到容量瓶口上方滴一滴（0.05 mL），再回到滴瓶
       if (S.dropT > 0) {
-        S.dropT += dt / (S.dropHold ? 0.35 : 0.9); const k = S.dropT, above = FL.clone().add(V(0, fl.neckTop + 0.012, 0));
-        dropper.position.lerp(k < 0.75 || S.dropHold ? above : dBot.tipHome, 0.3);
+        S.dropT += dt / (S.dropHold ? 0.25 : 0.9); const k = S.dropT, above = FL.clone().add(V(0, fl.neckTop + 0.012, 0));
+        S.dropPark = !S.atMark && !S.over; dropper.position.lerp(above, 0.3);
         if (k > 0.4 && !S.dropDone) { S.dropDone = true; S.drops += 1; S.flVol += 0.05; drops.spawn({ p: above.clone(), v: V(0, -0.05, 0), size: 0.0012, life: 1.2, floor: L() }); sfx.clink({ freq: 2600, gain: 0.012 }); afterDrop(); }
         if (k >= 1) { S.dropT = 0; if (S.dropHold && !S.atMark && !S.over && !S.stopper) A.tapDropper(); }
-      } else dropper.position.lerp(dBot.tipHome, 0.3);
+      } else { if (S.atMark || S.over || S.stopper) S.dropPark = false; dropper.position.lerp(S.dropPark ? FL.clone().add(V(0, fl.neckTop + 0.012, 0)) : dBot.tipHome, 0.3); }          // 定容时滴管停在瓶口上方，接着点
       // 定容到刻度线
       const lv = L();
-      if (!S.over && lv > fl.markY + 0.0004 && S.flVol > 50 && !S.said.over) {
+      if (!S.over && !S.atMark && apparentGap() < -0.0004 && S.flVol > 50 && !S.said.over) {
         S.over = true; S.said.over = true; status('<b>加水超过了刻度线！</b>溶液体积比 100 mL 多，浓度偏小。只能重新配制（“更多”里全部重来）——你也可以接着做完，看看浓度差多少。');
         log(['定容', '<b>加水超过了刻度线</b>', `实际约 ${S.flVol.toFixed(1)} mL`]); done('settle');
       }
-      const ck = S.checkT, bot = S.bottled ? Math.min(1, (botLiq.scale.y - 0.0001) / 0.0499) : 0;
+      const ck = S.checkT, bot = S.bottled ? Math.min(1, Math.max(0, (botLiq.scale.y - 0.0001) / 0.0499)) : 0;
       fl.setVolume(ck > 0 ? (ck < 0.08 ? ck / 0.08 * 20 : ck < 0.94 ? 20 : 20 * (1 - (ck - 0.94) / 0.06)) : S.flVol * (1 - bot));
       // 轻轻摇动 / 颠倒摇匀
       if (S.swirlT > 0) { S.swirlT += dt / 1.6; fl.group.rotation.x = Math.sin(S.swirlT * Math.PI * 4) * 0.08 * (1 - S.swirlT); if (S.swirlT >= 1) { S.swirlT = 0; fl.group.rotation.x = 0; } }
@@ -395,7 +397,17 @@ export default {
       if (S.stopper || (S.checkT > 0.1 && S.checkT < 0.92)) { flStop.position.copy(fl.group.position).add(V(0, fl.neckTop + 0.004, 0).applyEuler(fl.group.rotation)); flStop.rotation.copy(fl.group.rotation); }
       else { flStop.position.copy(STOP_REST); flStop.rotation.set(Math.PI / 2, 0, 0.3); }
       // 装瓶
-      if (S.bottled) botLiq.scale.y += (0.05 - botLiq.scale.y) * Math.min(1, dt * 2);
+      if (S.pourT > 0) {          // 装瓶：拔下瓶塞放在桌上，拿起容量瓶移到试剂瓶口上方、倾斜，溶液倒进去，再放回原处
+        S.pourT = Math.min(1, S.pourT + dt / 3.4); const k = S.pourT, ease = (u) => u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+        S.stopper = false;
+        const go = ease((k - 0.08) / 0.22), back2 = ease((k - 0.86) / 0.14), tilt = ease((k - 0.25) / 0.15) * (1 - back2);
+        const at = FL.clone().lerp(BOT.clone().add(V(-0.07, 0.11, 0)), go * (1 - back2));
+        fl.group.position.copy(at); fl.group.rotation.z = -tilt * 1.95;
+        const pourK = Math.max(0, Math.min(1, (k - 0.4) / 0.42));
+        botLiq.scale.y = 0.0001 + 0.0499 * pourK;
+        if (pourK > 0 && pourK < 1 && Math.random() < dt * 30) drops.spawn({ p: BOT.clone().add(V(0, 0.08, 0)), v: V(0, -0.06, 0), size: 0.0014, life: 1.2, floor: 0.002 + botLiq.scale.y });
+        if (k >= 1) { S.pourT = 0; fl.group.position.copy(FL); fl.group.rotation.set(0, 0, 0); }
+      }
       bk.setLevel(S.bkWater > 0.05 ? 0.0012 + S.bkWater * 1e-6 / (Math.PI * BR * BR) : 0);
       salts.update(dt, (p, d) => { p.v.y -= 0.4 * d; p.p.addScaledVector(p.v, d); return p.p.y > (p.floor ?? 0.003); });
       drops.update(dt, (p, d) => { p.v.y -= 0.6 * d; p.p.addScaledVector(p.v, d); return p.p.y > (p.floor ?? 0.002); });
@@ -406,9 +418,11 @@ export default {
       // 近看：称量看显示屏；定容看刻度线（按选的视线）
       if (!S.demo) {
         if (bar.current === 'weigh' && S.paperOn && !S.paperFly) near('bal', [BAL.x, 0.03, BAL.z + 0.02], [0.03, 0.5, 1], 0.2);
-        else if (bar.current === 'settle' && fl.markY - lv < 0.022 && !S.carry) near('mark' + S.view, [FL.x, fl.markY, FL.z], [0.0, VIEWS[S.view] * 0.47, 1], 0.13, { minEl: -0.6 });
+        else if (bar.current === 'settle' && (S.dropPark || S.dropT > 0) && !S.carry) near('mark' + S.view, [FL.x, (fl.markY + fl.neckTop + 0.012) / 2, FL.z], [0.0, VIEWS[S.view] * 0.47, 1], 0.17, { minEl: -0.6 });          // 刻度线和停在瓶口上方的滴管都在画面里
         else if (nearK && !(bar.current === 'weigh' || bar.current === 'settle')) far();
       }
+      bar.near?.(!!nearK);
+      if (S.bottled && !S.pourT) { const c = conc(), dev = (c - 1) * 100; botCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">实际配成</span></div><div class="cc-more"><b>${c.toFixed(3)} mol/L</b>${Math.abs(dev) < 0.15 ? '' : dev > 0 ? '（偏大）' : '（偏小）'}<br><small>标签上是要配的 1.00 mol/L</small></div></div>`).loc(group, BOT.x, 0.1, BOT.z).show(!bar.playing); } else botCard.show(false);
       // 卡片
       balCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">电子天平</span></div><div class="cc-more"><div class="cc-obs"><b style="font-size:1.2em">${display().toFixed(2)} g</b><small>${S.paperOn && S.tareG < PAPER_G - 1e-6 ? '没有去皮：含称量纸' : '0.01 g 的普通电子天平'}</small></div></div></div>`).loc(group, BAL.x, 0.06, BAL.z).show(S.paperOn && !bar.playing);
       const g = apparentGap();
@@ -442,7 +456,7 @@ export default {
         const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: 'NaCl 的摩尔质量按课本取 58.5 g/mol；称量纸约 0.32 g；电子天平显示到 0.01 g（课本注①：本应用分析天平，学校可暂用托盘天平或普通电子天平）。<br>倒完后烧杯内壁和玻璃棒上约留 0.6 mL 溶液（示意值）；每次洗涤用水约 10 mL。没有玻璃棒引流时约一成溶液洒到瓶外（示意值）。<br>容量瓶瓶颈内径约 12 mm，一滴约 0.05 mL，液面升高约 0.4 mm；俯视 / 仰视按视线偏离水平约 25° 算，凹液面和刻度线错开约 2.8 mm（约 0.3 mL）。溶解速度为示意（20 ℃ 时 NaCl 溶解度约 36 g/100 g 水）。' }));
         const base = mountXuean(ui, { controls: [vary, more, note], headers: ['做了什么', '现象', '说明'], intro: '配制 100 mL 1.00 mol/L NaCl 溶液。先点一下容量瓶检漏；也可以先看老师演示。' });
         ui.data.append(t1.el, t2.el, t3.el, base.next);
-        W = { ...base, ui, t1, t2, t3, status: ui.status }; bar.attach(ui);
+        W = { ...base, ui, t1, t2, t3, viewSeg, status: ui.status }; bar.attach(ui);
       },
       update(dt) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k); },
       dispose() { bar.dispose(); drag.dispose(); mic.dispose?.(); salts.dispose(); drops.dispose(); },
@@ -464,6 +478,7 @@ export default {
           { name: '洗涤液转移 1', run: () => holdUntil(bkPick, docks.bk[0].at(), () => S.bkWater <= FILM + 0.01), wait: 4 },
           { name: '冲洗 2', run: () => holdUntil(wbPick, docks.wb[0].at(), () => S.bkWater >= 10), wait: 4 },
           { name: '洗涤液转移 2', run: () => holdUntil(bkPick, docks.bk[0].at(), () => S.bkWater <= FILM + 0.01), wait: 4 },
+          { name: '拿开玻璃棒', drag: rodPick, to: () => ROD_REST.clone().setY(0.09), wait: 2 },
           { name: '轻轻摇动', tap: fl.pick, wait: 2 },
           { name: '加水到刻度线下', run: () => holdUntil(wbPick, docks.wb[1].at(), () => L() >= fl.markY - 0.012), wait: 8 },
           { name: '滴加到刻度线', run: () => holdUntil(dropPick, dBot.tipHome.clone(), () => S.atMark || S.over), wait: 14 },
