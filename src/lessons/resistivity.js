@@ -280,7 +280,7 @@ export default {
       for (const arr of [lengths, diameters, points, line]) arr.length = 0;
       sw.closed = false;
       circuit.clearWires();
-      for (const [a, b] of fixed) circuit.wire(a, b);
+      for (const [a, b, options] of fixed) circuit.wire(a, b, options);
       divider.setPos(0);
       bench.drag = null;
       bench.temp.visible = false;

@@ -73,7 +73,7 @@ export function newtonTubeRig() {
     const gate = new THREE.Group();
     gate.position.set(0.029, s * 0.183, 0);
     tube.add(gate);
-    block(gate, 0.018, 0.008, 0.011, 0.009, 0, 0, 0xb36443);
+    const button = block(gate, 0.024, 0.012, 0.016, 0.018, 0, 0.012, 0xb36443);
     const fork = new THREE.Group();
     gate.add(fork);
     for (const z of [-0.004, 0.004]) block(fork, 0.05, 0.0016, 0.0018, -0.02, -s * 0.027, z, 0x818b8a);
@@ -83,7 +83,7 @@ export function newtonTubeRig() {
     for (const x of [-0.011, 0.01]) {
       block(tube, 0.009, 0.003, 0.006, x, s * 0.17, -0.029, 0x42494d);
     }
-    gates.push({ gate, fork, s });
+    gates.push({ gate, button, fork, s });
   }
   const iron = cylinder(tube, 0.008, 0.002, 0, 0, 0, 0x626d70);
   iron.rotation.z = 0.14;
@@ -113,7 +113,7 @@ export function newtonTubeRig() {
   wire(
     group,
     [
-      [0.071, 0.02, 0.052],
+      [0.078, 0.02, 0.052],
       [0.095, 0.012, 0.055],
       [0.107, 0.022, 0.019],
     ],

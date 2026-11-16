@@ -34,8 +34,8 @@ export function soapFilmRig(models) {
     const stem = wire(
       root,
       [
-        [0, 0, -0.07],
-        [0, 0, -0.105],
+        [0, 0, -0.072],
+        [0, 0, -0.0905],
       ],
       0x78817b,
       0.002,

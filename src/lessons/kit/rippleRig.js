@@ -49,10 +49,11 @@ export function rippleRig(tank, { interference = false, reflection = false, gain
     return { b, plate, knob, s };
   });
   function layout() {
-    boards.forEach(({ plate, knob, s }) => {
+    boards.forEach(({ b, plate, knob, s }) => {
       const edge = s < 0 ? tank.left : tank.right;
-      plate.position.x = edge + (s * (TANK_W / 2 + 0.009)) / 2;
-      knob.position.x = edge + s * 0.009;
+      b.position.x = edge + (s * (TANK_W / 2 + 0.009)) / 2;
+      plate.position.x = 0;
+      knob.position.x = edge + s * 0.009 - b.position.x;
     });
   }
   const ruler = rulerMesh({ length: TANK_D, width: 0.015, divisions: 270, every: 10, labelEvery: 20 });

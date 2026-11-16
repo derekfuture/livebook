@@ -110,9 +110,9 @@ export function capacitorRig() {
     [-0.012, 0.006, -0.111],
     [-0.025, 0.008, 0.04],
   ]);
-  wire(at(hinge), at(mPos), 0x9d6443);
+  wire(at(hinge), at(mPos), 0x9d6443, [[-0.02, 0.022, -0.025], [0.029, 0.022, -0.023], [0.029, 0.021, -0.037]]);
   wire(at(mNeg), at(positive), 0xa65a40);
-  wire(at(negative), terminal(resistor, 'b'), 0x56615d);
+  wire(at(negative), terminal(resistor, 'b'), 0x56615d, [[0.148, 0.018, 0.06], [0.13, 0.012, 0.088], [0.025, 0.022, 0.106]]);
   wire(at(positive), at(vPos), 0xbb5039);
   wire(at(negative), at(vNeg), 0x414b4b);
   return {

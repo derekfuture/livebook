@@ -47,11 +47,11 @@ export function capillaryRig() {
     block(group, 0.085, 0.009, 0.065, x, 0.0045, -0.094, 0x656b70);
     block(group, 0.006, 0.247, 0.006, x, 0.13, -0.078, 0x8e999d);
     const assembly = new THREE.Group();
-    assembly.position.y = 0.09;
+    assembly.position.set(x, 0.09, 0);
     group.add(assembly);
-    block(assembly, 0.115, 0.006, 0.006, x, 0.102, -0.017, 0x8d999d);
-    block(assembly, 0.007, 0.007, 0.061, x, 0.102, -0.047, 0x8d999d);
-    const grip = block(assembly, 0.024, 0.022, 0.022, x, 0.102, -0.078, k ? 0x5c7764 : 0x5b6b7a);
+    block(assembly, 0.115, 0.006, 0.006, 0, 0.102, -0.017, 0x8d999d);
+    block(assembly, 0.007, 0.007, 0.061, 0, 0.102, -0.047, 0x8d999d);
+    const grip = block(assembly, 0.024, 0.022, 0.022, 0, 0.102, -0.078, k ? 0x5c7764 : 0x5b6b7a);
     grip.name = k ? 'plastic-grip' : 'glass-grip';
     assemblies.push({ group: assembly, grip });
     const tag = label(k ? 'PP笔芯' : '洁净玻璃', x, 0.262, -0.078, 0.1, 0.016);
@@ -86,7 +86,7 @@ export function capillaryRig() {
   }
   for (const [i, s] of CAPILLARY_SPECS.entries()) {
     const tube = new THREE.Group();
-    tube.position.x = CAPILLARY_X[i];
+    tube.position.x = CAPILLARY_X[i] - CAPILLARY_GROUP_X[i < 3 ? 0 : 1];
     assemblies[i < 3 ? 0 : 1].group.add(tube);
     tube.name = 'capillary-' + s.id;
     const r = s.radius * 4,

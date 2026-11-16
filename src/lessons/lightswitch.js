@@ -23,6 +23,8 @@ export default {
     src: '人教版高中物理选择性必修第二册第 105–106 页，图5.3-5甲',
   },
   create(ctx) {
+    const look = ctx.look;
+    ctx = { ...ctx, look: (at, ...args) => look([at[0], at[1] + 0.0066, at[2]], ...args) };
     const rig = lightSwitchRig(),
       { group, S, shade, knob, leads } = rig;
     let ui, rows, form, view, aim, resistance, firstR, firstMark, secondMark, checkedMark, knobStart, knobGrab;
@@ -282,8 +284,11 @@ export default {
       guide();
     }
     reset();
+    const mounted = new group.constructor();
+    mounted.add(group);
+    group.position.y = 0.0066;
     return {
-      group,
+      group: mounted,
       size: { w: 0.47, h: 0.195, d: 0.3 },
       view: { elev: 35, azim: 6, margin: 1.06 },
       toggles: ['steps'],

@@ -102,6 +102,15 @@ export function lightSwitchRig() {
   dial.rotation.x = -Math.PI / 2;
   dial.position.set(R_POS[0], 0.0162, R_POS[2]);
   group.add(dial);
+  // 拾取印在旋钮前方的 R₁ 标识，避免整个刻度盘的中心落在旋钮上。
+  const dialPick = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.030, 0.009),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  dialPick.rotation.x = -Math.PI / 2;
+  dialPick.position.set(R_POS[0], 0.0163, R_POS[2] + 0.025);
+  dialPick.userData.pick = true;
+  group.add(dialPick);
   const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.012, 40), paint(0x49504e));
   knob.position.set(R_POS[0], 0.023, R_POS[2]);
   group.add(knob);
@@ -204,5 +213,5 @@ export function lightSwitchRig() {
     led.material.color.setRGB(0.12 + 0.88 * b, 0.024 + 0.1 * b, 0.018 + 0.035 * b);
     shadeOffset.value.set(shade.position.x - SENSOR_X, shade.position.z - SENSOR_Z);
   }
-  return { group, S, rg, shade, knob, dial, led, mark, ports, leads, route, draw };
+  return { group, S, rg, shade, knob, dial: dialPick, led, mark, ports, leads, route, draw };
 }

@@ -20,6 +20,8 @@ export default {
     src: '人教版高中物理必修第三册第20页 · 图9.4-5',
   },
   create(ctx) {
+    const look = ctx.look;
+    ctx = { ...ctx, look: (at, ...args) => look([at[0], at[1] + 0.01, at[2]], ...args) };
     const model = new ShieldingExperiment();
     function initialPose() {
       model.reset();
@@ -241,8 +243,11 @@ export default {
       if (near) leave();
       else guide();
     }
+    const mounted = new group.constructor();
+    mounted.add(group);
+    group.position.y = 0.01;
     return {
-      group,
+      group: mounted,
       pointer,
       card: false,
       toggles: ['steps'],

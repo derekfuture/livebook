@@ -63,7 +63,7 @@ export function lenzRig() {
   const route = [
     [coilEnd, COIL_BOTTOM + COIL_HEIGHT, 0],
     [-0.032, 0.037, -0.022],
-    [-0.017, 0.007, -0.038],
+    [-0.017, 0.012, -0.038],
     [0.04, 0.004, -0.05],
     [0.125, 0.005, -0.045],
     [0.137, 0.004, 0.021],
@@ -71,7 +71,7 @@ export function lenzRig() {
   const loose = [0.128, 0.002, 0.061];
   const positiveWire = tube([...route, loose], 0.0015, 0xb24d43);
   const blackWire = tube(
-    [[coilEnd, COIL_BOTTOM, 0], [-0.035, 0.007, 0.012], [0.012, 0.002, 0.037], [0.055, 0.002, 0.028], minus],
+    [[coilEnd, COIL_BOTTOM, 0], [-0.035, 0.012, 0.012], [0.012, 0.002, 0.037], [0.055, 0.002, 0.028], minus],
     0.0015,
     0x373b40,
   );

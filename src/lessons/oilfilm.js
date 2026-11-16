@@ -345,7 +345,7 @@ export default {
       group,
       [
         {
-          obj: plunger,
+          obj: rig.thumb,
           plane: 'xy',
           offset: 0,
           enabled: () => !covered && !bar.finished,
@@ -377,7 +377,7 @@ export default {
           },
         },
         {
-          obj: syringe,
+          obj: rig.clamp,
           plane: 'xz',
           offset: 0.1,
           enabled: () => view !== 'plate' && !covered && !bar.finished,

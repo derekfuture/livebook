@@ -26,6 +26,8 @@ export default {
     src: '人教版高中物理选择性必修第二册第97–98页；用白光源替代阳光作强光对照。',
   },
   create(ctx) {
+    const look = ctx.look;
+    ctx = { ...ctx, look: (at, ...args) => look([at[0], at[1] + 0.006, at[2]], ...args) };
     const rig = photoresistorRig(),
       { group, circuit, meter, photo, regular, hand, sandpaper, lamp, lampBase, power } = rig;
     let model,
@@ -437,8 +439,11 @@ export default {
       bar.undo('zero', 'photo', 'prepare', 'regular', 'compare', 'off');
       guide();
     }
+    const mounted = new group.constructor();
+    mounted.add(group);
+    group.position.y = 0.006;
     return {
-      group,
+      group: mounted,
       card: false,
       pointer: desk,
       toggles: ['steps'],

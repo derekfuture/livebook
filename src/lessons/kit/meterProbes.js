@@ -58,14 +58,23 @@ export function meterProbes(
     // 落笔后笔尾靠在桌面。接较高的柱时，从接点向下斜放。
     grip.rotation.x = lifted
       ? 1.1
-      : Math.acos(clamp((0.0048 - handle.position.y) / (0.037 * Math.cos(grip.rotation.z)), -1, 1));
+      : Math.acos(clamp((0.013 - handle.position.y) / (0.037 * Math.cos(grip.rotation.z)), -1, 1));
     const socket = circuit.terminalWorld('M.' + name),
       end = group.worldToLocal(grip.localToWorld(new THREE.Vector3(0, 0.037, 0)));
     const bend = socket.clone().add(new THREE.Vector3(name === 'red' ? 0.008 : -0.016, 0, 0.034));
     const mid = bend.clone().lerp(end, 0.45);
-    mid.y = 0.002;
+    mid.y = 0.004;
     mid.z += 0.024;
-    const curve = new THREE.CatmullRomCurve3([socket, bend, mid, end]);
+    const footprint = circuit._footprint(circuit.get('M'));
+    const points = [socket, bend, mid, end];
+    if (end.z < footprint.z1 + 0.006 && end.x > footprint.x0 && end.x < footprint.x1) {
+      const x = socket.x < (footprint.x0 + footprint.x1) / 2 ? footprint.x0 - 0.012 : footprint.x1 + 0.012;
+      points.splice(2, 1,
+        new THREE.Vector3(x, 0.006, bend.z + 0.006),
+        new THREE.Vector3(x, 0.006, end.z),
+      );
+    }
+    const curve = new THREE.CatmullRomCurve3(points);
     lead.geometry.dispose();
     lead.geometry = new THREE.TubeGeometry(curve, 32, 0.0013, 7, false);
     handle.updateMatrixWorld(true);

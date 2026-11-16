@@ -77,8 +77,8 @@ export function mutualInductionRig() {
           [radius, 0.001, 0],
           [radius + 0.001, 0.001, 0.006],
           [radius + 0.004, height + 0.009, 0.006],
-          [radius + 0.004, height + 0.009, -radius - 0.004],
-          [-radius + 0.004, height + 0.009, -radius - 0.004],
+          [radius + 0.004, height + 0.020, 0.022],
+          [-radius + 0.004, height + 0.020, 0.022],
           [-radius + 0.004, height + 0.009, 0.006],
         ],
         0x5a6060,
@@ -88,6 +88,9 @@ export function mutualInductionRig() {
       wire(
         [
           [radius, height - 0.001, 0],
+          [radius + 0.004, height + 0.014, 0.016],
+          [radius - 0.004, height + 0.014, 0.016],
+          [radius - 0.004, height + 0.010, 0.006],
           [radius - 0.004, height + 0.008, 0.006],
         ],
         0x9a553d,
@@ -115,7 +118,7 @@ export function mutualInductionRig() {
   inner.group.position.set(COIL_CENTER[0], RAISED_BOTTOM, COIL_CENTER[1]);
   group.add(inner.group);
   const grip = inked(new THREE.Mesh(new THREE.BoxGeometry(0.059, 0.008, 0.012), paint(0x809f9e)));
-  grip.position.set(0, 0.086, 0);
+  grip.position.set(0, 0.086, -0.012);
   inner.group.add(grip);
   // 手动导向架只约束同轴升降，避免未抓取时内线圈悬空；不改变两回路。
   const guideRod = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 0.225, 16), paint(0x8c989b));

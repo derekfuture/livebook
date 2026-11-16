@@ -39,7 +39,12 @@ export function resistivityBench() {
     ['E.+', 'P.A'],
     ['P.B', 'S.a'],
     ['S.b', 'E.-'],
-    ['P.A', 'X.a'],
+    ['P.A', 'X.a', { points: [
+      [-0.085, 0.024, -0.105],
+      [-0.20, 0.022, -0.105],
+      [-0.22, 0.018, -0.065],
+      [-0.26, 0.018, 0.015],
+    ] }],
     ['A.-', 'P.C'],
   ];
   const leads = [
@@ -47,7 +52,7 @@ export function resistivityBench() {
     ['X.a', 'V.3'],
     ['X.b', 'V.-'],
   ];
-  for (const [a, b] of fixed) circuit.wire(a, b);
+  for (const [a, b, options] of fixed) circuit.wire(a, b, options);
   circuit.solve();
   return { circuit, source, sw, divider, sample, ammeter, voltmeter, fixed, leads };
 }

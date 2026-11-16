@@ -70,6 +70,7 @@ const inPage = () => {
           if (s.geometry.type === 'TorusGeometry' &&
               Math.hypot(Math.hypot(l.x, l.y) - shape.radius, l.z) > shape.tube + t.geometry.parameters.radius) continue;
           if (s.geometry.type === 'SphereGeometry' && Math.hypot(l.x, l.y, l.z) > shape.radius + t.geometry.parameters.radius) continue;          // 球按球算，不按它的包围盒（绕在球外面的铁丝不算穿过）
+          if (s.geometry.type === 'CylinderGeometry' && !shape.openEnded && Math.hypot(l.x, l.z) > shape.radiusBottom + (l.y / shape.height + 0.5) * (shape.radiusTop - shape.radiusBottom)) continue;          // 实心圆柱按圆柱算：绕在轮子外面的皮带、贴着圆柱走的线不算穿过
           if (s.geometry.type === 'CylinderGeometry' && shape.openEnded) {
             const fraction = l.y / shape.height + 0.5;
             const radius = shape.radiusBottom + fraction * (shape.radiusTop - shape.radiusBottom);

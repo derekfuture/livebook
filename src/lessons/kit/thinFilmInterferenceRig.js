@@ -17,7 +17,7 @@ export function thinFilmInterferenceRig() {
     ring,
     [
       [0, 0.045, 0],
-      [0, 0.13, 0],
+      [0, 0.0975, 0],
     ],
     0x7a8581,
     0.0015,

@@ -182,8 +182,8 @@ export function wireDiameterStation(group, sample, { look, back, say, record, en
             guide();
           },
         },
-        ...[tool.sleeve, tool.scale].map((obj) => ({
-          obj,
+        {
+          obj: tool.readingPick,
           hint: '近看测微器刻度',
           onTap() {
             enter();
@@ -191,7 +191,7 @@ export function wireDiameterStation(group, sample, { look, back, say, record, en
             else if (!view) focus('tool');
             else guide();
           },
-        })),
+        },
       ],
     },
   );

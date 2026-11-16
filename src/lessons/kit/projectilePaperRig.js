@@ -140,7 +140,7 @@ export function projectilePaperRig() {
   const vertices = [],
     idx = [];
   for (const p of pts) {
-    for (const z of [-0.008, 0.008]) vertices.push(p.x, p.y, p.z + z);
+    for (const z of [-0.004, 0.004]) vertices.push(p.x, p.y, p.z + z);
   }
   for (let k = 1; k < pts.length; k++) {
     const i = k * 2;
@@ -151,7 +151,7 @@ export function projectilePaperRig() {
   geo.setIndex(idx);
   geo.computeVertexNormals();
   group.add(new THREE.Mesh(geo, paint(0x818d8d, { side: THREE.DoubleSide })));
-  for (const z of [-0.009, 0.009])
+  for (const z of [-0.0045, 0.0045])
     tube(
       group,
       pts.map((p) => new THREE.Vector3(p.x, p.y + 0.001, p.z + z)),

@@ -112,7 +112,8 @@ export function alarmRig() {
     [
       switched,
       [0.115, 0.004, -0.069],
-      [-0.092, 0.004, -0.073],
+      [-0.092, 0.014, -0.073],
+      [-0.092, 0.03, -0.073],
       [HINGE + 0.115, 0.148, DOOR_Z - 0.009],
       [reed.position.x + 0.02, reedY, reed.position.z],
     ],
@@ -154,10 +155,10 @@ export function alarmRig() {
     vec(0.159, 0.004, 0.076),
   ];
   const homes = [
-    vec(-0.048, 0.004, 0.028),
-    vec(0.018, 0.004, 0.095),
-    vec(0.113, 0.004, 0.08),
-    vec(0.093, 0.004, 0.098),
+    vec(-0.048, 0.005, 0.028),
+    vec(0.018, 0.005, 0.095),
+    vec(0.113, 0.005, 0.08),
+    vec(0.093, 0.005, 0.098),
   ];
   const wires = anchors.map((anchor, i) => {
     const color = [0x9e644f, 0x3f4748, 0x748562, 0xa67a46][i];
@@ -177,7 +178,7 @@ export function alarmRig() {
     middle.z += i === 0 ? 0.005 : 0.023;
     const points =
       i === 0
-        ? [l.anchor, vec(HINGE - 0.007, reedY + 0.002, DOOR_Z), vec(HINGE - 0.008, 0.008, DOOR_Z), middle, end]
+        ? [l.anchor, vec(HINGE - 0.007, reedY + 0.002, DOOR_Z), vec(HINGE - 0.008, 0.028, DOOR_Z), vec(HINGE - 0.008, 0.008, DOOR_Z + 0.01), middle, end]
         : [l.anchor, middle, end];
     l.wire.geometry.dispose();
     l.wire.geometry = wireGeometry(points);

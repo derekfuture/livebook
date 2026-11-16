@@ -143,6 +143,15 @@ export function micrometerTool() {
   const spindle = shaft(body, 0, 0.045, 0.0027, 0xacb6b5);
   const drive = measuringScrew(body);
   const { sleeve, drum, scale, grip } = drive;
+  const sleevePick = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.00445, 0.00445, 1, 32),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  );
+  sleevePick.rotation.z = -Math.PI / 2;
+  sleevePick.userData.pick = true;
+  const readingPick = new THREE.Group();
+  body.add(readingPick);
+  readingPick.add(sleevePick, scale);
   const ratchet = new THREE.Group();
   body.add(ratchet);
   shaft(ratchet, 0, 0.008, 0.004, 0xb8bab1);
@@ -154,6 +163,8 @@ export function micrometerTool() {
     group,
     frame,
     sleeve,
+    sleevePick,
+    readingPick,
     drum,
     grip,
     ratchet,
@@ -163,6 +174,10 @@ export function micrometerTool() {
       const distance = gap / 1000;
       spindle.position.x = ANVIL_X + distance + 0.045 / 2;
       drive.setReading(gap);
+      scale.position.copy(drum.position);
+      scale.rotation.copy(drum.rotation);
+      sleevePick.scale.y = 0.003 + distance;
+      sleevePick.position.x = SCALE_ZERO - 0.003 + (0.003 + distance) / 2;
       ratchet.position.x = drum.position.x + 0.03;
       ratchet.rotation.x = ratchetTurns * TAU;
     },

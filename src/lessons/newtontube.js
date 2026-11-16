@@ -192,7 +192,7 @@ export default {
         highlight: true,
         taps: [
           ...rig.gates.map((g) => ({
-            obj: g.gate,
+            obj: g.button,
             enabled: () => !running && !near,
             hint: '打开该端的释放托架',
             onTap() {

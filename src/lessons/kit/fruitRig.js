@@ -56,12 +56,12 @@ function makePear(group) {
   );
   pear.position.set(PEAR_X, 0, PEAR_Z);
   group.add(pear);
-  wire(
-    group,
+  wire(          // 梨梗：长在梨上（挂在梨下面），一头插进果肉
+    pear,
     [
-      [PEAR_X, 0.093, PEAR_Z],
-      [PEAR_X - 0.003, 0.105, PEAR_Z - 0.002],
-      [PEAR_X - 0.01, 0.117, PEAR_Z - 0.004],
+      [0, 0.093, 0],
+      [-0.003, 0.105, -0.002],
+      [-0.01, 0.117, -0.004],
     ],
     0x6d5438,
     0.0015,

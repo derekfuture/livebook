@@ -54,7 +54,8 @@ export function capacitorSharingRig() {
   wire(at(selector.hinge), at(a.positive), red, [[0.045, 0.014, 0]]);
   wire(at(a.positive), at(meter.positive), red, [
     [0.085, 0.012, -0.01],
-    [0.09, 0.012, -0.06],
+    [0.105, 0.021, -0.048],
+    [0.13, 0.022, -0.065],
   ]);
   wire(at(selector.throws[1]), at(b.positive), red, [
     [0.04, 0.012, -0.08],
@@ -62,7 +63,7 @@ export function capacitorSharingRig() {
     [0.05, 0.012, 0.065],
     [-0.042, 0.012, 0.065],
   ]);
-  wire(at(b.positive), at(discharge.contact), red);
+  wire(at(b.positive), at(discharge.contact), red, [[-0.042, 0.022, 0.103], [-0.065, 0.022, 0.105]]);
   // All black branches end at visible junctions on the common return.
   const nodes = [-0.16, 0.03, 0.19].map((x) => [x, 0.008, 0.185]);
   for (const p of nodes) {

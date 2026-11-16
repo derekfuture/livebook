@@ -25,6 +25,8 @@ export default {
     src: '人教版高中物理选择性必修第二册第 103–104 页',
   },
   create(ctx) {
+    const look = ctx.look;
+    ctx = { ...ctx, look: (at, ...args) => look([at[0], at[1] + 0.0066, at[2]], ...args) };
     const rig = alarmRig(),
       { group, door, magnet, reed, S, wires } = rig;
     let ui,
@@ -270,8 +272,11 @@ export default {
       },
     );
     reset();
+    const benchGroup = new group.constructor();
+    benchGroup.add(group);
+    group.position.y = 0.0066;
     return {
-      group,
+      group: benchGroup,
       size: { w: 0.52, d: 0.3, h: 0.18 },
       view: { azim: 8, elev: 28, margin: 1.04 },
       toggles: ['steps'],

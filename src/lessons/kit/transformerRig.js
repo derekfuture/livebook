@@ -93,7 +93,7 @@ function cableGeometry(start, end, bend) {
   const slack = start.clone().lerp(end, 0.52);
   slack.z = Math.max(lip.z + bend, end.z + 0.030);
   slack.y = 0.003;
-  const approach = end.clone().add(new THREE.Vector3(0, 0.004, 0.017));
+  const approach = end.clone().add(new THREE.Vector3(0, 0, 0.017));
   const curve = new THREE.CatmullRomCurve3([start, lip, slack, approach, end]);
   return new THREE.TubeGeometry(curve, 30, 0.0014, 7, false);
 }
@@ -165,7 +165,7 @@ export function transformerRig() {
     if (i >= 2) {
       const grip = l.obj.children[0];
       grip.rotation.x = Math.acos(
-        THREE.MathUtils.clamp((0.005 - end.y) / (0.037 * Math.cos(grip.rotation.z)), -0.25, 0.6),
+        THREE.MathUtils.clamp((0.013 - end.y) / (0.037 * Math.cos(grip.rotation.z)), -0.25, 0.6),
       );
       group.worldToLocal(grip.localToWorld(end.set(0, 0.037, 0)));
     } else end.y += 0.01;

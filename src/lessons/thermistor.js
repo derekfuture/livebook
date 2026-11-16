@@ -30,6 +30,8 @@ export default {
     src: '人教版高中物理选择性必修第二册第98–99页；接法参照图5.2-2。',
   },
   create(ctx) {
+    const look = ctx.look;
+    ctx = { ...ctx, look: (at, ...args) => look([at[0], at[1] + 0.006, at[2]], ...args) };
     const rig = thermistorRig(),
       { group, circuit, meter, thermistor, probe, grip } = rig;
     let model,
@@ -370,8 +372,11 @@ export default {
       bar.undo('room', 'hand', 'water', 'recover', 'compare', 'off');
       guide();
     }
+    const mounted = new group.constructor();
+    mounted.add(group);
+    group.position.y = 0.006;
     return {
-      group,
+      group: mounted,
       card: false,
       pointer: desk,
       toggles: ['steps'],

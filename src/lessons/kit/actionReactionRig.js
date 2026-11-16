@@ -9,23 +9,25 @@ export function actionReactionRig() {
   const group = new THREE.Group(),
     textures = [];
   const meters = ['B', 'A'].map((name) => {
+    const assembly = new THREE.Group();
+    group.add(assembly);
     const meter = forceMeter();
     meter.ring.visible = false; // 用同形的水平提环作为实际拖动处，避免两环叠在一起。
-    group.add(meter);
+    assembly.add(meter);
     const label = textPlate(name, { w: 0.018, h: 0.012, bg: '#efe5cd', font: 'bold 230px sans-serif' });
     label.position.set(0.014, -0.018, 0.012);
     meter.add(label);
     textures.push(label.material.map);
     const handle = new THREE.Mesh(new THREE.TorusGeometry(0.009, 0.002, 8, 24), paint(0x697b7b));
     const pick = new THREE.Mesh(
-      new THREE.SphereGeometry(0.014, 12, 8),
+      new THREE.TorusGeometry(0.009, 0.004, 8, 24),
       new THREE.MeshBasicMaterial({ visible: false }),
     );
     pick.userData.pick = true;
     handle.add(pick);
     handle.rotation.x = -Math.PI / 2;
-    group.add(handle);
-    return { meter, handle };
+    assembly.add(handle);
+    return { assembly, meter, handle };
   });
   const pin = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.036, 12), paint(0x697b7b)));
   group.add(pin);
@@ -33,7 +35,7 @@ export function actionReactionRig() {
   pinHead.position.y = 0.02;
   pin.add(pinHead);
   const pinPick = new THREE.Mesh(
-    new THREE.SphereGeometry(0.013, 12, 8),
+    new THREE.CylinderGeometry(0.009, 0.009, 0.006, 16),
     new THREE.MeshBasicMaterial({ visible: false }),
   );
   pinPick.position.y = 0.02;
@@ -46,8 +48,7 @@ export function actionReactionRig() {
       len = Math.hypot(dx, dz),
       x = dx / len,
       z = dz / len;
-    m.meter.position.set(handle.x, 0.024, handle.z);
-    m.handle.position.set(handle.x, 0.024, handle.z);
+    m.assembly.position.set(handle.x, 0.024, handle.z);
     m.meter.quaternion.setFromRotationMatrix(
       new THREE.Matrix4().makeBasis(
         new THREE.Vector3(-z, 0, x),

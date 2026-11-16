@@ -209,7 +209,7 @@ export default {
             },
           },
           { obj: tool.scale, hint: '近看两筒交界的刻度', onTap: inspect },
-          { obj: tool.sleeve, hint: '沿基准线近看', onTap: inspect },
+          { obj: tool.sleevePick, hint: '沿基准线近看', onTap: inspect },
         ],
       },
     );
