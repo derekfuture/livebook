@@ -14,13 +14,14 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pdf_paths import LIB, pdf_path
 PDF = {b: pdf_path(b) for b in ("wuli-8s", "wuli-8x", "wuli-9", "huaxue-9s", "huaxue-9x", "dili-7s",
-                                "wuli-hs1", "wuli-hs2", "wuli-hs3", "wuli-hsx1", "wuli-hsx2", "wuli-hsx3")}          # 这几本的插图按图注找位置
+                                "wuli-hs1", "wuli-hs2", "wuli-hs3", "wuli-hsx1", "wuli-hsx2", "wuli-hsx3",
+                                "huaxue-hs1", "huaxue-hs2", "huaxue-hsx1", "huaxue-hsx2", "huaxue-hsx3")}          # 这几本的插图按图注找位置
 OVERRIDE = ROOT / "tools" / "bbox-overrides.json"   # 自动框不准时手工改这里
 
 
 def plan_rows():
     book, rows = None, []
-    for line in ("\n".join((ROOT / name).read_text(encoding="utf-8") for name in ("PLAN.md", "PLAN-senior-physics.md"))).splitlines():
+    for line in ("\n".join((ROOT / name).read_text(encoding="utf-8") for name in ("PLAN.md", "PLAN-senior-physics.md", "PLAN-senior-chemistry.md"))).splitlines():
         m = re.search(r"\b((?:wuli|huaxue|dili)-[\w-]+)（", line)
         if line.startswith("## ") and m:
             book = m.group(1)

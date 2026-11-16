@@ -3920,5 +3920,58 @@
     "label": "图1.2-2 · 翻开活页"
    }
   ]
+ },
+ "huaxue-hs1": {
+  "id": "huaxue-hs1",
+  "title": "化学 必修第一册",
+  "base": "/books/huaxue-hs1/",
+  "lessons": {
+   "nawater": {
+    "title": "钠与水反应",
+    "fig": "图2-4",
+    "sec": "钠及其化合物"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "nawater",
+    "page": 40,
+    "bbox": [
+     91,
+     236,
+     513,
+     414
+    ],
+    "label": "图2-4 · 翻开活页"
+   }
+  ]
+ },
+ "huaxue-hs2": {
+  "id": "huaxue-hs2",
+  "title": "化学 必修第二册",
+  "base": "/books/huaxue-hs2/",
+  "lessons": {},
+  "spots": []
+ },
+ "huaxue-hsx1": {
+  "id": "huaxue-hsx1",
+  "title": "化学 选择性必修1",
+  "base": "/books/huaxue-hsx1/",
+  "lessons": {},
+  "spots": []
+ },
+ "huaxue-hsx2": {
+  "id": "huaxue-hsx2",
+  "title": "化学 选择性必修2",
+  "base": "/books/huaxue-hsx2/",
+  "lessons": {},
+  "spots": []
+ },
+ "huaxue-hsx3": {
+  "id": "huaxue-hsx3",
+  "title": "化学 选择性必修3",
+  "base": "/books/huaxue-hsx3/",
+  "lessons": {},
+  "spots": []
  }
 }

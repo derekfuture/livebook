@@ -115,6 +115,71 @@ BOOKS = {
         "first_body_index": 4,
         "page_offset": 4,
     },
+    "huaxue-hs1": {
+        "code": "hc1",
+        "title": "化学 必修第一册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("huaxue-hs1"),
+        "toc": toc_path("huaxue-hs1"),
+        "first_body_index": 5,
+        "page_offset": 4,
+        # 印刷页码，照课本目录页（章首页、各节首页，含整理与提升、实验活动）
+        "printed_pages": [[2], [5, 6, 14, 22, 29], [33, 34, 44, 53, 62, 65], [67, 68, 78, 87, 90], [91, 92, 107, 113, 118, 122]],
+        "exclude_chapters": [],
+        "exclude_sections": ["全章复习"],
+    },
+    "huaxue-hs2": {
+        "code": "hc2",
+        "title": "化学 必修第二册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("huaxue-hs2"),
+        "toc": toc_path("huaxue-hs2"),
+        "first_body_index": 5,
+        "page_offset": 4,
+        # 印刷页码，照课本目录页（章首页、各节首页，含整理与提升、实验活动）
+        "printed_pages": [[1, 2, 11, 19, 26, 29, 30], [31, 32, 42, 52, 56, 57], [59, 60, 67, 77, 83, 91, 95, 96], [97, 98, 107, 117, 123]],
+        "exclude_chapters": ["综合专题"],
+        "exclude_sections": ["全章复习"],
+    },
+    "huaxue-hsx1": {
+        "code": "hcx1",
+        "title": "化学 选择性必修1",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("huaxue-hsx1"),
+        "toc": toc_path("huaxue-hsx1"),
+        "first_body_index": 5,
+        "page_offset": 4,
+        # 印刷页码，照课本目录页（章首页、各节首页，含整理与提升、实验活动）
+        "printed_pages": [[3, 4, 14, 20], [23, 24, 32, 43, 46, 52, 55], [57, 58, 63, 71, 79, 88, 91, 94], [95, 96, 104, 111, 118, 122, 123]],
+        "exclude_chapters": ["综合专题"],
+        "exclude_sections": ["全章复习"],
+    },
+    "huaxue-hsx2": {
+        "code": "hcx2",
+        "title": "化学 选择性必修2",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("huaxue-hsx2"),
+        "toc": toc_path("huaxue-hsx2"),
+        "first_body_index": 5,
+        "page_offset": 2,
+        # 印刷页码，照课本目录页（章首页、各节首页，含整理与提升、实验活动）
+        "printed_pages": [[5, 6, 18, 30], [33, 34, 41, 52], [67, 68, 78, 86, 95, 101, 104]],
+        "exclude_chapters": ["高考复习"],
+        "exclude_sections": ["全章复习"],
+    },
+    "huaxue-hsx3": {
+        "code": "hcx3",
+        "title": "化学 选择性必修3",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("huaxue-hsx3"),
+        "toc": toc_path("huaxue-hsx3"),
+        "first_body_index": 5,
+        "page_offset": 4,
+        # 印刷页码，照课本目录页（章首页、各节首页，含整理与提升、实验活动）
+        "printed_pages": [[3, 4, 13, 23], [27, 28, 34, 43, 50], [53, 54, 59, 68, 73, 84, 93, 98, 99], [101, 102, 112, 122, 127, 130], [131, 132, 136, 152]],
+        "exclude_chapters": ["##引言", "高考复习"],
+        "exclude_sections": ["全章复习"],
+    },
     "dili-7s": {
         "code": "g7a",
         "title": "地理 七年级上册",
@@ -284,6 +349,8 @@ def main(book_id):
     chapters = apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"])
     if "exclude_chapters" in cfg:
         chapters = [c for c in chapters if c["title"] not in cfg["exclude_chapters"]]
+    for c in chapters:          # 平台目录里另附的“全章复习”不在课本里
+        c["sections"] = [x for x in c["sections"] if x["title"] not in cfg.get("exclude_sections", [])]
     if "printed_pages" in cfg:
         for chapter, pages in zip(chapters, cfg["printed_pages"]):
             chapter["page"] = pages[0] + cfg["page_offset"]
