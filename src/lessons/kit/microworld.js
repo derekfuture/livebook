@@ -20,11 +20,11 @@ const EL = {
   C: [0x3d4350, 0.4], O: [0xe0483a, 0.36], H: [0xf2f1ec, 0.24], N: [0x4a78d8, 0.36],
   Na: [0x9b6fe0, 0.52], Cl: [0x4cbf63, 0.6], S: [0xe8c23c, 0.44],
   Al: [0xaab6c4, 0.66], Cu: [0xbf5a36, 0.62], Ag: [0xe9ecf1, 0.66],
-  Ca: [0x7cc98a, 0.62], Mg: [0xdde2e8, 0.68], Zn: [0x9eaabb, 0.64], Fe: [0x767c86, 0.64], P: [0xa8402f, 0.6], Mn: [0x6e5d84, 0.6],
+  Ca: [0x7cc98a, 0.62], Ba: [0x2f9e9a, 0.7], Mg: [0xdde2e8, 0.68], Zn: [0x9eaabb, 0.64], Fe: [0x767c86, 0.64], P: [0xa8402f, 0.6], Mn: [0x6e5d84, 0.6],
 };
 const TET = 1.49 / Math.sqrt(3), TRI = 1.25;
 // 离子的电荷：成对进出、算电荷平衡用
-const ZION = { 'H+': 1, 'Na+': 1, 'Ag+': 1, 'Cu2+': 2, 'Mg2+': 2, 'Zn2+': 2, 'Fe2+': 2, 'Fe3+': 3, 'Al3+': 3, 'Ca2+': 2, 'Mg2+i': 2, 'Cl-': 1, 'NO3-': 1, 'OH-': 1, 'HCO3-': 1, 'SO4 2-': 2, 'CO3 2-': 2 };
+const ZION = { 'Ba2+': 2, 'H+': 1, 'Na+': 1, 'Ag+': 1, 'Cu2+': 2, 'Mg2+': 2, 'Zn2+': 2, 'Fe2+': 2, 'Fe3+': 3, 'Al3+': 3, 'Ca2+': 2, 'Mg2+i': 2, 'Cl-': 1, 'NO3-': 1, 'OH-': 1, 'HCO3-': 1, 'SO4 2-': 2, 'CO3 2-': 2 };
 const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 const pairOf = (cat, an) => { const z = ZION[cat], a = ZION[an], g = gcd(z, a); return [a / g, z / g]; };
 // 分子：原子 [元素, x, y, z]、键 [i, j, 几重键]、化学式、标签颜色（全息里用深色字）
@@ -67,6 +67,10 @@ const MOL = {
   MnO2: { atoms: [['Mn', 0, 0, 0], ['O', 0.75, 0.55, 0], ['O', -0.75, 0.55, 0]], bonds: [[0, 1, 1], [0, 2, 1]], label: 'MnO₂', ink: '#4a3d5c' },
   'CO3 2-': { atoms: [['C', 0, 0, 0], ['O', 1.29, 0, 0], ['O', -0.645, 1.117, 0], ['O', -0.645, -1.117, 0]], bonds: [[0, 1, 2], [0, 2, 1], [0, 3, 1]], label: 'CO₃²⁻', ink: '#3d4350' },
   'HCO3-': { atoms: [['C', 0, 0, 0], ['O', 1.25, 0, 0], ['O', -0.65, 1.12, 0], ['O', -0.66, -1.15, 0], ['H', -1.6, -1.15, 0]], bonds: [[0, 1, 2], [0, 2, 1], [0, 3, 1], [3, 4, 1]], label: 'HCO₃⁻', ink: '#3d4350' },
+  'Ba2+': { atoms: [['Ba', 0, 0, 0]], bonds: [], label: 'Ba²⁺', ink: '#1f7a76', glow: 0x7fe0d8, glowBase: 0.45, glowSize: 2.8 },
+  // 沉淀：一个阳离子挨着一个（或几个）阴离子画成一小块；原子和溶液里的离子一模一样（同一种原子到哪儿都是一个颜色、一个大小）
+  BaSO4: { atoms: [['Ba', -1.95, 0, 0], ['S', 0.45, 0, 0], ['O', 0.45 + TET, TET, TET], ['O', 0.45 - TET, -TET, TET], ['O', 0.45 - TET, TET, -TET], ['O', 0.45 + TET, -TET, -TET]], bonds: [[1, 2, 1], [1, 3, 1], [1, 4, 1], [1, 5, 1]], labelY: 2.2, label: 'BaSO₄', ink: '#3d4350' },
+  AgCl: { atoms: [['Ag', -0.95, 0, 0], ['Cl', 0.95, 0, 0]], bonds: [], labelY: 1.9, label: 'AgCl', ink: '#3d4350' },
   'Ca2+': { atoms: [['Ca', 0, 0, 0]], bonds: [], label: 'Ca²⁺', ink: '#b8641c', glow: 0xffa040, glowBase: 0.45, glowSize: 2.8 },
   'Mg2+i': { atoms: [['Mg', 0, 0, 0]], bonds: [], label: 'Mg²⁺', ink: '#b8641c', glow: 0xffa040, glowBase: 0.45, glowSize: 2.8 },      // 自来水里的杂质（和蒸馏那课的橙点一个颜色）
   'Fe3+': { atoms: [['Fe', 0, 0, 0]], bonds: [], label: 'Fe³⁺', ink: '#a87400', glow: 0xffc840, glowBase: 0.55, glowSize: 3 },
@@ -621,6 +625,44 @@ export function electrolysisScene() {
 
 // ================= 场景：中和反应 H⁺ + OH⁻ ══ H₂O =================
 // st：{ base: OH⁻ 原来有多少份（1 = 课本的 5 mL）, acid: 加进去的 H⁺ 相当于多少份（1 = 恰好中和）, color: 溶液颜色 }
+// ================= 场景：溶液里的离子结合成沉淀（离子反应、离子的检验） =================
+// opts：{ init: [[离子, 个数]...]（试管里原来的溶液），feed: [[离子, 个数]...]（滴进来的一“份”），cat, an（结合成沉淀的阳、阴离子），solid（沉淀），
+//   words: { start, react, done }（字幕，可以是函数 (c) => html） }
+// st：{ fed: 滴进来了几“份”（课程按滴数换算），stir }
+export function precipScene({ init, feed, cat, an, solid, words = {} }) {
+  const FILM = 6.2, SLOTS = [];
+  for (let r = 0; r < 3; r++) for (let q = -2; q <= 2; q++) SLOTS.push(new THREE.Vector3(q * 2.6 + (r % 2) * 1.3, 0.75 + r * 1.3, (r % 2 ? 0.6 : -0.6)));
+  const ca = MOL[cat].atoms.length, aa = MOL[an].atoms.length;
+  const RX = { in: [cat, an], out: [solid], host: 1, near: [[-2.4, 0, 0], null], map: [...Array.from({ length: ca }, (_, i) => [0, i]), ...Array.from({ length: aa }, (_, i) => [1, i])], dur: 1.4, approach: 1.4, burst: [0xffffff, 0xd8e4ee] };
+  let fed = 0, made = 0;
+  const top = (c) => c.V([c.rnd(-1.6, 1.6), FILM - 0.6, c.rnd(-1, 1)]);
+  const say = (w, c) => (typeof w === 'function' ? w(c) : w);
+  return {
+    labels: 'always', dim: 0.7,
+    init(c, st) {
+      c.view.film = FILM; c.view.paper = null; fed = 0; made = 0;
+      for (const [k, n] of init) for (let i = 0; i < n; i++) c.add(k, c.inLiquid());
+      for (let i = 0; i < 3; i++) c.add('H2O', c.inLiquid());
+    },
+    step(c, st) {
+      c.view.film = FILM; c.view.paper = null; c.view.liquid = st.color ?? 0xb9dfe9;
+      const want = Math.max(0, Math.floor(st.fed || 0));
+      if (fed < want) { fed++; for (const [k, n] of feed) for (let i = 0; i < n; i++) { const m = c.add(k, top(c).add(c.V([i * 1.1, 0, 0]))); m.v.set(c.rnd(-1.5, 1.5), -1.6, c.rnd(-1, 1)); } }
+      if (c.events.length < 2) {
+        const a = c.free(cat)[0], b = a && c.nearest(c.free(an), a.g.position);
+        if (a && b) c.start(RX, [a, b], { then: (out) => { for (const m of out) { m.fixed = true; m.sink = SLOTS[made % SLOTS.length].clone(); made++; } } });
+      }
+      for (const m of c.mols) if (m.sink) { m.g.position.lerp(m.sink, 0.04); m.g.rotation.y += 0.002; }          // 沉淀慢慢落到底下、堆起来
+    },
+    text(c) {
+      const eq = `${f(cat)} + ${f(an)} ${ARR} ${f(solid)}↓`;
+      const nAn = c.count(an), nCat = c.free(cat).length;
+      const cap = c.events.length ? say(words.react, c) : !fed ? say(words.start, c) : nAn === 0 && nCat > 0 ? say(words.excess ?? words.done, c) : say(words.done, c);
+      return { eq, cap };
+    },
+  };
+}
+
 export function neutralScene() {
   const FILM = 6.2, N = 5, N_W = 3;
   const RX = { in: ['H+', 'OH-'], out: ['H2O'], host: 1, near: [[1.1, 0.5, 0], null], map: [[1, 0], [1, 1], [0, 0]], dur: 1.6, approach: 1.4, burst: [0xffd27a, 0x9fe0ff] };
