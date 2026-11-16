@@ -36,6 +36,7 @@ const GAPX = 0.86;                 // 一科和一科之间（左右）
 const STAGGER = 0.6;               // 一前一后错开多少
 const ROW_Z = -2.3;                // 各科放在书桌靠里那一头；书桌中间（z = 0）是翻开书的地方——镜头低头看书时，这几份都在画面外
 const FAN_Z = -0.3;                // 摊开的那一排：离那几摞远一点，镜头低头看这一排时它们在画面外
+const FAN_ROW = BOOK_H + 0.32;     // 摊开的书不止一排时，两排之间（书深 + 前面的小纸条）
 const STACK = { x: -0.21, z: -0.02 }, THING = { x: 0.31, z: -0.04 }, CARD = { x: -0.2, z: 0.42 };     // 一科里：一摞书、那件东西、桌签（在书前面）放在哪（x, z）
 const THING_S = 1.25;              // 那件东西放大一点（下面按真实大小做的），和书的大小相称
 const BOOK_ELEV = THREE.MathUtils.degToRad(64);      // 书里合上的书：镜头俯角（同 main.js 的 bookShot）
@@ -120,6 +121,8 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
       items.push(g);
     }
     s.sp = Math.max(...items.filter((g) => g.userData.s === s).map((g) => g.userData.W)) + 0.14;          // 摊开时一本和一本之间
+    const level = (b) => (/年级/.test(b.vol) ? 0 : 1);          // 学段：初中（几年级）、高中（必修、选择性必修）
+    s.levels = [...new Set(s.books.map(level))].sort().map((lv) => s.books.filter((b) => level(b) === lv));
     s.thing = s.name === '物理' ? prismThing() : s.name === '化学' ? flaskThing() : s.name === '地理' ? deskGlobe() : null;          // 以后的科目（语文、生物……）各配一件
     if (s.thing) { s.thing.position.set(THING.x, 0, THING.z); s.thing.scale.setScalar(THING_S); root.add(s.thing); }
     const pick = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.42, 1.08), new THREE.MeshBasicMaterial({ visible: false })); pick.position.set(0.05, 0.21, 0.06); root.add(pick); s.pick = pick;
@@ -136,10 +139,12 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     return { ...toW(s, px + c.x, u.stack.y, pz + c.z, u.stack.yaw + a), sc: 1 };
   };
   const fanZ = tall ? FAN_Z + 0.9 : FAN_Z;          // 手机竖排时最近的那一摞往前挪了，摊开的这一排也往前挪，那几摞才在画面外（不然桌签从标题栏底下露出来）
+  // 摊开：一个学段一排（初中在后，高中往前），一排最多 6 本、手机竖着拿 3 本，多了接着往前排
+  const fanRows = (s) => { const per = innerWidth / innerHeight < 0.75 ? 3 : 6, rows = []; for (const bs of s.levels) for (let i = 0; i < bs.length; i += per) rows.push(bs.slice(i, i + per)); return rows; };
+  const fanX = (s, rows) => Math.min(s.x * 0.6, -0.06 - (Math.max(...rows.map((r) => r.length)) * s.sp - 0.14) / 2);          // 摊在书桌中间偏左：拿一本落到书桌中间（x > 0 那一半）时不会碰到别的书
   const fanPose = (g) => {
-    const u = g.userData, s = u.s, n = s.books.length, k = u.j - (n - 1) / 2;
-    const cx = Math.min(s.x * 0.6, -0.06 - (n * s.sp - 0.14) / 2);          // 摊在书桌中间偏左：拿一本落到书桌中间（x > 0 那一半）时不会碰到别的书
-    return { p: new THREE.Vector3(cx + k * s.sp, u.T / 2 + 0.001, fanZ + Math.abs(k) * 0.04), yaw: -k * 0.035, sc: 1 };
+    const u = g.userData, s = u.s, rows = fanRows(s), r = rows.findIndex((x) => x.includes(u.b)), k = rows[r].indexOf(u.b) - (rows[r].length - 1) / 2;
+    return { p: new THREE.Vector3(fanX(s, rows) + k * s.sp, u.T / 2 + 0.001, fanZ + r * FAN_ROW + Math.abs(k) * 0.04), yaw: -k * 0.035, sc: 1 };
   };
   const deskPose = (g) => { const u = g.userData; return { p: new THREE.Vector3((u.W * u.sv) / 2, (u.T * u.sv) / 2, 0), yaw: 0, sc: u.sv }; };
   // 地球仪的球在屏幕上的圆（圆心 cx、cy，半径 r，像素）：沿镜头的射线往里 D 远，球放到正好那么大——去地理世界的终点、从那边回来的起点
@@ -153,7 +158,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const firstPlace = (bid) => { for (const sp of getBook(bid).spots) { const a = ANCHORS[sp.lesson]; if (a?.kind === 'place') return a.pins[0].lon; } return null; };
     return firstPlace(focus) ?? books.filter((b) => b.subject === '地理').map((b) => firstPlace(b.id)).find((x) => x != null) ?? 105;
   };
-  const fanCenter = (s) => { const n = s.books.length; return new THREE.Vector3(Math.min(s.x * 0.6, -0.06 - (n * s.sp - 0.14) / 2), 0, fanZ - 0.05); };          // 摊开的那一排正中（窗光挪过去照它）
+  const fanCenter = (s) => { const rows = fanRows(s); return new THREE.Vector3(fanX(s, rows), 0, fanZ - 0.05 + ((rows.length - 1) * FAN_ROW) / 2); };          // 摊开的那几本正中（窗光挪过去照它）
   // 在两个位置之间：摊开时先平着往外抽（错开了再落到桌上，几本书不会互相穿过去），收回时先抬到各自的高度再收拢
   const lerpPose = (A, B, k, kind) => {
     const e = ease(k), yk = kind === 'tofan' ? smooth(0.62, 1, k) : kind === 'tostack' ? smooth(0, 0.38, k) : e;
