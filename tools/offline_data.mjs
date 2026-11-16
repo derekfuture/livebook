@@ -26,15 +26,15 @@ export function offlineData(on) {
       for (const [bid, b] of Object.entries(JSON.parse(fs.readFileSync('src/content/books.json', 'utf8')))) {
         const dir = `public${b.base}`;          // public/books/<id>/
         books[bid] = JSON.parse(fs.readFileSync(`${dir}book.json`, 'utf8'));
-        files[`${b.base}hi/000.jpg`] = `data:image/jpeg;base64,${coverB64(`${dir}hi/000.jpg`)}`;          // 只要封面（大图缩一下，小图照原样）
-        files[`${b.base}lo/000.jpg`] = `data:image/jpeg;base64,${b64(`${dir}lo/000.jpg`)}`;
+        files[`${b.base}hi/000.jpg`] = `data:image/jpeg;base64,${coverB64(`${dir}hi/000.jpg`)}`;          // 只要封面（大图缩一下）；小图（lo）不另放，下面直接指到这一张
       }
       for (const f of fs.readdirSync('public/brand')) files[`/brand/${f}`] = `data:${MIME[f.split('.').pop()]};base64,${b64(`public/brand/${f}`)}`;
       const P = 'node_modules/pdfjs-dist';
       for (const f of fs.readdirSync(`${P}/cmaps`)) if (f.endsWith('.bcmap')) pdfjs.cMapUrl[f] = b64(`${P}/cmaps/${f}`);
       for (const f of fs.readdirSync(`${P}/standard_fonts`)) if (/\.(pfb|ttf|otf)$/.test(f)) pdfjs.standardFontDataUrl[f] = b64(`${P}/standard_fonts/${f}`);
       for (const f of ['jbig2.wasm', 'openjpeg.wasm']) pdfjs.wasmUrl[f] = b64(`${P}/wasm/${f}`);          // 课本里的黑白图（JBIG2）、JPEG 2000 图
-      return `export default ${JSON.stringify({ books, files, pdfjs })};`;
+      // 小封面（lo/000.jpg）和缩过的大封面用同一张：少放一份十几本书的小图（约 0.9 MB；加了高中物理六册后离线版又超过了 25 MiB）
+      return `const d = ${JSON.stringify({ books, files, pdfjs })};\nfor (const k of Object.keys(d.files)) if (k.endsWith('/hi/000.jpg')) d.files[k.replace('/hi/', '/lo/')] = d.files[k];\nexport default d;`;
     },
   };
 }
