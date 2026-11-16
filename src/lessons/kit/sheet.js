@@ -69,7 +69,7 @@ export function sheet({ w, d, grid = 0, gridColor = 'rgba(70,150,190,0.3)', colo
   const st = new THREE.CanvasTexture(sc);
   const k = 128 / (128 - 2 * m);
   const shade = new THREE.Mesh(new THREE.PlaneGeometry(w * k, d * k).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: st, transparent: true, opacity: 0.3, depthWrite: false }));
-  shade.position.set(w * 0.012, -T - 0.0002, d * 0.016); shade.renderOrder = 1; shade.raycast = () => {}; shade.userData.noFrame = true;
+  shade.position.set(w * 0.012, -T - 0.0002, d * 0.016); shade.renderOrder = 1; shade.raycast = () => {}; shade.userData.noFrame = true; shade.userData.qaSupport = true;          // 纸的影子落在书页上，本来就比纸面低
   group.add(shade);
   paint();
   return { group, mesh, w, d, repaint: paint, canvas: c, px };
@@ -168,7 +168,7 @@ function fillGeo(pts, pivot) {
  * 一块纸片。parent：纸面所在的组。pts：纸面坐标里的轮廓；pivot：它转动、翻折时绕着的那一点（默认是轮廓的第一个点）。
  * 位置用 pose({ a, du, dv, lift }) 定：绕 pivot 逆时针转 a（弧度），再平移 (du, dv)，离纸面 lift 高。影子跟着 lift 变远、变淡。
  */
-export function piece(parent, pts, { color = '#ffffff', back = '#f4f1e8', edge = 'rgba(40,46,60,0.55)', edgeW = 0.00045, pivot = null, y = 0.0006, opacity = 1, shadow = true, order = 5 } = {}) {
+export function piece(parent, pts, { color = '#ffffff', back = '#f4f1e8', edge = 'rgba(40,46,60,0.55)', edgeW = 0.00045, pivot = null, y = 0.0006, opacity = 1, shadow = true, order = 5, spread = 0.02 } = {}) {
   const group = new THREE.Group();
   const mat = new THREE.MeshLambertMaterial({ color: col(color), map: grain(), transparent: opacity < 1, opacity, side: THREE.FrontSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const matB = new THREE.MeshLambertMaterial({ color: col(back), map: grain(), side: THREE.BackSide });
@@ -202,7 +202,7 @@ export function piece(parent, pts, { color = '#ffffff', back = '#f4f1e8', edge =
     } else group.rotation.y = a;
     const k = Math.min(1, lift / 0.012);
     sh1.position.set(u + lift * SHADOW[0], 0.00012, -(v + lift * SHADOW[1])); sh1.rotation.y = a; sh1.material.opacity = 0.17 - 0.07 * k;
-    sh2.position.set(u + lift * SHADOW[0] * 1.5 + 0.0005, 0.0001, -(v + lift * SHADOW[1] * 1.5 + 0.0005)); sh2.rotation.y = a; sh2.scale.setScalar(1 + 0.02 + k * 0.05); sh2.material.opacity = 0.09 - 0.03 * k;
+    sh2.position.set(u + lift * SHADOW[0] * 1.5 + 0.0005, 0.0001, -(v + lift * SHADOW[1] * 1.5 + 0.0005)); sh2.rotation.y = a; sh2.scale.setScalar(1 + spread + k * 0.05);          // 细长的纸条（转轴在一头）把 spread 设成 0：不然远的那头影子会跑出去一截 sh2.material.opacity = 0.09 - 0.03 * k;
     return P;
   };
   /** 纸片上的一点（原来的纸面坐标）现在在哪 */
