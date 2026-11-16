@@ -139,7 +139,7 @@ export default {
       if (i === fixed || pinHeld) return;
       readings = [null, null];
       const other = handles[1 - i];
-      let x = i ? clamp(p.x, other.x + 0.28, 0.47) : clamp(p.x, -0.47, other.x - 0.28),
+      let x = i ? clamp(p.x, other.x + 0.28, 0.33) : clamp(p.x, -0.33, other.x - 0.28),          // 不出台板（两表拉到最长约 0.55，固定端在 ±0.29）
         z = clamp(p.z, -0.15, 0.15);
       if (!connected) {
         // 未连接时两表朝内，先把 A 的挂钩拖至 B 的挂钩。
@@ -263,7 +263,7 @@ export default {
       group: rig.group,
       pointer,
       toggles: ['steps'],
-      size: { w: 1.02, d: 0.43, h: 0.075 },
+      size: { w: 0.72, d: 0.36, h: 0.075 },          // 台板只比两只测力计能拉到的范围大一点：测力计在画面里够大
       view: { elev: 58, azim: 0, margin: 1.08 },
       mount(panel) {
         ui = panel;
