@@ -70,6 +70,7 @@ export function sodiumScene() {
       for (const x of [-2.4, 2.4]) { const w = c.add('H2O', c.V([x, 1.1, 0]), { fixed: true }); w.g.rotation.set(0, 0, 0); reactants.push(w); }
     },
     step(c, st, dt) {
+      if (!st?.reacted) { c.view.liquid = 0xb9dfe9; return; }          // 钠还没放进水里：不演反应
       age += dt;
       if (!started) {
         electrons.forEach((e, i) => { e.position.copy(c.V([0, 0.9, 0]).lerp(reactants[i + 2].g.position.clone().sub(reactants[i].g.position), Math.min(1, age / 2.5))); });
@@ -79,13 +80,14 @@ export function sodiumScene() {
           c.start(rx, reactants, { then: () => { finished = true; } });
         }
       }
-      c.view.liquid = finished ? 0xe75a91 : 0xb9dfe9;
+      c.view.liquid = finished && st.ph ? 0xe75a91 : 0xb9dfe9;          // 没滴酚酞就看不出颜色
     },
-    text() {
+    text(c, st) {
+      if (!st?.reacted) return { eq: '', on: false, cap: '水里还没有钠。先把钠放进水里，再钻进去看。' };
       return { eq: '2Na + 2H₂O → 2Na⁺ + 2OH⁻ + H₂↑', on: true,
         cap: !started ? '每个钠原子交出最外层的 1 个电子 → 水中的氢得到电子。<b>Na：0 → +1；H：+1 → 0</b>。小深色点表示电子。'
           : !finished ? '钠变成 Na⁺ 进入水中；水分子的 O–H 键重排，留下 OH⁻，两个氢结合成 H₂。<b>原子的种类、个数都没变</b>。'
-            : 'H₂ 冒走；Na⁺、OH⁻ 留在水中。OH⁻ 增多，酚酞变红。<b>慢放示意：分步看电子转移与原子重排，不表示基元反应机理。</b>' };
+            : `H₂ 冒走；Na⁺、OH⁻ 留在水中。${st.ph ? 'OH⁻ 增多，酚酞变红。' : 'OH⁻ 增多，溶液显碱性（没滴酚酞，所以看不出颜色）。'}<b>慢放示意：分步看电子转移与原子重排，不表示基元反应机理。</b>` };
     },
   };
 }

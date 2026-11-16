@@ -249,6 +249,13 @@ export class Panel {
     this.need(this.def.need || '');
     this.toProve.disabled = true;
     if (this.gBtns) { this.guessIdx = null; this.gBtns.forEach((b) => { b.classList.remove('on'); b.disabled = false; }); this.guessNote.hidden = true; }          // 重来：重新猜
+    if (!this.explore && this.opts && this.prediction != null) {          // 预测也回到没猜的样子（“全部重来”要完全回到第一次打开时）
+      this.prediction = null;
+      [...this.opts.children].forEach((b) => b.classList.remove('picked')); this.opts.classList.remove('locked');
+      this.goBtn.classList.add('ghost'); this.goBtn.textContent = '不猜了，直接动手 →';
+      this.tabs?.[0]?.classList.remove('done', 'skip');
+      localStorage.removeItem(`livebook.pick.${this.def.id}`);
+    }
     this.tabs?.[1]?.classList.remove('done');
     this.el.querySelector('.p-body').scrollTop = 0;
   }

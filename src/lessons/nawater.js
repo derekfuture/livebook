@@ -173,7 +173,7 @@ export default {
     ] });
     const act = demoActs(drag, group);
     const mw = micro({ tag, look, back, group, scene: sodiumScene(), at: () => CUP.clone().setY(LEVEL), btnAt: () => CUP.clone().add(V(0, H + 0.025, -0.02)),
-      label: '钻进去看', state: () => ({ reacted: S.total - S.left }), show: () => S.total > 0 && !S.dump, bar: () => bar, scale: 0.0057, dist: 0.29 });
+      label: '钻进去看', state: () => ({ reacted: S.total - S.left, ph: S.ph > 0 }), show: () => S.total > 0 && !S.dump, bar: () => bar, scale: 0.0057, dist: 0.29 });
     const demoPath = (obj, to) => act.path(obj, [null, () => V(obj.parent.position.x, 0.145, 0.09), () => to.clone().setY(0.145), to], { t0: 0.03, t1: 0.65, release: 0.68 });
     const bar = lessonBar({ group, look, back, steps: [
       { id: 'water', title: '加水', todo: '把<b>水瓶</b>拖到烧杯口，加一些水。', target: () => jug },
@@ -189,7 +189,7 @@ export default {
         { cap: '烧杯里加入一些水。', dur: 4.5, during: demoPath(jug.pick, CUP.clone().setY(H + 0.02)) },
         { cap: '滴几滴酚酞，水还是无色的。', dur: 4, during: demoPath(ph.pick, CUP.clone().setY(H + 0.02)) },
         { cap: '用镊子取钠，不要用手直接接触。', dur: 4, during: demoPath(tw.pick, OIL.clone().setY(0.07)) },
-        { cap: '放在滤纸上，吸干表面的煤油。', dur: 5, during: act.seq(demoPath(tw.pick, PAPER.clone().setY(0.014)), act.tap(paperPick, 0.85)) },
+        { cap: '放在滤纸上，吸干表面的煤油。', dur: 6.5, during: act.seq(demoPath(tw.pick, PAPER.clone().setY(0.014)), (k) => { if (k > 0.6 && S.stage === 'paper' && !S.blot) A.blot(); }) },
         { cap: '用小刀切下绿豆大一块，约 40 mg（近似）。', dur: 4, during: demoPath(knife.pick, V(CUT_LEFT + CUT_L * NA.mass / NA.stock, 0.014, PAPER.z)) },
         { cap: '镊子夹起小块钠。剩下的钠按规范回收。', dur: 3.5, during: demoPath(tw.pick, CUT.clone()) },
         { cap: '从侧面看，把钠放入水中。浮在水面，棱角开始消失。', dur: 4, during: demoPath(tw.pick, CUP.clone().setY(H)) },
@@ -292,7 +292,7 @@ export default {
         if (S.left < 0.00001) {
           S.left = 0; S.reaction = false; S.finished = true; S.flux = 0; done('observe');
           if (!S.demo) { comparePrediction(); W?.t1.open(); if (W) W.next.hidden = false; }
-          status('钠消失了，红色继续向下、向四周散开。先看自己的记录，再和预测对一对。');
+          status(S.ph ? '钠消失了，红色继续向下、向四周散开。先看自己的记录，再和预测对一对。' : '钠消失了。<b>没有滴酚酞</b>，溶液看不出颜色变化——生成的碱要靠酚酞才看得出来。可以倒掉重做一次。');
         }
       }
       S.flash = Math.max(0, S.flash - dt / 3.5);
@@ -339,7 +339,7 @@ export default {
       mount(ui) {
         const compare = h('div', { class: 'sum-ctx', hidden: true });
         const t2 = think({ q: '钠着火了，能用水灭吗？', ctx: () => `这轮钠约 ${(S.total * 1000).toFixed(0)} mg，放出了约 ${S.gas.toFixed(1)} mL 氢气。`, options: ['不能。用专用灭火剂或干砂', '能。水可以降温'], wrong: ['水会继续和钠反应，放热并生成氢气，会加剧危险。'], ok: '课本第 37 页：活泼金属着火时，不能用水灭火，可使用专用灭火剂或干砂灭火。', status, onOk: () => {} });
-        const t1 = think({ q: '钠为什么保存在煤油里？', ctx: () => '你的操作：从煤油中取钠，吸干煤油；投进水中后，钠很快消失。', options: ['隔绝空气，也防止接触水', '煤油能让钠变得不活泼', '为了让钠更容易熔化'], wrong: ['钠的性质没有改变。煤油隔开了空气和水。', '保存钠不是为了加热。回想它遇水后的现象。'], ok: '钠很活泼。煤油把钠和空气、水隔开；滤纸吸掉煤油后再做实验。', status, onOk: () => t2.open() });
+        const t1 = think({ q: '钠为什么保存在煤油里？', ctx: () => `你的操作：从煤油中取钠，${S.dry || S.blotted ? '用滤纸吸干了煤油' : '<b>没有吸干煤油</b>'}，切下约 ${(S.total * 1000).toFixed(0)} mg 投进水中${S.ph ? '（滴了酚酞）' : '（<b>没有滴酚酞</b>）'}；钠很快消失。`, options: ['隔绝空气，也防止接触水', '煤油能让钠变得不活泼', '为了让钠更容易熔化'], wrong: ['钠的性质没有改变。煤油隔开了空气和水。', '保存钠不是为了加热。回想它遇水后的现象。'], ok: '钠很活泼。煤油把钠和空气、水隔开；滤纸吸掉煤油后再做实验。', status, onOk: () => t2.open() });
         const sizes = h('details', { class: 'more' }, h('summary', {}, '换个切口再试'), h('p', { class: 'fineprint' }, '拖动刀口也能改大小。明显大于绿豆大的钠，可能着火、炸开飞溅。不是安全剂量演算。'),
           h('div', { class: 'btn-row' }, ...[[0.04, '绿豆大 · 40 mg'], [0.12, '较大 · 120 mg'], [0.26, '黄豆大以上 · 260 mg']].map(([g, s]) => h('button', { class: 'go ghost', onclick: () => A.cutMass(g) }, s))));
         const more = moreBox([['镊子：取 / 放钠', () => tapTool('tw')], ['滤纸吸干煤油', () => A.blot()], ['小刀沿切线切下', () => tapTool('knife')], ['加水', () => tapTool('jug')], ['滴酚酞', () => tapTool('ph')], ['凑近俯视试试', () => A.closeView()], ['回到全景', () => { S.near = false; back(); }], ['倒掉这杯再试', () => A.dump()], ['钻进去看 / 重看', () => mw.open()]], () => A.reset());
