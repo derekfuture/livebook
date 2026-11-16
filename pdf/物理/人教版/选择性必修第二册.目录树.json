@@ -1,0 +1,425 @@
+[
+  {
+    "id": "7af9da1b-8f83-3107-84e2-1f873d947a50",
+    "title": "第一章 安培力与洛伦兹力",
+    "rich_title": "第一章 安培力与洛伦兹力",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "7af9da1b-8f83-3107-84e2-1f873d947a50",
+    "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+    "create_time": "2023-06-15T19:10:04.580+0800",
+    "update_time": "2023-06-15T19:10:04.580+0800",
+    "child_nodes": [
+      {
+        "id": "7e1e70e0-1d42-30f1-be93-dc0f60406af2",
+        "title": "1.磁场对通电导线的作用力",
+        "rich_title": "1.磁场对通电导线的作用力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7af9da1b-8f83-3107-84e2-1f873d947a50/7e1e70e0-1d42-30f1-be93-dc0f60406af2",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:05.030+0800",
+        "update_time": "2023-06-15T19:10:05.030+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "193b56b1-c3d1-37dc-aeee-2e476054486a",
+        "title": "2.磁场对运动电荷的作用力",
+        "rich_title": "2.磁场对运动电荷的作用力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7af9da1b-8f83-3107-84e2-1f873d947a50/193b56b1-c3d1-37dc-aeee-2e476054486a",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:05.222+0800",
+        "update_time": "2023-06-15T19:10:05.222+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "485f398a-d83b-358b-abf9-51abd0cd3bcf",
+        "title": "3.带电粒子在匀强磁场中的运动",
+        "rich_title": "3.带电粒子在匀强磁场中的运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7af9da1b-8f83-3107-84e2-1f873d947a50/485f398a-d83b-358b-abf9-51abd0cd3bcf",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:05.850+0800",
+        "update_time": "2023-06-15T19:10:05.850+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a4fea51d-786f-32f0-b15f-fb8c944bdaa1",
+        "title": "4.质谱仪与回旋加速器",
+        "rich_title": "4.质谱仪与回旋加速器",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7af9da1b-8f83-3107-84e2-1f873d947a50/a4fea51d-786f-32f0-b15f-fb8c944bdaa1",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:06.042+0800",
+        "update_time": "2023-06-15T19:10:06.042+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "2d01eb52-cf0d-38f9-8513-759a29eda7d9",
+    "title": "第二章 电磁感应",
+    "rich_title": "第二章 电磁感应",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "2d01eb52-cf0d-38f9-8513-759a29eda7d9",
+    "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+    "create_time": "2023-06-15T19:10:06.495+0800",
+    "update_time": "2023-06-15T19:10:06.495+0800",
+    "child_nodes": [
+      {
+        "id": "acdc51cf-2b0a-35a0-911b-a1d2d07c090b",
+        "title": "1.楞次定律",
+        "rich_title": "1.楞次定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2d01eb52-cf0d-38f9-8513-759a29eda7d9/acdc51cf-2b0a-35a0-911b-a1d2d07c090b",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:06.697+0800",
+        "update_time": "2023-06-15T19:10:06.697+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "304ebbb0-1c97-3687-a238-9ecb9cc65668",
+        "title": "2.法拉第电磁感应定律",
+        "rich_title": "2.法拉第电磁感应定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2d01eb52-cf0d-38f9-8513-759a29eda7d9/304ebbb0-1c97-3687-a238-9ecb9cc65668",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:07.139+0800",
+        "update_time": "2023-06-15T19:10:07.139+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0cdd82c5-8177-35b6-9f3e-ca0649d9e7b0",
+        "title": "3.涡流、电磁阻尼和电磁驱动",
+        "rich_title": "3.涡流、电磁阻尼和电磁驱动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2d01eb52-cf0d-38f9-8513-759a29eda7d9/0cdd82c5-8177-35b6-9f3e-ca0649d9e7b0",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:07.330+0800",
+        "update_time": "2023-06-15T19:10:07.330+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "08332dd5-a390-3020-8f01-aac21850a7a5",
+        "title": "4.互感和自感",
+        "rich_title": "4.互感和自感",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2d01eb52-cf0d-38f9-8513-759a29eda7d9/08332dd5-a390-3020-8f01-aac21850a7a5",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:07.787+0800",
+        "update_time": "2023-06-15T19:10:07.787+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "1546b9ac-4d31-3f1f-b514-6607b2b5c9fc",
+    "title": "第三章 交变电流",
+    "rich_title": "第三章 交变电流",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "1546b9ac-4d31-3f1f-b514-6607b2b5c9fc",
+    "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+    "create_time": "2023-06-15T19:10:08.007+0800",
+    "update_time": "2023-06-15T19:10:08.007+0800",
+    "child_nodes": [
+      {
+        "id": "1d7d4bf4-b423-3bb7-b95b-767aff1b9a22",
+        "title": "1.交变电流",
+        "rich_title": "1.交变电流",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "1546b9ac-4d31-3f1f-b514-6607b2b5c9fc/1d7d4bf4-b423-3bb7-b95b-767aff1b9a22",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:08.448+0800",
+        "update_time": "2023-06-15T19:10:08.448+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c0fb018d-a5e1-3594-b0e9-f5347dcf7cdc",
+        "title": "2.交变电流的描述",
+        "rich_title": "2.交变电流的描述",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "1546b9ac-4d31-3f1f-b514-6607b2b5c9fc/c0fb018d-a5e1-3594-b0e9-f5347dcf7cdc",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:08.631+0800",
+        "update_time": "2023-06-15T19:10:08.631+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "af4aa343-dbd9-382e-8a14-5d3eeb482e6f",
+        "title": "3.变压器",
+        "rich_title": "3.变压器",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "1546b9ac-4d31-3f1f-b514-6607b2b5c9fc/af4aa343-dbd9-382e-8a14-5d3eeb482e6f",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:09.055+0800",
+        "update_time": "2023-06-15T19:10:09.055+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "66976946-4e93-3f1f-80a0-3d6f974e8bcd",
+        "title": "4.电能的输送",
+        "rich_title": "4.电能的输送",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "1546b9ac-4d31-3f1f-b514-6607b2b5c9fc/66976946-4e93-3f1f-80a0-3d6f974e8bcd",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:09.259+0800",
+        "update_time": "2023-06-15T19:10:09.259+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "a77939f2-030f-372d-a41f-13e41beb8c62",
+    "title": "第四章 电磁振荡与电磁波",
+    "rich_title": "第四章 电磁振荡与电磁波",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "a77939f2-030f-372d-a41f-13e41beb8c62",
+    "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+    "create_time": "2023-06-15T19:10:09.729+0800",
+    "update_time": "2023-06-15T19:10:09.729+0800",
+    "child_nodes": [
+      {
+        "id": "fe81e852-b679-3d7c-9723-7f29b218b461",
+        "title": "1.电磁振荡",
+        "rich_title": "1.电磁振荡",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a77939f2-030f-372d-a41f-13e41beb8c62/fe81e852-b679-3d7c-9723-7f29b218b461",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:09.920+0800",
+        "update_time": "2023-06-15T19:10:09.920+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4a579e84-e8a0-301c-a244-693c5901f602",
+        "title": "2.电磁场与电磁波",
+        "rich_title": "2.电磁场与电磁波",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a77939f2-030f-372d-a41f-13e41beb8c62/4a579e84-e8a0-301c-a244-693c5901f602",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:10.401+0800",
+        "update_time": "2023-06-15T19:10:10.401+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9957e6e7-a68d-33cd-8489-a614ca3f560a",
+        "title": "3.无线电波的发射和接收",
+        "rich_title": "3.无线电波的发射和接收",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a77939f2-030f-372d-a41f-13e41beb8c62/9957e6e7-a68d-33cd-8489-a614ca3f560a",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:10.587+0800",
+        "update_time": "2023-06-15T19:10:10.587+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "182d6e9d-a8ec-35eb-a34c-18e96b5747f5",
+        "title": "4.电磁波谱",
+        "rich_title": "4.电磁波谱",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a77939f2-030f-372d-a41f-13e41beb8c62/182d6e9d-a8ec-35eb-a34c-18e96b5747f5",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:11.044+0800",
+        "update_time": "2023-06-15T19:10:11.044+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "596ecdff-61cd-3b7f-a3d5-f638b946fa0b",
+    "title": "第五章 传感器",
+    "rich_title": "第五章 传感器",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "596ecdff-61cd-3b7f-a3d5-f638b946fa0b",
+    "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+    "create_time": "2023-06-15T19:10:11.233+0800",
+    "update_time": "2023-06-15T19:10:11.233+0800",
+    "child_nodes": [
+      {
+        "id": "175fc8f1-6dc5-33d8-9103-e3e46f1ceb8c",
+        "title": "1.认识传感器",
+        "rich_title": "1.认识传感器",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "596ecdff-61cd-3b7f-a3d5-f638b946fa0b/175fc8f1-6dc5-33d8-9103-e3e46f1ceb8c",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:11.670+0800",
+        "update_time": "2023-06-15T19:10:11.670+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9c5d0d6e-0251-3d38-bbea-0245dcb42865",
+        "title": "2.常见传感器的工作原理及应用",
+        "rich_title": "2.常见传感器的工作原理及应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "596ecdff-61cd-3b7f-a3d5-f638b946fa0b/9c5d0d6e-0251-3d38-bbea-0245dcb42865",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:11.858+0800",
+        "update_time": "2023-08-09T00:14:31.171+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "75a34d93-5bd9-3325-9e5d-b9bdee97014c",
+        "title": "3.利用传感器制作简单的自动控制装置",
+        "rich_title": "3.利用传感器制作简单的自动控制装置",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "596ecdff-61cd-3b7f-a3d5-f638b946fa0b/75a34d93-5bd9-3325-9e5d-b9bdee97014c",
+        "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+        "create_time": "2023-06-15T19:10:12.063+0800",
+        "update_time": "2023-06-15T19:10:12.063+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "76b92c33-d38f-3efc-a06c-ed79a88f4f0a",
+    "title": "课题研究",
+    "rich_title": "课题研究",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "76b92c33-d38f-3efc-a06c-ed79a88f4f0a",
+    "tree_id": "78ee810b-401f-4b41-9f9b-904b755901d5",
+    "create_time": "2023-06-15T19:10:12.265+0800",
+    "update_time": "2023-08-09T00:14:31.633+0800",
+    "child_nodes": null
+  }
+]

@@ -1,0 +1,442 @@
+[
+  {
+    "id": "630d7ed4-216d-3931-aad3-cb6d579eb2fb",
+    "title": "序言 物理学：研究物质及其运动规律的科学",
+    "rich_title": "序言 物理学：研究物质及其运动规律的科学",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials",
+      "hidden": false
+    },
+    "node_path": "630d7ed4-216d-3931-aad3-cb6d579eb2fb",
+    "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+    "create_time": "2023-06-15T19:09:54.333+0800",
+    "update_time": "2023-06-15T19:09:54.333+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "0b6285a5-64a9-3282-8ad0-6dbf4ae66011",
+    "title": "第一章 运动的描述",
+    "rich_title": "第一章 运动的描述",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "0b6285a5-64a9-3282-8ad0-6dbf4ae66011",
+    "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+    "create_time": "2023-06-15T19:09:54.530+0800",
+    "update_time": "2023-06-15T19:09:54.530+0800",
+    "child_nodes": [
+      {
+        "id": "7a9ebc82-8622-3d48-929f-bd30e06cd1f2",
+        "title": "1.质点 参考系",
+        "rich_title": "1.质点 参考系",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0b6285a5-64a9-3282-8ad0-6dbf4ae66011/7a9ebc82-8622-3d48-929f-bd30e06cd1f2",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:54.978+0800",
+        "update_time": "2023-06-15T19:09:54.978+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c0056fc7-7cf6-355f-a103-b8116c2c48ea",
+        "title": "2.时间 位移",
+        "rich_title": "2.时间 位移",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0b6285a5-64a9-3282-8ad0-6dbf4ae66011/c0056fc7-7cf6-355f-a103-b8116c2c48ea",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:55.161+0800",
+        "update_time": "2023-06-15T19:09:55.161+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5ca89ff3-d699-3a2c-bb9f-1d8469633713",
+        "title": "3.位置变化快慢的描述——速度",
+        "rich_title": "3.位置变化快慢的描述——速度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0b6285a5-64a9-3282-8ad0-6dbf4ae66011/5ca89ff3-d699-3a2c-bb9f-1d8469633713",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:55.379+0800",
+        "update_time": "2023-06-15T19:09:55.379+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "79966a7c-853f-3cd9-9960-f61c61054784",
+        "title": "4.速度变化快慢的描述——加速度",
+        "rich_title": "4.速度变化快慢的描述——加速度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0b6285a5-64a9-3282-8ad0-6dbf4ae66011/79966a7c-853f-3cd9-9960-f61c61054784",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:55.796+0800",
+        "update_time": "2023-06-15T19:09:55.796+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "0c0f0d9e-de4a-36a0-89bb-e3bc707ff75d",
+    "title": "第二章 匀变速直线运动的研究",
+    "rich_title": "第二章 匀变速直线运动的研究",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "0c0f0d9e-de4a-36a0-89bb-e3bc707ff75d",
+    "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+    "create_time": "2023-06-15T19:09:55.982+0800",
+    "update_time": "2023-06-15T19:09:55.982+0800",
+    "child_nodes": [
+      {
+        "id": "f3c0b769-5653-320e-88be-04e6b23dab82",
+        "title": "1.实验：探究小车速度随时间变化的规律",
+        "rich_title": "1.实验：探究小车速度随时间变化的规律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0c0f0d9e-de4a-36a0-89bb-e3bc707ff75d/f3c0b769-5653-320e-88be-04e6b23dab82",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:56.452+0800",
+        "update_time": "2023-06-15T19:09:56.452+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ff783133-3173-347b-9f75-51df3456bad9",
+        "title": "2.匀变速直线运动的速度与时间的关系",
+        "rich_title": "2.匀变速直线运动的速度与时间的关系",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0c0f0d9e-de4a-36a0-89bb-e3bc707ff75d/ff783133-3173-347b-9f75-51df3456bad9",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:56.648+0800",
+        "update_time": "2023-06-15T19:09:56.648+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4859e5ad-b3c2-3229-8f33-f306a6055b37",
+        "title": "3.匀变速直线运动的位移与时间的关系",
+        "rich_title": "3.匀变速直线运动的位移与时间的关系",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0c0f0d9e-de4a-36a0-89bb-e3bc707ff75d/4859e5ad-b3c2-3229-8f33-f306a6055b37",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:57.077+0800",
+        "update_time": "2023-06-15T19:09:57.077+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5f07e265-f85b-353c-ad40-179e10928b32",
+        "title": "4.自由落体运动",
+        "rich_title": "4.自由落体运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "0c0f0d9e-de4a-36a0-89bb-e3bc707ff75d/5f07e265-f85b-353c-ad40-179e10928b32",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:57.279+0800",
+        "update_time": "2023-06-15T19:09:57.279+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "416d1f10-8b17-3d7b-9380-7dee599c9a99",
+    "title": "第三章 相互作用——力",
+    "rich_title": "第三章 相互作用——力",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "416d1f10-8b17-3d7b-9380-7dee599c9a99",
+    "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+    "create_time": "2023-06-15T19:09:57.747+0800",
+    "update_time": "2023-06-15T19:09:57.747+0800",
+    "child_nodes": [
+      {
+        "id": "a4973833-8930-3a2e-9a72-ef15ff1799a9",
+        "title": "1.重力与弹力",
+        "rich_title": "1.重力与弹力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "416d1f10-8b17-3d7b-9380-7dee599c9a99/a4973833-8930-3a2e-9a72-ef15ff1799a9",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:57.938+0800",
+        "update_time": "2023-06-15T19:09:57.938+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8992ada9-b14a-380f-ac48-c612e84a269a",
+        "title": "2.摩擦力",
+        "rich_title": "2.摩擦力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "416d1f10-8b17-3d7b-9380-7dee599c9a99/8992ada9-b14a-380f-ac48-c612e84a269a",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:58.411+0800",
+        "update_time": "2023-06-15T19:09:58.411+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "10c06505-ae59-3eae-a055-de26c98f94de",
+        "title": "3.牛顿第三定律",
+        "rich_title": "3.牛顿第三定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "416d1f10-8b17-3d7b-9380-7dee599c9a99/10c06505-ae59-3eae-a055-de26c98f94de",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:58.601+0800",
+        "update_time": "2023-06-15T19:09:58.601+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e9c61aab-fc16-3804-8aac-9d30a5717689",
+        "title": "4.力的合成和分解",
+        "rich_title": "4.力的合成和分解",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "416d1f10-8b17-3d7b-9380-7dee599c9a99/e9c61aab-fc16-3804-8aac-9d30a5717689",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:59.037+0800",
+        "update_time": "2023-06-15T19:09:59.037+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "340a5325-509f-31b1-8874-e02faea2e2cf",
+        "title": "5.共点力的平衡",
+        "rich_title": "5.共点力的平衡",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "416d1f10-8b17-3d7b-9380-7dee599c9a99/340a5325-509f-31b1-8874-e02faea2e2cf",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:59.226+0800",
+        "update_time": "2023-06-15T19:09:59.226+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "c2bc1165-3468-335a-98d1-92eb92ceef69",
+    "title": "第四章 运动和力的关系",
+    "rich_title": "第四章 运动和力的关系",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "c2bc1165-3468-335a-98d1-92eb92ceef69",
+    "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+    "create_time": "2023-06-15T19:09:59.410+0800",
+    "update_time": "2023-06-15T19:09:59.410+0800",
+    "child_nodes": [
+      {
+        "id": "8c4ed767-1988-39cb-8441-4fb47911fa06",
+        "title": "1.牛顿第一定律",
+        "rich_title": "1.牛顿第一定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "c2bc1165-3468-335a-98d1-92eb92ceef69/8c4ed767-1988-39cb-8441-4fb47911fa06",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:09:59.830+0800",
+        "update_time": "2023-06-15T19:09:59.830+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d984cca7-4337-3d58-91b8-ec188ed21564",
+        "title": "2.实验：探究加速度与力、质量的关系",
+        "rich_title": "2.实验：探究加速度与力、质量的关系",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "c2bc1165-3468-335a-98d1-92eb92ceef69/d984cca7-4337-3d58-91b8-ec188ed21564",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:10:00.016+0800",
+        "update_time": "2023-06-15T19:10:00.016+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3e01b2f7-6c5e-34b0-9b92-89d209b6f1c1",
+        "title": "3.牛顿第二定律",
+        "rich_title": "3.牛顿第二定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "c2bc1165-3468-335a-98d1-92eb92ceef69/3e01b2f7-6c5e-34b0-9b92-89d209b6f1c1",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:10:00.505+0800",
+        "update_time": "2023-06-15T19:10:00.505+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "204e7962-d53e-3edd-99eb-596cba925d1c",
+        "title": "4.力学单位制",
+        "rich_title": "4.力学单位制",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "c2bc1165-3468-335a-98d1-92eb92ceef69/204e7962-d53e-3edd-99eb-596cba925d1c",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:10:00.700+0800",
+        "update_time": "2023-06-15T19:10:00.700+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9266dc39-eca9-3fdf-8a4c-1e918f91f778",
+        "title": "5.牛顿运动定律的应用",
+        "rich_title": "5.牛顿运动定律的应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "c2bc1165-3468-335a-98d1-92eb92ceef69/9266dc39-eca9-3fdf-8a4c-1e918f91f778",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:10:01.148+0800",
+        "update_time": "2023-06-15T19:10:01.148+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fa9c6166-88c6-3eb4-91e6-fb90efb02bd6",
+        "title": "6.超重和失重",
+        "rich_title": "6.超重和失重",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "c2bc1165-3468-335a-98d1-92eb92ceef69/fa9c6166-88c6-3eb4-91e6-fb90efb02bd6",
+        "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+        "create_time": "2023-06-15T19:10:01.333+0800",
+        "update_time": "2023-06-15T19:10:01.333+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "33c76c84-f2c5-3681-bf23-8308fe70a6cb",
+    "title": "课题研究",
+    "rich_title": "课题研究",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "33c76c84-f2c5-3681-bf23-8308fe70a6cb",
+    "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+    "create_time": "2023-06-15T19:10:01.764+0800",
+    "update_time": "2023-08-09T00:14:11.905+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "8731fa65-7b89-3135-a168-f0a16165190b",
+    "title": "学生实验",
+    "rich_title": "学生实验",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "8731fa65-7b89-3135-a168-f0a16165190b",
+    "tree_id": "12eed579-1883-4b7c-b543-3bac585a4f16",
+    "create_time": "2023-06-15T19:10:01.960+0800",
+    "update_time": "2023-08-09T00:14:14.367+0800",
+    "child_nodes": null
+  }
+]

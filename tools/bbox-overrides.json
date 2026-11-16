@@ -971,5 +971,430 @@
   445,
   345
  ],
- "lavoisier": [216, 486, 430, 643]
+ "lavoisier": [
+  216,
+  486,
+  430,
+  643
+ ],
+ "singleslit": [
+  55,
+  604,
+  350,
+  752
+ ],
+ "capillarity": [
+  310,
+  361,
+  518,
+  499
+ ],
+ "thinfilminterference": [
+  56,
+  454,
+  239,
+  597
+ ],
+ "squatsupport": [
+  306,
+  596,
+  511,
+  747
+ ],
+ "amperefactors": [
+  42,
+  50,
+  230,
+  216
+ ],
+ "fourconductors": [
+  225,
+  190,
+  520,
+  311
+ ],
+ "capacitorsharing": [
+  58,
+  247,
+  201,
+  338
+ ],
+ "staticshielding": [
+  60,
+  106,
+  185,
+  200
+ ],
+ "waverefraction": [
+  60,
+  60,
+  197,
+  166
+ ],
+ "longitudinalwave": [
+  265,
+  374,
+  483,
+  472
+ ],
+ "springphase": [
+  87,
+  506,
+  187,
+  575
+ ],
+ "freespring": [
+  442,
+  587,
+  498,
+  728
+ ],
+ "thermistor": [
+  65,
+  59,
+  537,
+  187
+ ],
+ "photoresistor": [
+  348,
+  596,
+  537,
+  696
+ ],
+ "waxmotion": [
+  58,
+  530,
+  244,
+  690
+ ],
+ "tangenttrack": [
+  78,
+  620,
+  194,
+  742
+ ],
+ "surfacetension": [
+  58,
+  628,
+  530,
+  762
+ ],
+ "polarization": [
+  274,
+  380,
+  530,
+  590
+ ],
+ "lcoscillation": [
+  289,
+  611,
+  538,
+  730
+ ],
+ "acgenerator": [
+  142,
+  333,
+  455,
+  468
+ ],
+ "ropesuperposition": [
+  58,
+  480,
+  245,
+  583
+ ],
+ "wavereflection": [
+  330,
+  410,
+  520,
+  531
+ ],
+ "ropewave": [
+  55,
+  605,
+  208,
+  655
+ ],
+ "coupledpendulums": [
+  398,
+  598,
+  525,
+  733
+ ],
+ "forcedvibration": [
+  403,
+  239,
+  505,
+  363
+ ],
+ "faradaydrop": [
+  402,
+  510,
+  508,
+  622
+ ],
+ "mutualinduction": [
+  292,
+  518,
+  511,
+  626
+ ],
+ "actionreaction": [
+  323,
+  143,
+  537,
+  245
+ ],
+ "staticinduction": [
+  352,
+  591,
+  553,
+  689
+ ],
+ "forceaddition": [
+  277,
+  258,
+  534,
+  442
+ ],
+ "selfinductionoff": [
+  403,
+  565,
+  536,
+  659
+ ],
+ "selfinductionon": [
+  145,
+  254,
+  265,
+  364
+ ],
+ "waveinterference": [
+  395,
+  365,
+  538,
+  475
+ ],
+ "lorentzbeam": [
+  111,
+  592,
+  198,
+  682
+ ],
+ "newtontube": [
+  59,
+  160,
+  198,
+  312
+ ],
+ "fallacceleration": [
+  75,
+  617,
+  164,
+  725
+ ],
+ "staticfriction": [
+  58,
+  58,
+  198,
+  152
+ ],
+ "hookelaw": [
+  111,
+  532,
+  470,
+  736
+ ],
+ "handtape": [
+  63,
+  78,
+  537,
+  149
+ ],
+ "tickertape": [
+  12,
+  690,
+  586,
+  810
+ ],
+ "newtoncart": [
+  92,
+  274,
+  504,
+  395
+ ],
+ "pairedcarts": [
+  301,
+  575,
+  514,
+  671
+ ],
+ "centripetal": [
+  62,
+  56,
+  303,
+  239
+ ],
+ "inclineenergy": [
+  76,
+  628,
+  527,
+  750
+ ],
+ "fallenergy": [
+  376,
+  405,
+  522,
+  619
+ ],
+ "projectile": [
+  416,
+  621,
+  507,
+  736
+ ],
+ "projectilepaper": [
+  359,
+  194,
+  527,
+  318
+ ],
+ "oilfilm": [
+  77,
+  159,
+  179,
+  280
+ ],
+ "brownianmotion": [
+  306,
+  462,
+  537,
+  707
+ ],
+ "gasisotherm": [
+  393,
+  481,
+  523,
+  717
+ ],
+ "lightswitch": [
+  65,
+  500,
+  190,
+  617
+ ],
+ "dooralarm": [
+  412,
+  479,
+  538,
+  578
+ ],
+ "transformer": [
+  115,
+  147,
+  488,
+  288
+ ],
+ "amperedirection": [
+  72,
+  525,
+  182,
+  647
+ ],
+ "lenzcoil": [
+  114,
+  126,
+  485,
+  249
+ ],
+ "doubleslit": [
+  66,
+  456,
+  376,
+  542
+ ],
+ "ripplediffraction": [
+  59,
+  409,
+  275,
+  488
+ ],
+ "totalreflection": [
+  125,
+  638,
+  464,
+  747
+ ],
+ "glasspins": [
+  381,
+  515,
+  537,
+  658
+ ],
+ "pendulumgravity": [
+  393,
+  467,
+  541,
+  667
+ ],
+ "ballrange": [
+  299,
+  508,
+  537,
+  718
+ ],
+ "momentum": [
+  66,
+  522,
+  521,
+  696
+ ],
+ "capacitor": [
+  55,
+  578,
+  200,
+  681
+ ],
+ "multimeter": [
+  214,
+  339,
+  413,
+  602
+ ],
+ "resistivity": [
+  403,
+  416,
+  529,
+  546
+ ],
+ "wirewinding": [
+  69,
+  234,
+  194,
+  310
+ ],
+ "micrometer": [
+  214,
+  311,
+  526,
+  507
+ ],
+ "caliper": [
+  147,
+  531,
+  530,
+  675
+ ],
+ "fruitbattery": [
+  129,
+  505,
+  488,
+  647
+ ],
+ "batteryemf": [
+  395,
+  238,
+  535,
+  322
+ ]
 }

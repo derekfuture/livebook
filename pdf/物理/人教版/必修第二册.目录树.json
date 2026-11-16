@@ -1,0 +1,392 @@
+[
+  {
+    "id": "b7e18663-475d-3d60-93d9-6a6c453d2f30",
+    "title": "第五章 抛体运动",
+    "rich_title": "第五章 抛体运动",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "b7e18663-475d-3d60-93d9-6a6c453d2f30",
+    "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+    "create_time": "2023-06-15T19:10:29.649+0800",
+    "update_time": "2023-06-15T19:10:29.649+0800",
+    "child_nodes": [
+      {
+        "id": "ee27b8ea-dac6-311a-83d4-1b860eb83cd3",
+        "title": "1.曲线运动",
+        "rich_title": "1.曲线运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b7e18663-475d-3d60-93d9-6a6c453d2f30/ee27b8ea-dac6-311a-83d4-1b860eb83cd3",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:29.834+0800",
+        "update_time": "2023-06-15T19:10:29.834+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f6da17f6-271e-3cf6-864a-f2590644f891",
+        "title": "2.运动的合成与分解",
+        "rich_title": "2.运动的合成与分解",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b7e18663-475d-3d60-93d9-6a6c453d2f30/f6da17f6-271e-3cf6-864a-f2590644f891",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:30.021+0800",
+        "update_time": "2023-08-09T00:14:14.979+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cc31de20-b6ac-384a-8841-544d49a9e1a5",
+        "title": "3.实验：探究平抛运动的特点",
+        "rich_title": "3.实验：探究平抛运动的特点",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b7e18663-475d-3d60-93d9-6a6c453d2f30/cc31de20-b6ac-384a-8841-544d49a9e1a5",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:30.214+0800",
+        "update_time": "2023-06-15T19:10:30.214+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "130d1375-cc06-3552-8ccf-16717228cb39",
+        "title": "4.抛体运动的规律",
+        "rich_title": "4.抛体运动的规律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b7e18663-475d-3d60-93d9-6a6c453d2f30/130d1375-cc06-3552-8ccf-16717228cb39",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:30.406+0800",
+        "update_time": "2023-06-15T19:10:30.406+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "8a4c12ad-46e9-3136-b3a1-57a5f9e3e59b",
+    "title": "第六章 圆周运动",
+    "rich_title": "第六章 圆周运动",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "8a4c12ad-46e9-3136-b3a1-57a5f9e3e59b",
+    "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+    "create_time": "2023-06-15T19:10:30.612+0800",
+    "update_time": "2023-06-15T19:10:30.612+0800",
+    "child_nodes": [
+      {
+        "id": "132b19f0-f8db-361b-8e1d-4b40d4c32465",
+        "title": "1.圆周运动",
+        "rich_title": "1.圆周运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "8a4c12ad-46e9-3136-b3a1-57a5f9e3e59b/132b19f0-f8db-361b-8e1d-4b40d4c32465",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:30.809+0800",
+        "update_time": "2023-06-15T19:10:30.809+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "313cc86a-b481-3ce9-8687-5e25db745504",
+        "title": "2.向心力",
+        "rich_title": "2.向心力",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "8a4c12ad-46e9-3136-b3a1-57a5f9e3e59b/313cc86a-b481-3ce9-8687-5e25db745504",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:31.018+0800",
+        "update_time": "2023-06-15T19:10:31.018+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "09c674a9-7d1e-3705-9dd1-ab3e7fef61ef",
+        "title": "3.向心加速度",
+        "rich_title": "3.向心加速度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "8a4c12ad-46e9-3136-b3a1-57a5f9e3e59b/09c674a9-7d1e-3705-9dd1-ab3e7fef61ef",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:31.207+0800",
+        "update_time": "2023-06-15T19:10:31.207+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1db539ac-7778-3274-ad06-4150618b4679",
+        "title": "4.生活中的圆周运动",
+        "rich_title": "4.生活中的圆周运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "8a4c12ad-46e9-3136-b3a1-57a5f9e3e59b/1db539ac-7778-3274-ad06-4150618b4679",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:31.394+0800",
+        "update_time": "2023-06-15T19:10:31.394+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "906fa139-39b0-3f45-9a0d-3f0457e45e3e",
+    "title": "第七章 万有引力与宇宙航行",
+    "rich_title": "第七章 万有引力与宇宙航行",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "906fa139-39b0-3f45-9a0d-3f0457e45e3e",
+    "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+    "create_time": "2023-06-15T19:10:31.606+0800",
+    "update_time": "2023-06-15T19:10:31.606+0800",
+    "child_nodes": [
+      {
+        "id": "93127cef-0fa2-34bc-888c-e0034d82dc7e",
+        "title": "1.行星的运动",
+        "rich_title": "1.行星的运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "906fa139-39b0-3f45-9a0d-3f0457e45e3e/93127cef-0fa2-34bc-888c-e0034d82dc7e",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:31.795+0800",
+        "update_time": "2023-06-15T19:10:31.795+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6df8d101-e313-34d2-b508-a3a2b8345fd3",
+        "title": "2.万有引力定律",
+        "rich_title": "2.万有引力定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "906fa139-39b0-3f45-9a0d-3f0457e45e3e/6df8d101-e313-34d2-b508-a3a2b8345fd3",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:31.988+0800",
+        "update_time": "2023-06-15T19:10:31.988+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "15fa2019-0bff-336b-9b57-a83c1c202b57",
+        "title": "3.万有引力理论的成就",
+        "rich_title": "3.万有引力理论的成就",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "906fa139-39b0-3f45-9a0d-3f0457e45e3e/15fa2019-0bff-336b-9b57-a83c1c202b57",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:32.188+0800",
+        "update_time": "2023-06-15T19:10:32.188+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fa9c894a-123c-30aa-ad4f-4a4b9b35d6c3",
+        "title": "4.宇宙航行",
+        "rich_title": "4.宇宙航行",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "906fa139-39b0-3f45-9a0d-3f0457e45e3e/fa9c894a-123c-30aa-ad4f-4a4b9b35d6c3",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:32.391+0800",
+        "update_time": "2023-06-15T19:10:32.391+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ede745a9-2f51-3081-a3d2-88d75108e20d",
+        "title": "5.相对论时空观与牛顿力学的局限性",
+        "rich_title": "5.相对论时空观与牛顿力学的局限性",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "906fa139-39b0-3f45-9a0d-3f0457e45e3e/ede745a9-2f51-3081-a3d2-88d75108e20d",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:32.607+0800",
+        "update_time": "2023-06-15T19:10:32.607+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "136774f7-97ec-3bc1-875c-102b06a20d93",
+    "title": "第八章 机械能守恒定律",
+    "rich_title": "第八章 机械能守恒定律",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "136774f7-97ec-3bc1-875c-102b06a20d93",
+    "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+    "create_time": "2023-06-15T19:10:32.798+0800",
+    "update_time": "2023-06-15T19:10:32.798+0800",
+    "child_nodes": [
+      {
+        "id": "c62104ed-2271-31c2-b716-a33b258edd24",
+        "title": "1.功与功率",
+        "rich_title": "1.功与功率",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "136774f7-97ec-3bc1-875c-102b06a20d93/c62104ed-2271-31c2-b716-a33b258edd24",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:33.013+0800",
+        "update_time": "2023-06-15T19:10:33.013+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "57a6499e-eda8-3ce7-a142-7375c701cc1a",
+        "title": "2.重力势能",
+        "rich_title": "2.重力势能",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "136774f7-97ec-3bc1-875c-102b06a20d93/57a6499e-eda8-3ce7-a142-7375c701cc1a",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:33.212+0800",
+        "update_time": "2023-06-15T19:10:33.212+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6253d2b1-cc56-33b1-8ddb-9850c1b9f3fc",
+        "title": "3.动能和动能定理",
+        "rich_title": "3.动能和动能定理",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "136774f7-97ec-3bc1-875c-102b06a20d93/6253d2b1-cc56-33b1-8ddb-9850c1b9f3fc",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:33.445+0800",
+        "update_time": "2023-06-15T19:10:33.445+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e2452a7c-7168-3528-b9ee-7b55911fcda8",
+        "title": "4.机械能守恒定律",
+        "rich_title": "4.机械能守恒定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "136774f7-97ec-3bc1-875c-102b06a20d93/e2452a7c-7168-3528-b9ee-7b55911fcda8",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:33.674+0800",
+        "update_time": "2023-06-15T19:10:33.674+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "beb67962-96ae-39a0-b4b2-73d94725e906",
+        "title": "5.实验：验证机械能守恒定律",
+        "rich_title": "5.实验：验证机械能守恒定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "136774f7-97ec-3bc1-875c-102b06a20d93/beb67962-96ae-39a0-b4b2-73d94725e906",
+        "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+        "create_time": "2023-06-15T19:10:33.891+0800",
+        "update_time": "2023-06-15T19:10:33.891+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "7cf236e9-4fae-3677-bb08-b2a027f2d72e",
+    "title": "课题研究",
+    "rich_title": "课题研究",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials",
+      "hidden": false
+    },
+    "node_path": "7cf236e9-4fae-3677-bb08-b2a027f2d72e",
+    "tree_id": "699354bf-34e7-43d3-91a9-b14bd86dfddb",
+    "create_time": "2023-06-15T19:10:34.079+0800",
+    "update_time": "2023-06-15T19:10:34.079+0800",
+    "child_nodes": null
+  }
+]

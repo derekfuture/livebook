@@ -22,6 +22,54 @@ from pdf_paths import LIB, pdf_path, toc_path
 VERIFIED_TOC = Path(os.environ.get("LIVEBOOK_VERIFIED_TOC", ROOT / "pdf" / "章节与选点.tsv")).expanduser()
 
 BOOKS = {
+    "wuli-hsx3": {
+        "code": "hsx3", "title": "物理 选择性必修第三册", "publisher": "人民教育出版社",
+        "pdf": pdf_path("wuli-hsx3"), "toc": toc_path("wuli-hsx3"),
+        "first_body_index": 5, "page_offset": 4,
+        "printed_pages": [[1, 2, 7, 10, 14], [18, 19, 23, 26, 31, 36], [45, 46, 50, 54, 59],
+                          [66, 67, 71, 78, 84, 92], [100, 101, 108, 115, 119, 126], [132]],
+        "appendices": [("索引", 136)],
+        # 平台目录另附的复习资料不在本版 143 页教材中。
+        "exclude_chapters": ["高考复习"],
+    },
+    "wuli-hsx2": {
+        "code": "hsx2", "title": "物理 选择性必修第二册", "publisher": "人民教育出版社",
+        "pdf": pdf_path("wuli-hsx2"), "toc": toc_path("wuli-hsx2"),
+        "first_body_index": 5, "page_offset": 4,
+        "printed_pages": [[1, 2, 8, 13, 17], [23, 24, 30, 35, 40], [48, 49, 54, 58, 63],
+                          [70, 71, 76, 80, 83], [90, 91, 97, 103], [111]],
+        "appendices": [("索引", 115)],
+    },
+    "wuli-hsx1": {
+        "code": "hsx1", "title": "物理 选择性必修第一册", "publisher": "人民教育出版社",
+        "pdf": pdf_path("wuli-hsx1"), "toc": toc_path("wuli-hsx1"),
+        "first_body_index": 5, "page_offset": 4,
+        "printed_pages": [[1, 2, 6, 12, 17, 21, 25], [31, 32, 36, 43, 46, 51, 54],
+                          [61, 62, 67, 71, 74, 79], [84, 85, 90, 95, 101, 104, 108], [116]],
+        "appendices": [("索引", 121)],
+    },
+    "wuli-hs3": {
+        "code": "hs3", "title": "物理 必修第三册", "publisher": "人民教育出版社",
+        "pdf": pdf_path("wuli-hs3"), "toc": toc_path("wuli-hs3"),
+        "first_body_index": 5, "page_offset": 4,
+        "printed_pages": [[1, 2, 6, 11, 18], [25, 26, 31, 35, 38, 44], [52, 53, 57, 62, 68, 72],
+                          [78, 79, 83, 89, 93], [103, 104, 109, 114, 119, 124], [131], [136]],
+    },
+    "wuli-hs2": {
+        "code": "hs2", "title": "物理 必修第二册", "publisher": "人民教育出版社",
+        "pdf": pdf_path("wuli-hs2"), "toc": toc_path("wuli-hs2"),
+        "first_body_index": 5, "page_offset": 4,
+        "printed_pages": [[1, 2, 6, 10, 14], [22, 23, 27, 31, 35], [43, 44, 49, 55, 59, 65],
+                          [73, 74, 79, 84, 89, 95], [102]],
+    },
+    "wuli-hs1": {
+        "code": "hs1", "title": "物理 必修第一册", "publisher": "人民教育出版社",
+        "pdf": pdf_path("wuli-hs1"), "toc": toc_path("wuli-hs1"),
+        "first_body_index": 5, "page_offset": 4,
+        # 此版目录的印刷页码，依次为章首页和各节首页。
+        "printed_pages": [[2], [10, 11, 15, 21, 27], [35, 36, 39, 42, 47],
+                          [56, 57, 63, 68, 72, 76], [82, 83, 88, 94, 99, 104, 109], [116], [121]],
+    },
     "wuli-8s": {
         "code": "8a",
         "title": "物理 八年级上册",
@@ -233,6 +281,17 @@ def main(book_id):
         print(f"\r渲染 {i + 1}/{doc.page_count}", end="", flush=True)
     print()
 
+    chapters = apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"])
+    if "exclude_chapters" in cfg:
+        chapters = [c for c in chapters if c["title"] not in cfg["exclude_chapters"]]
+    if "printed_pages" in cfg:
+        for chapter, pages in zip(chapters, cfg["printed_pages"]):
+            chapter["page"] = pages[0] + cfg["page_offset"]
+            for section, page in zip(chapter["sections"], pages[1:]):
+                section["page"] = page + cfg["page_offset"]
+    for title, printed in cfg.get("appendices", []):
+        if not any(c["title"] == title for c in chapters):
+            chapters.append({"title": title, "page": printed + cfg["page_offset"], "sections": []})
     manifest = {
         "id": book_id,
         "title": cfg["title"],
@@ -240,13 +299,15 @@ def main(book_id):
         "pageCount": doc.page_count,
         "pageSize": [round(rect.width, 3), round(rect.height, 3)],
         "pageOffset": cfg["page_offset"],
-        "chapters": apply_printed(apply_verified(build_toc(doc, cfg["toc"], cfg["first_body_index"]), cfg["code"], cfg["page_offset"]), cfg.get("toc_printed", {}), cfg["page_offset"]),
+        "chapters": apply_printed(chapters, cfg.get("toc_printed", {}), cfg["page_offset"]),
     }
     (out / "book.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print("写入", out / "book.json")
 
 
 if __name__ == "__main__":
-    ids = sys.argv[1:] or list(BOOKS)
+    ids = sys.argv[1:] or [key for key, cfg in BOOKS.items() if cfg["pdf"].is_file()]
+    if not ids:
+        sys.exit(f"没有找到教材 PDF：{LIB}")
     for book_id in ids:
         main(book_id)

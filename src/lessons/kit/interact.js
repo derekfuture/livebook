@@ -34,11 +34,10 @@ export function hitAny(ray, objs) {
  * opts.taps = [{ obj, hint, onTap(ray) }]：只能点的实物（开关、灯、小桌……），点一下就做一个动作
  * opts.tip：ctx.tag('', 'pill') 做的标签——鼠标移到能动的东西上时，在它旁边说一句“拖到挂钩上”之类的提示，并给它一圈光
  */
-export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
+export function draggable(root, drags, { onClick, taps = [], tip, highlight = false } = {}) {
   let active = null;
   const canvas = () => document.getElementById('c');
   let halo = null, frame = null;
-  const GLOW = false;
   const BIG = 0.09;          // 超过这么大（实验自己的单位，米）的东西算“大件”
   const box = new THREE.Box3(), c = new THREE.Vector3(), sz = new THREE.Vector3();
   const showHint = (item) => {
@@ -57,8 +56,7 @@ export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
     root.worldToLocal(c);
     const s = root.getWorldScale(new THREE.Vector3()).x || 1;
     const big = Math.max(sz.x, sz.y, sz.z) / s > BIG;
-    // 暂时不用光晕和描边，只靠光标和文字提示（以后要恢复，把 GLOW 改成 true）
-    halo.visible = GLOW && !big; frame.visible = GLOW && big;
+    halo.visible = highlight && !big; frame.visible = highlight && big;
     if (big) { frame.position.copy(c); frame.scale.set(sz.x / s + 0.002, sz.y / s + 0.002, sz.z / s + 0.002); }
     else { halo.position.copy(c); halo.scale.setScalar(Math.max(0.02, (Math.max(sz.x, sz.y, sz.z) / s) * 0.9)); }
     const h = typeof item.hint === 'function' ? item.hint() : item.hint;
@@ -67,7 +65,10 @@ export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
   };
   const all = () => [...drags, ...taps];
   let hovered = null;
+  const leave = () => { hovered = null; canvas().style.cursor = ''; if(halo)showHint(null); };
+  if(highlight)canvas().addEventListener('pointerleave', leave);
   return {
+    dispose() { if(highlight)canvas().removeEventListener('pointerleave', leave); },
     items: all,          // 给测试脚本用：列出能拖 / 能点的东西
     hovered: () => hovered,      // 给测试脚本用：鼠标现在停在哪件东西上
     down(ray, e) {

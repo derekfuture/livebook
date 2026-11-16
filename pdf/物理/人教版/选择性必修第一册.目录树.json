@@ -1,0 +1,474 @@
+[
+  {
+    "id": "3bd68b34-c259-3d8a-a75d-08ca75772e55",
+    "title": "第一章 动量守恒定律",
+    "rich_title": "第一章 动量守恒定律",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "3bd68b34-c259-3d8a-a75d-08ca75772e55",
+    "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:34.941+0800",
+    "update_time": "2023-06-20T14:11:34.941+0800",
+    "child_nodes": [
+      {
+        "id": "d39a3ea5-37c1-38a8-84a3-e5e40c1ab2af",
+        "title": "1.动量",
+        "rich_title": "1.动量",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3bd68b34-c259-3d8a-a75d-08ca75772e55/d39a3ea5-37c1-38a8-84a3-e5e40c1ab2af",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:35.130+0800",
+        "update_time": "2023-06-20T14:11:35.130+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "002ef276-9392-3f8a-bc39-2ea1ec4aea27",
+        "title": "2.动量定理",
+        "rich_title": "2.动量定理",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3bd68b34-c259-3d8a-a75d-08ca75772e55/002ef276-9392-3f8a-bc39-2ea1ec4aea27",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:35.320+0800",
+        "update_time": "2023-06-20T14:11:35.320+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cd690103-44eb-3cb9-ad4a-fb23b04f893a",
+        "title": "3.动量守恒定律",
+        "rich_title": "3.动量守恒定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3bd68b34-c259-3d8a-a75d-08ca75772e55/cd690103-44eb-3cb9-ad4a-fb23b04f893a",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:35.505+0800",
+        "update_time": "2023-08-09T00:14:23.433+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5f0ab66a-0f05-334f-8e5e-b4556908cf61",
+        "title": "4.实验：验证动量守恒定律",
+        "rich_title": "4.实验：验证动量守恒定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3bd68b34-c259-3d8a-a75d-08ca75772e55/5f0ab66a-0f05-334f-8e5e-b4556908cf61",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:35.699+0800",
+        "update_time": "2023-06-20T14:11:35.699+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9d8197e6-f7cd-3f1f-921c-ad2de046c904",
+        "title": "5.弹性碰撞和非弹性碰撞",
+        "rich_title": "5.弹性碰撞和非弹性碰撞",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3bd68b34-c259-3d8a-a75d-08ca75772e55/9d8197e6-f7cd-3f1f-921c-ad2de046c904",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:35.895+0800",
+        "update_time": "2023-06-20T14:11:35.895+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c9482be4-a6c2-3952-9d2e-b6b3cf10de9e",
+        "title": "6.反冲现象 火箭",
+        "rich_title": "6.反冲现象 火箭",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3bd68b34-c259-3d8a-a75d-08ca75772e55/c9482be4-a6c2-3952-9d2e-b6b3cf10de9e",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:36.107+0800",
+        "update_time": "2023-06-20T14:11:36.107+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "ed390345-0d8b-3b53-a052-e292c2c09b96",
+    "title": "第二章 机械振动",
+    "rich_title": "第二章 机械振动",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "ed390345-0d8b-3b53-a052-e292c2c09b96",
+    "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:36.299+0800",
+    "update_time": "2023-06-20T14:11:36.299+0800",
+    "child_nodes": [
+      {
+        "id": "9a26a48e-6ab5-342e-8173-b16c2956d14b",
+        "title": "1.简谐运动",
+        "rich_title": "1.简谐运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ed390345-0d8b-3b53-a052-e292c2c09b96/9a26a48e-6ab5-342e-8173-b16c2956d14b",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:36.485+0800",
+        "update_time": "2023-06-20T14:11:36.485+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "291c62ad-29ac-3db9-a5f3-3c2da45739f2",
+        "title": "2.简谐运动的描述",
+        "rich_title": "2.简谐运动的描述",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ed390345-0d8b-3b53-a052-e292c2c09b96/291c62ad-29ac-3db9-a5f3-3c2da45739f2",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:36.693+0800",
+        "update_time": "2023-06-20T14:11:36.693+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e9c3919d-6bed-3c46-9d38-d5d785bfe0ac",
+        "title": "3.简谐运动的回复力和能量",
+        "rich_title": "3.简谐运动的回复力和能量",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ed390345-0d8b-3b53-a052-e292c2c09b96/e9c3919d-6bed-3c46-9d38-d5d785bfe0ac",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:36.895+0800",
+        "update_time": "2023-06-20T14:11:36.895+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3962247e-f7dc-3936-bf3e-28f6b5247a70",
+        "title": "4.单摆",
+        "rich_title": "4.单摆",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ed390345-0d8b-3b53-a052-e292c2c09b96/3962247e-f7dc-3936-bf3e-28f6b5247a70",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:37.074+0800",
+        "update_time": "2023-06-20T14:11:37.074+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ffa5fabc-ced6-3fc6-b1fc-e7d82ae1cd7f",
+        "title": "5.实验：用单摆测量重力加速度",
+        "rich_title": "5.实验：用单摆测量重力加速度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "ed390345-0d8b-3b53-a052-e292c2c09b96/ffa5fabc-ced6-3fc6-b1fc-e7d82ae1cd7f",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:37.270+0800",
+        "update_time": "2023-08-09T00:14:24.988+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "32ceaee7-0160-3b0a-bd9d-87e35049f87c",
+        "title": "6.受迫振动 共振",
+        "rich_title": "6.受迫振动 共振",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ed390345-0d8b-3b53-a052-e292c2c09b96/32ceaee7-0160-3b0a-bd9d-87e35049f87c",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:37.465+0800",
+        "update_time": "2023-06-20T14:11:37.465+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "2b6a183f-064e-3811-aac9-3a99f664c8a8",
+    "title": "第三章 机械波",
+    "rich_title": "第三章 机械波",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "2b6a183f-064e-3811-aac9-3a99f664c8a8",
+    "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:37.670+0800",
+    "update_time": "2023-06-20T14:11:37.670+0800",
+    "child_nodes": [
+      {
+        "id": "eeeb1fd3-3945-38c2-86f7-e3c51ba570c9",
+        "title": "1.波的形成",
+        "rich_title": "1.波的形成",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2b6a183f-064e-3811-aac9-3a99f664c8a8/eeeb1fd3-3945-38c2-86f7-e3c51ba570c9",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:37.871+0800",
+        "update_time": "2023-06-20T14:11:37.871+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0bab66fb-54f4-32dc-aa74-1f4c43e2a5e5",
+        "title": "2.波的描述",
+        "rich_title": "2.波的描述",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2b6a183f-064e-3811-aac9-3a99f664c8a8/0bab66fb-54f4-32dc-aa74-1f4c43e2a5e5",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:38.065+0800",
+        "update_time": "2023-06-20T14:11:38.065+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "936517e7-fd2b-33ea-aea4-8d4e4c260f3d",
+        "title": "3.波的反射、折射和衍射",
+        "rich_title": "3.波的反射、折射和衍射",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2b6a183f-064e-3811-aac9-3a99f664c8a8/936517e7-fd2b-33ea-aea4-8d4e4c260f3d",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:38.272+0800",
+        "update_time": "2023-06-20T14:11:38.272+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "08a75b29-8166-3bd3-a5be-63406308b17f",
+        "title": "4.波的干涉",
+        "rich_title": "4.波的干涉",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2b6a183f-064e-3811-aac9-3a99f664c8a8/08a75b29-8166-3bd3-a5be-63406308b17f",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:38.480+0800",
+        "update_time": "2023-06-20T14:11:38.480+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e50678e0-ec2c-33df-904a-9dfc13b8fbad",
+        "title": "5.多普勒效应",
+        "rich_title": "5.多普勒效应",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "2b6a183f-064e-3811-aac9-3a99f664c8a8/e50678e0-ec2c-33df-904a-9dfc13b8fbad",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:38.690+0800",
+        "update_time": "2023-06-20T14:11:38.690+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "26b34a28-35b2-3a72-94be-763c6b5c6a07",
+    "title": "第四章 光",
+    "rich_title": "第四章 光",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "26b34a28-35b2-3a72-94be-763c6b5c6a07",
+    "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:38.881+0800",
+    "update_time": "2023-06-20T14:11:38.881+0800",
+    "child_nodes": [
+      {
+        "id": "fa72238e-d803-3296-92d4-cc273ccfbe2d",
+        "title": "1.光的折射",
+        "rich_title": "1.光的折射",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "26b34a28-35b2-3a72-94be-763c6b5c6a07/fa72238e-d803-3296-92d4-cc273ccfbe2d",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:39.092+0800",
+        "update_time": "2023-06-20T14:11:39.092+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "25b664a5-c0d1-3e1a-a162-3c2364bfaa02",
+        "title": "2.全反射",
+        "rich_title": "2.全反射",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "26b34a28-35b2-3a72-94be-763c6b5c6a07/25b664a5-c0d1-3e1a-a162-3c2364bfaa02",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:39.295+0800",
+        "update_time": "2023-06-20T14:11:39.295+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "19ee0291-061c-3289-ad2a-4634f22b2aef",
+        "title": "3.光的干涉",
+        "rich_title": "3.光的干涉",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "26b34a28-35b2-3a72-94be-763c6b5c6a07/19ee0291-061c-3289-ad2a-4634f22b2aef",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:39.484+0800",
+        "update_time": "2023-06-20T14:11:39.484+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "01116785-1dcd-348c-9976-a3000272c286",
+        "title": "4.实验：用双缝干涉测量光的波长",
+        "rich_title": "4.实验：用双缝干涉测量光的波长",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "26b34a28-35b2-3a72-94be-763c6b5c6a07/01116785-1dcd-348c-9976-a3000272c286",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:39.683+0800",
+        "update_time": "2023-06-20T14:11:39.683+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e7560f6d-16ae-31ce-9aa1-4f13aa4c94e1",
+        "title": "5.光的衍射",
+        "rich_title": "5.光的衍射",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "26b34a28-35b2-3a72-94be-763c6b5c6a07/e7560f6d-16ae-31ce-9aa1-4f13aa4c94e1",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:39.878+0800",
+        "update_time": "2023-06-20T14:11:39.878+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d76f1c8a-4918-3031-ac72-73de80aa773f",
+        "title": "6.光的偏振 激光",
+        "rich_title": "6.光的偏振 激光",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "26b34a28-35b2-3a72-94be-763c6b5c6a07/d76f1c8a-4918-3031-ac72-73de80aa773f",
+        "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:40.075+0800",
+        "update_time": "2023-08-09T00:14:27.261+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "afbd948e-8b7f-35ea-a40e-ab4ee7210e2c",
+    "title": "课题研究",
+    "rich_title": "课题研究",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "afbd948e-8b7f-35ea-a40e-ab4ee7210e2c",
+    "tree_id": "be6f070a-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:40.259+0800",
+    "update_time": "2023-08-09T00:14:27.555+0800",
+    "child_nodes": null
+  }
+]

@@ -66,6 +66,7 @@ export function forceMeter({ max = FM.MAX, perN = FM.PER_N, length = FM.L } = {}
   nut.add(nutBody, mark);
   nut.position.set(0, BRK + 0.00125 + 0.002, FZ);
   g.add(plate, ring, cap, coil, pointer, rod, hook, bracket, screwRod, nut);
+  g.ring = ring;               // 可复用同一提环的拾取或装配位置
   g.pointer = pointer;          // 给“凑近看指针”用
   g.nut = nut;
   g.set = (F, zeroErr = 0, broken = false, screw = 0) => {

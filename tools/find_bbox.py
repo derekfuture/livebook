@@ -13,14 +13,15 @@ ROOT = Path(__file__).resolve().parent.parent
 # 教材 PDF 放在 pdf/<科目>/<版本>/<册>.pdf，路径统一从 tools/pdf_paths.py 取
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from pdf_paths import LIB, pdf_path
-PDF = {b: pdf_path(b) for b in ("wuli-8s", "wuli-8x", "wuli-9", "huaxue-9s", "huaxue-9x", "dili-7s")}          # 这几本的插图按图注找位置
+PDF = {b: pdf_path(b) for b in ("wuli-8s", "wuli-8x", "wuli-9", "huaxue-9s", "huaxue-9x", "dili-7s",
+                                "wuli-hs1", "wuli-hs2", "wuli-hs3", "wuli-hsx1", "wuli-hsx2", "wuli-hsx3")}          # 这几本的插图按图注找位置
 OVERRIDE = ROOT / "tools" / "bbox-overrides.json"   # 自动框不准时手工改这里
 
 
 def plan_rows():
     book, rows = None, []
-    for line in (ROOT / "PLAN.md").read_text(encoding="utf-8").splitlines():
-        m = re.search(r"\b((?:wuli|huaxue|dili)-\w+)（", line)
+    for line in ("\n".join((ROOT / name).read_text(encoding="utf-8") for name in ("PLAN.md", "PLAN-senior-physics.md"))).splitlines():
+        m = re.search(r"\b((?:wuli|huaxue|dili)-[\w-]+)（", line)
         if line.startswith("## ") and m:
             book = m.group(1)
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
@@ -73,19 +74,19 @@ def figure_bbox(page, fig_label):
 def main():
     sheet = "--sheet" in sys.argv
     overrides = json.loads(OVERRIDE.read_text()) if OVERRIDE.exists() else {}
-    docs = {b: fitz.open(p) for b, p in PDF.items()}
+    docs = {b: fitz.open(p) for b, p in PDF.items() if p.is_file()}
     out = {}
     for row in plan_rows():
-        page = docs[row["book"]][row["page"]]
-        bbox, cap = figure_bbox(page, row["fig"])
-        if row["id"] in overrides:
-            bbox = overrides[row["id"]]
+        bbox = overrides.get(row["id"])
+        if bbox is None:
+            page = docs[row["book"]][row["page"]]
+            bbox, _ = figure_bbox(page, row["fig"])
         out[row["id"]] = {**row, "bbox": bbox}
         flag = "" if bbox else "  <-- 没找到图注"
         print(f'{row["id"]:15} {row["book"]} p{row["page"]:<4} {bbox}{flag}')
     (ROOT / "tools" / "bboxes.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
     if sheet:
-        ids = list(out)
+        ids = [key for key, row in out.items() if row["book"] in docs]
         for k in range(0, len(ids), 12):
             chunk = ids[k:k + 12]
             cols, tw, th = 4, 260, 368

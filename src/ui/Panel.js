@@ -165,6 +165,7 @@ export class Panel {
 
     return {
       controls: this.controlsEl,
+      notes: this.notesEl,
       data: this.dataEl,
       status: (msg) => { this.statusEl.innerHTML = msg || ''; },
       ask: (html) => { if (this.askP) this.askP.innerHTML = html; if (this.askMini) this.askMini.innerHTML = html; },          // 换了情境（从地球上别的地方进来）：开头的问题跟着换
@@ -176,6 +177,7 @@ export class Panel {
       now: this.nowEl,
       el: this.el,
       go: (i) => this.go(i),
+      fold: (on) => this.fold(on),
     };
   }
 
@@ -217,7 +219,7 @@ export class Panel {
     for (const r of rows) { r.classList.add('answers'); this.askEl.append(r); }
     const notes = [...this.controlsEl.children].filter((x) => x.matches('p.note') && x.textContent.length > 24);
     for (const n of notes) this.notesEl.append(n);
-    this.notesBox.hidden = !notes.length;
+    this.notesBox.hidden = !this.notesEl.childElementCount;
   }
 
   need(msg) {
