@@ -306,3 +306,41 @@ export function sodiumBurnScene() {
     },
   };
 }
+
+// ================= 钻进去看：过氧化钠与水（课本第 37 页）2Na₂O₂ + 2H₂O ══ 4NaOH + O₂↑ =================
+// 还没加水（st.water 为假）：只有 Na⁺ 和过氧根 O₂²⁻（固体，没有液体层）。加了水：两个 O₂²⁻ 和两个 H₂O 一起反应，
+// 生成 4 个 OH⁻（溶液显碱性）和 1 个 O₂（冒出去）。过氧根里的 4 个氧：2 个进了 O₂，2 个进了 OH⁻；水里的 2 个氧也进了 OH⁻。Na⁺ 不变。
+// 加了水就演一遍（反应完了再打开也演一遍：看发生了什么）。慢放示意，不表示真实的反应步骤（实际要经过 H₂O₂）。
+export function peroxideScene() {
+  const FILM = 6.2;
+  const rx = { in: ['O2 2-', 'O2 2-', 'H2O', 'H2O'], out: ['OH-', 'OH-', 'OH-', 'OH-', 'O2'], host: 0,
+    near: [null, [2.4, 0, 0], [-0.3, 1.5, 0.4], [2.7, 1.5, -0.4]], place: [[-1.4, -0.5, 0.5], [-0.4, 0.6, -0.6], [2.6, -0.5, 0.5], [3.4, 0.6, -0.6], [1.2, 2.2, 0]],
+    map: [[0, 0], [2, 1], [2, 0], [2, 2], [1, 0], [3, 1], [3, 0], [3, 2], [0, 1], [1, 1]],
+    after: [{}, {}, {}, {}, { gas: true, leave: true, v: [0, 2.2, 0] }], approach: 1.2, dur: 2.4, burst: [0x9fd0ff, 0xffffff] };
+  let wet = false, made = 0;
+  return {
+    labels: (k) => k !== 'H2O', dim: 0.6,
+    init(c, st) {
+      wet = !!st?.water; made = 0;
+      c.view.film = wet ? FILM : 0.02; c.view.paper = wet ? null : 0xf2e2a2; c.view.liquid = 0xb9dfe9;
+      for (let i = 0; i < 4; i++) c.add('Na+', wet ? c.inLiquid() : c.V([-2.4 + i * 1.6, 1.2, i % 2 ? 0.8 : -0.8]), { fixed: !wet });
+      for (let i = 0; i < 2; i++) { const m = c.add('O2 2-', wet ? c.inLiquid() : c.V([-1.6 + i * 3.2, 1.4, 0]), { fixed: !wet }); if (!wet) m.g.rotation.set(0, i, 0); }
+      if (wet) for (let i = 0; i < 5; i++) c.add('H2O', c.inLiquid());
+    },
+    step(c, st) {
+      if (!wet) return;
+      c.view.film = FILM; c.view.paper = null;
+      if (!c.events.length && c.free('O2 2-').length >= 2 && c.free('H2O').length >= 2) {
+        const [a, b] = c.free('O2 2-'), w = c.free('H2O').sort((p, q) => p.g.position.distanceTo(a.g.position) - q.g.position.distanceTo(a.g.position));
+        c.start(rx, [a, b, w[0], w[1]], { then: () => { made++; } });
+      }
+    },
+    text(c, st) {
+      const eq = '2O<sub>2</sub><sup>2−</sup> + 2H<sub>2</sub>O ══ 4OH<sup>−</sup> + O<sub>2</sub>↑';
+      if (!wet) return { eq: '', on: false, cap: '还没加水：过氧化钠是淡黄色固体，由 Na⁺ 和过氧根 O₂²⁻（两个氧原子连在一起）构成。' };
+      if (c.events.length) return { eq, on: true, cap: '过氧根和水分子反应：过氧根里的氧，一部分变成 <b>O₂</b> 冒出去（气泡），一部分和水里的氢、氧一起变成 <b>OH⁻</b>。' };
+      if (made) return { eq, on: true, cap: '生成了 OH⁻（溶液显碱性）和 O₂（能使带火星的木条复燃）；Na⁺ 一直没变。<b>慢放示意，不表示真实的反应步骤。</b>' };
+      return { eq, on: true, cap: '水来了：过氧根就要和水分子反应。' };
+    },
+  };
+}
