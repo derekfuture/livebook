@@ -181,9 +181,9 @@ export default {
         log(['装瓶，贴标签', '标签：NaCl 溶液 1.00 mol/L（要配的浓度）', `实际配成：<b>${c.toFixed(3)} mol/L</b>${Math.abs(dev) < 0.15 ? '（就是 1.00 mol/L）' : dev > 0 ? '（<b>偏大</b>，这次没配准）' : '（<b>偏小</b>，这次没配准）'}`]);
         S.pourT = 0.0001;
         status(`装进试剂瓶，贴好了标签。进了容量瓶的 NaCl ${S.flSalt.toFixed(3)} g（${(S.flSalt / M).toFixed(4)} mol），溶液 ${S.flVol.toFixed(2)} mL，浓度 <b>${c.toFixed(3)} mol/L</b>。`);
-        if (W) { W.t1.open(); } far();
+        if (W && !S.demo) W.t1.open(); far();
       },
-      reset() { if (bar.playing) bar.stop(); S = fresh(); S.view = 'flat'; W?.viewSeg?.set(0); far(); syncScene(); mic.close(); salts.clear(); drops.clear(); W?.tbl.clear(); far(); botLabel.visible = false; botLiq.scale.y = 0.0001; if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; } bar.undo('check', 'paper', 'weigh', 'dissolve', 'transfer', 'wash', 'swirl', 'settle', 'shake', 'bottle'); status('器材重新摆好了。先点一下<b>容量瓶</b>检漏。'); },
+      reset() { if (bar.playing) bar.stop(); S = fresh(); S.view = 'flat'; W?.viewSeg?.set(0); far(); syncScene(); mic.close(); salts.clear(); drops.clear(); W?.tbl.clear(); far(); botLabel.visible = false; botLiq.scale.y = 0.0001; if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('check', 'paper', 'weigh', 'dissolve', 'transfer', 'wash', 'swirl', 'settle', 'shake', 'bottle'); status('器材重新摆好了。先点一下<b>容量瓶</b>检漏。'); },
     };
     // 演示开始 / 结束：画面上的东西按（换回来的）状态重新摆好——演示里正转着、抬着的容量瓶，放回原处
     const syncScene = () => {

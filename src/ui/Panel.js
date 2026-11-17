@@ -257,6 +257,7 @@ export class Panel {
       localStorage.removeItem(`livebook.pick.${this.def.id}`);
     }
     this.tabs?.[1]?.classList.remove('done');
+    clearTimeout(this._sealT); this.tabs?.[2]?.classList.remove('done'); this.sealEl?.classList.remove('on');          // 这一轮的结论也回到没掀开的样子（以前盖过的章、书架上的记录不动）
     this.el.querySelector('.p-body').scrollTop = 0;
   }
 
@@ -274,7 +275,7 @@ export class Panel {
     else { v.className = 'verdict no'; v.textContent = `${who}是「${p.options[mine]}」，对照实验再想一想。正确的是「${p.options[p.answer]}」。`; }
     this.flap.classList.add('open');
     this.flap.style.minHeight = `${this.answerEl.offsetHeight}px`;
-    setTimeout(() => { this.sealEl.classList.add('on'); stamps.give(this.def.id); this.tabs[2].classList.add('done'); }, 950);
+    this._sealT = setTimeout(() => { this.sealEl.classList.add('on'); stamps.give(this.def.id); this.tabs[2].classList.add('done'); }, 950);
   }
 
   /** 探索模式里先猜的那一下：猜对了没有（没猜就空着） */

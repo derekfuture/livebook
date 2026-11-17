@@ -629,14 +629,19 @@ export function electrolysisScene() {
 // opts：{ init: [[离子, 个数]...]（试管里原来的溶液），feed: [[离子, 个数]...]（滴进来的一“份”），cat, an（结合成沉淀的阳、阴离子），solid（沉淀），
 //   words: { start, react, done }（字幕，可以是函数 (c) => html） }
 // st：{ fed: 滴进来了几“份”（课程按滴数换算），stir }
+// 生成沉淀：init 是试管里原来的离子，feed 是每加一份进来的离子。st.ratio = 加进来的量 ÷ 恰好完全反应要的量（课程按真实的量算）。
+// 一个离子代表很多个：份数按 ratio 画，但不足、恰好、过量的区别不能丢——不足时至少画 1 份、最多比恰好少 1 份；恰好就是恰好；过量至少多画 1 份。
+// 字幕按真实的量判断（st.left：剩下的阴离子，st.excess：多出来的阳离子），不按画了几个粒子判断。
 export function precipScene({ init, feed, cat, an, solid, words = {} }) {
   const FILM = 6.2, SLOTS = [];
+  const N = (init.find(([k]) => k === an)?.[1] ?? 0) / (feed.find(([k]) => k === cat)?.[1] || 1);          // 恰好完全反应要加几份
+  const units = (a) => (a <= 1e-9 ? 0 : a < 1 - 1e-6 ? Math.min(N - 1, Math.max(1, Math.floor(N * a + 1e-6))) : a <= 1 + 1e-6 ? N : N + Math.max(1, Math.ceil(N * (a - 1) - 1e-6)));
   for (let r = 0; r < 3; r++) for (let q = -2; q <= 2; q++) SLOTS.push(new THREE.Vector3(q * 2.6 + (r % 2) * 1.3, 0.75 + r * 1.3, (r % 2 ? 0.6 : -0.6)));
   const ca = MOL[cat].atoms.length, aa = MOL[an].atoms.length;
   const RX = { in: [cat, an], out: [solid], host: 1, near: [[-2.4, 0, 0], null], map: [...Array.from({ length: ca }, (_, i) => [0, i]), ...Array.from({ length: aa }, (_, i) => [1, i])], dur: 1.4, approach: 1.4, burst: [0xffffff, 0xd8e4ee] };
   let fed = 0, made = 0;
   const top = (c) => c.V([c.rnd(-1.6, 1.6), FILM - 0.6, c.rnd(-1, 1)]);
-  const say = (w, c) => (typeof w === 'function' ? w(c) : w);
+  const say = (w, c, st) => (typeof w === 'function' ? w(c, st) : w);
   return {
     labels: 'always', dim: 0.7,
     init(c, st) {
@@ -646,7 +651,7 @@ export function precipScene({ init, feed, cat, an, solid, words = {} }) {
     },
     step(c, st) {
       c.view.film = FILM; c.view.paper = null; c.view.liquid = st.color ?? 0xb9dfe9;
-      const want = Math.max(0, Math.floor(st.fed || 0));
+      const want = units(st.ratio || 0);
       if (fed < want) { fed++; for (const [k, n] of feed) for (let i = 0; i < n; i++) { const m = c.add(k, top(c).add(c.V([i * 1.1, 0, 0]))); m.v.set(c.rnd(-1.5, 1.5), -1.6, c.rnd(-1, 1)); } }
       if (c.events.length < 2) {
         const a = c.free(cat)[0], b = a && c.nearest(c.free(an), a.g.position);
@@ -654,10 +659,9 @@ export function precipScene({ init, feed, cat, an, solid, words = {} }) {
       }
       for (const m of c.mols) if (m.sink) { m.g.position.lerp(m.sink, 0.04); m.g.rotation.y += 0.002; }          // 沉淀慢慢落到底下、堆起来
     },
-    text(c) {
+    text(c, st) {
       const eq = `${f(cat)} + ${f(an)} ${ARR} ${f(solid)}↓`;
-      const nAn = c.count(an), nCat = c.free(cat).length;
-      const cap = c.events.length ? say(words.react, c) : !fed ? say(words.start, c) : nAn === 0 && nCat > 0 ? say(words.excess ?? words.done, c) : say(words.done, c);
+      const cap = c.events.length ? say(words.react, c, st) : !(st?.ratio > 0) ? say(words.start, c, st) : st.excess > 1e-9 ? say(words.excess, c, st) : st.left > 1e-9 ? say(words.partial, c, st) : say(words.done, c, st);
       return { eq, cap };
     },
   };

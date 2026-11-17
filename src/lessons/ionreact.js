@@ -68,10 +68,11 @@ export default {
       words: {
         start: `Na₂SO₄ 溶液里是 ${f('Na+')} 和 ${f('SO4 2-')}，它们在水里自由移动。`,
         react: `${f('Ba2+')} 碰上 ${f('SO4 2-')}，<b>结合成 ${f('BaSO4')}</b>，沉下去；${f('Na+')}、${f('Cl-')} 不参加反应，还在溶液里`,
-        done: (c) => (c.count('SO4 2-') ? `还有 ${c.count('SO4 2-')} 个 ${f('SO4 2-')}：再滴 BaCl₂ 还会生成沉淀` : `${f('SO4 2-')} 都变成了沉淀；溶液里剩下 ${f('Na+')} 和 ${f('Cl-')}（就是 NaCl）`),
-        excess: `${f('SO4 2-')} 用完了：再滴进来的 ${f('Ba2+')} 找不到 ${f('SO4 2-')}，留在溶液里`,
+        partial: `还有 ${f('SO4 2-')} 没反应：再滴 BaCl₂ 还会生成沉淀。${f('Na+')}、${f('Cl-')} 一直在溶液里`,
+        done: `${f('SO4 2-')} 恰好都变成了沉淀；溶液里剩下 ${f('Na+')} 和 ${f('Cl-')}（就是 NaCl）`,
+        excess: `${f('SO4 2-')} 用完了：再滴进来的 ${f('Ba2+')} 找不到 ${f('SO4 2-')}，和 ${f('Cl-')} 一起留在溶液里；溶液里是 ${f('Na+')}、${f('Ba2+')}、${f('Cl-')}`,
       },
-    }), at: () => V(TX, T_Y + 0.03, 0), label: '钻进去看离子', state: () => ({ fed: S.ba / 0.05, color: 0xb9dfe9 }), show: () => S.drops > 0, bar: () => bar, scale: 0.0042 });
+    }), at: () => V(TX, T_Y + 0.03, 0), btnAt: () => V(TX + 0.03, T_Y + T_LEN * 0.55, 0.01), label: '钻进去看离子', state: () => { const I = ions(); return { ratio: S.ba / SO4_0, left: I.so4, excess: I.ba, color: 0xb9dfe9 }; }, show: () => S.drops > 0, bar: () => bar, scale: 0.0042 });
     const card = tag('', 'cond');
 
     const A = {
@@ -105,10 +106,10 @@ export default {
     const step = (dt, t) => {
       B.update(dt, t);
       const I = ions(), e = B.shakeE(0);
-      if (e > 0.6 && S.ba > 0.05 && !S.shaken) { S.shaken = true; done('shake'); log(['振荡', '白色沉淀分散在整支试管里', '沉淀是生成的 BaSO₄']); }
+      if (e > 0.6 && S.ba > 0.05 && !S.shaken) { S.shaken = true; log(['振荡', '白色沉淀分散在整支试管里', '沉淀是生成的 BaSO₄']); status('振荡好了。现在<b>放着不动</b>（静置），看沉淀。'); }
       // 沉淀：刚生成时悬浮（浑浊），不振荡就慢慢沉到管底
       S.settle = Math.min(1, e > 0.1 ? Math.max(0, S.settle - dt * 2) : S.settle + dt / 18);
-      if (S.shaken && S.settle > 0.9 && !S.said.settled) { S.said.settled = true; log(['静置', '白色沉淀沉到试管底部，上面的液体又澄清了', 'BaSO₄ 难溶于水']); W?.t1.open(); }
+      if (S.shaken && S.settle > 0.9 && !S.said.settled) { S.said.settled = true; done('shake'); log(['静置', '白色沉淀沉到试管底部，上面的液体又澄清了', 'BaSO₄ 难溶于水']); if (!S.demo) { W?.t1.open(); status('沉淀沉到管底了。在左边作答：混合前后，溶液里的离子有什么变化？'); } }
       const k = Math.min(1, I.ppt / SO4_0);
       B.setTube(0, { vol: S.vol, color: 0xe6eef2, milk: k * (1 - S.settle) * 0.95, milkColor: 0xfbfbf7, speckColor: 0xffffff, sediment: k * S.settle, sedColor: 0xfbfbf8 });
       card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里的离子（示意）</span></div><div class="cc-more">Na⁺ ${mm(I.na)}　SO₄²⁻ ${mm(I.so4)}<br>Ba²⁺ ${mm(I.ba)}　Cl⁻ ${mm(I.cl)}<br><small>单位 mmol · 沉淀 BaSO₄ ${(I.ppt * 233).toFixed(1)} mg</small></div></div>`).loc(group, TX, T_Y + T_LEN + 0.02, 0).show(!bar.playing && S.drops > 0);

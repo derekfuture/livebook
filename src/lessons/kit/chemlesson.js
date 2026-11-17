@@ -34,11 +34,15 @@ export function paperSheet(group, { w = 0.6, d = 0.3, x = 0, z = 0.03 } = {}) {
  * 返回 { onStart, onEnd }，直接放进 reels.demo。
  */
 export function sandbox({ get, set, fresh, apply, bar }) {
-  let saved = null;
+  let saved = null, cards = null;
+  // 学案上的题卡、“掀开结论”按钮也是学生自己的：演示里出的题、填的读数，演示完都要撤回
+  const snap = () => [...document.querySelectorAll('.think, .big-next')].map((el) => ({ el, hidden: el.hidden, ctx: el.querySelector('.sum-ctx')?.innerHTML, ctxHidden: el.querySelector('.sum-ctx')?.hidden }));
+  const restore = (list) => { for (const c of list) { c.el.hidden = c.hidden; const x = c.el.querySelector('.sum-ctx'); if (x && c.ctx != null) { x.innerHTML = c.ctx; x.hidden = c.ctxHidden; } } };
   return {
-    onStart: () => { if (!saved) saved = get(); const s = fresh(); s.demo = true; set(s); apply?.(); },
+    onStart: () => { if (!saved) { saved = get(); cards = snap(); } const s = fresh(); s.demo = true; set(s); apply?.(); },
     onEnd: () => {
       if (!saved) return;
+      if (cards) { restore(cards); cards = null; }
       const s = saved; saved = null; s.near = false; set(s); apply?.();
       const b = bar?.(); if (!b) return;
       b.say('演示看完了。桌上的器材和记录还是你自己的那一套——接着往下做。', b.current || 'end');
