@@ -99,6 +99,12 @@ export function table(headers, { note } = {}) {
       tbody.append(h('tr', { class: highlight ? 'new' : '' }, cells.map((c) => h('td', { html: typeof c === 'number' ? fmtNum(c) : String(c) }))));
       return rows.length;
     },
+    /** 改第 i 行（从 0 数）：同一行越记越多的时候用（比如一种金属的现象一样样长出来） */
+    set(i, cells) {
+      const tr = tbody.children[i]; if (!tr) return;
+      rows[i] = cells; cells.forEach((c, j) => { if (tr.children[j]) tr.children[j].innerHTML = typeof c === 'number' ? fmtNum(c) : String(c); });
+      tr.classList.remove('new'); void tr.offsetWidth; tr.classList.add('new');
+    },
     clear() { rows.length = 0; tbody.innerHTML = ''; },
   };
 }

@@ -95,7 +95,7 @@ const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const rnd = (a, b) => a + Math.random() * (b - a);
 const V = (a) => new THREE.Vector3(...a);
 
-function textSprite(text, color = '#ffffff', shadow = 'rgba(0,0,0,0.6)') {
+export function textSprite(text, color = '#ffffff', shadow = 'rgba(0,0,0,0.6)') {
   const c = document.createElement('canvas'); c.width = 256; c.height = 96;
   const g = c.getContext('2d'); g.textBaseline = 'alphabetic'; g.shadowColor = shadow; g.shadowBlur = 8; g.fillStyle = color;
   // 化学式：字母正常大小，数字画成下标、电荷画成上标（不用 Unicode 上下标字符直接排：宋体里它们的间距很怪）
@@ -323,8 +323,11 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
   const view = { paper: null, film: 0, liquid: 0x5cc2f0, speed: 1 };
   // 在底座的圆里均匀撒（视窗模式：在长方形里）
   const inDisc = (y) => { if (!HOLO) return new THREE.Vector3(rnd(-BOX.x, BOX.x), y, rnd(-BOX.z, BOX.z)); const r = Math.sqrt(Math.random()) * (HR - 1.4), a = rnd(0, Math.PI * 2); return new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r); };
+  // 场景自己画的东西（原子结构示意之类不是分子的）：放进 layer，重来时清空
+  const layer = new THREE.Group(); W0.add(layer);
+  const clearLayer = () => { layer.traverse((o) => { o.geometry?.dispose(); if (o.material) [].concat(o.material).forEach((m) => { m.map?.dispose(); m.dispose(); }); }); layer.clear(); };
   const ctx = {
-    BOX, HR, rnd, V, events, view,
+    BOX, HR, rnd, V, events, view, layer,
     get mols() { return molecules; },
     add: addMol, remove: removeMol, start, burst,
     count: (k, fn = (m) => !m.leaving) => molecules.filter((m) => m.kind === k && fn(m)).length,
@@ -349,6 +352,7 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
   const reset = () => {
     events.forEach((e) => e.temp && cleanTemp(e)); events.length = 0;
     while (molecules.length) removeMol(molecules[0]);
+    clearLayer();
     scene.init(ctx, st);
   };
 
