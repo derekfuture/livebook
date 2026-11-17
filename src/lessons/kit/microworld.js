@@ -116,6 +116,9 @@ MOL.HCl = { atoms: [['H', -0.64, 0, 0], ['Cl', 0.64, 0, 0]], bonds: [[0, 1, 1]],
 //   原子顺序：S、O(=)、O(=)、O(H)、O(H)、H、H（场景里按这个顺序配原子）
 MOL.H2SO4 = { atoms: [['S', 0, 0, 0], ['O', 0.82, 0.82, 0.82], ['O', -0.82, -0.82, 0.82], ['O', -0.906, 0.906, -0.906], ['O', 0.906, -0.906, -0.906], ['H', -0.427, 1.731, -1.079], ['H', 0.427, -1.731, -1.079]],
   bonds: [[0, 1, 2], [0, 2, 2], [0, 3, 1], [0, 4, 1], [3, 5, 1], [4, 6, 1]], label: 'H₂SO₄', ink: '#8a6d10' };
+// 一氧化氮、二氧化氮（NO₂ 溶于水，no2water）：N–O 1.15 Å；NO₂ 是弯的，N–O 1.20 Å、O–N–O 约 134°（两根键其实一样长，画成一双一单）
+MOL.NO = { atoms: [['N', -0.575, 0, 0], ['O', 0.575, 0, 0]], bonds: [[0, 1, 2]], label: 'NO', ink: '#4a5262' };
+MOL.NO2 = { atoms: [['N', 0, 0.23, 0], ['O', -1.105, -0.239, 0], ['O', 1.105, -0.239, 0]], bonds: [[0, 1, 2], [0, 2, 1]], label: 'NO₂', ink: '#a5491f' };
 const BOX = { x: 7.5, z: 3.6, top: 9 };          // 底座在 y = 0；液体 0~film；上面是气体
 
 const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
@@ -1358,7 +1361,9 @@ export function micro({ tag, look, back, group, scene, at, label, state, show = 
     get isOpen() { return mw.isOpen; },
     open(demo = false) {
       const p = at();
-      if (!demo) { look([p.x, p.y + 0.05, p.z], lookD, dist); looked = true; }
+      // look() 用的是课程最外层（root）的坐标；group 在 root 里挪过位置（比如整体往右挪）时要换算过去
+      const q = group.parent ? group.parent.worldToLocal(group.localToWorld(p.clone())) : p;
+      if (!demo) { look([q.x, q.y + 0.05, q.z], lookD, dist); looked = true; }
       const st = state(); k0 = key(); const was = mw.isOpen; mw.open(anchor, st); if (was) mw.reset(st);
     },
     close() { mw.close(); },
@@ -1512,4 +1517,16 @@ MOL['K+'] = { atoms: [['K', 0, 0, 0]], bonds: [], label: 'K⁺', ink: '#5a3aa8' 
   { const base = MOL['NO3-'], atoms = base.atoms.map((a) => a.slice()), bonds = base.bonds.map((b) => b.slice());
     for (let k = 1; k <= 3; k++) { const p = new THREE.Vector3(atoms[k][1], atoms[k][2], atoms[k][3]); hIn(atoms, bonds, p, p.clone().normalize(), 1.9); }
     MOL['NO3-aq'] = { atoms, bonds, label: 'NO₃⁻', ink: base.ink, labelY: 4.4 }; }
+}
+
+// ================= 追加（氨溶于水的喷泉实验 fountain）：氨分子、一水合氨、铵根离子 =================
+// NH₃：三角锥形，N–H 1.01 Å、H–N–H 106.7°（三个 H 在 N 下方，孤电子对朝上）。
+// NH₃·H₂O：课本写成一水合氨；画成一个 NH₃ 和一个 H₂O 靠在一起（水的一个 H 对着 N，N…H 约 2.0 Å；氢键不画成化学键）。
+// NH₄⁺：正四面体，N–H 1.03 Å（第 4 个 H 朝上：电离时水分子把这个 H 交给 N，剩下 OH⁻）。
+ZION['NH4+'] = 1;
+{
+  const H3 = (r, y) => [0, 1, 2].map((k) => ['H', r * Math.cos((k * 2 * Math.PI) / 3), y, r * Math.sin((k * 2 * Math.PI) / 3)]);
+  MOL.NH3 = { atoms: [['N', 0, 0, 0], ...H3(0.9375, -0.381)], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1]], label: 'NH₃', ink: '#1f8a5c' };
+  MOL.NH3H2O = { atoms: [['N', 0, 0, 0], ...H3(0.9375, -0.381), ['O', 0, 2.96, 0], ['H', 0, 2.0, 0], ['H', 0.929, 3.2, 0]], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [4, 5, 1], [4, 6, 1]], label: 'NH₃·H₂O', ink: '#2a6f55', labelY: 4.2 };
+  MOL['NH4+'] = { atoms: [['N', 0, 0, 0], ...H3(0.971, -0.343), ['H', 0, 1.03, 0]], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1]], label: 'NH₄⁺', ink: '#a8326e', glow: 0xff7ab0, glowBase: 0.3, glowSize: 3 };
 }
