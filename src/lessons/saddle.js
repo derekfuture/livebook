@@ -22,6 +22,7 @@ const SH = 0.0064, H0 = 9 * SH + 0.006;         // 积每多 1 立高多少；�
 const O = [0, 0.006];                           // 表格中心（0×0）在纸上的位置
 const POOL = N * G + 0.016;                     // 水槽内壁到表格中心的距离
 const RIM = 0.006;                              // 玻璃比水面高出多少
+const SLOT = 0.017;                             // 第一幕的水槽只有最前面一条：前后各这么宽
 const INK = '#27324a', GOLD = '#e9a520', PAPER = '#fdfaf1';
 const num = (x) => (x < 0 ? `−${-x}` : `${x}`);
 const signed = (d) => (d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '0');
@@ -47,7 +48,7 @@ export default {
     const group = new THREE.Group();
     const tw = tweens();
     // rise：最前面那一页立起来多少；stack：其余六页立起来多少；g：学生给 (−3)×0、(−3)×(−1)、(−3)×(−2)、(−3)×(−3) 填的数（null = 还没填）
-    const S = { rise: 0, stack: 0, flat: true, g: [null, null, null, null], lock: false, glow: 0, held: null, clock: 0, done: false, nudge: 0 };
+    const S = { rise: 0, stack: 0, flat: true, g: [null, null, null, null], lock: false, glow: 0, held: null, clock: 0, done: false, nudge: 0, auto: false };
     let ui = null, dead = false;
     const at = (a, b) => [O[0] - b * G, O[1] + a * G];                     // 照课本算式的顺序：后一个乘数从左到右是 3、2、1、0、−1、−2、−3；前一个乘数是 −3 的那一行在最前面
     const front = (b) => (b > 0 ? -N * b : S.g[-b]);                       // 最前面那一页：前三个已知，后四个是学生填的
@@ -58,10 +59,9 @@ export default {
       const X = (u) => (u + W / 2) * px, Y = (v) => (D / 2 - v) * px, all = S.stack > 0.5;
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.strokeStyle = 'rgba(60,66,84,0.3)'; g.lineWidth = Math.max(1, px * 0.00022);
-      for (let i = -N; i <= N + 1; i++) {
-        g.beginPath(); g.moveTo(X(O[0] + (i - 0.5) * G), Y(O[1] + (N + 0.5) * G)); g.lineTo(X(O[0] + (i - 0.5) * G), Y(O[1] - (N + 0.5) * G)); g.stroke();
-        g.beginPath(); g.moveTo(X(O[0] - (N + 0.5) * G), Y(O[1] + (i - 0.5) * G)); g.lineTo(X(O[0] + (N + 0.5) * G), Y(O[1] + (i - 0.5) * G)); g.stroke();
-      }
+      const top = all ? N + 0.5 : -N + 0.5;          // 第一幕只印最前面那一行的格子
+      for (let i = -N; i <= N + 1; i++) { g.beginPath(); g.moveTo(X(O[0] + (i - 0.5) * G), Y(O[1] + top * G)); g.lineTo(X(O[0] + (i - 0.5) * G), Y(O[1] - (N + 0.5) * G)); g.stroke(); }
+      for (let i = -N; i <= (all ? N + 1 : -N + 1); i++) { g.beginPath(); g.moveTo(X(O[0] - (N + 0.5) * G), Y(O[1] + (i - 0.5) * G)); g.lineTo(X(O[0] + (N + 0.5) * G), Y(O[1] + (i - 0.5) * G)); g.stroke(); }
       if (S.flat) for (let a = -N; a <= (all ? N : -N); a++) for (let b = -N; b <= N; b++) {
         const p = val(a, b), [u, v] = at(a, b);
         g.font = `${p == null ? 400 : 600} ${px * 0.011}px ${SERIF}`; g.fillStyle = p == null ? 'rgba(120,116,102,0.6)' : INK;
@@ -79,7 +79,7 @@ export default {
     // 取景只看这个看不见的盒子：第一幕框住最前面那一页，第二幕框住整个水槽
     const frame = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, depthTest: false }));
     frame.raycast = () => {}; root.add(frame);
-    const setFrame = (two) => { const v0 = O[1] - POOL - 0.03, v1 = two ? O[1] + POOL + 0.012 : O[1] - N * G + 0.05, h = H0 + 9 * SH + 0.02; frame.scale.set(2 * POOL + 0.03, h, v1 - v0); frame.position.set(O[0], h / 2, -(v0 + v1) / 2); };
+    const setFrame = (two) => { const v0 = O[1] - POOL - 0.03, v1 = two ? O[1] + POOL + 0.012 : O[1] - N * G + 0.03, h = H0 + 9 * SH + 0.02; frame.scale.set(2 * POOL + 0.03, h, v1 - v0); frame.position.set(O[0], h / 2, -(v0 + v1) / 2); };
     setFrame(false);
 
     // ---- 水：水面以下的东西稍微往水色里沉一点 ----
@@ -102,14 +102,14 @@ export default {
     floor.position.y = 0.0007; floor.renderOrder = 1;
     // 水面：很平，只有一点反光；表格的格线浮在上面
     const surf = new THREE.Mesh(new THREE.PlaneGeometry(2 * POOL, 2 * POOL).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      uniforms: { uT: water.t, uS: water.s, uSun: { value: new THREE.Vector3(-0.3, 0.87, 0.4).normalize() }, uG: { value: G }, uN: { value: N + 0.5 } }, vertexShader: VERT,
-      fragmentShader: `uniform float uT, uS, uG, uN; uniform vec3 uSun; varying vec3 vW; varying vec2 vL;
+      uniforms: { uT: water.t, uS: water.s, uSun: { value: new THREE.Vector3(-0.3, 0.87, 0.4).normalize() }, uG: { value: G }, uN: { value: N + 0.5 }, uZ: { value: new THREE.Vector2(1, 0) } }, vertexShader: VERT,
+      fragmentShader: `uniform float uT, uS, uG, uN; uniform vec2 uZ; uniform vec3 uSun; varying vec3 vW; varying vec2 vL;
         void main() {
           vec3 V = normalize(cameraPosition - vW); vec2 p = vW.xz / uS * 90.0;
           vec3 n = normalize(vec3(0.02 * cos(p.x + uT * 0.9) + 0.014 * cos((p.x + p.y) * 0.63 - uT * 0.6), 1.0, 0.02 * cos(p.y * 1.13 - uT * 0.8) + 0.014 * sin((p.x - p.y) * 0.57 + uT * 0.5)));
           float fres = pow(1.0 - max(dot(n, V), 0.0), 3.0), spec = pow(max(dot(n, normalize(uSun + V)), 0.0), 300.0);
           vec3 col = mix(vec3(0.66, 0.86, 0.9), vec3(0.95, 0.98, 1.0), fres) + spec * 0.7; float a = 0.16 + 0.45 * fres + spec * 0.6;
-          vec2 c = vL / uG + uN; vec2 d = abs(fract(c + 0.5) - 0.5) / max(fwidth(c), vec2(1e-4));
+          vec2 c = vec2(vL.x, vL.y * uZ.x + uZ.y) / uG + uN; vec2 d = abs(fract(c + 0.5) - 0.5) / max(fwidth(c), vec2(1e-4));
           float line = (1.0 - min(min(d.x, d.y), 1.0)) * step(-0.02, c.x) * step(c.x, 2.0 * uN + 0.02) * step(-0.02, c.y) * step(c.y, 2.0 * uN + 0.02);
           col = mix(col, vec3(0.2, 0.26, 0.38), line * 0.45); a = max(a, line * 0.4);
           gl_FragColor = vec4(col, a);
@@ -258,13 +258,16 @@ export default {
       // 水、玻璃、0
       const fill = clamp(S.rise * 4, 0, 1);
       pool.visible = up; water.fill.value = fill; surf.position.y = Math.max(0.001, wl - 0.0004); glass.scale.y = Math.max(0.001, wl + RIM * fill);
+      const grow = smooth(clamp(S.stack * 2.2, 0, 1)), half = SLOT + (POOL - SLOT) * grow, mid = O[1] - POOL + half;          // 前壁不动，后壁往后退
+      pool.position.z = -mid; pool.scale.z = half / POOL; surf.material.uniforms.uZ.value.set(half / POOL, mid - O[1]);
       if (ready) setTag(zero, '0', false, 0.0128, O[0] - N * G - 0.0155, wl + 0.0044, O[1] - N * G, 0); else zero.sp.visible = false;
       fine.visible = S.stack > 0.9 && S.rise > 0.99; fine.material.opacity = 0.34 * clamp(S.stack * 10 - 9, 0, 1);
-      tabText.say(S.rise < 0.5 ? '立起来' : S.lock && S.stack < 0.5 ? '整张表' : '压回去');
+      const tabOn = !tw.busy && (S.rise < 0.5 ? S.auto : S.lock);          // 第一幕没填直以前，没有纸条可点
+      tab.show(tabOn); tabText.fade(tabOn ? 1 : 0); tabText.say(S.rise < 0.5 ? '立起来' : S.stack < 0.5 ? '整张表' : '压回去');
     };
     const say = (s, html = s) => { note.say(s).at(-W / 2 + 0.018 + note.scale.x / 2, -D / 2 + 0.0125); ui?.status(html); };
     const hint = () => {
-      if (S.rise < 0.5) return S.stack > 0.5 ? say('压回纸面，就是填满的乘法表', '压回纸面，就是填满的乘法表：课本上那几列算式，都在里面。') : say('点右下角的纸条，让这一列算式立起来', '这是课本“思考”里的那一列算式。<br>点一下右下角的<b>纸条</b>，让每个积立到它自己的高度。');
+      if (S.rise < 0.5) return S.stack > 0.5 ? say('压回纸面，就是填满的乘法表', '压回纸面，就是填满的乘法表：课本上那几列算式，都在里面。') : say('课本“思考”里的那一列算式', '这是课本“思考”里的那一列算式。');
       if (S.stack > 0.5) return say('每一页都是直的；换个方向连起来，也是直的', '前一个乘数换成 −2、−1、0、1、2、3，每一页也都是<b>直的</b>；换个方向把它们连起来，还是直的。<br>整张乘法表，就是这一张面。点纸条，把它压回纸面。');
       const set = S.g.filter((x) => x != null).length;
       if (!set) return say('前三个已经立好：每退一格 +3。后面四个空，拖黄珠子来填', '水面是 0，负的积垂在水面下。前三个已经立好：后一个乘数每减 1，积<b>增加 3</b>。<br>后面四个空，拖<b>黄珠子</b>来填（点一下就是填 0）。');
@@ -297,7 +300,7 @@ export default {
       onDrag: (p) => setG(bd.i, clamp(Math.round((p.y - H0) / SH), -9, 9)),
       onEnd: () => { S.held = null; },
     }));
-    const pointer = draggable(group, drags, { taps: [{ obj: tab.fill, hint: () => (S.rise < 0.5 ? '点一下：立起来' : S.lock && S.stack < 0.5 ? '点一下：看整张表' : '点一下：压回纸面'), onTap: press }] });
+    const pointer = draggable(group, drags, { taps: [{ obj: tab.fill, hint: () => (S.rise < 0.5 ? '点一下：立起来' : S.stack < 0.5 ? '点一下：看整张表' : '点一下：压回纸面'), onTap: () => { if (S.rise < 0.5 || S.lock) press(); } }] });
 
     root.traverse((o) => { if (o !== frame) o.userData.noFrame = true; });          // 取景只认那个盒子
     layout(); hint();
@@ -316,6 +319,7 @@ export default {
       update(dt) {
         tw.update(dt);
         const idle = S.held == null && !tw.busy; S.clock += dt;
+        if (!S.auto && S.clock > 0.8) { S.auto = true; if (S.rise < 0.5) press(); }          // 翻开以后，这一列算式自己立起来
         const ph = (S.clock % 2.8) / 0.9; S.nudge = idle && S.rise > 0.97 && ph < 1 ? Math.sin(Math.PI * ph) ** 2 : 0;
         tab.pose({ lift: idle && (S.rise < 0.5 || (S.lock && S.stack < 0.5)) && ph < 1 ? 0.004 * Math.sin(Math.PI * ph) ** 2 : 0 });
         // 水面在世界里的高度（给“水下变色”用），镜头在哪边（让小纸签不被纸挡住）
@@ -324,7 +328,7 @@ export default {
         const cam = globalThis.__lb?.stage?.camera; if (cam) { root.worldToLocal(toCam.copy(cam.position)); toCam.sub(v3.set(O[0], H0, -O[1])).normalize(); }
         layout();
       },
-      test: { S, at, H0, SH, G, N, press, setG, tabAt, beadAt: (i) => [beads[i].u, vF], parts: () => ({ above: leaves[0].mesh.geometry.drawRange.count / 6, below: keels[0].mesh.geometry.drawRange.count / 6 }) },
+      test: { S, at, H0, SH, G, N, press, setG, tabAt, beadAt: (i) => [beads[i].u, vF] },
     };
   },
 };
