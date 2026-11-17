@@ -3936,6 +3936,16 @@
     "fig": "图2-4",
     "sec": "钠及其化合物"
    },
+   "nahco3": {
+    "title": "加热NaHCO₃或Na₂CO₃",
+    "fig": "图2-7",
+    "sec": "钠及其化合物"
+   },
+   "cl2bleach": {
+    "title": "干燥的氯气使有色鲜花变色",
+    "fig": "图2-14",
+    "sec": "氯及其化合物"
+   },
    "na2o2": {
     "title": "过氧化钠与水反应",
     "fig": "图2-5",
@@ -3984,6 +3994,28 @@
      414
     ],
     "label": "图2-4 · 翻开活页"
+   },
+   {
+    "lesson": "nahco3",
+    "page": 43,
+    "bbox": [
+     390,
+     475,
+     564,
+     605
+    ],
+    "label": "图2-7 · 翻开活页"
+   },
+   {
+    "lesson": "cl2bleach",
+    "page": 50,
+    "bbox": [
+     95,
+     608,
+     213,
+     733
+    ],
+    "label": "图2-14 · 翻开活页"
    },
    {
     "lesson": "na2o2",
@@ -4046,8 +4078,26 @@
   "id": "huaxue-hs2",
   "title": "化学 必修第二册",
   "base": "/books/huaxue-hs2/",
-  "lessons": {},
-  "spots": []
+  "lessons": {
+   "so2bleach": {
+    "title": "二氧化硫的漂白作用",
+    "fig": "图5-3",
+    "sec": "硫及其化合物"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "so2bleach",
+    "page": 8,
+    "bbox": [
+     56,
+     56,
+     208,
+     218
+    ],
+    "label": "图5-3 · 翻开活页"
+   }
+  ]
  },
  "huaxue-hsx1": {
   "id": "huaxue-hsx1",

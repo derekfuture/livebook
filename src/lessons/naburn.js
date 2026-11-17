@@ -108,7 +108,7 @@ export default {
     const plate = (text, w, hh) => textPlate(text, { w, h: hh, color: '#23293a', bg: '#fffaf0', font: `bold ${Math.floor(Math.min(0.8 * 512 * hh / w, 0.82 * 512 / text.length))}px "Songti SC", serif` });
     const lab = plate('钠（已吸干煤油）', 0.042, 0.007); lab.rotation.x = -Math.PI / 2; lab.position.set(PAPER.x, 0.0012, PAPER.z + 0.031); group.add(lab);
 
-    const fresh = () => ({ demo: false, near: false, lit: false, lampK: 0, lampOut: false, lampBack: false, tc: 22, chosen: 0.04, cut: false, mass: 0, tarnish: 0, inCru: false, held: false, q: 0, tn: 22, melt: 0, burning: 0, left: 0, burned: 0, spat: 0, lampBurn: 0, clock: 0, meltAt: null, lampOffAt: null, finished: false, said: {},
+    const fresh = () => ({ demo: false, near: false, lit: false, lampK: 0, lampOut: false, lampBack: false, tc: 22, chosen: 0.04, cut: false, mass: 0, tarnish: 0, inCru: false, held: false, q: 0, tn: 22, melt: 0, burning: 0, left: 0, burned: 0, spat: 0, spilled: 0, lampBurn: 0, clock: 0, meltAt: null, lampOffAt: null, finished: false, said: {},
       tools: { knife: { pos: KN.toArray(), drag: false, motion: null, turn: 0 }, tw: { pos: TW.toArray(), drag: false, motion: null } } });
     S = fresh();
     const lampOn = () => flameOn && S.lampK < 0.05;
@@ -143,7 +143,7 @@ export default {
         if (S.melt >= 1 || S.burning > 0) { done('remove'); status(S.burning > 0 ? '撤掉了酒精灯。看：钠<b>还在燃烧</b>。' : '钠熔化了，撤掉了酒精灯。看它接下来怎样。'); }
         else status(S.inCru ? '钠还没熔化就撤掉了酒精灯：坩埚会慢慢变凉。可以再点一下<b>酒精灯</b>放回去加热。' : '撤掉了酒精灯。');
       },
-      reset() { if (bar.playing) bar.stop(); S = fresh(); sync(); mic.close(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('heat', 'cut', 'put', 'remove', 'observe', 'why'); status('器材重新摆好了：先点燃酒精灯，加热坩埚。'); },
+      reset() { if (bar.playing) bar.stop(); S = fresh(); sync(); mic.close(); back(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('heat', 'cut', 'put', 'remove', 'observe', 'why'); status('器材重新摆好了：先点燃酒精灯，加热坩埚。'); },
     };
     const sync = () => { smoke.clear(); sparks.clear(); capper.snap(S.lit && !S.lampOut); flameOn = S.lit && !S.lampOut; knife.position.fromArray(S.tools.knife.pos); tw.position.fromArray(S.tools.tw.pos); lamp.position.copy(S.lampK > 0.5 ? LAMP_OUT : LAMP_IN); };
     sync();
@@ -157,7 +157,7 @@ export default {
     ], { tip: tag('', 'pill'), highlight: true, taps: [{ obj: lampPick, hint: () => (S.lampK > 0.5 ? '酒精灯：点一下放回坩埚下面加热' : !S.lit ? '酒精灯：点一下，取下灯帽点燃' : '酒精灯：点一下撤掉（挪开、盖灭）'), onTap: () => A_.tapLamp() }] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: sodiumBurnScene(), at: () => V(CX, RING_Y + 0.03, CZ), btnAt: () => V(CX + 0.042, RING_Y + 0.03, CZ), label: '钻进去看',
-      state: () => ({ burning: S.burning > 0 || S.burned > 0 }), key: () => String(S.burning > 0 || S.burned > 0), show: () => S.inCru, bar: () => bar, scale: 0.0075, lookD: [0.02, 0.25, 1], dist: 0.2 });
+      state: () => ({ burning: S.burning > 0 || S.burned > 0 }), key: () => String(S.burning > 0 || S.burned > 0), show: () => S.inCru, bar: () => bar, scale: 0.0075, lookD: [0.02, 0.25, 1], dist: 0.24 });
 
     const lampTapAct = (when) => { let fired = false; return (k) => { if (k < 0.03) { fired = false; return; } if (!fired && when(k)) { fired = true; drag.items().find((d) => d.obj === lampPick)?.onTap?.(); } }; };
     const toolPath = (obj, to, t0, t1, high = 0.15) => act.path(obj.pick, [null, () => V(obj.position.x, high, 0.06), () => to().setY(Math.max(high, to().y)), to], { t0, t1, release: t1 + 0.02 });
@@ -237,14 +237,17 @@ export default {
         if (S.burning > 0) {
           S.burning = Math.min(1, S.burning + dt * 3);
           if (lampOn()) S.lampBurn += dt;          // 着火了还在加热：一两秒来不及撤不算，一直不撤就越来越猛
-          const hot = S.lampBurn > 2.5 && lampOn(), boost = (hot ? 1.6 : 1) * (S.mass > 0.1 ? 1.3 : 1);
+          // 一直不撤灯（着火后还一直加热）或钠块太大：反应更剧烈，烧得更快，熔化的钠按比例溅出去（溅出去的不在坩埚里生成产物）
+          const hotK = lampOn() ? clamp((S.lampBurn - 1.5) / 2, 0, 1) : 0, bigK = clamp((S.mass - 0.08) / 0.12, 0, 1);
+          const hot = hotK > 0, boost = (1 + 0.6 * hotK) * (1 + 0.3 * bigK);
           rate = Math.min(S.left, 0.12 * Math.pow(S.left, 2 / 3) * boost * dt);
           S.left -= rate; S.burned += rate;
+          const spill = Math.min(S.left, (0.06 * hotK + 0.03 * bigK) * Math.pow(S.left, 2 / 3) * dt); S.left -= spill; S.spilled += spill;          // 溅出去的钠（示意模型）
           S.q += rate * 6000;          // 燃烧放热（大部分散到空气里）：钠保持在高温
-          if ((hot || S.mass > 0.1) && S.left > 0.004) { S.spat += dt; for (let i = 0; i < 6 * dt * 60 * boost / 4; i++) sparks.spawn(BOT.clone().add(V((Math.random() - 0.5) * 0.008, 0.008, (Math.random() - 0.5) * 0.008)), V((Math.random() - 0.5) * 0.25, 0.25 + Math.random() * 0.25, (Math.random() - 0.5) * 0.25), 0.6); if (S.spat > 0.8) log('spat', [hot ? '没有撤掉酒精灯，一直加热' : '钠块太大', '火焰更大，熔化的钠<b>溅了出来</b>', '反应过于剧烈：钠熔化后要立即撤灯；钠要取绿豆大']); }
+          if (spill > 0) { S.spat += dt; for (let i = 0; i < spill * 1e5; i++) sparks.spawn(BOT.clone().add(V((Math.random() - 0.5) * 0.008, 0.008, (Math.random() - 0.5) * 0.008)), V((Math.random() - 0.5) * 0.25, 0.25 + Math.random() * 0.25, (Math.random() - 0.5) * 0.25), 0.6); if (S.spilled > 0.001) log('spat', [hot ? '没有撤掉酒精灯，一直加热' : '钠块太大', '火焰更大，熔化的钠<b>溅了出来</b>（溅出去的钠不在坩埚里生成产物）', '反应过于剧烈：钠熔化后要立即撤灯；钠要取绿豆大']); }
           if (!lampOn() && !S.said.self && S.lampK > 0.5) log('self', ['撤掉酒精灯', '钠<b>照样燃烧</b>', '反应放出的热足以让它烧下去']);
           if (S.left < 0.0004) { S.burned += S.left; S.left = 0; S.burning = 0; S.finished = true; done('observe'); log('done', ['燃烧结束', '坩埚里留下<b>淡黄色固体</b>', '过氧化钠 Na₂O₂']);
-            if (!S.demo) { W?.t1.open(); status('烧完了：坩埚里是<b>淡黄色固体</b>（烧完了可以凑近看）。在左边作答。'); S.near = true; look([CX, BOT.y, CZ], [0.12, 1.6, 1], 0.2, () => { S.near = false; }); } }
+            if (!S.demo) { W?.t1.open(); status(`烧完了：坩埚里是<b>淡黄色固体</b>${S.spilled > 0.002 ? `（溅出去约 ${Math.round(S.spilled * 1000)} mg 钠，坩埚里的产物少了）` : ''}。在左边作答。`); if (!mic.isOpen) { S.near = true; look([CX, BOT.y, CZ], [0.12, 1.6, 1], 0.2, () => { S.near = false; }); } } }
         }
       }
       // 画面：钠球、火焰、烟、产物
@@ -252,7 +255,7 @@ export default {
       ball.visible = S.inCru && S.left > 0;
       ball.position.copy(BOT).setY(BOT.y + r * (0.9 - S.melt * 0.25)); ball.scale.set(r * (1 + S.melt * 0.15), r * (1 - S.melt * 0.2), r); ball.morphTargetInfluences[0] = S.melt;
       ball.material.color.copy(SILVER).lerp(DULL, S.melt > 0.5 ? 0 : S.tarnish);
-      const fs = S.burning > 0 ? (0.6 + 0.4 * Math.cbrt(S.left / S.mass)) * Math.min(1.6, Math.cbrt(S.mass / 0.04)) * (S.lampBurn > 2.5 && lampOn() ? 1.25 : 1) : 0;          // 火焰一直挺大，快烧完才小一些
+      const fs = S.burning > 0 ? (0.6 + 0.4 * Math.cbrt(S.left / S.mass)) * Math.min(1.6, Math.cbrt(S.mass / 0.04)) * (S.lampBurn > 1.5 && lampOn() ? 1.25 : 1) : 0;          // 火焰一直挺大，快烧完才小一些
       fire.setOn(S.burning > 0.02); fire.setSize(Math.min(1.8, fs)); fire.position.copy(BOT).setY(BOT.y + Math.max(0.002, r)); fire.update(t);
       smoke.update(dt, { rate: S.burning > 0.02 ? 22 * S.burning : 0, origin: BOT.clone().setY(BOT.y + 0.03 * Math.max(0.6, fs)), spread: 0.01, up: 0.035, size: 0.012, life: 2.4 });
       sparks.update(dt, 0.9);
@@ -274,7 +277,7 @@ export default {
         const t2 = think({ q: '撤掉酒精灯以后，钠还在燃烧。这说明什么？', options: ['钠和氧气的反应放出大量的热，自己就能烧下去', '坩埚里还有酒精', '钠和坩埚发生了反应'], wrong: ['坩埚里没有酒精：酒精灯已经挪开、盖灭了。', '坩埚是瓷的，不和钠反应。'], ok: '对：钠与氧气剧烈反应，放出大量的热。所以钠熔化后就撤掉酒精灯，也不要近距离俯视坩埚。', status: (m) => W?.status(m), onOk: () => { done('why'); if (W) W.next.hidden = false; } });
         const t1 = think({ q: '钠燃烧后留下的淡黄色固体是什么？', options: ['过氧化钠 Na₂O₂', '氧化钠 Na₂O', '氢氧化钠 NaOH'], wrong: ['氧化钠是白色的：常温下切开的钠表面生成的是它。', '这里没有水，不会生成氢氧化钠。'], ok: '对：2Na + O₂ △══ Na₂O₂（课本第 35 页）。常温下生成 Na₂O，加热时生成 Na₂O₂——条件不同，产物不同。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const more = moreBox([['钻进去看', () => mic.open()]], () => A_.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '坩埚用酒精灯加热，温度向约 520 ℃ 趋近（<b>时间加快</b>：十几秒热起来，实际要一两分钟）。<br>钠的熔点、密度按课本第 34 页；熔化后升到约 125 ℃ 着火（示意）。绿豆大（约 40 mg）烧六七秒；生成 Na₂O₂ 按 2Na ~ Na₂O₂ 算。<br>没撤酒精灯或钠块太大时“更剧烈、溅出”是定性示意。钠条截面约 3.5 mm 见方；钠按长度放大 2 倍画。' }));
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '坩埚用酒精灯加热，温度向约 520 ℃ 趋近（<b>时间加快</b>：十几秒热起来，实际要一两分钟）。<br>钠的熔点、密度按课本第 34 页；熔化后升到约 125 ℃ 着火（示意）。绿豆大（约 40 mg）烧六七秒；生成 Na₂O₂ 按 2Na ~ Na₂O₂ 算。<br>没撤酒精灯（着火后还一直加热）或钠块太大时，烧得更快、按比例溅出熔化的钠（溅出量是示意模型，溅出去的不在坩埚里生成产物）。钠条截面约 3.5 mm 见方；钠按长度放大 2 倍画。' }));
         const base = mountXuean(ui, { controls: [more, note], headers: ['做了什么', '现象', '说明'], intro: '钠已经从煤油里取出，用滤纸吸干了煤油。先点燃酒精灯加热坩埚，同时切一块绿豆大的钠。' });
         ui.data.append(t1.el, t2.el, base.next);
         W = { ...base, ui, t1, t2, status: ui.status }; bar.attach(ui);

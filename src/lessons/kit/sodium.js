@@ -278,11 +278,11 @@ export function sodiumBurnScene() {
       age = 0; started = false; finished = false; reactants = []; electrons = [];
       c.view.film = 0.02; c.view.paper = 0xf3eee2;
       for (const x of [-2.6, 2.6]) {
-        const m = c.add('Na+', c.V([x, 2.6, 0]), { fixed: true });
+        const m = c.add('Na+', c.V([x, 1.8, 0]), { fixed: true });
         m.label.material.map.dispose(); m.label.material.map = canvasTex(256, 96, (g) => { g.fillStyle = '#6d45b8'; g.font = '600 54px Times New Roman'; g.textAlign = 'center'; g.fillText('Na', 128, 62); });
         const e = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0x46505a })); e.position.set(0, 0.9, 0); m.g.add(e); electrons.push(e); reactants.push(m);
       }
-      const o2 = c.add('O2', c.V([0, 3.4, 0]), { fixed: true }); o2.g.rotation.set(0, 0, 0); reactants.push(o2);
+      const o2 = c.add('O2', c.V([0, 2.6, 0]), { fixed: true }); o2.g.rotation.set(0, 0, 0); reactants.push(o2);
     },
     step(c, st, dt) {
       if (!st?.burning) return;
