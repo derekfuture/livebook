@@ -182,7 +182,8 @@ export function metalWater(group, { at, metal, flame: fc = {}, R = 0.032, H = 0.
 // ================= 钻进去看：钠、钾原子的结构（课本第 99 页的表）=================
 // 钠 +11（2 8 1），原子半径 0.186 nm；钾 +19（2 8 8 1），0.227 nm。画成原子结构示意图那样：电子层是圆，电子是小点；
 // 最外层的圆按原子半径等比例画（1 nm 画成 12 Å 长），里面几层等间距。最外层那 1 个电子是金色。
-// 投进水里以后（st.na / st.k：这种金属已经投进去了），水分子靠过来，最外层电子交给水里的氢，原子变成离子（+1 价）。
+// 投进水里以后（st.na / st.k：这种金属已经投进去了），水分子靠过来，最外层电子交给水里的氢，原子变成离子（+1 价）；
+// 得到电子的水分子变成 OH⁻ 和一个 H，H 往上走（两个 H 结合成 H₂ 逸出）——每一边电荷都守恒：M → M⁺，H₂O + e⁻ → OH⁻ + H。
 // 钾的那个电子离核更远、受的引力更弱，交得更快（慢放示意，快慢只表示难易，不是真实时间）。
 export function alkaliScene() {
   const AT = [
@@ -190,6 +191,7 @@ export function alkaliScene() {
     { key: 'k', sym: 'K', ion: 'K⁺', z: 19, shells: [2, 8, 8, 1], r: 0.227, x: 2.9, t: [0.9, 0.55] },
   ];
   const Y = 3.4, NM = 12, ANG = -0.7;
+  const RXW = { in: ['H2O'], out: ['OH-', 'H'], host: 0, place: [[0, 0, 0], [0.5, 1.1, 0]], map: [[0, 0], [0, 1], [0, 2]], after: [{ fixed: true }, { gas: true, leave: true, v: [0, 1.4, 0] }], approach: 0, dur: 1.2 };
   let A = [];
   const ringMat = () => new THREE.MeshBasicMaterial({ color: 0x3d79c4, transparent: true, opacity: 0.9, depthWrite: false });
   const INK = '#4a3a8c', HALO = 'rgba(255,255,255,0.95)';          // 全息里的字：深色字、白边（和分子标签一样）
@@ -209,9 +211,9 @@ export function alkaliScene() {
       }
     });
     const sym = textSprite(a.sym, INK, HALO); sym.scale.set(2.2, 0.82, 1); sym.position.set(0, R + 0.8, 0); g.add(sym);
-    const size = textSprite(`${a.r.toFixed(3)} nm`, '#2f4f6f', HALO); size.scale.set(2.6, 0.98, 1); size.position.set(0, -R - 0.8, 0); g.add(size);
+    const size = textSprite(`${a.r.toFixed(3)} nm`, '#2f4f6f', HALO); size.scale.set(2.6, 0.98, 1); size.position.set(0, -R - 0.8, 0); g.add(size);          // 原子半径：变成离子以后撤掉（那不是离子半径）
     const outerE = els.find((e) => e.userData.outer);
-    return { a, g, R, rings, els, outerE, sym, water: null, k: 0, phase: 'atom' };
+    return { a, g, R, rings, els, outerE, sym, size, water: null, k: 0, phase: 'atom' };
   };
   const setSym = (A1, text) => { const s = textSprite(text, INK, HALO); s.scale.copy(A1.sym.scale); s.position.copy(A1.sym.position); A1.g.remove(A1.sym); A1.sym.material.map.dispose(); A1.sym.material.dispose(); A1.g.add(s); A1.sym = s; };
   return {
@@ -244,7 +246,7 @@ export function alkaliScene() {
         if (X.phase === 'hop') {
           const q = Math.min(1, (X.k - X.k0) / tHop), to = X.water.g.position.clone().sub(X.g.position);
           X.outerE.position.copy(X.from).lerp(to, q * q * (3 - 2 * q));
-          if (q >= 1) { X.phase = 'ion'; X.outerE.visible = false; setSym(X, X.a.ion); }
+          if (q >= 1) { X.phase = 'ion'; X.outerE.visible = false; X.size.visible = false; setSym(X, X.a.ion); c.start(RXW, [X.water]); }          // 电子到了水分子上：水分子变成 OH⁻ + H
         }
         if (X.phase === 'ion') { const ring = X.rings[X.rings.length - 1]; ring.material.opacity += (0.12 - ring.material.opacity) * Math.min(1, dt * 2); }
       }
@@ -253,10 +255,54 @@ export function alkaliScene() {
       const eq = 'Na：<b>+11</b>　2 8 1　　　K：<b>+19</b>　2 8 8 1';
       const na = A[0]?.phase, k = A[1]?.phase, any = st?.na || st?.k;
       if (!any) return { eq, on: true, cap: '钠、钾原子的最外层都只有 <b>1 个电子</b>（金色）。钾比钠多一个电子层，原子半径更大：0.227 nm 对 0.186 nm（课本第 99 页的表）。把它们投进水里，再来看最外层的电子。' };
-      if (na === 'ion' && k === 'ion') return { eq, on: true, cap: '两种原子都交出了最外层的 1 个电子，变成 Na⁺、K⁺：产物里都是 <b>+1 价</b>。从钠到钾，电子层增多、原子半径增大，失去电子的能力增强。<b>慢放示意，快慢只表示难易。</b>' };
-      if (st.na && !st.k && na === 'ion') return { eq, on: true, cap: '钠交出最外层的 1 个电子，变成 Na⁺。再把钾投进水里比一比。' };
-      if (st.k && !st.na && k === 'ion') return { eq, on: true, cap: '钾交出最外层的 1 个电子，变成 K⁺。再把钠投进水里比一比。' };
+      const water = '电子交给水里的氢：H<sub>2</sub>O + e<sup>−</sup> → OH<sup>−</sup> + H，两个 H 结合成 H<sub>2</sub> 逸出。';
+      if (na === 'ion' && k === 'ion') return { eq, on: true, cap: `两种原子都交出了最外层的 1 个电子，变成 Na⁺、K⁺：产物里都是 <b>+1 价</b>；${water}从钠到钾，电子层增多、原子半径增大，失去电子的能力增强。<b>慢放示意，快慢只表示难易。</b>` };
+      if (st.na && !st.k && na === 'ion') return { eq, on: true, cap: `钠交出最外层的 1 个电子，变成 Na⁺；${water}再把钾投进水里比一比。` };
+      if (st.k && !st.na && k === 'ion') return { eq, on: true, cap: `钾交出最外层的 1 个电子，变成 K⁺；${water}再把钠投进水里比一比。` };
       return { eq, on: true, cap: '水分子靠过来，最外层那 1 个电子交给水里的氢。钾的最外层电子<b>离核更远</b>，原子核对它的<b>引力更弱</b>，更容易失去。<b>慢放示意，快慢只表示难易。</b>' };
+    },
+  };
+}
+
+// ================= 钻进去看：钠在空气中燃烧（课本第 35 页）2Na + O₂ △══ Na₂O₂ =================
+// 两个钠原子各交出最外层的 1 个电子给一个 O₂ 分子 → 2 个 Na⁺ 和 1 个过氧根 O₂²⁻（两个氧原子还连着，氧是 −1 价）——淡黄色的 Na₂O₂。
+// 借 Na⁺ 的球画中性的钠（和 sodiumScene 一样只换标签）。st.burning：坩埚里的钠烧起来了没有。
+export function sodiumBurnScene() {
+  const rx = { in: ['Na+', 'Na+', 'O2'], out: ['Na+', 'Na+', 'O2 2-'], host: 2,
+    near: [[-2.3, 0, 0], [2.3, 0, 0], null], place: [[-2.5, 0, 0], [2.5, 0, 0], [0, 0, 0]],
+    map: [[0, 0], [1, 0], [2, 0], [2, 1]], after: [{}, {}, {}], approach: 1, dur: 2.2 };
+  let age = 0, reactants = [], electrons = [], started = false, finished = false;
+  return {
+    labels: 'always', dim: 0.8,
+    init(c) {
+      age = 0; started = false; finished = false; reactants = []; electrons = [];
+      c.view.film = 0.02; c.view.paper = 0xf3eee2;
+      for (const x of [-2.6, 2.6]) {
+        const m = c.add('Na+', c.V([x, 2.6, 0]), { fixed: true });
+        m.label.material.map.dispose(); m.label.material.map = canvasTex(256, 96, (g) => { g.fillStyle = '#6d45b8'; g.font = '600 54px Times New Roman'; g.textAlign = 'center'; g.fillText('Na', 128, 62); });
+        const e = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0x46505a })); e.position.set(0, 0.9, 0); m.g.add(e); electrons.push(e); reactants.push(m);
+      }
+      const o2 = c.add('O2', c.V([0, 3.4, 0]), { fixed: true }); o2.g.rotation.set(0, 0, 0); reactants.push(o2);
+    },
+    step(c, st, dt) {
+      if (!st?.burning) return;
+      age += dt;
+      if (!started) {
+        electrons.forEach((e, i) => { e.position.copy(c.V([0, 0.9, 0]).lerp(reactants[2].g.position.clone().sub(reactants[i].g.position).add(c.V([i ? 0.5 : -0.5, 0, 0])), Math.min(1, age / 2.2))); });
+        if (age > 2.2) {
+          started = true;
+          for (const e of electrons) { e.parent.remove(e); e.geometry.dispose(); e.material.dispose(); }
+          c.start(rx, reactants, { then: () => { finished = true; } });
+        }
+      }
+    },
+    text(c, st) {
+      const eq = '2Na + O<sub>2</sub> <span class="arr" style="position:relative">══<span style="position:absolute;left:0;right:0;top:-0.75em;font-size:0.45em;text-align:center">△</span></span> Na<sub>2</sub>O<sub>2</sub>';
+      if (!st?.burning) return { eq: '', on: false, cap: '坩埚里的钠还没烧起来。钠熔化、燃烧以后再钻进去看。' };
+      return { eq, on: true,
+        cap: !started ? '每个钠原子交出最外层的 1 个电子（小深色点），交给氧分子。<b>Na：0 → +1</b>，被氧化。'
+          : !finished ? '钠变成 Na⁺；O₂ 得到 2 个电子，变成<b>过氧根 O₂²⁻</b>——两个氧原子还连着（氧是 −1 价）。'
+            : 'Na⁺ 和 O₂²⁻ 按 2 : 1 结合，就是淡黄色的过氧化钠 Na₂O₂。（常温下钠表面生成的是 Na₂O，里面是 O²⁻。）<b>慢放示意，不表示真实的反应步骤。</b>' };
     },
   };
 }

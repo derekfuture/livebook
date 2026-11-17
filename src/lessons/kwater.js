@@ -38,8 +38,8 @@ export default {
   },
   need: '用镊子把绿豆大的钠、钾分别投进两杯滴了酚酞的水里，比较现象和反应的难易程度（课本里钾的实验由教师演示）',
   conclusion: {
-    crops: [{ page: 104, rect: [221, 699, 535, 741] }, { page: 105, rect: [64, 55, 382, 347] }],
-    quote: '（1）碱金属元素的化学性质相似。碱金属元素的原子最外层电子数相同，都是1 个电子，它们的化学性质相似，都能与氧气等非金属单质以及水反应。……而且，上述反应的产物中，碱金属元素的化合价都是+1 价。（2）碱金属元素的化学性质具有递变性。随着核电荷数的增加，碱金属元素原子的电子层数逐渐增多，原子半径逐渐增大，原子核对最外层电子的引力逐渐减弱，原子失去最外层电子的能力逐渐增强。即从锂到铯，金属性逐渐增强。例如，碱金属单质与氧气或水反应时，钠的反应比锂剧烈；钾的反应比钠剧烈',
+    crops: [{ page: 104, rect: [221, 699, 535, 741] }, { page: 105, rect: [64, 55, 382, 389] }],
+    quote: '（1）碱金属元素的化学性质相似。碱金属元素的原子最外层电子数相同，都是1 个电子，它们的化学性质相似，都能与氧气等非金属单质以及水反应。例如：……而且，上述反应的产物中，碱金属元素的化合价都是+1 价。（2）碱金属元素的化学性质具有递变性。随着核电荷数的增加，碱金属元素原子的电子层数逐渐增多，原子半径逐渐增大，原子核对最外层电子的引力逐渐减弱，原子失去最外层电子的能力逐渐增强。即从锂到铯，金属性逐渐增强。例如，碱金属单质与氧气或水反应时，钠的反应比锂剧烈；钾的反应比钠剧烈；铷和铯的反应更加剧烈，它们遇到空气或水都会立即燃烧，遇水甚至会爆炸。也可以说，碱金属元素的化学性质具有差异性。',
     formula: '2Na + 2H₂O ══ 2NaOH + H₂↑　　2K + 2H₂O ══ 2KOH + H₂↑',
     why: '相似：两杯都浮在水面、熔成小球、四处游动、嘶嘶响、溶液变红——钠、钾都能和水反应，生成碱和氢气，产物里都是 +1 价（最外层只有 1 个电子，容易失去）。<br>不同：钾熔得更快、游得更急，<b>一两秒就着火</b>，比钠剧烈得多。钾比钠多一个电子层，原子半径更大，原子核对最外层电子的引力更弱，这个电子更容易失去——<b>金属性更强</b>。由此推断：锂与水反应比钠缓和。',
     src: '课本第 100–101 页 · 第四章 第一节 原子结构与元素周期表',
@@ -115,6 +115,7 @@ export default {
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: alkaliScene(), at: () => V(0, 0.115, -0.01), btnAt: () => V(0, 0.092, -0.01), label: '钻进去看原子',
       state: () => ({ na: S.rig.na.total > 0, k: S.rig.k.total > 0 }), key: () => `${S.rig.na.total > 0}|${S.rig.k.total > 0}`, bar: () => bar, scale: 0.0085, lookD: [0.02, 0.18, 1], dist: 0.27 });
+    const warning = tag('', 'pill');
     const kMark = new THREE.Object3D(); kMark.position.set(CUP.k.x, 0.07, CUP.k.z); group.add(kMark);          // 连拍特写用
     const A = {
       reset() { if (bar.playing) bar.stop(); S = fresh(); bind(); rigs.na.reset(); rigs.k.reset(); bind(); tw.position.copy(TW); tw.rotation.set(0, 0, 0); mic.close(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('na', 'k', 'compare', 'why'); status('两杯水和两小块金属都换新的了。'); },
@@ -159,6 +160,10 @@ export default {
       held.visible = !!S.held;
       for (const k of ['na', 'k']) pieces[k].visible = !S.used[k] && S.held !== k;
       rigs.na.step(dt, t); rigs.k.step(dt, t);
+      // 不要近距离俯视烧杯：正在反应时，镜头离杯口很近、又差不多从正上方往下看，就提醒
+      const cam = window.__lb?.stage?.camera; let danger = null;
+      if (cam) for (const k of ['na', 'k']) { const r = S.rig[k]; if (!r.total || r.finished) continue; const p = group.worldToLocal(cam.position.clone()).sub(CUP[k].clone().setY(rigs[k].H)); if (p.length() < 0.22 && p.y / p.length() > 0.8) danger = k; }
+      warning.text('注意　不要近距离俯视烧杯！').loc(group, danger ? CUP[danger].x : 0, 0.12, danger ? CUP[danger].z : 0).show(!!danger && !bar.playing);
       mic.update?.(dt);
     };
 

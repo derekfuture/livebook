@@ -3926,6 +3926,11 @@
   "title": "化学 必修第一册",
   "base": "/books/huaxue-hs1/",
   "lessons": {
+   "naburn": {
+    "title": "钠在空气中燃烧",
+    "fig": "图2-3",
+    "sec": "钠及其化合物"
+   },
    "nawater": {
     "title": "钠与水反应",
     "fig": "图2-4",
@@ -3953,6 +3958,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "naburn",
+    "page": 39,
+    "bbox": [
+     64,
+     295,
+     366,
+     596
+    ],
+    "label": "图2-3 · 翻开活页"
+   },
    {
     "lesson": "nawater",
     "page": 40,

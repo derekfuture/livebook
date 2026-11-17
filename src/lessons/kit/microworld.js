@@ -36,7 +36,9 @@ const MOL = {
   H2CO3: { atoms: [['C', 0, 0, 0], ['O', 0, 1.21, 0], ['O', -1.17, -0.68, 0], ['O', 1.17, -0.68, 0], ['H', -1.95, -0.16, 0], ['H', 1.95, -0.16, 0]], bonds: [[0, 1, 2], [0, 2, 1], [0, 3, 1], [2, 4, 1], [3, 5, 1]], label: 'H₂CO₃', ink: '#b8233f', glow: 0xff5a78, glowBase: 0.18 },
   N2: { atoms: [['N', -0.55, 0, 0], ['N', 0.55, 0, 0]], bonds: [[0, 1, 3]], label: 'N₂', ink: '#3a5bb0' },
   O2: { atoms: [['O', -0.6, 0, 0], ['O', 0.6, 0, 0]], bonds: [[0, 1, 2]], label: 'O₂', ink: '#c0392b' },
+  'O2 2-': { atoms: [['O', -0.745, 0, 0], ['O', 0.745, 0, 0]], bonds: [[0, 1, 1]], label: 'O₂²⁻', ink: '#c0392b' },          // 过氧根：两个氧原子还连着（单键，比 O₂ 长）
   H2: { atoms: [['H', -0.37, 0, 0], ['H', 0.37, 0, 0]], bonds: [[0, 1, 1]], label: 'H₂', ink: '#4a5262' },
+  H: { atoms: [['H', 0, 0, 0]], bonds: [], label: 'H', ink: '#4a5262' },          // 单个氢原子（只在分步示意里出现一下，随后两个结合成 H₂）
   'H+': { atoms: [['H', 0, 0, 0]], bonds: [], label: 'H⁺', ink: '#c23a52', glow: 0xff6a6a, glowBase: 0.35, glowSize: 2.2 },
   'OH-': { atoms: [['O', 0, 0, 0], ['H', 0.96, 0, 0]], bonds: [[0, 1, 1]], label: 'OH⁻', ink: '#2f6fb8', glow: 0x6aa8ff, glowBase: 0.3, glowSize: 3 },
   'Na+': { atoms: [['Na', 0, 0, 0]], bonds: [], label: 'Na⁺', ink: '#6d45b8' },
