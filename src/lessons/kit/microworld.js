@@ -43,6 +43,8 @@ const MOL = {
   'OH-': { atoms: [['O', 0, 0, 0], ['H', 0.96, 0, 0]], bonds: [[0, 1, 1]], label: 'OH⁻', ink: '#2f6fb8', glow: 0x6aa8ff, glowBase: 0.3, glowSize: 3 },
   'Na+': { atoms: [['Na', 0, 0, 0]], bonds: [], label: 'Na⁺', ink: '#6d45b8' },
   'Cl-': { atoms: [['Cl', 0, 0, 0]], bonds: [], label: 'Cl⁻', ink: '#2e8a45' },
+  Cl2: { atoms: [['Cl', -1.0, 0, 0], ['Cl', 1.0, 0, 0]], bonds: [[0, 1, 1]], label: 'Cl₂', ink: '#7d8f0c' },          // 氯气（黄绿色）：Cl–Cl 键长 1.99 Å
+  HClO: { atoms: [['O', 0, 0, 0], ['H', -0.751, 0.598, 0], ['Cl', 1.33, 1.058, 0]], bonds: [[0, 1, 1], [0, 2, 1]], label: 'HClO', ink: '#8a3fb0', glow: 0xb07af0, glowBase: 0.4, glowSize: 3.2 },          // 次氯酸 H–O–Cl：O–H 0.96 Å、O–Cl 1.70 Å、夹角约 103°（紫色 = 次氯酸）
   // 金属原子（排在金属表面上，不动）和溶液里的离子：同一种原子，变成离子以后带电、到溶液里去
   Al: { atoms: [['Al', 0, 0, 0]], bonds: [], label: 'Al', ink: '#5b6676' },
   Cu: { atoms: [['Cu', 0, 0, 0]], bonds: [], label: 'Cu', ink: '#a24f22' },
@@ -91,6 +93,29 @@ const MOL = {
     return { atoms, bonds, label: '品红', ink: '#c2185b', glow: 0xff2a8a, glowBase: 0.45, glowSize: 9 };
   })(),
 };
+// 二氧化硫漂白品红（示意）：课本只说“与某些有色物质生成不稳定的无色物质”，没有写分子机理。
+// 品红画成缩小的三苯环（和 Dye 一个样，缩小一半好放进底座）；无色物质画成 SO₂ 的硫挂在中心碳上（示意）。
+MOL.SO2 = { atoms: [['S', 0, 0, 0], ['O', -1.234, 0.72, 0], ['O', 1.234, 0.72, 0]], bonds: [[0, 1, 2], [0, 2, 2]], label: 'SO₂', ink: '#8a7a10' };
+MOL.DyeS = (() => {
+  const atoms = [['C', 0, 0, 0, 0.5]], bonds = [];
+  for (let k = 0; k < 3; k++) {
+    const a = (k * 2 * Math.PI) / 3, dx = Math.cos(a), dy = Math.sin(a), cx = dx * 1.45, cy = dy * 1.45, b0 = atoms.length;
+    for (let j = 0; j < 6; j++) { const t = a + Math.PI + (j * Math.PI) / 3; atoms.push(['C', cx + Math.cos(t) * 0.7, cy + Math.sin(t) * 0.7, 0, 0.5]); bonds.push([b0 + j, b0 + ((j + 1) % 6), j % 2 ? 1 : 2]); }
+    bonds.push([0, b0, 1]);
+    atoms.push(['N', dx * 2.85, dy * 2.85, 0, 0.5]); bonds.push([b0 + 3, atoms.length - 1, 1]);
+  }
+  return { atoms, bonds, label: '品红', ink: '#c2185b', glow: 0xff2a8a, glowBase: 0.5, glowSize: 5.5 };
+})();
+MOL.DyeSO2 = (() => {
+  const n = MOL.DyeS.atoms.length;
+  return { atoms: [...MOL.DyeS.atoms, ['S', 0, 0, 1.6], ['O', -1.1, 0.6, 2.3], ['O', 1.1, 0.6, 2.3]], bonds: [...MOL.DyeS.bonds, [0, n, 1], [n, n + 1, 2], [n, n + 2, 2]], label: '无色物质', ink: '#5b6676' };
+})();
+// 氯化氢分子（H₂ 在 Cl₂ 中燃烧，h2cl2）：H–Cl 键长 1.27 Å
+MOL.HCl = { atoms: [['H', -0.64, 0, 0], ['Cl', 0.64, 0, 0]], bonds: [[0, 1, 1]], label: 'HCl', ink: '#2e6f55' };
+// 硫酸分子（浓硫酸与铜，cuh2so4）：S 在四面体中心，两个 S=O（1.42 Å）、两个 S–OH（1.57 Å），O–H 0.97 Å、S–O–H 约 108°
+//   原子顺序：S、O(=)、O(=)、O(H)、O(H)、H、H（场景里按这个顺序配原子）
+MOL.H2SO4 = { atoms: [['S', 0, 0, 0], ['O', 0.82, 0.82, 0.82], ['O', -0.82, -0.82, 0.82], ['O', -0.906, 0.906, -0.906], ['O', 0.906, -0.906, -0.906], ['H', -0.427, 1.731, -1.079], ['H', 0.427, -1.731, -1.079]],
+  bonds: [[0, 1, 2], [0, 2, 2], [0, 3, 1], [0, 4, 1], [3, 5, 1], [4, 6, 1]], label: 'H₂SO₄', ink: '#8a6d10' };
 const BOX = { x: 7.5, z: 3.6, top: 9 };          // 底座在 y = 0；液体 0~film；上面是气体
 
 const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
@@ -1401,4 +1426,90 @@ export function naohScene() {
       return { eq, cap };
     },
   };
+}
+
+// ================= 场景：二氧化硫使品红褪色，加热又恢复（示意） =================
+// st：{ nd: 滴进去的品红（0~3 个画出来）, f: 还是红色的品红占多少（0~1）, so2: 溶液里的 SO₂ 相对初始（0~1）, T: 温度, liquid: 液体颜色 }
+// 红色的品红分子碰上 SO₂ 生成无色物质；无色物质受热分解，品红恢复；SO₂ 受热从溶液里跑出去。个数只是示意，不是实际比例。
+export function so2bleachScene() {
+  const FILM = 6.2, N_SO2 = 6, N_W = 4, DN = MOL.DyeS.atoms.length;
+  const FORM = { in: ['DyeS', 'SO2'], out: ['DyeSO2'], host: 0, near: [null, [0, 0, 3.6]], place: [[0, 0, 0]], map: [...Array.from({ length: DN }, (_, i) => [0, i]), [1, 0], [1, 1], [1, 2]], approach: 1.8, dur: 2.2, burst: [0xffd0e4, 0xe8eef2] };
+  const BREAK = { in: ['DyeSO2'], out: ['DyeS', 'SO2'], place: [[0, 0, 0], [0, 0, 4]], map: [...Array.from({ length: DN }, (_, i) => [0, i]), [0, DN], [0, DN + 1], [0, DN + 2]], after: [{}, {}], approach: 0, dur: 2.2, burst: [0xd8e8ff, 0xffd0e4] };
+  const nDye = (st) => Math.min(3, Math.round(st.nd || 0));
+  const wantBound = (st) => { const n = nDye(st); return n ? Math.max(0, Math.min(n, Math.round(n * (1 - st.f)))) : 0; };
+  const wantFree = (st) => Math.round(N_SO2 * Math.max(0, Math.min(1, st.so2)));
+  const nEv = (c, rx) => c.events.filter((e) => e.rx === rx).length;
+  let acc = 0;
+  return {
+    labels: (k) => k !== 'H2O', dim: 0.55,
+    init(c, st) {
+      c.view.film = FILM; c.view.paper = null; acc = 0;
+      const n = nDye(st), b = wantBound(st);
+      for (let i = 0; i < n - b; i++) c.add('DyeS', c.inLiquid(), { heavy: true });
+      for (let i = 0; i < b; i++) c.add('DyeSO2', c.inLiquid(), { heavy: true });
+      for (let i = 0; i < wantFree(st); i++) c.add('SO2', c.inLiquid());
+      for (let i = 0; i < N_W; i++) c.add('H2O', c.inLiquid());
+    },
+    step(c, st, dt) {
+      c.view.film = FILM; c.view.paper = null; c.view.liquid = st.liquid ?? 0xcfe3ec;
+      c.view.speed = 1 + Math.max(0, Math.min(1, (st.T - 25) / 70)) * 1.6;
+      const n = nDye(st);
+      // 滴进来的品红（红色）从上面落下
+      if (c.count('DyeS') + c.count('DyeSO2') < n) { const m = c.add('DyeS', c.V([c.rnd(-1.5, 1.5), FILM - 0.8, c.rnd(-1, 1)]), { heavy: true }); m.v.set(0, -1.4, 0); }
+      // 红色 ⇄ 无色：个数跟着宏观的 f 走
+      const nF = nEv(c, FORM), nB = nEv(c, BREAK), bound = c.count('DyeSO2') + nF - nB, want = wantBound(st);
+      if (c.events.length < 2) {
+        if (bound < want) { const d = c.free('DyeS')[0], s = d && c.nearest(c.free('SO2'), d.g.position); if (d && s) c.start(FORM, [d, s]); }
+        else if (bound > want) { const a = c.free('DyeSO2')[0]; if (a) c.start(BREAK, [a]); }
+      }
+      // 溶液里 SO₂ 的个数：受热跑出去（飞出液面），或慢慢补进来
+      const eff = c.count('SO2') - nF + nB, wf = wantFree(st);
+      acc += dt;
+      if (eff < wf && acc > 0.5) { acc = 0; c.add('SO2', c.inLiquid(), { fadeIn: true, dimK: 0 }); }
+      else if (eff > wf && acc > 0.5) { const m = c.free('SO2')[0]; if (m) { acc = 0; if (st.T > 55) { m.leaving = true; m.gas = true; m.v.y = 1.8; } else m.fadeOut = true; } }
+      for (const m of c.mols) if (m.kind === 'SO2' && m.leaving) m.v.y = Math.min(Math.max(m.v.y, 1), 2);
+      const ws = c.free('H2O'); if (ws.length < N_W && Math.random() < dt * 2) c.add('H2O', c.inLiquid(), { fadeIn: true, dimK: 0 });
+    },
+    text(c, st) {
+      const eq = `${f('DyeS')} + ${f('SO2')} ⇌ ${f('DyeSO2')}`;
+      const nF = nEv(c, FORM), nB = nEv(c, BREAK), n = nDye(st), bound = c.count('DyeSO2');
+      const cap = nF ? `${f('SO2')} 和${f('DyeS')}分子结合，生成<b>无色物质</b>（示意：课本只说“生成不稳定的无色物质”，没有写分子怎么连）`
+        : nB ? `无色物质不稳定，<b>分解</b>了：${f('DyeS')}分子恢复（红色）`
+        : !n ? `溶液里是 ${f('SO2')} 分子和水分子（SO₂ 溶于水，一部分与水反应生成亚硫酸，可逆）。还没有品红`
+        : st.T > 55 && st.so2 < 0.9 ? `热了：${f('SO2')} 一个个从液面跑出去（有毒，所以要通风），无色物质容易分解，${f('DyeS')}（红色）越来越多`
+        : bound >= n ? `${f('DyeS')}都生成了无色物质：溶液是无色的` : `${f('DyeS')}（红色）还没有变成无色物质：溶液是红色的`;
+      return { eq, cap };
+    },
+  };
+}
+
+// ================= 追加（物质的导电性 dianzhi）：钾离子、水合离子 =================
+// 水合离子：离子周围围着几个水分子（课本图1-11、1-12）。阳离子：水分子的氧朝着离子（Na⁺…O 约 2.4 Å、K⁺…O 约 2.8 Å）；
+// 阴离子：水分子的一个氢朝着离子（Cl⁻…H 约 2.2 Å；NO₃⁻ 的每个氧对着一个水分子的氢，O…H 约 1.9 Å）。O–H 0.96 Å、H–O–H 104.5°。
+// 离子和水分子之间不画键（不是化学键）；标签只写离子的符号（全息里的“Na⁺”就是水合钠离子）。
+EL.K = [0x6b48c0, 0.7];
+ZION['K+'] = 1;
+MOL['K+'] = { atoms: [['K', 0, 0, 0]], bonds: [], label: 'K⁺', ink: '#5a3aa8' };
+{
+  const T4 = [[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]].map((v) => new THREE.Vector3(...v).normalize());
+  const perp = (d) => (Math.abs(d.x) < 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0)).cross(d).normalize();
+  const HA = (104.5 / 2) * Math.PI / 180, CB = -Math.cos(104.5 * Math.PI / 180), SB = Math.sin(104.5 * Math.PI / 180);
+  const put = (atoms, el, p) => { atoms.push([el, p.x, p.y, p.z]); return atoms.length - 1; };
+  const oIn = (atoms, bonds, c, d, r) => {          // 氧朝里：O 在 c 外 r 处，两个 H 朝外张开
+    const o = c.clone().addScaledVector(d, r), e = perp(d), i = put(atoms, 'O', o);
+    for (const s of [1, -1]) bonds.push([i, put(atoms, 'H', o.clone().addScaledVector(d, 0.96 * Math.cos(HA)).addScaledVector(e, s * 0.96 * Math.sin(HA))), 1]);
+  };
+  const hIn = (atoms, bonds, c, d, r) => {          // 氢朝里：一个 H 在 c 外 r 处，O 再往外 0.96 Å，另一个 H 和它成 104.5°
+    const h1 = c.clone().addScaledVector(d, r), o = h1.clone().addScaledVector(d, 0.96), e = perp(d);
+    const a = put(atoms, 'H', h1), i = put(atoms, 'O', o); bonds.push([i, a, 1]);
+    bonds.push([i, put(atoms, 'H', o.clone().addScaledVector(d, CB * 0.96).addScaledVector(e, SB * 0.96)), 1]);
+  };
+  const O0 = new THREE.Vector3();
+  const cat = (el, r, label, ink) => { const atoms = [[el, 0, 0, 0]], bonds = []; for (const d of T4) oIn(atoms, bonds, O0, d, r); return { atoms, bonds, label, ink, labelY: r + 1.9 }; };
+  MOL['Na+aq'] = cat('Na', 2.4, 'Na⁺', MOL['Na+'].ink);
+  MOL['K+aq'] = cat('K', 2.8, 'K⁺', MOL['K+'].ink);
+  { const atoms = [['Cl', 0, 0, 0]], bonds = []; for (const d of T4) hIn(atoms, bonds, O0, d, 2.2); MOL['Cl-aq'] = { atoms, bonds, label: 'Cl⁻', ink: MOL['Cl-'].ink, labelY: 4.2 }; }
+  { const base = MOL['NO3-'], atoms = base.atoms.map((a) => a.slice()), bonds = base.bonds.map((b) => b.slice());
+    for (let k = 1; k <= 3; k++) { const p = new THREE.Vector3(atoms[k][1], atoms[k][2], atoms[k][3]); hIn(atoms, bonds, p, p.clone().normalize(), 1.9); }
+    MOL['NO3-aq'] = { atoms, bonds, label: 'NO₃⁻', ink: base.ink, labelY: 4.4 }; }
 }
