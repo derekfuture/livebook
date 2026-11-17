@@ -4,7 +4,9 @@
 // 模型（示意，界面上写明）：
 //   Na₂O₂ 1.5 g（19.2 mmol，淡黄色固体）；水一滴 0.05 mL（2.8 mmol）。有水就反应，速度和剩下的 Na₂O₂ 成正比（几秒内大部分反应完），水不够时按水算。
 //   生成的 O₂ 按 2Na₂O₂ ~ O₂、24.5 mL/mmol 算，从试管口冒出去：试管上部的 O₂ 越来越多（把空气赶出去）；不冒了以后约十几秒散掉。O₂ 占一半以上，带火星的木条复燃。
-//   放热约 143 kJ/mol Na₂O₂（生成 NaOH 溶液），试管和液体的热容约 25 J/K、向空气散热：很快发烫（不写温度数字，最高按接近 100 ℃ 算）。
+//   放热：按标准生成焓（298 K；Na₂O₂(s) −510.9、H₂O(l) −285.8、NaOH(aq) −470.1 kJ/mol，NBS / CRC 数据表）算，每摩尔 Na₂O₂ 约 144 kJ。
+//   教学有效热容 = 试管玻璃约 16 J/K（约 19 g × 0.84 J/(g·K)）+ 液体（4.18 J/(g·K)）+ 剩余固体（约 1 J/(g·K)），随加水、反应变化；向空气散热 0.25 W/K（示意）。
+//   很快发烫（不写温度数字，最高按接近 100 ℃ 算）。
 //   溶液是很浓的 NaOH：pH 试纸显强碱性（比色卡 14）。O₂ 用蓝点表示（这套书里蓝 = 氧气），热用橙色表示。
 import * as THREE from 'three';
 import { lessonBar } from './kit/lessonbar.js';
@@ -20,7 +22,7 @@ import { h } from '../ui/Panel.js';
 
 const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 const TX = -0.045, MOUTH = T_Y + T_LEN, BOT = V(0.02, 0, 0.035), TILE = V(0.095, 0, 0);
-const N0 = 19.2, DROP = 0.05, H2O_PER_ML = 55.5, Q_MOL = 24.5, HEAT = 143.5;          // mmol；mL；mmol/mL；mL/mmol；J/mmol
+const N0 = 19.2, DROP = 0.05, H2O_PER_ML = 55.5, Q_MOL = 24.5, HEAT = 143.6;          // mmol；mL；mmol/mL；mL/mmol；J/mmol
 const STICK_REST = V(0.07, 0.004, 0.1), ROD_REST = V(0.15, 0.004, 0.062);          // 木条横放在试管架前面；玻璃棒放在右边
 const CHART = ['#c22b3c', '#d8343a', '#e1503c', '#ea7040', '#f08b3a', '#f2a63a', '#d8b43a', '#a9a640', '#81783d', '#463951', '#342d34', '#60305c', '#5c2b54', '#572a51'];          // 和初中 pH 试纸那课的比色卡一样
 const PAPER0 = '#f0c64a';
@@ -222,7 +224,7 @@ export default {
         const t2 = think({ q: '综合三个现象，过氧化钠与水反应生成了什么？', options: ['氢氧化钠和氧气，并放出热量', '只有氢氧化钠', '氢氧化钠和氢气'], wrong: ['木条复燃说明还有一种气体。', '能使带火星的木条复燃的是氧气，不是氢气。'], ok: '对：2Na₂O₂ + 2H₂O ══ 4NaOH + O₂↑（课本第 37 页）。', status: (m) => W?.status(m), onOk: () => { done('why'); if (W) W.next.hidden = false; } });
         const t1 = think({ q: '带火星的木条复燃，说明生成的气体是什么？', options: ['氧气', '氢气', '二氧化碳'], wrong: ['氢气遇火会燃烧、爆鸣，不是让火星复燃。', '二氧化碳会让木条熄灭。'], ok: '对：氧气能使带火星的木条复燃。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const more = moreBox([['钻进去看', () => mic.open()]], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '过氧化钠按 1.5 g（19.2 mmol）计；水一滴约 0.05 mL。有水就反应，几秒内大部分反应完（示意）；水不够时按水算。<br>O₂ 按 2Na₂O₂ ~ O₂ 算，从试管口冒出去；试管上部 O₂ 占一半以上时带火星的木条复燃，不冒了以后十几秒散掉（示意）。蓝点表示 O₂（这套书里蓝 = 氧气）。<br>放热约 143 kJ/mol Na₂O₂；试管和液体的热容约 25 J/K：很快发烫（橙色表示热，不写温度数字）。溶液是很浓的 NaOH，pH 试纸显强碱性。' }));
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '过氧化钠按 1.5 g（19.2 mmol）计；水一滴约 0.05 mL。有水就反应，几秒内大部分反应完（示意）；水不够时按水算。<br>O₂ 按 2Na₂O₂ ~ O₂ 算，从试管口冒出去；试管上部 O₂ 占一半以上时带火星的木条复燃，不冒了以后十几秒散掉（示意）。蓝点表示 O₂（这套书里蓝 = 氧气）。<br>放热按标准生成焓算（298 K；Na₂O₂(s) −510.9、H₂O(l) −285.8、NaOH(aq) −470.1 kJ/mol，NBS / CRC 数据表）：每摩尔 Na₂O₂ 约 144 kJ。热容是教学有效值：试管玻璃约 16 J/K 加上液体（4.18 J/(g·K)）和剩余固体，随加水、反应变化；向空气散热按 0.25 W/K（示意）。很快发烫（橙色表示热，不写温度数字）。溶液是很浓的 NaOH，pH 试纸显强碱性。' }));
         const base = mountXuean(ui, { controls: [more, note], headers: ['做了什么', '现象', '说明'], intro: '试管里是 1.5 g 淡黄色的过氧化钠固体。先用滴管滴水，再立即伸进带火星的木条。' });
         ui.data.append(t1.el, t2.el, base.next);
         W = { ...base, ui, t1, t2, status: ui.status }; bar.attach(ui);
