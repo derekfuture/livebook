@@ -3,7 +3,7 @@
 //   干燥：表面没有水，氯气分子在上面飞来飞去，什么也不发生。
 //   有水：氯气溶进水里，一部分与水反应 Cl₂ + H₂O ⇌ H⁺ + Cl⁻ + HClO（课本写成 HCl + HClO；HCl 在水里是 H⁺ 和 Cl⁻）。
 //   Cl₂ 的两个 Cl 一个进了 HClO，一个成了 Cl⁻；水的 O、一个 H 进了 HClO，另一个 H 成了 H⁺。原子守恒、电荷守恒（0 = 0 + 1 − 1）。
-//   慢放示意，不表示真实的反应步骤；只有一部分氯气发生反应（可逆）。
+//   慢放示意，不表示真实的反应步骤；这是可逆反应，能同时向两个方向进行（课本第 46 页脚注）。
 import { f } from './microworld.js';
 
 export function chlorineScene() {
@@ -58,10 +58,10 @@ export function chlorineScene() {
     text(c, st) {
       const eq = `${f('Cl2')} + ${f('H2O')} ⇌ ${f('H+')} + ${f('Cl-')} + ${f('HClO')}`, e = c.events[0];
       if (!wet) return { eq: '', on: false, cap: `表面是干的：${f('Cl2')} 在上面飞来飞去，<b>没有水可以反应</b>，纸条的颜色不会变。${st.c < 0.05 ? '（周围也没有氯气了）' : ''}` };
-      if (st.c < 0.05 && !made) return { eq, on: false, cap: '周围没有氯气：什么也不会生成。' };
       if (e && undoing) return { eq, on: true, cap: `周围的氯气没有了：${f('HClO')} 和 ${f('H+')}、${f('Cl-')} 又结合回 ${f('Cl2')} 和 ${f('H2O')}（可逆反应），${f('Cl2')} 跑回气体里。` };
+      if (st.c < 0.05 && !made) return { eq, on: false, cap: `周围没有氯气了，水里的 ${f('HClO')}、${f('H+')}、${f('Cl-')} 已经变回 ${f('Cl2')} 和 ${f('H2O')}：离开氯气，反应往回走，稳定下来的是没有 ${f('HClO')} 的状态。` };
       if (e) return { eq, on: true, cap: `溶在水里的 ${f('Cl2')} 和 ${f('H2O')} 反应：一个 Cl 成了 ${f('Cl-')}，另一个和水里的 O、H 一起成了 ${f('HClO')}，水的另一个 H 成了 ${f('H+')}（${f('H+')} 和 ${f('Cl-')} 就是课本里的 HCl）。` };
-      if (made) return { eq, on: true, cap: `生成了 ${f('HClO', made)}（<b>次氯酸</b>，有强氧化性）。它能使色素褪色——起漂白作用的是 ${f('HClO')}，不是 ${f('Cl2')}。只有一部分氯气发生反应，所以用 ⇌。<b>慢放示意，不表示真实的反应步骤。</b>` };
+      if (made) return { eq, on: true, cap: `生成了 ${f('HClO', made)}（<b>次氯酸</b>，有强氧化性）。它能使色素褪色——起漂白作用的是 ${f('HClO')}，不是 ${f('Cl2')}。这个反应能同时向两个方向进行（可逆反应，课本第 46 页脚注），所以用 ⇌。<b>慢放示意，不表示真实的反应步骤。</b>` };
       return { eq, on: true, cap: `表面有水：${f('Cl2')} 溶进水里，就要和水分子反应。` };
     },
   };

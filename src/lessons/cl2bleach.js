@@ -73,6 +73,7 @@ export default {
     ITEMS.forEach((sp, i) => { const l = plate(sp.name, 0.058, 0.0085); l.rotation.x = -Math.PI / 2; l.position.set(JX[i], 0.0012, 0.126); group.add(l); });
     const smokes = jars.map(() => { const s = smoke2({ max: 50, color: CL2, opacity: 0.5 }); s.mesh.renderOrder = 13; group.add(s.mesh); return s; });
     const warning = tag('', 'pill');
+    const cards = JX.map(() => tag('', 'cond'));
 
     // ================= 纸条、鲜花：原点在拿着的那一端（挂在瓶口），身子朝下；平放时朝自己这边 =================
     const colTmp = new THREE.Color(), colA = new THREE.Color(), colB = new THREE.Color();
@@ -190,7 +191,7 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); }, view: { save: () => (mic.isOpen ? { mic: true } : null), restore: () => mic.open() } }),
           shots: [
             { cap: '取干燥的和湿润的有色纸条各一条，分别放入两个盛有干燥氯气的集气瓶中。', dur: 10, cam: CAM(0.05, 0.42),
               during: act.seq(path(0, [over(0)], 0.03, 0.3), path(1, [over(1)], 0.4, 0.66)) },
@@ -266,11 +267,20 @@ export default {
       if (closedIn(2) && S.it[2].d < 0.3) log('flower', ['把有色鲜花放进干燥的氯气，盖上玻璃片', '花瓣原来的紫红色<b>褪去</b>，呈浅黄色', '鲜花含有水分：同样是次氯酸在起作用']);
       if (S.said.dry && S.said.wet && !S.said.strips2) { S.said.strips2 = true; done('seeStrips'); if (!S.demo) { W?.t1.open(); status('干燥的纸条没变，湿润的褪色了。在左边作答，也可以继续做鲜花。'); } }
       if (S.said.flower && !S.said.flower2) { S.said.flower2 = true; done('seeFlower'); if (!S.demo) { W?.t2.open(); status('鲜花也褪色了。在左边作答。'); } }
+      // 观察卡：瓶里有东西时，在瓶前显示这一组实际的褪色和氯气浓度（示意值）
+      S.jar.forEach((J, k) => {
+        const i = J.item, ok = i >= 0 && !S.it[i].motion;
+        if (!ok) return cards[k].show(false);
+        const it = S.it[i], fade = Math.round((1 - it.d) * 100), cl = Math.round(J.c * 100);
+        const st = ITEMS[i].w === 0 ? '干燥，不变' : fade < 5 ? '还没褪色' : fade < 85 ? '褪色中' : '已褪色';
+        cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${ITEMS[i].name}</span><span class="cc-res">${st}</span></div><div class="cc-more"><div class="cc-obs"><b>${fade}</b><small>% 已褪色（示意）</small></div><div class="cc-obs"><b>${cl}</b><small>% 氯气浓度（相对，示意）</small></div>${ITEMS[i].w > 0 ? '<div class="cc-note">紫色小点 = HClO（示意色）</div>' : ''}</div></div>`)
+          .loc(group, JX[k], 0.0, 0.07).show(!bar.playing && !mic.isOpen);
+      });
       mic.update?.(dt);
     };
 
     return {
-      group: root, pointer, card: false, toggles: ['steps'],
+      group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.28, d: 0.15, h: 0.12 },
       view: { elev: 24, azim: -6, lookY: 0.42, frameMargin: 1.08 },
       mount(ui) {
