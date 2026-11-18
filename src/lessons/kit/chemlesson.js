@@ -86,7 +86,8 @@ export function think({ title = '想一想', q, ctx = '', options, ok, wrong = [
 /** 放映的时候点一下画面：退出放映 */
 export function wrapPointer(drag, bar) {
   return {
-    down: (r, e) => { if (bar.playing) { bar.stop(); return true; } return drag.down(r, e); },
+    // 还停在预测页就直接动手了：翻到实验页（步骤栏、观察记录在那里），预测页记成“跳过”
+    down: (r, e) => { if (bar.playing) { bar.stop(); return true; } const hit = drag.down(r, e); if (hit && bar.ui && bar.ui.step === 0) bar.ui.go(1); return hit; },
     move: (r, e) => drag.move(r, e),
     up: (r, e) => drag.up(r, e),
     items: drag.items,

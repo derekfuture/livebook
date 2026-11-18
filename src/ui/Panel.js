@@ -163,6 +163,7 @@ export class Panel {
     }
     if (stamps.has(def.id)) setTimeout(() => this.unlock(true), 0);     // 以前做完过：结论可以直接看，但这一次的进度照常显示
 
+    const self = this;
     return {
       controls: this.controlsEl,
       notes: this.notesEl,
@@ -177,6 +178,7 @@ export class Panel {
       now: this.nowEl,
       el: this.el,
       go: (i) => this.go(i),
+      get step() { return self.step; },          // 现在翻在第几页（0 = 预测 / 问题）
       fold: (on) => this.fold(on),
     };
   }
@@ -259,6 +261,7 @@ export class Panel {
     this.tabs?.[1]?.classList.remove('done');
     clearTimeout(this._sealT); this.tabs?.[2]?.classList.remove('done'); this.sealEl?.classList.remove('on');          // 这一轮的结论也回到没掀开的样子（以前盖过的章、书架上的记录不动）
     if (full) {
+      this.tabs?.[0]?.classList.remove('done', 'skip');          // 上一轮点了“不猜了”留下的跳过标记也清掉（探索模式的问题页同样回到没读过）
       this.el.querySelectorAll('details[open]').forEach((d) => { d.open = false; });          // 展开过的折叠项（更多、换个条件、模型和出处……）收起来
       if (this.tabs?.length && this.step !== 0) this.go(0);          // 回到第一页（预测 / 问题），和第一次打开一样
     }

@@ -68,6 +68,7 @@ export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group 
     get stepList() { return steps; },
     /** 演示 / 总结完以后在栏里留一句话（几秒后回到当前步骤） */
     attach(u) { ui = u; renderDo(); api._need(); },
+    get ui() { return ui; },
     _need() { if (!ui) return; if (!left.size) ui.unlock(); else ui.need('还差：' + steps.filter((s) => left.has(s.id)).map((s) => s.title).join('；')); },
     done(id) { if (left.delete(id)) { say = null; renderDo(); api._need(); sfx.ding(990, { gain: 0.05, decay: 0.35 }); } return !left.size; },
     undo(...ids) { let ch = false; for (const id of ids) if (!left.has(id) && steps.some((s) => s.id === id)) { left.add(id); ch = true; } if (ch) { renderDo(); api._need(); } },
