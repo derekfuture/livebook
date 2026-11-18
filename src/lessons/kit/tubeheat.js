@@ -21,7 +21,9 @@
 //
 // 选项：tilt 和竖直方向的夹角（默认 45°）；dir = 1 管口朝右上、-1 朝左上；away 管口再往后偏一点（弧度，不对着前面的人）；
 //   grip 夹在离管底多远（占管长的比例，默认 2/3，也就是离管口约 1/3）；spin 试管夹的柄绕试管转多少（弧度，正的朝前）；
-//   liftTo 搬运时管底至少多高（越过试管架）；travelY 试管夹去夹试管时走多高；preheat 预热几秒（0 = 不预热）；dur 整个动作几秒。
+//   liftTo 搬运时管底至少多高（越过试管架）；travelY 试管夹去夹试管时走多高；preheat 预热几秒（0 = 不预热）；dur 整个动作几秒；
+//   lit() 酒精灯现在有没有火（默认一直有）：预热只在有火、试管到位时计，没火时试管在灯上静止不动，点着火以后才开始来回预热。
+//   H.warmed()：预热做完了没有（预热完以后才是用外焰固定加热）。
 import * as THREE from 'three';
 import { water2, bubble2 } from './chemfx.js';
 import { Particles } from './fx.js';
@@ -50,7 +52,7 @@ export function testTubeHolder({ ringR = 0.0105, handle = 0.055 } = {}) {
 export function tubeHeat(group, {
   tube, holder = tube.parent, getS, flameAt, rest,
   tilt = Math.PI / 4, dir = 1, away = 0.22, grip = 2 / 3, spin = 0.75,
-  liftTo = 0.085, travelY = null, preheat = 1.6, dur = 3.6,
+  liftTo = 0.085, travelY = null, preheat = 1.6, dur = 3.6, lit = () => true,
   R = tube.r - 0.0008, yc = tube.r + 0.0008, top = tube.len - 0.012,
 }) {
   const yb = yc - R, rOut = yc;                   // 管底内壁最低处；玻璃外壁的半径（圆底的球心在 yc）
@@ -186,6 +188,7 @@ export function tubeHeat(group, {
     get k() { return st().p; },
     moving: () => st().p !== st().goal,
     atFlame: () => st().p >= 1,
+    warmed: () => st().p >= 1 && st().pre >= preheat,
     /** 管口（group 坐标） */
     mouth: () => group.worldToLocal(tube.localToWorld(V(0, len, 0))),
     /** 液体的中间（group 坐标）：放大镜、“钻进去看”对准这里 */
@@ -194,7 +197,7 @@ export function tubeHeat(group, {
     update(dt, t, { vol = 0, color = 0xe6eef2, boil = 0 } = {}) {
       const S = st();
       S.p = clamp(S.p + clamp(S.goal - S.p, -dt / dur, dt / dur));
-      if (S.goal === 1 && S.p >= 1) S.pre = Math.min(preheat + 1, S.pre + dt); else S.pre = 0;
+      if (S.goal === 1 && S.p >= 1) { if (lit()) S.pre = Math.min(preheat + 1, S.pre + dt); } else S.pre = 0;      // 预热只在有火、试管到位时计
       place();
       // 液体：试管离开架子以后才用这里的
       const off = S.p > PA && vol > 0.02;

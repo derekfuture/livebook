@@ -50,10 +50,10 @@ export default {
   },
   need: '石墨电极依次放进干燥的 NaCl 固体、KNO₃ 固体和蒸馏水，分别接通电源；再把两种固体各取少许溶进蒸馏水，搅拌至完全溶解，再分别试验',
   conclusion: {
-    crops: [{ page: 18, rect: [218, 626, 538, 692] }, { page: 19, rect: [62, 266, 380, 518] }, { page: 20, rect: [218, 54, 532, 140] }],
-    quote: '实验表明，干燥的NaCl 固体、KNO3 固体都不导电，蒸馏水也不导电。但是，NaCl溶液、KNO3溶液却都能够导电。……我们知道，电流是由带电荷的粒子按一定方向移动而形成的。因此，能导电的物质必须具有能自由移动的、带电荷的粒子。电解质的水溶液（或熔化而成的液体）能够导电，说明在这些水溶液（或液体）中，存在着能自由移动的、带电荷的粒子。例如，NaCl固体中含有带正电荷的钠离子（Na+）和带负电荷的氯离子（Cl-），由于带相反电荷的离子间的相互作用，Na+和Cl-按一定规则紧密地排列着。这些离子不能自由移动，因而干燥的NaCl固体不导电（如图1-10）。当将NaCl固体加入水中时，在水分子的作用下，Na+和Cl-脱离NaCl固体的表面，进入水中，形成能够自由移动的水合钠离子和水合氯离子（如图1-11）。当在NaCl溶液中插入电极并接通电源时，带正电荷的水合钠离子向与电源负极相连的电极移动，带负电荷的水合氯离子向与电源正极相连的电极移动，因而NaCl溶液能够导电（如图1-12左）。',
+    crops: [{ page: 18, rect: [218, 626, 538, 692] }, { page: 18, rect: [58, 742, 420, 760] }, { page: 19, rect: [62, 266, 380, 518] }, { page: 20, rect: [218, 54, 532, 140] }],
+    quote: '实验表明，干燥的NaCl 固体、KNO3 固体都不导电，蒸馏水也不导电①。但是，NaCl溶液、KNO3溶液却都能够导电。……①严格地说，蒸馏水也能导电，只是导电能力非常弱，用上述实验装置不能测出。……我们知道，电流是由带电荷的粒子按一定方向移动而形成的。因此，能导电的物质必须具有能自由移动的、带电荷的粒子。电解质的水溶液（或熔化而成的液体）能够导电，说明在这些水溶液（或液体）中，存在着能自由移动的、带电荷的粒子。例如，NaCl固体中含有带正电荷的钠离子（Na+）和带负电荷的氯离子（Cl-），由于带相反电荷的离子间的相互作用，Na+和Cl-按一定规则紧密地排列着。这些离子不能自由移动，因而干燥的NaCl固体不导电（如图1-10）。当将NaCl固体加入水中时，在水分子的作用下，Na+和Cl-脱离NaCl固体的表面，进入水中，形成能够自由移动的水合钠离子和水合氯离子（如图1-11）。当在NaCl溶液中插入电极并接通电源时，带正电荷的水合钠离子向与电源负极相连的电极移动，带负电荷的水合氯离子向与电源正极相连的电极移动，因而NaCl溶液能够导电（如图1-12左）。',
     formula: 'NaCl ══ Na⁺ + Cl⁻　　KNO₃ ══ K⁺ + NO₃⁻　（电离方程式，课本第 16 页）',
-    why: '干燥的 NaCl、KNO₃ 固体里也有离子，可它们按一定规则紧密地排列着，<b>不能自由移动</b>；蒸馏水里几乎没有能自由移动的、带电荷的粒子——所以都不导电，小灯泡不亮。<br>固体溶进水里，在水分子的作用下，离子脱离固体表面进入水中，成了<b>能够自由移动的水合离子</b>。接通电源，带正电荷的水合离子向与电源负极相连的电极移动，带负电荷的水合离子向与电源正极相连的电极移动，形成电流，小灯泡亮了。溶液里能自由移动的离子越多，导电能力越强。<br>在水溶液里或熔融状态下能够导电的化合物叫做<b>电解质</b>，NaCl、KNO₃ 都是电解质。湿手接触电源容易触电，也是因为手上的 NaCl 等电解质遇到水形成了电解质溶液。',
+    why: '干燥的 NaCl、KNO₃ 固体里也有离子，可它们按一定规则紧密地排列着，<b>不能自由移动</b>——不导电，没有电流。<br>蒸馏水不一样：它里面能自由移动的、带电荷的粒子<b>极少</b>，严格地说也能导电，只是导电能力非常弱（这套装置里电流只有约 26 μA），小灯泡不亮，用这套装置测不出——课本说它“不导电”，就是在这个意义上说的。<br>固体溶进水里，在水分子的作用下，离子脱离固体表面进入水中，成了<b>能够自由移动的水合离子</b>。接通电源，带正电荷的水合离子向与电源负极相连的电极移动，带负电荷的水合离子向与电源正极相连的电极移动，形成电流，小灯泡亮了。溶液里能自由移动的离子越多，导电能力越强。<br>在水溶液里或熔融状态下能够导电的化合物叫做<b>电解质</b>，NaCl、KNO₃ 都是电解质。湿手接触电源容易触电，也是因为手上的 NaCl 等电解质遇到水形成了电解质溶液。',
     src: '课本第 14–16 页 · 第一章 第二节 离子反应',
   },
 
@@ -77,6 +77,7 @@ export default {
     // ---- 药匙、玻璃棒 ----
     const sp = makeSpoon(); group.add(sp);
     const rod = glassRod(0.1); group.add(rod);
+    const card = tag('', 'cond');
     const salts = new Particles({ max: 90, geometry: new THREE.BoxGeometry(1, 1, 1), material: paint(0xfbfbf8, { keep: true }) }); group.add(salts.mesh);
 
     const fresh = () => ({
@@ -86,7 +87,7 @@ export default {
       tools: {
         head: { pos: HEAD_HOME.toArray(), drag: false, motion: null, wait: 0 },
         spoon: { pos: SPOON_HOME.toArray(), drag: false, motion: null, wait: 0, na: 0, k: 0, tilt: 0, pour: 0, inBk: false, dumping: -1 },
-        rod: { pos: ROD_HOME.toArray(), drag: false, motion: null, wait: 0, in: -1, lastX: null },
+        rod: { pos: ROD_HOME.toArray(), drag: false, motion: null, wait: 0, in: -1, lastX: null, armed: false },
       },
     });
     S = fresh();
@@ -99,7 +100,7 @@ export default {
     };
     const undis = (b) => (b.w ? b.na + b.k : 0);
     const full = (b) => b.w > 0 && undis(b) < 1e-9 && b.dna + b.dk > 0;
-    const nameOf = (b) => { const k = kindOf(b); return k.endsWith('L') && undis(b) > 0 ? (b.dna + b.dk > 0.02 ? `${NAME[k]}（还有固体没溶解）` : `蒸馏水 + ${k === 'naL' ? 'NaCl' : k === 'kL' ? 'KNO₃' : 'NaCl、KNO₃'} 固体（还没溶解）`) : NAME[k]; };
+    const nameOf = (b) => { const k = kindOf(b); return k.endsWith('L') && undis(b) > 0 ? (b.dna + b.dk > 0 ? `${NAME[k]}（开始溶解，仍有固体）` : `蒸馏水 + ${k === 'naL' ? 'NaCl' : k === 'kL' ? 'KNO₃' : 'NaCl、KNO₃'} 固体（还没溶解）`) : NAME[k]; };
     const plateOf = (b) => { const k = kindOf(b); return k === 'naS' ? 'NaCl 固体' : k === 'kS' ? 'KNO₃ 固体' : k === 'mixS' ? '混合固体' : k === 'water' ? '蒸馏水' : k === 'empty' ? '' : undis(b) > 0 ? `蒸馏水 + ${k === 'naL' ? 'NaCl' : k === 'kL' ? 'KNO₃' : '两种固体'}` : k === 'naL' ? 'NaCl 溶液' : k === 'kL' ? 'KNO₃ 溶液' : '混合溶液'; };
     const conc = (b) => ({ na: b.w ? b.dna / MNA / (b.w / 1000) : 0, k: b.w ? b.dk / MK / (b.w / 1000) : 0 });          // mol/L
     const kappa = (b) => { const c = conc(b), L = (s) => Math.max(0.6 * LN[s][0], LN[s][0] - LN[s][1] * Math.sqrt(c[s])); return 0.1 * (L('na') * c.na + L('k') * c.k) + 1e-4; };          // S/m；蒸馏水约 1 μS/cm
@@ -108,8 +109,14 @@ export default {
     const live = () => S.power && S.at >= 0 && !S.tools.head.motion && !S.tools.head.drag;
     // 有没有电流（导电）和灯泡看不看得出亮是两回事：导电与否按电流的数量级判断，不按灯泡亮度反推
     const nw = (t) => `<span style="white-space:nowrap">${t}</span>`;          // 记录表里主要的几个字不折行
-    const bulbWord = (b, I) => (b >= 0.25 ? nw('小灯泡<b>亮</b>') : b >= 0.03 ? nw('小灯泡<b>微微发亮</b>') : I >= 1e-3 ? `${nw('小灯泡<b>不亮</b>')}<br><small>电流很小，不足以使灯泡发光</small>` : nw('小灯泡<b>不亮</b>'));
-    const condWord = (k, I) => (k.endsWith('S') || I <= 0 ? '不导电' : I < 1e-3 ? `${nw('不导电')}<br><small>严格地说导电能力非常弱，这套装置测不出</small>` : '导电');          // 蒸馏水约 26 μA；溶液哪怕很稀也有几十毫安
+    // 导电的状态：干燥固体没有电流；蒸馏水按课本写“不导电”（脚注：严格地说导电能力非常弱，这套装置测不出，约 26 μA）；
+    //   溶进了盐就有能自由移动的离子：电流不到 1 mA 时“导电很弱”（这套装置测不出），够了就是“导电”。1 mA 只用来说明装置能不能检出
+    const dis = (b) => b.dna + b.dk;
+    const cond = (b, I) => { const k = kindOf(b); return k.endsWith('S') || k === 'empty' || I <= 0 ? 'none' : dis(b) <= 0 ? 'water' : I < 1e-3 ? 'weak' : 'yes'; };
+    const COND = { none: '不导电', water: `${nw('不导电')}<br><small>严格地说导电能力非常弱，这套装置测不出</small>`, weak: `${nw('导电很弱')}<br><small>电流不到 1 mA，这套装置测不出</small>`, yes: '导电' };
+    const bulbWord = (b, c) => (b >= 0.25 ? nw('小灯泡<b>亮</b>') : b >= 0.03 ? nw('小灯泡<b>微微发亮</b>') : c === 'weak' || c === 'yes' ? `${nw('小灯泡<b>不亮</b>')}<br><small>电流很小，不足以使灯泡发光</small>` : nw('小灯泡<b>不亮</b>'));
+    const lvOf = (c, b) => (b >= 0.25 ? 4 : b >= 0.03 ? 3 : c === 'yes' ? 2 : c === 'weak' ? 1 : 0);
+    const amp = (I) => (I >= 0.1 ? `${(I * 1000).toFixed(0)} mA` : I >= 1e-3 ? `${(I * 1000).toFixed(1)} mA` : I > 0 ? `${(I * 1e6).toFixed(0)} μA` : '0');
     const pairsOf = (mmol) => (mmol < 0.05 ? 0 : clamp(Math.round(mmol / 2.85), 1, 4));          // 钻进去看：一对离子约代表 2.85 mmol（一勺 0.5 g NaCl 画 3 对）
 
     // ================= 工具移动：抬起来 → 平移 → 放下 =================
@@ -180,7 +187,7 @@ export default {
     // ================= 拖、点 =================
     const item = (key, obj, z, minY, hint) => ({
       obj: obj.pick, plane: 'xy', offset: z, keepOffset: true, anchor: obj, hint,
-      onStart: () => { const t = S.tools[key]; t.drag = true; t.motion = null; t.wait = 0; if (key === 'head') { S.at = -1; S.testT = 0; } if (key === 'spoon') { t.dumping = -1; } },
+      onStart: () => { const t = S.tools[key]; t.drag = true; t.motion = null; t.wait = 0; if (key === 'head') { S.at = -1; S.testT = 0; } if (key === 'spoon') { t.dumping = -1; } if (key === 'rod') t.armed = false; },
       onDrag: (p) => {
         const t = S.tools[key];
         if (key === 'rod') return rodDrag(p);
@@ -200,8 +207,9 @@ export default {
           t.lastX = x; t.pos = [x, y, SZ]; return;
         }
       }
+      if (p.y >= 0.19) t.armed = true;
       const i = near(p.x);
-      if (i >= 0 && S.bk[i].w > 0 && p.y < 0.19 && Math.abs(p.x - XS[i]) < 0.02) { t.in = i; t.lastX = null; t.pos = [clamp(p.x, XS[i] - 0.0125, XS[i] + 0.0125), Math.max(ROD_IN, Math.min(p.y, 0.19)), SZ]; return; }
+      if (i >= 0 && S.bk[i].w > 0 && p.y < 0.19 && Math.abs(p.x - XS[i]) < 0.02 && t.armed) { t.in = i; t.lastX = null; t.pos = [clamp(p.x, XS[i] - 0.0125, XS[i] + 0.0125), Math.max(ROD_IN, Math.min(p.y, 0.19)), SZ]; return; }          // 从桌上拿起来先到杯口上方，再放进去（不从旁边钻进去）
       t.pos = [clamp(p.x, -0.19, 0.19), clamp(p.y, ROD_FREE, 0.24), SZ];
     }
     const drag = draggable(group, [
@@ -235,7 +243,7 @@ export default {
     };
     const headPath = (i, t0, t1) => act.path(head.pick, [() => toolXYZ('head'), () => toolXYZ('head').setY(0.16), V(XS[i], 0.16, RZ)], { t0, t1, release: t1 + 0.02 });
     const spoonPath = (i, t0, t1) => act.path(sp.pick, [() => toolXYZ('spoon'), () => toolXYZ('spoon').setY(0.1).setZ(SZ), V(XS[i], 0.1, SZ)], { t0, t1, release: t1 + 0.02 });
-    const stirPts = (i, n = 12) => [() => toolXYZ('rod'), () => toolXYZ('rod').setY(0.2).setZ(SZ), V(XS[i], 0.2, SZ), V(XS[i], 0.15, SZ), ...Array.from({ length: n }, (_, j) => V(XS[i] + (j % 2 ? 0.011 : -0.011), 0.11, SZ)), V(XS[i], 0.215, SZ)];
+    const stirPts = (i, n = 18) => [() => toolXYZ('rod'), () => toolXYZ('rod').setY(0.2).setZ(SZ), V(XS[i], 0.2, SZ), V(XS[i], 0.15, SZ), ...Array.from({ length: n }, (_, j) => V(XS[i] + (j % 2 ? 0.011 : -0.011), 0.11, SZ)), V(XS[i], 0.215, SZ)];
     const rodPath = (i, t0, t1) => act.path(rod.pick, stirPts(i), { t0, t1, release: t1 + 0.02 });
     const tapSup = (at) => act.tap(sup.pick, at);
     const bar = lessonBar({
@@ -252,7 +260,7 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); }, view: { save: () => (mic.isOpen ? { mic: true } : null), restore: (v) => { if (v.mic) mic.open(); } } }),
           shots: [
             { cap: '三个烧杯里分别是干燥的 NaCl 固体、KNO₃ 固体和蒸馏水，按图1-9连接装置。把石墨电极放进 NaCl 固体，接通电源——小灯泡不亮。', dur: 8, cam: [[-0.07, 0.095, -0.03], [0.03, 0.36, 1], 0.56],
               during: act.seq(headPath(0, 0.03, 0.36), tapSup(0.68)) },
@@ -260,11 +268,11 @@ export default {
               during: act.seq(tapSup(0.02), headPath(1, 0.05, 0.2), tapSup(0.36), tapSup(0.5), headPath(2, 0.53, 0.68), tapSup(0.86)) },
             { cap: '取 NaCl 固体、KNO₃ 固体各少许，分别加入另外两个盛有蒸馏水的烧杯中。', dur: 12, speed: 1.6, cam: [[0, 0.06, 0], [0.03, 0.42, 1], 0.5],
               during: act.seq(tapSup(0.02), spoonPath(0, 0.03, 0.12), spoonPath(3, 0.28, 0.37), spoonPath(1, 0.53, 0.62), spoonPath(4, 0.78, 0.87)) },
-            { cap: '用玻璃棒搅拌，使固体完全溶解形成溶液。', dur: 8, speed: 1.6, cam: [[0.11, 0.1, 0], [0.03, 0.34, 1], 0.48],
+            { cap: '用玻璃棒搅拌，使固体完全溶解形成溶液。', dur: 10, speed: 1.6, cam: [[0.11, 0.1, 0], [0.03, 0.34, 1], 0.48],
               during: act.seq(rodPath(3, 0.03, 0.44), rodPath(4, 0.5, 0.9)) },
             { cap: '把石墨电极依次放入 NaCl 溶液、KNO₃ 溶液中，分别接通电源——小灯泡都亮了。', dur: 9, cam: [[0.05, 0.095, -0.03], [0.03, 0.36, 1], 0.56],
               during: act.seq(headPath(3, 0.03, 0.2), tapSup(0.34), tapSup(0.54), headPath(4, 0.57, 0.72), tapSup(0.88)) },
-            { cap: '钻进去看：水合离子在溶液里自由移动；接通电源，带正电荷的 K⁺ 向与电源负极相连的电极移动，带负电荷的 NO₃⁻ 向与电源正极相连的电极移动。演示完了，换你自己做。', dur: 8, cam: [[XS[4], 0.17, 0], [0.02, 0.3, 1], 0.36],
+            { cap: '钻进去看：水合离子在溶液里自由移动；接通电源，带正电荷的 K⁺ 向与电源负极相连的电极移动，带负电荷的 NO₃⁻ 向与电源正极相连的电极移动。演示完了，换你自己做。', dur: 7, cam: [[XS[4], 0.17, 0], [0.02, 0.3, 1], 0.36],
               enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
           ],
         },
@@ -274,14 +282,18 @@ export default {
 
     // ================= 记录：每一杯（每一种东西）一行 =================
     const record = (i) => {
-      const b = S.bk[i], k = kindOf(b), key = `${i}:${k}`, row = [nameOf(b), bulbWord(S.b, S.I), condWord(k, S.I)];
-      const first = !(key in S.rows);
+      const b = S.bk[i], k = kindOf(b), key = `${i}:${k}`, c = cond(b, S.I), row = [nameOf(b), bulbWord(S.b, c), COND[c]], lv = lvOf(c, S.b);
+      const first = !(key in S.rows), was = first ? -1 : S.rows[key].lv;
       if (!S.demo && W) { const txt = row.join('|'); if (first) S.rows[key] = { n: W.tbl.add(row) - 1, txt }; else if (S.rows[key].txt !== txt) { W.tbl.set(S.rows[key].n, row); S.rows[key].txt = txt; } }
       else if (first) S.rows[key] = { n: -1, txt: '' };
+      S.rows[key].lv = Math.max(lv, was);
+      if (!first && lv > was && k.endsWith('L')) status(lv === 4 ? `小灯泡<b>亮了</b>！溶解的越多，能自由移动的离子越多，电流越大。${full(b) ? '' : '还有固体没溶解。'}` : lv === 3 ? '小灯泡<b>微微发亮</b>了：电流在变大。接着搅拌。' : '电流超过 1 mA 了（导电），可还不足以使灯泡发光。接着搅拌。');
       if (first) {
         status(k === 'water' ? '蒸馏水：小灯泡<b>不亮</b>。（严格地说，蒸馏水也能导电，只是导电能力非常弱，用这个装置测不出。）'
           : k.endsWith('S') ? `${NAME[k]}：接通电源，小灯泡<b>不亮</b>。`
-          : S.b >= 0.25 ? `${NAME[k]}：小灯泡<b>亮了</b>！${full(b) ? '' : '（还有固体没溶解）'}` : S.b >= 0.03 ? `小灯泡<b>微微发亮</b>……还有固体没溶解：搅拌，看它会不会更亮。` : `${NAME[k]}：有电流，可是溶液里的离子还很少，电流很小，<b>不足以使灯泡发光</b>。${full(b) ? '' : '还有固体没溶解：搅拌，看它会不会亮起来。'}`);
+          : S.b >= 0.25 ? `${NAME[k]}：小灯泡<b>亮了</b>！${full(b) ? '' : '（还有固体没溶解）'}` : S.b >= 0.03 ? `小灯泡<b>微微发亮</b>……还有固体没溶解：搅拌，看它会不会更亮。` : c === 'weak' ? `${NAME[k]}：固体刚开始溶解，溶液里能自由移动的离子极少，<b>导电很弱</b>（电流不到 1 mA，这套装置测不出），小灯泡不亮。搅拌，看看会怎样。`
+          : c === 'water' ? '固体还没开始溶解：和蒸馏水一样，小灯泡不亮。'
+          : `${NAME[k]}：有电流，可是溶液里的离子还很少，电流很小，<b>不足以使灯泡发光</b>。${full(b) ? '' : '还有固体没溶解：搅拌，看它会不会亮起来。'}`);
       }
       if (k === 'naS') done('naS'); if (k === 'kS') done('kS'); if (k === 'water') done('water');
       if (k === 'naL' && full(b)) done('naL'); if (k === 'kL' && full(b)) done('kL');
@@ -350,12 +362,16 @@ export default {
       const postAt = (q) => q.clone().applyEuler(head.rotation).add(head.position);
       wRed.update(SUP.clone().add(sup.term.pos), postAt(head.post.l), 0.045);
       wBlk.update(BULB.clone().add(bulb.term.b.clone().multiplyScalar(BULB_K)), postAt(head.post.r), 0.045);
+      { const c = live() ? cond(S.bk[S.at], S.I) : null, L = S.bShow, lamp = !live() ? '不亮' : L >= 0.25 ? '<b>亮</b>' : L >= 0.03 ? '<b>微微发亮</b>' : '不亮';
+        const state = !S.power ? '电源没有接通' : S.at < 0 ? '电极不在烧杯里：电路断开' : { none: '不导电', water: '不导电（严格地说导电能力非常弱，这套装置测不出）', weak: '导电很弱（这套装置测不出）', yes: '导电' }[c];
+        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">电路</span></div><div class="cc-more">${S.at >= 0 ? `电极在：${nameOf(S.bk[S.at])}<br>` : ''}${S.power && S.at >= 0 ? '导电情况：' : ''}${state}<br>小灯泡：${lamp}${live() ? `<br><small>电流约 ${amp(S.I)}（模型估算）</small>` : ''}</div></div>`)
+          .loc(group, BULB.x, 0.135, BULB.z).show(!bar.playing && !mic.isOpen); }
       bar.near(S.near); mic.update?.(dt);
     };
     sync();
 
     return {
-      group: root, pointer, card: false, toggles: ['steps'],
+      group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.37, d: 0.31, h: 0.13 },
       view: { elev: 26, azim: -4, lookY: 0.42, frameMargin: 1.04 },
       mount(ui) {

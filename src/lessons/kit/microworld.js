@@ -93,23 +93,13 @@ const MOL = {
     return { atoms, bonds, label: '品红', ink: '#c2185b', glow: 0xff2a8a, glowBase: 0.45, glowSize: 9 };
   })(),
 };
-// 二氧化硫漂白品红（示意）：课本只说“与某些有色物质生成不稳定的无色物质”，没有写分子机理。
-// 品红画成缩小的三苯环（和 Dye 一个样，缩小一半好放进底座）；无色物质画成 SO₂ 的硫挂在中心碳上（示意）。
+// 二氧化硫漂白品红（符号示意）：课本只说“与某些有色物质生成不稳定的无色物质”，没有写产物的结构（实际产物里含硫部分怎么连在品红上，
+// 文献说法是磺酸根连在中心碳上并有质子化形态，这里不画）。所以品红画成一个粉红色的大球（符号，不是结构），
+// 无色物质 = 变成无色的大球旁边贴着一个 SO₂（不画两者之间的键）；分解时 SO₂ 离开、大球变回粉红。SO₂ 本身的结构是真的。
+EL.Pk = [0xd9367e, 1.05]; EL.Pw = [0xe6ebf0, 1.05];
 MOL.SO2 = { atoms: [['S', 0, 0, 0], ['O', -1.234, 0.72, 0], ['O', 1.234, 0.72, 0]], bonds: [[0, 1, 2], [0, 2, 2]], label: 'SO₂', ink: '#8a7a10' };
-MOL.DyeS = (() => {
-  const atoms = [['C', 0, 0, 0, 0.5]], bonds = [];
-  for (let k = 0; k < 3; k++) {
-    const a = (k * 2 * Math.PI) / 3, dx = Math.cos(a), dy = Math.sin(a), cx = dx * 1.45, cy = dy * 1.45, b0 = atoms.length;
-    for (let j = 0; j < 6; j++) { const t = a + Math.PI + (j * Math.PI) / 3; atoms.push(['C', cx + Math.cos(t) * 0.7, cy + Math.sin(t) * 0.7, 0, 0.5]); bonds.push([b0 + j, b0 + ((j + 1) % 6), j % 2 ? 1 : 2]); }
-    bonds.push([0, b0, 1]);
-    atoms.push(['N', dx * 2.85, dy * 2.85, 0, 0.5]); bonds.push([b0 + 3, atoms.length - 1, 1]);
-  }
-  return { atoms, bonds, label: '品红', ink: '#c2185b', glow: 0xff2a8a, glowBase: 0.5, glowSize: 5.5 };
-})();
-MOL.DyeSO2 = (() => {
-  const n = MOL.DyeS.atoms.length;
-  return { atoms: [...MOL.DyeS.atoms, ['S', 0, 0, 1.6], ['O', -1.1, 0.6, 2.3], ['O', 1.1, 0.6, 2.3]], bonds: [...MOL.DyeS.bonds, [0, n, 1], [n, n + 1, 2], [n, n + 2, 2]], label: '无色物质', ink: '#5b6676' };
-})();
+MOL.DyeS = { atoms: [['Pk', 0, 0, 0]], bonds: [], labelY: 1.9, label: '品红', ink: '#c2185b', glow: 0xff2a8a, glowBase: 0.5, glowSize: 4.2 };
+MOL.DyeSO2 = { atoms: [['Pw', 0, 0, 0], ['S', 0, 0, 1.75], ['O', -1.234, 0.72, 1.75], ['O', 1.234, 0.72, 1.75]], bonds: [[1, 2, 2], [1, 3, 2]], labelY: 1.9, label: '无色物质', ink: '#5b6676' };
 // 氯化氢分子（H₂ 在 Cl₂ 中燃烧，h2cl2）：H–Cl 键长 1.27 Å
 MOL.HCl = { atoms: [['H', -0.64, 0, 0], ['Cl', 0.64, 0, 0]], bonds: [[0, 1, 1]], label: 'HCl', ink: '#2e6f55' };
 // 硫酸分子（浓硫酸与铜，cuh2so4）：S 在四面体中心，两个 S=O（1.42 Å）、两个 S–OH（1.57 Å），O–H 0.97 Å、S–O–H 约 108°
@@ -1435,7 +1425,7 @@ export function naohScene() {
 
 // ================= 场景：二氧化硫使品红褪色，加热又恢复（示意） =================
 // st：{ nd: 滴进去的品红（0~3 个画出来）, f: 还是红色的品红占多少（0~1）, so2: 溶液里的 SO₂ 相对初始（0~1）, T: 温度, liquid: 液体颜色 }
-// 红色的品红分子碰上 SO₂ 生成无色物质；无色物质受热分解，品红恢复；SO₂ 受热从溶液里跑出去。个数只是示意，不是实际比例。
+// 品红（符号）碰上 SO₂ 生成无色物质；无色物质受热分解，品红恢复、放出 SO₂；SO₂ 受热从溶液里跑出去。个数只是示意，不是实际比例。
 export function so2bleachScene() {
   const FILM = 6.2, N_SO2 = 6, N_W = 4, DN = MOL.DyeS.atoms.length;
   const FORM = { in: ['DyeS', 'SO2'], out: ['DyeSO2'], host: 0, near: [null, [0, 0, 3.6]], place: [[0, 0, 0]], map: [...Array.from({ length: DN }, (_, i) => [0, i]), [1, 0], [1, 1], [1, 2]], approach: 1.8, dur: 2.2, burst: [0xffd0e4, 0xe8eef2] };
@@ -1476,12 +1466,12 @@ export function so2bleachScene() {
       const ws = c.free('H2O'); if (ws.length < N_W && Math.random() < dt * 2) c.add('H2O', c.inLiquid(), { fadeIn: true, dimK: 0 });
     },
     text(c, st) {
-      const eq = `${f('DyeS')} + ${f('SO2')} ⇌ ${f('DyeSO2')}`;
+      const eq = `${f('DyeS')} + ${f('SO2')} ⇄ ${f('DyeSO2')}<span style="font-size:0.42em;margin-left:0.6em;color:#6b7280">符号示意，不是化学方程式</span>`;
       const nF = nEv(c, FORM), nB = nEv(c, BREAK), n = nDye(st), bound = c.count('DyeSO2');
-      const cap = nF ? `${f('SO2')} 和${f('DyeS')}分子结合，生成<b>无色物质</b>（示意：课本只说“生成不稳定的无色物质”，没有写分子怎么连）`
-        : nB ? `无色物质不稳定，<b>分解</b>了：${f('DyeS')}分子恢复（红色）`
+      const cap = nF ? `${f('SO2')} 和${f('DyeS')}结合，生成不稳定的<b>无色物质</b>（大球只是品红的符号；课本没有写它们怎么连，这里不画）`
+        : nB ? `无色物质不稳定，<b>分解</b>了：${f('DyeS')}恢复（红色），${f('SO2')} 又回到溶液里${st.T > 55 ? '，热了还会从液面跑出去' : ''}`
         : !n ? `溶液里是 ${f('SO2')} 分子和水分子（SO₂ 溶于水，一部分与水反应生成亚硫酸，可逆）。还没有品红`
-        : st.T > 55 && st.so2 < 0.9 ? `热了：${f('SO2')} 一个个从液面跑出去（有毒，所以要通风），无色物质容易分解，${f('DyeS')}（红色）越来越多`
+        : st.T > 55 && st.so2 < 0.9 ? `热了：无色物质容易分解，${f('DyeS')}（红色）越来越多；${f('SO2')} 一个个从液面跑出去（有毒，所以要通风）`
         : bound >= n ? `${f('DyeS')}都生成了无色物质：溶液是无色的` : `${f('DyeS')}（红色）还没有变成无色物质：溶液是红色的`;
       return { eq, cap };
     },
