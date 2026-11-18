@@ -1,124 +1,171 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><title>不等式两边乘负数：效果原型</title>
-<style>html,body{margin:0;height:100%;background:#c49a6c;overflow:hidden}canvas{display:block}</style></head>
-<body><script type="module">
-// 效果原型（不是活页）：七下第 124–125 页。学生在课本的填空里先放 ＞ 或 ＜，数轴立起来照着算：
-// 上面一把尺是原来的数，下面一把是乘完的数；每个数拉一根线到它乘完的位置。乘正数线是平行的，乘负数所有线穿过同一点、左右调了个。
+<style>html,body{margin:0;height:100%;background:#c99d6e;overflow:hidden}canvas{display:block;touch-action:none}
+#tip{position:fixed;left:0;top:0;pointer-events:none;font:600 15px "Kaiti SC","STKaiti",serif;color:#2b3245;background:#fdfaf1;padding:5px 9px;border-radius:3px;box-shadow:0 2px 8px rgba(0,0,0,.18);display:none}</style></head>
+<body><div id="tip"></div><script type="module">
+// 效果原型（还不是活页）：七下第 124–125 页，“6×5＿2×5，6×(−5)＿2×(−5)”。
+// 课本上的数轴从一张活页上立起来（原来的数），下面平放一把尺（乘以后的数），每个数一根线连到它乘完落下的地方。
+// 学生只做一件事：拖下面那颗品红珠子（6 乘完落的地方）左右走，乘的数跟着变；所有的数一起动。
+// 乘的数一过 0：所有的线先收到 0 一点，再交叉翻过去，6 落到 2 的左边，“＞”变“＜”。
+// 落在 ×5、×(−5) 时课本那一行亮起来，空里写上符号；×0 时，第 125 页便签上那句“乘 0 呢”亮起来；看过 ×(−5)，性质 3 亮起来。
 import * as THREE from 'three';
-const W = innerWidth, H = innerHeight;
-const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(W, H); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
-renderer.shadowMap.enabled = true; renderer.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(renderer.domElement);
-const scene = new THREE.Scene(); scene.background = new THREE.Color('#c99d6e');
-const cam = new THREE.PerspectiveCamera(32, W / H, 0.01, 10);
-cam.position.set(-0.12, 0.36, 0.42); cam.lookAt(-0.13, 0.035, 0.0);
-scene.add(new THREE.HemisphereLight(0xfff8ee, 0xa58a68, 1.55));
-const sun = new THREE.DirectionalLight(0xfff2de, 1.45); sun.position.set(-0.7, 1.4, 0.8); sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -0.5, right: 0.5, top: 0.5, bottom: -0.5, near: 0.1, far: 3 }); scene.add(sun);
-const CYAN = 0x1b8fc2, MAG = 0xd12a74, GOLD = 0xe2a21c, INK = 0x262c3c, PENCIL = 0x9a9ea8;
-const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-// ---- 书：两页 ----
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#c99d6e');
+const cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.01, 10);
+const camQ = (new URLSearchParams(location.search).get('cam') || '-0.027,0.946,0.96,-0.01,0,-0.02,18').split(',').map(Number);
+cam.position.set(camQ[0], camQ[1], camQ[2]); cam.lookAt(camQ[3], camQ[4], camQ[5]); if (camQ[6]) { cam.fov = camQ[6]; cam.updateProjectionMatrix(); }
+scene.add(new THREE.HemisphereLight(0xfff8ee, 0xa58a68, 1.5));
+const sun = new THREE.DirectionalLight(0xfff2de, 1.5); sun.position.set(-0.25, 1.6, 0.3); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -0.45, right: 0.45, top: 0.45, bottom: -0.45, near: 0.1, far: 3 }); sun.shadow.bias = -0.0004; scene.add(sun);
+
+const C = { cyan: '#1b8fc2', mag: '#d12a74', gold: '#b07a0a', ink: '#262c3c', pencil: '#8f95a3' };
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const num = (v) => { const r = Math.round(v * 10) / 10, t = Math.abs(r).toString(); return r < 0 ? '−' + t : t; };
+const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+const NUMF = '"Times New Roman","Songti SC",serif';
+
+// ---- 书：第 124、125 页 ----
 const PW = 0.3, s = PW / 521.55, PH = 736.95 * s, GAP = 0.004;
 const desk = new THREE.Mesh(new THREE.PlaneGeometry(4, 4).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xc99d6e })); desk.position.y = -0.026; desk.receiveShadow = true; scene.add(desk);
 const loader = new THREE.TextureLoader();
-for (const [i, cx] of [[130, -PW / 2 - GAP], [131, PW / 2 + GAP]]) {
+for (const [i, side] of [[130, -1], [131, 1]]) {
   const t = loader.load(`/books/shuxue-7x/hi/${i}.png`); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  const pg = new THREE.Mesh(new THREE.PlaneGeometry(PW, PH).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: t })); pg.position.set(cx, 0, 0); pg.receiveShadow = true; scene.add(pg);
-  const block = new THREE.Mesh(new THREE.BoxGeometry(PW + 0.002, 0.024, PH + 0.002), new THREE.MeshLambertMaterial({ color: 0xf1ead8 })); block.position.set(cx, -0.0125, 0); block.castShadow = block.receiveShadow = true; scene.add(block);
+  const pg = new THREE.Mesh(new THREE.PlaneGeometry(PW, PH).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: t })); pg.position.set(side * (PW / 2 + GAP), 0, 0); pg.receiveShadow = true; scene.add(pg);
+  const block = new THREE.Mesh(new THREE.BoxGeometry(PW + 0.002, 0.024, PH + 0.002), new THREE.MeshLambertMaterial({ color: 0xf1ead8 })); block.position.set(side * (PW / 2 + GAP), -0.0125, 0); block.castShadow = block.receiveShadow = true; scene.add(block);
 }
-const L = (px, py, y = 0.0006) => V(-PW / 2 - GAP + (px - 260.78) * s, y, (py - 368.48) * s);          // 左页（第 124 页）上的点：PDF 里的坐标（点）
-const R = (px, py, y = 0.0006) => V(PW / 2 + GAP + (px - 260.78) * s, y, (py - 368.48) * s);           // 右页（第 125 页）
+const L = (px, py, y = 0.0006) => V(-PW / 2 - GAP + (px - 260.78) * s, y, (py - 368.48) * s);
+const R = (px, py, y = 0.0006) => V(PW / 2 + GAP + (px - 260.78) * s, y, (py - 368.48) * s);
+const glow = (w, h, p) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w * s, h * s).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf4c24a, transparent: true, opacity: 0, depthWrite: false })); m.position.copy(p); scene.add(m); return m; };
+const G = { rowP: glow(106, 22, L(150, 593)), rowN: glow(148, 22, L(174, 614)), note0: glow(134, 101, R(404, 97)), rule3: glow(418, 47, R(271, 259)) };
+const stamp = (c, p) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.013, 0.013).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, map: canvasTex(128, 128, (g) => { g.fillStyle = C.ink; g.font = '700 104px "Kaiti SC","STKaiti",serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(c, 64, 70); }) })); m.position.copy(p); m.userData.on = 0; scene.add(m); return m; };
+const ST = { 5: stamp('＞', L(147.4, 593.5, 0.0009)), [-5]: stamp('＜', L(171.2, 614.5, 0.0009)) };
 
-// ---- 小工具 ----
-const tube = (pts, rad, color, op = 1) => { const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 8, rad, 8, false), new THREE.MeshStandardMaterial({ color, roughness: 0.5, transparent: op < 1, opacity: op })); m.castShadow = true; scene.add(m); return m; };
-const bead = (color, r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), new THREE.MeshStandardMaterial({ color, roughness: 0.35 })); m.castShadow = true; scene.add(m); return m; };
-const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
-const label = (txt, h, color = '#262c3c', bg = 'rgba(253,250,241,0.92)') => {
-  const f = `600 64px "Kaiti SC","STKaiti",serif`, g0 = document.createElement('canvas').getContext('2d'); g0.font = f; const w = g0.measureText(txt).width + 26;
-  const t = canvasTex(w, 90, (g, W2, H2) => { if (bg) { g.fillStyle = bg; g.fillRect(0, 0, W2, H2); } g.font = f; g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(txt, 13, H2 / 2 + 2); });
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); sp.scale.set((h * w) / 90, h, 1); sp.renderOrder = 9; scene.add(sp); return sp;
-};
-const num = (v) => (v < 0 ? `−${-v}` : `${v}`);
+// ---- 活页：平放在第 124 页上半，数轴从它上面立起来 ----
+const sheet = new THREE.Mesh(new THREE.BoxGeometry(0.284, 0.0012, 0.215), new THREE.MeshLambertMaterial({ color: 0xf8f4e8 })); sheet.position.set(-PW / 2 - GAP, 0.0008, -0.0975); sheet.castShadow = sheet.receiveShadow = true; scene.add(sheet);
+const u = 0.017, RX = -PW / 2 - GAP, RZ = -0.07, HT = 0.12, TOPS = 0.0014 + 0.003;
+const RW = 0.29, RD = 0.034, CW = 2400, CH = 282, BASE = 34, cx = (n) => CW / 2 + (n * u * CW) / RW;
+const side = new THREE.MeshLambertMaterial({ color: 0xe6dcc2 });
+// 上面那把：原来的数，竖着立，读起来正对人
+const boardMat = new THREE.MeshLambertMaterial({ map: canvasTex(CW, CH, (g) => {
+  g.fillStyle = '#fbf6e8'; g.fillRect(0, 0, CW, CH); const b = CH - BASE;
+  g.strokeStyle = C.ink; g.lineWidth = 4; g.beginPath(); g.moveTo(0, b); g.lineTo(CW, b); g.stroke();
+  g.font = `600 100px ${NUMF}`; g.textAlign = 'center';
+  for (let n = -8; n <= 8; n++) { const x = cx(n); g.beginPath(); g.moveTo(x, b); g.lineTo(x, b - 40); g.stroke(); g.fillStyle = n === 6 ? C.mag : n === 2 ? C.cyan : C.ink; g.fillText(num(n), x, b - 62); }
+}) });
+const board = new THREE.Mesh(new THREE.BoxGeometry(RW, RD, 0.003), [side, side, side, side, boardMat, side]); board.castShadow = true; scene.add(board);
+const posts = [-1, 1].map((sg) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 1, 10), new THREE.MeshStandardMaterial({ color: 0xb59a6e, roughness: 0.7 })); p.position.set(RX + sg * 0.149, 0, RZ - 0.004); p.castShadow = true; scene.add(p); return p; });
+// 下面那把：乘以后的数，平放在活页上（字往纵向拉长一点，斜着看正好）
+const rulerMat = new THREE.MeshLambertMaterial({ map: canvasTex(CW, CH, (g) => {
+  g.fillStyle = '#fbf6e8'; g.fillRect(0, 0, CW, CH);
+  g.strokeStyle = C.ink; g.fillStyle = C.ink; g.lineWidth = 4; g.beginPath(); g.moveTo(0, BASE); g.lineTo(CW, BASE); g.stroke();
+  g.font = `600 96px ${NUMF}`; g.textAlign = 'center';
+  for (let n = -8; n <= 8; n++) { const x = cx(n), major = n % 2 === 0; g.beginPath(); g.moveTo(x, BASE); g.lineTo(x, BASE + (major ? 44 : 26)); g.stroke(); if (major) { g.save(); g.translate(x, 232); g.scale(1, 1.35); g.fillText(num(5 * n), 0, 0); g.restore(); } }
+}) });
+const ruler = new THREE.Mesh(new THREE.BoxGeometry(RW, 0.003, RD), [side, side, rulerMat, side, side, side]); ruler.position.set(RX, TOPS - 0.0015, RZ - (BASE / CH) * RD + RD / 2); ruler.castShadow = ruler.receiveShadow = true; scene.add(ruler);
 
-// ---- 学生的想法：课本填空旁边的两枚金色小纸片 ＞ ＜ ----
-const chipTex = (c) => canvasTex(128, 128, (g) => { g.fillStyle = '#f4c24a'; g.fillRect(0, 0, 128, 128); g.fillStyle = '#5a3c06'; g.font = '700 96px "Times New Roman",serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(c, 64, 70); });
-const chip = (c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.0095, 0.002, 0.0095), [0, 0, 0, 0, 0, 0].map((_, i) => (i === 2 ? new THREE.MeshStandardMaterial({ map: chipTex(c), roughness: 0.5 }) : new THREE.MeshStandardMaterial({ color: 0xd99a1e, roughness: 0.5 })))); m.castShadow = true; scene.add(m); m.userData.c = c; return m; };
-// 两行：6×5 ___ 2×5（乘正数），6×(−5) ___ 2×(−5)（乘负数）；空在 PDF 坐标里的位置
-const ROWS = { pos: { k: 5, blank: [150, 593], chips: [[141, 593], [159, 593]] }, neg: { k: -5, blank: [181, 614], chips: [[172, 614], [190, 614]] } };
-const chips = [];
-for (const [row, r] of Object.entries(ROWS)) ['＞', '＜'].forEach((c, i) => { const m = chip(c); m.position.copy(L(r.chips[i][0], r.chips[i][1], 0.0016)); m.userData.row = row; m.userData.home = m.position.clone(); chips.push(m); });
+// ---- 所有的数：上面一颗、下面一颗、中间一根线 ----
+const NUMS = [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6];
+const colorOf = (n) => (n === 6 ? C.mag : n === 2 ? C.cyan : n === 0 ? C.ink : C.pencil);
+const ball = (color, r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 18), new THREE.MeshStandardMaterial({ color, roughness: 0.32 })); m.castShadow = true; m.userData.r = r; scene.add(m); return m; };
+const hot = (n) => n === 6 || n === 2;
+const topB = NUMS.map((n) => ball(colorOf(n), hot(n) ? 0.0042 : 0.0024));
+const botB = NUMS.map((n) => ball(colorOf(n), hot(n) ? 0.0058 : 0.0026));
+const cyl = new THREE.CylinderGeometry(1, 1, 1, 10);
+const threads = NUMS.map((n) => { const m = new THREE.Mesh(cyl, new THREE.MeshStandardMaterial({ color: colorOf(n), roughness: 0.6, transparent: !hot(n) && n !== 0, opacity: hot(n) || n === 0 ? 1 : 0.75 })); m.userData.r = hot(n) ? 0.0013 : n === 0 ? 0.0008 : 0.00055; m.castShadow = true; scene.add(m); return m; });
+const Y_UP = V(0, 1, 0);
+const setThread = (m, a, b) => { const d = b.clone().sub(a), len = d.length(); m.position.copy(a).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(Y_UP, d.divideScalar(len || 1)); m.scale.set(m.userData.r, len, m.userData.r); };
+const pivot = new THREE.Mesh(new THREE.TorusGeometry(0.0055, 0.0012, 12, 32), new THREE.MeshStandardMaterial({ color: C.ink, roughness: 0.4 })); scene.add(pivot);
+// 抓手：比珠子大一圈的看不见的球，好抓
+const pickMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+const pick = { 6: new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 8), pickMat), 2: new THREE.Mesh(new THREE.SphereGeometry(0.011, 12, 8), pickMat) };
+pick[6].userData.n = 6; pick[2].userData.n = 2; scene.add(pick[6], pick[2]);
+const arrows = [-1, 1].map((sg) => { const m = new THREE.Mesh(new THREE.ConeGeometry(0.0032, 0.0075, 18).rotateZ(-sg * Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xe0a526, roughness: 0.35, transparent: true })); m.userData.sg = sg; m.castShadow = true; scene.add(m); return m; });
 
-// ---- 两把尺 ----
-const u = 0.017, HT = 0.12, RX = -PW / 2 - GAP, RZ = -0.04;          // 一个单位多长；上面那把尺多高；尺子放在左页哪儿
-const rulerTex = (fmt) => canvasTex(2400, 150, (g, Wc, Hc) => {
-  g.fillStyle = '#fbf6e8'; g.fillRect(0, 0, Wc, Hc); g.strokeStyle = '#262c3c'; g.fillStyle = '#262c3c'; g.lineWidth = 3; g.font = '600 48px "Times New Roman",serif'; g.textAlign = 'center';
-  g.beginPath(); g.moveTo(0, 38); g.lineTo(Wc, 38); g.stroke();
-  for (let n = -8; n <= 8; n++) { const x = Wc / 2 + (n * u * Wc) / 0.29; g.beginPath(); g.moveTo(x, 20); g.lineTo(x, 56); g.stroke(); if (fmt(n) != null) g.fillText(fmt(n), x, 108); }
-});
-const ruler = (y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.29, 0.003, 0.034), new THREE.MeshLambertMaterial({ color: 0xe9e0c8 })); const top = new THREE.MeshLambertMaterial({ map: rulerTex(num) }); m.material = [m.material, m.material, top, m.material, m.material, m.material]; m.position.set(RX, y, RZ); m.castShadow = m.receiveShadow = true; scene.add(m); return { m, top }; };
-const sheet = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.0012, 0.13), new THREE.MeshLambertMaterial({ color: 0xf6f0e0 })); sheet.position.set(RX, 0.0008, RZ - 0.01); sheet.receiveShadow = true; scene.add(sheet);
-const topR = ruler(HT), botR = ruler(0.0035);
-const posts = [-1, 1].map((sg) => tube([V(RX + sg * 0.14, 0, RZ - 0.012), V(RX + sg * 0.14, HT / 2, RZ - 0.012), V(RX + sg * 0.14, HT, RZ - 0.012)], 0.0016, 0xb59a6e));
-const NUMS = [-6, -4, -2, 0, 2, 4, 6];
-const colorOf = (n) => (n === 2 ? CYAN : n === 6 ? MAG : PENCIL);
-const topBeads = NUMS.map((n) => { const b = bead(colorOf(n), n === 2 || n === 6 ? 0.0052 : 0.003); return b; });
-const botBeads = NUMS.map((n) => bead(colorOf(n), n === 2 || n === 6 ? 0.0052 : 0.003));
-let threads = [];
-const pivot = new THREE.Mesh(new THREE.TorusGeometry(0.0062, 0.0016, 10, 28), new THREE.MeshStandardMaterial({ color: INK, roughness: 0.4 })); scene.add(pivot);
-const guessChip = chip('＞'); guessChip.scale.setScalar(1.25);
-const lblTop = label('6 ＞ 2', 0.016), lblK = label('×(−5)', 0.016), lblReal = label('', 0.014), lblGuess = label('你填的', 0.012, '#8a5a06', null);
-const hi = new THREE.Mesh(new THREE.PlaneGeometry((478 - 66) * s, (283 - 233) * s).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xf4c24a, transparent: true, opacity: 0, depthWrite: false })); hi.position.copy(R(272, 258, 0.0008)); scene.add(hi);
+// ---- 字：珠子上的数值、活页上那一行 ----
+const texCache = new Map();
+const tagTex = (txt, color) => { const key = txt + color; if (!texCache.has(key)) { const f = `700 120px ${NUMF}`, g0 = document.createElement('canvas').getContext('2d'); g0.font = f; const w = Math.ceil(g0.measureText(txt).width) + 40; texCache.set(key, [canvasTex(w, 160, (g) => { g.font = f; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = 16; g.strokeStyle = 'rgba(251,247,236,0.96)'; g.strokeText(txt, w / 2, 86); g.fillStyle = color; g.fillText(txt, w / 2, 86); }), w / 160]); } return texCache.get(key); };
+const tag = (h) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false })); sp.renderOrder = 9; sp.userData.h = h; scene.add(sp); return sp; };
+const setTag = (sp, txt, color) => { if (sp.userData.txt === txt + color) return; sp.userData.txt = txt + color; const [t, a] = tagTex(txt, color); sp.material.map = t; sp.material.needsUpdate = true; sp.scale.set(sp.userData.h * a, sp.userData.h, 1); };
+const tag6 = tag(0.016), tag2 = tag(0.016);
+const fmtK = (k) => (k < 0 ? `(${num(k)})` : num(k));
+const rowCache = new Map();
+const rowTex = (k) => { const key = num(k); if (!rowCache.has(key)) rowCache.set(key, canvasTex(2000, 300, (g, w) => {
+  const kk = fmtK(k), sign = k > 0 ? '＞' : k < 0 ? '＜' : '＝';
+  const segs = [['6', C.mag], ['×', C.ink], [kk, C.gold], ['  ', C.ink], [sign, C.ink], ['  ', C.ink], ['2', C.cyan], ['×', C.ink], [kk, C.gold]];
+  g.font = `600 150px ${NUMF}`; const tw = segs.reduce((a, [t]) => a + g.measureText(t).width, 0); let x = (w - tw) / 2;
+  g.save(); g.translate(0, 200); g.scale(1, 1.35);
+  for (const [t, col] of segs) { g.fillStyle = col; g.font = t === sign ? `700 170px ${NUMF}` : `600 150px ${NUMF}`; g.fillText(t, x, 0); x += g.measureText(t).width; }
+  g.restore();
+})); return rowCache.get(key); };
+const row = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.03).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false })); row.position.set(RX, 0.0016, RZ + 0.056); scene.add(row);
 
 // ---- 状态 ----
-const S = { row: null, guess: {}, rise: 0, draw: 0, seen: {}, t: 0 };
+const S = { k: 5, kT: 5, rise: 0, clock: 0, touched: false, drag: null, off: 0, seen: {}, demoAt: 1.6 };
+const ease = (x) => (x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2);
+const snapK = (k) => { k = Math.max(-6, Math.min(6, k)); if (Math.abs(Math.abs(k) - 5) < 0.3) return Math.sign(k) * 5; const r = Math.round(k); if (Math.abs(k - r) < 0.15) return r === 0 ? 0 : r; return Math.round(k * 10) / 10; };
+const xOf = (n, k) => RX + (n * k * u) / 5; // 下面那把尺：一格是 5
 function layout() {
-  const k = S.row ? ROWS[S.row]?.k ?? 0 : 0, e = S.rise, y = HT * e;
-  const show = e > 0.001;
-  topR.m.visible = botR.m.visible = show; posts.forEach((p) => (p.visible = show && e > 0.98));
-  topR.m.position.y = 0.0045 + (HT - 0.0045) * e; botR.m.position.y = 0.002;
-  topR.m.scale.x = botR.m.scale.x = Math.max(0.001, Math.min(1, e * 1.4));
-  if (botR.k !== k) { botR.k = k; botR.top.map = rulerTex((n) => (k === 0 ? (n === 0 ? '0' : null) : num(Math.abs(k) * n))); botR.top.needsUpdate = true; }
-  threads.forEach((m) => { scene.remove(m); m.geometry.dispose(); }); threads = [];
+  const e = ease(Math.min(1, S.rise)), yTop = TOPS + 0.003 + (HT - TOPS - 0.003) * e, k = S.k;
+  board.position.set(RX, yTop - (BASE / CH) * RD + RD / 2, RZ - 0.003);
+  for (const p of posts) { const top = yTop - (BASE / CH) * RD + RD; p.scale.y = top - 0.0014; p.position.y = 0.0014 + p.scale.y / 2; }
   NUMS.forEach((n, i) => {
-    const a = V(RX + n * u, topR.m.position.y + 0.004, RZ), b = V(RX + (k === 0 ? 0 : Math.sign(k) * n * u), 0.006, RZ);
-    topBeads[i].visible = show; topBeads[i].position.copy(a);
-    const d = S.draw, end = a.clone().lerp(b, d);
-    botBeads[i].visible = show && d > 0.98; botBeads[i].position.copy(b);
-    if (show && d > 0.01) threads.push(tube([a, a.clone().lerp(end, 0.5), end], n === 2 || n === 6 ? 0.0016 : 0.0009, colorOf(n), n === 2 || n === 6 ? 1 : 0.85));
+    const a = V(RX + n * u, yTop, RZ), b = V(xOf(n, k), TOPS + botB[i].userData.r * 0.7, RZ);
+    topB[i].position.copy(a); botB[i].position.copy(b);
+    setThread(threads[i], a, V(b.x, TOPS + 0.0015, RZ)); threads[i].visible = yTop - TOPS > 0.004;
   });
-  pivot.visible = show && S.draw > 0.98 && k < 0; pivot.position.set(RX, (topR.m.position.y + 0.006) / 2, RZ); pivot.rotation.y = 0;
-  lblTop.visible = show && e > 0.98; lblTop.position.set(RX + 0.12, HT + 0.022, RZ);
-  lblK.visible = show && S.draw > 0.98; lblK.position.set(RX - 0.17, 0.02, RZ + 0.01);
-  // 乘完以后：学生填的放在两个结果中间，旁边是尺子上实际的大小
-  const g = S.row && S.guess[S.row];
-  const a6 = k * 6, a2 = k * 2, real = k === 0 ? '＝' : a6 > a2 ? '＞' : '＜';
-  guessChip.visible = !!g && S.draw > 0.98; if (g && guessChip.userData.g !== g) { guessChip.userData.g = g; guessChip.material[2].map = chipTex(g); guessChip.material[2].needsUpdate = true; }
-  guessChip.position.set(RX + (Math.sign(k) * 4) * u, 0.006, RZ + 0.03);
-  lblGuess.visible = guessChip.visible; lblGuess.position.copy(guessChip.position).add(V(0, 0.016, 0));
-  lblReal.visible = !!g && S.draw > 0.98;
-  setLabel(lblReal, `尺子上：${num(a6)} 在 ${num(a2)} ${a6 < a2 ? '左边' : a6 > a2 ? '右边' : '同一点'}，${num(a6)} ${real} ${num(a2)}`, '#262c3c'); lblReal.position.set(RX + 0.07, 0.03, RZ + 0.065);
-  setLabel(lblK, k === 0 ? '×0' : `×(${num(k)})`.replace('(5)', '5'), '#262c3c');
-  hi.material.opacity = S.seen.pos && S.seen.neg ? 0.38 : 0;
+  pick[6].position.copy(botB[NUMS.indexOf(6)].position); pick[2].position.copy(botB[NUMS.indexOf(2)].position);
+  // 所有线都穿过的那一点：乘负数时在两把尺中间，乘 0 时落在下面的 0 上
+  const sStar = 5 / (5 - k); pivot.visible = e > 0.99 && k < 0.05; pivot.position.set(RX, yTop - Math.min(1, sStar) * (yTop - TOPS - 0.0015), RZ + 0.0005);
+  const kT = S.kT;
+  setTag(tag6, num(6 * kT), C.mag); setTag(tag2, num(2 * kT), C.cyan);
+  tag6.position.copy(botB[NUMS.indexOf(6)].position).add(V(-0.006 - tag6.scale.x / 2, 0.012, 0)); tag2.position.copy(botB[NUMS.indexOf(2)].position).add(V(-0.006 - tag2.scale.x / 2, 0.012, 0));
+  tag6.visible = tag2.visible = e > 0.99;
+  const b6 = botB[NUMS.indexOf(6)].position, wob = 0.0025 * Math.sin(S.clock * 4) ** 2;
+  for (const a of arrows) { a.position.set(b6.x + a.userData.sg * (0.0135 + wob), b6.y, b6.z + 0.001); a.material.opacity = S.arrowFade ?? 1; a.visible = e > 0.99 && (S.arrowFade ?? 1) > 0.01; }
+  if (row.userData.k !== kT) { row.userData.k = kT; row.material.map = rowTex(kT); row.material.needsUpdate = true; }
+  row.material.opacity = e;
 }
-const labelCache = new Map();
-function setLabel(sp, txt, color) { if (sp.userData.txt === txt) return; sp.userData.txt = txt; const n = label(txt, sp.scale.y, color); sp.material.map = n.material.map; sp.scale.copy(n.scale); scene.remove(n); }
-function pick(row, c) {
-  S.guess[row] = c; S.row = row;
-  const ch = chips.find((m) => m.userData.row === row && m.userData.c === c), r = ROWS[row];
-  chips.filter((m) => m.userData.row === row).forEach((m) => { m.position.copy(m.userData.home); m.visible = m === ch; });
-  ch.position.copy(L(r.blank[0], r.blank[1], 0.0016)); ch.scale.setScalar(1.2);
-  S.draw = 0; S.anim = true;
+function glows(dt) {
+  const to = (m, v, rate = 6) => { m.material.opacity += (v - m.material.opacity) * Math.min(1, dt * rate); };
+  const settled = S.rise >= 1;
+  to(G.rowP, settled && (S.kT === 5 || !S.touched) ? 0.38 : 0); to(G.rowN, settled && S.kT === -5 ? 0.38 : 0);
+  to(G.note0, settled && S.kT === 0 ? 0.42 : 0); to(G.rule3, S.seen[-5] ? 0.38 : 0, 2.5);
+  for (const k of [5, -5]) { const m = ST[k]; if (S.seen[k]) m.userData.on = Math.min(1, m.userData.on + dt / 0.25); const p = m.userData.on; m.material.opacity = p; m.scale.setScalar(1 + 0.6 * (1 - p) ** 2); }
 }
-window.__go = (row, c) => pick(row, c);
-window.__jump = (row, c, seen = []) => { pick(row, c); S.rise = 1; S.draw = 1; S.anim = false; for (const x of seen) S.seen[x] = true; S.seen[row] = true; layout(); renderer.render(scene, cam); };
-// 鼠标：点金色小纸片
-const ray = new THREE.Raycaster(), mp = new THREE.Vector2();
-addEventListener('pointerdown', (e) => { mp.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(mp, cam); const h = ray.intersectObjects(chips)[0]; if (h) pick(h.object.userData.row, h.object.userData.c); });
+
+// ---- 交互：只有一件事——左右拖下面那颗品红（或青）珠子 ----
+const tip = document.getElementById('tip');
+const ray = new THREE.Raycaster(), mp = new THREE.Vector2(), hp = new THREE.Vector3(), plane = new THREE.Plane(V(0, 1, 0), -TOPS);
+const aim = (e) => { mp.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(mp, cam); };
+const hitOf = (e) => { aim(e); const h = ray.intersectObjects([pick[6], pick[2]])[0]; return h && h.object.userData.n; };
+const planeX = (e) => { aim(e); return ray.ray.intersectPlane(plane, hp) ? hp.x : null; };
+addEventListener('pointerdown', (e) => { const n = hitOf(e); if (!n || S.rise < 1) return; S.drag = n; S.touched = true; const x = planeX(e); S.off = x == null ? 0 : xOf(n, S.k) - x; document.body.style.cursor = 'grabbing'; tip.style.display = 'none'; });
+addEventListener('pointermove', (e) => {
+  if (S.drag) { const x = planeX(e); if (x != null) S.kT = snapK((5 * (x + S.off - RX)) / (S.drag * u)); return; }
+  const n = hitOf(e); document.body.style.cursor = n ? 'grab' : '';
+  tip.style.display = n ? 'block' : 'none'; tip.textContent = '左右拖：换一个乘的数'; tip.style.left = e.clientX + 16 + 'px'; tip.style.top = e.clientY + 12 + 'px';
+});
+addEventListener('pointerup', () => { if (S.drag) { S.drag = null; document.body.style.cursor = ''; } });
+window.__set = (o) => { Object.assign(S, o); if ('kT' in o && !('k' in o)) S.k = S.kT; layout(); glows(10); renderer.render(scene, cam); };
+window.__screen = (n) => { const p = botB[NUMS.indexOf(n)].position.clone().project(cam); return [((p.x + 1) / 2) * innerWidth, ((1 - p.y) / 2) * innerHeight]; };
+window.__screenK = (n, k) => { const p = V(xOf(n, k), TOPS, RZ).project(cam); return [((p.x + 1) / 2) * innerWidth, ((1 - p.y) / 2) * innerHeight]; };
+window.__S = S;
+
 let last = performance.now();
 function tick(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (S.anim) { if (S.rise < 1) S.rise = Math.min(1, S.rise + dt / 1.0); else { S.draw = Math.min(1, S.draw + dt / 1.1); if (S.draw >= 1) { S.anim = false; S.seen[S.row] = true; } } }
-  layout(); renderer.render(scene, cam); requestAnimationFrame(tick);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; S.clock += dt;
+  if (S.rise < 1) S.rise = Math.min(1, S.rise + dt / 1.1);
+  // 没人碰之前：品红珠子自己往左挪一点再回来，所有线跟着动——告诉人“这个能拖”
+  if (!S.touched && S.rise >= 1 && !S.frozen) { const ph = (S.clock - S.demoAt) % 4.2; S.kT = ph > 0 && ph < 1.8 ? Math.round((5 - 1.7 * Math.sin((Math.PI * ph) / 1.8) ** 2) * 10) / 10 : 5; }
+  S.k += (S.kT - S.k) * (1 - Math.exp(-dt * 18)); if (Math.abs(S.kT - S.k) < 1e-4) S.k = S.kT;
+  if (S.touched && (S.kT === 5 || S.kT === -5)) S.seen[S.kT] = true;
+  if (S.rise >= 1 && !S.seenStart) { S.seenStart = true; S.seen[5] = true; }
+  if (S.touched) S.arrowFade = Math.max(0, (S.arrowFade ?? 1) - dt / 0.4);
+  layout(); glows(dt); renderer.render(scene, cam); requestAnimationFrame(tick);
 }
 layout(); renderer.render(scene, cam); window.__done = true; requestAnimationFrame(tick);
 </script></body></html>
