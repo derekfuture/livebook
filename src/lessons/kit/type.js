@@ -70,7 +70,7 @@ export function mats() {
     walnut: new THREE.MeshStandardMaterial({ map: wood({ base: '#7b5536', dark: '#4a3020', light: '#97704c', seed: 3, rings: 60, contrast: 0.55 }), roughness: 0.55, metalness: 0 }),
     iron: envFor(new THREE.MeshStandardMaterial({ color: 0x34373d, roughness: 0.46, metalness: 0.72 }), 0.85),
     brass: envFor(new THREE.MeshStandardMaterial({ color: 0xc19a4b, roughness: 0.3, metalness: 0.92 }), 1),
-    rubber: envFor(new THREE.MeshStandardMaterial({ color: 0x1d1e22, roughness: 0.32, metalness: 0 }), 0.55),
+    rubber: envFor(new THREE.MeshStandardMaterial({ color: 0x3a3b40, roughness: 0.4, metalness: 0 }), 0.5),
     handle: new THREE.MeshStandardMaterial({ map: wood({ base: '#9a6a3c', dark: '#5a391b', light: '#c08b55', seed: 11, rings: 40 }), roughness: 0.45, metalness: 0 }),
     ink: {},
   };

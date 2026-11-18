@@ -52,8 +52,8 @@ export default {
   fig: '图16.3-2',
   title: '和的平方',
   flow: 'explore',
-  ask: '课本练习问：(<i>a</i>＋<i>b</i>)²＝<i>a</i>²＋<i>b</i>² 对吗？<br>把 (<i>a</i>＋<i>b</i>)² 当成一版要印的字：铁框是边长 <i>a</i>＋<i>b</i> 的正方形，字块的大小就是它的面积。照你想的排，再提起铁框看看。',
-  need: '排满铁框，几个大小都提得起来，再印到活页上',
+  ask: '课本练习问：(<i>a</i>＋<i>b</i>)²＝<i>a</i>²＋<i>b</i>² 对吗？<br>把 (<i>a</i>＋<i>b</i>)² 当成一版要印的字：铁框是边长 <i>a</i>＋<i>b</i> 的正方形，字块的大小就是它的面积。铁框里已经照这道算式排好了——提起来试试；不对，就照你想的改，再印到活页上。',
+  need: '改到几个大小的铁框都提得起来，再印到活页上',
   conclusion: {
     quote: '(a+b)²＝a²＋2ab＋b²，(a−b)²＝a²−2ab＋b²．也就是说，两个数的和（或差）的平方，等于它们的平方和，加上（或减去）它们的积的2倍．',
     why: '课本用多项式乘法得到它：(<i>a</i>＋<i>b</i>)²＝(<i>a</i>＋<i>b</i>)(<i>a</i>＋<i>b</i>)＝<i>a</i>²＋<i>ab</i>＋<i>ab</i>＋<i>b</i>²＝<i>a</i>²＋2<i>ab</i>＋<i>b</i>²。<br>铁框说的是同一件事：边长 <i>a</i>＋<i>b</i> 的正方形，按 <i>a</i>、<i>b</i> 的分界正好切成四块，<i>a</i>²、<i>ab</i>、<i>ab</i>、<i>b</i>²。少了中间那两块 <i>ab</i> 就排不满；只有 <i>a</i>、<i>b</i> 里有一个是 0 时，那两块没有了，<i>a</i>²＋<i>b</i>² 才碰巧排满。<br><br>用面积说明时，<i>a</i>、<i>b</i> 是长度（正数）；<i>a</i>、<i>b</i> 是任意的数时，靠的是上面那一串乘法。',
@@ -226,6 +226,7 @@ export default {
             const p = makePiece(want[k], c.spec.a, c.spec.b), cell = c.C[k];
             p.c = c; p.cell = k; c.set[k] = p;
             p.g.position.set(c.spec.x + cell.x, GF + 0.034, c.spec.z + cell.z); p.g.rotation.y = cell.rot ? Math.PI / 2 : 0;
+            if (delay > 0.3) { p.g.visible = false; tw.to(delay + 0.07 * ci, () => {}, () => { p.g.visible = true; }); }
             moveTo(p, c.spec.x + cell.x, GF, c.spec.z + cell.z, cell.rot ? Math.PI / 2 : 0, { arc: 0, dur: 0.24, delay: delay + 0.07 * ci, done: tock });
           }
         }
@@ -489,6 +490,7 @@ export default {
         return say('多出来的字块，印到正方形外面去了', '多放的字块搁在别的字上面，印出来叠在一起：<b>多了</b>。<br>把多的拿回字盘，再印一次。');
       }
       if (!any) return say('照你想的排：(a+b)² 用哪几块字？', '课本练习问：(<i>a</i>＋<i>b</i>)²＝<i>a</i>²＋<i>b</i>² 对吗？<br>从右边的<b>字盘</b>里，把你觉得该用的字块拖进前面的铁框（点一下字盘也行）。手托上会排出你的式子。');
+      if (!S.liftedSince && !S.lifted && n.a2 === 1 && n.b2 === 1 && !n.ab) return say('照课本这道算式排好了。对吗？提起来看看', '课本练习第 1 题问：(<i>a</i>＋<i>b</i>)²＝<i>a</i>²＋<i>b</i>² 对吗？铁框里已经照这道算式排好了 <i>a</i>² 和 <i>b</i>²，后面两个大小不同的框也照样排上了。<br>点铁框两边的<b>铜把手</b>，提起来：排满了，整版一起起来；没排满，字块会掉下去。');
       if (!S.liftedSince) return say('排好了，就提起铁框看看', `后面两个铁框大小不一样，也照你的排法排上了${sizeC.spec.b ? '' : '（右后那个 <i>b</i>＝0，框边拖得动，可以换一个 <i>b</i>）'}。<br>点铁框两边的<b>铜把手</b>，提起来：排满了，整版一起起来；没排满，字块会掉下去。`);
       const [h, ...f] = S.last || [];
       if (h && f.every(Boolean)) return say('三版都提起来了。推墨辊，印到活页上', '三个大小的版都排满了，整版提了起来：不管 <i>a</i>、<i>b</i> 多大，都是 <i>a</i>²、<i>ab</i>、<i>ab</i>、<i>b</i>² 四块。<br>把<b>墨辊</b>往左推：滚过字版和手托，再滚到左边的活页上。');
@@ -499,7 +501,20 @@ export default {
       return say('前面这版提起来了，后面的呢？', '前面这一版排满了。后面不同大小的版，有没有掉下去的？');
     }
 
-    layoutSorts(); for (const t of sorts) t.g.position.set(t.x, GF + 0.0012, STICK.z);
+    [['a2', 'A'], ['b2', 'B']].forEach(([kind, key], i) => {
+      const p = makePiece(kind, HERO.a, HERO.b), cell = hero.C[key];
+      p.c = hero; p.cell = key; hero.set[key] = p;
+      p.g.position.set(HERO.x + cell.x, GF + 0.075, HERO.z + cell.z); p.g.visible = false;
+      tw.to(0.85 + 0.3 * i, () => {}, () => { p.g.visible = true; });
+      moveTo(p, HERO.x + cell.x, GF, HERO.z + cell.z, 0, { arc: 0, dur: 0.34, delay: 0.85 + 0.3 * i, done: tock });
+      drags.push(pieceDrag(p));
+    });
+    syncFamily(1.55);
+    layoutSorts();
+    sorts.forEach((t, i) => {
+      const g = t.g; g.position.set(t.x, GF + 0.03, STICK.z); g.visible = false;
+      tw.to(1.9 + 0.07 * i, (k0) => { const T = 1.9 + 0.07 * i, k = clamp((k0 * T - (1.6 + 0.07 * i)) / 0.3, 0, 1); g.visible = k0 * T > 1.6 + 0.07 * i; g.position.y = GF + 0.0012 + (0.03 - 0.0012) * (1 - easeOut(k)); });
+    });
     hint();
 
     return {
@@ -509,7 +524,7 @@ export default {
       place: 'spread',
       scale: 1,
       size: { w: 0.6, d: 0.345, h: 0.07 },
-      view: { elev: 35, azim: -10, lookY: 0.2, frameMargin: 0.97 },
+      view: { elev: 35, azim: -10, lookY: 0.2, frameMargin: 0.95 },
       pointer,
       mount(u) { ui = u; hint(); },
       dispose() { dead = true; tip?.remove?.(); },
