@@ -77,6 +77,7 @@ export default {
     const OXP = Array.from({ length: 50 }, () => ({ u: Math.sqrt(Math.random()), a: Math.random() * 6.28, y: Math.random(), w: 0.3 + Math.random() * 0.5 }));
     const heat = new THREE.Mesh(new THREE.CylinderGeometry(T_R + 0.004, T_R + 0.004, 0.04, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff8a3d, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); heat.position.y = 0.022; heat.renderOrder = 9.97; tube.add(heat);
     const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), s4 = new THREE.Vector3(), p4 = new THREE.Vector3();
+    const card = tag('', 'cond'); card.px = [-125, -20];          // 观察卡：试管左边
 
     // 带火星的木条（火星端在原点，木条朝 +y；平放时朝左）
     const stick = splint(); group.add(stick);
@@ -154,7 +155,8 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); },
+            view: { save: () => (mic.isOpen ? 'micro' : null), restore: () => mic.open() } }),          // 演示前开着钻进去看，演示完再打开
           shots: [
             { cap: '向盛有过氧化钠固体的试管中滴入水：剧烈反应，产生大量气泡。', dur: 8, cam: [[TX + 0.02, 0.08, 0.01], [0.04, 0.25, 1], 0.26], during: B.dripSeq(drag, 0, [[0, () => S.water >= 1.2 - 1e-9]], 0.04, 0.96) },
             { cap: '立即把带火星的木条伸入试管中：木条复燃——生成的气体是氧气。', dur: 6, cam: [[TX + 0.02, 0.1, 0.01], [0.04, 0.25, 1], 0.27], during: path(stickPick, [() => V(STICK_REST.x - 0.02, 0.16, 0), () => V(TX, 0.16, 0), () => V(TX, MOUTH + 0.01, 0)], 0.04, 0.35) },
@@ -212,12 +214,18 @@ export default {
       const lo = levelY(vol) + 0.003, hi = T_LEN - 0.004, n = Math.round(50 * S.f);
       for (let i = 0; i < n; i++) { const o = OXP[i], yy = lo + (hi - lo) * ((o.y + t * o.w * (r > 0.1 ? 0.25 : 0.04)) % 1), rr = R_IN * 0.8 * o.u; p4.set(Math.cos(o.a + t * 0.3) * rr, yy, Math.sin(o.a + t * 0.3) * rr); s4.setScalar(0.00045); m4.compose(p4, q4, s4); ox.setMatrixAt(i, m4); }
       ox.count = n; ox.instanceMatrix.needsUpdate = true;
-      heat.material.opacity = clamp((S.T - 26) / 70, 0, 0.1);          // 热：管外一圈淡橙色（不盖住液体本来的颜色）
+      heat.material.opacity = clamp((S.T - 26) / 70, 0, 0.1);
+      {
+        const gas = !S.water ? '还没加水' : r > 1 ? '剧烈冒气泡' : r > 0.1 ? '还在冒气泡' : S.left < 0.5 ? '气泡停了：过氧化钠反应完了' : '不冒气泡了';
+        const wall = S.T > 45 ? '外壁发烫' : S.T > 30 ? '外壁有点热' : '外壁不热';
+        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里</span></div><div class="cc-more"><div class="cc-obs"><small>Na₂O₂ 剩约 ${(S.left * 77.98 / 1000).toFixed(2)} g</small></div><div class="cc-obs"><small>${gas}</small></div><div class="cc-obs"><small>${wall}</small></div><div class="cc-note">蓝点 = 试管上部的 O₂，橙色 = 热（示意）</div></div></div>`)
+          .loc(group, TX, T_Y + 0.05, 0).show(!bar.playing && !mic.isOpen);
+      }          // 热：管外一圈淡橙色（不盖住液体本来的颜色）
       mic.update?.(dt);
     };
 
     return {
-      group: root, pointer, card: false, toggles: ['steps'],
+      group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.27, d: 0.13, h: 0.13 },
       view: { elev: 22, azim: -6, lookY: 0.45, frameMargin: 1.06 },
       mount(ui) {

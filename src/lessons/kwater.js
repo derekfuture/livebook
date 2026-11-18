@@ -116,6 +116,7 @@ export default {
     const mic = micro({ tag, look, back, group, scene: alkaliScene(), at: () => V(0, 0.115, -0.01), btnAt: () => V(0, 0.092, -0.01), label: '钻进去看原子',
       state: () => ({ na: S.rig.na.total > 0, k: S.rig.k.total > 0 }), key: () => `${S.rig.na.total > 0}|${S.rig.k.total > 0}`, bar: () => bar, scale: 0.0085, lookD: [0.02, 0.18, 1], dist: 0.27 });
     const warning = tag('', 'pill');
+    const cards = { na: tag('', 'cond'), k: tag('', 'cond') }; cards.na.px = [-120, -10]; cards.k.px = [120, -10];          // 观察卡：烧杯外侧
     const kMark = new THREE.Object3D(); kMark.position.set(CUP.k.x, 0.07, CUP.k.z); group.add(kMark);          // 连拍特写用
     const A = {
       reset() { if (bar.playing) bar.stop(); S = fresh(); bind(); rigs.na.reset(); rigs.k.reset(); bind(); tw.position.copy(TW); tw.rotation.set(0, 0, 0); mic.close(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('na', 'k', 'compare', 'why'); status('两杯水和两小块金属都换新的了。'); },
@@ -133,7 +134,8 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; bind(); }, fresh, bar: () => bar, apply: () => { bind(); rigs.na.clearFx(); rigs.k.clearFx(); tw.position.fromArray(S.tw.pos); mic.close(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; bind(); }, fresh, bar: () => bar, apply: () => { bind(); rigs.na.clearFx(); rigs.k.clearFx(); tw.position.fromArray(S.tw.pos); mic.close(); },
+            view: { save: () => (mic.isOpen ? 'micro' : null), restore: () => mic.open() } }),          // 演示前开着钻进去看，演示完再打开
           shots: [
             { cap: '回忆：绿豆大的钠投进滴了酚酞的水里——浮在水面、熔成小球、四处游动、嘶嘶响、溶液变红。', dur: 8, cam: [[-0.04, 0.05, 0.02], [0.02, 0.4, 1], 0.3], during: act.seq(demoPath(DOCK.na, 0.03, 0.22), demoPath(() => DOCK.cupna().setY(0.12), 0.42, 0.58)) },
             { cap: '钾（由教师演示）：同样浮、熔、游、响、变红，但熔得更快、游得更急，一两秒就着火，冒白烟。', dur: 9, cam: [[0.04, 0.05, 0.02], [0.02, 0.4, 1], 0.3], during: act.seq(demoPath(DOCK.k, 0.03, 0.2), demoPath(() => DOCK.cupk().setY(0.12), 0.38, 0.52)) },
@@ -163,12 +165,18 @@ export default {
       // 不要近距离俯视烧杯：正在反应时，镜头离杯口很近、又差不多从正上方往下看，就提醒
       const cam = window.__lb?.stage?.camera; let danger = null;
       if (cam) for (const k of ['na', 'k']) { const r = S.rig[k]; if (!r.total || r.finished) continue; const p = group.worldToLocal(cam.position.clone()).sub(CUP[k].clone().setY(rigs[k].H)); if (p.length() < 0.22 && p.y / p.length() > 0.8) danger = k; }
+      for (const k of ['na', 'k']) {
+        const r = S.rig[k], saw = S.saw[k].map((w) => WORD[w]).join('、');
+        const state = !r.total ? '还没投进去' : r.finished ? `反应完了，用时约 ${Math.round(S.rig[k].doneAt)} 秒` : `正在反应（已 ${r.clock.toFixed(0)} 秒）`;
+        cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${k === 'na' ? '钠（回忆）' : '钾'}</span></div><div class="cc-more"><div class="cc-obs"><small>${state}</small></div>${saw ? `<div class="cc-note">${saw}</div>` : ''}</div></div>`)
+          .loc(group, CUP[k].x, 0.06, CUP[k].z).show(!bar.playing && !mic.isOpen);
+      }
       warning.text('注意　不要近距离俯视烧杯！').loc(group, danger ? CUP[danger].x : 0, 0.12, danger ? CUP[danger].z : 0).show(!!danger && !bar.playing);
       mic.update?.(dt);
     };
 
     return {
-      group: root, pointer, card: false, toggles: ['steps'],
+      group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.29, d: 0.17, h: 0.12 },
       view: { elev: 26, azim: -4, lookY: 0.4, frameMargin: 1.04 },
       mount(ui) {

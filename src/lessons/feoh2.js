@@ -71,6 +71,7 @@ export default {
     const OXP = Array.from({ length: 40 }, () => ({ u: Math.sqrt(Math.random()), a: Math.random() * 6.28, y: Math.random(), ph: Math.random() * 6 }));
     const oil = new THREE.Mesh(new THREE.CylinderGeometry(R_IN, R_IN, 0.004, 18), paint(0xe8c86a, { keep: true, transparent: true, opacity: 0.75 })); oil.renderOrder = 9.92; oil.visible = false; B.tubes[1].add(oil);
     const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), s4 = new THREE.Vector3(), p4 = new THREE.Vector3();
+    const cards = [tag('', 'cond'), tag('', 'cond')]; cards[0].px = [-110, -30]; cards[1].px = [110, -30];          // 观察卡：两支试管外侧
 
     const SEALED_O2 = 0.03;          // 煮沸、冷却后残留的一点溶解氧（相对饱和，示意）
     const fresh = () => ({ demo: false, bench: B.fresh(), clock: 0, t1At: null, sealed: false, t: [{ oh: 0, vol: 2, drops: 0 }, { oh: 0, vol: 2, drops: 0, ox: 0, o2: 1 }], said: {} });          // 刚打开、全部重来、老师演示：都是普通条件
@@ -127,6 +128,11 @@ export default {
       for (let i = 0; i < n; i++) { const d = OXP[i], yy = y0 + (top - y0 - 0.002) * d.y, rr = R_IN * 0.8 * d.u; p4.set(Math.cos(d.a + t * 0.2) * rr, yy, Math.sin(d.a + t * 0.2) * rr); s4.setScalar(0.00045); m4.compose(p4, q4, s4); ox.setMatrixAt(i, m4); }
       ox.count = n; ox.instanceMatrix.needsUpdate = true;
       oil.visible = S.sealed; oil.position.y = top + 0.002;
+      // 观察卡：看到的颜色（不写氧化百分比——那只是示意模型）
+      const c3 = S.t[0].drops ? (k3 >= 0.999 ? '红褐色沉淀（Fe³⁺ 沉淀完了）' : '红褐色沉淀') : '还没滴 NaOH';
+      const c2 = !T.drops ? '还没滴 NaOH' : S.said.red ? '灰绿色里出现红褐色' : S.said.green ? '白色很快变成灰绿色' : r > 0.01 ? '白色絮状沉淀，开始带灰绿' : '白色絮状沉淀';
+      cards[0].text(`<div class="cc"><div class="cc-t"><span class="cc-name">FeCl₃ 溶液</span></div><div class="cc-more"><div class="cc-obs"><small>${S.t[0].drops} 滴 · ${c3}</small></div></div></div>`).loc(group, X3, T_Y + 0.06, 0).show(!bar.playing);
+      cards[1].text(`<div class="cc"><div class="cc-t"><span class="cc-name">FeSO₄ 溶液</span></div><div class="cc-more"><div class="cc-obs"><small>${T.drops} 滴 · ${c2}</small></div><div class="cc-note">蓝点 = 溶解的氧气（示意）${S.sealed ? '；煮沸除氧、液面加油' : ''}</div></div></div>`).loc(group, X2, T_Y + 0.06, 0).show(!bar.playing);
     };
 
     return {

@@ -85,6 +85,7 @@ export default {
     const smoke = smoke2({ max: 120, color: 0xf6f2e6, opacity: 0.55 }); smoke.mesh.renderOrder = 13; group.add(smoke.mesh);
     const sparks = new Sparks({ max: 200, color: 0xffd36a, tail: 0.01 }); group.add(sparks.mesh);
     const warning = tag('', 'pill');
+    const card = tag('', 'cond'); card.px = [-130, 0];          // 观察卡：坩埚左边
 
     // ---- 酒精灯（在坩埚下面；撤掉 = 挪到旁边、盖上灯帽）----
     const lamp = chemLamp(); lamp.scale.setScalar(0.68); group.add(lamp);
@@ -174,7 +175,8 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); },
+            view: { save: () => (mic.isOpen ? 'micro' : S.near ? 'near' : null), restore: (v) => { if (v === 'micro') mic.open(); else if (v === 'near' && S.inCru) { S.near = true; look([CX, BOT.y + 0.004, CZ], [0.15, 1.2, 1], 0.25, () => { S.near = false; }); } } } }),          // 演示完回到学生原来看的地方
           shots: [
             { cap: '取下灯帽，点燃酒精灯，加热干燥的坩埚；同时切取一块绿豆大的钠。', dur: 7, speed: 1.5, cam: [[0.0, 0.06, 0.0], [0.05, 0.42, 1], 0.36],
               during: act.seq(lampTapAct((k) => k > 0.06), toolPath(knife, () => V(BAR_LEFT + mmOf(0.04), 0.012, PAPER.z + 0.03), 0.25, 0.6, 0.05)) },
@@ -264,13 +266,20 @@ export default {
       // 不要近距离俯视坩埚
       const cam = window.__lb?.stage?.camera; let danger = false;
       if (cam && S.inCru && !S.finished) { const p = group.worldToLocal(cam.position.clone()).sub(BOT); danger = p.length() < 0.2 && p.y / p.length() > 0.8; }
+      {
+        const lampWord = S.lampK > 0.5 ? '酒精灯已撤掉' : lampOn() ? '酒精灯在下面加热' : '酒精灯没点';
+        const naWord = !S.inCru ? (S.cut ? `切下约 ${Math.round(S.mass * 1000)} mg，还没投进去` : '还没投钠') : S.finished ? '燃烧结束' : S.burning > 0 ? '剧烈燃烧，<b>黄色火焰</b>' : S.melt >= 1 ? '熔成闪亮的小球' : S.melt > 0 ? '正在熔化' : '受热，还没熔化';
+        const prodWord = S.burned > 0 ? `<div class="cc-note">生成淡黄色的 Na₂O₂ 约 ${Math.round(prod * 1000)} mg（按 2Na ~ Na₂O₂ 算）${S.spilled > 0.001 ? `；溅出钠约 ${Math.round(S.spilled * 1000)} mg` : ''}</div>` : '';
+        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">坩埚里的钠</span></div><div class="cc-more"><div class="cc-obs"><small>${naWord}</small></div><div class="cc-obs"><small>${lampWord}</small></div>${prodWord}</div></div>`)
+          .loc(group, CX, RING_Y + 0.02, CZ).show(!bar.playing && !mic.isOpen && (S.lit || S.inCru || S.cut));
+      }
       warning.text('注意　不要近距离俯视坩埚！').loc(group, CX, RING_Y + 0.07, CZ).show(danger);
       massCard.text(`切下约 ${(S.chosen * 1000).toFixed(0)} mg${S.chosen <= 0.06 && S.chosen >= 0.025 ? ' · 绿豆大' : S.chosen > 0.1 ? ' · 太大了' : ''}`).loc(group, PAPER.x, 0.035, PAPER.z).show(S.tools.knife.drag && !S.cut && !bar.playing);
       bar.near(S.near); mic.update?.(dt);
     };
 
     return {
-      group: root, pointer, card: false, toggles: ['steps'],
+      group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.27, d: 0.17, h: 0.16 },
       view: { elev: 36, azim: -6, lookY: 0.4, frameMargin: 1.1 },
       mount(ui) {
