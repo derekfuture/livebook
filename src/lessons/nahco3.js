@@ -7,7 +7,7 @@
 //   速率：NaHCO₃ 按一级反应、活化能约 100 kJ/mol 估计（示意），150 ℃ 时速率常数约 0.0035/s；100 ℃ 以下几乎不分解。Na₂CO₃ 在酒精灯能达到的温度下不分解（熔点 851 ℃）。
 //   气体：试管 + 导管里的气体空间按 28 mL 计；受热膨胀 / 生成 CO₂ → 从导管口冒出（刚加热冒出的是受热膨胀的空气，不让石灰水变浑浊）；冷却收缩，导管口还在石灰水里 → 石灰水倒吸
 //   （导管里约 3 mL，吸满就流进试管；管里还烫（> 100 ℃）时试管炸裂）。没塞紧橡胶塞：气体从管口跑掉，石灰水不变浑浊。
-//   澄清石灰水：氢氧化钙溶解度约 0.17 g/100 g 水，8 mL 石灰水约能和 4.5 mL CO₂ 反应而变浑浊；通过石灰水的 CO₂ 约一半被吸收。继续通入大量 CO₂，浑浊会再变澄清（课本这里不涉及），模型不画。
+//   澄清石灰水：8 mL 里 Ca(OH)₂ 约 0.184 mmol，吸收 4.5 mL CO₂ 全变 CaCO₃（浑浊），再吸 4.5 mL 全变 Ca(HCO₃)₂（又变清）；通过石灰水的 CO₂ 约一半被吸收（示意）。
 //   水珠：H₂O 在试管口较冷的管壁上凝成水珠，量和生成的 H₂O 成正比。
 // 看不见的东西：CO₂（深灰小点，这套书里 CO₂ 的颜色）、热（橙）、“钻进去看”：碳酸氢钠晶体里两个 HCO₃⁻ 变成 CO₃²⁻ + H₂O + CO₂（kit/nahco3-parts.js）。
 import * as THREE from 'three';
@@ -34,7 +34,8 @@ const CO2_MAX = (N_MMOL / 2) * 24.465;               // mL（25 ℃）：约 146
 const H2O_MAX = (N_MMOL / 2 / 1000) * 18.015;        // g：0.107 g
 const M_LEFT = (N_MMOL / 2 / 1000) * MM_CARB;        // g：分解完剩 0.631 g
 const V_ROOM = 28, V_LINE = 3;                       // 试管 + 导管的气体空间；导管里的容积（mL）
-const LIME_CO2 = 4.5, ABS = 0.5;                     // 石灰水完全变浑浊需要吸收的 CO₂（mL）；通过的 CO₂ 被吸收的比例
+const LIME_CO2 = 4.5, ABS = 0.5;                     // Ca(OH)₂ 约 0.184 mmol（8 mL 饱和石灰水）：吸收 4.5 mL CO₂ 全变成 CaCO₃；再吸 4.5 mL 全变成 Ca(HCO₃)₂（又变清）
+const limeTurb = (a) => (a <= LIME_CO2 ? a / LIME_CO2 : clamp(2 - a / LIME_CO2, 0, 1));                     // 石灰水完全变浑浊需要吸收的 CO₂（mL）；通过的 CO₂ 被吸收的比例
 const EA = 100000 / 8.314, K150 = 0.0035;            // 活化能 / R；150 ℃ 时的速率常数（1/s，实际时间）
 const TAU_HEAT = 30, TAU_COOL = 40;
 const T_BROKEN = 100;                                // 管里超过这个温度，倒吸进来的冷石灰水就让试管炸裂（示意）
@@ -175,7 +176,7 @@ export default {
       kind: null, plug: 'in', limeIn: false, ly: 0, lit: false,
       T: Array(NSEG).fill(T0), x: Array(NSEG).fill(0), co2: 0, air: V_ROOM, h2o: 0,
       suck: 0, limeCO2: 0, lime: 0, broken: '', wet: false, heatT: 0, coolT: 0, lampFirst: false,
-      pourK: -1, plugK: 0, anim: null, scooped: '', ran: { nahco3: false, na2co3: false }, ranInfo: {}, seq: [], seen: {}, limeAt: null,
+      pourK: -1, plugK: 0, anim: null, scooped: '', ran: { nahco3: false, na2co3: false }, ranInfo: {}, bothAsked: false, seq: [], seen: {}, limeAt: null,
       outCO2: 0, flowV: 0, demo: false, near: false, limeDrag: null, troughDrag: false, troughBack: null,
     });
     S = fresh();
@@ -207,7 +208,7 @@ export default {
       load(kind) {
         if (S.kind || S.anim) return;
         if (S.plug === 'in') return status('先拔出橡胶塞。');
-        S.kind = kind; S.anim = { kind: 'trough', t: 0 }; S.h2o = 0; S.x.fill(0); S.ran[kind] = false;
+        S.kind = kind; S.anim = { kind: 'trough', t: 0 }; S.h2o = 0; S.x.fill(0); S.ran[kind] = false; S.heatT = 0; S.coolT = 0; S.seen = {}; S.lampFirst = false; S.suck = 0; S.wet = false;
         status(`用纸槽把约 1 g ${NAME[kind]}（${ZH[kind]}）铺在试管底部。再点一下橡胶塞，把它塞紧。`);
       },
       lime(on) {
@@ -220,14 +221,14 @@ export default {
         } else {
           seq('导管离开石灰水');
           if (S.lit) status('石灰水降下来了，导管口离开了石灰水。现在可以<b>熄灭酒精灯</b>（点一下酒精灯，盖上灯帽）。');
-          else if (S.lampFirst && !S.broken) { if (S.suck < V_LINE) status('及时把石灰水降下来，倒吸的石灰水没有流进试管。加热制气的实验，结束时<b>先让导管离开液体，再熄灯</b>（课本这一节没写，是通用的操作注意事项）。'); }
+          else if (S.lampFirst && !S.broken) { if (S.suck < V_LINE) done('stop'); if (S.suck < V_LINE) status('及时把石灰水降下来，倒吸的石灰水没有流进试管。加热制气的实验，结束时<b>先让导管离开液体，再熄灯</b>（课本这一节没写，是通用的操作注意事项）。'); }
           else status('石灰水降下来了。');
         }
       },
       newLime() {
         if (S.ly > 0.004 || S.broken) return;
-        if (S.lime < 0.05 && S.suck < 0.2 && !S.wet) return status('石灰水还是新的，不用换。');
-        S.limeCO2 = 0; S.lime = 0; S.limeAt = null; S.suck = 0; S.seen.air = false; sfx.clink({ freq: 1100, gain: 0.03 });
+        if (S.limeCO2 < 0.2 && S.suck < 0.2 && !S.wet) return status('石灰水还是新的，不用换。');
+        S.limeCO2 = 0; S.lime = 0; S.limeAt = null; S.suck = 0; S.seen.air = false; S.seen.clear = false; sfx.clink({ freq: 1100, gain: 0.03 });
         status('换了一管新的澄清石灰水。');
       },
       light() {
@@ -246,7 +247,7 @@ export default {
         if (tipIn() && S.plug === 'in') {
           S.lampFirst = true;
           status('导管口还在石灰水里就<b>停止了加热</b>！盯着导管：试管冷下来，里面的气体收缩……');
-        } else status('停止了加热。');
+        } else { status(S.kind && S.ran[S.kind] ? '停止了加热。等试管冷却（看试管旁的温度），再拔出橡胶塞、点一下试管倒出固体。' : '停止了加热。'); done('stop'); }
       },
       pour() {
         if (S.pourK >= 0 || !S.kind) return;
@@ -258,9 +259,9 @@ export default {
         S.pourK = 0; seq('冷却后倒出固体'); far();
       },
       reset() {
-        S = fresh(); bubs.clear(); dust.clear(); far(); asmPose(0); lime.position.y = 0;
+        S = fresh(); bubs.clear(); dust.clear(); S.near = false; back(); asmPose(0); lime.position.y = 0;
         if (W) { W.tbl.clear(); W.q1.close(); W.q2.close(); W.next.hidden = true; } mic.close();
-        bar.undo('load', 'lime', 'heat', 'watch', 'second', 'why');
+        bar.undo('load', 'lime', 'heat', 'watch', 'stop', 'second', 'why');
         status('全部重新摆好了，记录也清空了。');
       },
     };
@@ -299,8 +300,9 @@ export default {
         { id: 'load', title: '装固体', todo: '点<b>橡胶塞</b>拔出来；用<b>纸槽</b>在 Na₂CO₃ 或 NaHCO₃ 的表面皿里取一点（约 1 g），拖到试管口铺进去；再点橡胶塞塞紧。', target: () => (S.kind ? (S.plug === 'in' ? null : plug) : S.plug === 'in' ? plug : trough) },
         { id: 'lime', title: '导管插入石灰水', todo: '把<b>石灰水试管</b>往上推，让导管口插进<b>澄清石灰水</b>里。', target: () => (S.limeIn ? null : lime) },
         { id: 'heat', title: '加热', todo: '点一下<b>酒精灯</b>点燃，加热试管底部的固体。', target: () => (S.lit ? null : lamp) },
-        { id: 'watch', title: '观察', todo: '加热几分钟：盯着<b>固体</b>、<b>试管口</b>的管壁和右边的<b>石灰水</b>。（时间加快了 6 倍）' },
-        { id: 'second', title: '换另一种固体', todo: '停止加热、等冷却，倒出固体（石灰水也换一管新的），用另一种固体再做一次，比较两种的现象。', target: () => (S.lit ? lamp : S.kind && S.ran[S.kind] ? tube : null) },
+        { id: 'watch', title: '观察', todo: '加热几分钟：盯着<b>固体</b>、<b>试管口</b>的管壁和右边的<b>石灰水</b>。石灰水变浑浊、管口有水珠，就可以停止加热（Na₂CO₃ 加热两三分钟，石灰水始终不变，也可以停）。（时间加快了 6 倍）' },
+        { id: 'stop', title: '停止加热', todo: '先把<b>石灰水试管</b>往下拉，让导管口离开石灰水；再点一下<b>酒精灯</b>熄灭（盖上灯帽）。', target: () => (tipIn() ? lime : S.lit ? lamp : null) },
+        { id: 'second', title: '换另一种固体', todo: '等试管冷却，拔出橡胶塞、点一下<b>试管</b>倒出固体，石灰水换一管新的（降到底后点一下它），用另一种固体再做一次，比较两种的现象。', target: () => (S.kind && S.ran[S.kind] ? (tipIn() ? lime : S.lit ? lamp : Tmax() > 60 ? null : S.plug === 'in' ? plug : tube) : null) },
         { id: 'why', title: '想一想', todo: '哪一种受热分解？怎样用加热的方法鉴别它们？在左边作答。' },
       ],
       reels: {
@@ -356,7 +358,7 @@ export default {
       if (out > 0) {
         const t = S.co2 + S.air, f = out / t, oc = S.co2 * f; S.co2 -= oc; S.air -= S.air * f;
         if (sealed && tipIn()) {
-          S.limeCO2 += oc * ABS; S.lime = Math.min(1, S.limeCO2 / LIME_CO2);
+          S.limeCO2 += oc * ABS; S.lime = limeTurb(S.limeCO2);
           FX.bubAcc += out; S.outCO2 = oc / out; FX.lastOut = 0.6;
           if (!S.seen.air && S.outCO2 < 0.3 && S.lit && S.kind) { S.seen.air = true; log([`${NAME[S.kind]} 刚加热：导管口冒出气泡`, '石灰水<b>不变浑浊</b>', '冒出的是试管里受热膨胀的空气']); }
         }
@@ -445,21 +447,23 @@ export default {
       condG.children.forEach((d, i) => { d.visible = S.kind === 'nahco3' && i < nd && S.pourK < 0.5; });
       // 第一次看到的现象
       const xm = xi();
+      if (S.kind === 'nahco3' && S.limeAt != null && S.lime < 0.25 && S.limeCO2 > LIME_CO2 && !S.seen.clear && !S.demo) { S.seen.clear = true; log([`继续加热 NaHCO₃ 到约 ${fmtT(S.heatT)}`, '浑浊又慢慢<b>变清</b>了', '继续通入二氧化碳：CaCO₃ + CO₂ + H₂O ══ Ca(HCO₃)₂，生成可溶的碳酸氢钙']); status('石灰水又<b>变清</b>了：继续通入二氧化碳，沉淀 CaCO₃ 变成了可溶的 Ca(HCO₃)₂。所以石灰水刚变浑浊、管口有水珠时，就可以停止加热了。'); }
       if (S.kind === 'nahco3' && S.lime > 0.6 && S.limeAt == null) { S.limeAt = S.heatT; log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, '澄清石灰水<b>变浑浊</b>', '生成了二氧化碳']); }
       if (S.kind === 'nahco3' && S.h2o / H2O_MAX > 0.15 && !S.seen.drops && S.lit) { S.seen.drops = true; log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, '试管口较冷的管壁上出现<b>水珠</b>', '生成了水']); }
       if (!S.demo) {
-        if (S.kind === 'nahco3' && !S.ran.nahco3 && xm >= 0.5 && S.lime > 0.6) {
+        if (S.kind === 'nahco3' && !S.ran.nahco3 && S.limeAt != null && S.seen.drops) {
           S.ran.nahco3 = true; S.ranInfo.nahco3 = { t: S.heatT, g: solidG() }; done('watch'); far();
-          log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}（一大半分解后）`, `固体由 1.00 g 减到约 ${solidG().toFixed(2)} g，还是白色`, '2NaHCO₃ △══ Na₂CO₃ + H₂O + CO₂↑：质量减轻是跑出去了 CO₂ 和 H₂O']);
-          status(`加热了约 ${fmtT(S.heatT)}：石灰水<b>变浑浊</b>，试管口有<b>水珠</b>，固体变少了。NaHCO₃ 受热分解。${S.ran.na2co3 ? '' : '再用 Na₂CO₃ 做一次，比较。'}`);
+          log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, `固体由 1.00 g 减到约 ${solidG().toFixed(2)} g，还是白色`, '2NaHCO₃ △══ Na₂CO₃ + H₂O + CO₂↑：质量减轻是跑出去了 CO₂ 和 H₂O']);
+          status(`加热了约 ${fmtT(S.heatT)}：石灰水<b>变浑浊</b>，试管口有<b>水珠</b>，固体变少了。NaHCO₃ 受热分解。可以停止加热了：<b>先把石灰水试管降下来，再熄灯</b>。${S.ran.na2co3 ? '' : '然后用 Na₂CO₃ 再做一次，比较。'}`);
         }
-        if (S.kind === 'na2co3' && !S.ran.na2co3 && S.heatT >= 150 && Tmax() > 160) {
+        if (S.kind === 'na2co3' && !S.ran.na2co3 && S.heatT >= 150 && Tmax() > 160 && S.limeCO2 > 1 && !S.seen.used) { S.seen.used = true; status('石灰水还是上一次用过的（已经通进过二氧化碳），不能说明什么。先<b>降下石灰水试管</b>，点一下它换一管新的，再升起来继续加热。'); }
+        if (S.kind === 'na2co3' && !S.ran.na2co3 && S.heatT >= 150 && Tmax() > 160 && S.limeCO2 <= 1) {
           S.ran.na2co3 = true; S.ranInfo.na2co3 = { t: S.heatT, g: solidG() }; done('watch'); far();
           log([`加热 Na₂CO₃ 约 ${fmtT(S.heatT)}`, '石灰水<b>始终不变浑浊</b>，试管口<b>没有水珠</b>，固体还是 1.00 g', '没有 CO₂ 和 H₂O 生成：Na₂CO₃ 受热不易分解']);
-          status(`加热了约 ${fmtT(S.heatT)}：石灰水<b>没有变浑浊</b>，试管口<b>没有水珠</b>。Na₂CO₃ 受热不易分解。${S.ran.nahco3 ? '' : '再用 NaHCO₃ 做一次，比较。'}`);
+          status(`加热了约 ${fmtT(S.heatT)}：石灰水<b>没有变浑浊</b>，试管口<b>没有水珠</b>。Na₂CO₃ 受热不易分解。可以停止加热了：<b>先把石灰水试管降下来，再熄灯</b>。${S.ran.nahco3 ? '' : '然后用 NaHCO₃ 再做一次，比较。'}`);
         }
         if (S.kind === 'nahco3' && S.lit && S.plug === 'out' && xm > 0.3 && !S.seen.open) { S.seen.open = true; log(['没有塞紧橡胶塞就加热 NaHCO₃', '石灰水<b>不变浑浊</b>', '生成的 CO₂ 从试管口跑掉了，没有通进石灰水']); }
-        if (S.ran.nahco3 && S.ran.na2co3 && !S.seen.both) { S.seen.both = true; done('second'); W?.q1.open(); }
+        if (S.ran.nahco3 && S.ran.na2co3 && !S.bothAsked && !S.lit) { S.bothAsked = true; done('second'); W?.q1.open(); }
       }
       // 试管里的气体：深灰 = 二氧化碳，浅灰 = 空气里的氮气，蓝 = 氧气；有气体流出时往管口飘
       const gtot = S.co2 + S.air, fC = gtot ? S.co2 / gtot : 0, fO = gtot ? 0.21 * (1 - fC) : 0;
@@ -530,7 +534,7 @@ export default {
           ['拔出 / 塞紧橡胶塞', () => A.plug()], ['石灰水试管升起 / 降下', () => A.lime(!S.limeIn)], ['换一管新的石灰水', () => A.newLime()],
           ['点燃 / 熄灭酒精灯', () => A.light()], ['倒出试管里的固体', () => A.pour()], ['钻进固体里看', () => mic.open()],
         ], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '固体各 1 g（课本实验2-4 取各约 1 g，这里沿用）；时间加快 6 倍。NaHCO₃ 1 g = 11.9 mmol，分解最多得 CO₂ 5.95 mmol（25 ℃ 约 146 mL）、H₂O 0.107 g，剩 Na₂CO₃ 0.631 g（固体质量按这个算）。<br>温度和速率是示意：粉末最热处按约 175 ℃，NaHCO₃ 按一级反应、活化能约 100 kJ/mol 估计（150 ℃ 时速率常数约 0.0035/s）；Na₂CO₃ 在酒精灯的温度下不分解（熔点 851 ℃）。<br>石灰水：Ca(OH)₂ 溶解度约 0.17 g/100 g 水，8 mL 约能吸收 4.5 mL CO₂ 而变浑浊（通入的 CO₂ 约一半被吸收）。通入过量的 CO₂ 浑浊会再变澄清，课本这里不涉及，模型不画。<br>倒吸：导管里约 3 mL；吸满就流进试管，管里还烫（> 100 ℃，示意）时试管炸裂。“先让导管离开液体再熄灯”是加热制气实验通用的操作注意事项，课本这一节没写。深灰小点 = CO₂，浅灰 = 氮气，蓝 = 氧气，橙 = 热。' }));
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '固体各 1 g（课本实验2-4 取各约 1 g，这里沿用）；时间加快 6 倍。NaHCO₃ 1 g = 11.9 mmol，分解最多得 CO₂ 5.95 mmol（25 ℃ 约 146 mL）、H₂O 0.107 g，剩 Na₂CO₃ 0.631 g（固体质量按这个算）。<br>温度和速率是示意：粉末最热处按约 175 ℃，NaHCO₃ 按一级反应、活化能约 100 kJ/mol 估计（150 ℃ 时速率常数约 0.0035/s）；Na₂CO₃ 在酒精灯的温度下不分解（熔点 851 ℃）。<br>石灰水：Ca(OH)₂ 溶解度约 0.17 g/100 g 水，8 mL 约能吸收 4.5 mL CO₂ 而变浑浊（通入的 CO₂ 约一半被吸收）。按物料衡算：8 mL 石灰水里 Ca(OH)₂ 约 0.184 mmol，Ca(OH)₂ + CO₂ ══ CaCO₃↓ + H₂O 只要约 4.5 mL CO₂ 就全浑浊；CO₂ 过量后 CaCO₃ + CO₂ + H₂O ══ Ca(HCO₃)₂，再吸约 4.5 mL 就全变清（浑浊度跟 CaCO₃ 的量走）。课本这里没写这一步，是 CO₂ 过量时的实际现象。“通过的 CO₂ 约一半被吸收”是示意值。<br>倒吸：导管里约 3 mL；吸满就流进试管，管里还烫（> 100 ℃，示意）时试管炸裂。“先让导管离开液体再熄灯”是加热制气实验通用的操作注意事项，课本这一节没写。深灰小点 = CO₂，浅灰 = 氮气，蓝 = 氧气，橙 = 热。' }));
         const { tbl, next } = mountXuean(ui, { controls: [q1, q2, vary, more, note], headers: ['做了什么', '现象', '说明'], tableTitle: '观察记录' });
         W = { tbl, q1, q2, next, status: (m) => ui.status(m) };
         bar.attach(ui);
