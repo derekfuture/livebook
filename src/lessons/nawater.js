@@ -315,7 +315,7 @@ export default {
         S.dump = Math.min(1, S.dump + dt / 2.2);
         const k = S.dump, a = Math.sin(k * Math.PI); bk.position.copy(CUP).lerp(WASTE.clone().setY(0.12), a); bk.rotation.z = -a * 1.45;
         S.water = Math.max(0, 1 - clamp((k - 0.2) / 0.5, 0, 1)); field.visible = false; ball.visible = false;
-        if (k === 1) { const demo = S.demo; S = fresh(); S.demo = demo; clearFx(); apply(); back(); if (!demo) { bar.undo(...PREP); W?.t1.close(); W?.t2.close(); W.next.hidden = true; W.compare.hidden = true; W.ui.relock(); } status('换了干净烧杯。保留上轮记录作比较，重新加水、取钠。'); }
+        if (k === 1) { const demo = S.demo; S = fresh(); S.demo = demo; clearFx(); apply(); back(); if (!demo) { bar.undo(...PREP); W?.t1.close(); W?.t2.close(); W.next.hidden = true; W.compare.hidden = true; W.ui.relock({ full: false }); } status('换了干净烧杯。保留上轮记录作比较，重新加水、取钠。'); }
       }
       renderMaterial();
       soundMark.visible = S.reaction && S.gas > 0.1 && !S.oil; soundMark.position.copy(CUP).add(V(S.x, LEVEL + 0.032, S.z));

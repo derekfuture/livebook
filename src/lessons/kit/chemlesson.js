@@ -33,17 +33,20 @@ export function paperSheet(group, { w = 0.6, d = 0.3, x = 0, z = 0.03 } = {}) {
  * apply()：按当前 S 把器材摆好（演示前后都会调用）；bar：返回步骤栏的函数（结束时在栏里说一句；步骤栏要等 reels 建好才有，所以传函数）。
  * 返回 { onStart, onEnd }，直接放进 reels.demo。
  */
-export function sandbox({ get, set, fresh, apply, bar }) {
-  let saved = null, cards = null;
+// view（可选）：{ save: () => 当前的观察视角, restore: (v) => 恢复 }——演示结束、换回学生的状态以后调用 restore，
+//   用来重新打开学生原来开着的“钻进去看”、回到原来的近景（课程自己知道怎么 look 回去、设好 S.near）。
+export function sandbox({ get, set, fresh, apply, bar, view }) {
+  let saved = null, cards = null, seen = null;
   // 学案上的题卡、“掀开结论”按钮也是学生自己的：演示里出的题、填的读数，演示完都要撤回
   const snap = () => [...document.querySelectorAll('.think, .big-next')].map((el) => ({ el, hidden: el.hidden, ctx: el.querySelector('.sum-ctx')?.innerHTML, ctxHidden: el.querySelector('.sum-ctx')?.hidden }));
   const restore = (list) => { for (const c of list) { c.el.hidden = c.hidden; const x = c.el.querySelector('.sum-ctx'); if (x && c.ctx != null) { x.innerHTML = c.ctx; x.hidden = c.ctxHidden; } } };
   return {
-    onStart: () => { if (!saved) { saved = get(); cards = snap(); } const s = fresh(); s.demo = true; set(s); apply?.(); },
+    onStart: () => { if (!saved) { saved = get(); cards = snap(); seen = view?.save?.(); } const s = fresh(); s.demo = true; set(s); apply?.(); },
     onEnd: () => {
       if (!saved) return;
       if (cards) { restore(cards); cards = null; }
       const s = saved; saved = null; s.near = false; set(s); apply?.();
+      if (view?.restore && seen != null) { const v = seen; seen = null; setTimeout(() => view.restore(v), 0); }
       const b = bar?.(); if (!b) return;
       b.say('演示看完了。桌上的器材和记录还是你自己的那一套——接着往下做。', b.current || 'end');
       setTimeout(() => b.say(null), 4000);
