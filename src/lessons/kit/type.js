@@ -40,15 +40,15 @@ export function envTick() {
 const rng = (seed) => { let s = seed % 2147483647 || 1; return () => ((s = (s * 16807) % 2147483647) / 2147483647); };
 const woodCache = new Map();
 /** 顺纹的木头：年轮细线沿着贴图的横向走 */
-export function wood({ base = '#e0c597', dark = '#9b7442', light = '#f3e2bd', rings = 54, seed = 7 } = {}) {
-  const key = [base, dark, light, rings, seed].join();
+export function wood({ base = '#e0c597', dark = '#9b7442', light = '#f3e2bd', rings = 54, seed = 7, contrast = 1 } = {}) {
+  const key = [base, dark, light, rings, seed, contrast].join();
   if (woodCache.has(key)) return woodCache.get(key);
   const w = 512, h = 256, c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d'), rnd = rng(seed);
   g.fillStyle = base; g.fillRect(0, 0, w, h);
   for (let i = 0; i < rings; i++) {
     const y0 = rnd() * h, amp = 1.5 + rnd() * 5, f = 0.004 + rnd() * 0.012, ph = rnd() * 6.28;
-    g.strokeStyle = rnd() < 0.72 ? dark : light; g.globalAlpha = 0.1 + rnd() * 0.2; g.lineWidth = 0.6 + rnd() * 2.4;
+    g.strokeStyle = rnd() < 0.72 ? dark : light; g.globalAlpha = (0.1 + rnd() * 0.2) * contrast; g.lineWidth = 0.6 + rnd() * 2.4;
     g.beginPath();
     for (let x = 0; x <= w; x += 8) { const y = y0 + Math.sin(x * f + ph) * amp + Math.sin(x * f * 3.3 + ph * 2) * amp * 0.35; if (x) g.lineTo(x, y); else g.moveTo(x, y); }
     g.stroke();
@@ -67,7 +67,7 @@ export function mats() {
   if (MAT) return MAT;
   MAT = {
     maple: new THREE.MeshStandardMaterial({ map: wood(), roughness: 0.62, metalness: 0 }),
-    walnut: new THREE.MeshStandardMaterial({ map: wood({ base: '#7b5536', dark: '#4a3020', light: '#97704c', seed: 3, rings: 60 }), roughness: 0.55, metalness: 0 }),
+    walnut: new THREE.MeshStandardMaterial({ map: wood({ base: '#7b5536', dark: '#4a3020', light: '#97704c', seed: 3, rings: 60, contrast: 0.55 }), roughness: 0.55, metalness: 0 }),
     iron: envFor(new THREE.MeshStandardMaterial({ color: 0x34373d, roughness: 0.46, metalness: 0.72 }), 0.85),
     brass: envFor(new THREE.MeshStandardMaterial({ color: 0xc19a4b, roughness: 0.3, metalness: 0.92 }), 1),
     rubber: envFor(new THREE.MeshStandardMaterial({ color: 0x1d1e22, roughness: 0.32, metalness: 0 }), 0.55),

@@ -123,19 +123,33 @@ export default {
     // ---- 铁框 ----
     const chases = [];
     const makeChase = (spec, isHero) => {
-      const C = cellsOf(spec.a, spec.b), Sz = C.S, front = [], left = [];
+      const c = { spec: { ...spec }, C: null, frame: null, hero: isHero, set: {}, proud: [], ok: false };
+      buildFrame(c);
+      chases.push(c);
+      return c;
+    };
+    function buildFrame(c) {
+      const spec = c.spec, isHero = c.hero, C = cellsOf(spec.a, spec.b), Sz = C.S, front = [], left = [];
+      if (c.frame) { root.remove(c.frame); c.frame.traverse((o) => { if (o.isMesh) o.geometry.dispose(); }); }
       if (spec.a) { front.push({ from: 0, to: spec.a * U, hue: HUE.a, label: 'a' }); left.push({ from: spec.b * U, to: Sz, hue: HUE.a, label: 'a' }); }
       if (spec.b) { front.push({ from: spec.a * U, to: Sz, hue: HUE.b, label: 'b' }); left.push({ from: 0, to: spec.b * U, hue: HUE.b, label: 'b' }); }
       const bar = isHero ? CHASE.bar : 0.009, frame = chaseFrame(Sz, Sz, { front, left, bar, labelH: isHero ? 0.017 : 0.014 });
       frame.position.set(spec.x, GF, spec.z);
+      frame.traverse((o) => { o.userData.noFrame = true; });
       root.add(frame);
-      if (!spec.b) { const t = labelMesh([['b', 'i'], ['＝0', 'n']], HUE.b, 0.014); t.position.set(Sz / 2 - 0.004, CHASE.h + 0.0003, Sz / 2 + bar + 0.0085); frame.add(t); }
-      const c = { spec, C, frame, hero: isHero, set: {}, proud: [], ok: false };
-      chases.push(c);
-      return c;
-    };
+      c.C = C; c.frame = frame;
+      if (c.resizable) {
+        // b＝0 写在框前面的托盘上，字大一点；右边一条看不见的拾取条，拖它就是改 b
+        if (c.zeroTag) { root.remove(c.zeroTag); c.zeroTag = null; }
+        if (!spec.b) { const t = labelMesh([['b', 'i'], ['＝0', 'n']], HUE.b, 0.024); t.position.set(spec.x + 0.006, GF + 0.0004, spec.z + Sz / 2 + bar + 0.012); root.add(t); c.zeroTag = t; }
+        // 只占右边框的后半截，前半截留给铜把手
+        const zd = Sz / 2 + bar - 0.015, pick = new THREE.Mesh(new THREE.BoxGeometry(bar + 0.012, 0.03, zd), new THREE.MeshBasicMaterial({ visible: false }));
+        pick.position.set(Sz / 2 + bar / 2 + 0.003, 0.012, -Sz / 2 - bar + zd / 2); pick.userData.pick = true; pick.userData.noFrame = true; frame.add(pick);
+        c.sizer = pick;
+      }
+    }
     const hero = makeChase(HERO, true);
-    const fam = FAM.map((f) => makeChase(f, false));
+    const fam = FAM.map((f, i) => { if (i === 1) { const c = { spec: { ...f }, C: null, frame: null, hero: false, set: {}, proud: [], ok: false, resizable: true }; buildFrame(c); chases.push(c); return c; } return makeChase(f, false); });
     const piecesOf = (c) => [...KEYS.map((k) => c.set[k]).filter(Boolean), ...c.proud];
     const locked = (c) => KEYS.every((k) => !live(c.C[k]) || c.set[k]) && !c.proud.length;
 
@@ -338,36 +352,36 @@ export default {
       S.busy = true;
       const res = chases.map((c) => (c.ok = locked(c)));
       const r = (k) => (Math.random() - 0.5) * k;
-      for (const c of chases) for (const p of piecesOf(c)) { p.v++; const [w, d] = dimsOf(p.kind, c.spec.a, c.spec.b); p.drop = { tx: r(0.012), tz: r(0.012), rx: r(0.36), rz: r(0.36), ry: r(0.25), half: Math.max(w, d) / 2 }; }
+      for (const c of chases) for (const p of piecesOf(c)) { p.v++; const [w, d] = dimsOf(p.kind, c.spec.a, c.spec.b); p.drop = { tx: r(0.012), tz: r(0.012), rx: r(0.36), rz: r(0.36), ry: r(0.25), half: Math.max(w, d) / 2, jx: r(0.004), jz: r(0.004) }; }
       sfx.whoosh({ dur: 0.5, freq: 280, gain: 0.05 });
       let rang = false;
-      const D = 2.7, up = (t) => (t < 0.55 ? easeOut(t / 0.55) : t < 2 ? 1 : 1 - smooth(clamp((t - 2) / 0.65, 0, 1)));
+      // 0–0.55 一起升上去；停到 0.85；没锁住的先晃一下（0.85–0.97），再滑出来往下掉（0.97–1.22），落地弹一下、歪倒；2.3 起铁框放下，字块摆正
+      const D = 2.95, T0 = 0.85, T1 = 0.97, T2 = 1.22, DOWN = 2.3;
+      const up = (t) => (t < 0.55 ? easeOut(t / 0.55) : t < DOWN ? 1 : 1 - smooth(clamp((t - DOWN) / 0.6, 0, 1)));
       tw.to(D, (k) => {
         const t = k * D, e = up(t);
         for (const c of chases) {
           c.frame.position.y = GF + LIFT * e;
           for (const p of piecesOf(c)) {
             const b = p.base; if (!b) continue;
-            if (c.ok) { p.g.position.set(b.x, b.y + LIFT * e, b.z); p.g.rotation.set(0, b.ry, 0); continue; }
-            // 没锁住：被铁框带起来一截，接着滑出来，摔回托盘上歪倒；铁框放下时摆正
-            const T0 = 0.3, T1 = 0.56, top = LIFT * up(T0) * 0.85;
-            let y = b.y;
-            if (t < T0) y = b.y + LIFT * up(t) * 0.85;
-            else if (t < T1) { const f = (t - T0) / (T1 - T0); y = b.y + top * (1 - f * f); }
-            else if (t < T1 + 0.14) y = b.y + Math.sin((Math.PI * (t - T1)) / 0.14) * 0.004;
-            const tilt = t < T1 ? 0 : t < T1 + 0.12 ? (t - T1) / 0.12 : t < 2 ? 1 : 1 - smooth(clamp((t - 2) / 0.65, 0, 1));
+            if (c.ok || t < T0) { p.g.position.set(b.x, b.y + LIFT * e, b.z); p.g.rotation.set(0, b.ry, 0); continue; }
+            let y = b.y, jig = 0;
+            if (t < T1) { y = b.y + LIFT; jig = Math.sin(((t - T0) / (T1 - T0)) * Math.PI * 3) * (1 - (t - T0) / (T1 - T0)); }
+            else if (t < T2) { const f = (t - T1) / (T2 - T1); y = b.y + LIFT * (1 - f * f); }
+            else if (t < T2 + 0.14) y = b.y + Math.sin((Math.PI * (t - T2)) / 0.14) * 0.004;
+            const tilt = t < T2 ? 0 : t < T2 + 0.12 ? (t - T2) / 0.12 : t < DOWN ? 1 : 1 - smooth(clamp((t - DOWN) / 0.6, 0, 1));
             const ax = p.drop.rx * tilt, az = p.drop.rz * tilt;
-            p.g.position.set(b.x + p.drop.tx * tilt, y + p.drop.half * Math.sin(Math.max(Math.abs(ax), Math.abs(az))), b.z + p.drop.tz * tilt);
+            p.g.position.set(b.x + p.drop.tx * tilt + p.drop.jx * jig, y + p.drop.half * Math.sin(Math.max(Math.abs(ax), Math.abs(az))), b.z + p.drop.tz * tilt + p.drop.jz * jig);
             p.g.rotation.set(ax, b.ry + p.drop.ry * tilt, az);
           }
         }
-        if (t > 0.56 && !rang) { rang = true; if (res.every(Boolean)) sfx.ding(660, { gain: 0.06 }); else clatter(); }
+        if (t > T0 && !rang) { rang = true; if (res.every(Boolean)) sfx.ding(660, { gain: 0.06 }); else setTimeout(() => { if (!dead) clatter(); }, (T2 - T0) * 1000); }
       }, () => {
         for (const c of chases) { c.frame.position.y = GF; for (const p of piecesOf(c)) if (p.base) { p.g.position.set(p.base.x, p.base.y, p.base.z); p.g.rotation.set(0, p.base.ry, 0); } }
         S.busy = false; S.lifted++; S.liftedSince = true; S.last = res; hint();
       });
     }
-    const handleTaps = chases.flatMap((c) => c.frame.handles.map((h) => ({ obj: h, enabled: () => !S.busy && !S.rolling, hint: () => '提起铁框：排满了，整版一起起来', onTap: lift })));
+    const handleTaps = chases.flatMap((c) => [0, 1].map((i) => ({ get obj() { return c.frame.handles[i]; }, enabled: () => !S.busy && !S.rolling, hint: () => '提起铁框：排满了，整版一起起来', onTap: lift })));
 
     // ---- 墨辊和印 ----
     const yFloor = GF + ROLL.r, yTop = GF + TYPE_H + 0.0012 + ROLL.r, yPaper = 0.0004 + ROLL.r;
@@ -436,7 +450,26 @@ export default {
       },
     };
 
+    const sizeC = fam[1], B_MAX = 1.5;
+    let sizeFrom = null;          // 拖框边从哪儿开始、那时 b 是多少：拖多少改多少，不会一抓就跳
+    const resize = (b) => {
+      if (Math.abs(b - sizeC.spec.b) < 1e-6) return;
+      for (const p of piecesOf(sizeC)) killPiece(p);
+      sizeC.set = {}; sizeC.proud = [];
+      sizeC.spec.b = b; buildFrame(sizeC);
+      syncFamily(0); S.liftedSince = false; S.last = null; hint();
+      sfx.clink({ freq: 900 + 160 * b, gain: 0.02 });
+    };
+    const sizeDrag = {
+      get obj() { return sizeC.sizer; }, plane: 'xz', offset: GF + CHASE.h,
+      enabled: () => !S.busy && !S.rolling,
+      hint: () => '拖框边：把 <i>b</i> 换一个数',
+      onStart: (q) => { S.held = 'sizer'; sizeFrom = q ? [q.x, sizeC.spec.b] : null; },
+      onDrag: (q) => { if (!sizeFrom) { sizeFrom = [q.x, sizeC.spec.b]; return; } resize(clamp(Math.round((sizeFrom[1] + (2 * (q.x - sizeFrom[0])) / U) * 4) / 4, 0, B_MAX)); },
+      onEnd: () => { S.held = null; },
+    };
     const pointer = draggable(root, drags, { tip, taps: [...handleTaps, ...gapTaps] });
+    drags.push(sizeDrag);
     drags.push(...caseDrags, rollDrag);
 
     // ---- 取景：只认这个看不见的盒子 ----
@@ -456,12 +489,12 @@ export default {
         return say('多出来的字块，印到正方形外面去了', '多放的字块搁在别的字上面，印出来叠在一起：<b>多了</b>。<br>把多的拿回字盘，再印一次。');
       }
       if (!any) return say('照你想的排：(a+b)² 用哪几块字？', '课本练习问：(<i>a</i>＋<i>b</i>)²＝<i>a</i>²＋<i>b</i>² 对吗？<br>从右边的<b>字盘</b>里，把你觉得该用的字块拖进前面的铁框（点一下字盘也行）。手托上会排出你的式子。');
-      if (!S.liftedSince) return say('排好了，就提起铁框看看', '后面两个铁框大小不一样，也照你的排法排上了。<br>点铁框两边的<b>铜把手</b>，提起来：排满了，整版一起起来；没排满，字块会掉下去。');
+      if (!S.liftedSince) return say('排好了，就提起铁框看看', `后面两个铁框大小不一样，也照你的排法排上了${sizeC.spec.b ? '' : '（右后那个 <i>b</i>＝0，框边拖得动，可以换一个 <i>b</i>）'}。<br>点铁框两边的<b>铜把手</b>，提起来：排满了，整版一起起来；没排满，字块会掉下去。`);
       const [h, ...f] = S.last || [];
       if (h && f.every(Boolean)) return say('三版都提起来了。推墨辊，印到活页上', '三个大小的版都排满了，整版提了起来：不管 <i>a</i>、<i>b</i> 多大，都是 <i>a</i>²、<i>ab</i>、<i>ab</i>、<i>b</i>² 四块。<br>把<b>墨辊</b>往左推：滚过字版和手托，再滚到左边的活页上。');
       const gaps = KEYS.filter((k) => live(hero.C[k]) && !hero.set[k]).length, held = f.map((x, i) => (x ? i : -1)).filter((i) => i >= 0);
-      const zero = held.some((i) => !FAM[i].b);
-      if (!h && gaps) return say(`前面这版掉了：框里还空着 ${gaps} 块`, `提起来，前面这一版的字块<b>掉了</b>：框里还空着 ${gaps} 块。${zero ? '后面 <i>b</i>＝0 的那一版倒是提起来了——那里根本没有中间那两块。' : ''}<br>把鼠标移到空着的地方，看看它的两条边是什么。`);
+      const zero = held.some((i) => !fam[i].spec.b);
+      if (!h && gaps) return say(`前面这版掉了：框里还空着 ${gaps} 块`, `提起来，前面这一版的字块<b>掉了</b>：框里还空着 ${gaps} 块。${zero ? '后面 <i>b</i>＝0 的那一版倒是提起来了——那里根本没有中间那两块。拖它的框边，把 <i>b</i> 换个数再提一次。' : ''}<br>把鼠标移到空着的地方，看看它的两条边是什么。`);
       if (!h) return say('多放了字块，锁不住', '有字块没地方放，搁在别的字上面，铁框锁不住，提起来就掉。<br>把多的拖回字盘。');
       return say('前面这版提起来了，后面的呢？', '前面这一版排满了。后面不同大小的版，有没有掉下去的？');
     }
@@ -476,7 +509,7 @@ export default {
       place: 'spread',
       scale: 1,
       size: { w: 0.6, d: 0.345, h: 0.07 },
-      view: { elev: 37, azim: -8, lookY: 0.2, frameMargin: 1.0 },
+      view: { elev: 35, azim: -10, lookY: 0.2, frameMargin: 0.97 },
       pointer,
       mount(u) { ui = u; hint(); },
       dispose() { dead = true; tip?.remove?.(); },
@@ -497,7 +530,7 @@ export default {
         for (const c of chases) for (const o of c.frame.children) if (o.userData.handle) o.rotation.x = wantLift ? -0.35 * bump : 0;
         if (!S.rolling && S.last && S.last.every(Boolean) && S.liftedSince && S.ink !== 'printed') rol.spin.rotation.z = (ROLL.rest - S.rx) / ROLL.r + 0.25 * bump;
       },
-      test: { S, hero, fam, chases, U, HERO, ROLL, STICK, lift, setRoll, locked, put: (kind) => { const p = makePiece(kind, HERO.a, HERO.b); p.g.position.set(CASE.x, HOLD, CASE.z); putHero(p); return p; }, take: (key) => { const p = hero.set[key]; if (p) toCase(p); }, stackAt: (kind) => { root.updateMatrixWorld(true); return root.worldToLocal(stackTop[kind].getWorldPosition(new THREE.Vector3())).toArray(); }, handleAt: () => { root.updateMatrixWorld(true); return root.worldToLocal(hero.frame.handles[1].getWorldPosition(new THREE.Vector3())).toArray(); } },
+      test: { S, hero, fam, chases, U, HERO, ROLL, STICK, lift, setRoll, locked, resize, sizerAt: () => { root.updateMatrixWorld(true); return root.worldToLocal(sizeC.sizer.getWorldPosition(new THREE.Vector3())).toArray(); }, put: (kind) => { const p = makePiece(kind, HERO.a, HERO.b); p.g.position.set(CASE.x, HOLD, CASE.z); putHero(p); return p; }, take: (key) => { const p = hero.set[key]; if (p) toCase(p); }, stackAt: (kind) => { root.updateMatrixWorld(true); return root.worldToLocal(stackTop[kind].getWorldPosition(new THREE.Vector3())).toArray(); }, handleAt: () => { root.updateMatrixWorld(true); return root.worldToLocal(hero.frame.handles[1].getWorldPosition(new THREE.Vector3())).toArray(); } },
     };
   },
 };
