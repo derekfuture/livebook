@@ -163,7 +163,7 @@ export function dianzhiScene() {
   const grid = (salt, nx, nz, ny, y0, x0 = 0) => { const s = SP[salt], out = []; for (let y = 0; y < ny; y++) for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) out.push([V(x0 + (i - (nx - 1) / 2) * s, y0 + y * s, (j - (nz - 1) / 2) * s), ION[salt][(i + j + y) % 2]]); return out; };
   const big = (salt) => (salt === 'KNO3' ? grid(salt, 4, 3, 2, 1.1) : grid(salt, 5, 4, 3, 0.8));
   const addIon = (c, k, p, extra = {}) => { const m = c.add(k, p, { fixed: true, home: p.clone(), ...extra }); if (k === 'NO3-') m.g.rotation.set(Math.PI / 2, 0, 0.3); else m.g.rotation.set(0, 0, 0); return m; };
-  const crystal = (c, salt) => c.mols.filter((m) => m.fixed && m.salt === salt);
+  const crystal = (c, salt) => c.mols.filter((m) => m.fixed && m.salt === salt && !m.fadeOut);
   const aqs = (c, k) => c.mols.filter((m) => m.kind === k && !m.fadeOut);
   const liquidAt = (c) => { const p = c.inLiquid(); p.y = c.rnd(YLO, YHI); p.x = c.rnd(-XL + 0.6, XL - 0.6); return p; };
   const addAq = (c, k, p, extra = {}) => { const m = c.add(k, p, extra); m.wander = V(c.rnd(-1, 1), c.rnd(-0.3, 0.3), c.rnd(-1, 1)); return m; };
@@ -214,6 +214,10 @@ export function dianzhiScene() {
           if (a && b) for (const [m, k] of [[a, ck], [b, ak]]) { const p = m.g.position.clone(); c.remove(m); const n = addAq(c, k, p.add(V(0, 0.6, 0))); n.v.set(p.x * 0.3, 2.5, p.z * 0.3); n.labelK = 1; n.labelT = 2; }
           else for (const k of [ck, ak]) addAq(c, k, liquidAt(c), { fadeIn: true, dimK: 0 });
         } else if (have > want) { aqs(c, ck)[0].fadeOut = true; aqs(c, ak)[0].fadeOut = true; }
+        // 没溶解的固体跟着真实的量消退：晶块的离子对比该有的多（而溶液里的离子已经够数）就淡出一对；全溶完了，余下的晶格全部移走
+        const cr = crystal(c, salt), crPairs = Math.min(cr.filter((m) => m.kind === ION[salt][0]).length, cr.filter((m) => m.kind === ION[salt][1]).length), wantUn = st.undis[salt];
+        if (!wantUn) cr.forEach((m) => { m.fadeOut = true; });
+        else if (crPairs > wantUn && have >= want && gap <= 0) { gap = 0.5; const top = cr.sort((a, b) => b.g.position.y - a.g.position.y), a = top.find((m) => m.kind === ION[salt][0]), b = a && top.filter((m) => m.kind === ION[salt][1]).sort((x, y) => x.g.position.distanceTo(a.g.position) - y.g.position.distanceTo(a.g.position))[0]; if (a && b) a.fadeOut = b.fadeOut = true; }
         // 没有溶解的固体比该有的多（换了一杯以后 init 已经摆好；这里只防万一）
       }
       // 水合离子：在水里自由移动（方向是乱的）；通电后阳离子往右（负极）、阴离子往左（正极）
