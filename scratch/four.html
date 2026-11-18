@@ -1,0 +1,124 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>数学第一批：草图</title>
+<style>html,body{margin:0;height:100%;background:#c49a6c}canvas{display:block}</style></head>
+<body><script type="module">
+// 草图（不是活页）：?p=2 不等式两边乘负数；?p=3 圆周角；?p=4 分式方程去分母多出来的解。只渲染一帧。
+import * as THREE from 'three';
+const P = new URLSearchParams(location.search).get('p') || '2';
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(W, H); renderer.setPixelRatio(2);
+renderer.shadowMap.enabled = true; renderer.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#c99d6e');
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 10);
+scene.add(new THREE.HemisphereLight(0xfff8ee, 0xa58a68, 1.6));
+const sun = new THREE.DirectionalLight(0xfff2de, 1.5); sun.position.set(-0.6, 1.4, 0.9); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -0.6, right: 0.6, top: 0.6, bottom: -0.6, near: 0.1, far: 3 }); scene.add(sun);
+const CYAN = 0x1b8fc2, MAG = 0xd12a74, GOLD = 0xd99a1e, INK = 0x2b3245, PENCIL = 0x8a8f9c;
+const desk = new THREE.Mesh(new THREE.PlaneGeometry(4, 4).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xc99d6e })); desk.position.y = -0.002; desk.receiveShadow = true; scene.add(desk);
+const paper = (w, d, x = 0, z = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.002, d), new THREE.MeshLambertMaterial({ color: 0xf4eedd })); m.position.set(x, -0.001, z); m.receiveShadow = true; scene.add(m); };
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const tube = (pts, rad, color, op = 1) => { const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), Math.max(8, pts.length * 4), rad, 8, false), new THREE.MeshStandardMaterial({ color, roughness: 0.5, transparent: op < 1, opacity: op })); m.castShadow = true; scene.add(m); return m; };
+const seg = (p, q, rad, color, op = 1) => tube([p, p.clone().lerp(q, 0.5), q], rad, color, op);
+const dot = (p, rad, color) => { const m = new THREE.Mesh(new THREE.SphereGeometry(rad, 20, 14), new THREE.MeshStandardMaterial({ color, roughness: 0.35 })); m.position.copy(p); m.castShadow = true; scene.add(m); return m; };
+const label = (txt, p, h, color = '#2b3245', bg = 'rgba(253,250,241,0.9)') => {
+  const cv = document.createElement('canvas'), g = cv.getContext('2d'), px = 64, f = `600 ${px}px "Kaiti SC","STKaiti",serif`; g.font = f;
+  const w = g.measureText(txt).width + 24; cv.width = w; cv.height = px * 1.4; g.font = f;
+  if (bg) { g.fillStyle = bg; g.fillRect(0, 0, w, cv.height); } g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(txt, 12, cv.height / 2);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); s.scale.set((h * w) / cv.height, h, 1); s.position.copy(p); s.renderOrder = 9; scene.add(s); return s;
+};
+/** 一条纸做的数轴：x0..x1，k 米一个单位，每 step 标一个数 */
+const ruler = (y, z, x0, x1, k, step, fmt) => {
+  const cv = document.createElement('canvas'), Wc = 2400, Hc = 160; cv.width = Wc; cv.height = Hc; const g = cv.getContext('2d');
+  g.fillStyle = '#fbf6e8'; g.fillRect(0, 0, Wc, Hc); g.strokeStyle = '#2b3245'; g.fillStyle = '#2b3245'; g.lineWidth = 3; g.font = '600 46px "Times New Roman",serif'; g.textAlign = 'center';
+  g.beginPath(); g.moveTo(0, 40); g.lineTo(Wc, 40); g.stroke();
+  const X = (x) => ((x - x0) / (x1 - x0)) * Wc;
+  for (let v = Math.ceil(x0 / k / step) * step; v * k <= x1 + 1e-9; v += step) { g.beginPath(); g.moveTo(X(v * k), 22); g.lineTo(X(v * k), 58); g.stroke(); g.fillText(fmt(v), X(v * k), 112); }
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.003, 0.05), [0, 0, new THREE.MeshLambertMaterial({ map: t }), 0, 0, 0].map((x) => x || new THREE.MeshLambertMaterial({ color: 0xe9e0c8 })));
+  m.position.set((x0 + x1) / 2, y, z + 0.012); m.castShadow = m.receiveShadow = true; scene.add(m); return m;
+};
+const num = (v) => (v < 0 ? `−${-v}` : `${v}`);
+
+if (P === '2') {
+  // 不等式两边乘 −5：上面一把尺是原来的数，下面一把是乘 −5 以后的数（刻度缩小 5 倍才放得下）；每个数拉一根线到它乘出来的位置
+  const u = 0.04, top = 0.13;
+  paper(0.8, 0.36, 0, 0.02);
+  ruler(top, 0, -0.3, 0.3, u, 1, num);
+  ruler(0.0015, 0, -0.3, 0.3, u / 5, 5, num);
+  for (const x of [-0.29, 0.29]) seg(V(x, 0, -0.01), V(x, top, -0.01), 0.002, 0xb59a6e);          // 上面那把尺的两根撑脚
+  for (const v of [-6, -4, -2, 0, 2, 4, 6]) {
+    const a = V(v * u, top + 0.004, 0), b = V(-v * u, 0.006, 0), hot = v === 2 || v === 6;
+    seg(a, b, hot ? 0.0012 : 0.0006, hot ? (v === 2 ? CYAN : MAG) : PENCIL, hot ? 1 : 0.7);
+    dot(a, hot ? 0.006 : 0.0035, hot ? (v === 2 ? CYAN : MAG) : PENCIL); dot(b, hot ? 0.006 : 0.0035, hot ? (v === 2 ? CYAN : MAG) : PENCIL);
+  }
+  dot(V(0, top / 2 + 0.002, 0), 0.0045, GOLD);
+  label('6 ＞ 2', V(0.2, top + 0.04, 0), 0.03);
+  label('乘 −5 以后：−30 ＜ −10', V(-0.17, -0.035, 0.05), 0.03, '#9e1b57');
+  label('所有的线都穿过这一点：左右整个调了个', V(0.17, top / 2 + 0.004, 0.02), 0.024, '#9a6a10');
+  cam.position.set(0.1, 0.26, 0.9); cam.lookAt(0.0, 0.06, 0);
+}
+
+if (P === '3') {
+  // 圆周角：弦 BC 不动，顶点 A 在圆上走。每个位置立一片纸，高度就是这时 ∠A 的大小
+  const R = 0.15, th = 50, k = 0.0011;            // ∠A＝50°（顶点在大弧上）；k：每度立多高
+  paper(0.62, 0.5, 0, 0);
+  const at = (deg, y = 0) => V(R * Math.cos((deg * Math.PI) / 180), y, R * Math.sin((deg * Math.PI) / 180));
+  const bD = 220, cD = 320, B = at(bD), C = at(cD), O = V(0, 0, 0);
+  { const pts = []; for (let d = 0; d <= 360; d += 4) pts.push(at(d, 0.0008)); tube(pts, 0.0008, INK); }
+  seg(B.clone().setY(0.0009), C.clone().setY(0.0009), 0.0014, INK);
+  seg(O, B, 0.0007, PENCIL); seg(O, C, 0.0007, PENCIL); dot(O, 0.003, INK);
+  // 墙：大弧（320°→360°→220°）上高 50，小弧（220°→320°）上高 130
+  const wall = (d0, d1, h, color) => {
+    const pos = [], idx = []; const n = 60;
+    for (let i = 0; i <= n; i++) { const d = d0 + ((d1 - d0) * i) / n, p = at(d); pos.push(p.x, 0, p.z, p.x, h, p.z); if (i) { const a = 2 * (i - 1); idx.push(a, a + 1, a + 2, a + 2, a + 1, a + 3); } }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xfbf6ea, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false, roughness: 0.9 })); scene.add(m);
+    const top = []; for (let i = 0; i <= n; i++) top.push(at(d0 + ((d1 - d0) * i) / n, h)); tube(top, 0.0022, color);
+  };
+  wall(cD + 4, bD + 360 - 4, th * k, CYAN);            // 大弧
+  wall(bD + 4, cD - 4, (180 - th) * k, MAG);          // 小弧
+  // 几个顶点：画出两条边和角
+  const vertex = (d, color, strong) => {
+    const A = at(d, 0.001); seg(A, B.clone().setY(0.001), strong ? 0.0011 : 0.0006, color, strong ? 1 : 0.6); seg(A, C.clone().setY(0.001), strong ? 0.0011 : 0.0006, color, strong ? 1 : 0.6);
+    dot(A, strong ? 0.004 : 0.0028, color); seg(A, at(d, d > bD && d < cD ? (180 - th) * k : th * k), 0.0006, color, 0.8);
+  };
+  for (const d of [10, 60, 110, 160]) vertex(d, CYAN, d === 60);
+  vertex(270, MAG, true);
+  label('B', B.clone().add(V(-0.012, 0.01, -0.008)), 0.022, '#2b3245', null); label('C', C.clone().add(V(0.012, 0.01, -0.008)), 0.022, '#2b3245', null); label('O', V(0.01, 0.01, 0.012), 0.02, '#2b3245', null);
+  label('顶点在这段弧上走到哪，∠A 都一样大（50°）', V(0, 0.002, R + 0.07), 0.024, '#14688f');
+  label('走到另一段弧：变成 180° − 50°', at(270, (180 - th) * k + 0.03), 0.026, '#9e1b57');
+  label('∠BOC＝100°，正好是 50° 的 2 倍', V(0.0, 0.012, -0.03), 0.02, '#5d6378');
+  cam.position.set(0.0, 0.46, 0.66); cam.lookAt(0, 0.03, 0.0);
+}
+
+if (P === '4') {
+  // 分式方程 1/(x−5)＝10/(x²−25)：后面一张纸画原方程两边在 x＝1…9 的值（x＝5 没有意义），前面一张纸画两边乘 (x−5)(x+5) 以后的值
+  paper(0.7, 0.44, 0, 0.02);
+  const X = (x) => -0.24 + x * 0.048;
+  const board = (z, title, ty) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.2), new THREE.MeshStandardMaterial({ color: 0xfbf6ea, transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, roughness: 0.9 })); m.position.set(0, 0.1, z); scene.add(m);
+    seg(V(-0.25, 0.001, z), V(0.25, 0.001, z), 0.0016, 0xb59a6e); label(title, V(-0.33, ty, z), 0.02, '#2b3245'); };
+  // 后：原方程
+  const zb = -0.12; board(zb, '后面：原方程两边各是多少', 0.17);
+  const yb = (v) => 0.1 + v * 0.055;
+  seg(V(X(0.6), yb(0), zb), V(X(9.6), yb(0), zb), 0.0007, PENCIL);
+  for (let x = 1; x <= 9; x++) {
+    if (x === 5) continue;
+    const l = 1 / (x - 5), r = 10 / (x * x - 25);
+    dot(V(X(x) - 0.004, yb(l), zb), 0.0042, CYAN); dot(V(X(x) + 0.004, yb(r), zb), 0.0042, MAG);
+  }
+  // x＝5：分母为 0，纸上撕开一道口子
+  { const g = new THREE.Mesh(new THREE.PlaneGeometry(0.014, 0.19), new THREE.MeshBasicMaterial({ color: 0x8f6a45 })); g.position.set(X(5), 0.1, zb + 0.0005); scene.add(g); }
+  label('x＝5：分母为 0，没有意义', V(X(5) + 0.02, 0.225, zb), 0.019, '#9e1b57');
+  // 前：两边乘 (x−5)(x+5) 以后
+  const zf = 0.07; board(zf, '前面：两边乘 (x−5)(x+5) 以后', 0.05);
+  const yf = (v) => 0.02 + (v - 5) * 0.012;
+  for (let x = 1; x <= 9; x++) { const hot = x === 5; dot(V(X(x) - 0.004, yf(x + 5), zf), hot ? 0.0062 : 0.0042, hot ? GOLD : CYAN); dot(V(X(x) + 0.004, yf(10), zf), hot ? 0.0062 : 0.0042, hot ? GOLD : MAG); }
+  seg(V(X(5), yf(10), zf), V(X(5), yf(10), zb), 0.0009, GOLD);
+  label('多出来的 x＝5，正好对着原方程没有意义的地方', V(0.1, -0.03, zf + 0.06), 0.021, '#9a6a10');
+  label('青：左边　品红：右边', V(0.3, 0.2, zf), 0.018, '#2b3245');
+  cam.position.set(0.62, 0.3, 0.55); cam.lookAt(-0.02, 0.09, -0.03);
+}
+renderer.render(scene, cam);
+window.__done = true;
+</script></body></html>
