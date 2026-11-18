@@ -313,16 +313,19 @@ export function no2Scene() {
       last = n1 ? 'rx1' : n2 ? 'rx2' : last;
     },
     text(c, st) {
-      const e = c.events[0], rx2 = e?.rx === RX2;
-      const eq = rx2 || (!e && last === 'rx2') ? `${f('NO2', '3')} + ${f('H2O')} ${ARR} 2HNO<sub>3</sub> + ${f('NO')}` : `${f('NO', '2')} + ${f('O2')} ${ARR} ${f('NO2', '2')}`;
-      const nNO2 = gasCount(c, 'NO2');
-      const cap = e && e.rx === RX1 ? `一个 ${f('O2')} 碰上两个 ${f('NO')}：变成<b>两个 ${f('NO2')}</b>（3 个分子变成 2 个，气体变少了）`
-        : rx2 ? `水面上：三个 ${f('NO2')} 和一个 ${f('H2O')} 变成两个 HNO<sub>3</sub>（在水里成了 ${f('H+')} 和 ${f('NO3-')}）和<b>一个 ${f('NO')}</b>——三个气体分子只回来一个`
-        : nNO2 && st.water && !st.shaking ? `${f('NO2')} 只有碰到水面才溶进去：<b>振荡</b>让它们不停地碰到水`
-        : nNO2 && !st.water ? `${f('NO2')} 有了，可针筒里还没有水`
-        : !st.o2 && !nNO2 && !(st.hno3 > 0) ? `针筒里是 ${f('NO')}（无色）。${st.water ? '它<b>不易溶于水</b>：振荡也没有明显变化' : '还没有吸水'}`
-        : st.o2 > 0.05 ? `${f('O2')} 还有，${f('NO')} 一碰上就反应`
-        : `${f('NO2')} 都溶进水里了：剩下的气体是 ${f('NO')}${st.n2 > 0.1 ? ` 和空气带进来的 ${f('N2')}` : ''}；水里是硝酸（${f('H+')}、${f('NO3-')}）`;
+      // 方程式按正在看的那个反应选：正在水面上反应 / 还有 NO₂（宏观或这一小块里）→ 吸收；正在氧化 / 还有 O₂ 要进来、要反应 → 氧化
+      const e = c.events[0], nNO2 = gasCount(c, 'NO2'), nO2 = gasCount(c, 'O2'), o2Coming = addO2 < Math.round(st.o2In / U);
+      const absorbing = e?.rx === RX2 || ((nNO2 > 0 || st.no2 > 0.05) && !(e?.rx === RX1) && !o2Coming && !(nO2 > 0 && st.o2 > 0.05));
+      const done2 = !e && !nNO2 && st.no2 <= 0.05 && st.hno3 > 0 && !o2Coming && !nO2;          // 宏观、这一小块里都没有 NO₂ 了，也没有反应在放
+      const eq = absorbing || done2 ? `${f('NO2', '3')} + ${f('H2O')} ${ARR} 2HNO<sub>3</sub> + ${f('NO')}` : `${f('NO', '2')} + ${f('O2')} ${ARR} ${f('NO2', '2')}`;
+      const cap = e?.rx === RX1 ? `一个 ${f('O2')} 碰上两个 ${f('NO')}：变成<b>两个 ${f('NO2')}</b>（3 个分子变成 2 个，气体变少了）`
+        : e?.rx === RX2 ? `水面上：三个 ${f('NO2')} 和一个 ${f('H2O')} 变成两个 HNO<sub>3</sub>（在水里成了 ${f('H+')} 和 ${f('NO3-')}）和<b>一个 ${f('NO')}</b>——三个气体分子只回来一个`
+        : o2Coming || nO2 ? `空气从管口进来：${f('O2')} 一碰上 ${f('NO')} 就反应`
+        : (nNO2 || st.no2 > 0.05) && !st.water ? `${f('NO2')} 有了，可针筒里还没有水`
+        : (nNO2 || st.no2 > 0.05) && st.shaking ? `振荡：${f('NO2')} 不停地碰到水面，一个个溶进去`
+        : nNO2 || st.no2 > 0.05 ? `${f('NO2')} 只有碰到水面才溶进去：<b>振荡</b>让它们不停地碰到水（静置时很慢）`
+        : done2 ? `${f('NO2')} 基本都溶进水里了：剩下的气体是 ${f('NO')}${st.n2 > 0.1 ? ` 和空气带进来的 ${f('N2')} 等` : ''}；水里是硝酸（${f('H+')}、${f('NO3-')}）`
+        : `针筒里是 ${f('NO')}（无色）。${st.water ? '它<b>不易溶于水</b>：振荡也没有明显变化' : '还没有吸水'}`;
       return { eq, cap };
     },
   };

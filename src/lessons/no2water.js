@@ -52,7 +52,7 @@ export default {
     page: 17, rect: [64, 120, 378, 264],
     quote: '一氧化氮是无色的有毒气体，不易溶于水，在常温下很容易与氧气化合，生成二氧化氮。……二氧化氮是红棕色、有刺激性气味的有毒气体，密度比空气的大，易液化，易溶于水。二氧化氮溶于水时生成硝酸和一氧化氮，工业上利用这一原理生产硝酸。',
     formula: '2NO + O₂ ══ 2NO₂　　3NO₂ + H₂O ══ 2HNO₃ + NO',
-    why: '吸水、封口、振荡：没有变化——NO <b>不易溶于水</b>。吸入空气：无色气体立刻变成<b>红棕色</b>，活塞往里缩——NO 和空气里的 O₂ 化合成 NO₂（2 体积 NO + 1 体积 O₂ → 2 体积 NO₂，气体变少）。再振荡：红棕色<b>基本褪去</b>，活塞继续往里走——NO₂ <b>易溶于水</b>，按课本的方程式生成硝酸和 NO（每 3 体积 NO₂ 生成 1 体积 NO）。剩下的无色气体里有没反应完的 NO、空气带进来的 N₂ 等，还有这一步新生成的 NO。<br>要让 NO 充分转化，就再吸入空气（氧气）、再振荡……反复进行；工业上生产硝酸，吸收 NO₂ 时也要通入足量空气，让生成的 NO 再被氧化、再被吸收。',
+    why: '吸水、封口、振荡：没有明显变化——NO <b>不易溶于水</b>。吸入空气：无色气体立刻变成<b>红棕色</b>，活塞往里缩——NO 和空气里的 O₂ 化合成 NO₂（2 体积 NO + 1 体积 O₂ → 2 体积 NO₂，气体变少）。再振荡：红棕色<b>基本褪去</b>，活塞继续往里走——NO₂ <b>易溶于水</b>，按课本的方程式生成硝酸和 NO（每 3 体积 NO₂ 生成 1 体积 NO）。剩下的无色气体里有没反应完的 NO、空气带进来的 N₂ 等，还有这一步新生成的 NO。<br>要让 NO 充分转化，就再吸入空气（氧气）、再振荡……反复进行；工业上生产硝酸，吸收 NO₂ 时也要通入足量空气，让生成的 NO 再被氧化、再被吸收。',
     src: '课本第 13 页 · 第五章 第二节 氮及其化合物',
   },
 
@@ -73,6 +73,9 @@ export default {
     const smoke = smoke2({ max: 200, color: 0x9c4a22, opacity: 0.8 }); smoke.mesh.renderOrder = 13; group.add(smoke.mesh);
     const bubbles = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), bubble2({ color: 0x6f8797, white: 0.4 }), 40); bubbles.count = 0; bubbles.renderOrder = 8.5; bubbles.frustumCulled = false; bubbles.raycast = () => {}; group.add(bubbles);
     const BUB = [];
+    // 能松手的地方：拖着注射器时杯口亮一圈，乳胶管末端对准了更亮
+    const zone = new THREE.Mesh(new THREE.TorusGeometry(BR + 0.0025, 0.0016, 8, 48), new THREE.MeshBasicMaterial({ color: 0xff9a3c, transparent: true, opacity: 0, depthWrite: false }));
+    zone.rotation.x = Math.PI / 2; zone.position.set(BX, BH + 0.001, 0); zone.renderOrder = 12; zone.raycast = () => {}; group.add(zone);
     const card = tag('', 'cond'); card.px = [-20, -92];          // 观察卡：注射器里看得到的现象、刻度、进气量
     let earlyFor = null;
     const redo = (e) => { if (e.target.closest?.('.no2-redo')) { e.preventDefault(); A.reset(); } };          // 面板 / 步骤栏里的“全部重来”
@@ -84,7 +87,7 @@ export default {
       L: 20 / ML_PER_M, Loff: 0, held: false, closed: true, clipK: 0,
       w: 0, beak: BEAK0, no: 20, o2: 0, n2: 0, no2: 0, hno3: 0, o2In: 0, n2In: 0,
       lost: 0, lostNO: 0, diffOut: 0, diffNO: 0, spill: 0, leakT: 0, openT: 0, shakeE: 0, shook: 0, mix: 1, Lprev: 20 / ML_PER_M,
-      cycle: 0, inCycle: false, airCycle: 0, airPull: 0, airBack: 0, openShook: 0, peak: 0, airLogged: false, shookC: 0, marks: [], autoHome: 0, early: false });
+      cycle: 0, inCycle: false, airCycle: 0, airPull: 0, airBack: 0, openShook: 0, peak: 0, peakTint: 0, airLogged: false, shookC: 0, marks: [], autoHome: 0, early: false, bH: 0, spH: 0, puff: 0, tryShake: 0, noAir: null, openC: 0 });
     S = fresh();
     const gasV = () => S.no + S.o2 + S.n2 + S.no2;
     const Leq = () => Math.min(L_MAX + 0.004, (S.w + gasV()) / ML_PER_M);
@@ -95,14 +98,20 @@ export default {
     const beakLevel = () => S.beak / BEAK_ML_PER_M;
     const inWater = () => { const t = tipPos(); return Math.abs(t.x - BX) < BR - 0.003 && t.y < beakLevel() - 0.001; };
     const inBeaker = () => { const t = tipPos(); return Math.abs(t.x - BX) < BR + 0.004 && t.y < BH + 0.004; };          // 乳胶管末端还在杯口下面（只能竖直提出来）
+    // 颜色：画面上的红棕色、观察卡、记录、褪色判定都用这一套（NO₂ 占气体的比例）
+    const TINT_RED = 0.03, TINT_FADE = 0.006;
+    const tint = () => S.no2 / Math.max(0.1, gasV());
+    const colorState = () => (tint() >= TINT_RED ? 'red' : S.peakTint >= TINT_RED ? (tint() < TINT_FADE ? 'faded' : 'fading') : 'none');
+    const COLOR_WORD = { red: '红棕色', fading: '红棕色变浅', faded: '红棕色基本褪去', none: '无色' };
+    const settled = () => Math.abs(S.L - Leq()) < 0.0002 && !S.held && Math.abs(S.Loff) < 0.0002;
     const mark = () => (S.L + S.Loff) * ML_PER_M;          // 活塞停在多少 mL 刻度（水 + 气体）
     const spawn = {};
 
     // ---- 吸进 / 推出 ----
     // pull：其中有多少是拉活塞拉进来的（其余是里面气体变少、从管口补进来的）
     const intake = (d, pull = d) => {
-      if (inWater()) { const dw = Math.min(d, S.beak); S.w += dw; S.beak -= dw; return; }
-      if (!S.inCycle && S.no > 0.3) { S.inCycle = true; S.cycle++; S.airCycle = S.airPull = S.airBack = S.openShook = S.shookC = 0; S.peak = 0; S.airLogged = false; S.shook = 0; }
+      if (inWater()) { const dw = Math.min(d, S.beak), dh = S.beak > 0 ? S.bH * dw / S.beak : 0; S.w += dw; S.beak -= dw; S.bH -= dh; S.hno3 += dh; return; }          // 烧杯里的水（回流进去的硝酸也按比例）
+      if (!S.inCycle && S.no > 0.3) { S.inCycle = true; S.cycle++; S.airCycle = S.airPull = S.airBack = S.openShook = S.shookC = 0; S.peak = 0; S.peakTint = 0; S.airLogged = false; S.shook = 0; }
       S.o2 += AIR_O2 * d; S.n2 += (1 - AIR_O2) * d; S.o2In += AIR_O2 * d; S.n2In += (1 - AIR_O2) * d; S.airCycle += d; S.airPull += Math.min(d, pull); S.airBack += d - Math.min(d, pull);
       if (S.no > 0.3) S.mix = Math.max(0, S.mix - (d / Math.max(1, gasV())) * 4);
       spawn.o2 = spawn.n2 = 'tip';
@@ -113,8 +122,8 @@ export default {
       let gasOut = 0, waterOut = 0;
       for (let k = 0; k < 400 && d > 1e-6; k++) {          // 一小份一小份地排：管口泡在水里就排水，否则排气体
         const v = gasV(), q = Math.min(d, 0.1);
-        if ((nozzleWet() || v <= 1e-6) && S.w > 1e-6) { const dw = Math.min(S.w, q); S.w -= dw; waterOut += dw; d -= dw; }
-        else if (v > 1e-6) { const dv = Math.min(v, q), f = dv / v; S.lostNO += (S.no + S.no2) * f; S.lost += dv; gasOut += dv; S.no *= 1 - f; S.o2 *= 1 - f; S.n2 *= 1 - f; S.no2 *= 1 - f; d -= dv; }
+        if ((nozzleWet() || v <= 1e-6) && S.w > 1e-6) { const dw = Math.min(S.w, q), dh = S.hno3 * dw / S.w; S.w -= dw; S.hno3 -= dh; if (inWater()) S.bH += dh; else S.spH += dh; waterOut += dw; d -= dw; }          // 溶液混匀：硝酸按比例跟着出去
+        else if (v > 1e-6) { const dv = Math.min(v, q), f = dv / v; S.puff += (S.no + S.no2) * f; S.lostNO += (S.no + S.no2) * f; S.lost += dv; gasOut += dv; S.no *= 1 - f; S.o2 *= 1 - f; S.n2 *= 1 - f; S.no2 *= 1 - f; d -= dv; }
         else break;
       }
       if (waterOut > 0) { if (inWater()) S.beak += waterOut; else S.spill += waterOut; }
@@ -149,7 +158,7 @@ export default {
           else if (S.inCycle && S.airCycle > 0.5) status(`夹上了。这次进了约 ${r1(S.airCycle)} mL 空气（拉活塞 ${r1(S.airPull)} mL${S.airBack > 0.05 ? `，管口补进 ${r1(S.airBack)} mL` : ''}）：看针筒里的颜色和活塞。`);
           else status('夹上了弹簧夹：管口封住了。');
         } else {
-          S.openT = 0;
+          S.openT = 0; if (S.syr.at !== 'dip' && !inWater()) S.openC++;          // 这一轮吸空气打开了几次
           status(S.syr.at === 'dip' ? '弹簧夹打开了：管口在水里。拉<b>活塞</b>吸水，到 25 mL 刻度就是 5 mL 水。' : S.w > 0.5 ? '弹簧夹打开了：管口通着空气。<b>快速</b>拉活塞吸入空气，再点弹簧夹夹上。' : '弹簧夹打开了：管口通着空气。');
         }
       },
@@ -160,14 +169,19 @@ export default {
 
     const drag = draggable(group, [
       { obj: syr.barrelPick, plane: 'xy', offset: 0, keepOffset: true, anchor: syr.barrelPick,
-        hint: () => (S.syr.at === 'dip' ? '注射器：拖开就提出来，放回桌上' : S.w < 1 ? '注射器：拖到烧杯上方松手，管口伸进水里' : '注射器：按住左右来回拖，振荡'),
+        hint: () => (S.syr.at === 'dip' ? '注射器：拖开就提出来，放回桌上' : S.w < 1 ? '注射器：拖过去，让乳胶管末端对准烧杯口（亮起来时）松手' : '注射器：按住左右来回拖，振荡'),
         onStart: (p) => { const s = S.syr; s.motion = null; s.carry = true; s.last = p ? p.clone() : null; if (s.at !== 'dip') s.at = 'carry'; },
         onDrag: (p) => {
           if (!p) return; const s = S.syr;
-          if (s.last) S.shakeE = Math.min(1, S.shakeE + (Math.abs(p.x - s.last.x) + 0.5 * Math.abs(p.y - s.last.y)) * 22);
+          const tryX = s.last ? Math.abs(p.x - s.last.x) : 0;
           s.last = p.clone();
           let o = p.clone().sub(axis().multiplyScalar(PICK_C));
-          if (inBeaker()) { o.x = s.pos[0]; o.y = clamp(o.y, DIP.y, 0.2); }          // 乳胶管还在杯里：只能竖直提出来
+          const was = [...s.pos], wasIn = inBeaker();
+          if (wasIn) {          // 乳胶管还在杯里：只能竖直提出来（左右拖不动，也不算振荡）
+            o.x = s.pos[0]; o.y = clamp(o.y, DIP.y, 0.2);
+            S.tryShake = (S.tryShake || 0) + tryX;
+            if (S.tryShake > 0.05) { S.tryShake = 0; status('乳胶管还泡在烧杯的水里：先把注射器<b>竖直往上提</b>，让乳胶管离开水面、高过杯口，再左右来回拖着振荡。'); }
+          }
           else {
             o.x = clamp(o.x, -0.15, 0.06); o.y = clamp(o.y, REST_Y, 0.2);
             // 别从杯壁穿过去：乳胶管末端、针筒靠近烧杯时要高过杯口（连续地抬高，不跳）
@@ -180,6 +194,8 @@ export default {
             }
           }
           s.pos = [o.x, o.y]; if (s.at === 'dip' && o.y > DIP.y + 0.004) s.at = 'carry';
+          // 振荡按针筒实际的往复运动算（被限制住没动就不算）；乳胶管在杯里时只是提起来，不算振荡
+          if (!wasIn) S.shakeE = Math.min(1, S.shakeE + (Math.abs(o.x - was[0]) + 0.5 * Math.abs(o.y - was[1])) * 22);
         },
         onEnd: () => { S.syr.carry = false; S.syr.last = null; release(); } },
       { obj: syr.plungerPick, plane: 'xy', offset: 0, keepOffset: true, anchor: syr.plungerPick,
@@ -196,7 +212,7 @@ export default {
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: no2Scene(), at: () => V(HOME.x + 0.045, 0.045, 0), btnAt: () => V(HOME.x + 0.1, 0.05, 0), label: '钻进去看',
       state: () => ({ water: S.w > 0.2, no: S.no, o2: S.o2, n2: S.n2, no2: S.no2, hno3: S.hno3, o2In: S.o2In, n2In: S.n2In, shaking: S.shakeE > 0.15, leak: S.leakT > 0 }),
-      key: () => String(S.gen), show: () => S.syr.at === 'home', bar: () => bar, scale: 0.0068, lookD: [0.04, 0.3, 1], dist: 0.26 });
+      key: () => String(S.gen), show: () => S.syr.at === 'home', bar: () => bar, scale: 0.0068, lookD: [0.04, 0.5, 1], dist: 0.34 });
 
     // 演示：活塞拉到某个刻度（拾取盒中心的位置）；注射器拿到烧杯上方
     const plungerTo = (ml) => () => local(ml / ML_PER_M + PICK_OFF);
@@ -216,10 +232,10 @@ export default {
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'water', title: '吸入 5 mL 水', todo: '把<b>注射器</b>拖到烧杯上方松手，管口伸进水里；点<b>弹簧夹</b>打开，拉<b>活塞</b>吸入 5 mL 水（到 25 mL 刻度）。', target: () => (S.syr.at !== 'dip' ? syr : S.closed ? syr.clip : syr.plunger) },
+        { id: 'water', title: '吸入 5 mL 水', todo: '拖动<b>注射器</b>，让<b>乳胶管末端</b>对准烧杯口（杯口亮起来）松手，管口伸进水里；点<b>弹簧夹</b>打开，拉<b>活塞</b>吸入 5 mL 水（到 25 mL 刻度）。', target: () => (S.syr.at !== 'dip' ? syr : S.closed ? syr.clip : syr.plunger) },
         { id: 'seal', title: '封住管口', todo: '点<b>弹簧夹</b>夹上，用乳胶管和弹簧夹封住管口。', target: () => syr.clip },
         { id: 'shake1', title: '振荡', todo: '按住<b>注射器</b>左右来回拖几下（振荡），观察现象。', target: () => (S.syr.at === 'dip' ? null : syr) },
-        { id: 'air', title: '吸入 10 mL 空气', todo: '点<b>弹簧夹</b>打开，<b>快速</b>拉<b>活塞</b>吸入 10 mL 空气（看卡片上的进气量），到量立即点弹簧夹夹上，观察现象。', target: () => (!S.inCycle || S.airLogged ? (S.closed ? syr.clip : syr.plunger) : !S.closed ? (S.airCycle >= 10 - 0.02 ? syr.clip : syr.plunger) : null) },
+        { id: 'air', title: '吸入 10 mL 空气', todo: '点<b>弹簧夹</b>打开，<b>快速</b>拉<b>活塞</b>吸入 10 mL 空气（看卡片上的进气量），到量立即点弹簧夹夹上，观察现象。', target: () => (!S.inCycle || S.airLogged ? (S.closed ? syr.clip : syr.plunger) : !S.closed ? (S.airCycle >= 10 - 0.02 ? syr.clip : syr.plunger) : S.cycle === 1 && S.airCycle < 9.5 ? syr.clip : null) },
         { id: 'shake2', title: '再振荡', todo: '再<b>振荡</b>注射器，观察现象。', target: () => syr },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
       ],
@@ -266,7 +282,7 @@ export default {
         //   跑出去的 NO、NO₂ 记账，进来的空气算“管口补进”
         if (!inWater() && gasV() > 0.1) {
           const ex = 0.003 * dt, f = ex / gasV();
-          S.diffNO += (S.no + S.no2) * f; S.diffOut += ex; S.no *= 1 - f; S.o2 *= 1 - f; S.n2 *= 1 - f; S.no2 *= 1 - f;
+          S.diffNO += (S.no + S.no2) * f; S.puff += (S.no + S.no2) * f; S.diffOut += ex; S.no *= 1 - f; S.o2 *= 1 - f; S.n2 *= 1 - f; S.no2 *= 1 - f;
           intake(ex, 0);
         }
       }
@@ -276,7 +292,7 @@ export default {
       S.no -= 2 * d1; S.o2 -= d1; S.no2 += 2 * d1;
       // NO₂ 溶于水：3NO₂ + H₂O → 2HNO₃ + NO（振荡时快）
       if (S.w > 0.3 && S.no2 > 0) { const d2 = S.no2 * (1 - Math.exp(-(0.006 + 1.2 * S.shakeE) * dt)); S.no2 -= d2; S.no += d2 / 3; S.hno3 += (2 * d2) / 3; if (d2 > 1e-4) spawn.no = 'surf'; }
-      S.peak = Math.max(S.peak, S.no2);
+      S.peak = Math.max(S.peak, S.no2); S.peakTint = Math.max(S.peakTint, tint());
       S.mix = Math.min(1, S.mix + dt * (0.3 + 3 * S.shakeE));
       S.shook += S.shakeE * dt; if (S.inCycle && S.airLogged && S.closed) S.shookC += S.shakeE * dt; if (S.inCycle && !S.closed && S.w > 0.3) S.openShook += S.shakeE * dt;
       S.shakeE = Math.max(0, S.shakeE - dt * 0.6);
@@ -302,23 +318,28 @@ export default {
       if (!S.early) earlyFor = null;
       if (!S.closed && S.shakeE > 0.3 && S.w > 0.3 && S.o2In < 0.05) once('openShake0', '弹簧夹还开着：先点<b>弹簧夹</b>夹上，封住管口再振荡。');
       if (S.inCycle && !S.closed && S.airCycle >= 10 - 0.02) once('ten' + S.cycle, `已经进了 10 mL 空气（拉活塞 ${r1(S.airPull)} mL${S.airBack > 0.05 ? `，管口补进 ${r1(S.airBack)} mL` : ''}）：<b>立即</b>点弹簧夹夹上。`);
-      if (S.inCycle && !S.airLogged && S.closed && S.airCycle > 0.5 && S.o2 < 0.02 && Math.abs(S.L - Leq()) < 0.0002) {
+      // 第一次吸空气按课本的 10 mL 验收：少了就提示开夹补吸（或重来），不往下走；多了照实记录
+      const short = S.cycle === 1 && S.airCycle < 9.5;
+      if (S.inCycle && !S.airLogged && S.closed && S.airCycle > 0.05 && short && S.o2 < 0.02 && settled()) once('short' + S.cycle + '-' + r1(S.airCycle), `这次只进了约 ${r1(S.airCycle)} mL 空气，比课本的 10 mL 少：再点<b>弹簧夹</b>打开，接着拉活塞补到 10 mL（看卡片上的“这次进气”）再夹上；或<button class="no2-redo">全部重来</button>。`);
+      if (S.inCycle && !S.airLogged && S.closed && S.airCycle > 0.5 && !short && S.o2 < 0.02 && settled()) {
         S.airLogged = true; S.marks.push(mark());
         const n = S.cycle, x = S.airCycle, m = Math.round(mark());
-        const how = `${n === 1 ? '打开弹簧夹，' : `第 ${n} 次打开弹簧夹，`}拉活塞吸入约 ${r1(S.airPull)} mL 空气${S.airBack > 0.3 ? `，夹上前又从管口补进约 ${r1(S.airBack)} mL（共 ${r1(S.airCycle)} mL）` : ''}，夹上`;
-        log('air' + n, [how, `${S.openShook > 0.3 ? '开着时振荡过；' : ''}${S.no2 > 0.05 * S.peak ? '无色气体变成<b>红棕色</b>' : '出现过红棕色'}；活塞停在约 ${m} mL 刻度`, 'NO 与空气里的 O₂ 化合成红棕色的 NO₂：2NO + O₂ ══ 2NO₂（3 体积变 2 体积）']);
+        const how = `${n === 1 ? '' : `第 ${n} 轮：`}${S.openC > 1 ? `分 ${S.openC} 次打开弹簧夹，` : '打开弹簧夹，'}拉活塞吸入约 ${r1(S.airPull)} mL 空气${S.airBack > 0.3 ? `，夹上前又从管口补进约 ${r1(S.airBack)} mL（共 ${r1(S.airCycle)} mL）` : ''}，夹上`;
+        S.openC = 0;
+        log('air' + n, [how, `${S.openShook > 0.3 ? '开着时振荡过；' : ''}${colorState() === 'red' ? '无色气体变成<b>红棕色</b>' : S.peakTint >= TINT_RED ? `出现过红棕色，现在${COLOR_WORD[colorState()]}` : '颜色变化不明显（进的空气少）'}；活塞停在约 ${m} mL 刻度`, 'NO 与空气里的 O₂ 化合成红棕色的 NO₂：2NO + O₂ ══ 2NO₂（3 体积变 2 体积）']);
+        if (n === 1) S.noAir = S.no;
         if (n === 1) { done('air'); status(`变成<b>红棕色</b>了，活塞也往里缩了一点（约 ${m} mL 刻度）。${S.w > 0.3 ? '再<b>振荡</b>注射器。' : '针筒里还没有水：先吸水、夹上，再振荡。'}${x > 11 ? `（进去的空气约 ${r1(x)} mL，比 10 mL 多：O₂ 多，生成的 NO₂ 也多，颜色更深。）` : x < 9 ? `（进去的空气约 ${r1(x)} mL，比 10 mL 少：生成的 NO₂ 少，颜色浅一些。）` : ''}`); }
-        else status(`又变成红棕色了（停在约 ${m} mL 刻度）。再振荡。`);
+        else status(`${S.peakTint >= TINT_RED ? '又变成红棕色了' : '颜色变化不明显（进的空气少）'}（停在约 ${m} mL 刻度）。再振荡。`);
       }
-      if (S.inCycle && S.airLogged && S.closed && S.peak > 0.3 && S.no2 < 0.05 * S.peak && Math.abs(S.L - Leq()) < 0.0002) {
-        S.inCycle = false; const n = S.cycle, m = Math.round(mark()), left = gasV(), shaken = S.shookC > 0.8;
-        log('abs' + n, [shaken ? (n === 1 ? '振荡注射器' : `第 ${n} 次振荡`) : '没有振荡，放了很久', `红棕色<b>基本褪去</b>${shaken ? '' : '（静置时褪得很慢）'}；活塞继续往里走（停在约 ${m} mL 刻度），还剩约 ${Math.round(left)} mL 无色气体`, `NO₂ 溶于水，生成硝酸和 NO：3NO₂ + H₂O ══ 2HNO₃ + NO。剩下的是 NO（约 ${r1(S.no)} mL）${S.n2 > 0.5 ? `和空气带进来的 N₂ 等（约 ${r1(S.n2)} mL）` : ''}`]);
+      if (S.inCycle && S.airLogged && S.closed && S.peak > 0.02 && tint() < TINT_FADE && settled()) {
+        S.inCycle = false; const n = S.cycle, m = Math.round(mark()), left = gasV(), shaken = S.shookC > 0.8, wasRed = S.peakTint >= TINT_RED;
+        log('abs' + n, [shaken ? (n === 1 ? '振荡注射器' : `第 ${n} 次振荡`) : '没有振荡，放了很久', `${wasRed ? '红棕色<b>基本褪去</b>' : '本来颜色就浅，现在看不出颜色'}${shaken ? '' : '（静置时褪得很慢）'}；活塞继续往里走（停在约 ${m} mL 刻度），还剩约 ${Math.round(left)} mL 无色气体`, `NO₂ 溶于水，生成硝酸和 NO：3NO₂ + H₂O ══ 2HNO₃ + NO。剩下的是 NO（约 ${r1(S.no)} mL）${S.n2 > 0.5 ? `和空气带进来的 N₂ 等（约 ${r1(S.n2)} mL）` : ''}`]);
         if (n === 1) { done('shake2'); if (!S.demo) { W?.t1.open(); status(`红棕色基本褪去了${shaken ? '' : '（没振荡，等了很久才褪）'}，活塞又往里走了一段，可针筒里还剩着无色的气体。在左边作答。`); } }
         else status(`红棕色又基本褪去了：NO 还剩约 ${r1(S.no)} mL${S.n2 > 30 ? '——针筒里越来越多的是空气带进来的 N₂，快装不下了' : ''}。`);
       }
       if (!S.closed && S.shakeE > 0.3 && S.peak > 0.3 && S.w > 0.3 && S.inCycle) once('openShakeS', '弹簧夹还开着：溶掉的气体由管口进来的空气补上，活塞不往里走。先点<b>弹簧夹</b>夹上再振荡。');
       if (S.said.openShakeS && !S.said['openShake' + S.cycle] && S.openShook > 0.8 && S.shakeE < 0.05) {
-        const faded = S.no2 < 0.1 * S.peak;
+        const faded = colorState() !== 'red' && colorState() !== 'fading';
         log('openShake' + S.cycle, ['弹簧夹开着就振荡', `${faded ? '红棕色也基本褪去' : '红棕色褪不干净'}，但活塞<b>不往里走</b>：这一轮从管口补进了约 ${r1(S.airBack)} mL 空气`, '管口通着空气：溶掉的气体由外面的空气补上，补进来的 O₂ 又把 NO 变成 NO₂。要先夹上弹簧夹']);
       }
       if (S.openT > 5 && S.no2 > 0.3 && S.shakeE < 0.1) once('slow' + S.cycle, `弹簧夹开着已经 ${Math.round(S.openT)} 秒：管口里外的气体在慢慢扩散交换，已经跑出去约 ${S.diffNO.toFixed(2)} mL NO、NO₂（量很少，但有毒）。吸完空气要<b>立即</b>夹上。`);
@@ -329,18 +350,23 @@ export default {
       syr.setL(S.L + S.Loff); syr.clip.setOpen(S.clipK);
       C.update({ w: S.w, Lm: S.L + S.Loff, tilt: s.tilt, sp: { no: S.no, o2: S.o2, n2: S.n2, no2: S.no2 }, mix: S.mix, slosh: S.shakeE, dt, spawn });
       beaker.setLevel(beakLevel());
+      { const t = tipPos(), inZone = t.x < BX + 0.022 && t.x > BX - 0.07, want = S.syr.carry && S.syr.at !== 'dip' && !inBeaker() ? (inZone ? 0.9 : 0.35) : 0; zone.material.opacity += (want - zone.material.opacity) * Math.min(1, dt * 10); zone.visible = zone.material.opacity > 0.02; }
       // 管口冒出来的气体（推出来的 / 开着时慢慢跑出来的，示意）：NO 一遇空气就变红棕色
-      const tp = tipPos(), out = S.leakT > 0 ? 40 : !S.closed && !inWater() && S.no + S.no2 > 0.5 && S.openT > 1.5 ? 1.2 : 0;
-      smoke.update(dt, { rate: out, origin: inWater() ? V(BX, beakLevel() + 0.003, 0) : tp.clone().add(V(-0.003, 0.001, 0)), spread: 0.005, up: 0.022, size: out > 5 ? 0.011 : 0.007, life: 2.4 });
+      // 烟按跑出去的 NO、NO₂ 的量画（示意：每 mL 约 30 团；扩散跑出去的很少，只有零星几团）
+      const tp = tipPos(), out = dt > 0 ? Math.min(3000, (S.puff * 30) / dt) : 0; if (dt > 0) S.puff = 0;
+      smoke.update(dt, { rate: out, origin: inWater() ? V(BX, beakLevel() + 0.003, 0) : tp.clone().add(V(-0.003, 0.001, 0)), spread: 0.005, up: 0.022, size: out > 20 ? 0.011 : 0.007, life: 2.4 });
       for (let i = BUB.length - 1; i >= 0; i--) { const b = BUB[i]; b.p.y += b.v * dt; b.p.x += (BX - b.p.x) * dt * 0.5; if (b.p.y > beakLevel() - 0.001) BUB.splice(i, 1); }
       BUB.forEach((b, i) => { s4.setScalar(b.r); m4.compose(b.p, q4, s4); bubbles.setMatrixAt(i, m4); }); bubbles.count = BUB.length; bubbles.instanceMatrix.needsUpdate = true;
       // 观察卡
-      const vg = gasV(), red = S.no2 / Math.max(0.1, vg) > 0.03, faded = !red && S.peak > 0.3;
-      const stamp = red ? '<span class="cc-res burn">红棕色</span>' : faded ? '<span class="cc-res">红棕色基本褪去</span>' : '<span class="cc-res">无色</span>';
+      const vg = gasV(), cs = colorState();
+      const stamp = `<span class="cc-res${cs === 'red' || cs === 'fading' ? ' burn' : ''}">${COLOR_WORD[cs]}</span>`;
+      // 活塞受力（手按着）或正在回位时，刻度不等于“水 + 等压下的气体”，先不写等号
+      const moving = S.held || Math.abs(S.Loff) > 0.0002 || (S.closed && Math.abs(S.L - Leq()) > 0.0003);
+      const scaleLine = moving ? `<small>mL 刻度（活塞${S.held && S.closed ? '被手拉着 / 推着，松手会弹回' : S.held ? '正在拉 / 推' : '正在移动'}）</small>` : `<small>mL 刻度 = 水 ${r1(S.w)} + 气体 ${r1(vg)}</small>`;
       const parts = [['NO', S.no], ['NO₂', S.no2], ['O₂', S.o2], ['N₂ 等', S.n2]].filter(([, v]) => v > 0.05).map(([k, v]) => `${k} ${r1(v)}`).join('　');
       const air = S.inCycle && S.airCycle > 0.05 ? `<div class="cc-note">这次进气 <b>${r1(S.airCycle)}</b> mL（拉活塞 ${r1(S.airPull)}${S.airBack > 0.05 ? `、管口补进 ${r1(S.airBack)}` : ''}）${S.airCycle >= 10 - 0.02 && !S.airLogged ? ' · <b>到 10 mL 了</b>' : ''}</div>` : '';
       const outN = S.lostNO + S.diffNO > 0.005 ? `<div class="cc-note">跑出去的 NO、NO₂ 约 ${(S.lostNO + S.diffNO).toFixed(2)} mL（有毒）</div>` : '';
-      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">注射器里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${Math.round(mark())}</b><small>mL 刻度 = 水 ${r1(S.w)} + 气体 ${r1(vg)}</small></div><div class="cc-note">气体（mL）：${parts}</div>${air}${outN}<div class="cc-note">点：淡紫灰 = NO、蓝 = O₂、灰 = N₂ 等（示意色）</div></div></div>`)
+      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">注射器里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${Math.round(mark())}</b>${scaleLine}</div><div class="cc-note">气体（mL）：${parts}</div>${air}${outN}<div class="cc-note">点：淡紫灰 = NO、蓝 = O₂、灰 = N₂ 等（示意色）</div></div></div>`)
         .loc(group, local(0.03, 0.018).x, local(0.03, 0.018).y, 0).show(!bar.playing && !mic.isOpen && !s.motion);
       bar.near(S.near); mic.update?.(dt);
     };
@@ -353,7 +379,7 @@ export default {
         const ctx = () => `<div>${S.marks.length ? `吸入空气、夹上后：活塞停在约 ${Math.round(S.marks[0])} mL 刻度；振荡后：气体剩约 ${Math.round(gasV())} mL（NO 约 ${r1(S.no)} mL${S.n2 > 0.5 ? `、N₂ 等约 ${r1(S.n2)} mL` : ''}）` : '还没做完'}</div>`;
         const t3 = think({ q: '上述实验对工业上生产硝酸有什么启示？', options: ['用水吸收 NO₂ 时同时通入足量空气，让生成的 NO 再被氧化成 NO₂、再被吸收，原料利用得更充分', '只要用大量的水吸收 NO₂，就能全部变成硝酸', '应该先把 NO₂ 变回 NO 再吸收'], wrong: ['每 3 份 NO₂ 溶于水总要放出 1 份 NO：水再多，NO 也不会被吸收。', 'NO 不易溶于水：要变成 NO₂ 才能被水吸收。'], ok: '对：工业上就是利用 NO₂ 溶于水生成硝酸的原理，并通入空气使 NO 循环氧化、吸收（课本第 13 页）。', status: (m) => W?.status(m), onOk: () => { done('why'); if (W) W.next.hidden = false; } });
         const t2 = think({ q: '如果要将注射器中的 NO 充分转化，可以采取什么措施？', ctx, options: ['再吸入适量空气（或氧气），夹上后振荡；反复几次', '多振荡一会儿', '多吸一些水'], wrong: ['振荡只能让 NO₂ 溶进水里；没有 O₂，NO 就不再变化。', 'NO 不易溶于水：水多了也不会转化。'], ok: '对：每吸入一次空气，O₂ 把一部分 NO 变成 NO₂，振荡后 NO₂ 溶于水，又放出少量 NO……反复进行，NO 越来越少。可以在“换个条件再试”里自己试几次。', status: (m) => W?.status(m), onOk: () => t3.open() });
-        const t1 = think({ q: '实验5-5 中发生了哪些化学反应？', ctx, options: ['2NO + O₂ ══ 2NO₂；3NO₂ + H₂O ══ 2HNO₃ + NO', '2NO + O₂ ══ 2NO₂；NO₂ 全部溶于水，没有气体放出', 'NO 溶于水；NO₂ 不溶于水'], wrong: ['振荡后剩下无色气体，并不能说明有没有放出 NO：没反应完的 NO（约 16 mL）和空气带进来的 N₂ 等本来就在。课本给的方程式是 3NO₂ + H₂O ══ 2HNO₃ + NO——钻进去看：三个 NO₂ 里有一个变回 NO。', '吸水、封口振荡时没有变化：NO 不易溶于水；红棕色是振荡后才褪去的。'], ok: '对：NO 与 O₂ 化合成红棕色的 NO₂；NO₂ 溶于水生成硝酸和 NO（课本第 13 页）。', status: (m) => W?.status(m), onOk: () => t2.open() });
+        const t1 = think({ q: '实验5-5 中发生了哪些化学反应？', ctx, options: ['2NO + O₂ ══ 2NO₂；3NO₂ + H₂O ══ 2HNO₃ + NO', '2NO + O₂ ══ 2NO₂；NO₂ 全部溶于水，没有气体放出', 'NO 溶于水；NO₂ 不溶于水'], wrong: [{ toString: () => `振荡后剩下无色气体，并不能说明有没有放出 NO：没反应完的 NO${S.noAir != null ? `（这一轮吸空气、夹上后约 ${r1(S.noAir)} mL）` : ''}和空气带进来的 N₂ 等本来就在。课本给的方程式是 3NO₂ + H₂O ══ 2HNO₃ + NO——钻进去看：三个 NO₂ 里有一个变回 NO。` }, '吸水、封口振荡时没有明显变化：NO 不易溶于水；红棕色是振荡后才褪去的。'], ok: '对：NO 与 O₂ 化合成红棕色的 NO₂；NO₂ 溶于水生成硝酸和 NO（课本第 13 页）。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const vary = varyBox('课本问：如果要将注射器中的 NO 充分转化，可以采取什么措施？振荡完以后，再点弹簧夹打开、吸入 10 mL 空气、夹上、振荡……反复几次，看 NO 还剩多少、针筒里越来越多的是什么。也可以吸进多一点或少一点空气，比比颜色深浅。');
         const more = moreBox([['钻进去看', () => mic.open()]], () => A.reset());
         const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '注射器 50 mL（内径约 2.9 cm）；刻度读数 = 水 + 气体的体积。气体按同温同压下的体积算（体积比 = 物质的量之比），活塞摩擦不计：夹上弹簧夹时活塞停在里外压强相等的地方。<br>空气按 O₂ 21%、其余 79%（主要是 N₂）算。2NO + O₂ ══ 2NO₂ 几乎立刻完成（示意）；10 mL 空气带进约 2.1 mL O₂，生成约 4.2 mL NO₂，气体少约 2.1 mL。振荡时 NO₂ 几秒内溶完（静置时很慢，示意），每 3 mL NO₂ 放出 1 mL NO：4.2 mL NO₂ → 1.4 mL NO，生成的硝酸约 0.11 mmol（5 mL 水里约 0.02 mol/L）。<br>NO 在水里溶得很少（20 ℃ 约 0.05 体积/体积），不计；2NO₂ ⇌ N₂O₄ 不计（计入的话体积还会小一点）。<br>弹簧夹开着时：拉活塞拉进来的空气和里面气体变少时从管口补进来的空气分开记（卡片上的“这次进气”是两者之和，课本的 10 mL 按它算）；推活塞时，针筒里管口那头泡在水里就先排水，否则先排气体，活塞推不过里面剩下的东西；管口通着空气时，里外气体经乳胶管扩散交换约 0.003 mL/s（按扩散系数约 0.2 cm²/s、管内径 3 mm、长约 7 cm 估的量级，示意），跑出去的 NO、NO₂ 记在卡片上。<br>红棕色的深浅按 NO₂ 占气体的比例（示意）。点：每 0.5 mL 一个——淡紫灰 = NO（无色，示意）、蓝 = O₂、灰 = N₂ 等。钻进去看：分子个数按体积比，每 2.1 mL 一个（10 mL 空气里正好 1 个 O₂）；这一小块和针筒别处通着，个数对不上时旁边飘进来、飘走一个；慢放示意，不表示真实的反应步骤。<br>NO、NO₂ 都有毒：课本标了护目镜、排风、洗手。' }));
@@ -381,7 +407,7 @@ export default {
           { name: '合上', run: () => mic.close(), wait: 2 },
           // 化学计量：O₂ 全部用掉时，吸空气夹上后 = 水 + 20 + N₂；振荡后 = 水 + 20 − 4/3·O₂ + N₂（标准做法 10 mL 空气：32.9 → 30.1 mL 刻度）
           // 守恒：N 原子（NO + NO₂ + HNO₃ + 跑出去的）= 20 mL；O₂ 全部用掉时 夹上后 = 水 + 20 + N₂ − 跑出去的；振荡后 = 水 + 20 − 4/3·O₂ + N₂ − 跑出去的
-          { name: '核对', run: () => { const out = S.lost + S.diffOut, ok = S.said.shake1 && S.said.air1 && S.said.abs1 && !S.early && Math.abs(S.no + S.no2 + S.hno3 + S.lostNO + S.diffNO - 20) < 0.05 && Math.abs(S.marks[0] - (S.w + 20 + S.n2In)) < 0.2 + out && Math.abs(gasV() - (20 - (4 / 3) * S.o2In + S.n2In)) < 0.2 + out && Math.abs(S.airCycle - S.airPull - S.airBack) < 1e-6 && S.airCycle > 8 && S.airCycle < 16 && S.lost < 0.01; if (!ok) throw new Error(JSON.stringify({ said: S.said, marks: S.marks, gas: gasV(), w: S.w, no: S.no, no2: S.no2, n2: S.n2, lost: S.lost })); }, wait: 1 },
+          { name: '核对', run: () => { const out = S.lost + S.diffOut, ok = S.said.shake1 && S.said.air1 && S.said.abs1 && !S.early && Math.abs(S.no + S.no2 + S.hno3 + S.bH + S.spH + S.lostNO + S.diffNO - 20) < 0.05 && Math.abs(S.marks[0] - (S.w + 20 + S.n2In)) < 0.2 + out && Math.abs(gasV() - (20 - (4 / 3) * S.o2In + S.n2In)) < 0.2 + out && Math.abs(S.airCycle - S.airPull - S.airBack) < 1e-6 && S.airCycle > 8 && S.airCycle < 16 && S.lost < 0.01; if (!ok) throw new Error(JSON.stringify({ said: S.said, marks: S.marks, gas: gasV(), w: S.w, no: S.no, no2: S.no2, n2: S.n2, lost: S.lost })); }, wait: 1 },
           { name: '想一想 1', run: () => W.t1.el.querySelector('button').click() },
           { name: '想一想 2', run: () => W.t2.el.querySelector('button').click() },
           { name: '想一想 3', run: () => W.t3.el.querySelector('button').click() },

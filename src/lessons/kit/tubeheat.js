@@ -2,8 +2,10 @@
 // 先让试管在火焰上来回移动几下、均匀受热（预热），再用酒精灯的外焰对着液体所在的部位加热；试管口不对着人。
 //
 // 这件公共件管三样东西：
-//   1. 试管夹（木柄 + 金属夹）：平放在桌上；go(1) 时拿起来、从管口套下去夹住试管中上部，把试管竖直提出试管架，
-//      一边平移一边倾斜到约 45°，放到火焰上（试管最低点落在 flameAt：外焰）；go(0) 原路放回，试管夹放回桌上。
+//   1. 试管夹（木柄 + 金属夹）：平放在桌上；go(1) 时先把试管竖直提出试管架（手拿着，不画手），给管底留出空间；
+//      试管夹从旁边绕到管底下面，从试管底部套上去，往上滑到中上部夹住（九上第 19 页：试管夹应从试管底部套上、取下）；
+//      再一边平移一边倾斜到约 45°，放到火焰上（试管最低点落在 flameAt：外焰）。go(0) 原路倒回：回到试管架上方，
+//      试管夹从管底取下、放回桌上，试管再放回试管架。
 //   2. 倾斜试管里的液体：液面永远水平。液体 = 试管内腔（圆底 + 圆柱）用一个“世界坐标里的水平裁切面”切出来的下半截
 //      （material.clippingPlanes，舞台已经开了 renderer.localClippingEnabled）；液面另画一片——水平面和内腔的交线围成的形状
 //      （竖着是圆，斜着是椭圆，切到圆底时是圆和椭圆拼起来的样子）。液面高度按体积算：沿管轴积分“每一截圆被水平面切下的面积”，二分求出。
@@ -21,7 +23,7 @@
 //
 // 选项：tilt 和竖直方向的夹角（默认 45°）；dir = 1 管口朝右上、-1 朝左上；away 管口再往后偏一点（弧度，不对着前面的人）；
 //   grip 夹在离管底多远（占管长的比例，默认 2/3，也就是离管口约 1/3）；spin 试管夹的柄绕试管转多少（弧度，正的朝前）；
-//   liftTo 搬运时管底至少多高（越过试管架）；travelY 试管夹去夹试管时走多高；preheat 预热几秒（0 = 不预热）；dur 整个动作几秒；
+//   liftTo 试管提出试管架后管底多高（要高出试管架，试管夹才能从管底下面套上去）；travelY 试管夹去夹试管时走多高；preheat 预热几秒（0 = 不预热）；dur 整个动作几秒；
 //   lit() 酒精灯现在有没有火（默认一直有）：预热只在有火、试管到位时计，没火时试管在灯上静止不动，点着火以后才开始来回预热。
 //   H.warmed()：预热做完了没有（预热完以后才是用外焰固定加热）。
 import * as THREE from 'three';
@@ -52,7 +54,7 @@ export function testTubeHolder({ ringR = 0.0105, handle = 0.055 } = {}) {
 export function tubeHeat(group, {
   tube, holder = tube.parent, getS, flameAt, rest,
   tilt = Math.PI / 4, dir = 1, away = 0.22, grip = 2 / 3, spin = 0.75,
-  liftTo = 0.085, travelY = null, preheat = 1.6, dur = 3.6, lit = () => true,
+  liftTo = 0.085, travelY = null, preheat = 1.6, dur = 4.6, lit = () => true,
   R = tube.r - 0.0008, yc = tube.r + 0.0008, top = tube.len - 0.012,
 }) {
   const yb = yc - R, rOut = yc;                   // 管底内壁最低处；玻璃外壁的半径（圆底的球心在 yc）
@@ -75,24 +77,28 @@ export function tubeHeat(group, {
   const C1 = C0.clone().setY(liftTo + rOut);
   const C3 = flameAt.clone().add(V(0, rOut, 0));
   const C2 = C3.clone().setY(Math.max(C3.y, C1.y) + 0.004);
-  const PA = 0.3, PB = 0.46, PC = 0.86;            // 进度：试管夹过去夹住 | 竖直提出 | 平移并倾斜 | 放到火焰上
+  const PL = 0.12, PA = 0.46, PC = 0.86;            // 进度：竖直提出试管架 | 试管夹从管底套上、滑到中上部 | 平移并倾斜 | 放到火焰上
   const tubeAt = (p, out) => {                     // 返回 { C, Q }
-    if (p <= PA) { out.C.copy(C0); out.Q.copy(homeQ); return out; }
-    if (p <= PB) { out.C.lerpVectors(C0, C1, ease((p - PA) / (PB - PA))); out.Q.copy(homeQ); return out; }
-    if (p <= PC) { const u = ease((p - PB) / (PC - PB)); out.C.lerpVectors(C1, C2, u); out.Q.slerpQuaternions(homeQ, tiltQ, u); return out; }
+    if (p <= PL) { out.C.lerpVectors(C0, C1, ease(p / PL)); out.Q.copy(homeQ); return out; }
+    if (p <= PA) { out.C.copy(C1); out.Q.copy(homeQ); return out; }
+    if (p <= PC) { const u = ease((p - PA) / (PC - PA)); out.C.lerpVectors(C1, C2, u); out.Q.slerpQuaternions(homeQ, tiltQ, u); return out; }
     out.C.lerpVectors(C2, C3, ease((p - PC) / (1 - PC))); out.Q.copy(tiltQ); return out;
   };
   const pose = { C: V(0, 0, 0), Q: new THREE.Quaternion() };
   const m4 = new THREE.Matrix4(), one = V(1, 1, 1);
   const tubeMatrix = (C, Q) => m4.compose(C.clone().sub(V(0, yc, 0).applyQuaternion(Q)), Q, one).clone();
-  // 试管夹在架子上夹住试管时的姿势，和从桌上过去的路线（抬起 → 平移到管口正上方 → 从管口套下去）
-  const g0 = new THREE.Matrix4().multiplyMatrices(tubeMatrix(C0, homeQ), gripLocal);
+  // 试管夹夹住提出来的试管时的姿势，和从桌上过去的路线：抬起 → 平移到试管旁边（沿柄的方向错开）→ 降到管底下面 →
+  // 挪到管底正下方 → 从管底往上套、滑到中上部（夹圈不碰玻璃：错开的距离大于夹圈半径加试管半径）
+  const g0 = new THREE.Matrix4().multiplyMatrices(tubeMatrix(C1, homeQ), gripLocal);
   const G0p = V(0, 0, 0), G0q = new THREE.Quaternion(); g0.decompose(G0p, G0q, V(0, 0, 0));
-  const YT = travelY ?? C0.y - yc + len + 0.02;
-  const route = [restP, V(restP.x, YT, restP.z), V(G0p.x, YT, G0p.z), G0p];
+  const side = V(1, 0, 0).applyQuaternion(G0q).setY(0).normalize().multiplyScalar(tube.r + 0.0008 + 0.0012 + 0.022);
+  const yLow = C1.y - rOut - 0.009;                // 夹圈在管底下面
+  const YT = travelY ?? Math.max(0.11, C1.y + 0.03);
+  const route = [restP, V(restP.x, YT, restP.z), V(G0p.x + side.x, YT, G0p.z + side.z), V(G0p.x + side.x, yLow, G0p.z + side.z), V(G0p.x, yLow, G0p.z), G0p];
   const routeL = [0]; for (let i = 1; i < route.length; i++) routeL.push(routeL[i - 1] + route[i].distanceTo(route[i - 1]));
+  const NR = route.length - 1;
   const clampAt = (u) => {                         // u：0 在桌上 … 1 夹住
-    const d = ease(u) * routeL[3]; let i = 1; while (i < 3 && routeL[i] < d) i++;
+    const d = ease(u) * routeL[NR]; let i = 1; while (i < NR && routeL[i] < d) i++;
     clampM.position.lerpVectors(route[i - 1], route[i], clamp((d - routeL[i - 1]) / Math.max(1e-6, routeL[i] - routeL[i - 1])));
     clampM.quaternion.slerpQuaternions(restQ, G0q, clamp((d - routeL[1]) / Math.max(1e-6, routeL[2] - routeL[1])));
   };
@@ -166,9 +172,12 @@ export function tubeHeat(group, {
   let moved = false, lastKey = '', surfY = 0;
   const place = () => {
     const S = st(), p = S.p;
-    if (p <= PA) {
+    if (p <= 0) {
       if (moved) { holder.position.copy(home); holder.quaternion.copy(homeQ); moved = false; }
-      clampAt(p / PA);
+      clampAt(0);
+    } else if (p <= PA) {          // 试管提出来（手拿着），试管夹从管底套上去
+      tubeAt(p, pose); tubeMatrix(pose.C, pose.Q).decompose(holder.position, holder.quaternion, tmp); moved = true;
+      clampAt(clamp((p - PL) / (PA - PL)));
     } else {
       tubeAt(p, pose);
       if (p >= 1 && S.pre > 0 && preheat > 0) {      // 预热：沿管子方向在火焰上来回移动几下
@@ -200,7 +209,7 @@ export function tubeHeat(group, {
       if (S.goal === 1 && S.p >= 1) { if (lit()) S.pre = Math.min(preheat + 1, S.pre + dt); } else S.pre = 0;      // 预热只在有火、试管到位时计
       place();
       // 液体：试管离开架子以后才用这里的
-      const off = S.p > PA && vol > 0.02;
+      const off = S.p > 0 && vol > 0.02;
       if (tube.liq) tube.liq.visible = !off;
       body.visible = surf.visible = off;
       if (off) {
