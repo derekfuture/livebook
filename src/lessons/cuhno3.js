@@ -11,7 +11,8 @@
 //     开始时浓 ≈ 0.016 mmol Cu/s（按方程式生成 NO₂ 约 0.8 mL/s），稀 ≈ 0.0045 mmol Cu/s（NO 约 0.07 mL/s）（实际时间）。
 //   产物随浓度变（一定量的浓硝酸与足量铜反应得到 NO₂ 和 NO 的混合气体）：c ≥ 12 mol/L 全按浓的方程式，c ≤ 6 mol/L 全按稀的方程式，中间线性过渡（示意）。
 //     按方程式：浓——每 1 mmol Cu 消耗 4 mmol HNO₃、生成 2 mmol NO₂；稀——每 1 mmol Cu 消耗 8/3 mmol HNO₃、生成 2/3 mmol NO。25 ℃ 每 mmol 气体 24.5 mL。
-//   试管上部的气体空间约 27 mL，开始是空气（O₂ 21%）。2NO + O₂ → 2NO₂ 按三级反应算：−d[O₂]/dt = k[NO]²[O₂]，k ≈ 7.1×10³ L²·mol⁻²·s⁻¹（约 2×10⁻³⁸ cm⁶·分子⁻²·s⁻¹，25 ℃）。
+//   试管上部的气体空间约 27 mL，开始是空气（O₂ 21%）。2NO + O₂ → 2NO₂ 按三级反应算：−d[O₂]/dt = k'[NO]²[O₂]，k' ≈ 7.1×10³ L²·mol⁻²·s⁻¹
+//     （IUPAC NOx23：298 K 时 k = 3.95×10⁻³⁸ cm⁶·分子⁻²·s⁻¹，按 d[NO₂]/dt 定义，≈ 1.43×10⁴ L²·mol⁻²·s⁻¹；O₂ 的消耗折半）。
 //   稀硝酸那支里 NO₂ 慢慢溶进水里：3NO₂ + H₂O ══ 2HNO₃ + NO（课本第 13 页），时间常数取 90 s（示意）。
 //   气体多出来的部分从侧管经导管进入 NaOH 溶液：NO₂ 约 90% 被吸收（NO 只和 NO₂ 一起按 1∶1 被吸收；NO 单独不被 NaOH 溶液吸收），其余冒出液面，NO 遇空气生成 NO₂。
 //   气体收缩（O₂ 被消耗、NO₂ 溶解）时不画倒吸（课本没写）。时间加快 4 倍。
@@ -52,6 +53,7 @@ const CLEAR = new THREE.Color(0xeef2f3), BLUE = new THREE.Color(0x3d8fd8), GREEN
 const BR_LIGHT = new THREE.Color(0xb8602e), BR_DEEP = new THREE.Color(0x8e3417);
 const NAOHC = 0xe6eef2;
 const xNO2 = (c) => clamp((c - 6) / 6, 0, 1);    // 生成的气体里按浓的方程式反应的比例（示意）
+const INTRO = '<b>注意：硝酸具有腐蚀性和挥发性，使用时须注意防护和通风！</b>（课本第 15 页）生成的 NO₂、NO 都有毒。<br>图5-14 的装置：橡胶塞侧面的凹槽里嵌着下端卷成螺旋状的铜丝；左边具支试管里是 2 mL 浓硝酸，右边是 2 mL 稀硝酸，铜丝都在液面上方；导管通入 NaOH 溶液。';
 const brownA = (fr) => 0.9 * (1 - Math.exp(-fr / 0.15));
 
 export default {
@@ -165,7 +167,7 @@ export default {
         S = fresh(); sync(); mic.close(); back();
         W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; W.ui.relock(); }
         bar.undo('pushC', 'watchC', 'pushD', 'watchD', 'stop', 'why');
-        status('全部重新摆好了：两支试管里又是 2 mL 浓硝酸和 2 mL 稀硝酸，铜丝都在液面上方。');
+        status(INTRO);
       },
     };
     const sync = () => {
@@ -183,9 +185,9 @@ export default {
     const drag = draggable(group, drags, { tip: tag('', 'pill'), highlight: true });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: nitricScene(), at: () => V(SET[S.focus].X, RACK_Y + 0.011, 0), btnAt: () => V(SET[S.focus].X - SET[S.focus].sx * 0.021, 0.19, 0.01), label: '钻进去看',
-      state: () => { const T = S[S.focus]; return { conc: S.focus === 'c', no2: T.x > 0.5, c: r1(cNow(T)), contact: T.contact > 0.05, hot: T.rate > 0.001, made: T.cu > 0.02 }; },
-      // key：浓硝酸用稀了、改生成 NO 时，微观也换成生成 NO 的样子
-      key: () => S.focus + String(S[S.focus].contact > 0.05) + String(S[S.focus].x > 0.5), bar: () => bar, scale: 0.0056, lookD: [0.05, 0.25, 1], dist: 0.26 });
+      state: () => { const T = S[S.focus]; return { conc: S.focus === 'c', x: T.x, c: r1(cNow(T)), contact: T.contact > 0.05, hot: T.rate > 0.001, made: T.cu > 0.02 }; },
+      // 浓硝酸用稀了：微观按 x 的比例挑路径演示（不用重开）
+      key: () => S.focus + String(S[S.focus].contact > 0.05), bar: () => bar, scale: 0.0056, lookD: [0.05, 0.25, 1], dist: 0.26 });
 
     // ================= 步骤栏 + 老师演示 =================
     const bar = lessonBar({
@@ -204,7 +206,7 @@ export default {
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); },
             view: { save: () => (mic.isOpen ? { focus: S.focus } : null), restore: (v) => { S.focus = v.focus; mic.open(); } } }),
           shots: [
-            { cap: '实验5-8：橡胶塞侧面的凹槽里嵌着下端卷成螺旋状的铜丝；两支具支试管里分别是 2 mL 浓硝酸（左）和稀硝酸（右），导管通入 NaOH 溶液。硝酸有腐蚀性和挥发性：戴好护目镜，在通风处进行。', dur: 5, cam: [[0, 0.1, 0], [0.04, 0.28, 1], 0.5] },
+            { cap: '实验5-8：橡胶塞侧面的凹槽里嵌着下端卷成螺旋状的铜丝；已经向两支具支试管中分别加入 2 mL 浓硝酸（左）和稀硝酸（右），再用橡胶塞塞住试管口，铜丝还在液面上方；导管通入 NaOH 溶液。硝酸有腐蚀性和挥发性：戴好护目镜，在通风处进行。', dur: 5, cam: [[0, 0.1, 0], [0.04, 0.28, 1], 0.5] },
             { cap: '把铜丝往下推，使铜丝与浓硝酸接触：反应剧烈，冒出大量气泡，试管上部很快充满红棕色的 NO₂，溶液慢慢变绿。', dur: 8, cam: [[-0.045, 0.085, 0], [0.04, 0.2, 1], 0.44],
               during: act.drag(SET.c.wirePick, () => wireAnchor('c', 1), { t0: 0.08, t1: 0.3, release: 0.34, from: () => wireAnchor('c', 0) }) },
             { cap: '再把另一根铜丝推进稀硝酸：反应较慢，冒出的气泡是无色的（NO，淡紫灰点）。试管上部慢慢出现红棕色——NO 遇到管里空气中的 O₂（蓝点），生成了 NO₂。', dur: 12, speed: 3, cam: [[0.02, 0.085, 0], [0.04, 0.2, 1], 0.44],
@@ -265,6 +267,7 @@ export default {
       const name = blueK < 0.12 ? (yel > 0.35 ? '略带黄色' : '近于无色') : yel > 0.35 && blueK > 0.4 ? '绿色' : yel > 0.35 ? '蓝绿色' : blueK < 0.45 ? '浅蓝色' : '蓝色';
       return { col, name, blueK };
     };
+    const fNO2 = (x) => (2 * x) / (2 * x + (2 / 3) * (1 - x));          // 新生成的气体里 NO₂ 占的比例（按两个方程式的计量系数：每 mmol Cu 生成 2 mmol NO₂ 或 2/3 mmol NO）
     const gasName = (T) => { const fr = T.no2 / VH; return fr < 0.02 ? '近于无色' : fr < 0.08 ? '浅红棕色' : fr < 0.35 ? '红棕色' : '深红棕色'; };
     const step = (dt, t) => {
       const H = dt * SPEED, n = Math.max(1, Math.ceil(H / 0.1));
@@ -288,15 +291,15 @@ export default {
       if (liqOf('d').blueK > 0.3) log('colD', ['稀硝酸那支的溶液', '慢慢变成<b>浅蓝色</b>', '生成了 Cu(NO₃)₂：Cu²⁺ 显蓝色']);
       if (D.contact > 0.3 && !S.said.inD) { done('pushD'); log('inD', ['把铜丝推进稀硝酸', '反应<b>较慢</b>：铜丝表面冒出少量<b>无色</b>气泡', '和浓硝酸比，稀硝酸和铜反应慢得多']); status('铜丝浸进稀硝酸：气泡少多了，而且是<b>无色</b>的。盯着稀硝酸那支试管的<b>上部</b>。'); }
       if (D.no2 / VH > 0.04 && !S.said.pale) { log('pale', ['稀硝酸那支试管上部', '慢慢出现<b>红棕色</b>', '冒出来的无色气体是 <b>NO</b>，它遇到试管里空气中的 O₂（蓝点）生成了红棕色的 NO₂：2NO + O₂ ══ 2NO₂']); status('稀硝酸那支试管上部慢慢变红棕色了。可是气泡明明是无色的——看看<b>蓝点</b>（O₂）在怎样变少。'); }
-      if (S.said.brownC && S.said.pale && D.genNO > 5 && !S.said.cmp) {
+      if (S.said.brownC && S.said.pale && !S.said.cmp) {
         const lc = liqOf('c'), ld = liqOf('d'), mm = (v) => Math.round((v / ML) * 100) / 100;
-        log('cmp', ['比较两支试管', `浓：铜丝浸了约 ${Math.round(C.tIn)} 秒，试管上部${gasName(C)}，溶液${lc.name}；稀：浸了约 ${Math.round(D.tIn)} 秒，气泡无色，试管上部${gasName(D)}，溶液${ld.name}（时间是实际时间）`,
+        log('cmp', ['比较两支试管', `浓：铜丝浸了约 ${Math.round(C.tIn)} 秒，试管上部${gasName(C)}，溶液${lc.name}；稀：浸了约 ${Math.round(D.tIn)} 秒，气泡无色，试管上部${gasName(D)}，溶液${ld.name}（秒数是模型时间）`,
           `硝酸的浓度不同，与铜反应的产物不同：浓 → NO₂，稀 → NO。按方程式估算：浓那支生成约 ${mm(C.genNO2)} mmol NO₂${C.genNO > 0.5 ? `、${mm(C.genNO)} mmol NO` : ''}，稀那支生成约 ${mm(D.genNO)} mmol NO`]);
         done('watchD'); status('比较一下：浓硝酸反应剧烈，生成红棕色的 NO₂；稀硝酸反应较慢，生成无色的 NO。现在把两根<b>铜丝</b>都向上拉，终止反应。');
       }
       if (S.said.pale && D.o2 < 0.03 * VH * 0.21 && D.no2 / VH < 0.02 && !S.said.clear) log('clear', ['稀硝酸那支，再等一会儿', '试管上部的红棕色<b>褪去</b>，近于无色', '管里的 O₂ 用完了，NO₂ 溶进水里（3NO₂ + H₂O ══ 2HNO₃ + NO）或被赶进烧杯；剩下的 NO 是<b>无色</b>的']);
       if (D.escNO > 0.6 && !S.said.esc) log('esc', ['稀硝酸那边的烧杯', '冒出 NaOH 溶液的气泡，在液面上方变成<b>淡红棕色</b>', 'NO 不能单独被 NaOH 溶液吸收，遇到空气生成 NO₂——所以还要注意<b>通风</b>']);
-      if (C.x < 0.5 && !S.said.thin) log('thin', ['浓硝酸那支反应了一段时间', '冒出的气泡颜色变浅，试管里出现了 NO（淡紫灰点）', `硝酸越用越稀（约 ${r1(cNow(C))} mol/L），生成的气体里 NO 越来越多——浓度不同，产物不同`]);
+      if (fNO2(C.x) < 0.5 && !S.said.thin) log('thin', ['浓硝酸那支反应了一段时间', '冒出的气泡颜色变浅，试管里出现了 NO（淡紫灰点）', `硝酸越用越稀（约 ${r1(cNow(C))} mol/L），生成的气体里 NO 越来越多——浓度不同，产物不同`]);
       if (S.said.cmp && C.ever && D.ever && C.contact === 0 && D.contact === 0 && !S.said.stop) {
         done('stop'); log('stop', ['向上拉铜丝', '铜丝离开硝酸，气泡<b>停了</b>', '反应终止：可抽动的铜丝能让反应随时停下来，少生成有毒的氮氧化物']);
         if (!S.demo) { W?.t1.open(); status('两根铜丝都拉上来了，反应终止。在左边作答。'); }
@@ -310,12 +313,12 @@ export default {
         G.flowMat.color.copy(G.gasMat.color); G.flowMat.opacity = Math.min(0.55, brownA(ofr) * 0.7); G.flow.visible = ofr > 0.01;
         // 溶液：Cu²⁺ 的蓝；浓硝酸那支溶有 NO₂ → 绿
         G.liq.setColor(liqOf(k).col.getHex()); G.liq.update(t);
-        G.bubs.material = T.x > 0.5 ? bubC : bubD;          // 气泡：生成 NO₂ 时带红棕色，生成 NO 时无色（跟着同一个产物状态）
+        G.bubs.material = fNO2(T.x) > 0.5 ? bubC : bubD;          // 气泡：按新生成气体的组成，NO₂ 占多数时带红棕色，NO 占多数时无色
         // 铜丝表面的气泡（试管局部坐标）
         const gRate = T.rate * ((2 * T.x) + (2 / 3) * (1 - T.x)) * ML * SPEED;          // mL/s（画面时间）
         if (gRate > 0.02) {
           F.acc += dt * Math.min(45, gRate * 9);
-          while (F.acc > 1) { F.acc -= 1; const p = SPS[Math.floor(Math.random() * SPS.length)]; const y = G.wire.position.y + p.y; if (y < LIQ_Y - 0.0008 && F.b.length < 60) F.b.push({ p: V(p.x, y, p.z), v: 0.01 + Math.random() * 0.01, s: (T.x > 0.5 ? 0.0006 : 0.00045) + Math.random() * 0.0003 }); }
+          while (F.acc > 1) { F.acc -= 1; const p = SPS[Math.floor(Math.random() * SPS.length)]; const y = G.wire.position.y + p.y; if (y < LIQ_Y - 0.0008 && F.b.length < 60) F.b.push({ p: V(p.x, y, p.z), v: 0.01 + Math.random() * 0.01, s: (fNO2(T.x) > 0.5 ? 0.0006 : 0.00045) + Math.random() * 0.0003 }); }
         } else F.acc = 0;
         for (let i = F.b.length - 1; i >= 0; i--) { const b = F.b[i]; b.p.y += b.v * dt; const rr = Math.hypot(b.p.x, b.p.z); if (rr > LR - 0.0012) { b.p.x *= (LR - 0.0012) / rr; b.p.z *= (LR - 0.0012) / rr; } if (b.p.y > LIQ_Y - 0.0003) F.b.splice(i, 1); }
         F.b.forEach((b, i) => { s4.setScalar(b.s); m4.compose(b.p, q4, s4); G.bubs.setMatrixAt(i, m4); });
@@ -354,7 +357,7 @@ export default {
         const on = T.contact > 0.05 && T.rate > 0.0005;
         const bub = !on ? '没有' : gr > 0.25 ? '很多' : '少';
         const stamp = on ? '<span class="cc-res">反应中</span>' : '';
-        const what = on ? `<div class="cc-note">正在生成：<b>${T.x > 0.9 ? 'NO₂（红棕色）' : T.x > 0.1 ? 'NO₂ 和 NO' : 'NO（无色）'}</b></div>` : '';
+        const what = on ? `<div class="cc-note">正在生成：<b>${fNO2(T.x) > 0.97 ? 'NO₂（红棕色）' : fNO2(T.x) > 0.03 ? `NO₂ 和 NO（约 ${Math.round(fNO2(T.x) * 100)}% 是 NO₂）` : 'NO（无色）'}</b></div>` : '';
         G.card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">${NAME[k]}</span>${stamp}</div><div class="cc-more"><div class="cc-note">气泡：${bub}；试管上部：${gasName(T)}；溶液：${liqOf(k).name}</div>${what}<div class="cc-note">硝酸约 ${r1(cNow(T))} mol/L（示意）</div><div class="cc-note"><span style="color:#2f7fe0">●</span> O₂（概念色） <span style="color:#8a84a6">●</span> NO（无色，示意）</div></div></div>`)
           .loc(group, G.XBk, 0.19, 0).show(!bar.playing && !mic.isOpen);
       }
@@ -378,8 +381,8 @@ export default {
           ok: '对：稀硝酸和铜反应生成无色的 NO；试管里原来有空气，NO 遇到 O₂ 生成红棕色的 NO₂（2NO + O₂ ══ 2NO₂）。所以试管上部变红棕色，不能说明稀硝酸生成的是 NO₂。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const vary = varyBox('课本的注意事项：硝酸具有腐蚀性和挥发性，使用时须注意防护和通风！可以试试：浓硝酸那支一直不拉铜丝，看冒出的气体怎样变；等稀硝酸那支的 O₂（蓝点）用完，看试管上部的颜色；盯着两个烧杯的液面上方。', h('span', {}));
         const more = moreBox([['钻进去看（浓硝酸）', () => { S.focus = 'c'; mic.open(); }], ['钻进去看（稀硝酸）', () => { S.focus = 'd'; mic.open(); }]], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '浓硝酸按 65%（1.40 g/mL）= 14.4 mol/L，2 mL 含 28.9 mmol HNO₃；稀硝酸课本没写浓度，这里取 4 mol/L（2 mL 含 8 mmol）。铜丝螺旋约 0.5 g。不加热（课本没写加热）。<b>时间加快 4 倍</b>（记录里的秒数是实际时间）。<br>反应速率按与硝酸浓度成正比估计（<b>示意</b>）：r = 1.4×10⁻³ mmol/s × c(mol/L) × 铜丝浸在酸里的比例。铜丝推到底时螺旋约八成浸在酸里，开始时浓硝酸约 0.016 mmol Cu/s（按方程式生成 NO₂ 约 0.8 mL/s），稀硝酸约 0.0045 mmol Cu/s（生成 NO 约 0.07 mL/s）；拉上来就是 0。产量是按课本的两个方程式<b>估算</b>的（25 ℃ 每 mmol 气体约 24.5 mL）；NO₂ 按 NO₂ 当量计，实际气体里还有一部分 N₂O₄（2NO₂ ⇌ N₂O₄），没有单独算。硝酸越用越稀，生成的气体里 NO 越来越多：12 mol/L 以上全按浓的方程式、6 mol/L 以下全按稀的方程式，中间按比例（<b>示意</b>）；气泡的颜色和“钻进去看”都跟着这个产物走。<br>试管上部原来是约 27 mL 空气（O₂ 21%，约 5.6 mL；之后没有空气进来）。2NO + O₂ ══ 2NO₂ 按三级反应算：−d[O₂]/dt = k[NO]²[O₂]，k ≈ 2.0×10⁻³⁸ cm⁶·分子⁻²·s⁻¹（298 K；NIST 化学动力学数据库 2NO + O₂ → 2NO₂ 条目，取 IUPAC 评估值），约 7×10³ L²·mol⁻²·s⁻¹。稀硝酸那支里 NO₂ 慢慢溶进水里（3NO₂ + H₂O ══ 2HNO₃ + NO，课本第 13 页），时间常数取 90 s（<b>示意</b>）。<br>多出来的气体经导管进入 NaOH 溶液：NO₂ 吸收约 90%（<b>模型假设</b>）；NO 只和 NO₂ 一起（1∶1）被吸收，单独不被吸收，冒出液面遇空气生成 NO₂（淡红棕色，示意）。气体收缩时可能倒吸，课本没写，模型没画。<br>红棕色的深浅按试管上部 NO₂ 的多少（示意）；溶液的蓝色按 Cu²⁺ 浓度。浓硝酸那支显绿色，这里按“溶有 NO₂”着色（常见的解释；也有研究认为和硝酸根浓度高时 Cu²⁺ 的配位有关）。蓝点 = O₂（概念色），淡紫灰点 = NO（无色，示意），每 0.3 mL 一个；空气里的 N₂ 没画。<br>“钻进去看”把硝酸画成 H⁺ 和 NO₃⁻（和离子方程式一致；浓硝酸里其实还有不少 HNO₃ 分子），慢放示意，不表示真实的反应步骤。' }));
-        const base = mountXuean(ui, { controls: [vary, more, note], headers: ['做了什么', '现象', '说明'], intro: '<b>注意：硝酸具有腐蚀性和挥发性，使用时须注意防护和通风！</b>（课本第 15 页）生成的 NO₂、NO 都有毒。<br>图5-14 的装置：橡胶塞侧面的凹槽里嵌着下端卷成螺旋状的铜丝；左边具支试管里是 2 mL 浓硝酸，右边是 2 mL 稀硝酸，铜丝都在液面上方；导管通入 NaOH 溶液。' });
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '浓硝酸按 65%（1.40 g/mL）= 14.4 mol/L，2 mL 含 28.9 mmol HNO₃；稀硝酸课本没写浓度，这里取 4 mol/L（2 mL 含 8 mmol）。铜丝螺旋约 0.5 g。不加热（课本没写加热）。<b>时间加快 4 倍</b>（记录里的秒数是模型时间，即加快前的时间）。<br>反应速率按与硝酸浓度成正比估计（<b>示意</b>）：r = 1.4×10⁻³ mmol/s × c(mol/L) × 铜丝浸在酸里的比例。铜丝推到底时螺旋约八成浸在酸里，开始时浓硝酸约 0.016 mmol Cu/s（按方程式生成 NO₂ 约 0.8 mL/s），稀硝酸约 0.0045 mmol Cu/s（生成 NO 约 0.07 mL/s）；拉上来就是 0。产量是按课本的两个方程式<b>估算</b>的（25 ℃ 每 mmol 气体约 24.5 mL）；NO₂ 按 NO₂ 当量计，实际气体里还有一部分 N₂O₄（2NO₂ ⇌ N₂O₄），没有单独算。硝酸越用越稀，生成的气体里 NO 越来越多：12 mol/L 以上全按浓的方程式、6 mol/L 以下全按稀的方程式，中间按比例（<b>示意</b>）；气泡的颜色和“钻进去看”都跟着这个产物走。<br>试管上部原来是约 27 mL 空气（O₂ 21%，约 5.6 mL；之后没有空气进来）。2NO + O₂ ══ 2NO₂ 按三级反应算。IUPAC 评估（数据表 NOx23）推荐 298 K 时 k = 3.95×10⁻³⁸ cm⁶·分子⁻²·s⁻¹，按 NO₂ 的生成速率定义：d[NO₂]/dt = k[NO]²[O₂]，约 1.43×10⁴ L²·mol⁻²·s⁻¹；换成 O₂ 的消耗速率 −d[O₂]/dt 要折半，约 7.1×10³ L²·mol⁻²·s⁻¹（模型用这个）。稀硝酸那支里 NO₂ 慢慢溶进水里（3NO₂ + H₂O ══ 2HNO₃ + NO，课本第 13 页），时间常数取 90 s（<b>示意</b>）。<br>多出来的气体经导管进入 NaOH 溶液：NO₂ 吸收约 90%（<b>模型假设</b>）；NO 只和 NO₂ 一起（1∶1）被吸收，单独不被吸收，冒出液面遇空气生成 NO₂（淡红棕色，示意）。气体收缩时可能倒吸，课本没写，模型没画。<br>红棕色的深浅按试管上部 NO₂ 的多少（示意）；溶液的蓝色按 Cu²⁺ 浓度。浓硝酸那支显绿色，这里按“溶有 NO₂”着色（常见的解释；也有研究认为和硝酸根浓度高时 Cu²⁺ 的配位有关）。蓝点 = O₂（概念色），淡紫灰点 = NO（无色，示意），每 0.3 mL 一个；空气里的 N₂ 没画。<br>“钻进去看”把硝酸画成 H⁺ 和 NO₃⁻（和离子方程式一致；浓硝酸里其实还有不少 HNO₃ 分子），慢放示意，不表示真实的反应步骤。' }));
+        const base = mountXuean(ui, { controls: [vary, more, note], headers: ['做了什么', '现象', '说明'], intro: INTRO });
         ui.data.append(t1.el, t2.el, t3.el, base.next);
         W = { ...base, ui, t1, t2, t3, status: ui.status }; bar.attach(ui);
       },

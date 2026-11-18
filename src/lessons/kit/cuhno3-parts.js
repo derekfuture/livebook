@@ -5,7 +5,7 @@
 //   稀：3Cu + 8H⁺ + 2NO₃⁻ → 3Cu²⁺ + 2NO + 4H₂O——三个铜原子交出 6 个电子，两个 NO₃⁻ 里的氮各得 3 个（+5 → +2）。
 //   没得电子的 NO₃⁻ 留在溶液里，和 Cu²⁺ 在一起就是 Cu(NO₃)₂（浓：2 个，稀：6 个）。
 //   原子守恒：浓 Cu N₂ O₆ H₄ = Cu + N₂O₄ + O₂H₄ ✓；稀 Cu₃ N₂ O₆ H₈ = Cu₃ + N₂O₂ + O₄H₈ ✓。电荷：浓 0 + 4 − 2 = +2 ✓；稀 0 + 8 − 2 = +6 = 3 × (+2) ✓。
-// st：{ conc: 浓硝酸那支（粒子多、水少）, no2: 现在生成的是 NO₂（浓硝酸用稀了以后改成 NO，和宏观同一个产物状态）, c: 现在的浓度 mol/L,
+// st：{ conc: 浓硝酸那支（粒子多、水少）, x: 按浓的方程式反应的铜占几成（0~1，和宏观同一个产物状态；浓硝酸用稀了以后变小）, c: 现在的浓度 mol/L,
 //       contact: 铜丝浸在酸里, hot: 正在反应（宏观的速率够大）, made: 已经生成过 Cu²⁺ }
 import * as THREE from 'three';
 import { f, textSprite } from './microworld.js';
@@ -54,7 +54,7 @@ export function nitricScene() {
   const sites = [];
   for (let r = -4; r <= 4; r++) for (let q = -4; q <= 4; q++) { const x = (q + (r % 2 ? 0.5 : 0)) * SP, z = r * SP * 0.866; if (Math.hypot(x, z) < 4.4) sites.push(new THREE.Vector3(x, Y0, z)); }
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  let phase = null, made = 0, wait = 1.2, refill = [], conc = true, toNO2 = true, cNow = 0;
+  let phase = null, made = 0, wait = 1.2, refill = [], conc = true, toNO2 = true, cNow = 0, xNow = 1, mixed = false;
   let P = null;          // 正在进行的这一次：{ cus, ns, hs, t, el: [电子], tags, to: Map(分子 → 位置) }
   const front = (p) => Math.abs(p.x) + Math.abs(p.z - 1.4);
   const surf = (c) => c.mols.filter((m) => m.kind === 'Cu' && m.fixed && !m.busy && !m.hold);
@@ -68,7 +68,7 @@ export function nitricScene() {
     labels: (k) => k === 'NO2' || k === 'NO' || k === 'Cu2+', dim: 0.55,          // H⁺、NO₃⁻ 很多：只在参与反应时标
     labelOnly: (k) => k !== 'H+' && k !== 'H2O' && k !== 'Cu',          // 一次反应里 H⁺ 有 4~8 个：不给它们标字，免得叠在一起（说明里写着）
     init(c, st) {
-      conc = !!st.conc; toNO2 = st.no2 ?? conc; cNow = st.c || 0;
+      conc = !!st.conc; xNow = st.x ?? (conc ? 1 : 0); toNO2 = xNow >= 0.5; mixed = xNow > 0.02 && xNow < 0.98; cNow = st.c || 0;
       c.view.film = FILM; c.view.paper = null; c.view.liquid = conc ? 0xe8ecd8 : 0xdde9ef;
       P = null; phase = null; made = 0; wait = 1.2; refill = [];
       if (st.contact) for (const p of sites) c.add('Cu', p.clone(), { fixed: true });
@@ -78,7 +78,8 @@ export function nitricScene() {
     },
     step(c, st, dt) {
       c.view.film = FILM; c.view.paper = null; c.view.liquid = conc ? 0xe8ecd8 : 0xdde9ef;
-      c.view.speed = st.hot ? 1.5 : 1; cNow = st.c || cNow;
+      c.view.speed = st.hot ? 1.5 : 1; cNow = st.c || cNow; xNow = st.x ?? xNow; mixed = xNow > 0.02 && xNow < 0.98;
+      if (!P) toNO2 = xNow >= 0.5;
       // 酸用掉了，远处的 H⁺、NO₃⁻ 成对补过来（电荷平衡）；水用不完
       if (!P && c.count('H+') < NP() && Math.random() < dt * 1.2) c.pairIn('H+', 'NO3-');
       if (c.free('H2O').length > NW() + 3 && Math.random() < dt) c.free('H2O')[0].fadeOut = true;
@@ -89,6 +90,8 @@ export function nitricScene() {
       if (!P && st.hot && !c.events.length) {
         wait -= dt;
         if (wait <= 0) {
+          // 混合区（浓硝酸用稀了一部分）：每一次按铜走两条路径的比例随机挑一条来演示
+          toNO2 = mixed ? Math.random() < xNow : xNow >= 0.5;
           const nCu = toNO2 ? 1 : 3, nH = toNO2 ? 4 : 8;
           // 稀硝酸：一次要 8 个 H⁺，旁边不够就从远处成对补过来
           if (freeHeld(c, 'H+').length < nH) { c.pairIn('H+', 'NO3-'); wait = 0.25; return; }
@@ -159,15 +162,19 @@ export function nitricScene() {
     text(c, st) {
       const EQ = toNO2 ? EQ_C : EQ_D;
       const acid = conc ? '浓硝酸' : '稀硝酸';
-      const thin = conc && !toNO2 ? `这支浓硝酸已经用稀了（约 ${cNow} mol/L），现在按稀硝酸的方程式反应：` : '';
-      if (!st.contact) return { eq: EQ, on: false, cap: `铜丝已经拉上去，离开了${acid}：这里只有 ${f('H+')}、${f('NO3-')} 和水，没有铜可以反应——<b>反应停止</b>。` };
+      const gNO2 = Math.round((2 * xNow) / (2 * xNow + (2 / 3) * (1 - xNow)) * 100);
+      const thin = conc && mixed ? `这支浓硝酸已经用稀了一些（约 ${cNow} mol/L）：两种反应都在进行，新生成的气体里约 ${gNO2}% 是 ${f('NO2')}。${P ? `<b>这一次演示的是生成 ${toNO2 ? f('NO2') : f('NO')} 的那条路径：</b>` : ''}`
+        : conc && !toNO2 ? `这支浓硝酸已经用稀了（约 ${cNow} mol/L），现在按稀硝酸的方程式反应：` : '';
+      if (!st.contact && !st.made) return { eq: EQ, on: false, cap: `铜丝还在液面上方，没有碰到${acid}：这里只有 ${f('H+')}、${f('NO3-')} 和水，<b>还没有反应</b>。把铜丝推下去再看。` };
+      if (!st.contact) return { eq: EQ, on: false, cap: `铜丝已经提起来，离开了液面：没有铜可以反应——<b>反应停止</b>。已经生成的 ${f('Cu2+')} 还留在溶液里（溶液的颜色不会退）。` };
       if (phase === 'come') return { eq: EQ, on: true, cap: thin + (toNO2 ? `两个 ${f('NO3-')} 和四个 ${f('H+')} 来到铜的表面。（硝酸在溶液里画成 ${f('H+')} 和 ${f('NO3-')}）` : `两个 ${f('NO3-')}、八个 ${f('H+')} 来到<b>三个</b>铜原子旁边。${conc ? '' : `稀硝酸里水多，${f('H+')}、${f('NO3-')} 少。`}`) };
       if (phase === 'e') return { eq: EQ, on: true, cap: thin + (toNO2
         ? `一个铜原子交出 <b>2 个电子</b>（小深色点）：<b>Cu 0 → +2</b>，被氧化；被还原的两个 ${f('NO3-')}，氮<b>各得 1 个</b>：<b>N +5 → +4</b>。`
         : `三个铜原子一共交出 <b>6 个电子</b>：<b>Cu 0 → +2</b>，被氧化；被还原的两个 ${f('NO3-')}，氮<b>各得 3 个</b>：<b>N +5 → +2</b>。`) };
-      if (phase === 'rx') return { eq: EQ, on: true, cap: toNO2
+      const pathNote = conc && mixed ? `（两种反应都在进行，这一次演示的是生成 ${toNO2 ? f('NO2') : f('NO')} 的那条路径）` : '';
+      if (phase === 'rx') return { eq: EQ, on: true, cap: pathNote + (toNO2
         ? `得到电子的 ${f('NO3-')} 和 ${f('H+')} 变成 ${f('NO2')}（红棕色，冒出去）和水；溶液里另外两个 ${f('NO3-')} 没得电子，氮还是 +5 价，和 ${f('Cu2+')} 在一起就是 Cu(NO₃)₂。原子的种类、个数都没变。`
-        : `得到电子的 ${f('NO3-')} 和 ${f('H+')} 变成 ${f('NO')}（无色，冒出去）和水；另外六个 ${f('NO3-')} 没得电子，氮还是 +5 价，和三个 ${f('Cu2+')} 在一起就是 3Cu(NO₃)₂。原子的种类、个数都没变。` };
+        : `得到电子的 ${f('NO3-')} 和 ${f('H+')} 变成 ${f('NO')}（无色，冒出去）和水；另外六个 ${f('NO3-')} 没得电子，氮还是 +5 价，和三个 ${f('Cu2+')} 在一起就是 3Cu(NO₃)₂。原子的种类、个数都没变。`) };
       if (st.hot) return { eq: EQ, on: true, cap: `${thin || acid + '里，'}铜不断失去电子变成 ${f('Cu2+')}；被还原的氮得到电子，变成 ${toNO2 ? f('NO2') : f('NO')}。<b>慢放示意，不表示真实的反应步骤。</b>` };
       if (made) return { eq: EQ, on: false, cap: `铜失去的电子数 = 氮得到的电子数（浓：1 个 Cu 对 2 个 ${f('NO2')}；稀：3 个 Cu 对 2 个 ${f('NO')}）。硝酸是<b>氧化剂</b>，铜是<b>还原剂</b>。` };
       return { eq: EQ, on: false, cap: `铜的表面浸在${acid}里。` };
