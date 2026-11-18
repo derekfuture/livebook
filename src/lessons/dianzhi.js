@@ -80,7 +80,7 @@ export default {
     const salts = new Particles({ max: 90, geometry: new THREE.BoxGeometry(1, 1, 1), material: paint(0xfbfbf8, { keep: true }) }); group.add(salts.mesh);
 
     const fresh = () => ({
-      demo: false, near: false, power: false, clock: 0, bShow: 0, b: 0, testT: 0, lastBk: -1, rows: {}, said: {}, at: -1,
+      demo: false, near: false, power: false, clock: 0, bShow: 0, b: 0, I: 0, testT: 0, lastBk: -1, rows: {}, said: {}, at: -1,
       bk: [{ w: 0, na: 20, k: 0, dna: 0, dk: 0, adds: 0 }, { w: 0, na: 0, k: 20, dna: 0, dk: 0, adds: 0 }, ...[0, 0, 0].map(() => ({ w: WATER, na: 0, k: 0, dna: 0, dk: 0, adds: 0 }))],
       stir: [0, 0, 0, 0, 0],
       tools: {
@@ -106,7 +106,10 @@ export default {
     const rSol = (b) => { if (!b.w) return Infinity; const L = LEVEL - ROD_BOT; return Math.acosh(ROD_D / (2 * ROD_A)) / (Math.PI * kappa(b) * L); };
     const circuit = (R) => { if (!isFinite(R)) return { I: 0, b: 0 }; let rb = RB0, I = 0; for (let i = 0; i < 16; i++) { I = U / (R + rb); const P = I * I * rb; rb = rb * 0.5 + 0.5 * (RB0 + (RBH - RB0) * Math.min(1.2, Math.sqrt(P / PR))); } return { I, b: (I * I * rb) / PR }; };
     const live = () => S.power && S.at >= 0 && !S.tools.head.motion && !S.tools.head.drag;
-    const bulbWord = (b) => (b >= 0.25 ? '小灯泡<b>亮</b>' : b >= 0.03 ? '小灯泡<b>微微发亮</b>' : '小灯泡<b>不亮</b>');
+    // 有没有电流（导电）和灯泡看不看得出亮是两回事：导电与否按电流的数量级判断，不按灯泡亮度反推
+    const nw = (t) => `<span style="white-space:nowrap">${t}</span>`;          // 记录表里主要的几个字不折行
+    const bulbWord = (b, I) => (b >= 0.25 ? nw('小灯泡<b>亮</b>') : b >= 0.03 ? nw('小灯泡<b>微微发亮</b>') : I >= 1e-3 ? `${nw('小灯泡<b>不亮</b>')}<br><small>电流很小，不足以使灯泡发光</small>` : nw('小灯泡<b>不亮</b>'));
+    const condWord = (k, I) => (k.endsWith('S') || I <= 0 ? '不导电' : I < 1e-3 ? `${nw('不导电')}<br><small>严格地说导电能力非常弱，这套装置测不出</small>` : '导电');          // 蒸馏水约 26 μA；溶液哪怕很稀也有几十毫安
     const pairsOf = (mmol) => (mmol < 0.05 ? 0 : clamp(Math.round(mmol / 2.85), 1, 4));          // 钻进去看：一对离子约代表 2.85 mmol（一勺 0.5 g NaCl 画 3 对）
 
     // ================= 工具移动：抬起来 → 平移 → 放下 =================
@@ -213,7 +216,7 @@ export default {
     const micState = () => {
       const i = focus(); if (i < 0) return { elec: false, on: false, water: false, solid: null, pairs: { NaCl: 0, KNO3: 0 }, undis: { NaCl: 0, KNO3: 0 }, name: '' };
       const b = S.bk[i], elec = S.at === i;
-      return { elec, on: elec && S.power, water: b.w > 0, solid: b.w ? null : b.na + b.k <= 0 ? null : b.na >= b.k ? 'NaCl' : 'KNO3',
+      return { elec, on: elec && S.power, glow: elec && live() ? S.b : 0, water: b.w > 0, solid: b.w ? null : b.na + b.k <= 0 ? null : b.na >= b.k ? 'NaCl' : 'KNO3',
         pairs: { NaCl: pairsOf((b.dna / MNA) * 1000), KNO3: pairsOf((b.dk / MK) * 1000) }, undis: { NaCl: b.w ? pairsOf((b.na / MNA) * 1000) : 0, KNO3: b.w ? pairsOf((b.k / MK) * 1000) : 0 }, name: nameOf(b) };
     };
     const mic = micro({ tag, look, back, group, scene: dianzhiScene(), at: () => V(XS[Math.max(0, focus())], 0.128, RZ), btnAt: () => V(XS[Math.max(0, focus())], 0.112, RZ), label: '钻进去看',
@@ -271,14 +274,14 @@ export default {
 
     // ================= 记录：每一杯（每一种东西）一行 =================
     const record = (i) => {
-      const b = S.bk[i], k = kindOf(b), key = `${i}:${k}`, row = [nameOf(b), bulbWord(S.b), S.b >= 0.03 ? '导电' : '不导电'];
+      const b = S.bk[i], k = kindOf(b), key = `${i}:${k}`, row = [nameOf(b), bulbWord(S.b, S.I), condWord(k, S.I)];
       const first = !(key in S.rows);
       if (!S.demo && W) { const txt = row.join('|'); if (first) S.rows[key] = { n: W.tbl.add(row) - 1, txt }; else if (S.rows[key].txt !== txt) { W.tbl.set(S.rows[key].n, row); S.rows[key].txt = txt; } }
       else if (first) S.rows[key] = { n: -1, txt: '' };
       if (first) {
         status(k === 'water' ? '蒸馏水：小灯泡<b>不亮</b>。（严格地说，蒸馏水也能导电，只是导电能力非常弱，用这个装置测不出。）'
           : k.endsWith('S') ? `${NAME[k]}：接通电源，小灯泡<b>不亮</b>。`
-          : S.b >= 0.25 ? `${NAME[k]}：小灯泡<b>亮了</b>！${full(b) ? '' : '（还有固体没溶解）'}` : S.b >= 0.03 ? `小灯泡<b>微微发亮</b>……还有固体没溶解：搅拌，看它会不会更亮。` : '小灯泡不亮。');
+          : S.b >= 0.25 ? `${NAME[k]}：小灯泡<b>亮了</b>！${full(b) ? '' : '（还有固体没溶解）'}` : S.b >= 0.03 ? `小灯泡<b>微微发亮</b>……还有固体没溶解：搅拌，看它会不会更亮。` : `${NAME[k]}：有电流，可是溶液里的离子还很少，电流很小，<b>不足以使灯泡发光</b>。${full(b) ? '' : '还有固体没溶解：搅拌，看它会不会亮起来。'}`);
       }
       if (k === 'naS') done('naS'); if (k === 'kS') done('kS'); if (k === 'water') done('water');
       if (k === 'naL' && full(b)) done('naL'); if (k === 'kL' && full(b)) done('kL');
@@ -333,8 +336,8 @@ export default {
       });
       if (S.bk.some((b) => kindOf(b) === 'naL' && full(b)) && S.bk.some((b) => kindOf(b) === 'kL' && full(b))) done('dissolve');
       // 电路：电极在哪一杯、接没接通
-      const c = live() ? circuit(rSol(S.bk[S.at])) : { b: 0 };
-      S.b = c.b; S.bShow += (S.b - S.bShow) * Math.min(1, dt * 12);
+      const c = live() ? circuit(rSol(S.bk[S.at])) : { b: 0, I: 0 };
+      S.b = c.b; S.I = c.I; S.bShow += (S.b - S.bShow) * Math.min(1, dt * 12);
       bulb.set(S.bShow);
       if (live()) { S.testT += dt; if (S.testT > 0.7) record(S.at); }
       // 画面：烧杯里的东西、字牌、导线
@@ -356,7 +359,7 @@ export default {
       size: { w: 0.37, d: 0.31, h: 0.13 },
       view: { elev: 26, azim: -4, lookY: 0.42, frameMargin: 1.04 },
       mount(ui) {
-        const ctx = () => { const rows = Object.entries(S.rows).filter(([, r]) => r.txt).map(([, r]) => { const [a, b2, c2] = r.txt.split('|'); return `<div>${a}：${b2.replace(/<[^>]+>/g, '')}，${c2}</div>`; }); return rows.join('') || '<div>（还没有记录）</div>'; };
+        const ctx = () => { const rows = Object.entries(S.rows).filter(([, r]) => r.txt).map(([, r]) => { const [a, b2, c2] = r.txt.split('|'); const t = (x) => x.replace(/<br>/g, '（').replace(/<\/small>/g, '）').replace(/<[^>]+>/g, ''); return `<div>${a}：${t(b2)}，${t(c2)}</div>`; }); return rows.join('') || '<div>（还没有记录）</div>'; };
         const t2 = think({ q: '生活常识告诉我们，湿手操作电器设备容易发生触电事故。这是为什么？', ctx, options: ['手上沾有 NaCl 等电解质，遇到水形成电解质溶液，能够导电', '水本身导电能力很强', '皮肤沾了水就变成了金属一样的导体'], wrong: ['看看你的记录：蒸馏水那一杯，小灯泡不亮。', '和皮肤变不变没有关系：要看有没有能自由移动的、带电荷的粒子。'], ok: '对：人的手上常会沾有 NaCl（汗液的成分之一），有时也会沾有其他电解质，遇到水时形成电解质溶液。电解质溶液能够导电，所以湿手直接接触电源容易触电（课本第 15 页）。', status: (m) => W?.status(m), onOk: () => { done('why'); if (W) W.next.hidden = false; } });
         const t1 = think({ q: '干燥的 NaCl 固体、蒸馏水都不导电，NaCl 溶液却能导电。为什么？', ctx, options: ['溶液里有能自由移动的、带电荷的离子；固体里的离子紧密排列，不能自由移动', '固体里没有离子，溶进水里才有', 'NaCl 溶液里有水，水能导电'], wrong: ['NaCl 固体里本来就有 Na⁺ 和 Cl⁻——钻进去看看：它们排得整整齐齐，动不了。', '蒸馏水那一杯，小灯泡不亮。'], ok: '对：能导电的物质必须具有能自由移动的、带电荷的粒子。NaCl 溶于水，在水分子的作用下形成能够自由移动的水合钠离子和水合氯离子（课本第 15 页）。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const vary = varyBox('多加几勺固体，小灯泡会更亮吗？也可以先把电极放进蒸馏水、接通电源，再加固体、搅拌——看小灯泡怎样一点点亮起来。');
