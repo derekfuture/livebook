@@ -198,7 +198,7 @@ export default {
             { cap: '观察：干燥的纸条没有变化；湿润的纸条慢慢褪色。', dur: 6, speed: 2, cam: CAM(0.05, 0.4) },
             { cap: '将有色鲜花放入盛有干燥氯气的集气瓶中，盖上玻璃片。', dur: 8, cam: CAM(0.05, 0.42),
               during: act.seq(path(2, [over(2)], 0.03, 0.45), act.tap(platePicks[2], 0.85)) },
-            { cap: '观察：花瓣的颜色慢慢褪去，变得发白（和课本图2-14 一样）。', dur: 7, speed: 2, cam: CAM(0.05, 0.4) },
+            { cap: '观察：花瓣原来的紫红色慢慢褪去，呈浅黄色（和课本图2-14 一样）。', dur: 7, speed: 2, cam: CAM(0.05, 0.4) },
             { cap: '钻进去看：干燥的纸条表面没有水，氯气分子在上面飞，不发生变化。', dur: 6, cam: [[JX[0], 0.075, 0], [0.05, 0.22, 1], 0.3], enter: () => { S.msub = 0; mic.open(true); }, during: act.at(0.98, () => mic.close()) },
             { cap: '湿润的纸条上有水：氯气和水反应，生成 HClO 和 HCl——使纸条褪色的是次氯酸。演示完了，换你自己做。', dur: 8, cam: [[JX[1], 0.075, 0], [0.05, 0.22, 1], 0.3], enter: () => { S.msub = 1; mic.open(true); }, during: act.at(0.98, () => mic.close()) },
           ],
@@ -263,7 +263,7 @@ export default {
       }
       if (closedIn(0) && S.it[0].tIn > 8 && S.it[0].d > 0.95) log('dry', ['把干燥的有色纸条放进干燥的氯气，盖上玻璃片', '纸条<b>没有褪色</b>', '干燥的氯气不能使它褪色']);
       if (closedIn(1) && S.it[1].d < 0.3) log('wet', ['把湿润的有色纸条放进干燥的氯气，盖上玻璃片', '纸条<b>褪色</b>了', '纸条上有水：氯气与水反应生成次氯酸，次氯酸使它褪色']);
-      if (closedIn(2) && S.it[2].d < 0.3) log('flower', ['把有色鲜花放进干燥的氯气，盖上玻璃片', '花瓣<b>褪色</b>了（变得发白）', '鲜花含有水分：同样是次氯酸在起作用']);
+      if (closedIn(2) && S.it[2].d < 0.3) log('flower', ['把有色鲜花放进干燥的氯气，盖上玻璃片', '花瓣原来的紫红色<b>褪去</b>，呈浅黄色', '鲜花含有水分：同样是次氯酸在起作用']);
       if (S.said.dry && S.said.wet && !S.said.strips2) { S.said.strips2 = true; done('seeStrips'); if (!S.demo) { W?.t1.open(); status('干燥的纸条没变，湿润的褪色了。在左边作答，也可以继续做鲜花。'); } }
       if (S.said.flower && !S.said.flower2) { S.said.flower2 = true; done('seeFlower'); if (!S.demo) { W?.t2.open(); status('鲜花也褪色了。在左边作答。'); } }
       mic.update?.(dt);
