@@ -56,7 +56,7 @@ export function fountainScene() {
     text(c, st) {
       const eq = `${f('NH3')} + ${f('H2O')} ⇌ ${f('NH3H2O')} ⇌ ${f('NH4+')} + ${f('OH-')}`;
       const e = c.events[0], made = dissolved(c), left = c.mols.filter((m) => m.kind === 'NH3' && m.gas).length;
-      const airTxt = airWant(st) ? '（灰色的是空气里的 N₂、O₂：不溶于水，溶不掉）' : '';
+      const airTxt = airWant(st) ? '（灰色的是空气里的 N₂、O₂：在水里溶解度很小，这里不画它们溶解）' : '';
       if (!st.water) return { eq, on: false, cap: `烧瓶里是 ${f('NH3')} 分子${airTxt}。还没有水。<b>示意</b>` };
       if (e?.rx === DIS) return { eq, on: true, cap: `${f('NH3')} 碰到水就溶进去，和水分子结合成一水合氨 ${f('NH3H2O')}。氨<b>极易溶于水</b>。<b>示意</b>` };
       if (e?.rx === ION) return { eq, on: true, cap: `一水合氨中有<b>一小部分</b>电离：水那一边的一个 H 交给 N，生成 ${f('NH4+')} 和 ${f('OH-')}。<b>示意</b>` };
