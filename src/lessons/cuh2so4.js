@@ -13,8 +13,12 @@
 //   气体：试管 + 导管里的气体空间约 30 mL；受热膨胀和生成的 SO₂ 从导管口冒出（刚加热时冒出的是受热膨胀的空气）；冷却收缩没有画（实际可能引起倒吸，课本没写）。
 //   品红：通过品红溶液（4 mL）的 SO₂ 约 60% 溶进去；红色的比例 = 1/(1 + K·c)，K 取 5000 L/mol（和“二氧化硫的漂白作用”那一课同一个示意值）。
 //   其余 SO₂ 到管口的棉团，被 NaOH 溶液吸收；拿掉棉团，SO₂ 逸到空气里。
-//   倒进水里：盛有 3 mL 水的试管；稀释放热按每摩尔 H₂SO₄ 约 60 kJ 算（积分溶解热，约 5 个水分子一个 H₂SO₄ 时 58 kJ/mol），
-//     热容 = 试管玻璃 16 J/K + 水 4.18 J/(g·K) + 倒进去的酸 1.42 J/(g·K)；没冷却就倒，酸本身的热也算进去，到 100 ℃ 就沸腾、溅出（示意）。
+//   倒进水里：盛有 3 mL 水的试管。接收管里记着 H₂SO₄、水、CuSO₄ 各多少（倒进去多少就加多少，溅出去按比例一起减）。
+//     放热 = 积分溶解热 nA·ΔH(n) 的增量（ΔH(n)：每摩尔 H₂SO₄ 溶进 n 摩尔水放出的热，Perry 化学工程手册的数表，约值）；
+//     热容 = 试管玻璃 16 J/K + 溶液（比热按 4.18 与 1.42 J/(g·K) 按质量分数插值）；酸本身的热也算进去（没冷却就倒）。
+//     沸点按混合液的质量分数查硫酸水溶液常压沸点表（约值：50% 约 124 ℃，70% 约 166 ℃）。
+//     局部飞溅（示意）：新倒进去的一小股酸先和约 2 倍质量的周围液体混合，这一小团的温度超过它自己浓度的沸点就局部沸腾、溅出液滴；
+//     按这个示意模型，冷却到 50 ℃ 以下慢慢倒不会溅，酸还在约 150 ℃ 以上时会溅。
 //   颜色：浓硫酸里水很少，生成的 CuSO₄ 是白色固体（课本第 6 页资料卡片：硫酸铜是白色粉末，结合水后变成蓝色）；倒进水里溶解，溶液显蓝色，深浅按 Cu²⁺ 浓度。
 // 看不见的东西：SO₂（青色小点，示意色，和“二氧化硫的漂白作用”一课一样；SO₂ 本身无色）、热（橙）、“钻进去看”：铜失去电子、+6 价的硫得到电子变成 SO₂（kit/cuh2so4-parts.js）。
 import * as THREE from 'three';
@@ -22,7 +26,7 @@ import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs, mountXuean, moreBox, varyBox } from './kit/chemlesson.js';
 import { draggable, clamp } from './kit/interact.js';
 import { stand, textPlate } from './kit/props.js';
-import { testTube, stopper, glassTube, rubberTube, chemLamp, tubeClamp, tubeRack, cottonBall } from './kit/chem.js';
+import { testTube, stopper, glassTube, rubberTube, chemLamp, tubeClamp, tubeRack, cottonBall, glassMat } from './kit/chem.js';
 import { water2, bubble2, tubeLiquid } from './kit/chemfx.js';
 import { lampCap } from './kit/labops.js';
 import { micro } from './kit/microworld.js';
@@ -38,8 +42,15 @@ const DEG = Math.PI / 180;
 const SPEED = 8, T0 = 22, T_LAMP = 240, TAU_H = 40, TAU_C = 50;
 const ACID_MMOL = 36.8, CU0 = 4.7, K230 = 0.012, EA_R = 80000 / 8.314, ML_PER_MMOL = 24.5;
 const V_GAS = 30, PINK_ML = 4, K_DYE = 5000, ABS = 0.6;
-const WATER_ML = 3, DIL = 60, CP_ACID = 1.42, RHO = 1.84, C_GLASS = 16;
-const POUR_RATE = 0.5;                          // mL/s：慢慢倒
+const WATER_ML = 3, CP_ACID = 1.42, C_GLASS = 16, LOCAL_R = 2;
+const POUR_RATE = 0.25;                         // 每秒倒出管里物质的 1/4（约 0.5 mL/s）：慢慢倒
+// 积分溶解热 ΔH(n)：1 mol H₂SO₄(l) 溶进 n mol 水放出的热（kJ/mol，约值）；硫酸水溶液常压沸点（质量分数 % → ℃，约值）
+const HSOL = [[0, 0], [0.5, 15.7], [1, 28.1], [2, 41.9], [3, 48.9], [4, 54.1], [5, 58.0], [10, 67.0], [20, 71.5], [50, 73.3], [100, 74.0], [1000, 79], [1e6, 96]];
+const BPT = [[0, 100], [10, 102], [20, 104], [30, 107], [40, 113], [50, 124], [60, 141], [70, 166], [80, 203], [90, 262], [98, 338]];
+const lin = (T, x) => { if (x <= T[0][0]) return T[0][1]; for (let i = 1; i < T.length; i++) if (x <= T[i][0]) { const [a, b] = T[i - 1], [c, d] = T[i]; return b + ((d - b) * (x - a)) / (c - a); } return T[T.length - 1][1]; };
+const enth = (mA, mW) => { const nA = mA / 98.08; return nA > 0 ? nA * lin(HSOL, mW / 18.015 / nA) * 1000 : 0; };          // J
+const cMix = (mA, mW) => { const w = mA / Math.max(1e-9, mA + mW); return 4.18 * (1 - w) + 1.42 * w; };
+const bpOf = (mA, mW) => lin(BPT, (100 * mA) / Math.max(1e-9, mA + mW));
 // ---- 摆放（实验局部坐标，米；桌面 y = 0）----
 const TR = 0.009, TLEN = 0.16, TILT = 35 * DEG;
 const D = V(Math.cos(TILT), Math.sin(TILT));    // 试管轴：管底 → 管口
@@ -55,7 +66,8 @@ const WIRE_A1 = 0.006, TRAVEL = 0.032, WZ = 0.0062, SP_L = 0.016, SP_R = 0.0042,
 const PARK = V(-0.155, 0.0106, 0.03);          // 拔出来的橡胶塞（连着铜丝、导管）躺在桌上：酒精灯和盛水的试管之间，铜丝朝后
 const POUR_DIR = V(Math.cos(225 * DEG), Math.sin(225 * DEG)), POUR_MOUTH = V(XW + 0.003, RACK_Y + WLEN + 0.0075);
 const POUR_B = POUR_MOUTH.clone().addScaledVector(POUR_DIR, -TLEN);
-const SO2C = 0x1597a8, CLEAR = new THREE.Color(0xe6eef2), PINK = new THREE.Color(0xd9367e), ACIDC = new THREE.Color(0xeef1ee), GRAYC = new THREE.Color(0xc9cccb), BLUE = new THREE.Color(0x1f78e0), WATERC = new THREE.Color(0xe4eff4);
+const MOUTH0 = along(TLEN), CYL_HOME = V(0.06, 0, -0.065), CYL_H = 0.092, CYL_LIQ = 0.013;          // 夹着时的管口；量筒放在桌上的位置、高度、2 mL 时的液柱高
+const SO2C = 0x1597a8, CLEAR = new THREE.Color(0xe6eef2), PINK = new THREE.Color(0xd9367e), ACIDC = new THREE.Color(0xeef1ee), GRAYC = new THREE.Color(0xc9cccb), BLUE = new THREE.Color(0x1f78e0), WATERC = new THREE.Color(0xe4eff4), WHITEC = new THREE.Color(0xf2f2ec), DARKC = new THREE.Color(0x3a3c40);
 const kAt = (T) => K230 * Math.exp(EA_R * (1 / 503 - 1 / (T + 273)));
 // 竖直试管里液体的体积 → 液面高度（试管局部坐标）
 const volToY = (ml, R, yc) => {
@@ -80,7 +92,7 @@ export default {
   need: '使铜丝与 2 mL 浓硫酸接触，加热，把产生的气体通入品红溶液；向外拉铜丝终止反应；冷却后把试管里的物质慢慢倒入盛有少量水的试管里，观察颜色',
   conclusion: {
     page: 9, rect: [64, 630, 382, 752],
-    quote: '在加热的条件下，浓硫酸与铜反应，生成硫酸铜、二氧化硫和水。……在这个反应里，浓硫酸氧化了铜，自身被还原成二氧化硫。浓硫酸是氧化剂，铜是还原剂。',
+    quote: '在加热的条件下，浓硫酸与铜反应，生成硫酸铜、二氧化硫和水。 2H2SO4(浓) + Cu △= CuSO4 + SO2↑ + 2H2O 在这个反应里，浓硫酸氧化了铜，自身被还原成二氧化硫。浓硫酸是氧化剂，铜是还原剂。',
     formula: '2H₂SO₄(浓) + Cu <span style="font-size:.8em">△</span>══ CuSO₄ + SO₂↑ + 2H₂O',
     why: '冷的浓硫酸里，铜丝看不出变化；<b>加热</b>以后，铜丝表面冒出气泡，通入的气体使<b>品红溶液褪色</b>——生成了<b>二氧化硫</b>。向外拉铜丝，铜丝离开浓硫酸，气泡就停了：可抽动的铜丝能让反应随时停下来，少生成有毒的 SO₂；多余的 SO₂ 被浸 NaOH 溶液的棉团吸收。<br>试管里看不出蓝色：浓硫酸里水很少，生成的硫酸铜是白色固体；冷却后慢慢倒进水里，溶液显<b>蓝色</b>——生成了<b>硫酸铜</b>。<br>铜：0 → +2，失去电子，被氧化；浓硫酸里的硫：+6 → +4，得到电子，被还原成 SO₂。所以浓硫酸是氧化剂，铜是还原剂。',
     src: '课本第 5 页 · 第五章 第一节 硫及其化合物 实验5-3',
@@ -92,7 +104,7 @@ export default {
     const status = (m) => { if (!S.demo) W?.status(m); };
     const done = (id) => { if (!S.demo) bar.done(id); };
     const log = (key, row) => { if (S.said[key]) return; S.said[key] = true; if (!S.demo) W?.tbl.add(row); };
-    const near = (p, d = [0.08, 0.3, 1], dist = 0.26) => { if (S.demo || mic?.isOpen) return; S.near = true; look([p.x, p.y, p.z], d, dist, () => { S.near = false; }); };
+    const near = (p, d = [0.08, 0.3, 1], dist = 0.26) => { if (S.demo || mic?.isOpen) return; S.near = true; lastLook = [[p.x, p.y, p.z], d, dist]; look(...lastLook, () => { S.near = false; }); };
     const pickBox = (w, hh, d) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), new THREE.MeshBasicMaterial({ visible: false })); m.userData.pick = true; return m; };
     const plate = (text, w, hh, x, z) => { const t = textPlate(text, { w, h: hh, color: '#3b4254', bg: '#fffaf0', font: `bold ${Math.floor(Math.min(0.8 * 512 * hh / w, 0.82 * 512 / text.length))}px "Songti SC", serif` }); t.position.set(x, 0.0038, z); t.rotation.x = -0.5; group.add(t); return t; };
     paperSheet(group, { w: 0.46, d: 0.27, x: -0.04, z: 0.03 });
@@ -122,15 +134,16 @@ export default {
     const liqGeo = new THREE.LatheGeometry(prof, 28), liqBase = liqGeo.attributes.position.array.slice();
     const liqMat = water2({ color: ACIDC.getHex(), base: 0.22 });
     const liq = new THREE.Mesh(liqGeo, liqMat); liq.renderOrder = 9.5; liq.raycast = () => {}; tube.add(liq);
-    const VCAP = (Math.PI * LR * LR * (LTOP - LYC) + (2 / 3) * Math.PI * LR ** 3) * 1e6;
-    const NS = 2400, SMP = new Float32Array(NS * 3);
-    for (let i = 0; i < NS;) { const x = (Math.random() * 2 - 1) * LR, z = (Math.random() * 2 - 1) * LR, y = LYC - LR + Math.random() * (LTOP - LYC + LR); if (y >= LYC ? x * x + z * z <= LR * LR : x * x + z * z + (y - LYC) ** 2 <= LR * LR) { SMP.set([x, y, z], i * 3); i++; } }
+    // 液体体积用固定的格点来量（不随机：同一个姿势、同样多的液体，液面每次都一样）；每个格点代表 GS × GS × GY 的体积
+    const GS = LR / 7, GY = 0.0016, SL = [];
+    for (let y = LYC - LR + GY / 2; y < LTOP; y += GY) for (let x = -LR + GS / 2; x < LR; x += GS) for (let z = -LR + GS / 2; z < LR; z += GS) if (y >= LYC ? x * x + z * z <= LR * LR : x * x + z * z + (y - LYC) ** 2 <= LR * LR) SL.push(x, y, z);
+    const NS = SL.length / 3, SMP = Float32Array.from(SL), DV = GS * GS * GY * 1e6;          // mL / 格点
     const proj = new Float32Array(NS), order = new Uint16Array(NS);
     const LQ = { key: '', h: 0, u: V(0, 1, 0), n: 0 };
     // 平躺 / 倒的时候：液体沿着下面的管壁流成一条
     const film = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 10), liqMat); film.renderOrder = 9.5; film.visible = false; film.raycast = () => {}; tube.add(film);
     // 白色固体（无水硫酸铜）：沉在液体最低处
-    const NSPK = 70, specks = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 4), new THREE.MeshLambertMaterial({ color: 0xf2f2ec, emissive: 0x9aa0a4, emissiveIntensity: 0.25 }), NSPK); specks.count = 0; specks.renderOrder = 9.6; specks.frustumCulled = false; specks.raycast = () => {}; tube.add(specks);
+    const NSPK = 70, specks = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 4), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x9aa0a4, emissiveIntensity: 0.25 }), NSPK); for (let i = 0; i < NSPK; i++) specks.setColorAt(i, WHITEC); specks.count = 0; specks.renderOrder = 9.6; specks.frustumCulled = false; specks.raycast = () => {}; tube.add(specks);
     // 热（橙）：管底一圈
     const heat = new THREE.Mesh(new THREE.CylinderGeometry(TR + 0.003, TR + 0.0035, 0.034, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff8a3d, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); heat.position.y = 0.017; heat.renderOrder = 9.9; heat.raycast = () => {}; tube.add(heat);
 
@@ -178,6 +191,14 @@ export default {
     const wLiq = tubeLiquid({ R: WR - 0.0004, yc: WR + 0.0008, top: WLEN - 0.01, color: WATERC.getHex(), base: 0.85 }); wTube.add(wLiq);
     const wHeat = new THREE.Mesh(new THREE.CylinderGeometry(WR + 0.003, WR + 0.003, 0.03, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff8a3d, transparent: true, opacity: 0, depthWrite: false })); wHeat.position.y = 0.016; wHeat.renderOrder = 9.9; wHeat.raycast = () => {}; wTube.add(wHeat);
     plate('少量水（约 3 mL）', 0.046, 0.0068, XW, 0.024);
+    // 量筒（10 mL）：原点在底座中心，局部 +y 朝上；老师演示里用它量取 2 mL 浓硫酸
+    const cyl = new THREE.Group(); group.add(cyl);
+    { const pts = [new THREE.Vector2(0.0003, 0.003), new THREE.Vector2(0.0072, 0.003), new THREE.Vector2(0.0072, CYL_H - 0.002), new THREE.Vector2(0.0085, CYL_H)];
+      const g = new THREE.Mesh(new THREE.LatheGeometry(pts, 28), glassMat()); g.renderOrder = 9; cyl.add(g);
+      const foot = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.014, 0.003, 24), paint(0xdfe6ea)), { width: 0.6 }); foot.position.y = 0.0015; cyl.add(foot);
+      const lab = textPlate('浓硫酸', { w: 0.018, h: 0.006, color: '#7a2a20', bg: '#fffaf0', font: 'bold 120px "Songti SC", serif' }); lab.position.set(0, 0.05, 0.0076); cyl.add(lab); }
+    const cylLiq = new THREE.Mesh(new THREE.CylinderGeometry(0.0066, 0.0066, 1, 20), water2({ color: ACIDC.getHex(), base: 0.35 })); cylLiq.geometry.translate(0, 0.5, 0); cylLiq.position.y = 0.0032; cylLiq.renderOrder = 9.5; cylLiq.raycast = () => {}; cyl.add(cylLiq);
+    const cylPick = pickBox(0.022, 0.1, 0.022); cylPick.position.y = 0.05; cyl.add(cylPick);
     const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.0007, 0.0007, 1, 8), liqMat); stream.visible = false; stream.renderOrder = 9.5; stream.raycast = () => {}; group.add(stream);
 
     // ================= 气泡、SO₂ 小点、溅出的液滴 =================
@@ -187,7 +208,7 @@ export default {
     const cuBubs = inst(60, new THREE.SphereGeometry(1, 8, 6), bubMat, 9.8), pinkBubs = inst(60, new THREE.SphereGeometry(1, 8, 6), bubMat, 9.8);
     const so2Dots = inst(160, new THREE.SphereGeometry(1, 6, 4), new THREE.MeshBasicMaterial({ color: SO2C, transparent: true, opacity: 0.9, depthWrite: false }), 10);
     const drops = inst(40, new THREE.SphereGeometry(1, 6, 4), new THREE.MeshBasicMaterial({ color: 0x9fc6e0 }), 10);
-    const FX = { cu: [], pink: [], dots: [], drops: [], acc: 0, accP: 0, accE: 0 };
+    const FX = { cu: [], pink: [], dots: [], drops: [], acc: 0, accP: 0, accE: 0, accO: 0, cuAcc: 0 };
     // SO₂ 走的路：铜丝 → 试管上部 → 导管 → 品红溶液 → 棉团
     const GAS = [along(0.03), along(0.14), ...upPts.slice(1), ...downPts.slice(1)];
     const GL = [0]; for (let i = 1; i < GAS.length; i++) GL.push(GL[i - 1] + GAS[i].distanceTo(GAS[i - 1]));
@@ -196,27 +217,38 @@ export default {
     const HEADN = 26, HEAD = Array.from({ length: HEADN }, (_, i) => ({ rank: (i + 0.5) / HEADN, a: 0.045 + Math.random() * 0.095, r: Math.sqrt(Math.random()) * 0.0055, th: Math.random() * 6.28, ph: Math.random() * 6 }));
 
     // ================= 状态 =================
+    // acid：试管里加进去的浓硫酸（mL）；pf：已经倒出去的比例；接收管：rA / rW 克 H₂SO₄ / 水、rCu mmol CuSO₄、Tw 温度
     const fresh = () => ({
-      demo: false, near: false, ws: 0, wsCur: 0, wDrag: false, lit: false, T: T0, cu: 0, rate: 0, contact: 0,
+      demo: false, near: false, ws: 0, wsCur: 0, wDrag: false, lit: false, T: T0, cu: 0, rate: 0, contact: 0, acid: 2,
       air: V_GAS, so2: 0, pinkSO2: 0, naoh: 0, escaped: 0, cotton: true, cotK: 0,
-      plug: 'in', plugK: 0, pour: null, poured: 0, vAcid: 2, Tw: T0, spat: false, boil: 0, heatT: 0, coolT: 0, lastFlow: 0, said: {},
+      plug: 'in', plugK: 0, pour: null, pf: 0, rA: 0, rW: WATER_ML, rCu: 0, lost: 0, Tw: T0, Tloc: T0, spat: false, boil: 0,
+      cyl: { acid: 0, pos: CYL_HOME.toArray(), drag: false, anim: null },
+      heatT: 0, coolT: 0, lastFlow: 0, said: {},
     });
+    // 老师演示从更早开始：试管还空着、橡胶塞（连着铜丝和导管）放在桌上，量筒里量好了 2 mL 浓硫酸
+    const freshDemo = () => ({ ...fresh(), acid: 0, plug: 'out', plugK: 1, cyl: { acid: 2, pos: CYL_HOME.toArray(), drag: false, anim: null } });
     S = fresh();
+    let lastLook = null;
     const frac = () => S.so2 / Math.max(1e-6, S.air + S.so2);
     const fRed = () => 1 / (1 + K_DYE * (S.pinkSO2 / PINK_ML));
     const inClamp = () => !S.pour;
-    const acidLeft = () => ACID_MMOL - 2 * S.cu;
+    const acidLeft = () => Math.max(0, (ACID_MMOL * S.acid) / 2 - 2 * S.cu);          // mmol
+    const tubeVol = () => S.acid * (1 - S.pf);
+    const tubeA = () => acidLeft() * 0.09808, tubeW = () => (S.acid / 2) * 3.68 * 0.02 + 2 * S.cu * 0.018;          // 试管里 H₂SO₄、水（克；水含浓硫酸里的 2% 和反应生成的）
+    const rVol = () => S.rW + S.rA / 1.84;          // 接收管里的液体体积（mL，不计混合时的体积收缩，示意）
+    const cuConc = () => S.rCu / Math.max(0.1, rVol());          // mol/L
+    const cuState = () => (!S.said.contact ? 'above' : S.contact > 0.02 ? 'in' : 'out');
 
     const A = {
       lamp() {
         if (!S.lit) {
           S.lit = true; sfx.clink({ freq: 700, gain: 0.02 });
-          if (!S.pour && S.contact > 0.05) { done('heat'); status('点燃了酒精灯，加热试管里的浓硫酸。盯着<b>铜丝</b>和右边的<b>品红溶液</b>。（时间加快了 8 倍）'); }
+          if (!S.pour && S.contact > 0.02) { done('heat'); status('点燃了酒精灯，加热试管里的浓硫酸。盯着<b>铜丝</b>和右边的<b>品红溶液</b>。（时间加快了 8 倍）'); }
           else if (!S.pour) status(S.said.fade ? '又点燃了酒精灯。' : '点燃了酒精灯。可是铜丝还没碰到浓硫酸：先把<b>铜丝</b>往里推。');
           return;
         }
         S.lit = false;
-        if (S.contact > 0.05 && S.rate > 0.001) status('熄灭了酒精灯，可是<b>铜丝还浸在浓硫酸里</b>：试管还热，反应还在进行，要等它慢慢冷下来才停。课本的做法是<b>向外拉铜丝</b>，立刻终止反应。');
+        if (S.contact > 0.02 && S.rate > 0.001) status('熄灭了酒精灯，可是<b>铜丝还浸在浓硫酸里</b>：试管还热，反应还在进行，要等它慢慢冷下来才停。课本的做法是<b>向外拉铜丝</b>，立刻终止反应。');
         else if (S.said.stop) status('熄灭了酒精灯（盖上灯帽）。等试管<b>冷却</b>。');
         else status('熄灭了酒精灯。');
       },
@@ -225,35 +257,84 @@ export default {
         else { S.cotton = true; status('棉团放回去了：多余的 SO₂ 被 NaOH 溶液吸收。'); }
       },
       plug() {
-        if (S.pour) return;
+        if (S.pour || S.cyl.anim) return;
         if (S.plug === 'in') {
           S.plug = 'out';
           if (S.T > 60) status(`拔出了橡胶塞（连着铜丝和导管）。试管还很烫（约 ${Math.round(S.T / 10) * 10} ℃）${frac() > 0.05 ? '，管里的 SO₂ 从试管口跑到空气里（有毒）' : ''}。`);
           else status(frac() > 0.05 ? '拔出了橡胶塞（连着铜丝和导管）。管里剩下的一点 SO₂ 从试管口散出去了。接着点<b>试管</b>，把里面的物质慢慢倒进盛有少量水的试管里。' : '拔出了橡胶塞（连着铜丝和导管）。接着点<b>试管</b>，把里面的物质慢慢倒进盛有少量水的试管里。');
           return;
         }
-        if (S.vAcid <= 0.01) return status('试管已经空了。');
-        S.plug = 'in'; sfx.clink({ freq: 900, gain: 0.03 }); status('塞好了橡胶塞。');
+        if (S.pf > 0) return status('试管里的物质已经倒出来了。点“更多”里的“全部重来”。');
+        S.plug = 'in'; sfx.clink({ freq: 900, gain: 0.03 }); status(S.acid > 0 ? '塞好了橡胶塞。' : '塞好了橡胶塞——试管里还没有浓硫酸。');
       },
       pour() {
         if (S.pour) return;
         if (S.plug === 'in') return status('先点<b>橡胶塞</b>把它拔出来（连着铜丝和导管），才能倒。');
         if (S.plugK < 1) return status('等橡胶塞和铜丝整个拿出来。');
-        if (S.vAcid <= 0.01) return status('试管里的物质已经倒完了。');
+        if (tubeVol() <= 0.01) return status(S.acid > 0 ? '试管里的物质已经倒完了。' : '试管里还没有浓硫酸。');
         S.pour = { m: 0, dir: 1, Ta: S.T };
         if (S.lit) status('酒精灯还点着。');
         else if (S.T > 60) status(`试管还很烫（约 ${Math.round(S.T / 10) * 10} ℃）就倒了……`);
       },
       reset() {
         if (bar.playing) bar.stop();
-        S = fresh(); sync(); mic.close(); back();
+        S = fresh(); sync(); mic.close(); back(); lastLook = null;
         W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; W.ui.relock(); }
         bar.undo('contact', 'heat', 'watch', 'stop', 'cool', 'pour', 'why');
         status('全部重新摆好了：试管里又是 2 mL 浓硫酸，铜丝在液面上方。');
       },
     };
-    const clearFX = () => { FX.cu.length = FX.pink.length = FX.dots.length = FX.drops.length = 0; FX.acc = FX.accP = FX.accE = 0; };
-    const sync = () => { clearFX(); capper.snap(S.lit); S.wsCur = S.ws; LQ.key = ''; };
+    const clearFX = () => { FX.cu.length = FX.pink.length = FX.dots.length = FX.drops.length = 0; FX.acc = FX.accP = FX.accE = FX.accO = FX.cuAcc = 0; };
+    // 按当前状态把器材摆好：试管的姿势、铁夹、橡胶塞那一整件、铜丝、量筒，并重新算液面（重来、演示前后、每帧开头都走这里）
+    const applyPose = () => {
+      const pose = tubePose(S.pour ? S.pour.m : 0);
+      tubeHold.position.copy(pose.pos); tubeHold.quaternion.setFromAxisAngle(V(0, 0, 1), (pose.ang - 90) * DEG);
+      { const m = S.pour ? S.pour.m : 0; jaw.scale.setScalar(1 + 0.5 * clamp(Math.min(m * 3, (1.3 - m) * 3), 0, 1)); }          // 抬出来的那一下松开铁夹
+      asmPose(S.plugK);
+      wire.position.copy(D).multiplyScalar(WIRE_A1 + (1 - S.wsCur) * TRAVEL - PLUG_A);
+      cylPose();
+      setLiquid(tubeVol());
+    };
+    // 铜丝螺旋上的点有几成在液面以下（液面按上面的格点算，确定的）
+    const measureContact = () => {
+      if (S.plug !== 'in' || S.plugK > 0.001 || S.pour || !LQ.n || !liq.visible) return 0;
+      const hs = surfaceY(); let c = 0;
+      for (const p of SPS) { tmp.copy(p).applyQuaternion(qD).add(wire.position).add(O_ASM); if (tmp.y < hs) c++; }
+      return c / SPS.length;
+    };
+    const sync = () => { clearFX(); capper.snap(S.lit); S.wsCur = S.ws; LQ.key = ''; applyPose(); S.contact = measureContact(); };
+
+    // ---- 量筒：拖到试管口附近松手 → 自己走过去、倾斜着把 2 mL 浓硫酸倒进试管、再放回原处（老师演示里用；学生开始时已经加好了）----
+    const cylBase = () => V(...S.cyl.pos);
+    const CYL_T = [0.6, 1.0, 0.5, 1.4, 0.5, 1.0, 1.0];          // 抬到管口上方、转过去、放低、倒、抬起、转回来、放回原处
+    const CYL_SUM = CYL_T.reduce((a, b) => a + b, 0);
+    const SP_HI = MOUTH0.clone().add(V(0.02, 0.08, 0)), SP_LO = MOUTH0.clone().add(V(0.006, 0.009, 0));
+    const cylPose = () => {
+      const C = S.cyl, dirOf = (ang) => V(Math.cos(ang * DEG), Math.sin(ang * DEG));
+      let spout = null, ang = 90, base = null;
+      if (C.anim) {
+        let t = C.anim.t, i = 0; while (i < CYL_T.length - 1 && t > CYL_T[i]) { t -= CYL_T[i]; i++; }
+        const k = ease(Math.min(1, t / CYL_T[i]));
+        const upAt = (sp) => sp.clone().addScaledVector(dirOf(90), -CYL_H);
+        if (i === 0) base = C.anim.from.clone().lerp(upAt(SP_HI), k);
+        else if (i === 1) { ang = 90 - 210 * k; spout = SP_HI; }
+        else if (i === 2) { ang = -120; spout = SP_HI.clone().lerp(SP_LO, k); }
+        else if (i === 3) { ang = -120; spout = SP_LO; }
+        else if (i === 4) { ang = -120; spout = SP_LO.clone().lerp(SP_HI, k); }
+        else if (i === 5) { ang = -120 + 210 * k; spout = SP_HI; }
+        else { const a = upAt(SP_HI), hi = CYL_HOME.clone().setY(a.y); base = k < 0.5 ? a.lerp(hi, ease(k * 2)) : hi.lerp(CYL_HOME, ease(k * 2 - 1)); }
+      } else base = cylBase();
+      if (spout) base = spout.clone().addScaledVector(dirOf(ang), -CYL_H);
+      cyl.position.copy(base); cyl.quaternion.setFromAxisAngle(V(0, 0, 1), (ang - 90) * DEG);
+      cylLiq.visible = C.acid > 0.02 && ang > 45; cylLiq.scale.y = Math.max(0.0005, (C.acid / 2) * CYL_LIQ);
+    };
+    const cylStep = (dt) => {
+      const C = S.cyl; if (!C.anim) return;
+      const before = C.anim.t; C.anim.t += dt;
+      const p0 = CYL_T[0] + CYL_T[1] + CYL_T[2], p1 = p0 + CYL_T[3];
+      if (C.anim.t > p0 && before < p1) { const a = clamp((Math.min(C.anim.t, p1) - Math.max(before, p0)) / CYL_T[3], 0, 1) * 2; const d = Math.min(a, C.acid, 2 - S.acid); C.acid -= d; S.acid += d; LQ.key = ''; }
+      if (C.anim.t >= CYL_SUM) { C.anim = null; C.pos = CYL_HOME.toArray(); if (!S.said.acidIn && S.acid >= 1.99) { S.said.acidIn = true; status('2 mL 浓硫酸加进试管了。接着点<b>橡胶塞</b>，把它塞好。'); } }
+    };
 
     const drag = draggable(group, [
       { obj: wirePick, plane: 'xy', offset: WZ, keepOffset: true, anchor: wire, enabled: () => S.plug === 'in' && S.plugK < 0.01 && !S.pour,
@@ -261,25 +342,48 @@ export default {
         onStart: () => { S.wDrag = true; },
         onDrag: (p) => { const a = p.clone().sub(B0).dot(D); S.ws = clamp(1 - (a - WIRE_A1) / TRAVEL, 0, 1); },
         onEnd: () => { S.wDrag = false; S.ws = S.ws > 0.5 ? 1 : 0; } },
+      { obj: cylPick, plane: 'xy', offset: CYL_HOME.z, keepOffset: true, anchor: cyl, enabled: () => S.cyl.acid > 0.02 && S.plug === 'out' && S.plugK >= 1 && !S.cyl.anim && !S.pour,
+        hint: () => (S.cyl.acid > 0.02 && S.plug === 'out' && !S.cyl.anim ? '量筒（2 mL 浓硫酸）：拖到试管口，松手倒进去。浓硫酸腐蚀性很强，注意安全防护！' : ''),
+        onStart: () => { S.cyl.drag = true; },
+        onDrag: (p) => { S.cyl.pos = [clamp(p.x, -0.2, 0.17), clamp(p.y, 0, 0.3), CYL_HOME.z]; },
+        onEnd: () => { const C = S.cyl; C.drag = false; const b = cylBase(); if (Math.abs(b.x - MOUTH0.x) < 0.07 && b.y > 0.09) C.anim = { t: 0, from: b }; else C.pos = CYL_HOME.toArray(); } },
     ], { tip: tag('', 'pill'), highlight: true, taps: [
       { obj: lampPick, hint: () => (S.lit ? '酒精灯：点一下，盖上灯帽熄灭' : '酒精灯：点一下，取下灯帽点燃'), onTap: () => A.lamp() },
       { obj: cottonPick, hint: () => (S.cotton ? '浸 NaOH 溶液的棉团：点一下拿掉' : '棉团：点一下放回管口'), onTap: () => A.cotton() },
       { obj: plugPick, hint: () => (S.pour ? '' : S.plug === 'in' ? '橡胶塞：点一下拔出来（连着铜丝和导管）' : '橡胶塞：点一下塞回去'), onTap: () => A.plug() },
-      { obj: tubePick, hint: () => (S.pour ? '' : S.plug === 'in' ? '试管：浓硫酸 2 mL（要倒出来，先拔出橡胶塞）' : S.vAcid > 0.01 ? '试管：点一下，把里面的物质慢慢倒进盛有少量水的试管' : '试管：已经倒空了'), onTap: () => A.pour() },
+      { obj: tubePick, hint: () => (S.pour ? '' : S.plug === 'in' ? '试管：浓硫酸 2 mL（要倒出来，先拔出橡胶塞）' : tubeVol() > 0.01 ? '试管：点一下，把里面的物质慢慢倒进盛有少量水的试管' : S.acid > 0 ? '试管：已经倒空了' : ''), onTap: () => A.pour() },
     ] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: cuAcidScene(), at: () => along(0.014), btnAt: () => along(0.05).add(V(0.0, -0.03, 0.02)), label: '钻进去看',
-      state: () => ({ contact: S.contact > 0.05, hot: S.rate > 0.0015, cold: S.T < 100, made: S.cu > 0.02 }), key: () => String(S.contact > 0.05), show: () => S.plug === 'in' && S.plugK < 0.01 && !S.pour,
+      state: () => ({ cu: cuState(), hot: S.rate > 0.0015, cold: S.T < 100, made: S.cu > 0.02 }), key: () => cuState(), show: () => S.plug === 'in' && S.plugK < 0.01 && !S.pour && S.acid > 0,
       bar: () => bar, scale: 0.0058, lookD: [0.05, 0.3, 1], dist: 0.26 });
+
+    // ================= 观察卡 =================
+    const cardTube = tag('', 'cond'); cardTube.px = [-190, -60];
+    const cardPink = tag('', 'cond'); cardPink.px = [36, -30];
+    const cardWater = tag('', 'cond'); cardWater.px = [-30, -70];
+    const obs = (b, small) => `<div class="cc-obs"><b>${b}</b><small>${small}</small></div>`;
+    const card = (name, stamp, rows, note) => `<div class="cc"><div class="cc-t"><span class="cc-name">${name}</span>${stamp ? `<span class="cc-res burn">${stamp}</span>` : ''}</div><div class="cc-more">${rows}${note ? `<div class="cc-note">${note}</div>` : ''}</div></div>`;
+    const updateCards = () => {
+      const quiet = bar.playing || mic.isOpen;
+      const wireTxt = { above: '铜丝在液面上方', in: '铜丝浸在浓硫酸里', out: '铜丝已拉出' }[cuState()];
+      cardTube.text(card('试管里', S.rate > 0.002 ? '冒气泡' : '', obs(`${Math.round(S.T / 5) * 5} ℃`, '浓硫酸温度（约，示意）') + obs(wireTxt, '') + (S.cu > 0.02 ? obs(`${S.cu.toFixed(1)} mmol`, '已生成 CuSO₄（没溶解，灰白色固体）') : ''), '橙色 = 热（示意色）'))
+        .loc(group, along(0.09).x, along(0.09).y + 0.03, 0).show(!quiet && S.acid > 0 && !S.pour && S.plugK < 0.02);
+      cardPink.text(card('品红溶液', fRed() < 0.15 ? '褪色' : '', obs(fRed() < 0.15 ? '红色褪去' : fRed() < 0.8 ? '红色变浅' : '红色', '') + obs(S.cotton ? '棉团吸收多余的 SO₂' : `棉团拿掉了：逸出约 ${S.escaped.toFixed(1)} mL SO₂`, ''), '青色小点 = SO₂（示意色，SO₂ 本身无色）'))
+        .loc(group, XP, 0.15, 0).show(!quiet && (S.lastFlow > 0 || S.pinkSO2 > 0 || S.escaped > 0));
+      const blue = cuConc() > 0.01;
+      cardWater.text(card('倒进少量水里', S.spat ? '溅出' : '', obs(blue ? '蓝色' : '无色', '溶液') + obs(`${Math.round(S.Tw / 5) * 5} ℃`, '温度（约）') + (blue ? obs(`${cuConc().toFixed(2)} mol/L`, 'Cu²⁺（约）') : ''), ''))
+        .loc(group, XW, 0.13, 0).show(!quiet && S.pf > 0);
+    };
 
     // ================= 步骤栏 + 老师演示 =================
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'contact', title: '铜丝接触浓硫酸', todo: '把<b>铜丝</b>往里推，使铜丝与浓硫酸接触。（铜丝从橡胶塞侧面的凹槽穿过，可以抽动）', target: () => (S.ws > 0.5 ? null : wirePick) },
+        { id: 'contact', title: '铜丝接触浓硫酸', todo: '把<b>铜丝</b>往里推到底，使铜丝与浓硫酸接触。（铜丝从橡胶塞侧面的凹槽穿过，可以抽动）', target: () => wirePick },
         { id: 'heat', title: '加热', todo: '点一下<b>酒精灯</b>：取下灯帽点燃，加热试管。', target: () => (S.lit ? null : lamp) },
         { id: 'watch', title: '看品红溶液', todo: '产生的气体通入<b>品红溶液</b>：有什么现象？盯着铜丝和右边的试管。', target: () => null },
-        { id: 'stop', title: '向外拉铜丝', todo: '把<b>铜丝</b>向外拉，终止反应。', target: () => (S.ws > 0.5 ? wirePick : null) },
+        { id: 'stop', title: '向外拉铜丝', todo: '把<b>铜丝</b>向外拉，终止反应。', target: () => (S.contact > 0 ? wirePick : null) },
         { id: 'cool', title: '冷却', todo: '点一下<b>酒精灯</b>熄灭它，等试管冷却。', target: () => (S.lit ? lamp : null) },
         { id: 'pour', title: '倒入水中', todo: '冷却后，点<b>橡胶塞</b>拔出来，再点<b>试管</b>：把里面的物质慢慢倒入盛有少量水的另一支试管里，观察溶液的颜色。', target: () => (S.pour ? null : S.plug === 'in' ? plug : tube) },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
@@ -287,18 +391,22 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh: freshDemo, bar: () => bar, apply: () => { mic.close(); sync(); },
+            view: { save: () => (mic.isOpen ? { mic: true } : S.near && lastLook ? { look: lastLook } : null),
+              restore: (v) => { if (v.mic) mic.open(); else if (v.look) { S.near = true; look(...v.look, () => { S.near = false; }); } } } }),
           shots: [
-            { cap: '实验5-3：橡胶塞侧面的凹槽里嵌着下端卷成螺旋状的铜丝；试管里加了 2 mL 浓硫酸，塞好了橡胶塞。把铜丝往里推，使铜丝与浓硫酸接触。', dur: 6, cam: [[-0.03, 0.13, 0], [0.06, 0.3, 1], 0.42],
-              during: act.drag(wirePick, () => wireAnchor(1), { t0: 0.35, t1: 0.72, release: 0.78, from: () => wireAnchor(0) }) },
-            { cap: '点燃酒精灯加热。刚开始导管口冒出的气泡，是试管里受热膨胀的空气——品红溶液不褪色。', dur: 6, speed: 1.5, cam: [[-0.01, 0.12, 0], [0.06, 0.3, 1], 0.46], during: act.tap(lampPick, 0.1) },
-            { cap: '铜丝表面冒出气泡，生成的气体通入品红溶液：品红溶液褪色。多余的气体被浸 NaOH 溶液的棉团吸收。（青色小点 = SO₂，示意色）', dur: 9, speed: 2, cam: [[0.03, 0.11, 0], [0.06, 0.28, 1], 0.42] },
-            { cap: '钻进去看（示意）：铜原子失去电子，变成 Cu²⁺；浓硫酸里 +6 价的硫得到电子，变成 +4 价的 SO₂。', dur: 12, cam: [[-0.093, 0.15, 0], [0.05, 0.3, 1], 0.24], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
-            { cap: '向外拉铜丝：铜丝离开浓硫酸，气泡停了——反应终止。', dur: 5, cam: [[-0.02, 0.14, 0], [0.06, 0.3, 1], 0.4],
+            { cap: '实验5-3。注意：浓硫酸具有很强的腐蚀性，取用时注意安全防护！用量筒量取 2 mL 浓硫酸，倒进试管里。', dur: 8.4, cam: [[0.0, 0.2, 0.0], [0.06, 0.3, 1], 0.58],
+              during: act.path(cylPick, [() => cylBase(), () => cylBase().setY(0.16), () => V(MOUTH0.x + 0.03, 0.19, CYL_HOME.z)], { t0: 0.04, t1: 0.2, release: 0.22 }) },
+            { cap: '塞好橡胶塞（侧面的凹槽里嵌着下端卷成螺旋状的铜丝），再把铜丝往里推，使铜丝与浓硫酸接触。', dur: 6, cam: [[-0.03, 0.14, 0], [0.06, 0.3, 1], 0.44],
+              during: act.seq(act.tap(plugPick, 0.03), act.drag(wirePick, () => wireAnchor(1), { t0: 0.52, t1: 0.78, release: 0.82, from: () => wireAnchor(0) })) },
+            { cap: '点燃酒精灯加热。刚开始导管口冒出的气泡，是试管里受热膨胀的空气——品红溶液不褪色。', dur: 5, speed: 1.8, cam: [[-0.01, 0.12, 0], [0.06, 0.3, 1], 0.46], during: act.tap(lampPick, 0.1) },
+            { cap: '铜丝表面冒出气泡，生成的气体通入品红溶液：品红溶液褪色。多余的气体被浸 NaOH 溶液的棉团吸收。（青色小点 = SO₂，示意色）', dur: 7, speed: 2.5, cam: [[0.03, 0.11, 0], [0.06, 0.28, 1], 0.42] },
+            { cap: '钻进去看（示意）：铜原子失去电子，变成 Cu²⁺；浓硫酸里 +6 价的硫得到电子，变成 +4 价的 SO₂。', dur: 9, cam: [[-0.093, 0.15, 0], [0.05, 0.3, 1], 0.24], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
+            { cap: '向外拉铜丝：铜丝离开浓硫酸，气泡停了——反应终止。', dur: 4.5, cam: [[-0.02, 0.14, 0], [0.06, 0.3, 1], 0.4],
               during: act.drag(wirePick, () => wireAnchor(0), { t0: 0.1, t1: 0.45, release: 0.5, from: () => wireAnchor(1) }) },
             { cap: '熄灭酒精灯，等试管冷却（时间加快）。', dur: 6, speed: 4, cam: [[-0.05, 0.11, 0], [0.06, 0.3, 1], 0.44], during: act.tap(lampPick, 0.06) },
-            { cap: '冷却后，拔出橡胶塞（连着铜丝和导管），把试管里的物质慢慢倒入盛有少量水的另一支试管里：溶液显蓝色——生成了硫酸铜。演示完了，换你自己做。', dur: 15, cam: [[-0.12, 0.13, 0.02], [0.05, 0.3, 1], 0.5],
-              during: act.seq(act.tap(plugPick, 0.03), act.tap(tubePick, 0.22)) },
+            { cap: '冷却后，拔出橡胶塞（连着铜丝和导管），把试管里的物质慢慢倒入盛有少量水的另一支试管里：溶液显蓝色——生成了硫酸铜。演示完了，换你自己做。', dur: 12, cam: [[-0.12, 0.13, 0.02], [0.05, 0.3, 1], 0.5],
+              during: act.seq(act.tap(plugPick, 0.03), act.tap(tubePick, 0.19)) },
           ],
         },
       },
@@ -329,7 +437,7 @@ export default {
           const absP = o2 * ABS; S.pinkSO2 += absP / ML_PER_MMOL;
           const rest = o2 - absP; if (S.cotton) S.naoh += rest; else S.escaped += rest;
           S.lastFlow = out / hh;
-          FX.accP += out * 1.6; FX.acc += o2 * 3.2;
+          FX.accP += out * 1.6; FX.acc += o2 * 3.2; FX.accO += rest * 8;          // 同一份出口通量：导管里流过的、品红溶液吸收的、到管口被棉团吸收或逸出的
           if (!S.said.air && fr < 0.25 && heating) log('air', ['刚加热：导管口冒出气泡', '品红溶液<b>不褪色</b>', '冒出的是试管里受热膨胀的空气']);
         } else S.lastFlow = 0;
       } else {
@@ -341,7 +449,7 @@ export default {
 
     // ================= 每帧 =================
     const tmp = new THREE.Vector3(), up = V(0, 1, 0);
-    const qClamp = qD.clone(), qq = new THREE.Quaternion();
+    const qq = new THREE.Quaternion();
     const C1 = B0.clone().add(V(0, 0.045, 0)).addScaledVector(D, 0.08), C2 = POUR_B.clone().addScaledVector(POUR_DIR, 0.08);
     // 倒的路线：m 0→1 竖直抬出铁夹；1→2 一边转一边移到盛水的试管口（绕试管中点转，不扫过别的器材）
     const tubePose = (m) => {
@@ -369,7 +477,7 @@ export default {
       if (!show) { LQ.n = 0; return; }
       for (let i = 0; i < NS; i++) { proj[i] = SMP[i * 3] * u.x + SMP[i * 3 + 1] * u.y + SMP[i * 3 + 2] * u.z; order[i] = i; }
       order.sort((a, b) => proj[a] - proj[b]);
-      const k = clamp(Math.round((vol / VCAP) * NS), 1, NS - 1); LQ.h = proj[order[k]]; LQ.n = k;
+      const k = clamp(Math.round(vol / DV), 1, NS - 1); LQ.h = proj[order[k]]; LQ.n = k;
       if (flat) {
         const dn = V(-u.x, 0, -u.z).normalize(), r = 0.0006 + 0.0012 * Math.min(1, vol / 2);
         film.scale.set(r, TLEN - 0.006, r); film.position.copy(dn).multiplyScalar(LR - r).setY(0.003 + (TLEN - 0.006) / 2);
@@ -390,76 +498,91 @@ export default {
     const surfaceY = () => tubeHold.position.y + LQ.h;          // 液面在实验坐标里的高度（试管在铁夹上时）
     const finishPour = () => {
       S.pour = null;
-      const blueK = clamp(cuConc() / 0.3, 0, 1);
+      if (S.demo) return;
       if (S.spat) return;
-      done('pour');
-      if (S.cu > 0.05) {
-        log('blue', ['冷却后，把试管里的物质慢慢倒入少量水中', `溶液显<b>蓝色</b>（试管变热，约 ${Math.round(S.Tw / 5) * 5} ℃）`, '生成了<b>硫酸铜</b>：在浓硫酸里是白色固体，溶于水显蓝色']);
+      if (S.said.fade && S.cu > 0.05) {
+        done('pour');
+        const blueK = clamp(cuConc() / 0.3, 0, 1);
+        log('blue', ['冷却后，把试管里的物质慢慢倒入少量水中', `溶液显<b>蓝色</b>（试管变热，约 ${Math.round(S.Tw / 5) * 5} ℃）`, '生成了<b>硫酸铜</b>：在浓硫酸里没有溶解，溶于水显蓝色']);
         status(`溶液显<b>蓝色</b>${blueK < 0.25 ? '（很淡：反应的铜不多）' : ''}——生成了硫酸铜。试管也变热了：浓硫酸溶于水放出大量的热。在左边作答。`);
-      } else { log('noblue', ['把试管里的物质倒入少量水中', '溶液<b>无色</b>，试管变热', '没有生成硫酸铜（铜丝没有在热的浓硫酸里反应）']); status('溶液是无色的：铜还没有反应，没有硫酸铜。点“更多”里的“全部重来”再做一次。'); }
-      if (!S.demo) { W?.t1.open(); near(V(XW, 0.06, 0), [0.1, 0.25, 1], 0.24); }
+        W?.t1.open(); near(V(XW, 0.06, 0), [0.1, 0.25, 1], 0.24);
+        return;
+      }
+      // 没反应（或没看到品红褪色）就倒了：记下真实看到的，引导重来；不出“品红褪色”那道题
+      const blue = S.rCu > 0.05;
+      log('pourEarly', ['还没看到品红溶液褪色，就把试管里的物质倒入少量水中', `溶液${blue ? '<b>很淡的蓝色</b>' : '<b>无色</b>'}，试管变热`, blue ? '铜只反应了一点点' : '铜还没有和浓硫酸反应，没有硫酸铜；变热是浓硫酸溶于水放热']);
+      status(`溶液${blue ? '只有很淡的蓝色' : '是无色的'}：铜还${blue ? '没怎么' : '没有'}反应。要先让铜丝浸在浓硫酸里<b>加热</b>，看到品红溶液褪色。点“更多”里的“全部重来”再做一次。`);
+      near(V(XW, 0.06, 0), [0.1, 0.25, 1], 0.24);
     };
-    const cuConc = () => (S.poured > 0 ? (S.cu * (S.poured / 2)) / (WATER_ML + S.poured) : 0);          // mol/L
+    // 倒：每一小份按比例把试管里的 H₂SO₄、水、CuSO₄ 加进接收管；放热、温度、沸点、局部飞溅都按接收管里的组成算
+    const pourStep = (dt) => {
+      const P = S.pour, dp = Math.min(1 - S.pf, POUR_RATE * dt);
+      if (dp <= 0) return false;
+      const tA = tubeA(), tW = tubeW(), tC = S.cu, sA = tA / Math.max(1e-9, tA + tW);
+      // 局部（示意）：这一小股先和约 2 倍质量的周围液体混合
+      const w = S.rA / Math.max(1e-9, S.rA + S.rW), lA = LOCAL_R * w, lW = LOCAL_R * (1 - w), cl = cMix(lA, lW);
+      const qLoc = enth(lA + sA, lW + 1 - sA) - enth(lA, lW) - enth(sA, 1 - sA);
+      S.Tloc = (CP_ACID * P.Ta + LOCAL_R * cl * S.Tw + qLoc) / (CP_ACID + LOCAL_R * cl);
+      const bpLoc = bpOf(lA + sA, lW + 1 - sA);
+      // 整管：放热 = 积分溶解热的增量；酸本身的热也算进去
+      const m0 = S.rA + S.rW, C0 = C_GLASS + m0 * cMix(S.rA, S.rW), H0 = enth(S.rA, S.rW);
+      S.pf += dp; S.rA += dp * tA; S.rW += dp * tW; S.rCu += dp * tC;
+      const dm = dp * (tA + tW + tC * 0.1596), q = enth(S.rA, S.rW) - H0;
+      S.Tw = (C0 * S.Tw + dm * CP_ACID * P.Ta + q) / (C_GLASS + (S.rA + S.rW) * cMix(S.rA, S.rW));
+      const bp = bpOf(S.rA, S.rW);
+      if (S.Tw > bp) S.Tw = bp;
+      if (S.Tloc > bpLoc || S.Tw >= bp) {
+        S.boil = 1;
+        const f = Math.min(0.08, 0.03 * dt * (1 + (S.Tloc - bpLoc) / 10));          // 溅出去的一份：H₂SO₄、水、CuSO₄ 按比例一起少（示意）
+        S.lost += f * (S.rA + S.rW); S.rA *= 1 - f; S.rW *= 1 - f; S.rCu *= 1 - f;
+        if (!S.spat) {
+          S.spat = true; sfx.clink({ freq: 400, gain: 0.08 });
+          log('spat', [`没有冷却就倒（试管里约 ${Math.round(P.Ta / 10) * 10} ℃）`, '倒进去的地方<b>局部沸腾</b>，液滴<b>溅了出来</b>', '热的浓硫酸带着自己的热，又溶于水放热，倒进去的那一小团超过了沸点（示意）']);
+          status(`<b>没有冷却就倒</b>：热的浓硫酸（约 ${Math.round(P.Ta / 10) * 10} ℃）倒进少量水里，倒进去的地方局部沸腾，带着酸液<b>溅了出来</b>——非常危险。要<b>冷却后</b>再慢慢倒。点“更多”里的“全部重来”。`);
+        }
+      }
+      return true;
+    };
     const step = (dt, t) => {
       const H = dt * SPEED, n = Math.max(1, Math.ceil(H / 0.25));
-      // 铜丝：浸在酸里的比例（螺旋上的点有几成在液面以下）
+      // 1. 先让器材动到这一帧的位置（倒、拔塞子、棉团、量筒、铜丝），再按新的姿势算液面
       S.wsCur += (S.ws - S.wsCur) * Math.min(1, dt * (S.wDrag ? 30 : 8));
-      wire.position.copy(D).multiplyScalar(WIRE_A1 + (1 - S.wsCur) * TRAVEL - PLUG_A);
-      if (S.plug === 'in' && S.plugK < 0.01 && !S.pour && LQ.n) {
-        group.updateMatrixWorld(true); let c = 0;
-        const hs = surfaceY();
-        for (const p of SPS) { tmp.copy(p).applyQuaternion(qD).add(wire.position).add(O_ASM); if (tmp.y < hs) c++; }
-        S.contact = c / SPS.length;
-      } else S.contact = 0;
-      for (let i = 0; i < n; i++) model(H / n);
-      // 第一次看到的现象 → 记录、步骤
-      if (S.contact > 0.3 && !S.said.contact) { done('contact'); log('contact', ['把铜丝往里推，铜丝与浓硫酸接触', S.T < 60 ? '没有加热：铜丝<b>没有明显变化</b>' : '铜丝浸进热的浓硫酸', S.T < 60 ? '冷的浓硫酸和铜看不出反应' : '在加热的条件下，浓硫酸与铜反应']); if (!S.lit) status('铜丝浸到浓硫酸里了：没有加热，<b>看不出变化</b>。点<b>酒精灯</b>加热。'); else done('heat'); }
-      if (S.lit && S.contact > 0.05 && !S.said.heatOk) { S.said.heatOk = true; done('heat'); }
-      if (S.rate > 0.002 && !S.said.bub) { log('bub', [`加热约 ${Math.round(S.heatT)} 秒`, '铜丝表面冒出<b>气泡</b>', '热的浓硫酸和铜反应，生成了气体']); status('铜丝表面冒出了气泡：反应开始了。看右边的<b>品红溶液</b>。'); }
-      if (fRed() < 0.15 && !S.said.fade) { done('watch'); log('fade', ['生成的气体通入品红溶液', '品红溶液<b>褪色</b>', '生成了<b>二氧化硫</b>（SO₂ 能使品红溶液褪色）']); status('品红溶液<b>褪色</b>了：生成的气体是二氧化硫。现在把<b>铜丝</b>向外拉，终止反应。'); }
-      if (S.said.fade && S.contact === 0 && S.plug === 'in' && !S.said.stop) { done('stop'); log('stop', ['向外拉铜丝，铜丝离开浓硫酸', '铜丝表面<b>不再冒气泡</b>，导管口的气泡也停了', '反应终止：可抽动的铜丝能控制反应的发生和停止']); status(S.lit ? '铜丝离开了浓硫酸：气泡停了，反应终止。接着点<b>酒精灯</b>熄灭它，等试管冷却。' : '铜丝离开了浓硫酸：反应终止。等试管冷却。'); }
-      if (S.said.stop && !S.lit && S.T < 50 && !S.said.cool) { done('cool'); log('cool', ['熄灭酒精灯，等一会儿', '试管冷了；试管里的液体<b>不是蓝色</b>，有白色固体', '浓硫酸里水很少，生成的硫酸铜是白色固体']); status('试管冷却了。看试管里：<b>不是蓝色</b>，底部有白色固体。接着点<b>橡胶塞</b>拔出来，再点<b>试管</b>把里面的物质倒进水里。'); }
-      if (!S.cotton && S.escaped > 0.3 && !S.said.esc) { log('esc', ['拿掉了浸 NaOH 溶液的棉团', '多余的 SO₂ 从品红溶液的试管口<b>逸到空气里</b>', 'SO₂ 有毒，会污染空气：棉团里的 NaOH 溶液能吸收它']); status('没有棉团，多余的 SO₂ 跑到空气里去了——它<b>有毒</b>。点一下<b>棉团</b>把它放回去。'); }
-      // 拔塞子 / 放回去
-      S.plugK = clamp(S.plugK + clamp((S.plug === 'in' ? 0 : 1) - S.plugK, -dt * 0.6, dt * 0.6), 0, 1);
-      asmPose(S.plugK);
-      // 棉团
-      S.cotK = clamp(S.cotK + clamp((S.cotton ? 0 : 1) - S.cotK, -dt * 1.6, dt * 1.6), 0, 1);
-      { const u = ease(S.cotK); cotton.position.lerpVectors(COT_ON, COT_OFF, u); cotton.position.y += Math.sin(Math.PI * u) * 0.04; }
-      // 倒：抬出铁夹 → 转到盛水的试管口 → 慢慢倒 → 放回铁夹
       if (S.pour) {
         const P = S.pour;
         if (P.dir > 0) { P.m = Math.min(2, P.m + dt / (P.m < 1 ? 0.7 : 1.6)); if (P.m >= 2) P.dir = 0; }
-        else if (P.dir === 0) {
-          const dv = Math.min(S.vAcid, POUR_RATE * dt);
-          if (dv > 0) {
-            const before = S.poured; S.vAcid -= dv; S.poured += dv;
-            const dm = dv * RHO, dmm = (dv / 2) * acidLeft();
-            const Cw = C_GLASS + WATER_ML * 4.18 + before * RHO * CP_ACID + dm * CP_ACID;
-            S.Tw += (dmm * DIL + dm * CP_ACID * (P.Ta - S.Tw)) / Cw;
-            if (S.Tw >= 100) { S.Tw = 100; S.boil = 1; if (!S.spat) { S.spat = true; sfx.clink({ freq: 400, gain: 0.08 }); log('spat', [`没有冷却就倒（酸约 ${Math.round(P.Ta / 10) * 10} ℃）`, '水<b>沸腾</b>，液体<b>溅了出来</b>', '酸本身的热加上浓硫酸溶于水放出的热，超过了 100 ℃']); status(`<b>没有冷却就倒</b>：热的浓硫酸（约 ${Math.round(P.Ta / 10) * 10} ℃）倒进少量水里，放出的热让水沸腾，带着酸液<b>溅了出来</b>——非常危险。要<b>冷却后</b>再慢慢倒。点“更多”里的“全部重来”。`); } }
-          } else P.dir = -1;
-        } else { P.m = Math.max(0, P.m - dt / (P.m > 1 ? 1.6 : 0.7)); if (P.m <= 0) finishPour(); }
+        else if (P.dir === 0) { if (!pourStep(dt)) P.dir = -1; }
+        else { P.m = Math.max(0, P.m - dt / (P.m > 1 ? 1.6 : 0.7)); if (P.m <= 0) finishPour(); }
       }
-      // 倒进去以后：受热的水慢慢变凉（时间加快）
-      if (!S.pour || S.pour.dir !== 0) S.Tw += (T0 - S.Tw) * (1 - Math.exp(-(H * 0.25) / (C_GLASS + WATER_ML * 4.18 + S.poured * RHO * CP_ACID)));
+      if (!S.pour || S.pour.dir !== 0) S.Tw += (T0 - S.Tw) * (1 - Math.exp(-(H * 0.25) / (C_GLASS + (S.rA + S.rW) * cMix(S.rA, S.rW))));
       S.boil = Math.max(0, S.boil - dt * 0.6);
-      const pose = tubePose(S.pour ? S.pour.m : 0);
-      tubeHold.position.copy(pose.pos); tubeHold.quaternion.setFromAxisAngle(V(0, 0, 1), (pose.ang - 90) * DEG);
-      { const m = S.pour ? S.pour.m : 0; jaw.scale.setScalar(1 + 0.5 * clamp(Math.min(m * 3, (1.3 - m) * 3), 0, 1)); }          // 抬出来的那一下松开铁夹
-      setLiquid(S.vAcid);
-      // 酒精灯
+      S.plugK = clamp(S.plugK + clamp((S.plug === 'in' ? 0 : 1) - S.plugK, -dt * 0.6, dt * 0.6), 0, 1);
+      S.cotK = clamp(S.cotK + clamp((S.cotton ? 0 : 1) - S.cotK, -dt * 1.6, dt * 1.6), 0, 1);
+      { const u = ease(S.cotK); cotton.position.lerpVectors(COT_ON, COT_OFF, u); cotton.position.y += Math.sin(Math.PI * u) * 0.04; }
+      cylStep(dt);
+      applyPose();
+      // 2. 铜丝浸在酸里的比例 → 反应
+      S.contact = measureContact();
+      for (let i = 0; i < n; i++) model(H / n);
+      // 3. 第一次看到的现象 → 记录、步骤（推到底：螺旋下面一段一定在液面以下）
+      if (S.contact > 0.05 && !S.said.contact) { done('contact'); log('contact', ['把铜丝往里推，铜丝与浓硫酸接触', S.T < 60 ? '没有加热：铜丝<b>没有明显变化</b>' : '铜丝浸进热的浓硫酸', S.T < 60 ? '冷的浓硫酸和铜看不出反应' : '在加热的条件下，浓硫酸与铜反应']); if (!S.lit) status('铜丝浸到浓硫酸里了：没有加热，<b>看不出变化</b>。点<b>酒精灯</b>加热。'); else done('heat'); }
+      if (S.lit && S.contact > 0.02 && !S.said.heatOk) { S.said.heatOk = true; done('heat'); }
+      if (S.rate > 0.002 && !S.said.bub) { log('bub', [`加热约 ${Math.round(S.heatT)} 秒`, '铜丝表面冒出<b>气泡</b>', '热的浓硫酸和铜反应，生成了气体']); status('铜丝表面冒出了气泡：反应开始了。看右边的<b>品红溶液</b>。'); }
+      if (fRed() < 0.15 && !S.said.fade) { done('watch'); log('fade', ['生成的气体通入品红溶液', '品红溶液<b>褪色</b>', '生成了<b>二氧化硫</b>（SO₂ 能使品红溶液褪色）']); status('品红溶液<b>褪色</b>了：生成的气体是二氧化硫。现在把<b>铜丝</b>向外拉，终止反应。'); }
+      if (S.said.fade && S.said.contact && S.contact === 0 && S.plug === 'in' && !S.said.stop) { done('stop'); log('stop', ['向外拉铜丝，铜丝离开浓硫酸', '铜丝表面<b>不再冒气泡</b>，导管口的气泡也停了', '反应终止：可抽动的铜丝能控制反应的发生和停止']); status(S.lit ? '铜丝离开了浓硫酸：气泡停了，反应终止。接着点<b>酒精灯</b>熄灭它，等试管冷却。' : '铜丝离开了浓硫酸：反应终止。等试管冷却。'); }
+      if (S.said.stop && !S.lit && S.T < 50 && !S.said.cool) { done('cool'); log('cool', ['熄灭酒精灯，等一会儿', '试管冷了；试管里的液体<b>不是蓝色</b>，有灰白色固体', '浓硫酸里水很少，生成的硫酸铜没有溶解成蓝色溶液']); status('试管冷却了。看试管里：<b>不是蓝色</b>，底部有灰白色固体。接着点<b>橡胶塞</b>拔出来，再点<b>试管</b>把里面的物质倒进水里。'); }
+      if (!S.cotton && S.escaped > 0.3 && !S.said.esc) { log('esc', ['拿掉了浸 NaOH 溶液的棉团', '多余的 SO₂ 从品红溶液的试管口<b>逸到空气里</b>', 'SO₂ 有毒，会污染空气：棉团里的 NaOH 溶液能吸收它']); status('没有棉团，多余的 SO₂ 跑到空气里去了——它<b>有毒</b>。点一下<b>棉团</b>把它放回去。'); }
+      // 4. 画面
       lamp.flame.setOn(capper.update(dt, S.lit)); lamp.flame.update(t);
-      // 试管里的液体：越来越灰白（白色的无水硫酸铜）；管底热（橙）
+      // 试管里的液体：生成的硫酸铜不溶，越来越灰白；少量灰黑色小点是实测常见的黑色沉积（课本没提）；管底热（橙）
       const kS = clamp(S.cu / 1.2, 0, 1);
       liqMat.color.copy(ACIDC).lerp(GRAYC, 0.7 * kS);
       const ns = liq.visible ? Math.min(NSPK, Math.round(NSPK * kS), LQ.n) : 0;
-      for (let i = 0; i < ns; i++) { const j = order[i * 3 % LQ.n]; p4.set(SMP[j * 3] * 0.9, SMP[j * 3 + 1], SMP[j * 3 + 2] * 0.9); s4.setScalar(0.00055 + (i % 3) * 0.00015); m4.compose(p4, q4, s4); specks.setMatrixAt(i, m4); }
-      specks.count = ns; specks.instanceMatrix.needsUpdate = true;
-      heat.material.opacity = clamp((S.T - 50) / 500, 0, 0.32);
+      for (let i = 0; i < ns; i++) { const j = order[(i * 7) % LQ.n]; p4.set(SMP[j * 3] * 0.9, SMP[j * 3 + 1], SMP[j * 3 + 2] * 0.9); s4.setScalar(0.00055 + (i % 3) * 0.00015); m4.compose(p4, q4, s4); specks.setMatrixAt(i, m4); specks.setColorAt(i, i % 7 === 3 ? DARKC : WHITEC); }
+      specks.count = ns; specks.instanceMatrix.needsUpdate = true; if (specks.instanceColor) specks.instanceColor.needsUpdate = true;
+      heat.material.opacity = S.acid > 0 ? clamp((S.T - 50) / 500, 0, 0.32) : 0;
       // 铜丝表面的气泡（实验坐标；在液面以下往上冒）
       if (S.rate > 0.0008 && liq.visible) {
-        FX.cuAcc = (FX.cuAcc || 0) + dt * Math.min(40, S.rate * 2500);
+        FX.cuAcc += dt * Math.min(40, S.rate * 2500);
         const hs = surfaceY();
         while (FX.cuAcc > 1) { FX.cuAcc -= 1; const p = SPS[Math.floor(Math.random() * SPS.length)]; tmp.copy(p).applyQuaternion(qD).add(wire.position).add(O_ASM); if (tmp.y < hs - 0.001 && FX.cu.length < 60) FX.cu.push({ p: tmp.clone(), v: 0.012 + Math.random() * 0.01, s: 0.0005 + Math.random() * 0.0004 }); }
       }
@@ -482,36 +605,34 @@ export default {
       for (let i = FX.pink.length - 1; i >= 0; i--) { const b = FX.pink[i]; b.v += 0.08 * dt; b.p.y += b.v * dt; b.p.x = clamp(b.p.x + (Math.random() - 0.5) * 0.0004, XP - 0.004, XP + 0.004); if (b.p.y > pinkY - 0.001) FX.pink.splice(i, 1); }
       FX.pink.forEach((b, i) => { s4.setScalar(b.s); m4.compose(b.p, q4, s4); pinkBubs.setMatrixAt(i, m4); });
       pinkBubs.count = FX.pink.length; pinkBubs.instanceMatrix.needsUpdate = true;
-      // SO₂（青色小点）：试管上部（随 SO₂ 占的比例）+ 顺着导管流到品红溶液、棉团
+      // SO₂（青色小点）：都由模型里同一份气流驱动——导管里流着的（按流过的量撒在导管各处）、进品红溶液的（约 60% 溶进去）、
+      //   到品红试管口的（有棉团：钻进棉团就没了；没棉团：逸到空气里）、拔了塞子从试管口散出去的
       const flowV = clamp(S.lastFlow * 0.6, 0, 0.12);          // 导管里的气流（实际 mL/s × 8 倍时间 ÷ 导管截面），快到看不清时封顶
-      while (FX.acc > 1) { FX.acc -= 1; if (FX.dots.length < 130) FX.dots.push({ u: Math.random() * 0.01, off: V((Math.random() - 0.5) * 0.008, (Math.random() - 0.5) * 0.008, (Math.random() - 0.5) * 0.008), absorb: Math.random() < ABS, out: false, life: 1, p: V() }); }
+      while (FX.acc > 1) { FX.acc -= 1; if (FX.dots.length < 130) FX.dots.push({ u: U_STOP + Math.random() * (U_TIP - U_STOP), off: V((Math.random() - 0.5) * 0.008, (Math.random() - 0.5) * 0.008, (Math.random() - 0.5) * 0.008), absorb: Math.random() < ABS, life: 1, p: V() }); }
       FX.acc = Math.min(FX.acc, 3);
+      while (FX.accO > 1) { FX.accO -= 1; if (FX.dots.length < 150) { const trap = S.cotton && S.cotK < 0.5; FX.dots.push(trap ? { trap: true, p: V(XP + (Math.random() - 0.5) * 0.006, COT_ON.y - 0.006, (Math.random() - 0.5) * 0.006), v: V(0, 0.01, 0), life: 0.5 } : { esc: true, p: V(XP + (Math.random() - 0.5) * 0.006, COT_ON.y - 0.004, (Math.random() - 0.5) * 0.006), v: V((Math.random() - 0.2) * 0.012, 0.02 + Math.random() * 0.01, (Math.random() - 0.5) * 0.01), life: 1.6 }); } }
+      FX.accO = Math.min(FX.accO, 3);
       while (FX.accE > 1) { FX.accE -= 1; if (FX.dots.length < 150 && S.plug !== 'in') { const m = V(0, TLEN, 0).applyQuaternion(tubeHold.quaternion).add(tubeHold.position); FX.dots.push({ esc: true, p: m.add(V((Math.random() - 0.5) * 0.008, 0, (Math.random() - 0.5) * 0.008)), v: V((Math.random() - 0.3) * 0.01, 0.02 + Math.random() * 0.01, (Math.random() - 0.5) * 0.01), life: 1.6 }); } }
       FX.accE = Math.min(FX.accE, 3);
       for (let i = FX.dots.length - 1; i >= 0; i--) {
         const d = FX.dots[i];
-        if (d.esc) { d.p.addScaledVector(d.v, dt); d.life -= dt * 0.9; if (d.life <= 0) FX.dots.splice(i, 1); continue; }
-        if (d.out) { d.p.addScaledVector(d.v, dt); d.life -= dt * 0.45; if (d.life <= 0) FX.dots.splice(i, 1); continue; }
-        if (d.u < U_TIP) {
-          d.u += flowV * dt * (d.u < U_STOP ? 0.05 : 1) + (d.u < U_STOP ? 0.004 * dt : 0);          // 试管上部截面大，气体走得慢
-          const p = gasAt(d.u); const k = d.u < U_STOP ? 0.6 : 0.12; d.p.copy(p).addScaledVector(d.off, k);
-          if (S.plug !== 'in' && d.u < GL[3]) { FX.dots.splice(i, 1); continue; }
-        } else {
-          d.p.y += 0.03 * dt; d.p.x = XP + d.off.x * 0.3; d.p.z = d.off.z * 0.3;
-          if (d.absorb && d.p.y > TIP_Y + 0.006 + Math.abs(d.off.y) * 2) { FX.dots.splice(i, 1); continue; }
-          if (d.p.y > COT_ON.y - 0.004) { if (S.cotton && S.cotK < 0.5) { FX.dots.splice(i, 1); continue; } d.out = true; d.v = V((Math.random() - 0.2) * 0.012, 0.02, (Math.random() - 0.5) * 0.01); d.life = 1.6; }
-        }
+        if (d.esc || d.trap) { d.p.addScaledVector(d.v, dt); d.life -= dt * (d.trap ? 1 : 0.9); if (d.life <= 0) FX.dots.splice(i, 1); continue; }
+        if (S.plug !== 'in' && d.u < GL[3]) { FX.dots.splice(i, 1); continue; }
+        if (d.u < U_TIP) { d.u += flowV * dt; d.p.copy(gasAt(d.u)).addScaledVector(d.off, 0.12); if (flowV <= 0) { d.life -= dt * 0.5; if (d.life <= 0) FX.dots.splice(i, 1); } continue; }
+        // 进了品红溶液：一部分溶进去，其余升到液面（再往上的那一份由上面的出口通量画）
+        d.p.y += 0.03 * dt; d.p.x = XP + d.off.x * 0.3; d.p.z = d.off.z * 0.3;
+        if ((d.absorb && d.p.y > TIP_Y + 0.006 + Math.abs(d.off.y) * 2) || d.p.y > pinkY - 0.001) FX.dots.splice(i, 1);
       }
       // 试管上部的 SO₂（塞着塞子、试管在铁夹上时）
       let nd = 0;
       FX.dots.forEach((d) => { s4.setScalar(0.0011); m4.compose(d.p, q4, s4); so2Dots.setMatrixAt(nd++, m4); });
-      if (S.plugK < 0.02 && !S.pour) for (const hd of HEAD) { if (hd.rank > frac() || nd >= 160) continue; const a = hd.a + Math.sin(t * 0.5 + hd.ph) * 0.004; tmp.set(Math.cos(hd.th + t * 0.2) * hd.r, a, Math.sin(hd.th + t * 0.2) * hd.r).applyQuaternion(tubeHold.quaternion).add(tubeHold.position); if (tmp.y < surfaceY() + 0.003) continue; s4.setScalar(0.0011); m4.compose(tmp, q4, s4); so2Dots.setMatrixAt(nd++, m4); }
+      if (S.plugK < 0.02 && !S.pour) for (const hd of HEAD) { if (hd.rank > frac() || nd >= 160) continue; const a = hd.a + Math.sin(t * 0.5 + hd.ph) * 0.004; tmp.set(Math.cos(hd.th + t * 0.2) * hd.r, a, Math.sin(hd.th + t * 0.2) * hd.r).applyQuaternion(tubeHold.quaternion).add(tubeHold.position); if (liq.visible && tmp.y < surfaceY() + 0.003) continue; s4.setScalar(0.0011); m4.compose(tmp, q4, s4); so2Dots.setMatrixAt(nd++, m4); }
       so2Dots.count = nd; so2Dots.instanceMatrix.needsUpdate = true;
       // 盛水的试管：液面、颜色（蓝色深浅按 Cu²⁺ 浓度）、热、倒进去的那一股
-      const wVol = WATER_ML + S.poured * (S.spat ? 0.6 : 1);
+      const wVol = rVol();
       wLiq.setLevel(volToY(wVol, WR - 0.0004, WR + 0.0008)).setColor(WATERC.clone().lerp(BLUE, clamp(cuConc() / 0.3, 0, 1)).getHex()); wLiq.update(t);
       wHeat.material.opacity = clamp((S.Tw - 35) / 500, 0, 0.07);
-      const pouring = S.pour && S.pour.dir === 0 && S.vAcid > 0.005;
+      const pouring = S.pour && S.pour.dir === 0 && tubeVol() > 0.005;
       stream.visible = !!pouring;
       if (pouring) {
         tubeHold.updateMatrixWorld(true);
@@ -523,11 +644,12 @@ export default {
       for (let i = FX.drops.length - 1; i >= 0; i--) { const d = FX.drops[i]; d.v.y -= 0.5 * dt; d.p.addScaledVector(d.v, dt); d.life -= dt; if (d.life <= 0 || d.p.y < 0.002) FX.drops.splice(i, 1); }
       FX.drops.forEach((d, i) => { s4.setScalar(0.0012); m4.compose(d.p, q4, s4); drops.setMatrixAt(i, m4); });
       drops.count = FX.drops.length; drops.instanceMatrix.needsUpdate = true;
+      updateCards();
       bar.near(S.near);
     };
 
     return {
-      group: root, pointer, card: false, toggles: ['steps'],
+      group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.36, d: 0.2, h: 0.24 },
       view: { elev: 16, azim: -6, lookY: 0.42, frameMargin: 1.06 },
       mount(ui) {
@@ -537,15 +659,15 @@ export default {
         const t1 = think({ q: '生成的气体使品红溶液褪色。这种气体是什么？', ctx, options: ['二氧化硫 SO₂', '氢气 H₂', '氧气 O₂'], wrong: ['铜在氢后面，不能把酸里的氢置换出来；氢气也不能使品红溶液褪色。', '氧气不能使品红溶液褪色。'], ok: '对：二氧化硫具有漂白作用，能使品红溶液褪色（课本第 4 页）。所以浓硫酸和铜反应生成了 SO₂。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const vary = varyBox('课本的注意事项：浓硫酸具有很强的腐蚀性，注意安全防护。可以试试：不加热，只让铜丝浸在浓硫酸里；熄灭酒精灯但不拉出铜丝；拿掉管口的棉团；不等冷却就倒进水里。', h('span', {}));
         const more = moreBox([['钻进去看', () => mic.open()], ['拿掉 / 放回棉团', () => A.cotton()]], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '浓硫酸 2 mL（98%，1.84 g/mL）= 36.8 mmol H₂SO₄；铜丝浸入的部分约 0.3 g。<b>时间加快 8 倍</b>：酒精灯把浓硫酸烧向约 240 ℃（示意；浓硫酸沸点约 338 ℃）。<br>反应速率随温度升高而增大（按活化能 80 kJ/mol 估计，<b>示意</b>）：室温下慢到看不出，二百多摄氏度时明显；和铜丝浸在酸里的比例成正比，铜丝拉出来就是 0。生成的 SO₂、CuSO₄、H₂O 按方程式算（每 1 mmol Cu 生成 1 mmol SO₂，25 ℃ 约 24.5 mL）。<br>试管 + 导管里的气体约 30 mL：先冒出的是受热膨胀的空气。通过品红溶液（4 mL）的 SO₂ 约 60% 溶进去；红色的比例按 1/(1 + K·c)，K 取 5000 L/mol（示意值，和“二氧化硫的漂白作用”一课相同）。其余的 SO₂ 被棉团里的 NaOH 溶液吸收。停止加热后气体冷却收缩，实际可能使品红溶液倒吸，课本这里没有写，模型没有画。<br>倒进 3 mL 水：稀释放热按每摩尔 H₂SO₄ 约 60 kJ（积分溶解热），热容 = 试管玻璃约 16 J/K + 水 + 倒进去的酸（1.42 J/(g·K)）；没冷却就倒，酸本身的热也算进去，到 100 ℃ 就沸腾溅出（示意）。<br>浓硫酸里水很少，生成的 CuSO₄ 是白色固体（课本第 6 页资料卡片：硫酸铜是白色粉末，结合水后变成蓝色），溶于水显蓝色，深浅按 Cu²⁺ 浓度。实际试管里常还有少量黑色物质，课本没有提到，这里没画。<br>青色小点 = SO₂（概念色，实际无色）；橙色 = 热。“钻进去看”是慢放示意，不表示真实的反应步骤。' }));
-        const base = mountXuean(ui, { controls: [vary, more, note], headers: ['做了什么', '现象', '说明'], intro: '图5-6 的装置：橡胶塞侧面的凹槽里嵌着下端卷成螺旋状的铜丝；试管里加了 2 mL 浓硫酸，塞好了橡胶塞，铜丝下端还在液面上方。这是老师演示的实验：浓硫酸腐蚀性很强，注意安全防护。' });
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '浓硫酸 2 mL（98%，1.84 g/mL）= 36.8 mmol H₂SO₄；铜丝浸入的部分约 0.3 g。<b>时间加快 8 倍</b>：酒精灯把浓硫酸烧向约 240 ℃（示意；浓硫酸沸点约 338 ℃）。<br>反应速率随温度升高而增大（按活化能 80 kJ/mol 估计，<b>示意</b>）：室温下慢到看不出，二百多摄氏度时明显；和铜丝浸在酸里的比例成正比，铜丝拉出来就是 0。生成的 SO₂、CuSO₄、H₂O 按方程式算（每 1 mmol Cu 生成 1 mmol SO₂，25 ℃ 约 24.5 mL）。<br>试管 + 导管里的气体约 30 mL：先冒出的是受热膨胀的空气。通过品红溶液（4 mL）的 SO₂ 约 60% 溶进去；红色的比例按 1/(1 + K·c)，K 取 5000 L/mol（示意值，和“二氧化硫的漂白作用”一课相同）。其余的 SO₂ 被棉团里的 NaOH 溶液吸收。停止加热后气体冷却收缩，实际可能使品红溶液倒吸，课本这里没有写，模型没有画。<br>倒进 3 mL 水：接收管里的 H₂SO₄、水、CuSO₄ 按倒进去的量一份份加（溅出去的按比例一起减）。放热按积分溶解热（Perry 化学工程手册的数表，约值）的增量算，热容 = 试管玻璃约 16 J/K + 溶液；没冷却就倒，酸本身的热也算进去。沸点按混合液的浓度查硫酸水溶液的常压沸点（约值，50% 约 124 ℃）：整管不会到沸点。<b>局部飞溅是示意模型</b>：新倒进去的一小股先和约 2 倍质量的周围液体混合，这一小团超过它自己浓度的沸点就溅出液滴——冷却到 50 ℃ 以下慢慢倒不会溅，酸还在约 150 ℃ 以上时会溅。液体体积不计混合时的收缩。<br>浓硫酸里水很少，生成的硫酸铜没有溶解成蓝色溶液，画成灰白色固体（无水硫酸铜是白色的，见课本第 6 页资料卡片）；实测试管里常还有少量黑色沉积，画成少数灰黑色小点（课本没有提，成分这里不讲）。溶于水显蓝色，深浅按 Cu²⁺ 浓度。<br>青色小点 = SO₂（示意色，实际无色）；橙色 = 热。“钻进去看”是慢放示意，不表示真实的反应步骤。' }));
+        const base = mountXuean(ui, { controls: [vary, more, note], headers: ['做了什么', '现象', '说明'], intro: '图5-6 的装置：试管里已经加了 2 mL 浓硫酸（老师演示里有加酸、塞塞子这两步），塞好了橡胶塞；橡胶塞侧面的凹槽里嵌着下端卷成螺旋状的铜丝，铜丝下端还在液面上方。这是老师演示的实验：浓硫酸具有很强的腐蚀性，注意安全防护！' });
         ui.data.append(t1.el, t2.el, t3.el, base.next);
         W = { ...base, ui, t1, t2, t3, status: ui.status }; bar.attach(ui);
       },
       update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); mic.update(dt, k); },
       dispose() { bar.dispose(); drag.dispose(); mic.dispose?.(); },
       debug: {
-        get S() { return S; }, bar, A, mic, fRed, wireAnchor,
+        get S() { return S; }, bar, A, mic, fRed, wireAnchor, cyl,
         picks: { wire: wirePick, lamp: lampPick, cotton: cottonPick, plug: plugPick, tube: tubePick },
         qa: qaFlow(drag, [
           { name: '推铜丝', drag: wirePick, to: () => wireAnchor(1).setZ(WZ), wait: 1 },
