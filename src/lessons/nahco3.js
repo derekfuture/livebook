@@ -79,7 +79,7 @@ export default {
     crops: [{ page: 43, rect: [64, 546, 392, 664] }],
     quote: '碳酸钠很稳定，受热不易发生分解；碳酸氢钠不稳定，受热容易分解。……我们可以利用加热的方法来鉴别碳酸钠和碳酸氢钠。',
     formula: '2NaHCO₃ <span style="font-size:.8em">△</span>══ Na₂CO₃ + H₂O + CO₂↑',
-    why: '加热<b>碳酸氢钠</b>：试管口有<b>水珠</b>，导出的气体使澄清石灰水<b>变浑浊</b>——生成了 <b>H₂O</b> 和 <b>CO₂</b>，留下的固体是碳酸钠（质量比原来轻了：1 g 变成约 0.63 g）。加热<b>碳酸钠</b>：石灰水始终不变，试管口也没有水珠——它没有分解。<br>所以碳酸钠比碳酸氢钠<b>稳定</b>：受热不易分解；碳酸氢钠受热容易分解。可以利用加热的方法鉴别它们。',
+    why: '加热<b>碳酸氢钠</b>：试管口有<b>水珠</b>，导出的气体使澄清石灰水<b>变浑浊</b>——生成了 <b>H₂O</b> 和 <b>CO₂</b>，留下的固体是碳酸钠。固体质量比原来轻（按方程式算，1 g 完全分解后约剩 0.63 g，这是理论终点；没分解完，质量在 1 g 和 0.63 g 之间）。加热<b>碳酸钠</b>：石灰水始终不变，试管口也没有水珠——它没有分解。<br>所以碳酸钠比碳酸氢钠<b>稳定</b>：受热不易分解；碳酸氢钠受热容易分解。可以利用加热的方法鉴别它们。',
     src: '课本第 39 页 · 第二章 第一节 钠及其化合物 实验2-5',
   },
 
@@ -87,7 +87,7 @@ export default {
     const root = new THREE.Group(), group = new THREE.Group();
     group.position.x = OX; root.add(group);
     let S = null, W = null;
-    const near = (v, d = [0.1, 0.3, 1], dist = 0.26) => { if (S.demo) return; S.near = true; look([v.x + OX, v.y, v.z], d, dist, () => { S.near = false; }); };
+    const near = (v, d = [0.1, 0.3, 1], dist = 0.26) => { if (S.demo) return; S.near = true; S.nearArgs = [v.clone(), d, dist]; look([v.x + OX, v.y, v.z], d, dist, () => { S.near = false; }); };
     const far = () => { if (S.near) { S.near = false; back(); } };
     paperSheet(group, { w: 0.5, d: 0.32, x: -0.03, z: 0.01 });
     const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
@@ -176,7 +176,7 @@ export default {
       kind: null, plug: 'in', limeIn: false, ly: 0, lit: false,
       T: Array(NSEG).fill(T0), x: Array(NSEG).fill(0), co2: 0, air: V_ROOM, h2o: 0,
       suck: 0, limeCO2: 0, lime: 0, broken: '', wet: false, heatT: 0, coolT: 0, lampFirst: false,
-      pourK: -1, plugK: 0, anim: null, scooped: '', ran: { nahco3: false, na2co3: false }, ranInfo: {}, bothAsked: false, seq: [], seen: {}, limeAt: null,
+      pourK: -1, plugK: 0, anim: null, scooped: '', validT: 0, ran: { nahco3: false, na2co3: false }, ranInfo: {}, bothAsked: false, seq: [], seen: {}, limeAt: null,
       outCO2: 0, flowV: 0, demo: false, near: false, limeDrag: null, troughDrag: false, troughBack: null,
     });
     S = fresh();
@@ -208,7 +208,7 @@ export default {
       load(kind) {
         if (S.kind || S.anim) return;
         if (S.plug === 'in') return status('先拔出橡胶塞。');
-        S.kind = kind; S.anim = { kind: 'trough', t: 0 }; S.h2o = 0; S.x.fill(0); S.ran[kind] = false; S.heatT = 0; S.coolT = 0; S.seen = {}; S.lampFirst = false; S.suck = 0; S.wet = false;
+        S.kind = kind; S.anim = { kind: 'trough', t: 0 }; S.h2o = 0; S.x.fill(0); S.ran[kind] = false; S.heatT = 0; S.coolT = 0; S.validT = 0; S.seen = {}; S.lampFirst = false; S.suck = 0; S.wet = false;
         status(`用纸槽把约 1 g ${NAME[kind]}（${ZH[kind]}）铺在试管底部。再点一下橡胶塞，把它塞紧。`);
       },
       lime(on) {
@@ -252,7 +252,8 @@ export default {
       pour() {
         if (S.pourK >= 0 || !S.kind) return;
         if (S.broken) return status('试管已经炸裂了。点“更多”里的“全部重来”。');
-        if (S.lit) return status('先停止加热，等试管冷却。');
+        if (tipIn()) return status('导管口还插在石灰水里：先把<b>石灰水试管</b>往下拉，让导管口离开石灰水；再熄灭酒精灯，等试管冷却，拔出橡胶塞，才能倒出固体。');
+        if (S.lit) return status('先熄灭酒精灯（导管口已经离开石灰水），等试管冷却，再倒出固体。');
         const t = Tmax();
         if (t > 60) return status(`试管还很烫（最热处约 ${Math.round(t / 10) * 10} ℃）。要<b>等试管冷却</b>后再倒。`);
         if (S.plug === 'in') return status('先拔出橡胶塞，再倒出固体。');
@@ -308,7 +309,9 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { bubs.clear(); dust.clear(); asmPose(S.plugK); lime.position.y = S.ly; } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { bubs.clear(); dust.clear(); asmPose(S.plugK); lime.position.y = S.ly; },
+            view: { save: () => (mic.isOpen || S.near ? { mic: mic.isOpen, near: S.near, args: S.nearArgs } : null),
+              restore: (v) => { if (v.near && v.args) { near(v.args[0], v.args[1], v.args[2]); } if (v.mic) mic.open(); } } }),
           shots: [
             { cap: '实验2-5：先拔出橡胶塞（连着导管）。取一点 NaHCO₃，用纸槽铺进试管底部。', dur: 12, cam: [P(-0.07, 0.1, 0.05), [0.1, 0.32, 1], 0.6],
               during: act.seq(act.tap(plugPick, 0.02),
@@ -338,6 +341,7 @@ export default {
         S.T[i] += (tar - S.T[i]) * (1 - Math.exp(-hh / (tar > S.T[i] ? TAU_HEAT : TAU_COOL)));
       }
       if (S.lit) S.heatT += hh; else if (S.heatT > 0) S.coolT += hh;
+      if (S.lit && sealed && tipIn() && S.limeCO2 <= 1) S.validT += hh;      // 有效观察：塞紧、导管浸在液面下、用的是新石灰水
       // 反应：2NaHCO₃ → Na₂CO₃ + H₂O + CO₂（一级）；Na₂CO₃ 不反应
       let dx = 0;
       if (S.kind === 'nahco3' && S.pourK < 0) for (let i = 0; i < NSEG; i++) { const x = S.x[i], nx = Math.min(1, 1 - (1 - x) * Math.exp(-kAt(S.T[i]) * hh)); dx += (nx - x) / NSEG; S.x[i] = nx; }
@@ -447,7 +451,7 @@ export default {
       condG.children.forEach((d, i) => { d.visible = S.kind === 'nahco3' && i < nd && S.pourK < 0.5; });
       // 第一次看到的现象
       const xm = xi();
-      if (S.kind === 'nahco3' && S.limeAt != null && S.lime < 0.25 && S.limeCO2 > LIME_CO2 && !S.seen.clear && !S.demo) { S.seen.clear = true; log([`继续加热 NaHCO₃ 到约 ${fmtT(S.heatT)}`, '浑浊又慢慢<b>变清</b>了', '继续通入二氧化碳：CaCO₃ + CO₂ + H₂O ══ Ca(HCO₃)₂，生成可溶的碳酸氢钙']); status('石灰水又<b>变清</b>了：继续通入二氧化碳，沉淀 CaCO₃ 变成了可溶的 Ca(HCO₃)₂。所以石灰水刚变浑浊、管口有水珠时，就可以停止加热了。'); }
+      if (S.kind === 'nahco3' && S.limeAt != null && S.lime < 0.25 && S.limeCO2 > LIME_CO2 && !S.seen.clear && !S.demo) { S.seen.clear = true; log([`累计通入石灰水的 CO₂ 约 ${Math.round(S.limeCO2 / ABS)} mL（示意）`, '浑浊又慢慢<b>变清</b>了', 'CO₂ 过量：CaCO₃ + CO₂ + H₂O ══ Ca(HCO₃)₂，生成可溶的碳酸氢钙']); status('石灰水又<b>变清</b>了：通进去的二氧化碳已经过量，沉淀 CaCO₃ 变成了可溶的 Ca(HCO₃)₂。所以石灰水刚变浑浊、管口有水珠时，就可以停止加热了。'); }
       if (S.kind === 'nahco3' && S.lime > 0.6 && S.limeAt == null) { S.limeAt = S.heatT; log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, '澄清石灰水<b>变浑浊</b>', '生成了二氧化碳']); }
       if (S.kind === 'nahco3' && S.h2o / H2O_MAX > 0.15 && !S.seen.drops && S.lit) { S.seen.drops = true; log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, '试管口较冷的管壁上出现<b>水珠</b>', '生成了水']); }
       if (!S.demo) {
@@ -456,11 +460,12 @@ export default {
           log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, `固体由 1.00 g 减到约 ${solidG().toFixed(2)} g，还是白色`, '2NaHCO₃ △══ Na₂CO₃ + H₂O + CO₂↑：质量减轻是跑出去了 CO₂ 和 H₂O']);
           status(`加热了约 ${fmtT(S.heatT)}：石灰水<b>变浑浊</b>，试管口有<b>水珠</b>，固体变少了。NaHCO₃ 受热分解。可以停止加热了：<b>先把石灰水试管降下来，再熄灯</b>。${S.ran.na2co3 ? '' : '然后用 Na₂CO₃ 再做一次，比较。'}`);
         }
-        if (S.kind === 'na2co3' && !S.ran.na2co3 && S.heatT >= 150 && Tmax() > 160 && S.limeCO2 > 1 && !S.seen.used) { S.seen.used = true; status('石灰水还是上一次用过的（已经通进过二氧化碳），不能说明什么。先<b>降下石灰水试管</b>，点一下它换一管新的，再升起来继续加热。'); }
-        if (S.kind === 'na2co3' && !S.ran.na2co3 && S.heatT >= 150 && Tmax() > 160 && S.limeCO2 <= 1) {
-          S.ran.na2co3 = true; S.ranInfo.na2co3 = { t: S.heatT, g: solidG() }; done('watch'); far();
-          log([`加热 Na₂CO₃ 约 ${fmtT(S.heatT)}`, '石灰水<b>始终不变浑浊</b>，试管口<b>没有水珠</b>，固体还是 1.00 g', '没有 CO₂ 和 H₂O 生成：Na₂CO₃ 受热不易分解']);
-          status(`加热了约 ${fmtT(S.heatT)}：石灰水<b>没有变浑浊</b>，试管口<b>没有水珠</b>。Na₂CO₃ 受热不易分解。可以停止加热了：<b>先把石灰水试管降下来，再熄灯</b>。${S.ran.nahco3 ? '' : '然后用 NaHCO₃ 再做一次，比较。'}`);
+        if (S.kind === 'na2co3' && !S.ran.na2co3 && S.heatT >= 150 && Tmax() > 160 && S.limeCO2 > 1 && !S.seen.used && S.validT < 150) { S.seen.used = true; status('石灰水还是上一次用过的（已经通进过二氧化碳），不能说明什么。先<b>降下石灰水试管</b>，点一下它换一管新的，再升起来继续加热。'); }
+        if (S.kind === 'na2co3' && !S.ran.na2co3 && S.heatT >= 150 && S.validT < 150 && !(S.plug === 'in' && tipIn()) && !S.seen.noconn) { S.seen.noconn = true; log([`加热 Na₂CO₃ 约 ${fmtT(S.heatT)}，装置没接通`, '没有塞紧橡胶塞 / 导管口没插进石灰水，<b>条件缺失</b>', '这段加热不算有效观察，石灰水的结果还没法判断']); status('装置没有接通（要塞紧橡胶塞、导管口插进<b>新的</b>石灰水），这段加热<b>不算</b>有效观察。接好以后再加热，累计够了才记结果。'); }
+        if (S.kind === 'na2co3' && !S.ran.na2co3 && S.validT >= 150 && Tmax() > 160) {
+          S.ran.na2co3 = true; S.ranInfo.na2co3 = { t: S.validT, g: solidG() }; done('watch'); far();
+          log([`加热 Na₂CO₃ 有效观察约 ${fmtT(S.validT)}（塞紧、导管浸在新石灰水里）`, '石灰水<b>始终不变浑浊</b>，试管口<b>没有水珠</b>，固体还是 1.00 g', '没有 CO₂ 和 H₂O 生成：Na₂CO₃ 受热不易分解']);
+          status(`有效加热了约 ${fmtT(S.validT)}：石灰水<b>没有变浑浊</b>，试管口<b>没有水珠</b>。Na₂CO₃ 受热不易分解。可以停止加热了：<b>先把石灰水试管降下来，再熄灯</b>。${S.ran.nahco3 ? '' : '然后用 NaHCO₃ 再做一次，比较。'}`);
         }
         if (S.kind === 'nahco3' && S.lit && S.plug === 'out' && xm > 0.3 && !S.seen.open) { S.seen.open = true; log(['没有塞紧橡胶塞就加热 NaHCO₃', '石灰水<b>不变浑浊</b>', '生成的 CO₂ 从试管口跑掉了，没有通进石灰水']); }
         if (S.ran.nahco3 && S.ran.na2co3 && !S.bothAsked && !S.lit) { S.bothAsked = true; done('second'); W?.q1.open(); }
@@ -496,11 +501,11 @@ export default {
       const tR = Math.round(tm / 10) * 10;
       const stamp = S.broken ? '<span class="cc-res burn">炸裂</span>' : '';
       tubeCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><span class="cc-th"><i style="height:${clamp(tm / 2, 4, 100).toFixed(0)}%"></i></span><b>${tR}</b><small>℃ 最热处（约）</small></div><div class="cc-obs"><b>${mS.toFixed(2)}</b><small>g 固体（${S.kind ? NAME[S.kind] + (S.kind === 'nahco3' && xm > 0.02 ? ' 渐变成 Na₂CO₃' : '') : ''}）</small></div>${S.heatT > 0 ? `<div class="cc-note">${S.lit ? `已加热 ${fmtT(S.heatT)}` : `停止加热 ${fmtT(S.coolT)}`}（实际时间）</div>` : ''}</div></div>`)
-        .loc(group, POWDER_C.x, POWDER_C.y + 0.014, 0).show(!!S.kind && S.pourK < 0 && !S.anim && !mic.isOpen);
+        .loc(group, POWDER_C.x, POWDER_C.y + 0.014, 0).show(!!S.kind && S.pourK < 0 && !S.anim && !mic.isOpen && !bar.playing);
       const limeStamp = S.suck > 0.3 && tipIn() ? '<span class="cc-res burn">倒吸</span>' : S.lime > 0.6 ? '<span class="cc-res burn">变浑浊</span>' : '';
       const bubNote = FX.lastOut > 0 ? `<div class="cc-note">冒出的气泡：${S.outCO2 > 0.5 ? '主要是<b>二氧化碳</b>' : '主要是<b>空气</b>'}</div>` : '';
       limeCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">澄清石灰水</span>${limeStamp}</div>${bubNote ? `<div class="cc-more">${bubNote}</div>` : ''}</div>`)
-        .loc(group, LX + 0.03, 0.12, 0).show((S.lime > 0.05 || FX.lastOut > 0 || S.suck > 0.3) && !mic.isOpen);
+        .loc(group, LX + 0.03, 0.12, 0).show((S.lime > 0.05 || FX.lastOut > 0 || S.suck > 0.3) && !mic.isOpen && !bar.playing);
       bar.near(S.near);
     };
 
