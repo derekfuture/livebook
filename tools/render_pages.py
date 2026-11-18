@@ -170,6 +170,15 @@ BOOKS = {
         "first_body_index": 7,
         "page_offset": 6,
     },
+    "shuxue-9s": {
+        "code": "m9a",
+        "title": "数学 九年级上册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("shuxue-9s"),
+        "toc": toc_path("shuxue-9s"),
+        "first_body_index": 7,
+        "page_offset": 6,
+    },
 }
 
 HI_HEIGHT = 2048

@@ -2877,5 +2877,31 @@
     "label": "图22.2-6 · 翻开活页"
    }
   ]
+ },
+ "shuxue-9s": {
+  "id": "shuxue-9s",
+  "title": "数学 九年级上册",
+  "base": "/books/shuxue-9s/",
+  "draft": true,
+  "lessons": {
+   "inscribed": {
+    "title": "圆周角",
+    "fig": "图29.2-5",
+    "sec": "圆周角"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "inscribed",
+    "page": 133,
+    "bbox": [
+     378,
+     418,
+     458,
+     512
+    ],
+    "label": "图29.2-5 · 翻开活页"
+   }
+  ]
  }
 }
