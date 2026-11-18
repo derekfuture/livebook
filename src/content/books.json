@@ -2784,6 +2784,11 @@
   "base": "/books/shuxue-8s/",
   "draft": true,
   "lessons": {
+   "huozi": {
+    "title": "和的平方",
+    "fig": "图16.3-2",
+    "sec": "完全平方公式"
+   },
    "anglesum": {
     "title": "三角形的内角",
     "fig": "图13.3-1",
@@ -2796,6 +2801,17 @@
    }
   },
   "spots": [
+   {
+    "lesson": "huozi",
+    "page": 121,
+    "bbox": [
+     68,
+     54,
+     475,
+     208
+    ],
+    "label": "图16.3-2 · 翻开活页"
+   },
    {
     "lesson": "anglesum",
     "page": 17,
