@@ -3,8 +3,10 @@
 //   画法（慢放示意，不表示真实的反应步骤）：硝酸画成溶液里的 H⁺ 和 NO₃⁻（和离子方程式一致；浓硝酸里其实还有不少 HNO₃ 分子）。
 //   浓：Cu + 4H⁺ + 2NO₃⁻ → Cu²⁺ + 2NO₂ + 2H₂O——一个铜原子交出 2 个电子，两个 NO₃⁻ 里的氮各得 1 个（+5 → +4）。
 //   稀：3Cu + 8H⁺ + 2NO₃⁻ → 3Cu²⁺ + 2NO + 4H₂O——三个铜原子交出 6 个电子，两个 NO₃⁻ 里的氮各得 3 个（+5 → +2）。
-//   没得电子的 NO₃⁻ 留在溶液里，和 Cu²⁺ 在一起就是 Cu(NO₃)₂（浓：2 个，稀：6 个）。
+//   画面只画参加反应的粒子（离子方程式）；化学方程式里没得电子、留在溶液里和 Cu²⁺ 组成 Cu(NO₃)₂ 的 NO₃⁻（浓：2 个，稀：6 个）没画，字幕里说明。
 //   原子守恒：浓 Cu N₂ O₆ H₄ = Cu + N₂O₄ + O₂H₄ ✓；稀 Cu₃ N₂ O₆ H₈ = Cu₃ + N₂O₂ + O₄H₈ ✓。电荷：浓 0 + 4 − 2 = +2 ✓；稀 0 + 8 − 2 = +6 = 3 × (+2) ✓。
+// 混合区（浓硝酸用稀了）：x 是按浓的方程式反应的铜占几成。生成 NO₂ 的一组用 1 个铜，生成 NO 的一组用 3 个铜，所以按铜耗折算，
+//   挑到生成 NO₂ 那一组的机会是 x / (x + (1 − x)/3) = 3x / (1 + 2x)，正好等于新生成气体里 NO₂ 占的比例。st.only = 'NO2' / 'NO'：只演这一条路径（老师演示用）。
 // st：{ conc: 浓硝酸那支（粒子多、水少）, x: 按浓的方程式反应的铜占几成（0~1，和宏观同一个产物状态；浓硝酸用稀了以后变小）, c: 现在的浓度 mol/L,
 //       contact: 铜丝浸在酸里, hot: 正在反应（宏观的速率够大）, rate: 反应速率 mmol Cu/s, made: 已经生成过 Cu²⁺ }
 // 画法照初中金属与酸、钠燃烧：铜丝表面画成一排分开摆的 5 个铜原子；一次只演一组。两个 NO₃⁻ 停在铜原子的左上、右上，H⁺ 围在它们旁边；
@@ -74,7 +76,7 @@ export function nitricScene() {
     labels: (k, m) => k === 'NO2' || k === 'NO' || !!m.rep,
     labelOnly: (k, m) => !(m.busy && !m.g.visible) && (k === 'NO2' || k === 'NO' || !!m.rep || (k === 'NO3-' && m.busy)),          // H⁺ 一次有 4~8 个、水也多：只标一个代表
     init(c, st) {
-      conc = !!st.conc; xNow = st.x ?? (conc ? 1 : 0); toNO2 = xNow >= 0.5; mixed = xNow > 0.02 && xNow < 0.98; cNow = st.c || 0;
+      conc = !!st.conc; xNow = st.x ?? (conc ? 1 : 0); toNO2 = st.only ? st.only === 'NO2' : xNow >= 0.5; mixed = xNow > 0.02 && xNow < 0.98; cNow = st.c || 0;
       c.view.film = FILM; c.view.paper = null; c.view.liquid = conc ? 0xe8ecd8 : 0xdde9ef;
       ev = null; made = 0; wait = 0.6; fillT = 0; clearDots();
       if (st.contact) for (const p of sites) c.add('Cu', p.clone(), { fixed: true });
@@ -86,7 +88,7 @@ export function nitricScene() {
     step(c, st, dt) {
       c.view.film = FILM; c.view.paper = null; c.view.liquid = conc ? 0xe8ecd8 : 0xdde9ef;
       c.view.speed = st.hot ? 1.3 : 1; cNow = st.c || cNow; xNow = st.x ?? xNow; mixed = xNow > 0.02 && xNow < 0.98;
-      if (!ev) toNO2 = xNow >= 0.5;
+      if (!ev) toNO2 = st.only ? st.only === 'NO2' : xNow >= 0.5;
       // 等着的离子、水待在后上方（不挡铜表面和正在反应的那一组）
       for (const m of c.mols) if ((m.kind === 'H+' || m.kind === 'NO3-' || (m.kind === 'H2O' && !m.made)) && !m.busy) { const p = m.g.position; if (p.y < AY) { p.y = AY; m.v.y = Math.abs(m.v.y); } if (p.z > BZ) { p.z = BZ; m.v.z = -Math.abs(m.v.z); } }
       // 用掉了，远处的补过来（成对，电荷平衡）；生成的水、Cu²⁺ 过一会儿走远
@@ -98,8 +100,8 @@ export function nitricScene() {
       if (!ev && st.hot && !c.events.length) {
         wait -= dt;
         if (wait <= 0) {
-          // 混合区（浓硝酸用稀了一部分）：每一次按铜走两条路径的比例随机挑一条来演示
-          toNO2 = mixed ? Math.random() < xNow : xNow >= 0.5;
+          // 混合区（浓硝酸用稀了一部分）：每一次按两条路径的组数比例（按铜耗折算）随机挑一条来演示
+          toNO2 = st.only ? st.only === 'NO2' : mixed ? Math.random() < (3 * xNow) / (1 + 2 * xNow) : xNow >= 0.5;
           const nCu = toNO2 ? 1 : 3, nH = toNO2 ? 4 : 8;
           const cus = pickCu(c, nCu);
           if (!cus) {          // 表面露着的铜不够这一组用了：下面一层的铜露出来
@@ -168,8 +170,8 @@ export function nitricScene() {
         : `三个铜原子一共交出 <b>6 个电子</b>（小深色点）：<b>Cu 0 → +2</b>，被氧化；两个 ${f('NO3-')} 里的氮<b>各得 3 个</b>：<b>N +5 → +2</b>，被还原。`) };
       const pathNote = conc && mixed ? `（两种反应都在进行，这一次演示的是生成 ${toNO2 ? f('NO2') : f('NO')} 的那条路径）` : '';
       if (e) return { eq: EQ, on: true, cap: pathNote + (toNO2
-        ? `得到电子的 ${f('NO3-')} 和 ${f('H+')} 变成 ${f('NO2')}（红棕色，冒出去）和水；铜原子成了 ${f('Cu2+')}，<b>离开铜丝表面，进到溶液里</b>。溶液里另外两个 ${f('NO3-')} 没得电子（氮还是 +5 价），和 ${f('Cu2+')} 在一起就是 Cu(NO₃)₂。原子的种类、个数都没变。`
-        : `得到电子的 ${f('NO3-')} 和 ${f('H+')} 变成 ${f('NO')}（无色，冒出去）和水；三个铜原子成了 ${f('Cu2+')}，<b>离开铜丝表面，进到溶液里</b>。另外六个 ${f('NO3-')} 没得电子（氮还是 +5 价），和三个 ${f('Cu2+')} 在一起就是 3Cu(NO₃)₂。原子的种类、个数都没变。`) };
+        ? `得到电子的 ${f('NO3-')} 和 ${f('H+')} 变成 ${f('NO2')}（红棕色，冒出去）和水；铜原子成了 ${f('Cu2+')}，<b>离开铜丝表面，进到溶液里</b>。原子的种类、个数都没变。画面按离子方程式只画参加反应的粒子：化学方程式里另外两个 ${f('NO3-')} 没得电子，留在溶液里，没有画。`
+        : `得到电子的 ${f('NO3-')} 和 ${f('H+')} 变成 ${f('NO')}（无色，冒出去）和水；三个铜原子成了 ${f('Cu2+')}，<b>离开铜丝表面，进到溶液里</b>。原子的种类、个数都没变。画面按离子方程式只画参加反应的粒子：化学方程式里另外六个 ${f('NO3-')} 没得电子，留在溶液里，没有画。`) };
       if (fillT > 0) return { eq: EQ, on: true, cap: `表面的铜原子走了不少，留下空位——<b>下面一层的铜露出来</b>，接着反应。` };
       if (st.hot) return { eq: EQ, on: true, cap: made ? `${thin || acid + '里，'}已经有 <b>${made}</b> 组反应：铜丝表面的空位，就是变成 ${f('Cu2+')} 走掉的铜原子；被还原的氮变成 ${toNO2 ? f('NO2') : f('NO')} 冒出去。<b>慢放示意，不表示真实的反应步骤。</b>` : `${thin || acid + '里，'}${f('H+')}、${f('NO3-')} 就要在铜的表面反应了。` };
       if (made) return { eq: EQ, on: false, cap: `铜失去的电子数 = 氮得到的电子数（浓：1 个 Cu 对 2 个 ${f('NO2')}；稀：3 个 Cu 对 2 个 ${f('NO')}）。硝酸是<b>氧化剂</b>，铜是<b>还原剂</b>。` };

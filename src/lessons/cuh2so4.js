@@ -457,10 +457,12 @@ export default {
       const heating = S.lit && inClamp();
       const tar = heating ? T_LAMP : T0;
       S.T += (tar - S.T) * (1 - Math.exp(-hh / (tar > S.T ? TAU_H : TAU_C)));
+      if (Math.abs(tar - S.T) < 0.01) S.T = tar;          // 到了就停在那里（不无限地逼近，气体也就不再一点点地胀出去）
       if (heating) S.heatT += hh; else if (S.heatT > 0) S.coolT += hh;
       // 反应：只在铜丝浸在酸里的那部分表面上
       const cuK = Math.pow(Math.max(0, CU0 - S.cu) / CU0, 2 / 3);
-      S.rate = S.plug === 'in' && inClamp() ? kAt(S.T) * S.contact * cuK : 0;
+      const r = S.plug === 'in' && inClamp() ? kAt(S.T) * S.contact * cuK : 0;
+      S.rate = r < 1e-6 ? 0 : r;          // 冷的浓硫酸（约 75 ℃ 以下）算出来不到 1e-6 mmol/s：看不出反应，记作 0（不然室温下也会一点点生成痕量的 SO₂）
       const dn = Math.min(S.rate * hh, CU0 - S.cu, acidLeft() / 2);
       S.cu += dn;
       // 试管 + 导管里的气体（25 ℃ 时的毫升数）
