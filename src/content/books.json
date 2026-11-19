@@ -4199,8 +4199,26 @@
   "id": "huaxue-hsx1",
   "title": "化学 选择性必修1",
   "base": "/books/huaxue-hsx1/",
-  "lessons": {},
-  "spots": []
+  "lessons": {
+   "eqconc": {
+    "title": "浓度对化学平衡的影响",
+    "fig": "实验2-1",
+    "sec": "化学平衡"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "eqconc",
+    "page": 41,
+    "bbox": [
+     65,
+     125,
+     380,
+     275
+    ],
+    "label": "实验2-1 · 翻开活页"
+   }
+  ]
  },
  "huaxue-hsx2": {
   "id": "huaxue-hsx2",

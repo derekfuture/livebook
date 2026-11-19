@@ -29,6 +29,17 @@ const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 const pairOf = (cat, an) => { const z = ZION[cat], a = ZION[an], g = gcd(z, a); return [a / g, z / g]; };
 // 分子：原子 [元素, x, y, z]、键 [i, j, 几重键]、化学式、标签颜色（全息里用深色字）
 const MOL = {
+  'SCN-': { atoms: [['N', -1.35, 0, 0], ['C', -0.17, 0, 0], ['S', 1.45, 0, 0]], bonds: [[0, 1, 1], [1, 2, 1]], label: 'SCN⁻', ink: '#43536e' },
+  // 实验 2-1 用课本的简式示意 Fe–N 配位。三条 SCN 沿圆面展开，便于看清结合与分开。
+  'Fe(SCN)3': {
+    atoms: [['Fe', 0, 0, 0], ...[0.32 + Math.PI / 6, 0.32 + 5 * Math.PI / 6, 0.32 + 3 * Math.PI / 2].flatMap((a) => [
+      ['N', 1.98 * Math.cos(a), 0, 1.98 * Math.sin(a)],
+      ['C', 3.16 * Math.cos(a), 0, 3.16 * Math.sin(a)],
+      ['S', 4.78 * Math.cos(a), 0, 4.78 * Math.sin(a)],
+    ])],
+    bonds: [[0, 1, 1], [1, 2, 1], [2, 3, 1], [0, 4, 1], [4, 5, 1], [5, 6, 1], [0, 7, 1], [7, 8, 1], [8, 9, 1]],
+    label: 'Fe(SCN)₃', labelY: -1.25, ink: '#74213d',
+  },
   Hg: { atoms: [['Hg', 0, 0, 0]], bonds: [], label: 'Hg', ink: '#657080' },
   HgO: { atoms: [['Hg', 0, 0, 0], ['O', 0, 1.5, 0]], bonds: [[0, 1, 1]], labelY: 2.5, label: 'HgO', ink: '#b84933' },
   CO2: { atoms: [['C', 0, 0, 0], ['O', -1.16, 0, 0], ['O', 1.16, 0, 0]], bonds: [[0, 1, 2], [0, 2, 2]], label: 'CO₂', ink: '#23293a' },
