@@ -69,7 +69,7 @@ export default {
     const depth = (u, v) => { const r = Math.hypot(u - O[0], v - O[1]), shoal = 1 - smooth(R - 0.03, R + 0.004, r); return (0.0165 - 0.0118 * shoal) * (0.42 + 0.58 * smooth(LAND_V + 0.002, LAND_V - 0.03, v)); };
     const seaW = SEA.u1 - SEA.u0, seaD = LAND_V - SEA.v0, uc = (SEA.u0 + SEA.u1) / 2, vc = (SEA.v0 + LAND_V) / 2;
     { // 海底：沙洲那里浅、颜色亮（透过水是一片青绿），外海深、颜色暗
-      const g = new THREE.PlaneGeometry(seaW, seaD, 150, 72), p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), SAND = new THREE.Color(0xe8d9b0), DEEP = new THREE.Color(0x46646e);
+      const g = new THREE.PlaneGeometry(seaW, seaD, 150, 72), p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), SAND = new THREE.Color(0xeee9df), DEEP = new THREE.Color(0x8fa8b3);          // 素模：浅处是石膏白，深处透一点水色
       for (let i = 0; i < p.count; i++) { const u = p.getX(i) + uc, v = p.getY(i) + vc, d = depth(u, v); p.setXYZ(i, u, H - d, -v); c.copy(DEEP).lerp(SAND, clamp(1 - (d - 0.0045) / 0.0112, 0, 1)); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
       g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
       const bed = quiet(new THREE.Mesh(g, lit({ vertexColors: true, roughness: 0.95 }))); bed.receiveShadow = true; bed.userData.qaSupport = true; root.add(bed);
@@ -80,10 +80,10 @@ export default {
       const Y = (y) => hp * (1 - y / YM);
       for (let i = 0; i < w; i++) {
         const s = sample((i + 0.5) / w), top = s.land ? YM : s.bed;
-        for (const [a, b, c] of [[0, 0.42, '#7a6e62'], [0.42, 0.74, '#9a8a72'], [0.74, 1, s.land ? '#a08c68' : '#d2c197']]) { g.fillStyle = c; g.fillRect(i, Y(top * b), 1, Y(top * a) - Y(top * b) + 1); }
-        for (let k = 0; k < 3; k++) { g.fillStyle = `rgba(40,30,20,${0.05 + Math.random() * 0.1})`; g.fillRect(i, Y(Math.random() * top), 1, 2); }
-        if (s.land) { g.fillStyle = '#7f9a58'; g.fillRect(i, Y(YM), 1, 4); }
-        else { const gr = g.createLinearGradient(0, Y(H), 0, Y(s.bed)); gr.addColorStop(0, 'rgba(92,170,205,0.96)'); gr.addColorStop(1, 'rgba(38,98,138,0.97)'); g.fillStyle = gr; g.fillRect(i, Y(H), 1, Y(s.bed) - Y(H) + 1); g.fillStyle = 'rgba(236,247,252,0.95)'; g.fillRect(i, Y(H), 1, 2); }
+        for (const [a, b, c] of [[0, 0.42, '#d6d0c4'], [0.42, 0.74, '#e2dcd0'], [0.74, 1, s.land ? '#ebe6dc' : '#efeae0']]) { g.fillStyle = c; g.fillRect(i, Y(top * b), 1, Y(top * a) - Y(top * b) + 1); }
+        for (let k = 0; k < 3; k++) { g.fillStyle = `rgba(90,80,66,${0.03 + Math.random() * 0.06})`; g.fillRect(i, Y(Math.random() * top), 1, 2); }
+        if (s.land) { g.fillStyle = '#f6f3ed'; g.fillRect(i, Y(YM), 1, 3); }
+        else { const gr = g.createLinearGradient(0, Y(H), 0, Y(s.bed)); gr.addColorStop(0, 'rgba(188,214,224,0.97)'); gr.addColorStop(1, 'rgba(138,170,184,0.97)'); g.fillStyle = gr; g.fillRect(i, Y(H), 1, Y(s.bed) - Y(H) + 1); g.fillStyle = 'rgba(236,247,252,0.95)'; g.fillRect(i, Y(H), 1, 2); }
       }
     });
     const face = (w, sample, x, z, ry) => { const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry(w, YM), lit({ map: faceTex(sample), transparent: true, alphaTest: 0.5, roughness: 0.9 }))); m.position.set(x, YM / 2, z); m.rotation.y = ry; m.receiveShadow = true; m.userData.qaSupport = true; root.add(m); };
@@ -94,11 +94,11 @@ export default {
     face(seaW, () => ({ land: true }), uc, -BACK_V, Math.PI);
     { // 岸：一条矮矮的沙滩、后面是草地；岸线那一面是沙和石头
       const top = tex(1024, 256, (g, w, h) => {
-        const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, '#e3d2a6'); gr.addColorStop(0.16, '#d9c79a'); gr.addColorStop(0.24, '#9db06b'); gr.addColorStop(1, '#86a05c'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-        for (let k = 0; k < 5000; k++) { const y = Math.random() * h; g.fillStyle = y > h * 0.8 ? `rgba(150,130,90,${Math.random() * 0.18})` : `rgba(${60 + Math.random() * 40},${90 + Math.random() * 40},40,${Math.random() * 0.22})`; g.fillRect(Math.random() * w, y, 2, 2); }
+        const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, '#f1ece2'); gr.addColorStop(0.2, '#f4f0e8'); gr.addColorStop(1, '#f6f3ed'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        for (let k = 0; k < 2600; k++) { g.fillStyle = `rgba(120,110,95,${Math.random() * 0.05})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
       });
       const t = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, BACK_V - LAND_V).rotateX(-Math.PI / 2), lit({ map: top, roughness: 0.95 }))); t.position.set(uc, YM, -(LAND_V + BACK_V) / 2); t.receiveShadow = true; root.add(t);
-      const edge = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, YM - (H - 0.009)), lit({ color: 0xcdb98c, roughness: 0.95 }))); edge.position.set(uc, (YM + H - 0.009) / 2, -LAND_V); edge.receiveShadow = true; root.add(edge);
+      const edge = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, YM - (H - 0.009)), lit({ color: 0xe8e2d6, roughness: 0.95 }))); edge.position.set(uc, (YM + H - 0.009) / 2, -LAND_V); edge.receiveShadow = true; root.add(edge);
     }
     // 水面：半透明，透得出下面的沙洲；一层细细的波纹慢慢走
     const waves = tex(256, 256, (g, w, h) => {
@@ -108,7 +108,7 @@ export default {
       g.putImageData(img, 0, 0);
     });
     waves.colorSpace = THREE.NoColorSpace; waves.wrapS = waves.wrapT = THREE.RepeatWrapping; waves.repeat.set(7, 4);
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2c88b4, transparent: true, opacity: 0.5, roughness: 0.12, metalness: 0, normalMap: waves, normalScale: new THREE.Vector2(0.3, 0.3), depthWrite: false }));
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0x9fbcc8, transparent: true, opacity: 0.5, roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, normalMap: waves, normalScale: new THREE.Vector2(0.1, 0.1), depthWrite: false }));
     sea.position.set(uc, 0.0004, -vc); sea.receiveShadow = true; sea.renderOrder = -1; group.add(sea);          // 水面先画：上面的线、角不被水染成别的颜色
     // 数学那一层：比岸顶高一点点，线一直画到灯塔脚下也不会钻进岸里
     const ink = new THREE.Group(); ink.position.y = LAND_H + 0.0003; group.add(ink);
@@ -134,13 +134,7 @@ export default {
 .ins-board .n{display:inline-block;min-width:1.25em;color:#b0532a;font-weight:700}
 .ins-board b{color:#8a2f1d}
 .ins-board i{font-family:"Times New Roman",serif;font-style:italic;letter-spacing:.02em}
-.ins-board .ia{color:#cc6418;font-weight:600}.ins-board .ca{color:#2c6aa8;font-weight:600}
-.ins-punch{position:fixed;inset:0;pointer-events:none;z-index:14}
-.ins-punch .spot{position:absolute;inset:0;opacity:0;transition:opacity .4s;background:radial-gradient(circle at var(--x) var(--y),rgba(30,24,18,0) 0,rgba(30,24,18,0) 110px,rgba(30,24,18,.42) 330px)}
-.ins-punch.on .spot{opacity:1}
-.ins-punch .eq{position:absolute;padding:10px 26px 12px;border-radius:40px;background:radial-gradient(closest-side,rgba(255,252,244,.92),rgba(255,252,244,.75) 60%,rgba(255,252,244,0));transform:translate(-50%,-100%) scale(.8);opacity:0;transition:opacity .28s,transform .4s cubic-bezier(.2,1.5,.4,1);font:600 48px/1.1 "Times New Roman","Songti SC",serif;color:#1d2533;white-space:nowrap;text-shadow:0 0 16px rgba(255,252,244,.98),0 0 5px rgba(255,252,244,.95)}
-.ins-punch.on .eq{opacity:1;transform:translate(-50%,-100%) scale(1)}
-.ins-punch .eq .ia{color:#cc6418}.ins-punch .eq .ca{color:#2c6aa8}`;
+.ins-board .ia{color:#cc6418;font-weight:600}.ins-board .ca{color:#2c6aa8;font-weight:600}`;
     document.head.append(css);
     // 板书：学生做出一样，就用课本的话写一行；只写已经发现的，不预先列出后面要做什么
     let boardEl = null; const boardRows = [];
@@ -150,23 +144,12 @@ export default {
       if (boardEl) { boardEl.append(r); if (!hold) requestAnimationFrame(() => r.classList.add('in', 'fresh')); }
       return r;
     };
-    // 重拍：发现的那一下，在发生的地方出一句式子，周围暗一下；一秒多以后式子飞进板书那一行
-    const punchEl = document.createElement('div'); punchEl.className = 'ins-punch'; punchEl.innerHTML = '<div class="spot"></div><div class="eq"></div>'; document.body.append(punchEl);
-    const spotEl = punchEl.firstChild, eqEl = punchEl.lastChild;
-    let punching = false;
-    function punch(p, html, row, hold = 1700) {
-      const v = new THREE.Vector3(p[0], 0.006, -p[1]); group.updateMatrixWorld(); group.localToWorld(v); v.project(camera);
-      const x = ((v.x + 1) / 2) * innerWidth, y = ((1 - v.y) / 2) * innerHeight;
-      spotEl.style.setProperty('--x', `${x}px`); spotEl.style.setProperty('--y', `${y}px`);
-      eqEl.style.transition = ''; eqEl.style.left = `${x}px`; eqEl.style.top = `${y + 128}px`; eqEl.style.opacity = ''; eqEl.style.transform = ''; eqEl.innerHTML = html;
-      punchEl.classList.add('on'); sfx.ding(1320, { gain: 0.07 }); punching = true; layout();
-      later(hold, () => {
-        punching = false; layout();
-        const r = row?.isConnected ? row.getBoundingClientRect() : null;
-        punchEl.classList.remove('on');
-        if (r && r.width) { eqEl.style.transition = 'left .6s cubic-bezier(.5,0,.25,1),top .6s cubic-bezier(.5,0,.25,1),transform .6s,opacity .6s'; eqEl.style.left = `${r.left + 70}px`; eqEl.style.top = `${r.top + r.height}px`; eqEl.style.transform = 'translate(-50%,-100%) scale(.32)'; eqEl.style.opacity = '0.15'; }
-        later(560, () => { row?.classList.add('in', 'fresh'); eqEl.style.opacity = '0'; });
-      });
+    // 重拍：发现的那一下长在图形上——那块光亮一下、鼓一下，从那一点荡开两圈光；板书上同时长出那一行（不压暗屏幕，不飞大字）
+    const ripples = []; let flashAt = -9;
+    function punch(p, html, row) {
+      void html; flashAt = now(); sfx.ding(1320, { gain: 0.07 });
+      for (const [k, col] of [[0, GOLD], [0.28, BLUE]]) { const m = quiet(new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 72).rotateX(-Math.PI / 2), basic({ color: col, transparent: true, opacity: 0, depthWrite: false }))); m.position.set(p[0], 0.0006, -p[1]); m.userData.born = now() + k; ink.add(m); ripples.push(m); }
+      later(650, () => row?.classList.add('in', 'fresh'));
     }
     const promptNow = () => {
       const n = lanterns.length;
@@ -186,24 +169,24 @@ export default {
     const say = (txt, sub2 = '') => { capNow = [txt, sub2]; subtitle(); const pm = promptNow(); if (pm !== promptKey && ui?.status) { promptKey = pm; ui.status(pm); } };
 
     // ---- 灯塔：白身红箍，站在岸上 ----
-    const stripe = tex(64, 256, (g, w, h) => { for (let i = 0; i < 6; i++) { g.fillStyle = i % 2 ? '#b83a2f' : '#f3f0e8'; g.fillRect(0, (i * h) / 6, w, h / 6 + 1); } });
     const tower = (P) => {
       const g = new THREE.Group(); g.position.copy(P3(P, LAND_H));
-      const foot = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0046, 0.0052, 0.0028, 28), lit({ color: 0x9c968b, roughness: 0.9 }))); foot.position.y = 0.0014;
-      const body = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0026, 0.0037, 0.034, 32), lit({ map: stripe, roughness: 0.55 }))); body.position.y = 0.0028 + 0.017;
-      const gal = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0041, 0.0041, 0.0008, 28), lit({ color: 0x2c3036, roughness: 0.45, metalness: 0.4 }))); gal.position.y = 0.0372;
-      const lamp = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.0038, 20), lit({ color: 0xfff2c8, emissive: 0xffd36e, emissiveIntensity: 0.85, roughness: 0.25 }))); lamp.position.y = 0.0395;
-      const roof = solid(new THREE.Mesh(new THREE.ConeGeometry(0.0031, 0.0040, 28), lit({ color: 0xa23128, roughness: 0.5 }))); roof.position.y = 0.0434;
-      const tip = solid(new THREE.Mesh(new THREE.SphereGeometry(0.0006, 10, 8), lit({ color: 0x2c3036, metalness: 0.4 }))); tip.position.y = 0.0459;
+      const porcelain = lit({ color: 0xf7f4ee, roughness: 0.32 });
+      const foot = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0046, 0.0052, 0.0028, 28), lit({ color: 0xe6e1d7, roughness: 0.9 }))); foot.position.y = 0.0014;
+      const body = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0026, 0.0037, 0.034, 32), porcelain)); body.position.y = 0.0028 + 0.017;
+      const gal = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0041, 0.0041, 0.0008, 28), lit({ color: 0xdcd7cd, roughness: 0.4 }))); gal.position.y = 0.0372;
+      const lamp = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.0038, 20), lit({ color: 0xffe2a6, emissive: 0xffb340, emissiveIntensity: 2.2, roughness: 0.25 }))); lamp.position.y = 0.0395;
+      const roof = solid(new THREE.Mesh(new THREE.ConeGeometry(0.0031, 0.0040, 28), porcelain)); roof.position.y = 0.0434;
+      const tip = solid(new THREE.Mesh(new THREE.SphereGeometry(0.0006, 10, 8), porcelain)); tip.position.y = 0.0459;
       g.add(foot, body, gal, lamp, roof, tip); group.add(g); return g;
     };
     const LH = [tower(B0), tower(C0)];
     // ---- 浮标（圆心）：红色的罐形浮标；该点它的时候，水面上一圈橙色的环一闪一闪 ----
     const buoy = new THREE.Group();
-    { const body = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0032, 0.0039, 0.006, 22), lit({ color: 0xc23a2e, roughness: 0.5 }))); body.position.y = 0.0012;
-      const band = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.00326, 0.00334, 0.0011, 22), lit({ color: 0xf1ede2, roughness: 0.6 }))); band.position.y = 0.0026;
-      const top = solid(new THREE.Mesh(new THREE.ConeGeometry(0.0021, 0.0034, 18), lit({ color: 0xc23a2e, roughness: 0.5 }))); top.position.y = 0.0059;
-      const ring = new THREE.Mesh(new THREE.RingGeometry(0.0074, 0.0092, 48).rotateX(-Math.PI / 2), basic({ color: 0xf08a24, transparent: true, opacity: 0, depthWrite: false })); ring.position.y = 0.0007; ring.raycast = () => {}; ring.userData.noFrame = true;
+    { const body = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0026, 0.0034, 0.006, 22), lit({ color: 0xf5f2ec, roughness: 0.35 }))); body.position.y = 0.0012;
+      const band = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.00266, 0.00276, 0.0011, 22), lit({ color: 0xdcd7cd, roughness: 0.6 }))); band.position.y = 0.0026;
+      const top = solid(new THREE.Mesh(new THREE.SphereGeometry(0.0017, 18, 12), lit({ color: 0xcfe9ff, emissive: 0x3d9cff, emissiveIntensity: 1.1, roughness: 0.2 }))); top.position.y = 0.0058;
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.0074, 0.0092, 48).rotateX(-Math.PI / 2), basic({ color: 0x3d9cff, transparent: true, opacity: 0, depthWrite: false })); ring.position.y = 0.0007; ring.raycast = () => {}; ring.userData.noFrame = true;
       const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.012, 16), basic({ transparent: true, opacity: 0, depthWrite: false })); pick.position.y = 0.006; pick.userData.noFrame = true;
       buoy.add(body, band, top, ring, pick); buoy.userData.halo = ring; }
     buoy.position.copy(P3(O)); group.add(buoy);
@@ -212,52 +195,56 @@ export default {
     { const Lh = 0.0125, Wd = 0.0056, Hh = 0.004, geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute([-Lh, Hh, 0, Lh, Hh, 0, -Lh * 0.55, 0, Wd * 0.5, Lh * 0.55, 0, Wd * 0.5, -Lh * 0.55, 0, -Wd * 0.5, Lh * 0.55, 0, -Wd * 0.5], 3));
       geo.setIndex([0, 2, 3, 0, 3, 1, 0, 1, 5, 0, 5, 4, 2, 4, 5, 2, 5, 3]); geo.computeVertexNormals();
-      const hull = solid(new THREE.Mesh(geo, lit({ color: 0xf6f3ec, roughness: 0.6, side: THREE.DoubleSide })));
+      const hull = solid(new THREE.Mesh(geo, lit({ color: 0xfbf9f4, roughness: 0.4, side: THREE.DoubleSide })));
       const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute([-Lh * 0.5, Hh, 0, Lh * 0.5, Hh, 0, 0.0008, Hh + 0.0112, 0], 3)); sg.computeVertexNormals();
-      const sail = solid(new THREE.Mesh(sg, lit({ color: 0xf2e6cf, roughness: 0.7, side: THREE.DoubleSide })));
+      const sail = solid(new THREE.Mesh(sg, lit({ color: 0xfffdf8, roughness: 0.6, side: THREE.DoubleSide })));
       boat.add(hull, sail); }
     group.add(boat);
 
     // ================= 光、线、角、字 =================
-    // 视线：从船到两座灯塔的两条线（角的两边）
-    const band = () => { const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), basic({ color: 0xd8742a, transparent: true, depthWrite: false, opacity: 0.95 }))); m.position.y = 0.0012; ink.add(m); return m; };
+    // 光带的样子：中间实、两边柔和地淡掉，像投在白模上的光
+    const beamTex = tex(64, 4, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); for (const [o, a] of [[0, 0], [0.18, 0.18], [0.36, 0.75], [0.5, 1], [0.64, 0.75], [0.82, 0.18], [1, 0]]) gr.addColorStop(o, `rgba(255,255,255,${a})`); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+    beamTex.colorSpace = THREE.NoColorSpace;
+    const GOLD = 0xffa526, BLUE = 0x3d9cff;          // 两种光：圆周角那一族是金色，圆心角那一族是蓝色（场景、板书、刻度一致）
+    // 视线：从船到两座灯塔的两条光（角的两边）
+    const band = () => { const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), basic({ color: GOLD, map: beamTex, transparent: true, depthWrite: false, opacity: 1, blending: THREE.AdditiveBlending }))); m.position.y = 0.0012; ink.add(m); return m; };
     const setBand = (m, P, Q, w) => { const d = sub(Q, P), l = Math.hypot(...d); m.position.x = (P[0] + Q[0]) / 2; m.position.z = -(P[1] + Q[1]) / 2; m.rotation.set(0, Math.atan2(d[1], d[0]) - Math.PI / 2, 0); m.scale.set(w, 1, Math.max(1e-4, l)); };
     const BAND = [band(), band()];
     // 细线（绳子、虚线、圆）：贴在水面上的细带子
-    const line = (color, w, y, o = 1, dash = 0) => { const m = quiet(new THREE.Mesh(new THREE.BufferGeometry(), basic({ color, transparent: true, opacity: o, depthWrite: false }))); m.position.y = y; m.userData.w = w; m.userData.dash = dash; ink.add(m); return m; };
+    const line = (color, w, y, o = 1, dash = 0) => { const m = quiet(new THREE.Mesh(new THREE.BufferGeometry(), basic({ color, map: beamTex, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending }))); m.position.y = y; m.userData.w = w * 2.4; m.userData.dash = dash; ink.add(m); return m; };
     const setLine = (m, pts, closed = false) => {
       if (!pts || pts.length < 2) { m.visible = false; return; }
-      const w = m.userData.w / 2, dash = m.userData.dash, out = [], P = closed ? [...pts, pts[0]] : pts;
+      const w = m.userData.w / 2, dash = m.userData.dash, out = [], uvs = [], P = closed ? [...pts, pts[0]] : pts;
       let acc = 0;
-      const push = (p, q, n) => out.push(p[0] + n[0], 0, -(p[1] + n[1]), p[0] - n[0], 0, -(p[1] - n[1]), q[0] + n[0], 0, -(q[1] + n[1]), q[0] + n[0], 0, -(q[1] + n[1]), p[0] - n[0], 0, -(p[1] - n[1]), q[0] - n[0], 0, -(q[1] - n[1]));
+      const push = (p, q, n) => { out.push(p[0] + n[0], 0, -(p[1] + n[1]), p[0] - n[0], 0, -(p[1] - n[1]), q[0] + n[0], 0, -(q[1] + n[1]), q[0] + n[0], 0, -(q[1] + n[1]), p[0] - n[0], 0, -(p[1] - n[1]), q[0] - n[0], 0, -(q[1] - n[1])); uvs.push(0, 0.5, 1, 0.5, 0, 0.5, 0, 0.5, 1, 0.5, 1, 0.5); };
       for (let i = 0; i < P.length - 1; i++) {
         const a = P[i], b = P[i + 1], d = sub(b, a), l = Math.hypot(...d); if (l < 1e-7) continue;
         const n = [(-d[1] / l) * w, (d[0] / l) * w];
         if (!dash) push(a, b, n);
         else { let t = 0; while (t < l - 1e-9) { const ph = (acc + t) % (dash * 2), on = ph < dash, step = Math.max(1e-6, Math.min(l - t, on ? dash - ph : dash * 2 - ph)); if (on) push(add(a, mul(d, t / l)), add(a, mul(d, (t + step) / l)), n); t += step; } acc += l; }
       }
-      m.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(out, 3)); m.geometry = g; m.visible = out.length > 0;
+      m.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(out, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); m.geometry = g; m.visible = out.length > 0;
     };
     const L = {
-      circle: line(0x24324a, 0.001, 0.0016, 0.85, 0.003), OB: line(0x2f6fb4, 0.0009, 0.0015, 0.95), OC: line(0x2f6fb4, 0.0009, 0.0015, 0.95),
-      rope1: line(0x7a4a22, 0.0012, 0.0019), rope2: line(0x7a4a22, 0.0012, 0.0019), tick1: line(0x7a4a22, 0.0012, 0.002), tick2: line(0x7a4a22, 0.0012, 0.002),
-      diam: line(0x4a3c30, 0.0009, 0.0021, 0.9, 0.0025), ext: line(0xcc6418, 0.001, 0.0018, 0.95, 0.0028), ext2: line(0xcc6418, 0.001, 0.0018, 0.95),
-      arcBC: line(0x2f6fb4, 0.0014, 0.0017, 0.95),          // 两座灯塔之间那段弧（在岸上）：圆周角、圆心角对着的就是它
+      circle: line(GOLD, 0.001, 0.0016, 0.95, 0.003), OB: line(BLUE, 0.0009, 0.0015, 1), OC: line(BLUE, 0.0009, 0.0015, 1),
+      rope1: line(0xa67bff, 0.0012, 0.0019), rope2: line(0xa67bff, 0.0012, 0.0019), tick1: line(0xa67bff, 0.0012, 0.002), tick2: line(0xa67bff, 0.0012, 0.002),
+      diam: line(0x8d93a0, 0.0009, 0.0021, 0.95, 0.0025), ext: line(GOLD, 0.001, 0.0018, 1, 0.0028), ext2: line(GOLD, 0.001, 0.0018, 1),
+      arcBC: line(BLUE, 0.0014, 0.0017, 1),          // 两座灯塔之间那段弧（在岸上）：圆周角、圆心角对着的就是它
     };
     // 扇形（一块光）
     const fanM = (color, opacity, y, blend = THREE.NormalBlending) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), basic({ color, transparent: true, opacity, depthWrite: false, blending: blend, side: THREE.DoubleSide })); m.position.y = y; m.userData.noFrame = true; ink.add(m); m.visible = false; return m; };
     const setFan = (m, apex, a0, w, r) => { const n = Math.max(6, Math.ceil(Math.abs(w) / 0.05)), pos = []; for (let i = 0; i < n; i++) { const t0 = a0 + (w * i) / n, t1 = a0 + (w * (i + 1)) / n; pos.push(0, 0, 0, Math.cos(t0) * r, 0, -Math.sin(t0) * r, Math.cos(t1) * r, 0, -Math.sin(t1) * r); } m.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); m.geometry = g; m.position.x = apex[0]; m.position.z = -apex[1]; m.visible = true; };
-    const F = { ship: fanM(0xf2a048, 0.42, 0.0013), buoy: fanM(0x5a97d8, 0.32, 0.0012), sub1: fanM(0xffe7b0, 0.5, 0.0017), sub2: fanM(0xbfeaff, 0.5, 0.0016), q: fanM(0xffcf7a, 0.42, 0.0013, THREE.AdditiveBlending), x: fanM(0xff9b4a, 0.6, 0.0017) };
+    const F = { ship: fanM(GOLD, 0.38, 0.0013, THREE.AdditiveBlending), buoy: fanM(BLUE, 0.34, 0.0012, THREE.AdditiveBlending), sub1: fanM(0xffd08a, 0.55, 0.0017), sub2: fanM(0x9fd0ff, 0.55, 0.0016), q: fanM(GOLD, 0.34, 0.0013), x: fanM(0xff8a3d, 0.5, 0.0017) };
     for (const k in F) F[k].raycast = () => {};
     // 能拿起来拖的光扇（剪下来的、证明里的两个底角）
-    const chips = [0xec8a26, 0xf6b45e].map((c) => fanM(c, 0.9, 0.0024));
+    const chips = [0xff9a1a, 0xffc35c].map((c) => fanM(c, 0.92, 0.0024));
     // 字：朝着镜头的牌子（先量字宽再画）
     const measure = (font, txt) => { const g = document.createElement('canvas').getContext('2d'); g.font = font; return g.measureText(txt).width; };
     // 字：和课本插图一样——字母用斜体，度数、名称用宋体；白色描边垫底，压在水面、线上也认得出
-    const labTex = (txt, col, px = 64) => { const f = /^[A-Z]$/.test(txt) ? `italic 500 ${px * 1.08}px "Times New Roman",serif` : `600 ${px}px "Times New Roman","Songti SC","STSong",serif`; return tex(Math.ceil(measure(f, txt)) + 40, Math.round(px * 1.5), (g, w, h) => { g.font = f; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = px * 0.22; g.strokeStyle = 'rgba(255,252,245,0.94)'; g.strokeText(txt, w / 2, h / 2 + 2); g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 2); }); };
+    const labTex = (txt, col, px = 64) => { const f = /^[A-Z]$/.test(txt) ? `italic 500 ${px * 1.08}px "Times New Roman",serif` : `600 ${px}px "Times New Roman","Songti SC","STSong",serif`; return tex(Math.ceil(measure(f, txt)) + 40, Math.round(px * 1.5), (g, w, h) => { g.font = f; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = px * 0.1; g.strokeStyle = 'rgba(255,253,248,0.8)'; g.strokeText(txt, w / 2, h / 2 + 2); g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 2); }); };
     const label = (hgt) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }))); sp.renderOrder = 20; sp.userData.h = hgt; sp.userData.k = ''; ink.add(sp); sp.visible = false; return sp; };
     const setLabel = (sp, txt, col, p, y = 0.008) => { if (!txt) { sp.visible = false; return; } const k = txt + col; if (sp.userData.k !== k) { sp.userData.k = k; const t = labTex(txt, col); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; sp.scale.set((sp.userData.h * t.image.width) / t.image.height, sp.userData.h, 1); } sp.position.set(p[0], y, -p[1]); sp.visible = true; };
-    const LB = { ship: label(0.013), buoy: label(0.011), q: label(0.009), a: label(0.0095), o: label(0.0095), b: label(0.0095), c: label(0.0095), d: label(0.0095), arc: label(0.0082) };
+    const LB = { ship: label(0.013), buoy: label(0.011), q: label(0.009), a: label(0.0095), o: label(0.0095), b: label(0.0095), c: label(0.0095), d: label(0.0095), arc: label(0.0082), w0: label(0.0105), w1: label(0.0105) };
     // 海面上的批注（船长在海图上写的）：躺在水面上的手写字
     const NF = '600 46px "Kaiti SC","STKaiti",serif';
     const noteTex = (txt) => tex(Math.ceil(measure(NF, txt)) + 48, 76, (g, w, h) => { g.font = NF; g.textBaseline = 'middle'; g.shadowColor = 'rgba(4,14,28,0.95)'; g.shadowBlur = 12; g.fillStyle = 'rgba(248,236,206,0.96)'; g.fillText(txt, 24, h / 2 + 2); g.shadowBlur = 4; g.fillText(txt, 24, h / 2 + 2); });
@@ -266,11 +253,11 @@ export default {
     const noteOld = (txt, p) => { const t = noteTex(txt), hgt = 0.0084; const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry((hgt * t.image.width) / t.image.height, hgt).rotateX(-Math.PI / 2), basic({ map: t, transparent: true, depthWrite: false, opacity: 0 }))); m.position.set(p[0], 0.0021, -p[1]); m.userData.born = now(); m.userData.txt = txt; group.add(m); notes.push(m); return m; };
     // 河灯
     const lanterns = [];
-    const flagMat = lit({ color: 0xe8743b, roughness: 0.6, side: THREE.DoubleSide }), poleMat = lit({ color: 0x3b3833, roughness: 0.6 });
+    const flagMat = lit({ color: 0xffb13d, emissive: 0xff9a1f, emissiveIntensity: 0.35, roughness: 0.5, side: THREE.DoubleSide }), poleMat = lit({ color: 0xd8d2c6, roughness: 0.6 }), floatMat = lit({ color: 0xf7f4ee, roughness: 0.4 });
     const flagGeo = new THREE.BufferGeometry(); flagGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.0013, 0, 0, -0.0013, 0, 0.0034, 0, 0], 3)); flagGeo.computeVertexNormals();
     const dropLantern = (p) => {
       if (lanterns.some((l) => dist(l.p, p) < 0.011)) return;
-      const g = new THREE.Group(), body = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0018, 0.0022, 14), flagMat)); body.position.y = 0.0006;
+      const g = new THREE.Group(), body = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0018, 0.0022, 14), floatMat)); body.position.y = 0.0006;
       const pole = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0002, 0.0002, 0.0072, 6), poleMat)); pole.position.y = 0.0044;
       const flag = solid(new THREE.Mesh(flagGeo, flagMat)); flag.position.set(0.0002, 0.0068, 0); flag.rotation.y = Math.atan2(p[1] - O[1], p[0] - O[0]);
       g.add(body, pole, flag); g.position.copy(P3(p)); g.userData.born = now(); group.add(g); lanterns.push({ p, g, body });
@@ -351,14 +338,14 @@ export default {
     function layout() {
       const A = S.ship, th = theta(), z = zone();
       boat.position.copy(P3(A)); boat.rotation.y = S.head;
-      setBand(BAND[0], B0, A, 0.0013); setBand(BAND[1], C0, A, 0.0013);
+      setBand(BAND[0], B0, A, 0.0034); setBand(BAND[1], C0, A, 0.0034);
       setFan(F.ship, A, ccwStart(A, B0, C0), th, 0.018);
-      setLabel(LB.ship, S.walked && z === 'on' ? `圆周角 ${fmt(th)}` : fmt(th), z === 'in' ? '#c2352a' : z === 'out' ? '#2e7d4f' : '#c55f14', bis(A, B0, C0, 0.03), 0.01);
+      setLabel(LB.ship, fmt(th), z === 'in' ? '#c2352a' : z === 'out' ? '#2e7d4f' : '#c27412', bis(A, B0, C0, 0.03), 0.01);
       // 圆（从 B 经过最下面画到 C）、浮标的角
       setLine(L.circle, S.circle > 0 ? arcPts(O, R, AB, AB + (AC - AB) * easeOut(S.circle), 160) : null);
       const bk = S.buoy;
       setLine(L.OB, bk ? [O, B0] : null); setLine(L.OC, bk ? [O, C0] : null);
-      if (bk) { setFan(F.buoy, O, ccwStart(O, B0, C0), central(), 0.028); setLabel(LB.buoy, `圆心角 ${fmt(central())}`, '#2c64a4', bis(O, B0, C0, 0.041), 0.01); } else { F.buoy.visible = false; LB.buoy.visible = false; }
+      if (bk) { setFan(F.buoy, O, ccwStart(O, B0, C0), central(), 0.028); setLabel(LB.buoy, fmt(central()), '#2470c2', bis(O, B0, C0, 0.036), 0.01); } else { F.buoy.visible = false; LB.buoy.visible = false; }
       // 证明：一束光照过浮标时——浮标到船、到另一座灯塔的两根绳子（都是半径）
       const pf = S.proof;
       if (pf) {
@@ -390,7 +377,7 @@ export default {
       contour.visible = S.family > 0; contour.material.uniforms.k.value = easeOut(S.family);
       [20, 30, 60, 90].forEach((d, i) => { const p = S.family > 0.5 ? conAt(d) : null; if (p) setLabel(conLabs[i], `${d}°`, d === 90 ? '#2c64a4' : '#5a4a3a', p, 0.006); else conLabs[i].visible = false; });
       if (S.family > 0.5) setLabel(conDanger, `危险角 ${fmt(DANGER)}`, '#c55f14', [O[0] - R - 0.024, O[1] - 0.01], 0.006); else conDanger.visible = false;
-      if (punching) LB.ship.visible = LB.buoy.visible = false;
+      chips.forEach((c, i) => { const u = c.userData, on = c.visible && u?.pa0 != null && S.cut.length === 2 && !S.proof && held < 0; if (on) setLabel(LB['w' + i], fmt(u.w), '#c27412', add(O, mul([Math.cos(u.pa0 + u.w / 2), Math.sin(u.pa0 + u.w / 2)], 0.019)), 0.006); else LB['w' + i].visible = false; });
       K.ship.position.copy(P3(A, 0.004)); K.cut.position.copy(P3(bis(A, B0, C0, 0.012), 0.0042));
       if (S.mode === 'deck') {
         for (const sp of [...Object.values(LB), ...conLabs, conDanger]) sp.visible = false;
@@ -481,12 +468,12 @@ export default {
       if (held < 0) return; const i = held, c = chips[i], u = c.userData, q = [c.position.x, -c.position.z]; held = -1;
       if (dist(q, O) > 0.03) { c.position.set(u.home[0], 0.0024, -u.home[1]); if (u.kind === 'cut') c.visible = false; return; }
       const list = u.kind === 'cut' ? S.cut : S.proof.placed, prev = list.reduce((s2, k) => s2 + chips[k].userData.w, 0);
-      setFan(c, O, ccwStart(O, B0, C0) + prev, u.w, 0.028); c.position.y = 0.0026;
+      setFan(c, O, ccwStart(O, B0, C0) + prev, u.w, 0.028); c.position.y = 0.0026; u.pa0 = ccwStart(O, B0, C0) + prev;
       list.push(i); sfx.clink({ freq: 1600, gain: 0.05 });
       if (list.length === 2) {
         const diff = chips[list[0]].userData.w + chips[list[1]].userData.w - central();
         if (u.kind === 'cut') {
-          if (Math.abs(diff) < 0.01) { const row = board(`<span class="n">4</span>发现：<i>∠BAC</i> = ½<i>∠BOC</i>（<span class="ia">${fmt(DANGER)}</span> + <span class="ia">${fmt(DANGER)}</span> = <span class="ca">${fmt(central())}</span>）`, true); punch(O, `<span class="ia">${fmt(DANGER)}</span> + <span class="ia">${fmt(DANGER)}</span> = <span class="ca">${fmt(central())}</span>`, row); later(1800, () => { if (!S.proof) { chips.forEach((x) => (x.visible = false)); layout(); } }); }
+          if (Math.abs(diff) < 0.01) { const row = board(`<span class="n">4</span>发现：<i>∠BAC</i> = ½<i>∠BOC</i>（<span class="ia">${fmt(DANGER)}</span> + <span class="ia">${fmt(DANGER)}</span> = <span class="ca">${fmt(central())}</span>）`, true); punch(O, '', row); later(3600, () => { if (!S.proof) { chips.forEach((x) => (x.visible = false)); layout(); } }); }
           else { note(diff > 0 ? '拼多了：船不在圆上' : '没拼满：船不在圆上', add(O, [0.024, -0.0195])).userData.fade = now() + 1.4; later(2200, () => { S.cut = []; chips.forEach((x) => (x.visible = false)); layout(); story(); }); }
         } else {
           S.proofDone = true; { const x = nm(S.proof.other), row = board(`<span class="n">5</span>证明（1）圆心在边上：<i>OA</i> = <i>O${x}</i> ⇒ <i>∠A</i> = <i>∠${x}</i>；<i>∠BOC</i> = <i>∠A</i> + <i>∠${x}</i> = 2<i>∠A</i>`, true); punch(O, '<i>∠BOC</i> = 2<i>∠A</i>', row); }
@@ -571,10 +558,12 @@ export default {
       view: { elev: 47, azim: 0, lookY: 0.03, frameMargin: 1.02 },
       pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'ins-board'; u.controls?.append(boardEl); for (const r of boardRows) { boardEl.append(r); r.classList.add('in'); } promptKey = ''; say(...capNow); },
-      dispose() { dead = true; removeEventListener('keydown', onKey); subEl.remove(); punchEl.remove(); css.remove(); },
+      dispose() { dead = true; removeEventListener('keydown', onKey); subEl.remove(); css.remove(); },
       update() {
         const t = now();
         settle();
+        for (let i = ripples.length - 1; i >= 0; i--) { const m = ripples[i], a = t - m.userData.born; if (a < 0) continue; if (a > 1.4) { ink.remove(m); m.geometry.dispose(); ripples.splice(i, 1); continue; } m.scale.setScalar(0.006 + a * 0.085); m.material.opacity = 0.85 * (1 - a / 1.4); }
+        { const a = t - flashAt, k = a >= 0 && a < 0.9 ? Math.sin((Math.PI * a) / 0.9) : 0; chips.forEach((c) => { if (c.visible && held < 0 && c.userData?.pa0 != null) c.scale.setScalar(1 + 0.16 * k); else c.scale.setScalar(1); }); }
         if (S.mode === 'deck' && chartRoll.visible) { rollAt(camera); const k = clamp((t - deckT0 - 0.6) / 0.5, 0, 1); chartRoll.traverse((o) => { if (o.material) o.material.opacity = k; }); }
         waves.offset.x = (t * 0.004) % 1; waves.offset.y = Math.sin(t * 0.3) * 0.004;
         void LH;
