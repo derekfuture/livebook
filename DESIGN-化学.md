@@ -2,15 +2,14 @@
 
 先守 QUALITY.md。下面是化学自己的标准，初中、高中都用这一份。拿不准时，打开文中点名的初中样板课对照。
 
-## 最重要的五条
+## 最重要的四条
 
 1. **内容对**：知识、步骤、数值和结论原文都和课本一致，这是第一位。
 2. **像真的手在做**：器材跟着手走，放到位才算；没放到位就松手，器材很快放回原处。不能是点一下就自己播一段动画。
 3. **看得见**：现象在画面里就看得出来；钻进去看时，看得清粒子怎样结合、怎样变。
 4. **界面轻**：卡片小，标签少；做错了就说后果和怎么办，不下评判。
-5. **先做一两课给作者看，再铺开**：每课都和初中样板课并排比。
 
-下面是这五条的细则。
+下面是这四条的细则。
 
 ## 一、外壳
 
@@ -61,22 +60,6 @@
 
 ## 六、检查
 
-- **每课单独跑，过了才提交**（端口用 `LB_PORT`）：
-  - `tools/qa.mjs <id> --flow --shots --demo --mouse`；
-  - `tools/followprobe.mjs <id>`，和样板课比跟手；
-  - `tools/flowshot.mjs <id> --upto=<步骤>`，逐张看钻进去看；
-  - `tools/quote_check.py`；
-  - `tools/smoke.mjs`；
-  - `tools/webkit-smoke.mjs`。
-- **自己看**：全尺寸截图和样板课并排比；别人新加的面向学生的文字，逐条读一遍。
-- **作者指出一个问题**：改掉 → 全书查同类问题 → 在这份文件里补一条原则（写原则，不写那一个案例）。
-
-## 七、交给别人做事时说的话
-
-**做课、改课的子代理**（opus，high；一课一个，同时最多 3–4 个）：
-> 先读 QUALITY.md 和 DESIGN-化学.md，打开文中的初中样板课对照。只改你那一课的文件（和它自己的 kit/<id>-parts.js），公共件不改现有行为；不加课本没有的东西。照第六节自己检查，不 commit。报告写做了什么、检查结果，并列出所有新加或改动的面向学生的文字。
-
-**codex 审稿**（`codex exec -m gpt-6.2-sol -c model_reasoning_effort="high" --dangerously-bypass-approvals-and-sandbox -C <工作区> -o <报告> "<下面的话>" < /dev/null`，每课只审一次）：
-> 只读，不改文件。审 <id>（书 <书 id>，开发服务器 http://127.0.0.1:<端口>/?book=<书 id>#live=<id>），标准是 QUALITY.md 和 DESIGN-化学.md。只审两样：内容对不对（知识、步骤、数值、画面、钻进去看的粒子、结论原文；课本 PDF 用 tools/pdf_paths.py 找，页序 = 印刷页码 + 4），学生用真鼠标能不能做完（先用 tools/qa.mjs --mouse、flowshot、followprobe）。最多报 5 条，按会不会教错、能不能做下去排序，写位置、问题、依据、怎么改；边界情况不会教错的，最后列一句“以后再做”。
-
-收到审稿，我先分诊：会教错的、做不下去的、和课本不符的改；其余记下。小改动我自己改。
+- **脚本都过**（每课单独跑）：`tools/qa.mjs <id> --flow --shots --demo --mouse`、`tools/followprobe.mjs`（和样板课比跟手）、`tools/flowshot.mjs`（逐张看钻进去看）、`tools/quote_check.py`、`tools/smoke.mjs`、`tools/webkit-smoke.mjs`。
+- **全尺寸看过**：和样板课并排比；面向学生的文字逐条读过。
+- **审稿**：见 `docs/reviews/化学-审核.md`。
