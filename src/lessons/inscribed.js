@@ -301,17 +301,17 @@ export default {
 
     // ================= 光写的字：写在图形下面那一条水上，像投影打在模型上 =================
     const CAP_V = SEA.v0 + 0.0255, CAP_W = 0.31;          // CAP_TOP 在文件开头
-    const capMesh = quiet(new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), basic({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 })));
+    // 字是印在模型上的墨色（不是发光的）：白模上亮字一叠加就发白刺眼；墨色字底下垫一圈很淡的亮边，压在波纹上也清楚
+    const capMesh = quiet(new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), basic({ transparent: true, depthWrite: false, opacity: 0 })));
     capMesh.position.set(0, 0.0009, -CAP_V); capMesh.renderOrder = 6; capMesh.visible = false; ink.add(capMesh);
     const cap = { key: '', born: -9, out: 1e9, next: null };
-    const ASK = '#fff4dc', GOLDTXT = '#ffc35a', BLUETXT = '#7cc4ff';
+    const ASK = '#26231f', GOLDTXT = '#a4520a', BLUETXT = '#1c5aa3';
     const capTex2 = (big, small, col) => tex(2048, 300, (g, W) => {
-      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
       const fitF = (txt, px, weight, maxW) => { for (let f = px; f >= 28; f -= 4) { g.font = `${weight} ${f}px "Songti SC","STSong","Times New Roman",serif`; if (g.measureText(txt).width <= maxW) return; } };
-      fitF(big, 118, 700, W - 90);
-      g.shadowColor = col; g.shadowBlur = 30; g.fillStyle = col; g.fillText(big, W / 2, 108); g.shadowBlur = 8; g.fillText(big, W / 2, 108);
-      g.shadowBlur = 0; g.globalAlpha = 0.55; g.fillStyle = '#fffaf0'; g.fillText(big, W / 2, 108); g.globalAlpha = 1;
-      if (small) { fitF(small, 62, 500, W - 140); g.shadowColor = '#e8f1ff'; g.shadowBlur = 14; g.fillStyle = '#eef4ff'; g.fillText(small, W / 2, 228); }
+      const inked = (txt, y, fill, halo) => { g.shadowColor = 'rgba(246,250,252,0.9)'; g.shadowBlur = halo; g.lineWidth = halo * 0.7; g.strokeStyle = 'rgba(246,250,252,0.42)'; g.strokeText(txt, W / 2, y); g.shadowBlur = 0; g.fillStyle = fill; g.fillText(txt, W / 2, y); };
+      fitF(big, 112, 700, W - 90); inked(big, 108, col, 16);
+      if (small) { fitF(small, 60, 500, W - 140); inked(small, 226, '#3b3934', 11); }
     });
     // 换一句：旧的先淡出，再写新的
     function lightText(big, small = '', col = ASK) {
