@@ -201,7 +201,7 @@ export default {
     ], { tip: tag('', 'pill'), taps: [{ obj: lampPick, hint: () => (S.lampK > 0.5 ? '酒精灯：点一下放回坩埚下面加热' : !S.lit ? '酒精灯：点一下，取下灯帽点燃' : '酒精灯：点一下撤掉（挪开、盖灭）'), onTap: () => A_.tapLamp() }] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: sodiumBurnScene(), at: () => V(CX, RING_Y + 0.03, CZ), btnAt: () => V(CX + 0.042, RING_Y + 0.03, CZ), label: '钻进去看',
-      state: () => ({ burning: S.burning > 0 || S.burned > 0 }), key: () => String(S.burning > 0 || S.burned > 0), show: () => S.inCru, bar: () => bar, scale: 0.0075, lookD: [0.02, 0.25, 1], dist: 0.24 });
+      state: () => ({ burning: S.burning > 0, melt: S.melt, x: S.burned + S.left > 0 ? S.burned / (S.burned + S.left) : 0 }), key: () => '', show: () => S.inCru, bar: () => bar, scale: 0.0075, lookD: [0.02, 0.62, 1], dist: 0.24 });          // 从斜上方往下看钠的表面：前后两排分得开
 
     const lampTapAct = (when) => { let fired = false; return (k) => { if (k < 0.03) { fired = false; return; } if (!fired && when(k)) { fired = true; drag.items().find((d) => d.obj === lampPick)?.onTap?.(); } }; };
     // 演示：手拿着器材拖过去（学生拖动的同一套处理）；点是器材该到的面上的点

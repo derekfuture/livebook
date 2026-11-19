@@ -313,41 +313,82 @@ export function alkaliScene() {
 // 两个钠原子各交出最外层的 1 个电子给一个 O₂ 分子 → 2 个 Na⁺ 和 1 个过氧根 O₂²⁻（两个氧原子还连着，氧是 −1 价）——淡黄色的 Na₂O₂。
 // 借 Na⁺ 的球画中性的钠（和 sodiumScene 一样只换标签）。st.burning：坩埚里的钠烧起来了没有。
 export function sodiumBurnScene() {
-  const rx = { in: ['Na+', 'Na+', 'O2'], out: ['Na+', 'Na+', 'O2 2-'], host: 2,
-    near: [[-2.3, 0, 0], [2.3, 0, 0], null], place: [[-2.5, 0, 0], [2.5, 0, 0], [0, 0, 0]],
-    map: [[0, 0], [1, 0], [2, 0], [2, 1]], after: [{}, {}, {}], approach: 1, dur: 2.2 };
-  let age = 0, reactants = [], electrons = [], started = false, finished = false;
+  // 照初中红磷燃烧（airScene）、木炭还原氧化铜（cuoScene）的做法：
+  // 坩埚里熔化的钠是金属——一个个钠原子紧挨着（4 × 2）；上面是空气（O₂、N₂）。燃烧时 O₂ 一个接一个落到钠表面：
+  // 两个钠原子各交出 1 个电子（小深色点飞向 O₂）→ 钠原子变成 Na⁺、O₂ 变成过氧根 O₂²⁻（两个氧还连着）→ 三个离子靠拢、吸在一起，
+  // 留在原地。反应几组跟着这一课算出来的燃烧进度走，从左往右推进：左边成了 Na₂O₂、右边还是钠，一眼看得出变化。
+  // 同一种原子到哪儿都是一个颜色、一个大小（Na 和 Na⁺ 只是标签不同）；宏观的淡黄色只写在字幕里。
+  const SP = 1.9, DZ = 3.2, Y0 = 0.6, NO2 = 3, NN2 = 5;
+  const sites = [];
+  for (let r = 0; r < 2; r++) for (let q = 0; q < 4; q++) sites.push({ q, r, p: new THREE.Vector3((q - 1.5) * SP, Y0, (r - 0.5) * DZ) });
+  const pairs = [];
+  for (let r = 0; r < 2; r++) for (const q of [0, 2]) pairs.push({ A: sites.find((s) => s.q === q && s.r === r), B: sites.find((s) => s.q === q + 1 && s.r === r) });
+  pairs.sort((u, v) => (u.A.p.x * 10 - u.A.p.z) - (v.A.p.x * 10 - v.A.p.z));          // 从左往右（同一列先前面）
+  const NEV = pairs.length;
+  const spots = (P) => { const mid = P.A.p.clone().lerp(P.B.p, 0.5); return { mid, out: [P.A.p.clone().add(new THREE.Vector3(-0.3, 0.15, 0)), P.B.p.clone().add(new THREE.Vector3(0.3, 0.15, 0)), mid.clone().add(new THREE.Vector3(0, 0.85, 0))] }; };
+  const atSite = (c, p) => c.mols.find((m) => m.kind === 'Nam' && !m.busy && (m.home || m.g.position).distanceTo(p) < 0.05);
+  let made = 0, ev = null;
+  const dots = [];
+  const clearDots = () => { for (const d of dots) { d.parent?.remove(d); d.geometry.dispose(); d.material.dispose(); } dots.length = 0; };
+  const convert = (c, P) => {          // 打开时已经烧了一部分：直接摆好生成的离子
+    const { out } = spots(P), a = atSite(c, P.A.p), b = atSite(c, P.B.p); if (!a || !b) return null;
+    c.remove(a); c.remove(b);
+    return [c.add('Na+', out[0], { fixed: true }), c.add('Na+', out[1], { fixed: true }), c.add('O2 2-', out[2], { fixed: true })];
+  };
+  const markRep = (c, ps) => { if (!c.mols.some((m) => m.rep && m.kind === 'O2 2-')) ps.forEach((m) => { m.rep = true; }); };
   return {
-    labels: 'always', dim: 0.8,
-    init(c) {
-      age = 0; started = false; finished = false; reactants = []; electrons = [];
-      c.view.film = 0.02; c.view.paper = 0xf3eee2;
-      for (const x of [-2.6, 2.6]) {
-        const m = c.add('Na+', c.V([x, 1.8, 0]), { fixed: true });
-        m.label.material.map.dispose(); m.label.material.map = canvasTex(256, 96, (g) => { g.fillStyle = '#6d45b8'; g.font = '600 54px Times New Roman'; g.textAlign = 'center'; g.fillText('Na', 128, 62); });
-        const e = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshBasicMaterial({ color: 0x46505a })); e.position.set(0, 0.9, 0); m.g.add(e); electrons.push(e); reactants.push(m);
-      }
-      const o2 = c.add('O2', c.V([0, 2.6, 0]), { fixed: true }); o2.g.rotation.set(0, 0, 0); reactants.push(o2);
+    solid: true, still: true,
+    labels: (k, m) => k === 'O2' || !!m.rep, labelOnly: (k, m) => k === 'O2' || !!m.rep,          // 只标空气里的 O₂、一个钠原子、第一组 Na⁺ 和 O₂²⁻
+    init(c, st) {
+      made = 0; ev = null; clearDots();
+      c.view.film = 0; c.view.paper = null;
+      for (const s of sites) c.add('Nam', s.p.clone(), { fixed: true });
+      for (let i = 0; i < NO2; i++) c.add('O2', c.inGas(), { gas: true });
+      for (let i = 0; i < NN2; i++) c.add('N2', c.inGas(), { gas: true });
+      const n = Math.round((st?.x || 0) * NEV);
+      for (let k = 0; k < n; k++) { const ps = convert(c, pairs[k]); if (ps) { made++; markRep(c, ps); } }
+      const rep = c.mols.filter((m) => m.kind === 'Nam').sort((u, v) => (v.g.position.x - v.g.position.z) - (u.g.position.x - u.g.position.z))[0]; if (rep) rep.rep = true;          // 右前方那个钠原子标“Na”（最后才反应）
     },
     step(c, st, dt) {
-      if (!st?.burning) return;
-      age += dt;
-      if (!started) {
-        electrons.forEach((e, i) => { e.position.copy(c.V([0, 0.9, 0]).lerp(reactants[2].g.position.clone().sub(reactants[i].g.position).add(c.V([i ? 0.5 : -0.5, 0, 0])), Math.min(1, age / 2.2))); });
-        if (age > 2.2) {
-          started = true;
-          for (const e of electrons) { e.parent.remove(e); e.geometry.dispose(); e.material.dispose(); }
-          c.start(rx, reactants, { then: () => { finished = true; } });
+      c.view.film = 0; c.view.paper = null;
+      // 熔化、燃烧时钠原子在原地抖得厉害
+      const jig = st?.burning ? 0.06 : st?.melt >= 1 ? 0.035 : 0.008;
+      for (const m of c.mols) if (m.fixed && !m.busy && m.kind === 'Nam') { m.home = m.home || m.g.position.clone(); m.g.position.copy(m.home).add(c.V([c.rnd(-jig, jig), c.rnd(-jig, jig), c.rnd(-jig, jig)])); }
+      // 空气从旁边补进来
+      if (c.count('O2') < NO2 && Math.random() < dt * 1.5) { const a = c.rnd(0, 6.3); c.add('O2', c.V([Math.cos(a) * 5, c.rnd(2.5, 4.5), Math.sin(a) * 5]), { gas: true }); }
+      const want = Math.round((st?.x || 0) * NEV);
+      if (!ev && made < Math.max(want, st?.burning ? Math.min(NEV, made + 1) : 0)) {
+        const P = pairs.find((Q) => atSite(c, Q.A.p) && atSite(c, Q.B.p));
+        const o2 = P && c.free('O2').sort((u, v) => u.g.position.y - v.g.position.y)[0];
+        if (P && o2) {
+          const a = atSite(c, P.A.p), b = atSite(c, P.B.p); [a, b].forEach((m) => { if (m.home) m.g.position.copy(m.home); });
+          const { mid, out } = spots(P);
+          const e = c.start({ in: ['Nam', 'Nam', 'O2'], out: ['Na+', 'Na+', 'O2 2-'], host: -1, approach: 2.2, dur: 1.8, burst: [0xffd27a],
+            atAbs: () => mid.clone().add(c.V([0, 0.85, 0])), nearAbs: (ms, i) => (i === 2 ? mid.clone().add(c.V([0, 1.9, 0])) : null),
+            placeAbs: () => out, after: [{ fixed: true }, { fixed: true }, { fixed: true }] }, [a, b, o2],
+          { then: (ps) => { made++; ev = null; clearDots(); markRep(c, ps); c.burst(out[2].clone(), 0xfff0b0); } });
+          if (e) {
+            ev = { e, from: [a.g.position.clone().add(c.V([0, 0.5, 0])), b.g.position.clone().add(c.V([0, 0.5, 0]))], o2 };
+            for (let i = 0; i < 2; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), new THREE.MeshBasicMaterial({ color: 0x2a2f38 })); d.visible = false; c.layer.add(d); dots.push(d); }
+          }
         }
+      }
+      // 电子：O₂ 快落到钠表面时，两个钠原子各交出 1 个电子，飞到 O₂ 上
+      if (ev && dots.length) {
+        const { e, from, o2 } = ev, k = e.t / e.A;
+        dots.forEach((d, i) => { d.visible = k > 0.45 && k < 1; const u = Math.min(1, Math.max(0, (k - 0.45) / 0.5)); d.position.copy(from[i]).lerp(o2.g.position.clone().add(c.V([i ? 0.5 : -0.5, 0, 0])), u * u * (3 - 2 * u)); });
       }
     },
     text(c, st) {
       const eq = '2Na + O<sub>2</sub> <span class="arr" style="position:relative">══<span style="position:absolute;left:0;right:0;top:-0.75em;font-size:0.45em;text-align:center">△</span></span> Na<sub>2</sub>O<sub>2</sub>';
-      if (!st?.burning) return { eq: '', on: false, cap: '坩埚里的钠还没烧起来。钠熔化、燃烧以后再钻进去看。' };
-      return { eq, on: true,
-        cap: !started ? '每个钠原子交出最外层的 1 个电子（小深色点），交给氧分子。<b>Na：0 → +1</b>，被氧化。'
-          : !finished ? '钠变成 Na⁺；O₂ 得到 2 个电子，变成<b>过氧根 O₂²⁻</b>——两个氧原子还连着（氧是 −1 价）。'
-            : 'Na⁺ 和 O₂²⁻ 按 2 : 1 结合，就是淡黄色的过氧化钠 Na₂O₂。（常温下钠表面生成的是 Na₂O，里面是 O²⁻。）<b>慢放示意，不表示真实的反应步骤。</b>' };
+      const e = ev?.e, k = e ? e.t / e.A : 0;
+      const cap = !st?.burning && !made ? (st?.melt >= 1 ? '钠熔化了：钠原子抖得厉害，但还没烧起来。上面是空气——O₂ 和 N₂。' : '坩埚里是金属钠：一个个<b>钠原子</b>紧挨着。上面是空气——O₂ 和 N₂。钠燃烧以后，看氧分子落下来会怎样。')
+        : e && k < 0.45 ? '一个 O₂ 落向钠的表面……'
+          : e && k < 1 ? '两个钠原子各交出<b>最外层的 1 个电子</b>（小深色点），交给这个 O₂。<b>Na：0 → +1</b>，被氧化。'
+            : e ? '钠原子成了 <b>Na⁺</b>，O₂ 得到 2 个电子成了<b>过氧根 O₂²⁻</b>（两个氧还连着，氧是 −1 价）——正负电荷相吸，<b>三个离子靠拢、结合在一起</b>。'
+              : made >= NEV || (!st?.burning && made) ? `钠表面已经有 <b>${made}</b> 组 Na⁺ 和 O₂²⁻ 按 2∶1 结合在一起——这就是坩埚里的<b>淡黄色固体 Na₂O₂</b>。（常温下钠表面生成的是 Na₂O，里面是 O²⁻。）<b>慢放示意，不表示真实的反应步骤。</b>`
+                : `已经有 <b>${made}</b> 组 Na⁺ 和 O₂²⁻ 结合在一起（左边），右边还是钠原子。`;
+      return { eq, on: !!(st?.burning || made), cap };
     },
   };
 }

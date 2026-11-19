@@ -42,6 +42,7 @@ const MOL = {
   'H+': { atoms: [['H', 0, 0, 0]], bonds: [], label: 'H⁺', ink: '#c23a52', glow: 0xff6a6a, glowBase: 0.35, glowSize: 2.2 },
   'OH-': { atoms: [['O', 0, 0, 0], ['H', 0.96, 0, 0]], bonds: [[0, 1, 1]], label: 'OH⁻', ink: '#2f6fb8', glow: 0x6aa8ff, glowBase: 0.3, glowSize: 3 },
   'Na+': { atoms: [['Na', 0, 0, 0]], bonds: [], label: 'Na⁺', ink: '#6d45b8' },
+  Nam: { atoms: [['Na', 0, 0, 0]], bonds: [], label: 'Na', ink: '#6d45b8' },          // 金属钠里的钠原子：和 Na⁺ 一个颜色、一个大小（同一种原子到哪儿都一样），只是还没交出电子
   'Cl-': { atoms: [['Cl', 0, 0, 0]], bonds: [], label: 'Cl⁻', ink: '#2e8a45' },
   Cl2: { atoms: [['Cl', -1.0, 0, 0], ['Cl', 1.0, 0, 0]], bonds: [[0, 1, 1]], label: 'Cl₂', ink: '#7d8f0c' },          // 氯气（黄绿色）：Cl–Cl 键长 1.99 Å
   HClO: { atoms: [['O', 0, 0, 0], ['H', -0.751, 0.598, 0], ['Cl', 1.33, 1.058, 0]], bonds: [[0, 1, 1], [0, 2, 1]], label: 'HClO', ink: '#8a3fb0', glow: 0xb07af0, glowBase: 0.4, glowSize: 3.2 },          // 次氯酸 H–O–Cl：O–H 0.96 Å、O–Cl 1.70 Å、夹角约 103°（紫色 = 次氯酸）
