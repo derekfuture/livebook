@@ -69,12 +69,12 @@ export default {
     paperSheet(group, { w: 0.33, d: 0.15, x: 0.035, z: 0.0 });
 
     const B = tubeBench(group, {
-      tag, look, back, rate: 3, getS: () => S.bench,
+      tag, look, back, rate: 3, exact: true, getS: () => S.bench,
       tubes: [{ x: X0, label: 'SO₂ 水溶液', vol: 2, color: 0xe6eef2 }],
       reagents: [{ key: 'dye', name: '品红溶液', at: BOT, inside: 0xd9367e }],
-      onDrop: (k, key) => {
+      onDrop: (k, key) => {          // 液滴落到液面时才算加进去
         if (key !== 'dye') return;
-        if (H.k > 0) return status('试管不在试管架上。先点一下<b>试管夹</b>，把试管放回去。');
+        if (H.k > 0) return status('试管不在试管架上。先把<b>试管夹</b>拖回试管架，放下试管。');
         S.f = (S.f * S.D + 1) / (S.D + 1); S.D++; S.vol += DROP; S.streak = 1;
         if (S.D === 1) { S.so2AtDrip = S.so2; S.preHeated = S.heated; S.dyeT = S.clock; log(['滴入品红溶液', '品红一缕缕散开，溶液带红色', '品红是有色物质']); }
         done('drip');
@@ -117,8 +117,8 @@ export default {
     // ---- 观察卡：试管里看得到的颜色、温度（约）、溶液里还剩多少 SO₂（模型，示意）----
     const tubeCard = tag('', 'cond');
 
-    const fresh = () => ({ demo: false, near: false, lookH: false, bench: B.fresh(), heat: H.fresh(), clock: 0, D: 0, vol: 2, f: 1, so2: SO2_0, so2AtDrip: SO2_0, preHeated: false, dyeT: 0, heated: false, T: 22, streak: 0, lit: false, fan: false, shook: false, colorKey: '', pBase: 0, pm: 0, pHot: 0, cyc: 0, coolLog: 0, coolRes: '', colorD: 0, spawn: 0, said: {} });
-    S = fresh();
+    const fresh = () => ({ gas: [], earlyKey: '', demo: false, near: false, lookH: false, bench: B.fresh(), heat: H.fresh(), clock: 0, D: 0, vol: 2, f: 1, so2: SO2_0, so2AtDrip: SO2_0, preHeated: false, dyeT: 0, heated: false, T: 22, streak: 0, lit: false, fan: false, shook: false, colorKey: '', pBase: 0, pm: 0, pHot: 0, cyc: 0, coolLog: 0, coolRes: '', colorD: 0, spawn: 0, said: {} });
+    S = fresh(); gas.list = S.gas;
     const kOf = (T) => K0 * Math.exp(DH_R * (1 / (273.15 + T) - 1 / 298.15));
     const feqOf = () => 1 / (1 + kOf(S.T) * (S.so2 / S.vol));
     const pink = () => 1 - Math.exp(-3 * S.D * S.f / S.vol);
@@ -134,19 +134,22 @@ export default {
         if (S.fan) { status(gas.list.length > 8 && !S.demo ? '排风开了：留在桌面上方的 SO₂ 被抽进排风罩。' : '打开了排风：排风罩把试管口附近的气体抽走（注意通风）。'); if (S.said.linger && !S.said.rescue) { S.said.rescue = true; log(['打开排风', '留在桌面上方的 SO₂ 被抽进排风罩', '通风：把逸出的有毒气体排走']); } }
         else status('关上了排风。');
       },
-      tapClamp() {
-        const g = H.toggle();
-        if (g && S.D > 0 && S.colorKey !== `${S.D}|${S.shook}`) { const sh = shade(S.pm); S.colorKey = `${S.D}|${S.shook}`; log([`共滴了 ${S.D} 滴品红溶液，${S.shook ? '振荡' : '没振荡'}，还没等颜色稳定就加热`, `当时溶液是<b>${sh}</b>`, '颜色还在变：要先振荡、看清颜色再加热']); }
+      // 试管夹松手以后停在哪：g = 1 外焰上，0 试管架上；from：这一次拿起来时在哪
+      putClamp(g, from) {
+        if (g === from) return status(from ? '试管还在外焰上。要撤火：把<b>试管夹</b>一直拖回试管架上方再松手。' : '没拖到外焰上，试管夹回到了桌上。把<b>试管夹</b>拖到试管旁夹住，再一直拖到酒精灯的外焰上。');
+        // 还没等颜色稳定就加热：单独记一行（不占观察记录的位置——放回、冷下来以后照样能记稳定的颜色）
+        const key = `${S.D}|${S.shook}`;
+        if (g && S.D > 0 && S.colorKey !== key && S.earlyKey !== key) { const sh = shade(S.pm); S.earlyKey = key; log([`共滴了 ${S.D} 滴品红溶液，${S.shook ? '振荡' : '没振荡'}，还没等颜色稳定就加热`, `当时溶液是<b>${sh}</b>`, '颜色还在变：先振荡、看清颜色再加热；也可以放回去等冷下来，再振荡看颜色']); }
         if (g) status(S.lit ? `试管提出试管架，试管夹从试管底部套上、夹住中上部，斜着放到外焰上：试管和桌面约成 45°，管口不对着人；先来回移动预热，再固定加热。${S.fan ? '' : '<b>排风还没开</b>：点一下排风罩。'}` : '试管夹夹起了试管。酒精灯还没点燃：点一下<b>酒精灯</b>。');
         else status(S.lit ? '试管放回试管架，试管夹放回桌上。再点一下<b>酒精灯</b>，用灯帽盖灭。' : '试管放回试管架，试管夹放回桌上。试管还是热的：看冷下来以后颜色会不会变。');
       },
       reset() { if (bar.playing) bar.stop(); S = fresh(); sync(); mic.close(); back(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('drip', 'shake', 'heat', 'off', 'why'); status('器材重新摆好了：试管里又是新的 SO₂ 水溶液。'); },
     };
-    const sync = () => { gas.clear(); B.drops.clear(); capper.snap(S.lit); H.snap(); };
-    const drag = draggable(group, [...B.items], { tip: tag('', 'pill'), taps: [
+    const sync = () => { gas.list = S.gas; B.drops.clear(); capper.snap(S.lit); H.snap(); };          // 逸出的 SO₂ 小点跟着各自的状态走：演示用一套新的，退出后学生的原样回来
+    const clampItem = H.item({ hint: () => (S.heat.goal ? '试管夹：拖回试管架上方，放下试管' : '试管夹：拖到试管旁夹住，再拖到酒精灯外焰上'), onPut: (g) => A.putClamp(g, S.heat.from) });
+    const drag = draggable(group, [...B.items, clampItem], { tip: tag('', 'pill'), taps: [
       { obj: lampPick, hint: () => (S.lit ? '酒精灯：点一下，用灯帽盖灭' : '酒精灯：点一下，取下灯帽点燃'), onTap: () => A.tapLamp() },
       { obj: hoodPick, hint: () => (S.fan ? '排风罩：点一下，关上排风' : '排风罩（实验室排风）：点一下，打开排风'), onTap: () => A.tapHood() },
-      { obj: H.pick, hint: () => (S.heat.goal ? '试管夹：点一下，把试管放回试管架' : '试管夹：点一下，夹住试管，斜着放到外焰上加热'), onTap: () => A.tapClamp() },
     ] });
     const act = demoActs(drag, group);
     const off = () => H.k > 0;
@@ -158,10 +161,10 @@ export default {
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'drip', title: '滴入品红溶液', todo: '试管里已经取好实验5-1 得到的溶液 2 mL。把<b>品红溶液</b>的滴管拖到试管口上方，按住滴 1~2 滴。', target: () => (S.bench.carry[0] ? null : B.droppers[0]) },
-        { id: 'shake', title: '振荡，看颜色', todo: '按住<b>试管</b>左右来回拖，振荡；看溶液的颜色怎么变。', target: () => (S.D > 0 ? tube : null) },
-        { id: 'heat', title: '加热试管', todo: '注意通风：点一下<b>排风罩</b>打开排风；点燃<b>酒精灯</b>，再点<b>试管夹</b>：夹住试管，斜着放到外焰上，先预热再加热。看颜色。', target: () => (!S.fan ? hood : !S.lit ? lamp : S.heat.goal ? null : H.clamp) },
-        { id: 'off', title: '撤火、盖灭', todo: '点一下<b>试管夹</b>，把试管放回试管架；再点<b>酒精灯</b>，用灯帽盖灭。看冷下来以后颜色怎么变。', target: () => (S.heat.goal ? H.clamp : S.lit ? lamp : null) },
+        { id: 'drip', title: '滴入品红溶液', todo: '试管里已经取好实验5-1 得到的溶液 2 mL。把<b>品红溶液</b>的滴管提出来，拖到试管口上方，按住滴 1~2 滴。', target: () => (S.bench.carry[0] ? null : B.droppers[0]) },
+        { id: 'shake', title: '振荡，看颜色', todo: '按住<b>试管</b>往上提出试管架，左右轻轻摇，振荡；看溶液的颜色怎么变。', target: () => (S.D > 0 ? tube : null) },
+        { id: 'heat', title: '加热试管', todo: '注意通风：点一下<b>排风罩</b>打开排风；点燃<b>酒精灯</b>，再拖<b>试管夹</b>：拖到试管旁夹住，再拖到外焰上，先预热再加热。看颜色。', target: () => (!S.fan ? hood : !S.lit ? lamp : S.heat.goal ? null : H.clamp) },
+        { id: 'off', title: '撤火、盖灭', todo: '把<b>试管夹</b>拖回试管架上方，放下试管；再点<b>酒精灯</b>，用灯帽盖灭。看冷下来以后颜色怎么变。', target: () => (S.heat.goal ? H.clamp : S.lit ? lamp : null) },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
       ],
       reels: {
@@ -171,15 +174,15 @@ export default {
             view: { save: () => (mic.isOpen ? 'mic' : S.lookH ? 'near' : null), restore: (v) => { if (v === 'mic') mic.open(); else if (v === 'near' && S.lookH) { S.near = true; look(...NEAR, () => { S.near = false; }); } } } }),
           shots: [
             { cap: '试管里已经取好实验5-1 得到的溶液 2 mL（SO₂ 的水溶液）。滴入 1~2 滴品红溶液：红色一缕缕散开。', dur: 5, speed: 1.4, cam: [[X0, 0.07, 0.01], [0.04, 0.22, 1], 0.26],
-              during: B.dripSeq(drag, 0, [[0, () => S.D >= 2]], 0.04, 0.97) },
-            { cap: '振荡：红色褪去，溶液变成无色。', dur: 6, speed: 1.5, cam: [[X0, 0.07, 0.01], [0.04, 0.22, 1], 0.26], during: B.wiggle(act, 0, 0.05, 0.6, 6) },
+              during: B.dripSeq(drag, 0, [[0, () => S.D + B.inflight(0) >= 2]], 0.04, 0.97) },
+            { cap: '提起试管振荡：红色褪去，溶液变成无色。', dur: 6, speed: 1.2, cam: [[X0, 0.1, 0.01], [0.04, 0.22, 1], 0.34], during: B.wiggle(act, 0, 0.05, 0.6, 6) },
             { cap: '加热试管，注意通风：打开排风罩；点燃酒精灯；把试管提出来，试管夹从试管底部套上、夹住中上部，斜着放到外焰上——试管和桌面约成 45°，管口不对着人；先来回移动预热。', dur: 9.5, cam: [[0.04, 0.09, 0], [0.04, 0.22, 1], 0.42],
-              during: act.seq(act.tap(hoodPick, 0.03), act.tap(lampPick, 0.1), act.tap(H.pick, 0.18)) },
+              during: act.seq(act.tap(hoodPick, 0.03), act.tap(lampPick, 0.1), act.path(H.pick, [() => H.guide(0), () => H.guide(H.PA), () => H.guide(1)], { t0: 0.18, t1: 0.72, release: 0.74 })) },
             { cap: '接着加热（时间加快）：红色又回来了。管口逸出的 SO₂（青色小点，示意）被抽进排风罩。', dur: 7, speed: 1.5, cam: NEAR },
             { cap: '钻进去看（符号示意）：品红和 SO₂ 生成的无色物质受热分解，品红恢复红色，SO₂ 放出、从液面跑出去。', dur: 7, cam: [[XL + 0.02, 0.09, 0], [0.05, 0.22, 1], 0.32],
               enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
             { cap: '撤火：把试管移回试管架上方，试管夹从试管底部取下，试管放回架上；再用灯帽盖灭酒精灯。', dur: 6.5, cam: [[0.02, 0.075, 0], [0.04, 0.22, 1], 0.44],
-              during: act.seq(act.tap(H.pick, 0.04), act.tap(lampPick, 0.72)) },
+              during: act.seq(act.path(H.pick, [() => H.guide(1), () => H.guide(H.PA), () => H.guide(0)], { t0: 0.04, t1: 0.55, release: 0.57 }), act.tap(lampPick, 0.72)) },
             { cap: '冷下来（时间加快）：溶液里的 SO₂ 还够，红色又褪去。演示完了，换你自己做。', dur: 9, speed: 5, cam: [[X0, 0.07, 0.01], [0.04, 0.22, 1], 0.28] },
           ],
         },
@@ -218,14 +221,14 @@ export default {
       if (S.D > 0 && key !== S.colorKey && settled && S.heat.goal === 0 && H.k === 0 && S.T < 35 && S.clock - S.dyeT > 2) {
         S.colorKey = key; const sh = shade(pm), how = S.shook ? '振荡' : '没振荡，静置';
         const what = sh === '无色' ? '红色褪去，溶液变成<b>无色</b>' : sh === '淡红' ? '红色变浅，还剩一点<b>淡红色</b>，没褪尽' : '还是<b>红色</b>，褪不下去';
-        const why = S.preHeated
-          ? (sh === '无色' ? '先加热过，SO₂ 逸出了一部分；剩下的还够，照样褪色' : '先加热过，SO₂ 逸出了不少；剩下的不够，褪不尽')
+        const why = S.preHeated || S.earlyKey
+          ? (sh === '无色' ? '加热过，SO₂ 逸出了一部分；剩下的还够，照样褪色' : '加热过，SO₂ 逸出了不少；剩下的不够，褪不尽')
           : sh === '无色' ? 'SO₂ 和品红（有色物质）生成了不稳定的无色物质' : '品红多了，没变成无色物质的那部分还在';
         log([`共滴了 ${S.D} 滴品红溶液，${how}`, what, why]);
         if (S.shook) { S.said.bleach = sh === '无色'; S.said.color = true; S.pBase = pm; done('shake'); }
         if (!S.shook) status(sh === '无色' ? '没振荡，红色也慢慢褪去了（品红一缕缕散开得慢）。课本要求振荡：按住<b>试管</b>左右来回拖。' : '没振荡，颜色还没褪尽。课本要求振荡：按住<b>试管</b>左右来回拖。');
         else if (sh === '无色') status('红色褪去了。接着加热试管：注意通风，先点一下<b>排风罩</b>打开排风。');
-        else status(S.preHeated ? '先加热过的溶液里 SO₂ 少了，品红褪不尽。可以接着加热看看，或者点“更多 → 全部重来”。' : '品红滴多了，褪不尽（课本说滴 1~2 滴）。可以接着加热看看，或者点“更多 → 全部重来”。');
+        else status(S.preHeated || S.earlyKey ? '加热过的溶液里 SO₂ 少了，品红褪不尽。可以接着加热看看，或者点“更多 → 全部重来”。' : '品红滴多了，褪不尽（课本说滴 1~2 滴）。可以接着加热看看，或者点“更多 → 全部重来”。');
       }
       // 加热：红色回来
       if (heated) S.pHot = Math.max(S.pHot, p);
@@ -269,7 +272,7 @@ export default {
       const sh = S.D ? shade(pm) : '无色', shCls = sh === '无色' ? '' : ' burn';
       // 照初中的卡片：名字 + 颜色，一行数字，图例；“溶解态 S(IV)、以 SO₂ 计”写在面板里
       const legend = gas.list.length ? `<div class="cc-note">青点 = SO₂（示意）${S.fan ? '' : ' · 排风没开'}</div>` : '';
-      tubeCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里</span><span class="cc-res${shCls}">${sh}</span></div><div class="cc-more"><div class="cc-obs"><span class="cc-th"><i style="height:${clamp(S.T, 4, 100).toFixed(0)}%"></i></span><b>${Math.round(S.T)}</b><small>℃</small><b>${(S.so2 * 1000 / S.vol).toFixed(0)}</b><small>mmol/L SO₂（约）</small></div>${legend}</div></div>`)
+      tubeCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里</span><span class="cc-res${shCls}">${sh}</span></div><div class="cc-more"><div class="cc-obs"><span class="cc-th"><i style="height:${clamp(S.T, 4, 100).toFixed(0)}%"></i></span><b>${Math.round(S.T)}</b><small>℃（模拟）</small><b>${(S.so2 * 1000 / S.vol).toFixed(0)}</b><small>mmol/L（以 SO₂ 计 · 模型）</small></div>${legend}</div></div>`)
         .loc(group, ...(H.k > 0.6 ? H.liquidCenter().add(V(-0.085, 0.045, 0)).toArray() : [X0 - 0.06, 0.135, 0])).show(!bar.playing && !mic.isOpen && H.k < 0.05 || (!bar.playing && !mic.isOpen && H.k > 0.6));
       bar.near(S.near);
       mic.update?.(dt);
@@ -297,18 +300,18 @@ export default {
         get S() { return S; }, bar, A, pink, H,
         picks: { dropper: B.droppers[0].pick, tube: tube.pick, lamp: lampPick, clamp: H.pick, hood: hoodPick },
         qa: qaFlow(drag, [
-          { name: '滴品红', run: () => B.qaDrip(drag, 0, 0, () => S.D >= 2), wait: 3 },
+          { name: '滴品红', run: () => B.qaDrip(drag, 0, 0, () => S.D + B.inflight(0) >= 2), wait: 4 },
           { name: '振荡', run: () => B.qaShake(drag, 0), wait: 3 },
           { name: '等褪色', run: () => {}, wait: 8 },
           { name: '开排风', tap: hoodPick, wait: 1 },
           { name: '点燃酒精灯', tap: lampPick, wait: 2 },
-          { name: '加热', tap: H.pick, wait: 26 },
+          { name: '加热', drag: H.pick, to: () => H.guide(1), wait: 26 },
           { name: '钻进去看', run: () => mic.open(), wait: 3 },
           { name: '合上', run: () => mic.close(), wait: 1 },
-          { name: '放回', tap: H.pick, wait: 6 },
+          { name: '放回', drag: H.pick, to: () => H.guide(0), wait: 6 },
           { name: '盖灭', tap: lampPick, wait: 2 },
           { name: '等冷却', run: () => {}, wait: 30 },
-          { name: '核对', run: () => { if (!(S.said.bleach && S.shook && S.said.back && S.said.off && S.said.cool && S.heat.p === 0 && !S.lit)) throw new Error(JSON.stringify({ said: S.said, f: S.f, so2: S.so2, T: S.T, D: S.D, heat: S.heat })); }, wait: 1 },
+          { name: '核对', run: () => { if (!(S.D === 2 && S.said.bleach && S.shook && S.said.back && S.said.off && S.said.cool && S.heat.p === 0 && !S.lit)) throw new Error(JSON.stringify({ said: S.said, f: S.f, so2: S.so2, T: S.T, D: S.D, heat: S.heat })); }, wait: 1 },
           { name: '想一想 1', run: () => W.t1.el.querySelector('button').click() },
           { name: '想一想 2', run: () => W.t2.el.querySelector('button').click() },
         ]),

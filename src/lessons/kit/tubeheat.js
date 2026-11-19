@@ -26,6 +26,10 @@
 //   liftTo 试管提出试管架后管底多高（要高出试管架，试管夹才能从管底下面套上去）；travelY 试管夹去夹试管时走多高；preheat 预热几秒（0 = 不预热）；dur 整个动作几秒；
 //   lit() 酒精灯现在有没有火（默认一直有）：预热只在有火、试管到位时计，没火时试管在灯上静止不动，点着火以后才开始来回预热。
 //   H.warmed()：预热做完了没有（预热完以后才是用外焰固定加热）。
+//
+// 手拖（不点一下就自己搬）：H.item({ onPut(goal), hint }) 给 draggable 用——按住试管夹，沿“桌上 → 试管旁夹住 → 外焰上”拖，
+//   进度 p 跟着手在这条路线上的投影走（夹住、提出、倾斜这些动作按 p 摆出来）；拖到头（夹住试管放到外焰上 / 放回试管架）松手才停在那儿，
+//   半路松手 0.3–0.6 秒回到这一次拿起来的地方。onPut(goal)：松手后停在哪（1 外焰上，0 架子上）。演示：H.guide(p) 给出路线上的点。
 import * as THREE from 'three';
 import { water2, bubble2 } from './chemfx.js';
 import { Particles } from './fx.js';
@@ -97,6 +101,7 @@ export function tubeHeat(group, {
   const route = [restP, V(restP.x, YT, restP.z), V(G0p.x + side.x, YT, G0p.z + side.z), V(G0p.x + side.x, yLow, G0p.z + side.z), V(G0p.x, yLow, G0p.z), G0p];
   const routeL = [0]; for (let i = 1; i < route.length; i++) routeL.push(routeL[i - 1] + route[i].distanceTo(route[i - 1]));
   const NR = route.length - 1;
+  let G1 = null;          // 手拖的路线：桌上的试管夹 → 夹住提出来的试管 → 放到外焰上（试管夹的位置）
   const clampAt = (u) => {                         // u：0 在桌上 … 1 夹住
     const d = ease(u) * routeL[NR]; let i = 1; while (i < NR && routeL[i] < d) i++;
     clampM.position.lerpVectors(route[i - 1], route[i], clamp((d - routeL[i - 1]) / Math.max(1e-6, routeL[i] - routeL[i - 1])));
@@ -191,7 +196,26 @@ export function tubeHeat(group, {
   };
   const api = {
     clamp: clampM, pick, body, surf, bubs,
-    fresh: () => ({ p: 0, goal: 0, pre: 0 }),
+    PA,
+    fresh: () => ({ p: 0, goal: 0, pre: 0, hand: false, fast: false, from: 0 }),
+    /** 手拖的路线上进度 p 处试管夹的位置（group 坐标） */
+    guide: (p) => { const g = [restP, G0p, G1 || G0p]; return p <= PA ? g[0].clone().lerp(g[1], p / PA) : g[1].clone().lerp(g[2], (p - PA) / (1 - PA)); },
+    /** 手（试管夹的位置）投影到路线上：进度 p */
+    progressAt(h) {
+      const g = [restP, G0p, G1 || G0p]; let best = 0, bd = Infinity;
+      for (let i = 0; i < 2; i++) {
+        const a = g[i], b = g[i + 1], ab = b.clone().sub(a), L2 = Math.max(1e-9, ab.lengthSq());
+        const t = clamp(h.clone().sub(a).dot(ab) / L2), d = a.clone().addScaledVector(ab, t).distanceTo(h);
+        if (d < bd) { bd = d; best = i === 0 ? t * PA : PA + t * (1 - PA); }
+      }
+      return best;
+    },
+    item({ hint, onPut, onStart: os } = {}) {
+      return { obj: pick, plane: 'xy', get offset() { return clampM.position.z; }, keepOffset: true, anchor: clampM, hint,
+        onStart: () => { const S = st(); S.hand = true; S.fast = false; S.from = S.goal; os?.(); },
+        onDrag: (p) => { if (p) st().goal = api.progressAt(p); },
+        onEnd: () => { const S = st(); S.hand = false; S.fast = true; S.goal = S.goal > 0.96 ? 1 : S.goal < 0.04 ? 0 : S.from; onPut?.(S.goal); } };          // 手松在路线的两头才算放到位
+    },
     go(g) { st().goal = g ? 1 : 0; },
     toggle() { const S = st(); S.goal = S.goal ? 0 : 1; return S.goal; },
     get k() { return st().p; },
@@ -205,7 +229,8 @@ export function tubeHeat(group, {
     snap() { lastKey = ''; place(); },
     update(dt, t, { vol = 0, color = 0xe6eef2, boil = 0 } = {}) {
       const S = st();
-      S.p = clamp(S.p + clamp(S.goal - S.p, -dt / dur, dt / dur));
+      const D = S.hand ? 0.35 : S.fast ? 0.55 : dur;          // 手拖时很快跟上；松手回位 0.3–0.6 秒
+      S.p = clamp(S.p + clamp(S.goal - S.p, -dt / D, dt / D)); if (S.p === S.goal) S.fast = false;
       if (S.goal === 1 && S.p >= 1) { if (lit()) S.pre = Math.min(preheat + 1, S.pre + dt); } else S.pre = 0;      // 预热只在有火、试管到位时计
       place();
       // 液体：试管离开架子以后才用这里的
@@ -234,6 +259,7 @@ export function tubeHeat(group, {
     },
     dispose() { body.geometry.dispose(); bodyMat.dispose(); sGeo.dispose(); surfMat.dispose(); bubs.dispose?.(); },
   };
+  { const M = new THREE.Matrix4().multiplyMatrices(tubeMatrix(C3, tiltQ), gripLocal); G1 = V(0, 0, 0); M.decompose(G1, new THREE.Quaternion(), V(0, 0, 0)); }
   clampAt(0);          // 一开始：试管夹平放在桌上（状态还没建好，不读 getS()）
   return api;
 }

@@ -298,6 +298,7 @@ export function dianzhiScene() {
       if (!st.water) {
         if (!st.solid) return { eq, cap: '烧杯是空的', on: true };
         const [a, b] = ION[st.solid];
+        if (st.wetElec) return { eq, on: true, cap: `电极是<b>湿的</b>：沾着的液体会溶解电极接触处的一点固体，那里的 ${f(a)}、${f(b)} 能离开晶体、自由移动；能不能连成导电的通路，要看湿了多大一片。测的已经不是干燥的固体（这次不给读数）。画面里只画了没湿的那部分固体` };
         return { eq, on: true, cap: st.on
           ? `接通了电源，可是 ${f(a)}、${f(b)} 仍然紧密地排列着，<b>不能自由移动</b>，只在原地振动——没有电流，小灯泡不亮`
           : `干燥的 ${NAME[st.solid]} 固体里有带正电荷的 ${f(a)} 和带负电荷的 ${f(b)}，它们按一定规则<b>紧密地排列</b>着，只在原地振动` };

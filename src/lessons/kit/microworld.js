@@ -96,12 +96,12 @@ const MOL = {
 };
 // 二氧化硫漂白品红（符号示意）：课本只说“与某些有色物质生成不稳定的无色物质”，没有写产物的结构（实际产物里含硫部分怎么连在品红上，
 // 文献说法是磺酸根连在中心碳上并有质子化形态，这里不画）。所以品红画成一个粉红色的大球（符号，不是结构）；
-// 无色物质画成：同一个大球变成无色，SO₂ 带进来的那三个原子（一个 S、两个 O，和溶液里 SO₂ 的原子一样大、一样颜色）贴在球上——不画它们怎么连；
-// 分解时这三个原子又变回 SO₂ 离开、大球变回粉红。溶液里的 SO₂ 分子结构是真的（溶液里还有亚硫酸等其他含硫形态，这里只画 SO₂）。
+// 无色物质是一种新物质，也只画成一个整体符号：SO₂ 靠过来，它的三个原子并进大球里（藏在球里面，不画成贴着的 SO₂），大球变成无色；
+// 分解时从大球里放出一个 SO₂ 分子、大球变回粉红。溶液里的 SO₂ 分子结构是真的（溶液里还有亚硫酸等其他含硫形态，这里只画 SO₂）。
 EL.Pk = [0xd9367e, 1.3]; EL.Pw = [0xe6ebf0, 1.3];
 MOL.SO2 = { atoms: [['S', 0, 0, 0], ['O', -1.234, 0.72, 0], ['O', 1.234, 0.72, 0]], bonds: [[0, 1, 2], [0, 2, 2]], label: 'SO₂', ink: '#8a7a10' };
 MOL.DyeS = { atoms: [['Pk', 0, 0, 0]], bonds: [], labelY: -2.1, label: '品红', ink: '#c2185b', glow: 0xff2a8a, glowBase: 0.5, glowSize: 5 };
-MOL.DyeSO2 = { atoms: [['Pw', 0, 0, 0], ['S', 0, 1.74, 0], ['O', -1.234, 2.46, 0], ['O', 1.234, 2.46, 0]], bonds: [[1, 2, 2], [1, 3, 2]], labelY: -2.1, label: '无色物质', ink: '#5b6676' };          // SO₂ 的三个原子贴在球顶上（球和 S 之间不画键：课本没写怎么连）
+MOL.DyeSO2 = { atoms: [['Pw', 0, 0, 0], ['S', 0, 0.1, 0], ['O', -0.3, 0.25, 0], ['O', 0.3, 0.25, 0]], bonds: [], labelY: -2.1, label: '无色物质', ink: '#5b6676' };          // 整体符号：SO₂ 的三个原子藏在大球里面（不画键、看不见），只表示原子守恒
 // 氯化氢分子（H₂ 在 Cl₂ 中燃烧，h2cl2）：H–Cl 键长 1.27 Å
 MOL.HCl = { atoms: [['H', -0.64, 0, 0], ['Cl', 0.64, 0, 0]], bonds: [[0, 1, 1]], label: 'HCl', ink: '#2e6f55' };
 // 硫酸分子（浓硫酸与铜，cuh2so4）：S 在四面体中心，两个 S=O（1.42 Å）、两个 S–OH（1.57 Å），O–H 0.97 Å、S–O–H 约 108°
@@ -1436,12 +1436,13 @@ export function naohScene() {
 export function so2bleachScene() {
   const FILM = 8, N_SO2 = 3, N_W = 2, DY = 1.7;
   const PINK = new THREE.Color(EL.Pk[0]), WHITE = new THREE.Color(EL.Pw[0]);
-  // 品红摆在哪：滴几滴就几个位置，左右分开、前后错开一点（标签写在球下面，不和上面贴着的 SO₂ 叠在一起）
+  // 品红摆在哪：滴几滴就几个位置，左右分开、前后错开一点（标签写在球下面）
   const SLOTS = { 1: [[0, 0]], 2: [[-2.7, 0.6], [2.7, -0.6]], 3: [[-3.6, 0.9], [0, -0.9], [3.6, 0.9]] };
   const FORM = { in: ['DyeS', 'SO2'], out: ['DyeSO2'], host: 0, near: [null, [0, 3.4, 0.4]], place: [[0, 0, 0]], map: [[0, 0], [1, 0], [1, 1], [1, 2]], approach: 2.0, dur: 1.6, burst: [0xffd0e4, 0xe8eef2] };
   const BREAK = { in: ['DyeSO2'], out: ['DyeS', 'SO2'], place: [[0, 0, 0], [0.4, 3.4, 0.3]], map: [[0, 0], [0, 1], [0, 2], [0, 3]], after: [{ fixed: true }, {}], approach: 0, dur: 1.6, burst: [0xd8e8ff, 0xffd0e4] };
   const nDye = (st) => Math.min(3, Math.round(st.nd || 0));
-  const wantBound = (st) => { const n = nDye(st); return n ? Math.max(0, Math.min(n, Math.round(n * (1 - st.f)))) : 0; };
+  // 结合了几个：和观察卡上的颜色一致——卡上不是“无色”，画面里就至少留一个红色的品红；是“无色”就都结合
+  const wantBound = (st) => { const n = nDye(st); if (!n) return 0; if (st.shade === '无色') return n; return Math.max(0, Math.min(n - 1, Math.round(n * (1 - st.f)))); };
   const wantFree = (st) => Math.round(N_SO2 * Math.max(0, Math.min(1, st.so2)));
   const nEv = (c, rx) => c.events.filter((e) => e.rx === rx).length;
   const dyes = (c) => c.mols.filter((m) => m.slot != null);
@@ -1507,27 +1508,27 @@ export function so2bleachScene() {
       const small = c.mols.filter((m) => !m.busy && !m.fixed && !m.leaving && (m.kind === 'SO2' || m.kind === 'H2O'));
       spread([...small, ...dyes(c).filter((m) => !m.busy)], 3.2, dt);
       spread(small, 3.4, dt);
-      // 也不挤到无色物质顶上贴着的那三个原子上；还没反应的 SO₂ 待在品红上方的一层里，水分子在下面
+      // 还没反应的 SO₂ 待在品红上方的一层里，水分子在下面
       for (const m of small) {
         for (const d of dyes(c)) { const lab = d.g.position.clone().add(c.V([0, -2.1, 0])), q = m.g.position.clone().sub(lab), L = q.length(); if (L < 2.2 && L > 1e-3) m.v.addScaledVector(q, ((2.2 - L) / L) * 6 * dt); }          // 不压着球下面的标签
-        for (const d of c.mols) if (d.kind === 'DyeSO2' && !d.busy) { const top = d.g.position.clone().add(c.V([0, 2.2, 0])), q = m.g.position.clone().sub(top), L = q.length(); if (L < 3.4 && L > 1e-3) m.v.addScaledVector(q, ((3.4 - L) / L) * 6 * dt); }
         if (m.kind === 'SO2') m.pull = m.g.position.y < 5.8 ? c.V([0, (5.8 - m.g.position.y) * 2, 0]) : null;
       }
       reps(c);
     },
     text(c, st) {
       const eq = `${f('DyeS')} + ${f('SO2')} ⇄ ${f('DyeSO2')}<span style="font-size:0.42em;margin-left:0.6em;color:#6b7280">符号示意，不是化学方程式</span>`;
-      // 字幕按宏观状态写（st.shade：观察卡上的颜色）；符号个数只用来画示意
-      const e = c.events[0], n = nDye(st), sh = st.shade || '';
-      const now = sh ? `（现在溶液是<b>${sh}</b>）` : '';
-      const tail = '大球是品红的符号，不是它的结构；个数只是示意';
-      const cap = e && e.rx === FORM ? (e.t < e.A ? `一个 ${f('SO2')} 游到${f('DyeS')}跟前……` : `${f('SO2')} 贴到${f('DyeS')}上，结合成<b>无色物质</b>：红色褪去（${f('SO2')} 的三个原子还在上面；课本没有写它们怎么连，这里不画）${now}`)
-        : e && e.rx === BREAK ? `无色物质不稳定，<b>分解</b>了：贴在上面的三个原子又连成 ${f('SO2')} 离开，${f('DyeS')}恢复原来的红色${st.T > 55 ? '；热了，SO₂ 还会从液面跑出去' : ''}${now}`
+      // 字幕按画面里这一刻的样子写（正在结合 / 正在分解 / 画面里红色和无色各有几个），不抢在画面前面
+      const e = c.events[0], n = nDye(st);
+      const nRed = c.mols.filter((m) => m.kind === 'DyeS' && !m.busy).length, nW = c.mols.filter((m) => m.kind === 'DyeSO2' && !m.busy).length;
+      const tail = '大球是品红、无色物质的符号，不是它们的结构；个数只是示意';
+      const cap = e && e.rx === FORM ? (e.t < e.A ? `一个 ${f('SO2')} 游到${f('DyeS')}跟前……` : `${f('SO2')} 和${f('DyeS')}结合，生成<b>不稳定的无色物质</b>（画成一个整体符号：课本没有写它的结构）：红色褪去`)
+        : e && e.rx === BREAK ? `无色物质不稳定，<b>分解</b>了：放出 ${f('SO2')}，${f('DyeS')}恢复原来的红色${st.T > 55 ? '；热了，SO₂ 还会从液面跑出去' : ''}`
         : !n ? `溶液里是 ${f('SO2')} 分子和水分子（SO₂ 溶于水，一部分与水反应生成亚硫酸，可逆；这里只画 SO₂）。还没有滴品红`
-        : st.T > 55 && st.so2 < 0.9 ? `热了：无色物质容易分解，红色的${f('DyeS')}变多${now}；${f('SO2')} 一个个从液面跑出去（有毒，所以要通风）。${tail}`
-        : sh === '无色' ? `${f('DyeS')}都和 ${f('SO2')} 结合成了无色物质：溶液是<b>无色</b>的。${tail}`
-        : sh === '淡红' ? `还有一小部分${f('DyeS')}没有和 ${f('SO2')} 结合：溶液是<b>淡红</b>色的。${tail}`
-        : `${f('DyeS')}大多还没有和 ${f('SO2')} 结合：溶液是<b>红色</b>的。${tail}`;
+        : !nRed && !nW ? `品红落进溶液里……`
+        : st.T > 55 && st.so2 < 0.9 && nRed ? `热了：无色物质容易分解，红色的${f('DyeS')}回来了；${f('SO2')} 一个个从液面跑出去（有毒，所以要通风）。${tail}`
+        : !nRed ? `${f('DyeS')}都和 ${f('SO2')} 结合成了无色物质：<b>无色</b>。${tail}`
+        : nW ? `还有${f('DyeS')}没有和 ${f('SO2')} 结合：<b>带红色</b>。${tail}`
+        : `${f('DyeS')}还没有和 ${f('SO2')} 结合：<b>红色</b>。${tail}`;
       return { eq, cap };
     },
   };
