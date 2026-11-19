@@ -117,6 +117,7 @@ const GRIP = 0.076;
 export function pouringTube(group, home, name, getSample, tilt = -1.82) {
   const grip = new THREE.Group();
   grip.position.copy(home); grip.name = name; group.add(grip);
+  grip.userData.ringY = 0.068;          // 光圈画在试管架顶上（画在桌面会被架子挡住）
   const tube = testTube({ len: T_LEN });
   tube.position.y = -GRIP; grip.add(tube);
   const upright = tubeLiquid({ R: R_IN, yc: 0.0093, top: T_LEN - 0.012, base: 0.68, specks: 0 });

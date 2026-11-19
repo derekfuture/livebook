@@ -54,6 +54,7 @@ export function tubeBench(group, { tag, look, back, tubes: TUBES, reagents: REAG
     const pick = new THREE.Mesh(new THREE.CylinderGeometry(T_R + 0.004, T_R + 0.004, T_LEN, 10), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = T_LEN / 2; pick.userData.pick = true; t.add(pick);
     if (T.label) { const lab = textPlate(T.label, { w: Math.max(0.012, Math.min(0.034, T.label.length * 0.0052)), h: 0.0072, color: '#23293a', bg: '#fffaf0', font: `bold ${Math.min(78, Math.floor(420 / T.label.length))}px "Songti SC", serif` }); lab.position.set(T.x, 0.004, 0.0162); group.add(lab); }
     const bubs = new Particles({ max: 60, geometry: new THREE.SphereGeometry(1, 8, 6), material: bubMat }); bubs.mesh.renderOrder = 10; t.add(bubs.mesh);
+    t.userData.ringY = 0.068;          // 光圈画在试管架顶上（画在桌面会被架子挡住）
     return Object.assign(t, { holder, liq, sed, mirror, pick, bubs, look: { vol: T.vol ?? 0, color: T.color ?? 0xe6eef2, milk: 0, milkColor: 0xffffff, speckColor: 0xffffff, sediment: 0, sedColor: 0xffffff, gas: 0, mirror: 0 }, bubAcc: 0 });
   });
   // ---- 滴瓶和胶头滴管（原点在滴管尖）----

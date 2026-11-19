@@ -38,7 +38,8 @@ export function inviteRing(group, { color = 0xff6a3d, ground = 0.02 } = {}) {
       box.getCenter(c); box.getSize(sz);
       const r = Math.hypot(sz.x, sz.z) / 2 + 0.012;      // 按底面的对角线：方箱子四个角外面也露出光圈
       const onTable = box.min.y < ground;
-      ring.position.set(c.x, onTable ? 0.0015 : c.y, c.z);
+      const ry = target.userData?.ringY;          // 插在试管架上的东西：桌面那一圈会被架子挡住，课程给一个高度（架子顶上）
+      ring.position.set(c.x, typeof ry === 'number' ? ry : onTable ? 0.0015 : c.y, c.z);
       const k = (t * 0.9) % 1;
       ring.scale.setScalar(r * 2 * (0.85 + k * 0.4));
       ring.material.opacity = 0.85 * (1 - k);
