@@ -26,6 +26,7 @@ const CLR = 0.008, GRAB_TW = V(-0.03, 0, 0);
 // 平放在纸上的字牌：字号按牌子大小定（textPlate 的画布总是 512 宽）
 const plate = (text, w, h) => textPlate(text, { w, h, color: '#23293a', bg: '#fffaf0', font: `bold ${Math.floor(Math.min(0.8 * 512 * h / w, 0.82 * 512 / text.length))}px "Songti SC", serif` });
 const WORD = { float: '浮在水面', melt: '熔成闪亮的小球', move: '四处游动', hiss: '嘶嘶响', red: '溶液变红', fire: '<b>着火，火焰带紫色，冒白烟</b>' };
+const SHORT = { float: '浮', melt: '熔', move: '游', hiss: '响', red: '红', fire: '<b>紫色火焰</b>' };          // 观察卡上用的短字（和“钠与水的反应”一课的卡片一样）
 
 export default {
   id: 'kwater',
@@ -186,9 +187,11 @@ export default {
       const cam = window.__lb?.stage?.camera; let danger = null;
       if (cam) for (const k of ['na', 'k']) { const r = S.rig[k]; if (!r.total || r.finished) continue; const p = group.worldToLocal(cam.position.clone()).sub(CUP[k].clone().setY(rigs[k].H)); if (p.length() < 0.22 && p.y / p.length() > 0.8) danger = k; }
       for (const k of ['na', 'k']) {
-        const r = S.rig[k], saw = S.saw[k].map((w) => WORD[w]).join('、');
-        const state = !r.total ? '还没投进去' : r.finished ? `反应完了，用时约 ${Math.round(S.rig[k].doneAt)} 秒` : `正在反应（已 ${r.clock.toFixed(0)} 秒）`;
-        cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${k === 'na' ? '钠（回忆）' : '钾'}</span></div><div class="cc-more"><div class="cc-obs"><small>${state}</small></div>${saw ? `<div class="cc-note">${saw}</div>` : ''}</div></div>`)
+        // 照初中的卡片：名字 + 现象词，一行秒数，一行看到的现象（用短字）
+        const r = S.rig[k], saw = S.saw[k].map((w) => SHORT[w]).join(' · ');
+        const stamp = !r.total ? '' : r.finished ? '<span class="cc-res">反应完</span>' : S.saw[k].includes('fire') ? '<span class="cc-res burn">着火</span>' : '<span class="cc-res">反应中</span>';
+        const obs = !r.total ? '<div class="cc-obs"><small>还没投进去</small></div>' : r.finished ? `<div class="cc-obs"><small>用时</small><b>${Math.round(S.rig[k].doneAt)}</b><small>秒（约）</small></div>` : `<div class="cc-obs"><small>已</small><b>${r.clock.toFixed(0)}</b><small>秒</small></div>`;
+        cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${k === 'na' ? '钠（回忆）' : '钾'}</span>${stamp}</div><div class="cc-more">${obs}${saw ? `<div class="cc-note">${saw}</div>` : ''}</div></div>`)
           .loc(group, CUP[k].x, 0.06, CUP[k].z).show(!bar.playing && !mic.isOpen);
       }
       warning.text('注意　不要近距离俯视烧杯！').loc(group, danger ? CUP[danger].x : 0, 0.12, danger ? CUP[danger].z : 0).show(!!danger && !bar.playing);

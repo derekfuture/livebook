@@ -355,10 +355,10 @@ export default {
       for (const k of ['c', 'd']) {
         const T = S[k], G = SET[k], gr = T.rate * ((2 * T.x) + (2 / 3) * (1 - T.x)) * ML;          // 按方程式生成气体 mL/s（实际时间）
         const on = T.contact > 0.05 && T.rate > 0.0005;
-        const bub = !on ? '没有' : gr > 0.25 ? '很多' : '少';
-        const stamp = on ? '<span class="cc-res">反应中</span>' : '';
-        const what = on ? `<div class="cc-note">正在生成：<b>${fNO2(T.x) > 0.97 ? 'NO₂（红棕色）' : fNO2(T.x) > 0.03 ? `NO₂ 和 NO（约 ${Math.round(fNO2(T.x) * 100)}% 是 NO₂）` : 'NO（无色）'}</b></div>` : '';
-        G.card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">${NAME[k]}</span>${stamp}</div><div class="cc-more"><div class="cc-note">气泡：${bub}；试管上部：${gasName(T)}；溶液：${liqOf(k).name}</div>${what}<div class="cc-note">硝酸约 ${r1(cNow(T))} mol/L（示意）</div><div class="cc-note"><span style="color:#2f7fe0">●</span> O₂（概念色） <span style="color:#8a84a6">●</span> NO（无色，示意）</div></div></div>`)
+        // 照初中的卡片：名字 + 气泡多少，一行数字（硝酸浓度、正在生成的气体），一行颜色，图例；产物比例怎么算写在面板里
+        const stamp = on ? `<span class="cc-res">${gr > 0.25 ? '气泡多' : '气泡少'}</span>` : '';
+        const f = fNO2(T.x), made = on ? `<small>生成 ${f > 0.97 ? 'NO₂' : f > 0.03 ? 'NO₂、NO' : 'NO'}</small>` : '';
+        G.card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">${NAME[k]}</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${r1(cNow(T))}</b><small>mol/L（约）</small>${made}</div><div class="cc-note">上部${gasName(T)} · 溶液${liqOf(k).name}</div><div class="cc-note"><span style="color:#2f7fe0">●</span> O₂　<span style="color:#8a84a6">●</span> NO（示意色）</div></div></div>`)
           .loc(group, G.XBk, 0.19, 0).show(!bar.playing && !mic.isOpen);
       }
       bar.near(S.near);

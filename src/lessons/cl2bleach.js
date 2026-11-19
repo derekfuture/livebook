@@ -274,8 +274,9 @@ export default {
         const i = J.item, ok = i >= 0 && !S.it[i].go;
         if (!ok) return cards[k].show(false);
         const it = S.it[i], fade = Math.round((1 - it.d) * 100), cl = Math.round(J.c * 100);
-        const st = ITEMS[i].w === 0 ? '干燥，不变' : fade < 5 ? '还没褪色' : fade < 85 ? '褪色中' : '已褪色';
-        cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${ITEMS[i].name}</span><span class="cc-res">${st}</span></div><div class="cc-more"><div class="cc-obs"><b>${fade}</b><small>% 已褪色（示意）</small></div><div class="cc-obs"><b>${cl}</b><small>% 氯气浓度（相对，示意）</small></div>${ITEMS[i].w > 0 ? '<div class="cc-note">紫色小点 = HClO（示意色）</div>' : ''}</div></div>`)
+        // 照初中的卡片：名字 + 现象词，一行数字，图例
+        const st = ITEMS[i].w === 0 ? '不变' : fade < 5 ? '还没褪色' : fade < 85 ? '褪色中' : '已褪色';
+        cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${ITEMS[i].name}</span><span class="cc-res">${st}</span></div><div class="cc-more"><div class="cc-obs"><b>${fade}</b><small>% 褪色</small><b>${cl}</b><small>% 氯气（示意）</small></div>${ITEMS[i].w > 0 ? '<div class="cc-note">紫点 = HClO（示意）</div>' : ''}</div></div>`)
           .loc(group, JX[k], 0.0, 0.07).show(!bar.playing && !mic.isOpen);
       });
       mic.update?.(dt);
@@ -289,7 +290,7 @@ export default {
         const t2 = think({ q: '鲜花也褪色了。是什么使有色鲜花褪色的？', options: ['鲜花里有水，氯气与水反应生成的次氯酸', '干燥的氯气本身', '氯气把花烧焦了'], wrong: ['干燥的纸条在同样的氯气里没有褪色：氯气本身不能使它褪色。', '花瓣只是变淡了，没有烧焦：是色素被氧化褪色。'], ok: '对：Cl₂ + H₂O ⇌ HCl + HClO（课本第 46 页）。次氯酸的强氧化性使色素褪色（第 47 页）。', status: (m) => W?.status(m), onOk: () => { done('why'); if (W) W.next.hidden = false; } });
         const t1 = think({ q: '干燥的纸条没有褪色，湿润的纸条褪色了。这说明什么？', options: ['有水才能褪色：氯气和水反应生成的物质使它褪色', '干燥的氯气也能漂白，只是比较慢', '水能使有色纸条褪色'], wrong: ['干燥的纸条在氯气里放了这么久，一点也没变。', '纸条本来就是湿的，在没有氯气的地方不会褪色。'], ok: '对：氯气溶于水，一部分与水反应生成次氯酸（HClO），是它使色素褪色。', status: (m) => W?.status(m) });
         const more = moreBox([['钻进去看：干燥的纸条', () => { S.msub = 0; mic.open(); }], ['钻进去看：湿润的纸条', () => { S.msub = 1; mic.open(); }], ['钻进去看：有色鲜花', () => { S.msub = 2; mic.open(); }]], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '三个瓶里是干燥的氯气（浓度记 1，黄绿色深浅跟着浓度走），氯气有毒（课本第 46 页；实验图标：护目镜、排风、洗手）。玻璃片推开时氯气从瓶口漫出来：浓度按时间常数 60 s 减小（氯气比空气重，敞口时慢慢漫出来；示意）；盖上以后不再变。<br>含水量（示意）：干燥纸条按不含水，湿润纸条 1，鲜花 0.6（鲜花含水分）。溶于水的氯气一部分与水反应 Cl₂ + H₂O ⇌ HCl + HClO（课本第 46 页，“⇌”是可逆反应）：纸条上次氯酸的量向“氯气浓度 × 含水量”靠拢（时间常数约 2 s），离开氯气又回去。<br>次氯酸的强氧化性使色素褪色（课本第 47 页），褪色不可逆：褪色的快慢和次氯酸的量、剩下的色素成正比。<b>画面里的快慢是示意</b>，真实的快慢和氯气浓度、含水量有关。瓶里的氯气很多，被反应掉的忽略。紫色小点表示 HClO，黄绿色表示氯气。' }));
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '三个瓶里是干燥的氯气（浓度记 1，黄绿色深浅跟着浓度走；卡片上的“% 氯气”是相对这个开始浓度的百分数），氯气有毒（课本第 46 页；实验图标：护目镜、排风、洗手）。玻璃片推开时氯气从瓶口漫出来：浓度按时间常数 60 s 减小（氯气比空气重，敞口时慢慢漫出来；示意）；盖上以后不再变。<br>含水量（示意）：干燥纸条按不含水，湿润纸条 1，鲜花 0.6（鲜花含水分）。溶于水的氯气一部分与水反应 Cl₂ + H₂O ⇌ HCl + HClO（课本第 46 页，“⇌”是可逆反应）：纸条上次氯酸的量向“氯气浓度 × 含水量”靠拢（时间常数约 2 s），离开氯气又回去。<br>次氯酸的强氧化性使色素褪色（课本第 47 页），褪色不可逆：褪色的快慢和次氯酸的量、剩下的色素成正比。<b>画面里的快慢是示意</b>，真实的快慢和氯气浓度、含水量有关。瓶里的氯气很多，被反应掉的忽略。紫色小点表示 HClO，黄绿色表示氯气。' }));
         const base = mountXuean(ui, { controls: [more, note], headers: ['做了什么', '现象', '说明'], intro: '三个集气瓶里是黄绿色的干燥氯气——氯气有毒（课本图标：戴护目镜、开排风、实验后洗手）。先取干燥的和湿润的有色纸条各一条，分别放进瓶里。' });
         ui.data.append(t1.el, t2.el, base.next);
         W = { ...base, ui, t1, t2, status: ui.status }; bar.attach(ui);

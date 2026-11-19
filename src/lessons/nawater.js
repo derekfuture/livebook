@@ -371,7 +371,11 @@ export default {
       soundMark.visible = S.reaction && S.gas > 0.1 && !S.oil; soundMark.position.copy(CUP).add(V(S.x, LEVEL + 0.032, S.z));
       if (sound) { sound.level = Math.min(0.1, S.flux * 8); sound.on(S.reaction && S.flux > 0 && !sfx.muted); }
       const reactionWords = [S.seen.float ? '浮' : '', S.seen.melt ? '熔' : '', S.seen.move ? '游' : '', S.seen.hiss ? '响' : '', S.seen.red ? '红' : ''].filter(Boolean).join(' · ');
-      caption.text(`<div class="cc"><div class="cc-t"><span class="cc-name">${S.ignition ? '黄色火焰 · 飞溅' : reactionWords}</span></div><div class="cc-more">${S.finished ? '钠已反应完' : `剩余约 ${Math.max(0, S.left * 1000).toFixed(0)} mg`} · H₂ 约 ${S.gas.toFixed(1)} mL<br>钠的直径放大 3 倍 · 时间按实秒</div></div>`).loc(group, CUP.x + 0.052, H + 0.005, 0).show(S.total > 0 && !S.dump);
+      // 照初中的卡片：名字 + 现象词，一行数字，一行看到的现象；“直径放大 3 倍、时间按实秒”写在面板里
+      const stamp = S.ignition ? '<span class="cc-res burn">着火</span>' : S.finished ? '<span class="cc-res">反应完</span>' : '';
+      const nums = S.finished ? `<small>H₂</small><b>${S.gas.toFixed(1)}</b><small>mL（约）</small>` : `<small>剩</small><b>${Math.max(0, S.left * 1000).toFixed(0)}</b><small>mg 钠</small><small>H₂</small><b>${S.gas.toFixed(1)}</b><small>mL（约）</small>`;
+      const seen = S.ignition ? [reactionWords, '黄色火焰 · 飞溅'].filter(Boolean).join(' · ') : reactionWords;
+      caption.text(`<div class="cc"><div class="cc-t"><span class="cc-name">烧杯里</span>${stamp}</div><div class="cc-more"><div class="cc-obs">${nums}</div>${seen ? `<div class="cc-note">${seen}</div>` : ''}</div></div>`).loc(group, CUP.x + 0.052, H + 0.005, 0).show(S.total > 0 && !S.dump);
       massCard.text(`切下约 ${(S.chosen * 1000).toFixed(0)} mg${S.chosen < 0.065 ? ' · 绿豆大（近似）' : S.chosen > 0.15 ? ' · 明显太大' : ''}`).loc(group, PAPER.x, 0.04, PAPER.z).show(S.stage === 'paper' && !S.cut && !bar.playing);
       // 真实镜头位置检测：世界坐标换回本课坐标，再测相对杯口的方向和距离。
       const cam = window.__lb?.stage?.camera;

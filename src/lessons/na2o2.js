@@ -259,9 +259,10 @@ export default {
       ox.count = n; ox.instanceMatrix.needsUpdate = true;
       heat.material.opacity = clamp((S.T - 26) / 70, 0, 0.1);
       {
-        const gas = !S.water ? '还没加水' : r > 1 ? '剧烈冒气泡' : r > 0.1 ? '还在冒气泡' : S.left < 0.5 ? '气泡停了：过氧化钠反应完了' : '不冒气泡了';
-        const wall = S.T > 45 ? '外壁发烫' : S.T > 30 ? '外壁有点热' : '外壁不热';
-        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里</span></div><div class="cc-more"><div class="cc-obs"><small>Na₂O₂ 剩约 ${(S.left * 77.98 / 1000).toFixed(2)} g</small></div><div class="cc-obs"><small>${gas}</small></div><div class="cc-obs"><small>${wall}</small></div><div class="cc-note">蓝点 = 试管上部的 O₂，橙色 = 热（示意）</div></div></div>`)
+        // 照初中的卡片：名字 + 气泡，一行数字和外壁的感觉，图例
+        const stamp = !S.water ? '' : r > 1 ? '<span class="cc-res burn">大量气泡</span>' : r > 0.1 ? '<span class="cc-res burn">冒气泡</span>' : S.left < 0.5 ? '<span class="cc-res">反应完</span>' : '<span class="cc-res">不冒泡</span>';
+        const wall = !S.water ? '' : S.T > 45 ? '外壁发烫' : S.T > 30 ? '外壁有点热' : '外壁不热';
+        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><small>剩</small><b>${(S.left * 77.98 / 1000).toFixed(2)}</b><small>g Na₂O₂（约）</small>${wall ? `<small>${wall}</small>` : ''}</div><div class="cc-note">蓝点 = O₂，橙色 = 热（示意）</div></div></div>`)
           .loc(group, TX, T_Y + 0.05, 0).show(!bar.playing && !mic.isOpen);
       }          // 热：管外一圈淡橙色（不盖住液体本来的颜色）
       mic.update?.(dt);

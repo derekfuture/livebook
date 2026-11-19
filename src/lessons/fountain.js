@@ -538,10 +538,10 @@ export default {
       homeLab.visible = !S.mounted && !F.go;
       // 观察卡：烧瓶装好以后，写看得到的现象和模型算的进液比例、瓶内外压强差
       if (S.mounted && !F.go) {
-        const pct = Math.round((100 * S.Vl) / V0), pIn = S.P * 101.3, dP = 101.3 - pIn, gp = S.nN + S.nA > 0.5 ? gasPct() : 0;
-        const stamp = Q > 0.3 ? '<span class="cc-res">喷泉</span>' : S.leakQ > 0.5 ? '<span class="cc-res burn">漏气</span>' : '';
-        const look = S.Vl < 2 ? '' : `<div class="cc-note">溶液${red > 0.5 ? '<b>红色</b>' : '无色'}</div>`;
-        flaskCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">烧瓶里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${pct}</b><small>% 是液体（约 ${Math.round(S.Vl)} mL）</small></div><div class="cc-obs"><b>${dP.toFixed(dP < 10 ? 1 : 0)}</b><small>kPa 瓶内外压强差</small></div>${look}<div class="cc-note">瓶内约 ${pIn.toFixed(0)} kPa，外面 101 kPa（模型算，示意）</div><div class="cc-note">气体中氨约 ${gp}%</div><div class="cc-note">绿点 = 氨分子，灰点 = 空气（示意色）</div></div></div>`)
+        // 照初中的卡片：名字 + 现象词（喷泉 / 颜色），一行数字，图例；压强差怎么算写在面板里，氨的占比在烧瓶的标签上
+        const pct = Math.round((100 * S.Vl) / V0), dP = 101.3 - S.P * 101.3, isRed = S.Vl >= 2 && red > 0.5;
+        const stamp = Q > 0.3 ? `<span class="cc-res">${isRed ? '红色喷泉' : '喷泉'}</span>` : S.leakQ > 0.5 ? '<span class="cc-res burn">漏气</span>' : S.Vl >= 2 ? `<span class="cc-res${isRed ? ' burn' : ''}">${isRed ? '红色' : '无色'}</span>` : '';
+        flaskCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">烧瓶里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${pct}</b><small>% 是液体</small><b>${Math.max(0, dP).toFixed(dP < 10 ? 1 : 0)}</b><small>kPa 压强差（约）</small></div><div class="cc-note">绿点 = 氨，灰点 = 空气（示意）</div></div></div>`)
           .loc(group, 0.2, 0.25, 0.01).show(!bar.playing && !mic.isOpen);
       } else flaskCard.show(false);
       beaker.setLevel(LV(S.beakV));
@@ -561,7 +561,7 @@ export default {
         const leakSeg = seg('橡胶塞', ['塞紧', '没塞紧'], (v, i) => A.setCond({ leak: i === 1 }), { value: 0 });
         const vary = varyBox('课本要求：<b>干燥</b>的圆底烧瓶里<b>充满</b>氨气，橡胶塞<b>塞紧</b>瓶口。换个条件试试（选了以后器材重新摆好、记录清空）：', wetSeg, fullSeg, leakSeg);
         const more = moreBox([['钻进去看', () => mic.open()]], () => A.reset(false));
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: `烧瓶内容积约 ${Math.round(V0)} mL，20 ℃、101.3 kPa；“充满”按氨气占 98% 计（收集的氨气里总混有少量空气，示意）。胶头滴管里预先吸入约 1 mL 水；烧杯里 380 mL 水。<br>溶解度用课本数据：常温常压下 1 体积水大约可溶解 700 体积氨。溶解的快慢是示意值（有水时几秒内溶完，喷泉的水花接触面大、溶得更快）。<br>瓶内压强按瓶里剩下的气体算（等温）；进水的快慢按瓶内外压强差减去液柱的压强算（玻璃管内径 4 mm，管道阻力用一个示意系数），所以先快后慢；空气的主要成分（N₂、O₂）在水里溶解度很小，本模型忽略空气的少量溶解，所以喷泉停下时水只能充满瓶里空气以外的部分。<br>烧瓶没干燥（示意）：瓶壁上按约 0.3 mL 水计；收集时通进去的氨和干燥烧瓶一样多（同样的收集时间），但先被瓶壁的水溶到平衡（已溶的氨 = 700 × 水的体积 × 氨的分压比），瓶口敞着收集，少了的气体由空气补上——算下来瓶里的氨只剩约一半多，空气占四成多，喷泉弱。<br>漏气、玻璃管口在空气里时空气补进来的快慢是示意值。溶液的颜色：已溶的氨按 24.0 L/mol 换成浓度，[OH⁻] = √(Kb·c)、Kb = 1.8×10⁻⁵，酚酞在 pH 约 8.2 以上变红；挤进去的那点水里没有酚酞。<br>绿点表示氨分子、灰点表示空气（示意）；箭头的长短表示大气压和瓶内气体的压强（示意）。` }));
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: `烧瓶内容积约 ${Math.round(V0)} mL，20 ℃、101.3 kPa；“充满”按氨气占 98% 计（收集的氨气里总混有少量空气，示意）。胶头滴管里预先吸入约 1 mL 水；烧杯里 380 mL 水。<br>溶解度用课本数据：常温常压下 1 体积水大约可溶解 700 体积氨。溶解的快慢是示意值（有水时几秒内溶完，喷泉的水花接触面大、溶得更快）。<br>瓶内压强按瓶里剩下的气体算（等温），卡片上的压强差 = 外面的大气压 101.3 kPa − 瓶内压强；进水的快慢按瓶内外压强差减去液柱的压强算（玻璃管内径 4 mm，管道阻力用一个示意系数），所以先快后慢；空气的主要成分（N₂、O₂）在水里溶解度很小，本模型忽略空气的少量溶解，所以喷泉停下时水只能充满瓶里空气以外的部分。<br>烧瓶没干燥（示意）：瓶壁上按约 0.3 mL 水计；收集时通进去的氨和干燥烧瓶一样多（同样的收集时间），但先被瓶壁的水溶到平衡（已溶的氨 = 700 × 水的体积 × 氨的分压比），瓶口敞着收集，少了的气体由空气补上——算下来瓶里的氨只剩约一半多，空气占四成多，喷泉弱。<br>漏气、玻璃管口在空气里时空气补进来的快慢是示意值。溶液的颜色：已溶的氨按 24.0 L/mol 换成浓度，[OH⁻] = √(Kb·c)、Kb = 1.8×10⁻⁵，酚酞在 pH 约 8.2 以上变红；挤进去的那点水里没有酚酞。<br>绿点表示氨分子、灰点表示空气（示意）；箭头的长短表示大气压和瓶内气体的压强（示意）。` }));
         const base = mountXuean(ui, { controls: [vary, more, note], headers: ['做了什么', '现象', '说明'], intro: '右边软木圈上是充满氨气的干燥圆底烧瓶，橡胶塞上插着玻璃管和胶头滴管（预先吸入了水），乳胶管用弹簧夹夹着。铁架台上的烧杯里是水。' });
         ui.data.append(t1.el, t2.el, base.next);
         W = { ...base, ui, t1, t2, status: ui.status, fullSeg, leakSeg, wetSeg }; bar.attach(ui);

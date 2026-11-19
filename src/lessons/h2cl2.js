@@ -340,10 +340,11 @@ export default {
       cu /= nu || 1; cd /= nd || 1;
       const word = (c) => (c > 0.7 ? '黄绿色' : c > 0.3 ? '浅黄绿色' : c > 0.08 ? '很淡的黄绿色' : '几乎无色');
       const look2 = word(cu) === word(cd) ? `整瓶${word(cu)}` : `上部${word(cu)}，下部${word(cd)}`;
-      const look1 = S.flash > 0.1 ? '猛地闪了一下' : S.lit && inJar ? '<b>苍白色</b>火焰，安静地燃烧' : S.outBy && inJar ? '火焰附近氯气不足，熄灭了' : !S.lit && inJar ? '导管没点燃：看不到反应' : '';
-      const mouth = S.rCl > 3 ? '冲出<b>黄绿色</b>的氯气' : S.rHcl > 1 ? '瓶口<b>白雾</b>' : '';
-      const stamp = badRound() ? '<span class="cc-res burn">这一轮做坏了</span>' : S.outBy === 'used' ? '<span class="cc-res">熄火</span>' : '';
-      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">集气瓶里</span>${stamp}</div><div class="cc-more"><div class="cc-note">${[look1, look2, mouth].filter(Boolean).join('；')}</div><div class="cc-obs"><b>${Math.max(0, Math.round(clLeft))}</b><small>mL Cl₂ 还在瓶里（按室温折算，模型估算）</small></div>${S.burnT > 0 ? `<div class="cc-note">已燃烧：画面 ${Math.round(S.burnT)} 秒（2 倍速，实际约 ${Math.round(S.burnT * 2)} 秒）</div>` : ''}</div></div>`)
+      // 照初中的卡片：名字 + 现象词，一行数字（瓶里剩的 Cl₂、瓶口），一行瓶里的颜色；折算方法、倍速写在面板里
+      const mouth = S.rCl > 3 ? '冲出黄绿色氯气' : S.rHcl > 1 ? '瓶口白雾' : '';
+      const res = (w, burn) => `<span class="cc-res${burn ? ' burn' : ''}">${w}</span>`;
+      const stamp = S.flash > 0.1 ? res('闪了一下', true) : badRound() ? res('做坏了', true) : S.lit && inJar ? res('苍白色火焰', true) : S.outBy === 'used' ? res('熄火') : !S.lit && inJar ? res('没点燃') : '';
+      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">集气瓶里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${Math.max(0, Math.round(clLeft))}</b><small>mL Cl₂（约）</small>${mouth ? `<small>${mouth}</small>` : ''}</div><div class="cc-note">${look2}</div></div></div>`)
         .loc(group, JX + 0.02, JH + 0.07, 0).show(!bar.playing && !mic.isOpen);
       bar.near(S.near); mic.update?.(dt);
     };
@@ -358,7 +359,7 @@ export default {
         const t2 = think({ q: '以前学过的燃烧，都是物质在氧气中的燃烧。通过 H₂ 在 Cl₂ 中的燃烧，你对燃烧有什么新的认识？', ctx, options: ['燃烧不一定要有氧气参加；燃烧的本质是氧化还原反应', '燃烧一定要有氧气，瓶里一定混进了空气', '这不是燃烧，只是发光'], wrong: ['瓶里盛满的是氯气，燃烧的是 H₂ 和 Cl₂，生成 HCl；氧气无须参与这条反应。', '它发光、放热，生成了新物质 HCl，是燃烧。'], ok: '对：燃烧不一定要有氧气参加。H₂ 在 Cl₂ 中燃烧，氢元素 0 → +1，被氧化；氯元素 0 → −1，被还原（课本第 24 页：共用电子对偏向氯原子）——燃烧是发光、放热的氧化还原反应。', status: (m) => W?.status(m), onOk: () => { done('why'); if (W) W.next.hidden = false; } });
         const t1 = think({ q: 'H₂ 在 Cl₂ 中燃烧，火焰是什么颜色？瓶口的白雾是怎么来的？', ctx, options: ['苍白色；生成的 HCl 在空气中与水蒸气结合，呈现雾状', '淡蓝色；白雾是生成的水蒸气', '黄色；白雾是跑出来的氯气'], wrong: ['淡蓝色是在空气里；这条反应是 H₂ 和 Cl₂ 反应，生成的是 HCl，不是水。', '氯气是黄绿色的，不是白雾；火焰也不是黄色。'], ok: '对：H₂ + Cl₂ 点燃══ 2HCl（课本第 45 页）。HCl 气体溶于水，就成为我们常用的盐酸。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const more = moreBox([['钻进去看', () => mic.open()]], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '集气瓶约 250 mL，盛满氯气（黄绿色深浅跟着 Cl₂ 的占比走）；氯气有毒（课本第 45 页“注意”），实验图标要求戴护目镜、开排风。纯净的 H₂ 流量按 3 mL/s，<b>画面时间加快 2 倍</b>（卡片和记录里的“画面秒数”乘 2 是实际时间）。<br>瓶里的气体分三层算（示意）：顶上的热烟气层、火焰周围的热区、火焰下面没动过的冷气体，每层分别记 H₂、Cl₂、HCl、空气，层内是混合的。导管往下伸，火焰经过的冷气体并进热区；燃烧按 H₂ + Cl₂ ══ 2HCl 消耗火焰附近的 Cl₂（体积 1 : 1 : 2），生成的热 HCl 先升到顶上。热区比室温高约 60 K（时间常数 2 s，示意）；受热膨胀和多出来的气体从瓶口出去，从最上面一层开始、按这一层的组成出去：所以伸得慢时出去的主要是 HCl（遇水蒸气成白雾）。<br>按这个模型：每秒伸下去不超过约 1 cm 时，HCl 生成得比挤出去的快，不挤出氯气；伸得更快，一下子并进的冷氯气受热膨胀，氯气被挤出瓶口（显示的毫升数是模型估算）。火焰附近 Cl₂ 低于约 10% 时熄火（示意）。没点燃就伸进去，氢气只和瓶里的气体混着，在本模型里不反应（实际上 H₂ 和 Cl₂ 在光照或点燃时会反应，课本第 103 页表 4-4）；火焰附近 H₂、Cl₂ 都超过约 4% 时遇火会闪一下（氢气和氯气的混合气体遇火剧烈反应）。玻璃片敞着、导管不在瓶里时，最上面一层按时间常数 150 s 慢慢扩散出去（示意）。<br>氢气在空气中燃烧是淡蓝色火焰（初中化学）；在氯气中是苍白色（课本）。共用电子对偏向氯原子见课本第 24 页。' }));
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '集气瓶约 250 mL，盛满氯气（黄绿色深浅跟着 Cl₂ 的占比走）；氯气有毒（课本第 45 页“注意”），实验图标要求戴护目镜、开排风。纯净的 H₂ 流量按 3 mL/s，<b>画面时间加快 2 倍</b>（记录里的“画面秒数”乘 2 是实际时间）。<br>瓶里的气体分三层算（示意）：顶上的热烟气层、火焰周围的热区、火焰下面没动过的冷气体，每层分别记 H₂、Cl₂、HCl、空气，层内是混合的。导管往下伸，火焰经过的冷气体并进热区；燃烧按 H₂ + Cl₂ ══ 2HCl 消耗火焰附近的 Cl₂（体积 1 : 1 : 2），生成的热 HCl 先升到顶上。热区比室温高约 60 K（时间常数 2 s，示意）；受热膨胀和多出来的气体从瓶口出去，从最上面一层开始、按这一层的组成出去：所以伸得慢时出去的主要是 HCl（遇水蒸气成白雾）。<br>按这个模型：每秒伸下去不超过约 1 cm 时，HCl 生成得比挤出去的快，不挤出氯气；伸得更快，一下子并进的冷氯气受热膨胀，氯气被挤出瓶口（显示的毫升数是模型估算）。卡片上瓶里剩下的 Cl₂ 毫升数按室温折算。火焰附近 Cl₂ 低于约 10% 时熄火（示意）。没点燃就伸进去，氢气只和瓶里的气体混着，在本模型里不反应（实际上 H₂ 和 Cl₂ 在光照或点燃时会反应，课本第 103 页表 4-4）；火焰附近 H₂、Cl₂ 都超过约 4% 时遇火会闪一下（氢气和氯气的混合气体遇火剧烈反应）。玻璃片敞着、导管不在瓶里时，最上面一层按时间常数 150 s 慢慢扩散出去（示意）。<br>氢气在空气中燃烧是淡蓝色火焰（初中化学）；在氯气中是苍白色（课本）。共用电子对偏向氯原子见课本第 24 页。' }));
         const base = mountXuean(ui, { controls: [more, note], headers: ['做了什么', '现象', '说明'], intro: INTRO });
         ui.data.append(t1.el, t2.el, base.next);
         W = { ...base, ui, t1, t2, status: ui.status }; bar.attach(ui);

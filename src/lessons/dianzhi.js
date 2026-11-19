@@ -398,9 +398,12 @@ export default {
       const postAt = (q) => q.clone().applyEuler(head.rotation).add(head.position);
       wRed.update(SUP.clone().add(sup.term.pos), postAt(head.post.l), 0.045);
       wBlk.update(BULB.clone().add(bulb.term.b.clone().multiplyScalar(BULB_K)), postAt(head.post.r), 0.045);
-      { const c = live() ? cond(S.bk[S.at], S.I) : null, L = S.bShow, lamp = !live() ? '不亮' : L >= 0.25 ? '<b>亮</b>' : L >= 0.03 ? '<b>微微发亮</b>' : '不亮';
-        const state = !S.power ? '电源没有接通' : S.at < 0 ? '电极不在烧杯里：电路断开' : S.dirty ? '电极是湿的：这次不算干燥固体的读数' : { none: '不导电', water: '不导电（严格地说导电能力非常弱，这套装置测不出）', weak: '导电很弱（这套装置测不出）', yes: '导电' }[c];
-        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">电路</span></div><div class="cc-more">${S.at >= 0 ? `电极在：${nameOf(S.bk[S.at])}<br>` : ''}${S.power && S.at >= 0 ? '导电情况：' : ''}${state}<br>小灯泡：${lamp}${live() ? (inRange(S.bk[S.at]) ? `<br><small>电流约 ${amp(S.I)}（模型估算）</small>` : '<br><small>浓度超过约 0.2 mol/L：超出模型的定标范围，不给电流数值</small>') : ''}</div></div>`)
+      { // 照初中的卡片：小灯泡 + 亮不亮，一行电流，一行很短的注（电极在哪 / 为什么没读数）；蒸馏水为什么测不出写在面板里
+        const L = S.bShow, stamp = !live() ? '' : L >= 0.25 ? '<span class="cc-res burn">亮</span>' : L >= 0.03 ? '<span class="cc-res burn">微微发亮</span>' : '<span class="cc-res">不亮</span>';
+        const [n, u] = amp(S.I).split(' ');
+        const obs = !live() ? '' : inRange(S.bk[S.at]) ? `<div class="cc-obs"><small>电流</small><b>${n}</b>${u ? `<small>${u}（约）</small>` : ''}</div>` : '<div class="cc-obs"><small>太浓：不给电流数值</small></div>';
+        const note = !S.power ? '电源没有接通' : S.at < 0 ? '电极不在烧杯里' : S.dirty ? '电极是湿的，这次不算' : `电极在：${plateOf(S.bk[S.at], S.at) || '空烧杯'}`;
+        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">小灯泡</span>${stamp}</div><div class="cc-more">${obs}<div class="cc-note">${note}</div></div></div>`)
           .loc(group, BULB.x, 0.135, BULB.z).show(!bar.playing && !mic.isOpen); }
       // 松手前：哪只烧杯会接收它（杯与杯之间的空隙不接收；药匙、玻璃棒只在能用的杯上亮）
       { let at = -1;
@@ -421,7 +424,7 @@ export default {
         const t1 = think({ q: '干燥的 NaCl 固体、蒸馏水都不导电，NaCl 溶液却能导电。为什么？', ctx, options: ['溶液里有能自由移动的、带电荷的离子；固体里的离子紧密排列，不能自由移动', '固体里没有离子，溶进水里才有', 'NaCl 溶液里有水，水能导电'], wrong: ['NaCl 固体里本来就有 Na⁺ 和 Cl⁻——钻进去看看：它们排得整整齐齐，动不了。', '蒸馏水那一杯，小灯泡不亮。'], ok: '对：能导电的物质必须具有能自由移动的、带电荷的粒子。NaCl 溶于水，在水分子的作用下形成能够自由移动的水合钠离子和水合氯离子（课本第 15 页）。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const vary = varyBox('多加几勺固体，小灯泡会更亮吗？也可以先把电极放进蒸馏水、接通电源，再加固体、搅拌——看小灯泡怎样一点点亮起来。');
         const more = moreBox([['钻进去看', () => mic.open()], ['换新的蒸馏水（右边三杯）', () => A.refill()]], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '学生电源直流 6 V；小灯泡 6.3 V 0.15 A（灯丝电阻随温度变，热时约 42 Ω），额定电压高于电源电压，所以溶液再浓也不会把灯泡烧坏；亮度按实际功率 ÷ 额定功率。<br>两根石墨电极直径 6 mm、相距 2 cm，浸在 50 mL 水里约 2.6 cm；电极间溶液的电阻按 R = arccosh(d/2a) ÷ (πκL) 估算。电导率 κ = Λc，Λ 按科尔劳施公式（NaCl Λ° = 126.4、KNO₃ 144.9 S·cm²/mol，用 0.1 mol/L 的实测值定标，25 ℃），c 按配成后的溶液体积算；只在每种溶质不超过约 0.2 mol/L 时给出电流数值，更浓时只作定性外推（卡片上不给数值）。蒸馏水约 1 μS/cm，电极间电阻二十多万欧，电流只有二三十微安，小灯泡不亮。干燥的固体按不导电算；不计电极上发生的反应。<br>药匙取“少许”按 0.5 g（一勺 NaCl 溶进 50 mL 水约 0.17 mol/L，KNO₃ 约 0.10 mol/L：同样一勺，KNO₃ 的物质的量少，按模型算电导率低一些、灯暗一些）。溶解快慢是示意（时间加快约 10 倍），搅拌快得多；溶解度按 20 ℃：NaCl 36.0 g、KNO₃ 31.6 g / 100 g 水。<br>“钻进去看”里一对离子约代表 2.85 mmol（数量示意）；水合离子周围画 3～4 个水分子；画面只是两个电极之间的一小块溶液，从一边移走的离子，另一边又有新的进来。' }));
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '学生电源直流 6 V；小灯泡 6.3 V 0.15 A（灯丝电阻随温度变，热时约 42 Ω），额定电压高于电源电压，所以溶液再浓也不会把灯泡烧坏；亮度按实际功率 ÷ 额定功率。<br>两根石墨电极直径 6 mm、相距 2 cm，浸在 50 mL 水里约 2.6 cm；电极间溶液的电阻按 R = arccosh(d/2a) ÷ (πκL) 估算。电导率 κ = Λc，Λ 按科尔劳施公式（NaCl Λ° = 126.4、KNO₃ 144.9 S·cm²/mol，用 0.1 mol/L 的实测值定标，25 ℃），c 按配成后的溶液体积算；只在每种溶质不超过约 0.2 mol/L 时给出电流数值，更浓时只作定性外推（卡片上不给数值）。蒸馏水约 1 μS/cm，电极间电阻二十多万欧，电流只有二三十微安，小灯泡不亮：严格地说导电能力非常弱，这套装置测不出，记作不导电。固体刚开始溶解、电流不到 1 mA 时，小灯泡也不亮，记作导电很弱。干燥的固体按不导电算；不计电极上发生的反应。<br>药匙取“少许”按 0.5 g（一勺 NaCl 溶进 50 mL 水约 0.17 mol/L，KNO₃ 约 0.10 mol/L：同样一勺，KNO₃ 的物质的量少，按模型算电导率低一些、灯暗一些）。溶解快慢是示意（时间加快约 10 倍），搅拌快得多；溶解度按 20 ℃：NaCl 36.0 g、KNO₃ 31.6 g / 100 g 水。<br>“钻进去看”里一对离子约代表 2.85 mmol（数量示意）；水合离子周围画 3～4 个水分子；画面只是两个电极之间的一小块溶液，从一边移走的离子，另一边又有新的进来。' }));
         const base = mountXuean(ui, { controls: [vary, more, note], headers: ['烧杯里', '接通电源后', '导电吗'], intro: '三个烧杯里分别是干燥的 NaCl 固体、KNO₃ 固体和蒸馏水（对照）；右边两个烧杯里也是蒸馏水，后面配溶液用。先把石墨电极放进 NaCl 固体。' });
         ui.data.append(t1.el, t2.el, base.next);
         W = { ...base, ui, t1, t2, status: ui.status }; bar.attach(ui);

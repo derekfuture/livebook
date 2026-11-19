@@ -312,10 +312,13 @@ export default {
       const cam = window.__lb?.stage?.camera; let danger = false;
       if (cam && S.inCru && !S.finished) { const p = group.worldToLocal(cam.position.clone()).sub(BOT); danger = p.length() < 0.2 && p.y / p.length() > 0.8; }
       {
-        const lampWord = S.lampK > 0.5 ? '酒精灯已撤掉' : lampOn() ? '酒精灯在下面加热' : '酒精灯没点';
-        const naWord = !S.inCru ? (S.cut ? `切下约 ${Math.round(S.mass * 1000)} mg，还没投进去` : '还没投钠') : S.finished ? '燃烧结束' : S.burning > 0 ? '剧烈燃烧，<b>黄色火焰</b>' : S.melt >= 1 ? '熔成闪亮的小球' : S.melt > 0 ? '正在熔化' : '受热，还没熔化';
-        const prodWord = S.burned > 0 ? `<div class="cc-note">生成淡黄色的 Na₂O₂ 约 ${Math.round(prod * 1000)} mg（按 2Na ~ Na₂O₂ 算）${S.spilled > 0.001 ? `；溅出钠约 ${Math.round(S.spilled * 1000)} mg` : ''}</div>` : '';
-        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">坩埚里的钠</span></div><div class="cc-more"><div class="cc-obs"><small>${naWord}</small></div><div class="cc-obs"><small>${lampWord}</small></div>${prodWord}</div></div>`)
+        // 照初中的卡片：名字 + 一个现象词，最多一行关键数字（数字大、单位小），说明不写进卡片
+        const stamp = !S.inCru ? '' : S.finished ? '<span class="cc-res">淡黄色固体</span>' : S.burning > 0 ? '<span class="cc-res burn">燃烧</span>' : S.melt >= 1 ? '<span class="cc-res">熔成小球</span>' : S.melt > 0 ? '<span class="cc-res">熔化中</span>' : '';
+        const obs = !S.inCru ? (S.cut ? `<div class="cc-obs"><b>${Math.round(S.mass * 1000)}</b><small> mg 钠，还没投进去</small></div>` : '')
+          : S.burned > 0 ? `<div class="cc-obs"><b>${Math.round(prod * 1000)}</b><small> mg Na₂O₂（约）</small></div>`
+            : `<div class="cc-obs"><b>${Math.round(S.tn)}</b><small> ℃（约）</small></div>`;
+        const spill = S.spilled > 0.001 ? `<div class="cc-note">溅出约 ${Math.round(S.spilled * 1000)} mg 钠</div>` : '';
+        card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">坩埚里的钠</span>${stamp}</div>${obs || spill ? `<div class="cc-more">${obs}${spill}</div>` : ''}</div>`)
           .loc(group, CX, RING_Y + 0.02, CZ).show(!bar.playing && !mic.isOpen && (S.lit || S.inCru || S.cut));
       }
       warning.text('注意　不要近距离俯视坩埚！').loc(group, CX, RING_Y + 0.07, CZ).show(danger);

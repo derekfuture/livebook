@@ -113,7 +113,9 @@ export default {
       if (S.shaken && S.settle > 0.9 && !S.said.settled) { S.said.settled = true; done('shake'); log(['静置', '白色沉淀沉到试管底部，上面的液体又澄清了', 'BaSO₄ 难溶于水']); if (!S.demo) { W?.t1.open(); status('沉淀沉到管底了。在左边作答：混合前后，溶液里的离子有什么变化？'); } }
       const k = Math.min(1, I.ppt / SO4_0);
       B.setTube(0, { vol: S.vol, color: 0xe6eef2, milk: k * (1 - S.settle) * 0.95, milkColor: 0xfbfbf7, speckColor: 0xffffff, sediment: k * S.settle, sedColor: 0xfbfbf8 });
-      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里的离子（示意）</span></div><div class="cc-more">Na⁺ ${mm(I.na)}　SO₄²⁻ ${mm(I.so4)}<br>Ba²⁺ ${mm(I.ba)}　Cl⁻ ${mm(I.cl)}<br><small>单位 mmol · 沉淀 BaSO₄ ${(I.ppt * 233).toFixed(1)} mg</small></div></div>`).loc(group, TX, T_Y + T_LEN + 0.02, 0).show(!bar.playing && S.drops > 0 && !mic.isOpen);
+      // 照初中的卡片：名字 + 现象词，下面两行是这一课要看的离子（Na₂SO₄ 的一对、BaCl₂ 的一对）
+      const ion = (n, x) => `<b>${mm(x)}</b><small>${n}</small>`;
+      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里的离子</span>${I.ppt > 1e-4 ? '<span class="cc-res">白色沉淀</span>' : ''}</div><div class="cc-more"><div class="cc-obs">${ion('Na⁺', I.na)}${ion('SO₄²⁻', I.so4)}</div><div class="cc-obs">${ion('Ba²⁺', I.ba)}${ion('Cl⁻', I.cl)}<small>（mmol，约）</small></div></div></div>`).loc(group, TX, T_Y + T_LEN + 0.02, 0).show(!bar.playing && S.drops > 0 && !mic.isOpen);
       mic.update?.(dt);
     };
 

@@ -103,6 +103,7 @@ export default {
     const tint = () => S.no2 / Math.max(0.1, gasV());
     const colorState = () => (tint() >= TINT_RED ? 'red' : S.peakTint >= TINT_RED ? (tint() < TINT_FADE ? 'faded' : 'fading') : 'none');
     const COLOR_WORD = { red: '红棕色', fading: '红棕色变浅', faded: '红棕色基本褪去', none: '无色' };
+    const STAMP_WORD = { red: '红棕色', fading: '颜色变浅', faded: '基本褪去', none: '无色' };          // 观察卡上的现象词（短）
     const settled = () => Math.abs(S.L - Leq()) < 0.0002 && !S.held && Math.abs(S.Loff) < 0.0002;
     const mark = () => (S.L + S.Loff) * ML_PER_M;          // 活塞停在多少 mL 刻度（水 + 气体）
     const spawn = {};
@@ -357,14 +358,14 @@ export default {
       BUB.forEach((b, i) => { s4.setScalar(b.r); m4.compose(b.p, q4, s4); bubbles.setMatrixAt(i, m4); }); bubbles.count = BUB.length; bubbles.instanceMatrix.needsUpdate = true;
       // 观察卡
       const vg = gasV(), cs = colorState();
-      const stamp = `<span class="cc-res${cs === 'red' || cs === 'fading' ? ' burn' : ''}">${COLOR_WORD[cs]}</span>`;
-      // 活塞受力（手按着）或正在回位时，刻度不等于“水 + 等压下的气体”，先不写等号
+      // 照初中的卡片：名字 + 颜色，一行刻度读数，进气量（步骤里要看）和跑出去的气体各一行短注，图例；成分和分开记的进气写在记录、面板里
+      const stamp = `<span class="cc-res${cs === 'red' || cs === 'fading' ? ' burn' : ''}">${STAMP_WORD[cs]}</span>`;
+      // 活塞受力（手按着）或正在回位时，刻度不等于“水 + 等压下的气体”，只写刻度
       const moving = S.held || Math.abs(S.Loff) > 0.0002 || (S.closed && Math.abs(S.L - Leq()) > 0.0003);
-      const scaleLine = moving ? `<small>mL 刻度（活塞${S.held && S.closed ? '被手拉着 / 推着，松手会弹回' : S.held ? '正在拉 / 推' : '正在移动'}）</small>` : `<small>mL 刻度 = 水 ${r1(S.w)} + 气体 ${r1(vg)}</small>`;
-      const parts = [['NO', S.no], ['NO₂', S.no2], ['O₂', S.o2], ['N₂ 等', S.n2]].filter(([, v]) => v > 0.05).map(([k, v]) => `${k} ${r1(v)}`).join('　');
-      const air = S.inCycle && S.airCycle > 0.05 ? `<div class="cc-note">这次进气 <b>${r1(S.airCycle)}</b> mL（拉活塞 ${r1(S.airPull)}${S.airBack > 0.05 ? `、管口补进 ${r1(S.airBack)}` : ''}）${S.airCycle >= 10 - 0.02 && !S.airLogged ? ' · <b>到 10 mL 了</b>' : ''}</div>` : '';
-      const outN = S.lostNO + S.diffNO > 0.005 ? `<div class="cc-note">跑出去的 NO、NO₂ 约 ${(S.lostNO + S.diffNO).toFixed(2)} mL（有毒）</div>` : '';
-      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">注射器里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${Math.round(mark())}</b>${scaleLine}</div><div class="cc-note">气体（mL）：${parts}</div>${air}${outN}<div class="cc-note">点：淡紫灰 = NO、蓝 = O₂、灰 = N₂ 等（示意色）</div></div></div>`)
+      const scaleLine = `<b>${Math.round(mark())}</b><small>mL 刻度</small>${moving ? '' : `<small>水 ${r1(S.w)} · 气体 ${r1(vg)}</small>`}`;
+      const air = S.inCycle && S.airCycle > 0.05 ? `<div class="cc-note">这次进气 <b>${r1(S.airCycle)}</b> mL${S.airCycle >= 10 - 0.02 && !S.airLogged ? ' · <b>够 10 mL</b>' : ''}</div>` : '';
+      const lost = S.lostNO + S.diffNO, outN = lost >= 0.05 ? `<div class="cc-note">跑出 NO、NO₂ 约 ${r1(lost)} mL</div>` : '';
+      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">注射器里</span>${stamp}</div><div class="cc-more"><div class="cc-obs">${scaleLine}</div>${air}${outN}<div class="cc-note">紫灰 NO · 蓝 O₂ · 灰 N₂ 等（示意）</div></div></div>`)
         .loc(group, local(0.03, 0.018).x, local(0.03, 0.018).y, 0).show(!bar.playing && !mic.isOpen && !s.go);
       bar.near(S.near); mic.update?.(dt);
     };
@@ -380,7 +381,7 @@ export default {
         const t1 = think({ q: '实验5-5 中发生了哪些化学反应？', ctx, options: ['2NO + O₂ ══ 2NO₂；3NO₂ + H₂O ══ 2HNO₃ + NO', '2NO + O₂ ══ 2NO₂；NO₂ 全部溶于水，没有气体放出', 'NO 溶于水；NO₂ 不溶于水'], wrong: [{ toString: () => `振荡后剩下无色气体，并不能说明有没有放出 NO：没反应完的 NO${S.noAir != null ? `（这一轮吸空气、夹上后约 ${r1(S.noAir)} mL）` : ''}和空气带进来的 N₂ 等本来就在。课本给的方程式是 3NO₂ + H₂O ══ 2HNO₃ + NO——钻进去看：三个 NO₂ 里有一个变回 NO。` }, '吸水、封口振荡时没有明显变化：NO 不易溶于水；红棕色是振荡后才褪去的。'], ok: '对：NO 与 O₂ 化合成红棕色的 NO₂；NO₂ 溶于水生成硝酸和 NO（课本第 13 页）。', status: (m) => W?.status(m), onOk: () => t2.open() });
         const vary = varyBox('课本问：如果要将注射器中的 NO 充分转化，可以采取什么措施？振荡完以后，再点弹簧夹打开、吸入 10 mL 空气、夹上、振荡……反复几次，看 NO 还剩多少、针筒里越来越多的是什么。也可以吸进多一点或少一点空气，比比颜色深浅。');
         const more = moreBox([['钻进去看', () => mic.open()]], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '注射器 50 mL（内径约 2.9 cm）；刻度读数 = 水 + 气体的体积。气体按同温同压下的体积算（体积比 = 物质的量之比），活塞摩擦不计：夹上弹簧夹时活塞停在里外压强相等的地方。<br>空气按 O₂ 21%、其余 79%（主要是 N₂）算。2NO + O₂ ══ 2NO₂ 几乎立刻完成（示意）；10 mL 空气带进约 2.1 mL O₂，生成约 4.2 mL NO₂，气体少约 2.1 mL。振荡时 NO₂ 几秒内溶完（静置时很慢，示意），每 3 mL NO₂ 放出 1 mL NO：4.2 mL NO₂ → 1.4 mL NO，生成的硝酸约 0.11 mmol（5 mL 水里约 0.02 mol/L）。<br>NO 在水里溶得很少（20 ℃ 约 0.05 体积/体积），不计；2NO₂ ⇌ N₂O₄ 不计（计入的话体积还会小一点）。<br>弹簧夹开着时：拉活塞拉进来的空气和里面气体变少时从管口补进来的空气分开记（卡片上的“这次进气”是两者之和，课本的 10 mL 按它算）；推活塞时，针筒里管口那头泡在水里就先排水，否则先排气体，活塞推不过里面剩下的东西；管口通着空气时，里外气体经乳胶管扩散交换约 0.003 mL/s（按扩散系数约 0.2 cm²/s、管内径 3 mm、长约 7 cm 估的量级，示意），跑出去的 NO、NO₂ 记在卡片上。<br>红棕色的深浅按 NO₂ 占气体的比例（示意）。点：每 0.5 mL 一个——淡紫灰 = NO（无色，示意）、蓝 = O₂、灰 = N₂ 等。钻进去看：分子个数按体积比，每 2.1 mL 一个（10 mL 空气里正好 1 个 O₂）；这一小块和针筒别处通着，个数对不上时旁边飘进来、飘走一个；慢放示意，不表示真实的反应步骤。<br>NO、NO₂ 都有毒：课本标了护目镜、排风、洗手。' }));
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '注射器 50 mL（内径约 2.9 cm）；刻度读数 = 水 + 气体的体积。气体按同温同压下的体积算（体积比 = 物质的量之比），活塞摩擦不计：夹上弹簧夹时活塞停在里外压强相等的地方。<br>空气按 O₂ 21%、其余 79%（主要是 N₂）算。2NO + O₂ ══ 2NO₂ 几乎立刻完成（示意）；10 mL 空气带进约 2.1 mL O₂，生成约 4.2 mL NO₂，气体少约 2.1 mL。振荡时 NO₂ 几秒内溶完（静置时很慢，示意），每 3 mL NO₂ 放出 1 mL NO：4.2 mL NO₂ → 1.4 mL NO，生成的硝酸约 0.11 mmol（5 mL 水里约 0.02 mol/L）。<br>NO 在水里溶得很少（20 ℃ 约 0.05 体积/体积），不计；2NO₂ ⇌ N₂O₄ 不计（计入的话体积还会小一点）。<br>弹簧夹开着时：拉活塞拉进来的空气和里面气体变少时从管口补进来的空气分开记（卡片上的“这次进气”是两者之和，课本的 10 mL 按它算）；推活塞时，针筒里管口那头泡在水里就先排水，否则先排气体，活塞推不过里面剩下的东西；管口通着空气时，里外气体经乳胶管扩散交换约 0.003 mL/s（按扩散系数约 0.2 cm²/s、管内径 3 mm、长约 7 cm 估的量级，示意），跑出去的 NO、NO₂ 到约 0.05 mL 才记在卡片上（扩散出去的很慢，管口要通着十几秒才有这么多）。<br>红棕色的深浅按 NO₂ 占气体的比例（示意）。点：每 0.5 mL 一个——淡紫灰 = NO（无色，示意）、蓝 = O₂、灰 = N₂ 等。钻进去看：分子个数按体积比，每 2.1 mL 一个（10 mL 空气里正好 1 个 O₂）；这一小块和针筒别处通着，个数对不上时旁边飘进来、飘走一个；慢放示意，不表示真实的反应步骤。<br>NO、NO₂ 都有毒：课本标了护目镜、排风、洗手。' }));
         const base = mountXuean(ui, { controls: [vary, more, note], headers: ['做了什么', '现象', '说明'], intro: '50 mL 注射器里已经充入 20 mL NO（无色、有毒；淡紫灰的点示意），管口套着乳胶管，用弹簧夹夹着。先把注射器口伸进烧杯的水里，吸入 5 mL 水。' });
         ui.data.append(t1.el, t2.el, t3.el, base.next);
         W = { ...base, ui, t1, t2, t3, status: ui.status }; bar.attach(ui);
