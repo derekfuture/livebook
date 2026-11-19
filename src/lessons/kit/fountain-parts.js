@@ -1,5 +1,8 @@
 // 氨溶于水的喷泉实验（fountain）的微观场景：烧瓶里的氨分子溶进水里。
-// st：{ water: 瓶里有水了没有, gas: 瓶里还剩的氨（相对一开始，0~1）, dis: 已经溶进水里的氨（0~1）, air: 瓶里的空气（相对烧瓶容积，0~1）, red: 溶液里有酚酞、显碱性 }
+// st：{ water: 瓶里有水了没有, gas: 瓶里还剩的氨（相对一开始，0~1）, dis: 已经溶进水里的氨（0~1）, air: 瓶里的空气（相对烧瓶容积，0~1）, red: 溶液里有酚酞、显碱性,
+//       airPct: 瓶里气体中空气占百分之几, inflow: 烧杯的水正在进来, clamp: 弹簧夹开着, mounted: 倒置装好了, leak: 塞子没塞紧, ended: 喷泉自己停了,
+//       dP: 瓶内比外面低多少 kPa, need: 顶起玻璃管里的液柱要多少 kPa }
+// 字幕按这些实际的量写：氨在溶、压强差够不够、水进没进来（不把“氨在溶”直接说成“压强一直下降、水在进来”）。
 // 课本第 14 页：氨溶于水时，会与水结合成一水合氨（NH₃·H₂O），一水合氨中有一小部分电离形成 NH₄⁺ 和 OH⁻。
 //   NH₃ + H₂O ⇌ NH₃·H₂O ⇌ NH₄⁺ + OH⁻
 // 照初中红磷燃烧、高中钠燃烧的做法：分子少，一次演一个反应，只标代表，每种粒子各待各的位置。
@@ -115,13 +118,21 @@ export function fountainScene() {
     text(c, st) {
       const eq = `${f('NH3')} + ${f('H2O')} ⇌ ${f('NH3H2O')} ⇌ ${f('NH4+')} + ${f('OH-')}`;
       const e = c.events[0], moving = e && e.t >= e.A, left = c.mols.filter((m) => m.kind === 'NH3' && m.gas).length;
-      const airTxt = airWant(st) ? '（还有一点空气 N₂、O₂：在水里溶解度很小，不画它们溶解）' : '';
+      const airTxt = airWant(st) ? `（瓶里的气体约 ${st.airPct ?? 0}% 是空气：N₂、O₂ 在水里溶解度很小，不画它们溶解）` : '';
+      const kpa = (x) => (x ?? 0).toFixed(1);
+      // 水进没进来、为什么
+      const flow = st.inflow ? '瓶内压强比外面低，外面的<b>大气压</b>把烧杯里的水压进烧瓶；进来的水占了位置，剩下的气体被压缩，压强又会回升一些。'
+        : !st.mounted ? '烧瓶还没倒置、玻璃管没插进烧杯的水里。'
+          : !st.clamp ? '弹簧夹夹着：烧杯里的水上不来。'
+            : st.leak ? `塞子没塞紧：空气从塞子边钻进去补上，瓶内只比外面低约 ${kpa(st.dP)} kPa，顶不起玻璃管里的液柱（要约 ${kpa(st.need)} kPa），水进不来。`
+              : st.ended ? '进来的水占了位置，剩下的气体被压缩，瓶内压强回升，和外面的大气压、液柱平衡了，水就不再进来。'
+                : `瓶内比外面低约 ${kpa(st.dP)} kPa。`;
       const SHOW = '<b>慢放示意</b>，不表示真实的反应步骤；个数也是示意（1 体积水约溶解 700 体积氨，电离的只是一小部分）。';
       if (!st.water) return { eq, on: false, cap: `烧瓶里充满了 ${f('NH3')}${airTxt}。还没有水。` };
       if (e?.rx === DIS) return { eq, on: true, cap: moving ? `${f('NH3')} 的 N 贴到水分子的一个 H 上（点线：靠在一起，不是化学键）：结合成<b>一水合氨 ${f('NH3H2O')}</b>——这个 ${f('NH3')} 溶进了水里。` : `一个 ${f('NH3')} 落到水面上，翻过来，N 对着一个水分子……` };
       if (e?.rx === ION) return { eq, on: true, cap: `一水合氨中有<b>一小部分电离</b>：水那边的 H 移到 N 上，成了 ${f('NH4+')}；剩下的 O 和 H 是 ${f('OH-')}。` };
-      if (!left && made) return { eq, on: true, cap: `瓶里的氨几乎都溶进了水里${airTxt}：气体少了，<b>瓶内压强骤减</b>，外面的大气压把烧杯里的水压进烧瓶。溶液里有 ${f('OH-')}，显弱碱性${st.red ? '，酚酞变红' : ''}。${SHOW}` };
-      if (made) return { eq, on: true, cap: `瓶里还剩 <b>${left}</b> 个 ${f('NH3')}（原来 ${NG} 个）：氨溶进水里，瓶里的气体越来越少，<b>压强越来越小</b>。${SHOW}` };
+      if (!left && made) return { eq, on: true, cap: `瓶里的氨几乎都溶进了水里${airTxt}。${flow}溶液里有 ${f('OH-')}，显弱碱性${st.red ? '，酚酞变红' : ''}。${SHOW}` };
+      if (made) return { eq, on: true, cap: `瓶里还剩 <b>${left}</b> 个 ${f('NH3')}（原来 ${NG} 个）：氨溶进水里，瓶里的气体变少。${flow}${SHOW}` };
       return { eq, on: true, cap: `水进了烧瓶：${f('NH3')} 就要溶进水里了。` };
     },
   };

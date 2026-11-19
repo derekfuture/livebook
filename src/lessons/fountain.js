@@ -63,7 +63,7 @@ export default {
   need: '在烧杯的水里滴入少量酚酞溶液；倒置充满氨气的烧瓶，使玻璃管插入烧杯的水中；打开弹簧夹，挤压胶头滴管，观察现象',
   conclusion: {
     page: 18, rect: [216, 54, 530, 200],
-    quote: '氨是一种极易溶于水的气体，在常温常压下，1体积水大约可溶解700体积氨。氨溶于水时，会与水结合成一水合氨（NH3·H2O），一水合氨中有一小部分电离形成NH4+和OH-。……氨的水溶液（俗称氨水）显弱碱性，能使酚酞溶液变红或使红色石蕊试纸变蓝。',
+    quote: '氨是一种极易溶于水的气体，在常温常压下，1体积水大约可溶解700体积氨。氨溶于水时，会与水结合成一水合氨（NH3·H2O），一水合氨中有一小部分电离形成NH4+和OH-。NH3 + H2O ⇌ NH3·H2O ⇌ NH4+ + OH-　氨的水溶液（俗称氨水）显弱碱性，能使酚酞溶液变红或使红色石蕊试纸变蓝。',
     formula: 'NH₃ + H₂O ⇌ NH₃·H₂O ⇌ NH₄⁺ + OH⁻',
     why: '挤进去的少量水先溶解了一部分氨，瓶里的气体少了，<b>瓶内压强下降</b>；外面的<b>大气压</b>把烧杯里的水沿玻璃管压进烧瓶，压进来的水又继续溶解氨，越喷越多，形成<b>喷泉</b>——说明氨<b>极易溶于水</b>。喷进来的溶液变<b>红</b>——氨的水溶液显<b>碱性</b>（一水合氨中有一小部分电离出 OH⁻）。<br>所以烧瓶要干燥、氨气要充满、橡胶塞要塞紧：瓶里的氨少了、混进了空气，或者漏气，瓶内压强就减小得少，喷泉就弱，甚至不喷。',
     src: '课本第 13–14 页 · 第五章 第二节 氮及其化合物',
@@ -168,6 +168,7 @@ export default {
     const sprayMat = new THREE.MeshBasicMaterial({ color: CLEAR, transparent: true, opacity: 0.8, depthWrite: false });
     const spray = new Particles({ max: 260, geometry: new THREE.SphereGeometry(1, 6, 5), material: sprayMat }); spray.mesh.renderOrder = 9.7; group.add(spray.mesh);
     const bubs = new Particles({ max: 60, geometry: new THREE.SphereGeometry(1, 8, 6), material: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false }) }); bubs.mesh.renderOrder = 9.8; group.add(bubs.mesh);
+    const squirt = new Particles({ max: 40, geometry: new THREE.SphereGeometry(1, 6, 5), material: new THREE.MeshBasicMaterial({ color: CLEAR, transparent: true, opacity: 0.8, depthWrite: false }) }); squirt.mesh.renderOrder = 9.7; group.add(squirt.mesh);          // 胶头滴管挤进去的水：没有酚酞，一直无色
     const jetMat = water2({ color: CLEAR, base: 0.75, rim: 0.3 });
     const jet = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.25, 1, 10, 1, true), jetMat); jet.geometry.translate(0, 0.5, 0); jet.renderOrder = 9.5; jet.visible = false; group.add(jet);
     // 气体的点：绿 = 氨分子，灰 = 空气（示意）
@@ -196,6 +197,7 @@ export default {
       clampOpen: false, bulbW: 1, squeeze: 0, squeezed: false,
       nN: ch.nN, nA: ch.nA, Vl: ch.Vw, Vind: 0, D: ch.D, beakV: BV0, Q: 0, P: 1, leakQ: 0, tubeQ: 0,
       started: false, redSeen: false, quietT: 0, waitT: 0, ended: false, said: {},
+      t: 0, mountAt: null, openAt: null, sqAt: null, jetOn: false, dMoved: false,
     });
     S = fresh();
 
@@ -241,40 +243,45 @@ export default {
     const setC = (cx, cy, r) => { const c = V(cx, cy); S.fl.rot = r; const pv = c.add(rotV(0, PL(), r)); S.fl.piv = [pv.x, pv.y, 0]; };
     const A = {
       dDrag(p) { if (p) S.dCarry = p.clone(); },
-      dDrop() { S.dCarry = null; },
+      dDrop() {
+        S.dCarry = null;
+        if (S.ind > 0 && !S.said.ind) { done('ind'); log('ind', [`向烧杯的水里滴入${S.ind} 滴酚酞溶液`, '水仍是<b>无色</b>', '水不显碱性，酚酞不变色']); status(`滴入了 ${S.ind} 滴酚酞溶液：烧杯里的水还是<b>无色</b>的。接着把<b>烧瓶</b>拖到铁架台上，倒置，让玻璃管插进烧杯的水里。`); }
+      },
       drip() {
         sfx.clink({ freq: 2600, gain: 0.012 });
         dropsP.spawn({ p: dropper.position.clone().add(V(0, -0.0015, 0)), v: V(0, -0.06, 0), size: 0.0013, life: 1.5 });
         S.ind = Math.min(6, S.ind + 1);
-        if (S.ind === 3) { done('ind'); log('ind', ['向烧杯的水里滴入几滴酚酞溶液', '水仍是<b>无色</b>', '水不显碱性，酚酞不变色']); status('滴入了几滴酚酞溶液：烧杯里的水还是<b>无色</b>的。接着把<b>烧瓶</b>拖到铁架台上，倒置，让玻璃管插进烧杯的水里。'); }
+        if (S.ind === 3) { done('ind'); log('ind', ['向烧杯的水里滴入几滴酚酞溶液', '水仍是<b>无色</b>', '水不显碱性，酚酞不变色']); status('滴入了几滴酚酞溶液：烧杯里的水还是<b>无色</b>的（少量就够了）。接着把<b>烧瓶</b>拖到铁架台上，倒置，让玻璃管插进烧杯的水里。'); }
       },
-      // 松手：倒置了、玻璃管末端在烧杯口范围内 → 竖直放下去，夹进铁夹；别处 → 很快放回软木圈上（按手放到的地方判断）
+      // 松手：倒置了、玻璃管插进了烧杯的水里、瓶颈到了铁夹口（手放下去的）→ 铁夹夹住；别处 → 很快放回软木圈上（按烧瓶实际的位置判断）
       flaskDrop() {
-        const [x, y, r] = flaskWant(), end = endOf(V(x, y), r);
-        S.fl.go = r < -Math.PI + 0.05 && Math.abs(end.x - BK.x) < BR ? 'mount' : 'home'; S.fl.hand = null;
+        if (S.fl.f0 === frame && S.fl.hand) { const [x, y, r] = flaskWant(); setC(x, y, r); }          // 同一帧里按下又松开（qa 不用真鼠标时的拖放，人手做不到）：当作烧瓶已经拿到手指的地方
+        const c = fCenter(), r = S.fl.rot, end = endOf(c, r), over = r < -Math.PI + 0.05 && Math.abs(end.x - BK.x) < BR;
+        S.fl.go = over && c.y - seatY() < 0.012 ? 'mount' : 'home'; S.fl.hand = null;
+        if (over && S.fl.go === 'home') status('烧瓶还没放下去：倒置后在烧杯上方<b>往下放</b>，玻璃管插进水里、瓶颈到铁夹口再松手。');
       },
       mounted() {
-        S.mounted = true; done('mount'); sfx.clink({ freq: 900, gain: 0.02 });
+        S.mounted = true; S.mountAt = S.t; done('mount'); sfx.clink({ freq: 900, gain: 0.02 });
         log('mount', ['倒置烧瓶，玻璃管插入烧杯的水中', '烧瓶里看不出变化', '氨气是无色的']);
         status(S.clampOpen ? '烧瓶倒置好了，玻璃管插进了水里。弹簧夹已经开着——挤压<b>胶头滴管</b>，使水进入烧瓶。' : '烧瓶倒置好了，玻璃管插进了水里。接着点一下乳胶管上的<b>弹簧夹</b>，把它打开。');
       },
       clip() {
         S.clampOpen = !S.clampOpen; sfx.clink({ freq: 1500, gain: 0.02 });
         if (S.clampOpen) {
-          done('open');
+          done('open'); if (!S.started) S.openAt = S.t;
           if (S.mounted && !S.squeezed) status('弹簧夹打开了。现在挤压<b>胶头滴管</b>（点一下橡胶帽），使水进入烧瓶。');
           else if (!S.mounted && !S.said.openAir) { S.said.openAir = true; status('弹簧夹打开了——可烧瓶还没倒置，玻璃管口在空气里。'); }
-        } else { bar.undo('open'); status('弹簧夹夹上了：乳胶管不通。'); }
+        } else { bar.undo('open'); status(S.started && !S.ended ? '弹簧夹夹上了：烧杯里的水上不来，喷泉停在半路。再打开弹簧夹，接着看。' : '弹簧夹夹上了：乳胶管不通。'); }
       },
       squeeze() {
         if (S.squeeze > 0) return;
         S.squeeze = 0.6;
         if (S.bulbW <= 0) { status('滴管里的水已经挤完了。要再做一遍，在“更多”里点<b>全部重来</b>。'); return; }
-        const w = S.bulbW; S.bulbW = 0; S.squeezed = true; S.Vl += w; done('squeeze'); sfx.clink({ freq: 700, gain: 0.02 });
+        const w = S.bulbW; S.bulbW = 0; S.squeezed = true; S.sqAt = S.t; S.Vl += w; done('squeeze'); sfx.clink({ freq: 700, gain: 0.02 });
         // 喷出去的小水花（滴管尖朝瓶里）
         flask.updateMatrixWorld(true);
         const tip = toLocal(plug.localToWorld(V(DX, 0.044, 0))), dir = V(0, -1, 0).applyAxisAngle(V(0, 0, 1), S.fl.rot);
-        for (let i = 0; i < 26; i++) spray.spawn({ p: tip.clone(), v: dir.clone().multiplyScalar(0.25 + Math.random() * 0.25).add(V((Math.random() - 0.5) * 0.08, 0, (Math.random() - 0.5) * 0.08)), size: 0.0009, life: 0.8, g: true });
+        for (let i = 0; i < 26; i++) squirt.spawn({ p: tip.clone(), v: dir.clone().multiplyScalar(0.25 + Math.random() * 0.25).add(V((Math.random() - 0.5) * 0.08, 0, (Math.random() - 0.5) * 0.08)), size: 0.0009, life: 0.8, g: true });
         if (!S.mounted) status(S.clampOpen ? '水挤进了烧瓶，可烧瓶还没倒置、玻璃管口在空气里，弹簧夹也开着：氨溶进水里，外面的<b>空气</b>就从玻璃管补了进去（看灰点）。' : '水挤进了烧瓶：氨溶进水里，瓶内压强减小——可烧瓶还没倒置，玻璃管也没插进烧杯的水里。');
         else if (!S.clampOpen) status('水挤进了烧瓶，氨溶进水里，瓶内压强减小（看箭头）——可<b>弹簧夹还夹着</b>，烧杯里的水上不来。打开弹簧夹试试。');
       },
@@ -293,7 +300,7 @@ export default {
     const labText = () => (S.wet ? `没干燥·NH₃约${gasPct()}%` : S.full > 0.9 ? '充满 NH₃' : `NH₃约${gasPct()}%`);
     const sync = () => {
       setHomeLab(labText());
-      dropsP.clear(); spray.clear(); bubs.clear(); DOTS.n.length = 0; DOTS.a.length = 0; lvCache.key = '';
+      dropsP.clear(); spray.clear(); squirt.clear(); bubs.clear(); DOTS.n.length = 0; DOTS.a.length = 0; lvCache.key = '';
       dropper.position.copy(bottle.tipHome); pose();
     };
     const pose = () => {
@@ -304,10 +311,10 @@ export default {
 
     const drag = draggable(group, [
       // 拖动平面：按下去时滴管所在高度的水平面；记住抓的地方——按住先竖直提出滴瓶，再跟着手平移（不往镜头前面跳）
-      { obj: dPick, plane: 'xz', get offset() { return S.dCarry ? S.dGrabY : dropper.position.y; }, keepOffset: true, anchor: dHand, hint: '酚酞溶液：拖到烧杯口上方，按住不放——一滴一滴地滴', onStart: (p) => { S.dGrabY = dropper.position.y; A.dDrag(p || dropper.position); }, onDrag: (p) => A.dDrag(p), onEnd: () => A.dDrop() },
+      { obj: dPick, plane: 'xz', get offset() { return S.dCarry ? S.dGrabY : dropper.position.y; }, keepOffset: true, anchor: dHand, hint: '酚酞溶液：拖到烧杯口上方，按住不放——一滴一滴地滴（少量即可）', onStart: () => { S.dGrabY = dropper.position.y; }, onDrag: (p) => A.dDrag(p), onEnd: () => A.dDrop() },          // 按住不动时滴管不动；手一动才提出滴瓶
       { obj: flaskPick, plane: 'xy', offset: 0, keepOffset: true, anchor: flask, enabled: () => !S.mounted && S.fl.go !== 'mount',
-        hint: () => (S.mounted ? '' : '烧瓶：拖向铁架台，移过去时倒过来；玻璃管对准烧杯口松手'),
-        onStart: (p) => { S.fl.drag = true; S.fl.go = null; S.fl.hand = p ? [p.x, p.y] : null; },
+        hint: () => (S.mounted ? '' : '烧瓶：拖向铁架台，移过去时倒过来；在烧杯口上方往下放，玻璃管插进水里再松手'),
+        onStart: (p) => { S.fl.drag = true; S.fl.go = null; S.fl.f0 = frame; S.fl.hand = p ? [p.x, p.y] : null; },
         onDrag: (p) => { if (p) S.fl.hand = [p.x, p.y]; },
         onEnd: () => { S.fl.drag = false; A.flaskDrop(); } },
     ], { tip: tag('', 'pill'), taps: [
@@ -316,7 +323,8 @@ export default {
     ] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: fountainScene(), at: () => fCenter().add(V(0, 0.02, 0)), btnAt: () => fCenter().add(V(0.058, 0.03, 0.01)), label: '钻进去看',
-      state: () => ({ water: S.Vl > 0.05, gas: S.nN / V0, dis: S.D / V0, air: S.nA / V0, red: redOf() > 0.4 }), key: () => String(S.Vl > 0.05), bar: () => bar, scale: 0.007, lookD: [0.03, 0.6, 1], dist: 0.27 });
+      state: () => ({ water: S.Vl > 0.05, gas: S.nN / V0, dis: S.D / V0, air: S.nA / V0, red: redOf() > 0.4,
+        airPct: Math.round((100 * S.nA) / Math.max(1e-6, S.nN + S.nA)), inflow: S.Q > 0.3, clamp: S.clampOpen, mounted: S.mounted && !S.fl.go, leak: S.leak, ended: S.ended, dP: Math.max(0, (1 - S.P) * 101.3), need: S.need || 0 }), key: () => String(S.Vl > 0.05), bar: () => bar, scale: 0.007, lookD: [0.03, 0.6, 1], dist: 0.27 });          // 字幕按实际的压强、进水、弹簧夹写
     const overBk = () => V(BK.x + 0.016, D_Y, BK.z + 0.012);
     // 质检用：滴管拿到烧杯口上方，滴够 n 滴就松手
     const dripTo = (n) => { const me = S; A.dDrag(overBk()); const go = () => { if (S === me) { if (!me.dCarry) return; if (me.ind >= n) { A.dDrop(); return; } } requestAnimationFrame(go); }; requestAnimationFrame(go); };
@@ -324,8 +332,8 @@ export default {
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'ind', title: '滴入酚酞', todo: '把<b>酚酞溶液</b>的滴管拖到烧杯口上方，按住，往烧杯的水里滴入少量（几滴）。', target: () => (S.dCarry ? null : dropper) },
-        { id: 'mount', title: '倒置烧瓶', todo: '把<b>烧瓶</b>拖向铁架台，移过去时倒过来；玻璃管对准烧杯口松手：倒置烧瓶，使玻璃管插入烧杯的水中。', target: () => (S.fl.go || S.fl.drag ? null : flask) },
+        { id: 'ind', title: '滴入酚酞', todo: '把<b>酚酞溶液</b>的滴管拖到烧杯口上方，按住，往烧杯的水里滴入少量（几滴），松手放回。', target: () => (S.dCarry ? null : dropper) },
+        { id: 'mount', title: '倒置烧瓶', todo: '把<b>烧瓶</b>拖向铁架台，移过去时倒过来；在烧杯口上方往下放，玻璃管插入烧杯的水中、瓶颈到铁夹口时松手。', target: () => (S.fl.go || S.fl.drag ? null : flask) },
         { id: 'open', title: '打开弹簧夹', todo: '点一下乳胶管上的<b>弹簧夹</b>，把它打开。', target: () => clip },
         { id: 'squeeze', title: '挤压胶头滴管', todo: '点一下<b>胶头滴管</b>的橡胶帽：挤压，使水进入烧瓶。', target: () => bulb },
         { id: 'watch', title: '观察', todo: '观察烧瓶里的现象：水怎样进来？颜色怎样？也可以<b>钻进去看</b>。', target: () => null },
@@ -334,11 +342,11 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh: () => fresh(DEF), bar: () => bar, apply: () => { sync(); mic.close(); },
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh: () => fresh(DEF), bar: () => bar, apply: () => { sync(); mic.close(); },          // 演示前开着的钻进去看，演示完再打开（从水进来那一刻演到现在的进度）
             view: { save: () => (mic.isOpen ? { mic: true } : null), restore: (v) => { if (v.mic) mic.open(); } } }),
           shots: [
             { cap: '向烧杯的水里滴入少量酚酞溶液：水仍是无色。', dur: 6, cam: [[0.05, 0.12, 0.04], [0.05, 0.3, 1], 0.42], during: act.drag(dPick, overBk, { t0: 0.05, t1: 0.3, release: 0.95, until: () => S.ind >= 3 }) },
-            { cap: '烧瓶里充满了氨气（绿点是氨分子，示意）。倒置烧瓶，使玻璃管插入烧杯的水中。', dur: 8, during: act.path(flaskPick, [() => flask.position.clone(), V(0.19, 0.2, 0), V(0.1, 0.44, 0), V(0.004, 0.44, 0), V(0, 0.36, 0)], { t0: 0.05, t1: 0.4, release: 0.42 }) },
+            { cap: '烧瓶里充满了氨气（绿点是氨分子，示意）。倒置烧瓶，使玻璃管插入烧杯的水中。', dur: 8, during: act.path(flaskPick, [() => flask.position.clone(), V(0.19, 0.2, 0), V(0.1, 0.44, 0), V(0.004, 0.44, 0), V(0, 0.335, 0)], { t0: 0.05, t1: 0.45, release: 0.5 }) },
             { cap: '打开弹簧夹。', dur: 3, cam: [[0, 0.16, 0], [0.06, 0.2, 1], 0.3], during: act.tap(clipPick, 0.35) },
             { cap: '挤压胶头滴管，使水进入烧瓶：少量水先溶解一部分氨，瓶内压强下降，烧杯里的水被压进烧瓶、继续溶解氨，形成喷泉，溶液变红。', dur: 12, cam: [[0, 0.285, 0.01], [0.06, 0.14, 1], 0.5], during: act.tap(bulbPick, 0.08) },
             { cap: '钻进去看：氨分子溶进水里，和水结合成一水合氨，一小部分电离出 OH⁻。演示完了，换你自己做。', dur: 19, cam: [[0, 0.4, 0], [0.03, 0.6, 1], 0.27], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
@@ -375,7 +383,9 @@ export default {
     };
     const p4 = (p) => tmp.copy(p).applyMatrix4(flask.matrix);
 
+    let frame = 0;
     const step = (dt, t) => {
+      S.t += dt; frame++;
       // ---- 酚酞的滴管：一直竖着；拿起来先竖直提出滴瓶，再横着移到烧杯口上方；松手插回原滴瓶 ----
       if (S.dCarry) {
         const inBottle = Math.hypot(dropper.position.x - bottle.tipHome.x, dropper.position.z - bottle.tipHome.z) < 0.004 && dropper.position.y < D_Y - 0.002;
@@ -420,36 +430,48 @@ export default {
       bulb.scale.set(1 - 0.45 * sq, 1.5 - 0.2 * sq, 1 - 0.45 * sq);
       dWater.visible = S.bulbW > 0;
 
-      // ---- 化学和压强 ----
-      const Vg = Math.max(0.5, V0 - S.Vl), pN = S.nN / Vg, pA = S.nA / Vg;
-      S.P = pN + pA;
+      // ---- 化学和压强（每帧分 4 小步算：进水、回流都按这一刻的压强差，停下来时正好压强差 = 液柱的压强）----
       flask.updateMatrixWorld(true);
-      const lvl = levelY();
       const tipY = toLocal(plug.localToWorld(V(TX, TIP, 0))).y;
-      let Q = 0;
       const outInWater = S.mounted && !F.go && bLevel > BK.y + 0.006 + 0.002;
-      if (S.clampOpen && outInWater) {
-        const head = Math.max(tipY, lvl) - bLevel, dP = (1 - S.P) * P0 - RHO * G * head;
-        if (dP > 0 && S.Vl < V0 - 0.4) Q = CD * A_T * Math.sqrt((2 * dP) / RHO) * 1e6;          // mL/s
+      let lvl = levelY(), Q = 0, pN = 0;
+      const NS = 4, hs = dt / NS;
+      for (let i = 0; i < NS; i++) {
+        const Vg = Math.max(0.5, V0 - S.Vl); pN = S.nN / Vg; S.P = pN + S.nA / Vg;
+        lvl = levelY();
+        let q = 0;
+        if (S.clampOpen && outInWater) {
+          const head = Math.max(tipY, lvl) - bLevel, dP = (1 - S.P) * P0 - RHO * G * head;
+          if (dP > 0 && S.Vl < V0 - 0.4) q = CD * A_T * Math.sqrt((2 * dP) / RHO) * 1e6;          // mL/s
+          else if (dP < 0 && lvl > tipY + 0.001 && S.Vl > 0.05) q = -CD * A_T * Math.sqrt((-2 * dP) / RHO) * 1e6;          // 压强差撑不住液柱：瓶里的溶液往回流
+        }
+        q = clamp(q, -S.Vl / Math.max(hs, 1e-4), Math.max(0, (V0 - 0.4 - S.Vl) / Math.max(hs, 1e-4)));
+        // 溶解
+        if (S.Vl > 0.01 && S.nN > 0) {
+          const K = 30 * Math.min(1, S.Vl) + 10 * Math.max(0, q);
+          const r = clamp(K * (pN - S.D / (SOL * S.Vl)), 0, S.nN / Math.max(hs, 1e-4));
+          S.nN -= r * hs; S.D += r * hs;
+        }
+        // 空气补进来：塞子边漏气；或者玻璃管口在空气里、弹簧夹开着
+        S.leakQ = S.leak ? 2500 * Math.max(0, 1 - S.P) : 0;
+        S.tubeQ = S.clampOpen && !S.mounted ? 3000 * Math.max(0, 1 - S.P) : 0;
+        S.nA += (S.leakQ + S.tubeQ) * hs;
+        if (q < 0) { const f = Math.min(1, (-q * hs) / Math.max(S.Vl, 1e-6)); S.D -= S.D * f; S.Vind -= S.Vind * f; }          // 流回去的溶液带走溶在里面的氨
+        S.Vl += q * hs; S.beakV -= q * hs; if (S.ind > 0 && q > 0) S.Vind += q * hs;
+        Q += q / NS;
       }
-      Q = Math.min(Q, Math.max(0, (V0 - 0.4 - S.Vl) / Math.max(dt, 1e-3)));
+      { const Vg = Math.max(0.5, V0 - S.Vl); pN = S.nN / Vg; S.P = pN + S.nA / Vg; lvl = levelY(); }          // 卡片、画面都用这一刻的量
+      S.need = (RHO * G * Math.max(0, Math.max(tipY, lvl) - bLevel)) / 1000;          // 顶起玻璃管里的液柱要多大的压强差（kPa）
       S.Q = Q;
-      // 溶解
-      if (S.Vl > 0.01 && S.nN > 0) {
-        const K = 30 * Math.min(1, S.Vl) + 10 * Q;
-        const r = clamp(K * (pN - S.D / (SOL * S.Vl)), 0, S.nN / Math.max(dt, 1e-3));
-        S.nN -= r * dt; S.D += r * dt;
-      }
-      // 空气补进来：塞子边漏气；或者玻璃管口在空气里、弹簧夹开着
-      S.leakQ = S.leak ? 2500 * Math.max(0, 1 - S.P) : 0;
-      S.tubeQ = S.clampOpen && !S.mounted ? 3000 * Math.max(0, 1 - S.P) : 0;
-      S.nA += (S.leakQ + S.tubeQ) * dt;
-      S.Vl += Q * dt; S.beakV -= Q * dt; if (S.ind > 0) S.Vind += Q * dt;
 
       // ---- 记录 ----
       if (!S.started && Q > 3) {
         S.started = true;
-        log('fountain', ['打开弹簧夹，挤压胶头滴管', '烧杯里的水沿玻璃管<b>喷入烧瓶</b>，形成<b>喷泉</b>', '少量水先溶解一部分氨，瓶内压强下降，外面的大气压把水压进烧瓶；进来的水继续溶解氨']);
+        // “做了什么”按实际的先后写（倒置、开夹、挤水哪个先、隔了多久）
+        const acts = [['倒置烧瓶、玻璃管插进水里', S.mountAt], ['打开弹簧夹', S.openAt], ['挤压胶头滴管', S.sqAt]].filter((a) => a[1] != null).sort((a, b) => a[1] - b[1]);
+        const usual = acts.map((a) => a[0]).join() === '倒置烧瓶、玻璃管插进水里,打开弹簧夹,挤压胶头滴管';
+        const how = usual ? '打开弹簧夹，挤压胶头滴管' : acts.map((a, i) => (i ? `${a[1] - acts[i - 1][1] > 3 ? `过了约 ${Math.round(a[1] - acts[i - 1][1])} 秒，` : ''}再${a[0]}` : `先${a[0]}`)).join('，');
+        log('fountain', [how, '烧杯里的水沿玻璃管<b>喷入烧瓶</b>，形成<b>喷泉</b>', '少量水先溶解一部分氨，瓶内压强下降，外面的大气压把水压进烧瓶；进来的水继续溶解氨']);
         status('形成了<b>喷泉</b>！看瓶里的绿点（氨分子）和箭头（压强）。');
       }
       const red = redOf();
@@ -457,13 +479,13 @@ export default {
         if (S.ind > 0 && red > 0.5) { S.redSeen = true; log('red', ['喷进烧瓶的水', '溶液变成<b>红色</b>', '氨的水溶液显<b>碱性</b>']); }
         else if (!S.ind) log('red', ['喷进烧瓶的水', '溶液<b>无色</b>', '烧杯的水里没有滴酚酞，看不出酸碱性']);
       }
-      if (S.started && !S.ended) {
-        S.quietT = Q < 0.5 ? S.quietT + dt : 0;
+      if (S.started && !S.ended && S.clampOpen && outInWater) {          // 自己停下来的才算结束（中途夹上弹簧夹只是暂停）
+        S.quietT = Math.abs(Q) < 0.5 ? S.quietT + dt : 0;
         if (S.quietT > 1.2) {
           S.ended = true; const pct = Math.round((100 * S.Vl) / V0);
           log('end', ['喷泉停下来', `溶液约占烧瓶的 <b>${pct}%</b>`, pct > 90 ? '瓶里的氨几乎全溶进了水里' : S.leak ? '漏气：空气补进瓶里，占了位置' : S.wet ? '烧瓶没干燥：一部分氨先被瓶壁的水溶掉，瓶里氨少、空气多；空气的主要成分在水里溶解度很小，占了位置' : '瓶里混有空气：空气的主要成分在水里溶解度很小，占了位置']);
           if (!S.demo) {
-            done('watch');
+            done('watch'); if (W) W.next.hidden = false;
             status(pct > 90 ? `喷泉停了：水几乎充满烧瓶（约 ${pct}%）。瓶里的氨几乎全溶进了水里。在左边想一想。` : `喷泉停了：水只进了约 ${pct}% 的烧瓶——剩下的主要是空气（空气的主要成分在水里溶解度很小）。${S.wet ? '烧瓶没干燥，瓶里的氨本来就少了。可以在“换个条件再试”里换一个干燥的烧瓶重做。' : ''}`);
             if (bar.has('watch')) W?.t1.open();
           }
@@ -473,10 +495,12 @@ export default {
         S.waitT += dt;
         if (S.waitT > 4 && !S.said.nofount) {
           S.said.nofount = true;
-          if (S.leak) { log('leak', ['挤压胶头滴管', '<b>没有喷泉</b>', '塞子没塞紧（漏气）：空气钻进去补上，瓶内压强减小不了']); status('没有形成喷泉：橡胶塞<b>没塞紧</b>，外面的空气从塞子边钻进去（看灰点），瓶内压强减小不了。在“换个条件再试”里改回塞紧。'); }
+          const dPk = Math.max(0, (1 - S.P) * 101.3), need = (RHO * G * Math.max(0, Math.max(tipY, lvl) - bLevel)) / 1000;
+          if (S.leak) { log('leak', ['挤压胶头滴管', '<b>没有喷泉</b>', `塞子没塞紧（漏气）：空气钻进去补上，瓶内只比外面低约 ${dPk.toFixed(1)} kPa，顶不起玻璃管里约 ${need.toFixed(1)} kPa 的液柱`]); status(`没有形成喷泉：橡胶塞<b>没塞紧</b>，外面的空气从塞子边钻进去（看灰点），瓶内只比外面低约 ${dPk.toFixed(1)} kPa，顶不起玻璃管里的液柱（要约 ${need.toFixed(1)} kPa）。在“换个条件再试”里改回塞紧。`); }
           else if (S.nA > 0.6 * V0) status('没有形成喷泉：瓶里已经大半是空气了（灰点），空气的主要成分在水里溶解度很小。在“更多”里点<b>全部重来</b>。');
         }
       } else S.waitT = 0;
+      if (S.started && !S.ended && (!S.clampOpen || !outInWater)) S.quietT = 0;
 
       // ---- 画面：液体、水柱、喷泉、水花、气泡、气体的点、箭头 ----
       const liqCol = new THREE.Color(CLEAR).lerp(new THREE.Color(PINK), red);
@@ -498,17 +522,21 @@ export default {
       } else lowCol.visible = false;
       const jetRed = S.ind > 0 ? Math.max(clamp(pN * 5, 0, 1), red * 0.7) : 0;
       const jc = new THREE.Color(CLEAR).lerp(new THREE.Color(PINK), jetRed);
-      upColMat.color.copy(jc); jetMat.color.copy(jc); sprayMat.color.copy(jc);
+      upColMat.color.set(CLEAR); jetMat.color.copy(jc); sprayMat.color.copy(jc);          // 玻璃管里的还是烧杯里的水（无色）；碰到瓶里的氨才变红
       upCol.visible = tubeFull; if (tubeFull) { upCol.position.set(TX, TIP, 0); upCol.scale.set(1, 0.13 - TIP, 1); }
       // 喷泉：从玻璃管口往上喷到瓶顶，水花落下来
       const tipW = toLocal(plug.localToWorld(V(TX, TIP, 0)));
-      if (Q > 0.3 && flipped && lvl < tipW.y) {
-        const topY = flask.position.y + Math.sqrt(RI * RI - TX * TX) - 0.001, L = topY - tipW.y, rr = 0.0009 + 0.0011 * Math.sqrt(Math.min(1, Q / 50));
+      // 喷柱多高按出口速度算：v = 流量 ÷ 管截面，最多升 v²/2g（到瓶顶为止）；管口淹在溶液里就没有露出来的喷柱，只是继续进液
+      const vOut = Math.max(0, Q) * 1e-6 / A_T, topY = flask.position.y + Math.sqrt(RI * RI - TX * TX) - 0.001, jetH = Math.min(topY - tipW.y, (vOut * vOut) / (2 * G));
+      S.jetOn = Q > 0.3 && flipped && lvl < tipW.y - 0.001 && jetH > 0.003;
+      if (S.jetOn) {
+        const L = jetH, rr = 0.0009 + 0.0011 * Math.sqrt(Math.min(1, Q / 50)), apex = tipW.y + L, hitTop = apex >= topY - 0.0005;
         jet.visible = true; jet.position.copy(tipW); jet.scale.set(rr, L, rr);
         const nS = Math.min(12, Q * dt * 6 + Math.random());
-        for (let i = 0; i < nS; i++) { const a = Math.random() * 6.28, sp = 0.05 + Math.random() * 0.12; spray.spawn({ p: V(tipW.x, topY - 0.002, 0), v: V(Math.cos(a) * sp, -0.02, Math.sin(a) * sp), size: 0.0007 + Math.random() * 0.0007, life: 1.4, g: true }); }
+        for (let i = 0; i < nS; i++) { const a = Math.random() * 6.28, sp = (hitTop ? 0.05 : 0.02) + Math.random() * (hitTop ? 0.12 : 0.04); spray.spawn({ p: V(tipW.x, apex - 0.002, 0), v: V(Math.cos(a) * sp, hitTop ? -0.02 : 0.01, Math.sin(a) * sp), size: 0.0007 + Math.random() * 0.0007, life: 1.4, g: true }); }
       } else jet.visible = false;
       const fc = flask.position;
+      squirt.update(dt, (p, d) => { if (p.g) p.v.y -= 3.2 * d; p.p.addScaledVector(p.v, d); const rel = p.p.clone().sub(flask.position); if (rel.length() > RI - 0.0012 && Math.abs(rel.y) < Y0I) p.v.multiplyScalar(0.3); return lvl < 0 || p.p.y > lvl; });
       spray.update(dt, (p, d) => {
         if (p.g) p.v.y -= 3.2 * d;
         p.p.addScaledVector(p.v, d);
@@ -540,7 +568,7 @@ export default {
       if (S.mounted && !F.go) {
         // 照初中的卡片：名字 + 现象词（喷泉 / 颜色），一行数字，图例；压强差怎么算写在面板里，氨的占比在烧瓶的标签上
         const pct = Math.round((100 * S.Vl) / V0), dP = 101.3 - S.P * 101.3, isRed = S.Vl >= 2 && red > 0.5;
-        const stamp = Q > 0.3 ? `<span class="cc-res">${isRed ? '红色喷泉' : '喷泉'}</span>` : S.leakQ > 0.5 ? '<span class="cc-res burn">漏气</span>' : S.Vl >= 2 ? `<span class="cc-res${isRed ? ' burn' : ''}">${isRed ? '红色' : '无色'}</span>` : '';
+        const stamp = S.jetOn ? `<span class="cc-res">${isRed ? '红色喷泉' : '喷泉'}</span>` : Q > 0.3 ? `<span class="cc-res">${isRed ? '红色 · 继续进液' : '继续进液'}</span>` : S.leakQ > 0.5 ? '<span class="cc-res burn">漏气</span>' : S.Vl >= 2 ? `<span class="cc-res${isRed ? ' burn' : ''}">${isRed ? '红色' : '无色'}</span>` : '';
         flaskCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">烧瓶里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${pct}</b><small>% 是液体</small><b>${Math.max(0, dP).toFixed(dP < 10 ? 1 : 0)}</b><small>kPa 压强差（约）</small></div><div class="cc-note">绿点 = 氨，灰点 = 空气（示意）</div></div></div>`)
           .loc(group, 0.2, 0.25, 0.01).show(!bar.playing && !mic.isOpen);
       } else flaskCard.show(false);
@@ -554,8 +582,8 @@ export default {
       view: { elev: 13, azim: -10, lookY: 0.45, frameMargin: 1.2 },
       mount(ui) {
         const ctx = () => { const pct = Math.round((100 * S.Vl) / V0); return `<div>${S.started ? `挤进约 1 mL 水以后，烧杯里的水<b>喷进了烧瓶</b>，最后约占烧瓶的 ${pct}%` : '还没有形成喷泉'}</div><div>${S.ind ? (redOf() > 0.5 ? '瓶里的溶液是<b>红色</b>的（烧杯的水里滴了酚酞）' : '瓶里的溶液还没变红') : '烧杯的水里没有滴酚酞'}</div>`; };
-        const t2 = think({ q: '喷进烧瓶的溶液变红，说明什么？', ctx, options: ['氨的水溶液显碱性', '氨的水溶液显酸性', '酚酞遇水就变红'], wrong: ['酚酞遇酸性溶液不变色；变红的是碱性溶液。', '烧杯里的水滴了酚酞，可它一直是无色的。'], ok: '对：氨溶于水生成一水合氨，一水合氨中有一小部分电离出 NH₄⁺ 和 OH⁻，氨的水溶液显弱碱性（课本第 14 页）。', status: (m) => W?.status(m), onOk: () => { done('why'); if (W) W.next.hidden = false; } });
-        const t1 = think({ q: '只挤进去约 1 mL 水，为什么烧杯里的水会喷进烧瓶？', ctx, options: ['氨极易溶于水：少量水先溶解一部分氨，瓶内压强下降，外面的大气压把烧杯里的水压进烧瓶，进来的水继续溶解氨', '氨和水反应放出大量气体，把水推了上去', '挤压滴管的力把烧杯里的水推了上去'], wrong: ['看看绿点和箭头：瓶里的气体是变少了，不是变多了。', '滴管只把它自己里面那一点水挤进了烧瓶；烧杯里的水是后来被压进去的。'], ok: '对：常温常压下 1 体积水大约可溶解 700 体积氨（课本第 14 页）。挤进去的少量水先溶解一部分氨，瓶内压强下降；烧杯里的水被压进来以后继续溶解氨，越喷越多，形成喷泉。', status: (m) => W?.status(m), onOk: () => { if (S.redSeen) t2.open(); else W?.status('对：1 体积水大约可溶解 700 体积氨（课本第 14 页），进来的水不断溶解氨，形成喷泉。不过这一次烧杯的水里<b>没有滴酚酞</b>，喷进来的溶液是无色的，看不出它的酸碱性。点“更多”里的<b>全部重来</b>，先往烧杯的水里滴几滴酚酞，再做一遍。'); } });
+        const t2 = think({ q: '喷进烧瓶的溶液变红，说明什么？', ctx, options: ['氨的水溶液显碱性', '氨的水溶液显酸性', '酚酞遇水就变红'], wrong: ['酚酞遇酸性溶液不变色；变红的是碱性溶液。', '烧杯里的水滴了酚酞，可它一直是无色的。'], ok: '对：氨溶于水生成一水合氨，一水合氨中有一小部分电离出 NH₄⁺ 和 OH⁻，氨的水溶液显弱碱性（课本第 14 页）。', status: (m) => W?.status(m), onOk: () => done('why') });
+        const t1 = think({ q: '只挤进去约 1 mL 水，为什么烧杯里的水会喷进烧瓶？', ctx, options: ['氨极易溶于水：少量水先溶解一部分氨，瓶内压强下降，外面的大气压把烧杯里的水压进烧瓶，进来的水继续溶解氨', '氨和水反应放出大量气体，把水推了上去', '挤压滴管的力把烧杯里的水推了上去'], wrong: ['看看绿点和箭头：瓶里的气体是变少了，不是变多了。', '滴管只把它自己里面那一点水挤进了烧瓶；烧杯里的水是后来被压进去的。'], ok: '对：常温常压下 1 体积水大约可溶解 700 体积氨（课本第 14 页）。挤进去的少量水先溶解一部分氨，瓶内压强下降；烧杯里的水被压进来以后继续溶解氨，越喷越多，形成喷泉。', status: (m) => W?.status(m), onOk: () => { done('why'); if (S.redSeen) t2.open(); else W?.status('对：1 体积水大约可溶解 700 体积氨（课本第 14 页），进来的水不断溶解氨，形成喷泉。不过这一次烧杯的水里<b>没有滴酚酞</b>，喷进来的溶液是无色的，看不出它的酸碱性。点“更多”里的<b>全部重来</b>，先往烧杯的水里滴几滴酚酞，再做一遍。'); } });
         const wetSeg = seg('烧瓶', ['干燥', '没干燥（瓶壁有水）'], (v, i) => A.setCond({ wet: i === 1 }), { value: 0 });
         const fullSeg = seg('收集时通入的氨气', ['够充满', '约 3/4 瓶', '约半瓶'], (v, i) => A.setCond({ full: [FULL, 0.75, 0.5][i] }), { value: 0 });
         const leakSeg = seg('橡胶塞', ['塞紧', '没塞紧'], (v, i) => A.setCond({ leak: i === 1 }), { value: 0 });
@@ -563,7 +591,7 @@ export default {
         const more = moreBox([['钻进去看', () => mic.open()]], () => A.reset(false));
         const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: `烧瓶内容积约 ${Math.round(V0)} mL，20 ℃、101.3 kPa；“充满”按氨气占 98% 计（收集的氨气里总混有少量空气，示意）。胶头滴管里预先吸入约 1 mL 水；烧杯里 380 mL 水。<br>溶解度用课本数据：常温常压下 1 体积水大约可溶解 700 体积氨。溶解的快慢是示意值（有水时几秒内溶完，喷泉的水花接触面大、溶得更快）。<br>瓶内压强按瓶里剩下的气体算（等温），卡片上的压强差 = 外面的大气压 101.3 kPa − 瓶内压强；进水的快慢按瓶内外压强差减去液柱的压强算（玻璃管内径 4 mm，管道阻力用一个示意系数），所以先快后慢；空气的主要成分（N₂、O₂）在水里溶解度很小，本模型忽略空气的少量溶解，所以喷泉停下时水只能充满瓶里空气以外的部分。<br>烧瓶没干燥（示意）：瓶壁上按约 0.3 mL 水计；收集时通进去的氨和干燥烧瓶一样多（同样的收集时间），但先被瓶壁的水溶到平衡（已溶的氨 = 700 × 水的体积 × 氨的分压比），瓶口敞着收集，少了的气体由空气补上——算下来瓶里的氨只剩约一半多，空气占四成多，喷泉弱。<br>漏气、玻璃管口在空气里时空气补进来的快慢是示意值。溶液的颜色：已溶的氨按 24.0 L/mol 换成浓度，[OH⁻] = √(Kb·c)、Kb = 1.8×10⁻⁵，酚酞在 pH 约 8.2 以上变红；挤进去的那点水里没有酚酞。<br>绿点表示氨分子、灰点表示空气（示意）；箭头的长短表示大气压和瓶内气体的压强（示意）。` }));
         const base = mountXuean(ui, { controls: [vary, more, note], headers: ['做了什么', '现象', '说明'], intro: '右边软木圈上是充满氨气的干燥圆底烧瓶，橡胶塞上插着玻璃管和胶头滴管（预先吸入了水），乳胶管用弹簧夹夹着。铁架台上的烧杯里是水。' });
-        ui.data.append(t1.el, t2.el, base.next);
+        ui.data.append(base.next, t1.el, t2.el);
         W = { ...base, ui, t1, t2, status: ui.status, fullSeg, leakSeg, wetSeg }; bar.attach(ui);
       },
       update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); },
@@ -575,7 +603,7 @@ export default {
           { name: '拿起酚酞', hold: dPick },
           { name: '滴酚酞', run: () => dripTo(3), wait: 2 },
           { name: '放下酚酞', release: dPick, wait: 0.5 },
-          { name: '倒置烧瓶', drag: flaskPick, to: () => V(0, 0.36, 0), wait: 6 },
+          { name: '倒置烧瓶', drag: flaskPick, to: () => V(0, 0.334, 0), wait: 6 },
           { name: '打开弹簧夹', tap: clipPick, wait: 1 },
           { name: '挤压滴管', tap: bulbPick, wait: 3, scale: 1 },
           { name: '喷泉', run: () => {}, wait: 8 },
