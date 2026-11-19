@@ -1,12 +1,14 @@
 // 数学 九年级上册 29.2.3 圆周角 · 图29.2-5（课本第 127–128 页）。情境用第 133 页 习题29.2 第 14 题：夜里的海港、两座灯塔、浅滩、危险角。
 //
-// 一个夜色的纸剧场盒子放在课本上。没有步骤栏、没有演示：学生（或在投影上讲课的老师）自己开船，问题跟着看到的东西冒出来。
-//   好奇：夜里看不见礁石，只看得见两盏灯——怎么知道离礁石还有多远？
-//   探索：开船。两座灯塔的光照到船上，两道光的夹角就是船上看两座灯塔的角；每次正好等于危险角，船就放下一盏河灯——河灯连成一个圆。
-//   思考：从浮标（圆心）看是两倍——剪下船上的光扇两块，亲手拼满；一束光正好照过浮标时，两根一样长的绳子讲出为什么（课本情况（1）），
-//         浮标在两束光中间、外面时拆成两块相加或相减；开进圈里夹角变大、开出圈外变小（第 14 题的道理）。
-//   数学之美：点一下海面，整片海按“在这里看两座灯塔是多少度”画出一圈圈的线，全都穿过两座灯塔；90° 那一圈正好以两座灯塔为直径。
-// 两个视角：从上往下看（海图，和课本的图一样）、站到船头（点小船；船头手边那卷海图点一下就回来）。键盘 R：清场重来（给老师）。
+// 一个夜色的纸剧场盒子放在课本上。没有步骤栏、没有演示：学生（或在投影上讲课的老师）自己开船。
+// 每做出一样东西，天幕上就在那一刻说出课本上对应的那句话（课本第 127–128 页的顺序），场景里标上和课本一样的字母：
+//   开头的问题（第 14 题）：夜里看不见浅滩，只看得见两盏灯，船怎么知道自己进没进浅滩？
+//   开船：船上看两盏灯正好 40° 时放一盏河灯，河灯连成过两座灯塔的圆＝浅滩的边；沿圆开处处 40°：圆周角的定义，都对着同一条弧 BC。
+//   点浮标：圆心角 ∠BOC＝80°；剪两块光扇拼满：圆周角是圆心角的一半（看出来的）。
+//   一束光照过浮标：情况（1）OA＝OC ⇒ ∠A＝∠C，外角 ⇒ ∠BOC＝2∠A；点浮标过船作直径 AD：情况（2）相加、（3）相减 → 圆周角定理、同弧所对的圆周角相等。
+//   开进、开出浅滩：∠BPC 比 40° 大 / 小（延长交圆于 Q，三角形的外角）→ 正面回答开头的问题。
+//   点海面：等角线，每个角度一段过两座灯塔的圆弧；90° 那圈以 BC 为直径（推论）。
+// 两个视角：海图（和课本的图一样）、站到船头（点小船；右下角那卷海图点一下回来）。键盘 R：清场重来（给老师）。
 // 所有角度、圆、等角线都按真实几何算出来。
 import * as THREE from 'three';
 import { arcPts, add, sub, mul, unit, ang, mid, dist, wrap, clamp, lerp, easeOut } from './kit/sheet.js';
@@ -34,7 +36,7 @@ export default {
   fig: '图29.2-5',
   title: '圆周角',
   flow: 'explore',
-  ask: '夜里看不见水下的礁石，只看得见岸上的两盏灯。<br>怎么知道船离礁石还有多远？',
+  ask: '夜里看不见浅滩，只看得见岸上两盏灯。<br>船怎么知道自己进没进浅滩？',
   need: '开船找一找：河灯连成了什么？从浮标看又是多少度？',
   conclusion: {
     page: 134, rect: [40, 548, 368, 690],
@@ -103,7 +105,7 @@ export default {
     // 天幕上的字：一行问题 / 发现（像剧场的字幕），下面一行小字
     const fit = (g, txt, px, weight, maxW) => { let f = px; for (; f > 20; f -= 4) { g.font = `${weight} ${f}px "Kaiti SC","STKaiti",serif`; if (g.measureText(txt).width <= maxW) break; } return f; };
     const capTex = (txt, sub2) => tex(2048, 300, (g, w) => { g.textAlign = 'center'; g.shadowColor = 'rgba(5,10,25,0.9)'; g.shadowBlur = 18; g.fillStyle = 'rgba(252,243,224,0.98)'; fit(g, txt, 104, 600, w - 120); g.fillText(txt, w / 2, 122); if (sub2) { fit(g, sub2, 62, 400, w - 120); g.fillStyle = 'rgba(244,230,204,0.9)'; g.fillText(sub2, w / 2, 232); } });
-    const caption = quiet(new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.038), basic({ transparent: true, depthWrite: false, depthTest: false })));
+    const caption = quiet(new THREE.Mesh(new THREE.PlaneGeometry(0.285, 0.0417), basic({ transparent: true, depthWrite: false, depthTest: false })));
     caption.renderOrder = 30; caption.position.set(0, 0.088, -0.11); group.add(caption);
     let capKey = '', capNow = ['', ''];
     const say = (txt, sub2 = '') => { capNow = [txt, sub2]; const k = txt + '|' + sub2; if (k === capKey) return; capKey = k; caption.material.map?.dispose?.(); caption.material.map = capTex(txt, sub2); caption.material.needsUpdate = true; subtitle(); };
@@ -175,7 +177,8 @@ export default {
     const L = {
       circle: line(0xffe3a8, 0.0011, 0.0016, 0.9, 0.003), OB: line(0x9fe0ff, 0.0009, 0.0015, 0.95), OC: line(0x9fe0ff, 0.0009, 0.0015, 0.95),
       rope1: line(0xd9b884, 0.0012, 0.0019), rope2: line(0xd9b884, 0.0012, 0.0019), tick1: line(0xf4e2bc, 0.0012, 0.002), tick2: line(0xf4e2bc, 0.0012, 0.002),
-      diam: line(0xd9b884, 0.0009, 0.0019, 0.9, 0.0025), ext: line(0xffb35a, 0.001, 0.0018, 0.95, 0.0028), ext2: line(0xffb35a, 0.001, 0.0018, 0.95),
+      diam: line(0xd9b884, 0.0009, 0.0045, 0.9, 0.0025), ext: line(0xffb35a, 0.001, 0.0018, 0.95, 0.0028), ext2: line(0xffb35a, 0.001, 0.0018, 0.95),
+      arcBC: line(0xbfe9ff, 0.0014, 0.0043, 0.95),          // 两座灯塔之间那段弧（在岸上）：圆周角、圆心角对着的就是它
     };
     // 扇形（一块光）
     const fanM = (color, opacity, y, blend = THREE.NormalBlending) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), basic({ color, transparent: true, opacity, depthWrite: false, blending: blend, side: THREE.DoubleSide })); m.position.y = y; m.userData.noFrame = true; group.add(m); m.visible = false; return m; };
@@ -189,7 +192,7 @@ export default {
     const labTex = (txt, col, px = 64) => { const f = `600 ${px}px "Times New Roman","Kaiti SC","STKaiti",serif`; return tex(Math.ceil(measure(f, txt)) + 40, Math.round(px * 1.5), (g, w, h) => { g.font = f; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = px * 0.16; g.strokeStyle = 'rgba(8,16,28,0.85)'; g.strokeText(txt, w / 2, h / 2 + 2); g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 2); }); };
     const label = (hgt) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }))); sp.renderOrder = 20; sp.userData.h = hgt; sp.userData.k = ''; group.add(sp); sp.visible = false; return sp; };
     const setLabel = (sp, txt, col, p, y = 0.008) => { if (!txt) { sp.visible = false; return; } const k = txt + col; if (sp.userData.k !== k) { sp.userData.k = k; const t = labTex(txt, col); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; sp.scale.set((sp.userData.h * t.image.width) / t.image.height, sp.userData.h, 1); } sp.position.set(p[0], y, -p[1]); sp.visible = true; };
-    const LB = { ship: label(0.013), buoy: label(0.011), q: label(0.009), a: label(0.008), o: label(0.008) };
+    const LB = { ship: label(0.013), buoy: label(0.011), q: label(0.009), a: label(0.0095), o: label(0.0095), b: label(0.0095), c: label(0.0095), d: label(0.0095), arc: label(0.0082) };
     // 海面上的批注（船长在海图上写的）：躺在水面上的手写字
     const NF = '600 46px "Kaiti SC","STKaiti",serif';
     const noteTex = (txt) => tex(Math.ceil(measure(NF, txt)) + 48, 76, (g, w, h) => { g.font = NF; g.textBaseline = 'middle'; g.shadowColor = 'rgba(4,14,28,0.95)'; g.shadowBlur = 12; g.fillStyle = 'rgba(248,236,206,0.96)'; g.fillText(txt, 24, h / 2 + 2); g.shadowBlur = 4; g.fillText(txt, 24, h / 2 + 2); });
@@ -227,28 +230,52 @@ export default {
     const conAt = (d) => { const t = (d * Math.PI) / 180, r = 0.06 / Math.sin(t), c = [0, 0.05 - 0.06 / Math.tan(t)]; for (const a of [-1.7, -2.0, -2.3, -2.6, -2.9]) { const p = [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; if (inSea(p)) return p; } return null; };
 
     // ================= 状态 =================
-    const fresh = () => ({ ship: [0.11, -0.108], head: Math.PI * 0.75, mode: 'chart', circle: 0, buoy: 0, cut: [], proof: 0, proofDone: false, caseShow: false, cases: {}, family: 0, inOut: {}, done: false });
+    const fresh = () => ({ ship: [0.11, -0.108], head: Math.PI * 0.75, mode: 'chart', circle: 0, walk: null, walked: false, buoy: 0, cut: [], proof: 0, proofDone: false, caseMode: false, cases: {}, theoremPending: false, theorem: false, theoremAt: 0, io: {}, answerPending: false, answered: false, family: 0, done: false });
     let S = fresh();
     const theta = (p = S.ship) => angAt(p, B0, C0);
     const zone = () => { const r = dist(S.ship, O); return r < R - 0.0012 ? 'in' : r > R + 0.0012 ? 'out' : 'on'; };
+    const tOn = (p) => { let t = dirO(p); while (t < AB - 1e-9) t += TAU; while (t > AB + TAU) t -= TAU; return t; };          // 船在圆上走到哪儿（从灯塔 B 那头量起）
+    const nm = (P) => (P === B0 ? 'B' : 'C');
+    const diamEnd = () => sub(mul(O, 2), S.ship);          // 过船的直径的另一头 D
+    const caseOf = () => {          // 圆心和圆周角 ∠BAC 的位置：在一条边上 / 内部 / 外部
+      const A = S.ship, aB = ang(sub(B0, A)), aC = ang(sub(C0, A)), aO = ang(sub(O, A));
+      if (Math.abs(wrap(aO - aB)) < 0.012 || Math.abs(wrap(aO - aC)) < 0.012) return 'side';
+      return Math.abs(wrap(aO - aB)) + Math.abs(wrap(aC - aO)) <= theta() + 1e-6 ? 'in' : 'out';
+    };
+    const outPair = () => { const A = S.ship, D = diamEnd(); return angAt(A, D, B0) > angAt(A, D, C0) ? ['B', 'C'] : ['C', 'B']; };          // 情况（3）：大的那块减小的那块
     const arcSpread = () => { const ts = lanterns.map((l) => dirO(l.p)).sort((a, b) => a - b); let gap = 0; for (let i = 0; i < ts.length; i++) gap = Math.max(gap, (ts[(i + 1) % ts.length] - ts[i] + TAU) % TAU); return ts.length < 2 ? 0 : TAU - gap; };
 
-    // 问题跟着看到的东西冒出来（不按顺序，也可以只玩一部分）
+    // 天幕上的字：学生每做出一样东西，就在那一刻说出课本上对应的那句话；开头的问题在开进开出浅滩以后正面回答
     function story() {
-      const n = lanterns.length;
+      const n = lanterns.length, d = fmt(DANGER);
       if (!S.circle) {
-        if (n === 0) return say('夜里看不见礁石，只看得见两盏灯。怎么知道离礁石还有多远？', `海图上说：两盏灯在眼里分开超过 ${fmt(DANGER)}，就进浅滩了。拖着小船开一开，点小船站到船头`);
-        if (n < 5 || arcSpread() < 1.0) return say(`两盏灯之间正好 ${fmt(DANGER)} 的地方，船放下了一盏河灯`, '多开几个地方，看河灯都放在哪里');
+        if (n === 0) return say('夜里看不见浅滩，只看得见岸上两盏灯。船怎么知道自己进没进浅滩？', `海图上标着：危险角 ${d}。拖着小船开一开，看船上看两盏灯分开多少度`);
+        if (n < 5 || arcSpread() < 1.0) return say(`船上看两盏灯正好 ${d} 的地方，放下了一盏河灯`, '多开几个地方，看河灯都落在哪儿');
         return say('这些河灯连起来，是什么形状？', '点一盏河灯看看');
       }
       if (S.circle < 1) return;
-      if (!S.buoy) return say(`看两盏灯正好 ${fmt(DANGER)} 的地方，都在一个穿过两座灯塔的圆上`, '浅滩中间那个浮标，正好在圆心。从浮标看两座灯塔呢？点浮标');
-      if (S.cut.length < 2) return say(`从浮标看是 ${fmt(central())}——正好两倍？`, '把船开到圆上，按住船边那块光，剪下来拖到浮标那里比一比（剪两块）');
-      if (S.proof && !S.proofDone) return say('浮标到船、到那座灯塔，两根绳子一样长——都是半径', '所以这两个角相等。把它们拖到浮标那里，拼一拼');
-      if (S.proof) return say('浮标这个角是外角，等于两个底角的和', '两个底角都等于船上看到的角——所以正好两倍');
-      if (!S.proofDone) return say('为什么正好是两倍？', '开到让一座灯塔的光正好照过浮标的地方——那里最好想');
-      if (!S.family) return say('圆上的角都是浮标那个角的一半，所以处处一样', '开进圈里、开出圈外看看；点浮标，看光从浮标旁边擦过时；点一下海面：每个地方看两盏灯是多少度？');
-      return say('一圈一圈，全都穿过两座灯塔', '标着 90° 的那一圈：两座灯塔正好是它直径的两端（相传泰勒斯最早证明了它）');
+      if (!S.walked) return say('河灯连成一个过两座灯塔的圆——正好是浅滩的边', '把船开到圆上（靠近会吸住），沿着圆开一开：船上看两盏灯，一直是多少度？');
+      if (!S.buoy) return say('顶点在圆上、两边都和圆相交的角，叫圆周角', `船在圆上处处是 ${d}，都对着同一条弧 BC。浮标在圆心，从那儿看弧 BC 呢？点浮标`);
+      if (S.cut.length < 2) return say(`顶点在圆心的角，叫圆心角：∠BOC = ${fmt(central())}`, '它和圆周角 ∠BAC 对着同一条弧 BC。按住船边那块光，剪下来拖到浮标那里比一比（剪两块）');
+      if (S.proof && !S.proofDone) { const x = nm(S.proof.other); return say(`情况（1）：圆心 O 在圆周角的一条边 A${nm(S.proof.P)} 上`, `OA = O${x}（都是半径）⇒ ∠A = ∠${x}。把这两个角拖到浮标那里拼一拼`); }
+      if (S.proof) { const x = nm(S.proof.other); return say(`∠BOC 是 △AO${x} 的外角：∠BOC = ∠A + ∠${x} = 2∠A`, '所以 ∠A 是 ∠BOC 的一半。圆心不在边上呢？'); }
+      if (!S.proofDone) return say('两个圆周角正好拼满圆心角：圆周角是圆心角的一半', '能证明吗？先看最简单的位置：开到让一座灯塔的光正好照过浮标的地方');
+      if (!S.theorem) {
+        const c = S.caseMode && zone() === 'on' ? caseOf() : null;
+        if (c === 'in') return say('情况（2）：圆心在圆周角的内部——过 A 作直径 AD', '∠BAC = ∠BAD + ∠DAC，两块都是情况（1）：合起来还是 ∠BOC 的一半');
+        if (c === 'out') { const [g, k] = outPair(); return say('情况（3）：圆心在圆周角的外部——过 A 作直径 AD', `∠BAC = ∠DA${g} − ∠DA${k}，两块都是情况（1）：减下来还是 ∠BOC 的一半`); }
+        if (c === 'side') return say('这里圆心正好在边上，就是情况（1）', '沿着圆再开一开，让圆心跑到圆周角里面、外面');
+        return say('圆心不在圆周角的边上时，怎么证？', '把船沿着圆开到别处，点浮标：过船作一条直径');
+      }
+      const z = zone();
+      if (!S.answered && (z === 'on' || now() - S.theoremAt < 5)) return say('圆周角定理：一条弧所对的圆周角等于它所对的圆心角的一半', `所以同弧所对的圆周角相等：浅滩边上处处是 ${d}。开进浅滩、开出浅滩，角会怎样？`);
+      if (!S.answered) {
+        const sh = shoalFig();
+        if (z === 'in') return say(`船进了浅滩：∠BPC 比 ${d} 大`, sh ? `延长 ${nm(sh.P)}P 交圆于 Q：∠BPC 是 △PQ${nm(sh.R2)} 的外角，比圆周角 ∠BQC = ${d} 大` : `比圆周角 ${d} 大：进浅滩了`);
+        return say(`船在浅滩外：∠BPC 比 ${d} 小`, sh ? `${nm(sh.P)}P 交圆于 Q：圆周角 ∠BQC = ${d} 是 △QP${nm(sh.R2)} 的外角，比 ∠BPC 大` : `比圆周角 ${d} 小：在浅滩外`);
+      }
+      if (!S.family) return say(`答案：船上看两盏灯的角小于 ${d}，就没进浅滩`, `正好 ${d} 在浅滩边上，大于 ${d} 就进去了（第 14 题）。点海面：别的角度在哪儿？`);
+      return say('每个角度都是一段过两座灯塔的圆弧，一圈套一圈', '90° 那圈以 BC 为直径：直径所对的圆周角是直角，90° 的圆周角所对的弦是直径');
     }
 
     // ================= 画 =================
@@ -258,28 +285,34 @@ export default {
       boat.position.copy(P3(A)); boat.rotation.y = S.head;
       setBand(BAND[0], B0, A, 0.0042); setBand(BAND[1], C0, A, 0.0042);
       setFan(F.ship, A, ccwStart(A, B0, C0), th, 0.018);
-      setLabel(LB.ship, fmt(th), z === 'in' ? '#ff8a72' : z === 'out' ? '#9fe6b0' : '#ffe39a', bis(A, B0, C0, 0.03), 0.01);
+      setLabel(LB.ship, S.walked && z === 'on' ? `圆周角 ${fmt(th)}` : fmt(th), z === 'in' ? '#ff8a72' : z === 'out' ? '#9fe6b0' : '#ffe39a', bis(A, B0, C0, 0.03), 0.01);
       // 圆（从 B 经过最下面画到 C）、浮标的角
       setLine(L.circle, S.circle > 0 ? arcPts(O, R, AB, AB + (AC - AB) * easeOut(S.circle), 160) : null);
       const bk = S.buoy;
       setLine(L.OB, bk ? [O, B0] : null); setLine(L.OC, bk ? [O, C0] : null);
-      if (bk) { setFan(F.buoy, O, ccwStart(O, B0, C0), central(), 0.022); setLabel(LB.buoy, fmt(central()), '#bfe9ff', bis(O, B0, C0, 0.034), 0.01); } else { F.buoy.visible = false; LB.buoy.visible = false; }
+      if (bk) { setFan(F.buoy, O, ccwStart(O, B0, C0), central(), 0.022); setLabel(LB.buoy, `圆心角 ${fmt(central())}`, '#bfe9ff', bis(O, B0, C0, 0.034), 0.01); } else { F.buoy.visible = false; LB.buoy.visible = false; }
       // 证明：一束光照过浮标时——浮标到船、到另一座灯塔的两根绳子（都是半径）
       const pf = S.proof;
       if (pf) {
         setLine(L.rope1, [O, A]); setLine(L.rope2, [O, pf.other]);
         const tick = (p, q) => { const m = mid(p, q), n = mul(unit([-(q[1] - p[1]), q[0] - p[0]]), 0.003); return [sub(m, n), add(m, n)]; };
         setLine(L.tick1, tick(O, A)); setLine(L.tick2, tick(O, pf.other));
-        setLabel(LB.a, 'A', '#f3e3c0', add(A, mul(unit(sub(A, O)), 0.013)), 0.006); setLabel(LB.o, 'O', '#f3e3c0', add(O, [0.007, -0.008]), 0.006);
-      } else { for (const k of ['rope1', 'rope2', 'tick1', 'tick2']) setLine(L[k], null); LB.a.visible = LB.o.visible = false; }
+      } else { for (const k of ['rope1', 'rope2', 'tick1', 'tick2']) setLine(L[k], null); }
+      // 字母和课本的图一样：两座灯塔 B、C，浮标 O；船在圆上是 A，开进开出浅滩时是 P
+      const lt = '#f3e3c0';
+      if (S.walked) { setLabel(LB.b, 'B', lt, add(B0, [-0.011, -0.006]), 0.007); setLabel(LB.c, 'C', lt, add(C0, [0.011, -0.006]), 0.007); setLine(L.arcBC, arcPts(O, R, dirO(C0), dirO(B0), 48)); setLabel(LB.arc, S.caseMode ? '' : '弧 BC', '#cfeeff', [0, O[1] + R + 0.0075], 0.007); }
+      else { LB.b.visible = LB.c.visible = LB.arc.visible = false; setLine(L.arcBC, null); }
+      setLabel(LB.a, S.walked && z === 'on' ? 'A' : S.theorem && z !== 'on' ? 'P' : '', lt, add(A, mul(unit(sub(A, O)), 0.013)), 0.006);
+      setLabel(LB.o, S.buoy ? 'O' : '', lt, add(O, [0.007, -0.008]), 0.006);
       // 拆成两块：过船拉一根穿过浮标的直径 AD
-      if (S.caseShow && z === 'on') {
-        const D = sub(mul(O, 2), A); setLine(L.diam, [A, D]);
+      if (S.caseMode && z === 'on' && !S.proof) {
+        const D = diamEnd(); setLine(L.diam, [A, D]);
         setFan(F.sub1, A, ang(sub(B0, A)), wrap(ang(sub(D, A)) - ang(sub(B0, A))), 0.012);
         setFan(F.sub2, O, ang(sub(B0, O)), wrap(ang(sub(D, O)) - ang(sub(B0, O))), 0.016);
-      } else { setLine(L.diam, null); F.sub1.visible = F.sub2.visible = false; }
+        setLabel(LB.d, 'D', lt, add(D, mul(unit(sub(D, O)), 0.011)), 0.006);
+      } else { setLine(L.diam, null); F.sub1.visible = F.sub2.visible = false; LB.d.visible = false; }
       // 第 14 题：圈里 / 圈外——延长一座灯塔到船的线，交圆于 Q
-      const sh = S.proofDone && z !== 'on' && !S.proof ? shoalFig() : null;          // 证完“一半”以后才拿来讲圈里圈外（天幕上那句也是这时候才请学生开进开出）
+      const sh = S.theorem && z !== 'on' ? shoalFig() : null;          // 定理证完以后才拿来讲圈里圈外（天幕上那句也是这时候才请学生开进开出）
       if (sh) {
         setLine(L.ext, [sh.P, sh.far]); setLine(L.ext2, [sh.Q, sh.R2]);
         setFan(F.q, sh.Q, ccwStart(sh.Q, sh.P, sh.R2), angAt(sh.Q, sh.P, sh.R2), 0.012); setFan(F.x, sh.R2, ccwStart(sh.R2, sh.Q, A), angAt(sh.R2, sh.Q, A), 0.013);
@@ -292,7 +325,7 @@ export default {
       K.ship.position.copy(P3(A, 0.004)); K.cut.position.copy(P3(bis(A, B0, C0, 0.012), 0.0042));
       if (S.mode === 'deck') {
         for (const sp of [...Object.values(LB), ...conLabs, conDanger]) sp.visible = false;
-        for (const m of [F.ship, F.buoy, F.sub1, F.sub2, F.q, F.x, L.OB, L.OC, L.rope1, L.rope2, L.tick1, L.tick2, L.diam, L.ext, L.ext2, ...chips]) m.visible = false;
+        for (const m of [F.ship, F.buoy, F.sub1, F.sub2, F.q, F.x, L.OB, L.OC, L.rope1, L.rope2, L.tick1, L.tick2, L.diam, L.ext, L.ext2, L.arcBC, ...chips]) m.visible = false;
       }
       for (const n of notes) n.visible = S.mode !== 'deck';
     }
@@ -314,18 +347,37 @@ export default {
     const uv = (p) => [p.x, -p.z];
     function moveShip(q) {
       if (!inSea(q)) q = [clamp(q[0], SEA.u0 + 0.009, SEA.u1 - 0.009), clamp(q[1], SEA.v0 + 0.009, SEA.v1 - 0.013)];
-      if (S.circle >= 1 && Math.abs(dist(q, O) - R) < 0.0035) q = onCirc(dirO(q));          // 圆画出来以后：靠近了就吸在圆上
+      if (S.circle >= 1 && Math.abs(dist(q, O) - R) < 0.005) q = onCirc(dirO(q));          // 圆画出来以后：靠近了就吸在圆上
       if (S.buoy && !S.proofDone) for (const P of [B0, C0]) { const anti = sub(mul(O, 2), P); if (dist(q, anti) < 0.0065) q = anti; }      // 一束光正好照过浮标的那一点：吸过去
       const prev = S.ship, mv = sub(q, prev);
-      if (S.proof && S.proofDone && dist(q, prev) > 1e-4) { S.proof = 0; chips.forEach((x) => (x.visible = false)); ui?.unlock?.(); }          // 证完了，船一开走，证明用的绳子和角就收起来
+      if (S.proof && S.proofDone && dist(q, prev) > 1e-4) { S.proof = 0; chips.forEach((x) => (x.visible = false)); }          // 证完了，船一开走，证明用的绳子和角就收起来
       if (Math.hypot(...mv) > 1e-5) S.head = lerp(S.head, S.head + wrap(Math.atan2(mv[1], mv[0]) - S.head), 0.3);
       S.ship = q;
       // 每次正好等于危险角（两次位置之间跨过去的那一点），船就放下一盏河灯：二分找到那一点，它一定落在圆上
       const s0 = theta(prev) - DANGER, s1 = theta() - DANGER;
       if (s0 * s1 <= 0 && Math.abs(s0 - s1) > 1e-7) { let a = prev, b = q; for (let i = 0; i < 26; i++) { const m = mid(a, b); if ((theta(m) - DANGER) * s0 <= 0) b = m; else a = m; } const p = mid(a, b); if (p[1] < SEA.v1 - 0.004) dropLantern(p); }
-      if (S.circle >= 1) S.inOut[zone()] = true;
-      if (S.caseShow) S.caseShow = false;
+      track();
       layout(); checkProof(); story(); subtitle();
+    }
+    // 学生做到了哪一步：沿着圆走过一段；作直径看过圆心在里面、外面；定理之后开进过、开出过浅滩
+    function track() {
+      const z = zone(), S0 = S;
+      if (S.circle >= 1 && !S.walked && z === 'on') {
+        const t = tOn(S.ship); S.walk = S.walk ? [Math.min(S.walk[0], t), Math.max(S.walk[1], t)] : [t, t];
+        if (S.walk[1] - S.walk[0] >= 0.5) { S.walked = true; sfx.ding(1040, { gain: 0.05 }); }
+      }
+      if (S.proofDone && !S.proof && !S.theorem && S.caseMode && z === 'on') {
+        const c = caseOf(); if (c !== 'side') S.cases[c] = true;
+        if (S.cases.in && S.cases.out && !S.theoremPending) {
+          S.theoremPending = true;
+          later(4500, () => { if (S !== S0) return; S.theorem = true; S.theoremAt = now(); ui?.unlock?.(); sfx.ding(980, { gain: 0.06 }); layout(); story(); later(5200, () => { if (S === S0) story(); }); });
+        }
+      }
+      if (S.theorem && z !== 'on') S.caseMode = false;
+      if (S.theorem && !S.answered && z !== 'on' && now() - S.theoremAt >= 5) {
+        S.io[z] = true;
+        if (S.io.in && S.io.out && !S.answerPending) { S.answerPending = true; later(4500, () => { if (S !== S0) return; S.answered = true; sfx.ding(1100, { gain: 0.06 }); layout(); story(); }); }
+      }
     }
     // 一束光正好照过浮标：开始讲为什么（课本情况（1））
     function checkProof() {
@@ -359,32 +411,25 @@ export default {
       if (list.length === 2) {
         const diff = chips[list[0]].userData.w + chips[list[1]].userData.w - central();
         if (u.kind === 'cut') {
-          if (Math.abs(diff) < 0.01) { sfx.ding(880, { gain: 0.06 }); dblNote = note(`浮标那里 ${fmt(central())}：正好是 ${fmt(DANGER)} 的两倍`, add(O, [0.024, -0.0195])); later(1800, () => { if (!S.proof) { chips.forEach((x) => (x.visible = false)); layout(); } }); }
+          if (Math.abs(diff) < 0.01) { sfx.ding(880, { gain: 0.06 }); dblNote = note(`圆心角 ${fmt(central())} ＝ 圆周角 ${fmt(DANGER)} 的两倍`, add(O, [0.024, -0.0195])); later(1800, () => { if (!S.proof) { chips.forEach((x) => (x.visible = false)); layout(); } }); }
           else { note(diff > 0 ? '拼多了：船不在圆上' : '没拼满：船不在圆上', add(O, [0.024, -0.0195])).userData.fade = now() + 1.4; later(2200, () => { S.cut = []; chips.forEach((x) => (x.visible = false)); layout(); story(); }); }
         } else {
           sfx.ding(940, { gain: 0.06 }); S.proofDone = true; 
-          later(4500, () => { if (!S.proof) return; S.proof = 0; chips.forEach((x) => (x.visible = false)); ui?.unlock(); layout(); story(); });
+          later(4500, () => { if (!S.proof) return; S.proof = 0; chips.forEach((x) => (x.visible = false)); layout(); story(); });
         }
       }
       layout(); story();
     }
     // 点：河灯（画出圆）、浮标（看两倍 / 拆成两块）、海面（等角线）
     const grow = (key, dur, done) => { const t0 = now(); const tick = () => { if (dead) return; S[key] = Math.min(1, (now() - t0) / dur); layout(); if (S[key] < 1) requestAnimationFrame(tick); else done?.(); }; tick(); };
-    function tapLantern() { if (S.circle || lanterns.length < 5 || arcSpread() < 1.0) return; sfx.whoosh({ dur: 0.6, freq: 900, gain: 0.04 }); grow('circle', 1.6, () => { note(`看两盏灯成 ${fmt(DANGER)} 的地方：一个圆`, add(onCirc(-2.4), [-0.06, -0.008])); story(); }); }
+    function tapLantern() { if (S.circle || lanterns.length < 5 || arcSpread() < 1.0) return; sfx.whoosh({ dur: 0.6, freq: 900, gain: 0.04 }); grow('circle', 1.6, () => { note(`看两盏灯 ${fmt(DANGER)} 的地方：一个圆，浅滩的边`, add(onCirc(-2.4), [-0.06, -0.008])); story(); }); }
     function tapBuoy() {
-      if (S.circle < 1) return;
+      if (S.circle < 1 || !S.walked) return;
       if (!S.buoy) { S.buoy = 1; sfx.clink({ freq: 1300, gain: 0.05 }); layout(); story(); return; }
-      if (S.proofDone && zone() === 'on') {          // 光从浮标旁边擦过：拆成两块
-        S.caseShow = !S.caseShow;
-        const A = S.ship, aO = ang(sub(O, A)), aB = ang(sub(B0, A)), aC = ang(sub(C0, A));
-        const inside = Math.abs(wrap(aO - aB)) + Math.abs(wrap(aC - aO)) <= theta() + 1e-6;
-        if (S.caseShow) { S.cases[inside ? 'in' : 'out'] = true; say(inside ? '浮标在两束光中间：船上的角拆成两块，加起来' : '浮标在两束光外面：一块减去另一块', '每一块都是浮标那里对应那块的一半，合起来还是一半'); }
-        else story();
-        layout();
-      }
+      if (S.proofDone && !S.proof && zone() === 'on') { S.caseMode = !S.caseMode; sfx.clink({ freq: 1500, gain: 0.04 }); track(); layout(); story(); }          // 过船作直径 AD：情况（2）（3）拆成情况（1）
     }
     function tapSea() {
-      if (!S.proofDone || S.family) return;
+      if (!S.answered || S.family) return;
       sfx.whoosh({ dur: 1.2, freq: 600, gain: 0.05 });
       const t0 = now(); for (const n of notes) n.userData.fade = t0;
       grow('family', 2.4, () => { S.done = true; story(); later(7000, () => { ui?.go?.(2); ui?.fold?.(false); }); });
@@ -421,14 +466,15 @@ export default {
     const canShip = () => S.mode === 'chart' && !(S.proof && !S.proofDone);          // 讲证明的时候船先停在那里（光正好照过浮标），好拖那两个底角
     const canCut = () => S.mode === 'chart' && !!S.buoy && S.cut.length < 2 && !S.proof && zone() === 'on';
     const canBase = (i) => S.mode === 'chart' && !!S.proof && chips[i].visible && !S.proof.placed.includes(i);
-    const canSea = () => S.mode === 'chart' && ((!S.circle && lanterns.length >= 5 && arcSpread() >= 1.0) || (S.proofDone && !S.family));
+    const canSea = () => S.mode === 'chart' && ((!S.circle && lanterns.length >= 5 && arcSpread() >= 1.0) || (S.answered && !S.family));
+    const canBuoy = () => S.mode === 'chart' && S.walked && (!S.buoy || (S.proofDone && !S.proof && zone() === 'on'));
     const drags = [
       { obj: K.cut, plane: 'xz', offset: 0.0042, hint: () => (canCut() ? '按住拖出来：剪下这块光' : ''), enabled: () => canCut(), onStart: () => cutDown(), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() },
       ...chips.map((c, i) => ({ obj: c, plane: 'xz', offset: 0.0024, hint: () => (canBase(i) ? '拖到浮标那里' : ''), enabled: () => canBase(i), onStart: () => chipDown(i), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() })),
       { obj: K.ship, plane: 'xz', offset: 0.004, keepOffset: false, hint: () => (canShip() ? '拖着小船开；点一下站到船头' : ''), enabled: () => canShip(), onDrag: (p) => moveShip(uv(p)), onTap: () => toDeck() },
     ];
     const taps = [
-      { obj: buoy, hint: () => (S.mode === 'chart' && S.circle >= 1 ? '点浮标' : ''), enabled: () => S.mode === 'chart' && S.circle >= 1, onTap: () => tapBuoy() },
+      { obj: buoy, hint: () => (!canBuoy() ? '' : !S.buoy ? '点浮标' : S.caseMode ? '点浮标：收起直径' : '点浮标：过船作直径'), enabled: () => canBuoy(), onTap: () => tapBuoy() },
       { obj: sea, hint: () => (!canSea() ? '' : S.circle ? '点海面：每个地方看两盏灯是多少度' : '点河灯'), enabled: () => canSea(), onTap: (ray) => { if (!S.circle) return tapLantern(); tapSea(); void ray; } },
     ];
     const dragApi = draggable(group, drags, { taps, onClick: () => false });
@@ -456,20 +502,23 @@ export default {
         boat.position.y = 0.0003 + 0.0004 * Math.sin(t * 2.1); boat.rotation.z = 0.04 * Math.sin(t * 1.7);
         for (const l of lanterns) { l.g.scale.setScalar(Math.min(1, (t - l.g.userData.born) / 0.6)); l.g.position.y = 0.0004 * Math.sin(t * 2 + l.p[0] * 90); }
         for (const n of notes) n.material.opacity = Math.min(0.95, (t - n.userData.born) / 1.2) * (n.userData.fade ? clamp(1 - (t - n.userData.fade) / 0.8, 0, 1) : 1);
-        buoy.userData.halo.material.opacity = S.circle >= 1 && !S.buoy ? 0.5 + 0.45 * Math.sin(t * 3) ** 2 : S.proof ? 1 : 0.5;
+        const callBuoy = (S.walked && !S.buoy) || (S.proofDone && !S.proof && !S.theorem && !S.caseMode);          // 该点浮标的时候，浮标的灯一闪一闪
+        buoy.userData.halo.material.opacity = callBuoy ? 0.5 + 0.45 * Math.sin(t * 3) ** 2 : S.proof ? 1 : 0.5;
         if (S.proof && !S.proofDone) chips.forEach((c, i) => { if (!S.proof.placed.includes(i) && held !== i) c.material.opacity = 0.6 + 0.35 * Math.sin(t * 3.2 + i) ** 2; else c.material.opacity = 0.85; });          // 两个底角一闪一闪：能拿起来
         if (S.family > 0) { group.updateMatrixWorld(); contour.material.uniforms.inv.value.copy(group.matrixWorld).invert(); }
       },
       debug: {
         get S() { return S; },
-        lanterns, notes, labels: () => [...Object.values(LB), ...conLabs, conDanger], theta, central, moveShip, tapLantern, tapBuoy, tapSea, cutDown, chipDown, chipMove, chipUp, toDeck, toChart, reset, onCirc, O, B0, C0,
+        lanterns, notes, labels: () => [...Object.values(LB), ...conLabs, conDanger], cap: () => capNow, theta, central, moveShip, tapLantern, tapBuoy, tapSea, cutDown, chipDown, chipMove, chipUp, toDeck, toChart, reset, onCirc, O, B0, C0,
         qa: [
           { name: '在海上来回开，放河灯', run: () => { for (let k = 0; k <= 320; k++) { const t = (k / 320) * TAU * 2; moveShip([0.12 * Math.cos(t * 1.3), -0.04 + 0.08 * Math.sin(t)]); } }, wait: 1 },
           { name: '点一盏河灯：画出圆', run: () => tapLantern(), wait: 3 },
+          { name: '沿着圆开一段', run: () => { for (let k = 0; k <= 40; k++) moveShip(onCirc(-1.0 - k * 0.02)); }, wait: 1 },
           { name: '点浮标', run: () => tapBuoy(), wait: 1 },
-          { name: '把船放回圆上，剪两块拼到浮标', run: () => { moveShip(onCirc(-1.2)); for (let i = 0; i < 2; i++) { cutDown(); chipMove(O); chipUp(); } }, wait: 3 },
-          { name: '开到一束光照过浮标的地方，拖两个底角', run: () => { moveShip(sub(mul(O, 2), B0)); for (let i = 0; i < 2; i++) { chipDown(i); chipMove(O); chipUp(); } }, wait: 4 },
-          { name: '开进圈里、开出圈外', run: () => { moveShip([0.0, -0.04]); moveShip([0.13, -0.12]); }, wait: 1 },
+          { name: '剪两块拼到浮标', run: () => { moveShip(onCirc(-1.2)); for (let i = 0; i < 2; i++) { cutDown(); chipMove(O); chipUp(); } }, wait: 3 },
+          { name: '开到一束光照过浮标的地方，拖两个底角', run: () => { moveShip(sub(mul(O, 2), B0)); for (let i = 0; i < 2; i++) { chipDown(i); chipMove(O); chipUp(); } }, wait: 2 },
+          { name: '沿圆开到别处，点浮标作直径：圆心在里面、在外面', run: () => { moveShip(onCirc(-Math.PI / 2)); tapBuoy(); moveShip(onCirc(-0.3)); }, wait: 10.5 },
+          { name: '开进浅滩、开出浅滩', run: () => { moveShip([0.0, -0.04]); moveShip([0.13, -0.12]); }, wait: 5 },
           { name: '点海面：等角线', run: () => tapSea(), wait: 4 },
         ],
       },
