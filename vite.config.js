@@ -7,10 +7,10 @@ import { offlineData } from './tools/offline_data.mjs';
 // 再往下没意义——three.js 要 WebGL2，Safari 15 才默认打开
 const target = ['chrome87', 'edge88', 'firefox78', 'safari15', 'ios15'];
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, command }) => ({
   define: { __APP_BUILD__: JSON.stringify(new Date().toISOString()) },
   server: { port: 5188, host: '127.0.0.1' },
-  plugins: [offlineData(mode === 'offline')],
+  plugins: [offlineData(mode === 'offline', command === 'build' && mode === 'offline' ? process.env.LB_OFFLINE_BOOKS : undefined)],
   build: { target },
   ...(mode === 'offline' && {
     base: './',

@@ -5,7 +5,7 @@ import { FEATURES } from '../features.js';
 
 const modules = import.meta.glob('../lessons/*.js');
 
-export const BOOK_IDS = Object.keys(books).filter((id) => import.meta.env.DEV || !FEATURES.hiddenBooks?.includes(id));          // 线上不放还没准备好的书（features.js）
+export const BOOK_IDS = OFF?.bookIds ?? Object.keys(books).filter((id) => import.meta.env.DEV || !FEATURES.hiddenBooks?.includes(id));          // 线上不放还没准备好的书（features.js）
 
 // 离线版（U 盘上双击打开）：书的目录、封面这些都打包在 HTML 里（tools/offline_data.mjs）；网站上 OFF 是 null，照常从网址取
 export const OFFLINE = !!OFF;
@@ -20,7 +20,7 @@ export const fileUrl = (p) => OFF?.files[p] ?? p;
 const fullTitle = (b) => `${b.publisher || '人教版'} ${b.title}`;
 
 export function getBook(id) {
-  const b = books[id] || books['wuli-8x'];
+  const b = books[id] || books['wuli-8x'] || books[Object.keys(books)[0]];
   const lessons = {};
   for (const [lid, meta] of Object.entries(b.lessons)) {
     const load = modules[`../lessons/${lid}.js`];
