@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { paint, inked, glassEdge } from '../../live/ink.js';
 import { glass2, water2, flame2, smoke2 } from './chemfx.js';
 import { textSprite } from './microworld.js';
+import { spread, homeTo } from './microlayout.js';
 import { Particles } from './fx.js';
 import { canvasTex, textPlate } from './props.js';
 
@@ -394,39 +395,90 @@ export function sodiumBurnScene() {
 }
 
 // ================= 钻进去看：过氧化钠与水（课本第 37 页）2Na₂O₂ + 2H₂O ══ 4NaOH + O₂↑ =================
-// 还没加水（st.water 为假）：只有 Na⁺ 和过氧根 O₂²⁻（固体，没有液体层）。加了水：两个 O₂²⁻ 和两个 H₂O 一起反应，
-// 生成 4 个 OH⁻（溶液显碱性）和 1 个 O₂（冒出去）。过氧根里的 4 个氧：2 个进了 O₂，2 个进了 OH⁻；水里的 2 个氧也进了 OH⁻。Na⁺ 不变。
-// 加了水就演一遍（反应完了再打开也演一遍：看发生了什么）。慢放示意，不表示真实的反应步骤（实际要经过 H₂O₂）。
+// 照钠燃烧（sodiumBurnScene）的样子：试管底的过氧化钠画成六小块，三列两排分开摆，每块是两个 Na⁺ 夹着一个过氧根 O₂²⁻（两个氧还连着）——
+// 和钠燃烧里生成的那一块一模一样。加了水：水分子落到一列的两块上，两个 O₂²⁻ 和两个 H₂O 反应，生成 4 个 OH⁻ 和 1 个 O₂（冒出去）；
+// 过氧根里的 4 个氧：2 个连成 O₂，2 个进了 OH⁻；水里的 2 个氧也进了 OH⁻。这一列的 4 个 Na⁺ 离开固体、进到溶液里，Na⁺ 本身不变。
+// 反应从左往右一列一列推进，几组跟着这一课算出来的进度（st.x = 已经反应掉的 Na₂O₂ ÷ 原来的）走；打开时从刚加水那一刻演起，最多演到现在的进度。
+// 同一种原子到哪儿都是一个颜色、一个大小；淡黄色只写在字幕里。慢放示意，不表示真实的反应步骤（实际要经过 H₂O₂）。
+// st：{ water: 加水了没有, x: 反应进度（0~1） }
 export function peroxideScene() {
-  const FILM = 6.2;
-  const rx = { in: ['O2 2-', 'O2 2-', 'H2O', 'H2O'], out: ['OH-', 'OH-', 'OH-', 'OH-', 'O2'], host: 0,
-    near: [null, [2.4, 0, 0], [-0.3, 1.5, 0.4], [2.7, 1.5, -0.4]], place: [[-1.4, -0.5, 0.5], [-0.4, 0.6, -0.6], [2.6, -0.5, 0.5], [3.4, 0.6, -0.6], [1.2, 2.2, 0]],
-    map: [[0, 0], [2, 1], [2, 0], [2, 2], [1, 0], [3, 1], [3, 0], [3, 2], [0, 1], [1, 1]],
-    after: [{}, {}, {}, {}, { gas: true, leave: true, v: [0, 2.2, 0] }], approach: 1.2, dur: 2.4, burst: [0x9fd0ff, 0xffffff] };
-  let wet = false, made = 0;
+  const FILM = 6.2, Y0 = 0.6, DX = 4.3, DZ = 3.4, NW = 3, NEV = 3;
+  const cols = [-1, 0, 1].map((q) => ({ x: q * DX, rows: [-DZ / 2, DZ / 2] }));
+  const HOME = { 'Na+': new THREE.Vector3(-3.6, 4.9, -1.6), 'OH-': new THREE.Vector3(3.6, 4.9, -1.6), H2O: new THREE.Vector3(0.4, 5.1, -2.4) };
+  let wet = false, made = 0, wait = 0, thin = 0, busy = false;
+  const block = (c, x, z) => {
+    const a = c.add('Na+', c.V([x - 1.25, Y0 + 0.15, z]), { fixed: true, solid: true }), b = c.add('Na+', c.V([x + 1.25, Y0 + 0.15, z]), { fixed: true, solid: true });
+    const o = c.add('O2 2-', c.V([x, Y0 + 0.85, z]), { fixed: true, solid: true }); [a, b, o].forEach((m) => m.g.rotation.set(0, 0, 0));
+    return [a, b, o];
+  };
+  const inCol = (c, col, kind) => c.mols.filter((m) => m.solid && m.kind === kind && !m.busy && Math.abs(m.g.position.x - col.x) < 2);
+  const repSolid = (c) => {          // 固体里标一个 Na⁺、一个 O₂²⁻：最右边一列后面那一块（最后才反应；从斜上方看，标签往后排的空处伸，不压前排）
+    if (c.mols.some((m) => m.rep === 'solid' && m.solid)) return;
+    const right = cols.slice().reverse().find((col) => inCol(c, col, 'O2 2-').length); if (!right) return;
+    const z = Math.min(...right.rows), o = inCol(c, right, 'O2 2-').find((m) => Math.abs(m.g.position.z - z) < 0.5), na = inCol(c, right, 'Na+').filter((m) => Math.abs(m.g.position.z - z) < 0.5).sort((p, q) => q.g.position.x - p.g.position.x)[0];
+    if (o) o.rep = 'solid'; if (na) na.rep = 'solid';
+  };
+  const repSol = (c, kind) => { if (c.mols.some((m) => m.kind === kind && m.rep === 'sol')) return; const m = c.free(kind).filter((q) => !q.solid)[0]; if (m) m.rep = 'sol'; };
+  const water = (c) => c.free('H2O').filter((m) => m.rep !== 'sol' && !m.fadeIn);
   return {
-    labels: (k) => k !== 'H2O', dim: 0.6,
+    dim: 0.5,
+    labels: (k, m) => !!m.rep || k === 'O2' || !!m.lab, labelOnly: (k, m) => (!!m.rep && !(busy && m.rep === 'sol' && k === 'H2O')) || k === 'O2' || (!!m.lab && m.busy),          // 只标代表：固体里一组 Na⁺、O₂²⁻，溶液里一个 Na⁺、OH⁻、H₂O，冒出去的 O₂；反应时只标落到后排的那个 H₂O
     init(c, st) {
-      wet = !!st?.water; made = 0;
-      c.view.film = wet ? FILM : 0.02; c.view.paper = wet ? null : 0xf2e2a2; c.view.liquid = 0xb9dfe9;
-      for (let i = 0; i < 4; i++) c.add('Na+', wet ? c.inLiquid() : c.V([-2.4 + i * 1.6, 1.2, i % 2 ? 0.8 : -0.8]), { fixed: !wet });
-      for (let i = 0; i < 2; i++) { const m = c.add('O2 2-', wet ? c.inLiquid() : c.V([-1.6 + i * 3.2, 1.4, 0]), { fixed: !wet }); if (!wet) m.g.rotation.set(0, i, 0); }
-      if (wet) for (let i = 0; i < 5; i++) c.add('H2O', c.inLiquid());
+      wet = !!st?.water; made = 0; wait = 0.6; thin = 0; busy = false;
+      c.view.film = wet ? FILM : 0.02; c.view.paper = null; c.view.liquid = 0xb9dfe9;
+      for (const col of cols) for (const z of col.rows) block(c, col.x, z);
+      repSolid(c);
+      if (wet) { for (let i = 0; i < NW; i++) c.add('H2O', c.V([-3.6 + i * 2.4 + c.rnd(-0.4, 0.4), c.rnd(3.4, 5), c.rnd(-1.5, 1.5)])); repSol(c, 'H2O'); }
     },
-    step(c, st) {
+    step(c, st, dt) {
       if (!wet) return;
       c.view.film = FILM; c.view.paper = null;
-      if (!c.events.length && c.free('O2 2-').length >= 2 && c.free('H2O').length >= 2) {
-        const [a, b] = c.free('O2 2-'), w = c.free('H2O').sort((p, q) => p.g.position.distanceTo(a.g.position) - q.g.position.distanceTo(a.g.position));
-        c.start(rx, [a, b, w[0], w[1]], { then: () => { made++; } });
+      busy = c.events.length > 0;          // 反应的时候水的代表先不标（参加反应的那个水分子标着）
+      wait -= dt;
+      const want = Math.min(NEV, Math.ceil((st?.x || 0) * NEV - 1e-6));
+      if (made < want && !c.events.length && wait <= 0) {
+        const col = cols.find((q) => inCol(c, q, 'O2 2-').length >= 2), ws = water(c);
+        if (col && ws.length >= 2) {
+          const [pF, pB] = inCol(c, col, 'O2 2-').sort((p, q) => q.g.position.z - p.g.position.z);
+          const [w1, w2] = ws.sort((p, q) => p.g.position.distanceTo(pF.g.position) - q.g.position.distanceTo(pF.g.position));
+          w2.lab = true;          // 只标落到后排那块上的水分子：从斜上方看，它的标签在最上面，不压别的；O₂²⁻ 看固体里那个代表
+          const F = pF.g.position.clone(), B = pB.g.position.clone(), mid = F.clone().lerp(B, 0.5);
+          c.start({ in: ['O2 2-', 'O2 2-', 'H2O', 'H2O'], out: ['OH-', 'OH-', 'OH-', 'OH-', 'O2'], host: -1, approach: 1.3, dur: 1.9, burst: [0x9fd0ff, 0xffffff],
+            atAbs: () => mid.clone().add(c.V([0, 1.2, 0])), nearAbs: (ms, i) => (i === 2 ? F.clone().add(c.V([0.3, 1.6, 0.2])) : i === 3 ? B.clone().add(c.V([0.3, 1.6, -0.2])) : null),
+            placeAbs: () => [F.clone().add(c.V([-1.4, 1.6, 0.5])), F.clone().add(c.V([1.4, 1.9, 0.6])), B.clone().add(c.V([-1.4, 1.6, -0.5])), B.clone().add(c.V([1.4, 1.9, -0.6])), mid.clone().add(c.V([0, 2.6, 0]))],
+            map: [[0, 0], [2, 1], [2, 0], [2, 2], [1, 0], [3, 1], [3, 0], [3, 2], [0, 1], [1, 1]],
+            after: [{}, {}, {}, {}, { gas: true, leave: true, v: [0, 2.4, 0] }] }, [pF, pB, w1, w2],
+          { then: (ps) => {
+            made++; wait = 0.6; thin = 2.5;
+            for (const p of ps) if (p.kind === 'OH-') { p.labelK = 0; p.labelT = null; }
+            for (const m of inCol(c, col, 'Na+')) { m.fixed = false; m.solid = false; if (m.rep === 'solid') m.rep = false; m.v.set(c.rnd(-0.6, 0.6), 1.4, c.rnd(-0.6, 0.6)); }          // 这一列的 Na⁺ 离开固体，进到溶液里
+            repSolid(c); repSol(c, 'Na+'); repSol(c, 'OH-');
+            for (let i = 0; i < 2; i++) c.add('H2O', c.V([c.rnd(-4, 4), FILM - 0.8, c.rnd(-2, 1)]), { fadeIn: true, dimK: 0 });          // 水是过量的：这一小块溶液里的水分子个数不变（远处的水游过来）
+          } });
+        }
+      }
+      // 溶液很大，生成的 Na⁺、OH⁻ 会慢慢游到别处去：这一小块里最多留 2 对，多的一对一对淡出（先走早来的，代表不走）
+      thin -= dt;
+      if (thin <= 0) {
+        const out = (k) => c.free(k).filter((m) => !m.solid && !m.rep)[0];
+        if (c.free('Na+').filter((m) => !m.solid).length > 2 && c.free('OH-').length > 2) { const a = out('Na+'), b = out('OH-'); if (a && b) { a.fadeOut = b.fadeOut = true; thin = 0.5; } }
+      }
+      for (const m of c.mols) if (m.kind === 'O2' && m.leaving) { m.v.y = Math.min(m.v.y, 1.8); if (m.g.position.y > FILM + 0.4) m.fadeOut = true; }          // O₂ 冒出液面就淡出（不飞到字幕上去）
+      // 溶液里的粒子：不叠在一起；待在固体上面；代表各待一块（标签不互相压着）
+      const free = c.mols.filter((m) => !m.busy && !m.fixed && !m.leaving);
+      spread(free, 2.5, dt);
+      for (const m of free) {
+        if (m.rep === 'sol' && HOME[m.kind]) homeTo(m, HOME[m.kind]);
+        else m.pull = m.g.position.y < 3 ? c.V([0, (3 - m.g.position.y) * 2.5, 0]) : null;
       }
     },
     text(c, st) {
-      const eq = '2O<sub>2</sub><sup>2−</sup> + 2H<sub>2</sub>O ══ 4OH<sup>−</sup> + O<sub>2</sub>↑';
-      if (!wet) return { eq: '', on: false, cap: '还没加水：过氧化钠是淡黄色固体，由 Na⁺ 和过氧根 O₂²⁻（两个氧原子连在一起）构成。' };
-      if (c.events.length) return { eq, on: true, cap: '过氧根和水分子反应：过氧根里的氧，一部分变成 <b>O₂</b> 冒出去（气泡），一部分和水里的氢、氧一起变成 <b>OH⁻</b>。' };
-      if (made) return { eq, on: true, cap: '生成了 OH⁻（溶液显碱性）和 O₂（能使带火星的木条复燃）；Na⁺ 一直没变。<b>慢放示意，不表示真实的反应步骤。</b>' };
-      return { eq, on: true, cap: '水来了：过氧根就要和水分子反应。' };
+      const eq = '2Na<sub>2</sub>O<sub>2</sub> + 2H<sub>2</sub>O ══ 4NaOH + O<sub>2</sub>↑';
+      if (!wet) return { eq: '', on: false, cap: '还没加水：试管底的过氧化钠是<b>淡黄色固体</b>，由 Na⁺ 和过氧根 O₂²⁻（两个氧原子还连着）按 2∶1 构成——每一小块是两个 Na⁺ 夹着一个 O₂²⁻。' };
+      if (c.events.length) return { eq, on: true, cap: '两个水分子落到一列过氧化钠上：两个 O₂²⁻ 里各有一个氧<b>连成 O₂</b> 冒出去（气泡），另外的氧和水里的氢、氧一起变成 <b>4 个 OH⁻</b>；这一列的 Na⁺ 离开固体，进到溶液里。' };
+      if (made >= NEV) return { eq, on: true, cap: '过氧化钠反应完了：溶液里是 Na⁺ 和 OH⁻——<b>NaOH 溶液，显碱性</b>；O₂ 冒出去了（能使带火星的木条复燃）。Na⁺ 一直没变。<b>慢放示意，不表示真实的反应步骤。</b>' };
+      if (made) return { eq, on: true, cap: `已经反应了 <b>${made}</b> 列（左边）：生成的 OH⁻ 和 Na⁺ 在溶液里，右边还是过氧化钠。<b>慢放示意，不表示真实的反应步骤。</b>` };
+      return { eq, on: true, cap: '加了水：水分子就要落到过氧化钠上反应了。' };
     },
   };
 }

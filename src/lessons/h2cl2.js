@@ -188,7 +188,7 @@ export default {
     const compOf = (g) => { const s = Math.max(1e-6, sum(g)); return { h2: g.h2 / s, cl: g.cl / s, hcl: g.hcl / s, air: g.air / s }; };
     const mic = micro({ tag, look, back, group, scene: h2cl2Scene(), at: () => V(JX, JH + 0.025, 0), btnAt: () => V(JX + 0.048, 0.035, 0), label: '钻进去看',
       state: () => { const g = tipIn() ? (S.lit || S.outBy ? nearFlame() : (S.zone > 0.005 ? S.T : S.L)) : null; return { mode: tipIn() ? 'jar' : 'air', lit: S.lit, comp: g ? compOf(g) : null, out: !!S.outBy && tipIn() }; },
-      key: () => `${tipIn()}|${S.lit}|${!!S.outBy}`, bar: () => bar, scale: 0.0068, lookD: [0.04, 0.25, 1], dist: 0.3 });
+      key: () => `${tipIn()}|${S.lit}|${!!S.outBy}`, bar: () => bar, scale: 0.0068, lookD: [0.04, 0.36, 1], dist: 0.27 });
 
     // 老师演示里匀速往下伸（和学生拖导管走同一套处理函数）：从 k = t0 到 t1，尖嘴从现在的位置匀速降到 y1
     const tubeDown = (y1, t0, t1) => { let st = null; return (k) => {

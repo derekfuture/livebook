@@ -173,7 +173,7 @@ export default {
     const subAt = () => { const it = S.it[sub()]; return it.jar >= 0 ? V(JX[it.jar], 0.04, 0) : V(JX[sub()], 0.02, HOME_Z + 0.04); };
     const mic = micro({ tag, look, back, group, scene: chlorineScene(), at: subAt, btnAt: () => subAt().add(V(0.03, 0.045, 0)), label: '钻进去看',
       state: () => { const i = sub(), it = S.it[i]; return { wet: ITEMS[i].w > 0, c: it.jar >= 0 ? S.jar[it.jar].c : 0, hn: it.h }; },
-      key: () => `${sub()}|${S.it[sub()].jar >= 0}`, bar: () => bar, scale: 0.0058, lookD: [0.03, 0.2, 1], dist: 0.26 });
+      key: () => `${sub()}|${S.it[sub()].jar >= 0}`, bar: () => bar, scale: 0.0068, lookD: [0.03, 0.55, 1], dist: 0.26 });          // 从斜上方看：水里的、上面飞的分得开
 
     const jarK = (i) => S.it[i].jar;
     const path = (i, to, t0, t1) => act.path(picks[i], [() => V(...S.it[i].pos), ...to], { t0, t1, release: t1 + 0.02 });
@@ -202,8 +202,8 @@ export default {
             { cap: '将有色鲜花放入盛有干燥氯气的集气瓶中，盖上玻璃片。', dur: 8, cam: CAM(0.05, 0.42),
               during: act.seq(path(2, [over(2)], 0.03, 0.45), act.tap(platePicks[2], 0.85)) },
             { cap: '观察：花瓣原来的紫红色慢慢褪去，呈浅黄色（和课本图2-14 一样）。', dur: 7, speed: 2, cam: CAM(0.05, 0.4) },
-            { cap: '钻进去看：干燥的纸条表面没有水，氯气分子在上面飞，不发生变化。', dur: 6, cam: [[JX[0], 0.075, 0], [0.05, 0.22, 1], 0.3], enter: () => { S.msub = 0; mic.open(true); }, during: act.at(0.98, () => mic.close()) },
-            { cap: '湿润的纸条上有水：氯气和水反应，生成 HClO 和 HCl——使纸条褪色的是次氯酸。演示完了，换你自己做。', dur: 8, cam: [[JX[1], 0.075, 0], [0.05, 0.22, 1], 0.3], enter: () => { S.msub = 1; mic.open(true); }, during: act.at(0.98, () => mic.close()) },
+            { cap: '钻进去看：干燥的纸条表面没有水，氯气分子在上面飞，不发生变化。', dur: 6, cam: [[JX[0], 0.09, 0], [0.03, 0.55, 1], 0.26], enter: () => { S.msub = 0; mic.open(true); }, during: act.at(0.98, () => mic.close()) },
+            { cap: '湿润的纸条上有水：氯气和水反应，生成 HClO 和 HCl——使纸条褪色的是次氯酸。演示完了，换你自己做。', dur: 8, cam: [[JX[1], 0.09, 0], [0.03, 0.55, 1], 0.26], enter: () => { S.msub = 1; mic.open(true); }, during: act.at(0.98, () => mic.close()) },
           ],
         },
       },

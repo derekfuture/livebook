@@ -185,9 +185,9 @@ export default {
     const drag = draggable(group, drags, { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: nitricScene(), at: () => V(SET[S.focus].X, RACK_Y + 0.011, 0), btnAt: () => V(SET[S.focus].X - SET[S.focus].sx * 0.021, 0.19, 0.01), label: '钻进去看',
-      state: () => { const T = S[S.focus]; return { conc: S.focus === 'c', x: T.x, c: r1(cNow(T)), contact: T.contact > 0.05, hot: T.rate > 0.001, made: T.cu > 0.02 }; },
+      state: () => { const T = S[S.focus]; return { conc: S.focus === 'c', x: T.x, c: r1(cNow(T)), contact: T.contact > 0.05, hot: T.rate > 0.001, rate: T.rate, made: T.cu > 0.02 }; },
       // 浓硝酸用稀了：微观按 x 的比例挑路径演示（不用重开）
-      key: () => S.focus + String(S[S.focus].contact > 0.05), bar: () => bar, scale: 0.0056, lookD: [0.05, 0.25, 1], dist: 0.26 });
+      key: () => S.focus + String(S[S.focus].contact > 0.05), bar: () => bar, scale: 0.0056, lookD: [0.05, 0.36, 1], dist: 0.22 });
 
     // ================= 步骤栏 + 老师演示 =================
     const bar = lessonBar({

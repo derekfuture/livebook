@@ -371,8 +371,8 @@ export default {
     ] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: cuAcidScene(), at: () => along(0.014), btnAt: () => along(0.05).add(V(0.0, -0.03, 0.02)), label: '钻进去看',
-      state: () => ({ cu: cuState(), hot: S.rate > 0.0015, cold: S.T < 100, made: S.cu > 0.02 }), key: () => cuState(), show: () => S.plug === 'in' && S.plugK < 0.01 && !S.pour && S.acid > 0,
-      bar: () => bar, scale: 0.0058, lookD: [0.05, 0.3, 1], dist: 0.26 });
+      state: () => ({ cu: cuState(), hot: S.rate > 0.0015, rate: S.rate, cold: S.T < 100, made: S.cu > 0.02, n: Math.ceil(S.cu / 0.25) }),          // n：已生成的 CuSO₄ 每 0.25 mmol 画一组（示意，最多 3 组） key: () => cuState(), show: () => S.plug === 'in' && S.plugK < 0.01 && !S.pour && S.acid > 0,
+      bar: () => bar, scale: 0.0058, lookD: [0.05, 0.36, 1], dist: 0.21 });
 
     // ================= 观察卡 =================
     const cardTube = tag('', 'cond'); cardTube.px = [-190, -60];

@@ -142,7 +142,7 @@ export default {
     ], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: peroxideScene(), at: () => V(TX, T_Y + 0.03, 0), btnAt: () => V(TX + 0.026, T_Y + T_LEN * 0.75, 0.01), label: '钻进去看',
-      state: () => ({ water: S.water > 0, reacting: S.rate > 0.05 }), key: () => String(S.water > 0), bar: () => bar, scale: 0.0065, lookD: [0.04, 0.22, 1], dist: 0.24 });
+      state: () => ({ water: S.water > 0, x: 1 - S.left / N0 }), key: () => String(S.water > 0), bar: () => bar, scale: 0.0072, lookD: [0.03, 0.7, 1], dist: 0.26 });          // 从斜上方看：前后两排分得开
 
     const tapTube = (at) => act.tap(tube.pick, at);
     const bar = lessonBar({
@@ -165,7 +165,7 @@ export default {
             { cap: '用手轻轻触摸试管外壁：发烫——反应放出热量。', dur: 4, cam: [[TX, 0.06, 0.01], [0.04, 0.25, 1], 0.24], during: tapTube(0.3) },
             { cap: '用玻璃棒蘸取溶液，点在 pH 试纸上：显强碱性——生成了氢氧化钠。', dur: 9, cam: [[0.04, 0.06, 0.01], [0.04, 0.3, 1], 0.34],
               during: act.seq(act.path(rodPick, [() => rod.position.clone(), () => rod.position.clone().setY(0.1), () => V(TX, 0.1, 0), [() => V(TX, 0.04, 0), 0.07]], { t0: 0.04, t1: 0.34, release: 0.36 }), act.path(rodPick, [() => rod.position.clone(), () => rod.position.clone().setY(0.1), () => V(TILE.x, 0.1, 0), [() => V(TILE.x, 0.04, 0), 0.05]], { t0: 0.55, t1: 0.82, release: 0.84 })) },
-            { cap: '钻进去看：过氧根和水反应，生成 OH⁻ 和 O₂。演示完了，换你自己做。', dur: 8, cam: [[TX, 0.12, 0], [0.05, 0.22, 1], 0.3], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
+            { cap: '钻进去看：过氧根和水反应，生成 OH⁻ 和 O₂。演示完了，换你自己做。', dur: 13, cam: [[TX, T_Y + 0.08, 0], [0.03, 0.7, 1], 0.26], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
           ],
         },
       },

@@ -7,7 +7,8 @@ import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs, mountXuean, moreBox, varyBox } from './kit/chemlesson.js';
 import { draggable } from './kit/interact.js';
 import { tubeBench, T_Y, T_LEN } from './kit/tubebench.js';
-import { micro, precipScene, f } from './kit/microworld.js';
+import { micro, f } from './kit/microworld.js';
+import { ionScene } from './kit/ionreact-parts.js';
 import { h } from '../ui/Panel.js';
 
 const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
@@ -63,16 +64,16 @@ export default {
 
     const fresh = () => ({ demo: false, bench: B.fresh(), ba: 0, vol: 2, settle: 0, drops: 0, shaken: false, said: {} });
     S = fresh();
-    const mic = micro({ tag, look, back, group, scene: precipScene({
-      init: [['Na+', 8], ['SO4 2-', 4]], feed: [['Ba2+', 1], ['Cl-', 2]], cat: 'Ba2+', an: 'SO4 2-', solid: 'BaSO4',
+    const mic = micro({ tag, look, back, group, scene: ionScene({
       words: {
-        start: `Na₂SO₄ 溶液里是 ${f('Na+')} 和 ${f('SO4 2-')}，它们在水里自由移动。`,
+        start: `Na₂SO₄ 溶液里是 ${f('Na+')} 和 ${f('SO4 2-')}（2∶1），它们在水里自由移动。`,
+        fall: `滴进来的 BaCl₂ 溶液：${f('Ba2+')} 和 ${f('Cl-')}（1∶2）进了试管里的溶液`,
         react: `${f('Ba2+')} 碰上 ${f('SO4 2-')}，<b>结合成 ${f('BaSO4')}</b>，沉下去；${f('Na+')}、${f('Cl-')} 不参加反应，还在溶液里`,
         partial: `还有 ${f('SO4 2-')} 没反应：再滴 BaCl₂ 还会生成沉淀。${f('Na+')}、${f('Cl-')} 一直在溶液里`,
-        done: `${f('SO4 2-')} 恰好都变成了沉淀；溶液里剩下 ${f('Na+')} 和 ${f('Cl-')}（就是 NaCl）`,
+        done: `${f('SO4 2-')} 恰好都变成了 ${f('BaSO4')} 沉淀（白色）；溶液里剩下 ${f('Na+')} 和 ${f('Cl-')}（就是 NaCl）`,
         excess: `${f('SO4 2-')} 用完了：再滴进来的 ${f('Ba2+')} 找不到 ${f('SO4 2-')}，和 ${f('Cl-')} 一起留在溶液里；溶液里是 ${f('Na+')}、${f('Ba2+')}、${f('Cl-')}`,
       },
-    }), at: () => V(TX, T_Y + 0.03, 0), btnAt: () => V(TX + 0.03, T_Y + T_LEN * 0.55, 0.01), label: '钻进去看离子', state: () => { const I = ions(); return { ratio: S.ba / SO4_0, left: I.so4, excess: I.ba, color: 0xb9dfe9 }; }, show: () => S.drops > 0, bar: () => bar, scale: 0.0042 });
+    }), at: () => V(TX, T_Y + 0.03, 0), btnAt: () => V(TX + 0.03, T_Y + T_LEN * 0.55, 0.01), label: '钻进去看离子', state: () => { const I = ions(); return { ratio: S.ba / SO4_0, left: I.so4, excess: I.ba, color: 0xb9dfe9 }; }, show: () => S.drops > 0, bar: () => bar, scale: 0.0072, lookD: [0.03, 0.7, 1], dist: 0.26 });          // 从斜上方看：前后分得开
     const card = tag('', 'cond');
 
     const A = {
@@ -95,7 +96,7 @@ export default {
             { cap: '试管里是 2 mL Na₂SO₄ 稀溶液。滴入 BaCl₂ 稀溶液——一滴下去就出现白色沉淀。', dur: 9, speed: 1.4, cam: [[TX + 0.01, 0.085, 0.01], [0.04, 0.22, 1], 0.26],
               during: B.dripSeq(drag, 0, [[0, () => S.ba >= SO4_0 - 1e-9]], 0.04, 0.97) },
             { cap: '加到 2 mL，振荡：白色沉淀分散在溶液里。静置，沉淀慢慢沉到试管底部。', dur: 7, speed: 2, cam: [[TX, 0.07, 0.01], [0.04, 0.22, 1], 0.22], during: B.wiggle(act, 0, 0.05, 0.35, 7) },
-            { cap: '钻进去看：Ba²⁺ 和 SO₄²⁻ 结合成 BaSO₄ 沉下去；Na⁺ 和 Cl⁻ 一个都没少——离子反应。演示完了，换你自己做。', dur: 9, cam: [[TX, 0.12, 0], [0.05, 0.22, 1], 0.3],
+            { cap: '钻进去看：Ba²⁺ 和 SO₄²⁻ 结合成 BaSO₄ 沉下去；Na⁺ 和 Cl⁻ 一个都没少——离子反应。演示完了，换你自己做。', dur: 11, cam: [[TX, T_Y + 0.08, 0], [0.03, 0.7, 1], 0.26],
               enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
           ],
         },
@@ -112,7 +113,7 @@ export default {
       if (S.shaken && S.settle > 0.9 && !S.said.settled) { S.said.settled = true; done('shake'); log(['静置', '白色沉淀沉到试管底部，上面的液体又澄清了', 'BaSO₄ 难溶于水']); if (!S.demo) { W?.t1.open(); status('沉淀沉到管底了。在左边作答：混合前后，溶液里的离子有什么变化？'); } }
       const k = Math.min(1, I.ppt / SO4_0);
       B.setTube(0, { vol: S.vol, color: 0xe6eef2, milk: k * (1 - S.settle) * 0.95, milkColor: 0xfbfbf7, speckColor: 0xffffff, sediment: k * S.settle, sedColor: 0xfbfbf8 });
-      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里的离子（示意）</span></div><div class="cc-more">Na⁺ ${mm(I.na)}　SO₄²⁻ ${mm(I.so4)}<br>Ba²⁺ ${mm(I.ba)}　Cl⁻ ${mm(I.cl)}<br><small>单位 mmol · 沉淀 BaSO₄ ${(I.ppt * 233).toFixed(1)} mg</small></div></div>`).loc(group, TX, T_Y + T_LEN + 0.02, 0).show(!bar.playing && S.drops > 0);
+      card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里的离子（示意）</span></div><div class="cc-more">Na⁺ ${mm(I.na)}　SO₄²⁻ ${mm(I.so4)}<br>Ba²⁺ ${mm(I.ba)}　Cl⁻ ${mm(I.cl)}<br><small>单位 mmol · 沉淀 BaSO₄ ${(I.ppt * 233).toFixed(1)} mg</small></div></div>`).loc(group, TX, T_Y + T_LEN + 0.02, 0).show(!bar.playing && S.drops > 0 && !mic.isOpen);
       mic.update?.(dt);
     };
 
