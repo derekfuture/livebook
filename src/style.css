@@ -161,6 +161,9 @@ canvas.chart { width: 100%; height: 150px; display: block; background: #fbf8f1; 
 .flap-back { transform: rotateX(180deg); }
 .answer { position: relative; background: #fff; border: 1.5px solid #e6dcc8; border-radius: 12px; padding: 14px 14px 18px; margin-top: 0; }
 .answer .verdict { font: 600 14px/1.5 var(--sans); margin: 0 0 8px; }
+.answer .verdict.comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.verdict.comparison > span { padding: 6px 8px; background: #f5efe4; border-radius: 5px; font-weight: 400; }
+.verdict.comparison b { display: block; }
 .answer .verdict.ok { color: #2f8a4c; }
 .answer .verdict.no { color: #b0571b; }
 .answer blockquote { margin: 0 0 10px; padding: 8px 12px; border-left: 3px solid var(--pep); background: #f3f7fc; font: 15.5px/1.8 var(--song); color: #1d4c8c; }

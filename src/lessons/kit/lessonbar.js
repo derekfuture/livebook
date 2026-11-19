@@ -14,8 +14,8 @@ import { inviteRing } from './invite.js';
  * reels: { name: { seal, label, shots: [{ cap, cam, dur, speed?, enter?, during? }], onStart?, onEnd?(done) } }
  *   cam: [target, dir, dist] 或 (k) => [...]（实验局部坐标，同 ctx.look）；没有 cam 的镜头回到整体
  */
-export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group = null }) {
-  const ring = group ? inviteRing(group) : null;
+export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group = null, ringOptions }) {
+  const ring = group ? inviteRing(group, ringOptions) : null;
   const left = new Set(steps.map((s) => s.id));
   let ui = null, say = null, sayFor = null, near = false;
   const seal = h('span', { class: 'lb-seal' }, '动手');

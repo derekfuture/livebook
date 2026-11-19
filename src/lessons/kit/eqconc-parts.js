@@ -150,164 +150,184 @@ export function ironSpoon(group, home) {
 
 export const BALANCE = 'Fe³⁺ + 3SCN⁻ ⇌ Fe(SCN)₃';
 export const REDOX = 'Fe + 2Fe³⁺ → 3Fe²⁺';
-const angles = [Math.PI / 6, 5 * Math.PI / 6, 3 * Math.PI / 2].map((a) => a + 0.32);
-const smooth = (x) => { const u = clamp(x, 0, 1); return u * u * (3 - 2 * u); };
-const radial = (a, r, y = 1.7) => V(Math.cos(a) * r, y, Math.sin(a) * r);
+const angles = [Math.PI / 6, 5 * Math.PI / 6, 3 * Math.PI / 2].map((angle) => angle + 0.32);
+const smooth = (value) => { const u = clamp(value, 0, 1); return u * u * (3 - 2 * u); };
+const SITES = [V(-6.15, 1.65, -5.45), V(6.15, 1.65, -5.45), V(-6.15, 1.65, 5.45), V(6.15, 1.65, 5.45)];
+const IRON_SITE = V(0, 1.65, 0.75);
+const SALT_SITES = [V(-1.15, 1.65, 0.95), V(1.22, 1.65, 1.1)];
+const BOUND = 3.33, FREE = 4.18;
 
 export function equilibriumScene() {
-  let current, finish, index, event, clock, direction, runs, credit, particles, dots, changed, metal, landed, saved;
-  const put = (c, kind, p, rep = true) => {
-    const m = c.add(kind, p, { fixed: true, rep });
-    m.g.rotation.set(0, 0, 0);
-    if (kind === 'Fe3+' && p.x === 0) m.label.center.x = 0.73;
-    if (kind === 'Fe(SCN)3') m.label.center.x = 0.67;
-    if (kind === 'Fe3+' || kind === 'Fe2+') m.glowS.visible = false;
-    return m;
+  let run, saved, groups, extras, metal, electrons;
+  const initial = () => ({ bound: [true, false, false, true], reduced: [], enriched: false, target: 2 });
+  const data = () => run.tube ? run.tubes[run.tube] : run.base;
+  const count = () => data().bound.filter(Boolean).length;
+  const put = (c, kind, pos) => {
+    const molecule = c.add(kind, pos, { fixed: true, rep: false });
+    molecule.g.rotation.set(0, 0, 0);
+    if (kind === 'Fe(SCN)3') molecule.label.center.set(0.86, -1.4);
+    if (kind === 'SCN-') molecule.label.center.set(0.5, 0.17);
+    return molecule;
   };
-  const clear = (c) => { particles.forEach(c.remove); particles = []; dots.forEach((dot) => { dot.visible = false; }); };
-  const complex = (c) => { particles = [put(c, 'Fe(SCN)3', V(0, 1.7))]; };
-  const loose = (c, r) => {
-    particles = [put(c, 'Fe3+', V(0, 1.7)), ...angles.map((a, i) => {
-      const m = put(c, 'SCN-', radial(a, r), i === 0);
-      m.g.rotation.y = -a; return m;
-    })];
+  const remove = (c, particles) => particles.forEach((molecule) => { if (molecule) c.remove(molecule); });
+  const placeLigand = (molecule, slot, angle, radius) => {
+    molecule.g.position.copy(SITES[slot]).add(V(Math.cos(angle) * radius, 0, Math.sin(angle) * radius));
+    molecule.g.rotation.y = -angle;
   };
-  const begin = (c, next) => {
-    if (direction !== next) { clear(c); if (next > 0) loose(c, 4.45); else complex(c); }
-    direction = next;
-    event = next > 0 ? 'join' : 'split'; clock = 0;
-  };
-  const perturb = (c, dose) => {
-    clear(c);
-    event = dose.type; clock = 0; landed = 0; changed = dose;
-    current = { ...dose.before };
-    if (event === 'iron') {
-      metal = [[-1.08, 0.41, -0.52], [1.08, 0.41, -0.52], [0, 0.41, -1.1]].map(([x, y, z]) => put(c, 'Fe', V(x, y, z), false));
-      particles = [put(c, 'Fe', V(0, 0.7)), put(c, 'Fe3+', V(-2.5, 1.8, 0.5)), put(c, 'Fe3+', V(2.5, 1.8, 0.5), false)];
-    } else {
-      complex(c);
-      const salt = put(c, 'SCN-', V(-4.7, 4.1, -2.7));
-      salt.g.rotation.y = -Math.PI / 2; particles.push(salt);
+  const phase = (mode) => { run.mode = mode; run.clock = 0; };
+  const drawing = (c) => {
+    const sample = data(), motion = run.motion;
+    const reps = new Set();
+    const rep = (molecule) => {
+      molecule.rep = !reps.has(molecule.kind);
+      reps.add(molecule.kind);
+    };
+    groups.forEach((group, slot) => {
+      const reduced = sample.reduced.includes(slot), bonded = sample.bound[slot] && motion?.slot !== slot;
+      const kind = reduced ? 'Fe2+' : bonded ? 'Fe(SCN)3' : 'Fe3+';
+      if (group.center?.kind !== kind) {
+        remove(c, [group.center, ...group.ligands]);
+        group.center = put(c, kind, SITES[slot]);
+        group.ligands = bonded ? [] : angles.map(() => put(c, 'SCN-', SITES[slot]));
+      }
+      rep(group.center);
+      const u = smooth((motion?.clock ?? 0) / 1.12);
+      const radius = motion?.slot !== slot ? FREE : motion.joining ? FREE + (BOUND - FREE) * u : BOUND + (FREE - BOUND) * u;
+      group.ligands.forEach((ligand, arm) => {
+        placeLigand(ligand, slot, angles[arm], radius);
+        ligand.rep = false;
+      });
+    });
+    const addingSalt = run.mode === 'salt', showExtras = addingSalt || sample.enriched;
+    if (showExtras && !extras.length) extras = SALT_SITES.map((site) => put(c, 'SCN-', site));
+    if (!showExtras && extras.length) { remove(c, extras); extras = []; }
+    extras.forEach((ligand, index) => {
+      const u = addingSalt && !sample.enriched ? smooth((run.clock - 0.18 - index * 0.25) / 1.0) : 1;
+      ligand.g.position.copy(SALT_SITES[index]); ligand.g.position.y += (1 - u) * 1.8;
+      ligand.g.rotation.y = 0.95 + index * 0.35;
+    });
+    const freeRep = extras[0] || (groups[0].ligands[1] ?? groups[2].ligands[1] ?? groups[1].ligands[0] ?? groups[3].ligands[0]);
+    if (freeRep) freeRep.rep = true;
+
+    const addingIron = run.mode === 'iron';
+    const metalKind = sample.reduced.length ? 'Fe2+' : addingIron ? 'Fe' : null;
+    if (metal?.kind !== metalKind) {
+      remove(c, [metal]); metal = metalKind ? put(c, metalKind, IRON_SITE) : null;
+      if (metal) metal.rep = metalKind === 'Fe';
     }
+    if (metal && addingIron && metal.kind === 'Fe') metal.g.position.y = 1.65 + 1.4 * (1 - smooth(run.clock / 0.55));
+    for (const molecule of [...groups.flatMap(({ center, ligands }) => [center, ...ligands]), ...extras, metal]) {
+      if (molecule) molecule.label.visible = molecule.rep;
+    }
+    electrons.forEach((dot, index) => {
+      const u = (run.clock - 0.58) / 0.85;
+      dot.visible = addingIron && u > 0 && u < 1;
+      if (dot.visible) {
+        dot.position.copy(IRON_SITE).lerp(SITES[run.recipients[index]], smooth(u));
+        dot.position.y += 0.3 + 0.75 * Math.sin(Math.PI * u);
+      }
+    });
   };
-  const balanced = () => {
-    const [forward, reverse] = rates(current);
-    return Math.abs(forward - reverse) < 0.025 * Math.max(forward, reverse);
+  const animate = (joining) => {
+    const sample = data();
+    const choices = sample.bound.flatMap((bound, slot) => !sample.reduced.includes(slot) && bound !== joining ? [slot] : []);
+    const slot = choices.find((candidate) => candidate !== run.lastSlot) ?? choices[0];
+    if (slot == null) return;
+    if (!joining) sample.bound[slot] = false;
+    run.motion = { slot, joining, clock: 0 };
+    run.lastSlot = slot;
   };
-  const rateLine = () => {
-    const [forward, reverse] = rates(current), high = Math.max(forward, reverse, 0.0001);
-    const bar = (name, value) => `<span style="display:inline-block;white-space:nowrap;margin:0 8px">${name} <span style="display:inline-block;width:58px;height:5px;background:#ded9d0;vertical-align:middle"><i style="display:block;width:${Math.max(value > 0 ? 3 : 0, Math.round(100 * value / high))}%;height:100%;background:#566383"></i></span></span>`;
-    return `<div>${bar('正反应', forward)}${bar('逆反应', reverse)}</div>`;
+  const startDose = (dose) => {
+    run.dose = dose;
+    run.steady = 0;
+    if (run.tube === dose.tube) { phase('prepare'); return; }
+    run.tube = dose.tube;
+    run.tubes[dose.tube] ??= initial();
+    phase('switch');
+  };
+  const settle = (st) => {
+    const dose = run.dose, sample = data();
+    const after = dose.pulses.at(-1) ?? dose.after;
+    const fraction = equilibrium(after) / st.base.fe;
+    sample.target = clamp(Math.round(SITES.length * fraction ** 0.75), 0, Math.min(SITES.length - 1, SITES.length - sample.reduced.length));
+    phase('relax');
   };
 
-  const pack = ({ kind, rep, g }) => ({ kind, rep, p: g.position.clone(), rotation: g.rotation.clone(), visible: g.visible });
-  const unpack = (c, { kind, rep, p, rotation, visible }) => {
-    const m = put(c, kind, p.clone(), rep);
-    m.g.rotation.copy(rotation); m.g.visible = visible;
-    return m;
-  };
   return {
-    snapshot() {
-      return {
-        current: { ...current }, finish, index, event, clock, direction, runs, credit, changed, landed,
-        particles: particles.map(pack), metal: event === 'iron' ? metal.map(pack) : [],
-      };
-    },
+    snapshot() { return structuredClone(run); },
     resume(snapshot) { saved = snapshot; },
     still: true,
-    labels: (kind, m) => m.rep,
-    labelOnly: (kind, m) => m.rep,
-    init(c, st) {
-      c.view.paper = null; c.view.film = 2.7; c.view.liquid = 0xd8dedb;
-      if (saved) {
-        ({ current, finish, index, event, clock, direction, runs, credit, changed, landed } = saved);
-        particles = saved.particles.map((p) => unpack(c, p));
-        metal = saved.metal.map((p) => unpack(c, p)); saved = null;
-      } else {
-        current = { ...st.base }; finish = equilibrium(current);
-        index = 0; event = 'rest'; clock = 0.65; direction = 1; runs = 0; credit = 0; changed = null;
-        loose(c, 4.45);
-      }
-      dots = [0, 1].map(() => {
-        const e = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), new THREE.MeshBasicMaterial({ color: 0x30384c }));
-        e.visible = false; c.layer.add(e); return e;
+    holoBase: false,
+    labels: (kind, molecule) => molecule.rep,
+    labelOnly: (kind, molecule) => molecule.rep,
+    init(c) {
+      c.view.paper = null; c.view.film = 0;
+      run = saved ?? { base: initial(), tubes: {}, tube: null, index: 0, dose: null, mode: 'equilibrium', clock: 0, steady: 0, motion: null, lastSlot: -1 };
+      saved = null;
+      groups = SITES.map(() => ({ center: null, ligands: [] })); extras = []; metal = null;
+      electrons = [0, 1].map(() => {
+        const dot = new THREE.Mesh(new THREE.SphereGeometry(0.17, 10, 8), new THREE.MeshBasicMaterial({ color: 0x30384c }));
+        dot.visible = false; c.layer.add(dot); return dot;
       });
+      drawing(c);
     },
     links() {
-      if (event !== 'join' && event !== 'split') return [];
-      const ligand = particles[1];
-      if (!ligand || Math.hypot(ligand.g.position.x, ligand.g.position.z) > 3.58) return [];
-      return particles.slice(1).map((m) => [particles[0].g.position, m.g.position.clone().add(V(-1.35, 0).applyEuler(m.g.rotation))]);
+      const motion = run.motion;
+      if (!motion || !motion.joining || motion.clock < 0.88) return [];
+      const { center, ligands } = groups[motion.slot];
+      return ligands.map((ligand) => [center.g.position, ligand.g.position.clone().add(V(-1.35, 0).applyEuler(ligand.g.rotation))]);
     },
     step(c, st, dt) {
-      clock += dt;
-      if (event === 'iron' || event === 'salt') {
-        let doneAt = 2.35;
-        if (event === 'iron') {
-          const start = particles[0].g.position;
-          dots.forEach((d, i) => {
-            const u = (clock - 0.55) / 0.85;
-            d.visible = u > 0 && u < 1;
-            d.position.copy(start).lerp(particles[i + 1].g.position, smooth(u));
-            d.position.y += 0.33 + Math.sin(Math.PI * smooth(u)) * 0.67;
-          });
-          if (clock >= 1.4 && particles[0].kind === 'Fe') {
-            const places = particles.map((m) => m.g.position.clone());
-            clear(c); particles = places.map((p, i) => put(c, 'Fe2+', p, i === 1));
-            current = { ...changed.after };
-          }
-          if (clock >= 1.4) particles[0].g.position.y = 0.7 + 1.18 * smooth((clock - 1.4) / 0.65);
-        } else {
-          const pulses = changed.pulses, salt = particles[1];
-          const flight = Math.max(0, clock - 0.18) / 0.61;
-          const index = Math.floor(flight), phase = flight - index;
-          salt.g.visible = index < pulses.length;
-          salt.g.position.y = 4.1 - 2.4 * smooth(phase / 0.86);
-          if (index + (phase >= 0.86 ? 1 : 0) > landed && landed < pulses.length) current = { ...pulses[landed++] };
-          doneAt = 0.18 + 0.61 * pulses.length + 0.75;
+      const sample = data();
+      const motion = run.motion;
+      if (motion) {
+        motion.clock += dt;
+        if (motion.clock >= 1.12) {
+          sample.bound[motion.slot] = motion.joining;
+          run.motion = null;
+          if (run.mode === 'equilibrium') run.steady++;
+          run.clock = 0;
         }
-        if (clock >= doneAt) {
-          if (event === 'iron') metal.forEach(c.remove);
-          finish = equilibrium(current);
-          direction = 0; runs = 0; credit = 0;
-          begin(c, event === 'iron' ? -1 : 1);
+      } else {
+        run.clock += dt;
+        if (run.mode === 'switch' && run.clock >= 1.25) phase('prepare');
+        if (run.mode === 'prepare') {
+          if (run.dose.type === 'iron') {
+            const free = sample.bound.flatMap((bound, slot) => !bound && !sample.reduced.includes(slot) ? [slot] : []);
+            if (free.length < 2) animate(false);
+            else { run.recipients = free.slice(0, 2); phase('iron'); }
+          } else phase('salt');
+        } else if (run.mode === 'iron') {
+          if (run.clock >= 1.43) sample.reduced = run.recipients;
+          if (run.clock >= 2.45) settle(st);
+        } else if (run.mode === 'salt') {
+          if (run.clock >= 1.43) sample.enriched = true;
+          if (run.clock >= 2.25) settle(st);
+        } else if (run.mode === 'relax' && run.clock >= 0.45) {
+          if (count() === sample.target) phase('equilibrium');
+          else animate(count() < sample.target);
+        } else if (run.mode === 'equilibrium' && run.clock >= (count() === sample.target ? 1.1 : 0.55)) {
+          const next = st.doses[run.index];
+          if (count() === sample.target && run.steady >= 2 && next) {
+            run.index++;
+            startDose(next);
+          } else animate(count() < sample.target || (sample.target === 0 && count() === 0));
         }
-        return;
       }
-      if (changed) relax(current, finish, dt * 0.56);
-      if (event === 'rest') {
-        if (clock < 0.55) return;
-        const nextDose = st.doses[index];
-        // 先看一结合、一分开。扰动后至少演四组，直到趋向新平衡，再接下一支试管。
-        if (nextDose && runs >= 2 && (!changed || (runs >= 4 && balanced()))) { index++; perturb(c, nextDose); return; }
-        const [forward, reverse] = rates(current);
-        const p = forward + reverse ? forward / (forward + reverse) : 0.5;
-        credit += p;
-        if (runs === 0 && !changed) { begin(c, 1); credit = -0.5; }
-        else if (credit >= 0.5) { begin(c, 1); credit--; }
-        else begin(c, -1);
-        return;
-      }
-      const u = smooth(clock / 1.2);
-      if (event === 'split' && particles.length === 1) { clear(c); loose(c, 3.33); }
-      const r = event === 'join' ? 4.45 + (3.33 - 4.45) * u : 3.33 + (4.45 - 3.33) * u;
-      particles.slice(1).forEach((m, i) => m.g.position.copy(radial(angles[i], r)));
-      if (clock >= 1.2) {
-        if (event === 'join') { clear(c); complex(c); direction = -1; }
-        else direction = 1;
-        event = 'rest'; clock = 0; runs++;
-      }
+      drawing(c);
     },
     text() {
-      const eq = event === 'iron' ? REDOX : BALANCE;
-      const tube = changed ? `试管 ${changed.tube} · ` : '分装后的溶液 · ';
-      if (event === 'iron') return { eq, on: true, cap: `试管 ${changed.tube} · ${clock < 1.4 ? '铁粉里的 Fe 交出两个电子，各给一个 Fe³⁺。' : '生成 Fe²⁺，正反应一时变慢，逆反应占优。'}${rateLine()}` };
-      if (event === 'salt') return { eq, on: true, cap: `试管 ${changed.tube} · ${landed ? 'SCN⁻ 增多，正反应一时变快。' : '滴入 KSCN，带来更多 SCN⁻。'}${rateLine()}` };
-      const [forward, reverse] = rates(current);
-      const close = balanced();
-      const summary = close ? (changed ? '新平衡：两边速率又相等。' : '两边速率相等。') : forward > reverse ? '正反应较快。' : '逆反应较快。';
-      const action = event === 'join' ? 'Fe³⁺ 与三个 SCN⁻ 靠拢、结合。' : event === 'split' ? 'Fe(SCN)₃ 分开，释放 Fe³⁺ 和 SCN⁻。' : close ? '结合与分开仍在发生。' : '两边的速率逐渐接近。';
-      return { eq, on: true, cap: `${tube}${action} ${summary}${rateLine()}` };
+      const sample = data();
+      const tube = run.tube ? `试管 ${run.tube}` : '分装后的溶液';
+      const total = `<div class="eqconc-count">画面中的 Fe(SCN)₃：${count()} 组</div>`;
+      let detail;
+      if (run.mode === 'switch') detail = '换一支试管：先看加入试剂前的平衡。';
+      else if (run.mode === 'iron') detail = sample.reduced.length ? '生成 Fe²⁺，溶液里的 Fe³⁺ 减少。' : '铁粉里的 Fe 放出两个电子，分别给两个 Fe³⁺。';
+      else if (run.mode === 'salt') detail = '滴入 KSCN，溶液里的 SCN⁻ 增多。';
+      else if (run.mode === 'relax') detail = run.dose.type === 'iron' ? '分开暂时比结合快，Fe(SCN)₃ 变少。' : '结合暂时比分开快，Fe(SCN)₃ 变多。';
+      else if (run.motion) detail = run.motion.joining ? 'Fe³⁺ 和三个 SCN⁻ 靠拢、结合。' : '一组 Fe(SCN)₃ 分开，释放 Fe³⁺ 和 SCN⁻。';
+      else detail = `${run.tube ? '新平衡' : '动态平衡'}：结合和分开仍在发生，两边速率相等。`;
+      return { eq: run.mode === 'iron' ? REDOX : BALANCE, on: true, cap: `${total}<div>${tube} · ${detail}</div>` };
     },
   };
 }

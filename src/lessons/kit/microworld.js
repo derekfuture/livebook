@@ -198,6 +198,7 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
   const fibTex = new THREE.CanvasTexture(fib); fibTex.wrapS = fibTex.wrapT = THREE.RepeatWrapping;
   const paperMat = new THREE.MeshStandardMaterial({ color: 0x8b5fb0, map: fibTex, roughness: 0.9, emissive: 0x8b5fb0, emissiveIntensity: 0.18 });
   const HR = 6.8;                     // 全息底座的半径（Å）：分子只在这个圆里活动
+  const showBase = !HOLO || scene.holoBase !== false;
   if (HOLO) { paperMat.transparent = true; paperMat.opacity = 0.38; paperMat.emissiveIntensity = 0.5; paperMat.depthWrite = false; }
   const paper = new THREE.Mesh(HOLO ? new THREE.CylinderGeometry(HR, HR, 0.5, 64) : new THREE.BoxGeometry(BOX.x * 2 + 6, 1.4, BOX.z * 2 + 6), paperMat); paper.position.y = HOLO ? -0.4 : -0.7; W0.add(paper);
   const waterMat = new THREE.MeshStandardMaterial({ color: 0x5cc2f0, transparent: true, opacity: 0.13, roughness: 0.15, depthWrite: false, emissive: 0x1d5f80, emissiveIntensity: 0.3 });
@@ -446,10 +447,11 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
     }
     flashLight.intensity *= Math.pow(0.02, dt);
     // 底座的颜色、液体层厚度
-    paper.visible = view.paper != null;
+    paper.visible = showBase && view.paper != null;
     if (view.paper != null) { paperMat.color.set(view.paper); paperMat.emissive.set(view.paper); }
     waterMat.color.set(view.liquid); surfMat.color.set(view.liquid).lerp(new THREE.Color(0xffffff), 0.6);
-    water.scale.y += (Math.max(0.02, film) - water.scale.y) * Math.min(1, dt * 3); water.position.y = water.scale.y / 2; surf.position.y = water.scale.y + 0.01; surf.visible = water.scale.y > 0.1;
+    water.scale.y += (Math.max(0.02, film) - water.scale.y) * Math.min(1, dt * 3); water.position.y = water.scale.y / 2; surf.position.y = water.scale.y + 0.01; surf.visible = showBase && water.scale.y > 0.1;
+    water.visible = showBase;
     dust.rotation.y += dt * 0.01;
     // 化学式、说明
     const T = scene.text(ctx, st);
@@ -523,6 +525,7 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
         const P = place(), k = ease(openK), lift = 3.2 * k;
         W0.position.copy(P.pos).addScaledVector(new THREE.Vector3(0, 1, 0), P.scale * lift);
         W0.scale.setScalar(P.scale * (0.15 + 0.85 * k));
+        column.visible = baseRing.visible = showBase;
         column.scale.set(1, lift + 0.8, 1); column.position.y = -0.8 - (lift + 0.8) / 2; column.material.opacity = k;
         baseRing.material.opacity = 0.85 * k;
         const C = P.cam; C.updateMatrixWorld();

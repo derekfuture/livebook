@@ -17,7 +17,7 @@ import {
 const X = [-0.02, 0.03, 0.08], NAMES = ['a', 'b', 'c'], MOUTH = T_Y + T_LEN;
 const HOME_MIX = V(-0.078, 0.088), HOME_FEED = V(-0.124, 0.088);
 const HOME_SPOON = V(-0.017, 0.0036, 0.036), BOTTLE = V(0.13, 0, 0.008);
-const MICRO_CAM = [[X[1], 0.112, 0], [0.03, 0.75, 1], 0.285];
+const MICRO_CAM = [[X[1], 0.112, 0], [0.03, 1.03, 1], 0.305];
 const INTRO = '混合试管里已有 5 mL 0.005 mol/L FeCl₃ 溶液。';
 const STEPS = ['mix', 'split', 'iron', 'salt'];
 
@@ -28,8 +28,8 @@ export default {
   stampText: '实验',
   style: 'paper',
   predict: {
-    q: '把同一份红色溶液平均分到三支空试管中，从试管侧面看，红色会变浅吗？',
-    options: ['红色深浅不变', '每管的红色都会变浅'],
+    q: '把红色溶液等分到 a、b、c 三管。给 b 加少量铁粉，给 c 滴 4 滴 KSCN 溶液，a 不动。和 a 比，b、c 的红色会怎样？',
+    options: ['b 更浅，c 更深', 'b、c 都更深', 'b、c 都更浅', 'b、c 都和 a 差不多'],
     answer: 0,
   },
   need: '混合溶液，等分到 a、b、c 三管，比较加铁粉、滴加 KSCN 前后的颜色。',
@@ -200,19 +200,30 @@ export default {
     const drag = draggable(group, holders, { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const card = (name, phenomenon) => `<div class="cc"><div class="cc-t"><span class="cc-name">${name}</span><span class="cc-res">${phenomenon}</span></div></div>`;
-    B.cards.forEach((c) => { c.px = [0, 21]; });
-    const mixCard = tag('', 'cond'); mixCard.px = [0, -31];
+    B.cards.forEach((c) => { c.px = [0, -21]; });
+    B.droppers[0].userData.ringY = B.droppers[0].position.y + 0.05;
+    const mixCard = tag('', 'cond'); mixCard.px = [0, -21];
     const scene = equilibriumScene();
     const mic = micro({
       tag, look, back, group, label: '钻进去看', scene,
-      at: () => V(X[1], 0.062), btnAt: () => V(X[1], 0.137, -0.005),
+      at: () => V(X[1], 0.062), btnAt: () => V(X[1], 0.16, -0.005),
       show: () => Boolean(S.base), state: () => ({ base: S.base, doses: S.doses }),
-      bar: () => bar, lookD: MICRO_CAM[1], dist: MICRO_CAM[2], scale: 0.009,
+      bar: () => bar, lookD: MICRO_CAM[1], dist: MICRO_CAM[2], scale: 0.0068,
     });
 
     [...document.querySelectorAll('.mw')].pop()?.setAttribute('data-eqconc', '');
     const layout = h('style', {}, `
+      .mw[data-eqconc] .mw-dim { background-color: rgba(246, 242, 232, 0.68); }
+      .mw[data-eqconc] .mw-cap { font-size: 15px; }
+      .mw[data-eqconc] .eqconc-count { font: 700 17px/1.45 var(--sans); color: #74213d; }
       @media (min-width: 761px) and (max-width: 1050px) and (max-height: 550px), (max-width: 760px) {
+        #viewctl { pointer-events: none; }
+        #viewctl button { pointer-events: auto; }
+        .xuean[data-eqconc].board .opts + .go { margin-top: 6px; padding-block: 8px; }
+        .xuean[data-eqconc].board .q { margin-bottom: 8px; line-height: 1.45; }
+        .xuean[data-eqconc] .opts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 8px; }
+        .xuean[data-eqconc] .opt { padding-block: 6px; font-size: 14px; }
+        .xuean[data-eqconc].board .opt::before { top: 8px; }
         .lbar[data-eqconc] {
           grid-template-columns: auto 1fr auto auto; column-gap: 6px; row-gap: 1px;
           padding: 4px 6px; font-size: 13px; line-height: 1.18;
@@ -281,7 +292,7 @@ export default {
     };
 
     const bar = lessonBar({
-      look, back, group,
+      look, back, group, ringOptions: { minOpacity: 0.32 },
       steps: [
         { id: 'mix', title: '混合两种溶液', todo: '把装有 <b>5 mL 0.015 mol/L KSCN 溶液的试管</b>拖到混合试管口上方，松手倒入。', target: () => !S.carry[0] && !S.pours ? feed.grip : null },
         { id: 'split', title: '平均分装', todo: '拖动<b>混合试管</b>，管口依次对准 a、b、c 的管口上方，松手各倒入一份。', target: () => !S.carry[1] && !S.pours ? mix.grip : null },
@@ -303,7 +314,7 @@ export default {
             { cap: '向试管 c 滴加 4 滴 1 mol/L KSCN 溶液，和试管 a 比较。', dur: 5.1,
               during: B.dripSeq(drag, 0, [[2, () => S.tubes[2].drops + B.inflight(2) >= 4]], 0.05, 0.94) },
             { cap: '试管 a 留作对照。试管 b 红色变浅，试管 c 红色加深。', dur: 2 },
-            { cap: '从分装后的平衡看起，再看两次改浓度时正、逆反应的速率。', dur: 27,
+            { cap: '数一数结合成 Fe(SCN)₃ 的有几组，再看加铁粉和滴 KSCN 后有什么变化。', dur: 27,
               cam: MICRO_CAM, enter: () => mic.open(true) },
           ],
         },
@@ -377,7 +388,10 @@ export default {
       if (S.finished) {
         const observed = `b ${compare(b, a)}，c ${compare(c, a)}`;
         write('compare', ['与试管 a 对比', observed]);
-        if (W && W.observed.textContent !== observed) W.observed.textContent = observed;
+        if (W && W.observed.textContent !== observed) {
+          W.observed.textContent = observed;
+          W.ui.observePrediction(observed);
+        }
       }
     };
 
@@ -386,7 +400,10 @@ export default {
       if (bar.playing) bar.stop();
       B.drops.clear(); spoon.dust.clear(); S = fresh(); switchSet();
       W?.tbl.clear();
-      if (W) { W.review.hidden = true; W.review.open = false; W.next.hidden = true; W.ui.relock(); }
+      if (W) {
+        W.review.hidden = true; W.review.open = false; W.next.hidden = true; W.observed.textContent = '';
+        W.ui.relock(); W.ui.observePrediction(null);
+      }
       bar.undo(...STEPS); bar.say(null); say(INTRO);
     };
     const wrapped = wrapPointer(drag, bar);
@@ -412,10 +429,15 @@ export default {
         setBench(); B.update(h, t); record();
       }
       const visible = !bar.playing && !mic.isOpen;
-      mixCard.text(card('混合试管', S.mixed ? '红色' : '浅黄色')).loc(group, HOME_MIX.x, 0.1, 0).show(visible && S.mix.vol > 0 && !S.carry[1] && !S.pours);
+      mixCard.text(card('混合试管', S.mixed ? '红色' : '浅黄色')).loc(group, HOME_MIX.x, MOUTH, 0).show(visible && S.mix.vol > 0.001 && !S.carry[0] && !S.carry[1] && !S.pours);
+      const last = S.doses.at(-1);
+      const peer = last?.tube === 'c' ? 2 : last?.tube === 'b' ? 1 : S.ironB ? 2 : 1;
+      const comparing = visible && S.base && !S.carry[2] && !S.bench.carry[0];
       B.cards.forEach((c, k) => {
         const s = S.tubes[k];
-        c.text(card(`试管 ${NAMES[k]}`, S.base ? shade(s) : '红色')).loc(group, X[k], 0.017, 0.019).show(visible && s.vol > 0 && !S.pours);
+        const show = comparing && (k === 0 || k === peer);
+        if (show) c.text(card(`试管 ${NAMES[k]}`, !k || !S.doses.length ? shade(s) : compare(s, S.tubes[0]))).loc(group, X[k], MOUTH, 0);
+        c.show(show);
       });
       if (speed) mic.update(dt, speed);
     };
@@ -438,6 +460,7 @@ export default {
       size: { w: 0.31, d: 0.095, h: 0.225 },
       view: { elev: 20, azim: -4, lookY: 0.46, frameMargin: 1.1 },
       mount(ui) {
+        ui.el.setAttribute('data-eqconc', '');
         const observed = h('b');
         const review = h('details', { class: 'more', hidden: true }, h('summary', {}, '想一想（选做）'),
           h('p', { class: 'fineprint' }, '这一轮：', observed, '。'),
@@ -445,13 +468,14 @@ export default {
         const model = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'),
           h('p', { class: 'fineprint' }, '浓度、取液量、4 滴和等分操作见课本第 36–37 页。每滴按 0.05 mL 计，铁粉按约 0.15 mg 计，都是示意值。等分时每管约 3.33 mL。'),
           h('p', { class: 'fineprint' }, BALANCE, '。用铁和 SCN 的物料守恒计算平衡。正反应示意速率与 [Fe³⁺][SCN⁻]³ 成正比，逆反应示意速率与 [Fe(SCN)₃] 成正比。示意 Kc ≈ 4.7×10⁶ L³/mol³，颜色深浅随 Fe(SCN)₃ 浓度变化。'),
-          h('p', { class: 'fineprint' }, REDOX, '。铁粉剂量、颜色和反应时间为示意。微观回放逐组呈现代表粒子，速率条比较同一时刻的两个方向。用课本简式表示配合物，省略水和旁观离子。配位形状、粒子数和尺度均为示意。'));
+          h('p', { class: 'fineprint' }, REDOX, '。铁粉剂量、颜色和反应时间为示意。微观回放只数画面中的代表粒子，不表示实际浓度或速率。用课本简式表示配合物，省略水和旁观离子。配位形状、粒子数和尺度均为示意。'));
         W = { ...mountXuean(ui, { controls: [moreBox([], reset), model], headers: ['做了什么', '现象'], intro: INTRO }), ui, review, observed };
+        ui.observePrediction(null);
         ui.data.append(review);
         bar.attach(ui);
       },
       update, reset,
-      dispose() { window.removeEventListener('resize', refitMicro); layout.remove(); mic.dispose(); drag.dispose(); bar.dispose(); B.dispose(); spoon.dust.dispose(); sources.forEach((tube) => tube.dispose()); },
+      dispose() { window.removeEventListener('resize', refitMicro); W?.ui.el.removeAttribute('data-eqconc'); layout.remove(); mic.dispose(); drag.dispose(); bar.dispose(); B.dispose(); spoon.dust.dispose(); sources.forEach((tube) => tube.dispose()); },
       debug: { get S() { return S; }, bar, qa, mic, picks: { feed: feed.pick, mix: mix.pick, iron: spoon.pick, dropper: B.droppers[0].pick } },
     };
   },
