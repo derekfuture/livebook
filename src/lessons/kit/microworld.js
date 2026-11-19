@@ -95,13 +95,13 @@ const MOL = {
   })(),
 };
 // 二氧化硫漂白品红（符号示意）：课本只说“与某些有色物质生成不稳定的无色物质”，没有写产物的结构（实际产物里含硫部分怎么连在品红上，
-// 文献说法是磺酸根连在中心碳上并有质子化形态，这里不画）。所以品红画成一个粉红色的大球（符号，不是结构），
-// 无色物质也整个画成符号：变成无色的大球，上面贴一个黄色小球代表结合进去的含硫部分（不画它的结构和键）；
-// 分解时含硫部分变回 SO₂ 离开、大球变回粉红。溶液里的 SO₂ 分子结构是真的（溶液里还有亚硫酸等其他含硫形态，这里只画 SO₂）。
-EL.Pk = [0xd9367e, 1.05]; EL.Pw = [0xe6ebf0, 1.05]; EL.Sx = [0xe8c23c, 0.42];
+// 文献说法是磺酸根连在中心碳上并有质子化形态，这里不画）。所以品红画成一个粉红色的大球（符号，不是结构）；
+// 无色物质画成：同一个大球变成无色，SO₂ 带进来的那三个原子（一个 S、两个 O，和溶液里 SO₂ 的原子一样大、一样颜色）贴在球上——不画它们怎么连；
+// 分解时这三个原子又变回 SO₂ 离开、大球变回粉红。溶液里的 SO₂ 分子结构是真的（溶液里还有亚硫酸等其他含硫形态，这里只画 SO₂）。
+EL.Pk = [0xd9367e, 1.3]; EL.Pw = [0xe6ebf0, 1.3];
 MOL.SO2 = { atoms: [['S', 0, 0, 0], ['O', -1.234, 0.72, 0], ['O', 1.234, 0.72, 0]], bonds: [[0, 1, 2], [0, 2, 2]], label: 'SO₂', ink: '#8a7a10' };
-MOL.DyeS = { atoms: [['Pk', 0, 0, 0]], bonds: [], labelY: 1.9, label: '品红', ink: '#c2185b', glow: 0xff2a8a, glowBase: 0.5, glowSize: 4.2 };
-MOL.DyeSO2 = { atoms: [['Pw', 0, 0, 0], ['Sx', 0.66, 0.66, 0.92], ['O', 0.66, 0.66, 0.92, 0.01], ['O', 0.66, 0.66, 0.92, 0.01]], bonds: [], labelY: 1.9, label: '无色物质', ink: '#5b6676' };          // 含硫部分只画成一个黄色小球（符号）；两个 O 并进去、不显示
+MOL.DyeS = { atoms: [['Pk', 0, 0, 0]], bonds: [], labelY: -2.1, label: '品红', ink: '#c2185b', glow: 0xff2a8a, glowBase: 0.5, glowSize: 5 };
+MOL.DyeSO2 = { atoms: [['Pw', 0, 0, 0], ['S', 0, 1.74, 0], ['O', -1.234, 2.46, 0], ['O', 1.234, 2.46, 0]], bonds: [[1, 2, 2], [1, 3, 2]], labelY: -2.1, label: '无色物质', ink: '#5b6676' };          // SO₂ 的三个原子贴在球顶上（球和 S 之间不画键：课本没写怎么连）
 // 氯化氢分子（H₂ 在 Cl₂ 中燃烧，h2cl2）：H–Cl 键长 1.27 Å
 MOL.HCl = { atoms: [['H', -0.64, 0, 0], ['Cl', 0.64, 0, 0]], bonds: [[0, 1, 1]], label: 'HCl', ink: '#2e6f55' };
 // 硫酸分子（浓硫酸与铜，cuh2so4）：S 在四面体中心，两个 S=O（1.42 Å）、两个 S–OH（1.57 Å），O–H 0.97 Å、S–O–H 约 108°
@@ -1428,59 +1428,106 @@ export function naohScene() {
 }
 
 // ================= 场景：二氧化硫使品红褪色，加热又恢复（示意） =================
-// st：{ nd: 滴进去的品红（0~3 个画出来）, f: 还是红色的品红占多少（0~1）, so2: 溶液里的 SO₂ 相对初始（0~1）, T: 温度, liquid: 液体颜色 }
-// 品红（符号）碰上 SO₂ 生成无色物质；无色物质受热分解，品红恢复、放出 SO₂；SO₂ 受热从溶液里跑出去。个数只是示意，不是实际比例。
+// st：{ nd: 滴进去的品红（0~3 个画出来）, f: 还是红色的品红占多少（0~1）, so2: 溶液里的 SO₂ 相对初始（0~1）, T: 温度, liquid: 液体颜色, shade: 观察卡上的颜色 }
+// 照初中的做法：品红（大球）一个个分开摆在溶液里（滴几滴画几个，最多 3 个），溶液里 3 个 SO₂、2 个水分子。一次只演一个反应：
+//   结合：一个 SO₂ 游到一个品红跟前，贴到球上 → 大球的红色褪去，成了无色物质（SO₂ 的三个原子还在球上）；
+//   分解（受热）：贴在球上的三个原子又连成 SO₂ 离开 → 大球变回红色；SO₂ 热了还会从液面跑出去。
+// 结合了几个跟着这一课算出来的 f 走（个数只是示意，不是实际比例）；实验还没到那一步，画面里也不反应。
 export function so2bleachScene() {
-  const FILM = 6.2, N_SO2 = 6, N_W = 4, DN = MOL.DyeS.atoms.length;
-  const FORM = { in: ['DyeS', 'SO2'], out: ['DyeSO2'], host: 0, near: [null, [0, 0, 3.6]], place: [[0, 0, 0]], map: [...Array.from({ length: DN }, (_, i) => [0, i]), [1, 0], [1, 1], [1, 2]], approach: 1.8, dur: 2.2, burst: [0xffd0e4, 0xe8eef2] };
-  const BREAK = { in: ['DyeSO2'], out: ['DyeS', 'SO2'], place: [[0, 0, 0], [0, 0, 4]], map: [...Array.from({ length: DN }, (_, i) => [0, i]), [0, DN], [0, DN + 1], [0, DN + 2]], after: [{}, {}], approach: 0, dur: 2.2, burst: [0xd8e8ff, 0xffd0e4] };
+  const FILM = 8, N_SO2 = 3, N_W = 2, DY = 1.7;
+  const PINK = new THREE.Color(EL.Pk[0]), WHITE = new THREE.Color(EL.Pw[0]);
+  // 品红摆在哪：滴几滴就几个位置，左右分开、前后错开一点（标签写在球下面，不和上面贴着的 SO₂ 叠在一起）
+  const SLOTS = { 1: [[0, 0]], 2: [[-2.7, 0.6], [2.7, -0.6]], 3: [[-3.6, 0.9], [0, -0.9], [3.6, 0.9]] };
+  const FORM = { in: ['DyeS', 'SO2'], out: ['DyeSO2'], host: 0, near: [null, [0, 3.4, 0.4]], place: [[0, 0, 0]], map: [[0, 0], [1, 0], [1, 1], [1, 2]], approach: 2.0, dur: 1.6, burst: [0xffd0e4, 0xe8eef2] };
+  const BREAK = { in: ['DyeSO2'], out: ['DyeS', 'SO2'], place: [[0, 0, 0], [0.4, 3.4, 0.3]], map: [[0, 0], [0, 1], [0, 2], [0, 3]], after: [{ fixed: true }, {}], approach: 0, dur: 1.6, burst: [0xd8e8ff, 0xffd0e4] };
   const nDye = (st) => Math.min(3, Math.round(st.nd || 0));
   const wantBound = (st) => { const n = nDye(st); return n ? Math.max(0, Math.min(n, Math.round(n * (1 - st.f)))) : 0; };
   const wantFree = (st) => Math.round(N_SO2 * Math.max(0, Math.min(1, st.so2)));
   const nEv = (c, rx) => c.events.filter((e) => e.rx === rx).length;
-  let acc = 0;
+  const dyes = (c) => c.mols.filter((m) => m.slot != null);
+  const home = (m, n) => { const s = SLOTS[n][Math.min(m.slot, n - 1)]; return new THREE.Vector3(s[0], DY, s[1]); };
+  const tint = (m, from, to) => { m.col = { from, to, t: 0 }; m.atoms[0].material.color.copy(from); };
+  let acc = 0, pause = 0, made = 0;
+  // 靠得太近的两个粒子互相推开一点（和 microlayout.js 的 spread 一样；fixed 的不动）
+  const spread = (list, dmin, dt) => { const d = new THREE.Vector3(); for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) { const a = list[i], b = list[j]; d.copy(a.g.position).sub(b.g.position); const L = d.length(); if (L >= dmin || L < 1e-4) continue; d.multiplyScalar(((dmin - L) / L) * 6 * dt); if (!a.fixed && !a.busy) a.v.add(d); if (!b.fixed && !b.busy) b.v.sub(d); } };
+  const addDye = (c, kind, slot, p) => { const m = c.add(kind, p, { fixed: true, slot }); m.g.rotation.set(0, 0, 0); return m; };
+  const reps = (c) => {
+    for (const k of ['DyeS', 'DyeSO2', 'SO2']) { if (c.mols.some((m) => m.kind === k && m.rep && !m.leaving && !m.fadeOut)) continue; const m = c.mols.filter((q) => q.kind === k && !q.busy && !q.leaving && !q.fadeOut).sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9))[0]; if (m) m.rep = true; }
+  };
   return {
-    labels: (k) => k !== 'H2O', dim: 0.55,
+    labels: (k, m) => !!m.rep, labelOnly: (k, m) => !!m.rep || (m.busy && m.kind !== 'H2O'), dim: 0.75,
     init(c, st) {
-      c.view.film = FILM; c.view.paper = null; acc = 0;
+      c.view.film = FILM; c.view.paper = null; acc = 0; pause = 0.6; made = 0;
       const n = nDye(st), b = wantBound(st);
-      for (let i = 0; i < n - b; i++) c.add('DyeS', c.inLiquid(), { heavy: true });
-      for (let i = 0; i < b; i++) c.add('DyeSO2', c.inLiquid(), { heavy: true });
-      for (let i = 0; i < wantFree(st); i++) c.add('SO2', c.inLiquid());
-      for (let i = 0; i < N_W; i++) c.add('H2O', c.inLiquid());
+      for (let i = 0; i < n; i++) addDye(c, i < n - b ? 'DyeS' : 'DyeSO2', i, home({ slot: i }, n));
+      for (let i = 0; i < wantFree(st); i++) c.add('SO2', c.V([-3.2 + i * 3.2 + c.rnd(-0.5, 0.5), c.rnd(5.8, FILM - 0.8), c.rnd(-1.8, 1.8)]));
+      for (let i = 0; i < N_W; i++) c.add('H2O', c.V([c.rnd(-3.5, 3.5), c.rnd(0.8, 2.4), c.rnd(-2, 2)]));
+      reps(c);
     },
     step(c, st, dt) {
       c.view.film = FILM; c.view.paper = null; c.view.liquid = st.liquid ?? 0xcfe3ec;
       c.view.speed = 1 + Math.max(0, Math.min(1, (st.T - 25) / 70)) * 1.6;
-      const n = nDye(st);
-      // 滴进来的品红（红色）从上面落下
-      if (c.count('DyeS') + c.count('DyeSO2') < n) { const m = c.add('DyeS', c.V([c.rnd(-1.5, 1.5), FILM - 0.8, c.rnd(-1, 1)]), { heavy: true }); m.v.set(0, -1.4, 0); }
-      // 红色 ⇄ 无色：个数跟着宏观的 f 走
-      const nF = nEv(c, FORM), nB = nEv(c, BREAK), bound = c.count('DyeSO2') + nF - nB, want = wantBound(st);
-      if (c.events.length < 2) {
-        if (bound < want) { const d = c.free('DyeS')[0], s = d && c.nearest(c.free('SO2'), d.g.position); if (d && s) c.start(FORM, [d, s]); }
-        else if (bound > want) { const a = c.free('DyeSO2')[0]; if (a) c.start(BREAK, [a]); }
+      const n = nDye(st), ds = dyes(c);
+      // 滴进来的品红从液面落下，落到自己的位置
+      if (ds.length < n) addDye(c, 'DyeS', ds.length, c.V([c.rnd(-1, 1), FILM + 0.5, 0]));
+      for (const m of ds) {
+        if (m.busy) continue;
+        const to = home(m, n); m.g.position.lerp(to, Math.min(1, dt * 2.2)); m.g.position.y += Math.sin(performance.now() / 700 + m.slot * 2) * 0.004;
+        // 颜色：结合后红色慢慢褪去，分解后红色慢慢回来（大球是符号；颜色只表示这一个是有色的品红还是无色物质）
+        if (m.col) { m.col.t = Math.min(1, m.col.t + dt / 1.1); m.atoms[0].material.color.copy(m.col.from).lerp(m.col.to, m.col.t); if (m.col.t >= 1) m.col = null; }
+        if (m.glowS) { m.glowS.material.blending = THREE.NormalBlending; m.glowS.material.opacity = 0.3 * m.dimK * (m.col ? m.col.t : 1); }
       }
-      // 溶液里 SO₂ 的个数：受热跑出去（飞出液面），或慢慢补进来
-      const eff = c.count('SO2') - nF + nB, wf = wantFree(st);
+      // 红色 ⇄ 无色：结合了几个跟着宏观的 f 走；一次只演一个
+      pause -= dt;
+      const bound = c.count('DyeSO2') + nEv(c, FORM) - nEv(c, BREAK), want = wantBound(st);
+      if (!c.events.length && pause <= 0) {
+        if (bound < want) {
+          const d = c.free('DyeS').filter((m) => m.slot != null && m.g.position.distanceTo(home(m, n)) < 0.3).sort((a, b) => a.slot - b.slot)[0];
+          const s = d && c.nearest(c.free('SO2').filter((m) => !m.leaving), d.g.position);
+          if (d && s) {
+            const slot = d.slot;
+            c.start(FORM, [d, s], { then: ([m]) => { m.slot = slot; m.fixed = true; m.labelK = 0; m.labelT = null; tint(m, PINK, WHITE); pause = 0.8; made++; reps(c); } });
+          }
+        } else if (bound > want) {
+          const a = c.free('DyeSO2').filter((m) => m.slot != null).sort((p, q) => q.slot - p.slot)[0];
+          if (a) {
+            const slot = a.slot;
+            c.start(BREAK, [a], { then: ([m, so2]) => { m.slot = slot; m.labelK = 0; m.labelT = null; so2.labelK = 0; so2.labelT = null; so2.v.set(c.rnd(-0.5, 0.5), 1.2, c.rnd(-0.5, 0.5)); tint(m, WHITE, PINK); pause = 0.8; reps(c); } });
+          }
+        }
+      }
+      // 溶液里 SO₂ 的个数：受热跑出去（飞出液面），或慢慢补进来（溶液很大，别处的 SO₂ 游过来）
+      const eff = c.count('SO2') - nEv(c, FORM) + nEv(c, BREAK), wf = wantFree(st);
       acc += dt;
-      if (eff < wf && acc > 0.5) { acc = 0; c.add('SO2', c.inLiquid(), { fadeIn: true, dimK: 0 }); }
-      else if (eff > wf && acc > 0.5) { const m = c.free('SO2')[0]; if (m) { acc = 0; if (st.T > 55) { m.leaving = true; m.gas = true; m.v.y = 1.8; } else m.fadeOut = true; } }
-      for (const m of c.mols) if (m.kind === 'SO2' && m.leaving) m.v.y = Math.min(Math.max(m.v.y, 1), 2);
+      if (eff < wf && acc > 0.8) { acc = 0; c.add('SO2', c.V([c.rnd(-3.5, 3.5), c.rnd(5.8, FILM - 0.8), c.rnd(-1.8, 1.8)]), { fadeIn: true, dimK: 0 }); }
+      else if (eff > wf && acc > 0.8) { const m = c.free('SO2').sort((a, b) => b.g.position.y - a.g.position.y)[0]; if (m) { acc = 0; if (st.T > 55) { m.leaving = true; m.gas = true; m.v.y = 1.8; } else m.fadeOut = true; } }
+      for (const m of c.mols) if (m.kind === 'SO2' && m.leaving) { m.v.y = Math.min(Math.max(m.v.y, 1), 2); if (m.g.position.y > FILM + 2.5) m.fadeOut = true; }          // 跑出液面一点就淡出（不飞到字幕上去）
       const ws = c.free('H2O'); if (ws.length < N_W && Math.random() < dt * 2) c.add('H2O', c.inLiquid(), { fadeIn: true, dimK: 0 });
+      // 小分子不叠在一起，也不钻进品红的大球里
+      const small = c.mols.filter((m) => !m.busy && !m.fixed && !m.leaving && (m.kind === 'SO2' || m.kind === 'H2O'));
+      spread([...small, ...dyes(c).filter((m) => !m.busy)], 3.2, dt);
+      spread(small, 3.4, dt);
+      // 也不挤到无色物质顶上贴着的那三个原子上；还没反应的 SO₂ 待在品红上方的一层里，水分子在下面
+      for (const m of small) {
+        for (const d of dyes(c)) { const lab = d.g.position.clone().add(c.V([0, -2.1, 0])), q = m.g.position.clone().sub(lab), L = q.length(); if (L < 2.2 && L > 1e-3) m.v.addScaledVector(q, ((2.2 - L) / L) * 6 * dt); }          // 不压着球下面的标签
+        for (const d of c.mols) if (d.kind === 'DyeSO2' && !d.busy) { const top = d.g.position.clone().add(c.V([0, 2.2, 0])), q = m.g.position.clone().sub(top), L = q.length(); if (L < 3.4 && L > 1e-3) m.v.addScaledVector(q, ((3.4 - L) / L) * 6 * dt); }
+        if (m.kind === 'SO2') m.pull = m.g.position.y < 5.8 ? c.V([0, (5.8 - m.g.position.y) * 2, 0]) : null;
+      }
+      reps(c);
     },
     text(c, st) {
       const eq = `${f('DyeS')} + ${f('SO2')} ⇄ ${f('DyeSO2')}<span style="font-size:0.42em;margin-left:0.6em;color:#6b7280">符号示意，不是化学方程式</span>`;
       // 字幕按宏观状态写（st.shade：观察卡上的颜色）；符号个数只用来画示意
-      const nF = nEv(c, FORM), nB = nEv(c, BREAK), n = nDye(st), sh = st.shade || '';
+      const e = c.events[0], n = nDye(st), sh = st.shade || '';
       const now = sh ? `（现在溶液是<b>${sh}</b>）` : '';
-      const cap = nF ? `${f('SO2')} 和${f('DyeS')}结合，生成不稳定的<b>无色物质</b>（大球是品红的符号，黄色小球代表结合进去的含硫部分；课本没有写它们怎么连，这里不画）${now}`
-        : nB ? `无色物质不稳定，<b>分解</b>了：${f('DyeS')}恢复（红色），含硫部分又变回 ${f('SO2')}${st.T > 55 ? '，热了还会从液面跑出去' : ''}${now}`
-        : !n ? `溶液里是 ${f('SO2')} 分子和水分子（SO₂ 溶于水，一部分与水反应生成亚硫酸，可逆；这里只画 SO₂）。还没有品红`
-        : st.T > 55 && st.so2 < 0.9 ? `热了：无色物质容易分解，红色的${f('DyeS')}变多${now}；${f('SO2')} 一个个从液面跑出去（有毒，所以要通风）`
-        : sh === '无色' ? `${f('DyeS')}几乎都生成了无色物质：溶液是<b>无色</b>的（符号个数只是示意）`
-        : sh === '淡红' ? `还有一小部分${f('DyeS')}没有变成无色物质：溶液是<b>淡红</b>色的（符号个数只是示意）`
-        : `${f('DyeS')}大多还没有变成无色物质：溶液是<b>红色</b>的（符号个数只是示意）`;
+      const tail = '大球是品红的符号，不是它的结构；个数只是示意';
+      const cap = e && e.rx === FORM ? (e.t < e.A ? `一个 ${f('SO2')} 游到${f('DyeS')}跟前……` : `${f('SO2')} 贴到${f('DyeS')}上，结合成<b>无色物质</b>：红色褪去（${f('SO2')} 的三个原子还在上面；课本没有写它们怎么连，这里不画）${now}`)
+        : e && e.rx === BREAK ? `无色物质不稳定，<b>分解</b>了：贴在上面的三个原子又连成 ${f('SO2')} 离开，${f('DyeS')}恢复原来的红色${st.T > 55 ? '；热了，SO₂ 还会从液面跑出去' : ''}${now}`
+        : !n ? `溶液里是 ${f('SO2')} 分子和水分子（SO₂ 溶于水，一部分与水反应生成亚硫酸，可逆；这里只画 SO₂）。还没有滴品红`
+        : st.T > 55 && st.so2 < 0.9 ? `热了：无色物质容易分解，红色的${f('DyeS')}变多${now}；${f('SO2')} 一个个从液面跑出去（有毒，所以要通风）。${tail}`
+        : sh === '无色' ? `${f('DyeS')}都和 ${f('SO2')} 结合成了无色物质：溶液是<b>无色</b>的。${tail}`
+        : sh === '淡红' ? `还有一小部分${f('DyeS')}没有和 ${f('SO2')} 结合：溶液是<b>淡红</b>色的。${tail}`
+        : `${f('DyeS')}大多还没有和 ${f('SO2')} 结合：溶液是<b>红色</b>的。${tail}`;
       return { eq, cap };
     },
   };
@@ -1515,16 +1562,20 @@ MOL['K+'] = { atoms: [['K', 0, 0, 0]], bonds: [], label: 'K⁺', ink: '#5a3aa8' 
   { const base = MOL['NO3-'], atoms = base.atoms.map((a) => a.slice()), bonds = base.bonds.map((b) => b.slice());
     for (let k = 1; k <= 3; k++) { const p = new THREE.Vector3(atoms[k][1], atoms[k][2], atoms[k][3]); hIn(atoms, bonds, p, p.clone().normalize(), 1.9); }
     MOL['NO3-aq'] = { atoms, bonds, label: 'NO₃⁻', ink: base.ink, labelY: 4.4 }; }
+  // 一个水合离子（离子 + 围着它的水分子）底下衬一团淡淡的光晕，颜色跟离子的标签一样：一眼看得出这几个水分子是围着这个离子的一整团。
+  // 标签贴着离子（不飘到水合层上面去）。光晕的透明度由场景自己按淡入淡出设（dianzhiScene 里的离子是 fixed，引擎不管它）。
+  for (const [k, c] of [['Na+aq', 0xa98be8], ['K+aq', 0x9a7ee0], ['Cl-aq', 0x7fd393], ['NO3-aq', 0x7fa2e8]]) Object.assign(MOL[k], { glow: c, glowBase: 0.3, glowSize: 7.5, labelY: 1.5 });
 }
 
 // ================= 追加（氨溶于水的喷泉实验 fountain）：氨分子、一水合氨、铵根离子 =================
 // NH₃：三角锥形，N–H 1.01 Å、H–N–H 106.7°（三个 H 在 N 下方，孤电子对朝上）。
 // NH₃·H₂O：课本写成一水合氨；画成一个 NH₃ 和一个 H₂O 靠在一起（水的一个 H 对着 N，N…H 约 2.0 Å；氢键不画成化学键）。
-// NH₄⁺：正四面体，N–H 1.03 Å（第 4 个 H 朝上：电离时水分子把这个 H 交给 N，剩下 OH⁻）。
+//   NH₃ 在上、H₂O 在下（NH₃ 的三个 H 朝上，孤电子对朝下对着水）：喷泉那课里 NH₃ 从上面的气体落到水面上，翻过来贴到水分子上。
+// NH₄⁺：正四面体，N–H 1.03 Å（第 4 个 H 朝下：电离时水分子把这个 H 交给 N，剩下 OH⁻）。
 ZION['NH4+'] = 1;
 {
   const H3 = (r, y) => [0, 1, 2].map((k) => ['H', r * Math.cos((k * 2 * Math.PI) / 3), y, r * Math.sin((k * 2 * Math.PI) / 3)]);
   MOL.NH3 = { atoms: [['N', 0, 0, 0], ...H3(0.9375, -0.381)], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1]], label: 'NH₃', ink: '#1f8a5c' };
-  MOL.NH3H2O = { atoms: [['N', 0, 0, 0], ...H3(0.9375, -0.381), ['O', 0, 2.96, 0], ['H', 0, 2.0, 0], ['H', 0.929, 3.2, 0]], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [4, 5, 1], [4, 6, 1]], label: 'NH₃·H₂O', ink: '#2a6f55', labelY: 4.2 };
-  MOL['NH4+'] = { atoms: [['N', 0, 0, 0], ...H3(0.971, -0.343), ['H', 0, 1.03, 0]], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1]], label: 'NH₄⁺', ink: '#a8326e', glow: 0xff7ab0, glowBase: 0.3, glowSize: 3 };
+  MOL.NH3H2O = { atoms: [['N', 0, 0, 0], ...H3(0.9375, 0.381), ['O', 0, -2.96, 0], ['H', 0, -2.0, 0], ['H', 0.929, -3.2, 0]], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [4, 5, 1], [4, 6, 1]], label: 'NH₃·H₂O', ink: '#2a6f55', labelY: 1.7 };
+  MOL['NH4+'] = { atoms: [['N', 0, 0, 0], ...H3(0.971, 0.343), ['H', 0, -1.03, 0]], bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1]], label: 'NH₄⁺', ink: '#a8326e', glow: 0xff7ab0, glowBase: 0.3, glowSize: 3 };
 }

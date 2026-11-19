@@ -8,6 +8,7 @@ import { paint, inked, hull, glassEdge } from '../../live/ink.js';
 import { glass2, water2 } from './chemfx.js';
 import { canvasTex } from './props.js';
 import { f } from './microworld.js';
+import { spread, homeTo } from './microlayout.js';
 
 export const RI = 0.0145, RO = 0.0158;                 // 针筒内径 29 mm（50 mL 注射器）
 export const ML_PER_M = Math.PI * 1.45 * 1.45 * 100;    // 每米长多少 mL（约 660.5）：50 mL 刻度在 7.57 cm
@@ -234,97 +235,155 @@ function syringeContents(syr) {
 
 // ================= 微观：注射器里的一小块 =================
 // st：{ water: 有水没有, no, o2, n2, no2: 各种气体（mL）, o2In / n2In: 吸进来的空气里的 O₂ / N₂ 累计（mL）, hno3: 生成的 HNO₃（按 mL 气体当量，= 被吸收的 NO₂ × 2/3）, shaking: 正在振荡, leak: 正在把气体推出去 }
-// 分子个数 = 体积 ÷ 2.1 mL（按真实体积比画：10 mL 空气里正好 1 个 O₂、约 4 个 N₂，20 mL NO 约 10 个）。
-// 这一小块和针筒里别的地方是通着的：个数对不上（比如只有 2 个 NO₂、要 3 个才反应）时，旁边飘进来一个 / 飘走一个。
-// 2NO + O₂ → 2NO₂：一个 O₂ 带走两个 NO，变成两个 NO₂（3 个分子变 2 个：气体少了）。
-// 3NO₂ + H₂O → 2HNO₃ + NO：在水面上，三个 NO₂ 和一个 H₂O 变成两个 HNO₃（在水里电离成 2 个 H⁺、2 个 NO₃⁻）和一个 NO（回到气体里）。原子种类、个数守恒。
+// 照初中红磷燃烧、高中钠燃烧的做法：分子少，一次演一个反应，只标代表。
+// 一个分子代表 0.7 mL 气体（示意）：10 mL 空气里的 2.1 mL O₂ 是 3 个 O₂，和 NO 化合成 6 个 NO₂；振荡时这 6 个 NO₂ 分两组溶进水里——一组接一组。
+// NO、N₂ 比这多得多，这一小块里最多画 3 个 NO、1 个 N₂（这一小块和针筒里别处通着：多了飘走，少了从旁边飘进来）。
+// 每种粒子各待各的位置：NO、N₂ 在上面，NO₂ 在下面一排、贴近水面——看得出谁是谁；水面正中靠前留给反应。
+// 2NO + O₂ → 2NO₂：两个 NO 从左右靠到 O₂ 上，各拿走 O₂ 的一个 O（3 个分子变 2 个：气体少了）。
+// 3NO₂ + H₂O → 2HNO₃ + NO：一个水分子到水面，三个 NO₂ 落下来摆开——左边的 NO₂ 拿走水分子的 O，成了 NO₃⁻；右边的 NO₂ 拿走上面那个 NO₂ 的一个 O，
+//   也成了 NO₃⁻；水的两个 H 成了 2 个 H⁺（2 个 HNO₃ 在水里电离）；上面那个 NO₂ 少了一个 O，剩下的就是 NO，回到气体里。原子种类、个数守恒。
+//   慢放示意：只表示原子从哪儿到哪儿（守恒），不表示真实的反应步骤。
 const ARR = '<span class="arr">══</span>';
-export const MICRO_ML = 2.1;
+export const MICRO_ML = 0.7;
 export function no2Scene() {
-  const FILM = 2.6, NW = 3, U = MICRO_ML;
-  const RX1 = { in: ['NO', 'NO', 'O2'], out: ['NO2', 'NO2'], host: 2, at: [0, 0, 0], near: [[-1.9, 0.2, 0.3], [1.9, -0.2, -0.3], null],
-    place: [[-1.3, 0, 0.2], [1.3, 0, -0.2]], map: [[0, 0], [0, 1], [2, 0], [1, 0], [1, 1], [2, 1]], approach: 1.4, dur: 2.2, burst: [0xffe2a0, 0xd9a07a],
-    after: [{ gas: true, v: [-0.6, 0.3, 0] }, { gas: true, v: [0.6, 0.3, 0] }] };
-  // 生成物：H⁺、H⁺、NO₃⁻、NO₃⁻、NO。原子来源：NO₃⁻ 的 N、O、O 来自一个 NO₂，第三个 O 来自 H₂O（示意：只表示原子守恒，不表示真实的反应步骤）
-  //   第一个 NO₃⁻ ← NO₂#0 的 N、O、O + H₂O 的 O；第二个 NO₃⁻ ← NO₂#1 的 N、O、O + NO₂#2 的一个 O；NO ← NO₂#2 的 N、另一个 O；H⁺ ← H₂O 的两个 H
-  const RX2 = { in: ['NO2', 'NO2', 'NO2', 'H2O'], out: ['H+', 'H+', 'NO3-', 'NO3-', 'NO'], host: 3, at: [0, 0.3, 0],
-    nearAbs: (m, i) => (i === 3 ? null : m[3].g.position.clone().add(new THREE.Vector3([-1.9, 0, 1.9][i], 1.6, [0.5, -0.6, 0.2][i]))),
-    place: [[-2.2, -0.6, 0.6], [2.2, -0.6, -0.6], [-1.0, -0.4, -0.2], [1.2, -0.3, 0.4], [0, 2.4, 0]],
-    map: [[3, 1], [3, 2], [0, 0], [0, 1], [0, 2], [3, 0], [1, 0], [1, 1], [1, 2], [2, 1], [2, 0], [2, 2]],
-    approach: 1.6, dur: 2.6, burst: [0xd9a07a, 0x9fd8ff],
-    after: [{}, {}, {}, {}, { gas: true, v: [0, 1.6, 0] }] };
-  const want = (st) => ({ NO: Math.round(st.no / U), O2: Math.round(st.o2 / U), N2: Math.round(st.n2 / U), NO2: Math.round(st.no2 / U), HNO3: Math.round(st.hno3 / U) });
-  const nEv = (c, rx) => c.events.filter((e) => e.rx === rx).length;
+  const FILM = 3.2, NW = 2, U = MICRO_ML, CAP = { NO: 3, N2: 1, NO2: 6 };
+  const Y_UP = 8.0, Y_NO2 = FILM + 1.5;          // NO、N₂ 待的高度；NO₂ 待的高度
+  const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+  const QI = new THREE.Quaternion(), QF = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI, 0));          // 摆正；左右翻过来（N 朝右）
+  // 2NO + O₂ → 2NO₂：O₂ 不动，左边的 NO 翻过来（N 朝着 O₂），右边的 NO 摆正（N 朝着 O₂）；每个 NO 的 N 拿走 O₂ 离它近的那个 O
+  const RX1 = { k: 1, in: ['NO', 'NO', 'O2'], out: ['NO2', 'NO2'], host: 2, at: [0, 0, 0], near: [[-1.9, 0.2, 0], [1.9, 0.2, 0], null],
+    place: [[-1.3, 0, 0], [1.3, 0, 0]], map: [[0, 0], [0, 1], [2, 0], [1, 0], [2, 1], [1, 1]], approach: 1.6, dur: 2.0, burst: [0xffe2a0, 0xd9a07a],
+    after: [{ gas: true, v: [-0.4, -0.3, 0] }, { gas: true, v: [0.4, -0.3, 0] }], rot: [QF, QI, QI] };
+  // 3NO₂ + H₂O → 2H⁺ + 2NO₃⁻ + NO，在水面上的 S 处。反应物：0 = 左边的 NO₂，1 = 右边的 NO₂，2 = 上面的 NO₂，3 = 水分子（都摆正）
+  // NO₃⁻ 的原子顺序：N、右边的 O、左上的 O、左下的 O
+  const rx2 = (S) => {
+    const P = (x, y, z = 0) => S.clone().add(V3(x, y, z));
+    return { k: 2, in: ['NO2', 'NO2', 'NO2', 'H2O'], out: ['NO3-', 'NO3-', 'H+', 'H+', 'NO'], host: -1, approach: 2.2, dur: 3.6, burst: [0xd9a07a, 0x9fd8ff],
+      atAbs: () => P(0, 0.4), nearAbs: (m, i) => [P(-2.7, 1.3), P(1.3, 1.3), P(2.7, 3.4), P(-1.9, -1.5)][i],
+      placeAbs: () => [P(-2.2, -1.2, 0.2), P(1.6, -1.2, -0.2), P(-4.1, -1.7, 0.5), P(-0.1, -2.1, -0.6), P(3.2, 3.9)],
+      map: [[0, 0], [0, 2], [0, 1], [3, 0], [1, 0], [1, 2], [2, 1], [1, 1], [3, 1], [3, 2], [2, 0], [2, 2]],
+      after: [{}, {}, {}, {}, { gas: true, v: [0, 0.8, 0] }], rot: [QI, QI, QI, QI] };
+  };
+  // 每种粒子各有各的位置（前面正中留给反应）：NO、N₂ 在上面，NO₂ 在下面一排、贴近水面；水里的 H₂O、H⁺、NO₃⁻ 在两边和后面。
+  // 号数最小的位置上的那个是代表（标化学式），标签不互相压着。O₂ 一进来就反应，不排位置。
+  const ring = (y, pts) => pts.map(([x, z]) => V3(x, y, z));
+  const SLOTS = {
+    NO2: ring(Y_NO2, [[4.5, -1.4], [-4.5, -1.4], [-2.7, -2.6], [2.7, -2.6], [-0.9, -3.0], [0.9, -3.0]]),
+    NO: ring(Y_UP, [[-3.2, -0.8], [-1.0, -1.4], [1.2, -1.0], [-2.0, -3.0], [0.2, -3.6], [2.2, -2.8]]),
+    N2: ring(Y_UP, [[3.6, -1.0], [3.6, -3.0]]),
+    H2O: ring(1.4, [[0.6, -3.4], [-2.6, -2.2], [2.6, -2.4]]),
+    'H+': ring(1.1, [[-4.6, 0.6], [-4.0, -2.6], [-2.2, -4.2]]),
+    'NO3-': ring(1.6, [[4.4, 0.2], [3.6, -3.0], [1.4, -4.6]]),
+  };
+  const back = (m) => (m.rep ? 100 : 0);          // 挑去反应的分子时，代表排在最后
+  const seat = (list, k) => {
+    const used = new Set(list.filter((m) => m.slot != null).map((m) => m.slot));
+    for (const m of list) if (m.slot == null) {
+      let best = -1, bd = 1e9; SLOTS[k].forEach((q, i) => { if (used.has(i)) return; const d = q.distanceTo(m.g.position); if (d < bd) { bd = d; best = i; } });
+      if (best >= 0) { m.slot = best; used.add(best); }
+    }
+    const lo = Math.min(...list.map((m) => m.slot ?? 99));
+    for (const m of list) m.rep = m.slot === lo;
+  };
+  const want = (st) => ({ NO: Math.min(CAP.NO, Math.round(st.no / U)), O2: Math.round(st.o2 / U), N2: Math.min(CAP.N2, Math.round(st.n2 / U)), NO2: Math.min(CAP.NO2, Math.round(st.no2 / U)) });
+  const nEv = (c, k) => c.events.filter((e) => e.rx.k === k).length;
   const gasCount = (c, k) => c.mols.filter((m) => m.kind === k && !m.leaving && !m.fadeOut).length;
-  let acc = 0, last = '', addO2 = 0, addN2 = 0;
+  let acc = 0, addO2 = 0, addN2 = 0, wait = 0, busyNow = false;
   return {
-    labels: (k) => k === 'NO2' || k === 'O2' || k === 'H+' || k === 'NO3-', dim: 0.5,
+    dim: 0.32,
+    labels: (k, m) => !!m.rep || k === 'O2', labelOnly: (k, m) => (busyNow ? m.busy : !!m.rep || k === 'O2'),          // 反应的时候只标参加反应的那几个；平时只标每种粒子的一个代表
     init(c, st) {
-      c.view.paper = null; c.view.film = st.water ? FILM : 0; acc = 0; last = '';
-      const W = want(st); addO2 = Math.round(st.o2In / U); addN2 = Math.round(st.n2In / U);
-      for (const [k, n] of [['NO', W.NO], ['O2', W.O2], ['N2', W.N2], ['NO2', W.NO2]]) for (let i = 0; i < Math.min(n, 40); i++) c.add(k, c.inGas(), { gas: true });
+      c.view.paper = null; c.view.film = st.water ? FILM : 0; acc = 0; wait = 0; busyNow = false;
+      const W = want(st); addO2 = Math.round(st.o2In / U); addN2 = Math.min(CAP.N2, Math.round(st.n2In / U));
+      const inBand = (y) => { const p = c.inGas(); p.y = y + c.rnd(-0.6, 0.6); return p; };
+      for (const [k, n] of [['NO', W.NO], ['O2', W.O2], ['N2', W.N2], ['NO2', W.NO2]]) for (let i = 0; i < n; i++) c.add(k, inBand(k === 'NO2' && st.water ? Y_NO2 : k === 'O2' ? 5.6 : Y_UP), { gas: true });
       if (st.water) {
         for (let i = 0; i < NW; i++) c.add('H2O', c.inLiquid());
-        const nAcid = Math.min(6, Math.round(W.HNO3 / 2) * 2); for (let i = 0; i < nAcid; i++) { c.add('H+', c.inLiquid()); c.add('NO3-', c.inLiquid()); }
+        const nAcid = Math.min(2, Math.round(st.hno3 / U)); for (let i = 0; i < nAcid; i++) { c.add('H+', c.inLiquid()); c.add('NO3-', c.inLiquid()); }
       }
     },
     step(c, st, dt) {
       c.view.paper = null; c.view.film = st.water ? FILM : 0; c.view.liquid = 0x9fd2ea; c.view.speed = st.shaking ? 1.8 : 1;
-      const W = want(st), n1 = nEv(c, RX1), n2 = nEv(c, RX2);
+      const W = want(st), n1 = nEv(c, 1), n2 = nEv(c, 2);
       // 现在有几个（算上正在进行的反应：反应完以后会变成多少）
       const eff = { NO: gasCount(c, 'NO') - 2 * n1 + n2, O2: gasCount(c, 'O2') - n1, NO2: gasCount(c, 'NO2') + 2 * n1 - 3 * n2, N2: gasCount(c, 'N2') };
-      acc += dt;
-      // 1. 空气从管口进来（从底座左边飘进来）：按吸进来的空气累计（宏观里 O₂ 一进来就反应掉了，这里慢放重演）
-      const inO2 = Math.round(st.o2In / U), inN2 = Math.round(st.n2In / U);
-      if (acc > 0.18 && (addO2 < inO2 || addN2 < inN2)) {
+      acc += dt; wait -= dt;
+      // 1. 空气从管口进来（从左边飘进来）：按吸进来的空气累计（宏观里 O₂ 一进来就反应掉了，这里慢放重演）
+      const inO2 = Math.round(st.o2In / U), inN2 = Math.min(CAP.N2, Math.round(st.n2In / U));
+      if (acc > 0.35 && (addO2 < inO2 || addN2 < inN2)) {
         acc = 0; const k = addO2 < inO2 && (addO2 / Math.max(1, inO2) <= addN2 / Math.max(1, inN2) || addN2 >= inN2) ? 'O2' : 'N2';
         if (k === 'O2') addO2++; else addN2++;
-        const a = c.rnd(2.7, 3.5), m = c.add(k, c.V([Math.cos(a) * 5.2, c.rnd(FILM + 2, 7), Math.sin(a) * 2]), { gas: true, fadeIn: true, dimK: 0 }); m.v.set(1.6, 0, 0);
+        const m = c.add(k, V3(-5.2, k === 'O2' ? 5.6 : Y_UP, c.rnd(-1, 1)), { gas: true, fadeIn: true, dimK: 0 }); m.v.set(1.6, 0, 0);
       }
       // 还要吸收的 NO₂：差 2 个以上，或者宏观里已经吸收完、这里还剩一两个（凑够 3 个再反应）
       const absorb = st.water && (eff.NO2 - W.NO2 >= 2 || (W.NO2 === 0 && eff.NO2 > 0));
-      // 2. 2NO + O₂ → 2NO₂
-      if (eff.O2 > W.O2 && c.events.length < 2) {
-        const o = c.free('O2')[0], nos = o && c.free('NO').sort((a, b) => a.g.position.distanceTo(o.g.position) - b.g.position.distanceTo(o.g.position)).slice(0, 2);
-        if (o && nos.length === 2) c.start(RX1, [nos[0], nos[1], o]);
+      const side = (y) => { const m = c.add('NO', V3(c.rnd(-4, 4), y, -3.4), { gas: true, fadeIn: true, dimK: 0 }); m.v.set(0, 0, 1.2); return m; };
+      if (!c.events.length && wait <= 0) {
+        // 2. 2NO + O₂ → 2NO₂（一次一组）
+        if (eff.O2 > W.O2) {
+          const o = c.free('O2').filter((m) => !m.fadeIn)[0];
+          const nos = o ? c.free('NO').filter((m) => !m.fadeIn).sort((a, b) => a.g.position.distanceTo(o.g.position) + back(a) - b.g.position.distanceTo(o.g.position) - back(b)).slice(0, 2) : [];
+          if (o && nos.length === 2) { nos.sort((a, b) => a.g.position.x - b.g.position.x); c.start(RX1, [nos[0], nos[1], o], { then: () => { wait = 0.8; } }); }
+          else if (o && acc > 0.6 && c.free('NO').length < 2) { acc = 0; side(Y_UP); }          // 这一小块里 NO 不够两个：旁边飘进来一个
+        }
+        // 3. 振荡：3NO₂ + H₂O → 2H⁺ + 2NO₃⁻ + NO（在水面上，一次一组）
+        else if (absorb) {
+          const S = V3(0.1, FILM, 1.3);          // 总在前面正中：上一组生成的离子先游开，再来下一组
+          const w = c.nearest(c.free('H2O').filter((m) => !m.fadeIn), S.clone().add(V3(-1.7, -1.5, 0)));
+          const ns = c.free('NO2').filter((m) => !m.fadeIn).sort((a, b) => a.g.position.distanceTo(S) + back(a) - b.g.position.distanceTo(S) - back(b)).slice(0, 3);
+          if (w && ns.length === 3) {
+            ns.sort((a, b) => a.g.position.x - b.g.position.x);
+            const [A, B, C] = ns[1].g.position.y > ns[2].g.position.y ? [ns[0], ns[2], ns[1]] : ns;
+            c.start(rx2(S), [A, B, C, w], { then: () => { wait = 1.6; } });          // 生成的离子随后游到两边自己的位置上，把前面让出来
+          } else if (ns.length < 3 && acc > 0.6) { acc = 0; const m = c.add('NO2', V3(c.rnd(-4, 4), Y_NO2, -3.4), { gas: true, fadeIn: true, dimK: 0 }); m.v.set(0, 0, 1.2); }          // 不够 3 个：旁边飘进来一个
+        }
       }
-      // 3. 振荡：3NO₂ + H₂O → 2H⁺ + 2NO₃⁻ + NO（在水面上）
-      else if (absorb && c.events.length < 2) {
-        const w = c.free('H2O').sort((a, b) => b.g.position.y - a.g.position.y)[0];
-        const ns = w && c.free('NO2').sort((a, b) => a.g.position.y - b.g.position.y).slice(0, 3);
-        if (w && ns.length === 3) c.start(RX2, [...ns, w]);
-      }
-      // 要吸收、可这一小块里不够 3 个 NO₂：旁边飘进来一个
-      if (absorb && c.free('NO2').length < 3 && !c.events.length && acc > 0.4) { acc = 0; const m = c.add('NO2', c.V([c.rnd(-4, 4), c.rnd(FILM + 2.5, 7), -3.2]), { gas: true, fadeIn: true, dimK: 0 }); m.v.set(0, -0.6, 1.2); }
       // 推出去（漏掉）的：从上面飞走；没有反应等着做时，多了的飘走、少了的飘进来（这一小块和别处通着）
-      const pending = eff.O2 > W.O2 || (st.water && eff.NO2 > W.NO2) || addO2 < inO2 || addN2 < inN2;
-      if (!c.events.length && !pending && acc > 0.4) for (const k of ['NO', 'O2', 'N2', 'NO2']) {
-        if (eff[k] > W[k] + 0.5) { const m = c.free(k)[0]; if (m) { acc = 0; if (st.leak) { m.leaving = true; m.gas = true; m.v.y = 2; } else m.fadeOut = true; } break; }
-        if (eff[k] < W[k] - 0.5 && !st.leak) { acc = 0; c.add(k, c.inGas(), { gas: true, fadeIn: true, dimK: 0 }); break; }
+      const pending = eff.O2 > W.O2 || absorb || addO2 < inO2 || addN2 < inN2;
+      if (!c.events.length && !pending && acc > 0.5) for (const k of ['NO', 'O2', 'N2', 'NO2']) {
+        if (eff[k] > W[k] + 0.5) { const m = c.free(k).sort((a, b) => !!a.rep - !!b.rep)[0]; if (m) { acc = 0; if (st.leak) { m.leaving = true; m.gas = true; m.v.y = 2; } else m.fadeOut = true; } break; }
+        if (eff[k] < W[k] - 0.5 && !st.leak) { acc = 0; const y = k === 'NO2' && st.water ? Y_NO2 : Y_UP; const m = c.add(k, V3(c.rnd(-4, 4), y, -3.4), { gas: true, fadeIn: true, dimK: 0 }); m.v.set(0, 0, 1.2); break; }
       }
       // 水分子：反应用掉的从旁边补进来（水很多）
-      if (st.water && c.free('H2O').length + c.events.filter((e) => e.rx === RX2).length < NW && Math.random() < dt * 2) c.add('H2O', c.inLiquid(), { fadeIn: true, dimK: 0 });
-      // 液体里的离子：太多了就淡出一对（这一小块溶液在大的溶液里，离子走来走去）
-      if (c.free('H+').length > 6 && c.free('NO3-').length > 6) c.pairOut('H+', 'NO3-');
+      if (st.water && c.free('H2O').length + n2 < NW && Math.random() < dt * 2) c.add('H2O', V3(c.rnd(-3, 3), 1.4, -3.4), { fadeIn: true, dimK: 0 });
+      // 溶液里的离子：这一小块里最多留 2 对，多的一对一对淡出（这一小块溶液在大的溶液里，离子走来走去；代表不走）
+      if (!c.events.length) {
+        const hs = c.free('H+').filter((m) => !m.rep), ns = c.free('NO3-').filter((m) => !m.rep);
+        if (c.free('H+').length > 2 && c.free('NO3-').length > 2 && hs[0] && ns[0]) { hs[0].fadeOut = true; ns[0].fadeOut = true; }
+      }
       for (const m of c.mols) {
         if ((m.kind === 'H+' || m.kind === 'NO3-') && m.gas) m.gas = false;
         if (m.kind === 'NO' && m.leaving) m.v.y = Math.min(Math.max(m.v.y, 1), 2.2);
       }
-      last = n1 ? 'rx1' : n2 ? 'rx2' : last;
+      // 反应的分子：摆正（看得清哪个原子去了哪儿）
+      for (const e of c.events) e.mols.forEach((m, i) => { if (e.rx.rot?.[i] && !e.temp) m.g.quaternion.slerp(e.rx.rot[i], Math.min(1, dt * 3)); });
+      busyNow = c.events.length > 0;
+      // 摆开：每个粒子往自己的位置上靠（轻轻晃着），不叠在一起
+      const free = c.mols.filter((m) => !m.busy && !m.fixed && !m.leaving);
+      spread(free.filter((m) => m.gas), 2.2, dt); spread(free.filter((m) => !m.gas), 2.4, dt);
+      for (const k of Object.keys(SLOTS)) seat(free.filter((m) => m.kind === k && !m.fadeOut && (k === 'NO2' || m.gas === ['NO', 'N2'].includes(k))), k);
+      for (const m of free) {
+        if (m.fadeOut) { m.rep = false; m.pull = null; continue; }
+        if (SLOTS[m.kind] && m.slot != null) homeTo(m, SLOTS[m.kind][m.slot], 1.6);
+        else m.pull = null;
+      }
     },
     text(c, st) {
       // 方程式按正在看的那个反应选：正在水面上反应 / 还有 NO₂（宏观或这一小块里）→ 吸收；正在氧化 / 还有 O₂ 要进来、要反应 → 氧化
       const e = c.events[0], nNO2 = gasCount(c, 'NO2'), nO2 = gasCount(c, 'O2'), o2Coming = addO2 < Math.round(st.o2In / U);
-      const absorbing = e?.rx === RX2 || ((nNO2 > 0 || st.no2 > 0.05) && !(e?.rx === RX1) && !o2Coming && !(nO2 > 0 && st.o2 > 0.05));
-      const done2 = !e && !nNO2 && st.no2 <= 0.05 && st.hno3 > 0 && !o2Coming && !nO2;          // 宏观、这一小块里都没有 NO₂ 了，也没有反应在放
+      const absorbing = e?.rx.k === 2 || ((nNO2 > 0 || st.no2 > 0.05) && !(e?.rx.k === 1) && !o2Coming && !(nO2 > 0 && st.o2 > 0.05));
+      const done2 = !e && !nNO2 && st.no2 <= 0.05 && st.hno3 > U / 2 && !o2Coming && !nO2;          // 宏观、这一小块里都没有 NO₂ 了，也没有反应在放
       const eq = absorbing || done2 ? `${f('NO2', '3')} + ${f('H2O')} ${ARR} 2HNO<sub>3</sub> + ${f('NO')}` : `${f('NO', '2')} + ${f('O2')} ${ARR} ${f('NO2', '2')}`;
-      const cap = e?.rx === RX1 ? `一个 ${f('O2')} 碰上两个 ${f('NO')}：变成<b>两个 ${f('NO2')}</b>（3 个分子变成 2 个，气体变少了）`
-        : e?.rx === RX2 ? `水面上：三个 ${f('NO2')} 和一个 ${f('H2O')} 变成两个 HNO<sub>3</sub>（在水里成了 ${f('H+')} 和 ${f('NO3-')}）和<b>一个 ${f('NO')}</b>——三个气体分子只回来一个`
+      const SHOW = '<b>慢放示意</b>：只表示原子从哪儿到哪儿，不表示真实的反应步骤；粒子个数也是示意的。';
+      const moving = e && e.t >= e.A;
+      const cap = e?.rx.k === 1 ? (moving ? `两个 ${f('NO')} 各拿走 ${f('O2')} 的<b>一个 O</b>：变成<b>两个 ${f('NO2')}</b>（3 个分子变成 2 个，气体变少了）。<b>慢放示意。</b>` : `空气里的一个 ${f('O2')} 碰上两个 ${f('NO')}……`)
+        : e?.rx.k === 2 ? (moving ? `左边的 ${f('NO2')} 拿到<b>水分子的 O</b>，右边的 ${f('NO2')} 拿到<b>上面那个 ${f('NO2')} 的一个 O</b>：都成了 ${f('NO3-')}；水的两个 H 成了 ${f('H+')}——这就是 2 个 HNO<sub>3</sub>（在水里电离）。上面那个 ${f('NO2')} 少了一个 O，<b>变成 ${f('NO')}</b>，回到气体里。<b>慢放示意，不表示真实的反应步骤。</b>`
+          : `振荡：一个 ${f('H2O')} 到了水面，三个 ${f('NO2')} 落到它上面……`)
         : o2Coming || nO2 ? `空气从管口进来：${f('O2')} 一碰上 ${f('NO')} 就反应`
-        : (nNO2 || st.no2 > 0.05) && !st.water ? `${f('NO2')} 有了，可针筒里还没有水`
-        : (nNO2 || st.no2 > 0.05) && st.shaking ? `振荡：${f('NO2')} 不停地碰到水面，一个个溶进去`
-        : nNO2 || st.no2 > 0.05 ? `${f('NO2')} 只有碰到水面才溶进去：<b>振荡</b>让它们不停地碰到水（静置时很慢）`
-        : done2 ? `${f('NO2')} 基本都溶进水里了：剩下的气体是 ${f('NO')}${st.n2 > 0.1 ? ` 和空气带进来的 ${f('N2')} 等` : ''}；水里是硝酸（${f('H+')}、${f('NO3-')}）`
+        : (nNO2 || st.no2 > 0.05) && !st.water ? `${f('NO2')} 有了（下面一层），可针筒里还没有水`
+        : (nNO2 || st.no2 > 0.05) && st.shaking ? `振荡：${f('NO2')} 不停地碰到水面，一组一组溶进去。${SHOW}`
+        : nNO2 || st.no2 > 0.05 ? `上面一层是 ${f('NO')}，靠近水面的一层是 ${f('NO2')}：${f('NO2')} 只有碰到水面才溶进去，<b>振荡</b>让它们不停地碰到水（静置时很慢）`
+        : done2 ? `${f('NO2')} 基本都溶进水里了：剩下的气体是 ${f('NO')}${st.n2 > 0.1 ? ` 和空气带进来的 ${f('N2')} 等` : ''}；水里是硝酸（${f('H+')}、${f('NO3-')}）。${SHOW}`
         : `针筒里是 ${f('NO')}（无色）。${st.water ? '它<b>不易溶于水</b>：振荡也没有明显变化' : '还没有吸水'}`;
       return { eq, cap };
     },

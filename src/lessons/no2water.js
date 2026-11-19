@@ -208,7 +208,7 @@ export default {
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: no2Scene(), at: () => V(HOME.x + 0.045, 0.045, 0), btnAt: () => V(HOME.x + 0.1, 0.05, 0), label: '钻进去看',
       state: () => ({ water: S.w > 0.2, no: S.no, o2: S.o2, n2: S.n2, no2: S.no2, hno3: S.hno3, o2In: S.o2In, n2In: S.n2In, shaking: S.shakeE > 0.15, leak: S.leakT > 0 }),
-      key: () => String(S.gen), show: () => S.syr.at === 'home', bar: () => bar, scale: 0.0068, lookD: [0.04, 0.5, 1], dist: 0.34 });
+      key: () => String(S.gen), show: () => S.syr.at === 'home', bar: () => bar, scale: 0.0072, lookD: [0.03, 0.62, 1], dist: 0.28 });
 
     // 演示：活塞拉到某个刻度（拾取盒中心的位置）；注射器拿到烧杯上方
     const plungerTo = (ml) => () => local(ml / ML_PER_M + PICK_OFF);
@@ -247,7 +247,7 @@ export default {
               during: act.seq(act.tap(syr.clipPick, 0.04), liftOut(0.1, 0.3), act.wiggle(syr.barrelPick, { t0: 0.42, t1: 0.92, amp: 0.014, hz: 2.2, dur: 8 })) },
             { cap: '打开弹簧夹，快速吸入 10 mL 空气，到量立即夹上：无色气体变成红棕色，活塞往里缩了一点。', dur: 8, cam: [[0.03, 0.04, 0], [0.04, 0.3, 1], 0.28],
               during: act.seq(act.tap(syr.clipPick, 0.05), pullAir(0.12, 0.42)) },
-            { cap: '钻进去看，再振荡：三个 NO₂ 和一个 H₂O 变成两个 HNO₃ 和一个 NO——红棕色褪去，活塞继续往里走，剩下无色的 NO（和空气带进来的 N₂）。演示完了，换你自己做。', dur: 14, cam: [[0.04, 0.07, 0], [0.04, 0.3, 1], 0.32],
+            { cap: '钻进去看，再振荡：三个 NO₂ 和一个 H₂O 变成两个 HNO₃ 和一个 NO——红棕色褪去，活塞继续往里走，剩下无色的 NO（和空气带进来的 N₂）。演示完了，换你自己做。', dur: 18, cam: [[0.05, 0.095, 0], [0.03, 0.62, 1], 0.28],
               enter: () => mic.open(true), during: act.seq(act.wiggle(syr.barrelPick, { t0: 0.08, t1: 0.7, amp: 0.012, hz: 2, dur: 14 }), act.at(0.98, () => mic.close())) },
           ],
         },

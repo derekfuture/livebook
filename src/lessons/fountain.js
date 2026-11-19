@@ -316,7 +316,7 @@ export default {
     ] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: fountainScene(), at: () => fCenter().add(V(0, 0.02, 0)), btnAt: () => fCenter().add(V(0.058, 0.03, 0.01)), label: '钻进去看',
-      state: () => ({ water: S.Vl > 0.05, gas: S.nN / V0, dis: S.D / V0, air: S.nA / V0, red: redOf() > 0.4 }), key: () => String(S.Vl > 0.05), bar: () => bar, scale: 0.0062, lookD: [0.04, 0.2, 1], dist: 0.32 });
+      state: () => ({ water: S.Vl > 0.05, gas: S.nN / V0, dis: S.D / V0, air: S.nA / V0, red: redOf() > 0.4 }), key: () => String(S.Vl > 0.05), bar: () => bar, scale: 0.007, lookD: [0.03, 0.6, 1], dist: 0.27 });
     const overBk = () => V(BK.x + 0.016, D_Y, BK.z + 0.012);
     // 质检用：滴管拿到烧杯口上方，滴够 n 滴就松手
     const dripTo = (n) => { const me = S; A.dDrag(overBk()); const go = () => { if (S === me) { if (!me.dCarry) return; if (me.ind >= n) { A.dDrop(); return; } } requestAnimationFrame(go); }; requestAnimationFrame(go); };
@@ -341,7 +341,7 @@ export default {
             { cap: '烧瓶里充满了氨气（绿点是氨分子，示意）。倒置烧瓶，使玻璃管插入烧杯的水中。', dur: 8, during: act.path(flaskPick, [() => flask.position.clone(), V(0.19, 0.2, 0), V(0.1, 0.44, 0), V(0.004, 0.44, 0), V(0, 0.36, 0)], { t0: 0.05, t1: 0.4, release: 0.42 }) },
             { cap: '打开弹簧夹。', dur: 3, cam: [[0, 0.16, 0], [0.06, 0.2, 1], 0.3], during: act.tap(clipPick, 0.35) },
             { cap: '挤压胶头滴管，使水进入烧瓶：少量水先溶解一部分氨，瓶内压强下降，烧杯里的水被压进烧瓶、继续溶解氨，形成喷泉，溶液变红。', dur: 12, cam: [[0, 0.285, 0.01], [0.06, 0.14, 1], 0.5], during: act.tap(bulbPick, 0.08) },
-            { cap: '钻进去看：氨分子溶进水里，和水结合成一水合氨，一小部分电离出 OH⁻。演示完了，换你自己做。', dur: 9, cam: [[0, 0.36, 0], [0.05, 0.2, 1], 0.36], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
+            { cap: '钻进去看：氨分子溶进水里，和水结合成一水合氨，一小部分电离出 OH⁻。演示完了，换你自己做。', dur: 19, cam: [[0, 0.4, 0], [0.03, 0.6, 1], 0.27], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
           ],
         },
       },
@@ -579,7 +579,7 @@ export default {
           { name: '打开弹簧夹', tap: clipPick, wait: 1 },
           { name: '挤压滴管', tap: bulbPick, wait: 3, scale: 1 },
           { name: '喷泉', run: () => {}, wait: 8 },
-          { name: '钻进去看', run: () => mic.open(), wait: 4 },
+          { name: '钻进去看', run: () => mic.open(), wait: 17 },
           { name: '合上', run: () => mic.close(), wait: 1 },
           { name: '核对', run: () => { if (!(S.started && S.ended && S.Vl > 0.9 * V0 && redOf() > 0.8)) throw new Error(JSON.stringify({ started: S.started, ended: S.ended, Vl: S.Vl, red: redOf(), P: S.P, nN: S.nN, nA: S.nA })); }, wait: 1 },
           { name: '想一想 1', run: () => W.t1.el.querySelector('button').click() },

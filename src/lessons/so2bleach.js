@@ -152,7 +152,7 @@ export default {
     const off = () => H.k > 0;
     const mic = micro({ tag, look, back, group, scene: so2bleachScene(), at: () => (off() ? H.liquidCenter() : holder.position.clone().add(V(0, 0.03, 0))),
       btnAt: () => (H.k > 0.6 ? H.liquidCenter().add(V(-0.045, -0.004, 0)) : holder.position.clone().add(V(0.027, 0.088, 0))), label: '钻进去看',
-      state: () => ({ nd: S.D, f: S.f, so2: S.so2 / SO2_0, T: S.T, liquid: 0xcfe3ec, shade: S.D ? shade(pink() * (1 - 0.7 * Math.min(1, S.streak))) : '' }), key: () => String(S.D > 0), show: () => true, bar: () => bar, scale: 0.0042 });
+      state: () => ({ nd: S.D, f: S.f, so2: S.so2 / SO2_0, T: S.T, liquid: 0xcfe3ec, shade: S.D ? shade(pink() * (1 - 0.7 * Math.min(1, S.streak))) : '' }), key: () => String(S.D > 0), show: () => true, bar: () => bar, scale: 0.006 });
 
     const NEAR = [[XL + 0.035, 0.102, 0], [0.04, 0.22, 1], 0.33];
     const bar = lessonBar({
