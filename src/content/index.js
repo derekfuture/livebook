@@ -1,10 +1,11 @@
 // 书架：三本书的“会动的图”清单由 tools/gen_content.py 从 PLAN.md 生成；实验代码在 src/lessons/<id>.js，按需加载。
 import books from './books.json';
 import OFF from 'virtual:offline';
+import { FEATURES } from '../features.js';
 
 const modules = import.meta.glob('../lessons/*.js');
 
-export const BOOK_IDS = Object.keys(books);
+export const BOOK_IDS = Object.keys(books).filter((id) => import.meta.env.DEV || !FEATURES.hiddenBooks?.includes(id));          // 线上不放还没准备好的书（features.js）
 
 // 离线版（U 盘上双击打开）：书的目录、封面这些都打包在 HTML 里（tools/offline_data.mjs）；网站上 OFF 是 null，照常从网址取
 export const OFFLINE = !!OFF;
@@ -78,7 +79,7 @@ export function currentBookId() {
   const path = location.pathname.replace(/\/$/, '');
   const legacy = new URLSearchParams(location.search);
   for (const [id, bookPath] of bookPaths) {
-    if (!OFFLINE && path === bookPath) return id;
+    if (!OFFLINE && path === bookPath) return BOOK_IDS.includes(id) ? id : null;          // 线上没放的书：回书桌
   }
   const id = legacy.get('book');
   if (!OFFLINE && bookPaths.has(id)) {
@@ -86,5 +87,5 @@ export function currentBookId() {
     const query = legacy.toString();
     history.replaceState(history.state, '', bookHref(id) + (query ? '?' + query : '') + location.hash);
   }
-  return id;
+  return id && BOOK_IDS.includes(id) ? id : null;
 }
