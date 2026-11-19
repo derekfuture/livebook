@@ -164,7 +164,7 @@ export default {
         if (!spoiled()) return;
         if (tipIn()) { status('先把导管从瓶里提出来，再点集气瓶换一瓶。'); return; }
         const bad = badRound(), f = fresh();
-        if (!S.demo && bad) W?.tbl.add(['点集气瓶，换了一瓶新的氯气', '上一瓶<b>作废</b>（上面那一轮做坏了）', '重新做一遍：缓慢伸入，再观察']);
+        if (!S.demo && bad) W?.tbl.add(['点集气瓶，换了一瓶新的氯气', '上一瓶不再用', '重新做一遍：缓慢伸入，再观察']);
         for (const k of ['zone', 'T', 'Fr', 'L', 'Tu', 'burned', 'burnT', 'out', 'burnCl', 'burnClAt', 'leakCl', 'rCl', 'rHcl', 'outBy', 'flashed', 'mixed', 'rnd', 'flash', 'openT', 'inT', 'open', 'po', 'motion', 'drag', 'vIn', 'vT']) S[k] = f[k];
         if (S.tip[1] < JH + UD + 0.005 && Math.abs(S.tip[0] - JX) < JR + 0.02) S.tip = TIP_HOME.toArray();          // 导管放回原处（燃着的照样燃着）
         for (const k of ['fastMsg', 'leakMsg', 'unlitMsg', 'insertMsg', 'spoilMsg', 'obsDone', 'slowMsg']) delete S.said[k];
@@ -183,7 +183,7 @@ export default {
         onStart: () => { S.drag = true; S.motion = null; },
         onDrag: (p) => { S.tip = constrain(p).toArray(); },
         onEnd: () => { S.drag = false; const p = V(...S.tip); if (p.distanceTo(TIP_LAMP) < 0.02) S.motion = TIP_LAMP.toArray(); } },
-    ], { tip: tag('', 'pill'), taps: [{ obj: jarPick, enabled: () => spoiled() && !bar.playing, hint: () => (badRound() ? '集气瓶：这一轮做坏了，点一下换一瓶新的氯气' : '集气瓶：点一下换一瓶新的氯气，再做一遍'), onTap: () => A.swapJar() }, { obj: platePick, hint: () => (S.open ? '玻璃片：点一下盖回去' : '玻璃片：点一下推到一边'), onTap: () => A.tapPlate() }] });
+    ], { tip: tag('', 'pill'), taps: [{ obj: jarPick, enabled: () => spoiled() && !bar.playing, hint: () => (badRound() ? '集气瓶：这瓶不能再用了，点一下换一瓶新的氯气' : '集气瓶：点一下换一瓶新的氯气，再做一遍'), onTap: () => A.swapJar() }, { obj: platePick, hint: () => (S.open ? '玻璃片：点一下盖回去' : '玻璃片：点一下推到一边'), onTap: () => A.tapPlate() }] });
     const act = demoActs(drag, group);
     const compOf = (g) => { const s = Math.max(1e-6, sum(g)); return { h2: g.h2 / s, cl: g.cl / s, hcl: g.hcl / s, air: g.air / s }; };
     const mic = micro({ tag, look, back, group, scene: h2cl2Scene(), at: () => V(JX, JH + 0.025, 0), btnAt: () => V(JX + 0.048, 0.035, 0), label: '钻进去看',
@@ -283,7 +283,7 @@ export default {
         const v = Q * dt; S.inT += dt;
         (S.zone > 0.005 ? S.T : S.L).h2 += v; outflow(v, false); if (!S.burnT && !S.outBy && S.inT > 0.3) S.mixed = true;
         if (S.inT > 0.6 && !S.burnT) { log('unlit', ['没点燃就把导管伸进瓶里', '没有火焰，在本模型里<b>看不到反应</b>', '氢气流进瓶里和氯气混在一起（H₂ 和 Cl₂ 在光照或点燃时会反应，课本第 103 页）']); }
-        if (S.inT > 0.6 && !S.burnT && !S.said.unlitMsg) { S.said.unlitMsg = true; status('没点燃：氢气流进瓶里，和瓶里的气体混在一起，在本模型里看不到反应（H₂ 和 Cl₂ 在光照或点燃时会反应，课本第 103 页）。这一轮做坏了：瓶里已经混进了氢气，遇火危险——<b>先把导管提出来，点一下集气瓶换一瓶新的氯气</b>。'); }
+        if (S.inT > 0.6 && !S.burnT && !S.said.unlitMsg) { S.said.unlitMsg = true; status('没点燃：氢气流进瓶里，和瓶里的气体混在一起，在本模型里看不到反应（H₂ 和 Cl₂ 在光照或点燃时会反应，课本第 103 页）。瓶里已经混进了氢气，遇火危险——<b>先把导管提出来，点一下集气瓶换一瓶新的氯气</b>。'); }
       }
       S.Tu += ((T0 + (burning ? DT_HOT : 0)) - S.Tu) * Math.min(1, dt / TAU);
       if (S.zone > 0.005) {
@@ -306,7 +306,7 @@ export default {
       }
       if (S.out.hcl > 3 && S.burnT > 1.2) { S.rnd.mist = true; log('mist', ['（看瓶口）', '出现<b>白雾</b>', '生成的 HCl 在空气中与水蒸气结合，呈现雾状（盐酸小液滴，有刺激性、腐蚀性，不要凑近）']); }
       if (S.burnCl > FAST_BAD && S.clock - S.burnClAt > 1 && !S.said.fast) log('fast', ['导管伸得太快', `瓶口冲出<b>黄绿色</b>的氯气（模型估算约 ${Math.round(S.burnCl)} mL）`, '一下子并进一大块冷的氯气，受热膨胀，氯气来不及反应就被挤了出去。氯气有毒：要缓慢伸入（每秒约半厘米）']);
-      if (S.burnCl > FAST_BAD && !S.said.fastMsg) { S.said.fastMsg = true; status('瓶口冲出了<b>黄绿色</b>的氯气！导管伸得太快：瓶里的冷气体一下子受热膨胀，把还没反应的氯气挤了出去——氯气有毒。这一轮做坏了，不能算数。<b>先把导管提出来，点一下集气瓶，换一瓶新的氯气</b>，再每秒约半厘米地伸入。'); if (!S.demo && !S.said.obsDone) bar.undo('insert'); }
+      if (S.burnCl > FAST_BAD && !S.said.fastMsg) { S.said.fastMsg = true; status('瓶口冲出了<b>黄绿色</b>的氯气！导管伸得太快：瓶里的冷气体一下子受热膨胀，把还没反应的氯气挤了出去——氯气有毒。这瓶氯气不能再用了。<b>先把导管提出来，点一下集气瓶，换一瓶新的氯气</b>，再每秒约半厘米地伸入。'); if (!S.demo && !S.said.obsDone) bar.undo('insert'); }
       if (S.leakCl > LEAK_BAD && !S.said.spoilMsg) { S.said.spoilMsg = true; status(`玻璃片敞得太久，瓶里的氯气跑掉了约 ${Math.round(S.leakCl)} mL（模型估算，氯气有毒）。<b>这瓶不能再用了：点一下集气瓶，换一瓶新的氯气</b>，推开玻璃片后尽快伸入。`); }
       if (total('cl') < 0.5 * V0 && S.burned > 20) S.rnd.fade = true;
       if (total('cl') < 0.5 * V0 && S.burned > 20) log('fade', ['继续燃烧', '瓶里的<b>黄绿色越来越浅</b>', '氯气不断被消耗']);
@@ -343,7 +343,7 @@ export default {
       // 照初中的卡片：名字 + 现象词，一行数字（瓶里剩的 Cl₂、瓶口），一行瓶里的颜色；折算方法、倍速写在面板里
       const mouth = S.rCl > 3 ? '冲出黄绿色氯气' : S.rHcl > 1 ? '瓶口白雾' : '';
       const res = (w, burn) => `<span class="cc-res${burn ? ' burn' : ''}">${w}</span>`;
-      const stamp = S.flash > 0.1 ? res('闪了一下', true) : badRound() ? res('做坏了', true) : S.lit && inJar ? res('苍白色火焰', true) : S.outBy === 'used' ? res('熄火') : !S.lit && inJar ? res('没点燃') : '';
+      const stamp = S.flash > 0.1 ? res('闪了一下', true) : S.burnCl > FAST_BAD ? res('冲出氯气', true) : S.outBy === 'high' ? res('熄火', true) : S.leakCl > LEAK_BAD ? res('漏出氯气', true) : S.flashed ? res('闪燃过', true) : S.mixed ? res('混进氢气', true) : S.lit && inJar ? res('苍白色火焰', true) : S.outBy === 'used' ? res('熄火') : !S.lit && inJar ? res('没点燃') : '';
       card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">集气瓶里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${Math.max(0, Math.round(clLeft))}</b><small>mL Cl₂（约）</small>${mouth ? `<small>${mouth}</small>` : ''}</div><div class="cc-note">${look2}</div></div></div>`)
         .loc(group, JX + 0.02, JH + 0.07, 0).show(!bar.playing && !mic.isOpen);
       bar.near(S.near); mic.update?.(dt);
