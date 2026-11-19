@@ -9,7 +9,7 @@ import { textPlate, canvasTex } from './kit/props.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { sandbox, wrapPointer, qaFlow, demoActs, paperSheet, think, mountXuean, moreBox } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
-import { NA, radius, sodiumRate, sodiumThermal, pickBox, tweezers, sodiumKnife, storageBottle, sodiumScene, reach } from './kit/sodium.js';
+import { NA, radius, sodiumRate, sodiumThermal, pickBox, tweezers, sodiumKnife, storageBottle, sodiumScene, reach, floatOut } from './kit/sodium.js';
 import { homeLift } from './kit/labops.js';
 import { paint, inked } from '../live/ink.js';
 import { sfx, Noise } from './kit/audio.js';
@@ -32,6 +32,7 @@ const OBS = {
   move: ['在水面游动，越来越小', '反应生成气体，推动钠；钠不断被消耗'],
   hiss: ['发出嘶嘶声，周围冒气泡', '反应剧烈，有气体生成（结合组成判断是 H₂）'],
   red: ['游过处先红，向下、向四周扩散', '溶液显碱性；结合组成判断生成 NaOH'],
+  redLate: ['反应后补滴酚酞，溶液变红', '溶液显碱性；结合组成判断生成 NaOH'],
 };
 
 export default {
@@ -96,11 +97,11 @@ export default {
     const drops = new Particles({ max: 40, geometry: new THREE.SphereGeometry(1, 8, 5), material: water2({ color: 0xb4d2e1 }) }); drops.mesh.renderOrder = 11; group.add(drops.mesh);
     const slick = new THREE.Mesh(new THREE.CircleGeometry(0.015, 40), paint(0xe3c574, { keep: true, transparent: true, opacity: 0.45, depthWrite: false })); slick.rotation.x = -Math.PI / 2; slick.renderOrder = 10.8; group.add(slick);
     const soundMark = textPlate('嘶 嘶 嘶 〰', { w: 0.043, h: 0.012, color: '#536471', bg: 'rgba(255,253,245,.85)' }); soundMark.renderOrder = 14; group.add(soundMark);
-    const caption = tag('', 'cond'), massCard = tag('', 'pill'), warning = tag('', 'pill');
+    const caption = tag('', 'cond'), massCard = tag('', 'pill'), warning = tag('', 'pill', () => { S.near = false; back(); window.__lb?.stage?.resetView?.(); });          // 点警示：退回全景（离开烧杯正上方）
     const fresh = () => ({ demo: false, near: false, water: 0, ph: 0, stage: 'bottle', dry: false, blot: 0, blotted: false, cut: false,
       mass: NA.mass, chosen: NA.mass, held: '', clock: 0, reaction: false, left: 0, total: 0, energy: 0, temp: 22, melt: 0, gas: 0, flux: 0, jet: 0,
       x: 0, z: 0, vx: 0.014, vz: 0.009, path: 0, bubbleAcc: 0, sourceAcc: 0, sources: [], seen: {}, finished: false,
-      ignition: false, flash: 0, burned: 0, splashEnergy: 0, spill: 0, oil: 0, dump: 0,
+      ignition: false, flash: 0, burned: 0, splashEnergy: 0, spill: 0, oil: 0, dump: 0, fall: 0, vy: 0, phAcc: 0,
       tools: Object.fromEntries(Object.entries(HOME).map(([k, v]) => [k, { pos: v.toArray(), drag: false, hand: null, grab: [0, 0, 0], zone: '', poured: false, side: 0, press: 0 }])) });
     let S = fresh();
     const tools = { tw, knife, jug, ph };
@@ -108,9 +109,9 @@ export default {
     const done = (id) => { if (!S.demo) bar.done(id); };
     const clearFx = () => { bubs.clear(); splash.clear(); drops.clear(); mw?.close(); sound?.on(false); };
     const observe = (key) => { if (S.seen[key]) return; S.seen[key] = true; if (!S.demo) W?.tbl.add(OBS[key]); };
-    const startReaction = () => {
-      S.reaction = true; S.left = S.mass; S.total = S.mass; S.clock = 0; S.x = -0.012; S.z = 0.006;
-      S.oil = S.dry ? 0 : 1; done('put'); observe('float');
+    const startReaction = (x = -0.012, z = 0.006, fall = 0.01) => {
+      S.reaction = false; S.fall = fall; S.vy = 0; S.left = S.mass; S.total = S.mass; S.clock = 0; S.x = x; S.z = z;          // 从镊尖落到水面，碰到水才开始反应
+      S.oil = S.dry ? 0 : 1; done('put');
       if (!S.demo) { S.near = true; look([CUP.x, LEVEL, 0], [0.08, 0.5, 1], 0.17, () => { S.near = false; }); }
       status('从侧面近看水面：钠浮着。留意棱角、走过的地方和杯里的颜色。底部可回到全景。');
     };
@@ -120,16 +121,23 @@ export default {
       cut() { if (S.stage !== 'paper' || S.cut) return; S.mass = S.chosen; S.cut = true; done('cut'); status(`切下约 ${(S.mass * 1000).toFixed(0)} mg。用镊子夹起左边这块，放入水中。${S.mass > 0.15 ? '<b>这块明显大于绿豆大，留意后果。</b>' : ''}`); },
       pickup() { if (!S.cut || S.stage !== 'paper') return; S.stage = 'heldPiece'; S.held = 'piece'; },
       put() { if (S.stage !== 'heldPiece') return; S.stage = 'water'; S.held = ''; startReaction(); },
-      water() { if (S.reaction || S.water >= 1) return; S.water = 1; done('water'); status('烧杯里加好了水。把酚酞滴瓶拖到杯口，滴几滴。'); },
-      ph() { if (!S.water) return; S.ph = Math.min(5, S.ph + 3); done('ph'); status('滴了几滴酚酞。现在溶液无色。用镊子取钠。'); },
+      water() { if (S.reaction || S.total > 0 || S.waterDone) return; S.water = 1; S.waterDone = true; done('water'); status('烧杯里加好了水。把酚酞滴瓶拖到杯口，滴几滴。'); },
+      // 酚酞：说的话、记录都按现在杯里的情况（还没放钠 / 正在反应 / 反应完了才补滴）
+      ph(n = 3) {
+        if (!S.water) return; const first = !S.ph; S.ph = Math.min(5, S.ph + n); if (!first) return; done('ph');
+        if (!S.total) status('滴了酚酞，溶液还是无色的。用镊子取钠。');
+        else if (!S.finished) status('滴了酚酞：钠游过的地方变红了。');
+        else { status('补滴了酚酞：溶液变红了——反应后的溶液显碱性。'); if (!S.seen.red) { S.seen.red = true; if (!S.demo) W?.tbl.add(OBS.redLate); } }
+      },
     };
     const A = {
       reset() { if (bar.playing) bar.stop(); clearFx(); S = fresh(); apply(); W?.tbl.clear(); W?.t1.close(); W?.t2.close(); if (W) { W.next.hidden = true; W.compare.hidden = true; W.ui.relock(); } bar.undo(...PREP); status('器材重新摆好了。先把水瓶拖到烧杯口。'); back(); },
       blot() { if (S.stage === 'paper' && !S.dry && S.blot === 0) S.blot = 0.001; },
       cutMass(g) { if (!S.cut) { S.chosen = clamp(g, 0.02, 0.28); status(`刀口准备切下约 ${(S.chosen * 1000).toFixed(0)} mg。把刀拖到滤纸上的切线。`); } },
-      dump() { if (S.dump) return; S.dump = 0.001; S.reaction = false; S.left = 0; sound?.on(false); mw.close(); status('把反应后的液体倒入废液盘，换一杯水再试。剩余钠的处置在这里作省略示意。'); },
+      // 倒掉这杯：钠还在反应（或正落下去）时不动烧杯；反应完了再倒
+      dump() { if (S.dump) return; if (S.reaction || S.fall > 0) { status('钠还在反应，先别动烧杯：离远些，等它反应完再倒入废液盘。'); return; } S.dump = 0.001; sound?.on(false); mw.close(); status(S.total ? '把反应后的液体倒入废液盘，换一杯水再试。' : '把水倒掉，换一个干净烧杯。'); },
       // 面板备用：直接做下一步（器材留在原处，不替你搬运）
-      twStep() { if (S.stage === 'bottle') events.take(); else if (S.stage === 'heldStock') events.paper(); else if (S.stage === 'paper' && S.cut) events.pickup(); else if (S.stage === 'heldPiece' && S.water) events.put(); },
+      twStep() { if (S.stage === 'bottle') events.take(); else if (S.stage === 'heldStock') events.paper(); else if (S.stage === 'paper' && S.cut) events.pickup(); else if (S.stage === 'heldPiece' && S.water >= 1) events.put(); },
       closeView() { S.near = true; look([CUP.x, LEVEL, CUP.z], [0.01, 1, 0.02], 0.11, () => { S.near = false; }); },
     };
     // ---- 器材跟手：器材落在光标射线碰到的第一个面上（桌面、钠块、杯口、瓶口……），总在手底下；动作发生在手放到的地方 ----
@@ -149,8 +157,8 @@ export default {
       const t = S.tools[key], hand = V(...t.hand), q = hand.clone().add(V(...t.grab));
       if (key === 'jug' || key === 'ph') {
         const h = RH.hit(RH.ray(hand), solids(key));
-        if (h?.s?.id === 'cup') {          // 手到了杯口：瓶口伸到杯口上方，倒 / 滴
-          const [th, hm] = POUR[key], m = V(CUP.x + (key === 'jug' ? 0.006 : 0.003), H + (key === 'jug' ? 0.02 : 0.012), CUP.z + clamp(h.p.z - CUP.z, -0.012, 0.012));
+        if (h?.s?.id === 'cup' && h.top) {          // 手指着杯口：瓶口伸到杯口上方、跟着手在杯口里挪，倒 / 滴（真的倒不倒看瓶子的实际姿态，见 step）
+          const [th, hm] = POUR[key], m = V(CUP.x + clamp(h.p.x - CUP.x, -0.014, 0.014), H + (key === 'jug' ? 0.02 : 0.012), CUP.z + clamp(h.p.z - CUP.z, -0.014, 0.014));
           return { zone: 'cup', T: m.clone().add(V(hm * Math.sin(th), -hm * Math.cos(th), 0)), rot: th, mouth: m };
         }
         const b = RH.hit(RH.ray(q), [], { clr: 0.012 })?.p || V(...HOME[key]);          // 拿起来一点，在桌上方挪；不挤进别的器材
@@ -179,19 +187,27 @@ export default {
       return { zone: '', T: p, rot: (h.s && !h.top) || blocked(p) ? 1 : 0 };          // 碰着侧面：竖着拿
     }
     const cutNow = () => { if (S.cut || S.stage !== 'paper') return; events.cut(); S.tools.knife.press = 1; };
-    const pourNow = (key) => { const t = S.tools[key]; if (t.poured) return; t.poured = true; events[key === 'jug' ? 'water' : 'ph'](); };
+    let frame = 0;
     function release(key) {
       const t = S.tools[key]; if (!t.hand) { t.drag = false; return; }
-      const z = aimTool(key).zone; t.drag = false;
+          // 同一帧里按下又松开（qa 不用真鼠标时的拖放，人手做不到）：当作镊子已经拿到手指的地方
+      if (key === 'tw' && t.f0 === frame) tw.position.copy(aimTool(key).T);
+      const a = aimTool(key), z = a.zone; t.drag = false;
       if (key === 'tw') {
-        if (z === 'oil') events.take();
-        else if (z === 'piece') events.pickup();
-        else if (z === 'paper' && S.stage === 'heldStock') events.paper();
-        else if (z === 'paper' && S.stage === 'heldPiece') { S.stage = 'paper'; S.held = ''; }
-        else if (z === 'cup' && S.stage === 'heldPiece') { if (S.water) events.put(); else status('杯子里没有水。先加水，或者把钠放回滤纸。'); }
+        const there = tw.position.distanceTo(a.T) < 0.012;          // 镊尖真的到了那里（手快、镊子还在半路就松手，不算）
+        if (z === 'oil' && there) events.take();
+        else if (z === 'piece' && there) events.pickup();
+        else if (z === 'paper' && there && S.stage === 'heldStock') events.paper();
+        else if (z === 'paper' && there && S.stage === 'heldPiece') { S.stage = 'paper'; S.held = ''; }
+        else if (z === 'cup' && S.stage === 'heldPiece') {
+          const inMouth = RH.xz(tw.position, CUP) < R - 0.006 && tw.position.y < H + 0.012;          // 镊尖在杯口里、伸到了杯里
+          if (!inMouth) status('镊子还没伸进杯口。夹着钠拖到烧杯口上方，再松手。');
+          else if (S.water >= 1) { S.stage = 'water'; S.held = ''; startReaction(clamp(tw.position.x - CUP.x, -0.02, 0.02), clamp(tw.position.z - CUP.z, -0.02, 0.02), Math.max(0.002, tw.position.y - LEVEL)); }
+          else status(S.water > 0 ? '水还没加够。先把水瓶拖到杯口，倒够水。' : '杯子里没有水。先加水，或者把钠放回滤纸。');
+        }
       }
       if (key === 'knife' && z === 'bar') cutNow();
-      if ((key === 'jug' || key === 'ph') && z === 'cup') pourNow(key);
+      if (key === 'jug' && S.water > 0 && S.water < 1) status('水还没加够：把水瓶再拖到杯口，倒一会儿。');
       t.hand = null; t.poured = false; t.side = 0;
     }
     // 放回原处：在杯里、瓶里先竖直提出来；回去的直线会穿过别的器材就先抬过它，再 homeLift
@@ -209,16 +225,16 @@ export default {
     const hints = { tw: () => S.held ? '镊子：把钠放到滤纸 / 水中' : '镊子：取钠（不要用手）', knife: () => '小刀：拖到钠块上，越靠右切得越大；松手或拖过钠块就切下', jug: () => '水瓶：拖到烧杯口加水', ph: () => '酚酞滴瓶：拖到杯口滴几滴' };
     const drag = draggable(group, Object.entries(tools).map(([key, obj]) => ({ obj: obj.pick, plane: 'xz', offset: YREF[key],
       hint: () => S.near ? '' : hints[key](),
-      onStart: (p) => { if (!p) return; const t = S.tools[key], g = obj.position.clone().sub(p).setY(0); t.drag = true; t.poured = false; t.side = 0; t.hand = p.toArray(); t.grab = (g.length() < GRAB_MAX[key] ? g : key === 'tw' ? GRAB_TW : V(0, 0, 0)).toArray(); },
-      onDrag: (p) => { if (p) S.tools[key].hand = p.toArray(); },
+      onStart: (p) => { if (!p) return; const t = S.tools[key], g = obj.position.clone().sub(p).setY(0); t.drag = true; t.moved = false; t.poured = false; t.f0 = frame; t.side = 0; t.hand = p.toArray(); t.grab = (g.length() < GRAB_MAX[key] ? g : key === 'tw' ? GRAB_TW : V(0, 0, 0)).toArray(); },
+      onDrag: (p) => { if (p) { S.tools[key].hand = p.toArray(); S.tools[key].moved = true; } },
       onEnd: () => release(key), onTap: () => status(hints[key]()),
     })), { tip: tag('', 'pill'), taps: [
       { obj: paperPick, hint: () => S.near ? '' : '滤纸：点一下吸干钠表面的煤油', onTap: () => A.blot() },
-      { obj: cupPick, hint: '烧杯：点一下，倒入废液盘再试', onTap: () => A.dump() },
+      { obj: cupPick, hint: () => (S.reaction || S.fall > 0 ? '烧杯：钠还在反应，等它反应完' : '烧杯：点一下，倒入废液盘再试'), onTap: () => A.dump() },
     ] });
     const act = demoActs(drag, group);
-    const mw = micro({ tag, look, back, group, scene: sodiumScene(), at: () => CUP.clone().setY(LEVEL), btnAt: () => CUP.clone().add(V(0, H + 0.025, -0.02)),
-      label: '钻进去看', state: () => ({ reacted: S.total - S.left, ph: S.ph > 0 }), show: () => S.total > 0 && !S.dump, bar: () => bar, scale: 0.0057, dist: 0.29 });
+    const mw = micro({ tag, look, back, group, scene: sodiumScene(), at: () => CUP.clone().setY(LEVEL), btnAt: () => CUP.clone().add(V(-R - 0.016, LEVEL + 0.012, 0)),          // 按钮在烧杯左边、水面那么高：投钠后凑近看也在画面里
+      label: '钻进去看', state: () => ({ reacted: S.total - S.left, x: S.total ? (S.total - S.left) / S.total : 0, ph: S.ph > 0 }), show: () => S.total > 0 && !S.dump, bar: () => bar, scale: 0.0075, dist: 0.27 });          // 粒子画大一点，看得清电子飞到哪个氢上
     // 演示：手拿着器材拖过去，走学生拖动的同一套处理；点是器材该到的面上的点（瓶子是光标指的点）
     const demoMove = (obj, pts, o) => act.path(obj.pick, [() => obj.position.clone(), ...pts], o);
     const CUT_DEMO = CUT_LEFT + CUT_L * NA.mass / NA.stock;
@@ -231,18 +247,20 @@ export default {
       { id: 'put', title: '镊子投钠', todo: '用<b>镊子</b>碰一下左边的小块夹起，拖到烧杯口上方松手，放入水中。不要近距离俯视烧杯。', target: () => tw },
       { id: 'observe', title: '看变化', todo: '看<b>烧杯</b>：钠的位置、形状和溶液颜色怎样变？观察记录会一行行长出来。', target: () => bk },
     ], reels: { demo: { label: '老师演示', seal: '演示',
-      ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, apply: () => { clearFx(); apply(); }, bar: () => bar }),
+      ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, apply: () => { clearFx(); apply(); }, bar: () => bar,
+        view: { save: () => (mw.isOpen ? 'micro' : S.near ? 'near' : null), restore: (v) => { if (v === 'micro' && S.total > 0 && !S.dump) mw.open(); else if (v === 'near' && S.stage === 'water') { S.near = true; look([CUP.x, LEVEL, 0], [0.08, 0.5, 1], 0.17, () => { S.near = false; }); } } } }),          // 演示完回到学生原来看的地方
       shots: [
         { cap: '烧杯里加入一些水。', dur: 4, during: demoMove(jug, [CUP.clone().setY(H)], { t0: 0.03, t1: 0.35, release: 0.8 }) },
         { cap: '滴几滴酚酞，水还是无色的。', dur: 4, during: demoMove(ph, [CUP.clone().setY(H)], { t0: 0.03, t1: 0.35, release: 0.75 }) },
         { cap: '用镊子取钠，不要用手直接接触。', dur: 4, during: demoMove(tw, [V(OIL.x, 0.078, OIL.z)], { t0: 0.03, t1: 0.4, release: 0.85 }) },
-        { cap: '放在滤纸上，吸干表面的煤油。', dur: 6, during: act.seq(demoMove(tw, [V(PAPER.x + 0.012, CLR.tw, PAPER.z)], { t0: 0.03, t1: 0.35, release: 0.45 }), (k) => { if (k > 0.6 && S.stage === 'paper' && !S.blot) A.blot(); }) },
-        { cap: '用小刀切下绿豆大一块，约 40 mg（近似）。', dur: 4, during: demoMove(knife, [V(CUT_DEMO, BAR_TOP, PAPER.z + 0.022), V(CUT_DEMO, BAR_TOP, PAPER.z - 0.022)], { t0: 0.03, t1: 0.65, release: 0.8 }) },
+        { cap: '放在滤纸上，吸干表面的煤油。', dur: 5, during: act.seq(demoMove(tw, [V(PAPER.x + 0.012, CLR.tw, PAPER.z)], { t0: 0.03, t1: 0.35, release: 0.45 }), (k) => { if (k > 0.6 && S.stage === 'paper' && !S.blot) A.blot(); }) },
+        { cap: '用小刀切下绿豆大一块，约 40 mg（近似）。', dur: 3.5, during: demoMove(knife, [V(CUT_DEMO, BAR_TOP, PAPER.z + 0.022), V(CUT_DEMO, BAR_TOP, PAPER.z - 0.022)], { t0: 0.03, t1: 0.65, release: 0.8 }) },
         { cap: '镊子夹起小块钠。剩下的钠按规范回收。', dur: 3.5, during: demoMove(tw, [V(CUT.x, CLR.tw, CUT.z)], { t0: 0.03, t1: 0.45, release: 0.8 }) },
         { cap: '从侧面看，把钠放入水中。浮在水面，棱角开始消失。', dur: 4, during: demoMove(tw, [V(CUP.x - 0.005, H + CLR.tw, CUP.z)], { t0: 0.03, t1: 0.4, release: 0.62 }) },
-        { cap: '熔成闪亮小球，嘶嘶地游动，越游越小。红色从它经过的地方往下散。', dur: 12, cam: [[CUP.x, LEVEL, 0], [0.12, 0.55, 1], 0.23] },
-        { cap: '反应结束，红色散开。产气、消耗钠和生成碱，都由同一份质量计算。', dur: 6, cam: [[CUP.x, LEVEL, 0], [0.12, 0.55, 1], 0.23] },
-        { cap: '钻进去看：钠失电子，水中的氢得电子；生成 Na⁺、OH⁻ 和 H₂。', dur: 9, cam: [[CUP.x, LEVEL + 0.05, 0], [0.05, 0.22, 1], 0.29], during: act.at(0.04, () => mw.open(true)) },
+        { cap: '熔成闪亮小球，嘶嘶地游动，越游越小。红色从它经过的地方往下散。', dur: 15.8,          // 量过：放钠后约 17 秒反应完，这一镜头正好到钠消失
+           cam: [[CUP.x, LEVEL, 0], [0.12, 0.55, 1], 0.23] },
+        { cap: '反应结束，红色散开。产气、消耗钠和生成碱，都由同一份质量计算。', dur: 2, cam: [[CUP.x, LEVEL, 0], [0.12, 0.55, 1], 0.23] },
+        { cap: '钻进去看（从头慢放）：钠失电子，水中的氢得电子；生成 Na⁺、OH⁻ 和 H₂。', dur: 9.5, cam: [[CUP.x, LEVEL + 0.05, 0], [0.05, 0.22, 1], 0.29], during: act.at(0.04, () => mw.open(true)) },
         { cap: '反应后的液体倒入废液盘。现在换你动手，检验自己的预测。', dur: 3, enter: () => mw.close(), during: act.tap(cupPick, 0.04) },
       ],
     } } });
@@ -269,12 +287,14 @@ export default {
       stain.scale.setScalar(S.dry ? 1 : 0.6);
     }
     function step(dt, now) {
+      frame++;
       // 器材：拿着就跟手（指数约 25/s），松手很快放回原处（约 0.3–0.5 秒）；动作在手放到的地方发生
       const aF = 1 - Math.exp(-dt * 25), aH = 1 - Math.exp(-dt * 17), aR = 1 - Math.exp(-dt * 14);
       for (const [key, obj] of Object.entries(tools)) {
         const t = S.tools[key];
         let rot = 0, aim = null;
-        if (t.drag && t.hand) {
+        if (t.drag && t.hand && !t.moved) rot = key === 'knife' ? obj.rotation.y / (Math.PI / 2) : key === 'tw' ? obj.rotation.z / (Math.PI / 2) : obj.rotation.z;          // 按住还没动：器材不动
+        else if (t.drag && t.hand) {
           aim = aimTool(key); t.zone = aim.zone; rot = aim.rot;
           RH.move(obj, aim.T, aF, CUPS);
           const touch = obj.position.distanceTo(aim.T) < 0.005;
@@ -292,8 +312,13 @@ export default {
         else if (key === 'knife') obj.rotation.y += (rot * Math.PI / 2 - obj.rotation.y) * aR;
         else {
           obj.rotation.z += (rot - obj.rotation.z) * aR;
-          // 瓶口到了杯口上方、倒过来了：倒水 / 滴酚酞，看得见的水滴从瓶口落下
-          if (aim?.zone === 'cup' && Math.abs(obj.rotation.z - rot) < 0.3) { pourNow(key); if (Math.random() < dt * 25) drops.spawn({ p: aim.mouth.clone().add(V(0, -0.002, 0)), v: V(0, -0.08), size: key === 'jug' ? 0.0018 : 0.0011, life: 1 }); }
+          // 看瓶子的实际姿态：瓶口真的在杯口里面的上方、瓶子倒过来了，才倒水 / 滴酚酞（按住一直倒，看得见的水滴从瓶口落下）
+          const [th, hm] = POUR[key], rz = obj.rotation.z, mouth = obj.position.clone().add(V(-hm * Math.sin(rz), hm * Math.cos(rz), 0));
+          if (t.drag && Math.abs(rz - th) < 0.3 && RH.xz(mouth, CUP) < R - 0.006 && mouth.y > H - 0.004 && mouth.y < H + 0.035 && !S.reaction && !S.dump) {
+            if (Math.random() < dt * 25) drops.spawn({ p: mouth.clone().add(V(0, -0.002, 0)), v: V(0, -0.08), size: key === 'jug' ? 0.0018 : 0.0011, life: 1 });
+            if (key === 'jug' && !S.waterDone) { const w = Math.min(1, S.water + dt / 1.2); if (w >= 1) events.water(); else S.water = w; }          // 约 1.2 秒倒够 200 mL
+            if (key === 'ph') { S.phAcc += dt; if (S.phAcc > 0.35) { S.phAcc = 0; events.ph(1); } }          // 一滴一滴地滴
+          }
         }
       }
       // 开煤油瓶盖：镊子靠近时向旁边抬起，取出后盖回，不把镊子穿过瓶盖。
@@ -310,6 +335,7 @@ export default {
       for (let sub = 0; sub < maxSub; sub++) {
         const h = dt / maxSub;
         if (S.total > 0 && !S.dump) S.clock += h;
+        if (S.fall > 0) { S.vy += 9.8 * h; S.fall = Math.max(0, S.fall - S.vy * h); if (S.fall === 0) { S.reaction = true; observe('float'); } continue; }          // 从镊尖落下：碰到水面才开始反应
         if (!S.reaction) continue;
         if (S.oil > 0) { S.oil = Math.max(0, S.oil - h / 3); continue; }
         const r = radius(S.left); let dm = Math.min(S.left, sodiumRate(S.left, S.temp) * h);
@@ -336,8 +362,9 @@ export default {
           // 氢燃烧约 242 kJ/mol（生成水蒸气），0.15% 转为液滴动能；不是对真实爆炸的预测。
           S.splashEnergy = S.jet / 24500 * 242000 * 0.0015;
           const speed = Math.min(0.75, Math.sqrt(2 * S.splashEnergy / 0.003));
+          splash.mesh.material.color.set(S.ph ? 0xe62a73 : 0xcfe3ec);          // 溅出去的是杯里的液体：滴了酚酞才是红的
           for (let i = 0; i < Math.ceil(20 + S.jet * 8); i++) { const a = i * 2.39996; splash.spawn({ p: CUP.clone().add(V(S.x, LEVEL + 0.005, S.z)), v: V(Math.cos(a) * speed * 0.5, speed * (0.8 + Math.random() * 0.3), Math.sin(a) * speed * 0.5), size: 0.0012 + Math.random() * 0.001, life: 2.2 }); }
-          status('黄色火焰，液滴炸开溅出！大块钠放热、产气更多。这就是课本只取绿豆大的原因。点烧杯倒掉，再重来。'); sfx.whoosh({ dur: 0.5, gain: 0.15 });
+          status('黄色火焰，液滴炸开溅出！大块钠放热、产气更多——这就是课本只取绿豆大的原因。离远些，等它反应完。'); sfx.whoosh({ dur: 0.5, gain: 0.15 });
         }
         if (S.left < 0.00001) {
           S.left = 0; S.reaction = false; S.finished = true; S.flux = 0; done('observe');
@@ -346,16 +373,17 @@ export default {
         }
       }
       S.flash = Math.max(0, S.flash - dt / 3.5);
-      const effective = radius(S.left) * 3;
+      const effective = radius(S.left) * 3, half = effective * (0.72 + S.melt * 0.28) * (0.82 + 0.18 * S.melt);          // 半高：方块的顶点在 0.82，球在 1
       ball.visible = S.left > 0 && S.stage === 'water' && !S.dump;
-      ball.position.copy(CUP).add(V(S.x, LEVEL - effective * 0.78, S.z));
-      // 密度接近水：大部分体积在水下（按浮力平衡取约 97% 浸入）。
+      // 密度 0.97：约 97% 的体积在水下，顶面露出水面（方块露出高度的 3%，熔成球后露出一个小球冠）；落下时先在水面上方
+      ball.position.copy(CUP).add(V(S.x, LEVEL - half * (1 - floatOut(NA.density, S.melt)) + S.fall, S.z));
       ball.scale.set(effective * (1.2 - S.melt * 0.2), effective * (0.72 + S.melt * 0.28), effective);
       ball.morphTargetInfluences[0] = S.melt; glint.visible = S.melt > 0.5;
       ball.rotation.y += dt * (1 - S.melt) * 2;
       flame.position.copy(ball.position).add(V(0, effective, 0)); flame.setOn(S.ignition && S.left > 0 || S.flash > 0); flame.setSize(Math.max(0.35, S.flash)); flame.update(now);
       slick.visible = S.oil > 0 && S.stage === 'water'; slick.position.copy(CUP).add(V(S.x, LEVEL + 0.0005, S.z)); slick.material.opacity = S.oil * 0.45;
       bk.setLevel(S.water * LEVEL);
+      { const k = 1 - 0.85 * (S.waterDone ? 1 : S.water); jug.liq.scale.y = k; jug.liq.position.y = 0.001 + 0.058 * 0.53 * k / 2; }          // 瓶里的水随倒出去变少（瓶子大小是示意）
       for (const [i, u] of field.material.uniforms.uSrc.value.entries()) u.set(...(S.sources[i] || [0, 0, -100, 0]));
       field.material.uniforms.uTime.value = S.clock; field.material.uniforms.uPh.value = S.ph ? 1 : 0; field.visible = S.sources.length > 0 && !!S.water;
       bubs.update(dt, (p, d) => { p.p.addScaledVector(p.v, d); return p.p.y < LEVEL + 0.02; });
@@ -380,11 +408,16 @@ export default {
       // 真实镜头位置检测：世界坐标换回本课坐标，再测相对杯口的方向和距离。
       const cam = window.__lb?.stage?.camera;
       let danger = false;
-      if (cam && S.water) { const p = group.worldToLocal(cam.position.clone()), d = p.sub(CUP.clone().setY(H)); const forward = cam.getWorldDirection(V(0, 0, 0)), cupW = group.localToWorld(CUP.clone().setY(H)).sub(cam.position).normalize(); danger = d.length() < 0.22 && d.y / d.length() > 0.82 && forward.dot(cupW) > 0.92; }
-      warning.text('注意　不要近距离俯视烧杯！').loc(group, CUP.x, H + 0.055, 0).show(danger);
+      if (cam && S.water) {
+        const p = group.worldToLocal(cam.position.clone()), d = p.sub(CUP.clone().setY(H)); const forward = cam.getWorldDirection(V(0, 0, 0)), cupW = group.localToWorld(CUP.clone().setY(H)).sub(cam.position).normalize(); danger = d.length() < 0.22 && d.y / d.length() > 0.82 && forward.dot(cupW) > 0.92;
+        // 俯视着正在反应的钠：液滴从钠那里迸起来，正好朝镜头（脸）这边飞（示意）
+        if (danger && S.reaction && Math.random() < dt * 8) { const o = CUP.clone().add(V(S.x, LEVEL + 0.003, S.z)), v = group.worldToLocal(cam.position.clone()).sub(o).normalize().multiplyScalar(0.5 + Math.random() * 0.2); splash.mesh.material.color.set(S.ph ? 0xe62a73 : 0xcfe3ec); splash.spawn({ p: o, v, size: 0.0009 + Math.random() * 0.0007, life: 0.6 }); }
+      }
+      warning.text('注意　不要近距离俯视烧杯！　点这里退远 ⟲').loc(group, CUP.x, H + 0.055, 0).show(danger && !bar.playing);
       bar.near(S.near); mw.update(dt);
     }
     apply();
+    const holdTo = (key, to) => () => { const d = drag.items().find((x) => x.obj === tools[key].pick); d.onStart(tools[key].position.clone()); d.onDrag(to.clone()); };          // qa：按住器材拿到 to，不松手
     const pointer = wrapPointer(drag, bar), down = pointer.down;
     pointer.down = (r, e) => { if (!sound) { try { sound = new Noise({ gain: 0.035 }); } catch { /* 画面同时显示嘶嘶声 */ } } return down(r, e); };
     return {
@@ -397,7 +430,7 @@ export default {
         const sizes = h('details', { class: 'more' }, h('summary', {}, '换个切口再试'), h('p', { class: 'fineprint' }, '拖动刀口也能改大小。明显大于绿豆大的钠，可能着火、炸开飞溅。不是安全剂量演算。'),
           h('div', { class: 'btn-row' }, ...[[0.04, '绿豆大 · 40 mg'], [0.12, '较大 · 120 mg'], [0.26, '黄豆大以上 · 260 mg']].map(([g, s]) => h('button', { class: 'go ghost', onclick: () => A.cutMass(g) }, s))));
         const more = moreBox([['镊子：取 / 放钠', () => A.twStep()], ['滤纸吸干煤油', () => A.blot()], ['小刀沿切线切下', () => cutNow()], ['加水', () => events.water()], ['滴酚酞', () => events.ph()], ['凑近俯视试试', () => A.closeView()], ['回到全景', () => { S.near = false; back(); }], ['倒掉这杯再试', () => A.dump()], ['钻进去看 / 重看', () => mw.open()]], () => A.reset());
-        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '水约 200 mL、22 ℃。绿豆大按 40 mg 近似（绿豆形状不一，不是固定质量）；刀口可切约 20–280 mg。钠的直径放大 3 倍，初始大块/器材为操作示意；时间不加快，40 mg 约 18 秒消失。<br>课本第 34 页：密度 0.97 g/cm³，熔点 97.79 ℃。消耗按球表面退缩 dr/dt ≈ −0.105 mm/s；dm = ρ·4πr²·dr，产氢 n(H₂)=n(Na)/2，NaOH 与 Na 等物质的量。气体按室温约 24.5 L/mol。浮力按 ρ钠/ρ水≈0.97；画面把水下轮廓显出来，便于观察。<br>放热取约 184 kJ/mol；局部热量 Q 的 15% 留存、散热 (3×10⁻⁵/r)·(T−22) W，比热取 1.23 J/(g·K)，熔化热取 113 J/g（NIST 数据取整）。它是集总教学模型，温度不当实测温度显示。氢气与空气局部混合、满足 4–75% 且局部温度达到 560 ℃时演示燃烧；黄色来自钠的发光，氢焰本身不为黄色。飞溅把燃烧热的 0.15% 换成液滴动能；真实起火、爆裂还受表面状态、传热、库仑作用等影响，不能用本模型预测安全界限。<br>红色按每一小份钠反应后生成的 OH⁻ 从当时位置输运：高斯展宽 D≈1.8×10⁻⁵ m²/s、向下对流约 3 mm/s；这是对流混合示意，远大于分子扩散系数。未滴酚酞就不显红；没吸油会先留下淡黄油膜，延迟接触。' }),
+        const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '水约 200 mL、22 ℃；水瓶画小了（容量是示意），倒的时候瓶里的水跟着减少。绿豆大按 40 mg 近似（绿豆形状不一，不是固定质量）；刀口可切约 20–280 mg。钠的直径放大 3 倍，初始大块/器材为操作示意；时间不加快，40 mg 约 18 秒消失。<br>课本第 34 页：密度 0.97 g/cm³，熔点 97.79 ℃。消耗按球表面退缩 dr/dt ≈ −0.105 mm/s；dm = ρ·4πr²·dr，产氢 n(H₂)=n(Na)/2，NaOH 与 Na 等物质的量。气体按室温约 24.5 L/mol。浮力按 ρ钠/ρ水≈0.97：钠块约 97% 在水下、顶面露出水面；画面把水下轮廓显出来，便于观察。<br>放热取约 184 kJ/mol；局部热量 Q 的 15% 留存、散热 (3×10⁻⁵/r)·(T−22) W，比热取 1.23 J/(g·K)，熔化热取 113 J/g（NIST 数据取整）。它是集总教学模型，温度不当实测温度显示。氢气与空气局部混合、满足 4–75% 且局部温度达到 560 ℃时演示燃烧；黄色来自钠的发光，氢焰本身不为黄色。飞溅把燃烧热的 0.15% 换成液滴动能；真实起火、爆裂还受表面状态、传热、库仑作用等影响，不能用本模型预测安全界限。俯视正在反应的钠时，画面里朝镜头飞的液滴表示可能溅到脸上（示意）。<br>红色按每一小份钠反应后生成的 OH⁻ 从当时位置输运：高斯展宽 D≈1.8×10⁻⁵ m²/s、向下对流约 3 mm/s；这是对流混合示意，远大于分子扩散系数。未滴酚酞就不显红；没吸油会先留下淡黄油膜，延迟接触。' }),
           h('p', { class: 'fineprint', html: '补充依据：<a href="https://webbook.nist.gov/cgi/cbook.cgi?ID=C7440235&amp;Mask=2" target="_blank" rel="noreferrer">NIST 钠热容</a>；<a href="https://sti.srs.gov/fulltext/SRNL-STI-2016-00104.pdf" target="_blank" rel="noreferrer">SRNL 热化学数据</a>；<a href="https://www.ilo.org/dyn/icsc/showcard.display?p_card_id=0001&p_lang=en" target="_blank" rel="noreferrer">ILO/WHO 氢气 ICSC 0001</a>；<a href="https://chemicalsafety.ilo.org/dyn/icsc/showcard.display?p_card_id=0717&p_lang=en" target="_blank" rel="noreferrer">钠 ICSC 0717</a>。反应速率、散热、混合与飞溅参数为教学设定。' }));
         const base = mountXuean(ui, { controls: [compare, t1, t2, sizes, more, note], headers: ['实验现象', '分析及结论'], intro: '先加水、滴酚酞。桌上的镊子、滤纸和小刀都能操作；也可以先看老师演示。' });
         // 先看自己的观察记录，再对照预测、想一想；沿用学案的阅读顺序。
@@ -410,8 +443,11 @@ export default {
         picks: { tw: tw.pick, knife: knife.pick, paper: paperPick, cup: cupPick, jug: jug.pick, ph: ph.pick },
         qa: qaFlow(drag, [
           // 真鼠标：瓶子指着杯口；镊子、小刀按住拾取盒中间（手在镊尖右边 3 cm），让器材尖落到目标上
-          { name: '加水', drag: jug.pick, to: () => CUP.clone().setY(H), wait: 3 },
-          { name: '滴酚酞', drag: ph.pick, to: () => CUP.clone().setY(H), wait: 3 },
+          // 倒水、滴酚酞要按住一会儿：拿到杯口（按住不放）→ 等着倒 → 松手
+          { name: '水瓶拿到杯口', run: holdTo('jug', CUP.clone().setY(H)), wait: 2.5, scale: 1 },
+          { name: '放下水瓶', release: jug.pick, wait: 1 },
+          { name: '酚酞拿到杯口', run: holdTo('ph', CUP.clone().setY(H)), wait: 1.6, scale: 1 },
+          { name: '放下酚酞', release: ph.pick, wait: 1 },
           { name: '镊子取钠', drag: tw.pick, to: () => RH.aim(V(OIL.x, 0.078 + CLR.tw, OIL.z), YREF.tw, GRAB_TW), wait: 3 },
           { name: '放到滤纸', drag: tw.pick, to: () => RH.aim(V(PAPER.x + 0.012, CLR.tw, PAPER.z), YREF.tw, GRAB_TW), wait: 3 },
           { name: '滤纸吸油', tap: paperPick, wait: 2 },

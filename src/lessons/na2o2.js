@@ -7,12 +7,16 @@
 //   放热：按标准生成焓（298 K；Na₂O₂(s) −510.9、H₂O(l) −285.8、NaOH(aq) −470.1 kJ/mol，NBS / CRC 数据表）算，每摩尔 Na₂O₂ 约 144 kJ。
 //   教学有效热容 = 试管玻璃约 16 J/K（约 19 g × 0.84 J/(g·K)）+ 液体（4.18 J/(g·K)）+ 剩余固体（约 1 J/(g·K)），随加水、反应变化；向空气散热 0.25 W/K（示意）。
 //   很快发烫（不写温度数字，最高按接近 100 ℃ 算）。
-//   溶液是很浓的 NaOH：pH 试纸显强碱性（比色卡 14）。O₂ 用蓝点表示（这套书里蓝 = 氧气），热用橙色表示。
+//   溶液是很浓的 NaOH：pH 试纸显强碱性（变成比色卡碱性那一端的深紫色；浓溶液不按比色卡读具体数值）。O₂ 用蓝点表示（这套书里蓝 = 氧气），热用橙色表示。
+//   气泡跟着产气速率从过氧化钠表面冒出来（水少、还没有液面时，在润湿的固体表面冒）。水不够时剩下的过氧化钠留在试管底，钻进去看也留着。
+//   拿放：滴管走 tubeBench 的 exact（抓哪儿是哪儿，真悬在管口里面才滴，镜头不凑近）；木条、玻璃棒按住时到了管口才伸进去、蘸取、点样，松手就放回桌上。
 import * as THREE from 'three';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs, mountXuean, moreBox } from './kit/chemlesson.js';
 import { draggable, clamp } from './kit/interact.js';
 import { tubeBench, T_Y, T_LEN, T_R, R_IN, levelY } from './kit/tubebench.js';
+import { Particles } from './kit/fx.js';
+import { bubble2 } from './kit/chemfx.js';
 import { splint } from './kit/chem.js';
 import { peroxideScene } from './kit/sodium.js';
 import { micro } from './kit/microworld.js';
@@ -23,7 +27,7 @@ import { h } from '../ui/Panel.js';
 const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 const TX = -0.045, MOUTH = T_Y + T_LEN, BOT = V(0.02, 0, 0.035), TILE = V(0.095, 0, 0);
 const N0 = 19.2, DROP = 0.05, H2O_PER_ML = 55.5, Q_MOL = 24.5, HEAT = 143.6;          // mmol；mL；mmol/mL；mL/mmol；J/mmol
-const STICK_REST = V(0.07, 0.004, 0.1), ROD_REST = V(0.15, 0.004, 0.062);          // 木条横放在试管架前面；玻璃棒放在右边
+const STICK_REST = V(0.05, 0.004, 0.08), ROD_REST = V(0.15, 0.004, 0.062);          // 木条横放在试管架前面；玻璃棒放在右边
 const ST_Y = MOUTH + 0.012, ST_IN = MOUTH - 0.022, ROD_Y = MOUTH + 0.006;          // 拿着走时：木条火星端、玻璃棒下端高过试管口；木条伸进试管口里 2.2 cm
 const nearMouth = (h) => !!h && Math.hypot(h[0] - TX, h[1]) < 0.014;          // 手在试管口范围内就算
 const onPaper = (h) => !!h && Math.abs(h[0] - TILE.x) < 0.02 && Math.abs(h[1] - TILE.z) < 0.018;
@@ -58,12 +62,19 @@ export default {
     const done = (id) => { if (!S.demo) bar.done(id); };
     const log = (key, row) => { if (S.said[key]) return; S.said[key] = true; if (!S.demo) W?.tbl.add(row); };
     paperSheet(group, { w: 0.29, d: 0.16, x: 0.04, z: 0.035 });
+    // 预测的时候：书页上那两行答案（“过氧化钠与水反应生成氢氧化钠和氧气”和方程式）先压在台板下面，翻到实验页再露出来
+    const cover = new THREE.Mesh(new THREE.PlaneGeometry(0.19, 0.07), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, map: canvasTex(256, 96, (g, Wc, Hc) => {
+      const gx = g.createLinearGradient(0, 0, Wc, 0); gx.addColorStop(0, 'rgba(253,251,245,0)'); gx.addColorStop(0.08, 'rgba(253,251,245,0.97)'); gx.addColorStop(0.92, 'rgba(253,251,245,0.97)'); gx.addColorStop(1, 'rgba(253,251,245,0)');
+      g.fillStyle = gx; g.fillRect(0, Hc * 0.1, Wc, Hc * 0.8); g.globalCompositeOperation = 'destination-in';
+      const gy = g.createLinearGradient(0, 0, 0, Hc); gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(0.2, 'rgba(0,0,0,1)'); gy.addColorStop(0.8, 'rgba(0,0,0,1)'); gy.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gy; g.fillRect(0, 0, Wc, Hc);
+    }) }));
+    cover.rotation.x = -Math.PI / 2; cover.position.set(-0.035, 0.0005, 0.122); cover.renderOrder = 1; cover.raycast = () => {}; cover.userData.noFrame = true; group.add(cover);
 
     const B = tubeBench(group, {
-      tag, look, back, rate: 5, getS: () => S.bench,
+      tag, look, back, rate: 5, exact: true, getS: () => S.bench,
       tubes: [{ x: TX, label: 'Na₂O₂', vol: 0, color: 0xe8eef2, hint: '试管：点一下，用手轻轻摸摸外壁' }],
       reagents: [{ key: 'water', name: '水', at: BOT, inside: 0xe6f2f8, hint: '水：拖到试管口上方，按住一滴一滴地加' }],
-      onDrop: (k, key) => {
+      onDrop: (k, key) => {          // 液滴落到试管里才算加进去
         if (key !== 'water') return;
         S.water += DROP;
         if (!S.said.first) { S.said.first = true; status('一加水就剧烈冒气泡！<b>立即</b>把带火星的木条伸进试管口。'); }
@@ -71,14 +82,29 @@ export default {
         if (S.water > 2 + 1e-9 && !S.said.much) { S.said.much = true; status('已经超过 2 mL 了：课本是 1~2 mL。'); }
       },
     });
-    const tube = B.tubes[0];
-    const tubeItem = B.items.find((d) => d.obj === tube.pick); tubeItem.onTap = () => A.touch();
+    const tube = B.tubes[0];          // 试管只用来摸（点一下），不拿起来
     // 试管底的 Na₂O₂ 粉末、试管上部的 O₂（蓝点）、发热（橙色）
-    const YB = levelY(0), YC = T_R + 0.0008;
-    const powder = new THREE.Mesh(new THREE.SphereGeometry(R_IN * 0.97, 18, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), paint(0xf2e2a2, { keep: true })); powder.position.y = YC; powder.renderOrder = 9.85; tube.add(powder);
+    // 过氧化钠铺在试管底：从管底填起来的一层（圆底里的一截球冠，上面一个平面），反应掉多少就矮多少
+    const YC = T_R + 0.0008, R_P = R_IN * 0.97, H0 = 0.62 * R_P;
+    const powderMat = paint(0xf2e2a2, { keep: true });
+    const powder = new THREE.Group(); powder.position.y = YC; tube.add(powder);
+    const bowl = new THREE.Mesh(new THREE.BufferGeometry(), powderMat), lid = new THREE.Mesh(new THREE.CircleGeometry(1, 24), powderMat); lid.rotation.x = -Math.PI / 2;
+    bowl.renderOrder = lid.renderOrder = 9.85; powder.add(bowl, lid);
+    let bedNow = -1;
+    const bedH = () => H0 * Math.pow(Math.max(0, S.left / N0), 0.6);          // 这层固体有多厚（示意）
+    const bedTop = () => YC - R_P + bedH();          // 固体上表面的高度（试管局部坐标）
+    const setBed = (hh) => {
+      const q = Math.round(hh / 0.0002) * 0.0002; if (q === bedNow) return; bedNow = q;
+      const th = Math.acos(clamp((R_P - Math.max(q, 0.0002)) / R_P, -1, 1)), t0 = Math.PI - th;
+      bowl.geometry.dispose(); bowl.geometry = new THREE.SphereGeometry(R_P, 18, 6, 0, Math.PI * 2, t0, th);
+      lid.position.y = -(R_P - q); lid.scale.setScalar(Math.max(1e-4, R_P * Math.sin(t0)));
+    };
     const ox = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 6, 4), new THREE.MeshBasicMaterial({ color: 0x2f7fe0, transparent: true, opacity: 0.85 }), 50); ox.count = 0; ox.renderOrder = 9.95; ox.frustumCulled = false; tube.add(ox);
     const OXP = Array.from({ length: 50 }, () => ({ u: Math.sqrt(Math.random()), a: Math.random() * 6.28, y: Math.random(), w: 0.3 + Math.random() * 0.5 }));
     const heat = new THREE.Mesh(new THREE.CylinderGeometry(T_R + 0.004, T_R + 0.004, 0.04, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0xff8a3d, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); heat.position.y = 0.022; heat.renderOrder = 9.97; tube.add(heat);
+    // 气泡：跟着产气速率从过氧化钠表面冒出来；有液面就升到液面破掉，还没有液面（水少）就在润湿的固体表面鼓起来、破掉
+    const fizz = new Particles({ max: 120, geometry: new THREE.SphereGeometry(1, 8, 6), material: bubble2({ color: 0x8aa1b0, white: 0.35 }) }); fizz.mesh.renderOrder = 10; tube.add(fizz.mesh);
+    let fizzAcc = 0;
     const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), s4 = new THREE.Vector3(), p4 = new THREE.Vector3();
     const card = tag('', 'cond'); card.px = [-125, -20];          // 观察卡：试管左边
 
@@ -101,37 +127,31 @@ export default {
     const fresh = () => ({ demo: false, bench: B.fresh(), water: 0, left: N0, reacted: 0, rate: 0, o2: 0, f: 0, T: 22, touched: false, stick: { drag: false, hand: null, grabY: 0, home: false, inTube: 0, lit: false, t: 0, judged: false }, rod: { drag: false, hand: null, grabY: 0, in: false, go: null, wet: false }, spot: false, said: {} });
     S = fresh();
     const solVol = () => Math.max(0, S.water - S.reacted / H2O_PER_ML);          // 剩下的液体（mL，近似）
+    const liqVis = () => solVol() > 0.05 && levelY(solVol()) > (S.left / N0 > 0.01 ? bedTop() : 0) + 0.0008;          // 液面高过固体才看得到液体（少量的水渗在固体里）
     const A = {
       touch() {
         if (S.T > 45) { S.touched = true; done('touch'); log('touch', ['用手轻轻摸试管外壁', '<b>发烫</b>', '反应放出热量']); status('试管外壁<b>发烫</b>：反应放出热量。'); }
         else if (S.T > 30) status('试管外壁有点热。');
         else status(S.water > 0 ? '试管外壁不热。' : '试管还是凉的：还没加水。');
       },
-      // 木条松手：伸在试管口里（或手在试管口上方）→ 留在试管口里检验，过一会儿放回桌上；别处 → 很快放回桌上
+      // 木条、玻璃棒松手：很快放回桌上（伸在试管里的先竖直抽出来）。检验、蘸取、点样都要按着做到
       stickDrop() {
-        const st = S.stick, h = st.hand; st.drag = false; st.hand = null;
-        if (st.inTube > 0 || nearMouth(h)) { if (!st.inTube) { st.inTube = 0.001; st.t = 0; } return; }
-        st.home = true;
+        const st = S.stick, wasIn = st.inTube > 0 && !st.judged; st.drag = false; st.hand = null; st.inTube = 0; st.home = true;
+        if (wasIn) status('木条刚伸进去就松手了，放回了桌上。按住木条，伸在试管口里停一下，看它怎样。');
       },
-      // 玻璃棒松手：在试管口上方 / 试管里 → 伸进去蘸一下再放回桌上；在 pH 试纸上方 → 点一下再放回桌上；别处 → 很快放回桌上
-      rodDrop() {
-        const R = S.rod, h = R.hand; R.drag = false; R.hand = null;
-        if (R.in || nearMouth(h)) { R.in = false; R.go = R.wet ? { ev: 'home' } : { ev: solVol() <= 0.2 ? 'hover' : 'dip' }; return; }
-        if (onPaper(h)) { R.go = { ev: 'touch', x: clamp(h[0], TILE.x - 0.003, TILE.x + 0.003), z: clamp(h[1], TILE.z - 0.008, TILE.z + 0.008) }; return; }
-        R.go = { ev: 'home' };
-      },
-      rodWet(back) { S.rod.wet = true; status(back ? '玻璃棒蘸上了溶液（放回桌上了）。再把它拖到 <b>pH 试纸</b>上方，点上去。' : '玻璃棒蘸上了溶液。拖到 <b>pH 试纸</b>上方，点上去。'); },
+      rodDrop() { const R = S.rod; R.drag = false; R.hand = null; R.in = false; R.go = { ev: 'home' }; },
+      rodWet() { S.rod.wet = true; status('玻璃棒蘸上了溶液。按住拖到 <b>pH 试纸</b>上方，点上去。'); },
       rodTouch() {
         if (!S.rod.wet) { status('玻璃棒是干的：先伸进试管里蘸取溶液。'); return; }
-        if (!S.spot) { S.spot = true; done('ph'); log('ph', ['用玻璃棒蘸取溶液，点在 pH 试纸上', '试纸变成<b>紫色</b>，对照比色卡 pH 约 14', '溶液显<b>强碱性</b>：生成了 NaOH']); status('试纸变成了紫色：对照比色卡，pH 约 14——溶液显<b>强碱性</b>。'); if (!S.demo) W?.t1.open(); }
+        if (!S.spot) { S.spot = true; done('ph'); log('ph', ['用玻璃棒蘸取溶液，点在 pH 试纸上', '试纸变成<b>深紫色</b>（比色卡碱性那一端）', '溶液显<b>强碱性</b>：生成了 NaOH']); status('试纸变成了深紫色，对应比色卡碱性那一端——溶液显<b>强碱性</b>。'); if (!S.demo) W?.t1.open(); }
         S.rod.wet = false;
       },
       reset() { if (bar.playing) bar.stop(); S = fresh(); sync(); mic.close(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('water', 'splint', 'touch', 'ph', 'why'); status('试管里又是 1.5 g 过氧化钠了。'); },
     };
-    const sync = () => { B.drops.clear(); stick.position.copy(STICK_REST); stick.rotation.z = Math.PI / 2; rod.position.copy(ROD_REST); rod.rotation.z = Math.PI / 2; hands.st.position.copy(STICK_REST); hands.rod.position.copy(ROD_REST); };
+    const sync = () => { B.drops.clear(); fizz.clear(); fizzAcc = 0; stick.position.copy(STICK_REST); stick.rotation.z = Math.PI / 2; rod.position.copy(ROD_REST); rod.rotation.z = Math.PI / 2; hands.st.position.copy(STICK_REST); hands.rod.position.copy(ROD_REST); };
     sync();
     const drag = draggable(group, [
-      ...B.items,
+      ...B.items.filter((d) => d.obj !== tube.pick),
       // 拖动平面：按下去时器材所在高度的水平面；记住抓的地方（手的位置用 hands.* 表示）——按住先竖直提起来，再跟着手平移
       { obj: stickPick, plane: 'xz', get offset() { return S.stick.drag ? S.stick.grabY : stick.position.y; }, keepOffset: true, anchor: hands.st, hint: '带火星的木条：拖到试管口，伸进去',
         onStart: (p) => { const st = S.stick; st.grabY = stick.position.y; st.drag = true; st.home = false; st.inTube = 0; st.judged = false; st.hand = p ? [p.x, p.z] : [stick.position.x, stick.position.z]; },
@@ -139,10 +159,13 @@ export default {
       { obj: rodPick, plane: 'xz', get offset() { return S.rod.drag ? S.rod.grabY : rod.position.y; }, keepOffset: true, anchor: hands.rod, hint: () => (S.rod.wet ? '玻璃棒：拖到 pH 试纸上方，点上去' : '玻璃棒：拖到试管口上方，伸进去蘸取溶液'),
         onStart: (p) => { const R = S.rod; R.grabY = rod.position.y; R.drag = true; R.go = null; R.hand = p ? [p.x, p.z] : [rod.position.x, rod.position.z]; },
         onDrag: (p) => { if (p) S.rod.hand = [clamp(p.x, -0.15, 0.17), clamp(p.z, -0.08, 0.14)]; }, onEnd: () => A.rodDrop() },
-    ], { tip: tag('', 'pill') });
+    ], { tip: tag('', 'pill'), taps: [{ obj: tube.pick, hint: '试管：点一下，用手轻轻摸摸外壁', onTap: () => A.touch() }] });
     const act = demoActs(drag, group);
-    const mic = micro({ tag, look, back, group, scene: peroxideScene(), at: () => V(TX, T_Y + 0.03, 0), btnAt: () => V(TX + 0.026, T_Y + T_LEN * 0.75, 0.01), label: '钻进去看',
-      state: () => ({ water: S.water > 0, x: 1 - S.left / N0 }), key: () => String(S.water > 0), bar: () => bar, scale: 0.0072, lookD: [0.03, 0.7, 1], dist: 0.26 });          // 从斜上方看：前后两排分得开
+    const pScene = peroxideScene();
+    let resume = 0;          // 老师演示完回来：学生原来已经看过几列（接着演，不从头）
+    const dry = () => S.water > 0 && S.left / N0 > 0.1 && S.water * H2O_PER_ML - S.reacted < 0.05;          // 水用完了、还剩过氧化钠
+    const mic = micro({ tag, look, back, group, scene: pScene, at: () => V(TX, T_Y + 0.03, 0), btnAt: () => V(TX + 0.026, T_Y + T_LEN * 0.75, 0.01), label: '钻进去看',
+      state: () => ({ water: S.water > 0, x: 1 - S.left / N0, dry: dry(), resume }), key: () => String(S.water > 0), bar: () => bar, scale: 0.0072, lookD: [0.03, 0.7, 1], dist: 0.26 });          // 从斜上方看：前后两排分得开
 
     const tapTube = (at) => act.tap(tube.pick, at);
     const bar = lessonBar({
@@ -158,13 +181,13 @@ export default {
         demo: {
           seal: '演示', label: '老师演示',
           ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { sync(); mic.close(); },
-            view: { save: () => (mic.isOpen ? 'micro' : null), restore: () => mic.open() } }),          // 演示前开着钻进去看，演示完再打开
+            view: { save: () => (mic.isOpen ? { made: pScene.made } : null), restore: (v) => { resume = v.made; mic.open(); resume = 0; } } }),          // 演示前开着钻进去看，演示完再打开，从看到的那一列接着演
           shots: [
-            { cap: '向盛有过氧化钠固体的试管中滴入水：剧烈反应，产生大量气泡。', dur: 8, cam: [[TX + 0.02, 0.08, 0.01], [0.04, 0.25, 1], 0.26], during: B.dripSeq(drag, 0, [[0, () => S.water >= 1.2 - 1e-9]], 0.04, 0.96) },
-            { cap: '立即把带火星的木条伸入试管中：木条复燃——生成的气体是氧气。', dur: 6, cam: [[TX + 0.02, 0.1, 0.01], [0.04, 0.25, 1], 0.27], during: act.path(stickPick, [() => stick.position.clone(), () => stick.position.clone().setY(0.12), () => V(TX, 0.12, 0), [() => V(TX, ST_IN, 0), 0.1]], { t0: 0.04, t1: 0.45, release: 0.47 }) },
+            { cap: '向盛有过氧化钠固体的试管中滴入水：剧烈反应，产生大量气泡。', dur: 8, cam: [[TX + 0.02, 0.08, 0.01], [0.04, 0.25, 1], 0.26], during: B.dripSeq(drag, 0, [[0, () => S.water + B.inflight(0) * DROP >= 1.2 - 1e-9]], 0.04, 0.96) },
+            { cap: '立即把带火星的木条伸入试管中：木条复燃——生成的气体是氧气。', dur: 6, cam: [[TX + 0.02, 0.1, 0.01], [0.04, 0.25, 1], 0.27], during: act.path(stickPick, [() => stick.position.clone(), () => stick.position.clone().setY(0.12), () => V(TX, 0.12, 0), [() => V(TX, ST_IN, 0), 0.1]], { t0: 0.04, t1: 0.4, release: 0.85 }) },          // 按着木条伸在试管口里，看它复燃
             { cap: '用手轻轻触摸试管外壁：发烫——反应放出热量。', dur: 4, cam: [[TX, 0.06, 0.01], [0.04, 0.25, 1], 0.24], during: tapTube(0.3) },
             { cap: '用玻璃棒蘸取溶液，点在 pH 试纸上：显强碱性——生成了氢氧化钠。', dur: 9, cam: [[0.04, 0.06, 0.01], [0.04, 0.3, 1], 0.34],
-              during: act.seq(act.path(rodPick, [() => rod.position.clone(), () => rod.position.clone().setY(0.1), () => V(TX, 0.1, 0), [() => V(TX, 0.04, 0), 0.07]], { t0: 0.04, t1: 0.34, release: 0.36 }), act.path(rodPick, [() => rod.position.clone(), () => rod.position.clone().setY(0.1), () => V(TILE.x, 0.1, 0), [() => V(TILE.x, 0.04, 0), 0.05]], { t0: 0.55, t1: 0.82, release: 0.84 })) },
+              during: act.seq(act.path(rodPick, [() => rod.position.clone(), () => rod.position.clone().setY(0.1), () => V(TX, 0.1, 0), [() => V(TX, 0.04, 0), 0.07]], { t0: 0.04, t1: 0.3, release: 0.42 }), act.path(rodPick, [() => rod.position.clone(), () => rod.position.clone().setY(0.1), () => V(TILE.x, 0.1, 0), [() => V(TILE.x, 0.04, 0), 0.05]], { t0: 0.5, t1: 0.76, release: 0.9 })) },          // 按着蘸取、按着点样，做完才松手
             { cap: '钻进去看：过氧根和水反应，生成 OH⁻ 和 O₂。演示完了，换你自己做。', dur: 13, cam: [[TX, T_Y + 0.08, 0], [0.03, 0.7, 1], 0.26], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
           ],
         },
@@ -182,13 +205,14 @@ export default {
       S.f = clamp(S.f + ((Q / 16) * (1 - S.f) - S.f / 12) * dt, 0, 1);
       const C = 16 + solVol() * 4.18 + (S.left / 1000) * 77.98;
       S.T = Math.min(98, S.T + (d * HEAT - 0.25 * (S.T - 22) * dt) / C);
-      if (r > 0.5) log('bubbles', ['滴入水', '剧烈反应，产生<b>大量气泡</b>', '生成了气体']);
+      if (r > 1) log('bubbles', ['滴入水', '剧烈反应，产生<b>大量气泡</b>', '生成了气体']);
+      else if (r > 0.1) log('bubbles', ['滴入水', '产生<b>气泡</b>', '生成了气体']);
       if (S.left < 0.5 && S.water > 0 && !S.said.over) { S.said.over = true; if (!S.stick.lit) status('气泡少了：过氧化钠快反应完了。木条要在冒气泡时<b>立即</b>伸进去。'); }
       // 拿着：先竖直提到工作高度，再跟着手；放回：平移到原处上方再放下去（在试管里先竖直提出来）；在原处上方时跟着高度放平 / 竖起来
       const ex = (r) => 1 - Math.exp(-dt * r);
       const homeTo = (o, rest, cy) => { const p = o.position, far = Math.hypot(p.x - rest.x, p.z - rest.z) > 0.003; p.lerp(far && p.y < cy - 0.008 ? V(p.x, cy, p.z) : far ? V(rest.x, Math.max(p.y, rest.y), rest.z) : rest, ex(18)); return !far && p.distanceTo(rest) < 0.0008; };
       const lay = (o, rest) => { const p = o.position, k = Math.hypot(p.x - rest.x, p.z - rest.z) < 0.01 ? Math.PI / 2 * (1 - clamp((p.y - rest.y) / 0.03, 0, 1)) : 0; o.rotation.z += (k - o.rotation.z) * ex(25); };
-      // 木条：拿着的时候竖着（火星朝下）；拿到试管口上方就伸进去检验（松手也会留在试管口里）
+      // 木条：拿着的时候竖着（火星朝下）；按着拿到试管口上方就伸进去检验；松手放回桌上
       const st = S.stick, sp = stick.position;
       if (st.drag) {
         const h = st.hand || [sp.x, sp.z];
@@ -201,9 +225,6 @@ export default {
         else if (nearMouth(h)) { goal = V(TX, ST_Y, 0); if (Math.hypot(sp.x - TX, sp.z) < 0.003) { st.inTube = 0.001; st.t = 0; st.judged = false; } }
         else goal = V(h[0], ST_Y, h[1]);
         sp.lerp(goal, ex(26));
-      } else if (st.inTube > 0) {
-        sp.lerp(V(TX, ST_IN, 0), ex(18));
-        if (st.t > 3.5) { st.inTube = 0; st.judged = false; st.home = true; }
       } else if (homeTo(stick, STICK_REST, ST_Y)) { st.home = false; st.lit = false; }
       lay(stick, STICK_REST);
       if (st.inTube > 0 && sp.y < MOUTH - 0.008) {
@@ -216,9 +237,9 @@ export default {
       }
       stick.setState(st.inTube > 0 && st.lit ? 'flame' : st.drag || st.inTube > 0 ? 'ember' : 'none', st.lit ? 1 : 0.5); stick.update(t);
       if (st.drag && st.hand) hands.st.position.set(st.hand[0], st.grabY, st.hand[1]); else hands.st.position.copy(sp);
-      // 玻璃棒：拿着时竖着；拿到试管口上方就伸进溶液里（蘸上），手移开先竖直提出来；蘸了溶液拿到 pH 试纸上方就点一下
+      // 玻璃棒：拿着时竖着；按着拿到试管口上方就伸进溶液里（棒尖碰到液面才蘸上），手移开先竖直提出来；蘸了溶液按着拿到 pH 试纸上方就点下去（棒尖碰到试纸才算）；松手放回桌上
       const R = S.rod, rp = rod.position;
-      const dipY = () => (solVol() > 0.2 ? T_Y + levelY(solVol()) - 0.006 : T_Y + YB + 0.006);
+      const dipY = () => (liqVis() ? T_Y + Math.max(levelY(solVol()) - 0.006, bedTop() + 0.001) : T_Y + bedTop() + 0.001);          // 棒尖伸到液面下（碰不到固体）；没有液体就停在固体表面
       if (R.drag) {
         const h = R.hand || [rp.x, rp.z];
         let goal;
@@ -234,26 +255,27 @@ export default {
         else if (nearMouth(h)) { goal = V(TX, ROD_Y, 0); if (Math.hypot(rp.x - TX, rp.z) < 0.003) { R.in = true; R.told = false; } }
         else goal = V(h[0], ROD_Y, h[1]);
         rp.lerp(goal, ex(26));
-        if (R.in && rp.y < dipY() + 0.003 && !R.told) { R.told = true; if (solVol() > 0.2) { if (!R.wet) A.rodWet(false); } else status('试管里还没有溶液。'); }
-      } else if (R.go) {
-        const g = R.go;
-        if (g.ev === 'home') { if (homeTo(rod, ROD_REST, ROD_Y)) R.go = null; }
-        else {
-          const dest = g.ev === 'touch' ? V(g.x, 0.0047, g.z) : V(TX, dipY(), 0), far = Math.hypot(rp.x - dest.x, rp.z - dest.z) > 0.003;
-          rp.lerp(far && rp.y < ROD_Y - 0.008 ? V(rp.x, ROD_Y, rp.z) : far ? V(dest.x, Math.max(rp.y, ROD_Y), dest.z) : dest, ex(18));
-          if (!far && rp.distanceTo(dest) < 0.0008) {
-            if (g.ev === 'dip') A.rodWet(true); else if (g.ev === 'hover') status('试管里还没有溶液。'); else A.rodTouch();
-            R.go = { ev: 'home' };
-          }
-        }
-      }
+        if (R.in && rp.y < dipY() + 0.003 && !R.told) { R.told = true; if (liqVis()) { if (!R.wet) A.rodWet(); } else status(S.water > 0 ? '试管里的液体太少，蘸不到。再滴些水。' : '试管里还没有溶液。'); }
+      } else if (R.go && homeTo(rod, ROD_REST, ROD_Y)) R.go = null;
       lay(rod, ROD_REST);
       if (R.drag && R.hand) hands.rod.position.set(R.hand[0], R.grabY, R.hand[1]); else hands.rod.position.copy(rp);
       rodDrop.visible = S.rod.wet; spot.visible = S.spot; if (S.spot) spot.material.color.set(CHART[13]);
       // 试管里：液体、气泡、粉末、蓝点、发热
       const vol = solVol(), k = S.left / N0;
-      B.setTube(0, { vol, color: 0xe8eef2, milk: Math.min(0.5, r * 0.05), milkColor: 0xffffff, speckColor: 0xffffff, gas: Math.min(3, r * 0.4) });
-      powder.visible = k > 0.01; powder.scale.set(1, Math.max(0.05, 0.12 + 0.5 * k), 1);
+      B.setTube(0, { vol: liqVis() ? vol : 0, color: 0xe8eef2, milk: Math.min(0.5, r * 0.05), milkColor: 0xffffff, speckColor: 0xffffff, gas: 0 });
+      powder.visible = k > 0.01; if (powder.visible) setBed(bedH());
+      // 气泡从过氧化钠表面冒出来：个数跟着产气速率（r mmol/s 的 Na₂O₂ → r/2 mmol/s 的 O₂）
+      {
+        const bt = bedTop(), lv = liqVis(), wetTop = lv ? levelY(vol) : bt + 0.003;          // 有液面：升到液面破掉；没有液面（水都渗在固体里）：在润湿的固体表面鼓起来破掉
+        if (k > 0.01 && r > 0.05) {
+          fizzAcc += dt * Math.min(70, 18 * r);
+          while (fizzAcc > 1) {
+            fizzAcc -= 1; const a = Math.random() * 6.28, rr = Math.sqrt(Math.random()) * R_IN * 0.8, big = liqVis() ? 0.0005 + Math.random() * 0.0006 : 0.0006 + Math.random() * 0.0007;
+            fizz.spawn({ p: V(Math.cos(a) * rr * Math.max(0.3, lid.scale.x / R_IN), bt + 0.0004, Math.sin(a) * rr * Math.max(0.3, lid.scale.x / R_IN)), v: V(0, lv ? 0.025 + Math.random() * 0.02 : 0.004 + Math.random() * 0.004, 0), size: big, life: 2, top: wetTop });
+          }
+        }
+        fizz.update(dt, (p, d) => { p.p.addScaledVector(p.v, d); return p.p.y < p.top; });
+      }
       const lo = levelY(vol) + 0.003, hi = T_LEN - 0.004, n = Math.round(50 * S.f);
       for (let i = 0; i < n; i++) { const o = OXP[i], yy = lo + (hi - lo) * ((o.y + t * o.w * (r > 0.1 ? 0.25 : 0.04)) % 1), rr = R_IN * 0.8 * o.u; p4.set(Math.cos(o.a + t * 0.3) * rr, yy, Math.sin(o.a + t * 0.3) * rr); s4.setScalar(0.00045); m4.compose(p4, q4, s4); ox.setMatrixAt(i, m4); }
       ox.count = n; ox.instanceMatrix.needsUpdate = true;
@@ -268,6 +290,12 @@ export default {
       mic.update?.(dt);
     };
 
+    // 质检：按住一件器材拿到 to（手的位置，只看 x、z），until() 成立再松手（木条、玻璃棒要按着做到才算）
+    const qaHold = (obj, to, until) => {
+      const d = drag.items().find((x) => x.obj === obj), S0 = S, T0 = performance.now(), a = d.anchor.position.clone();
+      d.onStart(a.clone()); d.onDrag(to.clone(), a.clone());
+      const go = () => { if (S !== S0) return; if (until() || performance.now() - T0 > 6000) { d.onEnd(true); return; } d.onDrag(to.clone(), a.clone()); requestAnimationFrame(go); }; requestAnimationFrame(go);
+    };
     return {
       group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.27, d: 0.13, h: 0.13 },
@@ -281,17 +309,17 @@ export default {
         ui.data.append(t1.el, t2.el, base.next);
         W = { ...base, ui, t1, t2, status: ui.status }; bar.attach(ui);
       },
-      update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); },
+      update(dt, t) { const k = bar.update(dt); step(Math.min(dt, 1 / 30) * k, t); cover.visible = W?.ui.step === 0; },
       dispose() { bar.dispose(); drag.dispose(); mic.dispose?.(); B.dispose(); },
       debug: {
         get S() { return S; }, bar, A,
         picks: { dropper: B.droppers[0].pick, tube: tube.pick, stick: stickPick, rod: rodPick },
         qa: qaFlow(drag, [
-          { name: '滴水', run: () => B.qaDrip(drag, 0, 0, () => S.water >= 1.2 - 1e-9), wait: 2, scale: 1 },
-          { name: '伸入木条', drag: stickPick, to: () => V(TX, STICK_REST.y, 0), wait: 1.5, scale: 1 },
+          { name: '滴水', run: () => B.qaDrip(drag, 0, 0, () => S.water + B.inflight(0) * DROP >= 1.2 - 1e-9), wait: 2, scale: 1 },
+          { name: '伸入木条', run: () => qaHold(stickPick, V(TX, 0, 0), () => S.stick.judged), wait: 2.5, scale: 1 },
           { name: '摸试管', tap: tube.pick, wait: 1 },
-          { name: '蘸取溶液', drag: rodPick, to: () => V(TX, ROD_REST.y, 0), wait: 2 },
-          { name: '点到试纸', drag: rodPick, to: () => V(TILE.x, ROD_REST.y, 0), wait: 2 },
+          { name: '蘸取溶液', run: () => qaHold(rodPick, V(TX, 0, 0), () => S.rod.wet), wait: 2, scale: 1 },
+          { name: '点到试纸', run: () => qaHold(rodPick, V(TILE.x, 0, TILE.z), () => S.spot), wait: 2.5, scale: 1 },
           { name: '钻进去看', run: () => mic.open(), wait: 4 },
           { name: '合上', run: () => mic.close(), wait: 1 },
           { name: '核对', run: () => { if (!(S.said.splint && S.touched && S.spot && S.reacted > 15)) throw new Error(JSON.stringify({ said: S.said, touched: S.touched, spot: S.spot, left: S.left, f: S.f, T: S.T })); }, wait: 1 },

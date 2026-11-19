@@ -41,7 +41,7 @@ const TAU_HEAT = 30, TAU_COOL = 40;
 const T_BROKEN = 100;                                // 管里超过这个温度，倒吸进来的冷石灰水就让试管炸裂（示意）
 const NSEG = 6, POW = [0.008, 0.028], S_FLAME = 0.02;
 const TILT = THREE.MathUtils.degToRad(5);
-const LAMP_X = -0.14, AXIS_Y = 0.145, JACK_H = 0.028;
+const LAMP_X = -0.14, AXIS_Y = 0.145, JACK_H = 0.015;          // 升降台调低：火焰顶（外焰）刚好碰到试管外底（约 136 mm），不穿进玻璃
 const LX = 0.056, LIME_LEN = 0.056, LIME_LIQ = 0.028, Y_IN = 0.062, TIP_Y = 0.066;      // 石灰水试管：位置、管长、液柱高、升起来时管底的高度；导管口的高度
 const OX = 0.065, TZ = 0.065;
 const D = new THREE.Vector3(Math.cos(TILT), -Math.sin(TILT), 0);       // 试管轴：从管底指向管口
@@ -79,7 +79,7 @@ export default {
     crops: [{ page: 43, rect: [64, 546, 392, 664] }],
     quote: '碳酸钠很稳定，受热不易发生分解；碳酸氢钠不稳定，受热容易分解。……我们可以利用加热的方法来鉴别碳酸钠和碳酸氢钠。',
     formula: '2NaHCO₃ <span style="font-size:.8em">△</span>══ Na₂CO₃ + H₂O + CO₂↑',
-    why: '加热<b>碳酸氢钠</b>：试管口有<b>水珠</b>，导出的气体使澄清石灰水<b>变浑浊</b>——生成了 <b>H₂O</b> 和 <b>CO₂</b>，留下的固体是碳酸钠。固体质量比原来轻（按方程式算，1 g 完全分解后约剩 0.63 g，这是理论终点；没分解完，质量在 1 g 和 0.63 g 之间）。加热<b>碳酸钠</b>：石灰水始终不变，试管口也没有水珠——它没有分解。<br>所以碳酸钠比碳酸氢钠<b>稳定</b>：受热不易分解；碳酸氢钠受热容易分解。可以利用加热的方法鉴别它们。',
+    why: '加热<b>碳酸氢钠</b>：试管口有<b>水珠</b>，导出的气体使澄清石灰水<b>变浑浊</b>——生成了 <b>H₂O</b> 和 <b>CO₂</b>，固体里生成了<b>碳酸钠</b>。看到这两个现象就停火时，碳酸氢钠还没分解完，固体是碳酸钠和碳酸氢钠的混合物，质量在 1 g 和 0.63 g 之间；完全分解后才只剩碳酸钠（按方程式算约 0.63 g）。加热<b>碳酸钠</b>：石灰水始终不变，试管口也没有水珠——它没有分解。<br>所以碳酸钠比碳酸氢钠<b>稳定</b>：受热不易分解；碳酸氢钠受热容易分解。可以利用加热的方法鉴别它们。',
     src: '课本第 39 页 · 第二章 第一节 钠及其化合物 实验2-5',
   },
 
@@ -176,7 +176,7 @@ export default {
       kind: null, plug: 'in', limeIn: false, ly: 0, lit: false,
       T: Array(NSEG).fill(T0), x: Array(NSEG).fill(0), co2: 0, air: V_ROOM, h2o: 0,
       suck: 0, limeCO2: 0, lime: 0, broken: '', wet: false, heatT: 0, coolT: 0, lampFirst: false,
-      pourK: -1, plugK: 0, anim: null, scooped: '', validT: 0, ran: { nahco3: false, na2co3: false }, ranInfo: {}, bothAsked: false, seq: [], seen: {}, limeAt: null,
+      pourK: -1, pourMv: 0, pourT: 0, pourDrag: null, plugK: 0, tHand: null, tIn: null, scooped: '', validT: 0, ran: { nahco3: false, na2co3: false }, ranInfo: {}, bothAsked: false, seq: [], seen: {}, limeAt: null,
       outCO2: 0, flowV: 0, demo: false, near: false, limeDrag: null, troughDrag: false, troughBack: null,
     });
     S = fresh();
@@ -205,11 +205,10 @@ export default {
         S.co2 = 0; S.air = V_ROOM; done('load');
         status('塞紧了橡胶塞。下一步：把<b>石灰水试管</b>往上推，让导管口插进澄清石灰水。');
       },
-      load(kind) {
-        if (S.kind || S.anim) return;
-        if (S.plug === 'in') return status('先拔出橡胶塞。');
-        S.kind = kind; S.anim = { kind: 'trough', t: 0 }; S.h2o = 0; S.x.fill(0); S.ran[kind] = false; S.heatT = 0; S.coolT = 0; S.validT = 0; S.seen = {}; S.lampFirst = false; S.suck = 0; S.wet = false;
-        status(`用纸槽把约 1 g ${NAME[kind]}（${ZH[kind]}）铺在试管底部。再点一下橡胶塞，把它塞紧。`);
+      load(kind) {          // 纸槽推到试管底：固体铺在那里
+        if (S.kind) return;
+        S.kind = kind; S.scooped = ''; S.h2o = 0; S.x.fill(0); S.ran[kind] = false; S.heatT = 0; S.coolT = 0; S.validT = 0; S.seen = {}; S.lampFirst = false; S.suck = 0; S.wet = false;
+        status(`约 1 g ${NAME[kind]}（${ZH[kind]}）铺在了试管底部。把纸槽抽出来，再点一下橡胶塞，把它塞紧。`);
       },
       lime(on) {
         if (S.broken) return;
@@ -221,7 +220,11 @@ export default {
         } else {
           seq('导管离开石灰水');
           if (S.lit) status('石灰水降下来了，导管口离开了石灰水。现在可以<b>熄灭酒精灯</b>（点一下酒精灯，盖上灯帽）。');
-          else if (S.lampFirst && !S.broken) { if (S.suck < V_LINE) done('stop'); if (S.suck < V_LINE) status('及时把石灰水降下来，倒吸的石灰水没有流进试管。加热制气的实验，结束时<b>先让导管离开液体，再熄灯</b>（课本这一节没写，是通用的操作注意事项）。'); }
+          else if (S.lampFirst && !S.broken) {
+            done('stop');
+            status(S.wet ? '导管口离开了石灰水。刚才倒吸的石灰水已经流进试管，把固体弄湿了：等试管冷却，拔出橡胶塞，把试管拖到纸上倒掉湿的固体，换一管新石灰水，重做这一轮。'
+              : '及时把石灰水降下来，倒吸的石灰水没有流进试管。加热制气的实验，结束时<b>先让导管离开液体，再熄灯</b>（课本这一节没写，是通用的操作注意事项）。');
+          }
           else status('石灰水降下来了。');
         }
       },
@@ -247,35 +250,35 @@ export default {
         if (tipIn() && S.plug === 'in') {
           S.lampFirst = true;
           status('导管口还在石灰水里就<b>停止了加热</b>！盯着导管：试管冷下来，里面的气体收缩……');
-        } else { status(S.kind && S.ran[S.kind] ? '停止了加热。等试管冷却（看试管旁的温度），再拔出橡胶塞、点一下试管倒出固体。' : '停止了加热。'); done('stop'); }
+        } else { status(S.kind && S.ran[S.kind] ? '停止了加热。等试管冷却（看试管旁的温度），再拔出橡胶塞，把试管拖到纸上方倒出固体。' : '停止了加热。'); done('stop'); }
       },
-      pour() {
-        if (S.pourK >= 0 || !S.kind) return;
+      pour() {          // 按住试管拖到纸上方：能不能倒（不能就说为什么）
+        if (S.pourK >= 0 || !S.kind) return false;
         if (S.broken) return status('试管已经炸裂了。点“更多”里的“全部重来”。');
         if (tipIn()) return status('导管口还插在石灰水里：先把<b>石灰水试管</b>往下拉，让导管口离开石灰水；再熄灭酒精灯，等试管冷却，拔出橡胶塞，才能倒出固体。');
         if (S.lit) return status('先熄灭酒精灯（导管口已经离开石灰水），等试管冷却，再倒出固体。');
         const t = Tmax();
         if (t > 60) return status(`试管还很烫（最热处约 ${Math.round(t / 10) * 10} ℃）。要<b>等试管冷却</b>后再倒。`);
         if (S.plug === 'in') return status('先拔出橡胶塞，再倒出固体。');
-        S.pourK = 0; seq('冷却后倒出固体'); far();
+        seq('冷却后倒出固体'); far(); return true;
       },
       reset() {
         S = fresh(); bubs.clear(); dust.clear(); S.near = false; back(); asmPose(0); lime.position.y = 0;
-        if (W) { W.tbl.clear(); W.q1.close(); W.q2.close(); W.next.hidden = true; } mic.close();
+        if (W) { W.tbl.clear(); W.q1.close(); W.q2.close(); W.next.hidden = true; W.ui.relock(); } mic.close();
         bar.undo('load', 'lime', 'heat', 'watch', 'stop', 'second', 'why');
         status('全部重新摆好了，记录也清空了。');
       },
     };
 
     const drag = draggable(group, [
-      { obj: troughPick, plane: 'xy', offset: TZ, hint: () => (S.kind ? '' : S.scooped ? '拖到试管口：把固体铺进试管' : '拖到表面皿上：取一点固体'), enabled: () => !S.kind,
-        onStart: () => { S.troughDrag = !S.kind && !S.anim; },
-        onDrag: (p) => {
-          if (!S.troughDrag) return;
-          trough.position.set(p.x - 0.045, Math.max(0.003, p.y), TZ); trough.quaternion.identity();
-          for (const d of dishes) if (Math.abs(trough.position.x + 0.045 - d.position.x) < 0.03 && trough.position.y < 0.02) S.scooped = d.kind;
-        },
-        onEnd: () => { if (!S.troughDrag) return; S.troughDrag = false; const tip = trough.position.clone().setZ(0); const ok = tip.distanceTo(MOUTH) < 0.05 || trough.position.clone().add(V(0.045, 0, 0)).setZ(0).distanceTo(MOUTH) < 0.04; if (ok) { if (S.scooped) A.load(S.scooped); else status('纸槽上还没有固体：先把纸槽伸到表面皿里取一点。'); } } },
+      // 纸槽：低处在表面皿那一排（取固体）；举高过表面皿就回到试管那一排；纸槽尖碰到管口就顺着试管推进去，推到底固体就铺在管底；松手很快放回
+      { obj: troughPick, plane: 'xy', offset: TZ, hint: () => (S.kind ? '' : S.scooped ? '拖到试管口，顺着试管推到底：把固体铺进去' : '拖到表面皿上：取一点固体'), enabled: () => !S.kind || S.troughDrag,
+        onStart: (p) => { S.troughDrag = !S.kind && !S.troughBack; S.tHand = p ? p.clone() : null; },
+        onDrag: (p) => { if (S.troughDrag && p) S.tHand = p.clone(); },
+        onEnd: () => { if (!S.troughDrag) return; S.troughDrag = false; S.tHand = null;
+          const a = trough.position.clone();
+          if (S.tIn != null) { const ex = along(0.004).add(V(0, -0.0045, 0)); S.troughBack = { t: 0, dur: 0.55, pts: [a, ex, V(ex.x + 0.02, ex.y, TZ), TROUGH_HOME.clone()] }; S.tIn = null; }          // 先顺着试管抽出来
+          else S.troughBack = { t: 0, dur: 0.45, pts: [a, TROUGH_HOME.clone()] }; } },
       { obj: plugPick, anchor: asm, plane: 'xy', offset: 0, hint: () => (S.plug === 'in' ? '点一下：拔出橡胶塞（连着导管）' : '点一下：塞紧橡胶塞'), onTap: () => A.plug(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
       { obj: limePick, anchor: lime, plane: 'xy', offset: 0, keepOffset: true, hint: () => (S.limeIn ? '往下拖：石灰水降下来，导管口离开石灰水' : '往上拖：导管口插进石灰水里（点一下：换一管新石灰水）'),
         onStart: () => { S.limeDrag = lime.position.y; },
@@ -283,49 +286,63 @@ export default {
         onEnd: (moved) => { const y = S.limeDrag; S.limeDrag = null; if (!moved || y == null) return; if (S.plug === 'out') { if (!S.limeIn) status('塞子还没塞上：先把橡胶塞塞紧，石灰水试管才能升起来。'); return; } A.lime(y > 0.034); },
         onTap: () => A.newLime() },
       { obj: lampPick, plane: 'xy', offset: 0, hint: () => (S.lit ? '点一下：熄灭酒精灯（盖上灯帽）' : '点一下：点燃酒精灯'), onTap: () => A.light(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
-      { obj: tubePick, plane: 'xy', offset: 0, hint: () => (!S.kind || S.lit ? '' : '点一下：把固体倒出来（要等冷却）'), onTap: () => A.pour(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
+      { obj: tubePick, plane: 'xy', offset: 0, hint: () => (!S.kind || S.lit ? '' : '按住拖到纸上方：把固体倒出来（要等冷却）'),
+        onStart: (p) => { S.pourDrag = A.pour() === true && p ? { p0: p.clone(), p: p.clone() } : null; },
+        onDrag: (p) => { if (S.pourDrag && p) S.pourDrag.p = p.clone(); }, onEnd: () => { S.pourDrag = null; } },
     ], { tip: tag('', 'pill') });
 
     const act = demoActs(drag, group);
     const POWDER_C = BOTTOM.clone().addScaledVector(D, S_FLAME);
-    const mic = micro({ tag, look, back, group, scene: bicarbScene(), at: () => POWDER_C.clone().add(V(0, 0.004, 0)), label: '钻进固体里看',
-      state: () => ({ kind: S.kind, x: xi(), T: Tmax() }), key: () => S.kind || '', show: () => !!S.kind && S.pourK < 0, bar: () => bar, scale: 0.0052, lookD: [0.05, 0.3, 1], dist: 0.24,
+    const bScene = bicarbScene();
+    let resume = -1;          // 老师演示完回来：学生原来已经看过几组（-1 = 正常打开）
+    const mic = micro({ tag, look, back, group, scene: bScene, at: () => POWDER_C.clone().add(V(0, 0.004, 0)), label: '钻进固体里看',
+      state: () => ({ kind: S.kind, x: xi(), T: Tmax(), resume }), key: () => S.kind || '', show: () => !!S.kind && S.pourK < 0, bar: () => bar, scale: 0.0052, lookD: [0.05, 0.3, 1], dist: 0.24,
       btnAt: () => POWDER_C.clone().add(V(0, -0.024, 0.02)) });
-    const mouthGrab = () => V(MOUTH.x + 0.047, MOUTH.y - 0.0045, 0);
+    // 纸槽从桌上取一种固体、从试管右边推进管底、再抽出来：手的路线（手 = 纸槽尖 + 4.5 cm）。演示和质检都走这条
+    let s4 = { t: 0, end: null };          // 演示第 4 镜：什么时候石灰水开始浑浊
+    const troughPts = (dsh) => { const hx = (v) => v.clone().add(V(0.045, 0, 0)), m = MOUTH.clone().add(V(0, -0.0045, 0));
+      return [hx(TROUGH_HOME), V(-0.07, 0.035, 0), V(dsh.position.x, 0.03, 0), V(dsh.position.x, 0.008, 0), V(dsh.position.x, 0.04, 0), V(MOUTH.x + 0.11, 0.04, 0), V(MOUTH.x + 0.11, m.y, 0), hx(m), hx(m.clone().addScaledVector(D, -0.125)), hx(m.clone().addScaledVector(D, 0.03))]; };
+    const POUR_DIR = POUR_MOUTH.clone().addScaledVector(POUR_D, -0.15).sub(BOTTOM), TUBE_GRAB = BOTTOM.clone().addScaledVector(D, 0.05);          // 倒固体：按住试管的地方，往纸的方向拖这么远
 
     // ================= 底部步骤栏 + 老师的演示 =================
     const P = (x, y, z = 0) => [x + OX, y, z];
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'load', title: '装固体', todo: '点<b>橡胶塞</b>拔出来；用<b>纸槽</b>在 Na₂CO₃ 或 NaHCO₃ 的表面皿里取一点（约 1 g），拖到试管口铺进去；再点橡胶塞塞紧。', target: () => (S.kind ? (S.plug === 'in' ? null : plug) : S.plug === 'in' ? plug : trough) },
+        { id: 'load', title: '装固体', todo: '点<b>橡胶塞</b>拔出来；用<b>纸槽</b>在 Na₂CO₃ 或 NaHCO₃ 的表面皿里取一点（约 1 g），举起来拖到试管口，顺着试管推到底再抽出来；再点橡胶塞塞紧。', target: () => (S.kind ? (S.plug === 'in' ? null : plug) : S.plug === 'in' ? plug : trough) },
         { id: 'lime', title: '导管插入石灰水', todo: '把<b>石灰水试管</b>往上推，让导管口插进<b>澄清石灰水</b>里。', target: () => (S.limeIn ? null : lime) },
         { id: 'heat', title: '加热', todo: '点一下<b>酒精灯</b>点燃，加热试管底部的固体。', target: () => (S.lit ? null : lamp) },
         { id: 'watch', title: '观察', todo: '加热几分钟：盯着<b>固体</b>、<b>试管口</b>的管壁和右边的<b>石灰水</b>。石灰水变浑浊、管口有水珠，就可以停止加热（Na₂CO₃ 加热两三分钟，石灰水始终不变，也可以停）。（时间加快了 6 倍）' },
         { id: 'stop', title: '停止加热', todo: '先把<b>石灰水试管</b>往下拉，让导管口离开石灰水；再点一下<b>酒精灯</b>熄灭（盖上灯帽）。', target: () => (tipIn() ? lime : S.lit ? lamp : null) },
-        { id: 'second', title: '换另一种固体', todo: '等试管冷却，拔出橡胶塞、点一下<b>试管</b>倒出固体，石灰水换一管新的（降到底后点一下它），用另一种固体再做一次，比较两种的现象。', target: () => (S.kind && S.ran[S.kind] ? (tipIn() ? lime : S.lit ? lamp : Tmax() > 60 ? null : S.plug === 'in' ? plug : tube) : null) },
+        { id: 'second', title: '换另一种固体', todo: '等试管冷却，拔出橡胶塞，把<b>试管</b>拖到纸上方倒出固体，石灰水换一管新的（降到底后点一下它），用另一种固体再做一次，比较两种的现象。', target: () => (S.kind && S.ran[S.kind] ? (tipIn() ? lime : S.lit ? lamp : Tmax() > 60 ? null : S.plug === 'in' ? plug : tube) : null) },
         { id: 'why', title: '想一想', todo: '哪一种受热分解？怎样用加热的方法鉴别它们？在左边作答。' },
       ],
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { bubs.clear(); dust.clear(); asmPose(S.plugK); lime.position.y = S.ly; },
-            view: { save: () => (mic.isOpen || S.near ? { mic: mic.isOpen, near: S.near, args: S.nearArgs } : null),
-              restore: (v) => { if (v.near && v.args) { near(v.args[0], v.args[1], v.args[2]); } if (v.mic) mic.open(); } } }),
+          ...sandbox({ get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar, apply: () => { bubs.clear(); dust.clear(); asmPose(S.plugK); lime.position.y = S.ly; mic.close(); },          // 演示开始、结束都先关上钻进去看（学生原来开着的，restore 再打开）
+            view: { save: () => (mic.isOpen || S.near ? { mic: mic.isOpen, made: bScene.made, near: S.near, args: S.nearArgs } : null),
+              restore: (v) => { if (v.near && v.args) { near(v.args[0], v.args[1], v.args[2]); } if (v.mic) { resume = v.made; mic.open(); resume = -1; } } } }),          // 从学生已经看过的那几组接着演
           shots: [
-            { cap: '实验2-5：先拔出橡胶塞（连着导管）。取一点 NaHCO₃，用纸槽铺进试管底部。', dur: 12, cam: [P(-0.07, 0.1, 0.05), [0.1, 0.32, 1], 0.6],
-              during: act.seq(act.tap(plugPick, 0.02),
-                act.path(troughPick, [() => trough.position.clone().add(V(0.045, 0, 0)), V(-0.11, 0.035, 0.1), V(dishes[1].position.x, 0.03, dishes[1].position.z), V(dishes[1].position.x, 0.008, dishes[1].position.z),
-                  V(dishes[1].position.x, 0.07, dishes[1].position.z), V(MOUTH.x + 0.047, TROUGH_HIGH, dishes[1].position.z), V(MOUTH.x + 0.047, TROUGH_HIGH, 0), V(MOUTH.x + 0.047, MOUTH.y - 0.0045, 0), MOUTH.clone().add(V(0.045, -0.0045, 0))], { t0: 0.1, t1: 0.74, release: 0.75 }),
-                act.tap(plugPick, 0.9)) },
+            { cap: '实验2-5：先拔出橡胶塞（连着导管）。用纸槽取一点 NaHCO₃，从试管口推到试管底部，再抽出来。', dur: 9, cam: [P(-0.07, 0.1, 0.05), [0.1, 0.32, 1], 0.6],
+              during: act.seq(act.tap(plugPick, 0.02), act.path(troughPick, troughPts(dishes[1]), { t0: 0.12, t1: 0.82, release: 0.84 }), act.tap(plugPick, 0.92)) },
             { cap: '试管固定在铁架台上，管口略向下倾斜；把石灰水试管往上推，导管口插进澄清石灰水。', dur: 3.4, cam: [P(0.04, 0.1), [0.1, 0.25, 1], 0.36],
               during: act.drag(limePick, () => V(LX, Y_IN + 0.0, 0), { t0: 0.1, t1: 0.7, release: 0.75, from: () => V(LX, 0.03, 0) }) },
-            { cap: '点燃酒精灯，加热试管底部的固体。刚开始冒出的气泡，是试管里受热膨胀的空气——石灰水不变浑浊。', dur: 5.2, speed: 0.9, cam: [P(LAMP_X + 0.06, 0.12), [0.1, 0.25, 1], 0.4], during: act.tap(lampPick, 0.05) },
-            { cap: '继续加热：试管口的管壁上出现水珠；导管口冒出的气泡里有了二氧化碳，石灰水变浑浊。钻进固体里看：两个 HCO₃⁻ 变成 CO₃²⁻、H₂O 和 CO₂。', dur: 12, speed: 3, cam: [P(POWDER_C.x + 0.03, POWDER_C.y + 0.03), [0.05, 0.3, 1], 0.26], during: act.at(0.3, () => mic.open(true)) },
-            { cap: '石灰水变浑浊了：生成了 CO₂。', dur: 2.4, speed: 1.5, cam: [P(LX, 0.09), [0.1, 0.2, 1], 0.26], enter: () => mic.close() },
-            { cap: '结束时先把石灰水降下来、让导管口离开石灰水，再熄灭酒精灯（通用的加热制气操作，防止倒吸）。', dur: 5, cam: [P(0.0, 0.1), [0.1, 0.22, 1], 0.5],
+            { cap: '点燃酒精灯，用外焰加热试管底部的固体。刚开始冒出的气泡，是试管里受热膨胀的空气——石灰水不变浑浊。', dur: 4.5, speed: 0.9, cam: [P(LAMP_X + 0.06, 0.12), [0.1, 0.25, 1], 0.4], during: act.tap(lampPick, 0.05) },
+            { cap: '继续加热（快进）：试管口的管壁上出现水珠；钻进固体里看：两个 HCO₃⁻ 变成 CO₃²⁻、H₂O 和 CO₂。', cam: [P(POWDER_C.x + 0.03, POWDER_C.y + 0.03), [0.05, 0.3, 1], 0.26],
+              get dur() { return s4.end != null ? s4.end + 1.2 : 16; }, get speed() { return s4.end != null ? 0.6 : 2.5; },          // 快进到石灰水开始浑浊，再放慢：下一镜的特写里还是浑浊的（CO₂ 还没过量）
+              enter: () => { s4 = { t: 0, end: null }; }, during: act.seq(act.at(0.05, () => mic.open(true)), (k, dt) => { s4.t += dt || 0; if (s4.end == null && S.limeCO2 >= 3) s4.end = s4.t; }) },
+            { cap: '导管口冒出的气泡里有了二氧化碳：澄清石灰水变浑浊了。', dur: 3, speed: 0.4, cam: [P(LX, 0.09), [0.1, 0.2, 1], 0.26], enter: () => mic.close() },
+            { cap: '结束时先把石灰水降下来、让导管口离开石灰水，再熄灭酒精灯（通用的加热制气操作，防止倒吸）。', dur: 4, speed: 0.5, cam: [P(0.0, 0.1), [0.1, 0.22, 1], 0.5],
               during: act.seq(act.drag(limePick, () => V(LX, 0, 0), { t0: 0.04, t1: 0.4, release: 0.45, from: () => V(LX, Y_IN, 0) }), act.tap(lampPick, 0.6)) },
-            { cap: '冷却后拔出塞子、倒出固体：还是白色，可是变少了——碳酸氢钠分解成了碳酸钠。演示完了，换碳酸钠再做一遍，下面换你自己做。', dur: 8, cam: [P(-0.04, 0.09, 0.03), [0.1, 0.3, 1], 0.45], enter: () => { S.T = S.T.map((t) => Math.min(t, 40)); }, during: act.seq(act.tap(plugPick, 0.05), act.tap(tubePick, 0.3)) },
+            { cap: '等试管冷却（快进）。', dur: 3, speed: 5, cam: [P(-0.06, 0.1, 0.03), [0.1, 0.3, 1], 0.45] },
+            { cap: '拔出塞子，把试管拖到纸上方倒出固体：还是白色，可是变少了——固体里生成了碳酸钠（还有没分解完的碳酸氢钠）。', dur: 5, cam: [P(-0.04, 0.09, 0.03), [0.1, 0.3, 1], 0.45],
+              during: act.seq(act.tap(plugPick, 0.05), act.drag(tubePick, () => TUBE_GRAB.clone().add(POUR_DIR), { from: () => TUBE_GRAB.clone(), t0: 0.3, t1: 0.55, release: 0.9 })) },
+            { cap: '再做碳酸钠：换一管新的澄清石灰水；用纸槽把碳酸钠铺进试管，塞紧橡胶塞，导管口插进石灰水。', dur: 9, cam: [P(-0.07, 0.1, 0.05), [0.1, 0.32, 1], 0.6],
+              during: act.seq(act.tap(limePick, 0.03), act.path(troughPick, troughPts(dishes[0]), { t0: 0.08, t1: 0.68, release: 0.7 }), act.tap(plugPick, 0.74), act.drag(limePick, () => V(LX, Y_IN, 0), { t0: 0.86, t1: 0.95, release: 0.97, from: () => V(LX, 0.03, 0) })) },
+            { cap: '点燃酒精灯，加热碳酸钠（快进）：石灰水一直澄清，试管口没有水珠——碳酸钠受热不易分解。', dur: 5, speed: 4, cam: [P(-0.02, 0.1, 0.02), [0.1, 0.25, 1], 0.5], during: act.tap(lampPick, 0.03) },
+            { cap: '先降下石灰水，再熄灭酒精灯。比较两次：碳酸氢钠受热分解，碳酸钠不分解。演示完了，换你自己做。', dur: 4, cam: [P(0.0, 0.1), [0.1, 0.22, 1], 0.5],
+              during: act.seq(act.drag(limePick, () => V(LX, 0, 0), { t0: 0.04, t1: 0.4, release: 0.45, from: () => V(LX, Y_IN, 0) }), act.tap(lampPick, 0.6)) },
           ],
         },
       },
@@ -375,7 +392,7 @@ export default {
           S.broken = 'suck'; S.lit = false; sfx.clink({ freq: 500, gain: 0.08 }); far(); near(POWDER_C.clone().add(V(0.02, 0, 0)), [0.05, 0.25, 1], 0.2);
           status('<b>石灰水倒吸进了热的试管，试管炸裂了。</b>加热制气的实验，结束时要<b>先让导管离开液体，再熄灯</b>（课本这一节没写，是通用的操作注意事项）。点“更多”里的“全部重来”再做一次。');
           log(['导管口还在石灰水里就停止加热', '石灰水<b>倒吸</b>进热试管，试管<b>炸裂</b>', '试管冷却，里面的气体收缩']);
-        } else { S.wet = true; status('石灰水倒流进了试管里，把固体弄湿了。'); }
+        } else { S.wet = true; log(['导管口还在石灰水里就停止加热', '石灰水<b>倒吸</b>，流进试管弄湿了固体', '试管冷却，里面的气体收缩']); status('石灰水倒流进了试管里，把固体弄湿了。先把<b>石灰水试管</b>往下拉；等试管冷却，拔出橡胶塞，倒掉湿的固体，换一管新石灰水，重做这一轮。'); }
       }
       if (S.lampFirst && S.suck > 0.4 && !S.seen.suck && !S.broken) { S.seen.suck = true; near(V(LX - 0.02, 0.09, 0), [0.1, 0.25, 1], 0.3); status('石灰水在沿着导管<b>往上吸</b>！赶快把<b>石灰水试管</b>往下拉。'); }
     };
@@ -390,7 +407,7 @@ export default {
       else { const u = ease((K - 0.3) / 0.7); asm.position.copy(O_ASM).addScaledVector(D, 0.04).lerp(PARK, u); asm.position.y += Math.sin(Math.PI * u) * 0.04; asm.quaternion.slerpQuaternions(ID, qPark, u); }
     };
     const finishPour = () => {
-      S.kind = null; S.pourK = -1; S.x.fill(0); S.h2o = 0; S.wet = false; S.scooped = ''; S.co2 = 0; S.air = V_ROOM; mic.close();
+      S.kind = null; S.pourT = 0; S.x.fill(0); S.h2o = 0; S.wet = false; S.scooped = ''; S.co2 = 0; S.air = V_ROOM; mic.close();
       status('固体倒掉了。试管空了：可以再装另一种固体。（石灰水要换一管新的：先把石灰水试管降到底，再点一下它。）');
     };
     const step = (dt, t) => {
@@ -402,34 +419,50 @@ export default {
       supPole.visible = supTop.visible = supFoot.visible = S.ly > 0.006;
       const H = dt * SPEED, n = Math.max(1, Math.ceil(H / 0.25));
       for (let i = 0; i < n; i++) model(H / n);
-      // 纸槽的动画（铺进试管）
-      if (S.anim) {
-        S.anim.from ||= trough.position.clone();
-        S.anim.t += dt;
-        const k = S.anim.t / 1.6;
-        if (k < 1) {
-          const s = k < 0.45 ? 0.15 - (k / 0.45) * 0.135 : k < 0.6 ? 0.015 : 0.015 + ((k - 0.6) / 0.4) * 0.15;
-          trough.position.copy(BOTTOM).addScaledVector(D, s).add(V(0, -0.0045, 0)); trough.quaternion.setFromUnitVectors(V(1, 0, 0), D); tPowder.visible = k < 0.5;
-          if (k < 0.15) { trough.position.lerpVectors(S.anim.from, trough.position, ease(k / 0.15)); trough.quaternion.slerpQuaternions(ID, trough.quaternion, ease(k / 0.15)); }
+      // 纸槽：跟着手；尖碰到管口就顺着试管推进去（推到底固体铺在管底）；松手很快放回
+      const TIP_OFF = V(0, -0.0045, 0), qIn = new THREE.Quaternion().setFromUnitVectors(V(1, 0, 0), D), fk = 1 - Math.exp(-dt * 30);
+      if (S.troughDrag && S.tHand) {
+        const hp = S.tHand, tip = V(hp.x - 0.045, Math.max(0.003, hp.y), 0), mouth = MOUTH.clone().add(TIP_OFF);
+        if (S.tIn != null) {
+          const u = mouth.clone().sub(tip).dot(D), off = tip.clone().sub(mouth).addScaledVector(D, u).length();
+          if (u < -0.006 || off > 0.03) S.tIn = null;          // 抽出来了
+          else {
+            S.tIn = clamp(u, 0, 0.128);
+            trough.position.lerp(along(-S.tIn).add(TIP_OFF), fk); trough.quaternion.slerp(qIn, fk);
+            if (S.tIn > 0.118 && S.scooped && !S.kind) A.load(S.scooped);
+          }
         }
-        else { S.anim = null; trough.quaternion.identity(); S.scooped = ''; const a = trough.position.clone(); S.troughBack = { t: 0, pts: [a, V(a.x, TROUGH_HIGH, a.z), V(a.x, TROUGH_HIGH, TROUGH_HOME.z), V(TROUGH_HOME.x, TROUGH_HIGH, TROUGH_HOME.z), TROUGH_HOME.clone()] }; }
+        if (S.tIn == null) {
+          const z = tip.y > 0.05 ? 0 : TZ;          // 举高过表面皿就回到试管那一排
+          trough.position.lerp(V(tip.x, tip.y, z), fk); trough.quaternion.slerp(ID, fk);
+          for (const d of dishes) if (Math.abs(trough.position.x + 0.045 - d.position.x) < 0.03 && trough.position.y < 0.02 && Math.abs(trough.position.z - TZ) < 0.01) S.scooped = d.kind;
+          if (trough.position.distanceTo(mouth) < 0.012) {
+            if (S.plug === 'in' || S.plugK < 0.95) { if (!S.seen.plugTip) { S.seen.plugTip = true; status('橡胶塞还塞着：先点一下<b>橡胶塞</b>拔出来。'); } }
+            else if (!S.scooped) { if (!S.seen.emptyTip) { S.seen.emptyTip = true; status('纸槽上还没有固体：先把纸槽伸到表面皿里取一点。'); } }
+            else S.tIn = 0;
+          }
+        }
       } else if (S.troughBack) {
-        const B = S.troughBack; B.t = Math.min(1, B.t + dt / 1.3);
+        const B = S.troughBack; B.t = Math.min(1, B.t + dt / B.dur);
         const L = [0]; for (let i = 1; i < B.pts.length; i++) L.push(L[i - 1] + B.pts[i].distanceTo(B.pts[i - 1]));
         const u = ease(B.t) * L[L.length - 1]; let i = 1; while (i < B.pts.length - 1 && L[i] < u) i++;
-        trough.position.lerpVectors(B.pts[i - 1], B.pts[i], clamp((u - L[i - 1]) / Math.max(1e-6, L[i] - L[i - 1]), 0, 1)); trough.quaternion.identity();
-        if (B.t >= 1) S.troughBack = null;
-      } else if (!S.troughDrag) { trough.position.lerp(TROUGH_HOME, 0.15); trough.quaternion.identity(); }
-      if (!S.anim) tPowder.visible = !S.kind && !!S.scooped && !S.troughBack;
+        trough.position.lerpVectors(B.pts[i - 1], B.pts[i], clamp((u - L[i - 1]) / Math.max(1e-6, L[i] - L[i - 1]), 0, 1)); trough.quaternion.slerp(ID, Math.min(1, dt * 12));
+        if (B.t >= 1) { S.troughBack = null; trough.quaternion.identity(); }
+      } else { trough.position.lerp(TROUGH_HOME, 1 - Math.exp(-dt * 12)); trough.quaternion.identity(); }
+      tPowder.visible = !S.kind && !!S.scooped;
       dust.update(dt, (p, d) => { p.v.y -= 0.6 * d; p.p.addScaledVector(p.v, d); return p.p.y > 0.005; });
-      // 倒出固体
-      if (S.pourK >= 0) {
-        S.pourK = Math.min(1, S.pourK + dt / 2.6);
-        if (S.pourK > 0.34 && S.pourK < 0.7 && Math.random() < dt * 50) { tubeHold.updateMatrix(); tmp.set(0.004, 0.15, 0).applyMatrix4(tubeHold.matrix); dust.spawn({ p: tmp.clone(), v: V(0.01, 0, 0), size: 0.0009, life: 0.8 }); }
-        if (S.pourK >= 1) finishPour();
+      // 倒出固体：按住试管往纸的方向拖，试管跟着手从铁夹移到纸上方、倾斜；斜到底停一会儿固体就倒出来；松手很快回到铁夹上
+      {
+        const dir = POUR_B.clone().sub(BOTTOM), want = S.pourDrag ? clamp(S.pourDrag.p.clone().sub(S.pourDrag.p0).dot(dir) / dir.lengthSq(), 0, 1) : 0;
+        S.pourMv += (want - S.pourMv) * (1 - Math.exp(-dt * (S.pourDrag ? 14 : 9))); if (!S.pourDrag && S.pourMv < 0.002) S.pourMv = 0;
+        S.pourK = S.pourDrag || S.pourMv > 0 ? S.pourMv : -1;
+        if (S.kind && S.pourMv > 0.9) {
+          S.pourT += dt;
+          if (Math.random() < dt * 50) { tubeHold.updateMatrix(); tmp.set(0.004, 0.15, 0).applyMatrix4(tubeHold.matrix); dust.spawn({ p: tmp.clone(), v: V(0.01, 0, 0), size: 0.0009, life: 0.8 }); }
+          if (S.pourT > 1.0) finishPour();
+        }
       }
-      const pk = S.pourK < 0 ? 0 : S.pourK;
-      const mv = pk < 0.3 ? ease(pk / 0.3) : pk < 0.76 ? 1 : 1 - ease((pk - 0.76) / 0.24);
+      const mv = S.pourMv;
       tubeHold.position.lerpVectors(BOTTOM, POUR_B, mv); tubeHold.quaternion.slerpQuaternions(qTube, qPour, mv); tubeHold.updateMatrix();
       // 塞子 + 导管：点一下，先顺着管子拔出来，再转到桌上躺好
       S.plugK = clamp(S.plugK + clamp((S.plug === 'in' ? 0 : 1) - S.plugK, -dt * 1.2, dt * 1.2), 0, 1);
@@ -441,19 +474,19 @@ export default {
       tube.crack.visible = !!S.broken;
       tube.drops.children.forEach((d, i) => { d.visible = !!S.broken || S.wet; d.position.set(0.004 + (i % 2) * 0.002, 0.04 + i * 0.012, (i % 3 - 1) * 0.003); });
       // 管里的固体：一小堆（NaHCO₃ 分解后变少）
-      const mS = solidG(), loaded = !!S.kind && !S.anim;
-      const pourFade = S.pourK < 0 ? 1 : clamp(1 - (S.pourK - 0.34) / 0.3, 0, 1);
+      const mS = solidG(), loaded = !!S.kind;
+      const pourFade = clamp(1 - S.pourT, 0, 1);
       const L = 0.0105 * mS * (S.wet ? 1.1 : 1) * pourFade;
       bed.visible = loaded && L > 0.0006; bed.scale.set(0.0032, Math.max(0.0005, L), 0.0058);
       bedMat.color.set(S.wet ? 0xe8ece8 : 0xf6f3ea);
       // 试管口的水珠
       const nd = Math.round(clamp(S.h2o / H2O_MAX, 0, 1) * NDROP);
-      condG.children.forEach((d, i) => { d.visible = S.kind === 'nahco3' && i < nd && S.pourK < 0.5; });
+      condG.children.forEach((d, i) => { d.visible = S.kind === 'nahco3' && i < nd && S.pourT < 0.5; });
       // 第一次看到的现象
       const xm = xi();
       if (S.kind === 'nahco3' && S.limeAt != null && S.lime < 0.25 && S.limeCO2 > LIME_CO2 && !S.seen.clear && !S.demo) { S.seen.clear = true; log([`累计通入石灰水的 CO₂ 约 ${Math.round(S.limeCO2 / ABS)} mL（示意）`, '浑浊又慢慢<b>变清</b>了', 'CO₂ 过量：CaCO₃ + CO₂ + H₂O ══ Ca(HCO₃)₂，生成可溶的碳酸氢钙']); status('石灰水又<b>变清</b>了：通进去的二氧化碳已经过量，沉淀 CaCO₃ 变成了可溶的 Ca(HCO₃)₂。所以石灰水刚变浑浊、管口有水珠时，就可以停止加热了。'); }
       if (S.kind === 'nahco3' && S.lime > 0.6 && S.limeAt == null) { S.limeAt = S.heatT; log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, '澄清石灰水<b>变浑浊</b>', '生成了二氧化碳']); }
-      if (S.kind === 'nahco3' && S.h2o / H2O_MAX > 0.15 && !S.seen.drops && S.lit) { S.seen.drops = true; log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, '试管口较冷的管壁上出现<b>水珠</b>', '生成了水']); }
+      if (S.kind === 'nahco3' && nd >= 1 && !S.seen.drops && S.lit) { S.seen.drops = true; log([`加热 NaHCO₃ 约 ${fmtT(S.heatT)}`, '试管口较冷的管壁上出现<b>水珠</b>', '生成了水']); }
       if (!S.demo) {
         if (S.kind === 'nahco3' && !S.ran.nahco3 && S.limeAt != null && S.seen.drops) {
           S.ran.nahco3 = true; S.ranInfo.nahco3 = { t: S.heatT, g: solidG() }; done('watch'); far();
@@ -501,7 +534,7 @@ export default {
       const tR = Math.round(tm / 10) * 10;
       const stamp = S.broken ? '<span class="cc-res burn">炸裂</span>' : '';
       tubeCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><span class="cc-th"><i style="height:${clamp(tm / 2, 4, 100).toFixed(0)}%"></i></span><b>${tR}</b><small>℃ 最热处（约）</small></div><div class="cc-obs"><b>${mS.toFixed(2)}</b><small>g 固体（${S.kind ? NAME[S.kind] + (S.kind === 'nahco3' && xm > 0.02 ? ' 渐变成 Na₂CO₃' : '') : ''}）</small></div>${S.heatT > 0 ? `<div class="cc-note">${S.lit ? `已加热 ${fmtT(S.heatT)}` : `停止加热 ${fmtT(S.coolT)}`}（实际时间）</div>` : ''}</div></div>`)
-        .loc(group, POWDER_C.x, POWDER_C.y + 0.014, 0).show(!!S.kind && S.pourK < 0 && !S.anim && !mic.isOpen && !bar.playing);
+        .loc(group, POWDER_C.x, POWDER_C.y + 0.014, 0).show(!!S.kind && S.pourK < 0 && !mic.isOpen && !bar.playing);
       const limeStamp = S.suck > 0.3 && tipIn() ? '<span class="cc-res burn">倒吸</span>' : S.lime > 0.6 ? '<span class="cc-res burn">变浑浊</span>' : '';
       const bubNote = FX.lastOut > 0 ? `<div class="cc-note">冒出的气泡：${S.outCO2 > 0.5 ? '主要是<b>二氧化碳</b>' : '主要是<b>空气</b>'}</div>` : '';
       limeCard.text(`<div class="cc"><div class="cc-t"><span class="cc-name">澄清石灰水</span>${limeStamp}</div>${bubNote ? `<div class="cc-more">${bubNote}</div>` : ''}</div>`)
@@ -509,6 +542,13 @@ export default {
       bar.near(S.near);
     };
 
+    // 质检：按住一件器材，沿 pts 走 ms 毫秒，再按住 hold 毫秒后松手
+    const qaPath = (obj, pts, ms, hold = 300) => {
+      const d = drag.items().find((x) => x.obj === obj), S0 = S, T0 = performance.now(), L = pts.length - 1;
+      d.onStart(pts[0].clone());
+      const go = () => { if (S !== S0) return; const k = Math.min(1, (performance.now() - T0) / ms), f = k * L, i = Math.min(L - 1, Math.floor(f)); d.onDrag(pts[i].clone().lerp(pts[i + 1], f - i), pts[0].clone()); if (performance.now() - T0 > ms + hold) { d.onEnd(true); return; } requestAnimationFrame(go); };
+      requestAnimationFrame(go);
+    };
     return {
       group: root,
       pointer,
@@ -529,7 +569,7 @@ export default {
         const q1 = think({
           q: '比较两次实验，<b>哪一种固体受热分解</b>了？它生成了什么？',
           ctx: () => `<div>${rec('na2co3')}</div><div>${rec('nahco3')}</div>`,
-          options: ['碳酸氢钠分解：生成使石灰水变浑浊的二氧化碳和试管口的水，留下碳酸钠；碳酸钠没有分解', '碳酸钠分解：生成了二氧化碳', '两种都分解了，只是碳酸氢钠分解得快一些'],
+          options: ['碳酸氢钠分解：生成使石灰水变浑浊的二氧化碳和试管口的水，固体里生成了碳酸钠；碳酸钠没有分解', '碳酸钠分解：生成了二氧化碳', '两种都分解了，只是碳酸氢钠分解得快一些'],
           wrong: ['看你的记录：加热碳酸钠时，石灰水变了吗？试管口有水珠吗？点“钻进固体里看”，看看 CO₃²⁻ 受热有没有变化。', '看你的记录：加热碳酸钠时，石灰水变浑浊了吗？石灰水不变，说明没有 CO₂ 生成。'],
           ok: '对：<b>2NaHCO₃ △══ Na₂CO₃ + H₂O + CO₂↑</b>。固体变轻，是因为 CO₂ 和 H₂O 跑出去了。碳酸钠很稳定，受热不易分解。',
           status: (m) => ui.status(m), onOk: () => q2.open(),
@@ -541,7 +581,7 @@ export default {
         ], () => A.reset());
         const note = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'), h('p', { class: 'fineprint', html: '固体各 1 g（课本实验2-4 取各约 1 g，这里沿用）；时间加快 6 倍。NaHCO₃ 1 g = 11.9 mmol，分解最多得 CO₂ 5.95 mmol（25 ℃ 约 146 mL）、H₂O 0.107 g，剩 Na₂CO₃ 0.631 g（固体质量按这个算）。<br>温度和速率是示意：粉末最热处按约 175 ℃，NaHCO₃ 按一级反应、活化能约 100 kJ/mol 估计（150 ℃ 时速率常数约 0.0035/s）；Na₂CO₃ 在酒精灯的温度下不分解（熔点 851 ℃）。<br>石灰水：Ca(OH)₂ 溶解度约 0.17 g/100 g 水，8 mL 约能吸收 4.5 mL CO₂ 而变浑浊（通入的 CO₂ 约一半被吸收）。按物料衡算：8 mL 石灰水里 Ca(OH)₂ 约 0.184 mmol，Ca(OH)₂ + CO₂ ══ CaCO₃↓ + H₂O 只要约 4.5 mL CO₂ 就全浑浊；CO₂ 过量后 CaCO₃ + CO₂ + H₂O ══ Ca(HCO₃)₂，再吸约 4.5 mL 就全变清（浑浊度跟 CaCO₃ 的量走）。课本这里没写这一步，是 CO₂ 过量时的实际现象。“通过的 CO₂ 约一半被吸收”是示意值。<br>倒吸：导管里约 3 mL；吸满就流进试管，管里还烫（> 100 ℃，示意）时试管炸裂。“先让导管离开液体再熄灯”是加热制气实验通用的操作注意事项，课本这一节没写。深灰小点 = CO₂，浅灰 = 氮气，蓝 = 氧气，橙 = 热。' }));
         const { tbl, next } = mountXuean(ui, { controls: [q1, q2, vary, more, note], headers: ['做了什么', '现象', '说明'], tableTitle: '观察记录' });
-        W = { tbl, q1, q2, next, status: (m) => ui.status(m) };
+        W = { tbl, q1, q2, next, ui, status: (m) => ui.status(m) };
         bar.attach(ui);
         ui.status('图2-7 的装置：试管固定在铁架台上（管口略向下倾斜），下面是酒精灯。可以先看<b>老师演示</b>，也可以直接动手：先点<b>橡胶塞</b>拔出来，再装固体。');
       },
@@ -550,8 +590,7 @@ export default {
       debug: { get S() { return S; }, A, bar, MOUTH, xi, mic, picks: { trough: troughPick, plug: plugPick, lime: limePick, lamp: lampPick, tube: tubePick, limeTube: lime, lampBody: lamp },
         qa: qaFlow(drag, [
           { name: '拔出橡胶塞', tap: plugPick, wait: 2 },
-          { name: '纸槽取 NaHCO₃', drag: troughPick, to: () => V(dishes[1].position.x, 0.01, dishes[1].position.z) },
-          { name: '纸槽铺进试管', drag: troughPick, to: () => MOUTH.clone(), wait: 2.5 },
+          { name: '纸槽取 NaHCO₃、铺进试管', run: () => qaPath(troughPick, troughPts(dishes[1]), 2600), wait: 4, scale: 1 },
           { name: '塞紧橡胶塞', tap: plugPick, wait: 2 },
           { name: '石灰水升起', drag: limePick, to: () => V(LX, Y_IN, 0), wait: 1 },
           { name: '点燃酒精灯', tap: lampPick, wait: 1 },
@@ -560,10 +599,9 @@ export default {
           { name: '降下石灰水', drag: limePick, to: () => V(LX, 0, 0), wait: 1 },
           { name: '熄灭酒精灯', tap: lampPick, wait: 22 },
           { name: '拔出橡胶塞（NaHCO₃ 之后）', tap: plugPick, wait: 2 },
-          { name: '倒出固体', tap: tubePick, wait: 4 },
+          { name: '倒出固体', run: () => qaPath(tubePick, [TUBE_GRAB, TUBE_GRAB.clone().add(POUR_DIR)], 700, 1700), wait: 3.5, scale: 1 },
           { name: '换新石灰水', tap: limePick, wait: 1 },
-          { name: '纸槽取 Na₂CO₃', drag: troughPick, to: () => V(dishes[0].position.x, 0.01, dishes[0].position.z) },
-          { name: '纸槽铺进试管 2', drag: troughPick, to: () => MOUTH.clone(), wait: 2.5 },
+          { name: '纸槽取 Na₂CO₃、铺进试管', run: () => qaPath(troughPick, troughPts(dishes[0]), 2600), wait: 4, scale: 1 },
           { name: '塞紧橡胶塞 2', tap: plugPick, wait: 2 },
           { name: '石灰水升起 2', drag: limePick, to: () => V(LX, Y_IN, 0), wait: 1 },
           { name: '点燃酒精灯 2', tap: lampPick, wait: 38 },
