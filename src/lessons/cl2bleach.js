@@ -22,7 +22,7 @@ import { h } from '../ui/Panel.js';
 
 const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 const JR = 0.021, JH = 0.08, JX = [-0.078, 0, 0.078], HOME_Z = 0.05, LY = 0.0035, LEN = 0.06;
-const KB = 0.5, KD = 0.25, TAU = 60, SPEED = 0.3;          // 次氯酸靠拢（1/s）；褪色（1/s）；漏气时间常数（s）；拿着东西走的速度（m/s）
+const KB = 0.5, KD = 0.25, TAU = 60, CY = JH + LEN + 0.008;          // 次氯酸靠拢（1/s）；褪色（1/s）；漏气时间常数（s）；拿着走时手里那一端的高度（垂下来的纸条、花高过瓶口）
 const ITEMS = [
   { key: 'dry', name: '干燥的有色纸条', w: 0, color: 0xd93a45, fade: 0xf6f1e4, kind: 'strip' },
   { key: 'wet', name: '湿润的有色纸条', w: 1, color: 0xc92f3d, fade: 0xf6f1e4, kind: 'strip' },
@@ -110,32 +110,33 @@ export default {
       dm.count = 0; dm.frustumCulled = false; dm.renderOrder = 12; dm.raycast = () => {}; g.add(dm); dots.push(dm);
     });
     const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), s4 = new THREE.Vector3();
+    // 手：拿着时在拖动平面上（纸条、花提起来垂在它上方）；没拿着时就在东西手里那一端（拖动时“抓的地方”按它记）
+    const hands = ITEMS.map(() => { const o = new THREE.Object3D(); group.add(o); return o; });
 
     // ================= 状态 =================
     const fresh = () => ({
       demo: false, near: false, said: {}, msub: null, last: 1, leak: 0, t: 0,
       jar: JX.map(() => ({ c: 1, open: false, po: 0, item: -1, openT: 0 })),
-      it: ITEMS.map((sp, i) => ({ pos: home(i).toArray(), carry: null, motion: null, jar: -1, lie: 1, h: 0, d: 1, tIn: 0 })),
+      it: ITEMS.map((sp, i) => ({ pos: home(i).toArray(), drag: false, hand: null, grabY: 0, go: null, jar: -1, lie: 1, h: 0, d: 1, tIn: 0 })),
     });
     S = fresh();
-    const inMotion = () => S.it.some((it) => it.motion);
+    const inMotion = () => S.it.some((it) => it.go);
 
-    // ---- 动作：拿起来放进瓶里（玻璃片先推开）、拿回来、推开 / 盖上玻璃片 ----
-    const itemGo = (i, pts, event, k = -1) => { const it = S.it[i]; it.carry = null; it.motion = { points: pts.map((v) => v.toArray()), event, k }; };
-    const goHome = (i) => { const p = V(...S.it[i].pos), hm = home(i); itemGo(i, [V(p.x, Math.max(p.y, 0.05), p.z), V(hm.x, 0.05, hm.z), hm], 'home'); };
+    // ---- 动作：手拿着走；在瓶口上方松手 → 推开玻璃片，竖直放进去；别处松手 → 很快放回桌上 ----
+    const goHome = (i) => { const it = S.it[i]; it.drag = false; it.go = { home: true, k: -1 }; };
     const release = (i) => {
-      const it = S.it[i], c = it.carry; it.carry = null; if (!c) return goHome(i);
-      const k = JX.findIndex((x) => Math.abs(c[0] - x) < 0.032);
-      if (k < 0 || c[1] < JH - 0.02) return goHome(i);
-      if (S.jar[k].item >= 0 || S.it.some((o) => o.motion?.k === k)) { status('这个瓶里已经有东西了。换一个空的集气瓶。'); return goHome(i); }
+      const it = S.it[i], c = it.hand; it.drag = false; it.hand = null; if (!c) return goHome(i);
+      const k = JX.findIndex((x) => Math.hypot(c[0] - x, c[1]) < JR + 0.013);          // 手在瓶口附近（两瓶之间分得开）就算
+      if (k < 0) return goHome(i);
+      if (S.jar[k].item >= 0 || S.it.some((o) => o.go?.k === k)) { status('这个瓶里已经有东西了。换一个空的集气瓶。'); return goHome(i); }
       S.jar[k].open = true; S.jar[k].openT = 0;          // 放东西要先推开玻璃片
-      itemGo(i, [V(JX[k], JH + 0.05, 0), hang(k)], 'in', k);
+      it.go = { k };
     };
     const A = {
       tapPlate(k) {
         const J = S.jar[k];
         if (J.open) {
-          if (S.it.some((o) => o.motion?.k === k)) return;
+          if (S.it.some((o) => o.go?.k === k)) return;
           J.open = false;
           const i = J.item;
           if (i >= 0) { status(i === 0 ? '盖上玻璃片了。看看干燥的纸条会不会褪色。' : i === 1 ? '盖上玻璃片了。看看湿润的纸条的颜色。' : '盖上玻璃片了。看看花的颜色。'); }
@@ -148,20 +149,21 @@ export default {
         bar.undo('strips', 'seeStrips', 'flower', 'seeFlower', 'why'); status('三个瓶里又是满满的干燥氯气了，纸条和鲜花都放回桌上。');
       },
     };
-    const sync = () => { smokes.forEach((s) => s.clear()); S.jar.forEach((J, k) => { J.po = J.open ? 1 : 0; poseJar(k, 0); }); ITEMS.forEach((sp, i) => { G[i].position.fromArray(S.it[i].pos); G[i].rotation.x = -Math.PI / 2 * S.it[i].lie; }); };
-    const poseJar = (k, dt) => { const J = S.jar[k]; J.po = clamp(J.po + (J.open ? 1 : -1) * dt * 2.2, 0, 1); const e = ease(J.po); jars[k].plate.position.set(0, JH + 0.0009 + 0.003 * e, -0.046 * e); };
+    const sync = () => { hands.forEach((o, i) => o.position.fromArray(S.it[i].pos)); smokes.forEach((s) => s.clear()); S.jar.forEach((J, k) => { J.po = J.open ? 1 : 0; poseJar(k, 0); }); ITEMS.forEach((sp, i) => { G[i].position.fromArray(S.it[i].pos); G[i].rotation.x = -Math.PI / 2 * S.it[i].lie; }); };
+    const poseJar = (k, dt) => { const J = S.jar[k]; J.po = clamp(J.po + (J.open ? 1 : -1) * dt * 3.5, 0, 1); const e = ease(J.po); jars[k].plate.position.set(0, JH + 0.0009 + 0.003 * e, -0.046 * e); };
 
     // ---- 拖放 ----
+    // 拖动平面：按下去时手里那一端所在高度的水平面；记住抓的地方——按住先竖直提起来（纸条、花垂下来），再跟着手平移
     const itemDrag = (i) => ({
-      obj: picks[i], plane: 'xy', offset: 0,
-      enabled: () => !S.it[i].motion && !(S.it[i].jar >= 0 && !S.jar[S.it[i].jar].open),
+      obj: picks[i], plane: 'xz', get offset() { const it = S.it[i]; return it.drag ? it.grabY : it.pos[1]; }, keepOffset: true, anchor: hands[i],
+      enabled: () => !(S.it[i].go?.k >= 0) && !(S.it[i].jar >= 0 && !S.jar[S.it[i].jar].open),
       hint: () => (S.it[i].jar >= 0 ? `${ITEMS[i].name}：拖出来，放回桌上` : `${ITEMS[i].name}：拖到集气瓶口上方，松手放进去`),
-      onStart: (p) => { const it = S.it[i]; it.motion = null; if (it.jar >= 0) { S.jar[it.jar].item = -1; it.jar = -1; } it.carry = (p || V(...it.pos)).toArray(); it.carry[2] = 0; },
-      onDrag: (p) => { if (p) S.it[i].carry = [clamp(p.x, -0.16, 0.16), clamp(p.y, 0.01, 0.2), 0]; },
+      onStart: (p) => { const it = S.it[i]; it.go = null; it.grabY = it.pos[1]; if (it.jar >= 0) { S.jar[it.jar].item = -1; it.jar = -1; } it.drag = true; it.hand = p ? [p.x, p.z] : [it.pos[0], it.pos[2]]; },
+      onDrag: (p) => { if (p) S.it[i].hand = [clamp(p.x, -0.2, 0.2), clamp(p.z, -0.12, 0.16)]; },
       onEnd: () => release(i),
     });
     const drag = draggable(group, [...ITEMS.map((_, i) => itemDrag(i))], {
-      tip: tag('', 'pill'), highlight: true,
+      tip: tag('', 'pill'),
       taps: platePicks.map((p, k) => ({ obj: p, hint: () => (S.jar[k].open ? '玻璃片：点一下，盖上' : '玻璃片：点一下，推开'), onTap: () => A.tapPlate(k) })),
     });
     const act = demoActs(drag, group);
@@ -174,17 +176,17 @@ export default {
       key: () => `${sub()}|${S.it[sub()].jar >= 0}`, bar: () => bar, scale: 0.0058, lookD: [0.03, 0.2, 1], dist: 0.26 });
 
     const jarK = (i) => S.it[i].jar;
-    const path = (i, to, t0, t1) => act.path(picks[i], [() => home(i), ...to], { t0, t1, release: t1 + 0.02 });
-    const over = (k) => () => V(JX[k], JH + 0.05, 0);
+    const path = (i, to, t0, t1) => act.path(picks[i], [() => V(...S.it[i].pos), ...to], { t0, t1, release: t1 + 0.02 });
+    const over = (k) => () => V(JX[k], CY, 0);
     const CAM = (y = 0.05, d = 0.44) => [[0, y, 0.01], [0.03, 0.25, 1], d];
     const bar = lessonBar({
       look, back, group,
       steps: [
         { id: 'strips', title: '放入纸条', todo: '把<b>干燥的</b>和<b>湿润的</b>有色纸条，分别拖进两个集气瓶；放好以后<b>点一下玻璃片</b>盖上（氯气有毒）。',
-          target: () => { const sp = [0, 1].find((i) => S.it[i].jar < 0 && !S.it[i].carry && !S.it[i].motion); if (sp != null) return G[sp]; const k = [0, 1].map(jarK).find((x) => x >= 0 && S.jar[x].open); return k != null && !inMotion() ? jars[k].plate : null; } },
+          target: () => { const sp = [0, 1].find((i) => S.it[i].jar < 0 && !S.it[i].drag && !S.it[i].go); if (sp != null) return G[sp]; const k = [0, 1].map(jarK).find((x) => x >= 0 && S.jar[x].open); return k != null && !inMotion() ? jars[k].plate : null; } },
         { id: 'seeStrips', title: '观察纸条', todo: '观察：两条纸条的颜色，哪一条变了？', target: () => null },
         { id: 'flower', title: '放入鲜花', todo: '把<b>有色鲜花</b>拖进第三个集气瓶，放好以后<b>点一下玻璃片</b>盖上。',
-          target: () => { if (S.it[2].jar < 0) return S.it[2].carry || S.it[2].motion ? null : G[2]; return S.jar[S.it[2].jar].open && !inMotion() ? jars[S.it[2].jar].plate : null; } },
+          target: () => { if (S.it[2].jar < 0) return S.it[2].drag || S.it[2].go ? null : G[2]; return S.jar[S.it[2].jar].open && !inMotion() ? jars[S.it[2].jar].plate : null; } },
         { id: 'seeFlower', title: '观察鲜花', todo: '观察：花瓣的颜色有什么变化？', target: () => null },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
       ],
@@ -223,29 +225,29 @@ export default {
       // ---- 纸条、鲜花：拿着走、挂进瓶里、HClO、褪色 ----
       ITEMS.forEach((sp, i) => {
         const it = S.it[i], g = G[i];
-        let goal;
-        if (it.motion) {
-          const m = it.motion, p = V(...it.pos), to = V(...m.points[0]), d = to.clone().sub(p);
-          const gated = m.event === 'in' && m.points.length === 1 && S.jar[m.k].po < 0.85;
-          if (!gated) p.addScaledVector(d, Math.min(1, dt * SPEED / Math.max(1e-5, d.length())));
-          it.pos = p.toArray();
-          if (p.distanceTo(to) < 0.0006) {
-            m.points.shift();
-            if (!m.points.length) {
-              const ev = m.event, k = m.k; it.motion = null;
-              if (ev === 'in') {
-                it.jar = k; S.jar[k].item = i; it.tIn = 0; S.last = i;
-                status(i === 0 ? '放进去了：干燥的纸条。点一下<b>玻璃片</b>盖上。' : i === 1 ? '放进去了：湿润的纸条。点一下<b>玻璃片</b>盖上。' : '放进去了：有色鲜花。点一下<b>玻璃片</b>盖上。');
-              }
+        // 拿着：先竖直提到 CY（纸条、花从平放转成垂下来），再跟着手；放进瓶里：平移到瓶口上方，等玻璃片推开，竖直放下去；放回：平移到原处上方，边放低边放平
+        const p = V(...it.pos), hm = home(i);
+        if (it.drag) {
+          const h = it.hand || [p.x, p.z];
+          p.lerp(p.y < CY - 0.008 ? V(p.x, CY, p.z) : V(h[0], CY, h[1]), 1 - Math.exp(-dt * 26));
+        } else if (it.go) {
+          const k = it.go.k, dest = k >= 0 ? hang(k) : hm, far = Math.hypot(p.x - dest.x, p.z - dest.z) > 0.003;
+          const goal = far && p.y < CY - 0.008 ? V(p.x, CY, p.z) : far ? V(dest.x, Math.max(p.y, dest.y), dest.z) : k >= 0 && S.jar[k].po < 0.85 ? null : dest;
+          if (goal) p.lerp(goal, 1 - Math.exp(-dt * 18));
+          if (!far && p.distanceTo(dest) < 0.0006) {
+            p.copy(dest); it.go = null;
+            if (k >= 0) {
+              it.jar = k; S.jar[k].item = i; it.tIn = 0; S.last = i;
+              status(i === 0 ? '放进去了：干燥的纸条。点一下<b>玻璃片</b>盖上。' : i === 1 ? '放进去了：湿润的纸条。点一下<b>玻璃片</b>盖上。' : '放进去了：有色鲜花。点一下<b>玻璃片</b>盖上。');
             }
           }
-        } else {
-          goal = it.carry ? V(...it.carry) : it.jar >= 0 ? hang(it.jar) : home(i);
-          const p = V(...it.pos).lerp(goal, it.carry ? 0.45 : 1 - Math.exp(-dt * 14)); it.pos = p.toArray();
-        }
-        const lieGoal = it.jar >= 0 || it.carry ? 0 : it.motion ? (it.motion.event === 'home' && it.motion.points.length <= 1 ? 1 : 0) : 1;
-        it.lie += (lieGoal - it.lie) * Math.min(1, dt * 10);
+        } else if (it.jar >= 0) p.copy(hang(it.jar));
+        it.pos = p.toArray();
+        // 平放 ↔ 垂下来：在原处上方时跟着高度走（提起来就垂下来，放低就放平，不戳进桌面），别处都垂着
+        const atHome = it.jar < 0 && !(it.go?.k >= 0) && Math.hypot(p.x - hm.x, p.z - hm.z) < 0.01;
+        it.lie = atHome ? Math.acos(clamp((p.y - LY) / LEN, 0, 1)) / (Math.PI / 2) : 0;
         g.position.fromArray(it.pos); g.rotation.x = -Math.PI / 2 * it.lie;
+        if (it.drag && it.hand) hands[i].position.set(it.hand[0], it.grabY, it.hand[1]); else hands[i].position.copy(p);
         // 次氯酸、褪色
         const c = it.jar >= 0 ? S.jar[it.jar].c : 0;
         it.h += (c * sp.w - it.h) * (1 - Math.exp(-KB * dt));
@@ -269,7 +271,7 @@ export default {
       if (S.said.flower && !S.said.flower2) { S.said.flower2 = true; done('seeFlower'); if (!S.demo) { W?.t2.open(); status('鲜花也褪色了。在左边作答。'); } }
       // 观察卡：瓶里有东西时，在瓶前显示这一组实际的褪色和氯气浓度（示意值）
       S.jar.forEach((J, k) => {
-        const i = J.item, ok = i >= 0 && !S.it[i].motion;
+        const i = J.item, ok = i >= 0 && !S.it[i].go;
         if (!ok) return cards[k].show(false);
         const it = S.it[i], fade = Math.round((1 - it.d) * 100), cl = Math.round(J.c * 100);
         const st = ITEMS[i].w === 0 ? '干燥，不变' : fade < 5 ? '还没褪色' : fade < 85 ? '褪色中' : '已褪色';
@@ -298,11 +300,11 @@ export default {
         get S() { return S; }, bar, A,
         picks: { dry: picks[0], wet: picks[1], flower: picks[2] },
         qa: qaFlow(drag, [
-          { name: '放入干燥纸条', drag: picks[0], to: () => V(JX[0], JH + 0.03, 0), wait: 1.8, scale: 1 },
+          { name: '放入干燥纸条', drag: picks[0], to: () => V(JX[0], LY, 0), wait: 1.8, scale: 1 },
           { name: '盖上第一块玻璃片', tap: platePicks[0], wait: 0.5, scale: 1 },
-          { name: '放入湿润纸条', drag: picks[1], to: () => V(JX[1], JH + 0.03, 0), wait: 1.8, scale: 1 },
+          { name: '放入湿润纸条', drag: picks[1], to: () => V(JX[1], LY, 0), wait: 1.8, scale: 1 },
           { name: '盖上第二块玻璃片', tap: platePicks[1], wait: 12, scale: 1 },
-          { name: '放入鲜花', drag: picks[2], to: () => V(JX[2], JH + 0.03, 0), wait: 2.5, scale: 1 },
+          { name: '放入鲜花', drag: picks[2], to: () => V(JX[2], LY, 0), wait: 2.5, scale: 1 },
           { name: '盖上第三块玻璃片', tap: platePicks[2], wait: 18, scale: 1 },
           { name: '钻进去看', run: () => { S.msub = 1; mic.open(); }, wait: 4 },
           { name: '合上', run: () => mic.close(), wait: 1 },

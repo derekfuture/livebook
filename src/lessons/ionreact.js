@@ -78,7 +78,7 @@ export default {
     const A = {
       reset() { if (bar.playing) bar.stop(); S = fresh(); mic.close(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('drip', 'shake', 'why'); status('试管里又是 2 mL Na₂SO₄ 稀溶液了。'); },
     };
-    const drag = draggable(group, [...B.items], { tip: tag('', 'pill'), highlight: true });
+    const drag = draggable(group, [...B.items], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const bar = lessonBar({
       look, back, group,

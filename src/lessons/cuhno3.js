@@ -182,7 +182,7 @@ export default {
       onEnd: () => { const T = S[k]; T.drag = false; T.ws = T.ws > 0.5 ? 1 : 0; A.moved(k); },
       onTap: () => A.wire(k),
     }));
-    const drag = draggable(group, drags, { tip: tag('', 'pill'), highlight: true });
+    const drag = draggable(group, drags, { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: nitricScene(), at: () => V(SET[S.focus].X, RACK_Y + 0.011, 0), btnAt: () => V(SET[S.focus].X - SET[S.focus].sx * 0.021, 0.19, 0.01), label: '钻进去看',
       state: () => { const T = S[S.focus]; return { conc: S.focus === 'c', x: T.x, c: r1(cNow(T)), contact: T.contact > 0.05, hot: T.rate > 0.001, made: T.cu > 0.02 }; },

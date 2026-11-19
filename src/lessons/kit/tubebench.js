@@ -68,7 +68,8 @@ export function tubeBench(group, { tag, look, back, tubes: TUBES, reagents: REAG
 
   const fresh = () => ({ carry: REAGENTS.map(() => null), over: REAGENTS.map(() => -1), dripT: REAGENTS.map(() => 0), shake: TUBES.map(() => ({ e: 0, off: 0, lastX: null })), nearK: null });
   const st = () => getS();
-  const overTube = (p) => tubes.findIndex((t, k) => Math.abs(p.x - X[k]) < 0.012 && Math.abs(p.z) < 0.03 && p.y > T_Y + T_LEN - 0.004 && p.y < T_Y + T_LEN + 0.05);
+  // 和初中 basereact 一样：手在哪支试管的正上方（左右 1.1 cm 以内、高过管口）就对准哪支，不限高度
+  const overTube = (p) => tubes.findIndex((t, k) => Math.abs(p.x - X[k]) < 0.011 && p.y > T_Y + T_LEN - 0.01);
   const follow = (d, to, a) => {
     const Bt = d.B, p = d.position, off = Math.hypot(p.x - Bt.position.x, p.z - Bt.position.z), up = Math.max(Bt.mouthY + 0.008, to.y);
     p.lerp(off < 0.02 && p.y < up - 0.002 ? new THREE.Vector3(off < 0.003 ? Bt.position.x : p.x, up, off < 0.003 ? Bt.position.z : p.z) : to, a);
@@ -78,7 +79,8 @@ export function tubeBench(group, { tag, look, back, tubes: TUBES, reagents: REAG
     if (off > 0.004 && p.y < HIGH - 0.002) p.lerp(new THREE.Vector3(p.x, HIGH, p.z), a);
     else homeLift(d, d.B.tipHome, a);
   };
-  const near = (k) => { const S = st(); if (!look || S.demo || S.nearK === k) return; S.nearK = k; look([X[k], T_Y + 0.04, 0], [0.04, 0.22, 1], 0.2, () => { if (st()) st().nearK = null; }); };
+  const near = (k) => { const S = st(); if (!look || S.demo || S.nearK === k) return; S.nearK = k; look([X[k], T_Y + 0.07, 0], [0.04, 0.22, 1], 0.27,          // 凑近也要看得见管口上方的滴管尖和管底的液体
+       () => { if (st()) st().nearK = null; }); };
   const far = () => { const S = st(); if (!back || S.nearK == null) return; S.nearK = null; back(); };
 
   const items = [
@@ -100,8 +102,9 @@ export function tubeBench(group, { tag, look, back, tubes: TUBES, reagents: REAG
         const c = S.carry[i];
         if (c) {
           const k = overTube(c);
-          follow(d, k >= 0 ? new THREE.Vector3(X[k], HIGH, 0) : c.clone().setY(Math.max(c.y, HIGH)), 0.3);
-          const at = k >= 0 && d.position.distanceTo(new THREE.Vector3(X[k], HIGH, 0)) < 0.002;
+          // 滴管尖就在手上（不强行抬高）；到了试管正上方，停在管口上方 1.2 cm 悬空滴
+          follow(d, k >= 0 ? new THREE.Vector3(X[k], HIGH, 0) : c.clone(), 0.4);
+          const at = k >= 0 && d.position.distanceTo(new THREE.Vector3(X[k], HIGH, 0)) < 0.003;
           S.over[i] = at ? k : -1;
           if (at) {
             S.dripT[i] += dt * rate;

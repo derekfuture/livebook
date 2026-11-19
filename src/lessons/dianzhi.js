@@ -34,6 +34,7 @@ const SCOOP = 0.5, MNA = 58.44, MK = 101.1, SOL = { na: 0.36, k: 0.316 };       
 // 电路：6 V 直流；小灯泡 6.3 V 0.15 A（额定电压高于电源电压：电极间电阻再小，灯两端也不超过 6 V，不会过载）
 const U = 6, RB0 = 4, RBH = 6.3 / 0.15, PR = 6.3 * 0.15, CMAX = 0.2;
 const ROD_A = 0.003, ROD_D = 0.02, ROD_BOT = 0.006;
+const ROD_IN = ROD_BOT + 0.1, ROD_FREE = 0.178;          // 玻璃棒（原点在上端，长 0.1 m）：伸到杯底附近 / 拿着走时下端高过杯口
 const LN = { na: [126.4, 62], k: [144.9, 77.5] };          // Λ°、A（S·cm²/mol）
 const NAME = { naS: '干燥的 NaCl 固体', kS: '干燥的 KNO₃ 固体', mixS: '干燥的 NaCl、KNO₃ 固体', water: '蒸馏水', naL: 'NaCl 溶液', kL: 'KNO₃ 溶液', mixL: 'NaCl、KNO₃ 混合溶液', empty: '空烧杯' };
 
@@ -89,9 +90,9 @@ export default {
       bk: [{ w: 0, na: 20, k: 0, dna: 0, dk: 0, adds: 0 }, { w: 0, na: 0, k: 20, dna: 0, dk: 0, adds: 0 }, ...[0, 0, 0].map(() => ({ w: WATER, na: 0, k: 0, dna: 0, dk: 0, adds: 0 }))],
       stir: [0, 0, 0, 0, 0],
       tools: {
-        head: { pos: HEAD_HOME.toArray(), drag: false, motion: null, wait: 0 },
-        spoon: { pos: SPOON_HOME.toArray(), drag: false, motion: null, wait: 0, na: 0, k: 0, tilt: 0, pour: 0, inBk: false, dumping: -1 },
-        rod: { pos: ROD_HOME.toArray(), drag: false, motion: null, wait: 0, in: -1, lastX: null, armed: false },
+        head: { pos: HEAD_HOME.toArray(), drag: false, hand: null, go: null, wait: 0 },
+        spoon: { pos: SPOON_HOME.toArray(), drag: false, hand: null, go: null, wait: 0, na: 0, k: 0, tilt: 0, pour: 0, inBk: false, dumping: -1 },
+        rod: { pos: ROD_HOME.toArray(), drag: false, hand: null, go: null, wait: 0, in: -1, lastH: null },
       },
     });
     S = fresh();
@@ -114,7 +115,7 @@ export default {
     const kappa = (b) => { const c = conc(b), K = (s) => { const cc = Math.min(c[s], CMAX); let k = 0.1 * (LN[s][0] - LN[s][1] * Math.sqrt(cc)) * cc; if (c[s] > CMAX) k *= Math.pow(c[s] / CMAX, 0.8); return k; }; return K('na') + K('k') + 1e-4; };          // S/m；蒸馏水约 1 μS/cm
     const rSol = (b) => { if (!b.w) return Infinity; const L = LEVEL - ROD_BOT; return Math.acosh(ROD_D / (2 * ROD_A)) / (Math.PI * kappa(b) * L); };
     const circuit = (R) => { if (!isFinite(R)) return { I: 0, b: 0 }; let rb = RB0, I = 0; for (let i = 0; i < 30; i++) { I = U / (R + rb); const P = I * I * rb; rb = rb * 0.5 + 0.5 * (RB0 + (RBH - RB0) * Math.min(1.2, Math.sqrt(P / PR))); } return { I, b: (I * I * rb) / PR }; };
-    const live = () => S.power && S.at >= 0 && !S.tools.head.motion && !S.tools.head.drag;
+    const live = () => S.power && S.at >= 0 && !S.tools.head.go && !S.tools.head.drag;
     // 有没有电流（导电）和灯泡看不看得出亮是两回事：导电与否按电流的数量级判断，不按灯泡亮度反推
     const nw = (t) => `<span style="white-space:nowrap">${t}</span>`;          // 记录表里主要的几个字不折行
     // 导电的状态：干燥固体没有电流；蒸馏水按课本写“不导电”（脚注：严格地说导电能力非常弱，这套装置测不出，约 26 μA）；
@@ -127,11 +128,11 @@ export default {
     const amp = (I) => (I >= 0.1 ? `${(I * 1000).toFixed(0)} mA` : I >= 1e-3 ? `${(I * 1000).toFixed(1)} mA` : I > 0 ? `${(I * 1e6).toFixed(0)} μA` : '0');
     const pairsOf = (mmol) => (mmol < 0.05 ? 0 : clamp(Math.round(mmol / 2.85), 1, 4));          // 钻进去看：一对离子约代表 2.85 mmol（一勺 0.5 g NaCl 画 3 对）
 
-    // ================= 工具移动：抬起来 → 平移 → 放下 =================
-    const UP = { head: 0.15, spoon: 0.1, rod: 0.2 }, HOME = { head: HEAD_HOME, spoon: SPOON_HOME, rod: ROD_HOME };
-    const travel = (key, dest, event = '') => { const t = S.tools[key], p = V(...t.pos), hy = Math.max(UP[key], p.y, dest.y); t.drag = false; t.motion = { points: [V(p.x, hy, p.z), V(dest.x, hy, dest.z), dest].map((v) => v.toArray()), event }; };
-    const home = (key) => travel(key, HOME[key].clone(), key === 'head' ? 'rest' : '');
-    const near = (x) => XS.findIndex((bx) => Math.abs(x - bx) < BR + 0.002);          // 杯与杯之间的空隙不接收
+    // ================= 工具：手拿着走（先竖直提起来，再跟着手平移）；松手放进手下的烧杯，或者很快放回原处 =================
+    const CARRY = { head: 0.15, spoon: 0.1, rod: ROD_FREE }, HOME = { head: HEAD_HOME, spoon: SPOON_HOME, rod: ROD_HOME };
+    const go = (key, dest, event = '') => { const t = S.tools[key]; t.drag = false; t.go = { to: dest.toArray(), event }; };
+    const home = (key) => { const t = S.tools[key]; t.drag = false; t.go = { home: true, event: key === 'head' ? 'rest' : '' }; };
+    const under = (h) => (h ? XS.findIndex((bx) => Math.hypot(h[0] - bx, h[1] - RZ) < BR + 0.002) : -1);          // 手下是哪只烧杯（在杯口范围内就算；杯与杯之间的空隙不接收）
     const heapTop = (i) => 0.0012 + heapH(i);
     const heapH = (i) => { const b = S.bk[i]; return b.w ? 0.45 * heapR(i) : 0.004 + 0.012 * Math.min(1.3, (b.na + b.k) / 20); };
     const heapR = (i) => { const b = S.bk[i], m = b.na + b.k; return b.w ? Math.min(0.018, 0.0085 * Math.cbrt(m / SCOOP)) : (m > 0 ? BR - 0.0016 : 0); };
@@ -163,29 +164,30 @@ export default {
         if (t.dumping >= 0) {
           const i = t.dumping, b = S.bk[i], salt = t.k > t.na ? 'KNO₃' : 'NaCl';
           b.na += t.na; b.k += t.k; b.adds++; t.na = t.k = 0; t.dumping = -1;
-          status(i === 2 && b.w ? `${salt} 加进了中间那杯<b>蒸馏水（对照）</b>：它就不再是蒸馏水了。要重做蒸馏水的对照，点“更多”里的<b>换新的蒸馏水</b>。` : b.w ? `${salt} 固体加进了蒸馏水。用<b>玻璃棒</b>搅拌：先把玻璃棒提到杯口上方，再往下放进杯里，按住左右拖。` : `${salt} 固体放回了干燥的固体里（烧杯里没有水，不会溶解）。`);
+          status(i === 2 && b.w ? `${salt} 加进了中间那杯<b>蒸馏水（对照）</b>：它就不再是蒸馏水了。要重做蒸馏水的对照，点“更多”里的<b>换新的蒸馏水</b>。` : b.w ? `${salt} 固体加进了蒸馏水。用<b>玻璃棒</b>搅拌：拖到这杯的杯口上方，放进杯里，按住来回拖。` : `${salt} 固体放回了干燥的固体里（烧杯里没有水，不会溶解）。`);
         }
         t.inBk = true; home('spoon');
       },
     };
+    // 松手：手在哪只烧杯的杯口上方，就放进那只（电极放进去、药匙伸进去取 / 侧过来倒）；别处松手很快放回原处
     const release = (key) => {
-      const t = S.tools[key], p = V(...t.pos), i = near(p.x);
-      if (key === 'head') return i >= 0 ? travel('head', DOCK.head(i), `dock:${i}`) : home('head');
+      const t = S.tools[key], i = under(t.hand); t.hand = null;
+      if (key === 'head') return i >= 0 ? go('head', DOCK.head(i), `dock:${i}`) : home('head');
       if (key === 'spoon') {
         if (i < 0) return home('spoon');
         const b = S.bk[i];
-        if (t.na + t.k > 0) return travel('spoon', DOCK.dump(i), `dump:${i}`);
-        if (!b.w && b.na + b.k > 0) return travel('spoon', DOCK.scoop(i), `scoop:${i}`);
+        if (t.na + t.k > 0) return go('spoon', DOCK.dump(i), `dump:${i}`);
+        if (!b.w && b.na + b.k > 0) return go('spoon', DOCK.scoop(i), `scoop:${i}`);
         status(b.w ? '药匙是空的：先到<b>干燥的 NaCl 或 KNO₃ 固体</b>里取少许。' : '这个烧杯是空的。');
         return home('spoon');
       }
-      if (key === 'rod') { t.in = -1; t.lastX = null; return home('rod'); }
+      if (key === 'rod') { t.in = -1; t.lastH = null; return home('rod'); }
     };
 
     const A = {
       tapPower() {
         S.power = !S.power; sup.setOn(S.power); S.testT = 0; sfx.clink({ freq: S.power ? 700 : 500, gain: 0.02 });
-        S.fresh = S.power && S.at >= 0 && !S.tools.head.motion;          // 电极放稳以后再接通，才算这一杯的观察（课本：分别接通电源）
+        S.fresh = S.power && S.at >= 0 && !S.tools.head.go;          // 电极放稳以后再接通，才算这一杯的观察（课本：分别接通电源）
         status(S.power ? (S.at >= 0 ? (S.dirty ? '接通了电源。可电极是湿的，这次不算干燥固体的读数：先把电极拖回滤纸上擦干。' : '接通了电源。看小灯泡亮不亮。') : '接通了电源。可是电极没有放进烧杯里——电路是断开的。') : '断开了电源。');
       },
       refill() {
@@ -203,38 +205,67 @@ export default {
     };
 
     // ================= 拖、点 =================
-    const item = (key, obj, z, minY, hint) => ({
-      obj: obj.pick, plane: 'xy', offset: z, keepOffset: true, anchor: obj, hint,
-      onStart: () => { const t = S.tools[key]; t.drag = true; t.motion = null; t.wait = 0; if (key === 'head') { if (S.at >= 0 && S.bk[S.at].w) S.wet = true; S.at = -1; S.testT = 0; S.fresh = false; S.dirty = false; if (S.power) status('换烧杯之前先<b>断开电源</b>：放稳以后再接通（课本：分别接通电源）。'); } if (key === 'spoon') { t.dumping = -1; } if (key === 'rod') t.armed = false; },
-      onDrag: (p) => {
-        const t = S.tools[key];
-        if (key === 'rod') return rodDrag(p);
-        t.pos = [clamp(p.x, -0.19, 0.19), clamp(p.y, minY, 0.24), z];
+    // 拖动平面：器材按下去时所在高度的水平面（手抓的地方就在这个面上），记住抓的地方和器材之差——按住时器材不跳，先竖直提起来，再跟着手平移
+    const item = (key, obj, hint) => ({
+      obj: obj.pick, plane: 'xz', get offset() { const t = S.tools[key]; return t.drag ? t.grabY : t.pos[1]; }, keepOffset: true, anchor: obj, hint,
+      onStart: (p) => {
+        const t = S.tools[key]; t.grabY = t.pos[1]; t.drag = true; t.go = null; t.wait = 0; t.hand = p ? [p.x, p.z] : [t.pos[0], t.pos[2]];
+        if (key === 'head') { if (S.at >= 0 && S.bk[S.at].w) S.wet = true; S.at = -1; S.testT = 0; S.fresh = false; S.dirty = false; if (S.power) status('换烧杯之前先<b>断开电源</b>：放稳以后再接通（课本：分别接通电源）。'); }
+        if (key === 'spoon') t.dumping = -1;
+        if (key === 'rod') t.lastH = null;
       },
-      onEnd: (moved) => { S.tools[key].drag = false; if (moved) release(key); else home(key); },
+      onDrag: (p) => {
+        if (!p) return; const t = S.tools[key];
+        t.hand = [clamp(p.x, -0.19, 0.19), clamp(p.z, -0.12, 0.13)];
+        if (key === 'rod') stirBy(t);
+      },
+      onEnd: () => { S.tools[key].drag = false; release(key); },
     });
-    // 玻璃棒：从上面放进有水的烧杯里，在里面左右拖 = 搅拌；往上拖出来
-    const ROD_IN = ROD_BOT + 0.1, ROD_FREE = 0.178;
-    function rodDrag(p) {
-      const t = S.tools.rod;
+    // 玻璃棒：在有水的烧杯口上方就放进杯里（下端到杯底附近），手在杯口范围里来回拖 = 搅拌；手移出杯口，先竖直提出来
+    const inBox = (i, h) => [clamp(h[0], XS[i] - 0.0125, XS[i] + 0.0125), clamp(h[1], SZ - 0.003, SZ + 0.003)];          // 在杯里能走到哪儿（不碰杯壁、让开电极）
+    function stirBy(t) {
+      if (t.in >= 0 && t.lastH && t.pos[1] - rod.len < LEVEL) {
+        const a = inBox(t.in, t.lastH), b = inBox(t.in, t.hand);
+        S.stir[t.in] = Math.min(1, S.stir[t.in] + (Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1])) * 45); S.lastBk = t.in;
+      }
+      t.lastH = t.hand.slice();
+    }
+    const rodGoal = (t, p) => {
+      const h = t.hand || [p.x, p.z];
       if (t.in >= 0) {
-        if (p.y > 0.21) { t.in = -1; t.lastX = null; }
-        else {
-          const bx = XS[t.in], x = clamp(p.x, bx - 0.0125, bx + 0.0125), y = clamp(p.y, ROD_IN, 0.21);
-          if (t.lastX != null && y - 0.1 < LEVEL) { S.stir[t.in] = Math.min(1, S.stir[t.in] + Math.abs(x - t.lastX) * 45); S.lastBk = t.in; }
-          t.lastX = x; t.pos = [x, y, SZ]; return;
+        if (Math.hypot(h[0] - XS[t.in], h[1] - RZ) < BR + 0.004) { const [x, z] = inBox(t.in, h); return V(x, ROD_IN, z); }
+        if (p.y < ROD_FREE - 0.004) return V(p.x, ROD_FREE + 0.002, p.z);          // 手移出杯口：先竖直提出来
+        t.in = -1;
+      }
+      if (p.y < ROD_FREE - 0.008) return V(p.x, ROD_FREE, p.z);          // 从桌上拿起来：先竖直提起来
+      const i = XS.findIndex((bx) => Math.hypot(h[0] - bx, h[1] - RZ) < BR - 0.004);
+      if (i < 0 || !(S.bk[i].w > 0)) return V(h[0], ROD_FREE, h[1]);
+      const [x, z] = inBox(i, h);
+      if (Math.abs(p.x - x) < 0.003 && Math.abs(p.z - z) < 0.003) { t.in = i; t.lastH = null; }          // 到了杯口正上方，再放下去
+      return V(x, ROD_FREE, z);
+    };
+    // 每帧：拿着 → 跟着手；要放到某处 / 放回原处 → 先竖直提到工作高度，平移到上方，再放下去
+    const seek = (key, dt) => {
+      const T = S.tools[key], p = V(...T.pos), cy = CARRY[key];
+      if (T.drag) {
+        const h = T.hand || [p.x, p.z];
+        const goal = key === 'rod' ? rodGoal(T, p) : p.y < cy - 0.008 ? V(p.x, cy, p.z) : V(h[0], cy, h[1]);
+        p.lerp(goal, 1 - Math.exp(-dt * 26));
+      } else if (T.go) {
+        const dest = T.go.home ? HOME[key] : V(...T.go.to), far = Math.hypot(p.x - dest.x, p.z - dest.z) > 0.003;
+        p.lerp(far && p.y < cy - 0.008 ? V(p.x, cy, p.z) : far ? V(dest.x, Math.max(p.y, dest.y), dest.z) : dest, 1 - Math.exp(-dt * 18));
+        if (!far && p.distanceTo(dest) < 0.0008) {
+          p.copy(dest); const [ev, a] = T.go.event.split(':'); T.go = null;
+          if (events[ev]) { events[ev](+a); if (key !== 'head' && !T.wait) home(key); }
         }
       }
-      if (p.y >= 0.19) t.armed = true;
-      const i = near(p.x);
-      if (i >= 0 && S.bk[i].w > 0 && p.y < 0.19 && Math.abs(p.x - XS[i]) < 0.02 && t.armed) { t.in = i; t.lastX = null; t.pos = [clamp(p.x, XS[i] - 0.0125, XS[i] + 0.0125), Math.max(ROD_IN, Math.min(p.y, 0.19)), SZ]; return; }          // 从桌上拿起来先到杯口上方，再放进去（不从旁边钻进去）
-      t.pos = [clamp(p.x, -0.19, 0.19), clamp(p.y, ROD_FREE, 0.24), SZ];
-    }
+      T.pos = p.toArray();
+    };
     const drag = draggable(group, [
-      item('head', head, RZ, 0.15, () => (S.at >= 0 ? '石墨电极：拖到别的烧杯上方，松手放进去' : '石墨电极：拖到烧杯上方，松手放进去')),
-      item('spoon', sp, SZ, 0.086, () => (S.tools.spoon.na + S.tools.spoon.k > 0 ? '药匙：拖到右边“蒸馏水（配液用）”的烧杯上方，松手加进去' : '药匙：拖到干燥的固体上方，松手取少许')),
-      item('rod', rod, SZ, ROD_FREE, () => '玻璃棒：先提到杯口上方，再往下放进有水的烧杯，按住左右拖（搅拌）'),
-    ], { tip: tag('', 'pill'), highlight: true, taps: [{ obj: sup.pick, hint: () => (S.power ? '学生电源：点一下断开' : '学生电源：点一下接通电源'), onTap: () => A.tapPower() }] });
+      item('head', head, () => (S.at >= 0 ? '石墨电极：拖到别的烧杯上方，松手放进去' : '石墨电极：拖到烧杯上方，松手放进去')),
+      item('spoon', sp, () => (S.tools.spoon.na + S.tools.spoon.k > 0 ? '药匙：拖到右边“蒸馏水（配液用）”的烧杯上方，松手加进去' : '药匙：拖到干燥的固体上方，松手取少许')),
+      item('rod', rod, () => '玻璃棒：拖到有水的烧杯口上方，放进杯里，按住来回拖（搅拌）'),
+    ], { tip: tag('', 'pill'), taps: [{ obj: sup.pick, hint: () => (S.power ? '学生电源：点一下断开' : '学生电源：点一下接通电源'), onTap: () => A.tapPower() }] });
     const act = demoActs(drag, group);
 
     // ================= 钻进去看 =================
@@ -247,14 +278,14 @@ export default {
     };
     const mic = micro({ tag, look, back, group, scene: dianzhiScene(), at: () => V(XS[Math.max(0, focus())], 0.128, RZ), btnAt: () => V(XS[Math.max(0, focus())], 0.112, RZ), label: '钻进去看',
       state: micState, key: () => { const i = focus(), s = micState(); return `${i}|${s.elec}|${s.water}|${s.solid}|${i >= 0 ? S.bk[i].adds : 0}`; },
-      show: () => focus() >= 0 && !S.tools.head.motion && !S.tools.head.drag, bar: () => bar, scale: 0.0056, lookD: [0.02, 0.3, 1], dist: 0.34 });
+      show: () => focus() >= 0 && !S.tools.head.go && !S.tools.head.drag, bar: () => bar, scale: 0.0056, lookD: [0.02, 0.3, 1], dist: 0.34 });
 
     // ================= 步骤 =================
     const findKind = (k, needFull = false) => S.bk.findIndex((b) => kindOf(b) === k && (!needFull || full(b)));
-    const testTarget = (k, needFull) => { const i = findKind(k, needFull); if (i < 0) return null; if (S.at !== i || S.tools.head.motion || S.dirty) return S.power && S.at !== i ? sup : head; return S.power && S.fresh ? null : sup; };
+    const testTarget = (k, needFull) => { const i = findKind(k, needFull); if (i < 0) return null; if (S.at !== i || S.tools.head.go || S.dirty) return S.power && S.at !== i ? sup : head; return S.power && S.fresh ? null : sup; };
     const dissolveTarget = () => {
       const t = S.tools.spoon;
-      if (t.na + t.k > 0 || t.motion) return sp;
+      if (t.na + t.k > 0 || t.go) return sp;
       const partial = S.bk.findIndex((b) => b.w > 0 && undis(b) > 0);
       if (partial >= 0) return rod;
       return sp;
@@ -270,7 +301,7 @@ export default {
         { id: 'naS', title: '试 NaCl 固体', todo: '把<b>石墨电极</b>拖进干燥的 <b>NaCl 固体</b>，放稳后点一下<b>学生电源</b>接通电源，看小灯泡。', target: () => testTarget('naS') },
         { id: 'kS', title: '试 KNO₃ 固体', todo: '先<b>断开电源</b>，把石墨电极放进干燥的 <b>KNO₃ 固体</b>，放稳后再接通，看小灯泡。', target: () => testTarget('kS') },
         { id: 'water', title: '试蒸馏水', todo: '先断开电源，把石墨电极放进中间的<b>蒸馏水（对照）</b>，放稳后再接通，看小灯泡。', target: () => testTarget('water') },
-        { id: 'dissolve', title: '配成溶液', todo: '用<b>药匙</b>取 NaCl、KNO₃ 固体各少许，分别加进右边两杯“蒸馏水（配液用）”；<b>玻璃棒</b>先提到杯口上方、再放进杯里，按住左右拖，搅拌到固体完全溶解。', target: dissolveTarget },
+        { id: 'dissolve', title: '配成溶液', todo: '用<b>药匙</b>取 NaCl、KNO₃ 固体各少许，分别加进右边两杯“蒸馏水（配液用）”；<b>玻璃棒</b>拖到杯口上方、放进杯里，按住来回拖，搅拌到固体完全溶解。', target: dissolveTarget },
         { id: 'naL', title: '试 NaCl 溶液', todo: '先断开电源，把石墨电极放进 <b>NaCl 溶液</b>，放稳后再接通，看小灯泡。', target: () => testTarget('naL', true) },
         { id: 'kL', title: '试 KNO₃ 溶液', todo: '先断开电源，把石墨电极放进 <b>KNO₃ 溶液</b>，放稳后再接通，看小灯泡。也可以<b>钻进去看</b>。', target: () => testTarget('kL', true) },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
@@ -318,34 +349,21 @@ export default {
       if (['naS', 'kS', 'water', 'naL', 'kL'].every((id) => bar.has(id)) && !S.said.t1 && !S.demo) { S.said.t1 = true; W?.t1.open(); status('五杯都试过了。看看你的记录，在左边作答。'); }
     };
 
-    const tmp = new THREE.Vector3(), lift = (key, obj) => {
-      const T = S.tools[key];
-      if (T.motion) {
-        const p = V(...T.pos), goal = V(...T.motion.points[0]), d = goal.clone().sub(p);
-        p.addScaledVector(d, Math.min(1, (lift.dt * 0.28) / Math.max(1e-5, d.length()))); T.pos = p.toArray();
-        if (p.distanceTo(goal) < 0.0005) {
-          T.motion.points.shift();
-          if (!T.motion.points.length) { const [ev, a] = T.motion.event.split(':'); T.motion = null; if (events[ev]) { events[ev](+a); if (key !== 'head' && !T.wait) home(key); } }
-        }
-      }
-      obj.position.lerp(tmp.set(...T.pos), 1 - Math.exp(-lift.dt * 26));
-    };
-
     const step = (dt, t) => {
-      S.clock += dt; lift.dt = dt;
+      S.clock += dt;
       for (const [key, obj] of [['head', head], ['spoon', sp], ['rod', rod]]) {
         const T = S.tools[key];
-        if (T.wait > 0 && !T.motion && !T.drag) { T.wait -= dt; if (T.wait <= 0) { T.wait = 0; if (afterWait[key]) afterWait[key](); else home(key); } }
-        lift(key, obj);
+        if (T.wait > 0 && !T.go && !T.drag) { T.wait -= dt; if (T.wait <= 0) { T.wait = 0; if (afterWait[key]) afterWait[key](); else home(key); } }
+        seek(key, dt); obj.position.fromArray(T.pos);
       }
       // 电极：拿起来竖着；放回纸上躺平（转动时下端不碰桌面）
       { const a = Math.acos(clamp((head.position.y - 0.007) / head.LEN, 0, 1)); head.rotation.set(-a, 0, 0); }
       { const a = Math.acos(clamp((rod.position.y - 0.0026) / rod.len, 0, 1)); rod.rotation.set(0, 0, a); }
       // 药匙：伸进固体里取的时候柄朝上斜着（不碰杯壁）；倒的时候侧过来
       { const T = S.tools.spoon;
-        if (T.inBk && sp.position.y > 0.095 && !T.motion?.event?.startsWith('scoop')) T.inBk = false;
-        const want = T.motion?.event?.startsWith('scoop') || (T.wait > 0 && T.dumping < 0) || T.inBk ? 1 : 0;
-        T.tilt += (want - T.tilt) * Math.min(1, dt * 9); T.pour += ((T.dumping >= 0 && T.wait > 0 && !T.motion ? 1 : 0) - T.pour) * Math.min(1, dt * 7);
+        if (T.inBk && sp.position.y > 0.088 && !T.go?.event?.startsWith('scoop')) T.inBk = false;
+        const want = T.go?.event?.startsWith('scoop') || (T.wait > 0 && T.dumping < 0) || T.inBk ? 1 : 0;
+        T.tilt += (want - T.tilt) * Math.min(1, dt * 9); T.pour += ((T.dumping >= 0 && T.wait > 0 && !T.go ? 1 : 0) - T.pour) * Math.min(1, dt * 7);
         sp.rotation.set(-1.9 * T.pour, 0, 1.13 * T.tilt + 0.35 * T.pour);
         sp.load((T.na + T.k) / SCOOP);
         if (T.pour > 0.6 && T.dumping >= 0 && T.na + T.k > 0 && Math.random() < dt * 45) { const i = T.dumping; salts.spawn({ p: sp.position.clone().add(V((Math.random() - 0.5) * 0.004, -0.002, (Math.random() - 0.5) * 0.004)), v: V((Math.random() - 0.5) * 0.01, -0.02, (Math.random() - 0.5) * 0.01), size: 0.0009, life: 2, floor: S.bk[i].w ? 0.0016 : heapTop(i) }); }
@@ -386,8 +404,8 @@ export default {
           .loc(group, BULB.x, 0.135, BULB.z).show(!bar.playing && !mic.isOpen); }
       // 松手前：哪只烧杯会接收它（杯与杯之间的空隙不接收；药匙、玻璃棒只在能用的杯上亮）
       { let at = -1;
-        for (const key of ['head', 'spoon', 'rod']) { const T = S.tools[key]; if (!T.drag) continue; const i = near(T.pos[0]); if (i < 0) continue; const b = S.bk[i];
-          if (key === 'head') at = i; else if (key === 'spoon') at = T.na + T.k > 0 || (!b.w && b.na + b.k > 0) ? i : -1; else at = b.w > 0 && (T.armed || T.in >= 0) ? i : -1; }
+        for (const key of ['head', 'spoon', 'rod']) { const T = S.tools[key]; if (!T.drag) continue; const i = key === 'rod' && T.in >= 0 ? T.in : under(T.hand); if (i < 0) continue; const b = S.bk[i];
+          if (key === 'head') at = i; else if (key === 'spoon') at = T.na + T.k > 0 || (!b.w && b.na + b.k > 0) ? i : -1; else at = b.w > 0 ? i : -1; }
         ring.visible = at >= 0 && !bar.playing; if (at >= 0) ring.position.set(XS[at], 0.0009, RZ); }
       bar.near(S.near); mic.update?.(dt);
     };
@@ -414,24 +432,29 @@ export default {
         get S() { return S; }, bar, A, circuit, rSol, kindOf, bulbMark: bulb,
         picks: { head: head.pick, spoon: sp.pick, rod: rod.pick, sup: sup.pick },
         qa: qaFlow(drag, [
-          { name: '电极放进 NaCl 固体', drag: head.pick, to: () => V(XS[0], 0.16, RZ), wait: 2 },
+          { name: '电极放进 NaCl 固体', drag: head.pick, to: () => V(XS[0], 0.15, RZ), wait: 2 },
           { name: '接通电源 1', tap: sup.pick, wait: 1.5 },
           { name: '断开 1', tap: sup.pick, wait: 0.3 },
-          { name: '电极放进 KNO₃ 固体', drag: head.pick, to: () => V(XS[1], 0.16, RZ), wait: 2 },
+          { name: '电极放进 KNO₃ 固体', drag: head.pick, to: () => V(XS[1], 0.15, RZ), wait: 2 },
           { name: '接通电源 2', tap: sup.pick, wait: 1.5 },
           { name: '断开 2', tap: sup.pick, wait: 0.3 },
-          { name: '电极放进蒸馏水', drag: head.pick, to: () => V(XS[2], 0.16, RZ), wait: 2 },
+          { name: '电极放进蒸馏水', drag: head.pick, to: () => V(XS[2], 0.15, RZ), wait: 2 },
           { name: '接通电源 3', tap: sup.pick, wait: 1.5 },
           { name: '断开 3', tap: sup.pick, wait: 0.3 },
           { name: '取 NaCl', drag: sp.pick, to: () => V(XS[0], 0.1, SZ), wait: 3 },
           { name: '加进 D', drag: sp.pick, to: () => V(XS[3], 0.1, SZ), wait: 4 },
           { name: '取 KNO₃', drag: sp.pick, to: () => V(XS[1], 0.1, SZ), wait: 3 },
           { name: '加进 E', drag: sp.pick, to: () => V(XS[4], 0.1, SZ), wait: 4 },
-          ...[3, 3, 4, 4].map((i, j) => ({ name: `搅拌 ${j}`, run: () => { const d = drag.items().find((x) => x.obj === rod.pick); d.onStart(); for (const p of stirPts(i, 16).slice(2)) d.onDrag(p.clone ? p.clone() : p()); d.onEnd(true); }, wait: 2.5 })),
-          { name: '电极放进 NaCl 溶液', drag: head.pick, to: () => V(XS[3], 0.16, RZ), wait: 2 },
+          // 玻璃棒：拿起来拖到杯口上方（放进杯里），按住来回拖几轮，再拖到另一杯，最后松手
+          ...[3, 4].flatMap((i) => [
+            { name: `玻璃棒放进 ${'DE'[i - 3]}`, run: () => { const d = drag.items().find((x) => x.obj === rod.pick); if (!S.tools.rod.drag) d.onStart(toolXYZ('rod')); d.onDrag(V(XS[i], ROD_FREE, SZ)); }, wait: 1.5 },
+            ...[0, 1, 2].map((j) => ({ name: `搅拌 ${'DE'[i - 3]}-${j}`, run: () => { const d = drag.items().find((x) => x.obj === rod.pick); for (let n = 0; n < 16; n++) d.onDrag(V(XS[i] + (n % 2 ? 0.011 : -0.011), ROD_FREE, SZ)); d.onDrag(V(XS[i], ROD_FREE, SZ)); }, wait: 1.5 })),
+          ]),
+          { name: '放下玻璃棒', run: () => drag.items().find((x) => x.obj === rod.pick).onEnd(true), wait: 1 },
+          { name: '电极放进 NaCl 溶液', drag: head.pick, to: () => V(XS[3], 0.15, RZ), wait: 2 },
           { name: '接通电源 4', tap: sup.pick, wait: 1.5 },
           { name: '断开 4', tap: sup.pick, wait: 0.3 },
-          { name: '电极放进 KNO₃ 溶液', drag: head.pick, to: () => V(XS[4], 0.16, RZ), wait: 2 },
+          { name: '电极放进 KNO₃ 溶液', drag: head.pick, to: () => V(XS[4], 0.15, RZ), wait: 2 },
           { name: '接通电源 5', tap: sup.pick, wait: 1.5 },
           { name: '钻进去看', run: () => mic.open(), wait: 4 },
           { name: '合上', run: () => mic.close(), wait: 1 },

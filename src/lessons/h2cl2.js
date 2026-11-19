@@ -183,7 +183,7 @@ export default {
         onStart: () => { S.drag = true; S.motion = null; },
         onDrag: (p) => { S.tip = constrain(p).toArray(); },
         onEnd: () => { S.drag = false; const p = V(...S.tip); if (p.distanceTo(TIP_LAMP) < 0.02) S.motion = TIP_LAMP.toArray(); } },
-    ], { tip: tag('', 'pill'), highlight: true, taps: [{ obj: jarPick, enabled: () => spoiled() && !bar.playing, hint: () => (badRound() ? '集气瓶：这一轮做坏了，点一下换一瓶新的氯气' : '集气瓶：点一下换一瓶新的氯气，再做一遍'), onTap: () => A.swapJar() }, { obj: platePick, hint: () => (S.open ? '玻璃片：点一下盖回去' : '玻璃片：点一下推到一边'), onTap: () => A.tapPlate() }] });
+    ], { tip: tag('', 'pill'), taps: [{ obj: jarPick, enabled: () => spoiled() && !bar.playing, hint: () => (badRound() ? '集气瓶：这一轮做坏了，点一下换一瓶新的氯气' : '集气瓶：点一下换一瓶新的氯气，再做一遍'), onTap: () => A.swapJar() }, { obj: platePick, hint: () => (S.open ? '玻璃片：点一下盖回去' : '玻璃片：点一下推到一边'), onTap: () => A.tapPlate() }] });
     const act = demoActs(drag, group);
     const compOf = (g) => { const s = Math.max(1e-6, sum(g)); return { h2: g.h2 / s, cl: g.cl / s, hcl: g.hcl / s, air: g.air / s }; };
     const mic = micro({ tag, look, back, group, scene: h2cl2Scene(), at: () => V(JX, JH + 0.025, 0), btnAt: () => V(JX + 0.048, 0.035, 0), label: '钻进去看',

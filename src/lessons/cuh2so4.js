@@ -363,7 +363,7 @@ export default {
         onStart: () => { S.cyl.drag = true; },
         onDrag: (p) => { S.cyl.pos = [clamp(p.x, -0.2, 0.17), clamp(p.y, 0, 0.3), CYL_HOME.z]; },
         onEnd: () => { const C = S.cyl; C.drag = false; const b = cylBase(); if (Math.abs(b.x - MOUTH0.x) < 0.07 && b.y > 0.09) C.anim = { t: 0, from: b }; else C.pos = CYL_HOME.toArray(); } },
-    ], { tip: tag('', 'pill'), highlight: true, taps: [
+    ], { tip: tag('', 'pill'), taps: [
       { obj: lampPick, hint: () => (S.lit ? '酒精灯：点一下，盖上灯帽熄灭' : '酒精灯：点一下，取下灯帽点燃'), onTap: () => A.lamp() },
       { obj: cottonPick, hint: () => (S.cotton ? '浸 NaOH 溶液的棉团：点一下拿掉' : '棉团：点一下放回管口'), onTap: () => A.cotton() },
       { obj: plugPick, hint: () => (S.pour ? '' : S.plug === 'in' ? '橡胶塞：点一下拔出来（连着铜丝和导管）' : '橡胶塞：点一下塞回去'), onTap: () => A.plug() },

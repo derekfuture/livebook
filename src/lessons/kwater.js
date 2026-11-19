@@ -8,7 +8,8 @@ import * as THREE from 'three';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs, mountXuean, moreBox } from './kit/chemlesson.js';
 import { draggable, clamp } from './kit/interact.js';
-import { tweezers, metalWater, alkaliScene, NAM, KM } from './kit/sodium.js';
+import { tweezers, metalWater, alkaliScene, NAM, KM, reach } from './kit/sodium.js';
+import { homeLift } from './kit/labops.js';
 import { micro } from './kit/microworld.js';
 import { textPlate } from './kit/props.js';
 import { paint, inked } from '../live/ink.js';
@@ -20,6 +21,8 @@ const CUP = { na: V(-0.075, 0, -0.01), k: V(0.075, 0, -0.01) };
 const PAPER = V(0, 0.002, 0.065), TW = V(-0.032, 0.003, 0.108);
 const PIECE = { na: V(-0.014, 0.006, 0.065), k: V(0.014, 0.006, 0.065) };
 const NAME = { na: '钠', k: '钾' }, MASS = { na: NAM.mass, k: KM.mass };
+// 镊子跟手：拖动平面在镊尖原处的高度；镊尖离桌面 CLR；GRAB：qa 真鼠标按在拾取盒中间时，手和镊尖之差
+const CLR = 0.008, GRAB_TW = V(-0.03, 0, 0);
 // 平放在纸上的字牌：字号按牌子大小定（textPlate 的画布总是 512 宽）
 const plate = (text, w, h) => textPlate(text, { w, h, color: '#23293a', bg: '#fffaf0', font: `bold ${Math.floor(Math.min(0.8 * 512 * h / w, 0.82 * 512 / text.length))}px "Songti SC", serif` });
 const WORD = { float: '浮在水面', melt: '熔成闪亮的小球', move: '四处游动', hiss: '嘶嘶响', red: '溶液变红', fire: '<b>着火，火焰带紫色，冒白烟</b>' };
@@ -70,7 +73,7 @@ export default {
     const tw = tweezers(); tw.position.copy(TW); group.add(tw);
     const held = inked(new THREE.Mesh(new THREE.BoxGeometry(0.009, 0.006, 0.008), metalMat), { width: 0.5 }); held.position.x = -0.006; held.visible = false; tw.add(held);
 
-    const fresh = () => ({ demo: false, near: false, tw: { pos: TW.toArray(), drag: false, motion: null }, held: '', used: { na: false, k: false }, rig: { na: rigs.na.fresh(), k: rigs.k.fresh() }, row: { na: -1, k: -1 }, saw: { na: [], k: [] } });
+    const fresh = () => ({ demo: false, near: false, tw: { drag: false, hand: null, grab: [0, 0, 0] }, held: '', used: { na: false, k: false }, rig: { na: rigs.na.fresh(), k: rigs.k.fresh() }, row: { na: -1, k: -1 }, saw: { na: [], k: [] } });
     S = fresh();
     const bind = () => { rigs.na.s = S.rig.na; rigs.k.s = S.rig.k; };
     bind();
@@ -85,33 +88,54 @@ export default {
       if (key === 'k' && k === 'fire') status('钾<b>着火了</b>，还冒白烟——比钠剧烈得多。注意：不要近距离俯视烧杯。');
     }
 
-    // ---- 镊子：拖过去松手。靠近哪块就夹起哪块（夹起后放回手边），靠近对应的烧杯就投进去 ----
-    const DOCK = { na: () => PIECE.na.clone().add(V(0.006, 0.001, 0)), k: () => PIECE.k.clone().add(V(0.006, 0.001, 0)), cupna: () => CUP.na.clone().add(V(0.004, rigs.na.LEVEL + 0.012, 0)), cupk: () => CUP.k.clone().add(V(0.004, rigs.k.LEVEL + 0.012, 0)) };
-    const travel = (dest, event) => { const t = S.tw, p = V(...t.pos), up = Math.max(0.115, p.y, dest.y + 0.025); t.drag = false; t.motion = { points: [V(p.x, up, p.z).toArray(), V(dest.x, up, dest.z).toArray(), dest.toArray()], event }; };
-    const home = () => travel(TW.clone(), '');
+    // ---- 镊子跟手：镊尖落在光标射线碰到的第一个面上（桌面、小块、杯口），总在手底下。镊尖碰到小块就夹起（可以直接带走），
+    //      在对应烧杯口上方松手就投进去；别的地方松手，很快放回原处 ----
+    const RH = reach(group);
+    const solids = () => [
+      { id: 'na', c: CUP.na, r: rigs.na.R + 0.0018, h: rigs.na.H }, { id: 'k', c: CUP.k, r: rigs.k.R + 0.0018, h: rigs.k.H },
+      ...['na', 'k'].filter((k) => pieces[k].visible).map((k) => ({ id: 'p' + k, c: PIECE[k].clone().setY(0.003), r: 0.006, h: 0.006 })),
+    ];
+    const CUPS = ['na', 'k'].map((k) => ({ c: CUP[k], r: rigs[k].R - 0.002, h: rigs[k].H }));
+    const blocked = (p) => solids().some((s) => p.y < s.c.y + s.h + 0.003 && Math.hypot(clamp(s.c.x, p.x - 0.011, p.x + 0.075) - s.c.x, p.z - s.c.z) < s.r + 0.004);          // 平放的镊子身子会不会碰到东西：碰到就竖起来
+    function aimTw() {
+      const t = S.tw, q = V(...t.hand).add(V(...t.grab)), h = RH.hit(RH.ray(q), solids(), { clr: CLR });
+      if (!h) return { zone: '', T: TW.clone(), rot: 0 };
+      const p = h.p, id = h.s?.id;
+      if ((id === 'na' || id === 'k') && h.top) {          // 杯口：夹着这一杯的金属就伸进去，贴近水面
+        const down = S.held === id;
+        return { zone: 'cup', k: id, T: down ? CUP[id].clone().add(V(0.004 + clamp(p.x - CUP[id].x - 0.004, -0.008, 0.008), rigs[id].LEVEL + 0.012, clamp(p.z - CUP[id].z, -0.008, 0.008))) : p, rot: 1 };
+      }
+      for (const k of ['na', 'k']) if ((!S.held && !S.used[k] && RH.xz(p, PIECE[k]) < 0.012) || (S.held === k && RH.xz(p, PIECE[k]) < 0.024)) return { zone: 'piece', k, T: PIECE[k].clone().add(V(0, 0.006, 0)), rot: 1 };          // 镊尖碰到小块
+      return { zone: '', T: p, rot: (h.s && !h.top) || blocked(p) ? 1 : 0 };          // 碰着侧面：竖着拿
+    }
+    const take = (k) => { if (S.held || S.used[k]) return; events.take(k); };
+    const put = (k) => { if (S.held !== k) return; events.put(k); };
+    const release = () => {
+      const t = S.tw; if (!t.hand) { t.drag = false; return; }
+      const a = aimTw(); t.drag = false; t.hand = null;
+      if (a.zone === 'piece') take(a.k);
+      else if (a.zone === 'cup' && S.held) { if (S.held !== a.k) status(`这一杯留给${NAME[a.k]}：两种金属一左一右对比。`); else put(a.k); }
+    };
     const events = {
       take: (k) => { S.held = k; sfx.clink({ freq: 1800, gain: 0.02 }); status(`镊子夹起了绿豆大的${NAME[k]}。拖到${k === 'na' ? '左边' : '右边'}烧杯上方，松手投进去。`); },
       put: (k) => { S.held = ''; S.used[k] = true; rigs[k].drop(MASS[k], 0.004, 0); done(k); sfx.clink({ freq: 1400, gain: 0.02 }); status(k === 'k' ? '钾投进去了：看它和钠有什么不同。不要近距离俯视烧杯。' : `钠投进去了：回忆一下它在水里的样子。${S.used.k ? '' : '再夹起钾，投进右边烧杯。'}`); },
     };
-    const release = () => {
-      const p = V(...S.tw.pos);
-      if (!S.held) {
-        for (const k of ['na', 'k']) if (!S.used[k] && Math.abs(p.x - PIECE[k].x) < 0.022 && p.y < 0.06) return travel(DOCK[k](), `take:${k}`);
-        return home();
-      }
-      for (const k of ['na', 'k']) if (Math.abs(p.x - CUP[k].x) < 0.05 && p.y > 0.03) {
-        if (S.held !== k) { status(`这一杯留给${NAME[k]}：两种金属一左一右对比。`); return home(); }
-        return travel(DOCK[`cup${k}`](), `put:${k}`);
-      }
-      home();
+    // 放回原处：在杯里先竖直提出来；回去的直线会穿过烧杯就先抬过它
+    const homeTw = (a) => {
+      const o = tw.position, k = CUPS.find((c) => RH.inside(o, c));
+      if (k) return RH.move(tw, V(o.x, k.c.y + k.h + 0.008, o.z), a, CUPS);
+      const dx = TW.x - o.x, dz = TW.z - o.z, L2 = dx * dx + dz * dz || 1e-9;
+      let lift = 0;
+      for (const s of solids()) { const u = clamp(((s.c.x - o.x) * dx + (s.c.z - o.z) * dz) / L2, 0, 1); if (Math.hypot(o.x + dx * u - s.c.x, o.z + dz * u - s.c.z) < s.r + 0.012 && o.y < s.c.y + s.h + 0.01) lift = Math.max(lift, s.c.y + s.h + 0.015 - TW.y); }
+      homeLift(tw, TW, a, lift);
     };
+    const twHint = () => (S.near ? '' : S.held ? `镊子：拖到${S.held === 'na' ? '左边' : '右边'}烧杯上方，松手投进去` : '镊子：镊尖碰到滤纸上的小块就夹起（不要用手直接接触）');
     const drag = draggable(group, [
-      { obj: tw.pick, plane: 'xy', offset: 0.06, keepOffset: true, anchor: tw,
-        hint: () => (S.near ? '' : S.held ? `镊子：拖到${S.held === 'na' ? '左边' : '右边'}烧杯上方，松手投进去` : '镊子：拖到滤纸上的小块，松手夹起（不要用手直接接触）'),
-        onStart: () => { S.tw.drag = true; S.tw.motion = null; },
-        onDrag: (p) => { S.tw.pos = [clamp(p.x, -0.17, 0.17), clamp(p.y, 0.008, 0.2), 0.06]; },
-        onEnd: (moved) => { S.tw.drag = false; if (moved) release(); else home(); } },
-    ], { tip: tag('', 'pill'), highlight: true });
+      { obj: tw.pick, plane: 'xz', offset: TW.y, hint: twHint,
+        onStart: (p) => { if (!p) return; const g = tw.position.clone().sub(p).setY(0); S.tw.drag = true; S.tw.hand = p.toArray(); S.tw.grab = (g.length() < 0.075 ? g : GRAB_TW).toArray(); },
+        onDrag: (p) => { if (p) S.tw.hand = p.toArray(); },
+        onEnd: () => release(), onTap: () => status(twHint()) },
+    ], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: alkaliScene(), at: () => V(0, 0.115, -0.01), btnAt: () => V(0, 0.092, -0.01), label: '钻进去看原子',
       state: () => ({ na: S.rig.na.total > 0, k: S.rig.k.total > 0 }), key: () => `${S.rig.na.total > 0}|${S.rig.k.total > 0}`, bar: () => bar, scale: 0.0085, lookD: [0.02, 0.18, 1], dist: 0.27 });
@@ -122,7 +146,9 @@ export default {
       reset() { if (bar.playing) bar.stop(); S = fresh(); bind(); rigs.na.reset(); rigs.k.reset(); bind(); tw.position.copy(TW); tw.rotation.set(0, 0, 0); mic.close(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.t3.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('na', 'k', 'compare', 'why'); status('两杯水和两小块金属都换新的了。'); },
     };
     // 演示：镊子沿路线拿过去（和学生拖的同一套处理）
-    const demoPath = (to, t0, t1) => act.path(tw.pick, [null, () => V(tw.position.x, 0.14, 0.06), () => to().setY(Math.max(0.14, to().y)), to], { t0, t1, release: t1 + 0.02 });
+    // 演示：手拿着镊子拖过去（学生拖动的同一套处理）：碰一下小块夹起，停一下，再到烧杯口上方松手
+    const pieceTop = (k) => V(PIECE[k].x, 0.017, PIECE[k].z), cupTop = (k) => V(CUP[k].x + 0.004, rigs[k].H + CLR, CUP[k].z);
+    const demoTrip = (k, t1, release) => act.path(tw.pick, [() => tw.position.clone(), [() => pieceTop(k), 0.08], () => cupTop(k)], { t0: 0.03, t1, release });
     const bar = lessonBar({
       look, back, group,
       steps: [
@@ -134,11 +160,11 @@ export default {
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
-          ...sandbox({ get: () => S, set: (s) => { S = s; bind(); }, fresh, bar: () => bar, apply: () => { bind(); rigs.na.clearFx(); rigs.k.clearFx(); tw.position.fromArray(S.tw.pos); mic.close(); },
+          ...sandbox({ get: () => S, set: (s) => { S = s; bind(); }, fresh, bar: () => bar, apply: () => { bind(); rigs.na.clearFx(); rigs.k.clearFx(); tw.position.copy(TW); tw.rotation.set(0, 0, 0); mic.close(); },
             view: { save: () => (mic.isOpen ? 'micro' : null), restore: () => mic.open() } }),          // 演示前开着钻进去看，演示完再打开
           shots: [
-            { cap: '回忆：绿豆大的钠投进滴了酚酞的水里——浮在水面、熔成小球、四处游动、嘶嘶响、溶液变红。', dur: 8, cam: [[-0.04, 0.05, 0.02], [0.02, 0.4, 1], 0.3], during: act.seq(demoPath(DOCK.na, 0.03, 0.22), demoPath(() => DOCK.cupna().setY(0.12), 0.42, 0.58)) },
-            { cap: '钾（由教师演示）：同样浮、熔、游、响、变红，但熔得更快、游得更急，一两秒就着火，冒白烟。', dur: 9, cam: [[0.04, 0.05, 0.02], [0.02, 0.4, 1], 0.3], during: act.seq(demoPath(DOCK.k, 0.03, 0.2), demoPath(() => DOCK.cupk().setY(0.12), 0.38, 0.52)) },
+            { cap: '回忆：绿豆大的钠投进滴了酚酞的水里——浮在水面、熔成小球、四处游动、嘶嘶响、溶液变红。', dur: 8, cam: [[-0.04, 0.05, 0.02], [0.02, 0.4, 1], 0.3], during: demoTrip('na', 0.45, 0.56) },
+            { cap: '钾（由教师演示）：同样浮、熔、游、响、变红，但熔得更快、游得更急，一两秒就着火，冒白烟。', dur: 9, cam: [[0.04, 0.05, 0.02], [0.02, 0.4, 1], 0.3], during: demoTrip('k', 0.4, 0.5) },
             { cap: '钻进去看：钾比钠多一个电子层，原子半径更大，最外层电子离核更远、受的引力更弱，更容易失去——金属性更强。演示完了，换你自己做。', dur: 10, cam: [[0, 0.12, 0], [0.02, 0.3, 1], 0.34], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
           ],
         },
@@ -147,18 +173,12 @@ export default {
     const pointer = wrapPointer(drag, bar);
 
     const step = (dt, t) => {
-      const T = S.tw;
-      if (T.motion) {
-        const p = V(...T.pos), goal = V(...T.motion.points[0]), d = goal.clone().sub(p);
-        p.addScaledVector(d, Math.min(1, dt * 0.26 / Math.max(0.00001, d.length()))); T.pos = p.toArray();
-        if (p.distanceTo(goal) < 0.0005) {
-          T.motion.points.shift();
-          if (!T.motion.points.length) { const [ev, k] = T.motion.event.split(':'); T.motion = null; if (events[ev]) { events[ev](k); home(); } }
-        }
-      }
-      tw.position.lerp(V(...T.pos), 1 - Math.exp(-dt * 26));
-      const overCup = ['na', 'k'].some((k) => Math.abs(tw.position.x - CUP[k].x) < 0.045) && tw.position.z < 0.035 && tw.position.y < 0.14;
-      tw.rotation.z += ((overCup ? Math.PI / 2 : 0) - tw.rotation.z) * Math.min(1, dt * 12);
+      // 镊子：拿着就跟手（指数约 25/s），松手很快放回原处；镊尖碰到小块就夹起
+      const T = S.tw, aF = 1 - Math.exp(-dt * 25), aH = 1 - Math.exp(-dt * 17);
+      let rot = 0;
+      if (T.drag && T.hand) { const a = aimTw(); rot = a.rot; RH.move(tw, a.T, aF, CUPS); if (a.zone === 'piece' && tw.position.distanceTo(a.T) < 0.005) take(a.k); }
+      else homeTw(aH);
+      tw.rotation.z += (rot * Math.PI / 2 - tw.rotation.z) * (1 - Math.exp(-dt * 14));
       held.visible = !!S.held;
       for (const k of ['na', 'k']) pieces[k].visible = !S.used[k] && S.held !== k;
       rigs.na.step(dt, t); rigs.k.step(dt, t);
@@ -197,10 +217,11 @@ export default {
         get S() { return S; }, bar, A, rigs, kcup: kMark,
         picks: { tw: tw.pick },
         qa: qaFlow(drag, [
-          { name: '夹钠', drag: tw.pick, to: () => DOCK.na(), wait: 2.5 },
-          { name: '投钠', drag: tw.pick, to: () => DOCK.cupna().setY(0.12), wait: 2.5 },
-          { name: '夹钾', drag: tw.pick, to: () => DOCK.k(), wait: 2.5 },
-          { name: '投钾', drag: tw.pick, to: () => DOCK.cupk().setY(0.12), wait: 3, scale: 1 },
+          // 真鼠标按在镊子拾取盒中间（手在镊尖右边 3 cm），让镊尖落到小块上、杯口上
+          { name: '夹钠', drag: tw.pick, to: () => RH.aim(pieceTop('na'), TW.y, GRAB_TW), wait: 2.5 },
+          { name: '投钠', drag: tw.pick, to: () => RH.aim(cupTop('na'), TW.y, GRAB_TW), wait: 2.5 },
+          { name: '夹钾', drag: tw.pick, to: () => RH.aim(pieceTop('k'), TW.y, GRAB_TW), wait: 2.5 },
+          { name: '投钾', drag: tw.pick, to: () => RH.aim(cupTop('k'), TW.y, GRAB_TW), wait: 3, scale: 1 },
           { name: '钻进去看', run: () => mic.open(), wait: 4 },
           { name: '合上', run: () => mic.close(), wait: 1 },
           { name: '等反应完', run: () => {}, wait: 24 },

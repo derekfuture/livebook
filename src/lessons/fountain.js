@@ -39,7 +39,7 @@ const MOUNT = V(0, CY - PIV, 0);                   // 装好以后塞子中心�
 const HOME = V(0.19, 0.0432 + PIV, 0);            // 软木圈上正放时塞子中心
 const BK = V(0, 0.016, 0), BR = 0.042, BH = 0.095, BRI = BR - 0.0012, BV0 = 380;      // 烧杯在铁架台底座上，380 mL 水
 const D_BOT = V(0.12, 0, 0.09), D_Y = BK.y + BH + 0.02;
-const JAW_Y = 0.27, FLIPX = 0.14, HIGH = 0.345;
+const JAW_Y = 0.27;
 // ---- 物理 ----
 const SOL = 700, KB = 1.8e-5, VM = 24.0, A_T = Math.PI * 0.002 ** 2, CD = 0.3, RHO = 1000, G = 9.81, P0 = 101325;
 const FULL = 0.98;                                 // “充满”：氨气按 98% 计
@@ -161,6 +161,7 @@ export default {
     }
     const dPick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.06, 8), new THREE.MeshBasicMaterial({ visible: false })); dPick.position.y = 0.03; dPick.userData.pick = true; dropper.add(dPick);
     dropper.position.copy(bottle.tipHome);
+    const dHand = new THREE.Object3D(); dHand.position.copy(bottle.tipHome); group.add(dHand);          // 手：拿着时在拖动平面上（滴管提起来在它上方），没拿着时在滴管的原点
 
     // ================= 粒子：滴下的酚酞、滴管喷进去的水、喷泉的水花、漏进来的气泡 =================
     const dropsP = new Particles({ max: 40, geometry: new THREE.SphereGeometry(1, 6, 5), material: water2({ color: 0xe8eef0, base: 0.6 }) }); dropsP.mesh.renderOrder = 9.6; group.add(dropsP.mesh);
@@ -190,8 +191,8 @@ export default {
     };
     const fresh = (c = cond, ch = charge(c)) => ({
       demo: false, near: false, full: c.full, leak: c.leak, wet: c.wet,
-      ind: 0, dCarry: null, dripT: 0.3,
-      fl: { piv: HOME.toArray(), rot: 0, drag: false, motion: null }, mounted: false,
+      ind: 0, dCarry: null, dGrabY: 0, dripT: 0.3,
+      fl: { piv: HOME.toArray(), rot: 0, drag: false, go: null }, mounted: false,
       clampOpen: false, bulbW: 1, squeeze: 0, squeezed: false,
       nN: ch.nN, nA: ch.nA, Vl: ch.Vw, Vind: 0, D: ch.D, beakV: BV0, Q: 0, P: 1, leakQ: 0, tubeQ: 0,
       started: false, redSeen: false, quietT: 0, waitT: 0, ended: false, said: {},
@@ -215,7 +216,29 @@ export default {
 
     // ================= 操作 =================
     const overMouth = () => Math.hypot(dropper.position.x - BK.x, dropper.position.z - BK.z) < BRI - 0.006 && Math.abs(dropper.position.y - D_Y) < 0.003;
-    const travel = (pts, event) => { S.fl.drag = false; S.fl.motion = { pts: pts.map((p) => p.slice()), event }; };
+    // 烧瓶：手抓着球，烧瓶跟着手走；往铁架台那边移的时候跟着位置倒过来（绕球心转）。
+    //   玻璃管、球不碰桌面；玻璃管末端在烧杯口外圈时要高过杯口，在杯口里面才能往下放；玻璃管插在水里时只能竖直上下
+    const PL = () => PIV + (S.leak ? 0.004 : 0);
+    const rotV = (x, y, r) => V(x * Math.cos(r) - y * Math.sin(r), x * Math.sin(r) + y * Math.cos(r));
+    const rotAt = (cx) => { const u = clamp((0.175 - cx) / 0.055, 0, 1); return -Math.PI * u * u * (3 - 2 * u); };          // 球心 x：0.175 以右正放，0.12 以左倒置
+    const endOf = (c, r) => c.clone().add(rotV(TX, TEND + (S.leak ? 0.004 : 0), r));          // 玻璃管末端
+    const inMouth = (x) => Math.abs(x - BK.x) < BRI - 0.004;
+    const seatY = () => MOUNT.y + PL();          // 装好时球心的高度
+    const floorY = (cx, r) => {
+      const e = rotV(TX, TEND + (S.leak ? 0.004 : 0), r), ex = cx + e.x;
+      let y = Math.max(HOME.y - PIV, 0.005 - e.y);
+      const d = Math.abs(ex - BK.x), rim = BK.y + BH + 0.004 - e.y;
+      if (d < BR + 0.006) y = Math.max(y, inMouth(ex) ? seatY() : rim);
+      else if (d < BR + 0.03) { const u = (BR + 0.03 - d) / 0.024; y = Math.max(y, y + (rim - y) * u * u * (3 - 2 * u)); }          // 靠近杯口外圈：连续地抬高，不跳
+      return y;
+    };
+    // 手想把球心放到哪儿（玻璃管插在水里时只能竖直上下）：[x, y, 转角]
+    const flaskWant = () => {
+      const c = fCenter(), e = endOf(c, S.fl.rot), h = S.fl.hand || [c.x, c.y];
+      const x = inMouth(e.x) && e.y < BK.y + BH + 0.002 ? MOUNT.x : clamp(h[0], -0.03, 0.22), r = rotAt(x);
+      return [x, clamp(h[1], floorY(x, r), 0.47), r];
+    };
+    const setC = (cx, cy, r) => { const c = V(cx, cy); S.fl.rot = r; const pv = c.add(rotV(0, PL(), r)); S.fl.piv = [pv.x, pv.y, 0]; };
     const A = {
       dDrag(p) { if (p) S.dCarry = p.clone(); },
       dDrop() { S.dCarry = null; },
@@ -225,13 +248,10 @@ export default {
         S.ind = Math.min(6, S.ind + 1);
         if (S.ind === 3) { done('ind'); log('ind', ['向烧杯的水里滴入几滴酚酞溶液', '水仍是<b>无色</b>', '水不显碱性，酚酞不变色']); status('滴入了几滴酚酞溶液：烧杯里的水还是<b>无色</b>的。接着把<b>烧瓶</b>拖到铁架台上，倒置，让玻璃管插进烧杯的水里。'); }
       },
-      flaskDrop(moved) {
-        const c = fCenter();
-        if (moved && c.x < 0.115) {
-          const p = S.fl.piv;
-          return travel([[FLIPX, Math.max(p[1], 0.235), 0], [FLIPX, 0.235, -Math.PI], [FLIPX, HIGH, -Math.PI], [MOUNT.x, HIGH, -Math.PI], [MOUNT.x, MOUNT.y, -Math.PI]], 'mount');
-        }
-        travel([[HOME.x, S.fl.piv[1], 0], [HOME.x, HOME.y, 0]], 'home');
+      // 松手：倒置了、玻璃管末端在烧杯口范围内 → 竖直放下去，夹进铁夹；别处 → 很快放回软木圈上（按手放到的地方判断）
+      flaskDrop() {
+        const [x, y, r] = flaskWant(), end = endOf(V(x, y), r);
+        S.fl.go = r < -Math.PI + 0.05 && Math.abs(end.x - BK.x) < BR ? 'mount' : 'home'; S.fl.hand = null;
       },
       mounted() {
         S.mounted = true; done('mount'); sfx.clink({ freq: 900, gain: 0.02 });
@@ -283,18 +303,16 @@ export default {
     sync();
 
     const drag = draggable(group, [
-      { obj: dPick, plane: 'xz', offset: D_Y, hint: '酚酞溶液：拖到烧杯口上方，按住不放——一滴一滴地滴', onStart: (p) => A.dDrag(p), onDrag: (p) => A.dDrag(p), onEnd: () => A.dDrop() },
-      { obj: flaskPick, plane: 'xy', offset: 0, keepOffset: true, anchor: flask, enabled: () => !S.mounted && !S.fl.motion,
-        hint: () => (S.mounted ? '' : '烧瓶：拖到铁架台那边松手——倒置烧瓶，使玻璃管插入烧杯的水中'),
-        onStart: () => { S.fl.drag = true; S.fl.motion = null; },
-        onDrag: (p) => {
-          const x = clamp(p.x, 0.06, 0.22), yMin = HOME.y - PIV + (0.158 - (HOME.y - PIV)) * clamp((0.135 - x) / 0.04, 0, 1);
-          S.fl.piv = [x, clamp(p.y, yMin, 0.2) + PIV, 0];
-        },
-        onEnd: (moved) => { S.fl.drag = false; A.flaskDrop(moved); } },
-    ], { tip: tag('', 'pill'), highlight: true, taps: [
-      { obj: clipPick, hint: () => (S.clampOpen ? '弹簧夹：开着。点一下夹上' : '弹簧夹：点一下打开'), enabled: () => !S.fl.motion && !S.fl.drag, onTap: () => A.clip() },
-      { obj: bulbPick, hint: () => (S.bulbW > 0 ? '胶头滴管（预先吸入了水）：点一下挤压，使水进入烧瓶' : '胶头滴管：水已经挤完了'), enabled: () => !S.fl.motion && !S.fl.drag, onTap: () => A.squeeze() },
+      // 拖动平面：按下去时滴管所在高度的水平面；记住抓的地方——按住先竖直提出滴瓶，再跟着手平移（不往镜头前面跳）
+      { obj: dPick, plane: 'xz', get offset() { return S.dCarry ? S.dGrabY : dropper.position.y; }, keepOffset: true, anchor: dHand, hint: '酚酞溶液：拖到烧杯口上方，按住不放——一滴一滴地滴', onStart: (p) => { S.dGrabY = dropper.position.y; A.dDrag(p || dropper.position); }, onDrag: (p) => A.dDrag(p), onEnd: () => A.dDrop() },
+      { obj: flaskPick, plane: 'xy', offset: 0, keepOffset: true, anchor: flask, enabled: () => !S.mounted && S.fl.go !== 'mount',
+        hint: () => (S.mounted ? '' : '烧瓶：拖向铁架台，移过去时倒过来；玻璃管对准烧杯口松手'),
+        onStart: (p) => { S.fl.drag = true; S.fl.go = null; S.fl.hand = p ? [p.x, p.y] : null; },
+        onDrag: (p) => { if (p) S.fl.hand = [p.x, p.y]; },
+        onEnd: () => { S.fl.drag = false; A.flaskDrop(); } },
+    ], { tip: tag('', 'pill'), taps: [
+      { obj: clipPick, hint: () => (S.clampOpen ? '弹簧夹：开着。点一下夹上' : '弹簧夹：点一下打开'), enabled: () => !S.fl.go && !S.fl.drag, onTap: () => A.clip() },
+      { obj: bulbPick, hint: () => (S.bulbW > 0 ? '胶头滴管（预先吸入了水）：点一下挤压，使水进入烧瓶' : '胶头滴管：水已经挤完了'), enabled: () => !S.fl.go && !S.fl.drag, onTap: () => A.squeeze() },
     ] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: fountainScene(), at: () => fCenter().add(V(0, 0.02, 0)), btnAt: () => fCenter().add(V(0.058, 0.03, 0.01)), label: '钻进去看',
@@ -307,7 +325,7 @@ export default {
       look, back, group,
       steps: [
         { id: 'ind', title: '滴入酚酞', todo: '把<b>酚酞溶液</b>的滴管拖到烧杯口上方，按住，往烧杯的水里滴入少量（几滴）。', target: () => (S.dCarry ? null : dropper) },
-        { id: 'mount', title: '倒置烧瓶', todo: '把<b>烧瓶</b>拖到铁架台那边松手：倒置烧瓶，使玻璃管插入烧杯的水中。', target: () => (S.fl.motion || S.fl.drag ? null : flask) },
+        { id: 'mount', title: '倒置烧瓶', todo: '把<b>烧瓶</b>拖向铁架台，移过去时倒过来；玻璃管对准烧杯口松手：倒置烧瓶，使玻璃管插入烧杯的水中。', target: () => (S.fl.go || S.fl.drag ? null : flask) },
         { id: 'open', title: '打开弹簧夹', todo: '点一下乳胶管上的<b>弹簧夹</b>，把它打开。', target: () => clip },
         { id: 'squeeze', title: '挤压胶头滴管', todo: '点一下<b>胶头滴管</b>的橡胶帽：挤压，使水进入烧瓶。', target: () => bulb },
         { id: 'watch', title: '观察', todo: '观察烧瓶里的现象：水怎样进来？颜色怎样？也可以<b>钻进去看</b>。', target: () => null },
@@ -320,7 +338,7 @@ export default {
             view: { save: () => (mic.isOpen ? { mic: true } : null), restore: (v) => { if (v.mic) mic.open(); } } }),
           shots: [
             { cap: '向烧杯的水里滴入少量酚酞溶液：水仍是无色。', dur: 6, cam: [[0.05, 0.12, 0.04], [0.05, 0.3, 1], 0.42], during: act.drag(dPick, overBk, { t0: 0.05, t1: 0.3, release: 0.95, until: () => S.ind >= 3 }) },
-            { cap: '烧瓶里充满了氨气（绿点是氨分子，示意）。倒置烧瓶，使玻璃管插入烧杯的水中。', dur: 8, during: act.path(flaskPick, [null, () => V(0.15, 0.12, 0), () => V(0.1, 0.17, 0)], { t0: 0.05, t1: 0.22, release: 0.24 }) },
+            { cap: '烧瓶里充满了氨气（绿点是氨分子，示意）。倒置烧瓶，使玻璃管插入烧杯的水中。', dur: 8, during: act.path(flaskPick, [() => flask.position.clone(), V(0.19, 0.2, 0), V(0.1, 0.44, 0), V(0.004, 0.44, 0), V(0, 0.36, 0)], { t0: 0.05, t1: 0.4, release: 0.42 }) },
             { cap: '打开弹簧夹。', dur: 3, cam: [[0, 0.16, 0], [0.06, 0.2, 1], 0.3], during: act.tap(clipPick, 0.35) },
             { cap: '挤压胶头滴管，使水进入烧瓶：少量水先溶解一部分氨，瓶内压强下降，烧杯里的水被压进烧瓶、继续溶解氨，形成喷泉，溶液变红。', dur: 12, cam: [[0, 0.285, 0.01], [0.06, 0.14, 1], 0.5], during: act.tap(bulbPick, 0.08) },
             { cap: '钻进去看：氨分子溶进水里，和水结合成一水合氨，一小部分电离出 OH⁻。演示完了，换你自己做。', dur: 9, cam: [[0, 0.36, 0], [0.05, 0.2, 1], 0.36], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
@@ -361,29 +379,36 @@ export default {
       // ---- 酚酞的滴管：一直竖着；拿起来先竖直提出滴瓶，再横着移到烧杯口上方；松手插回原滴瓶 ----
       if (S.dCarry) {
         const inBottle = Math.hypot(dropper.position.x - bottle.tipHome.x, dropper.position.z - bottle.tipHome.z) < 0.004 && dropper.position.y < D_Y - 0.002;
-        let to = V(clamp(S.dCarry.x, -0.06, 0.2), D_Y, clamp(S.dCarry.z, -0.06, 0.12));
-        if (S.mounted || S.fl.motion) { const dx = to.x - TX, dz = to.z, r = Math.hypot(dx, dz); if (r < 0.01) { const k = 0.01 / Math.max(r, 1e-4); to.x = TX + (r > 1e-4 ? dx * k : 0.01); to.z = r > 1e-4 ? dz * k : 0; } }
+        let to = V(clamp(S.dCarry.x, -0.2, 0.26), D_Y, clamp(S.dCarry.z, -0.2, 0.25));
+        if (S.mounted || S.fl.go) { const dx = to.x - TX, dz = to.z, r = Math.hypot(dx, dz); if (r < 0.01) { const k = 0.01 / Math.max(r, 1e-4); to.x = TX + (r > 1e-4 ? dx * k : 0.01); to.z = r > 1e-4 ? dz * k : 0; } }
         dropper.position.lerp(inBottle ? V(bottle.tipHome.x, D_Y, bottle.tipHome.z) : to, 0.4);
       } else homeLift(dropper, bottle.tipHome, 0.25);
+      if (S.dCarry) dHand.position.set(S.dCarry.x, S.dGrabY, S.dCarry.z); else dHand.position.copy(dropper.position);
       if (S.dCarry && overMouth()) { S.dripT += dt; while (S.dripT > 0.4) { S.dripT -= 0.4; A.drip(); } } else S.dripT = 0.3;
       const bLevel = BK.y + LV(S.beakV);
       dropsP.update(dt, (p, d) => { p.p.addScaledVector(p.v, d); p.v.y -= 2 * d; return p.p.y > bLevel; });
 
       // ---- 烧瓶：拿着 / 自己走（抬起来 → 倒过来 → 挪过去 → 放下）----
       const F = S.fl;
-      if (F.motion) {
-        const goal = F.motion.pts[0], p = V(F.piv[0], F.piv[1]), gp = V(goal[0], goal[1]), d = gp.clone().sub(p), L = d.length();
-        p.addScaledVector(d, Math.min(1, (dt * 0.3) / Math.max(1e-5, L)));
-        const dr = goal[2] - F.rot; F.rot += Math.sign(dr) * Math.min(Math.abs(dr), dt * 2.4);
-        F.piv = [p.x, p.y, 0];
-        if (p.distanceTo(gp) < 0.0004 && Math.abs(goal[2] - F.rot) < 1e-3) {
-          F.rot = goal[2]; F.motion.pts.shift();
-          if (!F.motion.pts.length) { const ev = F.motion.event; F.motion = null; if (ev === 'mount') A.mounted(); }
+      if (F.drag) {          // 拿着：很快跟到手的位置（转角跟着 x 走；不碰桌面、杯口）
+        const c = fCenter(), [tx, ty] = flaskWant(), k = 1 - Math.exp(-dt * 30), x = c.x + (tx - c.x) * k, r = rotAt(x);
+        setC(x, Math.max(floorY(x, r), c.y + (ty - c.y) * k), r);
+      } else if (F.go) {
+        // 松手后：夹进铁夹 → 先平移到铁夹正上方，再竖直放下去；放回 → 先平移到软木圈上方（跟着位置正过来，不低于现在的高度），再放下去
+        const c = fCenter(), k = 1 - Math.exp(-dt * 16);
+        if (F.go === 'mount') {
+          const far = Math.abs(c.x - MOUNT.x) > 0.002, x = far ? c.x + (MOUNT.x - c.x) * k : MOUNT.x, r = rotAt(x);
+          setC(x, far ? Math.max(floorY(x, r), c.y) : c.y + (seatY() - c.y) * k, r);
+          if (!far && Math.abs(fCenter().y - seatY()) < 0.0006) { setC(MOUNT.x, seatY(), -Math.PI); F.go = null; A.mounted(); }
+        } else {
+          const hx = HOME.x, hy = HOME.y - PIV, far = Math.abs(c.x - hx) > 0.002, x = far ? c.x + (hx - c.x) * k : hx, r = rotAt(x);
+          setC(x, Math.max(floorY(x, r), far ? c.y : c.y + (hy - c.y) * k), r);
+          if (!far && Math.abs(fCenter().y - hy) < 0.0006) { setC(hx, hy, 0); F.go = null; }
         }
       }
       pose();
       // 铁夹：烧瓶放进去以后夹紧
-      const jawOpen = S.mounted && !F.motion ? 0 : 0.006;
+      const jawOpen = S.mounted && !F.go ? 0 : 0.006;
       for (const j of jaws) j.position.z += (j.s * jawOpen - j.position.z) * Math.min(1, dt * 8);
       // 弹簧夹：开 / 关
       const co = S.clampOpen ? 1 : 0;
@@ -402,7 +427,7 @@ export default {
       const lvl = levelY();
       const tipY = toLocal(plug.localToWorld(V(TX, TIP, 0))).y;
       let Q = 0;
-      const outInWater = S.mounted && !F.motion && bLevel > BK.y + 0.006 + 0.002;
+      const outInWater = S.mounted && !F.go && bLevel > BK.y + 0.006 + 0.002;
       if (S.clampOpen && outInWater) {
         const head = Math.max(tipY, lvl) - bLevel, dP = (1 - S.P) * P0 - RHO * G * head;
         if (dP > 0 && S.Vl < V0 - 0.4) Q = CD * A_T * Math.sqrt((2 * dP) / RHO) * 1e6;          // mL/s
@@ -465,9 +490,9 @@ export default {
         surf.visible = Math.abs(up) > 0.8 && S.Vl < V0 - 1; surf.position.set(c.x + Math.sin(-F.rot) * yl, lvl, c.z); surf.scale.setScalar(r * 0.995);
       } else surf.visible = false;
       // 玻璃管里的水：外面那段（烧杯水面以下，或喷的时候整根）
-      const tubeFull = S.mounted && !F.motion && S.clampOpen && (S.started || Q > 0);
+      const tubeFull = S.mounted && !F.go && S.clampOpen && (S.started || Q > 0);
       const flipped = Math.cos(F.rot) < 0;
-      if (S.mounted && !F.motion && flipped) {
+      if (S.mounted && !F.go && flipped) {
         const yTopLocal = tubeFull ? 0.2 : clamp(flask.position.y - (S.leak ? 0.004 : 0) - bLevel, 0.2, TEND);     // 倒过来：局部 y = 球心高度 − 世界高度
         lowCol.visible = true; lowCol.position.set(TX, yTopLocal, 0); lowCol.scale.set(1, Math.max(0.0005, TEND - yTopLocal), 1);
       } else lowCol.visible = false;
@@ -501,7 +526,7 @@ export default {
       stepDots(DOTS.n, dotsN, Math.round((NDOT * S.nN) / V0), dt, lvl, t);
       stepDots(DOTS.a, dotsA, Math.min(NDOT, Math.round((NDOT * S.nA) / V0)), dt, lvl, t);
       // 箭头：装好以后才画
-      const showP = S.mounted && !F.motion;
+      const showP = S.mounted && !F.go;
       for (const a of outArrows) { a.visible = showP; if (showP) a.set(V(a.userData.x, bLevel + 0.024, a.userData.z), V(0, -0.02, 0)); }
       inArrows.forEach((a) => {
         const d = a.userData.d, from = fc.clone().addScaledVector(d, 0.012), len = 0.02 * clamp(S.P, 0, 1.05);
@@ -510,9 +535,9 @@ export default {
       });
       labOut.visible = showP; labOut.position.set(BK.x + 0.058, bLevel + 0.012, 0.02);
       labIn.visible = inArrows.some((a) => a.visible); labIn.position.set(fc.x + 0.066, fc.y + 0.012, 0.01);
-      homeLab.visible = !S.mounted && !F.motion;
+      homeLab.visible = !S.mounted && !F.go;
       // 观察卡：烧瓶装好以后，写看得到的现象和模型算的进液比例、瓶内外压强差
-      if (S.mounted && !F.motion) {
+      if (S.mounted && !F.go) {
         const pct = Math.round((100 * S.Vl) / V0), pIn = S.P * 101.3, dP = 101.3 - pIn, gp = S.nN + S.nA > 0.5 ? gasPct() : 0;
         const stamp = Q > 0.3 ? '<span class="cc-res">喷泉</span>' : S.leakQ > 0.5 ? '<span class="cc-res burn">漏气</span>' : '';
         const look = S.Vl < 2 ? '' : `<div class="cc-note">溶液${red > 0.5 ? '<b>红色</b>' : '无色'}</div>`;
@@ -550,7 +575,7 @@ export default {
           { name: '拿起酚酞', hold: dPick },
           { name: '滴酚酞', run: () => dripTo(3), wait: 2 },
           { name: '放下酚酞', release: dPick, wait: 0.5 },
-          { name: '倒置烧瓶', drag: flaskPick, to: () => V(0.1, 0.17, 0), wait: 6 },
+          { name: '倒置烧瓶', drag: flaskPick, to: () => V(0, 0.36, 0), wait: 6 },
           { name: '打开弹簧夹', tap: clipPick, wait: 1 },
           { name: '挤压滴管', tap: bulbPick, wait: 3, scale: 1 },
           { name: '喷泉', run: () => {}, wait: 8 },

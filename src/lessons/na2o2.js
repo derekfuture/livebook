@@ -24,6 +24,9 @@ const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 const TX = -0.045, MOUTH = T_Y + T_LEN, BOT = V(0.02, 0, 0.035), TILE = V(0.095, 0, 0);
 const N0 = 19.2, DROP = 0.05, H2O_PER_ML = 55.5, Q_MOL = 24.5, HEAT = 143.6;          // mmol；mL；mmol/mL；mL/mmol；J/mmol
 const STICK_REST = V(0.07, 0.004, 0.1), ROD_REST = V(0.15, 0.004, 0.062);          // 木条横放在试管架前面；玻璃棒放在右边
+const ST_Y = MOUTH + 0.012, ST_IN = MOUTH - 0.022, ROD_Y = MOUTH + 0.006;          // 拿着走时：木条火星端、玻璃棒下端高过试管口；木条伸进试管口里 2.2 cm
+const nearMouth = (h) => !!h && Math.hypot(h[0] - TX, h[1]) < 0.014;          // 手在试管口范围内就算
+const onPaper = (h) => !!h && Math.abs(h[0] - TILE.x) < 0.02 && Math.abs(h[1] - TILE.z) < 0.018;
 const CHART = ['#c22b3c', '#d8343a', '#e1503c', '#ea7040', '#f08b3a', '#f2a63a', '#d8b43a', '#a9a640', '#81783d', '#463951', '#342d34', '#60305c', '#5c2b54', '#572a51'];          // 和初中 pH 试纸那课的比色卡一样
 const PAPER0 = '#f0c64a';
 
@@ -83,6 +86,7 @@ export default {
     const stick = splint(); group.add(stick);
     const stickPick = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.14, 0.02), new THREE.MeshBasicMaterial({ visible: false })); stickPick.position.y = 0.065; stickPick.userData.pick = true; stick.add(stickPick);
     // 玻璃棒、白瓷板上的 pH 试纸、比色卡
+    const hands = { st: new THREE.Object3D(), rod: new THREE.Object3D() }; group.add(hands.st, hands.rod);          // 手：拿着时在拖动平面上，没拿着时在器材的原点
     const rod = inked(new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0015, 0.09, 10), paint(0xe8f2f6, { transparent: true, opacity: 0.85 })), { width: 0.5 }); rod.geometry.translate(0, 0.045, 0); group.add(rod);
     const rodPick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.09, 8), new THREE.MeshBasicMaterial({ visible: false })); rodPick.position.y = 0.045; rodPick.userData.pick = true; rod.add(rodPick);
     const rodDrop = new THREE.Mesh(new THREE.SphereGeometry(0.0018, 10, 8), paint(0xdfeef6, { keep: true, transparent: true, opacity: 0.8 })); rodDrop.visible = false; rod.add(rodDrop);
@@ -94,7 +98,7 @@ export default {
     const pl = (text, w, hh, x, z) => { const t = textPlate(text, { w, h: hh, color: '#23293a', bg: '#fffaf0', font: `bold ${Math.floor(Math.min(0.8 * 512 * hh / w, 0.82 * 512 / text.length))}px "Songti SC", serif` }); t.rotation.x = -Math.PI / 2; t.position.set(x, 0.0012, z); group.add(t); };
     pl('pH 试纸', 0.022, 0.006, TILE.x, TILE.z - 0.022);
 
-    const fresh = () => ({ demo: false, bench: B.fresh(), water: 0, left: N0, reacted: 0, rate: 0, o2: 0, f: 0, T: 22, touched: false, stick: { carry: null, inTube: 0, lit: false, t: 0, judged: false }, rod: { carry: null, motion: null, hover: false, wet: false }, spot: false, said: {} });
+    const fresh = () => ({ demo: false, bench: B.fresh(), water: 0, left: N0, reacted: 0, rate: 0, o2: 0, f: 0, T: 22, touched: false, stick: { drag: false, hand: null, grabY: 0, home: false, inTube: 0, lit: false, t: 0, judged: false }, rod: { drag: false, hand: null, grabY: 0, in: false, go: null, wet: false }, spot: false, said: {} });
     S = fresh();
     const solVol = () => Math.max(0, S.water - S.reacted / H2O_PER_ML);          // 剩下的液体（mL，近似）
     const A = {
@@ -103,46 +107,44 @@ export default {
         else if (S.T > 30) status('试管外壁有点热。');
         else status(S.water > 0 ? '试管外壁不热。' : '试管还是凉的：还没加水。');
       },
+      // 木条松手：伸在试管口里（或手在试管口上方）→ 留在试管口里检验，过一会儿放回桌上；别处 → 很快放回桌上
       stickDrop() {
-        const c = S.stick.carry; S.stick.carry = null;
-        if (c && Math.abs(c.x - TX) < 0.015 && c.y > MOUTH - 0.03 && c.y < MOUTH + 0.06) { S.stick.inTube = 0.001; S.stick.t = 0; return; }
-        S.stick.inTube = 0;
+        const st = S.stick, h = st.hand; st.drag = false; st.hand = null;
+        if (st.inTube > 0 || nearMouth(h)) { if (!st.inTube) { st.inTube = 0.001; st.t = 0; } return; }
+        st.home = true;
       },
-      // 玻璃棒松手：在试管口附近 → 竖直伸进去蘸一下、提到管口上方停着；在 pH 试纸上方 → 点一下、放回桌上；别处 → 放回桌上
+      // 玻璃棒松手：在试管口上方 / 试管里 → 伸进去蘸一下再放回桌上；在 pH 试纸上方 → 点一下再放回桌上；别处 → 很快放回桌上
       rodDrop() {
-        const c = S.rod.carry; S.rod.carry = null; if (!c) return;
-        if (Math.abs(c.x - TX) < 0.02 && c.y > MOUTH - 0.04) {
-          if (solVol() <= 0.2) { status('试管里还没有溶液。'); return rodGo([V(TX, Math.max(MOUTH + 0.01, c.y), 0), V(TX, T_Y + YB + 0.006, 0), V(TX, MOUTH + 0.01, 0)], 'hover'); }
-          return rodGo([V(TX, Math.max(MOUTH + 0.01, c.y), 0), V(TX, T_Y + levelY(solVol()) - 0.006, 0), V(TX, MOUTH + 0.01, 0)], 'dip');
-        }
-        if (Math.abs(c.x - TILE.x) < 0.025 && c.y < 0.07) return rodGo([V(TILE.x, Math.max(0.03, c.y), 0), V(TILE.x, 0.0047, 0), V(TILE.x, 0.03, 0)], 'touch');
-        rodGo([V(c.x, Math.max(0.03, c.y), 0), ROD_REST.clone().setY(0.03), ROD_REST.clone()], 'home');
+        const R = S.rod, h = R.hand; R.drag = false; R.hand = null;
+        if (R.in || nearMouth(h)) { R.in = false; R.go = R.wet ? { ev: 'home' } : { ev: solVol() <= 0.2 ? 'hover' : 'dip' }; return; }
+        if (onPaper(h)) { R.go = { ev: 'touch', x: clamp(h[0], TILE.x - 0.003, TILE.x + 0.003), z: clamp(h[1], TILE.z - 0.008, TILE.z + 0.008) }; return; }
+        R.go = { ev: 'home' };
       },
-      rodEvent(ev) {
-        if (ev === 'dip') { S.rod.wet = true; status('玻璃棒蘸上了溶液（放回桌上了）。再把它拖到 <b>pH 试纸</b>上方，松手点上去。'); rodGo([ROD_REST.clone().setY(0.03), ROD_REST.clone()], 'home'); }
-        else if (ev === 'hover') rodGo([ROD_REST.clone().setY(0.03), ROD_REST.clone()], 'home');
-        else if (ev === 'touch') {
-          if (!S.rod.wet) { status('玻璃棒是干的：先伸进试管里蘸取溶液。'); return rodGo([ROD_REST.clone().setY(0.03), ROD_REST.clone()], 'home'); }
-          if (!S.spot) { S.spot = true; done('ph'); log('ph', ['用玻璃棒蘸取溶液，点在 pH 试纸上', '试纸变成<b>紫色</b>，对照比色卡 pH 约 14', '溶液显<b>强碱性</b>：生成了 NaOH']); status('试纸变成了紫色：对照比色卡，pH 约 14——溶液显<b>强碱性</b>。'); if (!S.demo) W?.t1.open(); }
-          S.rod.wet = false; rodGo([ROD_REST.clone().setY(0.03), ROD_REST.clone()], 'home');
-        } else if (ev === 'home') S.rod.hover = false;
+      rodWet(back) { S.rod.wet = true; status(back ? '玻璃棒蘸上了溶液（放回桌上了）。再把它拖到 <b>pH 试纸</b>上方，点上去。' : '玻璃棒蘸上了溶液。拖到 <b>pH 试纸</b>上方，点上去。'); },
+      rodTouch() {
+        if (!S.rod.wet) { status('玻璃棒是干的：先伸进试管里蘸取溶液。'); return; }
+        if (!S.spot) { S.spot = true; done('ph'); log('ph', ['用玻璃棒蘸取溶液，点在 pH 试纸上', '试纸变成<b>紫色</b>，对照比色卡 pH 约 14', '溶液显<b>强碱性</b>：生成了 NaOH']); status('试纸变成了紫色：对照比色卡，pH 约 14——溶液显<b>强碱性</b>。'); if (!S.demo) W?.t1.open(); }
+        S.rod.wet = false;
       },
       reset() { if (bar.playing) bar.stop(); S = fresh(); sync(); mic.close(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('water', 'splint', 'touch', 'ph', 'why'); status('试管里又是 1.5 g 过氧化钠了。'); },
     };
-    const rodGo = (pts, event) => { S.rod.hover = false; S.rod.motion = { points: pts.map((v) => v.toArray()), event }; };
-    const sync = () => { B.drops.clear(); stick.position.copy(STICK_REST); stick.rotation.z = Math.PI / 2; rod.position.copy(ROD_REST); rod.rotation.z = Math.PI / 2; };
+    const sync = () => { B.drops.clear(); stick.position.copy(STICK_REST); stick.rotation.z = Math.PI / 2; rod.position.copy(ROD_REST); rod.rotation.z = Math.PI / 2; hands.st.position.copy(STICK_REST); hands.rod.position.copy(ROD_REST); };
     sync();
     const drag = draggable(group, [
       ...B.items,
-      { obj: stickPick, plane: 'xy', offset: 0, hint: '带火星的木条：拖到试管口，伸进去', onStart: (p) => { S.stick.carry = (p || stick.position).clone(); S.stick.inTube = 0; }, onDrag: (p) => { if (p) S.stick.carry = V(clamp(p.x, -0.15, 0.16), clamp(p.y, 0.01, 0.22), 0); }, onEnd: () => A.stickDrop() },
-      { obj: rodPick, plane: 'xy', offset: 0, hint: () => (S.rod.wet ? '玻璃棒：拖到 pH 试纸上方，松手点上去' : '玻璃棒：拖到试管口上方，松手伸进去蘸取溶液'), onStart: (p) => { S.rod.motion = null; S.rod.hover = false; S.rod.carry = (p || rod.position).clone(); }, onDrag: (p) => { if (p) S.rod.carry = V(clamp(p.x, -0.15, 0.16), clamp(p.y, 0.03, 0.22), 0); }, onEnd: () => A.rodDrop() },
-    ], { tip: tag('', 'pill'), highlight: true });
+      // 拖动平面：按下去时器材所在高度的水平面；记住抓的地方（手的位置用 hands.* 表示）——按住先竖直提起来，再跟着手平移
+      { obj: stickPick, plane: 'xz', get offset() { return S.stick.drag ? S.stick.grabY : stick.position.y; }, keepOffset: true, anchor: hands.st, hint: '带火星的木条：拖到试管口，伸进去',
+        onStart: (p) => { const st = S.stick; st.grabY = stick.position.y; st.drag = true; st.home = false; st.inTube = 0; st.judged = false; st.hand = p ? [p.x, p.z] : [stick.position.x, stick.position.z]; },
+        onDrag: (p) => { if (p) S.stick.hand = [clamp(p.x, -0.15, 0.17), clamp(p.z, -0.08, 0.14)]; }, onEnd: () => A.stickDrop() },
+      { obj: rodPick, plane: 'xz', get offset() { return S.rod.drag ? S.rod.grabY : rod.position.y; }, keepOffset: true, anchor: hands.rod, hint: () => (S.rod.wet ? '玻璃棒：拖到 pH 试纸上方，点上去' : '玻璃棒：拖到试管口上方，伸进去蘸取溶液'),
+        onStart: (p) => { const R = S.rod; R.grabY = rod.position.y; R.drag = true; R.go = null; R.hand = p ? [p.x, p.z] : [rod.position.x, rod.position.z]; },
+        onDrag: (p) => { if (p) S.rod.hand = [clamp(p.x, -0.15, 0.17), clamp(p.z, -0.08, 0.14)]; }, onEnd: () => A.rodDrop() },
+    ], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: peroxideScene(), at: () => V(TX, T_Y + 0.03, 0), btnAt: () => V(TX + 0.026, T_Y + T_LEN * 0.75, 0.01), label: '钻进去看',
       state: () => ({ water: S.water > 0, reacting: S.rate > 0.05 }), key: () => String(S.water > 0), bar: () => bar, scale: 0.0065, lookD: [0.04, 0.22, 1], dist: 0.24 });
 
     const tapTube = (at) => act.tap(tube.pick, at);
-    const path = (obj, pts, t0, t1) => act.path(obj, [null, ...pts], { t0, t1, release: t1 + 0.02 });
     const bar = lessonBar({
       look, back, group,
       steps: [
@@ -159,10 +161,10 @@ export default {
             view: { save: () => (mic.isOpen ? 'micro' : null), restore: () => mic.open() } }),          // 演示前开着钻进去看，演示完再打开
           shots: [
             { cap: '向盛有过氧化钠固体的试管中滴入水：剧烈反应，产生大量气泡。', dur: 8, cam: [[TX + 0.02, 0.08, 0.01], [0.04, 0.25, 1], 0.26], during: B.dripSeq(drag, 0, [[0, () => S.water >= 1.2 - 1e-9]], 0.04, 0.96) },
-            { cap: '立即把带火星的木条伸入试管中：木条复燃——生成的气体是氧气。', dur: 6, cam: [[TX + 0.02, 0.1, 0.01], [0.04, 0.25, 1], 0.27], during: path(stickPick, [() => V(STICK_REST.x - 0.02, 0.16, 0), () => V(TX, 0.16, 0), () => V(TX, MOUTH + 0.01, 0)], 0.04, 0.35) },
+            { cap: '立即把带火星的木条伸入试管中：木条复燃——生成的气体是氧气。', dur: 6, cam: [[TX + 0.02, 0.1, 0.01], [0.04, 0.25, 1], 0.27], during: act.path(stickPick, [() => stick.position.clone(), () => stick.position.clone().setY(0.12), () => V(TX, 0.12, 0), [() => V(TX, ST_IN, 0), 0.1]], { t0: 0.04, t1: 0.45, release: 0.47 }) },
             { cap: '用手轻轻触摸试管外壁：发烫——反应放出热量。', dur: 4, cam: [[TX, 0.06, 0.01], [0.04, 0.25, 1], 0.24], during: tapTube(0.3) },
             { cap: '用玻璃棒蘸取溶液，点在 pH 试纸上：显强碱性——生成了氢氧化钠。', dur: 9, cam: [[0.04, 0.06, 0.01], [0.04, 0.3, 1], 0.34],
-              during: act.seq(path(rodPick, [() => V(ROD_REST.x - 0.03, 0.15, 0), () => V(TX, 0.15, 0), () => V(TX, MOUTH + 0.03, 0)], 0.04, 0.25), path(rodPick, [() => V(ROD_REST.x - 0.03, 0.08, 0), () => V(TILE.x, 0.07, 0), () => V(TILE.x, 0.035, 0)], 0.6, 0.8)) },
+              during: act.seq(act.path(rodPick, [() => rod.position.clone(), () => rod.position.clone().setY(0.1), () => V(TX, 0.1, 0), [() => V(TX, 0.04, 0), 0.07]], { t0: 0.04, t1: 0.34, release: 0.36 }), act.path(rodPick, [() => rod.position.clone(), () => rod.position.clone().setY(0.1), () => V(TILE.x, 0.1, 0), [() => V(TILE.x, 0.04, 0), 0.05]], { t0: 0.55, t1: 0.82, release: 0.84 })) },
             { cap: '钻进去看：过氧根和水反应，生成 OH⁻ 和 O₂。演示完了，换你自己做。', dur: 8, cam: [[TX, 0.12, 0], [0.05, 0.22, 1], 0.3], enter: () => mic.open(true), during: act.at(0.98, () => mic.close()) },
           ],
         },
@@ -182,30 +184,71 @@ export default {
       S.T = Math.min(98, S.T + (d * HEAT - 0.25 * (S.T - 22) * dt) / C);
       if (r > 0.5) log('bubbles', ['滴入水', '剧烈反应，产生<b>大量气泡</b>', '生成了气体']);
       if (S.left < 0.5 && S.water > 0 && !S.said.over) { S.said.over = true; if (!S.stick.lit) status('气泡少了：过氧化钠快反应完了。木条要在冒气泡时<b>立即</b>伸进去。'); }
-      // 木条：拿着的时候竖着（火星朝下）；伸进试管口里检验
-      const st = S.stick;
-      if (st.inTube > 0) {
-        st.t += dt; st.inTube = Math.min(1, st.inTube + dt * 2);
-        stick.position.lerp(V(TX, MOUTH - 0.022 * st.inTube, 0), 0.3); stick.rotation.z += (0 - stick.rotation.z) * 0.3;
+      // 拿着：先竖直提到工作高度，再跟着手；放回：平移到原处上方再放下去（在试管里先竖直提出来）；在原处上方时跟着高度放平 / 竖起来
+      const ex = (r) => 1 - Math.exp(-dt * r);
+      const homeTo = (o, rest, cy) => { const p = o.position, far = Math.hypot(p.x - rest.x, p.z - rest.z) > 0.003; p.lerp(far && p.y < cy - 0.008 ? V(p.x, cy, p.z) : far ? V(rest.x, Math.max(p.y, rest.y), rest.z) : rest, ex(18)); return !far && p.distanceTo(rest) < 0.0008; };
+      const lay = (o, rest) => { const p = o.position, k = Math.hypot(p.x - rest.x, p.z - rest.z) < 0.01 ? Math.PI / 2 * (1 - clamp((p.y - rest.y) / 0.03, 0, 1)) : 0; o.rotation.z += (k - o.rotation.z) * ex(25); };
+      // 木条：拿着的时候竖着（火星朝下）；拿到试管口上方就伸进去检验（松手也会留在试管口里）
+      const st = S.stick, sp = stick.position;
+      if (st.drag) {
+        const h = st.hand || [sp.x, sp.z];
+        let goal;
+        if (st.inTube > 0) {
+          if (nearMouth(h)) goal = V(TX, ST_IN, 0);
+          else if (sp.y < ST_Y - 0.004) goal = V(sp.x, ST_Y + 0.002, sp.z);          // 手移开：先竖直抽出来
+          else { st.inTube = 0; st.judged = false; goal = V(h[0], ST_Y, h[1]); }
+        } else if (sp.y < ST_Y - 0.008) goal = V(sp.x, ST_Y, sp.z);          // 从桌上拿起来：先竖直提起来
+        else if (nearMouth(h)) { goal = V(TX, ST_Y, 0); if (Math.hypot(sp.x - TX, sp.z) < 0.003) { st.inTube = 0.001; st.t = 0; st.judged = false; } }
+        else goal = V(h[0], ST_Y, h[1]);
+        sp.lerp(goal, ex(26));
+      } else if (st.inTube > 0) {
+        sp.lerp(V(TX, ST_IN, 0), ex(18));
+        if (st.t > 3.5) { st.inTube = 0; st.judged = false; st.home = true; }
+      } else if (homeTo(stick, STICK_REST, ST_Y)) { st.home = false; st.lit = false; }
+      lay(stick, STICK_REST);
+      if (st.inTube > 0 && sp.y < MOUTH - 0.008) {
+        st.t += dt;
         if (st.t > 0.5 && !st.judged) {
           st.judged = true;
           if (S.f >= 0.5) { st.lit = true; done('splint'); log('splint', ['立即把带火星的木条伸入试管', '木条<b>复燃</b>', '生成的气体是<b>氧气</b>']); status('木条<b>复燃</b>了：生成的气体是氧气。'); }
           else status(S.water > 0 ? '木条没有复燃：试管里的氧气已经散出去了。重来一次，加水后<b>立即</b>伸进去。' : '试管里还是空气：木条只是带着火星。先滴水。');
         }
-        if (st.t > 3.5) { st.inTube = 0; st.judged = false; }
-      } else if (st.carry) { stick.position.lerp(st.carry, 0.45); stick.rotation.z += (0 - stick.rotation.z) * 0.25; }
-      else { stick.position.lerp(STICK_REST, 0.15); stick.rotation.z += (Math.PI / 2 - stick.rotation.z) * 0.15; if (stick.position.distanceTo(STICK_REST) < 0.003) st.lit = false; }
-      stick.setState(st.inTube > 0 && st.lit ? 'flame' : st.carry || st.inTube > 0 ? 'ember' : 'none', st.lit ? 1 : 0.5); stick.update(t);
-      // 玻璃棒：拿着、移动时竖着（下端在拖的位置）；放回桌上时平放
-      const R = S.rod;
-      if (R.motion) {
-        const p = rod.position.clone(), goal = V(...R.motion.points[0]), dd = goal.clone().sub(p);
-        p.addScaledVector(dd, Math.min(1, dt * 0.22 / Math.max(1e-5, dd.length()))); rod.position.copy(p);
-        if (p.distanceTo(goal) < 0.0005) { R.motion.points.shift(); if (!R.motion.points.length) { const ev = R.motion.event; R.motion = null; A.rodEvent(ev); } }
-        const flat = R.motion?.event === 'home' && R.motion.points.length <= 1;
-        rod.rotation.z += ((flat ? Math.PI / 2 : 0) - rod.rotation.z) * Math.min(1, dt * 10);
-      } else if (R.carry) { rod.position.lerp(R.carry, 0.5); rod.rotation.z += (0 - rod.rotation.z) * 0.3; }
-      else if (!R.hover) { rod.position.lerp(ROD_REST, 0.2); rod.rotation.z += (Math.PI / 2 - rod.rotation.z) * 0.2; }
+      }
+      stick.setState(st.inTube > 0 && st.lit ? 'flame' : st.drag || st.inTube > 0 ? 'ember' : 'none', st.lit ? 1 : 0.5); stick.update(t);
+      if (st.drag && st.hand) hands.st.position.set(st.hand[0], st.grabY, st.hand[1]); else hands.st.position.copy(sp);
+      // 玻璃棒：拿着时竖着；拿到试管口上方就伸进溶液里（蘸上），手移开先竖直提出来；蘸了溶液拿到 pH 试纸上方就点一下
+      const R = S.rod, rp = rod.position;
+      const dipY = () => (solVol() > 0.2 ? T_Y + levelY(solVol()) - 0.006 : T_Y + YB + 0.006);
+      if (R.drag) {
+        const h = R.hand || [rp.x, rp.z];
+        let goal;
+        if (R.in) {
+          if (nearMouth(h)) goal = V(TX, dipY(), 0);
+          else if (rp.y < ROD_Y - 0.004) goal = V(rp.x, ROD_Y + 0.002, rp.z);          // 手移开：先竖直提出来
+          else { R.in = false; goal = V(h[0], ROD_Y, h[1]); }
+        } else if (R.wet && onPaper(h)) {
+          const x = clamp(h[0], TILE.x - 0.003, TILE.x + 0.003), z = clamp(h[1], TILE.z - 0.008, TILE.z + 0.008);
+          goal = Math.hypot(rp.x - x, rp.z - z) < 0.003 ? V(x, 0.0047, z) : V(x, Math.max(rp.y, ROD_Y - 0.004), z);
+          if (rp.y < 0.0062) A.rodTouch();
+        } else if (rp.y < ROD_Y - 0.008) goal = V(rp.x, ROD_Y, rp.z);          // 从桌上拿起来 / 点完试纸：先竖直提起来
+        else if (nearMouth(h)) { goal = V(TX, ROD_Y, 0); if (Math.hypot(rp.x - TX, rp.z) < 0.003) { R.in = true; R.told = false; } }
+        else goal = V(h[0], ROD_Y, h[1]);
+        rp.lerp(goal, ex(26));
+        if (R.in && rp.y < dipY() + 0.003 && !R.told) { R.told = true; if (solVol() > 0.2) { if (!R.wet) A.rodWet(false); } else status('试管里还没有溶液。'); }
+      } else if (R.go) {
+        const g = R.go;
+        if (g.ev === 'home') { if (homeTo(rod, ROD_REST, ROD_Y)) R.go = null; }
+        else {
+          const dest = g.ev === 'touch' ? V(g.x, 0.0047, g.z) : V(TX, dipY(), 0), far = Math.hypot(rp.x - dest.x, rp.z - dest.z) > 0.003;
+          rp.lerp(far && rp.y < ROD_Y - 0.008 ? V(rp.x, ROD_Y, rp.z) : far ? V(dest.x, Math.max(rp.y, ROD_Y), dest.z) : dest, ex(18));
+          if (!far && rp.distanceTo(dest) < 0.0008) {
+            if (g.ev === 'dip') A.rodWet(true); else if (g.ev === 'hover') status('试管里还没有溶液。'); else A.rodTouch();
+            R.go = { ev: 'home' };
+          }
+        }
+      }
+      lay(rod, ROD_REST);
+      if (R.drag && R.hand) hands.rod.position.set(R.hand[0], R.grabY, R.hand[1]); else hands.rod.position.copy(rp);
       rodDrop.visible = S.rod.wet; spot.visible = S.spot; if (S.spot) spot.material.color.set(CHART[13]);
       // 试管里：液体、气泡、粉末、蓝点、发热
       const vol = solVol(), k = S.left / N0;
@@ -244,10 +287,10 @@ export default {
         picks: { dropper: B.droppers[0].pick, tube: tube.pick, stick: stickPick, rod: rodPick },
         qa: qaFlow(drag, [
           { name: '滴水', run: () => B.qaDrip(drag, 0, 0, () => S.water >= 1.2 - 1e-9), wait: 2, scale: 1 },
-          { name: '伸入木条', drag: stickPick, to: () => V(TX, MOUTH + 0.01, 0), wait: 1.5, scale: 1 },
+          { name: '伸入木条', drag: stickPick, to: () => V(TX, STICK_REST.y, 0), wait: 1.5, scale: 1 },
           { name: '摸试管', tap: tube.pick, wait: 1 },
-          { name: '蘸取溶液', drag: rodPick, to: () => V(TX, MOUTH + 0.03, 0), wait: 2 },
-          { name: '点到试纸', drag: rodPick, to: () => V(TILE.x, 0.035, 0), wait: 2 },
+          { name: '蘸取溶液', drag: rodPick, to: () => V(TX, ROD_REST.y, 0), wait: 2 },
+          { name: '点到试纸', drag: rodPick, to: () => V(TILE.x, ROD_REST.y, 0), wait: 2 },
           { name: '钻进去看', run: () => mic.open(), wait: 4 },
           { name: '合上', run: () => mic.close(), wait: 1 },
           { name: '核对', run: () => { if (!(S.said.splint && S.touched && S.spot && S.reacted > 15)) throw new Error(JSON.stringify({ said: S.said, touched: S.touched, spot: S.spot, left: S.left, f: S.f, T: S.T })); }, wait: 1 },

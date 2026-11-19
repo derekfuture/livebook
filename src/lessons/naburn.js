@@ -11,9 +11,9 @@ import * as THREE from 'three';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs, mountXuean, moreBox } from './kit/chemlesson.js';
 import { draggable, clamp } from './kit/interact.js';
-import { tweezers, sodiumKnife, sodiumBurnScene, NA } from './kit/sodium.js';
+import { tweezers, sodiumKnife, sodiumBurnScene, NA, reach } from './kit/sodium.js';
 import { chemLamp } from './kit/chem.js';
-import { lampCap } from './kit/labops.js';
+import { lampCap, homeLift } from './kit/labops.js';
 import { flame2, smoke2, Sparks } from './kit/chemfx.js';
 import { micro } from './kit/microworld.js';
 import { stand, textPlate } from './kit/props.js';
@@ -110,16 +110,65 @@ export default {
     const lab = plate('钠（已吸干煤油）', 0.042, 0.007); lab.rotation.x = -Math.PI / 2; lab.position.set(PAPER.x, 0.0012, PAPER.z + 0.031); group.add(lab);
 
     const fresh = () => ({ demo: false, near: false, lit: false, lampK: 0, lampOut: false, lampBack: false, tc: 22, chosen: 0.04, cut: false, mass: 0, tarnish: 0, inCru: false, held: false, q: 0, tn: 22, melt: 0, burning: 0, left: 0, burned: 0, spat: 0, spilled: 0, lampBurn: 0, clock: 0, meltAt: null, lampOffAt: null, finished: false, said: {},
-      tools: { knife: { pos: KN.toArray(), drag: false, motion: null, turn: 0 }, tw: { pos: TW.toArray(), drag: false, motion: null } } });
+      tools: { knife: { drag: false, hand: null, grab: [0, 0, 0], turn: 0, side: 0, press: 0 }, tw: { drag: false, hand: null, grab: [0, 0, 0] } } });
     S = fresh();
     const lampOn = () => flameOn && S.lampK < 0.05;
 
-    // ---- 工具移动：抬起来、平移、放下（不斜穿别的器材）----
-    const HOME = { knife: KN, tw: TW };
-    const travel = (key, dest, event) => { const t = S.tools[key], p = V(...t.pos), up = Math.max(key === 'tw' ? 0.15 : 0.05, p.y, dest.y + 0.025); t.drag = false; t.motion = { points: [V(p.x, up, p.z).toArray(), V(dest.x, up, dest.z).toArray(), dest.toArray()], event }; };
-    const home = (key) => travel(key, HOME[key].clone(), '');
+    // ---- 小刀、镊子跟手：器材落在光标射线碰到的第一个面上（桌面、钠条、坩埚口、铁圈……），总在手底下；动作发生在手放到的地方 ----
+    const HOME = { knife: KN, tw: TW }, CLR = { knife: KN.y, tw: 0.008 }, GRAB = { knife: V(0, 0, 0), tw: V(-0.03, 0, 0) };          // GRAB：qa 真鼠标按在拾取盒中间时，手和器材原点之差
+    const BAR_TOP = 0.003 + A;
     const cutX = () => BAR_LEFT + mmOf(S.chosen);
-    const DOCK = { cut: () => V(cutX(), 0.0095, PAPER.z + 0.014), piece: () => V(BAR_LEFT + mmOf(S.mass) / 2 - 0.003 + 0.006, 0.0062, PAPER.z), cru: () => V(CX + 0.002, BOT.y + 0.014, CRU.z) };
+    const pieceAt = () => V(BAR_LEFT + mmOf(S.mass) / 2 - 0.003, 0.003 + A / 2, PAPER.z);          // 切下的那一块
+    const RH = reach(group);
+    const solids = () => {
+      const cutW = mmOf(S.cut ? S.mass : 0), L = [
+        { id: 'cru', c: CRU, r: 0.0165, h: 0.0225 }, { id: 'ring', c: V(CX, RING_Y - 0.004, CZ), r: 0.029, h: 0.0145 },
+        { id: 'rod', c: V(ST.x, 0, ST.z + st.rodX), r: 0.0065, h: 0.16 }, { id: 'lamp', c: lamp.position.clone().setY(lamp.position.y > 0.008 ? 0.016 : 0), r: 0.025, h: 0.055 },
+        ...[-0.035, 0, 0.035].map((dz) => ({ id: 'base', c: V(ST.x, 0, ST.z + dz), r: 0.036, h: 0.016 })),
+      ];
+      for (let x = BAR_LEFT + cutW + 0.006; x < BAR_LEFT + BAR_LEN; x += 0.008) L.push({ id: 'bar', c: V(x, 0.003, PAPER.z), r: 0.0045, h: A });          // 钠条（一串小圆柱近似）
+      return L;
+    };
+    const CUPS = [{ c: CRU.clone().setY(BOT.y), r: 0.012, h: CRU.y + 0.0225 - BOT.y }];          // 坩埚里：伸进去先到口上方，拿出来先竖直提出来
+    const blocked = (p) => solids().some((s) => p.y < s.c.y + s.h + 0.003 && Math.hypot(clamp(s.c.x, p.x - 0.011, p.x + 0.075) - s.c.x, p.z - s.c.z) < s.r + 0.004);          // 平放的镊子身子会不会碰到东西
+    const sideOf = (z) => (z > PAPER.z + 0.004 ? 1 : z < PAPER.z - 0.004 ? -1 : 0);
+    function aimTool(key) {
+      const t = S.tools[key], q = V(...t.hand).add(V(...t.grab)), r = RH.ray(q);
+      if (key === 'knife') {
+        const bp = r.o.clone().addScaledVector(r.d, (BAR_TOP - r.o.y) / r.d.y);          // 手在钠条顶面那么高的地方
+        if ((!S.cut || t.press > 0) && bp.x > BAR_LEFT - 0.004 && bp.x < BAR_LEFT + BAR_LEN + 0.004 && Math.abs(bp.z - PAPER.z) < 0.025) {
+          const x = t.press > 0 ? cutX() : clamp(bp.x, BAR_LEFT + mmOf(0.01), BAR_LEFT + mmOf(0.2)), zc = clamp(bp.z, PAPER.z - 0.008, PAPER.z + 0.008);
+          // 刀立起来横过钠条，刀口搁在钠条上；切的那一下压到底
+          return { zone: 'bar', T: V(x, BAR_TOP + 0.006 - 0.0065 * (t.press > 0 ? Math.sin(Math.PI * (1 - t.press)) : 0), zc + 0.016), rot: 1, x, side: sideOf(bp.z) };
+        }
+        const h = RH.hit(r, solids(), { clr: CLR.knife });
+        return { zone: '', T: h ? h.p : KN.clone(), rot: 0 };
+      }
+      const h = RH.hit(r, solids(), { clr: CLR.tw });
+      if (!h) return { zone: '', T: TW.clone(), rot: 0 };
+      const p = h.p, id = h.s?.id;
+      if (id === 'cru' && h.top) return { zone: 'cru', T: S.held ? V(CX + 0.002 + clamp(p.x - CX - 0.002, -0.004, 0.004), BOT.y + 0.014, CZ + clamp(p.z - CZ, -0.004, 0.004)) : p, rot: 1 };          // 夹着钠：伸进坩埚
+      if (S.cut && !S.inCru && RH.xz(p, pieceAt()) < (S.held ? 0.024 : 0.012)) return { zone: 'piece', T: pieceAt().add(V(0, 0.006, 0)), rot: 1 };          // 镊尖碰到切下的钠
+      return { zone: '', T: p, rot: id === 'ring' || id === 'lamp' || (h.s && !h.top) || blocked(p) ? 1 : 0 };          // 碰着侧面：竖着拿
+    }
+    const cutNow = () => { if (S.cut) return; events.cut(); S.tools.knife.press = 1; };
+    const release = (key) => {
+      const t = S.tools[key]; if (!t.hand) { t.drag = false; return; }
+      const z = aimTool(key).zone; t.drag = false; t.hand = null; t.side = 0;
+      if (key === 'knife') { if (z === 'bar') cutNow(); return; }
+      if (z === 'piece') events.take();
+      else if (z === 'cru') events.put();
+    };
+    // 放回原处：在坩埚里先竖直提出来；回去的直线会穿过别的器材就先抬过它
+    const homeTo = (key, obj, a) => {
+      const o = obj.position, k = CUPS.find((c) => RH.inside(o, c));
+      if (k) return RH.move(obj, V(o.x, k.c.y + k.h + 0.008, o.z), a, CUPS);
+      const H0 = HOME[key], dx = H0.x - o.x, dz = H0.z - o.z, L2 = dx * dx + dz * dz || 1e-9;
+      let lift = 0;
+      for (const s of solids()) { if (s.id === 'bar' && key === 'knife') continue; const u = clamp(((s.c.x - o.x) * dx + (s.c.z - o.z) * dz) / L2, 0, 1); if (Math.hypot(o.x + dx * u - s.c.x, o.z + dz * u - s.c.z) < s.r + 0.012 && o.y < s.c.y + s.h + 0.01) lift = Math.max(lift, s.c.y + s.h + 0.015 - H0.y); }
+      homeLift(obj, H0, a, lift);
+    };
+    const DOCK = { piece: () => pieceAt().add(V(0, 0.006, 0)), cru: () => V(CX + 0.002, CRU.y + 0.0225 + CLR.tw, CZ) };          // 演示、qa 用：镊尖该到的面上的点
     const events = {
       cut: () => { if (S.cut) return; S.cut = true; S.mass = S.chosen; S.tarnish = 0; done('cut'); sfx.clink({ freq: 1200, gain: 0.02 });
         status(`切下约 ${(S.mass * 1000).toFixed(0)} mg${S.mass > 0.1 ? '——<b>比绿豆大得多</b>，留意后果' : ''}。用<b>镊子</b>夹起来，迅速投进${S.tc > 150 ? '热' : ''}坩埚。`); },
@@ -128,13 +177,6 @@ export default {
         if (!S.demo) { S.near = true; look([CX, BOT.y + 0.004, CZ], [0.15, 1.2, 1], 0.25, () => { S.near = false; }); }
         if (S.tarnish > 0.5) log('tarnish', ['切下的钠在空气里放了一会儿', '切面<b>变暗</b>了', '钠和氧气反应生成了 Na₂O（实验2-1）']);
         status(lampOn() ? '投进去了。<b>继续加热</b>，看钠的变化；熔化后立即点<b>酒精灯</b>撤掉它。' : '投进去了，可是坩埚下面没有火。点<b>酒精灯</b>加热。'); },
-    };
-    const release = (key) => {
-      const p = V(...S.tools[key].pos);
-      if (key === 'knife') { if (!S.cut && Math.abs(p.x - PAPER.x) < 0.04 && p.y < 0.05) return travel('knife', DOCK.cut(), 'cut'); return home('knife'); }
-      if (!S.held) { if (S.cut && !S.inCru && Math.abs(p.x - DOCK.piece().x) < 0.025 && p.y < 0.06) return travel('tw', DOCK.piece(), 'take'); return home('tw'); }
-      if (Math.abs(p.x - CX) < 0.045 && p.y > 0.05) return travel('tw', DOCK.cru(), 'put');
-      home('tw');
     };
     const A_ = {
       tapLamp() {
@@ -146,22 +188,25 @@ export default {
       },
       reset() { if (bar.playing) bar.stop(); S = fresh(); sync(); mic.close(); back(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('heat', 'cut', 'put', 'remove', 'observe', 'why'); status('器材重新摆好了：先点燃酒精灯，加热坩埚。'); },
     };
-    const sync = () => { smoke.clear(); sparks.clear(); capper.snap(S.lit && !S.lampOut); flameOn = S.lit && !S.lampOut; knife.position.fromArray(S.tools.knife.pos); tw.position.fromArray(S.tools.tw.pos); lamp.position.copy(S.lampK > 0.5 ? LAMP_OUT : LAMP_IN); };
+    const sync = () => { smoke.clear(); sparks.clear(); capper.snap(S.lit && !S.lampOut); flameOn = S.lit && !S.lampOut; knife.position.copy(KN); knife.quaternion.copy(QK0); tw.position.copy(TW); tw.rotation.set(0, 0, 0); lamp.position.copy(S.lampK > 0.5 ? LAMP_OUT : LAMP_IN); };
     sync();
-    const toolItem = (key, obj, hint) => ({ obj: obj.pick, plane: 'xy', offset: key === 'knife' ? PAPER.z + 0.03 : 0.06, keepOffset: true, anchor: obj, hint,          // 拖动的竖直面：小刀在钠条前面一点，镊子在 z = 6 cm
-      onStart: () => { S.tools[key].drag = true; S.tools[key].motion = null; },
-      onDrag: (p) => { S.tools[key].pos = [clamp(p.x, -0.17, 0.17), clamp(p.y, 0.006, 0.22), key === 'knife' ? PAPER.z + 0.03 : 0.06]; if (key === 'knife' && !S.cut && Math.abs(p.x - PAPER.x) < 0.04) S.chosen = clamp((p.x - BAR_LEFT) / mmOf(1), 0.01, 0.2); },
-      onEnd: (moved) => { S.tools[key].drag = false; if (moved) release(key); else home(key); } });
+    const GMAX = { knife: 0.04, tw: 0.075 };
+    const toolItem = (key, obj, hint) => ({ obj: obj.pick, plane: 'xz', offset: HOME[key].y, hint,          // 拖动平面在器材原处的高度
+      onStart: (p) => { if (!p) return; const t = S.tools[key], g = obj.position.clone().sub(p).setY(0); t.drag = true; t.side = 0; t.hand = p.toArray(); t.grab = (g.length() < GMAX[key] ? g : GRAB[key]).toArray(); },
+      onDrag: (p) => { if (p) S.tools[key].hand = p.toArray(); },
+      onEnd: () => release(key), onTap: () => { const m = hint(); if (m) status(m); } });
     const drag = draggable(group, [
-      toolItem('knife', knife, () => (S.cut ? '' : '小刀：拖到钠条上，越往右切下的越多；松手切下')),
-      toolItem('tw', tw, () => (S.held ? '镊子：拖到坩埚上方，松手投进去' : '镊子：夹起切下的钠（不要用手直接接触）')),
-    ], { tip: tag('', 'pill'), highlight: true, taps: [{ obj: lampPick, hint: () => (S.lampK > 0.5 ? '酒精灯：点一下放回坩埚下面加热' : !S.lit ? '酒精灯：点一下，取下灯帽点燃' : '酒精灯：点一下撤掉（挪开、盖灭）'), onTap: () => A_.tapLamp() }] });
+      toolItem('knife', knife, () => (S.cut ? '' : '小刀：拖到钠条上，越往右切下的越多；松手或拖过钠条就切下')),
+      toolItem('tw', tw, () => (S.held ? '镊子：拖到坩埚上方，松手投进去' : '镊子：镊尖碰到切下的钠就夹起（不要用手直接接触）')),
+    ], { tip: tag('', 'pill'), taps: [{ obj: lampPick, hint: () => (S.lampK > 0.5 ? '酒精灯：点一下放回坩埚下面加热' : !S.lit ? '酒精灯：点一下，取下灯帽点燃' : '酒精灯：点一下撤掉（挪开、盖灭）'), onTap: () => A_.tapLamp() }] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: sodiumBurnScene(), at: () => V(CX, RING_Y + 0.03, CZ), btnAt: () => V(CX + 0.042, RING_Y + 0.03, CZ), label: '钻进去看',
       state: () => ({ burning: S.burning > 0 || S.burned > 0 }), key: () => String(S.burning > 0 || S.burned > 0), show: () => S.inCru, bar: () => bar, scale: 0.0075, lookD: [0.02, 0.25, 1], dist: 0.24 });
 
     const lampTapAct = (when) => { let fired = false; return (k) => { if (k < 0.03) { fired = false; return; } if (!fired && when(k)) { fired = true; drag.items().find((d) => d.obj === lampPick)?.onTap?.(); } }; };
-    const toolPath = (obj, to, t0, t1, high = 0.15) => act.path(obj.pick, [null, () => V(obj.position.x, high, 0.06), () => to().setY(Math.max(high, to().y)), to], { t0, t1, release: t1 + 0.02 });
+    // 演示：手拿着器材拖过去（学生拖动的同一套处理）；点是器材该到的面上的点
+    const toolPath = (obj, pts, o) => act.path(obj.pick, [() => obj.position.clone(), ...pts], o);
+    const CUT_DEMO = BAR_LEFT + mmOf(0.04);
     const bar = lessonBar({
       look, back, group,
       steps: [
@@ -179,8 +224,8 @@ export default {
             view: { save: () => (mic.isOpen ? 'micro' : S.near ? 'near' : null), restore: (v) => { if (v === 'micro') mic.open(); else if (v === 'near' && S.inCru) { S.near = true; look([CX, BOT.y + 0.004, CZ], [0.15, 1.2, 1], 0.25, () => { S.near = false; }); } } } }),          // 演示完回到学生原来看的地方
           shots: [
             { cap: '取下灯帽，点燃酒精灯，加热干燥的坩埚；同时切取一块绿豆大的钠。', dur: 7, speed: 1.5, cam: [[0.0, 0.06, 0.0], [0.05, 0.42, 1], 0.36],
-              during: act.seq(lampTapAct((k) => k > 0.06), toolPath(knife, () => V(BAR_LEFT + mmOf(0.04), 0.012, PAPER.z + 0.03), 0.25, 0.6, 0.05)) },
-            { cap: '用镊子夹取，迅速投到热坩埚中。', dur: 8, cam: [[-0.02, 0.07, 0.0], [0.05, 0.42, 1], 0.34], during: act.seq(toolPath(tw, DOCK.piece, 0.03, 0.25), toolPath(tw, () => DOCK.cru().setY(0.16), 0.52, 0.78)) },
+              during: act.seq(lampTapAct((k) => k > 0.06), toolPath(knife, [V(CUT_DEMO, BAR_TOP, PAPER.z + 0.02), V(CUT_DEMO, BAR_TOP, PAPER.z - 0.02)], { t0: 0.25, t1: 0.7, release: 0.8 })) },
+            { cap: '用镊子夹取，迅速投到热坩埚中。', dur: 8, cam: [[-0.02, 0.07, 0.0], [0.05, 0.42, 1], 0.34], during: toolPath(tw, [[DOCK.piece, 0.07], DOCK.cru], { t0: 0.03, t1: 0.62, release: 0.74 }) },
             { cap: '继续加热片刻：钠先熔化成闪亮的小球。熔化后立即撤掉酒精灯。', dur: 4, cam: [[CX, 0.1, CZ], [0.15, 1.2, 1], 0.25], during: lampTapAct((k) => S.melt >= 1 || k > 0.95) },
             { cap: '钠与氧气剧烈反应，发出黄色火焰；撤掉酒精灯也照样燃烧。不要近距离俯视坩埚！', dur: 7, cam: [[CX, 0.115, CZ], [0.06, 0.7, 1], 0.27] },
             { cap: '燃烧后，坩埚里留下淡黄色固体——过氧化钠（烧完了才凑近看）。', dur: 4, cam: [[CX, 0.103, CZ], [0.12, 1.6, 1], 0.2] },
@@ -194,22 +239,22 @@ export default {
     const col = new THREE.Color(), SILVER = new THREE.Color(0xdce2e8), DULL = new THREE.Color(0xaeb1ad), up = V(0, 1, 0);
     const step = (dt, t) => {
       S.clock += dt;
-      // 工具
+      // 小刀、镊子：拿着就跟手（指数约 25/s），松手很快放回原处；镊尖碰到切下的钠就夹起，按着拖过钠条就切下
+      const aF = 1 - Math.exp(-dt * 25), aH = 1 - Math.exp(-dt * 17), aR = 1 - Math.exp(-dt * 14);
       for (const key of ['knife', 'tw']) {
-        const T = S.tools[key];
-        if (T.motion) {
-          const p = V(...T.pos), goal = V(...T.motion.points[0]), d = goal.clone().sub(p);
-          p.addScaledVector(d, Math.min(1, dt * 0.26 / Math.max(0.00001, d.length()))); T.pos = p.toArray();
-          if (p.distanceTo(goal) < 0.0005) { T.motion.points.shift(); if (!T.motion.points.length) { const ev = T.motion.event; T.motion = null; if (events[ev]) { events[ev](); if (ev !== 'take') home(key); } } }
-        }
-        const obj = key === 'knife' ? knife : tw;
-        obj.position.lerp(V(...T.pos), 1 - Math.exp(-dt * 26));
+        const T = S.tools[key], obj = key === 'knife' ? knife : tw;
+        let rot = 0;
+        if (T.drag && T.hand) {
+          const a = aimTool(key); rot = a.rot; RH.move(obj, a.T, aF, CUPS);
+          if (key === 'tw' && a.zone === 'piece' && obj.position.distanceTo(a.T) < 0.005) events.take();
+          if (key === 'knife') { if (a.zone === 'bar' && !S.cut) { S.chosen = clamp((a.x - BAR_LEFT) / mmOf(1), 0.01, 0.2); if (T.side && a.side && a.side !== T.side) cutNow(); if (a.side) T.side = a.side; } else T.side = 0; }
+        } else if (key === 'knife' && T.press > 0 && RH.xz(obj.position, V(cutX(), 0, PAPER.z + 0.016)) < 0.03) {          // 在钠条上松手：就在那里压下去切
+          RH.move(obj, V(cutX(), BAR_TOP + 0.006 - 0.0065 * Math.sin(Math.PI * (1 - T.press)), obj.position.z), aF); rot = 1;
+        } else homeTo(key, obj, aH);
+        if (key === 'knife') { T.press = Math.max(0, T.press - dt / 0.35); T.turn += (rot - T.turn) * aR; }
+        else tw.rotation.z += (rot * Math.PI / 2 - tw.rotation.z) * aR;
       }
-      const kp = knife.position, cutting = Math.abs(kp.x - PAPER.x) < 0.035 && kp.y < 0.03 && Math.abs(kp.z - PAPER.z) < 0.035 && !S.cut;
-      S.tools.knife.turn += ((cutting || S.tools.knife.motion?.event === 'cut' ? 1 : 0) - S.tools.knife.turn) * Math.min(1, dt * 10);
       knife.quaternion.slerpQuaternions(QK0, QK1, S.tools.knife.turn);
-      const overCru = Math.abs(tw.position.x - CX) < 0.03 && Math.abs(tw.position.z - CRU.z) < 0.03 && tw.position.y < 0.18;
-      tw.rotation.z += ((overCru ? Math.PI / 2 : 0) - tw.rotation.z) * Math.min(1, dt * 12);
       // 钠条、切下的一块
       const cutW = mmOf(S.cut ? S.mass : 0), restL = BAR_LEN - cutW;
       bar0.scale.set(restL, A, A); bar0.position.set(BAR_LEFT + cutW + restL / 2 + (S.cut ? 0.002 : 0), 0.003 + A / 2, PAPER.z);
@@ -298,11 +343,12 @@ export default {
         picks: { knife: knife.pick, tw: tw.pick, lamp: lampPick },
         qa: qaFlow(drag, [
           { name: '点燃酒精灯', tap: lampPick, wait: 2 },
-          { name: '切钠', drag: knife.pick, to: () => V(BAR_LEFT + mmOf(0.04), 0.012, PAPER.z + 0.03), wait: 3 },
-          { name: '夹起', drag: tw.pick, to: () => DOCK.piece().setZ(0.06), wait: 3 },
-          { name: '投进坩埚', drag: tw.pick, to: () => DOCK.cru().setY(0.16).setZ(0.06), wait: 1.5, scale: 1 },
-          { name: '等熔化', run: () => {}, wait: 0.8, scale: 1 },
-          { name: '撤灯', tap: lampPick, wait: 3, scale: 1 },
+          // 真鼠标：按在拾取盒中间（镊子：手在镊尖右边 3 cm），让器材尖落到钠条上、切下的钠上、坩埚口上
+          { name: '切钠', drag: knife.pick, to: () => RH.aim(V(CUT_DEMO, BAR_TOP, PAPER.z), KN.y, GRAB.knife), wait: 3 },
+          { name: '夹起', drag: tw.pick, to: () => RH.aim(DOCK.piece(), TW.y, GRAB.tw), wait: 3 },
+          { name: '投进坩埚', drag: tw.pick, to: () => RH.aim(DOCK.cru(), TW.y, GRAB.tw), wait: 0.2, scale: 1 },
+          // 看着钠：一熔化就点酒精灯撤掉（点灯的真鼠标在第一步已经试过）
+          { name: '熔化后立即撤灯', run: () => { const me = S, go = () => { if (S !== me || S.lampK > 0) return; if (S.melt >= 1) drag.items().find((d) => d.obj === lampPick).onTap(); else requestAnimationFrame(go); }; go(); }, wait: 3, scale: 1 },
           { name: '钻进去看', run: () => mic.open(), wait: 4 },
           { name: '合上', run: () => mic.close(), wait: 1 },
           { name: '等烧完', run: () => {}, wait: 10 },

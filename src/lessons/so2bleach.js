@@ -143,7 +143,7 @@ export default {
       reset() { if (bar.playing) bar.stop(); S = fresh(); sync(); mic.close(); back(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('drip', 'shake', 'heat', 'off', 'why'); status('器材重新摆好了：试管里又是新的 SO₂ 水溶液。'); },
     };
     const sync = () => { gas.clear(); B.drops.clear(); capper.snap(S.lit); H.snap(); };
-    const drag = draggable(group, [...B.items], { tip: tag('', 'pill'), highlight: true, taps: [
+    const drag = draggable(group, [...B.items], { tip: tag('', 'pill'), taps: [
       { obj: lampPick, hint: () => (S.lit ? '酒精灯：点一下，用灯帽盖灭' : '酒精灯：点一下，取下灯帽点燃'), onTap: () => A.tapLamp() },
       { obj: hoodPick, hint: () => (S.fan ? '排风罩：点一下，关上排风' : '排风罩（实验室排风）：点一下，打开排风'), onTap: () => A.tapHood() },
       { obj: H.pick, hint: () => (S.heat.goal ? '试管夹：点一下，把试管放回试管架' : '试管夹：点一下，夹住试管，斜着放到外焰上加热'), onTap: () => A.tapClamp() },

@@ -83,11 +83,11 @@ export default {
     const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), s4 = new THREE.Vector3();
 
     const fresh = () => ({ demo: false, near: false, gen: Math.random(), said: {},
-      syr: { pos: [HOME.x, HOME.y], tilt: 0, at: 'home', carry: false, last: null, motion: null },
+      syr: { pos: [HOME.x, HOME.y], tilt: 0, at: 'home', carry: false, last: null, go: null },
       L: 20 / ML_PER_M, Loff: 0, held: false, closed: true, clipK: 0,
       w: 0, beak: BEAK0, no: 20, o2: 0, n2: 0, no2: 0, hno3: 0, o2In: 0, n2In: 0,
       lost: 0, lostNO: 0, diffOut: 0, diffNO: 0, spill: 0, leakT: 0, openT: 0, shakeE: 0, shook: 0, mix: 1, Lprev: 20 / ML_PER_M,
-      cycle: 0, inCycle: false, airCycle: 0, airPull: 0, airBack: 0, openShook: 0, peak: 0, peakTint: 0, airLogged: false, shookC: 0, marks: [], autoHome: 0, early: false, bH: 0, spH: 0, puff: 0, tryShake: 0, noAir: null, openC: 0 });
+      cycle: 0, inCycle: false, airCycle: 0, airPull: 0, airBack: 0, openShook: 0, peak: 0, peakTint: 0, airLogged: false, shookC: 0, marks: [], early: false, bH: 0, spH: 0, puff: 0, tryShake: 0, noAir: null, openC: 0 });
     S = fresh();
     const gasV = () => S.no + S.o2 + S.n2 + S.no2;
     const Leq = () => Math.min(L_MAX + 0.004, (S.w + gasV()) / ML_PER_M);
@@ -138,22 +138,17 @@ export default {
       }
     };
 
-    // ---- 注射器搬动：抬起来 → 平移 → 放下（倾斜跟着走）----
-    const travel = (pts, at) => { const s = S.syr; s.carry = false; s.at = 'moving'; s.motion = { points: pts.map((p) => [...p]), from: [s.pos[0], s.pos[1], s.tilt], at }; };
-    const goDip = () => travel([[S.syr.pos[0], Math.max(UP, S.syr.pos[1]), 0], [DIP.x, UP, DIP.tilt], [DIP.x, DIP.y, DIP.tilt]], 'dip');
-    const goHome = () => (S.syr.pos[1] < 0.05 && !inBeaker() && Math.abs(S.syr.tilt) < 0.05 ? travel([[HOME.x, HOME.y, 0]], 'home') : travel([[S.syr.pos[0], Math.max(UP, S.syr.pos[1]), S.syr.tilt], [HOME.x, UP, 0], [HOME.x, HOME.y, 0]], 'home'));
-    const release = () => {
-      const t = tipPos();
-      if (t.x < BX + 0.022 && t.x > BX - 0.07) return goDip();
-      goHome();
-    };
+    // ---- 注射器：手拿着走；乳胶管末端在杯口上方松手 → 竖直放下去，管口伸进水里；别处松手 → 很快放回桌上 ----
+    const overMouth = () => { const t = tipPos(); return Math.abs(t.x - BX) < BR + 0.004; };          // 乳胶管末端在杯口范围内（宽一点）
+    const release = () => { const s = S.syr; s.carry = false; s.go = overMouth() || inBeaker() ? 'dip' : 'home'; s.at = 'moving'; };
+    const liftOut = (t0, t1) => act.path(syr.barrelPick, [() => local(PICK_C), () => local(PICK_C).add(V(0, 0.09, 0)), () => V(HOME.x + PICK_C, 0.1, 0)], { t0, t1, release: t1 + 0.02 });          // 演示：竖直提出烧杯，再拿到原处上方松手
     const A = {
       tapClip() {
         S.closed = !S.closed; S.shook = 0;
         if (S.closed) {
           if (S.syr.at === 'dip' && S.w > 0.5) {
             const off = S.w > 6 ? '（课本是 5 mL，多了。可以接着做，记录按实际水量；或<button class="no2-redo">全部重来</button>）' : S.w < 4 ? '（课本是 5 mL，少了：可以再打开弹簧夹接着吸）' : '';
-            status(`夹上了弹簧夹，封住了管口：针筒里有 ${r1(S.w)} mL 水${off}。${S.w <= 6 && S.w >= 4 ? '把注射器提出来放好，再<b>振荡</b>。' : ''}`); if (S.w <= 6 && S.w >= 4) S.autoHome = 0.4;
+            status(`夹上了弹簧夹，封住了管口：针筒里有 ${r1(S.w)} mL 水${off}。${S.w <= 6 && S.w >= 4 ? '把注射器竖直提出来，再<b>振荡</b>。' : ''}`);
           }
           else if (S.inCycle && S.airCycle > 0.5) status(`夹上了。这次进了约 ${r1(S.airCycle)} mL 空气（拉活塞 ${r1(S.airPull)} mL${S.airBack > 0.05 ? `，管口补进 ${r1(S.airBack)} mL` : ''}）：看针筒里的颜色和活塞。`);
           else status('夹上了弹簧夹：管口封住了。');
@@ -170,7 +165,7 @@ export default {
     const drag = draggable(group, [
       { obj: syr.barrelPick, plane: 'xy', offset: 0, keepOffset: true, anchor: syr.barrelPick,
         hint: () => (S.syr.at === 'dip' ? '注射器：拖开就提出来，放回桌上' : S.w < 1 ? '注射器：拖过去，让乳胶管末端对准烧杯口（亮起来时）松手' : '注射器：按住左右来回拖，振荡'),
-        onStart: (p) => { const s = S.syr; s.motion = null; s.carry = true; s.last = p ? p.clone() : null; if (s.at !== 'dip') s.at = 'carry'; },
+        onStart: (p) => { const s = S.syr; s.go = null; s.carry = true; s.last = p ? p.clone() : null; if (s.at !== 'dip') s.at = 'carry'; },
         onDrag: (p) => {
           if (!p) return; const s = S.syr;
           const tryX = s.last ? Math.abs(p.x - s.last.x) : 0;
@@ -202,13 +197,13 @@ export default {
         hint: () => (S.closed ? '活塞：弹簧夹夹着，拉不动' : S.syr.at === 'dip' ? '活塞：往外拉吸水（到 25 mL 刻度）' : '活塞：往外拉吸入空气，往里推会把气体推出去'),
         onStart: () => { S.held = true; },
         onDrag: (p) => {
-          if (!p || S.syr.motion) return;
+          if (!p || S.syr.go) return;
           const Lw = p.clone().sub(origin()).dot(axis()) - PICK_OFF;
           if (S.closed) { S.Loff = clamp(Lw - S.L, -0.004, 0.004); if (Math.abs(Lw - S.L) > 0.004) once('pullShut', '弹簧夹夹着，管口封住了：活塞<b>拉不动、推不动</b>（一松手就弹回去）。要吸入东西，先点<b>弹簧夹</b>打开。'); }
           else S.L = clamp(Lw, 0.001, L_MAX);
         },
         onEnd: () => { S.held = false; } },
-    ], { tip: tag('', 'pill'), highlight: true, taps: [{ obj: syr.clipPick, hint: () => (S.closed ? '弹簧夹：点一下打开' : '弹簧夹：点一下夹上'), onTap: () => A.tapClip() }] });
+    ], { tip: tag('', 'pill'), taps: [{ obj: syr.clipPick, hint: () => (S.closed ? '弹簧夹：点一下打开' : '弹簧夹：点一下夹上'), onTap: () => A.tapClip() }] });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: no2Scene(), at: () => V(HOME.x + 0.045, 0.045, 0), btnAt: () => V(HOME.x + 0.1, 0.05, 0), label: '钻进去看',
       state: () => ({ water: S.w > 0.2, no: S.no, o2: S.o2, n2: S.n2, no2: S.no2, hno3: S.hno3, o2In: S.o2In, n2In: S.n2In, shaking: S.shakeE > 0.15, leak: S.leakT > 0 }),
@@ -234,7 +229,7 @@ export default {
       steps: [
         { id: 'water', title: '吸入 5 mL 水', todo: '拖动<b>注射器</b>，让<b>乳胶管末端</b>对准烧杯口（杯口亮起来）松手，管口伸进水里；点<b>弹簧夹</b>打开，拉<b>活塞</b>吸入 5 mL 水（到 25 mL 刻度）。', target: () => (S.syr.at !== 'dip' ? syr : S.closed ? syr.clip : syr.plunger) },
         { id: 'seal', title: '封住管口', todo: '点<b>弹簧夹</b>夹上，用乳胶管和弹簧夹封住管口。', target: () => syr.clip },
-        { id: 'shake1', title: '振荡', todo: '按住<b>注射器</b>左右来回拖几下（振荡），观察现象。', target: () => (S.syr.at === 'dip' ? null : syr) },
+        { id: 'shake1', title: '振荡', todo: '把<b>注射器</b>竖直提出烧杯，按住左右来回拖几下（振荡），观察现象。', target: () => syr },
         { id: 'air', title: '吸入 10 mL 空气', todo: '点<b>弹簧夹</b>打开，<b>快速</b>拉<b>活塞</b>吸入 10 mL 空气（看卡片上的进气量），到量立即点弹簧夹夹上，观察现象。', target: () => (!S.inCycle || S.airLogged ? (S.closed ? syr.clip : syr.plunger) : !S.closed ? (S.airCycle >= 10 - 0.02 ? syr.clip : syr.plunger) : S.cycle === 1 && S.airCycle < 9.5 ? syr.clip : null) },
         { id: 'shake2', title: '再振荡', todo: '再<b>振荡</b>注射器，观察现象。', target: () => syr },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
@@ -248,7 +243,7 @@ export default {
             { cap: '注射器里充入了 20 mL NO（无色）。把注射器口伸进水里，打开弹簧夹，吸入 5 mL 水。', dur: 10, cam: [[-0.07, 0.07, 0], [0.04, 0.3, 1], 0.33],
               during: act.seq(act.drag(syr.barrelPick, () => V(DIP.x + PICK_C, 0.105, 0), { t0: 0.03, t1: 0.2, release: 0.22 }), act.tap(syr.clipPick, 0.48), act.drag(syr.plungerPick, plungerTo(25), { t0: 0.56, t1: 0.82, release: 0.86 })) },
             { cap: '用乳胶管和弹簧夹封住管口，振荡注射器：气体还是无色，没有明显变化——NO 不易溶于水。', dur: 8, cam: [[0.03, 0.04, 0], [0.04, 0.3, 1], 0.3],
-              during: act.seq(act.tap(syr.clipPick, 0.04), act.wiggle(syr.barrelPick, { t0: 0.36, t1: 0.9, amp: 0.014, hz: 2.2, dur: 8 })) },
+              during: act.seq(act.tap(syr.clipPick, 0.04), liftOut(0.1, 0.3), act.wiggle(syr.barrelPick, { t0: 0.42, t1: 0.92, amp: 0.014, hz: 2.2, dur: 8 })) },
             { cap: '打开弹簧夹，快速吸入 10 mL 空气，到量立即夹上：无色气体变成红棕色，活塞往里缩了一点。', dur: 8, cam: [[0.03, 0.04, 0], [0.04, 0.3, 1], 0.28],
               during: act.seq(act.tap(syr.clipPick, 0.05), pullAir(0.12, 0.42)) },
             { cap: '钻进去看，再振荡：三个 NO₂ 和一个 H₂O 变成两个 HNO₃ 和一个 NO——红棕色褪去，活塞继续往里走，剩下无色的 NO（和空气带进来的 N₂）。演示完了，换你自己做。', dur: 14, cam: [[0.04, 0.07, 0], [0.04, 0.3, 1], 0.32],
@@ -262,20 +257,23 @@ export default {
     const step = (dt, t) => {
       for (const k in spawn) delete spawn[k];
       const s = S.syr;
-      // 注射器搬动
-      if (s.motion) {
-        const M = s.motion, goal = M.points[0], p = V(s.pos[0], s.pos[1]), g = V(goal[0], goal[1]), d = g.clone().sub(p), seg = V(M.from[0], M.from[1]).distanceTo(g);
-        p.addScaledVector(d, Math.min(1, dt * 0.26 / Math.max(1e-5, d.length()))); s.pos = [p.x, p.y];
-        const fr = seg > 1e-5 ? 1 - p.distanceTo(g) / seg : 1; s.tilt = M.from[2] + (goal[2] - M.from[2]) * clamp(fr, 0, 1);
-        if (p.distanceTo(g) < 0.0004) { s.tilt = goal[2]; M.from = [g.x, g.y, goal[2]]; M.points.shift(); if (!M.points.length) { s.motion = null; s.at = M.at; if (M.at === 'dip') status(S.closed ? '管口伸进水里了。点<b>弹簧夹</b>打开，再拉<b>活塞</b>吸水。' : '管口伸进水里了。拉<b>活塞</b>吸水（到 25 mL 刻度）。'); } }
+      // 注射器：松手后很快放好——放进烧杯：先平移到杯口正上方，再竖直放下去，同时转到管口略朝下；放回桌上：先平移到原处上方（在杯里先竖直提出来），再放下去，同时放平
+      if (s.go) {
+        const D = s.go === 'dip' ? DIP : HOME, p = V(s.pos[0], s.pos[1]), far = Math.abs(p.x - D.x) > 0.002, k = 1 - Math.exp(-dt * 16);
+        const goal = s.go === 'home' && far && p.y < UP - 0.02 && (inBeaker() || p.x < BX + BR + 0.03) ? V(p.x, UP, 0) : far ? V(D.x, Math.max(p.y, D.y), 0) : V(D.x, D.y, 0);
+        p.lerp(goal, k); s.pos = [p.x, p.y];
+        s.tilt += (D.tilt - s.tilt) * (far && s.go === 'dip' ? 0 : k);
+        if (!far && p.distanceTo(V(D.x, D.y)) < 0.0004) {
+          s.pos = [D.x, D.y]; s.tilt = D.tilt; s.at = s.go; s.go = null;
+          if (s.at === 'dip') status(S.closed ? '管口伸进水里了。点<b>弹簧夹</b>打开，再拉<b>活塞</b>吸水。' : '管口伸进水里了。拉<b>活塞</b>吸水（到 25 mL 刻度）。');
+        }
       } else if (s.carry && !inBeaker()) s.tilt += (0 - s.tilt) * Math.min(1, dt * 8);
-      if (S.autoHome > 0) { S.autoHome -= dt; if (S.autoHome <= 0 && S.syr.at === 'dip' && S.closed) goHome(); }          // 在水里夹上以后：提出来放回桌上
       // 弹簧夹
       S.clipK += ((S.closed ? 0 : 1) - S.clipK) * Math.min(1, dt * 12);
       // 活塞：夹着 → 停在“水 + 气体”处（手上只能挪一点，松手弹回）；开着 → 停在哪儿就是哪儿，少了的从管口补进来
       if (!S.held) S.Loff += (0 - S.Loff) * Math.min(1, dt * 10);
       if (S.closed) S.L += (Leq() - S.L) * Math.min(1, dt / 0.25);
-      else if (!s.motion) {
+      else if (!s.go) {
         const def = S.L * ML_PER_M - S.w - gasV(), pulled = Math.max(0, (S.L - S.Lprev) * ML_PER_M);
         if (def > 0.002) intake(def, pulled); else if (def < -0.002) expel(-def);
         // 管口通着空气：里外气体经乳胶管慢慢扩散交换——按 D ≈ 0.2 cm²/s、管内径 3 mm、长约 7 cm 估，约 0.003 mL/s（量级示意）；
@@ -350,7 +348,7 @@ export default {
       syr.setL(S.L + S.Loff); syr.clip.setOpen(S.clipK);
       C.update({ w: S.w, Lm: S.L + S.Loff, tilt: s.tilt, sp: { no: S.no, o2: S.o2, n2: S.n2, no2: S.no2 }, mix: S.mix, slosh: S.shakeE, dt, spawn });
       beaker.setLevel(beakLevel());
-      { const t = tipPos(), inZone = t.x < BX + 0.022 && t.x > BX - 0.07, want = S.syr.carry && S.syr.at !== 'dip' && !inBeaker() ? (inZone ? 0.9 : 0.35) : 0; zone.material.opacity += (want - zone.material.opacity) * Math.min(1, dt * 10); zone.visible = zone.material.opacity > 0.02; }
+      { const inZone = overMouth(), want = S.syr.carry && S.syr.at !== 'dip' && !inBeaker() ? (inZone ? 0.9 : 0.35) : 0; zone.material.opacity += (want - zone.material.opacity) * Math.min(1, dt * 10); zone.visible = zone.material.opacity > 0.02; }
       // 管口冒出来的气体（推出来的 / 开着时慢慢跑出来的，示意）：NO 一遇空气就变红棕色
       // 烟按跑出去的 NO、NO₂ 的量画（示意：每 mL 约 30 团；扩散跑出去的很少，只有零星几团）
       const tp = tipPos(), out = dt > 0 ? Math.min(3000, (S.puff * 30) / dt) : 0; if (dt > 0) S.puff = 0;
@@ -367,7 +365,7 @@ export default {
       const air = S.inCycle && S.airCycle > 0.05 ? `<div class="cc-note">这次进气 <b>${r1(S.airCycle)}</b> mL（拉活塞 ${r1(S.airPull)}${S.airBack > 0.05 ? `、管口补进 ${r1(S.airBack)}` : ''}）${S.airCycle >= 10 - 0.02 && !S.airLogged ? ' · <b>到 10 mL 了</b>' : ''}</div>` : '';
       const outN = S.lostNO + S.diffNO > 0.005 ? `<div class="cc-note">跑出去的 NO、NO₂ 约 ${(S.lostNO + S.diffNO).toFixed(2)} mL（有毒）</div>` : '';
       card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">注射器里</span>${stamp}</div><div class="cc-more"><div class="cc-obs"><b>${Math.round(mark())}</b>${scaleLine}</div><div class="cc-note">气体（mL）：${parts}</div>${air}${outN}<div class="cc-note">点：淡紫灰 = NO、蓝 = O₂、灰 = N₂ 等（示意色）</div></div></div>`)
-        .loc(group, local(0.03, 0.018).x, local(0.03, 0.018).y, 0).show(!bar.playing && !mic.isOpen && !s.motion);
+        .loc(group, local(0.03, 0.018).x, local(0.03, 0.018).y, 0).show(!bar.playing && !mic.isOpen && !s.go);
       bar.near(S.near); mic.update?.(dt);
     };
 
@@ -396,7 +394,8 @@ export default {
           { name: '拿到烧杯上', drag: syr.barrelPick, to: () => V(DIP.x + PICK_C, 0.105, 0), wait: 2.5 },
           { name: '打开弹簧夹', tap: syr.clipPick, wait: 0.5 },
           { name: '吸水', drag: syr.plungerPick, to: plungerTo(25), wait: 1 },
-          { name: '夹上', tap: syr.clipPick, wait: 3 },
+          { name: '夹上', tap: syr.clipPick, wait: 1 },
+          { name: '提出来', run: () => { const d = drag.items().find((x) => x.obj === syr.barrelPick); d.onStart(local(PICK_C)); d.onDrag(local(PICK_C).add(V(0, 0.09, 0))); d.onDrag(V(HOME.x + PICK_C, 0.1, 0)); d.onEnd(true); }, wait: 2 },
           { name: '振荡 1', run: () => wig(), wait: 1.2 },
           { name: '振荡 1b', run: () => wig(), wait: 1.2 },
           { name: '打开', tap: syr.clipPick, wait: 0.3 },

@@ -234,7 +234,7 @@ export default {
       { obj: tarePick, hint: '去皮：显示归零', onTap: () => A.tare() },
       { obj: botPick, hint: '试剂瓶：装瓶，贴上标签', onTap: () => A.bottleTap() },
       { obj: pan, hint: () => (S.panSalt > 0.01 ? (display() > TARGET + 0.025 ? '称多了：点一下用药匙取出一点' : '点一下：把 NaCl 倒进烧杯') : ''), onTap: () => A.panTap() },
-    ], tip: tag('', 'pill'), highlight: true });
+    ], tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const mic = micro({ tag, look, back, group, scene: dissolveScene(), at: () => S.bkP.clone().add(V(0, 0.006, 0)), label: '钻进烧杯里看', state: () => ({ salt: S.bkSalt > 0.1, water: S.bkWater > 5, dis: S.dis, stir: S.stir }), show: () => S.bkSalt > 0.1 && S.bkWater > 5 && S.dis < 1 && !S.pours, bar: () => bar });
     const holdUntil = (obj, p, cond) => {          // 质检：拿到某处按住，条件成立再松手（像学生看着读数松手）

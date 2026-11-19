@@ -81,7 +81,7 @@ export default {
       seal(on) { if (S.t[1].drops) return status('FeSO₄ 那支已经滴过 NaOH 了。先“全部重来”，再换条件。'); S.sealed = on; S.t[1].o2 = on ? SEALED_O2 : 1; status(on ? '换成：FeSO₄ 溶液和 NaOH 溶液<b>都先煮沸、冷却</b>（除去溶解的氧气），FeSO₄ 液面上<b>加一层植物油</b>（隔绝空气）。现在滴 NaOH 试试。' : '换回普通的溶液（溶有少量氧气，液面通着空气）。'); },
       reset() { if (bar.playing) bar.stop(); S = fresh(); W?.tbl.clear(); if (W) { W.t1.close(); W.t2.close(); W.t1s.close(); W.next.hidden = true; W.ui.relock(); } bar.undo('fecl3', 'feso4', 'wait', 'why'); status('两支试管又是新的了（普通的溶液）。'); },
     };
-    const drag = draggable(group, [...B.items], { tip: tag('', 'pill'), highlight: true });
+    const drag = draggable(group, [...B.items], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const bar = lessonBar({
       look, back, group,

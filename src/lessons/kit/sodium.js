@@ -33,6 +33,51 @@ export function tweezers() {
   }
   g.pick = pickBox(g, 0.082, 0.018, 0.023, 0.03); return g;
 }
+
+/**
+ * 跟手（钠与水、钾与水、钠燃烧三课的镊子、小刀、瓶子共用）：器材落在光标射线碰到的第一个面上——桌面、杯口、瓶口、侧面，
+ * 所以它总在光标底下，碰到哪儿就在哪儿；不自己沿路线走。
+ *   const R = reach(group);
+ *   R.hit(R.ray(p), solids, { floor, clr })  → { p, s, top } 第一个碰到的面（已经让开 clr）；solids：[{ c: 底面中心, r, h, id }] 竖直圆柱
+ *   R.move(o, T, a, cups)   每帧跟过去：往上时先抬、往下时先平移；cups 里的容器 [{ c, r, h }]：在里面要先竖直提出来，进去要先到口上方
+ *   R.aim(T, y, grab)       给 qa 的真鼠标算落点：光标该指的平面点（器材平面 y），让器材尖正好落在 T
+ */
+export function reach(group) {
+  const V3 = THREE.Vector3;
+  const cam = () => { const c = window.__lb?.stage?.camera; if (!c) return null; group.updateMatrixWorld(true); return group.worldToLocal(c.position.clone()); };
+  const ray = (p) => { const o = cam() || p.clone().add(new V3(0, 0.4, 0.8)); return { o, d: p.clone().sub(o).normalize() }; };
+  const xz = (a, c) => Math.hypot(a.x - c.x, a.z - c.z);
+  function hit(r, solids = [], { floor = 0, clr = 0 } = {}) {
+    let best = null;
+    const take = (t, s, top) => { if (t > 1e-4 && (!best || t < best.t)) best = { t, s, top, p: r.o.clone().addScaledVector(r.d, t) }; };
+    if (r.d.y < -1e-6) take((floor + clr - r.o.y) / r.d.y, null, true);
+    for (const s of solids) {
+      const R = s.r + clr, top = s.c.y + s.h + clr;
+      if (r.d.y < -1e-6) { const t = (top - r.o.y) / r.d.y, x = r.o.x + r.d.x * t - s.c.x, z = r.o.z + r.d.z * t - s.c.z; if (x * x + z * z <= R * R) take(t, s, true); }
+      const ox = r.o.x - s.c.x, oz = r.o.z - s.c.z, a = r.d.x * r.d.x + r.d.z * r.d.z, b = ox * r.d.x + oz * r.d.z, c = ox * ox + oz * oz - R * R, D = b * b - a * c;
+      if (a > 1e-9 && D > 0) { const t = (-b - Math.sqrt(D)) / a, y = r.o.y + r.d.y * t; if (y >= s.c.y && y <= top) take(t, s, false); }
+    }
+    return best;
+  }
+  const inside = (o, k) => xz(o, k.c) < k.r && o.y < k.c.y + k.h;
+  function move(o, T, a, cups = []) {
+    const p = o.position;
+    let goal = T;
+    for (const k of cups) {
+      const top = k.c.y + k.h + 0.006;
+      if (inside(p, k) && xz(T, k.c) > k.r * 0.8 && p.y < top - 0.001) { goal = new V3(p.x, top, p.z); break; }          // 在容器里：先竖直提出来
+      if (inside(T, k) && xz(p, k.c) > k.r * 0.8) { goal = new V3(T.x, Math.max(p.y, top), T.z); break; }          // 要伸进去：先到口上方
+    }
+    const up = goal.y > p.y + 0.002, b = a * 0.55;
+    p.x += (goal.x - p.x) * (up ? b : a); p.z += (goal.z - p.z) * (up ? b : a); p.y += (goal.y - p.y) * (up ? a : b);
+  }
+  function aim(T, y, grab = new V3()) {
+    const o = cam(); if (!o) return T.clone().sub(grab);
+    const d = T.clone().sub(o), t = (y - o.y) / d.y;
+    return o.clone().addScaledVector(d, t).sub(grab);
+  }
+  return { ray, hit, move, aim, inside, xz };
+}
 export function sodiumKnife() {
   const g = new THREE.Group();
   const blade = inked(new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.001, 0.012), paint(0xbfc7cf)), { width: 0.7 }); blade.position.x = -0.016;
