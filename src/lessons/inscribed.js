@@ -230,7 +230,7 @@ export default {
     const conAt = (d) => { const t = (d * Math.PI) / 180, r = 0.06 / Math.sin(t), c = [0, 0.05 - 0.06 / Math.tan(t)]; for (const a of [-1.7, -2.0, -2.3, -2.6, -2.9]) { const p = [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; if (inSea(p)) return p; } return null; };
 
     // ================= 状态 =================
-    const fresh = () => ({ ship: [0.11, -0.108], head: Math.PI * 0.75, mode: 'chart', circle: 0, walk: null, walked: false, buoy: 0, cut: [], proof: 0, proofDone: false, caseMode: false, cases: {}, theoremPending: false, theorem: false, theoremAt: 0, io: {}, answerPending: false, answered: false, family: 0, done: false });
+    const fresh = () => ({ ship: [0.11, -0.108], head: Math.PI * 0.75, mode: 'chart', circle: 0, walk: null, walked: false, buoy: 0, cut: [], proof: 0, proofDone: false, caseMode: false, cases: {}, caseNow: '', caseAt: 0, theorem: false, theoremAt: 0, io: {}, ioNow: '', ioAt: 0, movedAt: 0, answered: false, family: 0, done: false });
     let S = fresh();
     const theta = (p = S.ship) => angAt(p, B0, C0);
     const zone = () => { const r = dist(S.ship, O); return r < R - 0.0012 ? 'in' : r > R + 0.0012 ? 'out' : 'on'; };
@@ -361,23 +361,28 @@ export default {
     }
     // 学生做到了哪一步：沿着圆走过一段；作直径看过圆心在里面、外面；定理之后开进过、开出过浅滩
     function track() {
-      const z = zone(), S0 = S;
+      const z = zone();
       if (S.circle >= 1 && !S.walked && z === 'on') {
         const t = tOn(S.ship); S.walk = S.walk ? [Math.min(S.walk[0], t), Math.max(S.walk[1], t)] : [t, t];
         if (S.walk[1] - S.walk[0] >= 0.5) { S.walked = true; sfx.ding(1040, { gain: 0.05 }); }
       }
+      S.movedAt = now();
       if (S.proofDone && !S.proof && !S.theorem && S.caseMode && z === 'on') {
-        const c = caseOf(); if (c !== 'side') S.cases[c] = true;
-        if (S.cases.in && S.cases.out && !S.theoremPending) {
-          S.theoremPending = true;
-          later(4500, () => { if (S !== S0) return; S.theorem = true; S.theoremAt = now(); ui?.unlock?.(); sfx.ding(980, { gain: 0.06 }); layout(); story(); later(5200, () => { if (S === S0) story(); }); });
-        }
+        const c = caseOf(); if (c !== 'side') { if (c !== S.caseNow) { S.caseNow = c; S.caseAt = now(); } S.cases[c] = true; }
       }
       if (S.theorem && z !== 'on') S.caseMode = false;
       if (S.theorem && !S.answered && z !== 'on' && now() - S.theoremAt >= 5) {
+        if (z !== S.ioNow) { S.ioNow = z; S.ioAt = now(); }
         S.io[z] = true;
-        if (S.io.in && S.io.out && !S.answerPending) { S.answerPending = true; later(4500, () => { if (S !== S0) return; S.answered = true; sfx.ding(1100, { gain: 0.06 }); layout(); story(); }); }
       }
+    }
+    // 每一帧看一眼：两种情况都看过、船停下来、这一句也看够了，才说出定理；开进开出都看过、停下来，才给出答案
+    function settle() {
+      const t = now();
+      if (!S.theorem && S.cases.in && S.cases.out && t - S.caseAt >= 4.5 && t - S.movedAt >= 2.5) {
+        S.theorem = true; S.theoremAt = t; ui?.unlock?.(); sfx.ding(980, { gain: 0.06 }); layout(); story(); const S0 = S; later(5200, () => { if (S === S0) story(); });
+      }
+      if (S.theorem && !S.answered && S.io.in && S.io.out && t - S.ioAt >= 4.5 && t - S.movedAt >= 2.5) { S.answered = true; sfx.ding(1100, { gain: 0.06 }); layout(); story(); }
     }
     // 一束光正好照过浮标：开始讲为什么（课本情况（1））
     function checkProof() {
@@ -428,11 +433,13 @@ export default {
       if (!S.buoy) { S.buoy = 1; sfx.clink({ freq: 1300, gain: 0.05 }); layout(); story(); return; }
       if (S.proofDone && !S.proof && zone() === 'on') { S.caseMode = !S.caseMode; sfx.clink({ freq: 1500, gain: 0.04 }); track(); layout(); story(); }          // 过船作直径 AD：情况（2）（3）拆成情况（1）
     }
+    const openPanel = () => { ui?.go?.(2); ui?.fold?.(false); };
+    const panelBack = () => { if (S.panelLater) { S.panelLater = false; later(700, openPanel); } };
     function tapSea() {
       if (!S.answered || S.family) return;
       sfx.whoosh({ dur: 1.2, freq: 600, gain: 0.05 });
       const t0 = now(); for (const n of notes) n.userData.fade = t0;
-      grow('family', 2.4, () => { S.done = true; story(); later(7000, () => { ui?.go?.(2); ui?.fold?.(false); }); });
+      grow('family', 2.4, () => { S.done = true; story(); later(7000, () => { if (S.mode === 'deck') S.panelLater = true; else openPanel(); }); });
     }
     // 站到船头：镜头钻进盒子，从船上看两座灯塔；船头手边那卷海图点一下回来
     const chartRoll = new THREE.Group();
@@ -451,16 +458,17 @@ export default {
     function deckLook() {
       const { E, dir } = eye(), tgt = add(E, mul(dir, 0.16)), Ey = 0.011, Ty = 0.027;
       const d3 = new THREE.Vector3(E[0] - tgt[0], Ey - Ty, -(E[1] - tgt[1])), dd = d3.length();
-      look([tgt[0], Ty, -tgt[1]], d3.normalize().toArray(), dd, () => { S.mode = 'chart'; chartRoll.visible = false; caption.visible = true; layout(); subtitle(); }, { minEl: 0, minZoom: 0.6 });
+      look([tgt[0], Ty, -tgt[1]], d3.normalize().toArray(), dd, () => { S.mode = 'chart'; chartRoll.visible = false; caption.visible = true; layout(); subtitle(); panelBack(); }, { minEl: 0, minZoom: 0.6 });
     }
     let deckT0 = 0;
     function toDeck() { S.mode = 'deck'; deckT0 = now(); chartRoll.visible = true; caption.visible = false; deckLook(); layout(); subtitle(); sfx.whoosh({ dur: 0.5, freq: 700, gain: 0.04 }); }
-    function toChart() { S.mode = 'chart'; chartRoll.visible = false; caption.visible = true; layout(); subtitle(); back(); }
+    function toChart() { S.mode = 'chart'; chartRoll.visible = false; caption.visible = true; layout(); subtitle(); back(); panelBack(); }
     // 船头视角里：按住拖——往上拖往前开（离灯塔近一点），左右拖往旁边开
     let deckDrag = null;
     const deckPointer = {
-      down: (r, e) => { if (S.mode !== 'deck') return false; if (r.intersectObject(rollMesh, false).length) { toChart(); return true; } deckDrag = { x: e?.clientX ?? 0, y: e?.clientY ?? 0 }; return true; },
-      move: (r, e) => { if (S.mode !== 'deck') return false; if (!deckDrag || !e) return true; const dx = e.clientX - deckDrag.x, dy = e.clientY - deckDrag.y; deckDrag = { x: e.clientX, y: e.clientY }; const { dir } = eye(), right = [dir[1], -dir[0]], k = 0.00022; moveShip(add(S.ship, add(mul(dir, -dy * k), mul(right, dx * k)))); deckLook(); return true; },
+      down: (r, e) => { if (S.mode !== 'deck') return false; if (r.intersectObject(rollMesh, false).length) { toChart(); return true; } deckDrag = { x: e?.clientX ?? 0, y: e?.clientY ?? 0, raw: S.ship.slice() }; return true; },
+      move: (r, e) => { if (S.mode !== 'deck') return false; if (!deckDrag || !e) return true; const dx = e.clientX - deckDrag.x, dy = e.clientY - deckDrag.y; const raw = add(deckDrag.raw, add(mul(eye().dir, -dy * 0.00022), mul([eye().dir[1], -eye().dir[0]], dx * 0.00022)));
+        deckDrag = { x: e.clientX, y: e.clientY, raw: [clamp(raw[0], SEA.u0 + 0.009, SEA.u1 - 0.009), clamp(raw[1], SEA.v0 + 0.009, SEA.v1 - 0.013)] }; moveShip(deckDrag.raw); deckLook(); return true; },
       up: () => { if (S.mode !== 'deck') return false; deckDrag = null; return true; },
     };
     const canShip = () => S.mode === 'chart' && !(S.proof && !S.proofDone);          // 讲证明的时候船先停在那里（光正好照过浮标），好拖那两个底角
@@ -496,6 +504,7 @@ export default {
       dispose() { dead = true; removeEventListener('keydown', onKey); subEl.remove(); },
       update() {
         const t = now();
+        settle();
         if (S.mode === 'deck' && chartRoll.visible) { rollAt(camera); const k = clamp((t - deckT0 - 0.6) / 0.5, 0, 1); chartRoll.traverse((o) => { if (o.material) o.material.opacity = k; }); }
         waves.offset.x = (t * 0.004) % 1; waves.offset.y = Math.sin(t * 0.3) * 0.004;
         LH.forEach((g, i) => { const f = t * 0.45 + i * 2.1, b = g.userData.beam; b.rotation.y = f; b.material.opacity = 0.07 * (S.mode === 'deck' ? 1 : 0.5 + 0.5 * Math.max(0, Math.sin(f))); g.userData.halo.material.opacity = 0.75 + 0.25 * Math.sin(t * 2.3 + i) ** 2; });
@@ -517,7 +526,7 @@ export default {
           { name: '点浮标', run: () => tapBuoy(), wait: 1 },
           { name: '剪两块拼到浮标', run: () => { moveShip(onCirc(-1.2)); for (let i = 0; i < 2; i++) { cutDown(); chipMove(O); chipUp(); } }, wait: 3 },
           { name: '开到一束光照过浮标的地方，拖两个底角', run: () => { moveShip(sub(mul(O, 2), B0)); for (let i = 0; i < 2; i++) { chipDown(i); chipMove(O); chipUp(); } }, wait: 2 },
-          { name: '沿圆开到别处，点浮标作直径：圆心在里面、在外面', run: () => { moveShip(onCirc(-Math.PI / 2)); tapBuoy(); moveShip(onCirc(-0.3)); }, wait: 10.5 },
+          { name: '沿圆开到别处，点浮标作直径：圆心在里面、在外面', run: () => { moveShip(onCirc(-Math.PI / 2)); tapBuoy(); moveShip(onCirc(-0.3)); }, wait: 11 },
           { name: '开进浅滩、开出浅滩', run: () => { moveShip([0.0, -0.04]); moveShip([0.13, -0.12]); }, wait: 5 },
           { name: '点海面：等角线', run: () => tapSea(), wait: 4 },
         ],
