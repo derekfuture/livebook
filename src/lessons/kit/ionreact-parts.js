@@ -3,8 +3,9 @@
 //   粒子少——2 个 SO₄²⁻、4 个 Na⁺（Na₂SO₄ 是 2∶1）；滴进来的每一份是 1 个 Ba²⁺ 和 2 个 Cl⁻。
 //   一次只演一个反应：一份 BaCl₂ 落进溶液，Ba²⁺ 游到一个 SO₄²⁻ 旁边、贴上去，成了一小块 BaSO₄，慢慢沉到底下；
 //   沉淀一块一块分开摆在前面的底上。Na⁺、Cl⁻ 一直在溶液里游（只给一个代表标化学式）。
-//   打开时从原来的 Na₂SO₄ 溶液开始，把已经滴进去的一份一份落下来、反应（最多到这一课算出来的量，不超前）。
-// st：{ ratio: 加进来的 BaCl₂ ÷ 恰好完全反应要的量, left: 剩下的 SO₄²⁻, excess: 多出来的 Ba²⁺ }（字幕按真实的量判断）
+//   中途打开：已经滴进去的那几份直接摆成当前的样子（沉淀已在底上、Cl⁻ 在溶液里、多出来的 Ba²⁺ 在游），之后再滴的一份一份落下来、反应（不超前）。
+//   画面里的份数只示范配比（2 份 = 恰好完全反应），字幕下面另写按滴数算的实际进度（words.progress）。
+// st：{ ratio: 加进来的 BaCl₂ ÷ 恰好完全反应要的量, left: 剩下的 SO₄²⁻, excess: 多出来的 Ba²⁺, drops, replay: 老师演示（从混合开始慢放） }（字幕按真实的量判断）
 import * as THREE from 'three';
 import { f } from './microworld.js';
 import { spread, homeTo } from './microlayout.js';
@@ -29,10 +30,17 @@ export function ionScene({ words }) {
     dim: 0.45,
     labels: (k, m) => !!m.rep || k === 'Ba2+', labelOnly: (k, m) => !!m.rep || k === 'Ba2+' || m.busy || !!m.labelK,          // 只标代表；Ba²⁺ 一直标（多出来的 Ba²⁺ 就是要看的）
     init(c, st) {
-      c.view.film = FILM; c.view.paper = null; fed = 0; made = 0; wait = 0.5;
+      c.view.film = FILM; c.view.paper = null; wait = 0.5;
+      const u = st?.replay ? 0 : units(st?.ratio || 0), r = Math.min(u, N);          // 打开时已经滴进去的份数、其中已经反应的份数（老师演示里从混合开始慢放）
+      fed = u; made = r;
       for (let i = 0; i < 4; i++) c.add('Na+', c.V([-3 + (i % 2) * 2.4 + c.rnd(-0.4, 0.4), c.rnd(2.8, 5), (i < 2 ? -1.6 : 0.8) + c.rnd(-0.4, 0.4)]));
-      for (let i = 0; i < N; i++) c.add('SO4 2-', c.V([-1.8 + i * 4.2, c.rnd(3, 3.6), c.rnd(-0.5, 0.1)]));
-      markRep(c, 'Na+'); markRep(c, 'SO4 2-');
+      for (let i = 0; i < N; i++) {
+        if (i < r) { const p = c.add('BaSO4', SINK[i].clone(), { fixed: true }); p.sink = SINK[i].clone(); if (!i) p.rep = true; }          // 已经生成的沉淀：在底上
+        else c.add('SO4 2-', c.V([-1.8 + i * 4.2, c.rnd(3, 3.6), c.rnd(-0.5, 0.1)]));
+      }
+      for (let i = 0; i < 2 * u; i++) c.add('Cl-', c.V([c.rnd(-3.2, 3.2), c.rnd(3.2, 5.2), c.rnd(-1.8, 0.6)]));
+      for (let i = r; i < u; i++) c.add('Ba2+', c.V([c.rnd(-2.6, 2.6), c.rnd(3.4, 5), c.rnd(-1.2, 0.4)]));          // 过量的 Ba²⁺：找不到 SO₄²⁻，留在溶液里
+      markRep(c, 'Na+'); markRep(c, 'SO4 2-'); if (u) markRep(c, 'Cl-');
     },
     step(c, st, dt) {
       c.view.film = FILM; c.view.paper = null; c.view.liquid = st.color ?? 0xb9dfe9;
@@ -70,7 +78,7 @@ export function ionScene({ words }) {
           : fed < units(st?.ratio || 0) || falling(c) ? say(fed ? words.fall : words.start, c, st)
             : !fed ? say(words.start, c, st)
               : st.excess > 1e-9 ? say(words.excess, c, st) : st.left > 1e-9 ? say(words.partial, c, st) : say(words.done, c, st);
-      return { eq, cap };
+      return { eq, cap: st?.drops && !st.replay && words.progress ? `${cap}<br><small>${say(words.progress, c, st)}</small>` : cap };
     },
   };
 }

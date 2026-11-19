@@ -1,5 +1,6 @@
 // 氯气漂白活页（cl2bleach）的微观场景：纸条 / 花瓣表面上，氯气分子和水发生什么。
-// st：{ wet: 这件东西含水吗, c: 它周围氯气的浓度（0~1）, hn: 它上面的次氯酸（0~1，宏观里算出来的） }
+// st：{ wet: 这件东西含水吗, c: 它周围氯气的浓度（0~1）, hn: 它上面的次氯酸（0~1，宏观里算出来的）, inJar: 在氯气瓶里吗, was: 进过氯气瓶吗 }
+//   三种情况分开说：还没碰到氯气（没有反应）；在瓶里（反应、可逆）；拿出瓶（不再有氯气溶进来，模型里的 HClO 慢慢减少——画成淡出，不说成全部按逆反应变回去）。
 //   干燥：表面没有水，氯气分子在上面飞来飞去，什么也不发生。
 //   有水：氯气溶进水里，一部分与水反应 Cl₂ + H₂O ⇌ H⁺ + Cl⁻ + HClO（课本写成 HCl + HClO；HCl 在水里是 H⁺ 和 Cl⁻）。
 //   Cl₂ 的两个 Cl 一个进了 HClO，一个成了 Cl⁻；水的 O、一个 H 进了 HClO，另一个 H 成了 H⁺。原子守恒、电荷守恒（0 = 0 + 1 − 1）。
@@ -13,7 +14,7 @@ import { spread, homeTo } from './microlayout.js';
 export function chlorineScene() {
   const FILM = 4, NH2O = 3, NCL = 3, MAXMADE = 2;
   const HOME = { HClO: new THREE.Vector3(-3.4, 2.1, 1.2), 'H+': new THREE.Vector3(0.2, 2.1, 2.6), 'Cl-': new THREE.Vector3(3.4, 2.1, 1.2), H2O: new THREE.Vector3(0.2, 2.1, -2.8) };
-  let wet = false, mode = '', pause = 0, labKinds = new Set();
+  let wet = false, mode = '', pause = 0, labKinds = new Set(), out = false;
   const rx = {
     in: ['Cl2', 'H2O'], out: ['HClO', 'H+', 'Cl-'], host: 1, at: [0.2, 0.2, 0],
     near: [[1.5, 0.9, 0], null], place: [[-1.4, 0.3, 0.6], [1.6, -0.1, 1.0], [1.3, 0.5, -1.4]],
@@ -49,7 +50,7 @@ export function chlorineScene() {
     dim: 0.5,
     labels: (k, m) => !!m.rep, labelOnly: (k, m) => (!!m.rep && !m.busy && !labKinds.has(k)) || (!!m.lab && m.busy),          // 只标代表；反应时只标参加的 Cl₂、H₂O（逆反应只标 HClO），同一种的代表先不标
     init(c, st) {
-      wet = !!st.wet; mode = ''; pause = 0.8;
+      wet = !!st.wet; mode = ''; pause = 0.8; out = !st.inJar;
       c.view.film = wet ? FILM : 0.02; c.view.paper = wet ? null : 0xf1dcd8; c.view.liquid = 0xcfe6ee;
       const n = Math.round(NCL * st.c);
       for (let i = 0; i < n; i++) c.add('Cl2', c.V([-3 + i * 3 + c.rnd(-0.5, 0.5), c.rnd(FILM + 1.6, 8), c.rnd(-2, 1)]), { gas: true });
@@ -73,6 +74,11 @@ export function chlorineScene() {
         pause -= dt;
         if (!c.events.length && pause <= 0) {
           if (nH < goal) { if (goForward(c)) mode = 'fwd'; }
+          else if (nH > goal && out) {          // 拿出了氯气瓶：一组 HClO、H⁺、Cl⁻ 淡出（模型里的 HClO 减少），不演逆反应
+            const pick = (k) => c.free(k).sort((p, q) => (p.rep ? 1 : 0) - (q.rep ? 1 : 0))[0];
+            for (const k of ['HClO', 'H+', 'Cl-']) { const m = pick(k); if (m) { m.fadeOut = true; m.rep = false; } }
+            mode = 'fade'; pause = 1.6;
+          }
           else if (nH > goal) { const eqBack = mode === 'eq'; if (goBack(c)) mode = eqBack ? 'eqback' : 'back'; }
           else if (goal > 0 && st.c > 0.3) { if (goForward(c)) mode = 'eq'; }
         }
@@ -90,10 +96,12 @@ export function chlorineScene() {
     text(c, st) {
       const eq = `${f('Cl2')} + ${f('H2O')} ⇌ ${f('H+')} + ${f('Cl-')} + ${f('HClO')}`, e = c.events[0];
       const nH = c.count('HClO');
-      if (!wet) return { eq: '', on: false, cap: `表面是干的：${f('Cl2')} 在上面飞来飞去，<b>没有水可以反应</b>，纸条的颜色不会变。${st.c < 0.05 ? '（周围也没有氯气了）' : ''}` };
-      if (e && e.rx === back && mode !== 'eqback') return { eq, on: true, cap: `周围的氯气少了：${f('HClO')} 和 ${f('H+')}、${f('Cl-')} 又结合回 ${f('Cl2')} 和 ${f('H2O')}（可逆反应），${f('Cl2')} 跑回气体里。` };
+      if (!wet) return { eq: '', on: false, cap: !st.inJar ? '表面是干的，周围也没有氯气。' : `表面是干的：${f('Cl2')} 在上面飞来飞去，<b>没有水可以反应</b>，看不到褪色。${st.c < 0.05 ? '（瓶里的氯气几乎漏光了）' : ''}` };
+      if (!st.inJar && !st.was) return { eq, on: false, cap: `表面有水，但周围还没有氯气：<b>还没有反应</b>。` };
+      if (!st.inJar) return { eq, on: false, cap: nH ? `拿出了氯气瓶：不再有 ${f('Cl2')} 溶进来，模型里的 ${f('HClO')} 慢慢减少（示意）。` : `拿出了氯气瓶：模型里的 ${f('HClO')} 已经很少了（示意）。` };
+      if (e && e.rx === back && mode !== 'eqback') return { eq, on: true, cap: `周围的氯气少了：可逆反应向逆方向进行，一部分 ${f('HClO')} 和 ${f('H+')}、${f('Cl-')} 又结合成 ${f('Cl2')} 和 ${f('H2O')}，${f('Cl2')} 跑回气体里。` };
       if (e && e.rx === back) return { eq, on: true, cap: `反过来的反应也在进行：一个 ${f('HClO')} 和 ${f('H+')}、${f('Cl-')} 又结合回 ${f('Cl2')} 和 ${f('H2O')}——可逆反应能同时向两个方向进行（课本第 46 页脚注），${f('HClO')} 的个数不变。` };
-      if (st.c < 0.05 && !nH) return { eq, on: false, cap: `周围没有氯气了，水里的 ${f('HClO')}、${f('H+')}、${f('Cl-')} 已经变回 ${f('Cl2')} 和 ${f('H2O')}：离开氯气，反应往回走，稳定下来的是没有 ${f('HClO')} 的状态。` };
+      if (st.c < 0.05 && !nH) return { eq, on: false, cap: `瓶里的氯气几乎漏光了：没有 ${f('Cl2')} 溶进来，模型里水中的 ${f('HClO')} 已经很少了（示意）。` };
       if (e) return { eq, on: true, cap: `一个 ${f('Cl2')} 溶进水里，和一个 ${f('H2O')} 反应：一个 Cl 成了 ${f('Cl-')}，另一个和水里的 O、H 一起成了 ${f('HClO')}，水的另一个 H 成了 ${f('H+')}（${f('H+')} 和 ${f('Cl-')} 就是课本里的 HCl）。` };
       if (nH) return { eq, on: true, cap: `水里有 ${f('HClO')}（<b>次氯酸</b>，有强氧化性）。它能使色素褪色——起漂白作用的是 ${f('HClO')}，不是 ${f('Cl2')}。<b>慢放示意，不表示真实的反应步骤。</b>` };
       return { eq, on: true, cap: `表面有水：${f('Cl2')} 溶进水里，就要和水分子反应。` };
