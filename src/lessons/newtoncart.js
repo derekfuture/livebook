@@ -497,7 +497,7 @@ export default {
         plane: 'xy',
         offset: RACK.z,
         enabled: () => !loadLocked() && !it.busy && (onHook() || (it.heavy ? !heavyOnHook : rack.at(-1) === it)),
-        hint: () => (onHook() ? it.label + '：拖回台面，取下来' : it.label + '：拖到滑轮下的挂钩上'),
+        hint: () => (onHook() ? it.label + '：拖回台面' : it.label + '：拖到挂钩上'),
         onStart() {
           from = onHook() ? 'hook' : 'rack';
           it.busy = true;
@@ -612,8 +612,8 @@ export default {
       hint: () =>
         tied && load() > 0
           ? x < 0.01
-            ? '点一下或拖动小车：松手它就开始跑'
-            : '拖回右端，松手它就开始跑'
+            ? '点一下：放车'
+            : '拖回右端，松手放车'
           : '按住小车，向左轻推',
       onStart() {
         grab = { x0: x, t0: performance.now(), t1: performance.now(), x1: x };
@@ -663,7 +663,7 @@ export default {
       offset: 0.036,
       keepOffset: true,
       enabled: () => !bar.has('balanced') && !running && !zoomed,
-      hint: '左右拖垫块：往里推，木板右端垫高；往外拉，放低',
+      hint: '左右拖：调垫块高低',
       onStart() {
         wedgeLift = lift;
       },
@@ -692,7 +692,7 @@ export default {
       base,
       [cartDrag, wedgeDrag, ...masses.map(massDrag), ...rig.ballast.map(weightDrag)].map(quiet),
       {
-        tip: ctx.tag('', 'pill hint'),          // 鼠标移上去，旁边一条“名字：怎么做”的提示（不加光晕）；hint：还在预测页时也显示
+        tip: ctx.tag('', 'pill'),          // 鼠标移上去，旁边一条短提示“怎么动：做什么”（不加光晕；预测页上不显示，进了实验才有）
         taps: [
           quiet({
             obj: timerPick,
@@ -708,7 +708,7 @@ export default {
           quiet({
             obj: card,
             enabled: () => !running && !zoomed && !!tape?.marks.length,
-            hint: () => (tape?.run.pulled && !tape.read ? '点一下：凑近读纸带，算出加速度' : '点一下：凑近看纸带'),
+            hint: () => (tape?.run.pulled && !tape.read ? '点一下：凑近读纸带' : '点一下：凑近看纸带'),
             onTap: readTape,
           }),
         ],
