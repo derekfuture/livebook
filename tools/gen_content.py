@@ -15,9 +15,9 @@ BOX = json.loads((ROOT / "tools" / "bbox-overrides.json").read_text())
 EXTRA_SPOTS = [
     {"lesson": "pendulum", "page": 101, "bbox": [138, 236, 386, 416], "label": "图11.4-3 · 翻开活页"},
 ]
-TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "dili-7s": "地理 七年级上册", "dili-8s": "地理 八年级上册", "dili-8x": "地理 八年级下册", "dili-xb1": "地理 选择性必修1", "dili-bx1": "地理 必修第一册", "dili-bx2": "地理 必修第二册", "dili-xb2": "地理 选择性必修2", "shuxue-7s": "数学 七年级上册", "shuxue-8s": "数学 八年级上册", "shuxue-8x": "数学 八年级下册", "shuxue-9s": "数学 九年级上册"}
+TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "dili-7s": "地理 七年级上册", "dili-8s": "地理 八年级上册", "dili-8x": "地理 八年级下册", "dili-xb1": "地理 选择性必修1", "dili-bx1": "地理 必修第一册", "dili-bx2": "地理 必修第二册", "dili-xb2": "地理 选择性必修2", "shuxue-7s": "数学 七年级上册", "shuxue-8s": "数学 八年级上册", "shuxue-8x": "数学 八年级下册", "shuxue-9s": "数学 九年级上册", "shuxue-7x": "数学 七年级下册"}
 
-DRAFT = {"shuxue-7s", "shuxue-8s", "shuxue-8x", "shuxue-9s"}          # 还在试做的书：首页和书的列表里不摆，只能用 ?book=<id> 直接打开
+DRAFT = {"shuxue-7s", "shuxue-8s", "shuxue-8x", "shuxue-9s", "shuxue-7x"}          # 还在试做的书：首页和书的列表里不摆，只能用 ?book=<id> 直接打开
 
 
 FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究|思考)"

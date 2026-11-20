@@ -179,6 +179,15 @@ BOOKS = {
         "first_body_index": 7,
         "page_offset": 6,
     },
+    "shuxue-7x": {
+        "code": "m7b",
+        "title": "数学 七年级下册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("shuxue-7x"),
+        "toc": toc_path("shuxue-7x"),
+        "first_body_index": 7,
+        "page_offset": 6,
+    },
 }
 
 HI_HEIGHT = 2048

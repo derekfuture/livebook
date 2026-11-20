@@ -2903,5 +2903,31 @@
     "label": "图29.2-5 · 翻开活页"
    }
   ]
+ },
+ "shuxue-7x": {
+  "id": "shuxue-7x",
+  "title": "数学 七年级下册",
+  "base": "/books/shuxue-7x/",
+  "draft": true,
+  "lessons": {
+   "earthshadow": {
+    "title": "平行线的性质",
+    "fig": "图7.2-9",
+    "sec": "平行线的性质"
+   }
+  },
+  "spots": [
+   {
+    "lesson": "earthshadow",
+    "page": 22,
+    "bbox": [
+     358,
+     80,
+     452,
+     228
+    ],
+    "label": "图7.2-9 · 翻开活页"
+   }
+  ]
  }
 }
