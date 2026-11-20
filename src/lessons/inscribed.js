@@ -33,6 +33,11 @@ const dirO = (p) => Math.atan2(p[1] - O[1], p[0] - O[0]);
 const AB = dirO(B0), AC = dirO(C0) + TAU;                     // 圆在海里的那段弧：从 B 逆时针经过最下面到 C
 const shore = (u) => { const a = Math.abs(u); return 0.06 - 0.016 * Math.exp(-(((a - 0.06) / 0.022) ** 2)) + 0.012 * Math.exp(-(((a - 0.125) / 0.03) ** 2)); };          // 海岸线：两座灯塔站在伸进海里的岬角上，岬角外侧各有一个小湾
 const VMAX = 0.076;          // 水面、海底一直铺到这里（被岸盖住的那部分看不见）
+const OUT_BX = 0.172, OUT_CY = (-0.172 + 0.135) / 2, OUT_BY = (0.135 + 0.172) / 2, OUT_R = 0.036;
+const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const outD = (u, v) => { const qx = Math.abs(u) - OUT_BX + OUT_R, qy = Math.abs(v - OUT_CY) - OUT_BY + OUT_R; const base = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - OUT_R; return base + sm(0.05, 0.1, v) * (0.0098 + 0.0045 * Math.sin(u * 47 + 1.3) + 0.0015 * Math.sin(u * 113) + 0.0035 * Math.sin(v * 71) * sm(0.1, 0.16, Math.abs(u))); };          // 模型外轮廓：小于 0 在里面
+const f5 = (x) => x.toFixed(5);
+const OUT_FN = `float outD(vec2 p){ vec2 q = vec2(abs(p.x) - ${f5(OUT_BX - OUT_R)}, abs(p.y - (${f5(OUT_CY)})) - ${f5(OUT_BY - OUT_R)}); float base = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - ${f5(OUT_R)}; return base + smoothstep(0.05, 0.1, p.y) * (0.0098 + 0.0045 * sin(p.x * 47.0 + 1.3) + 0.0015 * sin(p.x * 113.0) + 0.0035 * sin(p.y * 71.0) * smoothstep(0.1, 0.16, abs(p.x))); }`;
 const inSea = (p) => p[0] > SEA.u0 + 0.008 && p[0] < SEA.u1 - 0.008 && p[1] > SEA.v0 + 0.008 && p[1] < shore(p[0]) - 0.012;
 const central = () => angAt(O, B0, C0);
 
@@ -62,6 +67,7 @@ export default {
     const root = new THREE.Group(); root.add(group); group.position.y = H;
     const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
     const basic = (o) => new THREE.MeshBasicMaterial(o);
+    const clip = (mat, ox, oz, name) => { const prev = mat.onBeforeCompile; mat.onBeforeCompile = (sh, r) => { if (prev) prev.call(mat, sh, r); sh.uniforms.uOff = { value: new THREE.Vector2(ox, oz) }; sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec2 uOff; varying vec2 vPaper;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaper = vec2(position.x + uOff.x, -(position.z + uOff.y));'); sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vPaper;\n' + OUT_FN).replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (outD(vPaper) > 0.0) discard;'); }; mat.customProgramCacheKey = () => 'clip-' + name; return mat; };          // 模型外轮廓外面的那部分不画
     const quiet = (m) => { m.raycast = () => {}; m.userData.noFrame = true; return m; };
     const lit = (o) => new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0, ...o });
     const solid = (m) => { m.castShadow = true; m.receiveShadow = true; m.raycast = () => {}; m.userData.noFrame = true; return m; };
@@ -84,14 +90,15 @@ export default {
       g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
       const bm = lit({ vertexColors: true, roughness: 0.95, emissive: 0xfffbf0, emissiveIntensity: 0.12, emissiveMap: caustTex });
       bm.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= smoothstep(0.62, 0.92, vColor.r);'); };          // 光纹只在浅的沙上
-      const bed = quiet(new THREE.Mesh(g, bm)); bed.receiveShadow = true; bed.userData.qaSupport = true; root.add(bed);
+      clip(bm, 0, 0, 'bed'); const bed = quiet(new THREE.Mesh(g, bm)); bed.receiveShadow = true; bed.userData.qaSupport = true; root.add(bed);
     }
     // 切面：上面是水（海里那段）或岸，下面是一层层的沙、泥、岩石
     const YM = H + LAND_H;
     // 岸上的地形：靠海那一带是平的（弧 BC、视线都画在上面），往里慢慢起伏成一道低山，中间（两座灯塔背后）低一点
     const HILL = 0.04, TOP = YM + HILL;
     const hill = (u, v) => { const k = smooth(0.084, BACK_V - 0.002, v), side = 0.58 + 0.42 * smooth(0.02, 0.17, Math.abs(u)), roll = 0.84 + 0.1 * Math.sin(u * 37 + 0.8) + 0.06 * Math.sin(u * 83 - 0.4); return HILL * k * Math.sqrt(k) * side * roll; };
-    const faceTex = (sample) => tex(1024, 200, (g, w, hp) => {
+    const landH = (u, v) => { const sh = shore(u); return hill(u, v) - (LAND_H + 0.0015) * smooth(sh + 0.003, sh - 0.005, v) - 0.016 * smooth(sh - 0.004, sh - 0.012, v); };          // 岸上的高度（比平地高多少；岸线前面斜下去）
+    const faceTex = (sample, W0 = 1024) => tex(W0, 200, (g, w, hp) => {
       const Y = (y) => hp * (1 - y / TOP);
       for (let i = 0; i < w; i++) {
         const s = sample((i + 0.5) / w), top = s.land ? s.top ?? YM : s.bed;
@@ -103,27 +110,36 @@ export default {
     });
     const face = (w, sample, x, z, ry) => { const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry(w, TOP), lit({ map: faceTex(sample), transparent: true, alphaTest: 0.5, roughness: 0.9 }))); m.position.set(x, TOP / 2, z); m.rotation.y = ry; m.receiveShadow = true; m.userData.qaSupport = true; root.add(m); };
     const sideAt = (u, front) => (t) => { const v = front ? SEA.v0 + t * (BACK_V - SEA.v0) : BACK_V - t * (BACK_V - SEA.v0); return v >= shore(u) ? { land: true, top: YM + Math.max(0, hill(u, v)) } : { bed: H - depth(u, v) }; };
-    face(seaW, (t) => ({ bed: H - depth(SEA.u0 + t * seaW, SEA.v0) }), uc, -SEA.v0, 0);
-    face(BACK_V - SEA.v0, sideAt(SEA.u0, false), SEA.u0, -(SEA.v0 + BACK_V) / 2, -Math.PI / 2);
-    face(BACK_V - SEA.v0, sideAt(SEA.u1, true), SEA.u1, -(SEA.v0 + BACK_V) / 2, Math.PI / 2);
-    face(seaW, (t) => ({ land: true, top: YM + hill(SEA.u1 - t * seaW, BACK_V) }), uc, -BACK_V, Math.PI);
+    void face; void sideAt;
+    { // 四周的切面：沿着外轮廓走一圈（海那边是水和沙层，岸上那边跟着地形起伏）
+      const N = 440, pts = [];
+      for (let i = 0; i < N; i++) { const a = (i / N) * TAU, d = [Math.cos(a), Math.sin(a)]; let lo = 0, hi = 0.34; for (let k = 0; k < 40; k++) { const m2 = (lo + hi) / 2; if (outD(d[0] * m2, OUT_CY + d[1] * m2) > 0) hi = m2; else lo = m2; } pts.push([d[0] * lo, OUT_CY + d[1] * lo]); }
+      const Ls = [0]; for (let i = 1; i <= N; i++) Ls.push(Ls[i - 1] + dist(pts[i - 1], pts[i % N])); const per = Ls[N];
+      const surf = (u, v) => (v < shore(u) ? { bed: H - depth(u, v) } : { land: true, top: YM + Math.max(0, landH(u, v)) });
+      const wt = faceTex((t) => { const x = t * per; let i = 0; while (i < N - 1 && Ls[i + 1] < x) i++; const f = (x - Ls[i]) / (Ls[i + 1] - Ls[i] || 1), a = pts[i], b = pts[(i + 1) % N]; return surf(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f); }, 4096);
+      const pos = [], uvs = [], idx = [];
+      for (let i = 0; i <= N; i++) { const q = pts[i % N]; pos.push(q[0], 0, -q[1], q[0], TOP, -q[1]); uvs.push(Ls[i] / per, 0, Ls[i] / per, 1); if (i < N) idx.push(2 * i, 2 * i + 2, 2 * i + 1, 2 * i + 1, 2 * i + 2, 2 * i + 3); }
+      const wg2 = new THREE.BufferGeometry(); wg2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); wg2.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); wg2.setIndex(idx); wg2.computeVertexNormals();
+      const n0 = new THREE.Vector3().fromBufferAttribute(wg2.attributes.normal, 0); if (n0.x * pts[0][0] - n0.z * (pts[0][1] - OUT_CY) < 0) { const ix = wg2.index.array; for (let i = 0; i < ix.length; i += 3) { const tmp = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = tmp; } wg2.index.needsUpdate = true; wg2.computeVertexNormals(); }          // 法线朝外
+      const wall = quiet(new THREE.Mesh(wg2, lit({ map: wt, transparent: true, alphaTest: 0.5, roughness: 0.9 }))); wall.receiveShadow = true; wall.userData.qaSupport = true; root.add(wall);
+    }
     { // 岸：一条矮矮的沙滩、后面是草地；岸线那一面是沙和石头
       const top = tex(1024, 256, (g, w, h) => {
         const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, '#f1ece2'); gr.addColorStop(0.2, '#f4f0e8'); gr.addColorStop(1, '#f6f3ed'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
         for (let k = 0; k < 2600; k++) { g.fillStyle = `rgba(120,110,95,${Math.random() * 0.05})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
       });
       const VL0 = 0.034, lg = new THREE.PlaneGeometry(seaW, BACK_V - VL0, 190, 72).rotateX(-Math.PI / 2), lp = lg.attributes.position, lc = new Float32Array(lp.count * 3), cc = new THREE.Color(), SANDL = new THREE.Color(0xf2eadb), FLAT = new THREE.Color(0xf5f2ea), SLOPE = new THREE.Color(0xe6e9de), WET = new THREE.Color(0xd8cdb9);
-      for (let i = 0; i < lp.count; i++) { const u = lp.getX(i) + uc, v = -lp.getZ(i) + (VL0 + BACK_V) / 2, sh = shore(u), hh = hill(u, v) - (LAND_H + 0.0015) * smooth(sh + 0.003, sh - 0.005, v) - 0.016 * smooth(sh - 0.004, sh - 0.012, v); lp.setY(i, hh); cc.copy(SANDL).lerp(FLAT, smooth(sh + 0.002, sh + 0.02, v)).lerp(SLOPE, smooth(0.0015, 0.016, hh)).lerp(WET, smooth(-0.0005, -0.003, hh)); lc[i * 3] = cc.r; lc[i * 3 + 1] = cc.g; lc[i * 3 + 2] = cc.b; }
+      for (let i = 0; i < lp.count; i++) { const u = lp.getX(i) + uc, v = -lp.getZ(i) + (VL0 + BACK_V) / 2, sh = shore(u), hh = landH(u, v); lp.setY(i, hh); cc.copy(SANDL).lerp(FLAT, smooth(sh + 0.002, sh + 0.02, v)).lerp(SLOPE, smooth(0.0015, 0.016, hh)).lerp(WET, smooth(-0.0005, -0.003, hh)); lc[i * 3] = cc.r; lc[i * 3 + 1] = cc.g; lc[i * 3 + 2] = cc.b; }
       lg.setAttribute('color', new THREE.BufferAttribute(lc, 3)); lg.computeVertexNormals();
       const lm = lit({ map: top, vertexColors: true, roughness: 0.95 });
       lm.onBeforeCompile = (sh) => {          // 山坡上细细的等高线（像地形模型一层层的边）
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vHy;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHy = position.y;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vHy;').replace('#include <color_fragment>', '#include <color_fragment>\n{ float hh = vHy / 0.0042; float f = abs(fract(hh - 0.5) - 0.5) / max(fwidth(hh), 1e-4); diffuseColor.rgb *= 1.0 - 0.14 * (1.0 - smoothstep(0.0, 1.3, f)) * step(0.0011, vHy); }');
       };
-      const t = quiet(new THREE.Mesh(lg, lm)); t.position.set(uc, YM, -(VL0 + BACK_V) / 2); t.receiveShadow = true; t.castShadow = true; root.add(t);
+      clip(lm, uc, -(VL0 + BACK_V) / 2, 'land'); const t = quiet(new THREE.Mesh(lg, lm)); t.position.set(uc, YM, -(VL0 + BACK_V) / 2); t.receiveShadow = true; t.castShadow = true; root.add(t);
       // 灯塔脚下外侧几块礁石（只放在外侧和后面，不挡弧 BC、不挡视线）
       const rockMat = lit({ color: 0xe0d9cb, roughness: 0.93, flatShading: true });
-      const groundAt = (u, v) => { const sh = shore(u); return YM + hill(u, v) - (LAND_H + 0.0015) * smooth(sh + 0.003, sh - 0.005, v) - 0.016 * smooth(sh - 0.004, sh - 0.012, v); };
+      const groundAt = (u, v) => YM + landH(u, v);
       const rock = (u, v, r, sy, rot) => { const g = new THREE.IcosahedronGeometry(r, 1), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 1 + 0.2 * Math.sin(x * 2100 + y * 1700) * Math.cos(z * 1900 + 0.5); p.setXYZ(i, x * n, y * n * sy, z * n); } g.computeVertexNormals(); const m = solid(new THREE.Mesh(g, rockMat)); m.position.set(u, groundAt(u, v) + r * sy * 0.3, -v); m.rotation.y = rot; root.add(m); };
       for (const [cu, o] of [[B0[0], -1], [C0[0], 1]]) { rock(cu + o * 0.014, 0.0478, 0.0042, 0.62, 0.4); rock(cu + o * 0.021, 0.054, 0.0056, 0.5, 1.2); rock(cu + o * 0.009, 0.062, 0.0036, 0.56, 2.1); rock(cu + o * 0.029, 0.058, 0.0032, 0.6, 0.9); }
     }
@@ -138,13 +154,13 @@ export default {
     const seaAlpha = tex(256, 160, (g, w, h) => { const img = g.createImageData(w, h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const u = SEA.u0 + (x / (w - 1)) * seaW, v = SEA.v0 + (1 - y / (h - 1)) * seaD, k = clamp((depth(u, v) - 0.0047) / 0.0118, 0, 1), a = Math.round(255 * (0.18 + 0.36 * k)), o = (y * w + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = a; img.data[o + 3] = 255; } g.putImageData(img, 0, 0); });
     seaAlpha.colorSpace = THREE.NoColorSpace;          // 水的浓淡跟着水深：外海浓、浅滩清
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0x8cb8c6, transparent: true, opacity: 1, alphaMap: seaAlpha, roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, normalMap: waves, normalScale: new THREE.Vector2(0.16, 0.16), depthWrite: false }));
-    sea.position.set(uc, 0.0004, -vc); sea.receiveShadow = true; sea.renderOrder = -1; group.add(sea);          // 水面先画：上面的线、角不被水染成别的颜色
+    clip(sea.material, uc, -vc, 'sea'); sea.position.set(uc, 0.0004, -vc); sea.receiveShadow = true; sea.renderOrder = -1; group.add(sea);          // 水面先画：上面的线、角不被水染成别的颜色
     const foamTex = tex(512, 32, (g, w, h) => { for (let x = 0; x < w; x++) { const a = 0.55 + 0.45 * Math.sin(x * 0.11) * Math.sin(x * 0.037 + 1.3); const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, `rgba(255,255,255,${0.95 * a})`); gr.addColorStop(0.35, `rgba(255,255,255,${0.45 * a})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x, 0, 1, h); } });
     foamTex.wrapS = THREE.RepeatWrapping; foamTex.repeat.set(3, 1);
     const foamGeo = (() => { const pos = [], uvs = [], idx = [], N = 160; for (let i = 0; i <= N; i++) { const u = SEA.u0 + (seaW * i) / N, sh = shore(u); pos.push(u, 0, -(sh + 0.0008), u, 0, -(sh - 0.0058)); uvs.push((3 * i) / N, 1, (3 * i) / N, 0); if (i < N) idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 2, 2 * i + 1, 2 * i + 3); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); return g; })();
     foamTex.repeat.set(1, 1);
     const foam = quiet(new THREE.Mesh(foamGeo, basic({ map: foamTex, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide })));
-    foam.position.set(0, 0.0007, 0); foam.renderOrder = 1; group.add(foam);          // 岸边的浪花（画在水面上、沿着岸线）
+    clip(foam.material, 0, 0, 'foam'); foam.position.set(0, 0.0007, 0); foam.renderOrder = 1; group.add(foam);          // 岸边的浪花（画在水面上、沿着岸线）
     // 数学那一层：比岸顶高一点点，线一直画到灯塔脚下也不会钻进岸里
     const ink = new THREE.Group(); ink.position.y = LAND_H + 0.0003; group.add(ink);
 
@@ -340,7 +356,9 @@ export default {
       uniforms: { B: { value: new THREE.Vector2(B0[0], -B0[1]) }, C: { value: new THREE.Vector2(C0[0], -C0[1]) }, th0: { value: DANGER * DEG }, k: { value: 0 }, capTop: { value: CAP_TOP }, inv: { value: new THREE.Matrix4() } },
       vertexShader: 'uniform mat4 inv; varying vec2 w; void main(){ vec4 p = modelMatrix * vec4(position, 1.); w = (inv * p).xz; gl_Position = projectionMatrix * viewMatrix * p; }',
       fragmentShader: `uniform vec2 B; uniform vec2 C; uniform float th0; uniform float k; uniform float capTop; varying vec2 w;
+        ${OUT_FN}
         void main(){
+          if (outD(vec2(w.x, -w.y)) > 0.0) discard;
           vec2 a = normalize(B - w), b = normalize(C - w);
           float d = degrees(acos(clamp(dot(a, b), -1., 1.)));
           float fw = fwidth(d) + 1e-4;
@@ -415,7 +433,7 @@ export default {
     callRing.position.y = 0.0016; ink.add(callRing);
     // 浅滩一开始藏在水下看不见：一层和深水一样颜色的“水色”盖着，揭开时淡掉
     const murk = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), basic({ color: 0x7aa1b0, transparent: true, opacity: 0.94, depthWrite: false })));
-    murk.position.set(uc, -0.0006, -vc); murk.renderOrder = -2; group.add(murk);
+    clip(murk.material, uc, -vc, 'murk'); murk.position.set(uc, -0.0006, -vc); murk.renderOrder = -2; group.add(murk);
 
     const tickPts = (p, q) => { const m = mid(p, q), n = mul(unit([-(q[1] - p[1]), q[0] - p[0]]), 0.003); return [sub(m, n), add(m, n)]; };
     const liveO = () => [0, 0.05 - 0.06 / Math.tan(Math.max(0.2, theta()))];          // 过两座灯塔和船的那个圆的圆心
