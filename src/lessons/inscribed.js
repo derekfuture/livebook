@@ -22,7 +22,7 @@ const O = [0, 0.05 - 0.06 / Math.tan(DANGER)], R = 0.06 / Math.sin(DANGER);   //
 const SEA = { u0: -0.172, u1: 0.172, v0: -0.172, v1: 0.05 };  // 海（岸在 v = 0.05）；圆下面留一条水写字
 const H = 0.024, LAND_V = 0.046, LAND_H = 0.003, BACK_V = 0.135;          // 海面离书页多高；岸线；岸比海面高多少；模型最里边
 const INK_Y = LAND_H + 0.0003;          // 数学那一层比水面高这么多
-const CAP_TOP = SEA.v0 + 0.05;          // 圆下面写字那条水的上沿
+const CAP_TOP = -0.1165;          // 圆下面写字那条水的上沿（圆最低点 −0.1148 的船还开得到）
 const TAU = Math.PI * 2, DEG = 180 / Math.PI;
 const P3 = (p, y = 0) => new THREE.Vector3(p[0], y, -p[1]);
 const angAt = (V, P, Q) => Math.abs(wrap(ang(sub(Q, V)) - ang(sub(P, V))));
@@ -33,11 +33,10 @@ const dirO = (p) => Math.atan2(p[1] - O[1], p[0] - O[0]);
 const AB = dirO(B0), AC = dirO(C0) + TAU;                     // 圆在海里的那段弧：从 B 逆时针经过最下面到 C
 const shore = (u) => { const a = Math.abs(u); return 0.06 - 0.016 * Math.exp(-(((a - 0.06) / 0.022) ** 2)) + 0.012 * Math.exp(-(((a - 0.125) / 0.03) ** 2)); };          // 海岸线：两座灯塔站在伸进海里的岬角上，岬角外侧各有一个小湾
 const VMAX = 0.076;          // 水面、海底一直铺到这里（被岸盖住的那部分看不见）
-const OUT_BX = 0.172, OUT_CY = (-0.172 + 0.135) / 2, OUT_BY = (0.135 + 0.172) / 2, OUT_R = 0.036;
-const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-const outD = (u, v) => { const qx = Math.abs(u) - OUT_BX + OUT_R, qy = Math.abs(v - OUT_CY) - OUT_BY + OUT_R; const base = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - OUT_R; return base + sm(0.05, 0.1, v) * (0.0098 + 0.0045 * Math.sin(u * 47 + 1.3) + 0.0015 * Math.sin(u * 113) + 0.0035 * Math.sin(v * 71) * sm(0.1, 0.16, Math.abs(u))); };          // 模型外轮廓：小于 0 在里面
-const f5 = (x) => x.toFixed(5);
-const OUT_FN = `float outD(vec2 p){ vec2 q = vec2(abs(p.x) - ${f5(OUT_BX - OUT_R)}, abs(p.y - (${f5(OUT_CY)})) - ${f5(OUT_BY - OUT_R)}); float base = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - ${f5(OUT_R)}; return base + smoothstep(0.05, 0.1, p.y) * (0.0098 + 0.0045 * sin(p.x * 47.0 + 1.3) + 0.0015 * sin(p.x * 113.0) + 0.0035 * sin(p.y * 71.0) * smoothstep(0.1, 0.16, abs(p.x))); }`;
+const OUT_KEY = [[0, -0.1715], [0.065, -0.1695], [0.118, -0.1635], [0.148, -0.1515], [0.165, -0.131], [0.1705, -0.098], [0.1712, -0.05], [0.1675, -0.005], [0.1712, 0.03], [0.162, 0.052], [0.147, 0.066], [0.153, 0.083], [0.1705, 0.098], [0.1685, 0.119], [0.151, 0.1325], [0.118, 0.1342], [0.083, 0.1235], [0.047, 0.1335], [0.008, 0.1215], [-0.032, 0.1318], [-0.071, 0.1225], [-0.106, 0.1335], [-0.142, 0.1295], [-0.1635, 0.111], [-0.1575, 0.086], [-0.1665, 0.061], [-0.1712, 0.034], [-0.1712, -0.012], [-0.1688, -0.062], [-0.162, -0.108], [-0.149, -0.143], [-0.122, -0.1625], [-0.068, -0.1702]];          // 模型外轮廓的点（从前沿正中往右、逆时针一圈）
+const OUT_PTS = (() => { const K = OUT_KEY, n = K.length, out = []; for (let i = 0; i < n; i++) { const p0 = K[(i - 1 + n) % n], p1 = K[i], p2 = K[(i + 1) % n], p3 = K[(i + 2) % n]; for (let j = 0; j < 16; j++) { const t = j / 16, t2 = t * t, t3 = t2 * t; const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3); out.push([Math.min(0.1718, Math.max(-0.1718, f(p0[0], p1[0], p2[0], p3[0]))), Math.min(0.1348, Math.max(-0.1718, f(p0[1], p1[1], p2[1], p3[1])))]); } } return out; })();
+const inOutline = (u, v) => { let c = false; for (let i = 0, j = OUT_PTS.length - 1; i < OUT_PTS.length; j = i++) { const a = OUT_PTS[i], b = OUT_PTS[j]; if ((a[1] > v) !== (b[1] > v) && u < ((b[0] - a[0]) * (v - a[1])) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+const OUT_RECT = [-0.172, -0.172, 0.344, 0.307];          // 遮罩贴图覆盖的长方形（u0, v0, 宽, 深）
 const inSea = (p) => p[0] > SEA.u0 + 0.008 && p[0] < SEA.u1 - 0.008 && p[1] > SEA.v0 + 0.008 && p[1] < shore(p[0]) - 0.012;
 const central = () => angAt(O, B0, C0);
 
@@ -67,7 +66,10 @@ export default {
     const root = new THREE.Group(); root.add(group); group.position.y = H;
     const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
     const basic = (o) => new THREE.MeshBasicMaterial(o);
-    const clip = (mat, ox, oz, name) => { const prev = mat.onBeforeCompile; mat.onBeforeCompile = (sh, r) => { if (prev) prev.call(mat, sh, r); sh.uniforms.uOff = { value: new THREE.Vector2(ox, oz) }; sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec2 uOff; varying vec2 vPaper;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaper = vec2(position.x + uOff.x, -(position.z + uOff.y));'); sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vPaper;\n' + OUT_FN).replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (outD(vPaper) > 0.0) discard;'); }; mat.customProgramCacheKey = () => 'clip-' + name; return mat; };          // 模型外轮廓外面的那部分不画
+    const outMask = tex(1024, Math.round((1024 * OUT_RECT[3]) / OUT_RECT[2]), (g, w, h) => { g.fillStyle = '#000'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.beginPath(); OUT_PTS.forEach(([u, v], i) => { const x = ((u - OUT_RECT[0]) / OUT_RECT[2]) * w, y = (1 - (v - OUT_RECT[1]) / OUT_RECT[3]) * h; if (i) g.lineTo(x, y); else g.moveTo(x, y); }); g.closePath(); g.fill(); });
+    outMask.colorSpace = THREE.NoColorSpace;          // 模型外轮廓：白的地方是模型
+    const OUT_GLSL = 'uniform sampler2D uMask; uniform vec4 uRect;\nbool outsideModel(vec2 p) { return texture2D(uMask, (p - uRect.xy) / uRect.zw).r < 0.5; }';
+    const clip = (mat, ox, oz, name) => { const prev = mat.onBeforeCompile; mat.onBeforeCompile = (sh, r) => { if (prev) prev.call(mat, sh, r); sh.uniforms.uOff = { value: new THREE.Vector2(ox, oz) }; sh.uniforms.uMask = { value: outMask }; sh.uniforms.uRect = { value: new THREE.Vector4(...OUT_RECT) }; sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform vec2 uOff; varying vec2 vPaper;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvPaper = vec2(position.x + uOff.x, -(position.z + uOff.y));'); sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vPaper;\n' + OUT_GLSL).replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (outsideModel(vPaper)) discard;'); }; mat.customProgramCacheKey = () => 'clip-' + name; return mat; };          // 模型外轮廓外面的那部分不画
     const quiet = (m) => { m.raycast = () => {}; m.userData.noFrame = true; return m; };
     const lit = (o) => new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0, ...o });
     const solid = (m) => { m.castShadow = true; m.receiveShadow = true; m.raycast = () => {}; m.userData.noFrame = true; return m; };
@@ -112,16 +114,15 @@ export default {
     const sideAt = (u, front) => (t) => { const v = front ? SEA.v0 + t * (BACK_V - SEA.v0) : BACK_V - t * (BACK_V - SEA.v0); return v >= shore(u) ? { land: true, top: YM + Math.max(0, hill(u, v)) } : { bed: H - depth(u, v) }; };
     void face; void sideAt;
     { // 四周的切面：沿着外轮廓走一圈（海那边是水和沙层，岸上那边跟着地形起伏）
-      const N = 440, pts = [];
-      for (let i = 0; i < N; i++) { const a = (i / N) * TAU, d = [Math.cos(a), Math.sin(a)]; let lo = 0, hi = 0.34; for (let k = 0; k < 40; k++) { const m2 = (lo + hi) / 2; if (outD(d[0] * m2, OUT_CY + d[1] * m2) > 0) hi = m2; else lo = m2; } pts.push([d[0] * lo, OUT_CY + d[1] * lo]); }
+      const pts = OUT_PTS, N = pts.length;
       const Ls = [0]; for (let i = 1; i <= N; i++) Ls.push(Ls[i - 1] + dist(pts[i - 1], pts[i % N])); const per = Ls[N];
       const surf = (u, v) => (v < shore(u) ? { bed: H - depth(u, v) } : { land: true, top: YM + Math.max(0, landH(u, v)) });
       const wt = faceTex((t) => { const x = t * per; let i = 0; while (i < N - 1 && Ls[i + 1] < x) i++; const f = (x - Ls[i]) / (Ls[i + 1] - Ls[i] || 1), a = pts[i], b = pts[(i + 1) % N]; return surf(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f); }, 4096);
       const pos = [], uvs = [], idx = [];
       for (let i = 0; i <= N; i++) { const q = pts[i % N]; pos.push(q[0], 0, -q[1], q[0], TOP, -q[1]); uvs.push(Ls[i] / per, 0, Ls[i] / per, 1); if (i < N) idx.push(2 * i, 2 * i + 2, 2 * i + 1, 2 * i + 1, 2 * i + 2, 2 * i + 3); }
       const wg2 = new THREE.BufferGeometry(); wg2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); wg2.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); wg2.setIndex(idx); wg2.computeVertexNormals();
-      const n0 = new THREE.Vector3().fromBufferAttribute(wg2.attributes.normal, 0); if (n0.x * pts[0][0] - n0.z * (pts[0][1] - OUT_CY) < 0) { const ix = wg2.index.array; for (let i = 0; i < ix.length; i += 3) { const tmp = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = tmp; } wg2.index.needsUpdate = true; wg2.computeVertexNormals(); }          // 法线朝外
-      const wall = quiet(new THREE.Mesh(wg2, lit({ map: wt, transparent: true, alphaTest: 0.5, roughness: 0.9 }))); wall.receiveShadow = true; wall.userData.qaSupport = true; root.add(wall);
+      const n0 = new THREE.Vector3().fromBufferAttribute(wg2.attributes.normal, 0); if (n0.x * pts[0][0] - n0.z * (pts[0][1] + 0.0185) < 0) { const ix = wg2.index.array; for (let i = 0; i < ix.length; i += 3) { const tmp = ix[i + 1]; ix[i + 1] = ix[i + 2]; ix[i + 2] = tmp; } wg2.index.needsUpdate = true; wg2.computeVertexNormals(); }          // 法线朝外
+      const wall = quiet(new THREE.Mesh(wg2, lit({ map: wt, transparent: true, alphaTest: 0.5, roughness: 0.9, side: THREE.DoubleSide }))); wall.receiveShadow = true; wall.userData.qaSupport = true; root.add(wall);          // 两面都画：斜着看时，水面和海底的边对不齐，中间靠切面里侧补上
     }
     { // 岸：一条矮矮的沙滩、后面是草地；岸线那一面是沙和石头
       const top = tex(1024, 256, (g, w, h) => {
@@ -353,12 +354,12 @@ export default {
     // 整片海的等角线（点海面才出来）：着色器算每一点“看两座灯塔是多少度”，每 10° 一条
     const contour = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
       transparent: true, depthWrite: false,
-      uniforms: { B: { value: new THREE.Vector2(B0[0], -B0[1]) }, C: { value: new THREE.Vector2(C0[0], -C0[1]) }, th0: { value: DANGER * DEG }, k: { value: 0 }, capTop: { value: CAP_TOP }, inv: { value: new THREE.Matrix4() } },
+      uniforms: { uMask: { value: outMask }, uRect: { value: new THREE.Vector4(...OUT_RECT) }, B: { value: new THREE.Vector2(B0[0], -B0[1]) }, C: { value: new THREE.Vector2(C0[0], -C0[1]) }, th0: { value: DANGER * DEG }, k: { value: 0 }, capTop: { value: CAP_TOP }, inv: { value: new THREE.Matrix4() } },
       vertexShader: 'uniform mat4 inv; varying vec2 w; void main(){ vec4 p = modelMatrix * vec4(position, 1.); w = (inv * p).xz; gl_Position = projectionMatrix * viewMatrix * p; }',
       fragmentShader: `uniform vec2 B; uniform vec2 C; uniform float th0; uniform float k; uniform float capTop; varying vec2 w;
-        ${OUT_FN}
+        ${OUT_GLSL}
         void main(){
-          if (outD(vec2(w.x, -w.y)) > 0.0) discard;
+          if (outsideModel(vec2(0., -0.02) + (vec2(w.x, -w.y) - vec2(0., -0.02)) * 1.045)) discard;          // 等角线画在水面上方一点：往里收一圈，斜着看也不越出模型的边
           vec2 a = normalize(B - w), b = normalize(C - w);
           float d = degrees(acos(clamp(dot(a, b), -1., 1.)));
           float fw = fwidth(d) + 1e-4;
@@ -387,7 +388,7 @@ export default {
     const arcSpread = () => { const ts = lanterns.map((l) => dirO(l.p)).sort((a, b) => a - b); let gap = 0; for (let i = 0; i < ts.length; i++) gap = Math.max(gap, (ts[(i + 1) % ts.length] - ts[i] + TAU) % TAU); return ts.length < 2 ? 0 : TAU - gap; };
 
     // ================= 光写的字：写在图形下面那一条水上，像投影打在模型上 =================
-    const CAP_V = SEA.v0 + 0.0255, CAP_W = 0.31;          // CAP_TOP 在文件开头
+    const CAP_V = -0.1398, CAP_W = 0.27;          // CAP_TOP 在文件开头；前沿是外凸的弧，字往上挪一点、窄一点
     // 字是印在模型上的墨色（不是发光的）：白模上亮字一叠加就发白刺眼；墨色字底下垫一圈很淡的亮边，压在波纹上也清楚
     const capMesh = quiet(new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), basic({ transparent: true, depthWrite: false, opacity: 0 })));
     capMesh.position.set(0, 0.0009, -CAP_V); capMesh.renderOrder = 6; capMesh.visible = false; ink.add(capMesh);
@@ -539,6 +540,8 @@ export default {
     function moveShip(q) {
       if (!inSea(q)) { const u2 = clamp(q[0], SEA.u0 + 0.009, SEA.u1 - 0.009); q = [u2, clamp(q[1], SEA.v0 + 0.009, shore(u2) - 0.013)]; }
       q = [q[0], Math.max(q[1], CAP_TOP)];          // 字写在圆下面那条水上，船不开进去
+      const okIn = (p2) => inOutline(p2[0] - 0.013, p2[1]) && inOutline(p2[0] + 0.013, p2[1]) && inOutline(p2[0], p2[1] - 0.013) && inOutline(p2[0], p2[1] + 0.013);
+      for (let k = 0; k < 30 && !okIn(q); k++) q = [q[0] + (O[0] - q[0]) * 0.06, q[1] + (O[1] - q[1]) * 0.06];          // 不规则的外轮廓：船离边留一点
       if (S.beat === 'vary' && theta(q) > Math.PI / 2 - 0.004) q = add([0, 0.05], mul(unit(sub(q, [0, 0.05])), 0.0601));          // 改变弧 BC：最多开到两座灯塔正好是直径的那一圈（90°）
       if (S.beat === 'classify') {          // 沿弧开：船贴着这一圈走；视线快穿过浮标时吸过去
         q = onCirc(clamp(tOn(q), T_LO, T_HI));
@@ -691,7 +694,7 @@ export default {
     });
     function pose(k) {
       if (!S.done || !k) return;
-      clearCase(); tweens.length = 0; clearGhosts(); foldG.visible = false;          // 先清场：拼的、拆的、绳子都收起来
+      growGen++; clearCase(); tweens.length = 0; clearGhosts(); foldG.visible = false;          // 先清场：拼的、拆的、绳子都收起来
       Object.assign(S, { proof: 0, proofDone: false, probe: null, vary: null, cut: [], rope: 0, fold: 0, cnum: true, beat: 'review', buoy: ['arc', 'def'].includes(k) ? 0 : 1, family: k === 'right' ? 1 : 0 });
       chips.forEach((c) => { c.visible = false; c.rotation.y = 0; });
       aim?.(['c1', 'c2', 'c3'].includes(k) ? [0, 1, 0.36] : [0, Math.sin(0.82), Math.cos(0.82)]);
@@ -708,7 +711,8 @@ export default {
       layout(); const c = REVIEW_CAP()[k]; if (c) lightText(c[0], c[1], c[2]);
     }
     // 点：海面（小旗连成什么）、浮标（不动的那一点）
-    const grow = (key, dur, done) => { const t0 = now(); const tick = () => { if (dead) return; S[key] = Math.min(1, (now() - t0) / dur); layout(); if (S[key] < 1) requestAnimationFrame(tick); else done?.(); }; tick(); };
+    let growGen = 0;
+    const grow = (key, dur, done) => { const t0 = now(), gen = growGen; const tick = () => { if (dead || gen !== growGen) return; S[key] = Math.min(1, (now() - t0) / dur); layout(); if (S[key] < 1) requestAnimationFrame(tick); else done?.(); }; tick(); };
     function tapSea() { if (S.call !== 'sea' || S.circle) return; S.call = ''; sfx.whoosh({ dur: 0.6, freq: 900, gain: 0.04 }); grow('circle', 1.6); }
     function tapBuoy() { if (S.call !== 'buoy' || S.buoy) return; S.call = ''; S.buoy = 1; sfx.clink({ freq: 1300, gain: 0.05 }); board.h('概念'); board('<span class="n">3</span><b>圆心角</b>：顶点在圆心的角 <i>∠BOC</i>，和圆周角 <i>∠BAC</i> 对着同一条弧 <i>BC</i>'); punch(O, '', null); layout(); }
     const openPanel = () => { ui?.go?.(2); ui?.fold?.(false); };
@@ -990,7 +994,7 @@ export default {
       debug: {
         get S() { return S; },
         lanterns, notes, board: boardRows, H, punch, labels: () => [...Object.values(LB), ...conLabs, conDanger], cap: () => capNow, theta, central, moveShip, tapSea, tapBuoy, cutDown, chipDown, chipMove, chipUp, probeDown, probeMove, probeUp, pairTap, takeDown, takeMove, takeUp, pose, toDeck, toChart, reset, onCirc, O, B0, C0, T_LO, T_HI,
-        fast: (k) => { speed = k; }, wg: group, SK, bis, chips,
+        fast: (k) => { speed = k; }, wg: group, SK, bis, chips, aim: (d) => aim?.(d),
         qa: [
           { name: '快放：开场演示', run: () => { speed = 30; }, wait: 1 },
           { name: '在海上来回开，放小旗', run: () => { for (let k = 0; k <= 320; k++) { const t = (k / 320) * TAU * 2; moveShip([0.12 * Math.cos(t * 1.3), -0.04 + 0.08 * Math.sin(t)]); } }, wait: 1 },
