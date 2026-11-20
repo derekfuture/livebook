@@ -137,13 +137,17 @@ export default {
 .ins-board i{font-family:"Times New Roman",serif;font-style:italic;letter-spacing:.02em}
 .ins-board .ia{color:#cc6418;font-weight:600}.ins-board .ca{color:#2c6aa8;font-weight:600}.ins-board .p1{color:#c23a6c;font-weight:600}.ins-board .p2{color:#17877d;font-weight:600}
 .ins-board .ib-h{font:600 12px/1.3 "PingFang SC","Hiragino Sans GB",sans-serif;color:#a07a45;letter-spacing:.3em;margin:6px 0 -4px;opacity:0;transition:opacity .4s}
-.ins-board .ib-h.in{opacity:1}`;
+.ins-board .ib-h.in{opacity:1}
+.ins-board.review .ib-row[data-k]{cursor:pointer}.ins-board.review .ib-row[data-k]:hover{background:rgba(255,206,110,.16)}
+.ins-board .ib-row.sel{background:rgba(255,206,110,.34);border-left-color:#d98a2b}`;
     document.head.append(css);
     // 板书：学生做出一样，就用课本的话写一行；只写已经发现的，不预先列出后面要做什么
     let boardEl = null, lastH = ''; const boardRows = [];
     const reveal = (r) => { const body = boardEl?.closest('.p-body'); if (!body) return; setTimeout(() => { const rb = r.getBoundingClientRect(), bb = body.getBoundingClientRect(); if (rb.bottom > bb.bottom - 14) body.scrollBy({ top: rb.bottom - bb.bottom + 28, behavior: 'smooth' }); }, 80); };          // 新的一行在面板下面看不见：面板自己滚上来
+    const KEYS = { 1: 'arc', 2: 'def', 3: 'center', 4: 'two', 5: 'vary', 6: 'cls', 7: 'c1', 8: 'c2', 9: 'c3', 10: 'thm', 11: 'same', 12: 'right' };
     const board = (html, hold = false) => {
       const r = document.createElement('div'); r.className = 'ib-row'; r.innerHTML = html; boardRows.push(r);
+      const no = html.match(/class="n">(\d+)</); r.dataset.k = no ? KEYS[no[1]] : html.includes('<b>答</b>') ? 'ans' : '';
       for (const o of boardRows) if (o !== r) o.classList.remove('fresh');
       if (boardEl) { boardEl.append(r); if (!hold) requestAnimationFrame(() => { r.classList.add('in', 'fresh'); reveal(r); }); }
       return r;
@@ -402,7 +406,7 @@ export default {
       else { setLine(L.probe, null); K.probe.position.set(0, -1, 0); }
       setLine(L.ghost, S.probe && S.hint >= 2 ? [A, diamEnd()] : null);
       // 第 14 题：圈里 / 圈外——延长一座灯塔到船的线，交圆于 Q
-      const sh = (S.beat === 'inout' || S.answered) && z !== 'on' ? shoalFig() : null;
+      const sh = (S.beat === 'inout' || (S.answered && ['family', 'end'].includes(S.beat))) && z !== 'on' ? shoalFig() : null;
       if (sh) {
         setLine(L.ext, [sh.P, sh.far]); setLine(L.ext2, [sh.Q, sh.R2]);
         setFan(F.q, sh.Q, ccwStart(sh.Q, sh.P, sh.R2), angAt(sh.Q, sh.P, sh.R2), 0.012); setFan(F.x, sh.R2, ccwStart(sh.R2, sh.Q, A), angAt(sh.R2, sh.Q, A), 0.013);
@@ -595,6 +599,40 @@ export default {
       cs.pairs[0].arcHide = cs.pairs[1].arcHide = true; layout();          // 剩下的就是原来那段弧 BC（岸上的蓝弧）
     }
     function clearCase() { S.cs = null; S.probe = null; for (let i = tweens.length - 1; i >= 0; i--) if ([...pa, ...po, ...cp].includes(tweens[i].m)) tweens.splice(i, 1); [...pa, ...po, ...cp].forEach((m) => { m.visible = false; m.rotation.y = 0; }); layout(); }
+    // 课讲完以后：点板书上的一条，场景摆回那一刻
+    const REVIEW_CAP = () => ({
+      arc: [`${fmt(DANGER)} 的点，连成一段过两座灯塔的圆弧`, '它正好是浅滩的边', GOLDTXT],
+      def: ['顶点在圆上、两边都和圆相交的角，叫圆周角', `船在这段弧上，∠BAC 处处是 ${fmt(DANGER)}`, GOLDTXT],
+      center: [`顶点在圆心的角，叫圆心角：∠BOC = ${fmt(central())}`, '它和圆周角 ∠BAC 对着同一条弧 BC', BLUETXT],
+      two: [`船上的角在圆心正好放下两个：${fmt(central())} = ${fmt(DANGER)} + ${fmt(DANGER)}`, '', GOLDTXT],
+      vary: ['改变弧 BC，圆心角里还是正好放下两个圆周角', '', GOLDTXT],
+      cls: ['圆心和圆周角的位置关系有三种', '圆心在角的一条边上、内部、外部', GOLDTXT],
+      c1: ['（1）圆心在边上：∠BOC = ∠A + ∠C = 2∠A', 'OA = OC，等腰三角形两底角相等；∠BOC 是 △AOC 的外角', GOLDTXT],
+      c2: ['（2）圆心在内部：∠BAC = ∠BAD + ∠DAC = ½∠BOC', '两段弧拼成弧 BC，两边的角也跟着拼', GOLDTXT],
+      c3: ['（3）圆心在外部：∠BAC = ∠DAC − ∠DAB = ½∠BOC', '大段弧减去小段弧，剩下弧 BC：两边的角也跟着减', GOLDTXT],
+      thm: ['圆周角定理：一条弧所对的圆周角，等于它所对的圆心角的一半', '', GOLDTXT],
+      same: ['同弧或等弧所对的圆周角相等', `船在浅滩边上，处处是 ${fmt(DANGER)}`, GOLDTXT],
+      ans: [`答：船上看两座灯塔的角小于 ${fmt(DANGER)}，就没进浅滩`, `正好 ${fmt(DANGER)} 在浅滩边上，大于 ${fmt(DANGER)} 就进去了`, GOLDTXT],
+      right: ['半圆（或直径）所对的圆周角是直角', '90° 的圆周角所对的弦是直径', BLUETXT],
+    });
+    function pose(k) {
+      if (!S.done || !k) return;
+      clearCase(); tweens.length = 0; clearGhosts(); foldG.visible = false;          // 先清场：拼的、拆的、绳子都收起来
+      Object.assign(S, { proof: 0, proofDone: false, probe: null, vary: null, cut: [], rope: 0, fold: 0, cnum: true, beat: 'review', buoy: ['arc', 'def'].includes(k) ? 0 : 1, family: k === 'right' ? 1 : 0 });
+      chips.forEach((c) => { c.visible = false; c.rotation.y = 0; });
+      aim?.(['c1', 'c2', 'c3'].includes(k) ? [0, 1, 0.36] : [0, Math.sin(0.82), Math.cos(0.82)]);
+      const onC = (t) => moveShip(onCirc(t));
+      if (['arc', 'def', 'center', 'two', 'thm', 'same'].includes(k)) onC(-1.15);
+      if (['def', 'thm', 'same'].includes(k)) for (let i = 0; i <= 8; i++) placeGhost(-2.75 + (2.75 - 0.4) * (i / 8));
+      if (k === 'two') { const a0 = ccwStart(O, B0, C0); chips.forEach((c, i) => { setFan(c, O, a0 + i * DANGER, DANGER, RC); c.position.y = 0.0026 + 0.0002 * i; c.userData = { kind: 'cut', w: DANGER, pa0: a0 + i * DANGER }; }); S.cut = [0, 1]; }
+      if (k === 'vary') { S.beat = 'vary'; chips.forEach((c) => { c.visible = true; c.userData = { kind: 'cut' }; }); S.cut = [0, 1]; moveShip([-0.0413, -0.0524]); }
+      if (k === 'cls' || k === 'c1') moveShip(sub(mul(O, 2), B0));
+      if (k === 'c1') { setupProof1(); S.rope = 1; placeBase(); chips.forEach((c, i) => { c.position.set(O[0], 0.0026 + 0.0002 * i, -O[1]); c.rotation.y = c.userData.twin ? Math.PI : 0; }); S.proof.placed = [0, 1]; S.proofDone = true; }
+      if (k === 'c2' || k === 'c3') { onC(k === 'c2' ? -Math.PI / 2 - 0.3 : -0.32); setupCase(k === 'c2' ? 'in' : 'out'); S.cs.pairs.forEach((p, i) => { p.done = true; pa[i].material.opacity = 0.85; po[i].material.opacity = 0.85; }); }
+      if (k === 'c3') { const cs = S.cs; setFan(pa[0], cs.A, ccwStart(cs.A, B0, C0), theta(), RC); setFan(po[0], O, ccwStart(O, B0, C0), central(), RC); pa[0].material.color.setHex(GOLD); po[0].material.color.setHex(BLUE); po[0].material.opacity = 0.6; pa[1].visible = po[1].visible = false; cs.taken = true; cs.pairs.forEach((p) => (p.arcHide = true)); }
+      if (k === 'ans' || k === 'right') { S.beat = k === 'right' ? 'end' : 'inout'; moveShip([0.13, -0.15]); }
+      layout(); const c = REVIEW_CAP()[k]; if (c) lightText(c[0], c[1], c[2]);
+    }
     // 点：海面（小旗连成什么）、浮标（不动的那一点）
     const grow = (key, dur, done) => { const t0 = now(); const tick = () => { if (dead) return; S[key] = Math.min(1, (now() - t0) / dur); layout(); if (S[key] < 1) requestAnimationFrame(tick); else done?.(); }; tick(); };
     function tapSea() { if (S.call !== 'sea' || S.circle) return; S.call = ''; sfx.whoosh({ dur: 0.6, freq: 900, gain: 0.04 }); grow('circle', 1.6); }
@@ -751,7 +789,7 @@ export default {
       lightText('每个角度，都是一段过两座灯塔的圆弧', '标着 90° 的那段以 BC 为直径：直径所对的圆周角是直角', BLUETXT);
       if (!(await wait(6000, id))) return;
       lightText('变中有不变', '船一直在动，圆周角不变——找到不变的东西，就看懂了变化', GOLDTXT);
-      S.done = true; S.beat = 'end';
+      S.done = true; S.beat = 'end'; boardEl?.classList.add('review');
       if (!(await wait(5000, id))) return;
       if (S.mode === 'deck') S.panelLater = true; else openPanel();
     }
@@ -812,7 +850,7 @@ export default {
     // 清场重来（给老师：换一批学生，或者想重新讲一遍）——键盘 R
     function reset() {
       runId++; for (const l of lanterns) group.remove(l.g); lanterns.length = 0; boardRows.length = 0; if (boardEl) boardEl.innerHTML = ''; tweens.length = 0; chips.forEach((c) => { c.visible = false; c.rotation.y = 0; }); [...pa, ...po, ...cp].forEach((c) => { c.visible = false; c.rotation.y = 0; }); foldG.visible = false; clearGhosts(); held = -1;
-      const wasDeck = S.mode === 'deck'; S = fresh(); cap.key = ''; capMesh.visible = false; if (wasDeck) toChart(); aim?.([0, Math.sin(0.82), Math.cos(0.82)]); layout(); mainLine();
+      boardEl?.classList.remove('review'); const wasDeck = S.mode === 'deck'; S = fresh(); cap.key = ''; capMesh.visible = false; if (wasDeck) toChart(); aim?.([0, Math.sin(0.82), Math.cos(0.82)]); layout(); mainLine();
     }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
@@ -823,7 +861,8 @@ export default {
       size: { w: 0.36, d: 0.31, h: 0.075 },
       view: { elev: 47, azim: 0, lookY: 0.03, frameMargin: 1.02 },
       pointer,
-      mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'ins-board'; u.controls?.append(boardEl); for (const r of boardRows) { boardEl.append(r); r.classList.add('in'); } ui.go?.(1); if (!runId) mainLine(); else if (cap.key) ui.status?.(capNow.filter(Boolean).join('　')); },
+      mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'ins-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
+        boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.ib-row'); if (!S.done || !r?.dataset.k) return; for (const o of boardRows) o.classList.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); }); for (const r of boardRows) { boardEl.append(r); r.classList.add('in'); } ui.go?.(1); if (!runId) mainLine(); else if (cap.key) ui.status?.(capNow.filter(Boolean).join('　')); },
       dispose() { dead = true; runId++; removeEventListener('keydown', onKey); subEl.remove(); css.remove(); },
       update() {
         const t = now();
@@ -860,7 +899,7 @@ export default {
       },
       debug: {
         get S() { return S; },
-        lanterns, notes, board: boardRows, H, punch, labels: () => [...Object.values(LB), ...conLabs, conDanger], cap: () => capNow, theta, central, moveShip, tapSea, tapBuoy, cutDown, chipDown, chipMove, chipUp, probeDown, probeMove, probeUp, pairTap, takeDown, takeMove, takeUp, toDeck, toChart, reset, onCirc, O, B0, C0, T_LO, T_HI,
+        lanterns, notes, board: boardRows, H, punch, labels: () => [...Object.values(LB), ...conLabs, conDanger], cap: () => capNow, theta, central, moveShip, tapSea, tapBuoy, cutDown, chipDown, chipMove, chipUp, probeDown, probeMove, probeUp, pairTap, takeDown, takeMove, takeUp, pose, toDeck, toChart, reset, onCirc, O, B0, C0, T_LO, T_HI,
         fast: (k) => { speed = k; }, wg: group, SK, bis, chips,
         qa: [
           { name: '快放：开场演示', run: () => { speed = 30; }, wait: 1 },
