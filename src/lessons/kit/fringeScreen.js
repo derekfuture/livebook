@@ -14,13 +14,16 @@ const srgb = (v) => Math.round(255 * (v <= 0.00313 ? 12.92 * v : 1.055 * v ** (1
 
 export function fringeScreen() {
   const group = new THREE.Group();
-  const tex = canvasTex(1024, 256, () => {});
+  const tex = canvasTex(1024, 512, () => {});
   const screen = new THREE.Mesh(new THREE.CircleGeometry(FIELD_WIDTH / 2, 96), new THREE.MeshBasicMaterial({ map: tex }));
   group.add(screen);
   const ink = new THREE.MeshBasicMaterial({ color: 0x262726 });
   const cross = new THREE.Group();
   for (const vertical of [true, false]) {
-    const mark = new THREE.Mesh(new THREE.PlaneGeometry(vertical ? 0.00006 : FIELD_WIDTH * 2, vertical ? FIELD_WIDTH * 2 : 0.00006), ink);
+    const mark = new THREE.Mesh(new THREE.PlaneGeometry(vertical ? 0.000085 : FIELD_WIDTH * 2, vertical ? FIELD_WIDTH * 2 : 0.000085), ink);
+    const edge = new THREE.Mesh(new THREE.PlaneGeometry(vertical ? 0.000033 : FIELD_WIDTH * 2, vertical ? FIELD_WIDTH * 2 : 0.000033), new THREE.MeshBasicMaterial({ color: 0xffeed0 }));
+    edge.position.z = 0.000004;
+    mark.add(edge);
     cross.add(mark);
   }
   cross.position.z = 0.00002;
@@ -33,7 +36,7 @@ export function fringeScreen() {
     cross.children[1].scale.x = 0.5;
     cross.children[1].position.x = -cross.position.x;
   }
-  function expose({ lit, single, double, separation, filter, length, offset = 0 }) {
+  function expose({ lit, single, double, separation, filter, length, offset = 0, height = 0 }) {
     // offset 是未调正时光束中心在毛玻璃上的横向错位（m）。
     const g = tex.canvas.getContext('2d'), w = tex.canvas.width;
     if (!single && !double && !filter) {
@@ -42,8 +45,9 @@ export function fringeScreen() {
       g.save();
       g.scale(w, h);
       const center = 0.5 + offset / FIELD_WIDTH;
-      const spot = g.createRadialGradient(center, 0.5, 0.05, center, 0.5, 0.72);
-      spot.addColorStop(0, '#fff5de'); spot.addColorStop(0.55, '#bcae98'); spot.addColorStop(1, '#252529');
+      const cy = 0.5 - height / FIELD_WIDTH;
+      const spot = g.createRadialGradient(center, cy, 0.025, center, cy, 0.34);
+      spot.addColorStop(0, '#fff9d7'); spot.addColorStop(0.45, '#ffdd85'); spot.addColorStop(1, '#514d43');
       g.fillStyle = lit ? spot : '#17171a';
       g.fillRect(0, 0, 1, 1);
       g.restore();
@@ -72,5 +76,5 @@ export function fringeScreen() {
     tex.needsUpdate = true;
   }
   move(FIELD_WIDTH * 500);
-  return { group, expose, move };
+  return { group, screen, cross, expose, move };
 }

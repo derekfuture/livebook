@@ -1,437 +1,230 @@
-// 人教版选择性必修一图 4.4-1，测量沿原光具座进行。
+import * as THREE from 'three';
 import { doubleSlitRig, AXIS, DOUBLE_X, SINGLE_X, FILTER_X, SCREEN_X } from './kit/doubleSlitRig.js';
 import { SLIT_SEPARATIONS, FILTER_WAVELENGTH, measuredWavelength, stripeIntensity } from './kit/doubleSlit.js';
-import { SCREW_PITCH } from './kit/micrometer.js';
-import { readMicrometerTick } from './kit/micrometerTool.js';
 import { clamp, draggable } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { buttons, h, note, table } from './kit/ui.js';
+import { qaFlow } from './kit/chemlesson.js';
+import { h, table } from './kit/ui.js';
 
 const length = SCREEN_X - DOUBLE_X;
 const stations = [SINGLE_X, DOUBLE_X, DOUBLE_X, FILTER_X, FILTER_X];
 const labels = ['单缝片', '0.36 mm 双缝片', '0.18 mm 双缝片', '红滤光片', '蓝滤光片'];
-const trials = [
-  [1, 3],
-  [1, 4],
-  [2, 3],
-];
+const trials = [[1, 4], [1, 3], [2, 3]];
+const point = (x, y, z) => new THREE.Vector3(x, y, z);
+
 export default {
-  id: 'doubleslit',
-  fig: '图4.4-1',
-  title: '用双缝干涉测量光的波长',
-  stampText: '测量',
+  id: 'doubleslit', fig: '图4.4-1', title: '用双缝干涉测量光的波长', stampText: '测量',
   predict: {
-    q: '同一束红光，双缝到屏的距离固定，把双缝间距减半，亮纹有什么变化？',
-    options: ['间距变大', '间距变小', '间距相同'],
-    answer: 0,
-    hint: '想一想相邻亮纹对应的光程差。',
+    q: '怎样用双缝干涉测出光的波长？保持屏距和双缝间距不变，把蓝光换成红光，亮纹间距会怎样？',
+    options: ['间距变大', '间距变小', '间距相同'], answer: 0,
   },
   conclusion: {
     page: 105, rect: [64.27, 637.19, 379.6, 698.35],
-    quote: '根据 λ＝(d/l)Δx 可知，本实验需要测量的物理量是双缝到屏的距离 l 和相邻两条亮条纹间的距离 Δx（双缝间的距离 d 已知）。',
-    why: '在小角度条件下，λ ≈ d Δx / L。从第一条亮纹量到第 N 条亮纹，要用两次分划板读数之差的绝对值除以 N−1，得到平均间距 Δx。',
+    quote: '本实验需要测量的物理量是双缝到屏的距离 l 和相邻两条亮条纹间的距离 ∆x（双缝间的距离 d 已知）。',
     src: '课本第 101 页 · 第四章 第4节 实验：用双缝干涉测量光的波长',
   },
   create(ctx) {
     const rig = doubleSlitRig();
-    const { group, cards, lamp, ruler, screw, eyepiece } = rig;
-    const tool = { ...screw, group: rig.screwFrame };
-    let ui, rows, form, evidence, count, result, view, aim;
-    let lit, aligned, selected, endpoints, marks, coarse, mm, rollingFrom;
-    const completed = new Set();
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'axis', title: '调光', todo: '点灯座开关，调整灯的位置，使光沿轴线照亮屏。', target: () => aim },
-        { id: 'length', title: '测屏距', todo: '沿尺分别读双缝和毛玻璃的位置。', target: () => aim },
-        { id: 'stripes', title: '测亮纹', todo: '转动手轮，对齐并读出两条亮纹的位置。', target: () => aim },
-        { id: 'compare', title: '换片比较', todo: '换滤光片和双缝片，比较测量结果。', target: () => aim },
-      ],
-    });
-    const next = () => trials.find(([d, f]) => !completed.has(d + '/' + f));
-    const lampOffset = () => (lamp.position.z * (SCREEN_X + 0.487)) / 0.088;
-    const activeD = () => selected[1] ?? selected[2];
-    const activeF = () => selected[3] ?? selected[4];
-    const wavelength = () => FILTER_WAVELENGTH[activeF() === 3 ? 'red' : 'blue'];
-    const dValue = () => SLIT_SEPARATIONS[activeD() - 1];
+    const { group, lamp, housing, power, ruler, scope, screw, cards, homes } = rig;
+    const root = new THREE.Group();
+    root.add(group);
+    const picks = cards.map(card => card.children.find(child => child.userData.pick));
+    const installed = new Set(), returns = new Map();
+    let ui, lit, aligned, view, trial, mm, marks, ends, order, target, ray, offset, startMM;
+    const steps = [['axis', '调光源'], ['cards', '装缝片和滤光片'], ['length', '测屏距'], ['spacing', '测亮纹间距'], ['compare', '换片比较']];
+    const bar = lessonBar({ ...ctx, group, back: leave, steps: steps.map(([id, title]) => ({ id, title, todo: title, target: () => target })) });
+    const rows = table(['光', 'd / mm', 'Δx / mm', 'λ / nm']);
+    const field = h('input', { type: 'number', step: 'any', inputmode: 'decimal', required: true, style: 'width:6em;margin:0 .4em' });
+    const caption = h('span'), submit = h('button', { type: 'submit', class: 'go', style: 'width:auto;margin:0' }, '记下');
+    const form = h('form', { onsubmit: event => { event.preventDefault(); read(); } }, h('label', {}, caption, field), submit);
+    const work = h('div', { style: 'color:#453f37;font-size:14px;line-height:1.55;font-variant-numeric:tabular-nums' });
+    const screen = scope.screen;
+    const cardAt = index => point(stations[index], AXIS, 0);
+    const pair = () => trials[trial];
+    const pending = () => pair() && [0, ...pair()].find(index => !installed.has(index));
+    const ready = () => pair() && pending() === undefined;
+    const separation = () => SLIT_SEPARATIONS[pair()[0] - 1];
+    const wave = () => FILTER_WAVELENGTH[pair()[1] === 4 ? 'blue' : 'red'];
+    const pitch = () => wave() * length / separation() * 1000;
+    const endpoint = () => ends.length ? SCREEN_X : DOUBLE_X;
     function expose() {
-      rig.bulb.material.color.setHex(lit ? 0xffe3a2 : 0xb3aca0);
-      rig.scope.expose({
-        lit,
-        single: selected[0] !== null,
-        double: activeD() !== null,
-        filter: activeF() === null ? null : activeF() === 3 ? 'red' : 'blue',
-        separation: dValue(),
-        length,
-        offset: lampOffset(),
-      });
+      const filter = installed.has(4) ? 'blue' : installed.has(3) ? 'red' : null;
+      rig.illuminate(lit, filter);
+      scope.expose({ lit, single: installed.has(0), double: installed.has(1) || installed.has(2), filter,
+        separation: SLIT_SEPARATIONS[installed.has(2) ? 1 : 0], length, height: (lamp.position.y - AXIS) / scope.group.scale.y });
+      scope.move(aligned ? mm : 8);
+      scope.cross.visible = lit && (view === 'scope' || view === 'count' || !aligned);
     }
-    function say(text, object) {
-      aim = object;
-      bar.say(text);
+    function say(text, obj) { target = obj || null; bar.say(text); }
+    function guide(prefix = '') {
+      const tell = (text, obj) => say(prefix + text, obj);
+      if (!pair()) return tell('三组波长已记好，可以掀开课本结论了。');
+      if (!lit) return tell('点灯座开关，先看不放双缝时屏上有什么。', power);
+      if (!aligned) return tell('上下拖灯座，让亮斑落在屏中心。', housing);
+      const index = pending();
+      if (index !== undefined) {
+        const old = [...installed].find(card => stations[card] === stations[index]);
+        if (old !== undefined) return tell(`把${labels[old]}拖回原位，再换${labels[index]}。`, cards[old]);
+        return tell(`把${labels[index]}拖到${index === 0 ? '筒口前的单缝座' : index < 3 ? '筒口的双缝座' : '透镜和单缝之间'}。`, cards[index]);
+      }
+      if (ends.length < 2) return view === 'ruler' ? tell(`读${ends.length ? '毛玻璃屏' : '双缝'}指线对着的尺刻，记下位置。`) : tell('点刻度尺，读双缝和屏的位置。', rig.indices[ends.length]);
+      if (view === 'drum') return tell('读固定套筒与手轮刻度，记下两者之和。');
+      if (view === 'count') return tell('两端都算在内，一共数到几条亮纹？');
+      if (view !== 'scope') return tell('点右端目镜，看亮纹和分划板。', screen);
+      return tell(marks.length ? '转向另一条亮纹，边转边数；对准后点亮纹读数。' : '上下拖手轮，让竖线对准亮纹中心；点亮纹读数。', screw.grip);
     }
-    function guide() {
-      if (bar.finished) return say('三组数据已记录。展开笔记本，对照同色换缝和同缝换色的条纹间距。');
-      if (!lit) return say('点灯座前的小开关，点亮光源。', rig.power);
-      if (!aligned) {
-        if (view === 'scope') return say('看亮区中心是否落在十字线中心。对正后点毛玻璃确认；偏了就回全景调灯。');
-        return say(
-          view === 'lamp'
-            ? '沿底座横向微调光源，对准透镜中心线，再回全景点目镜检查。'
-            : '点左端灯座近看，对照透镜中心线微调光源，再点右端目镜检查。',
-          lamp,
-        );
-      }
-      const pair = next();
-      if (selected[0] === null) return say('把台前的单缝片拖到遮光筒左侧第一个缝片座。', cards[0]);
-      for (const i of pair)
-        if (selected[i] === null) {
-          const occupied = selected.find((k) => k !== null && stations[k] === stations[i]);
-          if (occupied !== undefined)
-            return say('把' + labels[occupied] + '从片座拖回台前，再插入' + labels[i] + '。', cards[occupied]);
-          return say('把' + labels[i] + '拖到' + (i < 3 ? '遮光筒入口' : '透镜与单缝之间') + '的片座。', cards[i]);
-        }
-      if (view === 'cards')
-        return say(
-          '缝片和滤光片已装好。回全景，' + (endpoints.length < 2 ? '把米尺移到光具座前缘。' : '点目镜观察这组条纹。'),
-        );
-      if (endpoints.length < 2) {
-        if (view === 'ruler')
-          return say('在' + (endpoints.length ? '毛玻璃屏' : '双缝片') + '所在平面的正下方点尺刻，读它的位置。');
-        return say('把米尺拖到光具座前缘；点尺近看，分别读双缝片和毛玻璃的位置。', ruler);
-      }
-      if (view === 'drum')
-        return say(
-          coarse === null ? '点固定套筒上最后露出的半毫米或整毫米刻线。' : '沿固定套筒的横线，点微分筒上对齐的刻线。',
-        );
-      if (marks.length === 2) return say('展开笔记本，填这两条亮纹之间含两端的亮纹条数，并算出波长。');
-      if (view !== 'scope') return say('点右端目镜看毛玻璃和测量手轮。', eyepiece);
-      return say(
-        marks.length
-          ? '继续滚手轮，边移边数，至少跨两个亮纹间隔。对准后再点毛玻璃读数。'
-          : '上下滚动目镜旁的棕色手轮，使竖线对准一条亮纹中心，再点毛玻璃读数。',
-        screw.grip,
-      );
+    function fields() {
+      form.hidden = !['ruler', 'drum', 'count'].includes(view);
+      field.value = '';
+      caption.textContent = view === 'ruler' ? (ends.length ? '屏的位置 / cm' : '双缝的位置 / cm') : view === 'count' ? '亮纹条数 n' : '手轮读数 / mm';
+      if (!form.hidden) ui?.fold(false);
     }
     function leave() {
-      ctx.back();
-      view = null;
-      bar.near(false);
-      guide();
+      ctx.back(); view = null;
+      bar.near(false); fields(); expose(); guide();
     }
-    function eye() {
-      if (!lit) return guide();
-      view = 'scope';
-      bar.near(true);
-      // 空屏调光时沿轴观察；测量时把目镜和横向手轮同时纳入视野。
-      if (!aligned) ctx.lookFrom([SCREEN_X + 0.077, AXIS, 0], [SCREEN_X, AXIS, 0], leave);
-      else ctx.look([SCREEN_X, AXIS, -0.022], [1, 0, 0], ctx.camera.aspect < 1 ? 0.12 : 0.115, leave);
-      guide();
+    function closeup(which, pos, dir, dist) {
+      view = which; ctx.look(pos, dir, dist, leave); bar.near(true); fields(); expose(); guide();
     }
-    function showRuler() {
-      if (!aligned || activeD() === null) return guide();
-      if (ruler.position.z < 0.045) return say('先把尺拖到光具座前缘。', ruler);
-      view = 'ruler';
-      bar.near(true);
-      const x = endpoints.length ? SCREEN_X : DOUBLE_X;
-      ctx.look([x, 0.041, ruler.position.z - 0.018], [0, 1, 0.25], 0.17, leave);
-      guide();
+    function eye() { closeup(marks.length === 2 ? 'count' : 'scope', [SCREEN_X + 0.016, AXIS, -0.022], [1, 0, 0], ctx.camera.aspect < 1 ? 0.31 : 0.235); }
+    function scaleView() { closeup('ruler', [endpoint(), 0.009, 0.074], [0, 1, 0.02], 0.17); }
+    function inspect() {
+      order = Math.round((mm - 8) / pitch());
+      if (Math.abs(mm - 8 - order * pitch()) > pitch() * 0.065) return say('竖线偏离亮纹中心了。再转一点手轮。', screw.grip);
+      if (stripeIntensity((mm - 8) / 1000, length, separation(), wave()) < 0.08) return say('这条太暗，换一条看得清的亮纹。', screw.grip);
+      if (marks.length && marks[0].order === order) return say('还是同一条亮纹。转到另一条再读。', screw.grip);
+      closeup('drum', [SCREEN_X + 0.007, AXIS, -(rig.screwFrame.position.x + mm / 1000 - 0.004)], [1, 0, 0], 0.048);
     }
-    function readRuler(ray) {
-      const hit = ray.intersectObject(ruler, false)[0];
-      if (!hit) return true;
-      const x = group.worldToLocal(hit.point.clone()).x;
-      const target = endpoints.length ? SCREEN_X : DOUBLE_X;
-      if (Math.abs(x - target) > 0.0018) {
-        say('沿片面或屏面向下找到对应尺刻，再点一次。');
-        return true;
-      }
-      endpoints.push(Math.round((x - ruler.position.x + 0.5) * 1000));
-      if (endpoints.length === 2) {
-        bar.done('length');
-        leave();
-        say(
-          '两端读数 ' +
-            endpoints.join('、') +
-            ' mm，相减得屏距 ' +
-            (endpoints[1] - endpoints[0]) +
-            ' mm。点目镜看条纹。',
-          eyepiece,
-        );
-      } else showRuler();
-      return true;
-    }
-    function clearMarks() {
-      marks = [];
-      coarse = null;
-      if (form) {
-        form.hidden = true;
-        count.value = result.value = '';
+    function read() {
+      const value = field.valueAsNumber;
+      if (!Number.isFinite(value)) return;
+      if (view === 'ruler') {
+        const expected = (endpoint() - ruler.position.x + 0.5) * 100;
+        if (Math.abs(value - expected) > 0.051) return say('没有对上指线。尺上的数字是厘米，每小格是 0.1 cm。');
+        ends.push(value);
+        if (ends.length === 1) { scaleView(); guide(`双缝在 ${value} cm。`); }
+        else {
+          const distance = Number(((ends[1] - ends[0]) * 10).toFixed(2));
+          work.replaceChildren(h('p', {}, `l = (${ends[1]} − ${ends[0]}) cm = ${distance} mm`));
+          bar.done('length'); leave(); guide(`屏距是 ${distance} mm。`);
+        }
+      } else if (view === 'drum') {
+        if (Math.abs(value - mm) > 0.006) return say('读数没对上。先看露出的整格、半格，再加上手轮对齐的格数 × 0.01 mm。');
+        marks.push({ value, order });
+        if (marks.length === 1) { eye(); guide(`第一条读到 ${value} mm。`); }
+        else { eye(); guide(`第二条读到 ${value} mm。`); }
+      } else if (view === 'count') {
+        if (value !== Math.abs(marks[1].order - marks[0].order) + 1) return say('条数不是间隔数。两条端点亮纹都要算进去。');
+        const [first, last] = marks.map(mark => mark.value);
+        const span = Number(Math.abs(last - first).toFixed(4)), distance = Number(((ends[1] - ends[0]) * 10).toFixed(2));
+        const spacing = span / (value - 1), slit = (separation() * 1000).toFixed(2);
+        const nm = Math.round(measuredWavelength(first, last, value, distance, Number(slit)) * 1e6);
+        const color = installed.has(4) ? '蓝' : '红';
+        rows.add([color, slit, spacing.toFixed(3), String(nm)]);
+        work.append(h('p', {}, h('b', {}, `${color}光 · ${slit} mm`), h('br'), `a = |${last} − ${first}| = ${span} mm`, h('br'), `Δx = a/(n − 1) = ${span}/(${value} − 1) ≈ ${spacing.toFixed(3)} mm`, h('br'), `λ = (d/l)Δx ≈ (${slit}/${distance}) × ${spacing.toFixed(3)} mm ≈ ${nm} nm`));
+        trial++; marks = []; leave(); bar.done(trial === 3 ? 'compare' : 'spacing');
+        guide(`这组测得约 ${nm} nm。`);
       }
     }
-    function cardDrag(i) {
-      const obj = cards[i];
+    const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(point(0, 1, (AXIS - homes[0].y) / homes[0].z).normalize(), point(0, AXIS, 0));
+    function cardPoint() {
+      if (!ray) return null;
+      const hit = ray.ray.intersectPlane(dragPlane.clone().applyMatrix4(group.matrixWorld), point(0, 0, 0));
+      return hit && group.worldToLocal(hit);
+    }
+    function cardDrag(card, index) {
+      const seat = cardAt(index), home = homes[index];
+      const origin = () => installed.has(index) ? seat : home;
+      function reject(text) { returns.set(card, { from: card.position.clone(), to: origin(), t: 0 }); guide(text); }
       return {
-        obj,
-        plane: 'xz',
-        offset: AXIS,
-        enabled: () => aligned && (!view || view === 'cards') && !bar.finished,
-        hint: () => '点' + labels[i] + '近看，或直接拖动它',
-        onTap() {
-          if (view === 'cards') return guide();
-          view = 'cards';
-          bar.near(true);
-          ctx.look([-0.19, 0.075, 0.065], [0.2, 1, 0.44], ctx.camera.aspect >= 1 ? 1.08 : 0.72, leave);
-          guide();
-        },
-        onDrag(p) {
-          obj.position.set(p.x, AXIS, p.z);
-        },
+        obj: picks[index], anchor: card, keepOffset: true, plane: 'xz', offset: AXIS,
+        enabled: () => lit && aligned && !view && pending() !== undefined && !returns.has(card),
+        hint: () => `拖动：${installed.has(index) ? '取下' : '装上'}${labels[index]}`,
+        onStart() { const pos = cardPoint(); offset = pos && card.position.clone().sub(pos); },
+        onDrag(pos) { const hit = cardPoint(); card.position.copy(hit && offset ? hit.add(offset) : pos); },
         onEnd(moved) {
           if (!moved) return;
-          const on = Math.abs(obj.position.x - stations[i]) < 0.033 && Math.abs(obj.position.z) < 0.045;
-          const changed = (selected[i] !== null) !== on;
-          if (on) {
-            const occupied = selected.find((k) => k !== null && k !== i && stations[k] === stations[i]);
-            if (occupied !== undefined) {
-              obj.position.copy(rig.homes[i]);
-              return say('这个片座已有' + labels[occupied] + '。先把它拖回台前。', cards[occupied]);
-            }
-            selected[i] = i;
-            obj.position.set(stations[i], AXIS, 0);
+          const needed = pending();
+          if (installed.has(index)) {
+            if (card.position.distanceTo(home) > 0.038 || stations[needed] !== stations[index]) return reject('这张片没有换下。');
+            installed.delete(index); card.position.copy(home);
           } else {
-            obj.position.copy(rig.homes[i]);
-            selected[i] = null;
+            if (index !== needed || [...installed].some(other => stations[other] === stations[index])) return reject('这张片还不能装。');
+            if (card.position.distanceTo(seat) > 0.031) return reject('没有落进片座。');
+            installed.add(index); card.position.copy(seat);
           }
-          if (changed) clearMarks();
           expose();
-          guide();
+          if (ready()) { bar.done('cards'); guide(index === 2 ? '红光没变，亮纹变疏了。' : index === 3 ? '换上红片，亮纹变红、变疏了。' : '蓝片滤去了其他颜色，只剩蓝色条纹。'); }
+          else guide(!installed.has(index) ? '片座空出来了。' : index === 0 ? '单缝已就位。' : '两片缝平行了，屏上出现彩色条纹。');
         },
       };
     }
-    function inspectMark() {
-      if (!lit) return guide();
-      if (!aligned) {
-        if (Math.abs(lampOffset()) > 0.0015) return say('亮区偏离十字线。回全景，横向微调光源再检查。');
-        aligned = true;
-        bar.done('axis');
-        leave();
-        return;
-      }
-      const pair = next();
-      if (!pair || !pair.every((i) => selected[i] !== null) || endpoints.length !== 2 || marks.length === 2)
-        return guide();
-      const x = (mm - 8) / 1000 - lampOffset();
-      const spacing = (wavelength() * length) / dValue();
-      const order = Math.round(x / spacing);
-      if (Math.abs(x / spacing - order) > 0.11 || stripeIntensity(x, length, dValue(), wavelength()) < 0.1)
-        return say('竖线偏离亮纹中心或这条纹太暗。转手轮对准清晰的亮纹。');
-      if (marks.length && Math.abs(order - marks[0].order) < 2)
-        return say('离第一条太近。继续转手轮，至少跨两个亮纹间隔。');
-      view = 'drum';
-      coarse = null;
-      bar.near(true);
-      ctx.look([SCREEN_X + 0.004, AXIS, -(0.023 - 0.002 + mm / 1000)], [1, 0, 0], 0.046, leave);
-      guide();
-    }
-    function readDrum(ray) {
-      const read = readMicrometerTick(tool, mm, coarse, ray);
-      if (read.error) say(read.error);
-      else if (read.coarse !== undefined) {
-        coarse = read.coarse;
-        guide();
-      } else if (read.value !== undefined) {
-        const order = Math.round(((mm - 8) / 1000 - lampOffset()) / ((wavelength() * length) / dValue()));
-        marks.push({ value: read.value, order });
-        if (marks.length === 2) {
-          bar.done('stripes');
-          evidence.textContent =
-            '双缝间距 ' +
-            (dValue() * 1000).toFixed(2) +
-            ' mm，屏距 ' +
-            (endpoints[1] - endpoints[0]) +
-            ' mm。两次测量头读数为 ' +
-            marks.map((m) => m.value.toFixed(3)).join('、') +
-            ' mm。';
-          form.hidden = false;
-          leave();
-        } else {
-          eye();
-          say('第一条亮纹读数 ' + read.value.toFixed(3) + ' mm。继续转手轮，数到另一条亮纹。', screw.grip);
-        }
-      }
-      return true;
-    }
-    function record() {
-      if (marks.length !== 2 || !next()) return;
-      const n = count.valueAsNumber;
-      if (n !== Math.abs(marks[1].order - marks[0].order) + 1)
-        return say('条数含两端。例如从第一条数到第三条，中间有两个间隔。');
-      const [a, b] = marks.map((m) => m.value);
-      const L = endpoints[1] - endpoints[0];
-      const nm = measuredWavelength(a / 1000, b / 1000, n, L / 1000, dValue()) * 1e9;
-      if (!Number.isFinite(result.valueAsNumber) || Math.abs(result.valueAsNumber - nm) > 2)
-        return say('先将两次读数之差除以亮纹间隔数，再乘双缝间距、除以屏距。换算成 nm。');
-      const spacing = Math.abs(b - a) / (n - 1);
-      rows.add([
-        activeF() === 3 ? '红' : '蓝',
-        (dValue() * 1000).toFixed(2),
-        L,
-        a.toFixed(3),
-        b.toFixed(3),
-        n,
-        spacing.toFixed(3),
-        result.valueAsNumber,
-      ]);
-      completed.add(activeD() + '/' + activeF());
-      clearMarks();
-      if (!next()) bar.done('compare');
-      guide();
-    }
-    const manip = draggable(
-      group,
-      [
-        ...cards.map((_, i) => cardDrag(i)),
-        {
-          obj: lamp,
-          plane: 'xz',
-          offset: AXIS,
-          keepOffset: true,
-          enabled: () => (!view || view === 'lamp') && !aligned && lit,
-          hint: '点灯座近看，横向微调光源',
-          onTap() {
-            view = 'lamp';
-            bar.near(true);
-            ctx.look([-0.55, AXIS, 0], [0, 1, 0.14], 0.106, leave);
-            guide();
-          },
-          onDrag(p) {
-            lamp.position.z = clamp(p.z, -0.003, 0.003);
-            expose();
-          },
-          onEnd: guide,
-        },
-        {
-          obj: ruler,
-          plane: 'xz',
-          offset: 0.003,
-          keepOffset: true,
-          enabled: () => !view && endpoints.length < 2 && aligned,
-          hint: '把尺移到光具座前缘，点尺读位置',
-          onDrag(p) {
-            ruler.position.z = clamp(p.z, -0.102, 0.085);
-            if (!endpoints.length) ruler.position.x = clamp(p.x, -0.035, 0.16);
-          },
-          onTap: showRuler,
-          onEnd: guide,
-        },
-        {
-          obj: screw.grip,
-          plane: 'yz',
-          offset: SCREEN_X + 0.004,
-          enabled: () => view === 'scope' && aligned && marks.length < 2,
-          hint: '上下滚动手轮，横移分划板',
-          onStart() {
-            rollingFrom = mm;
-          },
-          onDrag(p, start) {
-            if (!start) return;
-            mm = clamp(rollingFrom - ((p.y - start.y) * SCREW_PITCH) / (2 * Math.PI * 0.0067), 0.1, 15.9);
-            rig.turn(mm);
-          },
-          onEnd: guide,
-        },
-      ],
-      {
-        highlight: true,
-        taps: [
-          {
-            obj: rig.power,
-            enabled: () => !view,
-            hint: '点灯座开关',
-            onTap() {
-              lit = !lit;
-              expose();
-              guide();
-            },
-          },
-          { obj: eyepiece, enabled: () => !view, hint: '透过目镜观察', onTap: eye },
-          {
-            obj: rig.scope.group,
-            enabled: () => view === 'scope',
-            hint: '检查光屏或读取对准亮纹的位置',
-            onTap: inspectMark,
-          },
-        ],
-      },
-    );
+    const gain = 85;
+    const pointer = draggable(group, [
+      ...cards.map(cardDrag),
+      { obj: housing, anchor: lamp, keepOffset: true, enabled: () => lit && !aligned, hint: '上下拖：调灯高低',
+        onDrag(pos) { lamp.position.y = clamp(pos.y, AXIS - 0.024, AXIS + 0.024); expose(); },
+        onEnd(moved) { if (!moved) return; if (Math.abs(lamp.position.y - AXIS) > 0.002) return guide('亮斑还偏着。'); aligned = true; bar.done('axis'); guide('亮斑居中了，光束沿筒轴照到屏上。'); } },
+      { obj: screw.grip, plane: 'yz', offset: SCREEN_X + 0.004, enabled: () => view === 'scope', hint: '上下拖：转手轮',
+        onStart() { startMM = mm; }, onDrag(pos, start) { if (start) { mm = clamp(startMM + (pos.y - start.y) * gain, 0.25, 15.75); rig.turn(mm); } },
+        onEnd(moved) { if (moved) say('刻线移动了，亮纹没有动。对准亮纹中心后点它读数。', screen); } },
+    ], { tip: ctx.tag('', 'pill'), taps: [
+      { obj: power, enabled: () => !view && !!pair(), hint: '点一下：开关光源', onTap() { lit = !lit; expose(); guide(lit ? '灯亮了。' : '灯灭了，屏也暗了。'); } },
+      { obj: ruler, enabled: () => !view && lit && ready() && ends.length < 2, hint: '点一下：看尺刻', onTap: scaleView },
+      { obj: screen, enabled: () => lit && ready() && ends.length === 2 && (!view || view === 'scope'), hint: () => view === 'scope' ? '点亮纹：读手轮' : '点一下：看目镜', onTap() { if (view === 'scope') inspect(); else eye(); } },
+    ] });
     function reset() {
-      if (view) leave();
-      lit = aligned = false;
-      selected = Array(5).fill(null);
-      endpoints = [];
-      clearMarks();
-      completed.clear();
-      rows?.clear();
-      lamp.position.z = 0.002;
-      mm = 8;
-      rig.turn(mm);
-      cards.forEach((c, i) => c.position.copy(rig.homes[i]));
-      ruler.position.set(0.01, 0.003, -0.102);
-      bar.undo('axis', 'length', 'stripes', 'compare');
-      expose();
-      guide();
+      if (view) ctx.back();
+      lit = aligned = false; view = null; trial = 0; mm = 7.6; marks = []; ends = []; ray = null;
+      installed.clear(); returns.clear(); rows.clear(); work.replaceChildren();
+      cards.forEach((card, index) => card.position.copy(homes[index]));
+      lamp.position.y = AXIS - 0.023; rig.turn(mm); fields(); expose(); bar.near(false);
+      bar.undo(...steps.map(([id]) => id)); ui?.relock(); guide();
     }
     reset();
+    const dragCard = (index, remove = false) => ({ name: (remove ? '取下' : '安装') + labels[index], drag: picks[index], to: remove ? homes[index] : cardAt(index) });
+    const submitValue = value => { field.value = String(value); form.requestSubmit ? form.requestSubmit() : submit.click(); };
+    const readStep = (name, value) => ({ name, run: () => submitValue(typeof value === 'function' ? value() : value) });
+    const turnStep = (name, number) => ({ name, drag: screw.grip, to: () => { const pos = group.worldToLocal(screw.grip.getWorldPosition(point(0, 0, 0))); pos.y += (8 + number * pitch() - mm) / gain; return pos; } });
+    function qaTurn(name, number) {
+      const step = qaFlow(pointer, [turnStep(name, number)])[0];
+      step.run = () => {
+        const wheel = pointer.items().find(item => item.obj === screw.grip);
+        const start = group.worldToLocal(screw.grip.getWorldPosition(point(0, 0, 0)));
+        wheel.onStart(); wheel.onDrag(step.mouse.to(), start); wheel.onEnd(true);
+      };
+      return step;
+    }
+    const measure = (checkErrors = false) => [
+      { name: '透过目镜看条纹', tap: screen }, ...(checkErrors ? [{ name: '未对齐便读数', tap: screen }] : []), qaTurn('转手轮对准中央亮纹', 0), { name: '看第一条的手轮刻度', tap: screen }, ...(checkErrors ? [readStep('误读手轮', 7)] : []), readStep('记下第一条', () => Number(mm.toFixed(2))),
+      qaTurn('跨过两个间隔', 2), { name: '看第二条的手轮刻度', tap: screen }, readStep('记下第二条', () => Number(mm.toFixed(2))), ...(checkErrors ? [readStep('漏数一端亮纹', 2)] : []), readStep('记录三条亮纹', 3),
+    ];
     return {
-      group,
-      size: { w: 1.32, d: 0.42, h: 0.16 },
-      view: { elev: 30, azim: 13, margin: 1.03, lookY: 0.5 },
-      toggles: ['steps'],
+      group: root, size: { w: 1.29, d: 0.47, h: 0.2 }, view: { elev: 23, azim: 46, frameMargin: 0.96 }, toggles: ['steps'], reset,
       pointer: {
-        items: manip.items,
-        down(ray, e) {
-          if (document.body.classList.contains('predicting')) ui?.go(1);
-          if (view === 'ruler') return readRuler(ray);
-          if (view === 'drum') return readDrum(ray);
-          return manip.down(ray, e);
-        },
-        move: (ray) => view === 'ruler' || view === 'drum' || manip.move(ray),
-        up: () => manip.up(),
+        items: () => pointer.items().filter(item => item.enabled()),
+        down(hit, event) { ray = hit; const held = pointer.down(hit, event); if (held && ui?.step === 0) ui.go(1); return held; },
+        move(hit, event) { if (ui?.step !== 1) return false; ray = hit; return pointer.move(hit, event); },
+        up(hit, event) { ray = null; return pointer.up(hit, event); },
       },
       mount(panel) {
-        ui = panel;
-        bar.attach(ui);
-        rows = table(['光', 'd / mm', 'L / mm', 'x₁ / mm', 'x₂ / mm', '条数', '间距 / mm', 'λ / nm']);
-        count = h('input', { type: 'number', step: '1', 'aria-label': '亮纹条数' });
-        result = h('input', { type: 'number', step: 'any', 'aria-label': '波长（nm）' });
-        evidence = h('p', { class: 'note' });
-        form = h(
-          'div',
-          {},
-          evidence,
-          h('label', {}, '亮纹条数（含两端） ', count),
-          h('label', {}, '波长 / nm ', result),
-          buttons([{ text: '记录本组', onClick: record }]).el,
-        );
-        form.hidden = true;
-        panel.data.append(rows.el, form);
-        ui.notes.append(
-          note('单缝和双缝的缝线保持竖直，片座固定高度。米尺的数字单位是 cm。手轮每转一周移动 0.5 mm，共 50 格。'),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
+        ui = panel; bar.attach({ need: () => ui.need(''), unlock: () => ui.unlock() });
+        const source = ui.el.querySelector('.answer .src');
+        if (source) { source.style.paddingRight = '84px'; source.style.minHeight = '48px'; }
+        ui.controls.append(form); ui.data.append(rows.el, work, h('button', { class: 'go ghost', onclick: reset }, '全部重来'));
+        ui.status('光路与放大的屏像为示意。');
+        ui.notes.append(h('p', { class: 'note' }, '手轮每圈 0.5 mm，分为 50 格。'));
         guide();
       },
-      update(dt) {
-        bar.update(dt);
-      },
-      dispose() {
-        screw.dispose();
-        manip.dispose();
-        bar.dispose();
-      },
+      update(dt) { bar.update(dt); for (const [card, ret] of returns) { ret.t = Math.min(1, ret.t + dt / 0.38); card.position.lerpVectors(ret.from, ret.to, 1 - (1 - ret.t) ** 2); if (ret.t === 1) returns.delete(card); } },
+      dispose() { screw.dispose(); pointer.dispose(); bar.dispose(); },
+      debug: { bar, qa: [
+        { name: '开灯看偏心光斑', tap: power }, { name: '调到屏中心', drag: housing, to: point(lamp.position.x, AXIS, 0) },
+        { name: '先放双缝不能就位', drag: picks[1], to: cardAt(1) }, dragCard(0), dragCard(1), dragCard(4),
+        { name: '看双缝指线', tap: ruler }, readStep('误读厘米尺', 20), readStep('双缝位置', 20.3), readStep('屏的位置', 92.3),
+        ...measure(true), dragCard(4, true), dragCard(3), ...measure(), dragCard(1, true), dragCard(2), ...measure(),
+        { name: '核对三组记录并掀开原文', run() { if (!bar.finished || rows.rows.length !== 3) throw Error('三组测量尚未完成'); ui.go(2); ui.el.querySelector('.flap-front').click(); } },
+      ].map(step => step.mouse ? step : qaFlow(pointer, [step])[0]) },
     };
   },
 };

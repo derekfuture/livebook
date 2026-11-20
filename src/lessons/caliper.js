@@ -4,7 +4,8 @@ import { paint, inked } from '../live/ink.js';
 import { canvasTex, woodBlock } from './kit/props.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { draggable, rayToLocal, clamp } from './kit/interact.js';
-import { table, note, buttons } from './kit/ui.js';
+import { qaFlow } from './kit/chemlesson.js';
+import { table, buttons } from './kit/ui.js';
 
 const ORIGIN = -0.061,
   ZERO = ORIGIN + 0.012,
@@ -27,12 +28,12 @@ function scaleTexture(main) {
     const x = (v) => ((v - left) * W) / length,
       spacing = main ? 1 : 0.9,
       end = main ? 100 : 10;
-    g.font = (main ? 0.32 : 0.38) * H + 'px sans-serif';
+    g.font = (main ? 0.24 : 0.28) * H + 'px sans-serif';
     g.textAlign = 'center';
     for (let n = 0; n <= end; n++) {
       const xx = x(n * spacing),
         len = n % 5 === 0 ? 0.44 : 0.26,
-        width = (W / length) * 0.045;
+        width = (W / length) * 0.085;
       g.fillRect(xx - width / 2, main ? H * (1 - len) : 0, width, len * H);
       if (n % 5 === 0) g.fillText(String(n), xx, H * (main ? 0.48 : 0.89));
     }
@@ -45,7 +46,7 @@ export default {
   title: '游标卡尺测圆管的外径与内径',
   stampText: '测量',
   predict: {
-    q: '合拢时两尺零线重合。把游标向右移 0.1 mm，游标哪一条刻线会与主尺刻线对齐？',
+    q: '怎样用游标卡尺测出圆管的外径和内径？合拢时两尺零线重合。把游标向右移 0.1 mm，游标哪一条刻线会与主尺刻线对齐？',
     options: ['第 1 条', '第 5 条', '第 9 条'],
     answer: 0,
     hint: '游标的十个间隔一共长 9 mm。',
@@ -103,7 +104,7 @@ export default {
       0.0038,
       light,
     );
-    jaw(
+    const movingJaw = jaw(
       slider,
       [
         [0, 2],
@@ -207,13 +208,15 @@ export default {
       rail.position.set(HOME[0] + x, 0.002, HOME[1]);
       group.add(rail);
     }
+    const root = new THREE.Group();
+    root.add(group);
     let gap = 9.2,
       place = 'home',
       zeroed = false,
       locked = false,
       near = false,
       integer = null,
-      dragStart = 0,
+      returning = null,
       movedPipe = false,
       ui,
       records;
@@ -223,9 +226,9 @@ export default {
       group,
       back: leave,
       steps: [
-        { id: 'zero', title: '合爪查零', todo: '向左拖游标，合上量爪并检查零线。', target },
-        { id: 'outer', title: '量外径', todo: '让外测量爪夹住圆管，读主尺和游标。', target },
-        { id: 'inner', title: '量内径', todo: '把小爪伸入管口，撑到内壁再读数。', target },
+        { id: 'zero', title: '合拢查零', todo: '向左拖游标，让外测量爪的两个刃接触，看看两条零线能否对齐。', target },
+        { id: 'outer', title: '测外径', todo: '让外测量爪夹住圆管，读主尺和游标。', target },
+        { id: 'inner', title: '测内径', todo: '把小爪伸入管口，撑到内壁再读数。', target },
       ],
     });
     function target() {
@@ -254,7 +257,11 @@ export default {
           bar.say('先松开紧固螺钉，再合拢量爪检查零线。');
           return;
         }
-        bar.say(gap > 0.001 ? '向左拖游标，让两个大爪的测量面轻轻接触。' : '两爪已合。点刻度近看，检查两条零线。');
+        bar.say(null);
+        return;
+      }
+      if (place === 'home' && gap === 0 && !measured.size && !locked) {
+        bar.say(zeroMessage + ' 向右拖开大爪，准备放管。');
         return;
       }
       if (bar.finished) {
@@ -266,11 +273,7 @@ export default {
         return;
       }
       if (place === 'outer' && measured.has('outer') && !measured.has('inner')) {
-        bar.say(locked ? '松开紧固螺钉，再把大爪拉开一点。' : '向右拉开大爪，拖出圆管放回台前，再准备量内径。');
-        return;
-      }
-      if (place === 'inner' && measured.has('inner') && !measured.has('outer')) {
-        bar.say(locked ? '松开紧固螺钉，再收拢小爪取出圆管。' : '收拢小爪，取出圆管，再张开大爪测外径。');
+        bar.say(locked ? '松开紧固螺钉，再把大爪拉开一点。' : contact() ? '向右拉开大爪，松开圆管。' : '把圆管拖回木座，再收拢小爪。');
         return;
       }
       if (contact()) {
@@ -293,112 +296,92 @@ export default {
     }
     function leave() {
       near = false;
+      mark.visible = false;
       ctx.back();
       bar.near(false);
       guide();
     }
+    const zeroMessage = '两个零刻度线对齐，没有零误差，可以开始测量。';
+    const readMain = '先点主尺上游标零线左边最近的一条毫米刻线。';
+    const mark = block(slider, mm(0.10), mm(0.035), mm(3.4), 0, FACE + mm(0.14), 0, 0x993d25);
+    mark.visible = false;
     function inspect() {
-      if (!zeroed && (gap > 0.001 || place !== 'home')) {
-        guide();
-        return;
-      }
-      if (zeroed && !contact()) {
-        guide();
-        return;
-      }
+      if (!zeroed || (!contact() && gap !== 0)) return guide();
       near = true;
       integer = null;
       bar.near(true);
-      ctx.look([xAt(gap + 3.8), FACE, 0], [0, 1, 0.02], 0.028, leave);
-      bar.say(
-        zeroed ? '先在主尺点出游标零线已经越过的整毫米刻线。' : '两爪已合。点游标零线，看看它与主尺零线是否对齐。',
-      );
+      ctx.look([xAt(gap + 4.5), FACE, 0], [0, 1, 0.015], 0.05, leave);
+      bar.say(place === 'home' ? zeroMessage : readMain);
     }
-    function read(ray) {
-      const p = rayToLocal(ray, group, 'xz', FACE + 0.0001);
-      if (!p) return;
-      if (!zeroed) {
-        if (Math.abs(p.x - xAt(0)) > 0.0005 || p.z < 0 || p.z > 0.007) {
-          bar.say('找下尺标 0 的刻线，点它与上尺零线相接的位置。');
-          return;
-        }
-        zeroed = true;
-        bar.done('zero');
-        leave();
+    function choose(p) {
+      if (!near || place === 'home' || !p) return;
+      const whole = Math.floor(gap), digit = Math.round((gap - whole) * 10);
+      if (p.z >= -0.008 && p.z < 0) {
+        const n = Math.round((p.x - ZERO) * 1000);
+        if (n < 0 || n > 100) return;
+        integer = n;
+        mark.visible = false;
+        bar.say('主尺选了 ' + n + ' mm。点游标上对齐的刻线，交上读数。');
         return;
       }
-      const whole = Math.floor(gap + 1e-7),
-        digit = Math.round((gap - whole) * 10);
-      if (integer === null) {
-        if (p.z > 0 || p.z < -0.008 || Math.abs(p.x - xAt(whole)) > 0.00048) {
-          bar.say('看游标零线所在的位置，读上尺左边紧邻的那条整毫米刻线。');
-          return;
-        }
-        integer = whole;
-        bar.say('主尺 ' + whole + ' mm。再点下尺与某条主尺刻线对齐的那条线。');
-        return;
-      }
-      const idx = Math.round((p.x - xAt(gap)) / 0.0009);
-      if (p.z < 0 || p.z > 0.007 || idx !== digit || Math.abs(p.x - xAt(gap + 0.9 * idx)) > 0.00043) {
-        bar.say('再比较上下刻线，找两条真正接成一直线的位置。');
+      if (p.z < 0 || p.z > 0.007) return;
+      if (integer === null) return bar.say(readMain);
+      const idx = Math.round((p.x - xAt(gap)) / mm(0.9));
+      if (idx < 0 || idx > 10) return;
+      mark.position.x = mm(12 + 0.9 * digit);
+      mark.visible = true;
+      if (integer !== whole || idx !== digit) {
+        const mainFeedback = integer === whole ? '主尺读对了。' :
+          '零线在 ' + whole + ' 和 ' + (whole + 1) + ' mm 之间，整毫米要读 ' + whole + '。';
+        bar.say(mainFeedback + (idx === digit ? '游标读对了。' : '游标是第 ' + digit + ' 条对齐，你选了第 ' + idx + ' 条。') +
+          (integer === whole ? '再点一次游标刻线。' : '重新点主尺刻线。'));
+        if (integer !== whole) integer = null;
         return;
       }
       const value = integer + idx / 10;
-      if (!measured.has(place)) {
-        measured.set(place, value);
-        records.el.hidden = false;
-        records.add([targetName[place], String(integer), String(idx), value.toFixed(1)]);
-        bar.done(place);
+      measured.set(place, value);
+      fill();
+      bar.done(place);
+      bar.say('读对了。' + targetName[place] + ' = ' + whole + ' mm + ' + (idx / 10).toFixed(1) +
+        ' mm = ' + value.toFixed(1) + ' mm。' + (bar.finished ? '可以掀开结论了。' : '回到全景，准备测内径。'));
+    }
+    function fill() {
+      records.clear();
+      for (const id of ['outer', 'inner']) {
+        const v = measured.get(id);
+        records.add([targetName[id], ...(v == null ? ['—', '—', '—'] :
+          [String(Math.floor(v)), String(Math.round((v % 1) * 10)), v.toFixed(1)])], { highlight: false });
       }
-      leave();
-      bar.say(
-        targetName[place] +
-          ' = ' +
-          whole +
-          ' mm + ' +
-          (idx / 10).toFixed(1) +
-          ' mm = ' +
-          value.toFixed(1) +
-          ' mm。' +
-          (bar.finished
-            ? '两组数据已记入笔记本。'
-            : place === 'outer'
-              ? '张开大爪取管，再用小爪量内径。'
-              : '收拢小爪取管，再用大爪量外径。'),
-      );
     }
     function enter() {
       if (document.body.classList.contains('predicting')) ui.go(1);
     }
+    const hint = t => ui?.step === 1 && !near ? t : '';
     const drags = [
-      {
-        obj: slider,
-        plane: 'xz',
-        offset: FACE,
-        enabled: () => !near,
-        hint: '沿主尺拖游标',
-        onStart() {
-          enter();
-          dragStart = gap;
-        },
-        onDrag(p, from) {
-          if (!from || locked) return;
-          const requested = dragStart + 1000 * (p.x - from.x);
-          gap = clamp(requested, place === 'outer' ? OUT : 0, place === 'inner' ? IN : 100);
+      ...[thumb, vernier, movingJaw].map(obj => ({
+        obj, anchor: slider, plane: 'xz', offset: FACE, keepOffset: true,
+        hint: () => hint('左右拖：移动游标'),
+        onStart: enter,
+        onDrag(p) {
+          if (locked) return;
+          gap = clamp((p.x - ORIGIN) * 1000, place === 'outer' ? OUT : 0, place === 'inner' ? IN : 100);
           slider.position.x = mm(gap);
+          if (gap === 0 && !zeroed) {
+            zeroed = true;
+            bar.done('zero');
+          }
+          guide();
         },
-        onEnd(moved) {
-          if (moved) guide();
-        },
+        onEnd(moved) { if (moved) guide(); },
         onTap: inspect,
-      },
+      })),
       {
-        obj: pipe,
+        obj: outerWall, anchor: pipe,
         plane: 'xz',
         offset: Y,
         keepOffset: true,
-        enabled: () => !near,
-        hint: '把圆管放进或取出量爪',
+        enabled: () => !near && !returning,
+        hint: () => hint('拖动：放入或取出圆管'),
         onStart() {
           enter();
           movedPipe = false;
@@ -406,7 +389,7 @@ export default {
         onDrag(p) {
           if (contact()) return;
           movedPipe = true;
-          pipe.position.set(p.x, Y + 0.005, p.z);
+          pipe.position.set(p.x, Y, p.z);
         },
         onEnd(moved) {
           if (!moved) {
@@ -419,38 +402,39 @@ export default {
           }
           const at = (id) => Math.hypot(pipe.position.x - center(id).x, pipe.position.z - center(id).z);
           let message = '';
-          if (at('home') < 0.024) place = 'home';
-          else if (at('outer') < 0.021) {
+          if (at('home') < 0.012) place = 'home';
+          else if (at('outer') < 0.009) {
             if (!zeroed) message = '先合爪检查零线。';
             else if (gap < OUT + 0.3) message = '大爪开口太窄。再张开一些，留出放管的间隙。';
             else place = 'outer';
-          } else if (at('inner') < 0.019) {
+          } else if (at('inner') < 0.009) {
             if (!zeroed) message = '先检查零线。';
+            else if (!measured.has('outer')) message = '先用大爪测外径。';
             else if (gap > IN - 0.3) message = '小爪撑得太开。先收窄，再伸进管口。';
             else place = 'inner';
           } else message = '把圆管放到量爪之间，或放回台前的木座。';
-          pipe.position.copy(center(place));
+          returning = { from: pipe.position.clone(), to: center(place), t: 0 };
           if (message) bar.say(message);
           else guide();
         },
       },
     ];
     const desk = draggable(group, drags, {
-      highlight: true,
+      tip: ctx.tag('', 'pill'),
       taps: [
         {
           obj: screw,
-          hint: '松开或锁住游标',
+          hint: () => hint(locked ? '点一下：松开螺钉' : '点一下：拧紧螺钉'),
           onTap() {
             enter();
             locked = !locked;
             screw.rotation.y = locked ? 0.8 : 0;
-            bar.say(locked ? '游标已锁住。可读刻度；移动前先松开螺钉。' : '游标已松开，可以沿尺滑动。');
+            bar.say(locked ? '螺钉已拧紧，游标固定了。' : '游标已松开，可以沿尺滑动。');
           },
         },
         {
           obj: main,
-          hint: '近看同一把尺的刻线',
+          hint: () => hint('点一下：近看刻度'),
           onTap() {
             enter();
             inspect();
@@ -462,16 +446,16 @@ export default {
       items: desk.items,
       down(ray, e) {
         if (near) {
-          read(ray);
+          choose(rayToLocal(ray, group, 'xz', FACE + 0.0001));
           return true;
         }
         return desk.down(ray, e);
       },
-      move(ray) {
-        return near || desk.move(ray);
+      move(ray, e) {
+        return near || desk.move(ray, e);
       },
-      up() {
-        return desk.up();
+      up(ray, e) {
+        return desk.up(ray, e);
       },
     };
     function reset() {
@@ -481,8 +465,9 @@ export default {
       zeroed = locked = false;
       integer = null;
       measured.clear();
-      records.clear();
-      records.el.hidden = true;
+      returning = null;
+      fill();
+      ui.relock();
       slider.position.x = mm(gap);
       pipe.position.copy(center(place));
       screw.rotation.y = 0;
@@ -491,28 +476,68 @@ export default {
     }
     slider.position.x = mm(gap);
     pipe.position.copy(center(place));
+    const slideTo = n => new THREE.Vector3(ORIGIN + mm(n), 0, 0);
+    const steps = qaFlow(desk, [
+      { name: '合拢查零', drag: thumb, to: slideTo(-1) },
+      { name: '近看两条零线', tap: main },
+      { name: '回到全景', run: leave },
+      { name: '张开外爪', drag: thumb, to: slideTo(32) },
+      { name: '放入圆管', drag: outerWall, to: center('outer') },
+      { name: '夹住外壁', drag: thumb, to: slideTo(22) },
+      { name: '固定游标', tap: screw },
+      { name: '近看外径', tap: main },
+    ]);
+    // 把鼠标落在实际刻线上；非鼠标流程使用同一套读数处理。
+    function tickStep(mainScale, n) {
+      const pos = new THREE.Vector3(xAt(mainScale ? n : 0.9 * n), FACE + 0.0001, mainScale ? -0.001 : 0.001);
+      const point = new THREE.Mesh(new THREE.PlaneGeometry(0, 0));
+      point.visible = false;
+      (mainScale ? group : slider).add(point);
+      point.position.copy(pos);
+      if (!mainScale) point.position.x -= ORIGIN;
+      return { name: (mainScale ? '主尺 ' : '游标 ') + n, mouse: { kind: 'tap', obj: point },
+        run: () => choose(group.worldToLocal(point.getWorldPosition(new THREE.Vector3()))) };
+    }
+    steps.push(tickStep(true, 23), tickStep(false, 6), tickStep(false, 7),
+      ...qaFlow(desk, [
+        { name: '返回全景', run: leave }, { name: '松开螺钉', tap: screw },
+        { name: '松开圆管', drag: thumb, to: slideTo(31) },
+        { name: '取出圆管', drag: outerWall, to: center('home') },
+        { name: '收窄内爪', drag: thumb, to: slideTo(8) },
+        { name: '套入管口', drag: outerWall, to: center('inner') },
+        { name: '撑住内壁', drag: thumb, to: slideTo(18) },
+        { name: '近看内径', tap: main },
+      ]), tickStep(true, 17), tickStep(false, 4), tickStep(true, 16), tickStep(false, 4),
+      { name: '核对记录并掀开原文', run() {
+        if (measured.get('outer') !== OUT || measured.get('inner') !== IN) throw Error('两次读数未完成');
+        leave();
+        ui.go(2);
+        ui.el.querySelector('.flap-front').click();
+      } });
     return {
-      group,
+      group: root, reset,
+      debug: { bar, qa: steps },
       pointer,
       toggles: ['steps'],
-      size: { w: 0.185, d: 0.145, h: 0.035 },
-      view: { elev: 52, azim: 0, lookY: 0.4, margin: 1.04 },
+      size: { w: 0.15, d: 0.121, h: 0.035 },
+      view: { elev: 52, azim: 0, lookY: 0.4, frameMargin: 0.99 },
       mount(panel) {
         ui = panel;
-        bar.attach(ui);
-        records = table(['测量面', '主尺 / mm', '对齐线序号', '读数 / mm']);
-        records.el.hidden = true;
-        ui.data.append(records.el);
-        ui.notes.append(
-          note(
-            '本尺为 10 分度。游标从 0 到 10 的十个间隔总长 9 mm，每条对齐线代表 0.1 mm。紧固螺钉可在需要时锁住游标。',
-          ),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
+        bar.attach({ ...panel, need: () => {} });
+        panel.el.querySelector('.answer').style.paddingBottom = '82px';
+        panel.status('主尺 A 每格 1 mm。游标尺 B 的 10 格合计 9 mm，每格比主尺短 0.1 mm。<br>大爪 C 量外径，小爪 D 量内径，紧固螺钉 F 固定游标。');
+        records = table(['圆管', '主尺 / mm', '对齐线序号', '读数 / mm']);
+        ui.data.append(records.el, buttons([{ text: '全部重来', onClick: reset }]).el);
+        fill();
         guide();
       },
       update(dt) {
         bar.update(dt);
+        if (returning) {
+          returning.t = Math.min(1, returning.t + dt / 0.35);
+          pipe.position.lerpVectors(returning.from, returning.to, returning.t);
+          if (returning.t === 1) returning = null;
+        }
       },
       dispose() {
         desk.dispose();

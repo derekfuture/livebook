@@ -1,7 +1,7 @@
 // 图 4.4-1 的光具座。沿 x 从灯到目镜；屏距以双缝片和毛玻璃所在平面为准。
 import * as THREE from 'three';
 import { paint, inked } from '../../live/ink.js';
-import { rulerMesh, textPlate } from './props.js';
+import { glowTexture, rulerMesh, textPlate } from './props.js';
 import { measuringScrew } from './micrometerTool.js';
 import { fringeScreen } from './fringeScreen.js';
 import { SLIT_SEPARATIONS } from './doubleSlit.js';
@@ -48,24 +48,53 @@ export function doubleSlitRig() {
   const lamp = new THREE.Group();
   lamp.position.set(-0.575, AXIS, 0);
   group.add(lamp);
-  block(lamp, -0.012, 0, 0, 0.04, 0.056, 0.059, 0x45515b);
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.012, 24, 16), new THREE.MeshBasicMaterial({ color: 0xb3aca0 }));
-  bulb.position.x = 0.013;
+  const housing = block(lamp, -0.012, 0, 0, 0.04, 0.056, 0.059, 0x45515b);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.018, 24, 16), new THREE.MeshBasicMaterial({ color: 0xb3aca0 }));
+  bulb.position.x = 0.017;
   lamp.add(bulb);
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffbb4b, transparent: true, depthWrite: false }));
+  glow.scale.setScalar(0.105);
+  bulb.add(glow);
   // 底座的轴线用于低头粗调，再透过目镜检查光屏。
   block(group, -0.535, 0.0484, 0, 0.079, 0.0007, 0.0012, 0xdfc695);
   for (const x of [DOUBLE_X, SCREEN_X]) {
     block(group, x, 0.0405, 0.030, 0.001, 0.001, 0.029, 0xe1c390);
   }
-  const power = block(group, -0.577, 0.051, 0.034, 0.034, 0.01, 0.019, 0x96634c);
+  block(group, -0.577, 0.041, 0.063, 0.052, 0.017, 0.044, 0x42484a);
+  const power = block(group, -0.577, 0.055, 0.063, 0.036, 0.012, 0.028, 0x976248);
+  power.material = new THREE.MeshBasicMaterial();
   const optics = new THREE.Group();
   optics.position.y = AXIS;
   group.add(optics);
+  for (const x of [SINGLE_X, DOUBLE_X, FILTER_X]) {
+    for (const side of [-1, 1]) block(optics, x + side * 0.0033, -0.0215, 0, 0.004, 0.009, 0.052, 0x45515b);
+  }
   ring(optics, -0.487, 0.029, 0.0026, 0x4b555d);
   const lens = new THREE.Mesh(new THREE.SphereGeometry(0.028, 48, 24), paint(0xabced6, { transparent: true, opacity: 0.29 }));
   lens.scale.x = 0.18;
   lens.position.x = -0.487;
   optics.add(lens);
+  const beams = [[0.009, 0.024], [0.024, 0.018], [0.018, 0.012]].map(([start, end]) => {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(end, start, 1, 40, 1, true), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.42, depthWrite: false }));
+    group.add(mesh);
+    return mesh;
+  });
+  const up = new THREE.Vector3(0, 1, 0);
+  function illuminate(lit, filter) {
+    const points = [bulb.position.x + lamp.position.x, -0.487, FILTER_X, DOUBLE_X + 0.016].map(x => new THREE.Vector3(x, lamp.position.y, 0));
+    beams.forEach((mesh, index) => {
+      const delta = points[index + 1].clone().sub(points[index]);
+      mesh.position.copy(points[index]).addScaledVector(delta, 0.5);
+      mesh.scale.y = delta.length();
+      mesh.quaternion.setFromUnitVectors(up, delta.normalize());
+      mesh.material.color.set(index === 2 && filter ? (filter === 'red' ? 0xff4435 : 0x416efe) : 0xffdd85);
+      mesh.visible = lit;
+    });
+    glow.visible = lit;
+    bulb.material.color.set(lit ? 0xfff2af : 0x8a8882);
+    power.material.color.set(lit ? 0xffc653 : 0x6e635a);
+    power.rotation.z = lit ? 0.18 : -0.18;
+  }
 
   const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.031, SCREEN_X - DOUBLE_X - 0.016, 64, 1, true),
     paint(0x444d55, { side: THREE.DoubleSide }));
@@ -80,7 +109,7 @@ export function doubleSlitRig() {
   group.add(head);
   // 前盖开孔，目镜才能看到分划板，筒外看不到透过外壳的条纹。
   const frame = new THREE.Shape();
-  frame.absarc(0, 0, 0.032, 0, 2 * Math.PI, false);
+  frame.absarc(0, 0, 0.052, 0, 2 * Math.PI, false);
   const aperture = new THREE.Path();
   aperture.absarc(0, 0, 0.008, 0, 2 * Math.PI, true);
   frame.holes.push(aperture);
@@ -89,8 +118,8 @@ export function doubleSlitRig() {
   head.add(scope.group);
   // 目镜放大同一分划板和毛玻璃的像。测量面的位置仍是 SCREEN_X。
   scope.group.position.z = 0.0181;
-  scope.group.scale.setScalar(1.85);
-  const eyepiece = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.008, 0.018, 48, 1, true),
+  scope.group.scale.setScalar(5.8);
+  const eyepiece = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.052, 0.018, 64, 1, true),
     paint(0x293138, { side: THREE.DoubleSide }));
   eyepiece.rotation.x = Math.PI / 2;
   eyepiece.position.z = 0.009;
@@ -101,7 +130,7 @@ export function doubleSlitRig() {
   eyepiece.add(opening);
   head.add(eyepiece);
   const screwFrame = new THREE.Group();
-  screwFrame.position.set(0.023, 0, 0.004);
+  screwFrame.position.set(0.055, 0, 0.004);
   head.add(screwFrame);
   const screw = measuringScrew(screwFrame);
   function turn(mm) {
@@ -111,13 +140,14 @@ export function doubleSlitRig() {
   const cards = [slitCard(0), ...SLIT_SEPARATIONS.map(slitCard)];
   for (const color of [0xa42c25, 0x2548ac]) {
     const filter = new THREE.Group();
-    block(filter, 0, 0, 0, 0.002, 0.04, 0.044, color);
+    const glass = block(filter, 0, 0, 0, 0.002, 0.04, 0.044, color);
+    glass.material = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.76 });
     block(filter, 0, -0.023, 0, 0.006, 0.007, 0.05, 0x45545b);
     cards.push(filter);
   }
   const labels = ['单缝', '0.36 mm', '0.18 mm', '红滤光片', '蓝滤光片'];
   const homes = cards.map((card, i) => {
-    const x = -0.435 + i * 0.127, z = 0.127;
+    const x = -0.435 + i * 0.18, z = 0.16;
     block(group, x, 0.011, z, 0.053, 0.022, 0.068, 0xae9875);
     const pos = new THREE.Vector3(x, 0.044, z);
     const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.059, 0.055), new THREE.MeshBasicMaterial({ visible: false }));
@@ -125,15 +155,16 @@ export function doubleSlitRig() {
     card.add(handle);
     card.position.copy(pos);
     group.add(card);
-    const label = textPlate(labels[i], { w: 0.068, h: 0.019, bg: '#eee4cf' });
-    label.rotation.x = -Math.PI / 2;
-    label.position.set(x, 0.002, z + 0.052);
+    const label = textPlate(labels[i], { w: 0.136, h: 0.03, bg: '#eee4cf', font: 'bold 92px PingFang SC, sans-serif' });
+    label.rotation.set(-0.65, 0.3, 0, 'YXZ');
+    label.position.set(x, 0.014, z + 0.045);
     group.add(label);
     return pos;
   });
   const ruler = rulerMesh({ length: 4096 / 4080, width: 0.032, thick: 0.004, divisions: 1000, labelEvery: 50 });
-  ruler.position.set(0.01, 0.003, -0.102);
+  ruler.position.set(0.007, 0.005, 0.088);
   group.add(ruler);
+  const indices = [DOUBLE_X, SCREEN_X].map(x => block(ruler, x - ruler.position.x, 0.003, -0.031, 0.0006, 0.002, 0.03, 0x873f2c));
   turn(8);
-  return { group, cards, homes, lamp, bulb, power, head, eyepiece, ruler, scope, screw, screwFrame, turn };
+  return { group, cards, homes, lamp, housing, bulb, power, head, eyepiece, ruler, indices, scope, screw, screwFrame, turn, illuminate };
 }
