@@ -225,16 +225,12 @@ export default {
     b.cups.forEach((c, i) => {
       drags.push(
         guarded(c.pick, c.lip, () => cupAllowed(i), `拖动${REAGENTS[i]}的烧杯嘴，对准管口`, {
-          onStart: () => begin('cup', i),
-          onDrag(p) {
-            const a = -c.sign * clamp((p.y - 0.055) * 8, 0, 1.23);
-            s.cupAngle[i] = a;
-            s.cupPos[i].copy(p).sub(c.lip.position.clone().applyAxisAngle(V(0, 0, 1), a));
-          },
-          onEnd(moved) {
-            const lip = s.cupPos[i].clone().add(c.lip.position.clone().applyAxisAngle(V(0, 0, 1), s.cupAngle[i]));
-            const hit = lip.distanceTo(pourTo(i)) < 0.0052;
-            if (moved && !cancelled && hit) {
+          dropzones: [{
+            name: `${NAMES[i]}上口`,
+            position: () => pourTo(i),
+            radius: 0.0104,
+            enabled: () => cupAllowed(i),
+            onDrop() {
               const t = s.tubes[i];
               if (t.rinses < 2) {
                 t.charge = 4;
@@ -244,16 +240,26 @@ export default {
                 t.poured += (t.reading ?? 25) - fill;
                 t.reading = fill;
               }
-            }
+            },
+          }],
+          onStart: () => begin('cup', i),
+          onDrag(p) {
+            const a = -c.sign * clamp((p.y - 0.055) * 8, 0, 1.23);
+            s.cupAngle[i] = a;
+            s.cupPos[i].copy(p).sub(c.lip.position.clone().applyAxisAngle(V(0, 0, 1), a));
+          },
+          onEnd(moved, dropped) {
             returns('cup', i, s.cupPos[i], cupHome[i], s.cupAngle[i]);
             s.grip = null;
             refresh();
-            if (moved && !cancelled && !hit)
+            if (moved && !cancelled && !dropped) {
+              const lip = s.cupPos[i].clone().add(c.lip.position.clone().applyAxisAngle(V(0, 0, 1), s.cupAngle[i]));
               msg(
                 lip.distanceTo(pourTo(1 - i)) < 0.012
                   ? '这支管装另一种溶液。将杯嘴移到对应滴定管的上口。'
                   : '杯嘴未对准管口，液体还在烧杯中。',
               );
+            }
           },
         }),
       );
@@ -277,16 +283,17 @@ export default {
       ),
     );
     const wasteTo = V(-0.107, 0, 0.06);
+    const wasteOK = () => s.initial !== null && !s.parked;
     drags.push(
-      guarded(b.wastePick, b.waste, () => s.initial !== null && !s.parked, '把废液烧杯拖向左前方，移开杯口', {
+      guarded(b.wastePick, b.waste, wasteOK, '把废液烧杯拖向左前方，移开杯口', {
         plane: 'xz',
+        dropzones: [{ name: '左前方空位', position: wasteTo, radius: 0.078, enabled: wasteOK, onDrop() { s.parked = true; } }],
         onStart: () => begin('waste', 0),
         onDrag(p) {
           s.waste.copy(p).y = 0;
         },
-        onEnd() {
-          if (!cancelled && s.waste.z > 0.042 && s.waste.x < -0.08) s.parked = true;
-          else returns('waste', 0, s.waste, V(0));
+        onEnd(moved, dropped) {
+          if (!dropped) returns('waste', 0, s.waste, V(0));
           s.grip = null;
           refresh();
         },
@@ -294,10 +301,22 @@ export default {
     );
     const station = (i) => V(X[i], 0.001);
     const flaskOK = () => s.parked && !finished() && !over() && (!sampling() || !s.base);
+    const neck = V(0, 0.062);
+    const flaskZone = (index, name, base, ready) => ({
+      name, position: () => base().add(neck), radius: 0.016,
+      enabled: () => flaskOK() && s.station !== index && ready(),
+      onDrop() { s.station = index; },
+    });
     const flaskStart = flaskHome.clone();
     let lastX = 0;
     drags.push(
       guarded(b.flaskPick, b.flask, flaskOK, '拖动锥形瓶，对准尖嘴；滴定时轻轻摇动', {
+        dropOffset: neck,
+        dropzones: [
+          flaskZone(1, '碱式滴定管下方', () => station(1), () => !s.sampled),
+          flaskZone(2, '右侧空位', () => flaskHome.clone(), () => s.sampled && s.dye < 2),
+          flaskZone(0, '酸式滴定管下方的白纸', () => station(0), () => s.dye === 2),
+        ],
         onStart() {
           begin('flask', 0);
           flaskStart.copy(s.flask);
@@ -320,33 +339,30 @@ export default {
           }
           lastX = p.x;
         },
-        onEnd() {
-          const dest = !s.sampled ? 1 : s.dye === 2 ? 0 : null;
-          if (!cancelled && dest === null && s.flask.x >= 0.069 && s.flask.x <= 0.098 && s.flask.y < 0.012) {
-            s.station = 2;
-            flaskStart.set(s.flask.x, flaskHome.y, 0);
-          }
-          if (dest !== null && !cancelled && Math.abs(s.flask.x - X[dest]) < 0.009 && s.flask.y < 0.01)
-            s.station = dest;
-          returns('flask', 0, s.flask, s.station === null || s.station === 2 ? flaskStart : station(s.station));
+        onEnd(moved, dropped) {
+          if (!dropped) returns('flask', 0, s.flask, s.station === null || s.station === 2 ? flaskStart : station(s.station));
           s.grip = null;
           refresh();
         },
       }),
     );
     const pipTo = () => s.flask.clone().add(V(0, 0.068));
+    const pipOK = () => s.sampled && s.station === 2 && s.dye < 2;
     drags.push(
-      guarded(b.pipPick, b.pip, () => s.sampled && s.station === 2 && s.dye < 2, '将酚酞滴管尖端悬在瓶口上方', {
+      guarded(b.pipPick, b.pip, pipOK, '将酚酞滴管尖端悬在瓶口上方', {
+        dropzones: [{
+          name: '锥形瓶口', position: pipTo, radius: 0.016, enabled: pipOK,
+          onDrop() {
+            s.dye++;
+            note(2);
+            if (s.dye === 2) done(3);
+          },
+        }],
         onStart: () => begin('pip', 0),
         onDrag(p) {
           s.pip.copy(p);
         },
-        onEnd(moved) {
-          if (moved && !cancelled && s.pip.distanceTo(pipTo()) < 0.006) {
-            s.dye++;
-            note(2);
-            if (s.dye === 2) done(3);
-          }
+        onEnd() {
           returns('pip', 0, s.pip, b.pipHome);
           s.grip = null;
           refresh();
@@ -634,6 +650,7 @@ export default {
           label: '老师演示',
           seal: '演示',
           onStart() {
+            drag.clearDropzones();
             saved = s;
             restoredMicro = mic.isOpen;
             if (restoredMicro) microOverlay.hidden = true;
@@ -647,6 +664,7 @@ export default {
             sync();
           },
           onEnd() {
+            drag.clearDropzones();
             s = saved;
             saved = null;
             lastDraw = '';
@@ -705,6 +723,7 @@ export default {
     const pointer = wrapPointer(drag, bar);
     function reset(repeat = false) {
       if (bar.playing) bar.stop();
+      drag.clearDropzones();
       mic.close();
       const previous = s;
       s = fresh();
@@ -847,6 +866,7 @@ export default {
       },
       update(dt) {
         const speed = bar.update(dt);
+        drag.update(speed ? Math.min(dt, 0.08) : 0);
         tick(Math.min(dt, 0.08) * speed);
         if (!(s.demo && restoredMicro)) mic.update(dt, speed);
         if (!W) return;
