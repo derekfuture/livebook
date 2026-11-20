@@ -44,8 +44,8 @@ export default {
   conclusion: {
     page: 134, rect: [40, 548, 368, 690],
     quote: '一条弧所对的圆周角等于它所对的圆心角的一半。同弧或等弧所对的圆周角相等。半圆（或直径）所对的圆周角是直角，90°的圆周角所对的弦是直径。',
-    why: '船在浅滩边那道弧上走，两座灯塔不动，从浮标（圆心）看两座灯塔的角就不变；船上的角是它的一半，所以也不变——同弧所对的圆周角相等。<br><br>为什么是一半：一束光正好照过浮标时，浮标到船、到另一座灯塔的两根绳子一样长（都是半径），两个底角相等；浮标那里的角是这个三角形的外角，等于两个底角的和，正好两倍。光从浮标旁边擦过时，过船拉一根穿过浮标的直径，把角拆成两块相加或相减，每块都是一半，合起来还是一半。<br><br>两座灯塔正好是直径两端的那一圈，处处都是 90°：半圆所对的圆周角是直角。<br><br>开进圈里，船上的角是圆上的角再加一块（三角形的外角），比危险角大；开到圈外，是圆上的角减去一块，比危险角小——所以只要量出的角小于危险角，船就在浅滩外面（课本第 133 页第 14 题）。',
-    src: '课本第 127–128 页 · 第二十九章 29.2.3 圆周角；第 133 页 习题 29.2 第 14 题',
+    why: '船在浅滩边那道弧上走，两座灯塔不动，从浮标（圆心）看两座灯塔的角就不变；船上的角是它的一半，所以也不变——同弧所对的圆周角相等。<br><br>为什么是一半：一束光正好照过浮标时，浮标到船、到另一座灯塔的两根绳子一样长（都是半径），两个底角相等；浮标那里的角是这个三角形的外角，等于两个底角的和，正好两倍。光从浮标旁边擦过时，过船拉一根穿过浮标的直径，把角拆成两块相加或相减，每块都是一半，合起来还是一半。<br><br>两座灯塔正好是直径两端的那一圈，处处都是 90°：半圆所对的圆周角是直角。<br><br>开进圈里，船上的角是圆上的角再加一块（三角形的外角），比危险角大；开到圈外，是圆上的角减去一块，比危险角小——所以只要量出的角小于危险角，船就在浅滩外面。',
+    src: '课本第 127–128 页 · 29.2.3 圆周角；浅滩的问题在第 133 页',
   },
 
   create({ look, back, camera, aim }) {
@@ -86,28 +86,43 @@ export default {
     }
     // 切面：上面是水（海里那段）或岸，下面是一层层的沙、泥、岩石
     const YM = H + LAND_H;
-    const faceTex = (sample) => tex(1024, 160, (g, w, hp) => {
-      const Y = (y) => hp * (1 - y / YM);
+    // 岸上的地形：靠海那一带是平的（弧 BC、视线都画在上面），往里慢慢起伏成一道低山，中间（两座灯塔背后）低一点
+    const HILL = 0.04, TOP = YM + HILL;
+    const hill = (u, v) => { const k = smooth(0.084, BACK_V - 0.002, v), side = 0.58 + 0.42 * smooth(0.02, 0.17, Math.abs(u)), roll = 0.84 + 0.1 * Math.sin(u * 37 + 0.8) + 0.06 * Math.sin(u * 83 - 0.4); return HILL * k * Math.sqrt(k) * side * roll; };
+    const faceTex = (sample) => tex(1024, 200, (g, w, hp) => {
+      const Y = (y) => hp * (1 - y / TOP);
       for (let i = 0; i < w; i++) {
-        const s = sample((i + 0.5) / w), top = s.land ? YM : s.bed;
+        const s = sample((i + 0.5) / w), top = s.land ? s.top ?? YM : s.bed;
         for (const [a, b, c] of [[0, 0.42, '#d6d0c4'], [0.42, 0.74, '#e2dcd0'], [0.74, 1, s.land ? '#ebe6dc' : '#efeae0']]) { g.fillStyle = c; g.fillRect(i, Y(top * b), 1, Y(top * a) - Y(top * b) + 1); }
         for (let k = 0; k < 3; k++) { g.fillStyle = `rgba(90,80,66,${0.03 + Math.random() * 0.06})`; g.fillRect(i, Y(Math.random() * top), 1, 2); }
-        if (s.land) { g.fillStyle = '#f6f3ed'; g.fillRect(i, Y(YM), 1, 3); }
+        if (s.land) { g.fillStyle = '#f6f3ed'; g.fillRect(i, Y(top), 1, 3); }
         else { const gr = g.createLinearGradient(0, Y(H), 0, Y(s.bed)); gr.addColorStop(0, 'rgba(188,214,224,0.97)'); gr.addColorStop(1, 'rgba(138,170,184,0.97)'); g.fillStyle = gr; g.fillRect(i, Y(H), 1, Y(s.bed) - Y(H) + 1); g.fillStyle = 'rgba(236,247,252,0.95)'; g.fillRect(i, Y(H), 1, 2); }
       }
     });
-    const face = (w, sample, x, z, ry) => { const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry(w, YM), lit({ map: faceTex(sample), transparent: true, alphaTest: 0.5, roughness: 0.9 }))); m.position.set(x, YM / 2, z); m.rotation.y = ry; m.receiveShadow = true; m.userData.qaSupport = true; root.add(m); };
-    const sideAt = (u, front) => (t) => { const v = front ? SEA.v0 + t * (BACK_V - SEA.v0) : BACK_V - t * (BACK_V - SEA.v0); return v >= LAND_V ? { land: true } : { bed: H - depth(u, v) }; };
+    const face = (w, sample, x, z, ry) => { const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry(w, TOP), lit({ map: faceTex(sample), transparent: true, alphaTest: 0.5, roughness: 0.9 }))); m.position.set(x, TOP / 2, z); m.rotation.y = ry; m.receiveShadow = true; m.userData.qaSupport = true; root.add(m); };
+    const sideAt = (u, front) => (t) => { const v = front ? SEA.v0 + t * (BACK_V - SEA.v0) : BACK_V - t * (BACK_V - SEA.v0); return v >= LAND_V ? { land: true, top: YM + hill(u, v) } : { bed: H - depth(u, v) }; };
     face(seaW, (t) => ({ bed: H - depth(SEA.u0 + t * seaW, SEA.v0) }), uc, -SEA.v0, 0);
     face(BACK_V - SEA.v0, sideAt(SEA.u0, false), SEA.u0, -(SEA.v0 + BACK_V) / 2, -Math.PI / 2);
     face(BACK_V - SEA.v0, sideAt(SEA.u1, true), SEA.u1, -(SEA.v0 + BACK_V) / 2, Math.PI / 2);
-    face(seaW, () => ({ land: true }), uc, -BACK_V, Math.PI);
+    face(seaW, (t) => ({ land: true, top: YM + hill(SEA.u1 - t * seaW, BACK_V) }), uc, -BACK_V, Math.PI);
     { // 岸：一条矮矮的沙滩、后面是草地；岸线那一面是沙和石头
       const top = tex(1024, 256, (g, w, h) => {
         const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, '#f1ece2'); gr.addColorStop(0.2, '#f4f0e8'); gr.addColorStop(1, '#f6f3ed'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
         for (let k = 0; k < 2600; k++) { g.fillStyle = `rgba(120,110,95,${Math.random() * 0.05})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
       });
-      const t = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, BACK_V - LAND_V).rotateX(-Math.PI / 2), lit({ map: top, roughness: 0.95 }))); t.position.set(uc, YM, -(LAND_V + BACK_V) / 2); t.receiveShadow = true; root.add(t);
+      const lg = new THREE.PlaneGeometry(seaW, BACK_V - LAND_V, 170, 54).rotateX(-Math.PI / 2), lp = lg.attributes.position, lc = new Float32Array(lp.count * 3), cc = new THREE.Color(), SANDL = new THREE.Color(0xf2eadb), FLAT = new THREE.Color(0xf5f2ea), SLOPE = new THREE.Color(0xe6e9de);
+      for (let i = 0; i < lp.count; i++) { const u = lp.getX(i) + uc, v = -lp.getZ(i) + (LAND_V + BACK_V) / 2, hh = hill(u, v); lp.setY(i, hh); cc.copy(SANDL).lerp(FLAT, smooth(LAND_V, 0.064, v)).lerp(SLOPE, smooth(0.0015, 0.016, hh)); lc[i * 3] = cc.r; lc[i * 3 + 1] = cc.g; lc[i * 3 + 2] = cc.b; }
+      lg.setAttribute('color', new THREE.BufferAttribute(lc, 3)); lg.computeVertexNormals();
+      const lm = lit({ map: top, vertexColors: true, roughness: 0.95 });
+      lm.onBeforeCompile = (sh) => {          // 山坡上细细的等高线（像地形模型一层层的边）
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vHy;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHy = position.y;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vHy;').replace('#include <color_fragment>', '#include <color_fragment>\n{ float hh = vHy / 0.0042; float f = abs(fract(hh - 0.5) - 0.5) / max(fwidth(hh), 1e-4); diffuseColor.rgb *= 1.0 - 0.14 * (1.0 - smoothstep(0.0, 1.3, f)) * step(0.0011, vHy); }');
+      };
+      const t = quiet(new THREE.Mesh(lg, lm)); t.position.set(uc, YM, -(LAND_V + BACK_V) / 2); t.receiveShadow = true; t.castShadow = true; root.add(t);
+      // 灯塔脚下外侧几块礁石（只放在外侧和后面，不挡弧 BC、不挡视线）
+      const rockMat = lit({ color: 0xe0d9cb, roughness: 0.93, flatShading: true });
+      const rock = (u, v, r, sy, rot) => { const g = new THREE.IcosahedronGeometry(r, 1), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 1 + 0.2 * Math.sin(x * 2100 + y * 1700) * Math.cos(z * 1900 + 0.5); p.setXYZ(i, x * n, y * n * sy, z * n); } g.computeVertexNormals(); const m = solid(new THREE.Mesh(g, rockMat)); m.position.set(u, YM + r * sy * 0.3, -v); m.rotation.y = rot; root.add(m); };
+      for (const [cu, o] of [[B0[0], -1], [C0[0], 1]]) { rock(cu + o * 0.012, 0.053, 0.0042, 0.62, 0.4); rock(cu + o * 0.019, 0.06, 0.0056, 0.5, 1.2); rock(cu + o * 0.007, 0.064, 0.0036, 0.56, 2.1); rock(cu + o * 0.026, 0.052, 0.003, 0.6, 0.9); }
       const edge = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, YM - (H - 0.009)), lit({ color: 0xe8e2d6, roughness: 0.95 }))); edge.position.set(uc, (YM + H - 0.009) / 2, -LAND_V); edge.receiveShadow = true; root.add(edge);
     }
     // 水面：半透明，透得出下面的沙洲；一层细细的波纹慢慢走
@@ -816,7 +831,7 @@ export default {
       S.call = ''; S.answered = true; layout();
       punch(onCirc(-2.35), '', null);
       board.h('应用'); board(`<b>答</b>：船上看两座灯塔的角小于 ${d40}，就没进浅滩；等于 ${d40} 在浅滩边上，大于 ${d40} 就进去了。`);
-      lightText(`答：船上看两座灯塔的角小于 ${d40}，就没进浅滩`, `正好 ${d40} 在浅滩边上，大于 ${d40} 就进去了——这就是课本第 14 题的道理`, GOLDTXT);
+      lightText(`答：船上看两座灯塔的角小于 ${d40}，就没进浅滩`, `正好 ${d40} 在浅滩边上，大于 ${d40} 就进去了`, GOLDTXT);
       if (!(await wait(6000, id))) return;
       // 十、等角线：每个角度都是一段弧；90° 那段以 BC 为直径——变中有不变
       S.beat = 'family'; sfx.whoosh({ dur: 1.2, freq: 600, gain: 0.05 });
