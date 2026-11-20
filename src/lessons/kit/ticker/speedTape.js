@@ -81,10 +81,8 @@ export function speedTape(base) {
     } else label(reading ? '选计时起点' : '相邻打点相隔 0.02 s', 65, 480, 53, '#635d50');
     texture.needsUpdate = true;
   }
-  function hit(ray) {
-    const uv = ray.intersectObject(mesh)[0]?.uv;
-    if (!uv || Math.abs((1 - uv.y) * H - Y_DOT) > 65 || !marks.length) return -1;
-    const x = uv.x * W;
+  function dotAt(x, y) {
+    if (Math.abs(y - Y_DOT) > 65 || !marks.length) return -1;
     const i = marks.reduce((best, m, j) => (Math.abs(px(m) - x) < Math.abs(px(marks[best]) - x) ? j : best), 0);
     return Math.abs(px(marks[i]) - x) < 27 ? i : -1;
   }
@@ -94,10 +92,14 @@ export function speedTape(base) {
   return {
     mesh,
     draw,
-    hit,
+    canvas: texture.canvas,
+    dotAt,
+    hit(ray) {
+      const uv = ray.intersectObject(mesh)[0]?.uv;
+      return uv ? dotAt(uv.x * W, (1 - uv.y) * H) : -1;
+    },
     localDot,
     normal: [0, Math.cos(TILT), Math.sin(TILT)],
-    width: WIDTH,
     dispose: () => texture.dispose(),
   };
 }
