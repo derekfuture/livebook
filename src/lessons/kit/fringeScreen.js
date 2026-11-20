@@ -36,7 +36,7 @@ export function fringeScreen() {
     cross.children[1].scale.x = 0.5;
     cross.children[1].position.x = -cross.position.x;
   }
-  function expose({ lit, single, double, separation, filter, length, offset = 0, height = 0 }) {
+  function expose({ lit, single, double, separation, filter, length, offset = 0, height = 0, marks = [] }) {
     // offset 是未调正时光束中心在毛玻璃上的横向错位（m）。
     const g = tex.canvas.getContext('2d'), w = tex.canvas.width;
     if (!single && !double && !filter) {
@@ -72,6 +72,24 @@ export function fringeScreen() {
       }
       g.fillStyle = 'rgb(' + rgb.map((v) => srgb(Math.min(1, 0.008 + v))).join(',') + ')';
       g.fillRect(i, 0, 1, tex.canvas.height);
+    }
+    if (marks.length === 2) {
+      // 取两次锁定的分划线位置。引线上下分开，倒着选或选相邻亮纹都能数。
+      g.save();
+      g.scale(w / 512, tex.canvas.height / 512);
+      g.font = 'bold 16px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      marks.forEach(({ position }, index) => {
+        const x = position / (1000 * FIELD_WIDTH) * 512;
+        const labelX = Math.max(92, Math.min(420, x));
+        const side = index === 0 ? -1 : 1;
+        g.strokeStyle = g.fillStyle = '#fff2ce'; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(x, 256 + side * 6); g.lineTo(x, 256 + side * 24);
+        g.lineTo(labelX, 256 + side * 83); g.stroke();
+        const labelY = 256 + side * 94;
+        g.fillStyle = '#30373b'; g.fillRect(labelX - 30, labelY - 12, 60, 24);
+        g.fillStyle = '#fff2ce'; g.fillText(index === 0 ? '第一条' : '第二条', labelX, labelY);
+      });
+      g.restore();
     }
     tex.needsUpdate = true;
   }

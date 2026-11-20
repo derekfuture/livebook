@@ -37,7 +37,7 @@ export function forcePlot() {
     const bg = '#f6f5e9', ink = '#263f3d', blue = '#18685f', copper = '#984820';
     g.fillStyle = bg; g.fillRect(0, 0, W, H);
     label('拉力随时间的变化', 38, 53, 35, ink, 'left', true);
-    label('轻质测力计示意 · 向右为正', right, 53, 28, ink, 'right');
+    label('课本第 70 页 · 力传感器示意 · 向右为正', right, 53, 28, ink, 'right');
     label('B 受 A 的拉力 F', left + 126, 94, 29, blue, 'left', true);
     label('A 受 B 的拉力 F′', W * 0.54 + 35, 94, 29, copper, 'left', true);
     g.lineWidth = 5; g.strokeStyle = blue; line(left + 91, 84, left + 117, 84);

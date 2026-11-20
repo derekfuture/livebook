@@ -24,7 +24,13 @@ export function pullTo(s, target, dt) {
       s.friction = -s.tension;
       continue;
     }
-    s.slipped = true;
+    if (!s.slipped) {
+      // 记录这一积分步内跨过静摩擦极限的时刻（相对本次 pullTo 的起点）。
+      const threshold = s.x + limit / SPRING_K;
+      s.onsetTime = Math.max(0, Math.min(dt, dt * (threshold - start) / (target - start)));
+      s.onsetForce = limit;
+      s.slipped = true;
+    }
     s.friction = -kinetic;
     const a = (s.tension - kinetic) / s.mass;
     // 单向拉力。若在这一小步内停住，静摩擦接手；不能让动摩擦把木块向后推出去。

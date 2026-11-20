@@ -10,18 +10,26 @@ const START = 0.14,
   R = 0.024;
 const TIMER = 0.33,
   EDGE = 0.44;
-// low：只给“探究加速度与力、质量的关系”用。木板架在两块矮木块上（不用高支架），
-// 右端用一块楔形垫块调高低；槽码挂钩落到台面的软垫上为止。别的课不传 low，样子和行为不变。
+// low 把木板架在两块矮木块上。牛顿小车用右端楔块调高低。
+// tickertape 另传 levelTravel（米），木板保持水平，按可用落差设置挡块和纸带余量。
 export const LOW_TOP = 0.2;
 export const LOW_PIVOT = -0.265;
 export const WEDGE = { len: 0.12, rise: 0.045 };
+export function boardWedge(depth = 0.072) {
+  const shape = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(WEDGE.len, 0), new THREE.Vector2(WEDGE.len, WEDGE.rise)]);
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+  geometry.translate(0, 0, -depth / 2);
+  const wedge = new THREE.Mesh(geometry, paint(0xc98f4e));
+  inked(wedge, { width: 0.9 });
+  return wedge;
+}
 const _a = new THREE.Vector3();
 const metal = 0x53616b,
   wood = 0xc39a63,
   teal = 0x366a70,
   gold = 0xb78a40;
 
-export function apparatus({ adjustable = false, low = false, powerSwitch = false } = {}) {
+export function apparatus({ adjustable = false, low = false, powerSwitch = false, levelTravel = null } = {}) {
   if (low) adjustable = true;
   const TOP = low ? LOW_TOP : 0.42,
     LINE = TOP + 0.027,
@@ -56,7 +64,7 @@ export function apparatus({ adjustable = false, low = false, powerSwitch = false
   if (low) {
     // 左木块的左棱是木板的转轴；右木块够长，楔形垫块在它上面推进拉出。木块比木板窄，让开板下的侧条和支架。
     box(stand, [0.045, TOP - 0.018, 0.07], [LOW_PIVOT + 0.0225, (TOP - 0.018) / 2, 0], 0xb48c5a, true);
-    box(stand, [0.2, TOP - 0.018, 0.072], [0.46, (TOP - 0.018) / 2, 0], 0xb48c5a, true);
+    box(stand, [levelTravel == null ? 0.2 : 0.05, TOP - 0.018, 0.072], [levelTravel == null ? 0.46 : 0.395, (TOP - 0.018) / 2, 0], 0xb48c5a, true);
   } else
     for (const x of [-0.235, 0.398]) {
       for (const z of [-0.042, 0.042]) box(stand, [0.02, TOP - 0.018, 0.02], [x, (TOP - 0.018) / 2, z], 0xbba785);
@@ -216,23 +224,19 @@ export function apparatus({ adjustable = false, low = false, powerSwitch = false
     base.add(stand, group);
     // 挡块接触车头两侧，中央留出牵引绳通道。
     for (const z of [-0.022, 0.022])
-      box(group, [0.009, 0.034, 0.014], [START - TRAVEL - 0.052 - 0.0045, TOP + 0.017, z], metal);
-    if (low) {
+      box(group, [0.009, 0.034, 0.014], [START - (levelTravel ?? TRAVEL) - 0.052 - 0.0045, TOP + 0.017, z], metal);
+    if (low && levelTravel == null) {
       // 楔形垫块：薄端朝左。往左推进去，木板右端落在更厚的地方，就垫得更高。
-      const shape = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(WEDGE.len, 0), new THREE.Vector2(WEDGE.len, WEDGE.rise)]);
-      const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.072, bevelEnabled: false });
-      geo.translate(0, 0, -0.036);
-      wedge = new THREE.Mesh(geo, paint(0xc98f4e));
-      inked(wedge, { width: 0.9 });
+      wedge = boardWedge();
       wedge.position.set(EDGE, TOP - 0.018, 0);
       base.add(wedge);
       wedgeTex = canvasTex(256, 80, () => {});
       const face = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.0156), new THREE.MeshBasicMaterial({ map: wedgeTex, transparent: true }));
       face.position.set(0.091, 0.0093, 0.0362);
       wedge.add(face);
-    } else support = box(base, [0.052, 1, 0.11], [0.398, TOP - 0.018, 0], wood);
+    } else if (!low) support = box(base, [0.052, 1, 0.11], [0.398, TOP - 0.018, 0], wood);
     const homes = low ? [0, 1, 2, 3].map((i) => [0.5, (3 - i) * 0.009 + 0.0045, 0.21]) : [0.23, 0.32].map((x) => [x, 0.0045, 0.12]);
-    ballast = homes.map((at) => {
+    ballast = (levelTravel == null ? homes : []).map((at) => {
       const weight = box(base, [0.068, 0.009, 0.043], at, gold, true);
       markings.push(stampMass(weight, 250, 0.052, 0.026, 0.0045));
       weight.userData.home = weight.position.clone();
@@ -308,7 +312,7 @@ export function apparatus({ adjustable = false, low = false, powerSwitch = false
     const from = x + 0.055;
     strip.position.set((from + EDGE) / 2, PAPER_Y, 0);
     strip.scale.x = EDGE - from;
-    const remain = low ? 0.03 : TRAVEL + 0.024 - travel;
+    const remain = levelTravel != null ? levelTravel + 0.025 - travel : low ? 0.03 : TRAVEL + 0.024 - travel;
     tail.position.set(EDGE, PAPER_Y - remain / 2, 0);
     tail.scale.x = remain;
     dots.count = run.marks.length;

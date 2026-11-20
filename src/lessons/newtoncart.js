@@ -8,6 +8,9 @@ import { canvasTex } from './kit/props.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { buttons, chart, h, table } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
+import { newtoncartCord } from './kit/newtoncartCord.js';
+import { inviteRing } from './kit/invite.js';
+import { show } from '../ui/prefs.js';
 import { apparatus, LOW_PIVOT, WEDGE } from './kit/ticker/apparatus.js';
 import { PERIOD, TRAVEL } from './kit/ticker/motion.js';
 import { qaFlow } from './kit/chemlesson.js';
@@ -44,6 +47,15 @@ const RACK = new THREE.Vector3(-0.3, 0, 0.21),
   HEAVY_HOME = new THREE.Vector3(-0.37, HEAVY_H / 2, 0.21);
 const CARD_X = 0.1;
 
+const lightLoad = (m) => m <= 5 * DISC + 1e-9;
+const coastText = '槽码落地后，小车不再受拉力，匀速滑行。只取落地前的点。';
+const powerOffText = '打完点，立即断开电源。';
+const takeText = '取下纸带，读数。';
+const liveTapeText = '先断开电源，再取下纸带。';
+const heavyReason = '重槽码不比小车轻很多';
+const heavyEffect = '用 m₀g 代替拉力，这个点偏离直线。';
+const massStep = '<b>只改质量</b>：槽码固定，拉力近似不变。把一块 250 g 砝码拖到小车上。';
+const massConclusion = 'a–1/m 图上的点在过原点的拟合直线附近。数据支持加速度与小车质量近似成反比。掀开左边的<b>结论</b>看看。';
 const fmt = (v, d = 1) => v.toFixed(d);
 const fmtA = (a) => (a >= 1 ? a.toFixed(2) : a.toFixed(3));
 
@@ -94,7 +106,7 @@ export default {
     ],
     quote:
       '如果这些点在一条过原点的直线附近，说明加速度a 与拉力F 成正比。如果不是这样，则需进一步分析。……如果检验的结果是过原点的直线，就可以判断加速度 a 与质量 m 是成反比的。',
-    why: '把木板右端垫高，调到不挂槽码时小车能拖着纸带匀速运动，阻力就平衡了；挂上槽码后，绳的拉力就是小车受的合力。槽码自己也在向下加速，绳的拉力 F = m₀(g − a) 比槽码的重力 m₀g 小（m₀ 为槽码的质量）；只有槽码的质量比小车小很多时，才能把槽码的重力当作拉力。',
+    why: '把木板右端垫高，调到不挂槽码时小车能拖着纸带匀速运动，阻力就平衡了；挂上槽码后，绳的拉力就是小车受的合力。槽码自己也在向下加速，绳的拉力 F = m₀(g − a) 比槽码的重力 m₀g 小（m₀ 为槽码的质量）；只有槽码的质量比小车小很多时，才能把槽码的重力当作拉力。轻槽码各组的数据支持 a 与 F 成正比。槽码固定时，数据支持 a 与小车质量近似成反比。',
     src: '课本第 88–92 页 · 第四章 第2节 实验：探究加速度与力、质量的关系',
   },
   create(ctx) {
@@ -104,6 +116,10 @@ export default {
     root.add(base);
     base.position.set(-0.085, 0, -0.08);
     const TOP = rig.top;
+    const drawCord = newtoncartCord(rig);
+    const powerSwitch = rig.timer.children.find(child => child.isGroup && child.position.z === rig.switchPick.position.z);
+    const hintRing = inviteRing(base);
+
 
     // ---------- 器材：软垫、槽码、放大纸带 ----------
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.027, 0.004, 28), paint(0x5e6f5a));
@@ -214,7 +230,7 @@ export default {
     let heavyOnHook = false;
     const forceData = new Map(); // 槽码质量 → a（小车 0.50 kg）
     const massData = new Map(); // 小车质量 → a（槽码不变）
-    let massLoad = null;
+    let massLoad = null, pendingLoad = null;
     const returning = []; // 松手没放到位、正在回原处的东西
 
     const load = () => hanger.reduce((s, it) => s + it.mass, 0);
@@ -243,6 +259,7 @@ export default {
         tied,
         wheel: tied ? HOOK0 - hookY : 0,
       });
+      drawCord(tied ? Math.max(0, x - (HOOK0 - LAND)) : 0);
       rig.wedge.position.x = EDGE - wedgeLift / 1000 / K;
       placeMasses();
     }
@@ -346,7 +363,7 @@ export default {
         points = [];
       for (let k = 0; 5 * (k + 1) < marks.length; k++) {
         const tk = marks[5 * (k + 1)].t;
-        if (pulled && tk > runState.tLand + 1e-9) break;
+        if (pulled && tk >= runState.tLand - 1e-9) break;
         const v = Math.round((marks[5 * (k + 1)].x - marks[5 * k].x) * 10000) / 10;
         if (pulled && !points.length && v < 10) continue;
         if (!points.length) points.push(5 * k);
@@ -387,6 +404,7 @@ export default {
     }
     function step(dt) {
       const r = runState;
+      const previousTime = r.t;
       r.t = Math.min(r.p.end, r.t + dt);
       // 没通电：纸带上没有点。中途断电：从那一刻起不再打点。
       if (!powered) r.cut = true;
@@ -398,7 +416,7 @@ export default {
       const before = tape?.intervals.length || 0;
       updateTape();
       if (r.powered && !r.pulled && !r.judged && (tape.intervals.length >= 5 || r.t >= r.p.end)) judge();
-      if (tape.intervals.length !== before) refresh();
+      if (tape.intervals.length !== before || (previousTime < r.tLand && r.t >= r.tLand)) refresh();
       if (r.t >= r.p.end) {
         running = false;
         if (!r.powered) result = 'nopower';
@@ -448,6 +466,7 @@ export default {
     }
     function readTape() {
       if (!tape || running) return;
+      if (!powered) tape.taken = true;
       const r = tape.run;
       if (r.pulled && tape.intervals.length >= 2 && !tape.read) {
         const v = tape.intervals,
@@ -522,10 +541,12 @@ export default {
           if (onRod) {
             hanger.push(it);
             if (it.heavy) heavyOnHook = true;
+            if (pendingLoad != null && load() === pendingLoad) beginMass();
             drawRig();
             refresh();
             return;
           }
+          if (pendingLoad != null && load() === pendingLoad) beginMass();
           // 没挂上：很快放回台面
           it.busy = true;
           sendBack(it.mesh, it.home, () => {
@@ -705,7 +726,7 @@ export default {
           quiet({
             obj: card,
             enabled: () => !running && !zoomed && !!tape?.marks.length,
-            hint: () => (tape?.run.pulled && !tape.read ? '点一下：凑近读纸带' : '点一下：凑近看纸带'),
+            hint: () => powered ? liveTapeText : (tape?.run.pulled && !tape.read ? '点一下：凑近读纸带' : '点一下：凑近看纸带'),
             onTap: readTape,
           }),
         ],
@@ -722,12 +743,14 @@ export default {
     }
     function target0() {
       if (running || zoomed || weightHeld) return null;
+      if (ranPowered && powered) return powerSwitch;
+      if (tape?.marks.length && !tape.taken) return powered ? powerSwitch : card;
+      if (pendingLoad != null) return load() > pendingLoad ? hanger.at(-1)?.mesh : nextDisc();
       const cur = bar.current;
       if (cur === 'balanced') {
         if ((result === 'dec' || result === 'inc') && !wedgeMoved) return rig.wedge;
         return rig.cart;
       }
-      if (tape?.run.pulled && !tape.read && tape.intervals.length >= 2) return card;
       if (cur === 'force') {
         if (!load() || forceData.has(load())) return nextDisc() || rig.cart;
         return rig.cart;
@@ -742,7 +765,6 @@ export default {
     const bar = lessonBar({
       look: ctx.look,
       back: leave,
-      group: base,
       steps: [
         {
           id: 'balanced',
@@ -751,7 +773,7 @@ export default {
           target,
         },
         { id: 'force', title: '只改拉力', todo: '<b>只改拉力</b>（小车质量不变）：把一个 10 g 槽码拖到滑轮下的挂钩上。', target },
-        { id: 'mass', title: '只改质量', todo: '<b>只改质量</b>（拉力不变）：槽码不动，把一块 250 g 砝码拖到小车上。', target },
+        { id: 'mass', title: '只改质量', todo: massStep, target },
       ],
     });
     // 当下这一件事（只在步骤栏里说）
@@ -759,8 +781,16 @@ export default {
       if (!ui) return;
       const cur = bar.current;
       let say = null;
-      if (running) say = tape?.run.pulled ? '小车在加速，纸带在打点。' : '看放大纸带：点一个个打出来。';
-      else if (cur === 'balanced') {
+      if (running) {
+        if (runState.t >= runState.tLand) say = coastText;
+        else if (runState.pulled) say = powered ? '小车在加速，纸带在打点。' : '小车在加速。';
+        else say = '看放大纸带：点一个个打出来。';
+      } else if (zoomed && powered) say = liveTapeText;
+      else if (!zoomed && ranPowered && powered) say = powerOffText;
+      else if (!zoomed && tape?.marks.length && !tape.taken) say = powered ? liveTapeText : takeText;
+      else if (pendingLoad != null) {
+        say = '基准组用的是 ' + Math.round(pendingLoad * 1000) + ' g 槽码。把挂钩上的槽码调回这个质量，再改小车质量。';
+      } else if (cur === 'balanced') {
         if (result === 'nopower') say = x > 0.12 ? '先把小车拖回右端，再向左轻推。' : null;
         else if (result === 'short') say = '点太少：小车离挡块太近。先把小车拖回右端，再向左轻推。';
         else if (result === 'dec')
@@ -774,8 +804,7 @@ export default {
         else if (x > 0.12) say = '先把小车拖回右端，再向左轻推。';
       } else if (zoomed) {
         say = tape?.read && tape.run.pulled ? recordSay || entrySay[cur] || '已记进表里。' : '看完点“回到全景”。';
-      } else if (tape?.run.pulled && !tape.read && tape.intervals.length >= 2) say = '点一下放大纸带，读出间隔，算出加速度。';
-      else if (tape?.run.pulled && !tape.read) say = '计数点太少，读不出加速度：把小车拖回右端，松手再跑一次。';
+      } else if (tape?.run.pulled && !tape.read) say = '计数点太少，读不出加速度：把小车拖回右端，松手再跑一次。';
       else if (cur === 'force' || cur === 'mass') {
         const recorded = cur === 'force' ? forceData.has(load()) : massData.has(mass());
         if (!load())
@@ -787,9 +816,8 @@ export default {
       if (!running && !zoomed && cur) {
         if (result === 'nopower' && !powered) say = '没接通电源，打点计时器不打点，纸带上没有点：先接通电源，再释放小车。';
         else if (target0() === rig.cart && !powered && (say || cur !== 'balanced')) say = '先接通电源，再释放小车。' + (say ? '<br>' + say : ''); // 刚打开时步骤栏的话里已经说了
-        else if (ranPowered && powered) say = '打完点，立即断开电源。' + (say ? '<br>' + say : '');
       }
-      if (cur || say) bar.say(say || null, cur || 'end');
+      bar.say(say || (cur ? null : massConclusion), cur || 'end');
     }
     const entrySay = {
       force:
@@ -802,18 +830,28 @@ export default {
     let ui = null,
       t1,
       t2,
+      heavyTableNote,
       chartF,
       chartM,
       boxF,
       boxM,
       flip;
+    function beginMass() {
+      massLoad = pendingLoad;
+      pendingLoad = null;
+      massData.set(CART, forceData.get(massLoad));
+      bar.done('force');
+      recordSay = null;
+      entrySay.mass = '轻槽码各组的点在过原点的拟合直线附近，支持 a 与 F 成正比。表 2 先记下基准组（0.50 kg）。<br>' + massStep;
+      fill();
+    }
     function record(r, a) {
       const lines = [];
       const F = r.m * G,
-        heavyRun = r.m / r.M > 0.1;
+        heavyRun = !lightLoad(r.m);
       if (r.M === CART) {
         forceData.set(r.m, a);
-        lines.push('表 1 记下：F = ' + F.toFixed(3) + ' N，a = ' + fmtA(a) + ' m/s²。');
+        lines.push((heavyRun ? '表 1 记下：m₀g = ' : '表 1 记下：F ≈ ') + F.toFixed(3) + ' N，a = ' + fmtA(a) + ' m/s²。');
       }
       if (bar.has('force') && r.m === massLoad) {
         massData.set(r.M, a);
@@ -828,16 +866,11 @@ export default {
             ' N 小得多，这个点会落在轻槽码连成的直线下方。',
         );
       if (!bar.has('force')) {
-        const light = [...forceData.keys()].filter((m) => m <= 0.05 + 1e-9).length;
+        const light = [...forceData.keys()].filter(lightLoad).length;
         if (light >= 3 && !heavyRun) {
-          // 第二步做完。表 2 的第一组就是刚才这一组（同一个槽码、小车 0.50 kg）。
-          massLoad = r.m;
-          massData.set(CART, a);
-          bar.done('force');
-          recordSay = null;
-          entrySay.mass =
-            'a–F 图上的点在一条过原点的直线附近：a 与 F 成正比。表 2 先记下刚才这一组（0.50 kg）。<br><b>只改质量</b>（拉力不变）：槽码不动，把一块 250 g 砝码拖到小车上。';
-          fill();
+          pendingLoad = r.m;
+          if (load() === pendingLoad) beginMass();
+          else fill();
           refresh();
           return;
         }
@@ -866,7 +899,7 @@ export default {
       if (bar.has('mass')) return;
       recordSay = null;
       bar.done('mass');
-      bar.say('a–1/m 图上的点在一条过原点的直线上：a 与 m 成反比。掀开左边的<b>结论</b>看看。', 'end');
+      bar.say(massConclusion, 'end');
     }
     // 两张表、两张图
     let flipK = 0,
@@ -875,14 +908,15 @@ export default {
       t1.clear();
       [...forceData.entries()]
         .sort((p, q) => p[0] - q[0])
-        .forEach(([m, a]) => t1.add([String(Math.round(m * 1000)), (m * G).toFixed(3), fmtA(a)], { highlight: false }));
+        .forEach(([m, a]) => t1.add([String(Math.round(m * 1000)) + (lightLoad(m) ? '' : '（重）'), (m * G).toFixed(3), fmtA(a)], { highlight: false }));
+      heavyTableNote.hidden = ![...forceData.keys()].some(m => !lightLoad(m));
       t2.clear();
       [...massData.entries()]
         .sort((p, q) => p[0] - q[0])
         .forEach(([M, a]) => t2.add([M.toFixed(2), (1 / M).toFixed(2), fmtA(a)], { highlight: false }));
       boxF.hidden = !forceData.size;
       boxM.hidden = !massData.size;
-      if (massLoad != null) boxM.querySelector('.cap').textContent = '表 2　小车所受的拉力一定（槽码 ' + Math.round(massLoad * 1000) + ' g）';
+      if (massLoad != null) boxM.querySelector('.cap').textContent = '表 2　槽码固定，拉力近似不变（' + Math.round(massLoad * 1000) + ' g）';
       flip.btns[0].disabled = massData.size < 2;
       drawF();
       drawM();
@@ -900,10 +934,11 @@ export default {
       const ymax = niceMax(Math.max(0.8, ...pts.map((p) => p[1] * 1.15)));
       chartF.x.max = xmax;
       chartF.y.max = ymax;
-      const light = pts.filter(([F], i) => [...forceData.keys()][i] <= 0.05 + 1e-9);
+      const light = pts.filter(([F]) => lightLoad(F / G));
       const k = light.length >= 2 ? light.reduce((s, [F, a]) => s + F * a, 0) / light.reduce((s, [F]) => s + F * F, 0) : 0;
       chartF.series[0].points = k ? [[0, 0], [Math.min(xmax, ymax / k), Math.min(xmax, ymax / k) * k]] : [];
-      chartF.series[1].points = pts;
+      chartF.series[1].points = light;
+      chartF.series[2].points = pts.filter(([F]) => !lightLoad(F / G));
       chartF.draw();
     }
     // a–m 与 a–1/m 共用一张图：横轴按比例画，切换时同一批点从 m 的位置滑到 1/m 的位置
@@ -912,24 +947,13 @@ export default {
     function drawM() {
       chartM.draw();
     }
-    function chartMExtra(g, X, Y) {
+    function chartMExtra(g, xAt, Y) {
+      const X = (fraction) => xAt(fraction * chartM.x.max);
       const k = flipK * flipK * (3 - 2 * flipK);
       const pts = [...massData.entries()];
       const u = (M) => (M / MMAX) * (1 - k) + (1 / M / VMAX) * k;
       g.save();
-      // 横轴刻度：两套刻度交替淡入淡出
-      g.font = '22px PingFang SC, sans-serif';
-      g.textAlign = 'center';
       const H = g.canvas.height / 2;
-      for (const [vals, max, alpha] of [
-        [[0.5, 1, 1.5], MMAX, 1 - k],
-        [[0.5, 1, 1.5, 2], VMAX, k],
-      ]) {
-        g.fillStyle = `rgba(75,82,99,${alpha})`;
-        for (const v of vals) g.fillText(String(v), X(v / max), H - 56 + 26);
-      }
-      g.fillStyle = '#4b5263';
-      g.fillText('0', X(0), H - 56 + 26);
       g.font = 'italic 22px "Times New Roman", serif';
       g.textAlign = 'right';
       const W = g.canvas.width / 2;
@@ -957,6 +981,11 @@ export default {
         g.setLineDash([]);
       }
       g.restore();
+      if (pts.length >= 3) {
+        g.font = '22px sans-serif';
+        g.fillStyle = '#365c80';
+        g.fillText('虚线：拟合', X(0.55), Y(chartM.y.max) + 24);
+      }
       g.fillStyle = '#1f6fb8';
       for (const [M, a] of pts) {
         g.beginPath();
@@ -989,7 +1018,7 @@ export default {
       heavyOnHook = false;
       forceData.clear();
       massData.clear();
-      massLoad = null;
+      massLoad = pendingLoad = null;
       toggled = false;
       flipK = flipTo = 0;
       recordSay = null;
@@ -1021,6 +1050,12 @@ export default {
       cart: () => cartTop(),
     };
     const S = {};
+    const switchStep = (name) => ({ name, tap: rig.switchPick });
+    const takeSteps = (label) => [
+      switchStep('断开电源（' + label + '）'),
+      { name: '取下纸带，读数（' + label + '）', tap: card },
+      { name: '回到全景（' + label + '）', run: leave },
+    ];
     return {
       group: root,
       size: { w: 0.94, d: 0.44, h: 0.27 },
@@ -1033,28 +1068,34 @@ export default {
         // 不要面板上的“还差……”：要做什么只在步骤栏里说
         bar.attach({ ...panel, need: () => {} });
         panel.status('<b>加速度与力、质量之间有什么定量关系？</b><br>控制变量：一次只改一样。');
-        t1 = table(['槽码 / g', '拉力 F（≈ 槽码重力）/ N', 'a / (m·s⁻²)']);
+        heavyTableNote = h('p', { class: 'note' }, heavyReason + '。' + heavyEffect);
+        t1 = table(['槽码 / g', '槽码重力 m₀g / N', 'a / (m·s⁻²)']);
         t2 = table(['小车质量 m / kg', '1/m / kg⁻¹', 'a / (m·s⁻²)']);
         chartF = chart({
-          x: { label: 'F / N', min: 0, max: 0.5 },
+          x: { label: 'm₀g / N', min: 0, max: 0.5 },
           y: { label: 'a / (m·s⁻²)', min: 0, max: 0.8 },
           series: [
             { points: [], line: true, dash: true, width: 2.5, color: 'rgba(31,111,184,.55)' },
             { points: [], dots: true, line: false, color: '#1f6fb8' },
+            { points: [], dots: true, line: false, color: '#ab492e' },
           ],
         });
-        chartM = chart({ x: { label: '', min: 0, max: 1, ticks: [] }, y: { label: 'a / (m·s⁻²)', min: 0, max: 0.5 } });
+        chartF.extra = (g, X, Y) => {
+          const heavy = chartF.series[2].points;
+          if (!heavy.length) return;
+          g.font = '22px sans-serif';
+          g.fillStyle = '#983f28';
+          const left = X(0.38 * chartF.x.max);
+          g.fillText(heavyReason, left, Y(0.22 * chartF.y.max));
+          g.fillText(heavyEffect, left, Y(0.22 * chartF.y.max) + 26);
+        };
+        chartM = chart({ x: { label: '', min: 0, max: MMAX, ticks: [0, 0.5, 1, 1.5] }, y: { label: 'a / (m·s⁻²)', min: 0, max: 0.5 } });
         chartM.extra = chartMExtra;
-        // 侧栏画布底下的像素是写的宽高的 2.5 倍（Panel 的 sharp），kit 的 chart 画的时候又把变换设回 2 倍，
-        // 图只占画布左上角 40%。这里让这两张图的 setTransform 按实际像素补上倍数。
-        for (const cv of [chartF.canvas, chartM.canvas]) {
-          const g = cv.getContext('2d'),
-            k = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'width').get.call(cv) / cv.width,
-            set = g.setTransform.bind(g);
-          g.setTransform = (a, b, c, d, e, f) => set(a * k, b * k, c * k, d * k, e * k, f * k);
-        }
         const _drawM = chartM.draw;
         chartM.draw = () => {
+          const k = flipK * flipK * (3 - 2 * flipK);
+          chartM.x.max = MMAX + (VMAX - MMAX) * k;
+          chartM.x.ticks = [0, 0.5, 1, 1.5, 2].filter(v => v <= chartM.x.max);
           const ys = [...massData.values()];
           chartM.y.max = niceMax(Math.max(0.3, ...ys.map((a) => a * 1.15)));
           _drawM();
@@ -1075,15 +1116,15 @@ export default {
         ]);
         flip.el.dataset.keep = '1';
         const cap = (t) => h('p', { class: 'cap note' }, t);
-        boxF = h('div', { hidden: true }, cap('表 1　小车质量一定（m = 0.50 kg）'), t1.el, chartF.el);
-        boxM = h('div', { hidden: true }, cap('表 2　小车所受的拉力一定'), t2.el, chartM.el, flip.el);
+        boxF = h('div', { hidden: true }, cap('表 1　小车质量一定（m = 0.50 kg）'), t1.el, heavyTableNote, chartF.el);
+        boxM = h('div', { hidden: true }, cap('表 2　槽码固定，拉力近似不变'), t2.el, chartM.el, flip.el);
         const notes = h(
           'details',
           { class: 'more' },
           h('summary', {}, '模型、近似和出处'),
           h('p', {
             class: 'fineprint',
-            html: '小车 0.50 kg，砝码每块 250 g；槽码每个 10 g，另有一个 150 g 的；挂钩质量不计，轻绳、理想滑轮。阻力按与正压力成正比算（示意值：木板右端垫高 15 mm 时恰好平衡，垫块每 5 mm 一档）。槽码落到软垫上以后绳子松了，只取落地以前的计数点。打点计时器每 0.02 s 打一个点，每 5 个点取一个计数点，T = 0.1 s；前排的纸带放大 4 倍画，间隔按 0.1 mm 读，从间隔够 10 mm 的那一段开始取。加速度由相邻间隔之差 Δx = aT² 求（取平均）。拉力 F = m₀(g − a) 比槽码的重力 m₀g 小，槽码的质量比小车小很多时才近似相等（课本第 88 页旁注）。',
+            html: '小车 0.50 kg，砝码每块 250 g；槽码每个 10 g，另有一个 150 g 的；挂钩质量不计，轻绳、理想滑轮。阻力按与正压力成正比算（示意值：木板右端垫高 15 mm 时恰好平衡，垫块每 5 mm 一档）。槽码落到软垫上以后绳子松了。' + coastText + '打点计时器每 0.02 s 打一个点，每 5 个点取一个计数点，T = 0.1 s；前排的纸带放大 4 倍画，间隔按 0.1 mm 读，从间隔够 10 mm 的那一段开始取。加速度由相邻间隔之差 Δx = aT² 求（取平均）。拉力 F = m₀(g − a) 比槽码的重力 m₀g 小，槽码的质量比小车小很多时才近似相等（课本第 88 页旁注）。',
           }),
         );
         const redo = buttons([{ text: '全部重来', ghost: true, onClick: () => resetAll(true) }]);
@@ -1097,9 +1138,15 @@ export default {
         if (powered) clock += d;
         if (running) step(d);
         if (running || powered) drawRig();
+        const focus = show.steps ? target() : null;
+        hintRing.update(focus, dt);
+        // 开关在计时器正面，光圈贴着开关面板，其余器材仍用水平光圈。
+        hintRing.mesh.rotation.x = focus === powerSwitch ? 0 : -Math.PI / 2;
+        if (focus === powerSwitch) hintRing.mesh.position.z += 0.009;
         for (let i = returning.length - 1; i >= 0; i--) {
           const r = returning[i];
-          r.t = Math.min(1, r.t + dt / 0.35);
+          const previousTime = r.t;
+      r.t = Math.min(1, r.t + dt / 0.35);
           const u = r.t * r.t * (3 - 2 * r.t);
           r.obj.position.lerpVectors(r.from, r.to, u);
           r.obj.position.y += 0.03 * Math.sin(Math.PI * u);
@@ -1117,6 +1164,7 @@ export default {
       dispose() {
         pointer.dispose();
         bar.dispose();
+        hintRing.dispose();
         rig.dispose();
         cardTex.dispose();
         for (const t of textures) t.dispose();
@@ -1157,35 +1205,38 @@ export default {
           { name: '拖回小车（没通电那次）', drag: cartPick, to: flowTo.back },
           { name: '接通打点计时器', tap: rig.switchPick },
           { name: '向左轻推小车（木板还是平的）', drag: cartPick, to: flowTo.push, wait: 3 },
+          ...takeSteps('平板试滑'),
           { name: '垫块推进去，垫高 15 mm', drag: rig.wedge, to: flowTo.wedge15 },
           { name: '拖回小车', drag: cartPick, to: flowTo.back },
+          switchStep('接通电源，再试滑'),
           { name: '再推一次', drag: cartPick, to: flowTo.push, wait: 4 },
+          ...takeSteps('平衡阻力'),
           { name: '挂一个 10 g 槽码', drag: masses[4].mesh, to: flowTo.rod },
+          switchStep('接通电源（10 g）'),
           { name: '拖回小车并松手', drag: cartPick, to: flowTo.back, wait: 4 },
-          { name: '点纸带读数', tap: card },
-          { name: '回到全景', run: leave },
-          { name: '断开打点计时器', tap: rig.switchPick },
-          { name: '再接通打点计时器', tap: rig.switchPick },
+          ...takeSteps('10 g'),
           { name: '再挂一个槽码', drag: masses[3].mesh, to: flowTo.rod },
+          switchStep('接通电源（20 g）'),
           { name: '拖回小车（20 g）', drag: cartPick, to: flowTo.back, wait: 4 },
-          { name: '读纸带（20 g）', tap: card },
-          { name: '回到全景 2', run: leave },
+          ...takeSteps('20 g'),
           { name: '第三个槽码', drag: masses[2].mesh, to: flowTo.rod },
+          switchStep('接通电源（30 g）'),
           { name: '拖回小车（30 g）', drag: cartPick, to: flowTo.back, wait: 4 },
-          { name: '读纸带（30 g）', tap: card },
-          { name: '回到全景 3', run: leave },
-          { name: '加一块砝码', drag: rig.ballast[0], to: flowTo.cart },
-          { name: '拖回小车（0.75 kg）', drag: cartPick, to: flowTo.back, wait: 5 },
-          { name: '读纸带（0.75 kg）', tap: card },
-          { name: '回到全景 4', run: leave },
-          { name: '再加一块砝码', drag: rig.ballast[1], to: flowTo.cart },
-          { name: '拖回小车（1.00 kg）', drag: cartPick, to: flowTo.back, wait: 5 },
-          { name: '读纸带（1.00 kg）', tap: card },
-          { name: '回到全景 5', run: leave },
-          { name: '第三块砝码', drag: rig.ballast[2], to: flowTo.cart },
-          { name: '拖回小车（1.25 kg）', drag: cartPick, to: flowTo.back, wait: 5 },
-          { name: '读纸带（1.25 kg）', tap: card },
-          { name: '回到全景 6', run: leave },
+          { name: '读带前多挂一枚', drag: masses[1].mesh, to: flowTo.rod },
+          ...takeSteps('30 g'),
+          { name: '核对基准组尚未锁定', run: () => {
+            if (pendingLoad !== 0.03 || massLoad != null || load() !== 0.04) throw new Error('未识别现场多挂的槽码');
+          } },
+          { name: '取下多挂的槽码', drag: masses[1].mesh, to: () => new THREE.Vector3(RACK.x, 0.02, RACK.z) },
+          ...[0.75, 1, 1.25].flatMap((M, i) => [
+            { name: '加砝码到 ' + M + ' kg', drag: rig.ballast[i], to: flowTo.cart },
+            switchStep('接通电源（' + M + ' kg）'),
+            { name: '拖回小车（' + M + ' kg）', drag: cartPick, to: flowTo.back, wait: 5 },
+            ...takeSteps(M + ' kg'),
+          ]),
+          { name: '核对表 2 的四组数据', run: () => {
+            if (massLoad !== 0.03 || massData.size !== 4) throw new Error('恢复基准组后未能记满四组');
+          } },
           { name: '换成 a–1/m 图', run: () => flip.btns[0].click(), wait: 2 },
         ]),
       },

@@ -139,7 +139,7 @@ export default {
       cap.position.y = -0.0075;
       body.castShadow = cap.castShadow = true;
       mesh.add(body, cap);
-      loop(mesh, 0.004, 0.0012, [0, -0.002, 0]);
+      const ring = loop(mesh, 0.004, 0.0012, [0, -0.002, 0]);
       const bottom = loop(mesh, 0.004, 0.0012, [0, -0.031, 0], Math.PI * 1.7);
       bottom.rotation.y = Math.PI / 3;
       bottom.rotation.z = Math.PI * 0.6;
@@ -158,7 +158,7 @@ export default {
       pick.position.y = -0.016;
       mesh.add(pick);
       mesh.position.copy(home);
-      return { mesh, pick, home };
+      return { mesh, pick, home, ring, bottom };
     });
     const hung = [], points = [], line = [];
     let extension = 0, velocity = 0, settled = true, baseline = null;
@@ -167,6 +167,17 @@ export default {
     const bottomY = () => TOP - FREE - extension;
     const hookAt = (i) => new THREE.Vector3(0, bottomY() - 0.010 - i * PITCH, 0);
     const lastWeight = () => hung[hung.length - 1];
+    const swinging = '红线还在动，停稳后再读。';
+    const balanced = '钩码静止，弹簧弹力与钩码重力大小相等。';
+    const modelNote = '模拟数据：按弹性限度内的理想弹簧计算';
+    const canHang = () => settled && (!hung.length || (baseline !== null && hung.length < points.length));
+    function aligned(w) {
+      const support = lastWeight()?.bottom ?? hook;
+      const seat = support.parent.position.clone().add(support.position);
+      seat.y -= support.geometry.parameters.radius;
+      const ringCenter = w.mesh.position.clone().add(w.ring.position);
+      return ringCenter.distanceTo(seat) <= w.ring.geometry.parameters.radius;
+    }
     const mmAtLine = () => Math.round((SCALE_TOP - bottomY()) * 1000);
     const cm = (mm) => (mm / 10).toFixed(1);
     const message = (s) => ui.status(s);
@@ -196,7 +207,8 @@ export default {
     });
     function refreshGuide() {
       let text = '';
-      if (!settled) text = '等红线停稳再读，此时弹簧弹力等于钩码重力。';
+      if (!settled) text = swinging;
+      else if (drag && !detached && canHang() && aligned(drag)) text = '圆环已对准挂钩，可以松手。';
       else if (baseline === null && hung.length) text = '把钩码拖回架上，让弹簧自由下垂，再读原长。';
       else if (near) text = '读红线中心对着的刻度，在面板选出读数。每小格是 0.1 cm。';
       else if (hung.length && hung.length >= points.length) text = '点尺子读同一条红线，用这次的长度减去原长，得到伸长量。';
@@ -262,15 +274,17 @@ export default {
       message(`读对了，这次伸长 ${cm(x)} cm，比上一组多挂 50 g，多伸长 ${cm(x - previous)} cm。`);
     }
     function showSlope() {
-      if (points.length !== weights.length + 1 || !document.querySelector('.chart-zoom')) return;
+      const paper = graph.canvas.closest('.chart-zoom-paper');
+      if (!paper) return;
+      paper.insertBefore(h('p', { class: 'note' }, modelNote), paper.lastElementChild);
+      if (points.length !== weights.length + 1) return;
       const [x, f] = points[points.length - 1];
       line.splice(0, line.length, points[0], points[points.length - 1]);
       graph.draw();
       const formula = `k = ΔF/Δx = ${f.toFixed(2)} N ÷ ${x.toFixed(3)} m ≈ ${(f / x).toFixed(1)} N/m`;
-      const relation = '各点排成一条过原点的直线，在弹性限度内，弹力 F 与伸长量 x 成正比。';
+      const relation = '本次的模拟数据在 F–x 图上排成一条过原点的直线，弹力 F 与伸长量 x 成正比。';
       result.textContent = formula;
       result.hidden = false;
-      const paper = graph.canvas.parentElement;
       paper.insertBefore(h('p', { style: 'font-size:clamp(14px,1.4vw,20px);line-height:1.5;margin:6px 0' },
         relation, h('br'), h('b', {}, formula)), paper.lastElementChild);
       message(relation);
@@ -284,15 +298,19 @@ export default {
       return {
         obj: w.pick, anchor: w.mesh, plane: 'xy', offset: 0, keepOffset: true,
         enabled, hint: () => ui?.step !== 1 || !enabled() ? '' : hung.includes(w) ? '拖：放回钩码架' : '拖：挂到弹簧下端',
-        onStart() { begin(); drag = w; detached = false; },
+        onStart() { begin(); drag = w; detached = false; message(''); },
         onDrag(p) {
           if (w === lastWeight()) {
             if (p.distanceTo(w.mesh.position) < 0.003) return;
             hung.pop();
             detached = true;
             settled = false;
+            message('');
+            refreshGuide();
           }
+          const wasAligned = !detached && aligned(w);
           w.mesh.position.set(p.x, Math.max(0.036, p.y), 0);
+          if (!detached && wasAligned !== aligned(w)) refreshGuide();
         },
         onEnd(moved) {
           drag = null;
@@ -307,16 +325,16 @@ export default {
               returnTo(w, () => hookAt(hung.length), true);
               message('圆环没放到原来的架钉上，钩码回到了挂钩。');
             }
-          } else if (pos.distanceTo(hookAt(hung.length)) > 0.023) {
+          } else if (!aligned(w)) {
             returnTo(w, () => w.home);
             message('圆环没挂住，钩码回到了架上。');
-          } else if (!settled || (hung.length > 0 && (baseline === null || hung.length >= points.length))) {
+          } else if (!canHang()) {
             returnTo(w, () => w.home);
             message('这一组还没读数，刚拿起的钩码放回架上。');
           } else {
             hung.push(w);
             settled = false;
-            message(`挂上了 ${hung.length * 50} g，红线正在上下摆动。`);
+            message('');
           }
           draw();
           refreshGuide();
@@ -382,15 +400,10 @@ export default {
             { points, dots: true, line: false, color: '#28656f' },
           ],
         });
-        // 用实际的高清画布尺寸绘图，使坐标轴铺满笔记本的图框。
-        const cv = graph.canvas, g = cv.getContext('2d');
-        const factor = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'width').get.call(cv) / cv.width;
-        const transform = g.setTransform.bind(g);
-        g.setTransform = (a, b, c, d, e, f) => transform(factor * a, factor * b, factor * c, factor * d, factor * e, factor * f);
-        graph.draw();
-        cv.addEventListener('click', showSlope);
+        graph.canvas.addEventListener('click', showSlope);
         result = h('p', { class: 'note', hidden: true });
-        ui.data.append(records.el, h('p', { class: 'note' }, 'x = l − l₀　 F = mg（g 取 9.8 N/kg）'), graph.el, result);
+        ui.data.append(h('p', { class: 'note' }, modelNote), records.el,
+          h('p', { class: 'note' }, 'x = l − l₀　钩码平衡时 F = mg（g 取 9.8 N/kg）'), graph.el, result);
         ui.notes.append(buttons([{ text: '全部重做', onClick: reset }]).el);
       },
       update(dt) {
@@ -399,11 +412,15 @@ export default {
           const r = returning;
           r.time += dt;
           const t = Math.min(1, r.time / 0.4);
-          r.w.mesh.position.lerpVectors(r.start, r.destination(), t * (2 - t));
-          if (t === 1) {
+          const destination = r.destination();
+          if (t < 1) r.w.mesh.position.lerpVectors(r.start, destination, t * (2 - t));
+          else {
+            r.w.mesh.position.copy(destination);
             if (r.rehang) {
               hung.push(r.w);
               settled = false;
+              message('');
+              refreshGuide();
             }
             returning = null;
           }
@@ -426,7 +443,7 @@ export default {
           extension = target;
           velocity = 0;
           settled = true;
-          if (!drag && !returning) message(hung.length ? `钩码已静止，总质量 ${hung.length * 50} g。` : '弹簧恢复了原长。');
+          if (!drag && !returning) message(hung.length ? balanced : '弹簧恢复了原长。');
           refreshGuide();
         }
         draw();
@@ -434,7 +451,7 @@ export default {
       debug: {
         bar,
         qa: qaFlow(pointer, [
-          { name: '拿起钩码，未挂准', drag: weights[3].pick, to: new THREE.Vector3(0.16, 0.17, 0) },
+          { name: '拿起钩码，未挂准', drag: weights[3].pick, to: () => hookAt(0).setX(0.016) },
           { name: '检查归位', run: () => { if (!weights[3].mesh.position.equals(weights[3].home)) throw new Error('钩码未归位'); } },
           { name: '近看原长', tap: scale },
           { name: '错读原长', run: qaRead(128, true) },

@@ -159,6 +159,19 @@ function pullingHand() {
 
 export function actionReactionRig(screenTexture) {
   const group = new THREE.Group(), meters = [gauge(group, 0), gauge(group, 1)];
+  // 箭尾跟着两钩的接触点，局部 x = 1 是箭尖。两个箭头共用形状和长度比例。
+  const outline = new THREE.Shape();
+  outline.moveTo(0, -0.003);
+  for (const [x, y] of [[0.74, -0.003], [0.74, -0.010], [1, 0], [0.74, 0.010], [0.74, 0.003], [0, 0.003]])
+    outline.lineTo(x, y);
+  const arrowGeometry = new THREE.ShapeGeometry(outline).rotateX(-Math.PI / 2);
+  const arrows = COLORS.map((color, i) => {
+    const arrow = new THREE.Mesh(arrowGeometry, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false }));
+    arrow.renderOrder = 1;
+    arrow.rotation.y = i ? Math.PI : 0;
+    group.add(arrow);
+    return arrow;
+  });
   // 两处销孔位置不动。手拉一侧的提环可以离开销孔。
   for (const x of [-REST, REST]) {
     const foot = rounded(-0.031, -0.032, 0.062, 0.064, 0.006);
@@ -186,8 +199,13 @@ export function actionReactionRig(screenTexture) {
   for (const x of [-0.245, 0.245])
     part(monitor, new THREE.BoxGeometry(0.037, 0.017, 0.080), paint(0x576761), x, 0.0085, -0.060);
   const rest = [REST, REST], perN = [PER_N, PER_N];
-  return { group, monitor, hand, meters, pin, pinShaft, pinPick, draw(handles, fixed) {
+  return { group, monitor, hand, meters, pin, pinShaft, pinPick, arrows, draw(handles, fixed) {
     const state = pairedMeters(handles, { rest, perN });
+    for (const arrow of arrows) {
+      arrow.visible = state.force > 0;
+      arrow.position.set(state.joint.x, RING_Y - 0.006, state.joint.z);
+      arrow.scale.x = state.force * PER_N;
+    }
     meters.forEach((m, i) => {
       m.body.position.set(handles[i].x, RING_Y, AXIS_Z);
       m.set(state.force);

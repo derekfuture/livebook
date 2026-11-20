@@ -14,7 +14,7 @@ export const BASE = HEAD - LEAD,
   LANE = 0.116,
   RULER_Z = LANE + WIDTH / 2 + 0.016;
 // powerSwitch：计时器上加电源开关和指示灯（学生自己点开关接通、断开电源的课才传）。
-export function fallingRig({ mass = 200, powerSwitch = false } = {}) {
+export function fallingRig({ mass = 200, powerSwitch = false, onPage = false } = {}) {
   const group = new THREE.Group();
   function box(parent, w, h, d, x, y, z, color) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), paint(color));
@@ -22,13 +22,15 @@ export function fallingRig({ mass = 200, powerSwitch = false } = {}) {
     parent.add(m);
     return m;
   }
-  const tableTop = 0.21;
-  const desk = woodBlock(0.355, 0.015, 0.175);
-  desk.position.set(-0.1125, tableTop - 0.0075, -0.057);
-  group.add(desk);
-  for (const x of [-0.263, 0.042])
-    for (const z of [-0.124, 0.006]) box(group, 0.016, tableTop - 0.015, 0.016, x, (tableTop - 0.015) / 2, z, 0xb58b5d);
-  const st = stand({ height: 0.49, baseW: 0.115, baseD: 0.085 });
+  const tableTop = onPage ? 0 : 0.21;
+  if (!onPage) {
+    const desk = woodBlock(0.355, 0.015, 0.175);
+    desk.position.set(-0.1125, tableTop - 0.0075, -0.057);
+    group.add(desk);
+    for (const x of [-0.263, 0.042])
+      for (const z of [-0.124, 0.006]) box(group, 0.016, tableTop - 0.015, 0.016, x, (tableTop - 0.015) / 2, z, 0xb58b5d);
+  }
+  const st = stand({ height: onPage ? 0.70 : 0.49, baseW: 0.115, baseD: 0.085 });
   st.position.set(-0.017, tableTop, -0.063);
   group.add(st);
   const head = tickerHead();
@@ -65,8 +67,8 @@ export function fallingRig({ mass = 200, powerSwitch = false } = {}) {
       polyline(
         [
           [-0.18 + dx, tableTop + 0.043, -0.038],
-          [-0.1 + dx, tableTop + 0.008, -0.088],
-          [0.032 + dx, tableTop + 0.012, -0.078],
+          [-0.1 + dx, tableTop + 0.008, onPage ? -0.123 : -0.088],
+          [onPage ? 0.067 + dx : 0.032 + dx, tableTop + 0.012, onPage ? -0.119 : -0.078],
           [X + dx, HEAD, -0.041],
         ].map((p) => new THREE.Vector3(...p)),
         { color: 0x43494b, width: 1.5 },

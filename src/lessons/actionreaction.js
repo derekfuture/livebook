@@ -10,8 +10,8 @@ const names = ['B', 'A'];
 const homeX = (i) => i ? REST : -REST;
 const rounded = (v) => (Math.round(v * 5) / 5).toFixed(1);
 const goal = '比较两个挂钩在同一时刻受到的拉力。';
-const tryIt = '拖提环快拉、慢拉或松手。两表回零后，可把固定销拖到另一端。';
-const pulled = '两表的示数一直相等。A 拉 B 向右，B 拉 A 向左。';
+const tryIt = '快拉、慢拉都可以：两个挂钩之间的这一对力，任何时刻都大小相等、方向相反（课本第 70 页用力传感器显示）。弹簧测力计的指针在慢拉、停住时读。';
+const pulled = 'B 钩受 A 向右的拉力 F，A 钩受 B 向左的拉力 F′。';
 const locked = '刚才拔销时两表还在受力，固定销留在原处。回零后可以换端。';
 
 export default {
@@ -36,6 +36,12 @@ export default {
     const board = labBase(1.166, 0.504, 0.008);
     root.add(rig.group, board);
     const handles = names.map((_, i) => ({ x: homeX(i), z: AXIS_Z }));
+    rig.arrows.forEach((arrow, i) => {
+      const label = ctx.tag(i ? 'F′' : 'F').loc(arrow, 0.78, 0, 0);
+      label.el.style.cssText = `font:italic bold clamp(14px,1.3vw,20px) Georgia,serif;color:${COLORS[i]};margin:-12px 0 0 ${i ? -6 : 6}px;text-shadow:0 0 3px white`;
+    });
+    const diagramLabel = ctx.tag('示意').loc(rig.arrows[0], 0, 0, 0);
+    diagramLabel.el.style.cssText = 'font:12px/1.1 sans-serif;color:#49524b;margin-top:13px';
     const readings = rig.meters.map((m, i) => {
       const card = ctx.tag('', 'pill sticky');
       card.el.style.cssText = 'font:600 clamp(13px,1.3vw,21px)/1.2 Arial,sans-serif;color:' + COLORS[i] +
@@ -43,6 +49,7 @@ export default {
       return card.loc(m.body, 0.123, 0.010, i ? -0.076 : 0.076);
     });
     const narrow = matchMedia('(max-width: 760px)');
+    const toolbar = document.getElementById('viewctl');
     const chart = plot.texture.canvas;
     chart.style.cssText = 'width:100%;height:auto;display:block;margin:6px 0;border:1px solid #9aa79a';
     chart.setAttribute('aria-label', '拉力随时间的变化');
@@ -93,7 +100,7 @@ export default {
         if (peak >= 0.1) {
           rows.add([String(rows.rows.length + 1), names[fixed], rounded(peak), rounded(peak)]);
           if (rows.rows.length === 1) { panel.unlock(); panel.need(''); }
-          say('这次两表最大示数都是 ' + rounded(peak) + ' N，两个挂钩受力方向相反。');
+          say('这次两钩所受拉力的最大值都约为 ' + rounded(peak) + ' N。两表回零后，可把固定销拖到另一端。');
         }
         if (state.force > 1e-8)
           unloading = { x: handles[i].x, time: performance.now() };
@@ -144,10 +151,11 @@ export default {
       view: { elev: 45, azim: -3, frameMargin: 1.01 },
       mount(ui) {
         panel = ui;
+        toolbar?.classList.add('actionreaction');
         ui.status(goal);
         feedback = h('p', { class: 'status', 'aria-live': 'polite' });
         ui.controls.append(h('div', {}, h('p', { class: 'note' }, tryIt), chart, feedback));
-        ui.data.append(h('p', { class: 'note' }, '每次拉动的最大示数（约）'), rows.el,
+        ui.data.append(h('p', { class: 'note' }, '每次拉动时两钩所受拉力的最大值（约）'), rows.el,
           buttons([{ text: '全部重做', ghost: true, onClick: reset }]).el);
       },
       update() {
@@ -166,7 +174,10 @@ export default {
         }
         plot.draw();
       },
-      dispose() { narrow.removeListener(layout); pointer.dispose(); rig.dispose(); plot.texture.dispose(); },
+      dispose() {
+        toolbar?.classList.remove('actionreaction');
+        narrow.removeListener(layout); pointer.dispose(); rig.dispose(); plot.texture.dispose();
+      },
       debug: {
         get state() { return { fixed, force: state.force, peak, samples: plot.samples, rows: rows.rows }; },
         qa: qaFlow(pointer, [

@@ -1,17 +1,11 @@
 import * as THREE from 'three';
-import { FM, forceMeter } from './kit/forcemeter.js';
+import { FM } from './kit/forcemeter.js';
 import { frictionTrial, pullTo, STATIC_MU } from './kit/staticFriction.js';
-import { woodBlock } from './kit/props.js';
-import { paint } from '../live/ink.js';
+import { AXIS, BOARD, BLOCK, RING, vec, staticFrictionRig } from './kit/staticFrictionRig.js';
 import { draggable, clamp } from './kit/interact.js';
+import { qaFlow } from './kit/chemlesson.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { table, note, buttons } from './kit/ui.js';
-
-const BLOCK_X = -0.205,
-  BOARD_Y = 0.012,
-  AXIS_Y = 0.036;
-const RING_X = BLOCK_X + 0.049 + FM.L + 0.03;
-const ZERO = 0.012 + FM.ZERO;
+import { h, chart, table } from './kit/ui.js';
 
 export default {
   id: 'staticfriction',
@@ -19,10 +13,9 @@ export default {
   title: '测量最大静摩擦力',
   stampText: '测量',
   predict: {
-    q: '水平拉木块，木块仍然静止。再多拉一点但还没拉动，静摩擦力会怎样？',
-    options: ['随拉力增大', '始终等于最大静摩擦力', '木块没动就没有摩擦力'],
-    answer: 0,
-    hint: '留意红指针与木块是否同时开始移动。',
+    q: '水平拉木块，什么时候测力计的示数能告诉你最大静摩擦力？',
+    options: ['木块还没动，轻轻拉时', '木块即将开始运动时', '木块已经滑动后'],
+    answer: 1,
   },
   conclusion: {
     crops: [
@@ -30,321 +23,248 @@ export default {
       { page: 70, rect: [216.48, 369.33, 531.52, 477.16] },
     ],
     quote: '由于这时相互接触的两个物体之间只有相对运动的趋势，而没有相对运动，所以这时的摩擦力叫作静摩擦力（static frictional force）。静摩擦力的方向总是跟物体相对运动趋势的方向相反。只要沙发与地面间没有产生相对运动，静摩擦力的大小就随着推力的增大而增大，并与推力保持大小相等。……静摩擦力的增大有一个限度。图3.2-5中木块所受静摩擦力的最大值Fmax在数值上等于物体即将开始运动时的拉力。两物体之间实际产生的静摩擦力F在0与最大静摩擦力Fmax之间，即0 < F ≤ Fmax',
-    why: '木块保持静止时，静摩擦力与拉力大小相等、方向相反。缓慢增大拉力，小纸团保留指针达到的位置。突然猛拉会使弹簧示数产生过冲，木块加速滑动时的示数也不能直接当作滑动摩擦力。',
+    why: '木块静止时，静摩擦力与水平拉力大小相等、方向相反。木块即将运动时，静摩擦力达到最大。小纸团留下了这一刻的指针位置。',
     src: '课本第 65–66 页 · 第三章 第2节 摩擦力',
   },
   create(ctx) {
-    const group = new THREE.Group(),
-      meter = forceMeter(),
-      block = new THREE.Group();
-    const board = woodBlock(0.74, BOARD_Y, 0.14);
-    board.position.set(0.066, BOARD_Y / 2, 0);
-    group.add(board, block, meter);
-    const body = woodBlock(0.09, 0.042, 0.062);
-    body.position.y = 0.021;
-    block.add(body);
-    const eye = new THREE.Mesh(new THREE.TorusGeometry(0.006, 0.0013, 8, 20), paint(0x707c80));
-    eye.rotation.y = Math.PI / 2;
-    eye.position.set(0.049, 0.024, 0);
-    block.add(eye);
-    for (const x of [-0.022, 0.022])
-      for (const z of [-0.014, 0.014]) {
-        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.008, 20), paint(0x878c89));
-        w.position.set(x, 0.046, z);
-        block.add(w);
-      }
-    const line = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.0004, 0.08), paint(0x786449));
-    line.position.set(BLOCK_X - 0.045, BOARD_Y + 0.0002, 0);
-    group.add(line);
-    meter.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
-    const grip = new THREE.Mesh(
-      new THREE.SphereGeometry(0.012, 14, 8),
-      new THREE.MeshBasicMaterial({ visible: false }),
-    );
-    grip.userData.pick = true;
-    meter.add(grip);
-    const paper = new THREE.Mesh(new THREE.DodecahedronGeometry(0.0034), paint(0xf4e5cb));
-    group.add(paper);
-    let state,
-      target,
-      held,
-      inserted,
-      peak,
-      ready,
-      pausedView,
-      grab,
-      base,
-      reading,
-      aim,
-      ui,
-      rows,
-      still,
-      observedSlip,
-      needsZero,
-      touch;
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'paper', title: '放纸团', todo: '把小纸团轻塞在红指针的零刻线旁。', target: () => aim },
-        { id: 'still', title: '木块静止时', todo: '两次轻拉，读两种没把木块拉动的拉力。', target: () => aim },
-        { id: 'start', title: '测起动峰值', todo: '继续缓慢拉到木块起动，读纸团保留的刻度。', target: () => aim },
-      ],
+    const rig = staticFrictionRig();
+    const { group, grip, paper, paperPick, blockPick, meter, face, home, seat } = rig;
+    const trace = [];
+    const graph = chart({
+      x: { label: 't / s', min: 0, max: 2 }, y: { label: 'F / N', min: 0, max: 5, ticks: [0, 1, 2, 3, 4, 5] },
+      series: [{ points: trace, color: '#b24430' }], height: 130,
     });
-    function say(s, obj) {
-      aim = pausedView ? null : obj;
-      bar.say(s);
-    }
-    function layout() {
-      block.position.set(BLOCK_X + state.x, BOARD_Y, 0);
-      meter.position.set(RING_X + state.handle, AXIS_Y, 0);
-      meter.set(state.tension);
-      if (inserted) paper.position.set(meter.position.x - ZERO - peak * FM.PER_N - 0.004, AXIS_Y + 0.007, 0);
-    }
-    const settled = () => Math.abs(state.handle - state.x) < 0.001 && state.v < 0.001;
+    const rows = table(['木块', '观察记录']);
+    const caption = h('p', { class: 'note' }, '本次拉动的拉力随时间变化（模型）');
+    const record = h('div', {}, caption, graph.el);
+    let ui, s, inserted, held, unload, near, returnDrag, draggingBlock, blockStart, target;
+    let retry, reading, t, nextDraw, aim, onset, release;
+    graph.extra = (c, X, Y) => {
+      for (const mark of [onset, release]) {
+        if (!mark) continue;
+        const [time, force, label] = mark;
+        c.fillStyle = label === '刚动' ? '#8c392a' : '#485c66';
+        c.beginPath(); c.arc(X(time), Y(force), 5, 0, 2 * Math.PI); c.fill();
+        c.font = '22px sans-serif';
+        c.textAlign = label === '刚动' ? 'right' : 'left';
+        c.fillText(label, X(time) + (label === '刚动' ? -6 : 6), Y(force) - 8);
+      }
+    };
+    const steps = [
+      ['light', '轻拉木块', '向右轻拉提环。红针偏离零刻度、木块仍贴着起线时松手。'],
+      ['paper', '塞小纸团', '把小纸团拖到红针靠木块的一侧，让它记下红针到过的最远位置。'],
+      ['pull', '拉到刚动', '向右慢慢拉提环，直到木块离开起线。留意它刚动时红针的变化。'],
+      ['read', '读最大拉力', '点测力计看全尺，用纸团留下的位置读出最大静摩擦力。'],
+    ];
+    const boardSurface = new THREE.Group();
+    boardSurface.position.y = BOARD;
+    group.add(boardSurface);
+    const bar = lessonBar({ ...ctx, group: boardSurface, back: leave, steps: steps.map(([id, title, todo]) => ({ id, title, todo, target: () => aim })) });
+    const status = (text) => ui?.status(text);
+    const field = h('input', { type: 'number', step: 'any', inputmode: 'decimal', 'aria-label': '纸团读数（N）' });
+    field.style.cssText = 'width:5em;padding:5px 8px;font-size:16px';
+    const form = h('form', { onsubmit(e) { e.preventDefault(); read(); } },
+      h('label', {}, '纸团读数 ', field, ' N　'), h('button', { class: 'go ghost', type: 'submit' }, '记下读数'));
+    const help = '每小格 0.2 N。找纸团朝零刻度的一边，读到最近的一条刻线。';
     function guide() {
-      if (bar.finished)
-        return say(
-          '木块静止时读到 ' +
-            still.map((v) => v.toFixed(1)).join('、') +
-            ' N；开始滑动前的缓拉峰值约 ' +
-            reading.toFixed(1) +
-            ' N。',
-        );
-      if (!inserted) return say('把台前的小纸团拖到测力计红指针旁，塞在零刻线靠木块的一侧。', paper);
-      if (pausedView) return say('读纸团靠红指针的一边，点旁边的刻线。每小格 0.2 N。');
-      if (held)
-        return say(
-          state.slipped
-            ? '木块已动。观察指针怎样回落，松手卸力后纸团仍会留在峰值。'
-            : '木块若还在起线，就先松手卸力。纸团会保留这次读数。',
-        );
-      if (ready && !settled()) return say('观察红针卸力回零，纸团停在刚才的位置。');
-      if (ready && state.peak > FM.MAX) return say('猛拉超过 5 N 量程。将木块拖回起线，再把纸团推回零刻。', block);
-      if (ready) return say('红针已卸力，纸团保留这次最远位置。点测力计近看读数。', paper);
-      if (state.slipped) return say('将木块向左拖回起线，重置纸团后再缓慢拉。', block);
-      if (needsZero) return say('沿测力计把纸团向右推回红针零刻，再测下一次拉力。', paper);
-      if (still.length >= 2) return say('慢慢向右拉圆环，直到木块离开起线，再松手读纸团。', grip);
-      return say(
-        still.length
-          ? '再向右多拉一点，木块仍在起线时松手，比较两个拉力。'
-          : '轻轻向右拖圆环，木块仍在起线时松手，再读纸团。',
-        grip,
-      );
+      aim = null;
+      if (retry) { aim = unload || draggingBlock || returnDrag ? null : rig.block; bar.say('把木块向左拖回起线，重新轻拉。'); }
+      else if (near) bar.say(help);
+      else if (bar.finished) bar.say('纸团记下了木块刚动前的最大拉力，可以掀开课本结论了。');
+      else if (held || unload || returnDrag) bar.say(held && s.slipped ? '木块已离开起线。看红针和纸团怎样分开，再松手。' : '');
+      else {
+        aim = { light: meter.ring, paper, pull: meter.ring, read: paper }[bar.current];
+        bar.say('');
+      }
     }
     function leave() {
-      ctx.back();
-      pausedView = false;
-      bar.near(false);
-      guide();
+      if (near) ctx.back();
+      near = false; form.hidden = true; bar.near(false); guide();
     }
     function inspect() {
-      if (!ready || held || !settled() || state.peak > FM.MAX) return guide();
-      const mid = meter.position.x - ZERO - peak * FM.PER_N;
-      pausedView = true;
-      bar.near(true);
-      ctx.look([mid, AXIS_Y, 0], [0, 1, 0.02], ctx.camera.aspect < 1 ? 0.1 : 0.14, leave);
+      near = true; bar.near(true); form.hidden = false;
+      const narrow = ctx.camera.aspect < 1;
+      ctx.look([meter.position.x - (narrow ? 0.077 : 0.112), AXIS + 0.005, 0], [0, 1, 0.012], narrow ? 0.44 : 0.34, leave);
       guide();
     }
-    function read(p) {
-      if (!pausedView) {
-        inspect();
+    function read() {
+      if (!near) return;
+      const value = field.valueAsNumber, tick = Math.round(s.peak * 5) / 5;
+      if (!Number.isFinite(value) || value < 0 || value > FM.MAX) return status('这把测力计的量程是 0～5 N。');
+      if (Math.abs(tick - value) > 0.001) {
+        status(value === 0 ? '你读到的是松手后的红针。纸团仍停在刚才的最高读数处。'
+          : '读数偏' + (value > tick ? '大' : '小') + '了。看纸团右边缘，每两个整数刻度之间有五小格。');
         return;
       }
-      const f = Math.round(((meter.position.x - ZERO - p.x) / FM.PER_N) * 5) / 5;
-      if (Math.abs(f - peak) > 0.13 || f < 0 || f > FM.MAX) return say('沿纸团靠指针的一边看相邻刻线，再读一次。');
-      const slip = state.slipped,
-        validPeak = slip && peak <= STATIC_MU * state.mass * 9.8 + 0.22;
-      rows.add([slip ? '已起动' : '静止', f.toFixed(1), slip ? (validPeak ? '缓拉峰值' : '猛拉过冲') : '由静摩擦平衡']);
-      ready = false;
-      needsZero = true;
-      leave();
-      if (!slip) {
-        if (still.every((x) => Math.abs(x - f) > 0.3)) still.push(f);
-        if (still.length >= 2) bar.done('still');
-        guide();
-      } else if (still.length >= 2 && validPeak) {
-        reading = f;
-        bar.done('start');
-        guide();
-      } else
-        say(
-          validPeak
-            ? '木块已经滑动。拖回起线，这次先轻拉到木块仍静止。'
-            : '这次拉得太快，纸团读数包含惯性过冲。拖回起线，慢慢重试。',
-          block,
-        );
+      reading = value;
+      rows.add(['刚要动', '最大静摩擦力约 ' + value.toFixed(1) + ' N']);
+      bar.done('read'); leave();
+      status('木块刚要动时，静摩擦力达到最大，约为 ' + value.toFixed(1) + ' N。');
     }
+    function newTrace() {
+      onset = release = null; trace.length = 0; trace.push([0, 0]);
+      t = nextDraw = 0; graph.x.max = 2; graph.draw(); record.hidden = false;
+    }
+    function sample(dt, last) {
+      t += dt;
+      const previous = trace[trace.length - 1], older = trace[trace.length - 2];
+      if (older && older[1] === previous[1] && previous[1] === s.tension) previous[0] = t;
+      else trace.push([t, s.tension]);
+      // 长时间反复拉同一轮时，每组保留最大值和最小值，峰值始终留在记录里。
+      if (trace.length > 1800) {
+        const compact = [trace[0]];
+        for (let i = 1; i < trace.length - 1; i += 4) {
+          const batch = trace.slice(i, Math.min(i + 4, trace.length - 1)).sort((a, b) => a[1] - b[1]);
+          compact.push(...[batch[0], batch[batch.length - 1]].sort((a, b) => a[0] - b[0]));
+        }
+        trace.splice(0, trace.length - 1, ...compact);
+      }
+      if (t >= nextDraw || last) { nextDraw = t + 0.08; graph.x.max = Math.max(2, Math.ceil(t)); graph.draw(); }
+    }
+    function draw() { rig.draw(s, inserted ? s.peak : null); }
+    function returnTo(obj, origin) { returnDrag = { obj, from: obj.position.clone(), origin, elapsed: 0 }; }
     function rewind() {
-      state = frictionTrial();
-      target = 0;
-      needsZero = inserted && peak > 0;
-      held = ready = observedSlip = false;
-      layout();
-      guide();
+      s = frictionTrial(); held = unload = retry = draggingBlock = false; target = 0;
+      inserted = false; paper.position.copy(home); draw();
+      if (bar.has('light')) bar.undo('paper', 'pull', 'read');
+      onset = release = null; trace.length = 0; record.hidden = true; graph.draw();
+      status('木块已回到起线。'); guide();
     }
     function reset() {
-      if (pausedView) leave();
-      inserted = pausedView = false;
-      still = [];
-      peak = reading = 0;
-      rewind();
-      paper.position.set(RING_X - ZERO, 0.0034, 0.105);
-      rows?.clear();
-      bar.undo('paper', 'still', 'start');
+      if (near) leave();
+      reading = null; returnDrag = null; field.value = ''; form.hidden = true; rows.clear();
+      bar.undo(...steps.map(([id]) => id)); rewind(); ui?.relock(); status(''); guide();
+    }
+    function endPull() {
+      if (s.tension > 0.2) release = [t, s.tension, '松手'];
+      held = false; unload = s.handle > s.x || s.v > 0;
+      if (s.slipped && (!inserted || s.peak > STATIC_MU * s.mass * 9.8 + 0.14)) {
+        retry = true;
+        status(inserted ? '这一下拉得太快。木块已经滑动，纸团还被往前推，这次峰值不能用。'
+          : '木块越过了起线。这次拉得太远，看不到它保持静止时的情形。');
+      } else if (!s.slipped && s.peak >= 0.2 && bar.current === 'light') {
+        rows.add(['静止', '红针偏转，木块仍在起线']);
+        bar.done('light'); status('木块没动，红针却偏了。静摩擦力与向右的拉力等大，方向向左。');
+      } else if (s.slipped) {
+        bar.done('pull'); status('木块一动，拉力就变小了。红针退回，纸团留在最远处。');
+      } else if (s.peak > 0 && inserted) status('木块还在起线，纸团只记下了木块静止时的拉力。再拉远一些。');
       guide();
     }
-    const manip = draggable(
-      group,
-      [
-        {
-          obj: paper,
-          plane: 'xz',
-          offset: AXIS_Y + 0.007,
-          hint: '放纸团或近看纸团留下的读数',
-          onStart(p) {
-            touch = p?.clone();
-            grab = paper.position.clone();
-            base = peak;
-          },
-          onDrag(p, start) {
-            if (!start || pausedView) return;
-            if (inserted) {
-              if (needsZero && !state.slipped) {
-                peak = clamp(base - (p.x - start.x) / FM.PER_N, 0, base);
-                layout();
-              }
-              return;
-            }
-            paper.position.set(p.x, AXIS_Y + 0.007, p.z);
-          },
-          onEnd(moved) {
-            if (moved && needsZero && !state.slipped && peak < 0.07) {
-              state.peak = peak = 0;
-              needsZero = false;
-              layout();
-              guide();
-            }
-            if (!inserted && moved) {
-              if (Math.abs(paper.position.x - (meter.position.x - ZERO)) < 0.018 && Math.abs(paper.position.z) < 0.02) {
-                inserted = true;
-                bar.done('paper');
-                layout();
-              } else paper.position.copy(grab);
-              guide();
-            }
-          },
-          onTap() {
-            if (pausedView && touch) read(touch);
-            else if (inserted) inspect();
-          },
+    // 纸团从木板升到指针所在的高度。沿连接两个落点的斜面拾取，两端都在鼠标下面。
+    let handRay, paperOffset;
+    const travelPlane = new THREE.Plane();
+    function paperAtHand() {
+      const dest = seat(), pos = new THREE.Vector3();
+      travelPlane.setFromCoplanarPoints(home, home.clone().add(vec(1, 0, 0)), dest);
+      const ray = handRay.ray.clone().applyMatrix4(group.matrixWorld.clone().invert());
+      if (!ray.intersectPlane(travelPlane, pos)) return paper.position.clone();
+      const y = clamp(pos.y, home.y, dest.y);
+      if (pos.y !== y) ray.intersectPlane(travelPlane.set(vec(0, 1, 0), -y), pos);
+      return pos;
+    }
+    const tip = (text) => () => ui?.step === 1 ? text : '';
+    const canRead = () => bar.current === 'read' && !unload && !near;
+    const pointer = draggable(group, [
+      { obj: grip, anchor: meter, keepOffset: true, plane: 'xz', offset: AXIS,
+        enabled: () => !retry && !unload && (bar.current === 'light' || bar.current === 'pull'),
+        hint: tip('向右拖：水平拉木块'),
+        onStart() { held = true; target = s.handle; status(''); newTrace(); guide(); },
+        onDrag(p) { target = clamp(p.x - RING, 0, 0.118); },
+        onEnd() { advance(1 / 480); endPull(); },
+      },
+      { obj: paperPick, anchor: paper, keepOffset: true, plane: 'xz', offset: AXIS + 0.008,
+        enabled: () => (bar.current === 'paper' && !unload && !returnDrag) || canRead(),
+        hint: () => ui?.step === 1 ? (inserted ? '点一下：近看全尺' : '拖纸团：塞到红针旁') : '',
+        onTap() { if (canRead()) inspect(); },
+        onStart() { paperOffset = handRay ? paper.position.clone().sub(paperAtHand()) : null; },
+        onDrag(p) {
+          if (inserted) return;
+          if (handRay && paperOffset) paper.position.copy(paperAtHand().add(paperOffset));
+          else paper.position.copy(p);
         },
-        {
-          obj: grip,
-          plane: 'xz',
-          offset: AXIS_Y,
-          enabled: () => inserted && !pausedView && !bar.finished && !needsZero && !ready && !state.slipped,
-          hint: '向右拖圆环，松手卸力',
-          onStart() {
-            held = true;
-            ready = false;
-            base = state.handle;
-            target = base;
-            guide();
-          },
-          onDrag(p, start) {
-            if (start) target = clamp(base + p.x - start.x, 0, 0.245);
-          },
-          onEnd(moved) {
-            held = false;
-            if (moved && peak > 0.14) ready = true;
-            guide();
-          },
-        },
-        {
-          obj: block,
-          plane: 'xz',
-          offset: BOARD_Y + 0.03,
-          enabled: () => inserted && !pausedView && !held && state.slipped && !bar.finished,
-          hint: '将木块拖回起线',
-          onStart() {
-            base = state.x;
-          },
-          onDrag(p, start) {
-            if (!start) return;
-            state.x = clamp(base + p.x - start.x, 0, base);
-            state.v = 0;
-            state.handle = state.x;
-            state.tension = 0;
-            layout();
-          },
-          onEnd() {
-            if (state.x < 0.009) rewind();
-            else guide();
-          },
-        },
-        {
-          obj: meter,
-          plane: 'xz',
-          offset: AXIS_Y + 0.006,
-          enabled: () => inserted && !held,
-          hint: '近看纸团与刻度',
-          onStart(p) {
-            grab = p?.clone();
-          },
-          onTap() {
-            if (grab) read(grab);
-          },
-        },
-      ],
-      { highlight: true },
-    );
-    reset();
-    return {
-      group,
-      size: { w: 0.76, d: 0.23, h: 0.11 },
-      view: { azim: 1, elev: 46, lookY: 0.38, margin: 1.03 },
-      pointer: {
-        ...manip,
-        down(ray, e) {
-          if (document.body.classList.contains('predicting')) ui?.go(1);
-          return manip.down(ray, e);
+        onEnd(moved) {
+          if (inserted || !moved) return;
+          if (paper.position.distanceTo(seat()) > 0.013) {
+            returnTo(paper, home); status('纸团没贴到红针，指针推不到它。'); guide(); return;
+          }
+          inserted = true; s.peak = 0; draw(); bar.done('paper');
+          status('纸团贴住红针了。红针能推它前进，退回时会和它分开。'); guide();
         },
       },
-      toggles: ['steps'],
+      { obj: blockPick, anchor: rig.block, keepOffset: true, plane: 'xz', offset: BOARD + 0.025,
+        enabled: () => retry && !unload && !returnDrag, hint: tip('向左拖：木块归位'),
+        onStart() { draggingBlock = true; blockStart = s.x; guide(); },
+        onDrag(p) { s.handle = s.x = clamp(p.x - BLOCK, 0, blockStart); draw(); },
+        onEnd() {
+          draggingBlock = false;
+          if (s.x < 0.004) {
+            if (inserted) returnTo(paper, home);
+            rewind();
+            if (returnDrag) paper.position.copy(returnDrag.from);
+          } else { returnTo(rig.block, vec(BLOCK + blockStart, BOARD, 0)); guide(); }
+        },
+      },
+    ], { tip: ctx.tag('', 'pill'), taps: [
+      { obj: face, enabled: canRead, hint: tip('点一下：近看全尺'), onTap: inspect },
+    ] });
+    function advance(dt) {
+      const before = s.slipped;
+      pullTo(s, held ? target : Math.max(s.x, s.handle - dt * 0.25), dt);
+      draw();
+      if (!before && s.slipped && held) {
+        onset = [t + s.onsetTime, s.onsetForce, '刚动'];
+        trace.push(onset.slice(0, 2)); guide();
+      }
+      if (unload && Math.abs(s.handle - s.x) < 0.00005 && !s.v) {
+        s.handle = s.x; s.tension = 0; unload = false; draw(); sample(dt, true); guide();
+      } else sample(dt, false);
+    }
+    reset();
+    const enterRead = (value) => { field.value = String(value); form.querySelector('button').click(); };
+    return {
+      group: new THREE.Group().add(group), size: { w: 0.52, d: 0.19, h: 0.08 },
+      view: { azim: -5, elev: 45, frameMargin: 1.01 }, toggles: ['steps'], reset,
+      pointer: {
+        items: () => pointer.items().filter(d => d.enabled()),
+        down(ray, e) { if (ui?.step === 2) return false; handRay = ray; const hit = pointer.down(ray, e); if (hit && ui?.step === 0) ui.go(1); return hit; },
+        move(ray, e) { handRay = ray; return ui?.step === 1 && pointer.move(ray, e); },
+        up(ray, e) { handRay = null; return pointer.up(ray, e); },
+      },
       mount(panel) {
-        ui = panel;
-        bar.attach(panel);
-        rows = table(['木块', '纸团 / N', '观察']);
-        panel.data.append(rows.el);
-        panel.notes.append(
-          note(
-            '水平拉环，木块和上面砝码总质量为 0.50 kg。松手后卸去拉力。纸团是机械记号，只随向大读数移动的指针前进。缓拉才适于用峰值估计最大静摩擦力。',
-          ),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
+        ui = panel; bar.attach({ need() {}, unlock() { panel.unlock(); panel.need(''); } });
+        panel.controls.append(form); panel.data.append(record, rows.el);
+        panel.notes.append(h('button', { class: 'go ghost', onclick: reset }, '全部重来'));
+        const src = panel.el.querySelector('.answer .src');
+        src.style.minHeight = '54px'; src.style.paddingRight = '76px';
         guide();
       },
       update(dt) {
         bar.update(dt);
-        if (!inserted) return;
-        // 松手卸力后，测力计回到不受拉的位置；纸团仍相对于刻度板保留在峰值。
-        const wasSettled = settled();
-        const x = held ? target : Math.max(state.x, state.handle - dt * 0.22);
-        pullTo(state, x, dt);
-        if (!needsZero) peak = Math.min(FM.MAX, state.peak);
-        if (ready && !wasSettled && settled()) guide();
-        if (state.slipped && !observedSlip) {
-          observedSlip = true;
-          guide();
+        if (held || unload) advance(dt);
+        if (returnDrag) {
+          const r = returnDrag; r.elapsed += dt;
+          const k = Math.min(1, r.elapsed / 0.4);
+          r.obj.position.lerpVectors(r.from, r.origin, k * (2 - k));
+          if (r.obj === rig.block) { s.x = s.handle = rig.block.position.x - BLOCK; draw(); }
+          if (k === 1) { returnDrag = null; guide(); }
         }
-        layout();
       },
-      dispose() {
-        manip.dispose();
-        bar.dispose();
-      },
+      dispose() { pointer.dispose(); bar.dispose(); },
+      debug: { bar, qa: qaFlow(pointer, [
+        { name: '轻拉但木块不动', drag: grip, to: vec(RING + 0.032, AXIS, 0) },
+        { name: '纸团放偏', drag: paperPick, to: vec(home.x - 0.045, home.y, home.z) },
+        { name: '纸团退回原处', run() { if (inserted || !paper.position.equals(home)) throw Error('错放未归位'); } },
+        { name: '塞到指针下', drag: paperPick, to: () => seat() },
+        { name: '尚未拉动便松手', drag: grip, to: vec(RING + 0.043, AXIS, 0) },
+        { name: '缓拉至木块起动', drag: grip, to: vec(RING + 0.0719, AXIS, 0) },
+        { name: '对照回零指针和纸团', tap: paperPick },
+        { name: '误读回零指针', run() { enterRead(0); if (!near || bar.finished) throw Error('误读通过'); } },
+        { name: '记录纸团所在刻度', run() { enterRead(Math.round(s.peak * 5) / 5); } },
+        { name: '掀开课本原文', run() {
+          if (!bar.finished || rows.rows.length !== 2 || reading < 2.8 || reading > 3.2 || !s.slipped || s.tension || s.x <= 0) throw Error('缺少测量记录或木块未起动');
+          ui.go(2); ui.el.querySelector('.flap-front').click();
+        } },
+      ]) },
     };
   },
 };

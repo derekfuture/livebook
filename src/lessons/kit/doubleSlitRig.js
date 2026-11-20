@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { paint, inked } from '../../live/ink.js';
 import { glowTexture, rulerMesh, textPlate } from './props.js';
 import { measuringScrew } from './micrometerTool.js';
+import { screwElevation } from './doubleSlitReadout.js';
 import { fringeScreen } from './fringeScreen.js';
 import { SLIT_SEPARATIONS } from './doubleSlit.js';
 
@@ -81,7 +82,9 @@ export function doubleSlitRig() {
   });
   const up = new THREE.Vector3(0, 1, 0);
   function illuminate(lit, filter) {
-    const points = [bulb.position.x + lamp.position.x, -0.487, FILTER_X, DOUBLE_X + 0.016].map(x => new THREE.Vector3(x, lamp.position.y, 0));
+    const bulbX = lamp.position.x + bulb.position.x * Math.cos(lamp.rotation.y);
+    const points = [bulbX, -0.487, FILTER_X, DOUBLE_X + 0.016].map(x =>
+      new THREE.Vector3(x, lamp.position.y, -(x - lamp.position.x) * Math.tan(lamp.rotation.y)));
     beams.forEach((mesh, index) => {
       const delta = points[index + 1].clone().sub(points[index]);
       mesh.position.copy(points[index]).addScaledVector(delta, 0.5);
@@ -133,6 +136,12 @@ export function doubleSlitRig() {
   screwFrame.position.set(0.055, 0, 0.004);
   head.add(screwFrame);
   const screw = measuringScrew(screwFrame);
+  const elevation = screwElevation(screwFrame);
+  function showReading(show, mm) {
+    elevation.face.visible = show;
+    screw.sleeve.visible = screw.drum.visible = !show;
+    if (show) elevation.draw(mm);
+  }
   function turn(mm) {
     screw.setReading(mm);
     scope.move(mm);
@@ -166,5 +175,48 @@ export function doubleSlitRig() {
   group.add(ruler);
   const indices = [DOUBLE_X, SCREEN_X].map(x => block(ruler, x - ruler.position.x, 0.003, -0.031, 0.0006, 0.002, 0.03, 0x873f2c));
   turn(8);
-  return { group, cards, homes, lamp, housing, bulb, power, head, eyepiece, ruler, indices, scope, screw, screwFrame, turn, illuminate };
+  return { group, cards, homes, lamp, housing, bulb, power, head, eyepiece, ruler, indices, scope, screw, screwFrame, turn, illuminate, showReading,
+    dispose() { screw.dispose(); elevation.dispose(); } };
+}
+
+// 调灯时放大同一块毛玻璃；装片时画出片座与筒轴的位置关系。
+export function drawAlignment(canvas, scope, single, double, narrow) {
+  const g = canvas.getContext('2d');
+  g.save();
+  g.scale(canvas.width / 300, canvas.height / 112);
+  g.clearRect(0, 0, 300, 112);
+  g.font = '15px sans-serif';
+  g.fillStyle = '#453f37';
+  if (!single) {
+    g.fillText('毛玻璃屏', 37, 59);
+    g.translate(185, 56);
+    g.beginPath(); g.arc(0, 0, 47, 0, 2 * Math.PI); g.fill(); g.clip();
+    g.drawImage(scope.screen.material.map.canvas, -45, -45, 90, 90);
+    g.strokeStyle = '#403b35'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(-45, 0); g.lineTo(45, 0);
+    g.moveTo(0, -45); g.lineTo(0, 45); g.stroke();
+  } else {
+    const seats = [[77, 48, true, '单缝'], [192, 63, double, '双缝']];
+    for (const [x, y, loaded, label] of seats) {
+      g.save();
+      g.translate(x, y);
+      g.transform(1, -0.24, 0, 1, 0, 0);
+      if (loaded) {
+        g.fillStyle = '#46545c'; g.fillRect(-21, -24, 42, 48);
+        g.fillStyle = '#fff3d2';
+        const gap = narrow ? 3 : 5;
+        for (const z of label === '单缝' ? [0] : [-gap, gap]) g.fillRect(z - 1.3, -16, 2.6, 32);
+      }
+      g.fillStyle = '#78858a'; g.fillRect(-24, 21, 48, 6);
+      g.restore();
+      if (loaded) {
+        g.fillStyle = '#453f37'; g.textAlign = 'center'; g.fillText(label, x, y - 33);
+      }
+    }
+    g.setLineDash([4, 3]); g.strokeStyle = '#ba7848'; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(18, 48 - 59 * 15 / 115); g.lineTo(263, 48 + 186 * 15 / 115); g.stroke();
+    g.fillStyle = '#765134'; g.textAlign = 'left'; g.fillText('筒轴', 261, 78);
+    g.font = '12px sans-serif'; g.fillText('缝片对正示意', 14, 106);
+  }
+  g.restore();
 }

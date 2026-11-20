@@ -64,6 +64,7 @@ export default {
     group.add(tool);
     const metal = 0x869ba0,
       light = 0xc2cccb;
+    const blades = [];
     function block(parent, w, height, d, x, y, z, color, out = false) {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, height, d), paint(color));
       if (out) inked(mesh, { width: 0.7 });
@@ -72,6 +73,7 @@ export default {
       return mesh;
     }
     function jaw(parent, outline, y, thickness, color, bevel = 0) {
+      blades.push({ outline, moving: parent === slider, inside: bevel !== 0 });
       const shape = new THREE.Shape();
       outline.forEach(([x, z], i) => shape[i ? 'lineTo' : 'moveTo'](mm(x), mm(-z)));
       shape.closePath();
@@ -215,9 +217,12 @@ export default {
       zeroed = false,
       locked = false,
       near = false,
+      fineDrag = null,
+      observed = false,
       integer = null,
       returning = null,
-      movedPipe = false,
+      trail = null,
+      threaded = false,
       ui,
       records;
     const measured = new Map();
@@ -247,10 +252,13 @@ export default {
     }
     function center(site) {
       if (site === 'outer') return new THREE.Vector3(ORIGIN + OUT / 2000, Y, 0.025);
-      if (site === 'inner') return new THREE.Vector3(ORIGIN + IN / 2000, Y, -0.027);
+      if (site === 'inner') return new THREE.Vector3(ORIGIN + gap / 2000, Y, -0.027);
       return new THREE.Vector3(HOME[0], Y, HOME[1]);
     }
-    const contact = () => place !== 'home' && Math.abs(gap - (place === 'outer' ? OUT : IN)) < 0.001;
+    const contact = () => !trail && !returning && (place === 'outer' && gap === OUT || place === 'inner' && gap === IN);
+    const routeHint = '把圆管绕过尺身左端，在小爪尖后方对准管口，再沿管轴套入。';
+    const fineHint = '向右轻拖游标 0.1 mm，看哪条刻线对齐。';
+    const fineResult = '游标右移了 0.1 mm，第 1 条刻线与主尺 1 mm 刻线对齐。';
     function guide() {
       if (!zeroed) {
         if (locked && gap > 0.001) {
@@ -261,7 +269,7 @@ export default {
         return;
       }
       if (place === 'home' && gap === 0 && !measured.size && !locked) {
-        bar.say(zeroMessage + ' 向右拖开大爪，准备放管。');
+        bar.say(zeroMessage + ' 点刻度近看，或向右张开大爪。');
         return;
       }
       if (bar.finished) {
@@ -285,17 +293,18 @@ export default {
         return;
       }
       if (place === 'inner') {
-        bar.say('向右拖游标，让两个小爪向外撑住管内壁。');
+        bar.say('向右撑开小爪，贴住内壁。');
         return;
       }
       if (!measured.has('outer'))
         bar.say(
-          gap < OUT + 0.3 ? '向右拖游标，把前方大爪张开到能放进圆管。' : '把台前圆管拖到两个大爪之间，让它贴住固定爪。',
+          gap < OUT + 0.3 ? '向右拖游标，把前方大爪张开到能放进圆管。' : '从大爪尖前方把圆管放进两爪之间，靠住固定爪。',
         );
-      else bar.say(gap > IN - 0.3 ? '把小爪收窄，再从管口套入。' : '把圆管拖到后方小爪上，让小爪伸进管口。');
+      else bar.say(gap > IN - 0.3 ? '把小爪收窄，再从管口套入。' : routeHint);
     }
     function leave() {
       near = false;
+      fineDrag = null;
       mark.visible = false;
       ctx.back();
       bar.near(false);
@@ -306,15 +315,16 @@ export default {
     const mark = block(slider, mm(0.10), mm(0.035), mm(3.4), 0, FACE + mm(0.14), 0, 0x993d25);
     mark.visible = false;
     function inspect() {
-      if (!zeroed || (!contact() && gap !== 0)) return guide();
+      const checkZero = place === 'home' && !measured.size && gap === 0;
+      if (!zeroed || returning || trail || (!checkZero && !contact())) return guide();
       near = true;
       integer = null;
       bar.near(true);
-      ctx.look([xAt(gap + 4.5), FACE, 0], [0, 1, 0.015], 0.05, leave);
-      bar.say(place === 'home' ? zeroMessage : readMain);
+      ctx.look([xAt(gap + (checkZero ? 2 : 4.5)), FACE, 0], [0, 1, 0.015], checkZero ? 0.026 : 0.05, leave);
+      bar.say(checkZero ? (locked ? zeroMessage : fineHint) : readMain);
     }
     function choose(p) {
-      if (!near || place === 'home' || !p) return;
+      if (!near || !contact() || !p) return;
       const whole = Math.floor(gap), digit = Math.round((gap - whole) * 10);
       if (p.z >= -0.008 && p.z < 0) {
         const n = Math.round((p.x - ZERO) * 1000);
@@ -357,15 +367,88 @@ export default {
       if (document.body.classList.contains('predicting')) ui.go(1);
     }
     const hint = t => ui?.step === 1 && !near ? t : '';
+    function pipeFits(position) {
+      const axis = (position.x - ORIGIN) * 1000, depth = position.z * 1000;
+      const overlaps = (left, right, back, front) => depth + 11 > back && depth - 11 < front &&
+        axis + OUT / 2 > left + 1e-6 && axis - OUT / 2 < right - 1e-6;
+      if (overlaps(-10.5, 126.5, -9.5, 0) || overlaps(gap + 0.5, gap + 32.5, -9.5, 9) ||
+          overlaps(gap + 4.9, gap + 11.1, -13.1, -9.5) || overlaps(gap + 17.8, gap + 28.2, 8.5, 15.7) ||
+          [-4, 105].some(x => overlaps(x - 6, x + 6, -9.5, 5.5))) return false;
+      for (const { outline, moving, inside } of blades) {
+        const xs = [];
+        for (let index = 0; index < outline.length; index++) {
+          const [x, z] = outline[index], [nextX, nextZ] = outline[(index + 1) % outline.length];
+          if (Math.abs(z - depth) <= 11) xs.push(x);
+          for (const end of [depth - 11, depth + 11]) {
+            if ((z < end) !== (nextZ < end)) xs.push(x + (nextX - x) * (end - z) / (nextZ - z));
+          }
+        }
+        if (!xs.length) continue;
+        const offset = moving ? gap : 0, left = Math.min(...xs) + offset, right = Math.max(...xs) + offset;
+        if (inside && left >= axis - IN / 2 - 1e-6 && right <= axis + IN / 2 + 1e-6) continue;
+        if (axis + OUT / 2 > left + 1e-6 && axis - OUT / 2 < right - 1e-6) return false;
+      }
+      return true;
+    }
+    function movePipe(to) {
+      const from = pipe.position.clone();
+      const steps = Math.ceil(from.distanceTo(to) / mm(0.5));
+      const next = from.clone();
+      for (let step = 1; step <= steps; step++) {
+        next.lerpVectors(from, to, step / steps);
+        if (!pipeFits(next)) break;
+        if (next.z <= -0.040) threaded = false;
+        else if (pipe.position.z <= -0.040) {
+          const axis = (next.x - ORIGIN) * 1000;
+          threaded = axis <= IN / 2 && axis >= gap - IN / 2;
+        }
+        pipe.position.copy(next);
+      }
+      if (!from.equals(pipe.position)) trail.push(pipe.position.clone());
+    }
+    function releasePipe(moved) {
+      if (!trail) {
+        if (moved) bar.say(locked ? '先松开紧固螺钉，再松开量爪取管。' : '先让量爪离开管壁，再取出圆管。');
+        return;
+      }
+      const at = site => pipe.position.distanceTo(center(site));
+      let site, message;
+      if (at('home') < 0.012) site = 'home';
+      else if (!zeroed) message = '先合爪检查零线。';
+      else if (at('outer') < 0.009 && gap >= OUT + 0.3) site = 'outer';
+      else if (threaded && at('inner') < 0.005 && measured.has('outer') && gap <= IN - 0.3) site = 'inner';
+      else message = measured.has('outer') ? routeHint : '从大爪尖前方把圆管放进两爪之间，靠住固定爪。';
+      if (site) {
+        const released = pipe.position.clone();
+        movePipe(center(site));
+        if (at(site) < 1e-8) {
+          place = site;
+          if (released.distanceTo(pipe.position) > 1e-8) {
+            returning = { path: new THREE.LineCurve3(released, pipe.position.clone()), t: 0, settled: true };
+            pipe.position.copy(released);
+          }
+        }
+        else site = null;
+      }
+      if (!site && trail.length > 1) {
+        const path = new THREE.CurvePath();
+        for (let index = trail.length - 1; index > 0; index--) path.add(new THREE.LineCurve3(trail[index], trail[index - 1]));
+        returning = { path, t: 0 };
+      }
+      trail = null;
+      if (message) bar.say(message); else guide();
+    }
     const drags = [
       ...[thumb, vernier, movingJaw].map(obj => ({
         obj, anchor: slider, plane: 'xz', offset: FACE, keepOffset: true,
         hint: () => hint('左右拖：移动游标'),
         onStart: enter,
         onDrag(p) {
-          if (locked) return;
+          if (locked || returning || trail) return;
           gap = clamp((p.x - ORIGIN) * 1000, place === 'outer' ? OUT : 0, place === 'inner' ? IN : 100);
           slider.position.x = mm(gap);
+          if (place === 'inner') pipe.position.x = clamp(pipe.position.x,
+            ORIGIN + mm(Math.max(2.25, gap) - IN / 2), ORIGIN + mm(Math.min(0, gap - 2.25) + IN / 2));
           if (gap === 0 && !zeroed) {
             zeroed = true;
             bar.done('zero');
@@ -376,7 +459,7 @@ export default {
         onTap: inspect,
       })),
       {
-        obj: outerWall, anchor: pipe,
+        obj: pipe, anchor: pipe,
         plane: 'xz',
         offset: Y,
         keepOffset: true,
@@ -384,39 +467,13 @@ export default {
         hint: () => hint('拖动：放入或取出圆管'),
         onStart() {
           enter();
-          movedPipe = false;
+          threaded = place === 'inner';
+          trail = contact() ? null : [pipe.position.clone()];
         },
         onDrag(p) {
-          if (contact()) return;
-          movedPipe = true;
-          pipe.position.set(p.x, Y, p.z);
+          if (trail) movePipe(p.clone().setY(Y));
         },
-        onEnd(moved) {
-          if (!moved) {
-            guide();
-            return;
-          }
-          if (!movedPipe) {
-            bar.say(locked ? '先松开紧固螺钉，再松开量爪取管。' : '先让量爪离开管壁，再取出圆管。');
-            return;
-          }
-          const at = (id) => Math.hypot(pipe.position.x - center(id).x, pipe.position.z - center(id).z);
-          let message = '';
-          if (at('home') < 0.012) place = 'home';
-          else if (at('outer') < 0.009) {
-            if (!zeroed) message = '先合爪检查零线。';
-            else if (gap < OUT + 0.3) message = '大爪开口太窄。再张开一些，留出放管的间隙。';
-            else place = 'outer';
-          } else if (at('inner') < 0.009) {
-            if (!zeroed) message = '先检查零线。';
-            else if (!measured.has('outer')) message = '先用大爪测外径。';
-            else if (gap > IN - 0.3) message = '小爪撑得太开。先收窄，再伸进管口。';
-            else place = 'inner';
-          } else message = '把圆管放到量爪之间，或放回台前的木座。';
-          returning = { from: pipe.position.clone(), to: center(place), t: 0 };
-          if (message) bar.say(message);
-          else guide();
-        },
+        onEnd: releasePipe,
       },
     ];
     const desk = draggable(group, drags, {
@@ -446,23 +503,41 @@ export default {
       items: desk.items,
       down(ray, e) {
         if (near) {
-          choose(rayToLocal(ray, group, 'xz', FACE + 0.0001));
+          const point = rayToLocal(ray, group, 'xz', FACE + 0.0001);
+          if (place === 'home' && !locked && point && ray.intersectObject(vernier).length) fineDrag = { x: point.x, gap };
+          else choose(point);
           return true;
         }
         return desk.down(ray, e);
       },
       move(ray, e) {
-        return near || desk.move(ray, e);
+        if (!near) return desk.move(ray, e);
+        if (place === 'home' && !locked) {
+          document.getElementById('c').style.cursor = fineDrag ? 'grabbing' : ray.intersectObject(vernier).length ? 'grab' : '';
+          const point = fineDrag && rayToLocal(ray, group, 'xz', FACE + 0.0001);
+          if (point) fineSlide(fineDrag.gap + (point.x - fineDrag.x) * 1000);
+        }
+        return true;
       },
       up(ray, e) {
+        if (near) { fineDrag = null; return true; }
         return desk.up(ray, e);
       },
     };
+    function fineSlide(value) {
+      gap = clamp(value, 0, 0.1);
+      slider.position.x = mm(gap);
+      mark.visible = gap === 0.1;
+      if (mark.visible) { observed = true; mark.position.x = mm(12.9); }
+      bar.say(mark.visible ? fineResult : fineHint);
+    }
     function reset() {
       leave();
       gap = 9.2;
       place = 'home';
       zeroed = locked = false;
+      observed = threaded = false;
+      trail = null;
       integer = null;
       measured.clear();
       returning = null;
@@ -477,16 +552,32 @@ export default {
     slider.position.x = mm(gap);
     pipe.position.copy(center(place));
     const slideTo = n => new THREE.Vector3(ORIGIN + mm(n), 0, 0);
+    function carry(site, points) {
+      const cast = local => {
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(group.localToWorld(local.clone()).project(ctx.camera), ctx.camera);
+        return ray;
+      };
+      const start = pipe.position.clone(), rim = start.clone().add(new THREE.Vector3(0, -0.0098, 0.011));
+      const ray = cast(rim), offset = rayToLocal(ray, group, 'xz', Y).sub(start);
+      if (!pointer.down(ray) || !trail) throw Error('没有拿起管口');
+      for (const [x, z] of points) pointer.move(cast(new THREE.Vector3(x, Y, z).add(offset)));
+      pointer.up(ray);
+      if (place !== site) throw Error('圆管未就位：' + site);
+    }
+    const outerAxis = center('outer').x + mm(2), side = ORIGIN - mm(24);
     const steps = qaFlow(desk, [
       { name: '合拢查零', drag: thumb, to: slideTo(-1) },
       { name: '近看两条零线', tap: main },
-      { name: '回到全景', run: leave },
+      { name: '右移一分度差', run: () => fineSlide(0.1) },
+      { name: '回到全景', run() { if (!observed) throw Error('没有看到刻线对齐'); leave(); } },
       { name: '张开外爪', drag: thumb, to: slideTo(32) },
-      { name: '放入圆管', drag: outerWall, to: center('outer') },
+      { name: '放入圆管', run: () => carry('outer', [[outerAxis, HOME[1]], [outerAxis, 0.025]]) },
       { name: '夹住外壁', drag: thumb, to: slideTo(22) },
       { name: '固定游标', tap: screw },
       { name: '近看外径', tap: main },
     ]);
+    steps[2].mouse = { kind: 'drag', obj: vernier, to: () => new THREE.Vector3(xAt(6.5), FACE + 0.0001, 0.0035) };
     // 把鼠标落在实际刻线上；非鼠标流程使用同一套读数处理。
     function tickStep(mainScale, n) {
       const pos = new THREE.Vector3(xAt(mainScale ? n : 0.9 * n), FACE + 0.0001, mainScale ? -0.001 : 0.001);
@@ -502,9 +593,15 @@ export default {
       ...qaFlow(desk, [
         { name: '返回全景', run: leave }, { name: '松开螺钉', tap: screw },
         { name: '松开圆管', drag: thumb, to: slideTo(31) },
-        { name: '取出圆管', drag: outerWall, to: center('home') },
-        { name: '收窄内爪', drag: thumb, to: slideTo(8) },
-        { name: '套入管口', drag: outerWall, to: center('inner') },
+        { name: '取出圆管', run: () => carry('home', [[center('outer').x, HOME[1]], HOME]) },
+        { name: '收窄内爪', drag: thumb, to: slideTo(-1) },
+        { name: '直拖被尺身挡住', run: () => carry('home', [[center('inner').x, -0.027]]) },
+        { name: '套入管口', run() {
+          const axis = center('inner').x;
+          carry('inner', [[side, HOME[1]], [side, -0.047], [axis, -0.047], [axis, -0.027]]);
+        } },
+        { name: '合拢小爪不能读数', tap: main },
+        { name: '核对未贴壁状态', run() { if (near || measured.has('inner')) throw Error('未贴壁却能读数'); } },
         { name: '撑住内壁', drag: thumb, to: slideTo(18) },
         { name: '近看内径', tap: main },
       ]), tickStep(true, 17), tickStep(false, 4), tickStep(true, 16), tickStep(false, 4),
@@ -519,12 +616,18 @@ export default {
       debug: { bar, qa: steps },
       pointer,
       toggles: ['steps'],
-      size: { w: 0.15, d: 0.121, h: 0.035 },
+      size: { w: 0.20, d: 0.136, h: 0.035 },
       view: { elev: 52, azim: 0, lookY: 0.4, frameMargin: 0.99 },
       mount(panel) {
         ui = panel;
         bar.attach({ ...panel, need: () => {} });
         panel.el.querySelector('.answer').style.paddingBottom = '82px';
+        panel.el.querySelector('.flap-front').addEventListener('click', () => {
+          const verdict = panel.el.querySelector('.verdict');
+          const prediction = verdict.textContent.split('　　')[0];
+          verdict.textContent = (prediction.includes('预测：“') ? prediction + '　　' : '') +
+            (observed ? '实验里看到的：' : '课本说明（第 63 页）：') + fineResult;
+        });
         panel.status('主尺 A 每格 1 mm。游标尺 B 的 10 格合计 9 mm，每格比主尺短 0.1 mm。<br>大爪 C 量外径，小爪 D 量内径，紧固螺钉 F 固定游标。');
         records = table(['圆管', '主尺 / mm', '对齐线序号', '读数 / mm']);
         ui.data.append(records.el, buttons([{ text: '全部重来', onClick: reset }]).el);
@@ -535,8 +638,12 @@ export default {
         bar.update(dt);
         if (returning) {
           returning.t = Math.min(1, returning.t + dt / 0.35);
-          pipe.position.lerpVectors(returning.from, returning.to, returning.t);
-          if (returning.t === 1) returning = null;
+          pipe.position.copy(returning.path.getPoint(returning.t));
+          if (returning.t === 1) {
+            const { settled } = returning;
+            returning = null;
+            if (settled) guide();
+          }
         }
       },
       dispose() {
