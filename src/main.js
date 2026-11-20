@@ -10,7 +10,7 @@ import { LiveLayer } from './live/LiveLayer.js';
 import { World, worldBook } from './live/World.js';
 import { Panel, stamps, h } from './ui/Panel.js';
 import { updateTags } from './ui/tags.js';
-import { getBook, bookList, bookHref, shelfHref, currentBookId, getManifest } from './content/index.js';
+import { getBook, bookList, bookHref, shelfHref, currentBookId, getManifest, fileUrl, OFFLINE } from './content/index.js';
 import { bootHome } from './home/Home.js';
 import { bookmark, rememberLast } from './home/progress.js';
 import { bootGeoWorld } from './world/GeoWorld.js';
@@ -19,6 +19,14 @@ import { helpButton, firstLesson, firstStamp } from './ui/tips.js';
 const $ = (s) => document.querySelector(s);
 
 const params = new URLSearchParams(location.search);
+
+if (OFFLINE) {
+  // 有活页会直接用 TextureLoader 读取开发环境的教材页图。离线包没带的页图用空数据触发活页已有的回退。
+  THREE.DefaultLoadingManager.setURLModifier((url) => {
+    const local = fileUrl(url);
+    return local === url && /^\/books\/[^/]+\/(?:hi|mid|lo)\/\d+\.jpg$/.test(url) ? 'data:,' : local;
+  });
+}
 
 // 网站更新以后，开着的旧页面再去拿旧文件（活页的代码等）会拿不到：服务器上已经换成新的，回来的是网页，点了活页没反应。
 // 自动刷新一次拿新的；正在打开的那张活页记进地址，刷新完直接打开。半分钟内刷过还不行（多半是断网），就不再刷，说一声

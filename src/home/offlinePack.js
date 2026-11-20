@@ -69,15 +69,16 @@ export function offlineButton({ link = false } = {}) {          // link：首页
     if (!tip.hidden) return hide();
     const selected = new Set(OFFLINE_SUBJECTS);
     const books = new Map(bookList().filter(({ id }) => !FEATURES.hiddenBooks?.includes(id)).map((book) => [book.id, book]));
+    const title = '选择科目（可多选）';
     const group = el('div', { className: 'offline-subjects' });
     group.setAttribute('role', 'group');
-    group.setAttribute('aria-label', '科目，可多选');
+    group.setAttribute('aria-label', title);
     const options = OFFLINE_SUBJECTS.map((subject) => {
       const mb = el('small');
-      const check = el('span', { className: 'offline-check', textContent: '✓' });
+      const check = el('span', { className: 'offline-check' });
       check.setAttribute('aria-hidden', 'true');
       const option = el('button', { type: 'button', className: 'offline-subject' },
-        el('span', { className: 'offline-subject-name' }, check, subject.label), mb);
+        check, el('span', { className: 'offline-subject-name', textContent: subject.label }), mb);
       option.onclick = () => {
         if (selected.has(subject)) selected.delete(subject);
         else selected.add(subject);
@@ -123,7 +124,7 @@ export function offlineButton({ link = false } = {}) {          // link：首页
       downloadBtn.onclick = () => download(subjects, pdfs, zipBytes);
       downloadBtn.disabled = false;
     };
-    show(el('b', { textContent: '下载离线版' }),
+    show(el('b', { textContent: title }),
       group, size,
       el('p', { textContent: '解压后，用 Chrome 或 Edge 打开对应科目的 HTML。' }),
       includes,

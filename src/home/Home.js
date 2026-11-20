@@ -72,11 +72,16 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   }
   // 摆放：一前一后错开着往两边排，两头朝中间转一点；超过 6 科就分成前后两排（每排还是一前一后）
   const N = subjects.length, two = N > 6, front = two ? Math.ceil(N / 2) : N;
+  const sparseDesk = OFFLINE && N < 3;
   const tall = innerWidth / innerHeight < 0.75 && N <= 4;          // 手机竖着拿：几科从近到远排成一列（左右稍微错开），镜头抬高往下看，每一科都大、好点
+  const deskSlot = (i, n, row = 0) => {
+    if (tall) return { x: ((i % 2) - 0.5) * 0.18, z: ROW_Z + 0.75 - i * 1.05, yaw: 0 };
+    const k = i - (n - 1) / 2;
+    return { x: k * GAPX, z: ROW_Z - row * 1.4 - (i % 2) * STAGGER, yaw: -k * 0.08 };
+  };
   subjects.forEach((s, i) => {
-    const r = i < front ? 0 : 1, n = r ? N - front : front, ii = r ? i - front : i, k = ii - (n - 1) / 2;
-    s.x = k * GAPX; s.z = ROW_Z - r * 1.4 - (ii % 2) * STAGGER; s.yaw = -k * 0.08;
-    if (tall) { s.x = ((i % 2) - 0.5) * 0.18; s.z = ROW_Z + 0.75 - i * 1.05; s.yaw = 0; }
+    const r = i < front ? 0 : 1;
+    Object.assign(s, sparseDesk && N === 1 ? { x: 0, z: ROW_Z, yaw: 0 } : deskSlot(r ? i - front : i, r ? N - front : front, r));
     s.leaves = s.books.reduce((m, b) => m + Object.keys(getBook(b.id).lessons).length, 0);
     s.hot = 0;
   });
@@ -195,7 +200,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
 
   // ---- 机位：把要看的东西（几个点）放进屏幕上空出来的那块（上面是标题和搜索框，右边是便签，下面是按钮），尽量大 ----
   let open = null, leaving = null, hoverS = null, hoverB = null;
-  const frame = (pts, el, { bottom = 76 } = {}) => {          // 下面只剩左下角一行小字：给桌上的几科多留点地方
+  const frame = (pts, el, { bottom = 76, minDist = 0, center = false } = {}) => {          // 下面只剩左下角一行小字：给桌上的几科多留点地方
     const ph = innerWidth <= 760, top = ui.querySelector('.home-top')?.getBoundingClientRect();
     const rect = { l: ph ? 8 : 56, r: innerWidth - (ph ? 8 : 56), t: ph && top ? top.bottom + 14 : 150, b: innerHeight - bottom };          // 手机：左右几乎贴边、从标题栏下面开始，桌上的几摞书尽量大、好点
     const nb = ui.querySelector('.home-notes')?.getBoundingClientRect();          // 便签在右边一列（宽屏）或下面一行（4:3）：让开
@@ -203,16 +208,17 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const cam = new THREE.PerspectiveCamera(stage.camera.fov, innerWidth / innerHeight, 0.02, 60);
     const dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el)), target = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).divideScalar(pts.length);
     const L = (rect.l / innerWidth) * 2 - 1, R = (rect.r / innerWidth) * 2 - 1, T = 1 - (rect.t / innerHeight) * 2, B = 1 - (rect.b / innerHeight) * 2;
+    const cx = center ? 0 : (L + R) / 2;
     const right = new THREE.Vector3(), up = new THREE.Vector3(), v = new THREE.Vector3();
-    let dist = 6;
+    let dist = Math.max(6, minDist);
     for (let it = 0; it < 40; it++) {
       cam.position.copy(target).addScaledVector(dir, dist); cam.lookAt(target); cam.updateMatrixWorld();
       let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
       for (const p of pts) { v.copy(p).project(cam); x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
       const hh = dist * Math.tan((cam.fov * D2R) / 2);
       right.setFromMatrixColumn(cam.matrixWorld, 0); up.setFromMatrixColumn(cam.matrixWorld, 1);
-      target.addScaledVector(right, ((x0 + x1) / 2 - (L + R) / 2) * hh * cam.aspect * 0.7).addScaledVector(up, ((y0 + y1) / 2 - (T + B) / 2) * hh * 0.7);
-      dist *= 1 + (Math.max((x1 - x0) / (R - L), (y1 - y0) / (T - B)) - 1) * 0.7;
+      target.addScaledVector(right, ((x0 + x1) / 2 - cx) * hh * cam.aspect * 0.7).addScaledVector(up, ((y0 + y1) / 2 - (T + B) / 2) * hh * 0.7);
+      dist = Math.max(minDist, dist * (1 + (Math.max((x1 - x0) / (R - L), (y1 - y0) / (T - B)) - 1) * 0.7));
     }
     return { target, dir, dist };
   };
@@ -222,7 +228,18 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const pts = [];
     for (const s of subjects) { pts.push(...corners(s.card)); if (s.thing) pts.push(...corners(s.thing.userData.body || s.thing)); }
     for (const g of items) { const P = stackPose(g), u = g.userData; for (const sx of [-1, 1]) for (const sz of [-1, 1]) pts.push(new THREE.Vector3((sx * u.W) / 2, u.T / 2, (sz * BOOK_H) / 2).applyAxisAngle(Y, P.yaw).add(P.p)); }
-    stage.shot({ ...frame(pts, THREE.MathUtils.degToRad(tall ? 56 : 36)), instant, minEl: 0.05 });
+    const el = THREE.MathUtils.degToRad(tall ? 56 : 36);
+    let framing;
+    if (sparseDesk) {
+      // 按网站三科的占地估算取景距离，再把实际有的书和器材摆在画面中央。
+      const reference = [];
+      for (let i = 0; i < 3; i++) {
+        const { x, z } = deskSlot(i, 3);
+        for (const dx of [-0.46, 0.46]) for (const dy of [0, 0.34]) for (const dz of [-0.33, 0.46]) reference.push(new THREE.Vector3(x + dx, dy, z + dz));
+      }
+      framing = frame(pts, el, { minDist: frame(reference, el).dist, center: true });
+    } else framing = frame(pts, el);
+    stage.shot({ ...framing, instant, minEl: 0.05 });
   };
   const fanShot = (s, instant = false) => {
     stage.cameraOffsetX = 0;
