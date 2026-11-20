@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { paint } from '../live/ink.js';
+import { disposeTree, inked, paint } from '../live/ink.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { qaFlow } from './kit/chemlesson.js';
 import { buttons, h, table } from './kit/ui.js';
@@ -11,7 +11,9 @@ import { speedTape, seriesColors } from './kit/ticker/speedTape.js';
 import { speedGraph } from './kit/ticker/speedGraph.js';
 
 const TRAVEL = 0.12,
-  HOOK_START = 0.194,
+  HANGER_SCALE = 0.70,
+  HOOK_START = TRAVEL + 0.061 * HANGER_SCALE + 0.004,
+  TRACK_TOP = HOOK_START + 0.006,
   START = 0.14,
   DISC = 0.009;
 const masses = [10, 20, 30];
@@ -48,9 +50,25 @@ export default {
 
   create(ctx) {
     const rig = apparatus({ low: true, levelTravel: TRAVEL, powerSwitch: true });
-    const base = rig.group,
+    const base = new THREE.Group(),
       root = new THREE.Group().add(base);
-    base.position.set(-0.025, 0, -0.055);
+    base.position.set(-0.052, 0, -0.055);
+    const deckMount = new THREE.Group();
+    deckMount.position.y = TRACK_TOP - rig.top;
+    deckMount.add(rig.board.parent);
+    disposeTree(rig.group);
+    base.add(deckMount);
+    function support(width, height, depth, x, z) {
+      const block = inked(new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), paint(0xb48c5a)), { width: 0.85 });
+      block.position.set(x, height / 2, z);
+      base.add(block);
+    }
+    const supportHeight = TRACK_TOP - rig.board.geometry.parameters.height;
+    support(0.19, supportHeight, 0.069, -0.17, 0);
+    support(0.19, supportHeight, 0.069, 0.316, 0);
+    support(0.10, TRACK_TOP, 0.068, 0.347, -0.092);
+    rig.pan.scale.y = HANGER_SCALE;
+    rig.cart.scale.z = 1.32;
     const tape = speedTape(base);
     const cartPick = new THREE.Mesh(
       new THREE.BoxGeometry(0.105, 0.045, 0.071),
@@ -79,7 +97,7 @@ export default {
       textures.push(stampMass(mesh, 10, 0.03, 0.012, DISC / 2));
       discs.push({ mesh, home: new THREE.Vector3(-0.4 + 0.065 * i, DISC / 2, 0.145) });
     }
-    let ui, form, field, rows, archive, graph, result, tableBox;
+    let ui, form, field, rows, archive, graph, result, tableBox, tapeDetail;
     let load = 0,
       run = newRun(0),
       state = 'ready',
@@ -160,7 +178,7 @@ export default {
       bar.say((feedback ? feedback + ' ' : '') + instruction());
     }
     function drawRig(x = run.x) {
-      rig.draw({ ...run, x, powered, tied: true, hookY: HOOK_START - x, wheel: x });
+      rig.draw({ ...run, x, powered, tied: true, hookY: HOOK_START - x - deckMount.position.y, wheel: x });
     }
     const narrowRead = () => near && innerWidth <= 760 && sheet()?.origin != null;
     function drawTape() {
@@ -178,9 +196,11 @@ export default {
       const d = discs[i];
       if (i <= load) {
         rig.pan.add(d.mesh);
-        d.mesh.position.set(0, -0.058 + (i + 0.5) * DISC, 0);
+        d.mesh.scale.y = 1 / HANGER_SCALE;
+        d.mesh.position.set(0, -0.058 + (i + 0.5) * DISC / HANGER_SCALE, 0);
       } else {
         base.add(d.mesh);
+        d.mesh.scale.y = 1;
         d.mesh.position.copy(d.home);
       }
     }
@@ -189,6 +209,8 @@ export default {
     }
     function showForm() {
       if (!form) return;
+      tapeDetail.hidden = !near || innerWidth > 760;
+      tapeDetail.scrollLeft = 0;
       form.hidden = !canRead() || !near || sheet()?.origin == null;
       field.value = '';
     }
@@ -263,10 +285,8 @@ export default {
       say();
     }
     function frameTape() {
-      const target = tape.mesh.position.clone().add(base.position);
-      // 窄屏上，三种槽码、所有可选起点的读数都在 0–64 mm 内。
-      if (narrowRead()) target.x -= 0.105;
-      ctx.look(target.toArray(), tape.normal, tape.width * (narrowRead() ? 1.07 : 1.82), leave);
+      const narrow = innerWidth <= 760;
+      ctx.look(narrow ? [0.032, 0.065, 0.04] : [0.005, 0.095, 0.01], tape.normal, narrow ? 1.54 : 1.36, leave);
     }
     function inspect() {
       near = true;
@@ -286,7 +306,6 @@ export default {
       sheet().origin = i;
       count = 0;
       drawTape();
-      if (innerWidth <= 760) frameTape();
       showForm();
       say('这里记作 0 点，每五个打点间隔取一个计数点。');
     }
@@ -316,7 +335,6 @@ export default {
         if (which < 2) {
           which++;
           count = 0;
-          if (innerWidth <= 760) frameTape();
         } else {
           count = 2;
           bar.done('read');
@@ -380,7 +398,7 @@ export default {
         }
       },
     };
-    const seat = () => new THREE.Vector3(-0.324, HOOK_START - TRAVEL - 0.058 + (load + 1.5) * DISC, 0);
+    const seat = () => new THREE.Vector3(-0.324, HOOK_START - TRAVEL - 0.058 * HANGER_SCALE + (load + 1.5) * DISC, 0);
     const massDrags = discs.slice(1).map(({ mesh, home }, j) => {
       const i = j + 1;
       // 运输平面经过待取槽码和挂钩。沿鼠标视线与平面求交，保持实际抓取偏移。
@@ -505,7 +523,7 @@ export default {
     const rewind = () => ({
       name: '拖回小车换带',
       drag: cartPick,
-      to: () => new THREE.Vector3(START, rig.top, 0),
+      to: () => new THREE.Vector3(START, TRACK_TOP, 0),
     });
     const pickOrigin = () => {
       const i = sheet().run.marks.findIndex((_, j) => eligible(sheet().run, j)) + 1;
@@ -581,8 +599,8 @@ export default {
     }
     return {
       group: root,
-      size: { w: 0.95, d: 0.44, h: 0.27 },
-      view: { elev: 26, azim: -9, frameMargin: 1.04 },
+      size: { w: 0.82, d: 0.36, h: TRACK_TOP + 0.09 },
+      view: { elev: 33, azim: -8, frameMargin: 1.02 },
       pointer,
       toggles: ['steps'],
       reset,
@@ -620,7 +638,14 @@ export default {
         graph = speedGraph(onPoint);
         graph.set([]);
         graph.canvas.hidden = true;
-        ui.controls.append(archive, form, result, graph.canvas);
+        tapeDetail = h('div', { style: 'overflow-x:auto' }, tape.canvas);
+        tapeDetail.hidden = true;
+        tape.canvas.style.cssText = 'display:block;width:185%;max-width:none;height:auto';
+        tape.canvas.onclick = (event) => {
+          const rect = tape.canvas.getBoundingClientRect();
+          chooseOrigin(tape.dotAt((event.clientX - rect.left) * tape.canvas.width / rect.width, (event.clientY - rect.top) * tape.canvas.height / rect.height));
+        };
+        ui.controls.append(archive, tapeDetail, form, result, graph.canvas);
         ui.data.append(tableBox, buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el);
         ui.notes.append(
           h(

@@ -1,6 +1,6 @@
 // 必修一图 2.4-2：同一计时器、同一把尺，改变实际下落重物的质量。
 import * as THREE from 'three';
-import { fallingRig, X, BASE, LEAD, TRAVEL, L, WIDTH, ZERO, LANE, RULER_Z } from './kit/ticker/fallRig.js';
+import { fallingRig, X, BASE, LEAD, TRAVEL, L, WIDTH, ZERO, LANE } from './kit/ticker/fallRig.js';
 import { fallingTape } from './kit/ticker/fall.js';
 import { fallQuartets, compareIntervals, STRIDE } from './kit/ticker/fallAcceleration.js';
 import { PERIOD } from './kit/ticker/motion.js';
@@ -85,8 +85,9 @@ export default {
 
     // 在尺身两端留白，零刻线和纸带的打点原点在同一个局部坐标。
     const rulerMap = ruler.material[2].map, cv = rulerMap.image;
-    ruler.scale.x = 0.35 / ruler.geometry.parameters.width;
-    ruler.position.x = ZERO + 0.165;
+    const rulerLength = 0.35, rulerLead = 0.01;
+    ruler.scale.x = rulerLength / ruler.geometry.parameters.width;
+    ruler.position.x = ZERO - rulerLead + rulerLength / 2;
     const pen = cv.getContext('2d');
     pen.fillStyle = '#f4eddb';
     pen.fillRect(0, 0, cv.width, cv.height);
@@ -94,7 +95,7 @@ export default {
     pen.textAlign = 'center';
     pen.font = '600 54px sans-serif';
     for (let mm = 0; mm <= 330; mm++) {
-      const x = (10 + mm) / 350 * cv.width;
+      const x = (rulerLead + mm / 1000) / rulerLength * cv.width;
       pen.fillRect(x - 0.9, 0, 1.8, cv.height * (mm % 10 === 0 ? 0.43 : mm % 5 === 0 ? 0.31 : 0.2));
       if (mm % 10 === 0) pen.fillText(String(mm), x, cv.height * 0.68);
     }
@@ -119,7 +120,8 @@ export default {
     const label = h('span');
     const reread = h('button', { class: 'go ghost', hidden: true, onclick: rereadTape }, '重读这条纸带');
     const submit = h('button', { type: 'submit', class: 'go', style: 'width:auto;margin:0' }, '记下');
-    const form = h('form', { hidden: true, onsubmit(e) { e.preventDefault(); read(field.valueAsNumber); } }, h('label', {}, label, field), submit);
+    const detail = h('canvas', { width: 336, height: 144, style: 'display:block;width:100%;height:auto;margin:0 0 4px' });
+    const form = h('form', { hidden: true, onsubmit(e) { e.preventDefault(); read(field.valueAsNumber); } }, detail, h('label', {}, label, field), submit);
     function recordSheet() {
       reread.hidden = phase !== 'bench' || values().length !== 4;
       rows.clear();
@@ -229,12 +231,21 @@ export default {
     function inspect() {
       near = true; bar.near(true); form.hidden = false; field.value = '';
       label.textContent = 'P' + values().length + ' 的位置 / mm';
-      const center = clamp(pointMM(values().length) / 1000, 0.024, 0.302);
-      ctx.look([ZERO + center, 0.004, (LANE + RULER_Z) / 2], [0, 1, 0.012], 0.185, leave);
+      // 从这次打出的纸带和实尺贴图截取同一段；主镜头始终容纳整套装置。
+      const span = 0.1;
+      // 窗口两边落在半厘米处，整十刻度的数字不会被切半。
+      const left = clamp(Math.floor(pointMM(values().length) / 10) * 10 - 45, -5, 205) / 1000;
+      const g = detail.getContext('2d');
+      function strip(image, length, lead, srcY, srcHeight, y, height) {
+        const px = image.width / length;
+        g.drawImage(image, (left + lead) * px, srcY, span * px, srcHeight, 0, y, detail.width, height);
+      }
+      strip(tex.canvas, L, LEAD, 12, 180, 0, 70);
+      strip(cv, rulerLength, rulerLead, 0, cv.height * 0.72, 70, detail.height - 70);
       next();
     }
     function leave() {
-      near = false; form.hidden = true; bar.near(false); ctx.back(); next();
+      near = false; form.hidden = true; bar.near(false); next();
     }
     function rereadTape() {
       if (phase !== 'bench' || values().length !== 4) return;
@@ -333,6 +344,13 @@ export default {
     const fitSteps = new ResizeObserver(() => {
       if (ui) ui.el.style.setProperty('--fall-steps', (stepBar.offsetHeight + 8) + 'px');
     });
+    // 读数时仍可拖动全景；轻点画布退出局部放大。
+    let detailPress = null;
+    const sceneCanvas = document.getElementById('c');
+    function closeDetail(e) {
+      if (near && detailPress && Math.hypot(e.clientX - detailPress.x, e.clientY - detailPress.y) < 5) leave();
+      detailPress = null;
+    }
     fresh();
     const qaRead = (k, wrong = false) => ({ name: wrong ? '错读后检查反馈' : '记录 P' + k, run() {
       if (!near || values().length !== k) throw Error('没有进入当前点的读数');
@@ -345,15 +363,23 @@ export default {
     const drop = { name: '松开纸带', tap: clipPick };
     const measure = [power, drop, power, lay, { name: '观察纸带和刻度', tap: tape }];
     return {
-      group: root, reset, size: { w: 0.57, d: 0.38, h: 0.71 }, view: { elev: 16, azim: 4, get frameMargin() { return innerWidth <= 760 ? 1.25 : 1.06; } }, toggles: ['steps'],
+      group: root, reset, size: { w: 0.57, d: 0.38, h: 0.71 },
+      view: { elev: 18, azim: 4, lookY: 0.5, get frameMargin() { return innerWidth <= 760 ? 1.30 : 1.17; } },
+      toggles: ['steps'],
       pointer: {
         items: () => pointer.items().filter(item => item.enabled()),
-        down(ray, e) { dragRay = ray; const held = pointer.down(ray, e); if (held && ui?.step === 0) ui.go(1); return held; },
+        down(ray, e) {
+          detailPress = near ? { x: e.clientX, y: e.clientY } : null;
+          dragRay = ray; const held = pointer.down(ray, e);
+          if (held && ui?.step === 0) ui.go(1);
+          return held;
+        },
         move(ray, e) { if (ui?.step !== 1) return false; dragRay = ray; return pointer.move(ray, e); },
         up(ray, e) { dragRay = null; return pointer.up(ray, e); },
       },
       mount(panel) {
         ui = panel;
+        sceneCanvas.addEventListener('click', closeDetail);
         ui.el.classList.add('fall-sheet'); stepBar.dataset.fallSteps = '';
         ui.el.append(mobileLayout); fitSteps.observe(stepBar);
         bar.attach({ need: () => ui.need(''), unlock() { ui.unlock(); ui.need(''); } });
@@ -388,6 +414,7 @@ export default {
         if (elapsed >= run.end) { phase = 'landed'; next(); }
       },
       dispose() {
+        sceneCanvas.removeEventListener('click', closeDetail);
         fitSteps.disconnect(); mobileLayout.remove();
         ui?.el.classList.remove('fall-sheet'); ui?.el.style.removeProperty('--fall-steps');
         pointer.dispose(); bar.dispose(); tex.dispose();
