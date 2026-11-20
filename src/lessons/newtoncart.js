@@ -98,7 +98,7 @@ export default {
     src: '课本第 88–92 页 · 第四章 第2节 实验：探究加速度与力、质量的关系',
   },
   create(ctx) {
-    const rig = apparatus({ low: true });
+    const rig = apparatus({ low: true, powerSwitch: true });
     const base = rig.group;
     const root = new THREE.Group();
     root.add(base);
@@ -190,10 +190,6 @@ export default {
     cartPick.userData.pick = true;
     rig.cart.add(cartPick);
 
-    const timerPick = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.07, 0.08), new THREE.MeshBasicMaterial({ visible: false }));
-    timerPick.position.y = TOP + 0.03;
-    timerPick.userData.pick = true;
-    rig.timer.add(timerPick);
 
     // ---------- 状态 ----------
     let lift = 0,
@@ -241,6 +237,7 @@ export default {
         startOffset: 0,
         marks: runState?.marks || [],
         recording,
+        powered,
         t,
         hookY,
         tied,
@@ -695,9 +692,9 @@ export default {
         tip: ctx.tag('', 'pill'),          // 鼠标移上去，旁边一条短提示“怎么动：做什么”（不加光晕；预测页上不显示，进了实验才有）
         taps: [
           quiet({
-            obj: timerPick,
+            obj: rig.switchPick,
             enabled: () => !zoomed,
-            hint: () => (powered ? '点一下：断开打点计时器' : '点一下：接通打点计时器'),
+            hint: () => (powered ? '点一下：断开电源' : '点一下：接通电源'),
             onTap: () => {
               powered = !powered;
               if (!powered) ranPowered = false;
@@ -721,7 +718,7 @@ export default {
     }
     function target() {
       const t = target0();
-      return t === rig.cart && !powered ? rig.timer : t;
+      return t === rig.cart && !powered ? rig.timer : t;          // 光圈套住整台打点计时器（开关在它正面）
     }
     function target0() {
       if (running || zoomed || weightHeld) return null;
@@ -750,7 +747,7 @@ export default {
         {
           id: 'balanced',
           title: '平衡阻力',
-          todo: '<b>平衡阻力</b>：不挂槽码。先接通打点计时器，再按住小车向左轻推。纸带上相邻计数点的间隔都相等，小车就在匀速运动，阻力平衡好了。',
+          todo: '<b>平衡阻力</b>：不挂槽码。先接通电源，再按住小车向左轻推。纸带上相邻计数点的间隔都相等，小车就在匀速运动，阻力平衡好了。',
           target,
         },
         { id: 'force', title: '只改拉力', todo: '<b>只改拉力</b>（小车质量不变）：把一个 10 g 槽码拖到滑轮下的挂钩上。', target },
@@ -788,9 +785,9 @@ export default {
         else say = '点一下小车，放手让它跑。';
       }
       if (!running && !zoomed && cur) {
-        if (result === 'nopower' && !powered) say = '打点计时器没通电，纸带上没有点：先接通电源，再释放小车。';
-        else if (target0() === rig.cart && !powered && (say || cur !== 'balanced')) say = '先接通打点计时器，再释放小车。' + (say ? '<br>' + say : ''); // 刚打开时步骤栏的话里已经说了
-        else if (ranPowered && powered) say = '断开打点计时器。' + (say ? '<br>' + say : '');
+        if (result === 'nopower' && !powered) say = '没接通电源，打点计时器不打点，纸带上没有点：先接通电源，再释放小车。';
+        else if (target0() === rig.cart && !powered && (say || cur !== 'balanced')) say = '先接通电源，再释放小车。' + (say ? '<br>' + say : ''); // 刚打开时步骤栏的话里已经说了
+        else if (ranPowered && powered) say = '打完点，立即断开电源。' + (say ? '<br>' + say : '');
       }
       if (cur || say) bar.say(say || null, cur || 'end');
     }
@@ -1149,7 +1146,7 @@ export default {
           if (kind === 'leave') leave();
           if (kind === 'flip') flip.btns[0].click();
           if (kind === 'weight') go(rig.ballast[ballast], flowTo.cart());
-          if (kind === 'power') items.find((q) => q.obj === timerPick).onTap();
+          if (kind === 'power') items.find((q) => q.obj === rig.switchPick).onTap();
         },
         get state() {
           return { lift, x, tied, ballast, load: load(), result, tape, forceData, massData };
@@ -1158,7 +1155,7 @@ export default {
           { name: '没通电就推小车', drag: cartPick, to: flowTo.push, wait: 3 },
           { name: '核对：没通电没有点', run: () => { if (result !== 'nopower' || runState.marks.length) throw new Error('没通电也打了点'); } },
           { name: '拖回小车（没通电那次）', drag: cartPick, to: flowTo.back },
-          { name: '接通打点计时器', tap: timerPick },
+          { name: '接通打点计时器', tap: rig.switchPick },
           { name: '向左轻推小车（木板还是平的）', drag: cartPick, to: flowTo.push, wait: 3 },
           { name: '垫块推进去，垫高 15 mm', drag: rig.wedge, to: flowTo.wedge15 },
           { name: '拖回小车', drag: cartPick, to: flowTo.back },
@@ -1167,8 +1164,8 @@ export default {
           { name: '拖回小车并松手', drag: cartPick, to: flowTo.back, wait: 4 },
           { name: '点纸带读数', tap: card },
           { name: '回到全景', run: leave },
-          { name: '断开打点计时器', tap: timerPick },
-          { name: '再接通打点计时器', tap: timerPick },
+          { name: '断开打点计时器', tap: rig.switchPick },
+          { name: '再接通打点计时器', tap: rig.switchPick },
           { name: '再挂一个槽码', drag: masses[3].mesh, to: flowTo.rod },
           { name: '拖回小车（20 g）', drag: cartPick, to: flowTo.back, wait: 4 },
           { name: '读纸带（20 g）', tap: card },

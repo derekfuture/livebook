@@ -34,6 +34,7 @@ export function tickerHead() {
     update(on, t) {
       light.material.color.setHex(on ? 0xe5653d : 0x5b4138);
       striker.position.y = SLOT_Y + 0.006 + (on ? 0.0015 * Math.sin((t / PERIOD) * 2 * Math.PI) : 0);
+      light.scale.setScalar(on ? 1.6 : 1);          // 通电时指示灯亮、大一点，远看也看得出
     },
   };
 }
