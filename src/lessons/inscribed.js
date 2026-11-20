@@ -31,7 +31,9 @@ const fmt = (r) => `${Math.round(r * DEG)}°`;
 const onCirc = (t) => [O[0] + R * Math.cos(t), O[1] + R * Math.sin(t)];
 const dirO = (p) => Math.atan2(p[1] - O[1], p[0] - O[0]);
 const AB = dirO(B0), AC = dirO(C0) + TAU;                     // 圆在海里的那段弧：从 B 逆时针经过最下面到 C
-const inSea = (p) => p[0] > SEA.u0 + 0.008 && p[0] < SEA.u1 - 0.008 && p[1] > SEA.v0 + 0.008 && p[1] < SEA.v1 - 0.012;
+const shore = (u) => { const a = Math.abs(u); return 0.06 - 0.016 * Math.exp(-(((a - 0.06) / 0.022) ** 2)) + 0.012 * Math.exp(-(((a - 0.125) / 0.03) ** 2)); };          // 海岸线：两座灯塔站在伸进海里的岬角上，岬角外侧各有一个小湾
+const VMAX = 0.076;          // 水面、海底一直铺到这里（被岸盖住的那部分看不见）
+const inSea = (p) => p[0] > SEA.u0 + 0.008 && p[0] < SEA.u1 - 0.008 && p[1] > SEA.v0 + 0.008 && p[1] < shore(p[0]) - 0.012;
 const central = () => angAt(O, B0, C0);
 
 export default {
@@ -74,10 +76,10 @@ export default {
     });
     caustTex.wrapS = caustTex.wrapT = THREE.RepeatWrapping; caustTex.repeat.set(5.5, 3.6);
     // 水深（示意）：外海深；浅滩那一圈里慢慢浅上来（一片水下沙洲，边缘正好在圆附近）；靠岸变浅
-    const depth = (u, v) => { const r = Math.hypot(u - O[0], v - O[1]), shoal = 1 - smooth(R - 0.03, R + 0.004, r); return (0.0165 - 0.0118 * shoal) * (0.42 + 0.58 * smooth(LAND_V + 0.002, LAND_V - 0.03, v)); };
-    const seaW = SEA.u1 - SEA.u0, seaD = LAND_V - SEA.v0, uc = (SEA.u0 + SEA.u1) / 2, vc = (SEA.v0 + LAND_V) / 2;
+    const depth = (u, v) => { const r = Math.hypot(u - O[0], v - O[1]), shoal = 1 - smooth(R - 0.03, R + 0.004, r); return (0.0165 - 0.0118 * shoal) * (0.42 + 0.58 * smooth(shore(u) + 0.002, shore(u) - 0.03, v)); };
+    const seaW = SEA.u1 - SEA.u0, seaD = VMAX - SEA.v0, uc = (SEA.u0 + SEA.u1) / 2, vc = (SEA.v0 + VMAX) / 2;
     { // 海底：沙洲那里浅、颜色亮（透过水是一片青绿），外海深、颜色暗
-      const g = new THREE.PlaneGeometry(seaW, seaD, 150, 72), p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), SAND = new THREE.Color(0xf3ebdc), MIDW = new THREE.Color(0x9cc1c9), DEEP = new THREE.Color(0x6b95a4);          // 素模：浅处是沙洲的石膏白，越深越透出水色
+      const g = new THREE.PlaneGeometry(seaW, seaD, 150, 84), p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), SAND = new THREE.Color(0xf3ebdc), MIDW = new THREE.Color(0x9cc1c9), DEEP = new THREE.Color(0x6b95a4);          // 素模：浅处是沙洲的石膏白，越深越透出水色
       for (let i = 0; i < p.count; i++) { const u = p.getX(i) + uc, v = p.getY(i) + vc, d = depth(u, v), k = clamp(1 - (d - 0.0045) / 0.0112, 0, 1); p.setXYZ(i, u, H - d, -v); if (k < 0.55) c.copy(DEEP).lerp(MIDW, k / 0.55); else c.copy(MIDW).lerp(SAND, smooth(0.55, 1, k)); c.multiplyScalar(1 + 0.025 * Math.sin(u * 900 + Math.sin(v * 400) * 2) * k); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
       g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
       const bm = lit({ vertexColors: true, roughness: 0.95, emissive: 0xfffbf0, emissiveIntensity: 0.12, emissiveMap: caustTex });
@@ -100,7 +102,7 @@ export default {
       }
     });
     const face = (w, sample, x, z, ry) => { const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry(w, TOP), lit({ map: faceTex(sample), transparent: true, alphaTest: 0.5, roughness: 0.9 }))); m.position.set(x, TOP / 2, z); m.rotation.y = ry; m.receiveShadow = true; m.userData.qaSupport = true; root.add(m); };
-    const sideAt = (u, front) => (t) => { const v = front ? SEA.v0 + t * (BACK_V - SEA.v0) : BACK_V - t * (BACK_V - SEA.v0); return v >= LAND_V ? { land: true, top: YM + hill(u, v) } : { bed: H - depth(u, v) }; };
+    const sideAt = (u, front) => (t) => { const v = front ? SEA.v0 + t * (BACK_V - SEA.v0) : BACK_V - t * (BACK_V - SEA.v0); return v >= shore(u) ? { land: true, top: YM + Math.max(0, hill(u, v)) } : { bed: H - depth(u, v) }; };
     face(seaW, (t) => ({ bed: H - depth(SEA.u0 + t * seaW, SEA.v0) }), uc, -SEA.v0, 0);
     face(BACK_V - SEA.v0, sideAt(SEA.u0, false), SEA.u0, -(SEA.v0 + BACK_V) / 2, -Math.PI / 2);
     face(BACK_V - SEA.v0, sideAt(SEA.u1, true), SEA.u1, -(SEA.v0 + BACK_V) / 2, Math.PI / 2);
@@ -110,20 +112,20 @@ export default {
         const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, '#f1ece2'); gr.addColorStop(0.2, '#f4f0e8'); gr.addColorStop(1, '#f6f3ed'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
         for (let k = 0; k < 2600; k++) { g.fillStyle = `rgba(120,110,95,${Math.random() * 0.05})`; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
       });
-      const lg = new THREE.PlaneGeometry(seaW, BACK_V - LAND_V, 170, 54).rotateX(-Math.PI / 2), lp = lg.attributes.position, lc = new Float32Array(lp.count * 3), cc = new THREE.Color(), SANDL = new THREE.Color(0xf2eadb), FLAT = new THREE.Color(0xf5f2ea), SLOPE = new THREE.Color(0xe6e9de);
-      for (let i = 0; i < lp.count; i++) { const u = lp.getX(i) + uc, v = -lp.getZ(i) + (LAND_V + BACK_V) / 2, hh = hill(u, v); lp.setY(i, hh); cc.copy(SANDL).lerp(FLAT, smooth(LAND_V, 0.064, v)).lerp(SLOPE, smooth(0.0015, 0.016, hh)); lc[i * 3] = cc.r; lc[i * 3 + 1] = cc.g; lc[i * 3 + 2] = cc.b; }
+      const VL0 = 0.034, lg = new THREE.PlaneGeometry(seaW, BACK_V - VL0, 190, 72).rotateX(-Math.PI / 2), lp = lg.attributes.position, lc = new Float32Array(lp.count * 3), cc = new THREE.Color(), SANDL = new THREE.Color(0xf2eadb), FLAT = new THREE.Color(0xf5f2ea), SLOPE = new THREE.Color(0xe6e9de), WET = new THREE.Color(0xd8cdb9);
+      for (let i = 0; i < lp.count; i++) { const u = lp.getX(i) + uc, v = -lp.getZ(i) + (VL0 + BACK_V) / 2, sh = shore(u), hh = hill(u, v) - (LAND_H + 0.0015) * smooth(sh + 0.003, sh - 0.005, v) - 0.016 * smooth(sh - 0.004, sh - 0.012, v); lp.setY(i, hh); cc.copy(SANDL).lerp(FLAT, smooth(sh + 0.002, sh + 0.02, v)).lerp(SLOPE, smooth(0.0015, 0.016, hh)).lerp(WET, smooth(-0.0005, -0.003, hh)); lc[i * 3] = cc.r; lc[i * 3 + 1] = cc.g; lc[i * 3 + 2] = cc.b; }
       lg.setAttribute('color', new THREE.BufferAttribute(lc, 3)); lg.computeVertexNormals();
       const lm = lit({ map: top, vertexColors: true, roughness: 0.95 });
       lm.onBeforeCompile = (sh) => {          // 山坡上细细的等高线（像地形模型一层层的边）
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vHy;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHy = position.y;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vHy;').replace('#include <color_fragment>', '#include <color_fragment>\n{ float hh = vHy / 0.0042; float f = abs(fract(hh - 0.5) - 0.5) / max(fwidth(hh), 1e-4); diffuseColor.rgb *= 1.0 - 0.14 * (1.0 - smoothstep(0.0, 1.3, f)) * step(0.0011, vHy); }');
       };
-      const t = quiet(new THREE.Mesh(lg, lm)); t.position.set(uc, YM, -(LAND_V + BACK_V) / 2); t.receiveShadow = true; t.castShadow = true; root.add(t);
+      const t = quiet(new THREE.Mesh(lg, lm)); t.position.set(uc, YM, -(VL0 + BACK_V) / 2); t.receiveShadow = true; t.castShadow = true; root.add(t);
       // 灯塔脚下外侧几块礁石（只放在外侧和后面，不挡弧 BC、不挡视线）
       const rockMat = lit({ color: 0xe0d9cb, roughness: 0.93, flatShading: true });
-      const rock = (u, v, r, sy, rot) => { const g = new THREE.IcosahedronGeometry(r, 1), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 1 + 0.2 * Math.sin(x * 2100 + y * 1700) * Math.cos(z * 1900 + 0.5); p.setXYZ(i, x * n, y * n * sy, z * n); } g.computeVertexNormals(); const m = solid(new THREE.Mesh(g, rockMat)); m.position.set(u, YM + r * sy * 0.3, -v); m.rotation.y = rot; root.add(m); };
-      for (const [cu, o] of [[B0[0], -1], [C0[0], 1]]) { rock(cu + o * 0.012, 0.053, 0.0042, 0.62, 0.4); rock(cu + o * 0.019, 0.06, 0.0056, 0.5, 1.2); rock(cu + o * 0.007, 0.064, 0.0036, 0.56, 2.1); rock(cu + o * 0.026, 0.052, 0.003, 0.6, 0.9); }
-      const edge = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, YM - (H - 0.009)), lit({ color: 0xe8e2d6, roughness: 0.95 }))); edge.position.set(uc, (YM + H - 0.009) / 2, -LAND_V); edge.receiveShadow = true; root.add(edge);
+      const groundAt = (u, v) => { const sh = shore(u); return YM + hill(u, v) - (LAND_H + 0.0015) * smooth(sh + 0.003, sh - 0.005, v) - 0.016 * smooth(sh - 0.004, sh - 0.012, v); };
+      const rock = (u, v, r, sy, rot) => { const g = new THREE.IcosahedronGeometry(r, 1), p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), n = 1 + 0.2 * Math.sin(x * 2100 + y * 1700) * Math.cos(z * 1900 + 0.5); p.setXYZ(i, x * n, y * n * sy, z * n); } g.computeVertexNormals(); const m = solid(new THREE.Mesh(g, rockMat)); m.position.set(u, groundAt(u, v) + r * sy * 0.3, -v); m.rotation.y = rot; root.add(m); };
+      for (const [cu, o] of [[B0[0], -1], [C0[0], 1]]) { rock(cu + o * 0.014, 0.0478, 0.0042, 0.62, 0.4); rock(cu + o * 0.021, 0.054, 0.0056, 0.5, 1.2); rock(cu + o * 0.009, 0.062, 0.0036, 0.56, 2.1); rock(cu + o * 0.029, 0.058, 0.0032, 0.6, 0.9); }
     }
     // 水面：半透明，透得出下面的沙洲；一层细细的波纹慢慢走
     const waves = tex(256, 256, (g, w, h) => {
@@ -139,8 +141,10 @@ export default {
     sea.position.set(uc, 0.0004, -vc); sea.receiveShadow = true; sea.renderOrder = -1; group.add(sea);          // 水面先画：上面的线、角不被水染成别的颜色
     const foamTex = tex(512, 32, (g, w, h) => { for (let x = 0; x < w; x++) { const a = 0.55 + 0.45 * Math.sin(x * 0.11) * Math.sin(x * 0.037 + 1.3); const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, `rgba(255,255,255,${0.95 * a})`); gr.addColorStop(0.35, `rgba(255,255,255,${0.45 * a})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x, 0, 1, h); } });
     foamTex.wrapS = THREE.RepeatWrapping; foamTex.repeat.set(3, 1);
-    const foam = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, 0.007).rotateX(-Math.PI / 2), basic({ map: foamTex, transparent: true, opacity: 0.7, depthWrite: false })));
-    foam.position.set(uc, 0.0007, -(LAND_V - 0.0035)); foam.renderOrder = 1; group.add(foam);          // 岸边的浪花（画在水面上、贴着岸）
+    const foamGeo = (() => { const pos = [], uvs = [], idx = [], N = 160; for (let i = 0; i <= N; i++) { const u = SEA.u0 + (seaW * i) / N, sh = shore(u); pos.push(u, 0, -(sh + 0.0008), u, 0, -(sh - 0.0058)); uvs.push((3 * i) / N, 1, (3 * i) / N, 0); if (i < N) idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 2, 2 * i + 1, 2 * i + 3); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.setIndex(idx); return g; })();
+    foamTex.repeat.set(1, 1);
+    const foam = quiet(new THREE.Mesh(foamGeo, basic({ map: foamTex, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide })));
+    foam.position.set(0, 0.0007, 0); foam.renderOrder = 1; group.add(foam);          // 岸边的浪花（画在水面上、沿着岸线）
     // 数学那一层：比岸顶高一点点，线一直画到灯塔脚下也不会钻进岸里
     const ink = new THREE.Group(); ink.position.y = LAND_H + 0.0003; group.add(ink);
 
@@ -346,7 +350,8 @@ export default {
           float rt = 1. - smoothstep(0., fw * 2.2, abs(d - 90.));
           float al = max(ln * .55, max(dg, rt));
           vec3 col = rt >= max(ln * .55, dg) ? vec3(.16, .5, .9) : dg >= ln * .55 ? vec3(.86, .5, .04) : vec3(.93, .62, .14);
-          gl_FragColor = vec4(col, al * k * smoothstep(capTop - .01, capTop + .004, -w.y));
+          float ax = abs(w.x), sh = 0.06 - 0.016 * exp(-pow((ax - 0.06) / 0.022, 2.)) + 0.012 * exp(-pow((ax - 0.125) / 0.03, 2.));
+          gl_FragColor = vec4(col, al * k * smoothstep(capTop - .01, capTop + .004, -w.y) * (1. - smoothstep(sh - .004, sh, -w.y)));
         }` })));
     contour.position.copy(sea.position).setY(0.0003); contour.visible = false; ink.add(contour);
     const conLabs = [20, 30, 60, 90].map(() => label(0.0085)), conDanger = label(0.0095);
@@ -485,7 +490,7 @@ export default {
         const dir = unit(sub(A, P)), t = -2 * ((P[0] - O[0]) * dir[0] + (P[1] - O[1]) * dir[1]);
         if (t < 0.004) continue;
         if (!inside && t > dist(A, P) - 0.002) continue;
-        const Q = add(P, mul(dir, t)); if (Q[1] > SEA.v1 - 0.006) continue;
+        const Q = add(P, mul(dir, t)); if (Q[1] > shore(Q[0]) - 0.006) continue;
         return { P, R2, Q, far: inside ? Q : A, inside };
       }
       return null;
@@ -514,7 +519,7 @@ export default {
     const CLS = { in: '内部', out: '外部', side: '一条边上' };
     const sMax = Math.asin(clamp((SEA.v1 - 0.015 - O[1]) / R, -1, 1)), T_LO = Math.PI - sMax, T_HI = TAU + sMax;          // 船在这一圈上能开到的那一段（不上岸）
     function moveShip(q) {
-      if (!inSea(q)) q = [clamp(q[0], SEA.u0 + 0.009, SEA.u1 - 0.009), clamp(q[1], SEA.v0 + 0.009, SEA.v1 - 0.013)];
+      if (!inSea(q)) { const u2 = clamp(q[0], SEA.u0 + 0.009, SEA.u1 - 0.009); q = [u2, clamp(q[1], SEA.v0 + 0.009, shore(u2) - 0.013)]; }
       q = [q[0], Math.max(q[1], CAP_TOP)];          // 字写在圆下面那条水上，船不开进去
       if (S.beat === 'vary' && theta(q) > Math.PI / 2 - 0.004) q = add([0, 0.05], mul(unit(sub(q, [0, 0.05])), 0.0601));          // 改变弧 BC：最多开到两座灯塔正好是直径的那一圈（90°）
       if (S.beat === 'classify') {          // 沿弧开：船贴着这一圈走；视线快穿过浮标时吸过去
@@ -526,7 +531,7 @@ export default {
       S.ship = q; S.movedAt = now();
       // 每次正好等于危险角（两次位置之间跨过去的那一点），船就放下一面小旗：二分找到那一点，它一定落在圆上
       const s0 = theta(prev) - DANGER, s1 = theta() - DANGER;
-      if (!S.circle && s0 * s1 <= 0 && Math.abs(s0 - s1) > 1e-7) { let a = prev, b = q; for (let i = 0; i < 26; i++) { const m = mid(a, b); if ((theta(m) - DANGER) * s0 <= 0) b = m; else a = m; } const p = mid(a, b); if (p[1] < SEA.v1 - 0.004) dropLantern(p); }
+      if (!S.circle && s0 * s1 <= 0 && Math.abs(s0 - s1) > 1e-7) { let a = prev, b = q; for (let i = 0; i < 26; i++) { const m = mid(a, b); if ((theta(m) - DANGER) * s0 <= 0) b = m; else a = m; } const p = mid(a, b); if (p[1] < shore(p[0]) - 0.004) dropLantern(p); }
       if (S.beat === 'inout') { const z = zone(); if (z !== 'on') { if (z !== S.ioNow) { S.ioNow = z; S.ioAt = now(); } S.io[z] = true; } inoutText(); }
       if (S.beat === 'vary' && S.vary) { const th = theta(); S.vary.lo = Math.min(S.vary.lo, th); S.vary.hi = Math.max(S.vary.hi, th); }
       if (S.beat === 'classify' && S.cls) { const c = clsNow(); S.cls[c] = true; if (c !== S.cls.now) { S.cls.now = c; if (c === 'side') sfx.clink({ freq: 1500, gain: 0.04 }); lightText('船在这段弧上开，浮标和这个角的位置会变', `沿着弧开一开，一共有几种？现在：圆心在角的${CLS[c]}`); } }
@@ -874,7 +879,7 @@ export default {
     const deckPointer = {
       down: (r, e) => { if (S.mode !== 'deck') return false; if (r.intersectObject(rollMesh, false).length) { toChart(); return true; } deckDrag = { x: e?.clientX ?? 0, y: e?.clientY ?? 0, raw: S.ship.slice() }; userTouched++; return true; },
       move: (r, e) => { if (S.mode !== 'deck') return false; if (!deckDrag || !e) return true; const dx = e.clientX - deckDrag.x, dy = e.clientY - deckDrag.y; const raw = add(deckDrag.raw, add(mul(eye().dir, -dy * 0.00022), mul([eye().dir[1], -eye().dir[0]], dx * 0.00022)));
-        deckDrag = { x: e.clientX, y: e.clientY, raw: [clamp(raw[0], SEA.u0 + 0.009, SEA.u1 - 0.009), clamp(raw[1], SEA.v0 + 0.009, SEA.v1 - 0.013)] }; moveShip(deckDrag.raw); deckLook(); return true; },
+        deckDrag = { x: e.clientX, y: e.clientY, raw: [clamp(raw[0], SEA.u0 + 0.009, SEA.u1 - 0.009), clamp(raw[1], SEA.v0 + 0.009, shore(clamp(raw[0], SEA.u0 + 0.009, SEA.u1 - 0.009)) - 0.013)] }; moveShip(deckDrag.raw); deckLook(); return true; },
       up: () => { if (S.mode !== 'deck') return false; deckDrag = null; return true; },
     };
     // 什么时候能动什么：跟着主线走（演示的时候、讲证明的时候船不乱跑）
@@ -931,7 +936,7 @@ export default {
         // 船开过留下尾迹：每走一小段，船尾荡开一圈淡淡的水纹
         { const back = add(S.ship, mul([Math.cos(S.head), Math.sin(S.head)], -0.011)); if (!wakeAt || dist(back, wakeAt) > 0.009) { if (wakeAt && S.mode === 'chart' && dist(back, wakeAt) < 0.05) ring(back, 0xffffff, 0, 0.0075, 0.32, 1.2); wakeAt = back; } }
         for (const [m, c] of TILE) { if (!c.shadeM || !m.visible) continue; const h = m.position.y + 0.0029, ry = m.rotation.y, d = 0.24 * h; c.shadeM.position.set(d * Math.cos(ry) - d * Math.sin(ry), -h + 0.0001, d * Math.sin(ry) + d * Math.cos(ry)); }          // 影子落在水面上，往右前方偏；拿得越高偏得越远
-        foamTex.offset.x = (t * 0.006) % 1; foam.material.opacity = 0.55 + 0.2 * Math.sin(t * 0.9); foam.position.z = -(LAND_V - 0.0035 - 0.0008 * Math.sin(t * 0.9));          // 浪花轻轻涌上来、退回去
+        foamTex.offset.x = (t * 0.006) % 1; foam.material.opacity = 0.55 + 0.2 * Math.sin(t * 0.9); foam.position.z = 0.0006 * Math.sin(t * 0.9);          // 浪花轻轻涌上来、退回去
         if (fovTo != null && camera) { camera.fov += (fovTo - camera.fov) * 0.12; if (Math.abs(camera.fov - fovTo) < 0.05) { camera.fov = fovTo; if (fov0 != null && fovTo === fov0) fov0 = null; fovTo = null; } camera.updateProjectionMatrix(); }
         caustTex.offset.set((t * 0.0045) % 1, Math.sin(t * 0.13) * 0.03); caustTex.rotation = Math.sin(t * 0.07) * 0.03;          // 水下光纹慢慢漂
         for (const L2 of LH) L2.userData.glow.material.opacity = 0.42 + 0.12 * Math.sin(t * 1.3 + L2.position.x * 40);
