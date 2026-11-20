@@ -276,7 +276,7 @@ export default {
     };
     // 整片海的等角线（点海面才出来）：着色器算每一点“看两座灯塔是多少度”，每 10° 一条
     const contour = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      transparent: true, depthWrite: false,
       uniforms: { B: { value: new THREE.Vector2(B0[0], -B0[1]) }, C: { value: new THREE.Vector2(C0[0], -C0[1]) }, th0: { value: DANGER * DEG }, k: { value: 0 }, capTop: { value: CAP_TOP }, inv: { value: new THREE.Matrix4() } },
       vertexShader: 'uniform mat4 inv; varying vec2 w; void main(){ vec4 p = modelMatrix * vec4(position, 1.); w = (inv * p).xz; gl_Position = projectionMatrix * viewMatrix * p; }',
       fragmentShader: `uniform vec2 B; uniform vec2 C; uniform float th0; uniform float k; uniform float capTop; varying vec2 w;
@@ -288,8 +288,9 @@ export default {
           float ln = 1. - smoothstep(0., fw * 1.3, f);
           float dg = 1. - smoothstep(0., fw * 2.2, abs(d - th0));
           float rt = 1. - smoothstep(0., fw * 2.2, abs(d - 90.));
-          vec3 col = vec3(1., .7, .28) * (ln * .5 + dg * 1.1) + vec3(.35, .65, 1.) * rt * 1.3;
-          gl_FragColor = vec4(col, k * smoothstep(capTop - .01, capTop + .004, -w.y));
+          float al = max(ln * .55, max(dg, rt));
+          vec3 col = rt >= max(ln * .55, dg) ? vec3(.16, .5, .9) : dg >= ln * .55 ? vec3(.86, .5, .04) : vec3(.93, .62, .14);
+          gl_FragColor = vec4(col, al * k * smoothstep(capTop - .01, capTop + .004, -w.y));
         }` })));
     contour.position.copy(sea.position).setY(0.0003); contour.visible = false; ink.add(contour);
     const conLabs = [20, 30, 60, 90].map(() => label(0.0085)), conDanger = label(0.0095);
@@ -297,7 +298,7 @@ export default {
     const conAt = (d) => { const t = (d * Math.PI) / 180, r = 0.06 / Math.sin(t), c = [0, 0.05 - 0.06 / Math.tan(t)]; for (const a of [-1.7, -2.0, -2.3, -2.6, -2.9]) { const p = [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; if (inSea(p) && p[1] > CAP_TOP + 0.006) return p; } return null; };
 
     // ================= 状态 =================
-    const fresh = () => ({ ship: [0.13, -0.112], head: Math.PI * 0.8, mode: 'chart', beat: '', call: '', circle: 0, reveal: 0, walked: false, buoy: 0, cut: [], cnum: false, vary: null, cls: null, proof: 0, proofDone: false, rope: 0, fold: 0, probe: null, hint: 0, cs: null, takeAt: 0, takeHint: false, theorem: false, io: {}, ioNow: '', ioAt: 0, movedAt: 0, answered: false, family: 0, done: false, ghosts: [], panelLater: false });
+    const fresh = () => ({ ship: [0.13, -0.112], head: Math.PI * 0.8, mode: 'chart', beat: '', call: '', circle: 0, reveal: 0, walked: false, buoy: 0, cut: [], cnum: false, vary: null, cls: null, varyAt: 0, varyHint: false, clsAt: 0, clsHint: false, proof: 0, proofDone: false, rope: 0, fold: 0, probe: null, hint: 0, cs: null, takeAt: 0, takeHint: false, theorem: false, io: {}, ioNow: '', ioAt: 0, movedAt: 0, answered: false, family: 0, done: false, ghosts: [], panelLater: false });
     let S = fresh();
     const theta = (p = S.ship) => angAt(p, B0, C0);
     const zone = () => { const r = dist(S.ship, O); return r < R - 0.0012 ? 'in' : r > R + 0.0012 ? 'out' : 'on'; };
@@ -367,7 +368,7 @@ export default {
       setLine(L.circle, S.circle > 0 ? arcPts(O, R, AB, AB + (AC - AB) * easeOut(S.circle), 160) : null);
       const vary = S.beat === 'vary', Oc = vary ? liveO() : O, bk = S.buoy;
       setLine(L.OB, bk ? [Oc, B0] : null); setLine(L.OC, bk ? [Oc, C0] : null);
-      if (bk) { const cf = cfan(Oc), m = cf.a0 + cf.w / 2; setFan(F.buoy, Oc, cf.a0, cf.w, RC); LB.buoy.userData.h = S.cnum ? 0.011 : 0.018; setLabel(LB.buoy, S.cnum ? fmt(cf.w) : '?', '#2470c2', add(Oc, mul([Math.cos(m), Math.sin(m)], RC + 0.012)), 0.01); }
+      if (bk) { const cf = cfan(Oc), m = cf.a0 + cf.w / 2; setFan(F.buoy, Oc, cf.a0, cf.w, RC); LB.buoy.userData.h = S.cnum ? 0.011 : 0.018; setLabel(LB.buoy, S.cnum ? (vary ? `${2 * Math.round(th * DEG)}°` : fmt(cf.w)) : '?', '#2470c2', add(Oc, mul([Math.cos(m), Math.sin(m)], RC + 0.012)), 0.01); }
       else { F.buoy.visible = false; LB.buoy.visible = false; }
       if (S.cs) F.buoy.visible = false;
       // 改变弧 BC：过两座灯塔和船的圆跟着船变，拼好的两块跟着走
@@ -656,7 +657,7 @@ export default {
       lightText(`正好两个：∠BOC = ${d80()} = ${d40} + ${d40}`, '换个地方，还是正好两个吗？', GOLDTXT);
       if (!(await wait(4600, id))) return;
       // 五、改变弧 BC：船开到别处，过两座灯塔和船的圆跟着变，拼好的两块跟着走
-      S.beat = 'vary'; S.vary = { lo: theta(), hi: theta() }; layout();
+      S.beat = 'vary'; S.vary = { lo: theta(), hi: theta() }; S.varyAt = now(); layout();
       lightText('换个地方，还是正好两个吗？', '把船开到别处（离开这一圈也行）：过两座灯塔和船的圆跟着船变'); S.call = 'ship';
       if (!(await until(() => S.vary.hi - S.vary.lo > 0.42 && now() - S.movedAt > 1.2, id))) return;
       S.call = '';
@@ -666,7 +667,7 @@ export default {
       { const back = onCirc(-1.15); await sail([S.ship, back], 1600, id); moveShip(back); }          // 回到浅滩边这一圈
       S.vary = null; chips.forEach((c) => (c.visible = false));
       // 六、三种位置：沿弧开，看浮标在角的哪儿
-      S.beat = 'classify'; S.cls = { now: clsNow() }; S.cls[S.cls.now] = true; layout();
+      S.beat = 'classify'; S.cls = { now: clsNow() }; S.cls[S.cls.now] = true; S.clsAt = now(); layout();
       lightText('船在这段弧上开，浮标和这个角的位置会变', `沿着弧开一开，一共有几种？现在：圆心在角的${CLS[S.cls.now]}`); S.call = 'ship';
       if (!(await until(() => S.cls.in && S.cls.out && S.cls.side && now() - S.movedAt > 0.8, id))) return;
       S.call = '';
@@ -694,7 +695,7 @@ export default {
       if (!(await wait(5800, id))) return;
       S.proof = 0; chips.forEach((c) => { c.visible = false; c.rotation.y = 0; }); layout();
       // 八、情况（2）：圆心在角的内部——交给学生：添一条线，变回情况（1）
-      S.beat = 'case2';
+      S.beat = 'case2'; lightText('圆心在角的内部呢？');
       { const tgt = onCirc(-Math.PI / 2 - 0.3); await sail([S.ship, ...arcTo(tgt), tgt], 2200, id); moveShip(tgt); }
       setupProbe('in');
       lightText('圆心在角的内部：两条边都不过圆心', '能不能添一条线，把它变回情况（1）？船上那根光可以转'); S.call = 'probe';
@@ -707,7 +708,7 @@ export default {
       if (!(await wait(5800, id))) return;
       clearCase();
       // 九、情况（3）：圆心在角的外部——不提示
-      S.beat = 'case3';
+      S.beat = 'case3'; lightText('圆心在角的外部呢？', '');
       { const tgt = onCirc(-0.32); await sail([S.ship, ...arcTo(tgt), tgt], 2200, id); moveShip(tgt); }
       setupProbe('out');
       lightText('圆心在角的外部呢？', ''); S.call = 'probe';
@@ -849,6 +850,8 @@ export default {
         // 卡住很久才一级一级给提示（真实时间，快放不触发）
         if (S.call === 'probe' && S.probe && !S.probe.snapped) { const k2 = S.probe.kind === 'in', age = (performance.now() - S.probe.t0) / 1000, lv = age > (k2 ? 25 : 30) ? 2 : age > (k2 ? 12 : 15) ? 1 : 0;
           if (lv > S.hint) { S.hint = lv; lightText(k2 ? '能不能添一条线，把它变回情况（1）？' : '圆心在角的外部呢？', lv === 2 ? '转那根光，让它穿过浮标' : k2 ? '情况（1）里，角的一条边穿过了圆心' : '这条线不一定要在角的里面'); if (lv === 2) ring(O, BLUE); layout(); } }
+        if (S.call === 'ship' && S.beat === 'vary' && S.vary && !S.varyHint && t - S.varyAt > 15 && t - S.movedAt > 3 && S.vary.hi - S.vary.lo < 0.42) { S.varyHint = true; lightText('换个地方，还是正好两个吗？', '开远一点，或者开到两座灯塔跟前'); }
+        if (S.call === 'ship' && S.beat === 'classify' && S.cls && !S.clsHint && t - S.clsAt > 18 && t - S.movedAt > 3 && !(S.cls.in && S.cls.out && S.cls.side)) { S.clsHint = true; lightText('船在这段弧上开，浮标和这个角的位置会变', '往弧的两头开一开：浮标会跑到角的边上、角的外面'); }
         if (S.call === 'take' && S.cs && !S.cs.taken && !S.takeHint && performance.now() - S.takeAt > 12000) { S.takeHint = true; lightText('∠BAC 和这两对是什么关系？', '大的一对减去小的一对：把小的那一对拿开'); }
         if (S.family > 0) { group.updateMatrixWorld(); contour.material.uniforms.inv.value.copy(group.matrixWorld).invert(); }
       },
