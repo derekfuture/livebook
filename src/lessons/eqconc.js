@@ -123,7 +123,7 @@ export default {
     const dockMix = (k) => mix.dock(X[k], MOUTH);
     const dockSpoon = (k) => V(X[k], MOUTH + 0.007);
 
-    const toolEnabled = (i) => i === 0 ? !S.mixed : i === 1 ? S.mixed && S.mix.vol > 0.001 : S.base && S.loaded;
+    const toolEnabled = (i) => i === 0 ? !S.mixed : i === 1 ? S.mixed && S.mix.vol > 0.001 : !!S.base && S.loaded;
     const goals = (i) => i === 0 ? [{ k: 0, p: dockFeed(), x: HOME_MIX.x }] :
       X.flatMap((x, k) => S.tubes[k].vol < 0.001 ? [{ k, p: dockMix(k), x }] : []);
     const moveTube = (i, p) => {
@@ -189,7 +189,7 @@ export default {
       {
         obj: spoon.pick, anchor: spoon.tool, keepOffset: true, plane: 'xy',
         get offset() { return spoon.tool.position.z; },
-        hint: () => S.loaded ? spoonHint : '',
+        hint: () => toolEnabled(2) ? spoonHint : '',
         enabled: () => toolEnabled(2),
         onStart: () => { S.carry[2] = true; },
         onDrag: (p) => moveSpoon(p),
@@ -200,9 +200,9 @@ export default {
     const drag = draggable(group, holders, { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const card = (name, phenomenon) => `<div class="cc"><div class="cc-t"><span class="cc-name">${name}</span><span class="cc-res">${phenomenon}</span></div></div>`;
-    B.cards.forEach((c) => { c.px = [0, -21]; });
+    B.cards.forEach((card, k) => { card.px = [k === 0 ? -20 : 20, -30]; });
     B.droppers[0].userData.ringY = B.droppers[0].position.y + 0.05;
-    const mixCard = tag('', 'cond'); mixCard.px = [0, -21];
+    const mixCard = tag('', 'cond'); mixCard.px = [0, -30];
     const scene = equilibriumScene();
     const mic = micro({
       tag, look, back, group, label: '钻进去看', scene,
@@ -213,7 +213,9 @@ export default {
 
     [...document.querySelectorAll('.mw')].pop()?.setAttribute('data-eqconc', '');
     const layout = h('style', {}, `
-      .mw[data-eqconc] .mw-dim { background-color: rgba(246, 242, 232, 0.68); }
+      .xuean[data-eqconc] .answer .src { min-height: 44px; padding-right: 62px; display: flex; align-items: center; }
+      .xuean[data-eqconc] .seal-stamp { width: 44px; height: 44px; bottom: 14px; font-size: 15px; }
+      .mw[data-eqconc] .mw-dim { background-color: rgba(246, 242, 232, 0.88); -webkit-mask-image: none; mask-image: none; }
       .mw[data-eqconc] .mw-cap { font-size: 15px; }
       .mw[data-eqconc] .eqconc-count { font: 700 17px/1.45 var(--sans); color: #74213d; }
       @media (min-width: 761px) and (max-width: 1050px) and (max-height: 550px), (max-width: 760px) {
@@ -236,7 +238,7 @@ export default {
         .lbar[data-eqconc] button { font-size: 11px; padding: 3px 4px; }
       }
       @media (min-width: 761px) and (max-width: 1050px) and (max-height: 550px) {
-        .lbar[data-eqconc] { left: 409px; right: 40px; bottom: 5px; width: auto; transform: none; }
+        .lbar[data-eqconc] { left: 409px; right: 99px; bottom: 5px; width: auto; transform: none; }
         .mw[data-eqconc] .mw-scale, .mw[data-eqconc] .mw-hud {
           width: 345px !important; left: 16px !important;
         }
@@ -252,6 +254,15 @@ export default {
         .mw[data-eqconc] .mw-hud { top: 76px !important; }
         .mw[data-eqconc] .mw-eq { font-size: 20px; }
         .mw[data-eqconc] .mw-close { left: auto !important; right: 13px; top: 39px !important; }
+      }
+      @media (max-width: 760px) and (orientation: portrait) {
+        .lbar[data-eqconc] .lb-steps { max-width: none; flex-wrap: nowrap; }
+        body.lesson-on #viewctl {
+          top: 48px; bottom: auto; right: 12px; flex-direction: row; align-items: center; gap: 4px;
+        }
+        #viewctl .show-tg:last-of-type, #viewctl .lesson-community { margin: 0; }
+        #viewctl .lesson-community { padding: 0; border: 0; }
+        .mw[data-eqconc] .mw-hud { top: 52vh !important; }
       }
     `);
     document.head.append(layout);
@@ -429,8 +440,8 @@ export default {
         setBench(); B.update(h, t); record();
       }
       const visible = !bar.playing && !mic.isOpen;
-      mixCard.text(card('混合试管', S.mixed ? '红色' : '浅黄色')).loc(group, HOME_MIX.x, MOUTH, 0).show(visible && S.mix.vol > 0.001 && !S.carry[0] && !S.carry[1] && !S.pours);
-      const last = S.doses.at(-1);
+      mixCard.text(card('混合试管', S.mixed ? '红色' : '浅黄色')).loc(group, HOME_MIX.x, MOUTH, 0).show(visible && !S.base && S.mix.vol > 0.001 && !S.carry[0] && !S.carry[1] && !S.pours && mix.grip.position.distanceToSquared(HOME_MIX) < 1e-6);
+      const last = S.doses[S.doses.length - 1];
       const peer = last?.tube === 'c' ? 2 : last?.tube === 'b' ? 1 : S.ironB ? 2 : 1;
       const comparing = visible && S.base && !S.carry[2] && !S.bench.carry[0];
       B.cards.forEach((c, k) => {

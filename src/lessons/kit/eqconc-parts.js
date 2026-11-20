@@ -217,7 +217,9 @@ export function equilibriumScene() {
     }
     if (metal && addingIron && metal.kind === 'Fe') metal.g.position.y = 1.65 + 1.4 * (1 - smooth(run.clock / 0.55));
     for (const molecule of [...groups.flatMap(({ center, ligands }) => [center, ...ligands]), ...extras, metal]) {
-      if (molecule) molecule.label.visible = molecule.rep;
+      if (!molecule) continue;
+      molecule.label.visible = molecule.rep;
+      if (molecule.rep) molecule.label.material.opacity = 0.88;
     }
     electrons.forEach((dot, index) => {
       const u = (run.clock - 0.58) / 0.85;
@@ -247,14 +249,14 @@ export function equilibriumScene() {
   };
   const settle = (st) => {
     const dose = run.dose, sample = data();
-    const after = dose.pulses.at(-1) ?? dose.after;
+    const after = dose.pulses[dose.pulses.length - 1] ?? dose.after;
     const fraction = equilibrium(after) / st.base.fe;
     sample.target = clamp(Math.round(SITES.length * fraction ** 0.75), 0, Math.min(SITES.length - 1, SITES.length - sample.reduced.length));
     phase('relax');
   };
 
   return {
-    snapshot() { return structuredClone(run); },
+    snapshot() { return JSON.parse(JSON.stringify(run)); },
     resume(snapshot) { saved = snapshot; },
     still: true,
     holoBase: false,
