@@ -30,8 +30,8 @@ export default {
     src: '课本第 49 页 · 第二章 第4节 自由落体运动',
   },
   create(ctx) {
-    const rig = fallingRig({ mass: 150 });
-    const { group, head, jaw, weight, tape, tex, ink, ruler, pencil, vertical, flat } = rig;
+    const rig = fallingRig({ mass: 150, powerSwitch: true });          // 计时器上有电源开关和指示灯：点开关接通、断开电源
+    const { group, head, showPower, switchPick, jaw, weight, tape, tex, ink, ruler, pencil, vertical, flat } = rig;
     const ledge = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.004, 48), paint(0xaa8450));
     ledge.position.y = -0.037;
     weight.add(ledge);
@@ -80,7 +80,7 @@ export default {
       group,
       back: leave,
       steps: [
-        { id: 'drop', title: '打出下落纸带', todo: '先通电，再松开纸带夹。', target },
+        { id: 'drop', title: '打出下落纸带', todo: '先接通电源，再释放重物。', target },
         { id: 'read', title: '量三段等时位移', todo: '同一把尺，依次读出四个计数点的位置。', target },
         { id: 'mass', title: '改变质量重测', todo: '把 100 g 配重套到重物上，再打一条纸带。', target },
         { id: 'compare', title: '比较两次加速度', todo: '比较不同质量下的纸带结果。', target },
@@ -134,8 +134,7 @@ export default {
     function setup() {
       run = fallingTape(mass(), DRAG, TRAVEL);
       phase = 'ready';
-      on = false;
-      near = false;
+      near = false;          // 换新纸带不动开关：还通着电就接着通电
       start = null;
       readings = [];
       recorded = false;
@@ -143,7 +142,8 @@ export default {
       ringPosition();
       tape.position.set(X, BASE + L / 2, 0);
       tape.quaternion.copy(vertical);
-      restStamp = false;
+      restStamp = on;
+      if (on) powerAt = now();
       jaw.rotation.y = 0;
       pencil.visible = false;
       draw();
@@ -151,30 +151,36 @@ export default {
     function enter() {
       if (document.body.classList.contains('predicting')) ui?.go(1);
     }
+    // 课本：先接通电源，再释放重物；打完点，立即断开电源（提示，不强制）。没通电放的那次，纸带上没有点，这次不记录。
     function guide() {
       const m = mass() * 1000;
+      const ran = ['landed', 'lay', 'bench'].includes(phase);
+      const pre = ran && on ? '打完点，立即断开电源。<br>' : ran && !run.marks.length ? '没接通电源，打点计时器不打点，纸带上没有点：先接通电源，再释放重物。<br>' : '';
+      const say = (text) => bar.say(pre + text);
       if (phase === 'ready')
-        bar.say(
+        say(
           records.size === 1 && records.has(mass())
             ? on
-              ? '先关计时器，再拖放配重改变质量。'
+              ? '先断开电源，再拖放配重改变质量。'
               : added
                 ? '把 100 g 配重拖回桌面，保留原来的 150 g 重物。'
                 : '把桌上 100 g 配重拖到重物上，总质量变为 250 g。'
-            : m + ' g 重物。' + (on ? '已通电，点上端夹子松开纸带。' : '点计时器通电，再松开上端纸带夹。'),
+            : m + ' g 重物。' + (on ? '已接通电源，点上端夹子松开纸带。' : '先接通电源，再释放重物。'),
         );
       else if (phase === 'fall')
-        bar.say(on ? '看同一重物下落时，纸带上的点距怎样变化。' : '重物在下落，但计时器未通电，纸带不会留下点。');
+        say(on ? '看同一重物下落时，纸带上的点距怎样变化。' : '重物在下落，但没接通电源，纸带不会留下点。');
       else if (phase === 'landed')
-        bar.say(on ? '先关计时器，再解开纸带夹取带。' : '点纸带，把刚才这条记录放到原尺旁。');
+        say(on || run.marks.length ? '点纸带，把刚才这条记录放到原尺旁。' : '点纸带取下。');
+      else if (phase === 'lay') say('把刚才打出的纸带取下，放到原尺旁。');
       else if (phase === 'bench') {
-        if (!fallQuartets(run.marks).length) bar.say('连续点不足以量三段。向上拖回重物，换新带，先通电再松手。');
+        if (!run.marks.length) say('向上拖回重物，换新纸带。');
+        else if (!fallQuartets(run.marks).length) say('连续点不足以量三段。向上拖回重物，换新带，先接通电源再松手。');
         else if (recorded) {
           const r = records.get(mass());
           if (records.size === 2) {
             const a = records.get(0.15),
               b = records.get(0.25);
-            bar.say(
+            say(
               '150 g：' +
                 a.mean.toFixed(2) +
                 '；250 g：' +
@@ -185,7 +191,7 @@ export default {
                   : '两次读数差异较大，可沿原尺重读；注意毫米读数对位移差的影响。'),
             );
           } else
-            bar.say(
+            say(
               m +
                 ' g：两段位移差得 a ≈ ' +
                 r.estimates.map((a) => a.toFixed(2)).join('、') +
@@ -193,9 +199,9 @@ export default {
                 (near ? '回到全景，' : '') +
                 (added ? '向上拖回重物，取下 100 g 配重重测。' : '向上拖回重物，再加 100 g 重测。'),
             );
-        } else if (!near) bar.say('点原纸带近看。用同一把尺读 P0 至 P3，比较三个相等时间内的位移。');
+        } else if (!near) say('点原纸带近看。用同一把尺读 P0 至 P3，比较三个相等时间内的位移。');
         else
-          bar.say(
+          say(
             '同一纸带 · 已读 ' +
               readings.length +
               '/4 点。读 P' +
@@ -206,7 +212,7 @@ export default {
     }
     function switchPower() {
       enter();
-      if (!['ready', 'fall', 'landed'].includes(phase) || (phase === 'landed' && !on)) return;
+      if (!on && !['ready', 'fall'].includes(phase)) return;          // 重物落地后只能断开
       const t = now();
       on = !on;
       if (on) {
@@ -230,14 +236,10 @@ export default {
     }
     function take() {
       if (phase === 'landed') {
-        if (on) {
-          bar.say('先关计时器，再解开纸带夹。');
-          return;
-        }
         phase = 'lay';
         from = tape.position.clone();
         transfer = 0;
-        bar.say('把刚才打出的纸带取下，放到原尺旁。');
+        guide();
       } else if (phase === 'bench') inspect();
     }
     function inspect() {
@@ -309,6 +311,7 @@ export default {
       results.clear();
       raw.el.hidden = results.el.hidden = true;
       added = false;
+      on = false;
       bar.undo('drop', 'read', 'mass', 'compare');
       prepare();
     }
@@ -320,7 +323,7 @@ export default {
           plane: 'xz',
           offset: 0.0035,
           enabled: () => near && !recorded && start !== null,
-          hint: '读 P0 至 P3 的尺上位置',
+          hint: () => '沿尺拖：读 P' + readings.length,
           onStart(p) {
             if (p) preview(p.x);
           },
@@ -339,7 +342,7 @@ export default {
           offset: 0,
           keepOffset: true,
           enabled: () => !near && ['ready', 'landed', 'bench'].includes(phase),
-          hint: () => (phase === 'bench' ? '向上拖回重物，换新纸带' : '释放重物或解开纸带'),
+          hint: () => (phase === 'bench' ? '向上拖：换新纸带' : phase === 'ready' ? '点一下：释放重物' : '点一下：取下纸带'),
           onDrag(p) {
             if (phase === 'bench') {
               weight.position.y = clamp(p.y, BASE - TRAVEL, BASE);
@@ -367,7 +370,7 @@ export default {
           offset: 0,
           keepOffset: true,
           enabled: () => !near && phase === 'ready' && !on,
-          hint: () => (added ? '把 100 g 配重拖回桌面' : '把 100 g 配重套到重物上'),
+          hint: () => (added ? '100 g 配重：拖回桌面' : '100 g 配重：拖到重物上'),
           onDrag(p) {
             ring.position.set(p.x, p.y, 0);
           },
@@ -387,16 +390,21 @@ export default {
         },
       ],
       {
-        highlight: true,
+        tip: ctx.tag('', 'pill'),          // 鼠标移上去，旁边一条短提示“怎么动：做什么”（不加光晕）
         taps: [
           {
-            obj: head.group,
-            enabled: () => !near && (['ready', 'fall'].includes(phase) || (phase === 'landed' && on)),
-            hint: '计时器电源',
+            obj: switchPick,
+            enabled: () => !near && (on || ['ready', 'fall'].includes(phase)),
+            hint: () => (on ? '点一下：断开电源' : '点一下：接通电源'),
             onTap: switchPower,
           },
-          { obj: jaw, enabled: () => phase === 'ready', hint: '松开上端纸带夹', onTap: release },
-          { obj: tape, enabled: () => ['bench', 'landed'].includes(phase), hint: '取下原纸带或近看', onTap: take },
+          { obj: jaw, enabled: () => phase === 'ready', hint: '点一下：释放重物', onTap: release },
+          {
+            obj: tape,
+            enabled: () => ['bench', 'landed'].includes(phase),
+            hint: () => (phase === 'landed' ? '点一下：取下纸带' : '点一下：凑近看纸带'),
+            onTap: take,
+          },
         ],
       },
     );
@@ -462,6 +470,7 @@ export default {
       update(dt) {
         bar.update(dt);
         head.update(on, on ? now() - powerAt : 0);
+        showPower(on);
         if (phase === 'fall') {
           const t = now() - released,
             n = run.marks.length;

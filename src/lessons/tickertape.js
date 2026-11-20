@@ -26,7 +26,7 @@ export default {
 
   create(ctx) {
     const { tag } = ctx;
-    const rig = apparatus();
+    const rig = apparatus({ powerSwitch: true });          // 计时器正面有电源开关和指示灯：点开关接通、断开电源
     const loadLabel = tag('', 'pill').loc(rig.pan, 0, -0.06, 0);
     const measured = new Set();
     function newRun(load) {
@@ -59,7 +59,7 @@ export default {
       back: () => reader.leave(),
       group: rig.group,
       steps: [
-        { id: 'tape', title: '打出纸带', todo: '先开计时器，再释放小车。', target },
+        { id: 'tape', title: '打出纸带', todo: '先接通电源，再释放小车。', target },
         { id: 'slope', title: '测不同时刻的速度', todo: '在同一条纸带上测不同时刻的速度。', target },
         { id: 'compare', title: '换槽码重测', todo: '更换槽码，保留三次运动的记录。', target },
         { id: 'plot', title: '描速度图', todo: '展开笔记本，把纸带读数标到速度图上。' },
@@ -107,19 +107,26 @@ export default {
         return progress + reader.instruction;
       }
       if (moving) return progress + '看相邻两个点的距离怎样变化。';
+      // 跑完还通着电：提醒断开（不强制）；没通电跑的那次：纸带上没有点，这次不记录
+      const off = finished && run.recording ? '打完点，立即断开电源。<br>' : '';
+      const nopower = finished && !run.marks.length ? '没接通电源，打点计时器不打点，纸带上没有点：先接通电源，再释放小车。<br>' : '';
       if (taken)
         return (
           progress +
-          (!reader.canMeasureMore && reader.count < run.requiredSpeeds
-            ? '纸带不够长。向右拖回小车，用同一组槽码重新打带。'
-            : compare && measured.has(run.load)
-              ? '向右拖回小车；把 ' + next + ' 槽码拖到滑轮下的挂钩。'
-              : '看刚取下的纸带。点它放大，比较小车先后经过不同点时的速度。')
+          off +
+          nopower +
+          (nopower
+            ? '向右拖回小车，换新纸带。'
+            : !reader.canMeasureMore && reader.count < run.requiredSpeeds
+              ? '纸带不够长。向右拖回小车，用同一组槽码重新打带。'
+              : compare && measured.has(run.load)
+                ? '向右拖回小车；把 ' + next + ' 槽码拖到滑轮下的挂钩。'
+                : '看刚取下的纸带。点它放大，比较小车先后经过不同点时的速度。')
         );
-      if (finished) return progress + (run.recording ? '关计时器，再取下纸带。' : '点纸带取下，看上面留下了哪些点。');
+      if (finished) return progress + off + nopower + '点纸带取下，看上面留下了哪些点。';
       if (compare && measured.has(run.load))
         return progress + '这组 ' + mass + ' 已测过。把 ' + next + ' 槽码拖到左端挂钩。';
-      return progress + (run.recording ? '已通电，松开小车。' : '当前 ' + mass + '。先开右端计时器，再松开小车。');
+      return progress + (run.recording ? '已接通电源，松开小车。' : '当前 ' + mass + '。先接通电源，再释放小车。');
     }
     function refresh() {
       rig.draw(run);
@@ -128,10 +135,10 @@ export default {
       bar.say(stepHint());
       if (!controls) return;
       const [timer, release, take, replace] = controls.btns;
-      timer.textContent = run.recording ? '关闭计时器' : '接通计时器';
+      timer.textContent = run.recording ? '断开电源' : '接通电源';
       timer.disabled = finished && !run.recording;
       release.disabled = moving || finished;
-      take.disabled = !finished || run.recording || taken;
+      take.disabled = !finished || taken;
       replace.disabled = moving || !taken;
       LOADS.forEach((_, i) => masses.disable(i, moving || finished));
     }
@@ -142,10 +149,12 @@ export default {
       refresh();
       status(
         run.recording
-          ? '计时器已通电。小车运动时，纸带每隔 0.02 s 留下一个点。'
+          ? '已接通电源。小车运动时，纸带每隔 0.02 s 留下一个点。'
           : finished
-            ? '计时器已关闭。点纸带取下本轮记录。'
-            : '计时器已关闭，纸带暂停打点。',
+            ? taken
+              ? '电源已断开。'
+              : '电源已断开。点纸带取下本轮记录。'
+            : '电源已断开，纸带暂停打点。',
       );
     }
     function release() {
@@ -157,7 +166,6 @@ export default {
     }
     function take() {
       if (!finished || taken) return;
-      if (run.recording) return status('先关闭计时器，再取下纸带。');
       taken = true;
       const valid = reader.add(run, trial, rig.stripLayout(run));
       if (valid) bar.done('tape');
@@ -169,14 +177,16 @@ export default {
           : '这条纸带没有连续十个打点间隔。换新纸带，先通电再放车。',
       );
     }
-    function prepare(load) {
+    function prepare(load, keepPower = true) {
       reader.stow();
+      const powered = keepPower && run.recording;          // 换新纸带不动开关：还通着电就接着通电
       run = newRun(load);
+      if (powered) power(run, true);
       moving = finished = taken = false;
       rig.setPaperVisible(true);
       masses.set(LOADS.indexOf(load));
       refresh();
-      status('点右侧计时器通电，再点小车释放。也可以用面板按钮操作。');
+      status('点计时器上的开关接通电源，再点小车释放。也可以用面板按钮操作。');
     }
     function chooseMass(index) {
       if (!moving && !finished) {
@@ -193,7 +203,7 @@ export default {
       plane: 'xy',
       offset: 0,
       enabled: () => !moving && (!finished || taken),
-      hint: () => (taken ? '把小车向右拖回起点，装上新纸带' : '松手释放小车'),
+      hint: () => (taken ? '向右拖：拖回起点' : '点一下：放车'),
       onStart: () => {
         returnPosition = run.x;
       },
@@ -214,10 +224,15 @@ export default {
       },
     };
     const pointer = draggable(rig.group, [reader.drag, cartDrag, ...rack.drags], {
-      highlight: true,
+      tip: tag('', 'pill'),          // 鼠标移上去，旁边一条短提示“怎么动：做什么”（不加光晕）
       taps: [
-        { obj: rig.timer, enabled: () => !finished || run.recording, hint: '点一下：切换打点计时器', onTap: toggle },
-        { obj: rig.strip, enabled: () => finished && !taken && !run.recording, hint: '点一下：取下纸带', onTap: take },
+        {
+          obj: rig.switchPick,
+          enabled: () => !finished || run.recording,
+          hint: () => (run.recording ? '点一下：断开电源' : '点一下：接通电源'),
+          onTap: toggle,
+        },
+        { obj: rig.strip, enabled: () => finished && !taken, hint: '点一下：取下纸带', onTap: take },
       ],
     });
     refresh();
@@ -373,11 +388,11 @@ export default {
               measured.clear();
               bar.undo('tape', 'slope', 'compare', 'plot');
               trial = 1;
-              prepare(LOADS[0]);
+              prepare(LOADS[0], false);
             },
           },
         ]);
-        ui.notes.append(note('点计时器通电，点小车放手。停车后关电，点纸带近看。'), masses.el, controls.el, reader.el);
+        ui.notes.append(note('点计时器上的开关接通电源，点小车放手。打完点断开电源，点纸带近看。'), masses.el, controls.el, reader.el);
         ui.data.append(
           graph.el,
           records.el,
@@ -396,7 +411,7 @@ export default {
           moving = false;
           finished = true;
           refresh();
-          status(run.recording ? '小车停止。关闭计时器，再取下纸带。' : '小车停止。取下纸带看看记录了哪些点。');
+          status(run.recording ? '小车停止。打完点，立即断开电源，再取下纸带。' : '小车停止。取下纸带看看记录了哪些点。');
         }
       },
       dispose() {

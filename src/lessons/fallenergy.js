@@ -37,7 +37,8 @@ export default {
     src: '课本第 95 页 · 第八章 第5节 实验：验证机械能守恒定律',
   },
   create(ctx) {
-    const { group, head, jaw, weight, tape, tex, ink, ruler, pencil, vertical, flat } = fallingRig();
+    // 计时器上有电源开关和指示灯：点开关接通、断开电源
+    const { group, head, showPower, switchPick, jaw, weight, tape, tex, ink, ruler, pencil, vertical, flat } = fallingRig({ powerSwitch: true });
     const now = () => performance.now() / 1000;
     let run,
       released = 0,
@@ -62,7 +63,7 @@ export default {
       group,
       back: leave,
       steps: [
-        { id: 'drop', title: '打出下落纸带', todo: '接通计时器，再松开纸带。', target },
+        { id: 'drop', title: '打出下落纸带', todo: '先接通电源，再释放重物。', target },
         { id: 'dist', title: '量高度差和速度', todo: '沿尺测 A、B 及相邻两点的距离。', target },
         { id: 'energy', title: '比较能量变化', todo: '用自己的读数求势能减少量和动能增加量。', target },
       ],
@@ -139,15 +140,15 @@ export default {
     function setup() {
       run = fallingTape(MASS, RESISTANCE, TRAVEL);
       phase = 'ready';
-      on = false;
-      near = false;
+      near = false;          // 换新纸带不动开关：还通着电就接着通电
       a = b = null;
       spans = [];
       pair = [];
       weight.position.set(X, BASE, 0);
       tape.position.set(X, BASE + L / 2, 0);
       tape.quaternion.copy(vertical);
-      restStamp = false;
+      restStamp = on;
+      if (on) powerAt = now();
       jaw.rotation.y = 0;
       draw();
     }
@@ -156,7 +157,7 @@ export default {
     }
     function switchPower() {
       enter();
-      if (phase === 'lay' || (phase === 'landed' && !on)) return;
+      if (!on && !['ready', 'fall'].includes(phase)) return;          // 重物落地后只能断开
       const t = now();
       on = !on;
       if (on) {
@@ -180,14 +181,10 @@ export default {
     }
     function take() {
       if (phase === 'landed') {
-        if (on) {
-          bar.say('先关计时器，再解开重物上的纸带夹。');
-          return;
-        }
         transfer = 0;
         from = tape.position.clone();
         phase = 'lay';
-        bar.say('解开纸带夹，把刚才打出的这条纸带放到尺旁。');
+        guide();
         return;
       }
       if (phase === 'bench' && !near) {
@@ -199,33 +196,39 @@ export default {
       const ids = energyPoints(run.marks);
       return ids.length >= 2 && ids.at(-1) - ids[0] >= 3 && run.marks[ids.at(-1)].x - run.marks[ids[0]].x >= 0.04;
     }
+    // 课本：先接通电源，再释放重物；打完点，立即断开电源（提示，不强制）。没通电放的那次，纸带上没有点，这次不记录。
     function guide() {
+      const ran = ['landed', 'lay', 'bench'].includes(phase);
+      const pre = ran && on ? '打完点，立即断开电源。<br>' : ran && !run.marks.length ? '没接通电源，打点计时器不打点，纸带上没有点：先接通电源，再释放重物。<br>' : '';
+      const say = (text) => bar.say(pre + text);
       if (phase === 'ready')
-        bar.say(on ? '计时器已通电。点上端的夹子松手，观察重物下落。' : '先点计时器通电，再松开上端的纸带夹。');
-      else if (phase === 'fall') bar.say(on ? '注意重物下落时点距怎样变。' : '重物仍在下落，计时器没有打点。');
-      else if (phase === 'landed')
-        bar.say(on ? '重物已落在垫上。关计时器，再取纸带。' : '点纸带，把它从重物的夹子上取下。');
+        say(on ? '已接通电源。点上端的夹子松手，观察重物下落。' : '先接通电源，再释放重物。');
+      else if (phase === 'fall') say(on ? '注意重物下落时点距怎样变。' : '重物仍在下落，没接通电源，计时器没有打点。');
+      else if (phase === 'landed') say('点纸带，把它从重物的夹子上取下。');
+      else if (phase === 'lay') say('解开纸带夹，把刚才打出的这条纸带放到尺旁。');
       else if (phase === 'bench' && !near)
-        bar.say(
-          !enough()
+        say(
+          !run.marks.length
+            ? '向上拖重物回到计时器下方，换新纸带。'
+            : !enough()
             ? '可测的连续点不够。向上拖重物回到计时器下方，换新带再试。'
             : spans.length === 3
               ? '展开笔记本，用 A、B 两处的读数比较能量变化。'
               : '点台前的纸带近看，在同一条带上选 A、B。',
         );
       else if (near) {
-        if (a === null) bar.say('点纸带上较早的一个点作为 A，两侧都要有相邻点。');
-        else if (b === null) bar.say('再点后方较远的点作 B；点 A 可以重选起点。');
+        if (a === null) say('点纸带上较早的一个点作为 A，两侧都要有相邻点。');
+        else if (b === null) say('再点后方较远的点作 B；点 A 可以重选起点。');
         else if (spans.length < 3) {
           const task = ['量 A 到 B 的高度差', '量 A 前后两个相邻点的距离', '量 B 前后两个相邻点的距离'][spans.length];
-          bar.say(
+          say(
             task +
               '：' +
               (pair.length
                 ? '已读 ' + pair[0] + ' mm，沿同一把尺读右端。'
                 : '从纸带标出的左端读到右端，可依次点尺或沿尺拖。'),
           );
-        } else bar.say('已量到高度差和两个速度。回全景，展开笔记本比较能量。');
+        } else say('已量到高度差和两个速度。回全景，展开笔记本比较能量。');
       }
     }
     function inspect() {
@@ -400,7 +403,7 @@ export default {
           plane: 'xz',
           offset: 0.0035,
           enabled: () => near && b !== null && spans.length < 3,
-          hint: '沿两端的点读尺',
+          hint: '沿尺拖：读两端的刻度',
           onStart(p) {
             if (!p) return;
             startX = p.x;
@@ -433,7 +436,7 @@ export default {
           offset: 0,
           keepOffset: true,
           enabled: () => !near && ['ready', 'landed', 'bench'].includes(phase),
-          hint: () => (phase === 'bench' ? '向上拖回计时器下方，重新装带' : '释放重物或解开纸带'),
+          hint: () => (phase === 'bench' ? '向上拖：换新纸带' : phase === 'ready' ? '点一下：释放重物' : '点一下：取下纸带'),
           onDrag(p) {
             if (phase === 'bench') weight.position.y = clamp(p.y, BASE - TRAVEL, BASE);
           },
@@ -453,19 +456,19 @@ export default {
         },
       ],
       {
-        highlight: true,
+        tip: ctx.tag('', 'pill'),          // 鼠标移上去，旁边一条短提示“怎么动：做什么”（不加光晕）
         taps: [
           {
-            obj: head.group,
-            enabled: () => !near && (phase === 'ready' || phase === 'fall' || (phase === 'landed' && on)),
-            hint: '计时器电源',
+            obj: switchPick,
+            enabled: () => !near && (on || phase === 'ready' || phase === 'fall'),
+            hint: () => (on ? '点一下：断开电源' : '点一下：接通电源'),
             onTap: switchPower,
           },
-          { obj: jaw, enabled: () => phase === 'ready', hint: '松开上端纸带夹', onTap: release },
+          { obj: jaw, enabled: () => phase === 'ready', hint: '点一下：释放重物', onTap: release },
           {
             obj: tape,
             enabled: () => phase === 'landed' || phase === 'bench',
-            hint: '取带、近看或选点',
+            hint: () => (phase === 'landed' ? '点一下：取下纸带' : near ? '点一下：选点' : '点一下：凑近看纸带'),
             onTap: choose,
           },
         ],
@@ -509,6 +512,7 @@ export default {
       update(dt) {
         bar.update(dt);
         head.update(on, on ? now() - powerAt : 0);
+        showPower(on);
         if (phase === 'fall') {
           const t = now() - released,
             n = run.marks.length;

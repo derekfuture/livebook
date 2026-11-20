@@ -410,7 +410,7 @@ export function tapeReader(group, { look, back }, bar, onViewChange) {
     plane: 'xz',
     offset: Y,
     enabled: () => !!probe || (!el.hidden && !!sheet && benchHasTape),
-    hint: '点纸带近看，沿同一把尺读 A、B；首次测量前可拖 0 点重选计时起点',
+    hint: () => (!inspecting ? '点一下：凑近看纸带' : probe ? '' : '拖：对准点读 A、B'),
     onStart(p) {
       handle = -1;
       if (!p) return;

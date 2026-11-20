@@ -3,7 +3,7 @@ import { paint, inked, polyline } from '../../../live/ink.js';
 import { canvasTex } from '../props.js';
 import { stampMass } from './loadRack.js';
 import { PERIOD, TRAVEL } from './motion.js';
-import { tickerHead } from './head.js';
+import { tickerHead, powerControls } from './head.js';
 
 const START = 0.14,
   PX = -0.3,
@@ -157,26 +157,14 @@ export function apparatus({ adjustable = false, low = false, powerSwitch = false
     cyl(adaptor, 0.004, 0.004, [0.347 + off, TOP + 0.044, -0.078], off < 0 ? 0xb14130 : metal);
   // 电源开关和指示灯（powerSwitch：学生自己点开关接通、断开电源的课才有）。开关是翘板：通电时上半边按下去、红色露出来；
   // 指示灯通电时亮绿色。都在电源正面，朝着镜头，全景里看得出现在通没通电。
-  let rocker = null, lamp = null, switchPick = null;
+  let showPower = () => {}, switchPick = null;
   if (powerSwitch) {
     // 装在打点计时器正面（朝着镜头的那一面；电源盒在计时器后面，从全景里看不到）
     const FZ = 0.0362, Y = TOP + 0.02;
-    box(timer, [0.026, 0.02, 0.004], [0.016, Y, FZ + 0.001], 0x23292e);          // 开关的黑框
-    rocker = new THREE.Group(); rocker.position.set(0.016, Y, FZ + 0.004); timer.add(rocker);
-    box(rocker, [0.02, 0.008, 0.006], [0, 0.004, 0], 0xc9402e, true);          // 上半边（红，开）
-    box(rocker, [0.02, 0.008, 0.006], [0, -0.004, 0], 0xe8e2d2, true);          // 下半边（白，关）
-    lamp = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 20, 12), new THREE.MeshBasicMaterial({ color: 0x3a4a3c }));
-    lamp.position.set(-0.018, Y, FZ + 0.003); timer.add(lamp);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.005, 0.0012, 8, 24), paint(0x23292e)); ring.position.copy(lamp.position); timer.add(ring);
+    showPower = powerControls(timer, { y: Y, z: FZ, rockerX: 0.016, lampX: -0.018 });
     switchPick = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.045, 0.03), new THREE.MeshBasicMaterial({ visible: false }));
     switchPick.position.set(0, Y, FZ); switchPick.userData.pick = true; timer.add(switchPick);
   }
-  const showPower = (on) => {
-    if (!rocker) return;
-    rocker.rotation.x = on ? 0.5 : -0.5;          // 通电：上半边（红）按进去、朝上翻；断开：下半边（白）按进去
-    lamp.material.color.setHex(on ? 0x3fe07a : 0x3a4a3c);
-  };
-  showPower(false);
   box(group, [0.13, 0.014, 0.08], [0.349, TOP - 0.007, -0.09], wood);
   for (const x of [0.31, 0.38]) box(group, [0.012, 0.01, 0.085], [x, TOP - 0.019, -0.08], metal);
   for (const off of [-0.013, 0.013])

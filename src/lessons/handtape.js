@@ -5,7 +5,7 @@ import { canvasTex, rulerMesh, textPlate, woodBlock } from './kit/props.js';
 import { clamp, draggable } from './kit/interact.js';
 import { buttons, chart, note, table } from './kit/ui.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { tickerHead, SLOT_Y } from './kit/ticker/head.js';
+import { tickerHead, powerControls, SLOT_Y } from './kit/ticker/head.js';
 import { handTrace, comparison } from './kit/ticker/handtrace.js';
 import { PERIOD } from './kit/ticker/motion.js';
 
@@ -39,6 +39,12 @@ export default {
     const group = new THREE.Group(),
       timer = tickerHead();
     group.add(timer.group);
+    // 计时器正面（朝镜头）的电源开关和指示灯，和其他打点计时器的课一样：点开关接通、断开电源
+    const showPower = powerControls(timer.group, { y: 0.02, z: 0.0362, rockerX: 0.016, lampX: -0.018 });
+    const switchPick = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.045, 0.03), new THREE.MeshBasicMaterial({ visible: false }));
+    switchPick.position.set(0, 0.02, 0.0362);
+    switchPick.userData.pick = true;
+    timer.group.add(switchPick);
     const supply = inked(new THREE.Mesh(new THREE.BoxGeometry(0.079, 0.042, 0.064), paint(0x37686d)));
     supply.position.set(0.03, 0.021, -0.095);
     group.add(supply);
@@ -173,7 +179,7 @@ export default {
     }
     function target() {
       if (near) return null;
-      if (phase === 'pull') return powered ? grip : timer.group;
+      if (phase === 'pull') return powered && pulled < LIMIT - 0.002 ? grip : timer.group;          // 没通电、拉完了：光圈套住计时器（开关在它正面）
       return phase === 'laying' ? null : paper;
     }
     const bar = lessonBar({
@@ -181,57 +187,66 @@ export default {
       group,
       back: leave,
       steps: [
-        { id: 'trace', title: '手拉打点', todo: '接通计时器，向左拉纸带。', target },
+        { id: 'trace', title: '手拉打点', todo: '先接通电源，再拉动纸带。', target },
         { id: 'long', title: '量 DG', todo: '用尺量出五个打点间隔的位移。', target },
         { id: 'short', title: '量 DF', todo: '保留 D 的读数，在同一把尺上读 F。', target },
       ],
     });
+    // 课本第 18 页：启动电源，用手水平拉动纸带……随后关闭电源。拉完还通着电：提醒断开（不强制）
+    const OFF = '打完点，立即断开电源。';
     function inform() {
       if (phase === 'pull')
         bar.say(
           powered
-            ? pulled > 0.005
-              ? '继续向左拉，改变手速看点距。拉好后点计时器关电。'
-              : '抓住计时器左边露出的纸带端，向左拉。'
-            : '点计时器通电，再抓住纸带左端往左拉。',
+            ? pulled >= LIMIT - 0.002
+              ? OFF + '<br>点纸带取下。'
+              : pulled > 0.005
+                ? '继续向左拉，改变手速看点距。拉好后断开电源。'
+                : '抓住计时器左边露出的纸带端，向左拉。'
+            : pulled > 0.01
+              ? '没接通电源，打点计时器不打点，纸带上没有点：先接通电源，再拉动纸带。'
+              : '先接通电源，再拉动纸带。',
         );
       else if (phase === 'removed')
         bar.say(
-          segment ? '点台前尺旁的纸带，近看自己留下的点。' : '可分辨的连续点不够。点计时器穿新带，通电后持续向左拉。',
+          (powered ? OFF + '<br>' : '') +
+            (segment ? '点台前尺旁的纸带，近看自己留下的点。' : '可分辨的连续点不够。点计时器穿新带，通电后持续向左拉。'),
         );
-      else if (phase === 'stop') bar.say('已关电。点刚才拉出的纸带，把它平放到尺旁。');
+      else if (phase === 'laying') bar.say((powered ? OFF + '<br>' : '') + '把这条纸带平放到台前的尺旁。');
+      else if (phase === 'stop') bar.say('已断开电源。点刚才拉出的纸带，把它平放到尺旁。');
     }
     function enter() {
       if (document.body.classList.contains('predicting')) ui?.go(1);
     }
+    // 点开关：拉纸带时断开电源，这条纸带就打完了；取下纸带后才断开，只是关掉计时器
     function toggle() {
       enter();
-      if (phase === 'removed') {
-        reset();
-        return;
-      }
-      if (phase !== 'pull') return;
       if (powered) {
-        trace.sample(now(), pulled);
+        if (phase === 'pull') {
+          trace.sample(now(), pulled);
+          phase = 'stop';
+        }
         powered = false;
-        phase = 'stop';
         draw();
-      } else {
+      } else if (phase === 'pull') {
         origin = now();
         trace = handTrace(origin, pulled);
         powered = true;
         draw();
-      }
+      } else return;
       inform();
     }
+    // 取下纸带：断开电源后取，或者拉完还通着电就取（不拦，提示还在）
+    const canTake = () => phase === 'stop' || (phase === 'pull' && powered && pulled > 0.01);
     function take() {
-      if (phase !== 'stop') return;
+      if (!canTake()) return;
+      if (phase === 'pull') trace.sample(now(), pulled);
       segment = comparison(trace.marks);
       from = paper.position.clone();
       phase = 'laying';
       travelTime = 0;
       if (segment) bar.done('trace');
-      bar.say('把这条纸带平放到台前的尺旁。');
+      inform();
     }
     function leave() {
       near = false;
@@ -324,12 +339,17 @@ export default {
       instruction();
     }
     function reset() {
-      powered = near = pulling = false;
+      near = pulling = false;
       ctx.back();
       bar.near(false);
       phase = 'pull';
       pulled = step = 0;
       segment = trace = null;
+      if (powered) {
+        // 换新纸带不动开关：还通着电，计时器接着在新纸带上打点
+        origin = now();
+        trace = handTrace(origin, 0);
+      }
       results = [];
       readings = [];
       records.clear();
@@ -350,7 +370,10 @@ export default {
           plane: 'xz',
           offset: SLOT_Y,
           enabled: () => phase === 'pull',
-          hint: '按住纸带端往左拉',
+          hint: () => (powered && pulled >= LIMIT - 0.002 ? '点一下：取下纸带' : '向左拖：拉动纸带'),
+          onTap() {
+            if (powered && pulled >= LIMIT - 0.002) take();          // 拉到头了，纸带露在外面的都是手抓的这一段：点它取下
+          },
           onStart() {
             enter();
             dragBase = pulled;
@@ -369,9 +392,7 @@ export default {
           onEnd() {
             pulling = false;
             if (powered) trace.sample(now(), pulled);
-            if (!powered && pulled > 0.01)
-              bar.say('纸带已经移动，计时器还没通电。点计时器后继续拉，或在笔记本换新带。');
-            else inform();
+            inform();
           },
         },
         {
@@ -379,28 +400,35 @@ export default {
           plane: 'xz',
           offset: 0.0035,
           enabled: () => near,
-          hint: '沿纸带上的点读尺',
+          hint: '点一下：读点下方的刻度',
           onStart(p) {
             if (p) read(p.x);
           },
         },
       ],
       {
-        highlight: true,
+        tip: ctx.tag('', 'pill'),          // 鼠标移上去，旁边一条短提示“怎么动：做什么”（不加光晕）
         taps: [
           {
-            obj: timer.group,
-            enabled: () => !near && (phase === 'pull' || phase === 'removed'),
-            hint: '接通或关闭计时器',
+            obj: switchPick,
+            enabled: () => !near && (phase === 'pull' || powered),
+            hint: () => (powered ? '点一下：断开电源' : '点一下：接通电源'),
             onTap: toggle,
           },
           {
+            // 纸带取下后，点计时器（开关以外的地方）穿新纸带
+            obj: timer.group,
+            enabled: () => !near && phase === 'removed',
+            hint: '点一下：换新纸带',
+            onTap: reset,
+          },
+          {
             obj: paper,
-            enabled: () => !near && (phase === 'stop' || phase === 'removed'),
-            hint: '拿起纸带或近看',
+            enabled: () => !near && (canTake() || phase === 'removed'),
+            hint: () => (phase === 'removed' ? '点一下：凑近看纸带' : '点一下：取下纸带'),
             onTap(ray) {
-              if (phase === 'stop') take();
-              else chooseAt(ray);
+              if (phase === 'removed') chooseAt(ray);
+              else take();
             },
           },
         ],
@@ -435,8 +463,9 @@ export default {
       },
       update(dt) {
         timer.update(powered, powered ? now() - origin : 0);
+        showPower(powered);
         bar.update(dt);
-        if (powered && (!pulling || now() - lastMove > 0.06)) trace.sample(now(), pulled);
+        if (powered && phase === 'pull' && (!pulling || now() - lastMove > 0.06)) trace.sample(now(), pulled);
         if (phase === 'laying') {
           travelTime += dt;
           const u = Math.min(1, travelTime / 0.55),

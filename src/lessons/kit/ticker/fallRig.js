@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { paint, polyline } from '../../../live/ink.js';
 import { stand, woodBlock, canvasTex, textPlate, rulerMesh } from '../props.js';
-import { tickerHead, SLOT_Y } from './head.js';
+import { tickerHead, powerControls, SLOT_Y } from './head.js';
 
 export const X = 0.13,
   HEAD = 0.365,
@@ -13,7 +13,8 @@ export const BASE = HEAD - LEAD,
   ZERO = -0.16,
   LANE = 0.116,
   RULER_Z = LANE + WIDTH / 2 + 0.016;
-export function fallingRig({ mass = 200 } = {}) {
+// powerSwitch：计时器上加电源开关和指示灯（学生自己点开关接通、断开电源的课才传）。
+export function fallingRig({ mass = 200, powerSwitch = false } = {}) {
   const group = new THREE.Group();
   function box(parent, w, h, d, x, y, z, color) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), paint(color));
@@ -36,6 +37,18 @@ export function fallingRig({ mass = 200 } = {}) {
   );
   head.group.position.set(X, HEAD, -SLOT_Y);
   group.add(head.group);
+  // 计时器竖着装，朝镜头的一面是纸带走过的那一面。开关和指示灯装在这一面的上沿、导轨上方，分在纸带两边：
+  // 左边指示灯，右边翘板开关（面只有 13 mm 高，开关缩小一些）。
+  let showPower = () => {}, switchPick = null;
+  if (powerSwitch) {
+    const FZ = -SLOT_Y + 0.039, Y = HEAD + 0.0318;
+    showPower = powerControls(group, { y: Y, z: FZ, rockerX: X + 0.025, lampX: X - 0.025, s: 0.6 });
+    // 点击区盖住整条上沿（挡在纸带前面，纸带在这一条里点不到也不要紧）
+    switchPick = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.018), new THREE.MeshBasicMaterial({ visible: false }));
+    switchPick.position.set(X, Y, 0.003);
+    switchPick.userData.pick = true;
+    group.add(switchPick);
+  }
   const rodX = st.position.x + st.rodX;
   function clampAt(y) {
     st.clamp(y - tableTop, X - rodX);
@@ -106,5 +119,5 @@ export function fallingRig({ mass = 200 } = {}) {
   pencil.position.set(0, 0.004, RULER_Z);
   pencil.visible = false;
   group.add(pencil);
-  return { group, head, jaw, weight, tape, tex, ink, ruler, pencil, vertical, flat, massPlate };
+  return { group, head, showPower, switchPick, jaw, weight, tape, tex, ink, ruler, pencil, vertical, flat, massPlate };
 }
