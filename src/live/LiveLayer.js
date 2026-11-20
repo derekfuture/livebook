@@ -498,7 +498,12 @@ export class LiveLayer {
     const A = this.active;
     if (A && !A.closing && A.nb && A.nb.pointerDown(this._ray(ndc))) return true;
     if (!A || A.closing) return false;
-    if (A.inst.pointer?.down && A.inst.pointer.down(this._ray(ndc), e)) return true;
+    if (A.inst.pointer?.down && A.inst.pointer.down(this._ray(ndc), e)) {
+      // 还停在预测页就直接动手了：翻到实验页（步骤栏、观察记录在那里）。所有活页一样；化学的 wrapPointer 也这样做，重复调用没关系
+      const P = this.panel;
+      if (P && !P.explore && P.step === 0 && P.tabs?.length > 1) P.go(1);
+      return true;
+    }
     return false;
   }
 

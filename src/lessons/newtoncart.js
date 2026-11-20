@@ -692,6 +692,7 @@ export default {
       base,
       [cartDrag, wedgeDrag, ...masses.map(massDrag), ...rig.ballast.map(weightDrag)].map(quiet),
       {
+        tip: ctx.tag('', 'pill sticky'),          // 鼠标移上去，旁边一条“名字：怎么做”的提示（不加光晕）；sticky：还在预测页时也显示
         taps: [
           quiet({
             obj: timerPick,
