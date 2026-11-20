@@ -135,26 +135,27 @@ export default {
 .ins-board .n{display:inline-block;min-width:1.25em;color:#b0532a;font-weight:700}
 .ins-board b{color:#8a2f1d}
 .ins-board i{font-family:"Times New Roman",serif;font-style:italic;letter-spacing:.02em}
-.ins-board .ia{color:#cc6418;font-weight:600}.ins-board .ca{color:#2c6aa8;font-weight:600}.ins-board .p1{color:#cf6d17;font-weight:600}.ins-board .p2{color:#17877d;font-weight:600}
+.ins-board .ia{color:#cc6418;font-weight:600}.ins-board .ca{color:#2c6aa8;font-weight:600}.ins-board .p1{color:#c23a6c;font-weight:600}.ins-board .p2{color:#17877d;font-weight:600}
 .ins-board .ib-h{font:600 12px/1.3 "PingFang SC","Hiragino Sans GB",sans-serif;color:#a07a45;letter-spacing:.3em;margin:6px 0 -4px;opacity:0;transition:opacity .4s}
 .ins-board .ib-h.in{opacity:1}`;
     document.head.append(css);
     // 板书：学生做出一样，就用课本的话写一行；只写已经发现的，不预先列出后面要做什么
     let boardEl = null, lastH = ''; const boardRows = [];
+    const reveal = (r) => { const body = boardEl?.closest('.p-body'); if (!body) return; setTimeout(() => { const rb = r.getBoundingClientRect(), bb = body.getBoundingClientRect(); if (rb.bottom > bb.bottom - 14) body.scrollBy({ top: rb.bottom - bb.bottom + 28, behavior: 'smooth' }); }, 80); };          // 新的一行在面板下面看不见：面板自己滚上来
     const board = (html, hold = false) => {
       const r = document.createElement('div'); r.className = 'ib-row'; r.innerHTML = html; boardRows.push(r);
       for (const o of boardRows) if (o !== r) o.classList.remove('fresh');
-      if (boardEl) { boardEl.append(r); if (!hold) requestAnimationFrame(() => r.classList.add('in', 'fresh')); }
+      if (boardEl) { boardEl.append(r); if (!hold) requestAnimationFrame(() => { r.classList.add('in', 'fresh'); reveal(r); }); }
       return r;
     };
-    board.h = (title) => { if (title === lastH) return; lastH = title; const r = document.createElement('div'); r.className = 'ib-h'; r.textContent = title; boardRows.push(r); if (boardEl) { boardEl.append(r); requestAnimationFrame(() => r.classList.add('in')); } };
+    board.h = (title) => { if (title === lastH) return; lastH = title; const r = document.createElement('div'); r.className = 'ib-h'; r.textContent = title; boardRows.push(r); if (boardEl) { boardEl.append(r); requestAnimationFrame(() => { r.classList.add('in'); reveal(r); }); } };
     // 重拍：发现的那一下长在图形上——那块光亮一下、鼓一下，从那一点荡开两圈光；板书上同时长出那一行（不压暗屏幕，不飞大字）
     const ripples = []; let flashAt = -9;
     const ring = (p, col, delay = 0) => { const m = quiet(new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 72).rotateX(-Math.PI / 2), basic({ color: col, transparent: true, opacity: 0, depthWrite: false }))); m.position.set(p[0], 0.0006, -p[1]); m.userData.born = now() + delay; ink.add(m); ripples.push(m); };
     function punch(p, html, row) {
       void html; flashAt = now(); sfx.ding(1320, { gain: 0.07 });
       ring(p, GOLD); ring(p, BLUE, 0.28);
-      later(650, () => row?.classList.add('in', 'fresh'));
+      later(650, () => { if (row) { row.classList.add('in', 'fresh'); reveal(row); } });
     }
     const promptNow = () => {
       const n = lanterns.length;
@@ -211,7 +212,7 @@ export default {
     const beamTex = tex(64, 4, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); for (const [o, a] of [[0, 0], [0.18, 0.18], [0.36, 0.75], [0.5, 1], [0.64, 0.75], [0.82, 0.18], [1, 0]]) gr.addColorStop(o, `rgba(255,255,255,${a})`); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
     beamTex.colorSpace = THREE.NoColorSpace;
     const GOLD = 0xf29a16, BLUE = 0x2f86e8;          // 两种光：圆周角那一族是金色，圆心角那一族是蓝色（场景、板书、刻度一致）
-    const P1 = 0xe8892b, P2 = 0x1f9e93;          // 情况（2）（3）按“对着同一段弧”配对：橙色一对、青色一对
+    const P1 = 0xd6457a, P2 = 0x1f9e93;          // 情况（2）（3）按“对着同一段弧”配对：玫红一对、青色一对（和金色的目标角分得开）
     const RC = 0.034;          // 船上的角、剪下的角片、圆心角都用同一个半径：拼进去比的是角，没有东西变大
     // 视线：从船到两座灯塔的两条光（角的两边）
     const band = () => { const m = quiet(new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), basic({ color: GOLD, map: beamTex, transparent: true, depthWrite: false, opacity: 0.9 }))); m.position.y = 0.0012; ink.add(m); return m; };
@@ -239,6 +240,7 @@ export default {
       live1: line(GOLD, 0.0008, 0.0016, 0.9), live2: line(GOLD, 0.0008, 0.0016, 0.9),          // 改变弧 BC：过两座灯塔和船的那个圆（下面被字挡住的地方断开）
       probe: line(0x3b4757, 0.0011, 0.0022, 0.95, 0.0026), ghost: line(0x3b4757, 0.0007, 0.002, 0.45, 0.0014),          // 船上那根能转的光；卡住很久才出的提示虚线
       sa0: line(P1, 0.0018, 0.0019, 1, 0, THREE.NormalBlending), sa1: line(P2, 0.0018, 0.0019, 1, 0, THREE.NormalBlending),          // D 把弧 BC 分成的两段
+      tgtA: line(GOLD, 0.0011, 0.0042, 1), tgtO: line(BLUE, 0.0011, 0.0042, 1),          // 拆开拼的时候，要证的 ∠BAC、∠BOC 一直用细弧圈着
       diam: line(0x3b4757, 0.0009, 0.0021, 0.95, 0.0026), ext: line(GOLD, 0.001, 0.0018, 1, 0.0028), ext2: line(GOLD, 0.001, 0.0018, 1),
       arcBC: line(BLUE, 0.0014, 0.0017, 1),          // 两座灯塔之间那段弧（在岸上）：圆周角、圆心角对着的就是它
     };
@@ -394,6 +396,7 @@ export default {
       const D = S.cs ? S.cs.D : S.probe?.snapped ? diamEnd() : null;
       if (D) { setLine(L.diam, [A, D]); setLabel(LB.d, 'D', lt, add(D, mul(unit(sub(D, O)), 0.011)), 0.006); } else { setLine(L.diam, null); LB.d.visible = false; }
       if (S.cs) S.cs.pairs.forEach((p, i) => setLine(L['sa' + i], p.arcHide ? null : p.arcShow || p.arc)); else { setLine(L.sa0, null); setLine(L.sa1, null); }
+      if (S.cs) { const A2 = S.cs.A, r = RC + 0.0045, a1 = ccwStart(A2, B0, C0), a2 = ccwStart(O, B0, C0); setLine(L.tgtA, arcPts(A2, r, a1, a1 + angAt(A2, B0, C0), 40)); setLine(L.tgtO, arcPts(O, r, a2, a2 + central(), 40)); } else { setLine(L.tgtA, null); setLine(L.tgtO, null); }
       // 船上那根能转的光（整根都能抓）
       if (S.probe) { const X = S.probe.snapped ? diamEnd() : probeEnd(); setLine(L.probe, S.probe.snapped ? null : [A, X]); setBand(K.probe, A, X, 0.016); K.probe.position.y = INK_Y + 0.003; }
       else { setLine(L.probe, null); K.probe.position.set(0, -1, 0); }
@@ -418,7 +421,7 @@ export default {
       SK.forEach((k, i) => { const cs = S.cs, p = cs?.pairs[i]; if (p && ((S.call === 'pair' && !p.done) || (S.call === 'take' && i === 1 && !cs.taken))) { let a = p.a.a0 + p.a.w / 2, r = 0.024; if (cs.kind === 'out') { if (i === 0) a = ccwStart(cs.A, B0, C0) + theta() / 2; else r = 0.02; } k.position.copy(P3(add(cs.A, mul([Math.cos(a), Math.sin(a)], r)), 0.0045)); } else k.position.set(0, -1, 0); });
       if (S.mode === 'deck') {
         for (const sp of [...Object.values(LB), ...conLabs, conDanger]) sp.visible = false;
-        for (const m of [F.ship, F.buoy, F.sub1, F.sub2, F.q, F.x, L.OB, L.OC, L.rope1, L.rope2, L.rope3, L.tick1, L.tick2, L.tick3, L.diam, L.ext, L.ext2, L.arcBC, L.live1, L.live2, L.probe, L.ghost, L.sa0, L.sa1, ...chips, ...pa, ...po, ...cp, ...ghostFans, capMesh, liveDot, foldG]) m.visible = false;
+        for (const m of [F.ship, F.buoy, F.sub1, F.sub2, F.q, F.x, L.OB, L.OC, L.rope1, L.rope2, L.rope3, L.tick1, L.tick2, L.tick3, L.diam, L.ext, L.ext2, L.arcBC, L.live1, L.live2, L.probe, L.ghost, L.sa0, L.sa1, L.tgtA, L.tgtO, ...chips, ...pa, ...po, ...cp, ...ghostFans, capMesh, liveDot, foldG]) m.visible = false;
       }
     }
     function shoalFig() {          // 延长 P（一座灯塔）到船的线，和圆的另一个交点 Q；R2 是另一座灯塔
@@ -589,7 +592,7 @@ export default {
       const far = mul(unit(d), 0.07);
       tween(pa[1], { x: cs.A[0] + far[0], z: -(cs.A[1] + far[1]) }, 0.5, () => { pa[1].visible = false; }); tween(po[1], { x: O[0] + far[0], z: -(O[1] + far[1]) }, 0.5, () => { po[1].visible = false; });
       pa[0].material.color.setHex(GOLD); po[0].material.color.setHex(BLUE); po[0].material.opacity = 0.6;
-      cs.pairs[0].arcShow = arcPts(O, R, dirO(C0), dirO(B0), 48); cs.pairs[1].arcHide = true; layout();
+      cs.pairs[0].arcHide = cs.pairs[1].arcHide = true; layout();          // 剩下的就是原来那段弧 BC（岸上的蓝弧）
     }
     function clearCase() { S.cs = null; S.probe = null; for (let i = tweens.length - 1; i >= 0; i--) if ([...pa, ...po, ...cp].includes(tweens[i].m)) tweens.splice(i, 1); [...pa, ...po, ...cp].forEach((m) => { m.visible = false; m.rotation.y = 0; }); layout(); }
     // 点：海面（小旗连成什么）、浮标（不动的那一点）
