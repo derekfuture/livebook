@@ -337,7 +337,7 @@ export default {
     // 情况（2）（3）：每一对 = 船上一块（pa）+ 圆心一块（po），对着同一段弧；点一对，就用情况（1）的办法拼一遍（cp：一块沿直径滑过去，一块是另一个底角转过来）
     const pa = [fanM(P1, 0.85, 0.0026), fanM(P2, 0.85, 0.0029)], po = [fanM(P1, 0.26, 0.0022), fanM(P2, 0.26, 0.0025)];
     const cp = [fanM(P1, 0.92, 0.0034), fanM(P1, 0.92, 0.0036), fanM(P2, 0.92, 0.0037), fanM(P2, 0.92, 0.0039)];
-    for (const m of [...pa, ...po, ...cp]) m.raycast = () => {};
+    for (const m of cp) m.raycast = () => {};          // pa、po 本身就是点、拖的地方
     // 改变弧 BC 时那个圆的圆心（浮标不跟着动）
     const liveDot = quiet(new THREE.Mesh(new THREE.CircleGeometry(0.0017, 20).rotateX(-Math.PI / 2), basic({ color: BLUE, transparent: true, depthWrite: false })));
     liveDot.position.y = 0.0024; liveDot.visible = false; ink.add(liveDot);
@@ -415,7 +415,7 @@ export default {
       } else { setLine(R90.a, null); setLine(R90.b, null); setLine(R90.m, null); }
       LB.w0.visible = LB.w1.visible = false;
       K.ship.position.copy(P3(A, 0.004)); K.cut.position.copy(P3(bis(A, B0, C0, 0.012), 0.0042));
-      SK.forEach((k, i) => { const cs = S.cs, p = cs?.pairs[i]; if (p && ((S.call === 'pair' && !p.done) || (S.call === 'take' && i === 1 && !cs.taken))) { let a = p.a.a0 + p.a.w / 2, r = 0.012; if (cs.kind === 'out') { if (i === 0) { a = ccwStart(cs.A, B0, C0) + theta() / 2; r = 0.016; } else r = 0.0085; } k.position.copy(P3(add(cs.A, mul([Math.cos(a), Math.sin(a)], r)), 0.0045)); } else k.position.set(0, -1, 0); });
+      SK.forEach((k, i) => { const cs = S.cs, p = cs?.pairs[i]; if (p && ((S.call === 'pair' && !p.done) || (S.call === 'take' && i === 1 && !cs.taken))) { let a = p.a.a0 + p.a.w / 2, r = 0.024; if (cs.kind === 'out') { if (i === 0) a = ccwStart(cs.A, B0, C0) + theta() / 2; else r = 0.02; } k.position.copy(P3(add(cs.A, mul([Math.cos(a), Math.sin(a)], r)), 0.0045)); } else k.position.set(0, -1, 0); });
       if (S.mode === 'deck') {
         for (const sp of [...Object.values(LB), ...conLabs, conDanger]) sp.visible = false;
         for (const m of [F.ship, F.buoy, F.sub1, F.sub2, F.q, F.x, L.OB, L.OC, L.rope1, L.rope2, L.rope3, L.tick1, L.tick2, L.tick3, L.diam, L.ext, L.ext2, L.arcBC, L.live1, L.live2, L.probe, L.ghost, L.sa0, L.sa1, ...chips, ...pa, ...po, ...cp, ...ghostFans, capMesh, liveDot, foldG]) m.visible = false;
@@ -795,7 +795,7 @@ export default {
       { obj: K.cut, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canCut() ? '按住拖出来：剪下这个角' : ''), enabled: () => canCut(), onStart: () => cutDown(), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() },
       ...chips.map((c, i) => ({ obj: c, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canBase(i) ? '拖进圆心的角里' : ''), enabled: () => canBase(i), onStart: () => chipDown(i), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() })),
       { obj: K.probe, plane: 'xz', offset: 0.003 + INK_Y, hint: () => (canProbe() ? '拖着这根光转' : ''), enabled: () => canProbe(), onStart: () => probeDown(), onDrag: (p) => probeMove(uv(p)), onEnd: () => probeUp() },
-      ...SK.map((k, i) => ({ obj: k, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canPair(i) ? '点一下：用情况（1）' : canTake(i) ? '拖开' : ''), enabled: () => canPair(i) || canTake(i), onStart: (p) => takeDown(i, uv(p)), onDrag: (p) => takeMove(uv(p)), onEnd: () => takeUp(), onTap: () => pairTap(i) })),
+      ...[0, 1].flatMap((i) => [pa[i], po[i]].map((obj) => ({ obj, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canPair(i) ? '点一下：用情况（1）' : canTake(i) ? '拖开' : ''), enabled: () => canPair(i) || canTake(i), onStart: (p) => takeDown(i, uv(p)), onDrag: (p) => takeMove(uv(p)), onEnd: () => takeUp(), onTap: () => pairTap(i) }))),          // 角片本身：窄的那块在船上难点，圆心那块宽一倍
       { obj: K.ship, plane: 'xz', offset: 0.004, keepOffset: false, hint: () => (canShip() ? '拖着小船开；点一下站到船头' : ''), enabled: () => canShip(), onStart: () => { userTouched++; }, onDrag: (p) => moveShip(uv(p)), onTap: () => toDeck() },
     ];
     const taps = [
