@@ -453,7 +453,7 @@ body.mood .note-card { filter: brightness(.94) saturate(.95); }
   .author-chip span { display: none; }
   .author-qr { left: auto; right: 0; top: calc(100% + 8px); bottom: auto; }
 }
-body.predicting .tag3d:not(.sticky) { visibility: hidden !important; }
+body.predicting .tag3d:not(.sticky):not(.hint) { visibility: hidden !important; }          /* .hint：悬停提示条，预测页上也要看得到 */
 #panel.board.folded > *:not(.p-spine) { visibility: hidden; }
 .prev-record { margin: 10px 0 4px; font: 13px/1.5 var(--sans); color: #6b5f48; }
 .prev-record summary { cursor: pointer; color: #8a7d64; }
