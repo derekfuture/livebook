@@ -66,14 +66,23 @@ export default {
     const glowTex = tex(128, 128, (g) => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,232,170,1)'); r.addColorStop(0.28, 'rgba(255,196,110,0.5)'); r.addColorStop(1, 'rgba(255,170,80,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); });
     const halo = (s, o = 1) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: o })); sp.scale.set(s, s, 1); return quiet(sp); };
     const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+    const caustTex = tex(128, 128, (g, w, h) => {          // 光纹：一张能无缝平铺的网（离两个最近点的距离差小的地方亮）
+      const N = 7, pts = []; for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) pts.push([(i + 0.15 + Math.random() * 0.7) / N, (j + 0.15 + Math.random() * 0.7) / N]);
+      const img = g.createImageData(w, h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const u0 = x / w, v0 = y / h, u = (u0 + 0.035 * Math.sin(2 * Math.PI * (3 * v0 + 0.3)) + 1) % 1, v = (v0 + 0.035 * Math.sin(2 * Math.PI * (2 * u0 + 0.7)) + 1) % 1; let f1 = 9, f2 = 9; for (const [px, py] of pts) { let dx = Math.abs(u - px), dy = Math.abs(v - py); dx = Math.min(dx, 1 - dx); dy = Math.min(dy, 1 - dy); const d = dx * dx + dy * dy; if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) f2 = d; } const e = Math.sqrt(f2) - Math.sqrt(f1), k = Math.round(255 * Math.max(0, 1 - e * 24) ** 2), o = (y * w + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = k; img.data[o + 3] = 255; }
+      g.putImageData(img, 0, 0);
+    });
+    caustTex.wrapS = caustTex.wrapT = THREE.RepeatWrapping; caustTex.repeat.set(5.5, 3.6);
     // 水深（示意）：外海深；浅滩那一圈里慢慢浅上来（一片水下沙洲，边缘正好在圆附近）；靠岸变浅
     const depth = (u, v) => { const r = Math.hypot(u - O[0], v - O[1]), shoal = 1 - smooth(R - 0.03, R + 0.004, r); return (0.0165 - 0.0118 * shoal) * (0.42 + 0.58 * smooth(LAND_V + 0.002, LAND_V - 0.03, v)); };
     const seaW = SEA.u1 - SEA.u0, seaD = LAND_V - SEA.v0, uc = (SEA.u0 + SEA.u1) / 2, vc = (SEA.v0 + LAND_V) / 2;
     { // 海底：沙洲那里浅、颜色亮（透过水是一片青绿），外海深、颜色暗
-      const g = new THREE.PlaneGeometry(seaW, seaD, 150, 72), p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), SAND = new THREE.Color(0xeee9df), DEEP = new THREE.Color(0x8fa8b3);          // 素模：浅处是石膏白，深处透一点水色
-      for (let i = 0; i < p.count; i++) { const u = p.getX(i) + uc, v = p.getY(i) + vc, d = depth(u, v); p.setXYZ(i, u, H - d, -v); c.copy(DEEP).lerp(SAND, clamp(1 - (d - 0.0045) / 0.0112, 0, 1)); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
+      const g = new THREE.PlaneGeometry(seaW, seaD, 150, 72), p = g.attributes.position, col = new Float32Array(p.count * 3), c = new THREE.Color(), SAND = new THREE.Color(0xf3ebdc), MIDW = new THREE.Color(0x9cc1c9), DEEP = new THREE.Color(0x6b95a4);          // 素模：浅处是沙洲的石膏白，越深越透出水色
+      for (let i = 0; i < p.count; i++) { const u = p.getX(i) + uc, v = p.getY(i) + vc, d = depth(u, v), k = clamp(1 - (d - 0.0045) / 0.0112, 0, 1); p.setXYZ(i, u, H - d, -v); if (k < 0.55) c.copy(DEEP).lerp(MIDW, k / 0.55); else c.copy(MIDW).lerp(SAND, smooth(0.55, 1, k)); c.multiplyScalar(1 + 0.025 * Math.sin(u * 900 + Math.sin(v * 400) * 2) * k); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; }
       g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.computeVertexNormals();
-      const bed = quiet(new THREE.Mesh(g, lit({ vertexColors: true, roughness: 0.95 }))); bed.receiveShadow = true; bed.userData.qaSupport = true; root.add(bed);
+      const bm = lit({ vertexColors: true, roughness: 0.95, emissive: 0xfffbf0, emissiveIntensity: 0.12, emissiveMap: caustTex });
+      bm.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance *= smoothstep(0.62, 0.92, vColor.r);'); };          // 光纹只在浅的沙上
+      const bed = quiet(new THREE.Mesh(g, bm)); bed.receiveShadow = true; bed.userData.qaSupport = true; root.add(bed);
     }
     // 切面：上面是水（海里那段）或岸，下面是一层层的沙、泥、岩石
     const YM = H + LAND_H;
@@ -109,8 +118,14 @@ export default {
       g.putImageData(img, 0, 0);
     });
     waves.colorSpace = THREE.NoColorSpace; waves.wrapS = waves.wrapT = THREE.RepeatWrapping; waves.repeat.set(7, 4);
-    const sea = new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0x9fbcc8, transparent: true, opacity: 0.5, roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, normalMap: waves, normalScale: new THREE.Vector2(0.1, 0.1), depthWrite: false }));
+    const seaAlpha = tex(256, 160, (g, w, h) => { const img = g.createImageData(w, h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const u = SEA.u0 + (x / (w - 1)) * seaW, v = SEA.v0 + (1 - y / (h - 1)) * seaD, k = clamp((depth(u, v) - 0.0047) / 0.0118, 0, 1), a = Math.round(255 * (0.18 + 0.36 * k)), o = (y * w + x) * 4; img.data[o] = img.data[o + 1] = img.data[o + 2] = a; img.data[o + 3] = 255; } g.putImageData(img, 0, 0); });
+    seaAlpha.colorSpace = THREE.NoColorSpace;          // 水的浓淡跟着水深：外海浓、浅滩清
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0x8cb8c6, transparent: true, opacity: 1, alphaMap: seaAlpha, roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, normalMap: waves, normalScale: new THREE.Vector2(0.16, 0.16), depthWrite: false }));
     sea.position.set(uc, 0.0004, -vc); sea.receiveShadow = true; sea.renderOrder = -1; group.add(sea);          // 水面先画：上面的线、角不被水染成别的颜色
+    const foamTex = tex(512, 32, (g, w, h) => { for (let x = 0; x < w; x++) { const a = 0.55 + 0.45 * Math.sin(x * 0.11) * Math.sin(x * 0.037 + 1.3); const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, `rgba(255,255,255,${0.95 * a})`); gr.addColorStop(0.35, `rgba(255,255,255,${0.45 * a})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(x, 0, 1, h); } });
+    foamTex.wrapS = THREE.RepeatWrapping; foamTex.repeat.set(3, 1);
+    const foam = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, 0.007).rotateX(-Math.PI / 2), basic({ map: foamTex, transparent: true, opacity: 0.7, depthWrite: false })));
+    foam.position.set(uc, 0.0007, -(LAND_V - 0.0035)); foam.renderOrder = 1; group.add(foam);          // 岸边的浪花（画在水面上、贴着岸）
     // 数学那一层：比岸顶高一点点，线一直画到灯塔脚下也不会钻进岸里
     const ink = new THREE.Group(); ink.position.y = LAND_H + 0.0003; group.add(ink);
 
@@ -155,7 +170,7 @@ export default {
     board.h = (title) => { if (title === lastH) return; lastH = title; const r = document.createElement('div'); r.className = 'ib-h'; r.textContent = title; boardRows.push(r); if (boardEl) { boardEl.append(r); requestAnimationFrame(() => { r.classList.add('in'); reveal(r); }); } };
     // 重拍：发现的那一下长在图形上——那块光亮一下、鼓一下，从那一点荡开两圈光；板书上同时长出那一行（不压暗屏幕，不飞大字）
     const ripples = []; let flashAt = -9;
-    const ring = (p, col, delay = 0) => { const m = quiet(new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 72).rotateX(-Math.PI / 2), basic({ color: col, transparent: true, opacity: 0, depthWrite: false }))); m.position.set(p[0], 0.0006, -p[1]); m.userData.born = now() + delay; ink.add(m); ripples.push(m); };
+    const ring = (p, col, delay = 0, grow = 0.024, peak = 0.7, life = 1.4) => { const m = quiet(new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 72).rotateX(-Math.PI / 2), basic({ color: col, transparent: true, opacity: 0, depthWrite: false }))); m.position.set(p[0], 0.0006, -p[1]); Object.assign(m.userData, { born: now() + delay, grow, peak, life }); ink.add(m); ripples.push(m); };
     function punch(p, html, row) {
       void html; flashAt = now(); sfx.ding(1320, { gain: 0.07 });
       ring(p, GOLD); ring(p, BLUE, 0.28);
@@ -188,7 +203,8 @@ export default {
       const lamp = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.0038, 20), lit({ color: 0xffe2a6, emissive: 0xffb340, emissiveIntensity: 2.2, roughness: 0.25 }))); lamp.position.y = 0.0395;
       const roof = solid(new THREE.Mesh(new THREE.ConeGeometry(0.0031, 0.0040, 28), porcelain)); roof.position.y = 0.0434;
       const tip = solid(new THREE.Mesh(new THREE.SphereGeometry(0.0006, 10, 8), porcelain)); tip.position.y = 0.0459;
-      g.add(foot, body, gal, lamp, roof, tip); group.add(g); return g;
+      const glow = halo(0.016, 0.5); glow.position.y = 0.0395; g.userData.glow = glow;
+      g.add(foot, body, gal, lamp, roof, tip, glow); group.add(g); return g;
     };
     const LH = [tower(B0), tower(C0)];
     // ---- 浮标（圆心）：红色的罐形浮标；该点它的时候，水面上一圈橙色的环一闪一闪 ----
@@ -202,13 +218,19 @@ export default {
     buoy.position.copy(P3(O)); group.add(buoy);
     // ---- 小船 ----
     const boat = new THREE.Group();
-    { const Lh = 0.0125, Wd = 0.0056, Hh = 0.004, geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.Float32BufferAttribute([-Lh, Hh, 0, Lh, Hh, 0, -Lh * 0.55, 0, Wd * 0.5, Lh * 0.55, 0, Wd * 0.5, -Lh * 0.55, 0, -Wd * 0.5, Lh * 0.55, 0, -Wd * 0.5], 3));
-      geo.setIndex([0, 2, 3, 0, 3, 1, 0, 1, 5, 0, 5, 4, 2, 4, 5, 2, 5, 3]); geo.computeVertexNormals();
-      const hull = solid(new THREE.Mesh(geo, lit({ color: 0xfbf9f4, roughness: 0.4, side: THREE.DoubleSide })));
-      const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute([-Lh * 0.5, Hh, 0, Lh * 0.5, Hh, 0, 0.0008, Hh + 0.0112, 0], 3)); sg.computeVertexNormals();
-      const sail = solid(new THREE.Mesh(sg, lit({ color: 0xfffdf8, roughness: 0.6, side: THREE.DoubleSide })));
-      boat.add(hull, sail); }
+    { const L = 0.0145, W = 0.0064, D = 0.0034, sh = new THREE.Shape();
+      sh.moveTo(-L, -W * 0.4); sh.quadraticCurveTo(-L * 1.06, 0, -L, W * 0.4); sh.quadraticCurveTo(L * 0.15, W * 0.64, L, 0); sh.quadraticCurveTo(L * 0.15, -W * 0.64, -L, -W * 0.4);
+      const hg = new THREE.ExtrudeGeometry(sh, { depth: D, bevelEnabled: true, bevelThickness: 0.0005, bevelSize: 0.0005, bevelSegments: 2, curveSegments: 14 }).rotateX(-Math.PI / 2); hg.translate(0, -0.0012, 0);
+      const hull = solid(new THREE.Mesh(hg, lit({ color: 0xfbf9f4, roughness: 0.38 })));
+      const deck = solid(new THREE.Mesh(new THREE.ShapeGeometry(sh, 14).rotateX(-Math.PI / 2).scale(0.82, 1, 0.78), lit({ color: 0xe9e1d2, roughness: 0.7 }))); deck.position.set(-0.0008, D - 0.0012 + 0.00052, 0);
+      const mast = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0003, 0.00034, 0.021, 8), lit({ color: 0xd9d2c4, roughness: 0.5 }))); mast.position.set(0.0022, D + 0.0093, 0);
+      // 帆：细分的三角面，中间鼓出去一点
+      const sailGeo = (A, B, C, belly, n = 8) => { const pos = [], idx = []; for (let i = 0; i <= n; i++) for (let j = 0; j <= n - i; j++) { const a = i / n, b = j / n, c = 1 - a - b; const x = A[0] * c + B[0] * a + C[0] * b, y = A[1] * c + B[1] * a + C[1] * b; pos.push(x, y, belly * 27 * a * b * c); } let k = 0; const row = []; for (let i = 0; i <= n; i++) { row.push(k); k += n - i + 1; } for (let i = 0; i < n; i++) for (let j = 0; j < n - i; j++) { const p0 = row[i] + j, p1 = row[i + 1] + j, p2 = row[i] + j + 1; idx.push(p0, p1, p2); if (j < n - i - 1) idx.push(p2, p1, row[i + 1] + j + 1); } const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g2.setIndex(idx); g2.computeVertexNormals(); return g2; };
+      const sailMat = lit({ color: 0xfffcf4, roughness: 0.62, side: THREE.DoubleSide });
+      const main = solid(new THREE.Mesh(sailGeo([0.0019, D + 0.0012], [0.0019, D + 0.0196], [-0.0105, D + 0.0016], 0.0014), sailMat));
+      const jib = solid(new THREE.Mesh(sailGeo([0.0026, D + 0.0016], [0.0026, D + 0.0165], [0.0128, D + 0.0006], -0.0009, 6), sailMat));
+      const boom = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.00022, 0.00022, 0.0125, 6).rotateZ(Math.PI / 2), lit({ color: 0xd9d2c4, roughness: 0.5 }))); boom.position.set(-0.0043, D + 0.0012, 0);
+      boat.add(hull, deck, mast, main, jib, boom); boat.userData.rig = [mast, main, jib, boom]; }
     group.add(boat);
 
     // ================= 光、线、角、字 =================
@@ -249,12 +271,25 @@ export default {
       arcBC: line(BLUE, 0.0014, 0.0017, 1),          // 两座灯塔之间那段弧（在岸上）：圆周角、圆心角对着的就是它
     };
     // 扇形（一块光）
+    // 角片的亮边和影子：边是一圈细亮线；影子是同样形状的一块淡影，落在水面上（拿起来离得远）
+    const TILE = new Map();
+    const tile = (m, rim, o = 0.75, shade = true, w = 0.0008) => { TILE.set(m, { rim, o, shade, w }); return m; };
+    const rimFan = (m, a0, w, r) => {
+      const c = TILE.get(m), n = Math.max(6, Math.ceil(Math.abs(w) / 0.05)), pts = [[0, 0]], hw = c.w / 2, out = [];
+      for (let i = 0; i <= n; i++) { const t = a0 + (w * i) / n; pts.push([Math.cos(t) * r, Math.sin(t) * r]); }
+      pts.push([0, 0]);
+      for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy); if (l < 1e-7) continue; const nx = (-dy / l) * hw, ny = (dx / l) * hw; out.push(a[0] + nx, 0, -(a[1] + ny), a[0] - nx, 0, -(a[1] - ny), b[0] + nx, 0, -(b[1] + ny), b[0] + nx, 0, -(b[1] + ny), a[0] - nx, 0, -(a[1] - ny), b[0] - nx, 0, -(b[1] - ny)); }
+      const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(out, 3));
+      if (!c.rimM) { c.rimM = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: c.rim, transparent: true, opacity: c.o, depthWrite: false, side: THREE.DoubleSide })); c.rimM.position.y = 0.00012; c.rimM.raycast = () => {}; m.add(c.rimM); } else { c.rimM.geometry.dispose(); c.rimM.geometry = rg; }
+      if (c.shade) { if (!c.shadeM) { c.shadeM = new THREE.Mesh(m.geometry, new THREE.MeshBasicMaterial({ color: 0x0b1a24, transparent: true, opacity: 0.15, depthWrite: false, side: THREE.DoubleSide })); c.shadeM.raycast = () => {}; c.shadeM.renderOrder = -0.5; m.add(c.shadeM); } else c.shadeM.geometry = m.geometry; }
+    };
     const fanM = (color, opacity, y, blend = THREE.NormalBlending) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), basic({ color, transparent: true, opacity, depthWrite: false, blending: blend, side: THREE.DoubleSide })); m.position.y = y; m.userData.noFrame = true; ink.add(m); m.visible = false; return m; };
-    const setFan = (m, apex, a0, w, r) => { const n = Math.max(6, Math.ceil(Math.abs(w) / 0.05)), pos = []; for (let i = 0; i < n; i++) { const t0 = a0 + (w * i) / n, t1 = a0 + (w * (i + 1)) / n; pos.push(0, 0, 0, Math.cos(t0) * r, 0, -Math.sin(t0) * r, Math.cos(t1) * r, 0, -Math.sin(t1) * r); } m.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); m.geometry = g; m.position.x = apex[0]; m.position.z = -apex[1]; m.visible = true; };
+    const setFan = (m, apex, a0, w, r) => { const n = Math.max(6, Math.ceil(Math.abs(w) / 0.05)), pos = []; for (let i = 0; i < n; i++) { const t0 = a0 + (w * i) / n, t1 = a0 + (w * (i + 1)) / n; pos.push(0, 0, 0, Math.cos(t0) * r, 0, -Math.sin(t0) * r, Math.cos(t1) * r, 0, -Math.sin(t1) * r); } m.geometry.dispose(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); m.geometry = g; m.position.x = apex[0]; m.position.z = -apex[1]; m.visible = true; if (TILE.has(m)) rimFan(m, a0, w, r); };
     const F = { ship: fanM(GOLD, 0.42, 0.0013), buoy: fanM(BLUE, 0.3, 0.0012), sub1: fanM(0xffd08a, 0.55, 0.0017), sub2: fanM(0x9fd0ff, 0.55, 0.0016), q: fanM(GOLD, 0.34, 0.0013), x: fanM(0xff8a3d, 0.5, 0.0017) };
     for (const k in F) F[k].raycast = () => {};
+    tile(F.buoy, 0x1d5fae, 0.75, false, 0.0009);          // 圆心角像一个槽：深蓝的边圈着
     // 能拿起来拖的光扇（剪下来的、证明里的两个底角）
-    const chips = [0xff9a1a, 0xffc35c].map((c) => fanM(c, 0.92, 0.0024));
+    const chips = [0xff9a1a, 0xffc35c].map((c) => tile(fanM(c, 0.92, 0.0024), 0xfff7e6));
     // 字：朝着镜头的牌子（先量字宽再画）
     const measure = (font, txt) => { const g = document.createElement('canvas').getContext('2d'); g.font = font; return g.measureText(txt).width; };
     // 字：和课本插图一样——字母用斜体，度数、名称用宋体；白色描边垫底，压在水面、线上也认得出
@@ -324,8 +359,8 @@ export default {
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
       const fitF = (txt, px, weight, maxW) => { for (let f = px; f >= 28; f -= 4) { g.font = `${weight} ${f}px "Songti SC","STSong","Times New Roman",serif`; if (g.measureText(txt).width <= maxW) return; } };
       const inked = (txt, y, fill, halo) => { g.shadowColor = 'rgba(246,250,252,0.9)'; g.shadowBlur = halo; g.lineWidth = halo * 0.7; g.strokeStyle = 'rgba(246,250,252,0.42)'; g.strokeText(txt, W / 2, y); g.shadowBlur = 0; g.fillStyle = fill; g.fillText(txt, W / 2, y); };
-      fitF(big, 112, 700, W - 90); inked(big, 108, col, 16);
-      if (small) { fitF(small, 60, 500, W - 140); inked(small, 226, '#3b3934', 11); }
+      fitF(big, 104, 600, W - 90); inked(big, 108, col, 14);
+      if (small) { fitF(small, 56, 500, W - 140); inked(small, 224, '#4a4741', 10); }
     });
     // 换一句：旧的先淡出，再写新的
     function lightText(big, small = '', col = ASK) {
@@ -341,12 +376,13 @@ export default {
     // 一路留下的“同一个角”：船沿弧开过的地方，各留一块一样大的金色光扇
     const ghostFans = Array.from({ length: 9 }, () => fanM(GOLD, 0.0, 0.0011));
     // 情况（2）（3）：每一对 = 船上一块（pa）+ 圆心一块（po），对着同一段弧；点一对，就用情况（1）的办法拼一遍（cp：一块沿直径滑过去，一块是另一个底角转过来）
-    const pa = [fanM(P1, 0.85, 0.0026), fanM(P2, 0.85, 0.0029)], po = [fanM(P1, 0.26, 0.0022), fanM(P2, 0.26, 0.0025)];
-    const cp = [fanM(P1, 0.92, 0.0034), fanM(P1, 0.92, 0.0036), fanM(P2, 0.92, 0.0037), fanM(P2, 0.92, 0.0039)];
+    const pa = [fanM(P1, 0.85, 0.0026), fanM(P2, 0.85, 0.0029)].map((m) => tile(m, 0xffffff, 0.7)), po = [fanM(P1, 0.26, 0.0022), fanM(P2, 0.26, 0.0025)].map((m) => tile(m, 0xffffff, 0.55, false));
+    const cp = [fanM(P1, 0.92, 0.0034), fanM(P1, 0.92, 0.0036), fanM(P2, 0.92, 0.0037), fanM(P2, 0.92, 0.0039)].map((m) => tile(m, 0xffffff, 0.75));
     for (const m of cp) m.raycast = () => {};          // pa、po 本身就是点、拖的地方
     // 改变弧 BC 时那个圆的圆心（浮标不跟着动）
     const liveDot = quiet(new THREE.Mesh(new THREE.CircleGeometry(0.0017, 20).rotateX(-Math.PI / 2), basic({ color: BLUE, transparent: true, depthWrite: false })));
     liveDot.position.y = 0.0024; liveDot.visible = false; ink.add(liveDot);
+    const dDot = quiet(new THREE.Mesh(new THREE.CircleGeometry(0.0013, 16).rotateX(-Math.PI / 2), basic({ color: 0x2b3542, transparent: true, depthWrite: false }))); dDot.position.y = 0.0044; dDot.visible = false; ink.add(dDot);          // 直径另一头 D 的点
     // 情况（1）：等腰三角形连同 A 处的角，沿对称轴翻过去
     const foldG = new THREE.Group(); foldG.visible = false; ink.add(foldG);
     const foldTri = quiet(new THREE.Mesh(new THREE.BufferGeometry(), basic({ color: 0xf5b14a, transparent: true, opacity: 0.42, depthWrite: false, side: THREE.DoubleSide })));
@@ -358,7 +394,7 @@ export default {
     const callRing = quiet(new THREE.Mesh(new THREE.RingGeometry(0.0082, 0.0102, 48).rotateX(-Math.PI / 2), basic({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false })));
     callRing.position.y = 0.0016; ink.add(callRing);
     // 浅滩一开始藏在水下看不见：一层和深水一样颜色的“水色”盖着，揭开时淡掉
-    const murk = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), basic({ color: 0x8fa8b3, transparent: true, opacity: 0.92, depthWrite: false })));
+    const murk = quiet(new THREE.Mesh(new THREE.PlaneGeometry(seaW, seaD).rotateX(-Math.PI / 2), basic({ color: 0x7aa1b0, transparent: true, opacity: 0.94, depthWrite: false })));
     murk.position.set(uc, -0.0006, -vc); murk.renderOrder = -2; group.add(murk);
 
     const tickPts = (p, q) => { const m = mid(p, q), n = mul(unit([-(q[1] - p[1]), q[0] - p[0]]), 0.003); return [sub(m, n), add(m, n)]; };
@@ -367,7 +403,7 @@ export default {
     const runs = (pts, ok) => { const out = []; let cur = []; for (const p of pts) { if (ok(p)) cur.push(p); else if (cur.length) { out.push(cur); cur = []; } } if (cur.length) out.push(cur); return out.filter((r) => r.length > 1); };
     function layout() {
       const A = S.ship, th = theta(), z = zone(), lt = '#1f2a3a', zc = S.beat === 'inout' || S.answered;
-      boat.position.copy(P3(A)); boat.rotation.y = S.head;
+      boat.position.copy(P3(A)); boat.rotation.y = S.head; for (const r of boat.userData.rig) r.visible = S.mode !== 'deck';          // 站到船头时，桅杆和帆不挡眼睛
       setBand(BAND[0], B0, A, 0.0026); setBand(BAND[1], C0, A, 0.0026);
       setFan(F.ship, A, ccwStart(A, B0, C0), th, RC);
       setLabel(LB.ship, fmt(th), zc && z === 'in' ? '#c2352a' : zc && z === 'out' ? '#2e7d4f' : '#c27412', bis(A, B0, C0, 0.046), 0.01);
@@ -398,7 +434,7 @@ export default {
       setLabel(LB.o, S.buoy ? 'O' : '', lt, add(Oc, [0.007, -0.008]), 0.006);
       // 情况（2）（3）：直径 AD；D 把弧 BC 分成的两段
       const D = S.cs ? S.cs.D : S.probe?.snapped ? diamEnd() : null;
-      if (D) { setLine(L.diam, [A, D]); setLabel(LB.d, 'D', lt, add(D, mul(unit(sub(D, O)), 0.011)), 0.006); } else { setLine(L.diam, null); LB.d.visible = false; }
+      if (D) { setLine(L.diam, [A, D]); setLabel(LB.d, 'D', lt, add(D, mul(unit(sub(D, O)), 0.011)), 0.006); dDot.visible = S.mode === 'chart'; dDot.position.x = D[0]; dDot.position.z = -D[1]; } else { setLine(L.diam, null); LB.d.visible = false; dDot.visible = false; }
       if (S.cs) S.cs.pairs.forEach((p, i) => setLine(L['sa' + i], p.arcHide ? null : p.arcShow || p.arc)); else { setLine(L.sa0, null); setLine(L.sa1, null); }
       if (S.cs) { const A2 = S.cs.A, r = RC + 0.0045, a1 = ccwStart(A2, B0, C0), a2 = ccwStart(O, B0, C0); setLine(L.tgtA, arcPts(A2, r, a1, a1 + angAt(A2, B0, C0), 40)); setLine(L.tgtO, arcPts(O, r, a2, a2 + central(), 40)); } else { setLine(L.tgtA, null); setLine(L.tgtO, null); }
       // 船上那根能转的光（整根都能抓）
@@ -726,9 +762,10 @@ export default {
       sfx.clink({ freq: 1500, gain: 0.05 });
       lightText(`OA = O${xo}，都是半径：△AO${xo} 是等腰三角形`, '沿它的对称轴对折：A 处的角会落到哪里？');
       if (!(await wait(2200, id))) return;
+      aim?.([0.07, 0.84, 0.53]); if (!(await wait(600, id))) return;
       buildFold(); foldG.visible = true; sfx.whoosh({ dur: 0.9, freq: 700, gain: 0.04 });
       if (!(await run(1800, (k) => { S.fold = k; foldApply(); }, id))) return;
-      foldG.visible = false; placeBase(); sfx.clink({ freq: 1600, gain: 0.05 }); layout();
+      foldG.visible = false; placeBase(); sfx.clink({ freq: 1600, gain: 0.05 }); layout(); aim?.([0, 1, 0.36]);
       lightText(`∠A 正好落在 ∠${xo} 上：等腰三角形的两个底角相等`, '这两个角，能拼进圆心的 ∠BOC 吗？把它们拖进去'); S.call = 'base';
       if (!(await until(() => S.proofDone, id))) return;
       S.call = '';
@@ -809,13 +846,15 @@ export default {
     }; })();
     const eye = () => { const toward = unit(sub(mid(B0, C0), S.ship)); return { E: add(S.ship, mul(toward, -0.004)), dir: toward }; };
     function deckLook() {
-      const { E, dir } = eye(), tgt = add(E, mul(dir, 0.16)), Ey = H + 0.011, Ty = H + 0.027;
+      const { dir } = eye(), E = add(S.ship, mul(dir, -0.012)), tgt = mid(B0, C0), Ey = H + 0.014, Ty = H + 0.024;          // 站在船上，看着两座灯塔
       const d3 = new THREE.Vector3(E[0] - tgt[0], Ey - Ty, -(E[1] - tgt[1])), dd = d3.length();
-      look([tgt[0], Ty, -tgt[1]], d3.normalize().toArray(), dd, () => { S.mode = 'chart'; chartRoll.visible = false; layout(); subtitle(); panelBack(); }, { minEl: 0, minZoom: 0.6 });
+      look([tgt[0], Ty, -tgt[1]], d3.normalize().toArray(), dd, () => { S.mode = 'chart'; chartRoll.visible = false; wideFov(false); layout(); subtitle(); panelBack(); }, { minEl: 0, minZoom: 0.6 });
     }
     let deckT0 = 0;
-    function toDeck() { S.mode = 'deck'; deckT0 = now(); chartRoll.visible = true; deckLook(); layout(); subtitle(); sfx.whoosh({ dur: 0.5, freq: 700, gain: 0.04 }); }
-    function toChart() { S.mode = 'chart'; chartRoll.visible = false; layout(); subtitle(); back(); panelBack(); }
+    let fov0 = null, fovTo = null;
+    const wideFov = (on) => { if (!camera) return; if (on) { if (fov0 == null) fov0 = camera.fov; fovTo = Math.max(fov0, 66); } else if (fov0 != null) fovTo = fov0; };          // 船头视角宽一点；回海图时还原
+    function toDeck() { S.mode = 'deck'; deckT0 = now(); chartRoll.visible = true; wideFov(true); deckLook(); layout(); subtitle(); sfx.whoosh({ dur: 0.5, freq: 700, gain: 0.04 }); }
+    function toChart() { S.mode = 'chart'; chartRoll.visible = false; wideFov(false); layout(); subtitle(); back(); panelBack(); }
     let deckDrag = null;
     const deckPointer = {
       down: (r, e) => { if (S.mode !== 'deck') return false; if (r.intersectObject(rollMesh, false).length) { toChart(); return true; } deckDrag = { x: e?.clientX ?? 0, y: e?.clientY ?? 0, raw: S.ship.slice() }; userTouched++; return true; },
@@ -844,8 +883,13 @@ export default {
       { obj: sea, hint: () => (canSea() ? '点一下海面' : ''), enabled: () => canSea(), onTap: () => tapSea() },
     ];
     const dragApi = draggable(group, drags, { taps, onClick: () => false });
-    let heard = false;
-    const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return deckPointer.down(r, e) || dragApi.down(r, e); }, move: (r, e) => deckPointer.move(r, e) || dragApi.move(r, e), up: (r, e) => deckPointer.up(r, e) || dragApi.up(r, e), items: dragApi.items };
+    let heard = false, wakeAt = null, seaSound = null;
+    // 很轻的海浪声：第一次碰屏幕以后才起（浏览器要求），低通的噪声慢慢起伏
+    const startSea = () => { if (seaSound || dead) return; try { const a = audio(), n = a.sampleRate * 4, buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0); let b0 = 0; for (let i = 0; i < n; i++) { b0 = 0.985 * b0 + 0.06 * (Math.random() * 2 - 1); d[i] = b0; }
+      const src = a.createBufferSource(); src.buffer = buf; src.loop = true; const lp = a.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 650; const g2 = a.createGain(); g2.gain.value = 0;
+      const lfo = a.createOscillator(); lfo.frequency.value = 0.1; const lg = a.createGain(); lg.gain.value = 0.009; lfo.connect(lg).connect(g2.gain);
+      src.connect(lp).connect(g2).connect(a.destination); src.start(); lfo.start(); g2.gain.setTargetAtTime(0.018, a.currentTime, 3); seaSound = { src, lfo }; } catch { /* 没有声音也不要紧 */ } };
+    const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); startSea(); } return deckPointer.down(r, e) || dragApi.down(r, e); }, move: (r, e) => deckPointer.move(r, e) || dragApi.move(r, e), up: (r, e) => deckPointer.up(r, e) || dragApi.up(r, e), items: dragApi.items };
 
     // 清场重来（给老师：换一批学生，或者想重新讲一遍）——键盘 R
     function reset() {
@@ -863,12 +907,20 @@ export default {
       pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'ins-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.ib-row'); if (!S.done || !r?.dataset.k) return; for (const o of boardRows) o.classList.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); }); for (const r of boardRows) { boardEl.append(r); r.classList.add('in'); } ui.go?.(1); if (!runId) mainLine(); else if (cap.key) ui.status?.(capNow.filter(Boolean).join('　')); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); subEl.remove(); css.remove(); },
+      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); subEl.remove(); css.remove(); try { seaSound?.src.stop(); seaSound?.lfo.stop(); } catch { /* 已经停了 */ } if (fov0 != null && camera) { camera.fov = fov0; camera.updateProjectionMatrix(); } },
       update() {
         const t = now();
         // 光写的字：淡进淡出
         { if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const n = cap.next; cap.next = null; n?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1); }
-        for (let i = ripples.length - 1; i >= 0; i--) { const m = ripples[i], a = t - m.userData.born; if (a < 0) continue; if (a > 1.4) { ink.remove(m); m.geometry.dispose(); ripples.splice(i, 1); continue; } m.scale.setScalar(0.008 + a * 0.024); m.material.opacity = 0.7 * (1 - a / 1.4); }
+        for (let i = ripples.length - 1; i >= 0; i--) { const m = ripples[i], u = m.userData, a = t - u.born; if (a < 0) continue; if (a > u.life) { ink.remove(m); m.geometry.dispose(); m.material.dispose(); ripples.splice(i, 1); continue; } m.scale.setScalar(0.008 + a * u.grow); m.material.opacity = u.peak * (1 - a / u.life); }
+        // 船开过留下尾迹：每走一小段，船尾荡开一圈淡淡的水纹
+        { const back = add(S.ship, mul([Math.cos(S.head), Math.sin(S.head)], -0.011)); if (!wakeAt || dist(back, wakeAt) > 0.009) { if (wakeAt && S.mode === 'chart' && dist(back, wakeAt) < 0.05) ring(back, 0xffffff, 0, 0.0075, 0.32, 1.2); wakeAt = back; } }
+        for (const [m, c] of TILE) { if (!c.shadeM || !m.visible) continue; const h = m.position.y + 0.0029, ry = m.rotation.y, d = 0.24 * h; c.shadeM.position.set(d * Math.cos(ry) - d * Math.sin(ry), -h + 0.0001, d * Math.sin(ry) + d * Math.cos(ry)); }          // 影子落在水面上，往右前方偏；拿得越高偏得越远
+        foamTex.offset.x = (t * 0.006) % 1; foam.material.opacity = 0.55 + 0.2 * Math.sin(t * 0.9); foam.position.z = -(LAND_V - 0.0035 - 0.0008 * Math.sin(t * 0.9));          // 浪花轻轻涌上来、退回去
+        if (fovTo != null && camera) { camera.fov += (fovTo - camera.fov) * 0.12; if (Math.abs(camera.fov - fovTo) < 0.05) { camera.fov = fovTo; if (fov0 != null && fovTo === fov0) fov0 = null; fovTo = null; } camera.updateProjectionMatrix(); }
+        caustTex.offset.set((t * 0.0045) % 1, Math.sin(t * 0.13) * 0.03); caustTex.rotation = Math.sin(t * 0.07) * 0.03;          // 水下光纹慢慢漂
+        for (const L2 of LH) L2.userData.glow.material.opacity = 0.42 + 0.12 * Math.sin(t * 1.3 + L2.position.x * 40);
+        buoy.position.y = 0.00025 * Math.sin(t * 1.9);
         for (let i = tweens.length - 1; i >= 0; i--) { const w = tweens[i], k = clamp((t - w.t0) / w.dur, 0, 1), e = easeOut(k), f = w.from, o = w.to; w.m.position.set(lerp(f.x, o.x ?? f.x, e), lerp(f.y, o.y ?? f.y, e), lerp(f.z, o.z ?? f.z, e)); w.m.rotation.y = lerp(f.ry, o.ry ?? f.ry, e); if (k >= 1) { tweens.splice(i, 1); w.done?.(); } }          // 补间：只滑、只转
         // 浅滩揭开：盖着的水色淡掉
         murk.material.opacity = 0.92 * (1 - easeOut(S.reveal)); murk.visible = S.reveal < 1;
