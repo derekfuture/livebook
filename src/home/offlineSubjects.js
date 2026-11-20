@@ -6,4 +6,5 @@ export const OFFLINE_SUBJECTS = [
 
 export const offlinePath = (subject, extension) => `/offline-${subject.slug}.${extension}`;
 export const offlineFolder = (subject) => `活页课本-${subject.label}`;
-export const offlineZipName = (subject) => `活页课本（${subject.label}离线版）.zip`;
+export const offlineHtmlName = (subject) => `${offlineFolder(subject)}.html`;
+export const offlineZipName = (...subjects) => `活页课本（${subjects.map(({ label }) => label).join('、')}离线版）.zip`;

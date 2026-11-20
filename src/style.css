@@ -687,6 +687,20 @@ body.shelf-leave #hud-top, body.shelf-leave #hud-pager, body.shelf-leave #hint, 
 .imp-tip .imp-btn.ghost { background: transparent; color: #f4ead8; border-color: rgba(244, 234, 216, .3); }
 .imp-tip.blink { animation: impBlink 1.1s ease-in-out 3; }
 .imp-tip.up::before { top: auto; bottom: -6px; right: auto; left: calc(50% - 6px); }          /* 下载离线版：提示在按钮上面 */
+.offline-tip { width: min(350px, calc(100vw - 24px)); }
+.offline-tip.up::before { left: calc(var(--offline-arrow, 50%) - 6px); }
+.offline-tip .imp-acts { flex-wrap: wrap; }
+.offline-tip .imp-btn:disabled { opacity: .45; cursor: not-allowed; }
+.offline-subjects { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 8px 0 10px; }
+.offline-subject { display: grid; justify-items: center; gap: 2px; padding: 6px 4px; border: 1px solid rgba(244, 234, 216, .3); border-radius: 8px; background: transparent; color: #f4ead8; line-height: 1.35; }
+.offline-subject-name { position: relative; font-weight: 600; }
+.offline-check { position: absolute; right: calc(100% + 4px); visibility: hidden; }
+.offline-subject small { color: #d9cbb7; font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.offline-subject[aria-pressed="true"] { border-color: #c7a878; background: #ead8b9; color: #38291e; }
+.offline-subject[aria-pressed="true"] small { color: #624b38; }
+.offline-subject[aria-pressed="true"] .offline-check { visibility: visible; }
+.offline-subject:hover { border-color: #ffe2b0; }
+.offline-tip button:focus-visible { outline: 2px solid #ffe2b0; outline-offset: 2px; }
 @keyframes impBlink { 0%, 100% { box-shadow: 0 10px 28px rgba(0, 0, 0, .25), 0 0 0 0 rgba(255, 210, 138, 0); } 50% { box-shadow: 0 10px 28px rgba(0, 0, 0, .25), 0 0 0 5px rgba(255, 210, 138, .55); } }
 .ov-thumb.nopage { display: flex; align-items: center; justify-content: center; min-height: 92px; background: #f6f1e6; color: #7d8696; font: 15px/1 "Songti SC", "STSong", serif; letter-spacing: .04em; }
 /* 地理：你家经历了什么（一行一种锋） */
