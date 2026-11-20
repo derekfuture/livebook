@@ -173,6 +173,7 @@ export default {
     document.body.append(subEl);
     const subtitle = () => {
       if (!S || S.mode !== 'deck') { subEl.style.opacity = 0; return; }
+      if (S.intro) { subEl.innerHTML = '<div style="font-size:30px;color:#fff4dc">船怎么知道自己进没进浅滩？</div><div style="font-weight:400;font-size:17px;opacity:.9">浅滩在水下，船上看不见，只看得见岸上的两座灯塔</div>'; subEl.style.opacity = 1; return; }
       const th = theta(), z = zone(), col = z === 'in' ? '#ff9d86' : z === 'out' ? '#b4f0c4' : '#ffe39a';
       subEl.innerHTML = `<div style="font-size:30px;color:${col}">两座灯塔之间 ${fmt(th)}<span style="font-size:18px;color:#efe1c2;margin-left:14px">危险角 ${fmt(DANGER)}</span></div><div style="font-weight:400;font-size:17px;opacity:.88">按住往上拖，往前开；往两边拖，往旁边开</div>`;
       subEl.style.opacity = 1;
@@ -735,7 +736,11 @@ export default {
       // 一、开场：船自己开一段，两道光跟着转，夹角在变；正好 40° 的地方放下一面小旗
       S.beat = 'open'; S.call = '';
       lightText('船怎么知道自己进没进浅滩？', '浅滩在水下，船上看不见，只看得见岸上的两座灯塔');
-      if (!(await wait(1600, id))) return;
+      if (!(await wait(1200, id))) return;
+      S.intro = true; toDeck();          // 开场：先站在船头，看岬角上的两座灯塔
+      if (!(await wait(4500, id))) return;
+      if (S.intro) { S.intro = false; if (S.mode === 'deck') toChart(); }
+      if (!(await wait(1500, id))) return;
       await sail([[0.13, -0.112], [0.085, -0.122], [0.03, -0.1], [0.01, -0.07]], 5200, id);
       if (!(await wait(500, id))) return;
       lightText('拖着小船开一开', `船上看两座灯塔正好 ${d40} 的地方，会放下一面小旗`); S.call = 'ship';
@@ -895,11 +900,11 @@ export default {
     let deckT0 = 0;
     let fov0 = null, fovTo = null;
     const wideFov = (on) => { if (!camera) return; if (on) { if (fov0 == null) fov0 = camera.fov; fovTo = Math.max(fov0, 66); } else if (fov0 != null) fovTo = fov0; };          // 船头视角宽一点；回海图时还原
-    function toDeck() { S.mode = 'deck'; deckT0 = now(); chartRoll.visible = true; wideFov(true); deckLook(); layout(); subtitle(); sfx.whoosh({ dur: 0.5, freq: 700, gain: 0.04 }); }
+    function toDeck() { S.mode = 'deck'; deckT0 = now(); chartRoll.visible = !S.intro; wideFov(true); deckLook(); layout(); subtitle(); sfx.whoosh({ dur: 0.5, freq: 700, gain: 0.04 }); }
     function toChart() { S.mode = 'chart'; chartRoll.visible = false; wideFov(false); layout(); subtitle(); back(); panelBack(); }
     let deckDrag = null;
     const deckPointer = {
-      down: (r, e) => { if (S.mode !== 'deck') return false; if (r.intersectObject(rollMesh, false).length) { toChart(); return true; } deckDrag = { x: e?.clientX ?? 0, y: e?.clientY ?? 0, raw: S.ship.slice() }; userTouched++; return true; },
+      down: (r, e) => { if (S.mode !== 'deck') return false; if (S.intro) { S.intro = false; toChart(); return true; } if (r.intersectObject(rollMesh, false).length) { toChart(); return true; } deckDrag = { x: e?.clientX ?? 0, y: e?.clientY ?? 0, raw: S.ship.slice() }; userTouched++; return true; },
       move: (r, e) => { if (S.mode !== 'deck') return false; if (!deckDrag || !e) return true; const dx = e.clientX - deckDrag.x, dy = e.clientY - deckDrag.y; const raw = add(deckDrag.raw, add(mul(eye().dir, -dy * 0.00022), mul([eye().dir[1], -eye().dir[0]], dx * 0.00022)));
         deckDrag = { x: e.clientX, y: e.clientY, raw: [clamp(raw[0], SEA.u0 + 0.009, SEA.u1 - 0.009), clamp(raw[1], SEA.v0 + 0.009, shore(clamp(raw[0], SEA.u0 + 0.009, SEA.u1 - 0.009)) - 0.013)] }; moveShip(deckDrag.raw); deckLook(); return true; },
       up: () => { if (S.mode !== 'deck') return false; deckDrag = null; return true; },
