@@ -53,7 +53,7 @@ export default {
     const lit = (o) => new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0, ...o });
     const quiet = (m) => { m.raycast = () => {}; m.userData.noFrame = true; return m; };
     const solid = (m) => { m.castShadow = true; m.receiveShadow = true; m.raycast = () => {}; m.userData.noFrame = true; return m; };
-    const GOLD = 0xe8890c, IMG = 0x3f7fd0, INK = 0x2b3542;
+    const GOLD = 0xffc83d, IMG = 0x58c4dd, INK = 0xffffff;          // 路（主角）黄、对称过去的蓝、辅助线白
     const uT = { value: 0 };
 
     // ================= 草原：一块不规则的地，河从中间笔直地穿过去，切面露出泥土和河水 =================
@@ -64,9 +64,9 @@ export default {
       for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length], ia = inside(a), ib = inside(b); if (ia) out.push(a); if (ia !== ib) { const t = (c - a[1]) / (b[1] - a[1]); out.push([a[0] + (b[0] - a[0]) * t, c]); } }
       return out; };
     const slab = (poly, top, mats, bt = 0.0012) => { const g = new THREE.ExtrudeGeometry(new THREE.Shape(poly.map(([u, v]) => new THREE.Vector2(u, v))), { depth: top - 2 * bt, bevelEnabled: true, bevelThickness: bt, bevelSize: bt, bevelSegments: 2, steps: 1 }); g.rotateX(-Math.PI / 2); const m = new THREE.Mesh(g, mats); m.position.y = bt; m.receiveShadow = true; m.raycast = () => {}; m.userData.qaSupport = true; group.add(m); return m; };
-    const grassTex = tex(1024, 1024, (g, w, h) => { g.fillStyle = '#e5e9d6'; g.fillRect(0, 0, w, h);
-      for (let k = 0; k < 70; k++) { const x = Math.random() * w, y = Math.random() * h, r = 60 + Math.random() * 140, gr = g.createRadialGradient(x, y, 0, x, y, r), dry = Math.random() < 0.45; gr.addColorStop(0, dry ? 'rgba(240,238,220,0.35)' : 'rgba(214,222,192,0.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); }
-      for (let k = 0; k < 5000; k++) { g.fillStyle = `rgba(${150 + Math.random() * 40},${165 + Math.random() * 30},${120 + Math.random() * 20},${Math.random() * 0.05})`; g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 2 + Math.random() * 4); } });
+    const grassTex = tex(1024, 1024, (g, w, h) => { g.fillStyle = '#cfdba2'; g.fillRect(0, 0, w, h);
+      for (let k = 0; k < 70; k++) { const x = Math.random() * w, y = Math.random() * h, r = 60 + Math.random() * 140, gr = g.createRadialGradient(x, y, 0, x, y, r), dry = Math.random() < 0.45; gr.addColorStop(0, dry ? 'rgba(226,218,160,0.32)' : 'rgba(160,186,110,0.24)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); }
+      for (let k = 0; k < 9000; k++) { g.fillStyle = `rgba(${100 + Math.random() * 50},${128 + Math.random() * 40},${60 + Math.random() * 20},${Math.random() * 0.08})`; g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 2 + Math.random() * 4); } });
     grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping; grassTex.repeat.set(2.4, 2.4);
     const soilTex = tex(512, 128, (c, w, h) => { const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#5e4a32'); gr.addColorStop(0.16, '#6f5638'); gr.addColorStop(0.22, '#a4825a'); gr.addColorStop(1, '#8e6d4a'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
       for (let k = 0; k < 500; k++) { c.strokeStyle = `rgba(70,52,30,${0.3 + Math.random() * 0.4})`; c.lineWidth = 1; const x = Math.random() * w; c.beginPath(); c.moveTo(x, h * 0.14); c.lineTo(x + (Math.random() - 0.5) * 4, h * (0.17 + Math.random() * 0.12)); c.stroke(); }
@@ -75,9 +75,9 @@ export default {
     const grass = lit({ map: grassTex, roughness: 0.95 }), soil = lit({ map: soilTex, roughness: 0.95 });
     slab(clipV(outline, 0, false), G, [grass, soil]);          // 河这一边（A、B 所在的岸，离人近）
     slab(clipV(outline, RV1, true), G, [grass, soil]);         // 对岸
-    const flowTex = tex(512, 128, (c, w, h) => { c.fillStyle = '#c3d7dd'; c.fillRect(0, 0, w, h); for (let k = 0; k < 170; k++) { const y = Math.random() * h, x = Math.random() * w, l = 20 + Math.random() * 90; c.strokeStyle = `rgba(236,248,252,${0.07 + Math.random() * 0.15})`; c.lineWidth = 1 + Math.random() * 1.6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y + (Math.random() - 0.5) * 3); c.stroke(); } });
+    const flowTex = tex(512, 128, (c, w, h) => { c.fillStyle = '#86b5c6'; c.fillRect(0, 0, w, h); for (let k = 0; k < 170; k++) { const y = Math.random() * h, x = Math.random() * w, l = 20 + Math.random() * 90; c.strokeStyle = `rgba(236,248,252,${0.07 + Math.random() * 0.15})`; c.lineWidth = 1 + Math.random() * 1.6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + l, y + (Math.random() - 0.5) * 3); c.stroke(); } });
     flowTex.wrapS = flowTex.wrapT = THREE.RepeatWrapping; flowTex.repeat.set(10, 40);
-    const waterTop = new THREE.MeshPhysicalMaterial({ map: flowTex, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.08 }), waterSide = lit({ color: 0x9fbcc6, roughness: 0.3 });
+    const waterTop = new THREE.MeshPhysicalMaterial({ map: flowTex, roughness: 0.16, clearcoat: 1, clearcoatRoughness: 0.08 }), waterSide = lit({ color: 0x5b8ea4, roughness: 0.3 });
     slab(clipV(clipV(outline, 0, true), RV1, false), WATER, [waterTop, waterSide], 0.0006);
     // 对岸后面几道缓坡：一圈圈平滑地鼓起来，和地面接得上
     const hillGeo = new THREE.LatheGeometry(Array.from({ length: 17 }, (_, i) => { const r = 1 - i / 16; return new THREE.Vector2(r, (1 - r * r) ** 2); }), 40);
@@ -87,7 +87,7 @@ export default {
       const trail = quiet(new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.015).rotateX(-Math.PI / 2), lit({ map: t, transparent: true, depthWrite: false, roughness: 1 }))); trail.position.set(0, G + 0.0003, -(-0.0075)); trail.receiveShadow = true; trail.renderOrder = 1; group.add(trail); }
     // 草：一层被风吹着的细草；河、土路、几处地标、缓坡上不长
     const sway = (mat, H0) => { mat.customProgramCacheKey = () => 'rh-sway' + H0; mat.onBeforeCompile = (sh) => { sh.uniforms.uT = uT; sh.vertexShader = 'uniform float uT;\n' + sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n  float bk = position.y / ${H0.toFixed(4)};\n  vec4 ip = instanceMatrix[3];\n  transformed.x += sin(uT * 1.6 + ip.x * 80.0 + ip.z * 50.0) * 0.00055 * bk * bk;\n  transformed.z += cos(uT * 1.2 + ip.x * 60.0) * 0.00025 * bk * bk;`); }; return mat; };
-    { const N = 1800, geo = new THREE.BufferGeometry();
+    { const N = 5000, geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.Float32BufferAttribute([-0.00042, 0, 0, 0.00042, 0, 0, 0.0001, 0.0036, 0], 3));
       geo.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
       const blades = new THREE.InstancedMesh(geo, sway(lit({ color: 0xffffff, roughness: 1, side: THREE.DoubleSide }), 0.0036), N), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), col = new THREE.Color();
@@ -96,10 +96,10 @@ export default {
         if (!inPoly(p, outline) || (p[1] > -0.015 && p[1] < RV1 + 0.003) || dist(p, YURT) < 0.026 || dist(p, PEN) < 0.024 || dist(p, PEN2) < 0.026 || dist(p, A) < 0.008 || dist(p, B) < 0.008 || HILLS.some(([cu, cv, ru, rv]) => ((p[0] - cu) / ru) ** 2 + ((p[1] - cv) / rv) ** 2 < 0.8)) continue;
         e.set((Math.random() - 0.5) * 0.5, Math.random() * 6.3, (Math.random() - 0.5) * 0.5); q.setFromEuler(e); const s = 0.45 + Math.random() * 0.55;
         m4.compose(new THREE.Vector3(p[0], G, -p[1]), q, new THREE.Vector3(1, s, 1)); blades.setMatrixAt(k, m4);
-        col.setHSL(0.2 + Math.random() * 0.04, 0.16 + Math.random() * 0.1, 0.76 + Math.random() * 0.08); blades.setColorAt(k, col); k++; }
+        col.setHSL(0.19 + Math.random() * 0.07, 0.3 + Math.random() * 0.16, 0.62 + Math.random() * 0.12); blades.setColorAt(k, col); k++; }
       blades.count = k; blades.raycast = () => {}; blades.userData.noFrame = true; group.add(blades);
       // 芦苇：河两头的几丛（马走不到的地方）
-      const R = 90, reeds = new THREE.InstancedMesh(new THREE.ConeGeometry(0.00038, 0.009, 4).translate(0, 0.0045, 0), sway(lit({ color: 0xbab792, roughness: 0.9 }), 0.009), R);
+      const R = 90, reeds = new THREE.InstancedMesh(new THREE.ConeGeometry(0.00038, 0.009, 4).translate(0, 0.0045, 0), sway(lit({ color: 0x9c9a5c, roughness: 0.9 }), 0.009), R);
       let r = 0; for (const [cu, cv] of [[-0.181, -0.006], [-0.168, RV1 + 0.004], [0.179, -0.006], [0.164, RV1 + 0.005], [-0.06, RV1 + 0.004], [0.13, RV1 + 0.004]]) for (let i = 0; i < 15 && r < R; i++) { const p = [cu + (Math.random() - 0.5) * 0.016, cv + (Math.random() - 0.5) * 0.005]; e.set((Math.random() - 0.5) * 0.3, 0, (Math.random() - 0.5) * 0.3); q.setFromEuler(e); m4.compose(new THREE.Vector3(p[0], G - 0.001, -p[1]), q, new THREE.Vector3(1, 0.6 + Math.random() * 0.6, 1)); reeds.setMatrixAt(r++, m4); }
       reeds.count = r; reeds.castShadow = true; reeds.raycast = () => {}; reeds.userData.noFrame = true; group.add(reeds);
     }
@@ -107,7 +107,7 @@ export default {
     const pipeTop = new THREE.Vector3();
     { const R = 0.019, HW = 0.012, HR = 0.011, g2 = new THREE.Group();
       const wallTex = tex(1024, 256, (c, w, h) => { c.fillStyle = '#f3ede1'; c.fillRect(0, 0, w, h); for (let k = 0; k < 2600; k++) { c.fillStyle = `rgba(150,128,96,${Math.random() * 0.05})`; c.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 6, 1 + Math.random() * 3); }
-        c.fillStyle = '#bba398'; c.fillRect(0, h * 0.06, w, h * 0.17); c.strokeStyle = '#f1e9dc'; c.lineWidth = 3; c.beginPath(); for (let x = 0; x < w; x += 24) { c.moveTo(x, h * 0.2); c.lineTo(x + 6, h * 0.1); c.lineTo(x + 12, h * 0.2); } c.stroke();
+        c.fillStyle = '#a3352a'; c.fillRect(0, h * 0.06, w, h * 0.17); c.strokeStyle = '#f2dcae'; c.lineWidth = 3; c.beginPath(); for (let x = 0; x < w; x += 24) { c.moveTo(x, h * 0.2); c.lineTo(x + 6, h * 0.1); c.lineTo(x + 12, h * 0.2); } c.stroke();
         c.fillStyle = 'rgba(96,74,52,0.85)'; c.fillRect(0, h * 0.45, w, 5); c.fillRect(0, h * 0.72, w, 5);
         const gr = c.createLinearGradient(0, h * 0.82, 0, h); gr.addColorStop(0, 'rgba(120,98,74,0)'); gr.addColorStop(1, 'rgba(120,98,74,0.4)'); c.fillStyle = gr; c.fillRect(0, h * 0.82, w, h * 0.18); });
       const roofTex = tex(1024, 256, (c, w, h) => { c.fillStyle = '#eee7da'; c.fillRect(0, 0, w, h); for (let k = 0; k < 2000; k++) { c.fillStyle = `rgba(150,128,96,${Math.random() * 0.05})`; c.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 5, 1 + Math.random() * 3); }
@@ -115,8 +115,8 @@ export default {
       const wall = solid(new THREE.Mesh(new THREE.CylinderGeometry(R, R * 1.01, HW, 48, 1, true), lit({ map: wallTex, roughness: 0.9, side: THREE.DoubleSide }))); wall.position.y = HW / 2;
       const roof = solid(new THREE.Mesh(new THREE.ConeGeometry(R * 1.07, HR, 48, 1, true), lit({ map: roofTex, roughness: 0.9, side: THREE.DoubleSide }))); roof.position.y = HW + HR / 2 - 0.0006;
       const crown = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0034, 0.0036, 0.0012, 24), lit({ color: 0x8a6440 }))); crown.position.y = HW + HR * 0.87;
-      const door = solid(new THREE.Mesh(new THREE.BoxGeometry(0.0066, 0.0088, 0.0014), lit({ color: 0xb99580, roughness: 0.6 }))); door.position.set(0, 0.0044, R - 0.0002);
-      const lintel = solid(new THREE.Mesh(new THREE.BoxGeometry(0.0078, 0.0012, 0.0018), lit({ color: 0xcdb896, roughness: 0.5 }))); lintel.position.set(0, 0.0092, R);
+      const door = solid(new THREE.Mesh(new THREE.BoxGeometry(0.0066, 0.0088, 0.0014), lit({ color: 0xc0502c, roughness: 0.6 }))); door.position.set(0, 0.0044, R - 0.0002);
+      const lintel = solid(new THREE.Mesh(new THREE.BoxGeometry(0.0078, 0.0012, 0.0018), lit({ color: 0xd9a441, roughness: 0.5 }))); lintel.position.set(0, 0.0092, R);
       const pipe = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.0007, 0.0007, 0.007, 8), lit({ color: 0x4a4744, roughness: 0.5 }))); pipe.position.set(0.0055, HW + HR * 0.55 + 0.0025, -0.002);
       g2.add(wall, roof, crown, door, lintel, pipe); g2.position.copy(P3(YURT, G)); g2.rotation.y = Math.atan2(A[0] - YURT[0], -(A[1] - YURT[1])); group.add(g2);          // 门朝着 A
       g2.updateMatrix(); pipeTop.set(0.0055, HW + HR * 0.55 + 0.006, -0.002).applyMatrix4(g2.matrix);
@@ -138,7 +138,7 @@ export default {
         s.position.set(x, 0, z); s.rotation.y = yaw; g2.add(s); flock.push({ s, yaw }); }
       const gap = (3.5 / N) * Math.PI * 2 + 0.12; g2.rotation.y = gap - Math.atan2(-(to[1] - p[1]), to[0] - p[0]);          // 圈门朝着点
       g2.position.copy(P3(p, G)); group.add(g2); return { g: g2, flock }; };
-    const realPen = pen(PEN, B, lit({ color: 0xa38c74 }), lit({ color: 0xf5f1e6, roughness: 0.95 }), lit({ color: 0x6b625a }));
+    const realPen = pen(PEN, B, lit({ color: 0x84634a }), lit({ color: 0xf5f1e6, roughness: 0.95 }), lit({ color: 0x3a332e }));
     const ghostMat = lit({ color: 0x8fb0dc, transparent: true, opacity: 0.5, depthWrite: false }), ghost = pen(PEN2, B2, ghostMat, ghostMat, ghostMat); ghost.g.visible = false;          // 折过去以后：羊圈的“影子”B′
     const penPick = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.016, 18), basic({ visible: false })); penPick.position.copy(P3(mul(add(B, PEN), 0.5), G + 0.007)); penPick.userData.pick = true; penPick.userData.noFrame = true; group.add(penPick);
 
@@ -146,7 +146,7 @@ export default {
     const HS = 0.021;          // 马身长：比真比例大一点，是学生手里拿着的主角
     const horse = new THREE.Group(); group.add(horse);
     const hz = new THREE.Group(); hz.scale.setScalar(HS); horse.add(hz);
-    const coat = lit({ color: 0x9a7556, roughness: 0.55, side: THREE.DoubleSide }), pts = lit({ color: 0x4f4036, roughness: 0.6 }), hoofM = lit({ color: 0x1a1410, roughness: 0.45 });
+    const coat = lit({ color: 0x8b5a34, roughness: 0.55, side: THREE.DoubleSide }), pts = lit({ color: 0x2a1d16, roughness: 0.6 }), hoofM = lit({ color: 0x1a1410, roughness: 0.45 });
     const body = new THREE.Group(); body.position.y = 0.71; hz.add(body);
     { const prof = [[-0.5, 0], [-0.49, 0.07], [-0.45, 0.14], [-0.37, 0.195], [-0.22, 0.205], [0.05, 0.21], [0.26, 0.215], [0.38, 0.2], [0.46, 0.15], [0.505, 0.08], [0.515, 0]];
       const g = new THREE.LatheGeometry(prof.map(([x, r]) => new THREE.Vector2(r, x)), 28); g.rotateZ(-Math.PI / 2);
@@ -184,32 +184,41 @@ export default {
     // ================= 数学：路、河边 l、折过去的那一块、记录的标杆 =================
     const beamTex = tex(64, 4, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); for (const [o, a] of [[0, 0], [0.14, 0.5], [0.26, 1], [0.74, 1], [0.86, 0.5], [1, 0]]) gr.addColorStop(o, `rgba(255,255,255,${a})`); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
     beamTex.colorSpace = THREE.NoColorSpace;
+    const softTex = tex(64, 4, (g, w, h) => { for (let x = 0; x < w; x++) { const u = (x + 0.5) / w - 0.5; g.fillStyle = `rgba(255,255,255,${Math.exp(-((u / 0.2) ** 2)).toFixed(3)})`; g.fillRect(x, 0, 1, h); } });
+    softTex.colorSpace = THREE.NoColorSpace;
     const ribbon = (pts2, hw, dash) => { const out = [], uvs = []; let acc = 0; const push = (p, q, n) => { out.push(p[0] + n[0], 0, -(p[1] + n[1]), p[0] - n[0], 0, -(p[1] - n[1]), q[0] + n[0], 0, -(q[1] + n[1]), q[0] + n[0], 0, -(q[1] + n[1]), p[0] - n[0], 0, -(p[1] - n[1]), q[0] - n[0], 0, -(q[1] - n[1])); uvs.push(0, 0.5, 1, 0.5, 0, 0.5, 0, 0.5, 1, 0.5, 1, 0.5); };
       for (let i = 0; i < pts2.length - 1; i++) { const a = pts2[i], b = pts2[i + 1], d = sub(b, a), l = Math.hypot(...d); if (l < 1e-7) continue; const n = [(-d[1] / l) * hw, (d[0] / l) * hw];
         if (!dash) push(a, b, n); else { let t = 0; while (t < l - 1e-9) { const ph = (acc + t) % (dash * 2), on = ph < dash, step = Math.max(1e-6, Math.min(l - t, on ? dash - ph : dash * 2 - ph)); if (on) push(add(a, mul(d, t / l)), add(a, mul(d, (t + step) / l)), n); t += step; } acc += l; } }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(out, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); return g; };
-    const line = (parent, color, w, y, o = 1, dash = 0, order = 5, halo = 0) => { const m = quiet(new THREE.Mesh(new THREE.BufferGeometry(), basic({ color, map: beamTex, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide }))); m.position.y = y; m.renderOrder = order; m.userData.w = w * 2.4; m.userData.dash = dash; m.visible = false; parent.add(m);
-      if (halo) { const hm = quiet(new THREE.Mesh(new THREE.BufferGeometry(), basic({ color: 0xffffff, map: beamTex, transparent: true, opacity: halo, depthWrite: false, side: THREE.DoubleSide }))); hm.position.y = y - 0.0001; hm.renderOrder = order - 1; hm.userData.w = w * 5.2; hm.visible = false; parent.add(hm); m.userData.halo = hm; }          // 线底下垫一圈白：压在草地上也分得清
+    // 数学的线像 3Blue1Brown 的动画：亮的芯、一圈加色的光晕、底下一层淡淡的暗影——压在绿草地上也跳出来，场景不用褪色
+    const sub3 = (parent, color, map, blending, w, y, order, o) => { const m = quiet(new THREE.Mesh(new THREE.BufferGeometry(), basic({ color, map, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide, blending }))); m.position.y = y; m.renderOrder = order; m.visible = false; m.userData.w = w; m.userData.o = o; parent.add(m); return m; };
+    const line = (parent, color, w, y, o = 1, dash = 0, order = 5, glow = 0.45) => { const m = sub3(parent, color, beamTex, THREE.NormalBlending, w * 2.4, y, order, o); m.userData.dash = dash; m.userData.subs = [];
+      if (glow) m.userData.subs.push(sub3(parent, color, softTex, THREE.AdditiveBlending, w * 9, y - 0.0001, order - 1, glow), sub3(parent, 0x0b1210, softTex, THREE.NormalBlending, w * 4.2, y - 0.0003, order - 2, 0.16));
       return m; };
-    const setLine = (m, p) => { const hm = m.userData.halo; if (!p) { m.visible = false; if (hm) hm.visible = false; return; } m.geometry.dispose(); m.geometry = ribbon(p, m.userData.w / 2, m.userData.dash); m.visible = true; if (hm) { hm.geometry.dispose(); hm.geometry = ribbon(p, hm.userData.w / 2, 0); hm.visible = true; } };
-    const Y = G + LIFT, TEAL = 0x17877d, RED = 0xd2452b;
+    const drawing = new Map();          // 正在“画出来”的线：线 → { pts, t0, dur }
+    const rawSet = (m, p) => { const subs = m.userData.subs || []; if (!p) { m.visible = false; for (const q of subs) q.visible = false; return; } m.geometry.dispose(); m.geometry = ribbon(p, m.userData.w / 2, m.userData.dash); m.visible = true; for (const q of subs) { q.geometry.dispose(); q.geometry = ribbon(p, q.userData.w / 2, 0); q.visible = true; } };
+    const setLine = (m, p) => { const d = drawing.get(m); if (d) { d.pts = p; if (!p) { drawing.delete(m); rawSet(m, null); } return; } rawSet(m, p); };
+    const setOp = (m, k) => { m.material.opacity = m.userData.o * k; for (const q of m.userData.subs || []) q.material.opacity = q.userData.o * k; };
+    const cutAt = (pts2, k) => { let tot = 0; for (let n = 1; n < pts2.length; n++) tot += dist(pts2[n], pts2[n - 1]); let need = tot * k; const out = [pts2[0]]; for (let n = 1; n < pts2.length; n++) { const l = dist(pts2[n], pts2[n - 1]); if (need >= l) { out.push(pts2[n]); need -= l; } else { out.push(add(pts2[n - 1], mul(sub(pts2[n], pts2[n - 1]), need / Math.max(l, 1e-9)))); break; } } return out; };
+    const drawOn = (m, p, dur = 0.7, delay = 0) => { drawing.set(m, { pts: p, t0: now() + delay, dur }); rawSet(m, null); };          // 新出现的线从一头画到另一头
+    const Y = G + LIFT, TEAL = 0x5cd0b3, RED = 0xfc6255;
     const L = {
-      l: line(group, INK, 0.0011, Y - 0.0002, 0.95, 0, 5, 0.5),
+      l: line(group, INK, 0.0011, Y - 0.0002, 0.95, 0, 5, 0.35),
       ac: line(group, GOLD, 0.0024, Y, 1, 0, 5, 0.6), cb: line(group, GOLD, 0.0024, Y, 1, 0, 5, 0.6),
       bb: line(group, IMG, 0.0009, Y + 0.0001, 0.85, 0.0028, 6), sqH: line(group, INK, 0.0008, Y + 0.0002, 0.9, 0, 7),
       k1: line(group, IMG, 0.0009, Y + 0.0002, 1, 0, 7), k2: line(group, IMG, 0.0009, Y + 0.0002, 1, 0, 7), k3: line(group, IMG, 0.0009, Y + 0.0002, 1, 0, 7), k4: line(group, IMG, 0.0009, Y + 0.0002, 1, 0, 7),
-      hb: line(group, INK, 0.0006, Y - 0.0001, 0.55, 0.0025),
+      hb: line(group, INK, 0.0006, Y - 0.0001, 0.6, 0.0025, 5, 0.2),
       guide: line(group, INK, 0.0007, Y + 0.0001, 0.6, 0.003, 6),          // 拉直以后留下的 AB′（虚线）
-      glow: line(group, 0xffb340, 0.0075, Y - 0.0003, 0, 0, 4),            // 拉直那一下的光带
+      glow: line(group, GOLD, 0.0075, Y - 0.0003, 1, 0, 4, 0.6),            // 拉直那一下的光带
       t1: line(group, GOLD, 0.0012, Y + 0.0002), t2: line(group, IMG, 0.0012, Y + 0.0006, 1, 0, 8),
       a1: line(group, TEAL, 0.001, Y + 0.0003, 1, 0, 8), a2: line(group, TEAL, 0.001, Y + 0.0003, 1, 0, 8), a3: line(group, IMG, 0.001, Y + 0.0007, 1, 0, 8),
       lay1: line(group, GOLD, 0.002, Y + 0.0012, 1, 0, 9), lay2: line(group, IMG, 0.002, Y + 0.0014, 1, 0, 9), over: line(group, RED, 0.0034, Y + 0.0016, 1, 0, 10), mark: line(group, INK, 0.0009, Y + 0.0016, 1, 0, 10),
-      ray: line(group, 0xffc93a, 0.003, Y + 0.0018, 1, 0, 10),
+      ray: line(group, 0xfff1a8, 0.003, Y + 0.0018, 1, 0, 10, 0.8),
     };
-    setLine(L.l, [[-0.185, -0.0008], [0.185, -0.0008]]);
+    const LPTS = [[-0.185, -0.0008], [0.185, -0.0008]]; setLine(L.l, LPTS);
     // 羊圈那一块：C、H、B 围成的三角形，放在一个绕河边 l（x 轴）转的组里——折到对岸，B 落到 B′
     const fold = new THREE.Group(); fold.position.y = Y + 0.0004; group.add(fold);
-    const paper = new THREE.Mesh(new THREE.BufferGeometry(), lit({ color: 0xdfe9fb, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, roughness: 0.9, emissive: 0xdfe9fb, emissiveIntensity: 0.3 })); paper.renderOrder = 6; paper.userData.pick = true; paper.userData.noFrame = true; fold.add(paper);
+    const paper = new THREE.Mesh(new THREE.BufferGeometry(), lit({ color: 0xc4ecf7, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false, roughness: 0.9, emissive: 0xc4ecf7, emissiveIntensity: 0.35 })); paper.renderOrder = 6; paper.userData.pick = true; paper.userData.noFrame = true; fold.add(paper);
     const F = { cb: line(fold, IMG, 0.0022, 0.0003, 1, 0, 8, 0.55), hb: line(fold, INK, 0.0006, 0.0002, 0.7, 0, 7), sq: line(fold, INK, 0.0005, 0.0002, 0.7, 0, 7) };
     const dot = quiet(new THREE.Mesh(new THREE.RingGeometry(0.0022, 0.0034, 28).rotateX(-Math.PI / 2), basic({ color: IMG, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); dot.position.set(B[0], 0.0004, -B[1]); dot.renderOrder = 8; fold.add(dot);
     fold.visible = false;
@@ -221,23 +230,28 @@ export default {
     flag.position.copy(P3([CSTAR, -0.0012], G)); flag.visible = false; group.add(flag);
     // 光：拉直以后，一束光从 A 射到 C、再到 B
     const spark = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, color: 0xffe08a, transparent: true, depthWrite: false, opacity: 0 }))); spark.renderOrder = 12; group.add(spark);
-    // 重拍：在那一点荡开两圈光
-    const ripples = [];
-    const ripple = (p, col, delay = 0) => { const m = quiet(new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 64).rotateX(-Math.PI / 2), basic({ color: col, transparent: true, opacity: 0, depthWrite: false }))); m.position.copy(P3(p, Y + 0.0002)); m.renderOrder = 7; m.userData.born = now() + delay; group.add(m); ripples.push(m); };
+    // 重拍：从那一点迸出一圈短光线（3Blue1Brown 的 Flash），不压暗画面
+    const flashes = [];
+    const ripple = (p, col, delay = 0) => { const rays = []; for (let n = 0; n < 12; n++) rays.push(sub3(group, col, beamTex, THREE.NormalBlending, 0.0016 * 2.4, Y + 0.0012, 13, 1)); flashes.push({ p, rays, t0: now() + delay }); };
+    // 光迹：马走过的每一条路 A→C→B 留下一道淡淡的光，像长曝光
+    const trails = Array.from({ length: 14 }, () => sub3(group, GOLD, softTex, THREE.AdditiveBlending, 0.0026 * 2.4, Y - 0.0002, 3, 0.5));
+    let trailN = 0, trailC = -9;
+    const trail = (c) => { const m = trails[trailN++ % trails.length]; m.geometry.dispose(); m.geometry = ribbon([A, [c, 0], B], m.userData.w / 2, 0); m.visible = true; m.userData.t0 = now(); };
     // 字：和课本插图一样的字母、角的记号、读数
     const measure = (font, txt) => { const g = document.createElement('canvas').getContext('2d'); g.font = font; return g.measureText(txt).width; };
-    const labTex = (txt, col, px = 64) => { const f = /^[A-Z]′?$|^l$/.test(txt) ? `italic 500 ${px * 1.08}px "Times New Roman",serif` : `600 ${px}px "Times New Roman","Songti SC","STSong",serif`; return tex(Math.ceil(measure(f, txt)) + 40, Math.round(px * 1.5), (g, w, h) => { g.font = f; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = px * 0.14; g.strokeStyle = 'rgba(255,253,248,0.92)'; g.strokeText(txt, w / 2, h / 2 + 2); g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 2); }); };
+    const labTex = (txt, col, px = 64) => { const f = /^[A-Z]′?$|^l$/.test(txt) ? `italic 500 ${px * 1.08}px "Times New Roman",serif` : `600 ${px}px "Times New Roman","Songti SC","STSong",serif`; return tex(Math.ceil(measure(f, txt)) + 44, Math.round(px * 1.55), (g, w, h) => { g.font = f; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.shadowColor = 'rgba(6,10,14,0.6)'; g.shadowBlur = px * 0.2; g.lineWidth = px * 0.15; g.strokeStyle = 'rgba(14,18,24,0.62)'; g.strokeText(txt, w / 2, h / 2 + 2); g.shadowBlur = 0; g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 2); }); };
     const label = (hgt) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }))); sp.renderOrder = 20; sp.userData.h = hgt; sp.userData.k = ''; group.add(sp); sp.visible = false; return sp; };
     const setLabel = (sp, txt, col, p, y) => { if (!txt) { sp.visible = false; return; } if (sp.userData.k !== txt + col) { sp.userData.k = txt + col; const t = labTex(txt, col); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; sp.scale.set((sp.userData.h * t.image.width) / t.image.height, sp.userData.h, 1); } sp.position.copy(P3(p, y)); sp.visible = true; };
     const LB = { A: label(0.017), B: label(0.017), B2: label(0.017), C: label(0.016), C2: label(0.016), l: label(0.015), m: label(0.0115), cb: label(0.0105), cb2: label(0.0105), g1: label(0.0108), g2: label(0.0108), g3: label(0.0108) };
     // 点：像课本插图那样的圆点，白边衬着，压在草地、河面上都看得清
     const discGeo = new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2);
-    const dotPt = (col) => { const g = new THREE.Group(), ring = quiet(new THREE.Mesh(discGeo, basic({ color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false }))), core = quiet(new THREE.Mesh(discGeo, basic({ color: col, transparent: true, depthWrite: false }))); ring.scale.setScalar(0.0044); core.scale.setScalar(0.003); core.position.y = 0.0001; ring.renderOrder = 11; core.renderOrder = 12; g.add(ring, core); g.visible = false; group.add(g); return g; };
-    const PT = { A: dotPt(INK), B: dotPt(INK), C: dotPt(0xd0700a), C2: dotPt(INK), B2: dotPt(IMG) };
+    const dotTex = tex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.5)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+    const dotPt = (col) => { const g = new THREE.Group(), glow = quiet(new THREE.Mesh(discGeo, basic({ color: col, map: dotTex, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }))), rim = quiet(new THREE.Mesh(discGeo, basic({ color: 0x0e1418, transparent: true, opacity: 0.55, depthWrite: false }))), core = quiet(new THREE.Mesh(discGeo, basic({ color: col, transparent: true, depthWrite: false }))); glow.scale.setScalar(0.011); rim.scale.setScalar(0.0037); core.scale.setScalar(0.0027); rim.position.y = 0.00005; core.position.y = 0.0001; glow.renderOrder = 10; rim.renderOrder = 11; core.renderOrder = 12; g.add(glow, rim, core); g.visible = false; group.add(g); return g; };
+    const PT = { A: dotPt(0xffffff), B: dotPt(0xffffff), C: dotPt(GOLD), C2: dotPt(0xffffff), B2: dotPt(IMG) };
     PT.A.position.copy(P3(A, Y + 0.0006)); PT.B.position.copy(P3(B, Y + 0.0006)); PT.A.visible = PT.B.visible = true;
     // 记录：马走到哪儿，就在旁边的河里插一根标杆，杆越高路越远（只记学生自己走过的地方）
     const POSTS = 38, PV = RV1 / 2, HGT = (l) => 0.003 + (l - 0.2) * 0.26;
-    const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.00055, 0.00055, 1, 6), lit({ color: 0xbaa88e }), POSTS), caps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0013, 10, 8), lit({ color: 0xf0a33a, emissive: 0x6a3a00, emissiveIntensity: 0.3 }), POSTS);
+    const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.00055, 0.00055, 1, 6), lit({ color: 0xa88560 }), POSTS), caps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0013, 10, 8), lit({ color: 0xf0a33a, emissive: 0x6a3a00, emissiveIntensity: 0.3 }), POSTS);
     for (const m of [posts, caps]) { m.count = 0; m.castShadow = true; m.raycast = () => {}; m.userData.noFrame = true; m.frustumCulled = false; group.add(m); }
     const seen = new Map();          // 第几格 → 路程
     const slot = (c) => Math.round((c - C_MIN) / ((C_MAX - C_MIN) / (POSTS - 1)));
@@ -281,7 +295,7 @@ export default {
 .rh-board .n{display:inline-block;min-width:1.25em;color:#b0532a;font-weight:700}
 .rh-board b{color:#8a2f1d}
 .rh-board i{font-family:"Times New Roman",serif;font-style:italic;letter-spacing:.02em}
-.rh-board .ia{color:#cc6418;font-weight:600}.rh-board .ca{color:#2c6aa8;font-weight:600}.rh-board .tl{color:#17877d;font-weight:600}
+.rh-board .ia{color:#c98600;font-weight:600}.rh-board .ca{color:#2589b0;font-weight:600}.rh-board .tl{color:#1a9a82;font-weight:600}
 .rh-board .rb-h{font:600 12px/1.3 "PingFang SC","Hiragino Sans GB",sans-serif;color:#a07a45;letter-spacing:.3em;margin:6px 0 -4px;opacity:0;transition:opacity .4s}
 .rh-board .rb-h.in{opacity:1}
 .rh-board.review .rb-row[data-k]{cursor:pointer}.rh-board.review .rb-row[data-k]:hover{background:rgba(255,206,110,.16)}
@@ -320,22 +334,22 @@ export default {
         setLine(L.k1, on ? mk(B[1] / 2) : null); setLine(L.k2, on ? mk2(B[1] / 2) : null); setLine(L.k3, on ? mk(B2[1] / 2) : null); setLine(L.k4, on ? mk2(B2[1] / 2) : null); }
       flag.visible = S.showLine; setLine(L.guide, S.showLine ? [A, B2] : null);
       const l = len(S.c);
-      setLabel(LB.A, 'A', '#1f2a3a', add(A, [0.007, -0.014]), G + 0.006); setLabel(LB.B, 'B', '#1f2a3a', add(B, [-0.009, -0.013]), G + 0.006);
-      setLabel(LB.B2, S.flipped ? 'B′' : '', '#2f62a8', add(B2, [-0.01, 0.011]), G + 0.008); setLabel(LB.l, 'l', '#1f2a3a', [0.176, -0.006], G + 0.006);
-      if (away) { setLabel(LB.C, 'C', '#b4460a', [CSTAR - 0.006, -0.015], G + 0.004); setLabel(LB.C2, 'C′', '#1f2a3a', [S.c + 0.008, -0.015], G + 0.004); }
-      else { setLabel(LB.C, 'C', '#1f2a3a', S.showArcs ? [S.c, -0.026] : [S.c + 0.004, -0.015], G + 0.004); setLabel(LB.C2, '', '', [0, 0], 0); }
-      setLabel(LB.m, `${Math.round(l * M)} 米`, S.straight ? '#b4460a' : '#5a3d16', [S.c, PV], G + HGT(l) + 0.011);
+      setLabel(LB.A, 'A', '#ffffff', add(A, [0.007, -0.014]), G + 0.006); setLabel(LB.B, 'B', '#ffffff', add(B, [-0.009, -0.013]), G + 0.006);
+      setLabel(LB.B2, S.flipped ? 'B′' : '', '#9be3f5', add(B2, [-0.01, 0.011]), G + 0.008); setLabel(LB.l, 'l', '#ffffff', [0.176, -0.006], G + 0.006);
+      if (away) { setLabel(LB.C, 'C', '#ffd45c', [CSTAR - 0.006, -0.015], G + 0.004); setLabel(LB.C2, 'C′', '#ffffff', [S.c + 0.008, -0.015], G + 0.004); }
+      else { setLabel(LB.C, 'C', '#ffd45c', S.showArcs ? [S.c, -0.026] : [S.c + 0.004, -0.015], G + 0.004); setLabel(LB.C2, '', '', [0, 0], 0); }
+      setLabel(LB.m, `${Math.round(l * M)} 米`, S.straight ? '#ffd45c' : '#ffffff', [S.c, PV], G + HGT(l) + 0.011);
       if (S.flipped) { const tick = (p, q) => { const m = mul(add(p, q), 0.5), n = mul(unit([-(q[1] - p[1]), q[0] - p[0]]), 0.0032); return [sub(m, n), add(m, n)]; }; setLine(L.t1, tick(C, B)); setLine(L.t2, tick(C, B2)); }
       else { setLine(L.t1, null); setLine(L.t2, null); }
-      if (S.showEq) { const d = Math.round(dist(C, B) * M) + ' 米'; setLabel(LB.cb, d, '#a4520a', add(mul(add(C, B), 0.5), [0.012, -0.004]), G + 0.008); setLabel(LB.cb2, d, '#2f62a8', add(mul(add(C, B2), 0.5), [0.012, 0.004]), G + 0.008); }
+      if (S.showEq) { const d = Math.round(dist(C, B) * M) + ' 米'; setLabel(LB.cb, d, '#ffd45c', add(mul(add(C, B), 0.5), [0.012, -0.004]), G + 0.008); setLabel(LB.cb2, d, '#9be3f5', add(mul(add(C, B2), 0.5), [0.012, 0.004]), G + 0.008); }
       else { setLabel(LB.cb, '', '', [0, 0], 0); setLabel(LB.cb2, '', '', [0, 0], 0); }
       setLine(L.glow, S.straight ? [A, B2] : null);
       if (S.showArcs) { const r = 0.03, a1 = angA(C, A), a2 = angA(C, B), a3 = angA(C, B2);
         setLine(L.a1, arcPts(C, Math.PI, a1, r)); setLine(L.a2, arcPts(C, 0, a2, r)); setLine(L.a3, arcPts(C, 0, a3, r));
-        const at = (a, rr) => [C[0] + rr * Math.cos(a), C[1] + rr * Math.sin(a)], g = S.straight ? '#0f6e65' : '#17877d';
+        const at = (a, rr) => [C[0] + rr * Math.cos(a), C[1] + rr * Math.sin(a)], g = S.straight ? '#a6f5e0' : '#7fe3c8';
         setLabel(LB.g1, `∠1 ${deg(Math.PI - Math.abs(a1))}°`, g, at((-Math.PI + a1) / 2, r + 0.014), G + 0.006);
         setLabel(LB.g2, `∠2 ${deg(a2)}°`, g, at(a2 / 2, r + 0.014), G + 0.006);
-        setLabel(LB.g3, `∠3 ${deg(a3)}°`, '#2f62a8', at(a3 / 2, r + 0.014), G + 0.006); }
+        setLabel(LB.g3, `∠3 ${deg(a3)}°`, '#9be3f5', at(a3 / 2, r + 0.014), G + 0.006); }
       else { for (const k of ['a1', 'a2', 'a3']) setLine(L[k], null); for (const k of ['g1', 'g2', 'g3']) setLabel(LB[k], '', '', [0, 0], 0); }
     }
 
@@ -353,13 +367,13 @@ export default {
       prompt('CB 和 CB′ 总是一样长吗？拖着马走走看'); layout();
     }
     function equalSeen() {          // l 垂直平分 BB′，CB = CB′
-      S.beat = 'eqdone'; S.showBis = true; sfx.ding(1180, { gain: 0.05 }); ripple(mul(add([S.c, 0], B), 0.5), GOLD); ripple(mul(add([S.c, 0], B2), 0.5), IMG, 0.15);
+      S.beat = 'eqdone'; S.showBis = true; drawOn(L.bb, [B, B2], 0.8); sfx.ding(1180, { gain: 0.05 }); ripple(mul(add([S.c, 0], B), 0.5), GOLD); ripple(mul(add([S.c, 0], B2), 0.5), IMG, 0.15);
       caption('CB 和 CB′ 总是一样长', '线段垂直平分线上的点与这条线段两个端点的距离相等');
       board(`<span class="n">3</span>${i('l')} 垂直平分 ${i('BB′')}：线段垂直平分线上的点与这条线段两个端点的距离相等。${i('C')} 在 ${i('l')} 上，所以 ${i('CB')} = <span class="ca">${i('CB′')}</span>，<span class="ia">${i('AC')} + ${i('CB')}</span> = ${i('AC')} + <span class="ca">${i('CB′')}</span>`, 'eq');
       later(1800, () => { S.beat = 'straight'; S.showEq = false; S.beatAt = now(); S.hint = 0; caption('现在 A、B′ 在河的两边', '马走到哪儿，AC + CB′ 最短？'); prompt('A、B′ 在河两边了：马走到哪儿，AC + CB′ 最短？'); layout(); });
     }
     function straightened() {          // 重拍 1：两点之间，线段最短
-      S.showLine = true; S.showBis = false; S.punchAt = now(); S.flagAt = now(); S.beat = 'lined'; sfx.ding(1320, { gain: 0.07 }); ripple([CSTAR, 0], GOLD); ripple([CSTAR, 0], IMG, 0.28);
+      S.showLine = true; S.showBis = false; S.punchAt = now(); S.flagAt = now(); S.beat = 'lined'; drawOn(L.glow, [A, B2], 0.55); drawOn(L.guide, [A, B2], 0.7, 0.35); sfx.ding(1320, { gain: 0.07 }); ripple([CSTAR, 0], GOLD); ripple([CSTAR, 0], IMG, 0.28);
       caption('两点之间，线段最短', '连接 AB′，与 l 的交点就是 C：在这里饮马，路最短');
       board.h('结论'); board(`<span class="n">4</span>${i('A')}、${i('B′')} 在 ${i('l')} 两侧：连接 ${i('AB′')} 交 ${i('l')} 于 ${i('C')}。两点之间，线段最短，${i('AC')} + ${i('CB′')} 最小，也就是 <span class="ia">${i('AC')} + ${i('CB')}</span> 最小——正是最低的那根标杆`, 'line');
       later(2400, () => { S.beat = 'proof'; S.beatAt = now(); S.hint = 0; caption('别的地方，为什么都更远？', '把马牵到河边别的地方 C′ 看看'); prompt('别的地方为什么都更远？把马牵到 l 上别处 C′'); layout(); });
@@ -387,7 +401,7 @@ export default {
     }
     // 讲完以后点板书：场景摆回那一刻
     function pose(k) {
-      S.lay = null; S.run = null; for (const m of [L.lay1, L.lay2, L.over, L.mark, L.ray]) { setLine(m, null); m.material.opacity = 1; } S.pose = k;
+      S.lay = null; S.run = null; for (const m of [L.lay1, L.lay2, L.over, L.mark, L.ray]) { setLine(m, null); setOp(m, 1); } S.pose = k;
       const fold1 = k !== 'walk';
       Object.assign(S, { showFold: fold1, flipped: fold1, flip: fold1 ? 1 : 0, showEq: k === 'eq', showBis: k === 'eq', showLine: ['line', 'proof', 'light', 'ans'].includes(k), showArcs: k === 'light' });
       S.c = k === 'walk' ? slotC(LOW) : k === 'sym' ? -0.09 : k === 'eq' ? 0.06 : k === 'proof' ? CSTAR + 0.075 : CSTAR;
@@ -406,7 +420,7 @@ export default {
       const snap = S.flipped && (S.beat === 'straight' || S.beat === 'light' || S.showLine);
       if (snap && Math.abs(c - CSTAR) < 0.004) c = CSTAR;          // 拉成一条直线时吸住
       const dc = c - S.c; if (Math.abs(dc) > 1e-6) { gait.face = dc > 0 ? 0 : Math.PI; gait.p += (Math.abs(dc) / (HS * 0.95)) * Math.PI * 2; gait.moved = now(); }
-      S.c = c;
+      S.c = c; if (Math.abs(c - trailC) > 0.012) { trailC = c; trail(c); }
       const k = slot(c); if (!seen.has(k)) { seen.set(k, len(slotC(k))); drawPosts(); sfx.clink({ freq: 900 + (0.35 - len(c)) * 2200, gain: 0.015 }); }
       S.straight = S.flipped && S.showLine ? c === CSTAR : S.flipped && c === CSTAR && S.beat === 'straight';
       if (S.beat === 'walk' && !S.found) { const ks = [...seen.keys()]; if (seen.has(LOW) && ks.some((x) => x <= LOW - 4) && ks.some((x) => x >= LOW + 4)) found(); else if (seen.size >= 16 && !S.nudged) { S.nudged = true; prompt('路程会先变短、再变长吗？往另一头走走'); } }
@@ -435,7 +449,7 @@ export default {
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('到河边哪里饮马，走的路最短？', '牧民从蒙古包 A 出发，到河边饮马，再去羊圈 B'); prompt('到河边哪里饮马，走的路最短？'); }
     // 清场重来（换一批学生，或者想重新讲一遍）——键盘 R
-    function reset() { runId++; S = fresh(); seen.clear(); drawPosts(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } for (const k of ['lay1', 'lay2', 'over', 'mark', 'ray']) { setLine(L[k], null); L[k].material.opacity = 1; } spark.material.opacity = 0; cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    function reset() { runId++; S = fresh(); seen.clear(); drawPosts(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } for (const k of ['lay1', 'lay2', 'over', 'mark', 'ray']) { setLine(L[k], null); setOp(L[k], 1); } spark.material.opacity = 0; cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -450,7 +464,7 @@ export default {
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'rh-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.rb-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
-        ui.go?.(1); if (!cap.key) opening(); else if (S.ask) ui.status?.(S.ask);
+        ui.go?.(1); if (!cap.key) { opening(); drawOn(L.l, LPTS, 0.9, 0.5); drawOn(L.ac, [A, [S.c, 0]], 0.6, 1.2); drawOn(L.cb, [[S.c, 0], B], 0.7, 1.6); } else if (S.ask) ui.status?.(S.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
       dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
@@ -473,12 +487,17 @@ export default {
         for (const [n, f] of realPen.flock.entries()) f.s.rotation.y = f.yaw + 0.25 * Math.sin(t * 0.3 + n * 1.7);
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
-        // 重拍的光圈
-        for (let n = ripples.length - 1; n >= 0; n--) { const m = ripples[n], a = t - m.userData.born; if (a < 0) continue; if (a > 1.4) { group.remove(m); m.geometry.dispose(); m.material.dispose(); ripples.splice(n, 1); continue; } m.scale.setScalar(0.004 + a * 0.024); m.material.opacity = 0.75 * (1 - a / 1.4); }
+        // 新线一笔画出来
+        for (const [m, d] of drawing) { if (t < d.t0) continue; const k = clamp((t - d.t0) / d.dur, 0, 1), e = k * k * (3 - 2 * k); if (d.pts) rawSet(m, k >= 1 ? d.pts : cutAt(d.pts, Math.max(0.002, e))); if (k >= 1) drawing.delete(m); }
+        // 重拍：一圈短光线往外迸
+        for (let n = flashes.length - 1; n >= 0; n--) { const f = flashes[n], k = (t - f.t0) / 0.6; if (k < 0) continue; if (k >= 1) { for (const r of f.rays) { group.remove(r); r.geometry.dispose(); r.material.dispose(); } flashes.splice(n, 1); continue; }
+          const e = 1 - (1 - k) ** 2; f.rays.forEach((r, q) => { const a = (q / f.rays.length) * Math.PI * 2 + 0.13, d = [Math.cos(a), Math.sin(a)], r0 = 0.006 + 0.024 * e, r1 = r0 + 0.012 * (1 - k); r.geometry.dispose(); r.geometry = ribbon([add(f.p, mul(d, r0)), add(f.p, mul(d, r1))], r.userData.w / 2, 0); r.visible = true; r.material.opacity = 1 - k; }); }
+        // 光迹慢慢淡掉
+        for (const m of trails) { if (!m.visible) continue; const k = (t - m.userData.t0) / 1.6; if (k >= 1) { m.visible = false; continue; } m.material.opacity = 0.42 * (1 - k); }
         // 折纸：等人去折的时候一呼一吸
         paper.material.opacity = S.beat === 'fold' && !S.held ? 0.45 + 0.3 * Math.sin(t * 3.2) ** 2 : 0.6;
         // 拉直的那一下：光带亮一下再收住；最低的标杆鼓一下
-        { const k = clamp((t - S.punchAt) / 0.9, 0, 1); L.glow.material.opacity = S.straight ? 0.45 + 0.5 * (1 - k) : 0; }
+        { const k = clamp((t - S.punchAt) / 0.9, 0, 1); setOp(L.glow, S.straight ? 0.45 + 0.55 * (1 - k) : 0); }
         { const k = Math.max(clamp((t - S.punchAt) / 0.9, 0, 1), S.straight ? 0 : 1), k2 = clamp((t - S.postAt) / 0.9, 0, 1), b = Math.max(k < 1 ? Math.sin(k * Math.PI) : 0, k2 < 1 ? Math.sin(k2 * Math.PI) : 0); if (b > 0 || S.postBig) { drawPosts(1 + 0.8 * b); S.postBig = b > 0; } }
         { const k = clamp((t - S.flagAt) / 0.5, 0, 1); flag.scale.setScalar(S.showLine ? easeOut(k) : 1); }
         // 证明：AC′、C′B′ 两条边转到 AB′ 上接起来，比 AB′ 长出一截
@@ -487,15 +506,15 @@ export default {
           const th2 = angA(cp, B2) + wrapA(dA - angA(cp, B2)) * e, e2 = add(e1, [b * Math.cos(th2), b * Math.sin(th2)]);
           const age = t - t0 - 1.1, fade = clamp(1 - (age - 2.6) / 0.5, 0, 1), endAB = add(A0, mul(d, dist(A, B2))), nn = mul([d[1], -d[0]], 0.004);
           setLine(L.lay1, [A0, e1]); setLine(L.lay2, [e1, e2]); setLine(L.over, k >= 1 ? [endAB, e2] : null); setLine(L.mark, k >= 1 ? [sub(endAB, nn), add(endAB, nn)] : null);
-          for (const m of [L.lay1, L.lay2, L.over, L.mark]) m.material.opacity = fade;
+          for (const m of [L.lay1, L.lay2, L.over, L.mark]) setOp(m, fade);
           if (k >= 1 && !S.lay.hit) { S.lay.hit = true; ripple(B2, RED); if (S.beat === 'proof') proved(); else sfx.ding(1250, { gain: 0.05 }); }
-          if (fade <= 0) { S.lay = null; for (const m of [L.lay1, L.lay2, L.over, L.mark]) { setLine(m, null); m.material.opacity = 1; } } }
+          if (fade <= 0) { S.lay = null; for (const m of [L.lay1, L.lay2, L.over, L.mark]) { setLine(m, null); setOp(m, 1); } } }
         // 光：从 A 射到 C，再反射到 B
         if (S.run) { const k = clamp((t - S.run.t0) / 1.6, 0, 1), Cs = [CSTAR, 0], L1 = dist(A, Cs), L2 = dist(Cs, B), s = k * (L1 + L2);
           const tip = s <= L1 ? add(A, mul(unit(sub(Cs, A)), s)) : add(Cs, mul(unit(sub(B, Cs)), s - L1));
-          setLine(L.ray, s <= L1 ? [A, tip] : [A, Cs, tip]); const fade = clamp(1 - (t - S.run.t0 - 2.8) / 0.6, 0, 1); L.ray.material.opacity = fade;
+          setLine(L.ray, s <= L1 ? [A, tip] : [A, Cs, tip]); const fade = clamp(1 - (t - S.run.t0 - 2.8) / 0.6, 0, 1); setOp(L.ray, fade);
           spark.position.copy(P3(tip, Y + 0.004)); spark.scale.setScalar(0.014 + 0.004 * Math.sin(t * 20)); spark.material.opacity = k < 1 ? 0.95 : 0.95 * clamp(1 - (t - S.run.t0 - 1.6) / 0.4, 0, 1);
-          if (fade <= 0) { S.run = null; setLine(L.ray, null); L.ray.material.opacity = 1; spark.material.opacity = 0; } }
+          if (fade <= 0) { S.run = null; setLine(L.ray, null); setOp(L.ray, 1); spark.material.opacity = 0; } }
         // 卡住很久，才一级一级给提示（不拦着人）
         if (!S.held && !S.done && S.hint < 1 && t - S.beatAt > 15 && t - gait.moved > 4) {
           const H1 = { fold: ['按住羊圈这一块，往河对岸翻过去', '沿河边 l 折叠'], equal: ['拖着马走：看 CB 和 CB′ 的长度', ''], straight: ['A、B′ 在河的两边：怎么连最短？', '把马牵到 A、C、B′ 连成一条直线的地方'], proof: ['提示：在 l 上另外任取一点 C′', '证明 AC + CB < AC′ + C′B'], light: ['把马牵回 C，看 ∠1 和 ∠2', ''] }[S.beat];
