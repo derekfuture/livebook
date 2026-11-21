@@ -31,12 +31,12 @@ export default {
   fig: '图20.1-3',
   title: '勾股定理',
   flow: 'explore',
-  ask: '池方一丈，葭生其中央，出水一尺；引葭赴岸，适与岸齐。<br>水有多深？芦苇有多长？',
-  need: '先把芦苇拉到岸边看看。',
+  ask: '《九章算术》古题（现代转述）：正方形水池边长 1 丈（1 丈 = 10 尺）。池中央的芦苇露出水面 1 尺，拉向一边的中点时，顶端恰好碰到水面。<br>水有多深？芦苇有多长？',
+  need: '先把芦苇拉到岸边中点。',
   conclusion: {
-    page: 30, rect: [44, 40, 462, 530],
+    page: 30, rect: [42, 40, 464, 675],
     quote: '如果直角三角形的两条直角边长分别为 a，b，斜边长为 c，那么 a² + b² = c²。',
-    why: '在方砖地上数面积：以两条直角边为边的正方形面积相加，正好等于以斜边为边的正方形面积（斜着的正方形，用外面的大正方形减去 4 个直角三角形来数）。赵爽弦图说明了为什么：边长为 a，b 的两个正方形连在一起，面积是 a² + b²；它们可以分割成四个全等的直角三角形（红色）和一个正方形（黄色），把左、右两个三角形移上去，就拼成以 c 为边长的正方形，面积是 c²。所以 a² + b² = c²，这就是勾股定理。<br><br>水池：半个池宽 5 尺、水深 x 尺、芦苇 x + 1 尺围成直角三角形，x² + 5² = (x + 1)²，x = 12。水深 12 尺，芦苇长 13 尺。',
+    why: '在方砖地上数面积：以两条直角边为边的正方形面积相加，正好等于以斜边为边的正方形面积（斜着的正方形，用外面的大正方形减去 4 个直角三角形来数）。赵爽弦图说明了为什么：边长为 a，b 的两个正方形连在一起，面积是 a² + b²；切出的四个红色直角三角形全等。两条直角边不等长时，还有一个边长为 b − a 的黄色正方形；等长时，四个三角形恰好拼满。把左、右两个三角形移上去，就拼成以 c 为边长的正方形，面积是 c²。所以 a² + b² = c²，这就是勾股定理。<br><br>水池：半个池宽 5 尺、水深 x 尺、芦苇 x + 1 尺围成直角三角形，x² + 5² = (x + 1)²，x = 12。水深 12 尺，芦苇长 13 尺。',
     src: '课本 · 20.1 勾股定理及其应用（赵爽弦图）；水池的题出自《九章算术》，见本节习题',
   },
 
@@ -180,7 +180,7 @@ export default {
 
     // 水池里的三角形：勾（半个池宽）、股（水深）、弦（芦苇）
     const PT = { gou: stroke(BLUE, 0.16, { n: NF }), gu: stroke(GREEN, 0.16, { n: NF }), guD: stroke(GREEN, 0.12, { n: NF, dash: 0.35 }), xian: stroke(GOLD, 0.16, { n: NF }), xianD: stroke(GOLD, 0.12, { n: NF, dash: 0.35 }), sq: stroke(WHITE, 0.08, { n: NF, glow: 0.2 }), one: stroke(WHITE, 0.08, { n: NF, glow: 0.2 }) };
-    const PL = { gou: label(1.1), gu: label(1.1), xian: label(1.1), one: label(0.9) };
+    const PL = { gou: label(1.1), gu: label(1.1), xian: label(1.1), one: label(0.9), bank: label(0.95) };
     // 方砖地上的三角形和三个正方形
     const TR = { a: stroke(BLUE, 0.15), b: stroke(GREEN, 0.15), c: stroke(GOLD, 0.15) };
     const SQ = { a: { f: fill(BLUE, 0.36, 6, true), e: stroke(BLUE, 0.1, { glow: 0.3 }), n: label(1.3) }, b: { f: fill(GREEN, 0.36, 6, true), e: stroke(GREEN, 0.1, { glow: 0.3 }), n: label(1.3) }, c: { f: fill(GOLD, 0.34, 6), e: stroke(GOLD, 0.1, { glow: 0.3 }), n: label(1.3) } };
@@ -190,6 +190,7 @@ export default {
     const PC = { t1: fill(RED, 0.62, 9, true), t2: fill(RED, 0.62, 9, true), r3: fill(RED, 0.62, 8), r4: fill(RED, 0.62, 8), y: fill(YEL, 0.7, 8) };
     const PE = { t1: stroke(0xffffff, 0.07, { glow: 0.15, shadow: 0.2 }), t2: stroke(0xffffff, 0.07, { glow: 0.15, shadow: 0.2 }), r3: stroke(0xffffff, 0.07, { glow: 0.15, shadow: 0.2 }), r4: stroke(0xffffff, 0.07, { glow: 0.15, shadow: 0.2 }), y: stroke(0xffffff, 0.07, { glow: 0.15, shadow: 0.2 }), cut: stroke(WHITE, 0.1, { glow: 0.3 }) };
     const PD = { root: glowDot(GREEN) };
+    const bankMark = glowDot(BLUE);
 
     // ---- 几何：u, w 平面上的点 ----
     const tri = () => { const [pu, pw] = P0, a = S.a, b = S.b; return { P: [pu, pw], Qa: [pu + a, pw], Qb: [pu, pw + b], a, b, c: Math.hypot(a, b) }; };
@@ -219,6 +220,10 @@ export default {
         setLabel(PL.xian, revK >= 1 ? '13' : 'x + 1', '#ffe08a', F(PX + s * (PH / 2 + 1.4), TOP - (revK >= 1 ? 6 : 1.9), 0.3));
         PD.root.visible = revK >= 1; PD.root.position.copy(F(PX, ROOT_Y, 0.1));
       } else { for (const k of ['gou', 'gu', 'guD', 'xian', 'xianD', 'sq']) PT[k].set(null); for (const k of ['gou', 'gu', 'xian']) setLabel(PL[k], '', '', null); PD.root.visible = false; }
+      const targetX = PX + (S.th < 0 ? -PH : PH);
+      setLabel(PL.bank, banked ? '' : '岸边中点', '#9be3f5', F(targetX, TOP + 1.15));
+      bankMark.visible = !banked;
+      bankMark.position.copy(F(targetX, TOP));
       // 出水一尺：芦苇竖着时，水面以上那一截标一个 1
       if (!banked && S.th === 0 && S.beat === 'pond') { PT.one.set([F(PX + 0.5, TOP), F(PX + 0.5, TOP + 1)]); setLabel(PL.one, '1', '#ffffff', F(PX + 1.1, TOP + 0.5, 0.3)); } else { PT.one.set(null); setLabel(PL.one, '', '', null); }
       // 方砖地：绳三角形、三个正方形
@@ -259,8 +264,8 @@ export default {
       if (S.cut) { const pc = pieces();
         const t1 = pc.t1.map((p) => rot2(p, pc.piv1, (S.rot[0] * Math.PI) / 2)), t2 = pc.t2.map((p) => rot2(p, pc.piv2, (-S.rot[1] * Math.PI) / 2));
         const lift1 = 0.06 + Math.sin(S.rot[0] * Math.PI) * 0.4, lift2 = 0.06 + Math.sin(S.rot[1] * Math.PI) * 0.4;
-        PC.t1.set(toT(t1, lift1)); PC.t2.set(toT(t2, lift2)); PC.r3.set(toT(pc.r3, 0.05)); PC.r4.set(toT(pc.r4, 0.05)); PC.y.set(b - a > 0.02 ? toT(pc.y, 0.05) : null);
-        PE.t1.set(toT(close(t1), lift1 + 0.01)); PE.t2.set(toT(close(t2), lift2 + 0.01)); PE.r3.set(toT(close(pc.r3), 0.06)); PE.r4.set(toT(close(pc.r4), 0.06)); PE.y.set(b - a > 0.02 ? toT(close(pc.y), 0.06) : null);
+        PC.t1.set(toT(t1, lift1)); PC.t2.set(toT(t2, lift2)); PC.r3.set(toT(pc.r3, 0.05)); PC.r4.set(toT(pc.r4, 0.05)); PC.y.set(b > a ? toT(pc.y, 0.05) : null);
+        PE.t1.set(toT(close(t1), lift1 + 0.01)); PE.t2.set(toT(close(t2), lift2 + 0.01)); PE.r3.set(toT(close(pc.r3), 0.06)); PE.r4.set(toT(close(pc.r4), 0.06)); PE.y.set(b > a ? toT(close(pc.y), 0.06) : null);
       }
       else { for (const k of ['t1', 't2', 'r3', 'r4', 'y']) { PC[k].set(null); PE[k].set(null); } }
     }
@@ -314,10 +319,10 @@ export default {
 
     // ================= 主线 =================
     function banked() {          // 芦苇拉到岸边：直角三角形出来
-      S.banked = true; S.triAt = now(); sfx.ding(980, { gain: 0.05 });
+      S.banked = true; placePondPicks(); S.triAt = now(); sfx.ding(980, { gain: 0.05 });
       flash(F(PX + S.side * PH, TOP, 0.1), NF, 0xffffff, 1.1);
-      say('芦苇、水深、半个池宽，围成一个直角三角形', '勾是半个池宽 5 尺，股是水深 x 尺，弦是芦苇 x + 1 尺');
-      board.h('问题'); board(`池方一丈，葭生其中央，出水一尺；引葭赴岸，适与岸齐：半个池宽 5 尺、水深 ${it('x')} 尺、芦苇 ${it('x')} + 1 尺，围成一个直角三角形`, 'pond');
+      say('芦苇、水深、半个池宽，围成一个直角三角形', '中心到岸边中点是 10 ÷ 2 = 5 尺，另两边是 x 尺和 x + 1 尺');
+      board.h('问题'); board(`1 丈 = 10 尺，从池中心到岸边中点是 10 ÷ 2 = 5 尺。这 5 尺、水深 ${it('x')} 尺、芦苇 ${it('x')} + 1 尺，围成一个直角三角形`, 'pond');
       layout();
       later(2600, () => { go('gougu', '直角三角形的三条边，有什么关系？', '院子里的方砖每块一尺见方，正好当方格纸。先拉一个勾三、股四的三角形', '点三角形的一条边，看看会长出什么');
         drawOn(TR.a, toT([tri().P, tri().Qa], 0.08)); drawOn(TR.b, toT([tri().P, tri().Qb], 0.08), 0.6, 0.15); drawOn(TR.c, toT([tri().Qa, tri().Qb], 0.08), 0.7, 0.3); sfx.whoosh({ dur: 0.4, freq: 900, gain: 0.03 }); });
@@ -350,15 +355,17 @@ export default {
       for (const k of ['a', 'b', 'c']) { const p = ctr(sqPts(k)); flash(T(p[0], p[1], 0.4), NT, k === 'a' ? BLUE : k === 'b' ? GREEN : GOLD, 1.3); }
       say('两条直角边的平方和，等于斜边的平方', '猜想：a² + b² = c²');
       board.h('猜想'); board(`<span class="n">3</span>如果直角三角形的两条直角边长分别为 ${it('a')}，${it('b')}，斜边长为 ${it('c')}，那么 <span class="qa">${it('a')}²</span> + <span class="qb">${it('b')}²</span> = <span class="qc">${it('c')}²</span>`, 'vary');
-      later(2800, () => { S.free = true; go('proof', '所有的直角三角形都这样吗？为什么？', '三国时吴国的赵爽，用一张弦图说清了。先把两个小正方形拼在一起', '点一下蓝色或绿色的正方形，把它们拼在一起'); S.pulse = 'b'; });
+      later(2800, () => { S.free = true; go('proof', '所有的直角三角形都这样吗？为什么？', '赵爽（约 3 世纪）用一张弦图说明了原因。先把两个小正方形拼在一起', '点一下蓝色或绿色的正方形，把它们拼在一起'); S.pulse = 'b'; });
     }
     function mergeSquares() {          // 两个小正方形拼在一起，切成四个三角形和一个黄方
       if (S.beat !== 'proof' || S.mergeAt > 0) return; S.mergeAt = now(); S.pulse = ''; S.free = false; sfx.whoosh({ dur: 0.6, freq: 800, gain: 0.04 });
       const t0 = now(); const step = () => { if (dead) return; S.merge = clamp((now() - t0) / 0.9, 0, 1); layout(); if (S.merge < 1) requestAnimationFrame(step); else afterMerge(); }; step();
     }
+    const pieceText = () => S.a === S.b ? '两条直角边等长，四个全等的红色直角三角形恰好拼满，中间不留空' : '四个全等的红色直角三角形之间，还有一个边长为 b − a 的黄色正方形';
     function afterMerge() {
+      S.proofSides = [S.a, S.b];
       const pc = pieces(); drawOn(PE.cut, toT([pc.t2[0], pc.t2[2]], 0.12), 0.6);
-      say('两个正方形连在一起，面积是 a² + b²', '切开：四个全等的直角三角形（红色）和一个正方形（黄色）');
+      say('两个正方形连在一起，面积是 a² + b²', pieceText());
       later(800, () => { S.cut = true; PE.cut.set(null, true); PE.cut.drawing = null; layout(); sfx.clink({ freq: 1000, gain: 0.04 });
         later(900, () => { say('把左、右两个三角形移上去', '按住红色三角形，转上去'); prompt('按住红色三角形，转到上面去'); S.beatAt = now(); }); });
     }
@@ -369,14 +376,14 @@ export default {
     function proved() {          // 重拍 3：拼成斜边上的正方形
       S.proved = true; sfx.ding(1480, { gain: 0.07 }); later(450, () => sfx.ding(1760, { gain: 0.05 }));
       const pc = ctr(sqPts('c')); flash(T(pc[0], pc[1], 0.6), NT, GOLD, 2.6);
-      say('a² + b² = c²', '先拼成 a² + b²，又拼成 c²：都由四个红色三角形和一个黄色正方形组成');
-      board.h('证明'); board(`<span class="n">4</span>赵爽弦图：把边长分别为 ${it('a')}，${it('b')} 的两个正方形连在一起，面积是 <span class="qa">${it('a')}²</span> + <span class="qb">${it('b')}²</span>；分割成四个全等的直角三角形（<span class="zh">红色</span>）和一个正方形（<span class="hu">黄色</span>），把左、右两个三角形移上去，形成以 ${it('c')} 为边长的正方形，面积是 <span class="qc">${it('c')}²</span>。所以 ${it('a')}² + ${it('b')}² = ${it('c')}²`, 'proof');
+      say('a² + b² = c²', pieceText());
+      board.h('证明'); board(`<span class="n">4</span>赵爽弦图：把边长分别为 ${it('a')}，${it('b')} 的两个正方形连在一起，面积是 <span class="qa">${it('a')}²</span> + <span class="qb">${it('b')}²</span>。${pieceText()}。两块红片转上去后，四条外边都是斜边 c，每个角都由两个互余的锐角拼成，正好是 90°，所以外框是正方形。拼片的总面积仍是 <span class="qc">${it('c')}²</span>。所以 ${it('a')}² + ${it('b')}² = ${it('c')}²`, 'proof');
       board.h('定理'); board(`<span class="n">5</span><b>勾股定理</b>：直角三角形两条直角边长的平方和等于斜边长的平方。赵爽这种分割、拼接的方法，叫作“出入相补法”`, 'proof');
-      later(3200, () => { say('勾股定理', '2002 年在北京召开的国际数学家大会，会标就以赵爽弦图为原型'); later(2600, () => go('apply', '回到水池：水有多深？', '勾 5，股 x，弦 x + 1', '点一下水池里的三角形')); });
+      later(3200, () => { say('勾股定理', '2002 年在北京召开的国际数学家大会，会标就以赵爽弦图为原型'); later(2600, () => go('apply', '回到水池：水有多深？', '勾 5，股 x，弦 x + 1', '点一下水池三角形的任意一条边')); });
     }
-    function apply() {          // 回到水池
+    function apply(side = 'x + 1') {          // 回到水池
       if (S.beat !== 'apply' || S.applied) return; S.applied = true; sfx.clink({ freq: 1100, gain: 0.05 });
-      say('x² + 5² = (x + 1)²', 'x² + 25 = x² + 2x + 1，所以 2x + 1 = 25，x = 12');
+      say('x² + 5² = (x + 1)²', side === 'x + 1' ? '点到的芦苇是斜边，长 x + 1 尺，它的平方写在等号右边' : `点到的直角边长 ${side} 尺，它的平方写在等号左边`);
       later(2600, () => { S.revealAt = now(); sfx.whoosh({ dur: 1.2, freq: 500, gain: 0.05 }); });
     }
     function revealed() {          // 重拍 4：池水变清，看见池底
@@ -398,7 +405,7 @@ export default {
       if (k === 'pond') { S.grow = { a: 0, b: 0, c: 0 }; say('芦苇、水深、半个池宽，围成一个直角三角形', '勾 5，股 x，弦 x + 1'); }
       if (k === 'shang' || k === 'count') { S.a = 3; S.b = 4; if (k === 'count') S.frameAt = now(); say('9 + 16 = 25', '两矩共长二十有五'); }
       if (k === 'vary') { S.a = 2; S.b = 3; S.frameAt = now(); say('4 + 9 = 13', '如果直角三角形的两条直角边长分别为 a，b，斜边长为 c，那么 a² + b² = c²'); }
-      if (k === 'proof') { S.merge = 1; S.cut = true; S.rot = [0, 0]; const t0 = now(); const step = () => { if (dead || S.pose !== 'proof') return; const q = clamp((now() - t0) / 1.6, 0, 1); S.rot = [easeOut(clamp(q * 2, 0, 1)), easeOut(clamp(q * 2 - 1, 0, 1))]; layout(); if (q < 1) requestAnimationFrame(step); }; step(); say('a² + b² = c²', '四个红色三角形和一个黄色正方形，拼成 a² + b²，也拼成 c²'); }
+      if (k === 'proof') { [S.a, S.b] = S.proofSides; S.merge = 1; S.cut = true; S.rot = [0, 0]; const t0 = now(); const step = () => { if (dead || S.pose !== 'proof') return; const q = clamp((now() - t0) / 1.6, 0, 1); S.rot = [easeOut(clamp(q * 2, 0, 1)), easeOut(clamp(q * 2 - 1, 0, 1))]; layout(); if (q < 1) requestAnimationFrame(step); }; step(); say('a² + b² = c²', pieceText()); }
       if (k === 'ans') { S.reveal = 1; say('答：水深 12 尺，芦苇长 13 尺', '5² + 12² = 13²'); }
       layout();
     }
@@ -409,6 +416,15 @@ export default {
     const pkA = pickStake(), pkB = pickStake();
     const sidePick = () => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })); m.userData.pick = true; m.userData.noFrame = true; world.add(m); return m; };
     const SP = { a: sidePick(), b: sidePick(), c: sidePick() };
+    const pondPicks = ['5', 'x', 'x + 1'].map(side => ({ side, obj: sidePick() }));
+    function placePondPicks() {
+      const surface = F(PX, TOP), bank = F(PX + S.side * PH, TOP), bottom = F(PX, ROOT_Y);
+      const edges = [[surface, bank], [surface, bottom], [bank, bottom]];
+      pondPicks.forEach(({ obj }, i) => {
+        obj.geometry.dispose();
+        obj.geometry = ribbon(edges[i], NF, 0.65);
+      });
+    }
     function placePicks() {
       const tipTh = S.th, tip = [PX + Math.sin(tipTh) * (REED - 1.2), ROOT_Y + Math.cos(tipTh) * (REED - 1.2)]; reedPick.position.set(tip[0], tip[1], 0.2); reedPick.rotation.z = -tipTh;
       const { P, Qa, Qb } = tri(); pkA.position.copy(T(Qa[0], Qa[1], 0.6)); pkB.position.copy(T(Qb[0], Qb[1], 0.6));
@@ -436,19 +452,19 @@ export default {
       const step = () => { if (dead) return; const k = clamp((now() - t0) / 0.35, 0, 1); S.rot[i] = lerp(from, to, easeOut(k)); layout(); if (k < 1) requestAnimationFrame(step); else if (to === 1 && !S.placed[i]) placed(i); }; step(); }
     const tapSide = (k) => ({ obj: SP[k], hint: () => '点一下：在这条边上长出正方形', enabled: () => S.beat === 'gougu' && S.grow[k] <= 0, onTap: () => growSq(k) });
     const drags = [
-      { obj: reedPick, plane: 'xy', offset: 0, hint: () => (S.beat === 'apply' ? '点一下' : '按住芦苇，往岸边拉'), enabled: () => (S.beat === 'pond' && !S.banked) || S.beat === 'apply', onStart: () => { if (S.beat === 'pond') S.held = 'reed'; }, onDrag: (p) => reedMove(p), onEnd: () => reedUp(), onTap: () => { if (S.beat === 'apply') apply(); } },
+      { obj: reedPick, plane: 'xy', offset: 0, hint: () => '按住芦苇，往岸边拉', enabled: () => S.beat === 'pond' && !S.banked, onStart: () => { S.held = 'reed'; }, onDrag: (p) => reedMove(p), onEnd: () => reedUp() },
       { obj: pkA, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'A'; }, onDrag: (p) => stakeMove('A', p), onEnd: () => { S.held = ''; } },
       { obj: pkB, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'B'; }, onDrag: (p) => stakeMove('B', p), onEnd: () => { S.held = ''; } },
       { obj: PC.t1, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[0], onStart: () => rotDown(0), onDrag: (p) => rotMove(0, p), onEnd: () => rotUp(0) },
       { obj: PC.t2, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[1], onStart: () => rotDown(1), onDrag: (p) => rotMove(1, p), onEnd: () => rotUp(1) },
     ];
-    const taps = [tapSide('a'), tapSide('b'), tapSide('c'),
+    const taps = [...pondPicks.map(({ obj, side }) => ({ obj, hint: () => `这条边长 ${side} 尺`, enabled: () => S.beat === 'apply' && !S.applied, onTap: () => apply(side) })), tapSide('a'), tapSide('b'), tapSide('c'),
       { obj: SQ.a.f, hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() },
       { obj: SQ.b.f, hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() }];
     const dragApi = draggable(world, drags, { taps, onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
-    function opening() { say('水有多深？芦苇有多长？', '池方一丈，葭生其中央，出水一尺；引葭赴岸，适与岸齐（《九章算术》）'); prompt('水有多深？先把芦苇拉到岸边看看'); }
+    function opening() { say('池宽 1 丈，1 丈 = 10 尺', '池中央的芦苇高出水面 1 尺，拉到岸边中点，顶端刚好碰到水面'); prompt('把芦苇拉到岸边中点，水有多深？芦苇有多长？'); }
     function reset() { runId++; for (const s of strokes) { s.drawing = null; } draws.length = 0; S = fresh(); S.beatAt = now(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); placePicks(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
@@ -490,7 +506,7 @@ export default {
         if (!S.held && !S.banked) reed.rotation.z = -S.th + 0.012 * Math.sin(t * 1.1);
         // 卡住很久，才一级一级给提示
         if (!S.held && !S.done && S.hint < 1 && t - S.beatAt > 15) {
-          const H1 = { pond: ['按住芦苇露出水面的那一截', '往岸边拉，拉到池边的中点'], gougu: ['点一下三角形的边', '在这条边上长出一个正方形，数数有几块方砖'], vary: ['拖动木桩', '换一个直角三角形，再数一次'], proof: S.cut ? ['按住红色三角形，转上去', '两块都转上去，拼成斜边上的正方形'] : ['点一下蓝色或绿色的正方形', '把两个小正方形拼在一起'], apply: ['点一下水池里的三角形', '勾 5，股 x，弦 x + 1'] }[S.beat];
+          const H1 = { pond: ['按住芦苇露出水面的那一截', '往岸边拉，拉到池边的中点'], gougu: ['点一下三角形的边', '在这条边上长出一个正方形，数数有几块方砖'], vary: ['拖动木桩', '换一个直角三角形，再数一次'], proof: S.cut ? ['按住红色三角形，转上去', '两块都转上去，拼成斜边上的正方形'] : ['点一下蓝色或绿色的正方形', '把两个小正方形拼在一起'], apply: ['点一下水池三角形的任意一条边', '勾 5，股 x，弦 x + 1'] }[S.beat];
           if (H1) { S.hint = 1; say(...H1); } }
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);

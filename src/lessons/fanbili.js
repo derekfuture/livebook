@@ -45,13 +45,14 @@ export default {
   need: '拖着金色的力沿撬棍挪一挪，看要多大的力。',
   conclusion: {
     page: 74, rect: [40, 232, 320, 386],
-    crops: [{ page: 74, rect: [40, 232, 320, 386] }, { page: 75, rect: [64, 440, 478, 602] }, { page: 89, rect: [56, 96, 478, 270] }],
-    quote: '反比例函数的图象特征和性质如下：（1）反比例函数的图象由两条曲线组成，它是双曲线．（2）当 k＞0 时，双曲线的两支分别位于第一、第三象限，在每一个象限内，y 随 x 的增大而减小；当 k＜0 时，双曲线的两支分别位于第二、第四象限，在每一个象限内，y 随 x 的增大而增大．',
-    why: '杠杆平衡时，阻力 × 阻力臂 = 动力 × 动力臂：<i>Fl</i> = 1200 × 0.5 = 600，<i>F</i> = ' + FR('600', '<i>l</i>') + '。在坐标平面上，动力臂和动力围成的矩形面积就是 <i>Fl</i>，手握到哪儿都是 600：面积相等的矩形，公共角在原点，对角的顶点连起来就是这条曲线。一般地，<i>y</i> = ' + FR('<i>k</i>', '<i>x</i>') + ' 的图象上任意一点和两条坐标轴围成的矩形，面积都是 |<i>k</i>|，积 <i>xy</i> 始终是 <i>k</i>。<br><br>因为 <i>x</i> ≠ 0（压在支点上，多大的力也撬不动），图象由两支曲线组成。<i>k</i> &gt; 0 时 <i>x</i>、<i>y</i> 同号，两支在第一、第三象限；<i>k</i> &lt; 0 时异号，两支在第二、第四象限（石头挪到支点另一边）。在每一个象限内才能说 <i>y</i> 随 <i>x</i> 怎样变：跨过 <i>y</i> 轴，<i>y</i> 会一下子变号。<br><br>撬石头：<i>l</i> = 1.5 m 时，<i>F</i> = ' + FR('600', '1.5') + ' = 400 N；当 <i>l</i> &gt; 0 时，<i>F</i> 随 <i>l</i> 的增大而减小，<i>F</i> = 200 N 时 <i>l</i> = 3 m，所以动力臂至少要加长 3 − 1.5 = 1.5 m。',
+    crops: [{ page: 74, rect: [40, 232, 320, 386] }, { page: 75, rect: [64, 440, 478, 602] }, { page: 89, rect: [56, 96, 478, 270] }, { page: 81, rect: [64, 180, 484, 680] }, { page: 82, rect: [40, 44, 317, 115] }],
+    quote: '反比例函数 y = k/x 的图象特征和性质如下：（1）反比例函数的图象由两条曲线组成，它是双曲线．（2）当 k＞0 时，双曲线的两支分别位于第一、第三象限，在每一个象限内，y 随 x 的增大而减小；当 k＜0 时，双曲线的两支分别位于第二、第四象限，在每一个象限内，y 随 x 的增大而增大．',
+    why: '杠杆平衡时，阻力 × 阻力臂 = 动力 × 动力臂：<i>Fl</i> = 1200 × 0.5 = 600，<i>F</i> = ' + FR('600', '<i>l</i>') + '。这里的动力臂是长度，动力是力的大小，都取正数。一格横跨 0.5 m，纵跨 200 N，代表 100 N·m。六格代表的力矩大小是 600 N·m。一般地，<i>y</i> = ' + FR('<i>k</i>', '<i>x</i>') + ' 的图象上任意一点和两条坐标轴围成的矩形，面积都是 |<i>k</i>|，积 <i>xy</i> 始终是 <i>k</i>。<br><br>用带方向的坐标时，<i>x</i> 表示手的位置，支点右边为正；<i>y</i> 表示手上的力，往下压为正。石头的位置也以右为正，平衡时 <i>xy</i> = <i>k</i> = −1200 × 石头的位置。手握在支点上无法平衡，所以 <i>x</i> ≠ 0。<i>k</i> &gt; 0 时 <i>x</i>、<i>y</i> 同号，两支在第一、第三象限；<i>k</i> &lt; 0 时异号，两支在第二、第四象限（石头挪到支点另一边）。在每一个象限内才能说 <i>y</i> 随 <i>x</i> 怎样变：跨过 <i>y</i> 轴，<i>y</i> 会一下子变号。<br><br>撬石头：<i>l</i> = 1.5 m 时，<i>F</i> = ' + FR('600', '1.5') + ' = 400 N；当 <i>l</i> &gt; 0 时，<i>F</i> 随 <i>l</i> 的增大而减小，<i>F</i> = 200 N 时 <i>l</i> = 3 m，所以动力臂至少要加长 3 − 1.5 = 1.5 m。',
     src: '课本 · 27.2 反比例函数的图象和性质（第 67–71 页）；撬石头的问题在第 75 页，用矩形“画”双曲线在第 83 页',
   },
 
   create({ aim, tag }) {
+    const textbookQuote = this.conclusion.quote;
     const root = new THREE.Group(), world = new THREE.Group(); root.add(world); world.scale.setScalar(SC);
     let ui = null, dead = false;
     const T0 = performance.now(), now = () => (performance.now() - T0) / 1000;
@@ -94,17 +95,18 @@ export default {
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, lit({ map: soilTex, roughness: 0.96, side: THREE.DoubleSide })); m.receiveShadow = true; m.raycast = () => {}; m.userData.qaSupport = true; world.add(m); }
     // 前面的石坎：一块块石头干砌起来，一层一层；最下面一道刻着“此刻那一句”
-    const faceTex = tex(1280, 360, (g, w, h) => {          // 毛石：大大小小的石块挤在一起（按最近的种子分块），缝是暗的，每块石头上沿亮、下沿暗
-      const pts = [], cell = 46, cols = Math.ceil(w / cell) + 2, rowsN = Math.ceil(h / cell) + 2, bucket = new Map();
+    const faceTex = tex(640, 180, (g, w, h) => {          // 毛石：大大小小的石块挤在一起（按最近的种子分块），缝是暗的，每块石头上沿亮、下沿暗
+      const pts = [], cell = 23, cols = Math.ceil(w / cell) + 2, rowsN = Math.ceil(h / cell) + 2, bucket = new Map();
       for (let i = 0; i < 300; i++) { const p = [rnd() * w, rnd() * h, 0.8 + rnd() * 0.5, 0.86 + rnd() * 0.28, rnd()]; pts.push(p); const kx = Math.floor(p[0] / cell), ky = Math.floor(p[1] / cell); const key = kx + ',' + ky; if (!bucket.has(key)) bucket.set(key, []); bucket.get(key).push(p); }
       const img = g.createImageData(w, h), d = img.data;
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let d1 = 1e9, d2 = 1e9, best = null; const kx = Math.floor(x / cell), ky = Math.floor(y / cell);
         for (let ix = kx - 2; ix <= kx + 2; ix++) for (let iy = ky - 2; iy <= ky + 2; iy++) { const b2 = bucket.get(((ix % cols) + cols) % cols + ',' + iy); if (!b2) continue; for (const p of b2) { let dx = x - p[0]; if (dx > w / 2) dx -= w; if (dx < -w / 2) dx += w; const dy = (y - p[1]) * 1.55, dd = (dx * dx + dy * dy) * p[2]; if (dd < d1) { d2 = d1; d1 = dd; best = p; } else if (dd < d2) d2 = dd; } }
-        const edge = Math.sqrt(d2) - Math.sqrt(d1), k = (y * w + x) * 4;
+        const edge = 2 * (Math.sqrt(d2) - Math.sqrt(d1)), k = (y * w + x) * 4;
         if (edge < 2.2) { const v = 84 + edge * 8; d[k] = v; d[k + 1] = v - 6; d[k + 2] = v - 14; d[k + 3] = 255; continue; }          // 石缝
         const bev = Math.min(1, (edge - 2.2) / 9), tone = 172 * best[3] + 18 * Math.sin(x * 0.21 + y * 0.17) * 0.3, warm = best[4] * 18, n = (Math.sin(x * 1.7 + y * 2.3) + Math.sin(x * 0.9 - y * 1.3)) * 3;
         const v = tone * (0.8 + 0.2 * bev) + n; d[k] = v + warm; d[k + 1] = v + warm * 0.45 - 4; d[k + 2] = v - 16; d[k + 3] = 255; }
       g.putImageData(img, 0, 0);
+      g.scale(0.5, 0.5); w *= 2; h *= 2;
       for (let k = 0; k < 160; k++) { const x = rnd() * w, y = rnd() * h * 0.55; g.fillStyle = `rgba(${92 + rnd() * 30},${114 + rnd() * 30},${56 + rnd() * 20},${0.18 + rnd() * 0.2})`; g.beginPath(); g.ellipse(x, y, 4 + rnd() * 10, 2 + rnd() * 4, 0, 0, 6.3); g.fill(); }          // 一点青苔
       for (let k = 0; k < 5000; k++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '50,44,34' : '240,234,220'},${rnd() * 0.14})`; g.fillRect(rnd() * w, rnd() * h, 1 + rnd() * 2, 1 + rnd() * 2); }
       const sh = g.createLinearGradient(0, 0, 0, h); sh.addColorStop(0, 'rgba(255,250,236,0.1)'); sh.addColorStop(0.12, 'rgba(0,0,0,0)'); sh.addColorStop(0.8, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(40,32,22,0.32)'); g.fillStyle = sh; g.fillRect(0, 0, w, h); });
@@ -300,7 +302,7 @@ export default {
     // 曲线的一支（sgn：x 的正负）：从碰到上边（或下边）的地方，一直画到左右边；按对数取点，靠近坐标轴那段陡的地方点也密
     const branchPts = (k, sgn) => { if (!k) return null; const Flim = k * sgn > 0 ? FT : FB, xa = Math.abs(k / Flim); if (xa >= XR) return null;
       const out = []; for (let i = 0; i <= 120; i++) { const x = sgn * Math.exp(lerp(Math.log(xa), Math.log(XR), i / 120)); out.push(P(x, k / x)); } return out; };
-    const xMin = () => (['rect', 'more', 'wow'].includes(S.step) ? 0.45 : -XR);          // 前两步只在支点右边（再往里，力就超出画面了）
+    const xMin = () => (S.xy ? -XR : 0.45);          // 前两步只在支点右边（再往里，力就超出画面了）
 
     // 一块矩形：原点和 (x, F) 是对角；面积写在里面（放不下时写在对角那个顶点外面，顺着曲线往外）
     function setRect(R, x, F, txt, show = true, outside = false) { if (!show) { R.f.rect(null); R.e.hide(); setRich(R.n, null); if (R.d) R.d.visible = false; return; }
@@ -319,7 +321,7 @@ export default {
       setRich(LB.rockF, [[String(W0), CSS.w2, false]], [S.xr + (S.xr < 0 ? -0.12 : 0.12), Y(W0) + 0.06], S.xr < 0 ? 1 : 0);
       setRect(rockRect, S.xr, W0, areaTxt(), !!S.showRock);
       // 金色的力：从曲线上的点指向撬棍
-      if (onPivot) { effArrow.off(); effDot.visible = false; effGuide.hide(); setRich(LB.effF, null); setRich(LB.effX, [['0', CSS.w, false]], [0, YB + 0.22]); }
+      if (onPivot) { effArrow.off(); effDot.visible = false; effGuide.hide(); setRich(LB.effF, null); setRich(LB.effX, [['握点', CSS.g, false]], [0, YB + 0.3]); }
       else {
         const F = Fof(x), Fc = clamp(F, FB - 120, FT + 160), inside = F <= FT && F >= FB;
         effArrow.to(P(x, Fc), P(x, 0), 0.24); effArrow.fade(inside ? 1 : 0.6); effArrow.headFade(1);
@@ -350,13 +352,14 @@ export default {
     function firstRect() {          // 重拍 1：力 × 动力臂 = 石头那边的 0.5 × 1200
       const x = S.x, F = Fof(x); made.push(x); S.step = 'more'; S.showRock = true; S.stepAt = now(); S.hint = 0;
       flash(P(x, F), TEAL, 0.14, 0.46); flash(P(S.xr, W0), TEAL, 0.14, 0.46); sfx.ding(1180, { gain: 0.06 });
-      const exact = Math.abs(F - Math.round(F)) < 0.02; caption('阻力 × 阻力臂 = 动力 × 动力臂', `${numS(x)} × ${exact ? Math.round(F) : F.toFixed(1)} ${exact ? '=' : '≈'} 0.5 × 1200 = 600：两块都是 6 格`);
-      board.h('探究'); board(`<span class="n">1</span>松手：动力臂和动力围成的矩形，和石头那边一样大，都是 6 格。阻力 × 阻力臂 = 动力 × 动力臂：<span class="g">${I('F')}</span>${I('l')} = 1200 × 0.5 = <span class="t">600</span>，所以 <span class="g">${I('F')}</span> = ${FR('<span class="t">600</span>', I('l'))}`, 'rect');
-      S.eq = true; prompt('换个地方再松手：矩形的面积还是 600 吗？'); layout();
+      const exact = Number.isInteger(F);
+      caption('一格代表 100 N·m，两块矩形都占六格', `${numS(x)} m × ${exact ? F : F.toFixed(1)} N ${exact ? '=' : '≈'} 0.5 m × 1200 N = 600 N·m`);
+      board.h('探究'); board(`<span class="n">1</span>动力臂是长度，动力是力的大小，都取正数。一格代表 0.5 m × 200 N = 100 N·m，六格代表 600 N·m。平衡时，<span class="g">${I('F')}</span>${I('l')} = 1200 × 0.5 = <span class="t">600</span>，所以 <span class="g">${I('F')}</span> = ${FR('<span class="t">600</span>', I('l'))}`, 'rect');
+      S.eq = true; prompt('换个地方再松手，矩形还占六格吗？'); layout();
     }
     function moreRect() {
       const x = S.x; made.push(x); sfx.clink({ freq: 1200 + made.length * 160, gain: 0.05 }); flash(P(x, Fof(x)), TEAL, 0.12, 0.36);
-      if (made.length < 3) { caption('还是 600', '高的窄，矮的宽，面积一样'); prompt('再换一个地方：还是 600 吗？'); layout(); return; }
+      if (made.length < 3) { caption('力矩大小还是 600 N·m', '高的窄，矮的宽，都占六格'); prompt('再换一个地方，力矩大小还是 600 N·m 吗？'); layout(); return; }
       fanOut();
     }
     function fanOut() {          // 一下子：十个面积都是 600 的矩形一个接一个亮出来，对角的顶点连成一条曲线
@@ -364,17 +367,17 @@ export default {
       fan.forEach((R, i) => { R.born = S.fanAt + 0.15 + i * 0.16; });
       FANX.forEach((x, i) => later(150 + i * 160, () => { sfx.clink({ freq: 880 * Math.pow(2, i / 7), gain: 0.04 }); }));
       later(150 + FANX.length * 160 + 100, () => { S.showA = true; branch.a.draw(branchPts(K0, 1), 0.9); sfx.ding(1568, { gain: 0.06 }); later(500, () => sfx.ding(1976, { gain: 0.045 }));
-        caption('面积都是 600 的矩形，对角的顶点连成一条曲线', '手握到哪儿，动力和动力臂的积 Fl 都是 600');
-        board(`<span class="n">2</span>面积都是 <span class="t">600</span> 的矩形，公共角在 ${I('O')}，把对角的顶点用平滑的曲线连起来，就是 <span class="g">${I('F')}</span> = ${FR('<span class="t">600</span>', I('l'))} 的图象：${I('F')} 随 ${I('l')} 的变化而变化，它们的积 ${I('Fl')} 始终保持不变`, 'fan'); });
-      later(150 + FANX.length * 160 + 2600, () => { S.fanDone = true; S.step = 'cross'; S.stepAt = now(); S.hint = 0; layout();
-        caption('越靠近支点，越费力', '握到支点另一边去呢？'); prompt('越靠近支点越费力……把力拖到支点另一边去看看'); });
+        caption('每个矩形都占六格，对角的顶点连成一条曲线', '手握到哪儿，动力和动力臂的乘积都是 600 N·m');
+        board(`<span class="n">2</span>都代表 <span class="t">600 N·m</span> 的矩形，公共角在 ${I('O')}，把对角的顶点用平滑的曲线连起来，就是 <span class="g">${I('F')}</span> = ${FR('<span class="t">600</span>', I('l'))} 的图象：${I('F')} 随 ${I('l')} 的变化而变化，它们的积 ${I('Fl')} 始终保持不变`, 'fan'); });
+      later(150 + FANX.length * 160 + 2600, () => { S.fanDone = true; S.step = 'cross'; S.xy = true; S.stepAt = now(); S.hint = 0; layout();
+        caption('x 是手的位置，支点右边为正', 'y 是手上的力，往下压为正。把手拖过支点，看 x 和 y 怎么变'); prompt('越靠近支点越费力……把力拖到支点另一边去看看'); });
       layout();
     }
     function crossed() {          // 重拍 3：x ≠ 0，图象由两支曲线组成
       S.crossed = true; S.step = 'mono'; S.showB = true; S.xy = true; S.stepAt = now(); S.hint = 0;
       branch.b.draw(branchPts(K0, -1), 0.8); flash(P(S.x, Fof(S.x)), GOLD); sfx.ding(1320, { gain: 0.06 });
-      caption('在石头这一边，得往上抬：F 是负的', '压在支点上，多大的力也撬不动——x ≠ 0，图象分成两支');
-      board.h('图象'); board(`<span class="n">3</span>握到支点另一边，得往上抬（记作负），点落到第三象限；压在支点上多大的力也不行。<span class="g">${I('F')}</span> = ${FR('<span class="t">600</span>', I('l'))} 就是反比例函数 ${I('y')} = ${FR(I('k'), I('x'))}（<span class="t">${I('k')} = 600</span>）。因为 ${I('x')} ≠ 0，所以函数图象由两支曲线组成：反比例函数的图象由两条曲线组成，它是<b>双曲线</b>`, 'two');
+      caption('手在支点左边，要往上抬，x 和 y 都是负数', '压在支点上，多大的力也撬不动——x ≠ 0，图象分成两支');
+      board.h('图象'); board(`<span class="n">3</span>手的位置 ${I('x')} 以支点右边为正，手上的力 ${I('y')} 以下压为正。手在左边往上抬时，点在第三象限。平衡时 ${I('xy')} = ${I('k')} = 600，因为 ${I('x')} ≠ 0，${I('y')} = ${FR(I('k'), I('x'))} 的图象分成两支，是<b>双曲线</b>。矩形的数值面积是 |${I('k')}|，带符号的乘积是 ${I('k')}。`, 'two');
       later(2400, () => { if (S.step !== 'mono') return; caption('从左往右拖过支点', 'x 一直在增大，y 一直在减小吗？'); prompt('按住力，从左往右拖过支点：x 增大时，y 一直在减小吗？'); });
       layout();
     }
@@ -382,7 +385,7 @@ export default {
       S.step = 'rock'; S.jumpOn = true; S.stepAt = now(); S.hint = 0; flash(P(1, K0), RED, 0.14, 0.44); sfx.ding(1250, { gain: 0.06 });
       caption('跨过 y 轴，y 反而变大了', '在每一个象限内，y 随 x 的增大而减小');
       board(`<span class="n">4</span>当 <span class="t">${I('k')} &gt; 0</span> 时，双曲线的两支分别位于第一、第三象限，在每一个象限内，${I('y')} 随 ${I('x')} 的增大而减小（跨过 ${I('y')} 轴，${I('x')} 从 −1 到 1，${I('y')} 却从 −600 变成 600，只能说“在每一个象限内”）`, 'mono');
-      later(3000, () => { if (S.step !== 'rock') return; S.jumpOn = false; S.live = true; caption('k 变了呢？', 'k = 阻力 × 阻力臂：把石头挪一挪'); prompt('把石头挪一挪：k 变了，曲线怎么变？挪到支点另一边呢？'); layout(); });
+      later(3000, () => { if (S.step !== 'rock') return; S.jumpOn = false; S.live = true; caption('k = −1200 × 石头的位置', '石头的位置也以支点右边为正。把石头从左边挪到右边，看看 k 的符号'); prompt('把石头挪一挪：k 变了，曲线怎么变？挪到支点另一边呢？'); layout(); });
       layout();
     }
     function negSeen() {          // k < 0：两支翻到第二、第四象限
@@ -397,8 +400,8 @@ export default {
       layout();
     }
     function backDone() {
-      S.step = 'final'; S.xr = -A0; S.xy = false; S.stepAt = now(); S.hint = 0; S.x = 1.5;
-      caption('回到撬石头：力不超过 200 N', '手至少要握在离支点多远的地方？'); prompt('想用的力不超过 400 N 的一半（200 N），动力臂至少要多长？'); layout();
+      S.step = 'final'; S.xr = -A0; S.xy = false; S.showB = false; S.showRock = false; S.stepAt = now(); S.hint = 0; S.x = 1.5;
+      caption('回到原题，力不超过 200 N', '动力臂 l 是长度，动力 F 是力的大小，两者都取正数'); prompt('想用的力不超过 400 N 的一半（200 N），动力臂至少要多长？'); layout();
     }
     function finish() {
       S.step = 'end'; S.done = true; boardEl?.classList.add('review'); flash(P(3, 200), GOLD); sfx.ding(1568, { gain: 0.07 }); later(450, () => sfx.ding(1976, { gain: 0.05 }));
@@ -419,8 +422,8 @@ export default {
       if (key === 'two') Object.assign(S, base, { x: -2 });
       if (key === 'mono') Object.assign(S, base, { x: 1, jumpOn: true });
       if (key === 'neg') Object.assign(S, base, { xr: A0, x: 1.5, live: true });
-      if (key === 'ans') { Object.assign(S, base, { x: 3, xy: false, showB: false }); tempR.born = now() + 99; setRect(tempR, 3, 200, '600'); }
-      const CAP = { rect: ['阻力 × 阻力臂 = 动力 × 动力臂', '1.5 × 400 = 0.5 × 1200 = 600：两块都是 6 格'], fan: ['面积都是 600 的矩形，对角的顶点连成一条曲线', '手握到哪儿，动力和动力臂的积 Fl 都是 600'], two: ['x ≠ 0：图象由两支曲线组成', '反比例函数的图象由两条曲线组成，它是双曲线'], mono: ['k > 0：两支在第一、第三象限', '在每一个象限内，y 随 x 的增大而减小'], neg: ['k < 0：两支在第二、第四象限', '在每一个象限内，y 随 x 的增大而增大'], ans: ['答：动力臂至少要加长 1.5 m', 'F = 200 N 时 l = 3 m；F 随 l 的增大而减小'] };
+      if (key === 'ans') { Object.assign(S, base, { x: 3, xy: false, showB: false, showRock: false }); tempR.born = now() + 99; setRect(tempR, 3, 200, '600'); }
+      const CAP = { rect: ['一格代表 100 N·m，两块矩形都占六格', '1.5 m × 400 N = 0.5 m × 1200 N = 600 N·m'], fan: ['每个矩形都占六格，对角的顶点连成一条曲线', '手握到哪儿，动力和动力臂的乘积都是 600 N·m'], two: ['x ≠ 0：图象由两支曲线组成', '反比例函数的图象由两条曲线组成，它是双曲线'], mono: ['k > 0：两支在第一、第三象限', '在每一个象限内，y 随 x 的增大而减小'], neg: ['k < 0：两支在第二、第四象限', '在每一个象限内，y 随 x 的增大而增大'], ans: ['答：动力臂至少要加长 1.5 m', 'F = 200 N 时 l = 3 m；F 随 l 的增大而减小'] };
       caption(...(CAP[key] || CAP.ans)); flash(P(S.x, Fof(S.x)), GOLD, 0.14, 0.42); layout();
     }
 
@@ -450,7 +453,7 @@ export default {
       else if (['cross', 'mono', 'rock', 'neg', 'final', 'end'].includes(S.step) && Math.abs(Fof(x)) <= Math.max(FT, -FB)) { tempR.born = now(); setRect(tempR, x, Fof(x), areaTxt()); }
       layout(); }
     let rockGrab = 0;
-    function rockDown(p) { if (!['rock', 'neg', 'end'].includes(S.step)) return false; S.held = 'rock'; rockGrab = S.xr - p.x; return true; }
+    function rockDown(p) { if (!S.xy || !['rock', 'neg', 'end'].includes(S.step)) return false; S.held = 'rock'; rockGrab = S.xr - p.x; return true; }
     function rockMove(p) { if (S.held !== 'rock') return; let xr = clamp(p.x + rockGrab, -1.25, 1.25); xr = Math.round(xr * 4) / 4; if (xr === 0) xr = S.xr < 0 ? -0.25 : 0.25;
       if (xr === S.xr) return; const was = S.xr; S.xr = xr; S.moved = now(); S.rockMoved = true; sfx.clink({ freq: 600 + Math.abs(kNow()) * 0.6, gain: 0.02 });
       if (S.step === 'rock' && was < 0 && xr > 0) negSeen();
@@ -462,7 +465,7 @@ export default {
     const toL = (p) => p;
     const effDrag = (obj) => ({ obj, plane: 'xy', offset: ZP, hint: () => (S.step === 'final' ? '往外拖：力会变小' : '按住，沿撬棍左右拖'), enabled: () => S.step !== 'wow' && S.step !== 'backing', onStart: (p) => effDown(toL(p)), onDrag: (p) => effMove(toL(p)), onEnd: () => effUp() });
     const drags = [effDrag(effPick), effDrag(effPick2),
-      { obj: rockPick, plane: 'xy', offset: ZP, hint: () => '按住石头，沿撬棍挪', enabled: () => ['rock', 'neg', 'end'].includes(S.step), onStart: (p) => rockDown(p), onDrag: (p) => rockMove(p), onEnd: () => rockUp() }];
+      { obj: rockPick, plane: 'xy', offset: ZP, hint: () => '按住石头，沿撬棍挪', enabled: () => S.xy && ['rock', 'neg', 'end'].includes(S.step), onStart: (p) => rockDown(p), onDrag: (p) => rockMove(p), onEnd: () => rockUp() }];
     const dragApi = draggable(world, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
@@ -480,6 +483,8 @@ export default {
       view: { elev: 26, azim: 0, lookY: 0.5, frameMargin: 1.0 },
       pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'fb-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
+        const quote = u.el?.querySelector('.answer blockquote');
+        if (quote && quote.textContent === textbookQuote) quote.innerHTML = textbookQuote.replace('k/x', FR(I('k'), I('x')));
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.fb-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S.ask) ui.status?.(S.ask);

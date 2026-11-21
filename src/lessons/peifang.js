@@ -31,13 +31,13 @@ export default {
   fig: '思考',
   title: '配方法',
   flow: 'explore',
-  ask: '一千二百年前，巴格达的花拉子米在书里问：<br>一个正方形，加上它边长的 10 倍，一共是 39。这个正方形的边长是多少？',
+  ask: '花拉子米的古题（现代转述）：一个数的平方加上它的 10 倍等于 39。<br>用正方形的边长表示这个数，边长是多少？',
   need: '切开长条地毯，拼一拼。',
   conclusion: {
     page: 13, rect: [60, 130, 480, 520],
     quote: '像上面那样，通过配成完全平方形式来解一元二次方程的方法，叫作配方法。',
-    why: '把 x² + bx 画成一块正方形地毯和一条长 b、宽 x 的长条。长条切成一样长的两半（各 ' + FR('<i>b</i>', 2) + '），拼在正方形的两边，外形就成了边长 x + ' + FR('<i>b</i>', 2) + ' 的正方形，只缺一个角：(' + FR('<i>b</i>', 2) + ')²。补上这个角，左边就配成了完全平方式 (x + ' + FR('<i>b</i>', 2) + ')²；方程两边同时加上 (' + FR('<i>b</i>', 2) + ')²，等式仍然成立。<br><br>花拉子米：x² + 10x = 39，两边加 25，(x + 5)² = 64，x + 5 = ±8，正方形的边长是 3。课本：x² + 6x + 4 = 0，移项 x² + 6x = −4，两边同时加 (' + FR(6, 2) + ')²，即 9，(x + 3)² = 5，x = −3 ± √5。配方是为了利用开方实现降次，把一个一元二次方程转化成两个一元一次方程来解。',
-    src: '课本 · 25.2.1 配方法；花拉子米的题和图见他约公元 820 年写的代数书',
+    why: '地毯演示的是 b > 0 的情形。把 x² + bx 画成一块正方形地毯和一条长 b、宽 x 的长条。长条切成一样长的两半（各 ' + FR('<i>b</i>', 2) + '），拼在正方形的两边，外形就成了边长 x + ' + FR('<i>b</i>', 2) + ' 的正方形，只缺一个角：(' + FR('<i>b</i>', 2) + ')²。补上这个角，左边就配成了完全平方式 (x + ' + FR('<i>b</i>', 2) + ')²；方程两边同时加上 (' + FR('<i>b</i>', 2) + ')²，等式仍然成立。用代数配方时，先把二次项系数化为 1，再补一次项系数一半的平方，一次项系数为负也一样。<br><br>花拉子米：x² + 10x = 39，两边加 25，(x + 5)² = 64，x + 5 = ±8，正方形的边长是 3。课本：x² + 6x + 4 = 0，移项 x² + 6x = −4，两边同时加 (' + FR(6, 2) + ')²，即 9，(x + 3)² = 5，x = −3 ± √5。配方是为了利用开方实现降次，把一个一元二次方程转化成两个一元一次方程来解。',
+    src: '课本 · 25.2.1 配方法；花拉子米的题和图见他在 9 世纪上半叶写的代数书',
   },
 
   create({ aim, tag }) {
@@ -251,7 +251,7 @@ export default {
       setLab(LB.p, S.p > 0.6 ? [[f1(S.p) + 'x', CSS.bx]] : null, mid(R.p()), Y + 0.004);
       setLab(LB.q, q() > 0.6 ? [[f1(q()) + 'x', CSS.bx]] : null, mid(R.q()), Y + 0.004);
       const isSq = Math.abs(S.p - q()) < 1e-6;
-      setLab(LB.gap, showGap && S.p > 0.8 && q() > 0.8 ? (isSq ? [[f1(h2() * h2()), CSS.sq]] : [[f1(S.p) + ' × ' + f1(q()), CSS.sq]]) : S.filled ? [[f1(h2() * h2()), CSS.sq]] : null, mid(gr), Y + 0.004);
+      setLab(LB.gap, showGap && S.p > 0.8 && q() > 0.8 ? (isSq ? [[String(h2() * h2()), CSS.sq]] : [[f1(S.p) + ' × ' + f1(q()), CSS.sq]]) : S.filled ? [[String(h2() * h2()), CSS.sq]] : null, mid(gr), Y + 0.004);
       setLab(LB.xl, S.rooted ? null : [['x', CSS.x2]], [O[0] - 0.01, O[1] + XS / 2], Y + 0.003);
       setLab(LB.xb, S.rooted ? [['x = 3', CSS.x2]] : [['x', CSS.x2]], [O[0] + XS / 2, O[1] - (S.rooted ? 0.012 : 0.009)], Y + 0.003);
       setLab(LB.ap, S.p > 0.6 ? [[f1(S.p), S.rooted ? CSS.sq : CSS.bx]] : null, [O[0] + XS + (S.p * U) / 2, O[1] - (S.rooted ? 0.012 : 0.009)], Y + 0.003);
@@ -269,22 +269,27 @@ export default {
 
     // ================= 主线 =================
     function cutMove(u) {
-      if (S.beat !== 'cut') return; let p = clamp((u - (O[0] + XS)) / U, 0, S.b);
+      if (S.beat !== 'cut') return; let p = Math.round(clamp((u - (O[0] + XS)) / U, 0, S.b) * 10) / 10;
       if (Math.abs(p - S.b / 2) < 0.3) p = S.b / 2;          // 两段一样长时吸住
       if (Math.abs(p - S.b) < 0.15) p = S.b;
-      if (!S.moved && p < S.b - 0.3) { S.moved = true; board.h('问题'); board(`${x2} + <span class="bx">10${i('x')}</span> = 39：一个正方形，加上它边长的 10 倍，一共是 39`, 'cut'); }
+      if (!S.moved && p < S.b - 0.3) { S.moved = true; board.h('问题'); board(`${x2} + <span class="bx">10${i('x')}</span> = 39，古题里这个数用边长 ${i('x')} 表示`, 'cut'); }
       const was = S.p; S.p = p;
       if (Math.abs(was - p) > 1e-6 && Math.floor(was * 2) !== Math.floor(p * 2)) sfx.clink({ freq: 700 + (S.b - p) * 70, gain: 0.012 });
       if (!S.found && p === S.b / 2) foundSquare();
       layout();
     }
-    function cutUp() { if (S.beat !== 'cut' || S.found) return; const d = Math.abs(S.p - q()); if (q() > 0.3 && d > 0.3) { S.unequal++; say(`拼出来是长方形：(x + ${f1(S.p)})(x + ${f1(q())})`, '两边不一样长，不是正方形，开不了方'); } }
+    function cutUp() {
+      if (S.beat !== 'cut' || S.found || q() <= 0.3) return;
+      S.unequal++;
+      const area = S.p * q();
+      say(`外框是长方形，缺角的面积是 ${Number(area.toFixed(2))}`, '即使补满，两条邻边也不一样长，不能写成同一个式子的平方');
+    }
     function foundSquare() {          // 重拍 1：两段一样长，外形成了正方形，缺一个 5 × 5 的角
       S.found = true; S.beat = 'patch'; S.beatAt = now(); S.hint = 0;
       const gr = R.gap(); flash([(gr[0] + gr[2]) / 2, (gr[1] + gr[3]) / 2], TEAL); K.gap.draw(rect(gr), 0.5); K.outer.draw(rect([O[0], O[1], gr[2], gr[3]]), 0.8);
       say('两段一样长：外形是正方形，只缺一个角', `缺角 5 × 5 = 25，边长正是 10 的一半`);
       setEq([X2, PL, ['5x', CSS.bx], PL, ['5x', CSS.bx], EQ, n(C0)]);
-      board.h('探究'); board(`<span class="n">1</span>把 <span class="bx">10${i('x')}</span> 那条切成一样长的两半，拼在正方形的右边和上面：外形成了正方形，只缺一个角 <span class="sq">5 × 5 = 25</span>。两段不一样长，拼出来是长方形`, 'cut');
+      board.h('探究'); board(`<span class="n">1</span>把 <span class="bx">10${i('x')}</span> 那条切成一样长的两半，拼在正方形的右边和上面：外形成了正方形，只缺一个角 <span class="sq">5 × 5 = 25</span>。两段不一样长时，补满缺角也只能得到邻边不等的长方形`, 'cut');
       later(1400, () => { prompt('缺的那一角，拿什么补上？'); layout(); });
     }
     function patchUp() {
@@ -310,17 +315,18 @@ export default {
         say('边长 8：x + 5 = 8，x = 3', '开方降次：x + 5 = ±8，另一个根 −13 当不了边长');
         board.h('降次'); board(`<span class="n">3</span>根据平方根的意义：${i('x')} + 5 = ±8，${i('x')}<sub>1</sub> = 3，${i('x')}<sub>2</sub> = −13。把一个一元二次方程“降次”，转化为两个一元一次方程。正方形的边长是 3`, 'root'); layout(); });
       later(3000, () => { setEq([['x', CSS.x2], EQ, n(3)]); });
-      later(3900, () => { S.beat = 'gen'; S.rooted = false; K.sideX.set(null); K.side5.set(null); K.side.set(null); S.beatAt = now(); S.hint = 0; S.live = true; morphX(2.2); say('换一个方程：x 是多长都行，缺角还是一次项系数一半的平方吗？', '拖大正方形的右下角，改一次项系数'); prompt('一次项系数换成别的数，要补多大的角？'); layout(); genEq(); });
+      later(3900, () => { S.beat = 'gen'; S.rooted = false; K.sideX.set(null); K.side5.set(null); K.side.set(null); S.beatAt = now(); S.hint = 0; S.live = true; morphX(2.2); say('换一个正的一次项系数，缺角的面积怎么变？', '拖大正方形的右下角，改一次项系数'); prompt('一次项系数换成别的数，要补多大的角？'); layout(); genEq(); });
       layout();
     }
     function morphX(to) { const from = S.x, t0 = now(); const step = () => { if (dead) return; const k = clamp((now() - t0) / 0.8, 0, 1); S.x = lerp(from, to, k * k * (3 - 2 * k)); layout(); if (k < 1) requestAnimationFrame(step); }; step(); }
-    function genEq() { const b = S.b, h = h2(); setEq([X2, PL, [f1(b) + 'x', CSS.bx], PL, [f1(h * h), CSS.sq], EQ, ['(x + ' + f1(h) + ')²', CSS.w]]); }
+    function genEq() { const b = S.b, h = h2(); setEq([X2, PL, [f1(b) + 'x', CSS.bx], PL, [String(h * h), CSS.sq], EQ, ['(x + ' + f1(h) + ')²', CSS.w]]); }
     function bMove(u) {
       if (S.beat !== 'gen' && !(S.done && S.filled)) return; let h = clamp((u - (O[0] + XS)) / U, 1, 5.5);
       for (const s of [5, 3]) if (Math.abs(h - s) < 0.18) h = s;          // 花拉子米的 10、课本的 6 处吸住
       h = Math.round(h * 2) / 2; if (h * 2 === S.b) return;
       S.b = h * 2; S.p = h; sfx.clink({ freq: 600 + h * 120, gain: 0.014 }); layout(); genEq();
       if (S.beat === 'gen' && S.b === 6) textbook();
+      else if (S.done) say('现在拼的是新系数的地毯', `一次项系数是 ${S.b}，缺角面积是 ${h} × ${h} = ${h * h}`);
     }
     function textbook() {          // 重拍 4：课本的 x² + 6x + 4 = 0
       S.beat = 'tb'; S.live = false; const bg = R.big(); flash([bg[2], bg[1]], TEAL); K.big.draw(rect(bg), 0.5);
@@ -328,7 +334,7 @@ export default {
       setEq([X2, PL, ['6x', CSS.bx], EQ, n('−4')]);
       later(1500, () => setEq([X2, PL, ['6x', CSS.bx], PL, ['9', CSS.sq], EQ, n('−4'), PL, ['9', CSS.sq]]));
       later(3000, () => setEq([['(x + 3)²', CSS.w], EQ, n(5)]));
-      board(`<span class="n">4</span>缺角的边长总是一次项系数的一半：${x2} + <span class="bx">${i('b')}${i('x')}</span> 补上 <span class="sq">(${FR(i('b'), 2)})²</span>，就配成 (${i('x')} + ${FR(i('b'), 2)})²（由 ${i('a')}² + 2${i('ab')} + ${i('b')}² = (${i('a')} + ${i('b')})²）`, 'gen');
+      board(`<span class="n">4</span>地毯只演示正的一次项系数。用代数配方，先把二次项系数化为 1，再补一次项系数一半的平方：${x2} + <span class="bx">${i('b')}${i('x')}</span> 补上 <span class="sq">(${FR(i('b'), 2)})²</span>，就配成 (${i('x')} + ${FR(i('b'), 2)})²（由 ${i('a')}² + 2${i('ab')} + ${i('b')}² = (${i('a')} + ${i('b')})²）`, 'gen');
       board.h('课本'); board(`<span class="n">5</span>怎样解方程 ${i('x')}² + 6${i('x')} + 4 = 0？移项，得 ${i('x')}² + 6${i('x')} = −4。两边同时加 <span class="sq">(${FR(6, 2)})²</span>，即 9：${i('x')}² + 6${i('x')} + 9 = −4 + 9，(${i('x')} + 3)² = 5，${i('x')}<sub>1</sub> = −3 + √5，${i('x')}<sub>2</sub> = −3 − √5`, 'tb');
       later(3600, finish);
     }
@@ -336,7 +342,7 @@ export default {
       S.beat = 'end'; S.done = true; S.live = true; boardEl?.classList.add('review');
       board.h('配方法'); board('像上面那样，通过配成完全平方形式来解一元二次方程的方法，叫作<b>配方法</b>。配方是为了利用开方实现降次，把一个一元二次方程转化成两个一元一次方程来解。', 'def');
       board.h('答'); board('<b>答</b>：花拉子米的正方形，边长是 3（x² + 10x = 39，两边加 25，(x + 5)² = 64，x + 5 = 8）。', 'ans');
-      say('答：边长是 3', '通过配成完全平方形式来解一元二次方程的方法，叫作配方法');
+      say('课本方程的两个根是 −3 + √5 和 −3 − √5', '花拉子米的古题中，正方形的边长是 3');
       prompt(''); ui?.unlock?.();
       later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
     }
@@ -347,7 +353,7 @@ export default {
       Object.assign(S, { x: st.b === 10 ? XN : 2.2, b: st.b, p: st.p, filled: st.f, rooted: st.r, found: true });
       K.side.set(null); K.sideX.set(null); K.side5.set(null);
       if (st.r) { const bg = R.big(); K.side.set([[bg[0] - 0.005, bg[1]], [bg[0] - 0.005, bg[3]]]); K.sideX.set([[bg[0], bg[1] - 0.004], [O[0] + XS, bg[1] - 0.004]]); K.side5.set([[O[0] + XS, bg[1] - 0.004], [bg[2], bg[1] - 0.004]]); }
-      const CAP = { cut: ['两段一样长：外形是正方形，只缺一个角', '缺角 5 × 5 = 25，边长正是 10 的一半'], fill: ['补上 25，就是一个大正方形', 'x² + 10x + 25 = (x + 5)²，方程两边同时加 25'], root: ['边长 8：x + 5 = 8，x = 3', '开方降次：x + 5 = ±8，另一个根 −13 当不了边长'], gen: ['缺角总是一次项系数一半的平方', 'x² + bx + ({b/2})² = (x + {b/2})²'], tb: ['课本：x² + 6x + 4 = 0，两边同时加 ({6/2})²，即 9', '(x + 3)² = 5，x = −3 ± √5'], def: ['通过配成完全平方形式来解一元二次方程的方法，叫作配方法', '配方是为了利用开方实现降次'], ans: ['答：边长是 3', 'x² + 10x = 39，两边加 25，(x + 5)² = 64'] };
+      const CAP = { cut: ['两段一样长：外形是正方形，只缺一个角', '缺角 5 × 5 = 25，边长正是 10 的一半'], fill: ['补上 25，就是一个大正方形', 'x² + 10x + 25 = (x + 5)²，方程两边同时加 25'], root: ['边长 8：x + 5 = 8，x = 3', '开方降次：x + 5 = ±8，另一个根 −13 当不了边长'], gen: ['二次项系数化为 1 后，补一次项系数一半的平方', 'x² + bx + ({b/2})² = (x + {b/2})²'], tb: ['课本：x² + 6x + 4 = 0，两边同时加 ({6/2})²，即 9', '(x + 3)² = 5，x = −3 ± √5'], def: ['通过配成完全平方形式来解一元二次方程的方法，叫作配方法', '配方是为了利用开方实现降次'], ans: ['古题的答案：边长是 3', 'x² + 10x = 39，两边加 25，(x + 5)² = 64'] };
       say(...(CAP[k] || CAP.ans)); layout();
       const EQS = { cut: [X2, PL, ['5x', CSS.bx], PL, ['5x', CSS.bx], EQ, n(C0)], fill: [['(x + 5)²', CSS.w], EQ, n(64)], root: [['x + 5', CSS.w], EQ, ['±8', CSS.w]], tb: [['(x + 3)²', CSS.w], EQ, n(5)], def: [['(x + 3)²', CSS.w], EQ, n(5)], ans: [['x', CSS.x2], EQ, n(3)] };
       if (EQS[k]) setEq(EQS[k]); else genEq();
@@ -371,7 +377,7 @@ export default {
     const dragApi = draggable(group, drags, { onClick: () => false, taps, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
-    function opening() { say('一个正方形，加上它边长的 10 倍，一共是 39', '花拉子米（约公元 820 年，巴格达）：边长是多少？'); prompt('x² + 10x 能拼成一个正方形吗？'); }
+    function opening() { say('一个数的平方加上它的 10 倍等于 39', '花拉子米的古题（9 世纪上半叶，现代转述）：用边长表示这个数，边长是多少？'); prompt('x² + 10x 能拼成一个正方形吗？'); }
     function reset() { runId++; S = fresh(); anims.length = 0; rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } for (const k of ['side', 'sideX', 'side5', 'big']) K[k].set(null); cap.key = ''; eq.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
