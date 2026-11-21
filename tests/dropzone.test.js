@@ -29,16 +29,14 @@ function setup(enabled = () => true) {
   return { pointer, root, ray, obj, home, target, placements, markers, tip };
 }
 
-test('visible radius captures the working end, eases and lands exactly on release', () => {
+test('radius captures the working end, eases and lands exactly on release; nothing is drawn (初中 style)', () => {
   const { pointer, ray, obj, target, placements, markers, tip } = setup();
   pointer.down(ray(0));
-  assert.equal(markers().length, 1);
-  assert.ok(markers()[0].position.equals(target));
-  assert.equal(markers()[0].scale.x, 0.25);
+  assert.equal(markers().length, 0);
   pointer.move(ray(0.8));
   assert.equal(obj.position.x, 0.8);
-  assert.equal(markers()[0].children[0].visible, true);
-  assert.equal(tip.value, '松手：放到 瓶口');
+  assert.equal(markers().length, 0);
+  assert.equal(tip.value, '');
   pointer.update(0.016);
   assert.ok(obj.position.x > 0.8 && obj.position.x < 1);
   pointer.up(ray(0.8));
@@ -86,9 +84,8 @@ test('both demo drag and path run through the same zones', () => {
     const act = demoActs(pointer, root), end = new THREE.Vector3(0.8, 0, 0);
     const play = method === 'drag' ? act.drag(obj, end, { from: home }) : act.path(obj, [home, end]);
     play(0.1);
-    assert.equal(markers().length, 1);
+    assert.equal(markers().length, 0);
     play(0.6);
-    assert.equal(markers()[0].children[0].visible, true);
     pointer.update(0.016);
     assert.ok(obj.position.x > 0.8 && obj.position.x < 1);
     play(1);

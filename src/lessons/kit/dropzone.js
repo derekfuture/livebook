@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 
+// 落点：照初中的做法——不画落点圈、不加高亮、不出提示，只是热区大、靠近就自动吸过去对准，松手就放稳（作者 2026-11-21：“就按初中那种……自动吸附的、热区大一点”）。
+// SHOW 留着给以后需要时打开画圈和提示，现在关着。
+const SHOW = false;
+
 function dashedRing() {
   const vertices = [];
   const point = (radius, angle) => [radius * Math.cos(angle), radius * Math.sin(angle), 0];
@@ -47,7 +51,7 @@ export function dropzones(root, tip) {
     hintVisible = !!target;
   }
 
-  function scan(raw, draw = true) {
+  function scan(raw, draw = SHOW) {
     const { item } = session;
     const plane = item.plane || 'xy';
     if (raw) {
