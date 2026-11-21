@@ -28,7 +28,8 @@ const fy = (a, h, k, x) => a * (x - h) ** 2 + k;
 const q1 = (v) => Math.round(v * 10) / 10;
 const num = (v) => { const r = q1(v); return (Math.abs(r - Math.round(r)) < 1e-9 ? String(Math.round(r)) : r.toFixed(1)).replace('-', '−'); };
 const num2 = (v) => String(Math.round(v * 100) / 100).replace('-', '−');
-const frac = (a) => { const t = { '-0.5': '−½', '-0.75': '−¾', '-0.25': '−¼', '-1': '−', '0.5': '½' }[String(q1(a * 100) / 100)]; return t ?? (Math.round(a * 100) / 100).toFixed(2).replace('-', '−'); };
+const FR = (n, d) => `<span class="mfr"><span>${n}</span><span>${d}</span></span>`;          // 竖着写的分数：板书、面板里用
+const fracSegs = (a, col) => { const t = { '-0.5': ['−', '{1/2}'], '-0.75': ['−', '{3/4}'], '-0.25': ['−', '{1/4}'], '-1': ['−'], '0.5': ['{1/2}'] }[String(q1(a * 100) / 100)]; return (t ?? [(Math.round(a * 100) / 100).toFixed(2).replace('-', '−')]).map((x) => [x, col, false]); };          // 场景里的式子：{3/4} 画成上下两行的分数
 const GOLD = 0xffc83d, BLUE = 0x58c4dd, TEAL = 0x5cd0b3, RED = 0xfc6255, WHITE = 0xffffff;
 const CSS = { g: '#ffc83d', b: '#58c4dd', t: '#5cd0b3', r: '#fc6255', w: '#ffffff' };
 
@@ -42,7 +43,7 @@ export default {
   conclusion: {
     crops: [{ page: 46, rect: [40, 476, 462, 712] }, { page: 47, rect: [62, 40, 486, 100] }],
     quote: '一般地，抛物线 y=a(x−h)²+k 与 y=ax² 形状相同，位置不同．把抛物线 y=ax² 向上（或向下）、向左（或向右）平移，可以得到抛物线 y=a(x−h)²+k．平移的方向、距离要根据 h，k 的值来决定．',
-    why: '把抛物线整条往上提 k，每一点都升高 k：y = ax² + k。往右挪 h，新抛物线在 x 处的高度，就是原来那条在 x − h 处的高度，所以式子里是 x − h：往右挪，减；往左挪，加。两样一起：y = a(x − h)² + k，顶点 (h, k)，对称轴 x = h，形状由 a 决定。<br><br>喷水池：最高点 (1.6, 3)，设 y = a(x − 1.6)² + 3；水柱经过 (3.6, 0)，0 = a(3.6 − 1.6)² + 3，a = −¾。当 x = 0 时 y = 1.08，水管的长应为 1.08 m。',
+    why: '把抛物线整条往上提 k，每一点都升高 k：y = ax² + k。往右挪 h，新抛物线在 x 处的高度，就是原来那条在 x − h 处的高度，所以式子里是 x − h：往右挪，减；往左挪，加。两样一起：y = a(x − h)² + k，顶点 (h, k)，对称轴 x = h，形状由 a 决定。<br><br>喷水池：最高点 (1.6, 3)，设 y = a(x − 1.6)² + 3；水柱经过 (3.6, 0)，0 = a(3.6 − 1.6)² + 3，a = −' + FR(3, 4) + '。当 x = 0 时 y = 1.08，水管的长应为 1.08 m。',
     src: '课本 · 26.2.2 二次函数 y=a(x−h)²+k 的图象和性质（喷水池的问题是这一节的例题）',
   },
 
@@ -175,9 +176,16 @@ export default {
     const measure = (font, txt) => { const g = document.createElement('canvas').getContext('2d'); g.font = font; return g.measureText(txt).width; };
     const FONT = (px, it = true) => `${it ? 'italic ' : ''}500 ${px}px "Times New Roman","Songti SC",serif`;
     // 一行带颜色的字：segs = [[文字, 颜色, 斜体?], ...]
-    const richTex = (segs, px = 64) => { const parts = segs.map(([s, c, it = true]) => ({ s, c, f: FONT(px, it) })); let W = 0; for (const p of parts) { p.w = measure(p.f, p.s); W += p.w; } return tex(Math.ceil(W) + 48, Math.round(px * 1.55), (g, w, h) => { let x = 24; g.textBaseline = 'middle'; g.lineJoin = 'round'; for (const p of parts) { g.font = p.f; g.shadowColor = 'rgba(8,16,24,0.85)'; g.shadowBlur = px * 0.22; g.lineWidth = px * 0.16; g.strokeStyle = 'rgba(10,20,30,0.55)'; g.strokeText(p.s, x, h / 2 + 2); g.shadowBlur = 0; g.fillStyle = p.c; g.fillText(p.s, x, h / 2 + 2); x += p.w; } }); };
+    const FRX = /^\{(\d+)\/(\d+)\}$/;
+    const richTex = (segs, px = 64) => { const parts = segs.map(([x, c, it = true]) => { const m = FRX.exec(x); if (m) { const f = FONT(Math.round(px * 0.7), false); return { n: m[1], d: m[2], c, f, w: Math.max(measure(f, m[1]), measure(f, m[2])) + px * 0.24 }; } const f = FONT(px, it); return { s: x, c, f, w: measure(f, x) }; });
+      const tall = parts.some((q) => q.n), W = parts.reduce((a, q) => a + q.w, 0);
+      return tex(Math.ceil(W) + 48, Math.round(px * (tall ? 2.25 : 1.55)), (g, w, h) => { let x = 24; g.textBaseline = 'middle'; g.lineJoin = 'round';
+        const ink = (txt, xx, yy, f, c) => { g.font = f; g.shadowColor = 'rgba(8,16,24,0.85)'; g.shadowBlur = px * 0.22; g.lineWidth = px * 0.16; g.strokeStyle = 'rgba(10,20,30,0.55)'; g.strokeText(txt, xx, yy); g.shadowBlur = 0; g.fillStyle = c; g.fillText(txt, xx, yy); };
+        for (const q of parts) { if (q.n) { const cx = x + q.w / 2, y0 = h / 2 + 2; g.textAlign = 'center'; ink(q.n, cx, y0 - px * 0.42, q.f, q.c); ink(q.d, cx, y0 + px * 0.47, q.f, q.c); g.textAlign = 'left';
+            g.shadowColor = 'rgba(8,16,24,0.85)'; g.shadowBlur = px * 0.16; g.fillStyle = 'rgba(10,20,30,0.55)'; g.fillRect(x + px * 0.05, y0 - px * 0.06, q.w - px * 0.1, px * 0.12); g.shadowBlur = 0; g.fillStyle = q.c; g.fillRect(x + px * 0.08, y0 - px * 0.03, q.w - px * 0.16, px * 0.06); }
+          else ink(q.s, x, h / 2 + 2, q.f, q.c); x += q.w; } }); };
     const label = (hgt, order = 30) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }))); sp.renderOrder = order; sp.userData.h = hgt; sp.userData.k = ''; sp.visible = false; group.add(sp); return sp; };
-    const setRich = (sp, segs, p, anchor = 0.5) => { if (!segs) { sp.visible = false; return; } const key = JSON.stringify(segs); if (sp.userData.k !== key) { sp.userData.k = key; const t = richTex(segs); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; sp.userData.w = (sp.userData.h * t.image.width) / t.image.height; sp.scale.set(sp.userData.w, sp.userData.h, 1); } sp.position.set(wx(p[0]) + sp.userData.w * (0.5 - anchor), wy(p[1]), Z + 0.002); sp.visible = true; };
+    const setRich = (sp, segs, p, anchor = 0.5) => { if (!segs) { sp.visible = false; return; } const key = JSON.stringify(segs); if (sp.userData.k !== key) { sp.userData.k = key; const t = richTex(segs); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; const hh = sp.userData.h * (t.image.height / Math.round(64 * 1.55)); sp.userData.w = (hh * t.image.width) / t.image.height; sp.scale.set(sp.userData.w, hh, 1); } sp.position.set(wx(p[0]) + sp.userData.w * (0.5 - anchor), wy(p[1]), Z + 0.002); sp.visible = true; };
     for (let x = Math.ceil(X0); x <= X1; x++) if (x) setRich(label(0.0088, 20), [[String(x).replace('-', '−'), 'rgba(255,255,255,0.85)', false]], [x, -0.28]);
     for (let y = Math.ceil(FLOOR); y <= YT; y++) if (y) setRich(label(0.0088, 20), [[String(y).replace('-', '−'), 'rgba(255,255,255,0.85)', false]], [-0.28, y]);
     setRich(label(0.0098, 20), [['x', CSS.w], ['/m', 'rgba(255,255,255,0.8)', false]], [X1 + 0.15, -0.34]);
@@ -211,14 +219,17 @@ export default {
     const capGeo = new THREE.BufferGeometry(); { const pos = [], uv = [], idx = []; let acc = 0; capPts.forEach(([u, v], i) => { if (i) acc += Math.hypot(u - capPts[i - 1][0], v - capPts[i - 1][1]); pos.push(u * S, wy(CY0), -v * S, u * S, wy(CY1), -v * S); uv.push(acc / CAPW, 0, acc / CAPW, 1); if (i) { const k = i * 2; idx.push(k - 2, k, k - 1, k - 1, k, k + 1); } }); capGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); capGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); capGeo.setIndex(idx); }
     const capMesh = quiet(new THREE.Mesh(capGeo, basic({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide }))); capMesh.renderOrder = 4; capMesh.visible = false; group.add(capMesh);
     const CW = 2048, CH = Math.round((2048 * CAPH) / CAPW);
-    const capTex = (big, small) => tex(CW, CH, (g, w, h) => {          // 台基上的两行字：大字一行、小字一行，都放得下
-      const fit = (txt, px, wt) => { let f = px; for (; f > 10; f -= 2) { g.font = `${wt} ${f}px "Times New Roman","Songti SC","STSong",serif`; if (g.measureText(txt).width < w * 0.86) break; } return g.font; };
-      const fb = fit(big, h * 0.34, 600), fs = small ? fit(small, h * 0.2, 500) : '';
-      g.font = fb; const wb = g.measureText(big).width; let ws = 0; if (small) { g.font = fs; ws = g.measureText(small).width; }
-      const tot = Math.max(wb, ws), x0 = (w - tot) / 2;
+    const capRuns = (txt) => { const out = []; const re = /\{(\d+)\/(\d+)\}/g; let i = 0, m; while ((m = re.exec(txt))) { if (m.index > i) out.push({ t: txt.slice(i, m.index) }); out.push({ n: m[1], d: m[2] }); i = m.index + m[0].length; } if (i < txt.length) out.push({ t: txt.slice(i) }); return out; };
+    const capTex = (big, small) => tex(CW, CH, (g, w, h) => {          // 台基上的两行字：大字一行、小字一行；{3/4} 写成上下两行的分数
+      const FF = (px, wt) => `${wt} ${px}px "Times New Roman","Songti SC","STSong",serif`;
+      const widthOf = (runs, px, wt) => runs.reduce((a, r) => { if (r.t != null) { g.font = FF(px, wt); return a + g.measureText(r.t).width; } g.font = FF(Math.round(px * 0.6), wt); return a + Math.max(g.measureText(r.n).width, g.measureText(r.d).width) + px * 0.22; }, 0);
+      const fitPx = (runs, px, wt) => { let f = Math.round(px); while (f > 10 && widthOf(runs, f, wt) > w * 0.86) f -= 2; return f; };
+      const R1 = capRuns(big), R2 = small ? capRuns(small) : null, p1 = fitPx(R1, h * 0.3, 600), p2 = R2 ? fitPx(R2, h * 0.18, 500) : 0;
+      const w1 = widthOf(R1, p1, 600), w2 = R2 ? widthOf(R2, p2, 500) : 0, tot = Math.max(w1, w2), x0 = (w - tot) / 2;
       const band = g.createLinearGradient(x0 - h * 0.6, 0, x0 + tot + h * 0.6, 0); band.addColorStop(0, 'rgba(40,30,18,0)'); band.addColorStop(0.08, 'rgba(40,30,18,0.5)'); band.addColorStop(0.92, 'rgba(40,30,18,0.5)'); band.addColorStop(1, 'rgba(40,30,18,0)');
-      g.fillStyle = band; g.fillRect(x0 - h * 0.6, h * 0.12, tot + h * 1.2, h * 0.76);
-      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = fb; g.fillStyle = '#fbf2de'; g.fillText(big, w / 2, small ? h * 0.4 : h * 0.5); if (small) { g.font = fs; g.fillStyle = '#ece1ca'; g.fillText(small, w / 2, h * 0.7); } });
+      g.fillStyle = band; g.fillRect(x0 - h * 0.6, h * 0.08, tot + h * 1.2, h * 0.84);
+      const drawRuns = (runs, px, wt, y, col, ww) => { let x = (w - ww) / 2; g.textBaseline = 'middle'; g.fillStyle = col; for (const r of runs) { if (r.t != null) { g.font = FF(px, wt); g.textAlign = 'left'; g.fillText(r.t, x, y); x += g.measureText(r.t).width; } else { const fp = Math.round(px * 0.6); g.font = FF(fp, wt); const rw = Math.max(g.measureText(r.n).width, g.measureText(r.d).width) + px * 0.22, cx = x + rw / 2; g.textAlign = 'center'; g.fillText(r.n, cx, y - px * 0.36); g.fillText(r.d, cx, y + px * 0.42); g.fillRect(x + px * 0.08, y + px * 0.01, rw - px * 0.16, Math.max(1.5, px * 0.05)); x += rw; } } };
+      drawRuns(R1, p1, 600, R2 ? h * 0.38 : h * 0.5, '#fbf2de', w1); if (R2) drawRuns(R2, p2, 500, h * 0.73, '#ece1ca', w2); });
     const cap = { key: '', born: -9, out: 1e9, next: null };
     function caption(big, small = '') { const key = big + '|' + small; if (key === cap.key) return; cap.key = key; S_.cap = [big, small];
       const show = () => { capMesh.material.map?.dispose?.(); capMesh.material.map = capTex(big, small); capMesh.material.needsUpdate = true; capMesh.visible = true; cap.born = now(); cap.out = 1e9; };
@@ -228,6 +239,7 @@ export default {
     // ================= 板书 =================
     const css = document.createElement('style');
     css.textContent = `
+.mfr{display:inline-block;vertical-align:middle;text-align:center;font-style:normal;font-size:0.86em;line-height:1.12;margin:0 0.08em}.mfr>span{display:block;padding:0 0.12em}.mfr>span:first-child{border-bottom:1px solid currentColor}
 .th-board{margin:4px 0 6px;display:flex;flex-direction:column;gap:8px;font:15px/1.7 "Kaiti SC","STKaiti","Songti SC",serif;color:#2b2722}
 .th-board .tb-row{opacity:0;transform:translateY(5px);transition:opacity .5s,transform .5s,background-color 2.4s;padding:3px 8px 3px 6px;border-radius:5px;border-left:3px solid transparent}
 .th-board .tb-row.in{opacity:1;transform:none}
@@ -253,7 +265,7 @@ export default {
     const later = (ms, fn) => { const id = runId; setTimeout(() => { if (!dead && id === runId) fn(); }, ms); };
     const landX = () => (S_.k > 0 && S_.a < 0 ? S_.h + Math.sqrt(-S_.k / S_.a) : null);
     const nozX = () => S_.h - OFF, nozY = () => fy(S_.a, S_.h, S_.k, nozX());
-    const eqSegs = () => { const a = frac(S_.a), h = q1(S_.h), k = q1(S_.k), out = [['y', CSS.w], [' = ', CSS.w, false], [a, S_.step === 'appA' || S_.step === 'app2' ? CSS.r : CSS.w, false]];
+    const eqSegs = () => { const h = q1(S_.h), k = q1(S_.k), out = [['y', CSS.w], [' = ', CSS.w, false], ...fracSegs(S_.a, S_.step === 'appA' || S_.step === 'app2' ? CSS.r : CSS.w)];
       if (Math.abs(h) < 0.05) out.push(['x', CSS.w], ['²', CSS.w, false]); else out.push(['(', CSS.w, false], ['x', CSS.w], [h > 0 ? ' − ' : ' + ', CSS.b, false], [num(Math.abs(h)), CSS.b, false], [')²', CSS.w, false]);
       if (Math.abs(k) >= 0.05) out.push([k > 0 ? ' + ' : ' − ', CSS.t, false], [num(Math.abs(k)), CSS.t, false]); return out; };
 
@@ -332,15 +344,15 @@ export default {
     }
     function landSet() {          // 重拍 4：a = −¾，水管长 1.08 m
       S_.step = 'app2'; flash([LAND, 0], RED, 0.15, 0.5); sfx.ding(1320, { gain: 0.06 });
-      caption('0 = a(3.6 − 1.6)² + 3，a = −¾', 'y = −¾(x − 1.6)² + 3');
-      board(`经过 (3.6, 0)：0 = <span class="r">${I('a')}</span>(3.6 − 1.6)² + 3，解得 <span class="r">${I('a')} = −¾</span>，${I('y')} = −¾(${I('x')} − 1.6)² + 3`, 'app');
+      caption('0 = a(3.6 − 1.6)² + 3，a = −{3/4}', 'y = −{3/4}(x − 1.6)² + 3');
+      board(`经过 (3.6, 0)：0 = <span class="r">${I('a')}</span>(3.6 − 1.6)² + 3，解得 <span class="r">${I('a')} = −${FR(3, 4)}</span>，${I('y')} = −${FR(3, 4)}(${I('x')} − 1.6)² + 3`, 'app');
       later(1500, () => { S_.pipeY = FLOOR; S_.pipeAt = now(); S_.fx.pipeLab = true; sfx.whoosh({ dur: 0.9, freq: 700, gain: 0.04 }); });          // 水管从池底长上来，接上水柱
       later(2700, () => { finish(); });
     }
     function finish() {
       S_.step = 'end'; S_.done = true; boardEl?.classList.add('review'); S_.crownAt = now(); flash([0, nozY()], GOLD); sfx.ding(1568, { gain: 0.07 }); later(450, () => sfx.ding(1976, { gain: 0.05 }));
       caption('当 x = 0 时，y = 1.08：水管长 1.08 m', '最高点定位置（h, k），再用一个点定形状（a）');
-      board.h('答'); board(`<b>答</b>：当 ${I('x')} = 0 时，${I('y')} = −¾ × 1.6² + 3 = 1.08，水管的长应为 <span class="g">1.08 m</span>。`, 'ans');
+      board.h('答'); board(`<b>答</b>：当 ${I('x')} = 0 时，${I('y')} = −${FR(3, 4)} × 1.6² + 3 = 1.08，水管的长应为 <span class="g">1.08 m</span>。`, 'ans');
       prompt(''); ui?.unlock?.(); layout();
       later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
     }
@@ -353,7 +365,7 @@ export default {
       if (key === 'gen') Object.assign(S_, { a: A0, h: 1.5, k: 2.5 }, { fx: { ...fx, ghost: true, vec: true, axis: true } });
       if (key === 'max') Object.assign(S_, { a: A0, h: 1, k: 2.6, px: 1 }, { fx: { ...fx, axis: true, drop: true } });
       if (key === 'app' || key === 'ans') Object.assign(S_, { a: -0.75, h: TOP[0], k: TOP[1] }, { fx: { ...fx, app: true, pipeLab: true } });
-      const CAP = { k: ['每一点都升高了 k，整条抛物线向上平移', 'y = ax² 变成 y = ax² + k'], h: ['新抛物线在 x 处的高度，就是原来在 x − h 处的高度', '所以往右挪 h，式子里是 x − h'], gen: ['形状相同，位置不同', '顶点是 (h, k)，对称轴是 x = h'], max: ['x = h 时，y 最大，最大值是 k', 'x < h 时升高，x > h 时下降'], app: ['0 = a(3.6 − 1.6)² + 3，a = −¾', 'y = −¾(x − 1.6)² + 3'], ans: ['当 x = 0 时，y = 1.08：水管长 1.08 m', '最高点定位置（h, k），再用一个点定形状（a）'] };
+      const CAP = { k: ['每一点都升高了 k，整条抛物线向上平移', 'y = ax² 变成 y = ax² + k'], h: ['新抛物线在 x 处的高度，就是原来在 x − h 处的高度', '所以往右挪 h，式子里是 x − h'], gen: ['形状相同，位置不同', '顶点是 (h, k)，对称轴是 x = h'], max: ['x = h 时，y 最大，最大值是 k', 'x < h 时升高，x > h 时下降'], app: ['0 = a(3.6 − 1.6)² + 3，a = −{3/4}', 'y = −{3/4}(x − 1.6)² + 3'], ans: ['当 x = 0 时，y = 1.08：水管长 1.08 m', '最高点定位置（h, k），再用一个点定形状（a）'] };
       caption(...(CAP[key] || CAP.ans)); flash([S_.h, S_.k], GOLD, 0.15, 0.45); layout();
     }
 
@@ -405,7 +417,7 @@ export default {
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
-    function opening() { caption('水管要多长？', '水柱最高处离池中心 1.6 m、高 3 m，落在离池中心 3.6 m 处'); prompt('先把水柱往上提：抛物线 y = −½x² 会怎么变？'); }
+    function opening() { caption('水管要多长？', '水柱最高处离池中心 1.6 m、高 3 m，落在离池中心 3.6 m 处'); prompt('先把水柱往上提：抛物线 y = −' + FR(1, 2) + 'x² 会怎么变？'); }
     function reset() { runId++; S_ = fresh(); trailAt = null; for (const L of trails) { L.hide(); L.born = -9; } for (const L of [target, landMark, axis, before]) L.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);

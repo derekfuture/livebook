@@ -24,6 +24,8 @@ const P3 = (p, y = 0) => new THREE.Vector3(p[0], y, -p[1]);
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const f1 = (x) => (Math.abs(x - Math.round(x)) < 0.05 ? String(Math.round(x)) : x.toFixed(1));
 
+const FR = (n, d) => `<span class="mfr"><span>${n}</span><span>${d}</span></span>`;          // 竖着写的分数（像课本）：板书、对照课本里用
+
 export default {
   id: 'peifang',
   fig: '思考',
@@ -34,7 +36,7 @@ export default {
   conclusion: {
     page: 13, rect: [60, 130, 480, 520],
     quote: '像上面那样，通过配成完全平方形式来解一元二次方程的方法，叫作配方法。',
-    why: '把 x² + bx 画成一块正方形地毯和一条长 b、宽 x 的长条。长条切成一样长的两半（各 b/2），拼在正方形的两边，外形就成了边长 x + b/2 的正方形，只缺一个角：(b/2)²。补上这个角，左边就配成了完全平方式 (x + b/2)²；方程两边同时加上 (b/2)²，等式仍然成立。<br><br>花拉子米：x² + 10x = 39，两边加 25，(x + 5)² = 64，x + 5 = ±8，正方形的边长是 3。课本：x² + 6x + 4 = 0，移项 x² + 6x = −4，两边同时加 (6/2)²，即 9，(x + 3)² = 5，x = −3 ± √5。配方是为了利用开方实现降次，把一个一元二次方程转化成两个一元一次方程来解。',
+    why: '把 x² + bx 画成一块正方形地毯和一条长 b、宽 x 的长条。长条切成一样长的两半（各 ' + FR('<i>b</i>', 2) + '），拼在正方形的两边，外形就成了边长 x + ' + FR('<i>b</i>', 2) + ' 的正方形，只缺一个角：(' + FR('<i>b</i>', 2) + ')²。补上这个角，左边就配成了完全平方式 (x + ' + FR('<i>b</i>', 2) + ')²；方程两边同时加上 (' + FR('<i>b</i>', 2) + ')²，等式仍然成立。<br><br>花拉子米：x² + 10x = 39，两边加 25，(x + 5)² = 64，x + 5 = ±8，正方形的边长是 3。课本：x² + 6x + 4 = 0，移项 x² + 6x = −4，两边同时加 (' + FR(6, 2) + ')²，即 9，(x + 3)² = 5，x = −3 ± √5。配方是为了利用开方实现降次，把一个一元二次方程转化成两个一元一次方程来解。',
     src: '课本 · 25.2.1 配方法；花拉子米的题和图见他约公元 820 年写的代数书',
   },
 
@@ -170,13 +172,17 @@ export default {
     const CL = 0.34, CD = 0.023, CV = -0.1015;
     const capMesh = quiet(new THREE.Mesh(new THREE.PlaneGeometry(CL, CD).rotateX(-Math.PI / 2), basic({ transparent: true, opacity: 0, depthWrite: false }))); capMesh.position.set(0, G + 0.0005, -CV); capMesh.renderOrder = 3; capMesh.visible = false; group.add(capMesh);
     const CW = 2048, CH = Math.round((CW * CD) / CL);
-    const capTex = (big, small) => tex(CW, CH, (g, w, h) => {
-      let f = 1, fb = '', fs = '', wb = 0, ws = 0, gap = 0;
-      for (; f > 0.5; f -= 0.04) { fb = `600 ${Math.round(h * 0.62 * f)}px "Times New Roman","Songti SC","STSong",serif`; fs = `500 ${Math.round(h * 0.44 * f)}px "Times New Roman","Songti SC","STSong",serif`; g.font = fb; wb = g.measureText(big).width; g.font = fs; ws = small ? g.measureText(small).width : 0; gap = small ? h * 0.9 * f : 0; if (wb + gap + ws < w - h * 5) break; }
-      const tot = wb + gap + ws, x0 = (w - tot) / 2, band = g.createLinearGradient(x0 - h * 2, 0, x0 + tot + h * 2, 0);
+    const capRuns = (txt) => { const out = []; const re = /\{([^/{}]+)\/([^/{}]+)\}/g; let k = 0, m; while ((m = re.exec(txt))) { if (m.index > k) out.push({ t: txt.slice(k, m.index) }); out.push({ n: m[1], d: m[2] }); k = m.index + m[0].length; } if (k < txt.length) out.push({ t: txt.slice(k) }); return out; };
+    const capTex = (big, small) => tex(CW, CH, (g, w, h) => {          // 大字、小字一行；{6/2} 写成上下两行的分数
+      const FF = (px, wt, it = false) => `${it ? 'italic ' : ''}${wt} ${px}px "Times New Roman","Songti SC","STSong",serif`;
+      const widthOf = (runs, px, wt) => runs.reduce((a, r) => { if (r.t != null) { g.font = FF(px, wt); return a + g.measureText(r.t).width; } g.font = FF(Math.round(px * 0.62), wt); return a + Math.max(g.measureText(r.n).width, g.measureText(r.d).width) + px * 0.24; }, 0);
+      const R1 = capRuns(big), R2 = small ? capRuns(small) : null; let f = 1, p1 = 0, p2 = 0, w1 = 0, w2 = 0, gap = 0;
+      for (; f > 0.4; f -= 0.04) { p1 = Math.round(h * 0.5 * f); p2 = Math.round(h * 0.36 * f); w1 = widthOf(R1, p1, 600); w2 = R2 ? widthOf(R2, p2, 500) : 0; gap = R2 ? h * 0.9 * f : 0; if (w1 + gap + w2 < w - h * 5) break; }
+      const tot = w1 + gap + w2, x0 = (w - tot) / 2, band = g.createLinearGradient(x0 - h * 2, 0, x0 + tot + h * 2, 0);
       band.addColorStop(0, 'rgba(40,26,14,0)'); band.addColorStop(0.07, 'rgba(40,26,14,0.55)'); band.addColorStop(0.93, 'rgba(40,26,14,0.55)'); band.addColorStop(1, 'rgba(40,26,14,0)');
-      g.fillStyle = band; g.fillRect(x0 - h * 2, h * 0.06, tot + h * 4, h * 0.88);
-      g.textBaseline = 'middle'; g.font = fb; g.fillStyle = '#fbf2de'; g.fillText(big, x0, h * 0.53); if (small) { g.font = fs; g.fillStyle = '#eadfc6'; g.fillText(small, x0 + wb + gap, h * 0.55); } });
+      g.fillStyle = band; g.fillRect(x0 - h * 2, h * 0.04, tot + h * 4, h * 0.92);
+      const drawRuns = (runs, px, wt, x, y, col) => { g.textBaseline = 'middle'; g.fillStyle = col; for (const r of runs) { if (r.t != null) { g.font = FF(px, wt); g.textAlign = 'left'; g.fillText(r.t, x, y); x += g.measureText(r.t).width; } else { const fp = Math.round(px * 0.62); const isVar = (v) => /^[a-z]$/.test(v); g.font = FF(fp, wt); const rw = Math.max(g.measureText(r.n).width, g.measureText(r.d).width) + px * 0.24, cx = x + rw / 2; g.textAlign = 'center'; g.font = FF(fp, wt, isVar(r.n)); g.fillText(r.n, cx, y - px * 0.38); g.font = FF(fp, wt, isVar(r.d)); g.fillText(r.d, cx, y + px * 0.44); g.fillRect(x + px * 0.08, y + px * 0.01, rw - px * 0.16, Math.max(1.5, px * 0.055)); x += rw; } } };
+      drawRuns(R1, p1, 600, x0, h * 0.52, '#fbf2de'); if (R2) drawRuns(R2, p2, 500, x0 + w1 + gap, h * 0.54, '#eadfc6'); });
     const cap = { key: '', born: -9, out: 1e9, next: null };
     function caption(big, small = '') { const key = big + '|' + small; if (key === cap.key) return; cap.key = key; S.cap = [big, small];
       const show = () => { capMesh.material.map?.dispose?.(); capMesh.material.map = capTex(big, small); capMesh.material.needsUpdate = true; capMesh.visible = true; cap.born = now(); cap.out = 1e9; };
@@ -186,6 +192,7 @@ export default {
     // ================= 板书：学生做出一样，就用课本的话写一行 =================
     const css = document.createElement('style');
     css.textContent = `
+.mfr{display:inline-block;vertical-align:middle;text-align:center;font-style:normal;font-size:0.86em;line-height:1.12;margin:0 0.08em}.mfr>span{display:block;padding:0 0.12em}.mfr>span:first-child{border-bottom:1px solid currentColor}
 .pf-board{margin:4px 0 6px;display:flex;flex-direction:column;gap:8px;font:15px/1.7 "Kaiti SC","STKaiti","Songti SC",serif;color:#2b2722}
 .pf-board .pr{opacity:0;transform:translateY(5px);transition:opacity .5s,transform .5s,background-color 2.4s;padding:3px 8px 3px 6px;border-radius:5px;border-left:3px solid transparent}
 .pf-board .pr.in{opacity:1;transform:none}
@@ -317,12 +324,12 @@ export default {
     }
     function textbook() {          // 重拍 4：课本的 x² + 6x + 4 = 0
       S.beat = 'tb'; S.live = false; const bg = R.big(); flash([bg[2], bg[1]], TEAL); K.big.draw(rect(bg), 0.5);
-      say('课本：x² + 6x + 4 = 0，两边同时加 (6/2)²，即 9', '−4 画不出来（面积不会是负数），图看懂为什么加 9，剩下的交给代数');
+      say('课本：x² + 6x + 4 = 0，两边同时加 ({6/2})²，即 9', '−4 画不出来（面积不会是负数），图看懂为什么加 9，剩下的交给代数');
       setEq([X2, PL, ['6x', CSS.bx], EQ, n('−4')]);
       later(1500, () => setEq([X2, PL, ['6x', CSS.bx], PL, ['9', CSS.sq], EQ, n('−4'), PL, ['9', CSS.sq]]));
       later(3000, () => setEq([['(x + 3)²', CSS.w], EQ, n(5)]));
-      board(`<span class="n">4</span>缺角的边长总是一次项系数的一半：${x2} + <span class="bx">${i('b')}${i('x')}</span> 补上 <span class="sq">(${i('b')}/2)²</span>，就配成 (${i('x')} + ${i('b')}/2)²（由 ${i('a')}² + 2${i('ab')} + ${i('b')}² = (${i('a')} + ${i('b')})²）`, 'gen');
-      board.h('课本'); board(`<span class="n">5</span>怎样解方程 ${i('x')}² + 6${i('x')} + 4 = 0？移项，得 ${i('x')}² + 6${i('x')} = −4。两边同时加 <span class="sq">(6/2)²</span>，即 9：${i('x')}² + 6${i('x')} + 9 = −4 + 9，(${i('x')} + 3)² = 5，${i('x')}<sub>1</sub> = −3 + √5，${i('x')}<sub>2</sub> = −3 − √5`, 'tb');
+      board(`<span class="n">4</span>缺角的边长总是一次项系数的一半：${x2} + <span class="bx">${i('b')}${i('x')}</span> 补上 <span class="sq">(${FR(i('b'), 2)})²</span>，就配成 (${i('x')} + ${FR(i('b'), 2)})²（由 ${i('a')}² + 2${i('ab')} + ${i('b')}² = (${i('a')} + ${i('b')})²）`, 'gen');
+      board.h('课本'); board(`<span class="n">5</span>怎样解方程 ${i('x')}² + 6${i('x')} + 4 = 0？移项，得 ${i('x')}² + 6${i('x')} = −4。两边同时加 <span class="sq">(${FR(6, 2)})²</span>，即 9：${i('x')}² + 6${i('x')} + 9 = −4 + 9，(${i('x')} + 3)² = 5，${i('x')}<sub>1</sub> = −3 + √5，${i('x')}<sub>2</sub> = −3 − √5`, 'tb');
       later(3600, finish);
     }
     function finish() {
@@ -340,7 +347,7 @@ export default {
       Object.assign(S, { x: st.b === 10 ? XN : 2.2, b: st.b, p: st.p, filled: st.f, rooted: st.r, found: true });
       K.side.set(null); K.sideX.set(null); K.side5.set(null);
       if (st.r) { const bg = R.big(); K.side.set([[bg[0] - 0.005, bg[1]], [bg[0] - 0.005, bg[3]]]); K.sideX.set([[bg[0], bg[1] - 0.004], [O[0] + XS, bg[1] - 0.004]]); K.side5.set([[O[0] + XS, bg[1] - 0.004], [bg[2], bg[1] - 0.004]]); }
-      const CAP = { cut: ['两段一样长：外形是正方形，只缺一个角', '缺角 5 × 5 = 25，边长正是 10 的一半'], fill: ['补上 25，就是一个大正方形', 'x² + 10x + 25 = (x + 5)²，方程两边同时加 25'], root: ['边长 8：x + 5 = 8，x = 3', '开方降次：x + 5 = ±8，另一个根 −13 当不了边长'], gen: ['缺角总是一次项系数一半的平方', 'x² + bx + (b/2)² = (x + b/2)²'], tb: ['课本：x² + 6x + 4 = 0，两边同时加 (6/2)²，即 9', '(x + 3)² = 5，x = −3 ± √5'], def: ['通过配成完全平方形式来解一元二次方程的方法，叫作配方法', '配方是为了利用开方实现降次'], ans: ['答：边长是 3', 'x² + 10x = 39，两边加 25，(x + 5)² = 64'] };
+      const CAP = { cut: ['两段一样长：外形是正方形，只缺一个角', '缺角 5 × 5 = 25，边长正是 10 的一半'], fill: ['补上 25，就是一个大正方形', 'x² + 10x + 25 = (x + 5)²，方程两边同时加 25'], root: ['边长 8：x + 5 = 8，x = 3', '开方降次：x + 5 = ±8，另一个根 −13 当不了边长'], gen: ['缺角总是一次项系数一半的平方', 'x² + bx + ({b/2})² = (x + {b/2})²'], tb: ['课本：x² + 6x + 4 = 0，两边同时加 ({6/2})²，即 9', '(x + 3)² = 5，x = −3 ± √5'], def: ['通过配成完全平方形式来解一元二次方程的方法，叫作配方法', '配方是为了利用开方实现降次'], ans: ['答：边长是 3', 'x² + 10x = 39，两边加 25，(x + 5)² = 64'] };
       say(...(CAP[k] || CAP.ans)); layout();
       const EQS = { cut: [X2, PL, ['5x', CSS.bx], PL, ['5x', CSS.bx], EQ, n(C0)], fill: [['(x + 5)²', CSS.w], EQ, n(64)], root: [['x + 5', CSS.w], EQ, ['±8', CSS.w]], tb: [['(x + 3)²', CSS.w], EQ, n(5)], def: [['(x + 3)²', CSS.w], EQ, n(5)], ans: [['x', CSS.x2], EQ, n(3)] };
       if (EQS[k]) setEq(EQS[k]); else genEq();
