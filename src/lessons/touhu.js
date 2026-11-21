@@ -119,7 +119,9 @@ export default {
     const bronze = lit({ color: 0xb48a52, roughness: 0.35, metalness: 0.6 });
     const pipeBody = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.09 * S, 0.1 * S, 1, 16).translate(0, 0.5, 0), bronze)); pipe.add(pipeBody);
     const nozzle = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.13 * S, 0.1 * S, 0.16 * S, 16), bronze)); pipe.add(nozzle);
-    pipe.position.z = 0;
+    const stone = lit({ color: 0xd9d4c6, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+    const pedestal = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.29 * S, 0.34 * S, -FLOOR * S, 32), stone));
+    pedestal.position.y = wy(FLOOR / 2); group.add(pedestal);
 
     // ================= 水：一颗颗水珠沿着抛物线飞，落进池里荡开水纹 =================
     const dropGeo = new THREE.SphereGeometry(1, 6, 4), dropMat = new THREE.MeshStandardMaterial({ color: 0xf4fbff, roughness: 0.06, metalness: 0, transparent: true, opacity: 0.72, emissive: 0xcfe9f5, emissiveIntensity: 0.12 });
@@ -206,6 +208,7 @@ export default {
     const kArr = [arrow(TEAL), arrow(TEAL), arrow(TEAL)], hArr = [arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE)], vecH = arrow(BLUE, 0.06), vecK = arrow(TEAL, 0.06);
     const look = arrow(BLUE, 0.055), dropP = gline(WHITE, 0.02, { glow: 0, shadow: 0.15, dash: 0.07, op: 0.75, order: 9 }), dropG = gline(WHITE, 0.02, { glow: 0, shadow: 0.15, dash: 0.07, op: 0.75, order: 9 });
     const trails = Array.from({ length: 14 }, () => { const L = gline(GOLD, 0.04, { glow: 0.4, shadow: 0, order: 11 }); L.born = -9; return L; }); let trailAt = null, trailI = 0;
+    const pipeMeasure = gline(GOLD, 0.027, { glow: 0, shadow: 0.12, order: 13 });
     const target = gline(GOLD, 0.03, { glow: 0.5, shadow: 0.2, dash: 0.06, order: 9 }), landMark = gline(RED, 0.03, { glow: 0.5, shadow: 0.2, dash: 0.06, order: 9 });
     const VD = dot('rgba(255,200,61,1)', 0.0135), PD = dot('rgba(88,196,221,1)', 0.011), LD = dot('rgba(252,98,85,1)', 0.011), ND2 = dot('rgba(255,200,61,1)', 0.009);
     const EQ = label(0.022, 32), VL = label(0.0128), PL1 = label(0.0112), PL2 = label(0.0112), KL = label(0.0115), HL = label(0.0115), YL = label(0.0115), LL = label(0.0115), PIPEL = label(0.0135);
@@ -264,7 +267,7 @@ export default {
     let S_ = fresh(), runId = 0;
     const later = (ms, fn) => { const id = runId; setTimeout(() => { if (!dead && id === runId) fn(); }, ms); };
     const landX = () => (S_.k > 0 && S_.a < 0 ? S_.h + Math.sqrt(-S_.k / S_.a) : null);
-    const nozX = () => S_.h - OFF, nozY = () => fy(S_.a, S_.h, S_.k, nozX());
+    const nozX = () => S_.fx.app ? 0 : S_.h - OFF, nozY = () => fy(S_.a, S_.h, S_.k, nozX());
     const eqSegs = () => { const h = q1(S_.h), k = q1(S_.k), out = [['y', CSS.w], [' = ', CSS.w, false], ...fracSegs(S_.a, S_.step === 'appA' || S_.step === 'app2' ? CSS.r : CSS.w)];
       if (Math.abs(h) < 0.05) out.push(['x', CSS.w], ['²', CSS.w, false]); else out.push(['(', CSS.w, false], ['x', CSS.w], [h > 0 ? ' − ' : ' + ', CSS.b, false], [num(Math.abs(h)), CSS.b, false], [')²', CSS.w, false]);
       if (Math.abs(k) >= 0.05) out.push([k > 0 ? ' + ' : ' − ', CSS.t, false], [num(Math.abs(k)), CSS.t, false]); return out; };
@@ -273,7 +276,7 @@ export default {
       const { a, h, k, fx } = S_;
       ghost.set(fx.ghost ? curve(a, 0, 0) : null);
       before.set(fx.before ? curve(a, 0, S_.k0) : null);
-      para.set(curve(a, h, k));
+      para.set(fx.app ? curve(a, h, k, 0, LAND) : curve(a, h, k));
       VD.at([h, k]); setRich(VL, [['(', CSS.w, false], [num(h), CSS.b, false], [', ', CSS.w, false], [num(k), CSS.t, false], [')', CSS.w, false]], [h + 0.18, k + 0.3], 0);
       setRich(EQ, eqSegs(), [0.2, YT + 0.75]);
       // 往上提：几支一样长的箭头，从原来的抛物线指到现在的
@@ -295,10 +298,17 @@ export default {
       // 回到喷水池：目标点、落点
       target.set(fx.app ? ringPts(TOP, 0.2) : null); landMark.set(fx.app ? [[LAND, -0.25], [LAND, 0.25]] : null);
       const lx = landX(); if (S_.step === 'appA' && lx != null) { LD.at([lx, 0]); setRich(LL, [[num2(lx), CSS.r, false]], [lx, -0.45]); } else { LD.visible = false; setRich(LL, null); }
-      // 水管：从池底到喷头
-      const py = S_.pipeY != null ? S_.pipeY : nozY(), px = nozX(), top = Math.max(FLOOR, py);
-      pipe.position.x = wx(px); pipeBody.scale.y = Math.max(0.001, (top - FLOOR) * S); pipeBody.position.y = wy(FLOOR); nozzle.position.y = wy(top); nozzle.visible = top > FLOOR + 0.05;
-      if (S_.fx.pipeLab) { ND2.at([px, top]); setRich(PIPEL, [[num2(top), CSS.g, false], [' m', CSS.g, false]], [px - 0.22, top / 2], 1); } else { ND2.visible = false; setRich(PIPEL, null); }
+      // 例题中石座的顶面是地面，管底和落点同高。
+      const base = fx.app ? 0 : FLOOR, px = nozX(), top = Math.max(base, S_.pipeY != null ? S_.pipeY : nozY());
+      pedestal.visible = fx.app;
+      pipe.position.x = wx(px); pipeBody.position.y = wy(base); pipeBody.visible = top > base;
+      pipeBody.scale.y = (top - base) * S;
+      nozzle.visible = top > base + (fx.app ? 0.16 : 0.05); nozzle.position.y = wy(fx.app ? top - 0.08 : top);
+      if (fx.pipeLab) {
+        const mx = px - 0.43;
+        pipeMeasure.set([[mx + 0.10, 0], [mx, 0], [mx, top], [mx + 0.10, top]]);
+        ND2.at([px, top]); setRich(PIPEL, [[num2(top), CSS.g, false], [' m', CSS.g, false]], [mx - 0.08, top / 2], 1);
+      } else { pipeMeasure.hide(); ND2.visible = false; setRich(PIPEL, null); }
     }
     function trailSnap() { const L = trails[trailI++ % trails.length], c = curve(S_.a, S_.h, S_.k); if (!c) return; L.set(c); L.born = now(); }
 
@@ -307,18 +317,22 @@ export default {
       S_.step = 'k-done'; flash([0, S_.k], TEAL); sfx.ding(1180, { gain: 0.06 }); S_.kPulse = now();
       if (S_.k > 0) caption('每一点都升高了 k，整条抛物线向上平移', 'y = ax² 变成 y = ax² + k'); else caption(`每一点都降低了 ${num(-S_.k)}，整条抛物线向下平移`, `y = ax² 变成 y = ax² − ${num(-S_.k)}`);
       board.h('上下平移'); board(`<span class="n">1</span>把抛物线 ${I('y')} = ${I('ax')}² 向上（<span class="t">${I('k')} &gt; 0</span>）或向下（<span class="t">${I('k')} &lt; 0</span>）平移 <span class="t">|${I('k')}|</span> 个单位长度，就得到抛物线 ${I('y')} = ${I('ax')}² <span class="t">+ ${I('k')}</span>`, 'k');
-      later(2000, () => { S_.step = 'h'; S_.k0 = S_.k; S_.fx.kArr = false; S_.fx.ghost = false; S_.fx.before = true; S_.fx.hArr = true; S_.stepAt = now(); S_.hint = 0; before.draw(curve(S_.a, 0, S_.k0), 0.7);
-        caption('上下挪是 + k。往右挪呢？', '把水柱往右拖'); prompt('往右挪，式子会怎么变？把水柱往右拖'); layout(); });
+      later(2000, () => { S_.step = 'h';
+        const wasBelow = S_.k < 0;
+        if (wasBelow) S_.k = 2;
+        S_.k0 = S_.k; S_.fx.kArr = false; S_.fx.ghost = false; S_.fx.before = true; S_.fx.hArr = true; S_.stepAt = now(); S_.hint = 0; before.draw(curve(S_.a, 0, S_.k0), 0.7);
+        caption(wasBelow ? '把顶点放回水面上方，高度取 2' : '上下挪是 + k。往右挪呢？', '把水柱往右拖'); prompt('往右挪，式子会怎么变？把水柱往右拖'); layout(); });
     }
     function hMoved() {          // 往右挪：出现的是减号
-      S_.step = 'why'; S_.fx.look = true; S_.fx.hArr = false; S_.px = S_.h + 1.2; S_.pPath = 0; S_.stepAt = now(); S_.hint = 0;
+      S_.step = 'why'; S_.fx.look = true; S_.fx.hArr = false; S_.shiftH = S_.h; S_.px = S_.h + 0.4 * Math.sqrt(-S_.k / S_.a); S_.pPath = 0; S_.stepAt = now(); S_.hint = 0;
       caption(S_.h > 0 ? `往右挪了 ${num(S_.h)}，式子里却是 x − ${num(S_.h)}` : `往左挪了 ${num(-S_.h)}，式子里却是 x + ${num(-S_.h)}`, '为什么？拖着弧上的点 P 看看');
       prompt('拖着弧上的点 P 走：它和原来那条，在哪儿一样高？'); flash([S_.h, S_.k], BLUE, 0.15, 0.45); layout();
     }
     function whyDone() {          // 重拍 2：往回看 h
       S_.step = 'why-done'; flash([S_.px - S_.h, fy(S_.a, S_.h, S_.k, S_.px)], BLUE); sfx.ding(1250, { gain: 0.06 });
       caption('新抛物线在 x 处的高度，就是原来在 x − h 处的高度', '所以往右挪 h，式子里是 x − h；往左挪，就是加');
-      board.h('左右平移'); board(`<span class="n">2</span>把抛物线 ${I('y')} = ${I('ax')}² 向左（<span class="b">${I('h')} &lt; 0</span>）或向右（<span class="b">${I('h')} &gt; 0</span>）平移 <span class="b">|${I('h')}|</span> 个单位长度，就可以得到抛物线 ${I('y')} = ${I('a')}(${I('x')} <span class="b">− ${I('h')}</span>)²：新抛物线在 ${I('x')} 处的高度，就是原来在 <span class="b">${I('x')} − ${I('h')}</span> 处的高度`, 'h');
+      const h = S_.h, k = num(S_.k0), term = `${I('x')} ${h > 0 ? '−' : '+'} ${num(Math.abs(h))}`;
+      board.h('左右平移'); board(`<span class="n">2</span>把 ${I('y')} = −${FR(1, 2)}${I('x')}² + ${k} 往${h > 0 ? '右' : '左'}挪 ${num(Math.abs(h))} 个单位，得到 ${I('y')} = −${FR(1, 2)}(${term})² + ${k}。新曲线上 ${I('x')} 处的高度，和原来 ${I('x')} − ${I('h')} 处一样。取 ${I('k')} = 0，就从 ${I('y')} = ${I('ax')}² 得到 ${I('y')} = ${I('a')}(${I('x')} − ${I('h')})²。`, 'h');
       later(2400, () => { S_.step = 'gen'; S_.fx.look = false; S_.fx.before = false; S_.fx.ghost = true; S_.fx.vec = true; S_.path = 0; S_.minX = S_.maxX = S_.h; S_.minY = S_.maxY = S_.k; S_.stepAt = now(); S_.hint = 0; ghost.draw(curve(S_.a, 0, 0), 0.6);
         caption('上下、左右一起挪呢？', '随便拖水柱的最高点'); prompt('随便拖：抛物线会不会变形？式子怎么跟着变？'); layout(); });
     }
@@ -331,10 +345,10 @@ export default {
     }
     function maxDone() {          // 最高点：x = h 时 y 最大
       S_.step = 'max-done'; flash([S_.h, S_.k], GOLD, 0.15, 0.5); sfx.ding(1400, { gain: 0.05 });
-      caption('x = h 时，y 最大，最大值是 k', 'x < h 时 y 随 x 增大而增大；x > h 时 y 随 x 增大而减小');
-      board(`<span class="n">4</span>如果 ${I('a')} &lt; 0，那么当 ${I('x')} &lt; ${I('h')} 时，${I('y')} 随 ${I('x')} 的增大而增大，当 ${I('x')} &gt; ${I('h')} 时，${I('y')} 随 ${I('x')} 的增大而减小，当 ${I('x')} = ${I('h')} 时，${I('y')} 取最大值，最大值为 <span class="t">${I('k')}</span>（${I('a')} &gt; 0 时反过来，最小值为 ${I('k')}）`, 'max');
+      caption('这条抛物线开口向下，x = h 时最高，最大值是 k', 'x < h 时 y 随 x 增大而增大；x > h 时 y 随 x 增大而减小');
+      board(`<span class="n">4</span>如果 ${I('a')} &lt; 0，那么当 ${I('x')} &lt; ${I('h')} 时，${I('y')} 随 ${I('x')} 的增大而增大，当 ${I('x')} &gt; ${I('h')} 时，${I('y')} 随 ${I('x')} 的增大而减小，当 ${I('x')} = ${I('h')} 时，${I('y')} 取最大值，最大值为 <span class="t">${I('k')}</span>。${I('a')} &gt; 0 时，随着 ${I('x')} 增大，${I('y')} 先减小后增大，在 ${I('x')} = ${I('h')} 时取最小值 ${I('k')}。`, 'max');
       later(2600, () => { S_.step = 'app'; S_.fx.drop = false; S_.fx.axis = false; S_.fx.ghost = false; S_.fx.app = true; S_.stepAt = now(); S_.hint = 0; target.draw(ringPts(TOP, 0.2), 0.6);
-        caption('回到喷水池：水柱最高处在 (1.6, 3)', '把最高点拖过去'); prompt('把水柱的最高点拖到 (1.6, 3)：水管就在池中心'); layout(); });
+        caption('回到喷水池：水柱最高处在 (1.6, 3)', '把最高点拖过去'); prompt('以水管和地面的交点为原点，把最高点拖到 (1.6, 3)'); layout(); });
     }
     function topSet() {          // 顶点到了 (1.6, 3)：位置定了，落点还不对
       S_.step = 'appA'; S_.stepAt = now(); S_.hint = 0; flash(TOP, GOLD, 0.15, 0.5);
@@ -346,7 +360,7 @@ export default {
       S_.step = 'app2'; flash([LAND, 0], RED, 0.15, 0.5); sfx.ding(1320, { gain: 0.06 });
       caption('0 = a(3.6 − 1.6)² + 3，a = −{3/4}', 'y = −{3/4}(x − 1.6)² + 3');
       board(`经过 (3.6, 0)：0 = <span class="r">${I('a')}</span>(3.6 − 1.6)² + 3，解得 <span class="r">${I('a')} = −${FR(3, 4)}</span>，${I('y')} = −${FR(3, 4)}(${I('x')} − 1.6)² + 3`, 'app');
-      later(1500, () => { S_.pipeY = FLOOR; S_.pipeAt = now(); S_.fx.pipeLab = true; sfx.whoosh({ dur: 0.9, freq: 700, gain: 0.04 }); });          // 水管从池底长上来，接上水柱
+      later(1500, () => { S_.pipeY = 0; S_.pipeAt = now(); S_.fx.pipeLab = true; sfx.whoosh({ dur: 0.9, freq: 700, gain: 0.04 }); });          // 水管从地面长到喷头
       later(2700, () => { finish(); });
     }
     function finish() {
@@ -361,18 +375,18 @@ export default {
       S_.pose = key; S_.pipeY = null; S_.crownAt = key === 'ans' ? now() : -9;
       const fx = { ghost: false, before: false, kArr: false, hArr: false, look: false, axis: false, vec: false, drop: false, app: false, pipeLab: false };
       if (key === 'k') Object.assign(S_, { a: A0, h: 0, k: 2 }, { fx: { ...fx, ghost: true, kArr: true } });
-      if (key === 'h') Object.assign(S_, { a: A0, h: 2, k: 2, k0: 2, px: 3.2 }, { fx: { ...fx, before: true, look: true } });
+      if (key === 'h') Object.assign(S_, { a: A0, h: S_.shiftH, k: S_.k0, px: S_.shiftH + 0.4 * Math.sqrt(-S_.k0 / A0) }, { fx: { ...fx, before: true, look: true } });
       if (key === 'gen') Object.assign(S_, { a: A0, h: 1.5, k: 2.5 }, { fx: { ...fx, ghost: true, vec: true, axis: true } });
       if (key === 'max') Object.assign(S_, { a: A0, h: 1, k: 2.6, px: 1 }, { fx: { ...fx, axis: true, drop: true } });
       if (key === 'app' || key === 'ans') Object.assign(S_, { a: -0.75, h: TOP[0], k: TOP[1] }, { fx: { ...fx, app: true, pipeLab: true } });
-      const CAP = { k: ['每一点都升高了 k，整条抛物线向上平移', 'y = ax² 变成 y = ax² + k'], h: ['新抛物线在 x 处的高度，就是原来在 x − h 处的高度', '所以往右挪 h，式子里是 x − h'], gen: ['形状相同，位置不同', '顶点是 (h, k)，对称轴是 x = h'], max: ['x = h 时，y 最大，最大值是 k', 'x < h 时升高，x > h 时下降'], app: ['0 = a(3.6 − 1.6)² + 3，a = −{3/4}', 'y = −{3/4}(x − 1.6)² + 3'], ans: ['当 x = 0 时，y = 1.08：水管长 1.08 m', '最高点定位置（h, k），再用一个点定形状（a）'] };
+      const CAP = { k: ['每一点都升高了 k，整条抛物线向上平移', 'y = ax² 变成 y = ax² + k'], h: ['新抛物线在 x 处的高度，就是原来在 x − h 处的高度', '左右平移时，每个点的高度都不变'], gen: ['形状相同，位置不同', '顶点是 (h, k)，对称轴是 x = h'], max: ['这条抛物线开口向下，x = h 时最高，最大值是 k', 'x < h 时升高，x > h 时下降'], app: ['0 = a(3.6 − 1.6)² + 3，a = −{3/4}', 'y = −{3/4}(x − 1.6)² + 3'], ans: ['当 x = 0 时，y = 1.08：水管长 1.08 m', '最高点定位置（h, k），再用一个点定形状（a）'] };
       caption(...(CAP[key] || CAP.ans)); flash([S_.h, S_.k], GOLD, 0.15, 0.45); layout();
     }
 
     // ================= 动手 =================
     const toM = (p) => [p.x / S, (p.y - Y0) / S];
     let grab = [0, 0];
-    function vDown(m) { if (!['k', 'h', 'gen', 'app'].includes(S_.step) && !S_.done) return false; S_.held = 'v'; grab = [S_.h - m[0], S_.k - m[1]]; if (!S_.asked) { S_.asked = true; board.h('问题'); board(`水柱是一条抛物线，最高点在 <span class="g">(1.6, 3)</span>，落在 (3.6, 0)：水管的长应为多少？先看抛物线 ${I('y')} = ${I('ax')}² 挪到别处，式子怎么变`, 'k'); } return true; }
+    function vDown(m) { if (!['k', 'h', 'gen', 'app'].includes(S_.step)) return false; S_.held = 'v'; grab = [S_.h - m[0], S_.k - m[1]]; if (!S_.asked) { S_.asked = true; board.h('问题'); board(`水柱是一条抛物线，最高点在 <span class="g">(1.6, 3)</span>，落在 (3.6, 0)：水管的长应为多少？先看抛物线 ${I('y')} = ${I('ax')}² 挪到别处，式子怎么变`, 'k'); } return true; }
     function vMove(m) {
       if (S_.held !== 'v') return; let h = m[0] + grab[0], k = m[1] + grab[1];
       if (S_.step === 'k') h = 0; else if (S_.step === 'h') k = S_.k0;
@@ -394,7 +408,13 @@ export default {
     }
     function pDown() { if (!(S_.fx.look || S_.fx.drop)) return false; S_.held = 'p'; return true; }
     function pMove(m) {
-      if (S_.held !== 'p') return; const lo = -3.8, hi = 4.4; const x = clamp(m[0], lo, hi), d = Math.abs(x - S_.px); S_.pPath += d; S_.px = x; S_.moved = now();
+      if (S_.held !== 'p') return;
+      let lo = -3.8, hi = 4.4;
+      if (S_.fx.look) {
+        const reach = Math.sqrt(-S_.k / S_.a);
+        lo = Math.max(lo, S_.h - reach); hi = Math.min(hi, S_.h + reach);
+      }
+      const x = clamp(m[0], lo, hi), d = Math.abs(x - S_.px); S_.pPath += d; S_.px = x; S_.moved = now();
       if (S_.step === 'why' && S_.pPath > 0.8) whyDone();
       if (S_.step === 'max') { const side = Math.sign(x - S_.h) || S_.pSide; if (side !== S_.pSide && S_.pPath > 0.5) maxDone(); S_.pSide = side; }
       layout();
@@ -410,7 +430,7 @@ export default {
     const pick = (r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r * S, 12, 10), basic({ visible: false })); m.userData.pick = true; m.userData.noFrame = true; group.add(m); return m; };
     const vPick = pick(0.42), pPick = pick(0.36), lPick = pick(0.4);
     const drags = [
-      { obj: vPick, plane: 'xy', offset: Z, hint: () => (S_.step === 'k' ? '按住往上提' : S_.step === 'h' ? '按住往右拖' : '拖着水柱的最高点'), enabled: () => ['k', 'h', 'gen', 'app'].includes(S_.step) || S_.done, onStart: (p) => vDown(toM(p)), onDrag: (p) => vMove(toM(p)), onEnd: () => vUp() },
+      { obj: vPick, plane: 'xy', offset: Z, hint: () => (S_.step === 'k' ? '按住往上提' : S_.step === 'h' ? '按住往右拖' : '拖着水柱的最高点'), enabled: () => ['k', 'h', 'gen', 'app'].includes(S_.step), onStart: (p) => vDown(toM(p)), onDrag: (p) => vMove(toM(p)), onEnd: () => vUp() },
       { obj: pPick, plane: 'xy', offset: Z, hint: () => (S_.fx.drop ? '拖着水滴沿水柱走' : '拖着点 P 沿弧走'), enabled: () => S_.fx.look || S_.fx.drop, onStart: () => pDown(), onDrag: (p) => pMove(toM(p)), onEnd: () => pUp() },
       { obj: lPick, plane: 'xy', offset: Z, hint: () => '拖着落点左右挪', enabled: () => S_.step === 'appA', onStart: () => lDown(), onDrag: (p) => lMove(toM(p)), onEnd: () => lUp() },
     ];
@@ -449,7 +469,7 @@ export default {
         for (let i = flashes.length - 1; i >= 0; i--) { const F = flashes[i], k = clamp((t - F.t0) / 0.55, 0, 1), e = easeOut(k); F.rays.forEach((L, j) => { const th = (j / F.rays.length) * Math.PI * 2 + 0.2, ra = lerp(F.r0, F.r1, e), rb = lerp(F.r0, F.r1, Math.min(1, e * 0.55 + 0.1)); L.set([[F.p[0] + Math.cos(th) * rb, F.p[1] + Math.sin(th) * rb], [F.p[0] + Math.cos(th) * ra, F.p[1] + Math.sin(th) * ra]]); L.fade(1 - k); });
           if (k >= 1) { for (const L of F.rays) { L.hide(); for (const m of [L.core, L.glow, L.shade]) if (m) { group.remove(m); m.geometry.dispose(); m.material.dispose(); } lineMeshes.splice(lineMeshes.indexOf(L), 1); } flashes.splice(i, 1); } }
         // 水管长上来接住水柱
-        if (S_.pipeY != null && S_.pipeAt > 0) { const k = clamp((t - S_.pipeAt) / 1.1, 0, 1); S_.pipeY = lerp(FLOOR, nozY(), easeOut(k)); if (k >= 1) { S_.pipeY = null; S_.pipeAt = -9; } layout(); }
+        if (S_.pipeY != null && S_.pipeAt > 0) { const k = clamp((t - S_.pipeAt) / 1.1, 0, 1); S_.pipeY = lerp(0, nozY(), easeOut(k)); if (k >= 1) { S_.pipeY = null; S_.pipeAt = -9; } layout(); }
         // 水：主水柱从喷头喷出，落进池里；讲完以后一圈水柱一起喷
         { const a = S_.a, h = S_.h, k = S_.k, xn = nozX(), yn = S_.pipeY != null ? -9 : nozY(), lx = landX(); let n = 0; const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3();
           if (lx != null && yn > FLOOR + 0.05) { const x0 = xn, x1 = Math.min(lx, R - 0.1);

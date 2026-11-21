@@ -5,7 +5,7 @@
 // 一个画面里讲完，每一步都由学生的那一下做出来：
 //   开头的问题（例2）：已知 a > b，−2a 与 −2b 谁大？
 //   拖水面：水涨水落，每座山露出水面的高度都少（多）一样多，谁高谁低不变（性质1）；
-//     水涨过 B 的山尖：A 还露着、B 没进水里，a − c > 0 > b − c（不等关系可以传递）；
+//     水面在两个山尖之间时：A 还露着、B 没进水里，a − c > 0 > b − c（不等关系可以传递）；
 //   拖金点（两边同时乘的数）：往上拉，两个点一起离开 0，金点还在上面（性质2）；拉到水面，两个点都到了 0（乘 0：0 = 0）；
 //   再往下，两个点进了倒影，金点跑到了蓝点下面；停在 −1：正好落在 A、B 倒影的山尖上——乘 −1 就是照进湖里
 //     （唯一的重拍：每一座山尖上的金点一起翻进湖里，落在自己的倒影上；越高的山，倒影越深）；
@@ -37,14 +37,17 @@ const PEAKS = [
 const GOLD = 0xffc83d, BLUE = 0x58c4dd, TEAL = 0x5cd0b3, RED = 0xfc6255, WHITE = 0xffffff;
 const CSS = { g: '#ffc83d', b: '#58c4dd', t: '#5cd0b3', r: '#fc6255', w: '#ffffff', d: 'rgba(255,255,255,0.82)' };
 const FR = (n, d) => `<span class="mfr"><span>${n}</span><span>${d}</span></span>`;          // 竖着写的分数（板书、面板里）
-const fmt = (v) => { const r = Math.round(v * 10) / 10; return (Math.abs(r - Math.round(r)) < 1e-9 ? String(Math.round(r)) : r.toFixed(1)).replace('-', '−'); };
+const tenth = (v) => Math.round(v * 10) / 10;
+const fmt = (v) => { const r = tenth(v); return (Math.abs(r - Math.round(r)) < 1e-9 ? String(Math.round(r)) : r.toFixed(1)).replace('-', '−'); };
+
+const OPEN_ASK = '已知 <i>a</i> &gt; <i>b</i>，比较 −2<i>a</i> 与 −2<i>b</i> 的大小。<br>为什么不等式两边乘同一个负数，不等号的方向就要改变？';
 
 export default {
   id: 'budengshi',
   fig: '问题',
   title: '不等式的性质',
   flow: 'explore',
-  ask: '已知 <i>a</i> &gt; <i>b</i>，比较 −2<i>a</i> 与 −2<i>b</i> 的大小。<br>为什么不等式两边乘同一个负数，不等号的方向就要改变？',
+  ask: OPEN_ASK,
   need: '拖水面、拖金色的点，看 a、b 跟着怎么变。',
   conclusion: {
     page: 131, rect: [64, 154, 484, 322],
@@ -294,10 +297,15 @@ export default {
       const drawRuns = (runs, px, wt, x, y, col) => { g.textBaseline = 'middle'; g.fillStyle = col; for (const r of runs) { if (r.t != null) { g.font = FF(px, wt); g.textAlign = 'left'; g.fillText(r.t, x, y); x += g.measureText(r.t).width; } else { const fp = Math.round(px * 0.56); g.font = FF(fp, wt); const rw = Math.max(g.measureText(r.n).width, g.measureText(r.d).width) + px * 0.2, cx = x + rw / 2; g.textAlign = 'center'; g.fillText(r.n, cx, y - px * 0.33); g.fillText(r.d, cx, y + px * 0.37); g.fillRect(x + px * 0.07, y + px * 0.01, rw - px * 0.14, Math.max(1.5, px * 0.05)); x += rw; } } };
       drawRuns(R1, p1, 600, x0, h * 0.53, '#f8efdc'); if (R2.length) drawRuns(R2, p2, 500, x0 + w1 + gap, h * 0.55, '#e6dac2'); });
     const cap = { key: '', born: -9, out: 1e9, next: null };
-    function caption(big, small = '') { const key = big + '|' + small; if (key === cap.key) return; cap.key = key; S.cap = [big, small];
+    function caption(big, small = '', live = false) { const key = big + '|' + small; if (key === cap.key) return; cap.key = key; S.cap = [big, small];
       const show = () => { capMesh.material.map?.dispose?.(); capMesh.material.map = capTex(big, small); capMesh.material.needsUpdate = true; capMesh.visible = true; cap.born = now(); cap.out = 1e9; };
-      if (capMesh.visible && now() - cap.born > 0.2) { cap.out = now(); cap.next = show; } else show(); }
-    const prompt = (txt) => { S.ask = txt; if (ui?.status) ui.status(txt); };
+      if (live) { cap.next = null; show(); cap.born -= 0.5; capMesh.material.opacity = 1; }
+      else if (capMesh.visible && now() - cap.born > 0.2) { cap.out = now(); cap.next = show; } else show(); }
+    function prompt(question, instruction = '') {
+      if (question !== S.ask) ui?.ask?.(question);
+      if (instruction !== S.instruction) ui?.status?.(instruction);
+      S.ask = question; S.instruction = instruction;
+    }
 
     // ================= 板书：学生做出一样，就用课本的话写一行；只写已经发现的 =================
     const css = document.createElement('style');
@@ -327,11 +335,35 @@ export default {
     let S = fresh(), runId = 0;
     const later = (ms, f) => { const id = runId; setTimeout(() => { if (!dead && id === runId) f(); }, ms); };
     const Wl = () => W0 + S.d * U;                                   // 现在的水面
-    const relA = () => PA.h - S.d, relB = () => PB.h - S.d;          // 露出水面的高度（单位长度）
-    const coefSegs = (c, letter, col) => { const q = Math.round(c * 10) / 10;
+    const relA = () => PA.h - S.d, relB = () => PB.h - S.d;          // 山尖相对当前水面的坐标
+    const coefSegs = (q, letter, col) => {
       if (q === 1) return [[letter, col]]; if (q === -1) return [['−', CSS.t, false], [letter, col]];
       const half = Math.abs(Math.abs(q) - 0.5) < 1e-9, out = []; if (q < 0) out.push(['−', CSS.t, false]); out.push([half ? '{1/2}' : fmt(Math.abs(q)), CSS.t, false]); out.push([letter, col]); return out; };
     const signOf = (x, y) => (Math.abs(x - y) < 1e-9 ? '=' : x > y ? '>' : '<');
+
+    const targets = { pos: 2, zero: 0, neg1: -1, neg2: -2, div: -0.5 };
+    function currentReading() {
+      if (!S.showImg) {
+        const level = S.d === 0 ? '水面在原处' : `水面${S.d > 0 ? '上移' : '下移'} ${fmt(Math.abs(S.d))} 格`;
+        const side = relB() < 0 ? 'A 在水面上，B 在水面下' : relB() === 0 ? 'B 正好在水面上' : '两个山尖都在水面上方';
+        const relation = relB() < 0 ? `${fmt(relA())} > 0 > ${fmt(relB())}` : `${fmt(relA())} > ${fmt(relB())}`;
+        caption(`${level}，${relation}`, side, true);
+        const next = S.step !== 'add' ? '' : S.maxD >= 0.9 && S.minD <= -0.4 ? '松开水面，看看刚才发现了什么。' : S.maxD >= 0.9 ? '再把水面往下拖。' : S.minD <= -0.4 ? '再把水面往上拖。' : '上下拖动水面看看。';
+        prompt(`${level}，两个山尖相对水面的坐标各是多少？`, next);
+        return;
+      }
+      const c = S.c, a = fmt(c * relA()), b = fmt(c * relB());
+      const divide = c === -0.5 && (S.step === 'div' || S.divDone || S.pose === 'div');
+      const op = divide ? '除以 −2' : `乘 ${fmt(c)}`;
+      const relation = `${a} ${signOf(c * relA(), c * relB())} ${b}`;
+      let why = c > 0 ? '乘正数，不等号方向不变' : c < 0 ? '乘负数，不等号方向改变' : '两个点都在 0';
+      if (c === -1) why = '两个点正好落在山尖的倒影上';
+      if (divide) why = '除以一个不为 0 的数，等于乘它的倒数';
+      caption(`${op}，${relation}`, why, true);
+      const goal = targets[S.step];
+      const next = goal === undefined ? '' : S.step === 'div' ? '再试试除以 −2。' : `再试试乘 ${fmt(goal)}。`;
+      prompt(`两边都${op}，${a} 和 ${b} 哪个大，还是相等？`, next);
+    }
 
     function layout() {
       const W = Wl(), c = S.c, ya = W0 + PA.h * U, yb = W0 + PB.h * U;
@@ -371,60 +403,54 @@ export default {
         if (arcA.anim) arcA.pts = pa; else arcA.set(pa); if (arcB.anim) arcB.pts = pb; else arcB.set(pb);
       }
       else { ghostA.visible = ghostB.visible = false; arcA.hide(); arcB.hide(); }
+      if (S.asked) currentReading();
     }
 
     // ================= 一课的主线：每一步都由学生的那一下触发 =================
-    function ask() { if (S.asked) return; S.asked = true; board.h('问题'); board(`已知 ${Ag} &gt; ${Bb}（也就是 ${Bb} &lt; ${Ag}：交换不等式两边，不等号的方向改变），比较 <span class="t">−2</span>${Ag} 与 <span class="t">−2</span>${Bb} 的大小（${Ag}、${Bb}：山 A、山 B 高出水面的高度）`, 'q'); }
-    function transSeen() {          // 水涨过 B 的山尖：A 还露着，B 没进水里
+    function ask() { if (S.asked) return; S.asked = true; board.h('问题'); board(`已知 ${Ag} &gt; ${Bb}（也就是 ${Bb} &lt; ${Ag}：交换不等式两边，不等号的方向改变），比较 <span class="t">−2</span>${Ag} 与 <span class="t">−2</span>${Bb} 的大小（${Ag}、${Bb}：两座山的山尖相对原水面的坐标）。水面向上移动的格数记作 <i>c</i>，向下移时 <i>c</i> 为负。两座山的山尖相对新水面的坐标是 <i>a − c</i>、<i>b − c</i>。`, 'q'); }
+    function transSeen() {          // 水面在两个山尖之间时：A 还露着，B 没进水里
       if (S.trans) return; S.trans = true; flash(XL, W0 + PB.h * U, BLUE, 0.004, 0.012); sfx.clink({ freq: 1500, gain: 0.04 });
-      caption('a − c > 0，0 > b − c，所以 a − c > b − c', '不等关系可以传递：A 还露着，B 已经没进水里');
-      board.h('基本事实'); board(`不等关系可以传递：如果 ${I('a')} &gt; ${I('b')}，${I('b')} &gt; ${I('c')}，那么 ${I('a')} &gt; ${I('c')}。水涨过 B 的山尖：${Ag} <span class="t">− ${I('c')}</span> &gt; 0，0 &gt; ${Bb} <span class="t">− ${I('c')}</span>，所以 ${Ag} <span class="t">− ${I('c')}</span> &gt; ${Bb} <span class="t">− ${I('c')}</span>`, 'trans');
+      board.h('基本事实'); board(`不等关系可以传递：如果 ${I('a')} &gt; ${I('b')}，${I('b')} &gt; ${I('c')}，那么 ${I('a')} &gt; ${I('c')}。水面在两个山尖之间时：${Ag} <span class="t">− ${I('c')}</span> &gt; 0，0 &gt; ${Bb} <span class="t">− ${I('c')}</span>，所以 ${Ag} <span class="t">− ${I('c')}</span> &gt; ${Bb} <span class="t">− ${I('c')}</span>`, 'trans');
     }
     function addFound() {          // 性质1
       S.step = 'add-done'; S.stepAt = now(); flash(XL, Wl(), TEAL); sfx.ding(1180, { gain: 0.06 });
-      caption('水涨水落，谁高谁低都不变', '每座山露出水面的高度，都少（多）了一样多');
+      currentReading();
       board.h('探究'); board(`<span class="n">1</span>不等式的性质1：不等式两边加（或减）同一个数（或式子），不等号的方向不变。如果 ${Ag} &gt; ${Bb}，那么 ${Ag} <span class="t">± ${I('c')}</span> &gt; ${Bb} <span class="t">± ${I('c')}</span>`, 'add');
       later(1900, () => { S.dTo = { from: S.d, t0: now() }; sfx.whoosh({ dur: 0.8, freq: 700, gain: 0.03 }); });
       later(3100, () => { S.step = 'pos'; S.showImg = true; S.c = 1; S.snap = 1; S.stepAt = now(); S.hint = 0; flash(XL, W0 + PA.h * U, GOLD, 0.004, 0.013);
-        caption('加减，方向不变。两边同时乘一个数呢？', '金点、蓝点：a、b 乘同一个数'); prompt('两边同时乘 2，谁大？'); layout(); });
+        S.d = 0; S.dTo = null; layout(); });
     }
     function posFound() {          // 性质2
       S.step = 'pos-done'; S.stepAt = now(); flash(XL, Wl() + S.c * relA() * U, GOLD); flash(XL, Wl() + S.c * relB() * U, BLUE); sfx.ding(1250, { gain: 0.06 });
-      caption(`乘 ${fmt(S.c)}：${fmt(S.c)}a > ${fmt(S.c)}b，方向不变`, '离 0 的距离都成了 2 倍，上面的还在上面');
       board(`<span class="n">2</span>不等式的性质2：不等式两边乘（或除以）同一个正数，不等号的方向不变。如果 ${Ag} &gt; ${Bb}，<span class="t">${I('c')}</span> &gt; 0，那么 <span class="g">${I('a')}</span><span class="t">${I('c')}</span> &gt; <span class="b">${I('b')}</span><span class="t">${I('c')}</span>（或 ${FR(Ag, `<span class="t">${I('c')}</span>`)} &gt; ${FR(Bb, `<span class="t">${I('c')}</span>`)}）`, 'pos');
-      later(2300, () => { S.step = 'zero'; S.stepAt = now(); S.hint = 0; caption('乘的数越来越小呢？', '乘 0 会怎样'); prompt('乘 0 呢？'); check(); });
+      later(2300, () => { S.step = 'zero'; S.stepAt = now(); S.hint = 0; check(); currentReading(); });
     }
     function zeroFound() {          // 乘 0
       S.step = 'zero-done'; S.stepAt = now(); flash(XL, Wl(), WHITE, 0.004, 0.013); sfx.clink({ freq: 1200, gain: 0.05 });
-      caption('乘 0：两边都是 0，相等了', '0 = 0，不再是不等式');
       board(`两边乘 0：都得 0，0 = 0，相等了（所以性质里乘的数都不为 0）`, 'zero');
-      later(2300, () => { S.step = 'neg1'; S.stepAt = now(); S.hint = 0; caption('再往下：乘负数', '乘 −1，a、b 落在哪儿？'); prompt('乘 −1 呢？a、b 落在哪儿？'); check(); });
+      later(2300, () => { S.step = 'neg1'; S.stepAt = now(); S.hint = 0; check(); currentReading(); });
     }
     function wow() {          // 唯一的重拍：乘 −1 就是照进湖里
       S.step = 'neg1-done'; S.stepAt = now(); S.wowAt = now(); S.liftAt = now() + 1.15; sfx.ding(1320, { gain: 0.07 }); later(1150, () => { sfx.ding(1568, { gain: 0.06 }); later(160, () => sfx.ding(1976, { gain: 0.04 })); });
       flash(XL, Wl() - relA() * U, GOLD); flash(XL, Wl() - relB() * U, BLUE);
-      caption('乘 −1：−a、−b 正是 A、B 倒影的山尖', '每座山都翻进了湖里：越高的山，倒影越深');
       board(`<span class="n">3</span>乘 <span class="t">−1</span>：${Ag}、${Bb} 变成 <span class="t">−</span>${Ag}、<span class="t">−</span>${Bb}，正是山 A、山 B 倒影的山尖。倒影和山关于水面对称：高的山，倒影反而深，${Ag} &gt; ${Bb}，<span class="t">−</span>${Ag} &lt; <span class="t">−</span>${Bb}`, 'neg1');
-      later(3600, () => { S.step = 'neg2'; S.arcs = true; S.stepAt = now(); S.hint = 0; caption('乘 −2 呢？', '−2a 与 −2b 谁大'); prompt('乘 −2 呢？'); layout(); check(); });
+      later(3600, () => { S.step = 'neg2'; S.arcs = true; S.stepAt = now(); S.hint = 0; check(); layout(); });
     }
     function negFound() {          // 性质3
       S.step = 'neg2-done'; S.stepAt = now(); S.arcsAt = now(); flash(XL, Wl() + S.c * relA() * U, GOLD); flash(XL, Wl() + S.c * relB() * U, BLUE); sfx.ding(1400, { gain: 0.06 });
       const W = Wl(), ra = -S.c * relA() * U, rb = -S.c * relB() * U; arcA.draw(arcPts(ra, ra * 0.35).map(([x, y]) => [x, y + W]), 0.8); arcB.draw(arcPts(rb, rb * 0.35).map(([x, y]) => [x, y + W]), 0.8, 0.12);
-      caption('−2a < −2b：方向改变', '先乘 2，顺序不变；再翻过 0，外面的落得更低');
       board(`<span class="n">4</span>不等式的性质3：不等式两边乘（或除以）同一个负数，不等号的方向改变。如果 ${Ag} &gt; ${Bb}，<span class="t">${I('c')}</span> &lt; 0，那么 <span class="g">${I('a')}</span><span class="t">${I('c')}</span> &lt; <span class="b">${I('b')}</span><span class="t">${I('c')}</span>（或 ${FR(Ag, `<span class="t">${I('c')}</span>`)} &lt; ${FR(Bb, `<span class="t">${I('c')}</span>`)}）。乘 <span class="t">−2</span>，就是先乘 2（方向不变），再乘 −1，翻过 0（方向改变）`, 'neg2');
-      later(2800, () => { S.step = 'div'; S.stepAt = now(); S.hint = 0; caption('除以 −2 呢？', '除以 −2，就是乘 −{1/2}'); prompt('除以 −2 呢？'); layout(); check(); });
+      later(2800, () => { S.step = 'div'; S.stepAt = now(); S.hint = 0; check(); layout(); });
     }
     function divFound() {          // 除法
       S.step = 'div-done'; S.divDone = true; S.stepAt = now(); flash(XL, Wl() + S.c * relA() * U, GOLD); flash(XL, Wl() + S.c * relB() * U, BLUE); sfx.ding(1320, { gain: 0.06 });
-      caption('a ÷ (−2) < b ÷ (−2)', '除以一个数，等于乘它的倒数；倒数和它同号');
       board(`<span class="n">5</span>除以一个不为 0 的数等于乘这个数的倒数，并且这个数的倒数和它的符号相同：${Ag} ÷ (<span class="t">−2</span>) &lt; ${Bb} ÷ (<span class="t">−2</span>)，也就是 <span class="t">−${FR(1, 2)}</span>${Ag} &lt; <span class="t">−${FR(1, 2)}</span>${Bb}`, 'div');
       later(2600, finish);
     }
     function finish() {
-      S.step = 'end'; S.done = true; boardEl?.classList.add('review'); S.cTo = { from: S.c, to: -2, t0: now() }; S.arcsAt = now();
-      caption('答：−2a < −2b', '不等式两边乘同一个负数，不等号的方向改变');
+      S.step = 'end'; S.done = true; boardEl?.classList.add('review'); S.cTo = S.held ? null : { from: S.c, to: -2, t0: now() }; S.arcsAt = now();
       board.h('答'); board(`<b>答</b>：因为 ${Ag} &gt; ${Bb}，所以 <span class="t">−2</span>${Ag} &lt; <span class="t">−2</span>${Bb}（不等式的性质3）。`, 'ans');
-      sfx.ding(1568, { gain: 0.06 }); prompt(''); ui?.unlock?.(); layout();
+      sfx.ding(1568, { gain: 0.06 }); ui?.unlock?.(); layout();
       later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
     }
     // 学生停在某个数上：看这一步在等的是不是它
@@ -443,8 +469,7 @@ export default {
       if (k === 'q') set(0, 1, false, false); else if (k === 'add') set(1, 1, false, false); else if (k === 'trans') set(2.5, 1, false, false);
       else if (k === 'pos') set(0, 2, true, false); else if (k === 'zero') set(0, 0, true, false); else if (k === 'neg1') { set(0, -1, true, false); S.wowAt = now(); S.liftAt = now() + 1.15; }
       else if (k === 'neg2' || k === 'ans') { set(0, -2, true, true); S.arcsAt = now(); } else if (k === 'div') { set(0, -0.5, true, true); S.arcsAt = now(); }
-      const CAP = { q: ['已知 a > b，−2a 与 −2b 谁大？', 'a、b：山 A、山 B 高出水面的高度'], add: ['水涨水落，谁高谁低都不变', '每座山露出水面的高度，都少（多）了一样多'], trans: ['a − c > 0，0 > b − c，所以 a − c > b − c', '不等关系可以传递'], pos: ['乘 2：2a > 2b，方向不变', '离 0 的距离都成了 2 倍，上面的还在上面'], zero: ['乘 0：两边都是 0，相等了', '0 = 0，不再是不等式'], neg1: ['乘 −1：−a、−b 正是 A、B 倒影的山尖', '每座山都翻进了湖里：越高的山，倒影越深'], neg2: ['−2a < −2b：方向改变', '先乘 2，顺序不变；再翻过 0，外面的落得更低'], div: ['a ÷ (−2) < b ÷ (−2)', '除以一个数，等于乘它的倒数；倒数和它同号'], ans: ['答：−2a < −2b', '不等式两边乘同一个负数，不等号的方向改变'] };
-      caption(...(CAP[k] || CAP.ans)); layout();
+      layout();
       if (k === 'neg2' || k === 'div' || k === 'ans') { const W = Wl(), ra = -S.c * relA() * U, rb = -S.c * relB() * U; arcA.draw(arcPts(ra, ra * 0.35).map(([x, y]) => [x, y + W]), 0.7); arcB.draw(arcPts(rb, rb * 0.35).map(([x, y]) => [x, y + W]), 0.7, 0.1); }
     }
 
@@ -457,7 +482,8 @@ export default {
     function waterDown(p) { if (S.step !== 'add' && !S.done) return false; ask(); S.held = 'water'; S.dTo = null; grab = S.d - p.y / U; sfx.whoosh({ dur: 0.25, freq: 900, gain: 0.025 }); return true; }
     function waterMove(p) {
       if (S.held !== 'water') return; let d = clamp(p.y / U + grab, D_MIN, D_MAX); const r = Math.round(d * 2) / 2; if (Math.abs(d - r) < 0.12) d = r;
-      if (Math.abs(d - S.d) < 1e-6) return; S.d = d; S.moved = now(); S.minD = Math.min(S.minD, d); S.maxD = Math.max(S.maxD, d);
+      d = tenth(d);
+      if (d === S.d) return; S.d = d; S.moved = now(); S.minD = Math.min(S.minD, d); S.maxD = Math.max(S.maxD, d);
       if (d > PB.h + 0.05 && S.step === 'add') transSeen();
       layout();
     }
@@ -465,8 +491,6 @@ export default {
       if (S.held !== 'water') return; S.held = '';
       if (S.step !== 'add') return;
       if (S.maxD >= 0.9 && S.minD <= -0.4) addFound();
-      else if (S.maxD >= 0.9) prompt('水落下去呢？谁高谁低会变吗？');
-      else if (S.minD <= -0.4) prompt('水涨上来呢？谁高谁低会变吗？');
     }
     // 金点、蓝点：上下拖，两边同时乘的数跟着变（拖哪一个都行）
     const imgPick = (r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), basic({ visible: false })); m.userData.pick = true; m.userData.noFrame = true; group.add(m); return m; };
@@ -477,14 +501,15 @@ export default {
       if (S.held !== 'A' && S.held !== 'B') return; const h = S.held === 'A' ? relA() : relB();
       let c = clamp((p.y - Wl()) / (h * U) + grab, C_MIN, C_MAX), snap = null;
       for (const v of SNAPS) if (Math.abs(c - v) * h * U < 0.0026) { c = v; snap = v; break; }
-      const goal = { pos: 2, zero: 0, neg1: -1, neg2: -2, div: -0.5 }[S.step];
+      const goal = targets[S.step];
       if (goal !== undefined && snap === null && (S.c - goal) * (c - goal) < 0) { c = goal; snap = goal; }          // 这一步要找的那个数：一下子拖过去也停在它上面
-      if (Math.abs(c - S.c) < 1e-7) return;
+      c = tenth(c); snap = SNAPS.includes(c) ? c : null;
+      if (c === S.c) return;
       const was = S.c; S.c = c; S.moved = now(); S.pose = '';
       if (snap !== null && snap !== S.snap) sfx.clink({ freq: 900 + snap * 180, gain: 0.025 });
       if ((was > 0 && c <= 0) || (was < 0 && c >= 0)) { flash(XL, Wl(), WHITE, 0.003, 0.009, 8); }          // 穿过 0：两个点在水面上碰到一起
       S.snap = snap;
-      layout(); check();
+      check(); layout();
     }
     function imgUp() { if (S.held === 'A' || S.held === 'B') S.held = ''; }
     const drags = [
@@ -498,7 +523,7 @@ export default {
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); },
       move: (r, e) => { const out = dragApi.move(r, e), it = dragApi.hovered?.(), c = canvasEl(); if (c) { const h = it && it.enabled?.() !== false ? (typeof it.hint === 'function' ? it.hint() : it.hint) : ''; if (h) c.dataset.tip = h; else delete c.dataset.tip; } return out; },
       up: (r, e) => dragApi.up(r, e), items: dragApi.items };
-    function opening() { caption('已知 a > b，−2a 与 −2b 谁大？', 'a、b：山 A、山 B 高出水面的高度'); prompt('先看加减：水涨水落，a、b 谁大会变吗？'); }
+    function opening() { caption('已知 a > b，−2a 与 −2b 谁大？', 'a、b：两座山的山尖相对原水面的坐标'); prompt(OPEN_ASK, '先看加减：水涨水落，两个山尖的坐标怎样变？'); }
     function reset() { runId++; S = fresh(); for (const sp of wowDots) sp.visible = false; for (const L of wowTicks) L.hide(); for (const L of wowThreads) L.hide(); for (const L of wowUp) L.hide(); arcA.hide(); arcB.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; const cv = canvasEl(); if (cv) delete cv.dataset.tip; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
@@ -514,14 +539,14 @@ export default {
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'bd-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.bd-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
-        ui.go?.(1); if (!cap.key) { opening(); axis.draw(axisPts, 0.9, 0.4); } else if (S.ask) ui.status?.(S.ask);
+        ui.go?.(1); if (!cap.key) { opening(); axis.draw(axisPts, 0.9, 0.4); } else { ui.ask?.(S.ask); ui.status?.(S.instruction); }
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
       dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); mirror.dispose?.(); const c = canvasEl(); if (c) delete c.dataset.tip; },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t; mirror.material.uniforms.uT.value = t;
         // 水面回到原来的高度；答完以后金点回到 −2
-        if (S.dTo) { const k = clamp((t - S.dTo.t0) / 1.0, 0, 1); S.d = lerp(S.dTo.from, 0, easeOut(k)); if (k >= 1) S.dTo = null; layout(); }
-        if (S.cTo) { const k = clamp((t - S.cTo.t0) / 0.9, 0, 1); S.c = lerp(S.cTo.from, S.cTo.to, easeOut(k)); if (k >= 1) { S.c = S.cTo.to; S.snap = S.c; S.cTo = null; } layout(); }
+        if (S.dTo) { const k = clamp((t - S.dTo.t0) / 1.0, 0, 1); S.d = tenth(lerp(S.dTo.from, 0, easeOut(k))); if (k >= 1) S.dTo = null; layout(); }
+        if (S.cTo) { const k = clamp((t - S.cTo.t0) / 0.9, 0, 1); S.c = tenth(lerp(S.cTo.from, S.cTo.to, easeOut(k))); if (k >= 1) { S.c = S.cTo.to; S.snap = S.c; S.cTo = null; } layout(); }
         // 水纹：荡开、淡掉
         if (Math.random() < dt * (S.step === 'add' && !S.held ? 0.9 : 0.25)) { const x = XL + 0.012 + (Math.random() - 0.3) * 0.09, z = 0.0 + Math.random() * 0.09; if (qAt(x, z) < 0.8) ripple(x, z); }
         for (let i = rings.length - 1; i >= 0; i--) { const m = rings[i], age = t - m.userData.born; if (age > 2.4) { world.remove(m); m.material.dispose(); rings.splice(i, 1); continue; } m.position.y = Wl() + 0.0004; m.scale.setScalar(0.002 + age * 0.009); m.material.opacity = 0.32 * Math.sin(Math.min(1, age / 2.4) * Math.PI) * (1 - age / 2.4); }
@@ -548,8 +573,8 @@ export default {
         pickA.position.copy(imgA.position); pickB.position.copy(imgB.position); pickA.visible = S.showImg; pickB.visible = S.showImg && Math.abs(S.c) * (relA() - relB()) * U > 0.017;          // 两个点挨在一起时只留金点能抓（拖哪个都是同一个乘数）
         // 卡住很久，才给提示（不拦着人），提示是问题
         if (!S.held && !S.done && S.hint < 1 && t - S.stepAt > 15 && t - S.moved > 4) {
-          const H1 = { add: ['水涨上来、落下去，露出水面的高度各变了多少？', '按住水面，上下拖'], pos: ['金点往上拉：2a 和 2b，谁在上面？', '金点是 a 乘那个数，蓝点是 b 乘那个数'], zero: ['金点拉到水面，是乘了几？', ''], neg1: ['金点拉到水下，停在 −a 那儿：它和 A 的倒影有什么关系？', ''], neg2: ['−2a 在 −12 那儿：它和 −2b 谁在上面？', ''], div: ['除以 −2，就是乘几？金点拉到那儿看看', ''] }[S.step];
-          if (H1) { S.hint = 1; caption(...H1); } }
+          const H1 = { add: ['水涨上来、落下去，山尖相对水面的坐标各变了多少？', '按住水面，上下拖'], pos: ['金点往上拉：2a 和 2b，谁在上面？', '金点是 a 乘那个数，蓝点是 b 乘那个数'], zero: ['金点拉到水面，是乘了几？', ''], neg1: ['金点拉到水下，停在 −a 那儿：它和 A 的倒影有什么关系？', ''], neg2: ['−2a 在 −12 那儿：它和 −2b 谁在上面？', ''], div: ['除以 −2，就是乘几？金点拉到那儿看看', ''] }[S.step];
+          if (H1) { S.hint = 1; if (S.asked) prompt(S.ask, H1.filter(Boolean).join(' ')); else caption(...H1); } }
       },
       debug: {
         get S() { return S; }, rows, pose, cap: () => S.cap,

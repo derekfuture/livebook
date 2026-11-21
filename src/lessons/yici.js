@@ -1,14 +1,14 @@
 // 数学 八年级下册 23.2 一次函数的图象和性质（课本 PDF 第 123–128 页）。
 // 情境：元代延祐铜壶滴漏——元延祐三年（1316 年）冼运行、杜子盛等在广州铸造，现藏中国国家博物馆。
 // 日壶、月壶、星壶一级级往下滴水，水流进受水壶，浮箭跟着水面上升，指着铜表尺上的十二时辰报时。
-// 一块石台基立在书上，三张木架一级级托着日、月、星三只壶，受水壶站在右前方。铜尺就是 y 轴（高度照原大），
+// 一块石台基立在书上，三张木架一级级托着日、月、星三只壶，受水壶站在右前方。铜尺就是 y 轴（模型尺身比例作了调整），
 // 时间是 x 轴，往右画出“时间—浮箭高度”的图象。学生手里只有课本说的那两个点：(0, b) 和 (1, k + b)。
-//   开头的问题：铜尺上的十二时辰，该刻在哪儿？（这座钟：卯时浮箭在 19 cm，申时在 44 cm）
+//   开头的问题：铜尺上的十二时辰，该刻在哪儿？（假设卯时读数是 19 cm，申时是 44 cm）
 //   先看最简单的（子时壶里是空的）：拖着时间走，每个时辰浮箭升高 5 cm，一级级台阶一样高，点连成过原点的直线 y = 5x（重拍 1）；
 //   子时壶里已经有水呢？把子时的浮箭往上拖：整条直线向上平移 b，和 y = 5x 平行，每一点都高出 b（重拍 2）；
 //   滴得快慢不同呢？拖一个时辰后的那一点：直线绕着 (0, b) 转，k 越大越陡；k < 0（水往外放）从左向右下降（重拍 3）；
 //   回到这座钟：让直线经过 (3, 19)、(8, 44)，解出 k = 5，b = 4（待定系数法）——
-//   一下子：十二道光从直线上每个时辰的点平射到铜尺上，嵌出子丑寅卯……亥十二条一样宽的刻度（答开头的问题）。
+//   一下子：十二道光从直线上每个时辰的点平射到铜尺上，嵌出子丑寅卯……亥十二条等距的刻线（答开头的问题）。
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
 import { draggable } from './kit/interact.js';
@@ -47,12 +47,12 @@ export default {
   fig: '图23.2-3',
   title: '一次函数的图象和性质',
   flow: 'explore',
-  ask: '元代铜壶滴漏：水从日壶、月壶、星壶一级级滴进受水壶，浮箭跟着水面上升，指着铜尺上的刻度报时。这座钟卯时浮箭在 19 cm，申时在 44 cm。<br>铜尺上的十二时辰，该刻在哪儿？',
+  ask: '用元代铜壶滴漏做一个匀速模型。假设卯时浮箭的读数是 19 cm，申时是 44 cm。模型里的尺身拉长了，方便看刻线。<br>铜尺上的十二时辰，该刻在哪儿？',
   need: '拖着时间走，看浮箭的高度怎么跟着时间变。',
   conclusion: {
     crops: [{ page: 124, rect: [40, 526, 290, 708] }, { page: 126, rect: [42, 234, 464, 348] }, { page: 127, rect: [60, 158, 347, 316] }, { page: 128, rect: [42, 212, 458, 327] }],
     quote: '一次函数 y=kx+b（k≠0）的图象可以由直线 y=kx 平移|b|个单位长度得到（当 b>0 时，向上平移；当 b<0 时，向下平移）．一次函数 y=kx+b（k≠0）的图象也是一条直线，我们称它为直线 y=kx+b．<br>一般地，一次函数 y=kx+b（k，b 是常数，k≠0）具有如下性质：当 k>0 时，y 随 x 的增大而增大；当 k<0 时，y 随 x 的增大而减小．',
-    why: '浮箭的高度 y（cm）随时间 x（时辰）均匀变化：每过一个时辰升高同样的 k，x 个时辰升高 kx；子时壶里已经有 b，所以 y = kx + b。同一个时刻，它总比 y = kx 高 b，所以直线 y = kx + b 是直线 y = kx 平移 |b| 个单位长度得到的，与 y 轴交于 (0, b)。x 每增大 1，y 就变化 k：k > 0 时从左向右上升，k < 0 时从左向右下降，|k| 越大越陡。<br><br>这座钟的图象过 (3, 19)、(8, 44)：3k + b = 19，8k + b = 44，解得 k = 5，b = 4，y = 5x + 4。子时刻在 4 cm 处，往上每隔 5 cm 刻一个时辰，到亥时是 59 cm；每个时辰升高一样多，所以十二条刻度一样宽。<br><br>元延祐三年（1316 年）冼运行、杜子盛等在广州铸造的铜壶滴漏，日壶、月壶、星壶、受水壶四只壶通高 264.4 cm；受水壶盖上竖着 66.5 cm 高的铜表尺，自下而上刻着子、丑、寅……亥十二时辰。日壶、月壶、星壶一级级往下补水，让流进受水壶的水尽量均匀，浮箭才匀速上升，刻度才能刻得一样宽。课里浮箭的读数是为了好算取的示意值。',
+    why: '浮箭的高度 y（cm）随时间 x（时辰）均匀变化：每过一个时辰升高同样的 k，x 个时辰升高 kx；子时壶里已经有 b，所以 y = kx + b。这把模型尺量到 70 cm。壶空了，或读数到了上限，这次计时就结束。同一个时刻，它总比 y = kx 高 b，所以直线 y = kx + b 是直线 y = kx 平移 |b| 个单位长度得到的，与 y 轴交于 (0, b)。x 每增大 1，y 就变化 k：k > 0 时从左向右上升，k < 0 时从左向右下降，|k| 越大越陡。<br><br>模型的图象过 (3, 19) 和 (8, 44)，所以 3k + b = 19，8k + b = 44。5 个时辰升了 25 cm，每个时辰升 5 cm。从卯时退回 3 个时辰，19 − 3 × 5 = 4，子时的读数是 4 cm。所以 k = 5，b = 4，y = 5x + 4。子时刻在 4 cm 处，往上每隔 5 cm 刻一个时辰，到亥时是 59 cm；相邻时辰的刻线相距 5 cm。<br><br>元延祐三年（1316 年）冼运行、杜子盛等在广州铸造的铜壶滴漏，日壶、月壶、星壶、受水壶四只壶通高 264.4 cm；受水壶盖上竖着 66.5 cm 高的铜表尺，自下而上刻着子、丑、寅……亥十二时辰。星壶上部的溢流孔排出多余的水，稳住水位，让水均匀滴进受水壶。模型据此假设浮箭匀速上升，尺身比例和读数都作了调整。',
     src: '课本 · 23.2 一次函数的图象和性质（第 118–122 页）；铜壶滴漏为中国国家博物馆藏品',
   },
 
@@ -250,10 +250,14 @@ export default {
     const rays = Array.from({ length: 12 }, () => gline(GOLD, 0.011, { glow: 0.7, shadow: 0.12, order: 14 }));
     const NAMES = Array.from(SHI, () => label(M(0.05), 24));          // 刻好以后：尺左边的十二时辰
     const EQ = label(M(0.09), 32), L1 = label(M(0.056)), LK = label(M(0.058)), LB = label(M(0.058)), LO = OBS.map(() => label(M(0.058)));
-    const clipLine = (k, b) => { let x0 = XA, x1 = XB; if (k !== 0) { const xa = (YA - b) / k, xb = (YB - b) / k; x0 = Math.max(x0, Math.min(xa, xb)); x1 = Math.min(x1, Math.max(xa, xb)); } else if (b < YA || b > YB) return null; return x1 - x0 > 1e-6 ? [[x0, k * x0 + b], [x1, k * x1 + b]] : null; };
-    const inWin = (y) => y >= YA - 1e-9 && y <= YB + 1e-9;
-    const cy = (y) => clamp(y, YA, YB);
-
+    // 这次计时最迟到次日子时，也可能先遇到空壶或模型的最高水位。
+    const endTime = (k, b) => k < 0 ? Math.min(12, -b / k) : k > 0 ? Math.min(12, (YB - b) / k) : 12;
+    const clipLine = (k, b) => {
+      const end = endTime(k, b);
+      return k !== 0 && end > 0 ? [[0, b], [end, clamp(k * end + b, 0, YB)]] : null;
+    };
+    const inWin = (y) => y >= 0 && y <= YB;
+    const nextDay = label(M(0.054));
     // ================= 此刻那一句：印在台基前沿的石头上 =================
     const front = outline.filter(([x, v]) => v < -0.24 && x > -0.9 && x < 1.12).sort((a, b) => a[0] - b[0]);
     const CY0 = 0.035, CY1 = FL - 0.03;
@@ -307,16 +311,30 @@ export default {
     let S_ = fresh(), runId = 0;
     const later = (ms, fn) => { const id = runId; setTimeout(() => { if (!dead && id === runId) fn(); }, ms); };
     const yOf = (x) => S_.k * x + S_.b;
+    // 一时辰内就会放空时，取半程的点调斜率，让蓝点与空壶时的白点分开。
+    const sampleTime = () => { const end = endTime(S_.k, S_.b); return end > 0 && end < 1 ? end / 2 : 1; };
     const eqSegs = () => { const { k, b } = S_, out = [['y', CSS.w], [' = ', CSS.w, false]]; if (k === 0) { out.push([num(b), CSS.t, false]); return out; } if (k === -1) out.push(['−', CSS.b, false]); else if (k !== 1) out.push([num(k), CSS.b, false]); out.push(['x', CSS.w]); if (b) out.push([b > 0 ? ' + ' : ' − ', CSS.t, false], [num(Math.abs(b)), CSS.t, false]); return out; };
 
+    let staticKey = '';
     function layout() {
-      const { k, b, t } = S_, yN = yOf(t);
-      main.set(S_.lineOn ? clipLine(k, b) : null);
-      ghost.set(S_.ghost && b !== 0 ? clipLine(k, 0) : null);
-      // 台阶：每个时辰横着走 1、竖着升 k
-      for (let i = 0; i < 12; i++) { const on = i < S_.stairN, x0 = i, x1 = i + 1, y0 = yOf(x0), y1 = yOf(x1);
-        stH[i].set(on && inWin(y0) ? [[x0, y0], [x1, y0]] : null); stV[i].set(on && (inWin(y0) || inWin(y1)) && Math.abs(y1 - y0) > 0.2 ? [[x1, cy(y0)], [x1, cy(y1)]] : null); }
-      for (let i = 0; i <= 12; i++) { const on = i <= S_.stairN && (S_.lineOn || i <= S_.maxT), y = yOf(i); if (on && inWin(y)) corner[i].at([i, y]); else corner[i].visible = false; }
+      const { k, b } = S_, end = endTime(k, b);
+      S_.t = clamp(S_.t, 0, end);
+      const t = S_.t, yN = clamp(yOf(t), 0, YB);
+      const key = [k, b, S_.lineOn, S_.ghost, S_.stairN, S_.maxT].join('|');
+      if (key !== staticKey) {
+        staticKey = key;
+        main.set(S_.lineOn ? clipLine(k, b) : null);
+        ghost.set(S_.ghost && b !== 0 ? clipLine(k, 0) : null);
+        for (let i = 0; i < 12; i++) {
+          const on = i < S_.stairN && i + 1 <= end && k !== 0;
+          stH[i].set(on ? [[i, yOf(i)], [i + 1, yOf(i)]] : null);
+          stV[i].set(on ? [[i + 1, yOf(i)], [i + 1, yOf(i + 1)]] : null);
+        }
+        for (let i = 0; i <= 12; i++) {
+          if (i <= end && i <= S_.stairN && (S_.lineOn || i <= S_.maxT)) corner[i].at([i, yOf(i)]);
+          else corner[i].visible = false;
+        }
+      }
       // 第一级台阶上写 1 和 k
       const j = S_.kOn ? 0 : 2, ya = yOf(j), yb2 = yOf(j + 1);
       if (S_.stairN > j && inWin(ya) && inWin(yb2) && S_.step !== 'wow' && S_.marks < 12) { setRich(L1, [['1', CSS.w, false]], [j + 0.5, ya + (k >= 0 ? -4.4 : 4.4)]); setRich(LK, S_.kOn || S_.step === 'fit' ? [['k', CSS.b], [' = ', CSS.b, false], [num(k), CSS.b, false]] : [[num(k), CSS.b, false]], [j + 1.2, (ya + yb2) / 2], 0); }
@@ -327,7 +345,7 @@ export default {
       else { nowDot.visible = false; dropV.hide(); dropH.hide(); }
       // 子时的浮箭（青点）、一个时辰后（蓝点）
       if (S_.bOn && inWin(b)) bDot.at([0, b]); else bDot.visible = false;
-      if (S_.kOn && inWin(k + b)) kDot.at([1, k + b]); else kDot.visible = false;
+      if (S_.kOn) kDot.at([sampleTime(), Math.max(0, yOf(sampleTime()))]); else kDot.visible = false;
       setRich(LB, S_.bOn && b !== 0 && inWin(b) && S_.marks < 12 ? [['b', CSS.t], [' = ', CSS.t, false], [num(b), CSS.t, false]] : null, [-0.85, b], 1);
       for (const sp of yTicks) sp.visible = !(S_.bOn && b !== 0 && Math.abs(Number(sp.userData.k.match(/"(\d+)"/)?.[1] || 0) - b) < 5);
       // 平移：几支一样长的青色箭头，从 y = kx 指到 y = kx + b
@@ -336,10 +354,11 @@ export default {
       OBS.forEach((p, i) => { if (S_.obs) { obsRing[i].at(p); obsDot[i].at(p); obsRing[i].material.color.setHex(S_.hitObs[i] ? GOLD : 0xffffff); setRich(LO[i], [['(', CSS.w, false], [String(p[0]), CSS.w, false], [', ', CSS.w, false], [String(p[1]), CSS.r, false], [')', CSS.w, false]], [p[0] + 0.45, p[1] + (i ? 4.6 : -4.6)], 0); } else { obsRing[i].visible = obsDot[i].visible = false; setRich(LO[i], null); } });
       setRich(EQ, S_.eqOn ? eqSegs() : null, [7.6, YB + 12]);
       // 浮箭：指着铜尺上 y 的高度
-      arrowG.position.y = wy(clamp(yN, YA, 76));
+      arrowG.position.y = wy(yN);
       // 刻好以后：浮箭指到哪个时辰
-      { const cur = S_.marks >= 12 && S_.step !== 'wow' ? clamp(Math.floor(t + 1e-6), 0, 11) : -1;          // 刻好以后：尺左边的十二时辰，浮箭指到的那个亮一点
+      { const cur = S_.marks >= 12 && S_.step !== 'wow' ? Math.floor(t) : -1;          // 刻好以后：尺左边的十二时辰，浮箭指到的那个亮一点
         NAMES.forEach((sp, i) => { const on = i < S_.marks; if (!on) { sp.visible = false; return; } const hot = i === cur || i === S_.glowMark; sp.userData.h = M(hot ? 0.058 : 0.046); setRich(sp, [[SHI[i], hot ? '#fff0b0' : '#e8c36a', false]], [-0.92, KF * i + BF + 0.4], 1); }); }
+      setRich(nextDay, t === 12 ? [['次日子时', CSS.w, false]] : null, [11.7, yN + 5], 1);
       if (S_.marks >= 12) for (const sp of yTicks) sp.visible = false;
     }
     function trailSnap() { const L = trails[trailI++ % trails.length], c = clipLine(S_.k, S_.b); if (!c) return; L.set(c); L.born = now(); }
@@ -362,11 +381,11 @@ export default {
         caption('滴得快一点、慢一点呢？', '拖一个时辰后的那一点：k 是每个时辰升高多少'); prompt('滴得快慢不同：拖一个时辰后的那一点（蓝点），直线会怎样？'); layout(); });
     }
     function kDone() {          // 重拍 3：k 的正负管上升还是下降
-      S_.step = 'k-done'; flash([0, S_.b], BLUE); flash([1, S_.k + S_.b], BLUE, 0.02, 0.06); sfx.ding(1320, { gain: 0.06 });
+      S_.step = 'k-done'; flash([0, S_.b], BLUE); if (inWin(yOf(1))) flash([1, yOf(1)], BLUE, 0.02, 0.06); sfx.ding(1320, { gain: 0.06 });
       caption('k > 0，从左向右上升；k < 0，从左向右下降', 'x 每增大 1，y 就变化 k：k 管直线的倾斜程度');
       board(`<span class="n">3</span>${I('x')} 每增大 1，${I('y')} 就增加 <span class="b">${I('k')}</span>（${I('k')} &lt; 0 时是减少：水往外放）。当 ${I('k')} &gt; 0 时，直线 ${I('y')} = ${I('kx')} + ${I('b')} 从左向右上升；当 ${I('k')} &lt; 0 时，直线 ${I('y')} = ${I('kx')} + ${I('b')} 从左向右下降。一次函数 ${I('y')} = ${I('kx')} + ${I('b')}（${I('k')}，${I('b')} 是常数，${I('k')} ≠ 0）具有如下性质：当 ${I('k')} &gt; 0 时，${I('y')} 随 ${I('x')} 的增大而增大；当 ${I('k')} &lt; 0 时，${I('y')} 随 ${I('x')} 的增大而减小`, 'k');
       later(3000, () => { S_.step = 'fit'; S_.obs = true; S_.stepAt = now(); S_.hint = 0; for (const [i, p] of OBS.entries()) later(i * 260, () => flash(p, RED, 0.02, 0.06));
-        caption('这座钟：卯时浮箭在 19 cm，申时在 44 cm', '让直线经过这两点：k、b 各是多少？'); prompt('卯时在子时后 3 个时辰，申时在子时后 8 个时辰：让直线经过 (3, 19) 和 (8, 44)'); checkFit(); layout(); });
+        caption('假设卯时读数是 19 cm，申时是 44 cm', '让直线经过这两点：k、b 各是多少？'); prompt('卯时在子时后 3 个时辰，申时在子时后 8 个时辰：让直线经过 (3, 19) 和 (8, 44)'); checkFit(); layout(); });
     }
     function checkFit() {
       if (S_.step !== 'fit') return;
@@ -377,9 +396,17 @@ export default {
     }
     function fitDone() {          // 待定系数法：两个条件定出 k 和 b
       S_.step = 'fit-done'; S_.held = ''; sfx.ding(1400, { gain: 0.06 });
-      caption('k = 5，b = 4：y = 5x + 4', '两点确定一条直线：两个条件，定出 k 和 b');
-      board.h('待定系数法'); board(`<span class="n">4</span>设 ${I('y')} = <span class="b">${I('k')}</span>${I('x')} + <span class="t">${I('b')}</span>，图象过 (3, 19) 与 (8, 44)：<span class="sys"><span>3${I('k')} + ${I('b')} = 19</span><span>8${I('k')} + ${I('b')} = 44</span></span>解得 <span class="b">${I('k')} = 5</span>，<span class="t">${I('b')} = 4</span>，${I('y')} = 5${I('x')} + 4。先设出函数解析式，再根据条件确定解析式中未知的系数，从而得出函数解析式的方法，叫作待定系数法`, 'fit');
-      later(1100, engrave);
+      caption('5 个时辰升了 25 cm，每个时辰升 5 cm', '从卯时到申时，44 − 19 = 25，8 − 3 = 5');
+      board.h('待定系数法'); board(`<span class="n">4</span>设 ${I('y')} = <span class="b">${I('k')}</span>${I('x')} + <span class="t">${I('b')}</span>，图象过 (3, 19) 与 (8, 44)：<span class="sys"><span>3${I('k')} + ${I('b')} = 19</span><span>8${I('k')} + ${I('b')} = 44</span></span>。5 个时辰升了 25 cm，每个时辰升 5 cm。`, 'fit');
+      later(2400, () => {
+        caption('从卯时退回 3 个时辰', '19 − 3 × 5 = 4，子时读数是 4 cm');
+        board('从卯时退回 3 个时辰，19 − 3 × 5 = 4，子时读数是 4 cm。', 'fit');
+      });
+      later(4800, () => {
+        caption('方程组的解是 k = 5，b = 4', '浮箭的高度 y = 5x + 4');
+        board(`方程组的解是 <span class="b">${I('k')} = 5</span>，<span class="t">${I('b')} = 4</span>，${I('y')} = 5${I('x')} + 4。先设出函数解析式，再根据条件确定解析式中未知的系数，从而得出函数解析式的方法，叫作待定系数法`, 'fit');
+      });
+      later(6800, engrave);
     }
     const NOTE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26];
     function engrave() {          // 一下子：十二道光从直线上每个时辰的点平射到铜尺上，嵌出十二条刻度
@@ -389,8 +416,8 @@ export default {
     }
     function finish() {
       S_.step = 'end'; S_.done = true; boardEl?.classList.add('review'); S_.auto = true; S_.autoAt = now(); S_.autoFrom = 0; S_.t = 0;
-      caption('答：从 4 cm 起，每隔 5 cm 刻一个时辰', '水滴得均匀，浮箭的高度就是时间的一次函数：刻度一样宽');
-      board.h('答'); board(`<b>答</b>：浮箭的高度 ${I('y')} = 5${I('x')} + 4。子时刻在 <span class="t">4 cm</span> 处，往上每隔 <span class="b">5 cm</span> 刻一个时辰：丑 9、寅 14、卯 19……亥 59 cm。每个时辰升高一样多，所以十二条刻度一样宽`, 'ans');
+      caption('答：从 4 cm 起，每隔 5 cm 刻一个时辰', '相邻时辰的刻线相距 5 cm');
+      board.h('答'); board(`<b>答</b>：浮箭的高度 ${I('y')} = 5${I('x')} + 4。子时刻在 <span class="t">4 cm</span> 处，往上每隔 <span class="b">5 cm</span> 刻一个时辰：丑 9、寅 14、卯 19……亥 59 cm。相邻时辰的刻线相距 5 cm`, 'ans');
       prompt(''); ui?.unlock?.(); layout();
       later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
     }
@@ -407,7 +434,7 @@ export default {
       for (const L of trails) { L.hide(); L.born = -9; }
       if (key === 'k') { for (const kk of [12, 6, 2]) { S_.k = kk; trailSnap(); } S_.k = -4; }
       if (key === 'b') { for (const bb of [0, 5, 10]) { S_.b = bb; trailSnap(); } S_.b = 15; }
-      const CAP = { line: ['这些点在一条直线上：y = 5x', '每个时辰都升高 5 cm：正比例函数的图象是一条经过原点的直线'], b: ['每一点都升高了 15 cm：直线 y = 5x 向上平移了', 'y = kx + b 的图象，可以由直线 y = kx 平移 |b| 个单位长度得到'], k: ['k > 0，从左向右上升；k < 0，从左向右下降', 'x 每增大 1，y 就变化 k：k 管直线的倾斜程度'], fit: ['k = 5，b = 4：y = 5x + 4', '两点确定一条直线：两个条件，定出 k 和 b'], ans: ['答：从 4 cm 起，每隔 5 cm 刻一个时辰', '水滴得均匀，浮箭的高度就是时间的一次函数：刻度一样宽'] };
+      const CAP = { line: ['这些点在一条直线上：y = 5x', '每个时辰都升高 5 cm：正比例函数的图象是一条经过原点的直线'], b: ['每一点都升高了 15 cm：直线 y = 5x 向上平移了', 'y = kx + b 的图象，可以由直线 y = kx 平移 |b| 个单位长度得到'], k: ['k > 0，从左向右上升；k < 0，从左向右下降', 'x 每增大 1，y 就变化 k：k 管直线的倾斜程度'], fit: ['k = 5，b = 4：y = 5x + 4', '两点确定一条直线：两个条件，定出 k 和 b'], ans: ['答：从 4 cm 起，每隔 5 cm 刻一个时辰', '相邻时辰的刻线相距 5 cm'] };
       caption(...(CAP[key] || CAP.ans)); flash([0, S_.b], key === 'b' ? TEAL : key === 'k' ? BLUE : GOLD, 0.02, 0.06); layout();
     }
 
@@ -416,10 +443,10 @@ export default {
     const canT = () => S_.step !== 'wow' && S_.step !== 'fit-done';
     const canB = () => S_.bOn && ['b', 'k', 'fit'].includes(S_.step);
     const canK = () => S_.kOn && ['k', 'fit'].includes(S_.step);
-    function ask0() { if (S_.asked) return; S_.asked = true; board.h('问题'); board(`铜尺上的十二时辰该刻在哪儿？这座钟卯时（子时后 3 个时辰）浮箭在 <span class="r">19</span> cm，申时（子时后 8 个时辰）在 <span class="r">44</span> cm`, 'ans'); }
+    function ask0() { if (S_.asked) return; S_.asked = true; board.h('问题'); board(`铜尺上的十二时辰该刻在哪儿？假设卯时（子时后 3 个时辰）浮箭在 <span class="r">19</span> cm，申时（子时后 8 个时辰）在 <span class="r">44</span> cm`, 'ans'); }
     function tDown() { if (!canT()) return false; S_.held = 't'; S_.goT = null; S_.auto = false; ask0(); if (S_.step === 'run' && S_.maxT < 0) { S_.maxT = 0; caption('先看最简单的：子时壶里是空的', '拖着时间往前走，看浮箭每个时辰升多少'); } return true; }
     function tMove(g) {
-      if (S_.held !== 't') return; const t = clamp(g[0], 0, 12); if (Math.abs(t - S_.t) < 1e-6) return;
+      if (S_.held !== 't') return; const t = clamp(g[0], 0, endTime(S_.k, S_.b)); if (Math.abs(t - S_.t) < 1e-6) return;
       S_.t = t; S_.moved = now();
       if (S_.step === 'run') { const n = Math.floor(t + 1e-6); if (n > S_.maxT) { for (let i = S_.maxT + 1; i <= n; i++) if (i > 0) sfx.clink({ freq: 1100 + i * 90, gain: 0.025 }); S_.maxT = n; S_.stairN = Math.max(S_.stairN, n); } if (S_.maxT >= 4 && !S_.lineOn) { layout(); lineSeen(); return; } }
       layout();
@@ -427,19 +454,20 @@ export default {
     function tUp() { if (S_.held === 't') S_.held = ''; }
     function bDown() { if (!canB()) return false; S_.held = 'b'; return true; }
     function bMove(g) {
-      if (S_.held !== 'b') return; const b = clamp(Math.round(g[1]), -10, 40); if (b === S_.b) return;
+      if (S_.held !== 'b') return; const b = clamp(Math.round(g[1]), 0, 40); if (b === S_.b) return;
       S_.b = b; S_.moved = now();
       if (trailKey === null || Math.abs(b - trailKey) >= 4) { trailKey = b; if (S_.step === 'b') trailSnap(); }
       layout(); checkFit();
     }
     function bUp() { if (S_.held !== 'b') return; S_.held = ''; if (S_.step === 'b' && Math.abs(S_.b) >= 6) bDone(); }
-    function kDown() { if (!canK()) return false; S_.held = 'k'; return true; }
+    let kSample = 1;
+    function kDown() { if (!canK()) return false; kSample = sampleTime(); S_.held = 'k'; return true; }
     function kMove(g) {
-      if (S_.held !== 'k') return; const k = clamp(Math.round(g[1] - S_.b), -12, 16); if (k === S_.k) return;
+      if (S_.held !== 'k') return; const k = clamp(Math.round((g[1] - S_.b) / kSample), -12, 16); if (k === S_.k) return;
       S_.k = k; S_.moved = now(); S_.kTouched = true; if (k < 0) S_.kNeg = true;
       if (trailKey === null || Math.abs(k - trailKey) >= 2) { trailKey = k; if (S_.step === 'k') trailSnap(); }
       if (k === 0) caption('k = 0：浮箭不动了', '一次函数 y = kx + b 要求 k ≠ 0');
-      else if (S_.cap[0].startsWith('k = 0')) { if (S_.step === 'k') caption('滴得快一点、慢一点呢？', '拖一个时辰后的那一点：k 是每个时辰升高多少'); else if (S_.step === 'fit') caption('这座钟：卯时浮箭在 19 cm，申时在 44 cm', '让直线经过这两点：k、b 各是多少？'); }
+      else if (S_.cap[0].startsWith('k = 0')) { if (S_.step === 'k') caption('滴得快一点、慢一点呢？', '拖一个时辰后的那一点：k 是每个时辰升高多少'); else if (S_.step === 'fit') caption('假设卯时读数是 19 cm，申时是 44 cm', '让直线经过这两点：k、b 各是多少？'); }
       layout(); checkFit();
     }
     function kUp() { if (S_.held !== 'k') return; S_.held = ''; if (S_.step === 'k' && S_.kNeg && S_.k !== 0) kDone(); }
@@ -448,12 +476,12 @@ export default {
     const drags = [
       { obj: tPick, plane: 'xy', offset: Z, hint: () => (canT() ? '拖着时间走' : ''), enabled: canT, onStart: () => tDown(), onDrag: (p) => tMove(toG(p)), onEnd: () => tUp() },
       { obj: bPick, plane: 'xy', offset: Z, hint: () => (canB() ? '上下拖：子时壶里先有多少水' : ''), enabled: canB, onStart: () => bDown(), onDrag: (p) => bMove(toG(p)), onEnd: () => bUp() },
-      { obj: kPick, plane: 'xy', offset: Z, hint: () => (canK() ? '上下拖：一个时辰升高多少' : ''), enabled: canK, onStart: () => kDown(), onDrag: (p) => kMove(toG(p)), onEnd: () => kUp() },
+      { obj: kPick, plane: 'xy', offset: Z, hint: () => (canK() ? '上下拖蓝点，改变每个时辰的水位变化量' : ''), enabled: canK, onStart: () => kDown(), onDrag: (p) => kMove(toG(p)), onEnd: () => kUp() },
     ];
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
-    function opening() { caption('铜尺上的十二时辰，该刻在哪儿？', '水一滴滴流进受水壶，浮箭跟着往上升'); prompt('拖着时间往前走：浮箭每个时辰升多少？'); }
+    function opening() { caption('用这件文物做一个匀速模型', '假设卯时读数是 19 cm，申时是 44 cm'); prompt('拖着时间走，浮箭每个时辰升多少？'); }
     function reset() { runId++; S_ = fresh(); trailKey = null; for (const L of trails) { L.hide(); L.born = -9; } for (const L of rays) L.hide(); main.hide(); drawRuler(0); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
@@ -480,9 +508,9 @@ export default {
         if (S_.goT) { const g = S_.goT, k = clamp((t - g.t0) / g.dur, 0, 1); S_.t = lerp(g.from, g.to, easeOut(k)); if (k >= 1) S_.goT = null; layout(); }
         else if (S_.auto && !S_.held) { S_.t = ((t - S_.autoAt) * 0.6 + S_.autoFrom) % 12; layout(); }
         // 滴水：快慢跟着 k；k < 0 时受水壶脚边的龙头往外放水
-        { const k = S_.k, rate = k > 0 ? 2.2 * (k / K0) : 0, outRate = k < 0 ? 2.6 * (-k / K0) : 0; let n = 0;
+        { const k = S_.k, depth = yOf(S_.t), rate = k > 0 && depth < YB - 1e-8 ? 2.2 * (k / K0) : 0, outRate = k < 0 && depth > 1e-8 ? 2.6 * (-k / K0) : 0; let n = 0;
           tapG.visible = S_.kNeg || k < 0;
-          for (const c of chans) { const r = c.out ? outRate : rate; c.thread.visible = r > 0.05 && (!c.out || tapG.visible); if (c.thread.visible) { const w = M(0.0018 + 0.0016 * Math.sqrt(r / 2.2)); c.thread.scale.x = c.thread.scale.z = w; } c.acc += dt * r; while (c.acc >= 1) { c.acc -= 1; if (c.drops.length < 24) c.drops.push({ y: c.from.y, v: 0, s: 0.8 + Math.random() * 0.4 }); }
+          for (const c of chans) { const r = c.out ? outRate : rate; if (!r) { c.drops.length = 0; c.acc = 0; } c.thread.visible = r > 0.05 && (!c.out || tapG.visible); if (c.thread.visible) { const w = M(0.0018 + 0.0016 * Math.sqrt(r / 2.2)); c.thread.scale.x = c.thread.scale.z = w; } c.acc += dt * r; while (c.acc >= 1) { c.acc -= 1; if (c.drops.length < 24) c.drops.push({ y: c.from.y, v: 0, s: 0.8 + Math.random() * 0.4 }); }
             for (let i = c.drops.length - 1; i >= 0; i--) { const d = c.drops[i]; d.v += M(2.4) * dt; d.y -= d.v * dt; if (d.y <= c.toY) { if (c.surf >= 0) ring(c.from.x, c.toY, c.from.z); if (c.out) ring(c.from.x, c.toY + M(0.0), c.from.z); c.drops.splice(i, 1); continue; }
               if (n < 160) { pv.set(c.from.x, d.y, c.from.z); sv.set(M(0.0085) * d.s, M(0.014) * d.s, M(0.0085) * d.s); m4.compose(pv, q0, sv); drops.setMatrixAt(n++, m4); } } }
           drops.count = n; drops.instanceMatrix.needsUpdate = true; }
@@ -502,7 +530,7 @@ export default {
         { const br = 1 + 0.2 * Math.sin(t * 3.4) ** 2, s = S_.step;
           tDot.scale.setScalar(M(0.05) * (s === 'run' && !S_.held ? br : 1)); tRing.scale.setScalar(M(0.06) * (s === 'run' && !S_.held ? br : 1));
           bDot.scale.setScalar(M(0.056) * (s === 'b' && !S_.held ? br : 1)); kDot.scale.setScalar(M(0.056) * (s === 'k' && !S_.held ? br : 1)); }
-        tPick.position.set(wx(S_.t), wy(0), Z); bPick.position.set(wx(0), wy(S_.b), Z); kPick.position.set(wx(1), wy(S_.k + S_.b), Z);
+        tPick.position.set(wx(S_.t), wy(0), Z); bPick.position.set(wx(0), wy(S_.b), Z); kPick.position.copy(kDot.position); kPick.position.z = Z;
         bPick.visible = canB(); kPick.visible = canK();
         // 卡住很久才给提示（不拦着人）
         if (!S_.held && !S_.done && S_.hint < 1 && t - S_.stepAt > 15 && t - S_.moved > 4) {
@@ -516,7 +544,7 @@ export default {
           { name: '拖着时间走过 5 个时辰', run: () => { tDown(); for (let i = 1; i <= 25; i++) tMove([i * 0.2, 0]); tUp(); }, wait: 3.4 },
           { name: '子时的浮箭往上拖', run: () => { bDown(); for (let i = 1; i <= 15; i++) bMove([0, i]); bUp(); }, wait: 3.6 },
           { name: '一个时辰后的点往下拖成负的', run: () => { kDown(); for (let i = 1; i <= 10; i++) kMove([1, S_.b + K0 - i]); kUp(); }, wait: 3.8 },
-          { name: '让直线经过两点', run: () => { bDown(); bMove([0, BF]); bUp(); kDown(); kMove([1, BF + KF]); kUp(); }, wait: 5.5 },
+          { name: '让直线经过两点', run: () => { bDown(); bMove([0, BF]); bUp(); kDown(); kMove([kSample, BF + KF * kSample]); kUp(); }, wait: 10.5 },
         ],
       },
     };

@@ -11,8 +11,8 @@
 //   思考（2）：胶片停在 3 秒，拖第一跳的落点把速度调小：2 × 3 … 0 × 3 = 0，再小就往西开：(−1) × 3 = −3（重拍 2）→ 归纳；
 //   思考（3）：往西开的车往回放：(−3) × 3 … (−3) × 0 = 0，再往回，它在东边：(−3) × (−1) = 3（重拍 3）→ 负数乘负数，积为正数；
 //   一下子：刚才那七种速度一起出来（多次曝光），七条跳一起从车画向摄影机、同时落到 0：往东开的从西边来，往西开的从东边来；
-//   往前摇，七辆车同时经过摄影机、各自到了另一边（重拍 4）→ 法则 → 答（胶片倒回 2 秒前，车在东边 6 米）。
-// 史实：元代朱世杰《算学启蒙》（1299）总括·明乘除段：“同名相乘曰正，异名相乘为负。”（维基文库、中国哲学书电子化计划两种录文一致；课本第 153 页也引过这本书）
+//   往前摇，七辆车的东西向坐标同时为 0（重拍 4）→ 法则 → 答（胶片倒回 2 秒前，车在东边 6 米）。
+// 史实：元代朱世杰《算学启蒙》（1299）总括·明乘除段：“同名相乘为正，异名相乘为负。”（据国家图书馆藏本第一册《总括》第六叶）
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
 import { draggable } from './kit/interact.js';
@@ -51,7 +51,7 @@ export default {
     page: 44, rect: [44, 308, 456, 434],
     crops: [{ page: 44, rect: [44, 308, 456, 434] }, { page: 45, rect: [60, 337, 480, 458] }],          // 两列算式（思考）和乘法法则
     quote: '两数相乘，同号得正，异号得负，且积的绝对值等于乘数的绝对值的积．任何数与 0 相乘，都得 0．',
-    why: '把位置看成速度和时间的积：向东为正，向西为负；车经过摄影机那一刻为 0 秒，之后为正，之前为负。车以每秒 3 米往东开，胶片每往回放 1 秒，车就往西退 3 米：3 × 3 = 9，3 × 2 = 6，3 × 1 = 3，3 × 0 = 0，再往回放，车还没到摄影机，在西边：3 × (−1) = −3。这就是课本说的“随着后一乘数逐次递减 1，积逐次递减 3”，要使这个规律在引入负数后仍然成立，只能这样。<br><br>往西开的车，往前放每秒往西 3 米；往回放每秒往东 3 米（积逐次增加 3）：(−3) × 0 = 0，(−3) × (−1) = 3，(−3) × (−2) = 6。它要在 0 秒开到摄影机，之前一定在东边：负数乘负数，积为正数。所以开头的问题：2 秒前它在摄影机东边 6 米。<br><br>七百多年前，元代朱世杰在《算学启蒙》（1299 年）里写道：“同名相乘曰正，异名相乘为负。”同名就是同号。',
+    why: '把位置看成速度和时间的积：向东为正，向西为负；车经过摄影机那一刻为 0 秒，之后为正，之前为负。车以每秒 3 米往东开，胶片每往回放 1 秒，车就往西退 3 米：3 × 3 = 9，3 × 2 = 6，3 × 1 = 3，3 × 0 = 0，再往回放，车还没到摄影机，在西边：3 × (−1) = −3。这就是课本说的“随着后一乘数逐次递减 1，积逐次递减 3”，要使这个规律在引入负数后仍然成立，只能这样。<br><br>往西开的车，往前放每秒往西 3 米；往回放每秒往东 3 米（积逐次增加 3）：(−3) × 0 = 0，(−3) × (−1) = 3，(−3) × (−2) = 6。它要在 0 秒开到摄影机，之前一定在东边：负数乘负数，积为正数。所以开头的问题：2 秒前它在摄影机东边 6 米。<br><br>元代朱世杰《算学启蒙》（1299 年）写道：“同名相乘为正，异名相乘为负。”这里的“同名”就是同号。引文据国家图书馆藏本第一册《总括》第六叶《明乘除段》。',
     src: '课本 · 2.2.1 有理数的乘法（两个“思考”和有理数乘法法则在第 38–39 页）',
   },
 
@@ -304,8 +304,9 @@ export default {
       g.fillStyle = band; g.fillRect(x0 - h * 2, h * 0.06, tot + h * 4, h * 0.88);
       g.textBaseline = 'middle'; g.font = fb; g.fillStyle = '#f8efdc'; g.fillText(big, x0, h * 0.53); if (small) { g.font = fs; g.fillStyle = '#e6dac2'; g.fillText(small, x0 + wb + gap, h * 0.55); } });
     const cap = { key: '', born: -9, out: 1e9, next: null };
-    function caption(big, small = '') { const key = big + '|' + small; if (key === cap.key) return; cap.key = key; S.cap = [big, small];
-      const show = () => { capMesh.material.map?.dispose?.(); capMesh.material.map = capTex(big, small); capMesh.material.needsUpdate = true; capMesh.visible = true; cap.born = now(); cap.out = 1e9; };
+    function caption(big, small = '', frameTime = null) { const key = big + '|' + small; if (key === cap.key) return; cap.key = key; S.cap = [big, small];
+      const frameSpeed = S.v;
+      const show = () => { cap.time = frameTime; cap.speed = frameSpeed; capMesh.material.map?.dispose?.(); capMesh.material.map = capTex(big, small); capMesh.material.needsUpdate = true; capMesh.visible = true; cap.born = now(); cap.out = 1e9; };
       if (capMesh.visible && now() - cap.born > 0.2) { cap.out = now(); cap.next = show; } else show(); }
     const prompt = (txt) => { S.ask = txt; if (ui?.status) ui.status(txt); };
 
@@ -346,8 +347,8 @@ export default {
       for (const w of car.wheels) w.rotation.z = -(x * S.face) / 0.33;
       carDot.position.set(x, LY + 0.03, ZE); carDot.visible = true; guide.set([V3(x, LY, S.zCar + 0.85), V3(x, LY, ZE - 0.1)]);
       // 式子：车上方
-      const tn = Math.round(S.t);
-      setRich(EQ, [[FAC(S.v), CSS.b], [' × ', CSS.w], [FAC(tn), CSS.t], [' = ', CSS.w], [NUM(S.v * tn), CSS.g]], S.zCar > 0 ? V3(x, ROADY + 2.55, S.zCar) : V3(x, ROADY + 2.2, S.zCar + 0.9));
+      const tn = S.t;
+      setRich(EQ, Number.isInteger(tn) && !S.vAnim ? [[FAC(S.v), CSS.b], [' × ', CSS.w], [FAC(tn), CSS.t], [' = ', CSS.w], [NUM(S.v * tn), CSS.g]] : null, S.zCar > 0 ? V3(x, ROADY + 2.55, S.zCar) : V3(x, ROADY + 2.2, S.zCar + 0.9));
       // 跳
       let list = [];
       if (S.fam) { const rv = S.famReveal ? clamp((now() - S.famReveal) / 1.3, 0, 1) : 1;          // 一下子：七条跳一起从车画向摄影机，同时落到 0
@@ -395,11 +396,11 @@ export default {
     function s1Frame(t) {
       const pos = S.rec.filter((r) => r.t >= 0).sort((p, q) => q.t - p.t), neg = S.rec.filter((r) => r.t < 0).sort((p, q) => q.t - p.t);
       if (t >= 0) { if (!S.rowA) { board.h('思考（1）'); S.rowA = board('', 's1'); } S.rowA.innerHTML = `<span class="n">1</span>${eqList([[3, 3], ...pos.filter((r) => r.t < 3).map((r) => [3, r.t])])}`;
-        if (t === 0) caption('3 × 0 = 0：车正好在摄影机前', '再往回放，车在哪儿？'); else caption(`3 × ${t} = ${3 * t}`, `往回放 1 秒，车往西退 3 米`); return; }
-      if (!S.rowB) { S.rowB = board('', 's1n'); S.punchAt = now(); flash(V3(3 * t, LY + 0.05, ZE), GOLD); sfx.ding(1180, { gain: 0.06 }); caption('3 × (−1) = −3', '1 秒前，车还没到摄影机，在西边 3 米'); }
+        if (t === 0) caption('3 × 0 = 0：车正好在摄影机前', '再往回放，车在哪儿？', t); else caption(`3 × ${t} = ${3 * t}`, `往回放 1 秒，车往西退 3 米`, t); return; }
+      if (!S.rowB) { S.rowB = board('', 's1n'); S.punchAt = now(); flash(V3(3 * t, LY + 0.05, ZE), GOLD); sfx.ding(1180, { gain: 0.06 }); caption('3 × (−1) = −3', '1 秒前，车还没到摄影机，在西边 3 米', t); }
       S.rowB.innerHTML = `随着<span class="t">后一乘数</span>逐次递减 1，<span class="g">积</span>逐次递减 3。要使这个规律在引入负数后仍然成立，那么应有：${eqList(neg.map((r) => [3, r.t]))}`;
-      if (t <= -2 && t > -3) caption(`3 × (−2) = −6`, '2 秒前，在西边 6 米');
-      if (t === -3) { S.step = 's1done'; caption('到了负数，规律照样成立', '随着后一乘数逐次递减 1，积逐次递减 3'); prompt('');
+      if (t <= -2 && t > -3) caption(`3 × (−2) = −6`, '2 秒前，在西边 6 米', t);
+      if (t === -3) { S.step = 's1done'; S.held = ''; S.t = t; caption('到了负数，规律照样成立', '随着后一乘数逐次递减 1，积逐次递减 3'); prompt('');
         later(2200, () => { S.step = 's2w'; S.rec = []; S.rowA = S.rowB = null; S.wind = { t0: now(), from: S.t, to: 3, dur: 1.3, then: s2Start }; sfx.whoosh({ dur: 1.2, freq: 700, gain: 0.04 }); caption('要是速度变了呢？', '胶片停在 3 秒，把速度一点点调小'); }); }
     }
     function s2Start() { S.step = 's2'; S.stepAt = now(); S.hint = 0; S.velX = S.v; ghosts.forEach((gh) => { gh.on = false; gh.op = 0; gh.fadeTo = 0; gh.delay = 0; }); takeGhost(3); prompt('速度一点点调小，3 秒后车在哪儿？（拖第一跳的落点：蓝点）'); layout(); }
@@ -409,26 +410,26 @@ export default {
       takeGhost(v); sfx.clink({ freq: 1500, gain: 0.03 });
       const vs = [...new Set(S.rec.map((r) => r.v))].sort((p, q) => q - p), pos = vs.filter((u) => u >= 0), neg = vs.filter((u) => u < 0);
       if (v >= 0) { if (!S.rowA) { board.h('思考（2）'); S.rowA = board('', 's2'); } S.rowA.innerHTML = `<span class="n">2</span>${eqList([[3, 3], ...pos.filter((u) => u < 3).map((u) => [u, 3])])}`;
-        if (v === 0) caption('0 × 3 = 0：车停着不动', '速度再小呢？'); else caption(`${v} × 3 = ${3 * v}`, `每秒少走 1 米，3 秒少走 3 米`); return; }
-      if (!S.rowB) { S.rowB = board('', 's2n'); flash(V3(3 * v, LY + 0.05, ZE), GOLD); sfx.ding(1250, { gain: 0.06 }); caption('(−1) × 3 = −3', '往西开，3 秒后在摄影机西边 3 米'); }
+        if (v === 0) caption('0 × 3 = 0：车停着不动', '速度再小呢？', 3); else caption(`${v} × 3 = ${3 * v}`, `每秒少走 1 米，3 秒少走 3 米`, 3); return; }
+      if (!S.rowB) { S.rowB = board('', 's2n'); flash(V3(3 * v, LY + 0.05, ZE), GOLD); sfx.ding(1250, { gain: 0.06 }); caption('(−1) × 3 = −3', '往西开，3 秒后在摄影机西边 3 米', 3); }
       S.rowB.innerHTML = `随着<span class="b">前一乘数</span>逐次递减 1，<span class="g">积</span>逐次递减 3。要使这个规律在引入负数后仍然成立，那么应有：${eqList(neg.map((u) => [u, 3]))}`;
-      if (v === -2) caption('(−2) × 3 = −6', '往西开得更快，3 秒后在西边 6 米');
-      if (v === -3 && S.step === 's2') { S.step = 's2done'; prompt('');
+      if (v === -2) caption('(−2) × 3 = −6', '往西开得更快，3 秒后在西边 6 米', 3);
+      if (v === -3 && S.step === 's2') { S.step = 's2done'; S.held = ''; prompt('');
         later(900, () => { board.h('归纳'); board(`<span class="n">3</span>正数乘正数，积为正数；正数乘负数，积为负数；负数乘正数，积也为负数。积的绝对值等于乘数的绝对值的积。`, 'sum1'); caption('正数乘负数、负数乘正数，积为负数', '积的绝对值等于乘数的绝对值的积'); });
-        later(3600, () => { S.step = 's3'; S.rec = []; S.rowA = S.rowB = null; S.stepAt = now(); S.hint = 0; ghosts.forEach((gh) => { gh.fadeTo = 0; });
-          caption('负数乘负数呢？', '往西开的车，往回放'); prompt('往西开的车，0 秒以前在哪儿？'); record(-3, 3); layout(); }); }
+        later(3600, () => { S.step = 's3'; S.velX = S.v; S.face = Math.sign(S.v); S.zCar = laneOf(S.v, LANE); S.vAnim = null; S.rec = []; S.rowA = S.rowB = null; S.stepAt = now(); S.hint = 0; ghosts.forEach((gh) => { gh.fadeTo = 0; });
+          caption('负数乘负数呢？', '往西开的车，往回放'); prompt('往西开的车，0 秒以前在哪儿？'); record(S.v, S.t); layout(); }); }
     }
     // 思考（3）：往西开的车往回放
     function s3Frame(t) {
       const pos = S.rec.filter((r) => r.t > 0).sort((p, q) => q.t - p.t), rest = S.rec.filter((r) => r.t <= 0).sort((p, q) => q.t - p.t);
-      if (t > 0) { if (!S.rowA) { board.h('思考（3）'); S.rowA = board('', 's3'); } S.rowA.innerHTML = `<span class="n">4</span>${eqList(pos.map((r) => [-3, r.t]))}${pos.length > 1 ? '：随着<span class="t">后一乘数</span>逐次递减 1，<span class="g">积</span>逐次增加 3' : ''}`;
-        if (t < 3) caption(`(−3) × ${t} = ${-3 * t}`, '往回放 1 秒，车往东退 3 米'); return; }
+      if (t > 0) { if (!S.rowA) { board.h('思考（3）'); S.rowA = board('', 's3'); } S.rowA.innerHTML = `<span class="n">4</span>${eqList(pos.map((r) => [r.v, r.t]))}${pos.length > 1 ? '：随着<span class="t">后一乘数</span>逐次递减 1，<span class="g">积</span>逐次增加 3' : ''}`;
+        if (t < 3) caption(`${FAC(S.v)} × ${t} = ${NUM(S.v * t)}`, '往回放 1 秒，车往东退 3 米', t); return; }
       if (!S.rowB) S.rowB = board('', 's3n');
-      S.rowB.innerHTML = `按照上述规律：${eqList(rest.map((r) => [-3, r.t]))}`;
-      if (t === 0) { caption('(−3) × 0 = 0：车正好在摄影机前', '再往回 1 秒，它在摄影机哪一边？'); return; }
-      if (t === -1 && !S.punch3) { S.punch3 = true; flash(V3(3, LY + 0.05, ZE), GOLD); later(160, () => flash(V3(3, LY + 0.05, ZE), BLUE, 0.6, 1.6)); sfx.ding(1320, { gain: 0.07 }); caption('(−3) × (−1) = 3', '1 秒前，它在摄影机东边 3 米'); }
-      if (t === -2) caption('(−3) × (−2) = 6', '2 秒前，它在东边 6 米');
-      if (t === -3 && S.step === 's3') { S.step = 's3done'; prompt('');
+      S.rowB.innerHTML = `按照上述规律：${eqList(rest.map((r) => [r.v, r.t]))}`;
+      if (t === 0) { caption('(−3) × 0 = 0：车正好在摄影机前', '再往回 1 秒，它在摄影机哪一边？', t); return; }
+      if (t === -1 && !S.punch3) { S.punch3 = true; flash(V3(3, LY + 0.05, ZE), GOLD); later(160, () => flash(V3(3, LY + 0.05, ZE), BLUE, 0.6, 1.6)); sfx.ding(1320, { gain: 0.07 }); caption('(−3) × (−1) = 3', '1 秒前，它在摄影机东边 3 米', t); }
+      if (t === -2) caption('(−3) × (−2) = 6', '2 秒前，它在东边 6 米', t);
+      if (t === -3 && S.step === 's3') { S.step = 's3done'; S.held = ''; S.t = t; prompt('');
         later(700, () => { board.h('归纳'); board(`<span class="n">5</span>负数乘负数，积为正数，且积的绝对值等于乘数的绝对值的积。`, 'sum2'); caption('负数乘负数，积为正数', '它要在 0 秒开到摄影机，之前一定在东边'); });
         later(2600, family); }
     }
@@ -437,21 +438,21 @@ export default {
       S.step = 'fam'; S.fam = true; S.famAt = now(); S.famReveal = now() + 0.45; S.famLanded = false; S.stepAt = now(); S.hint = 0; S.rec = [];
       ghosts.forEach((gh) => { gh.on = true; gh.z = laneOf(gh.v, LANE); gh.fadeTo = 1; gh.op = 0; gh.delay = now() + 0.06 * (3 - Math.abs(gh.v)); });          // 刚才那七次拍摄，一辆接一辆亮出来
       sfx.whoosh({ dur: 0.9, freq: 900, gain: 0.03 });
-      caption('七种速度，一起看', '3 秒前：往东开的都在西边，往西开的都在东边'); prompt('七辆车一起往前放：它们怎么经过摄影机？'); layout();
+      caption('七种速度，一起看', '3 秒前：往东开的都在西边，往西开的都在东边'); prompt('哪辆车一直停在 0？什么时候所有车的位置坐标都是 0？'); layout();
     }
-    function met() {          // 重拍 4：七辆车同时经过摄影机
+    function met() {          // 重拍 4：七辆车的东西向坐标同时为 0
       S.met = true; S.punchAt = now(); flash(V3(0, LY + 0.05, ZE), GOLD, 0.5, 2.0); later(120, () => flash(V3(0, LY + 0.05, ZE), BLUE, 0.9, 2.6)); sfx.ding(1568, { gain: 0.07 }); later(380, () => sfx.ding(2093, { gain: 0.05 }));
-      caption('同号得正，异号得负', '0 秒时七辆车都在摄影机前：任何数与 0 相乘，都得 0');
+      caption('0 秒时，所有车的位置坐标都是 0', '速度是 c，时间是 0，所以 c × 0 = 0');
       board.h('法则'); board(`<span class="n">6</span><span class="rule">两数相乘，同号得正，异号得负，且积的绝对值等于乘数的绝对值的积。任何数与 0 相乘，都得 0。</span>`, 'rule');
-      later(1400, () => { const E = (x) => `<span class="eq">${x.replace(/([abc])/g, '<i>$1</i>')}</span>`; board(`设 <i>a</i>，<i>b</i> 为正有理数，<i>c</i> 为任意有理数，则 ${E('(+a) × (+b) = +(a × b)')}，${E('(−a) × (−b) = +(a × b)')}；${E('(−a) × (+b) = −(a × b)')}，${E('(+a) × (−b) = −(a × b)')}；${E('c × 0 = 0')}，${E('0 × c = 0')}`, 'rule'); });
-      later(2800, () => { board.h('联系'); board('七百多年前，元代朱世杰在《算学启蒙》（1299 年）里写道：“同名相乘曰正，异名相乘为负。”同名就是同号。', 'rule'); });
+      later(1400, () => { const E = (x) => `<span class="eq">${x.replace(/([abc])/g, '<i>$1</i>')}</span>`; board(`设 <i>a</i>，<i>b</i> 为正有理数，<i>c</i> 为任意有理数，则 ${E('(+a) × (+b) = +(a × b)')}，${E('(−a) × (−b) = +(a × b)')}；${E('(−a) × (+b) = −(a × b)')}，${E('(+a) × (−b) = −(a × b)')}；速度为 0 的车一直停在 0，${E('0 × c = 0')}。到 0 秒时，每辆车的位置坐标都是 0，${E('c × 0 = 0')}`, 'rule'); });
+      later(2800, () => { board.h('联系'); board('元代朱世杰《算学启蒙》（1299 年）写道：“同名相乘为正，异名相乘为负。”这里的“同名”就是同号。引文据国家图书馆藏本第一册《总括》第六叶《明乘除段》。', 'rule'); });
       later(4200, finish);
     }
     function finish() {
-      S.step = 'end'; S.done = true; boardEl?.classList.add('review');
+      S.step = 'end'; S.done = true; S.held = ''; S.settle = null; boardEl?.classList.add('review');
       ghosts.forEach((gh) => { gh.x = gh.v * S.t; gh.fadeTo = 0; }); S.fam = false;
       S.wind = { t0: now(), from: S.t, to: -2, dur: 1.4, then: () => flash(V3(6, LY + 0.05, ZE), GOLD) }; sfx.whoosh({ dur: 1.2, freq: 650, gain: 0.035 });          // 胶片倒回 2 秒前：答案就在画面上
-      caption('答：2 秒前，它在摄影机东边 6 米', '(−3) × (−2) = 6');
+      caption('答：2 秒前，它在摄影机东边 6 米', '(−3) × (−2) = 6', -2);
       board.h('答'); board(`<b>答</b>：往西开的车，2 秒前在摄影机东边 6 米：<span class="eq"><span class="b">(−3)</span> × <span class="t">(−2)</span> = <span class="g">6</span></span>。`, 'ans');
       prompt(''); ui?.unlock?.();
       later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
@@ -463,18 +464,18 @@ export default {
       S.v = P[0]; S.t = P[1]; S.velX = S.v; S.face = S.v < 0 ? -1 : 1; S.zCar = laneOf(S.v, LANE);
       S.fam = k === 'rule'; S.rec = [];
       ghosts.forEach((gh) => { gh.on = S.fam || k === 'sum1' || ((k === 's2' || k === 's2n') && gh.v >= S.v); gh.z = laneOf(gh.v, LANE); gh.x = gh.v * 3; gh.delay = 0; gh.op = gh.fadeTo = gh.on ? 1 : 0; });
-      const CAP = { q: ['往西开的车，2 秒前在哪儿？', '位置 = 速度 × 时间：(−3) × (−2) = ？'], s1: ['3 × 0 = 0：车正好在摄影机前', '随着后一乘数逐次递减 1，积逐次递减 3'], s1n: ['3 × (−1) = −3', '1 秒前，车还没到摄影机，在西边 3 米'], s2: ['0 × 3 = 0：车停着不动', '随着前一乘数逐次递减 1，积逐次递减 3'], s2n: ['(−1) × 3 = −3', '往西开，3 秒后在摄影机西边 3 米'], sum1: ['正数乘负数、负数乘正数，积为负数', '积的绝对值等于乘数的绝对值的积'], s3: ['(−3) × 1 = −3', '往回放 1 秒，车往东退 3 米'], s3n: ['(−3) × (−1) = 3', '1 秒前，它在摄影机东边 3 米'], sum2: ['负数乘负数，积为正数', '它要在 0 秒开到摄影机，之前一定在东边'], rule: ['同号得正，异号得负', '1 秒前，开着的车都正好一跳就到摄影机'], ans: ['答：2 秒前，它在摄影机东边 6 米', '(−3) × (−2) = 6'] };
-      caption(...(CAP[k] || CAP.ans)); flash(V3(carX(), LY + 0.05, ZE), GOLD, 0.3, 0.9); layout();
+      const CAP = { q: ['往西开的车，2 秒前在哪儿？', '位置 = 速度 × 时间：(−3) × (−2) = ？'], s1: ['3 × 0 = 0：车正好在摄影机前', '随着后一乘数逐次递减 1，积逐次递减 3'], s1n: ['3 × (−1) = −3', '1 秒前，车还没到摄影机，在西边 3 米'], s2: ['0 × 3 = 0：车停着不动', '随着前一乘数逐次递减 1，积逐次递减 3'], s2n: ['(−1) × 3 = −3', '往西开，3 秒后在摄影机西边 3 米'], sum1: ['正数乘负数、负数乘正数，积为负数', '积的绝对值等于乘数的绝对值的积'], s3: ['(−3) × 1 = −3', '往回放 1 秒，车往东退 3 米'], s3n: ['(−3) × (−1) = 3', '1 秒前，它在摄影机东边 3 米'], sum2: ['负数乘负数，积为正数', '它要在 0 秒开到摄影机，之前一定在东边'], rule: ['速度为 0 的车一直停在 0', '到 0 秒时，每辆车的位置坐标都是 0'], ans: ['答：2 秒前，它在摄影机东边 6 米', '(−3) × (−2) = 6'] };
+      caption(...(CAP[k] || CAP.ans), ['s1', 's1n', 's2', 's2n', 's3', 's3n', 'ans'].includes(k) ? S.t : null); flash(V3(carX(), LY + 0.05, ZE), GOLD, 0.3, 0.9); layout();
     }
 
     // ================= 动手 =================
     let grabA = 0;
     const angAt = (p) => Math.atan2(p.y - hubP.y, p.x - hubP.x);
-    function crankDown(p) { if (!['s1', 's3', 'fam'].includes(S.step) && !S.done) return false; if (S.done) S.pose = ''; S.held = 'crank'; grabA = p ? angAt(p) : null; ask0(); if (S.step === 's1' && !S.rec.length) { record(3, 3); caption('往回放：车在哪儿？', '速度 3：向东，每秒 3 米'); prompt('每往回 1 秒，车在哪儿？开过摄影机以前呢？'); } sfx.whoosh({ dur: 0.25, freq: 1500, gain: 0.02 }); return true; }
+    function crankDown(p) { if (!['s1', 's3', 'fam'].includes(S.step) && !S.done) return false; if (S.done) S.pose = ''; S.held = 'crank'; S.settle = null; grabA = p ? angAt(p) : null; ask0(); if (S.step === 's1' && !S.rec.length) { record(3, 3); caption('往回放：车在哪儿？', '速度 3：向东，每秒 3 米'); prompt('每往回 1 秒，车在哪儿？开过摄影机以前呢？'); } sfx.whoosh({ dur: 0.25, freq: 1500, gain: 0.02 }); return true; }
     function crankMove(p) { if (S.held !== 'crank' || !p) return; if (Math.hypot(p.x - hubP.x, p.y - hubP.y) < 0.12) return; const a = angAt(p); if (grabA == null) { grabA = a; return; } const d = wrapA(a - grabA); grabA = a; setT(S.t - d / (2 * Math.PI)); }
     function crankUp() { if (S.held !== 'crank') return; S.held = ''; const to = Math.round(S.t); if (Math.abs(to - S.t) > 1e-4) S.settle = { t0: now(), from: S.t, to }; }
     function velDown() { if (S.step !== 's2') return false; S.held = 'vel'; return true; }
-    function velMove(p) { if (S.held !== 'vel' || !p) return; const v = clamp(Math.round(p.x), -3, 3); S.moved = now(); while (v !== S.velX) { S.velX += Math.sign(v - S.velX); setV(S.velX); } }          // 一格一格地过：每个整数都拍到
+    function velMove(p) { if (S.held !== 'vel' || S.step !== 's2' || !p) return; const v = clamp(Math.round(p.x), -3, 3); S.moved = now(); while (v !== S.velX) { S.velX += Math.sign(v - S.velX); setV(S.velX); } }          // 一格一格地过：每个整数都拍到
     function velUp() { if (S.held === 'vel') S.held = ''; }
     function setV(v) { const fromX = S.vAnim ? S.vAnim.x : carX(); S.v = v; if (v !== 0) S.face = v > 0 ? 1 : -1; S.vAnim = { t0: now(), fromX, toX: v * S.t, fromZ: S.zCar, toZ: laneOf(v, S.zCar), x: fromX }; record(v, 3); layout(); }
     const drags = [
@@ -517,7 +518,7 @@ export default {
         // 一下子：七条跳同时落到摄影机前
         if (S.fam && S.famReveal) { const k = clamp((t - S.famReveal) / 1.3, 0, 1); layout();
           if (k >= 1) { S.famReveal = 0; if (!S.famLanded) { S.famLanded = true; S.punchAt = t; flash(V3(0, LY + 0.05, ZE), GOLD, 0.4, 1.7); later(110, () => flash(V3(0, LY + 0.05, ZE), BLUE, 0.8, 2.3)); sfx.ding(1319, { gain: 0.06 }); later(160, () => sfx.ding(1760, { gain: 0.05 }));
-            caption('往东开的从西边来，往西开的从东边来', '再开 3 秒，七辆车同时到摄影机'); } } }
+            if (!S.met) caption('速度为 0 的车一直停在 0', '时间是 c，位置就是 0 × c = 0'); } } }
         // 影子车淡进淡出
         let gl = false; for (const gh of ghosts) { if (t < gh.delay) continue; const o = gh.op + (gh.fadeTo - gh.op) * Math.min(1, dt * 5); if (Math.abs(o - gh.op) > 1e-4) { gh.op = Math.abs(o - gh.fadeTo) < 0.004 ? gh.fadeTo : o; gl = true; } if (gh.fadeTo === 0 && gh.op === 0) gh.on = false; }
         if (gl) layout();
@@ -531,6 +532,7 @@ export default {
         for (const c of crowns) { c.m.rotation.z = 0.018 * Math.sin(t * 0.9 + c.ph); c.m.rotation.x = 0.012 * Math.sin(t * 0.7 + c.ph * 1.3); }
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
+        if (cap.time != null && (S.t !== cap.time || S.v !== cap.speed || S.vAnim)) capMesh.material.opacity = 0;
         // 新线一笔画出来
         for (const L of lineMeshes) if (L.anim) { if (t < L.anim.t0) continue; const k = clamp((t - L.anim.t0) / L.anim.dur, 0, 1), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2; L._draw(L.pts ? partial(L.pts, Math.max(0.002, e)) : null); if (k >= 1) { L.anim = null; L._draw(L.pts); } }
         // 重拍：一圈短光线往外迸
@@ -541,7 +543,7 @@ export default {
         carDot.scale.setScalar(0.62 * (1 + 0.5 * Math.max(0, 1 - (t - (S.punchAt || -9)) / 0.9)));
         // 卡住很久才给提示（不拦着人）
         if (!S.held && !S.done && S.hint < 1 && t - S.stepAt > 15 && t - S.moved > 4) {
-          const H1 = { s1: ['车开到摄影机以前，在哪儿？', '转一转摄影机侧面的摇把：逆时针是往回放'], s2: ['速度变成 0、再变成负的，车往哪边开？', '拖蓝点往摄影机那边挪'], s3: ['车头朝西，倒着放时它往哪边退？', '逆时针转摇把，往回放'], fam: ['七辆车什么时候在同一个地方？', '转摇把往前放'] }[S.step];
+          const H1 = { s1: ['车开到摄影机以前，在哪儿？', '转一转摄影机侧面的摇把：逆时针是往回放'], s2: ['速度变成 0、再变成负的，车往哪边开？', '拖蓝点往摄影机那边挪'], s3: ['车头朝西，倒着放时它往哪边退？', '逆时针转摇把，往回放'], fam: ['什么时候所有车的位置坐标都是 0？', '转摇把往前放'] }[S.step];
           if (H1) { S.hint = 1; caption(...H1); } }
       },
       debug: {
