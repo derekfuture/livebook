@@ -7,7 +7,6 @@ import {
   R,
   RIM,
   HALF,
-  LEVEL,
   HOME,
   V,
   PAPER_TIP,
@@ -31,10 +30,11 @@ import {
 import { micro } from './kit/microworld.js';
 import { h } from '../ui/Panel.js';
 
-const INTRO = '提起小烧杯，把杯嘴对准 U 形管口并停住，倒入质量分数为 25% 的氯化铜溶液。';
+const INTRO = '提起装有 25% 氯化铜溶液（质量分数）的烧杯，把杯嘴对准 U 形管口，按住直到烧杯倒空。';
+const PARTIAL = '烧杯里还有溶液，继续倒完。';
 const STEPS = [
   ['fill', '注入溶液', INTRO],
-  ['rods', '插入石墨棒', '把两根石墨棒分别向下拖，让棒端浸入两边的溶液。'],
+  ['rods', '插入石墨棒', '把接负极的石墨棒拖入左管，接正极的拖入右管，让棒端浸入溶液。'],
   ['strip', '放湿润试纸', '把湿润的碘化钾淀粉试纸拖到接电源正极的石墨棒旁，纸端搭在管口。'],
   ['power', '接通直流电源', '戴好护目镜，开启排风，再点开关通电，观察两极和试纸。'],
 ];
@@ -42,8 +42,8 @@ const RESULT = '接负极的石墨棒上析出红色的铜，接正极的石墨�
 const BLUE = '湿润的碘化钾淀粉试纸在正极侧变蓝。';
 const HINTS = [
   '提起烧杯，把杯嘴对准管口',
-  '向下拖接负极的石墨棒',
-  '向下拖接正极的石墨棒',
+  '把接负极的石墨棒拖入左管',
+  '把接正极的石墨棒拖入右管',
   '拖动湿润的碘化钾淀粉试纸',
 ];
 const waitForRods = '先将两根石墨棒分别插入氯化铜溶液。';
@@ -125,10 +125,8 @@ export default {
       pos.y = clamp(p.y, i === 0 ? HOME[0].y : i === 3 ? HOME[3].y : HALF + 0.002, 0.197);
       if (i === 0) {
         // 杯嘴是支点。只在杯嘴真正位于开口上方时才倾倒。
-        const nearest = Math.min(...X.map((x) => Math.abs(p.x - x)));
-        const radial = Math.hypot(nearest, p.z);
-        const above = p.y >= RIM && p.y <= RIM + 0.025;
-        const tip = above ? clamp((R - radial) / 0.004, 0, 1) : 0;
+        const distance = Math.min(...X.map((_, side) => pos.distanceTo(pourAt(side))));
+        const tip = clamp(1 - distance / 0.006, 0, 1);
         S.tilt = tip * 1.6;
       }
       if (i === 3 && S.side >= 0 && paperSide(pos) !== S.side) setPaperSide(-1);
@@ -144,20 +142,21 @@ export default {
         if (S.power) bar.say('观察正极侧试纸的颜色变化。', 'power');
       } else bar.undo('strip');
     }
-    function release(i, moved) {
+    function release(i, moved, zone) {
       S.grip = -1;
       if (!moved) return;
-      const p = S.pos[i];
       if (i === 0) {
         returnTo(i, HOME[0]);
-        if (S.fill < 1) say('将杯嘴贴近 U 形管的开口上方，让溶液流入。');
+        if (S.fill > 0 && S.fill < 1) {
+          say(PARTIAL);
+          if (!S.demo) bar.say(PARTIAL, 'fill');
+        } else if (!S.fill) say('将杯嘴贴近 U 形管的开口上方，让溶液流入。');
         return;
       }
       if (i === 3) {
-        const side = paperSide(p);
+        const side = zone ? zone.side : -1;
         setPaperSide(side);
         if (side >= 0) {
-          returnTo(i, V(p.x, RIM + 0.002, PAPER_Z));
           say(side === 1 ? '试纸已放在接正极的石墨棒旁。' : '试纸现在靠近接负极的石墨棒。');
         } else {
           returnTo(i, HOME[3]);
@@ -165,19 +164,18 @@ export default {
         }
         return;
       }
-      const side = i - 1,
-        bottom = p.y - HALF;
-      if (S.fill === 1 && Math.abs(p.x - X[side]) < R - 0.006 && bottom < LEVEL - 0.008 && bottom >= 0.047) {
+      const side = i - 1;
+      if (zone) {
         S.wet[side] = true;
-        returnTo(i, V(X[side], p.y));
         if (S.wet.every(Boolean)) {
           done('rods');
           record('rods', '两棒入液', '石墨棒均为黑色');
           say('两根石墨棒都已浸入溶液。');
-        } else say('一根石墨棒已入液，把另一根也向下拖。');
+        } else say('一根石墨棒已入液，把另一根插入另一侧管口。');
       } else {
         returnTo(i, HOME[i]);
-        say(S.fill < 1 ? '先向 U 形管注入氯化铜溶液。' : '让石墨棒的下端沿管口伸到液面以下。');
+        if (S.fill < 1) say(S.fill > 0 ? PARTIAL : INTRO);
+        else say('让石墨棒的下端沿管口伸到液面以下。');
       }
     }
     function toggle() {
@@ -195,6 +193,12 @@ export default {
       picks.map((obj, i) => ({
         obj,
         anchor: objects[i],
+        dropOffset: i === 3 ? V(-PAPER_TIP, 0) : i ? V(0, -HALF) : undefined,
+        dropzones: X.flatMap((x, side) => {
+          if (i === 0) return [{ name: '管口', position: pourAt(side), radius: 0.03 }];
+          if (i === 3) return [{ name: '管口', side, position: V(x, RIM + 0.002, PAPER_Z), radius: 0.028, enabled: () => S.wet[side] }];
+          return side === i - 1 ? [{ name: '液面下', position: dipAt(side).sub(V(0, HALF)), radius: 0.033, enabled: () => S.fill === 1 }] : [];
+        }),
         keepOffset: true,
         plane: 'xy',
         offset: HOME[i].z,
@@ -202,18 +206,18 @@ export default {
         hint: () => (enabled(i) ? HINTS[i] : ''),
         onStart() {
           S.grip = i;
-          S.returns[i] = null;
         },
         onDrag(p) {
+          S.returns[i] = null;
           dragItem(i, p);
           rig.draw(S);
         },
-        onEnd(moved) {
-          release(i, moved);
+        onEnd(moved, zone) {
+          release(i, moved, zone);
         },
       })),
       {
-        tip: tag('', 'pill'),
+        tip: tag('', 'pill cucl2-tool-hint'),
         taps: [
           {
             obj: rig.sw,
@@ -260,11 +264,13 @@ export default {
           label: '老师演示',
           seal: '演示',
           onStart() {
+            drag.clearDropzones();
             sb.onStart();
             document.body.classList.add('cucl2-demo');
             mic.close();
           },
           onEnd() {
+            drag.clearDropzones();
             mic.close();
             sb.onEnd();
             document.body.classList.remove('cucl2-demo');
@@ -291,7 +297,7 @@ export default {
             { cap: STEPS[3][2], dur: 5, during: act.tap(rig.sw, 0.14) },
             {
               cap: '追踪两极附近的离子和电子。',
-              dur: 11,
+              dur: 12,
               cam: [[0, MICRO_AT[1] + 0.05, 0], MICRO_DIR, 0.32],
               enter: () => mic.open(true),
             },
@@ -306,12 +312,12 @@ export default {
       group,
       scene,
       at: () => V(...MICRO_AT),
-      btnAt: () => V(0, 0.009, 0.047),
+      btnAt: () => V(0, 0.027, 0.014),
       bar: () => bar,
       state: () => ({ running: S.power, charge: S.charge }),
       key: () => String(S.power),
       show: () => S.wet.every(Boolean),
-      label: '钻进去看',
+      label: '钻进 U 形管里看',
       lookD: MICRO_DIR,
       dist: 0.32,
       scale: 0.011,
@@ -332,7 +338,7 @@ export default {
       'button',
       {
         onclick: () => {
-          scene.replay(S.charge);
+          scene.replay();
         },
       },
       '重看',
@@ -344,6 +350,7 @@ export default {
       {},
       `
       .cucl2-lesson #panel .answer .src {min-height:48px;padding-right:55px;margin-bottom:0}
+      body.cucl2-lesson.predicting .tag3d.cucl2-tool-hint {visibility:visible!important}
       .cucl2-lesson #panel .seal-stamp {width:43px;height:43px;font-size:16px;bottom:12px;right:14px}
       .cucl2-safety {border-left:2px solid #a77937;padding-left:8px}
       .cucl2-demo #panel {visibility:hidden}
@@ -377,14 +384,14 @@ export default {
     document.head.append(style);
     function advance(dt) {
       S.returns.forEach((r, i) => {
-        if (!r) return;
+        if (!r || S.grip === i) return;
         r.elapsed += dt;
         const t = clamp(r.elapsed / 0.39, 0, 1);
         S.pos[i].lerpVectors(r.p, r.to, t);
         if (i === 0) S.tilt = r.tilt * (1 - t);
         if (t === 1) S.returns[i] = null;
       });
-      if (S.grip === 0) S.fill = Math.min(1, S.fill + dt * S.tilt / 1.6);
+      if (S.grip === 0 && !S.returns[0]) S.fill = Math.min(1, S.fill + dt * S.tilt / 1.6);
       if (S.fill === 1 && !S.seen.fill) {
         done('fill');
         record('fill', '注入溶液', '两边液面相平');
@@ -418,6 +425,7 @@ export default {
     function reset() {
       gen++;
       if (bar.playing) bar.stop();
+      drag.clearDropzones();
       mic.close();
       S = fresh();
       rig.draw(S);
@@ -468,11 +476,12 @@ export default {
       reset,
       update(dt) {
         const k = bar.update(dt);
+        drag.update(dt * k);
         advance(Math.min(dt, 0.08) * k);
         rig.draw(S);
         const stage = S.charge > 0 ? (S.power ? '冒气泡' : '留有铜层') : '液面相平';
         const info =
-          S.charge > 0 ? (S.blue > 0.65 ? '试纸在正极侧变蓝' : S.power ? '负极侧覆铜' : '电源已断开') : '尚未通电';
+          S.charge > 0 ? (S.blue > 0.65 ? '试纸已变蓝' : S.power ? '负极侧覆铜' : '电源已断开') : '尚未通电';
         card
           .text(
             '<div class="cc"><div class="cc-t"><span class="cc-name">U 形管</span><span class="cc-res">' +

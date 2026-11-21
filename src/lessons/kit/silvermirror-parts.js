@@ -1,9 +1,9 @@
 // 图 3-17。试管模型的原点在圆底，滴管模型的原点在尖端。
 import * as THREE from 'three';
 import { chemBeaker, glassMat, testTube, tubeRack } from './chem.js';
-import { tubeLiquid } from './chemfx.js';
+import { tubeLiquid, water2 } from './chemfx.js';
 import { dropBottle } from './labops.js';
-import { faceLabel, groundLabel } from './labels.js';
+import { faceLabel } from './labels.js';
 import { clamp } from './interact.js';
 
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -70,42 +70,101 @@ function lining(tube) {
   return growth => { film.visible = growth > 0; material.uniforms.growth.value = growth; };
 }
 
-export function bench(group) {
+const ink = { color: '#263e46', stroke: '#fff', opacity: 1 };
+const barrelBase = 0.018, barrelRange = 0.024;
+
+// A longitudinal section of the concave surface, revolved around the pipette axis.
+function pipetteFill(g, measured) {
+  const radius = measured ? 0.0036 : 0.00165;
+  const base = measured ? barrelBase : 0, height = measured ? barrelRange : 0.016;
+  const water = water2({ color: 0xc3dade, base: 0.65 });
+  const column = part(g, new THREE.CylinderGeometry(radius, measured ? radius : 0.00075, 1, 24, 1, true), water);
+  const profile = [[radius, 0], [radius, 0.0012], [radius * 0.84, 0.00022], [radius * 0.55, 0.00004], [0, 0]];
+  const surface = part(g, new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), 32), water);
+  if (measured) {
+    const line = [-1, -0.84, -0.55, 0, 0.55, 0.84, 1].map(x =>
+      V(radius * x, 0.0012 * Math.abs(x) ** 5, radius * Math.sqrt(1 - x * x)));
+    const edge = part(surface, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(line), 32, 0.00009, 6, false), mat(0x4c6c76));
+    edge.renderOrder = 10;
+  }
+  const stem = measured ? part(g, new THREE.CylinderGeometry(0.00165, 0.00065, base, 16), water, V(0, base / 2)) : null;
+  return fraction => {
+    const h = height * fraction;
+    column.visible = surface.visible = fraction > 0.001;
+    column.position.y = base + h / 2; column.scale.y = Math.max(0.00001, h);
+    surface.position.y = base + h;
+    if (stem) stem.visible = column.visible;
+  };
+}
+
+function graduations(g) {
+  const dark = mat(0x38494e);
+  for (let i = 0; i <= 10; i++) {
+    const major = i % 5 === 0, y = barrelBase + barrelRange * i / 10;
+    const width = major ? 0.0029 : 0.0016;
+    part(g, new THREE.BoxGeometry(width, 0.00020, 0.00013), dark, V(-0.0044 + width / 2, y, 0.0045));
+    if (major) faceLabel(g, ['0', '0.5', '1 mL'][i / 5], { ...ink, x: -0.0079, y, z: 0.0045, h: 0.0034 });
+  }
+}
+
+export function bench(group, tag) {
+  const plates = [];
+  function nameplate(obj, text, y, z) {
+    const plate = tag(text, 'silver-name').loc(obj, 0, y, z);
+    plates.push(plate);
+    return plate;
+  }
   const rack = tubeRack({ h: RACK, r: R + 0.0028, w: 0.041, d: 0.043 });
   rack.position.x = X; group.add(rack);
+  nameplate(rack, '试管架', 0.004, 0.022);
   const tube = testTube({ r: R, len: LEN }); group.add(tube);
   const tubePick = pick(tube, R + 0.003, 0.066, 0.052);
-  const liquid = tubeLiquid({ R: R - 0.00015, yc: R + 0.0008, top: LEN, base: 0.30, specks: 75, speck: 0.00066 });
+  const tubeName = nameplate(tube, '洁净试管', 0.060, R);
+  const liquid = tubeLiquid({ R: R - 0.00015, yc: R + 0.0008, top: LEN, base: 0.40, specks: 75, speck: 0.00066 });
   tube.add(liquid);
+  // Shear the upper cylindrical section only; the round bottom stays against the glass.
+  let lastGeometry, lastTilt;
+  function levelSurface(tilt) {
+    const geo = liquid.milk.geometry;
+    if (!liquid.milk.visible || (geo === lastGeometry && tilt === lastTilt)) return;
+    const profile = geo.parameters.points;
+    const top = profile[profile.length - 1].y, pos = geo.attributes.position;
+    if (top < R + 0.002) return;
+    if (geo !== lastGeometry) {
+      geo.userData.surface = [];
+      for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getY(i) - top) < 0.00001) geo.userData.surface.push(i);
+    }
+    for (const i of geo.userData.surface) pos.setY(i, top - pos.getX(i) * Math.tan(tilt));
+    pos.needsUpdate = true; lastGeometry = geo; lastTilt = tilt;
+  }
   const film = lining(tube);
   const bath = chemBeaker({ r: 0.031, h: RIM, level: WATER, marks: false, color: 0xe2eef0 });
   group.add(bath); bath.position.x = BX;
-  groundLabel(bath, '热水浴', { z: 0.041, h: 0.011, color: '#79452b', opacity: 1 });
+  nameplate(bath, '烧杯 · 热水', 0.009, 0.032);
   const pipettes = HOMES.map((home, id) => {
     const bottle = dropBottle(group, V(home.x, 0), { brown: id === 0, r: 0.0155 });
-    faceLabel(bottle, NAMES[id], { y: 0.022, z: 0.0155, h: 0.0087, color: '#243543', stroke: '#fff' });
+    nameplate(bottle, '滴瓶 · ' + NAMES[id], 0.020, 0.0155);
     bottle.fill.scale.y = 1.5; bottle.fill.position.y = 0.019;
     const g = new THREE.Group(); group.add(g);
     const stem = part(g, new THREE.CylinderGeometry(0.0025, 0.0009, 0.019, 16), glassMat({ opacity: 0.48 }), V(0, 0.0095));
     stem.renderOrder = 9;
-    const fluid = part(g, new THREE.CylinderGeometry(0.0016, 0.0007, 0.014, 16), mat(0xaabdc1), V(0, 0.007));
     const neck = id === 0 ? 0.029 : 0;
     if (id === 0) {
-      const barrel = part(g, new THREE.CylinderGeometry(0.0043, 0.0038, neck, 24), glassMat({ opacity: 0.4 }), V(0, 0.017 + neck / 2));
-      barrel.renderOrder = 9;
-      fluid.geometry.dispose();
-      fluid.geometry = new THREE.CylinderGeometry(0.0035, 0.0034, 0.0268, 24);
-      fluid.position.y = 0.031;
-      faceLabel(g, '1 mL', { y: 0.036, z: 0.0043, h: 0.0047, color: '#344751', stroke: '#fff' });
+      const barrel = part(g, new THREE.CylinderGeometry(0.0043, 0.0038, neck, 24), glassMat({ opacity: 0.35 }), V(0, 0.017 + neck / 2));
+      barrel.renderOrder = 9; graduations(g);
     }
+    const fill = pipetteFill(g, id === 0);
     const rubber = mat(0x9b4f42);
     part(g, new THREE.CylinderGeometry(0.006, 0.006, 0.004, 24), rubber, V(0, 0.018 + neck));
     part(g, new THREE.SphereGeometry(0.0058, 24, 16), rubber, V(0, 0.028 + neck)).scale.y = 1.65;
-    return { g, fluid, pick: pick(g, 0.0078, 0.026, 0.027 + neck) };
+    nameplate(g, '滴管 · ' + NAMES[id], 0.029 + neck, 0.006);
+    return { g, fill, pick: pick(g, 0.0078, 0.026, 0.027 + neck) };
   });
   const drop = part(group, new THREE.SphereGeometry(0.002, 18, 12), mat(0xa2b8c0));
   drop.scale.y = 1.45; drop.renderOrder = 11;
-  return { tube, tubePick, liquid, film, pipettes, drop };
+  const stream = part(group, new THREE.CylinderGeometry(0.00075, 0.00062, 1, 12), water2({ color: 0xc3dade, base: 0.80 }));
+  stream.scale.y = 0.0001; stream.renderOrder = 11;
+  return { tube, tubePick, liquid, levelSurface, tubeName, plates, film, pipettes, drop, stream };
 }
 
 const ELEMENT = { C: [0x3d4350, 0.40], O: [0xe0483a, 0.36], H: [0xf2f1ec, 0.24], Ag: [0xe9ecf1, 0.66], N: [0x4a78d8, 0.36] };

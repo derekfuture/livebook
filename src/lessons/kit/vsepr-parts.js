@@ -81,8 +81,8 @@ function arc(directions, r) {
   const points = Array.from({ length: 46 }, (_, i) => a.clone().applyAxisAngle(normal, theta * i / 45).multiplyScalar(r));
   return new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: 0x297f79 }));
 }
-// 在模型坐标中比较五个球对相机张开的角度，避免把被遮住的氢算作已看清。
-export function clearTetraView(m, hub, camera) {
+// 在模型坐标中比较各个球对相机张开的角度，避免把被遮住的氢算作已看清。
+export function clearBaseView(m, hub, camera) {
   const eye = hub.worldToLocal(camera.getWorldPosition(V()));
   const points = [V(), ...m.dirs.map(d => d.clone().multiplyScalar(lengthOf(m)))];
   if (Math.abs(eye.y - points[1].y) / eye.distanceTo(points[1]) < 0.25) return false;
@@ -100,14 +100,12 @@ export function makeRig(m) {
     const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([dir.clone().multiplyScalar(radius(m.center)), end]),
       new THREE.LineDashedMaterial({ color: 0x617b79, dashSize: 0.002, gapSize: 0.002, transparent: true, opacity: 0.75 }));
     line.computeLineDistances();
-    const guide = new THREE.Mesh(new THREE.SphereGeometry(radius(m.outer) * 0.8, 18, 12),
-      new THREE.MeshBasicMaterial({ color: 0x5e8987, transparent: true, opacity: 0.2, depthWrite: false }));
-    guide.position.copy(end); root.add(line, guide); hub.add(root); return root;
+    root.add(line); hub.add(root); return root;
   });
   const pieces = guides.map(() => { const b = branch(m, true); b.userData.track = true; frame.add(b); return b; });
   const angle = arc(m.dirs, lengthOf(m) * 0.52); hub.add(angle);
   let face;
-  if (m.dirs.length === 4) {
+  if (m.dirs.length >= 3) {
     // 辅助面只连三个氢的位置，不在氢之间画成键线。
     const vertices = m.dirs.slice(0, 3).map(d => d.clone().multiplyScalar(lengthOf(m)));
     face = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints(vertices),
@@ -133,7 +131,6 @@ export function sheet(m) {
   }
   g.fillStyle = '#314a4a'; g.font = 'bold 66px Georgia, serif'; g.fillText(m.formula, 48, 699);
   g.font = '34px sans-serif'; g.fillText(m.pm + ' pm   /   ' + m.angle, 48, 757);
-  g.fillStyle = '#43584e'; g.font = '37px sans-serif'; g.fillText('黏土与牙签', 887, 748);
   const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
   const mat = new THREE.Mesh(new THREE.PlaneGeometry(0.33, 0.185), new THREE.MeshStandardMaterial({ map, roughness: 1 }));
   mat.rotation.x = -Math.PI / 2; mat.position.y = 0.0013; mat.receiveShadow = true;

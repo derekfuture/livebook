@@ -37,7 +37,7 @@ export default {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
     paperSheet(group, { w: 0.31, d: 0.14, z: 0.008 });
-    const bench = apparatus(group), { tube, tubePick, droppers, falling, liquid } = bench;
+    const bench = apparatus(group, tag), { tube, tubePick, droppers, falling, liquid } = bench;
     const tools = [...droppers.map((d) => d.body), tube];
     const picks = [...droppers.map((d) => d.pick), tubePick];
     const home = [...droppers.map((d) => d.home), V(TX, BASE)];
@@ -73,7 +73,7 @@ export default {
         note('三次滴加的现象已记下，可以掀开课本结论。');
       } else note(TODOS[S.stage]);
     };
-    const aimed = (p) => Math.hypot(p.x - TX, p.z) < RADIUS - 0.001 && p.y >= BASE + LENGTH + 0.002 && p.y <= AIM.y + 0.019;
+    const aimed = (p) => p.distanceToSquared(AIM) < 0.001 ** 2;
     const dispense = () => {
       const i = S.held;
       if (i == null || i === TUBE || S.stage !== i * 2 || S.returning[TUBE] || S.fall || S.dripClock > 0 || !aimed(S.pos[i])) return;
@@ -84,17 +84,20 @@ export default {
       if (i === TUBE && S.fall) return;
       S.returning[i] = null;
       S.held = i;
-      if (i === TUBE) S.shake = { direction: 0, extreme: TX, turned: false };
+      if (i === TUBE) S.shake = { direction: 0, extreme: TX, turned: false, lifted: false, peak: BASE, inbound: false };
     };
     const move = (i, p) => {
       if (S.held !== i || !p) return;
       const pos = S.pos[i];
       if (i === TUBE) {
-        const y = clamp(p.y, BASE, BASE + 0.068);
+        // 偏在架孔外时，管底先停在架圈上方，移到孔口才能往下放。
+        const aboveRack = pos.y >= LIFT && Math.abs(p.x - TX) > 0.003;
+        const y = clamp(p.y, aboveRack ? LIFT : BASE, BASE + 0.068);
         const clear = y >= LIFT;
         const x = clear ? clamp(p.x, TX - 0.039, TX + 0.035) : TX;
         const sh = S.shake;
         if (clear) {
+          sh.lifted = true;
           if (!sh.direction && Math.abs(x - TX) > 0.005) { sh.direction = Math.sign(x - TX); sh.extreme = x; }
           if (sh.direction * (x - sh.extreme) > 0) sh.extreme = x;
           if (sh.direction * (sh.extreme - x) > 0.009) sh.turned = true;
@@ -108,7 +111,6 @@ export default {
         // 瓶内只能竖直提。管尖从侧面碰到试管壁时停在壁外。
         if (y < 0.047 && Math.abs(pos.x - home[i].x) < 0.003) x = home[i].x;
         if (y < BASE + LENGTH + 0.002 && Math.abs(x - TX) < RADIUS + 0.002) {
-          if (aimed(pos)) { pos.y = BASE + LENGTH + 0.002; return; }
           x = TX + (pos.x >= TX ? 1 : -1) * (RADIUS + 0.002);
         }
         pos.set(x, y, 0);
@@ -117,24 +119,41 @@ export default {
       }
       tools[i].position.copy(pos);
     };
-    const release = (i) => {
+    const release = (i, docked) => {
       if (S.held !== i) return;
       if (i === TUBE && (S.stage === 1 || S.stage === 3)) {
-        if (S.shake.turned) {
+        if (S.shake.turned && docked) {
           if (!S.demo) W.tbl.add(['振荡试管', observed(S.counts)]);
           complete(); note(TODOS[S.stage]);
-        } else note(SHAKE);
+        } else note(S.shake.turned ? '再提起试管轻摇，把管底对准架孔后松手。' : SHAKE);
       }
       S.held = null; S.shake = null;
+      if (i === TUBE && docked) return;
       S.returning[i] = { i, from: S.pos[i].clone(), tilt: S.tilt, t: 0 };
     };
+    let aboveRim = false;
     const items = tools.map((obj, i) => ({
       obj: picks[i], anchor: obj, keepOffset: true, hint: () => mic.isOpen ? '' : i === TUBE ? SHAKE : dropHint(i),
-      enabled: () => !mic.isOpen,
-      onStart: () => start(i), onDrag: (p) => move(i, p), onEnd: () => release(i),
+      enabled: () => !mic.isOpen && (i !== TUBE || !S.fall),
+      dropzones: i === TUBE
+        ? [{ name: '试管架', position: home[TUBE], radius: LIFT - BASE + 0.003, enabled: () => !!S.shake?.inbound }]
+        : [{ name: '试管口', position: AIM, radius: 0.030, enabled: () => aboveRim && !S.returning[TUBE] }],
+      onStart: () => { aboveRim = false; start(i); }, onDrag: (p) => move(i, p), onEnd: (_moved, zone) => release(i, zone),
     }));
-    const aimTip = tag('', 'pill');
     const drag = draggable(group, items, { tip: tag('', 'pill') }), act = demoActs(drag, group);
+    drag.items().forEach((item, index) => {
+      const checkApproach = (raw) => {
+        if (!raw) return;
+        if (index !== TUBE) { aboveRim = raw.y > BASE + LENGTH; return; }
+        const shake = S.shake;
+        if (!shake) return;
+        if (raw.y >= shake.peak) { shake.peak = raw.y; shake.inbound = false; }
+        else if (shake.lifted && raw.y < shake.peak - 0.0015) shake.inbound = true;
+      };
+      const { onDrag, onEnd } = item;
+      item.onDrag = (raw, origin) => { checkApproach(raw); onDrag(raw, origin); };
+      item.onEnd = (moved, cancelled, raw) => { checkApproach(raw); onEnd(moved, cancelled, raw); };
+    });
     const returnStep = (r, dt) => {
       if (!r) return;
       const i = r.i, p = S.pos[i], dest = home[i];
@@ -166,29 +185,22 @@ export default {
     const WHITE = 0xf9f8f3, YELLOW = 0xf4cd42;
     const paintBench = () => {
       tools.forEach((obj, i) => obj.position.copy(S.pos[i]));
+      bench.plates.forEach((plate) => plate.show(!mic.isOpen));
       tube.rotation.z = S.tilt;
       const [ag, iodide, sulfide] = S.counts;
       const ink = iodide >= ag ? YELLOW : iodide ? 0xffe6a1 : WHITE;
       const top = level(S.counts);
-      liquid.setLevel(top).setMilk(ag && !sulfide ? S.swirl * 0.54 : 0, ink);
+      bench.levelSurface(top, S.tilt);
+      liquid.setMilk(ag && !sulfide ? S.swirl * 0.54 : 0, ink);
       bench.drawFlocs(S.counts, S.swirl, top, S.swirlTime, S.contactX);
       droppers.forEach((d, i) => d.fill(DOSE[i] - S.counts[i] - (S.fall?.i === i ? 1 : 0)));
-      const aiming = S.held != null && S.held !== TUBE && !S.demo && !mic.isOpen && S.stage === S.held * 2;
-      bench.aimRing.visible = aiming;
-      aimTip.show(aiming);
-      if (aiming) {
-        const ready = aimed(S.pos[S.held]);
-        bench.aimRing.material.color.setHex(ready ? 0x23765a : 0xb36526);
-        aimTip.loc(group, TX + 0.031, AIM.y + 0.006, 0)
-          .text(ready ? '已对准，按住滴加' : '让管尖靠近管口，悬在圈的正上方');
-      }
       falling.visible = !!S.fall;
       if (S.fall) falling.position.set(S.fall.x, S.fall.top - 1.25 * S.fall.t ** 2, 0);
       card.text('<div class="cc"><div class="cc-t"><span class="cc-name">试管里</span><span class="cc-res">' + observed(S.counts) + '</span></div></div>')
-        .loc(group, innerWidth <= 760 ? TX + 0.020 : TX - 0.030, innerWidth <= 760 ? 0.083 : 0.033, 0.018).show(!S.demo && !mic.isOpen && S.held !== TUBE);
+        .loc(group, innerWidth <= 760 ? TX + 0.052 : TX - 0.030, innerWidth <= 760 ? 0.104 : 0.033, 0.018).show(!S.demo && !mic.isOpen && S.held !== TUBE);
     };
     const pour = (i, dur) => act.path(picks[i], [home[i], V(home[i].x, AIM.y), AIM], { t0: 0.025, t1: 1.3 / dur, release: 1 - 0.5 / dur });
-    const shakePath = [home[TUBE], V(TX, LIFT + 0.012), V(TX - 0.012, LIFT + 0.012), V(TX + 0.012, LIFT + 0.012), V(TX - 0.010, LIFT + 0.012)];
+    const shakePath = [home[TUBE], V(TX, LIFT + 0.012), V(TX - 0.012, LIFT + 0.012), V(TX + 0.012, LIFT + 0.012), V(TX - 0.010, LIFT + 0.012), V(TX, LIFT + 0.012), home[TUBE]];
     const shake = () => act.path(tubePick, shakePath, { t0: 0.04, t1: 0.7, release: 0.74 });
     const sb = sandbox({ get: () => S, set: (s) => { S = s; }, fresh,
       view: { save: () => mic.isOpen ? scene.save() : null, restore: (v) => { scene.restore(v); mic.open(); } },
@@ -198,7 +210,7 @@ export default {
       steps: STAGES.map((id, j) => ({ id, title: TITLES[j], todo: TODOS[j],
         target: () => S.held != null || S.returning[j % 2 ? TUBE : j / 2] || mic.isOpen ? null : tools[j % 2 ? TUBE : j / 2] })),
       reels: { demo: { label: '老师演示', seal: '演示',
-        onStart() { sb.onStart(); mic.close(); }, onEnd() { mic.close(); sb.onEnd(); },
+        onStart() { drag.clearDropzones(); sb.onStart(); mic.close(); }, onEnd() { drag.clearDropzones(); mic.close(); sb.onEnd(); },
         shots: [
           { cap: TODOS[0], dur: 3.5, during: pour(0, 3.5) },
           { cap: SHAKE, dur: 2.8, during: shake() },
@@ -214,31 +226,32 @@ export default {
     });
     [...document.querySelectorAll('.lbar')].pop().dataset.pptconvert = '';
     const mic = micro({ tag, look, back, group, scene, bar: () => bar, at: MICRO_AT,
-      label: '钻进去看', btnAt: () => V(innerWidth <= 760 ? TX + 0.026 : TX - 0.029, 0.019, 0.011), lookD: MIC_CAM[1], dist: MIC_CAM[2], scale: 0.009,
+      label: '钻进试管里看', btnAt: () => V(TX, BASE + LENGTH * 0.84, RADIUS), lookD: MIC_CAM[1], dist: MIC_CAM[2], scale: 0.009,
       show: () => S.counts[0] > 0 && S.held == null && !S.returning.some(Boolean), state: () => ({ counts: S.counts, microTime: S.microTime }),
     });
     const reset = () => {
       if (bar.playing) bar.stop();
-      mic.close(); S = fresh(); paintBench(); W.tbl.clear(); W.review.hidden = true;
+      drag.clearDropzones(); mic.close(); S = fresh(); paintBench(); W.tbl.clear(); W.review.hidden = true;
       W.ui.observePrediction(null); W.ui.relock(); bar.undo(...STAGES); bar.say(null); note(INTRO);
     };
     const qaSteps = [];
     const holdDose = (i) => {
       if (S.counts[i] === DOSE[i]) return;
-      const item = items[i], run = S;
+      const item = drag.items()[i], run = S;
       item.onStart(); item.onDrag(V(home[i].x, AIM.y)); item.onDrag(AIM);
       return new Promise((resolve) => {
         const tick = () => {
           if (run !== S || S.held !== i) return resolve();
           if (S.counts[i] < DOSE[i]) requestAnimationFrame(tick);
-          else { item.onEnd(); resolve(); }
+          else { item.onEnd(true); resolve(); }
         };
         tick();
       });
     };
     for (let i = 0; i < 3; i++) {
       if (i > 0) qaSteps.push({ name: TITLES[i * 2 - 1], run() {
-        items[TUBE].onStart(); shakePath.forEach((p) => items[TUBE].onDrag(p)); items[TUBE].onEnd();
+        const item = drag.items()[TUBE];
+        item.onStart(); shakePath.forEach((p) => item.onDrag(p)); item.onEnd(true);
       } });
       qaSteps.push({ name: NAMES[i] + ' 第一滴', drag: picks[i], to: AIM });
       qaSteps.push({ name: TITLES[i * 2], run: () => holdDose(i), wait: DOSE[i] * 0.55 + 1 });
@@ -248,6 +261,9 @@ export default {
     } }, { name: '钻进去看', run: () => mic.open(), wait: 2, scale: 1 },
     { name: '回到桌上', run: () => mic.close() });
     const style = h('style', {}, `
+      .pptconvert-plate { padding:2px 6px; border-radius:2px; color:#263749; background:#fffaf0ed; font:600 13px/1.15 var(--sans); text-align:center; text-shadow:none; }
+      body.predicting .tag3d.pptconvert-plate { visibility:visible !important; }
+      .pptconvert-plate small { font:inherit; font-weight:400; margin-right:0.4em; }
       [data-pptconvert] .answer .src { padding-right: 3.5rem; }
       [data-pptconvert] .answer .seal-stamp {font-size:18px;width:44px;height:44px;right:9px;bottom:8px;writing-mode:horizontal-tb}
       [data-pptconvert] .big-next:disabled { display:none }
@@ -259,6 +275,10 @@ export default {
       .mw[data-pptconvert] .mw-eq sub, .mw[data-pptconvert] .mw-eq sup { font-size: 65%; line-height: 0; }
       .lbar[data-pptconvert].film { z-index: 59; }
       @media(max-width:760px) {
+        #viewctl { pointer-events:none; }
+        #viewctl button { pointer-events:auto; }
+        .pptconvert-plate { padding:1px 3px; font-size:11px; }
+        .pptconvert-plate small { display:block; margin:0; font-size:10px; }
         .lbar[data-pptconvert] { bottom: 12px; gap: 3px 6px; flex-wrap: wrap; padding: 5px 9px; }
         .lbar[data-pptconvert] .lb-main { flex: 1 1 80%; }
         .lbar[data-pptconvert] .lb-steps { margin-left: auto; }
@@ -279,7 +299,7 @@ export default {
     world.querySelector('.mw-hud').append(playback);
     return {
       group: root, pointer: wrapPointer(drag, bar), card: false, toggles: ['cards', 'steps'],
-      size: { w: 0.24, d: 0.09, h: 0.185 }, view: { elev: 16, azim: 1, lookY: 0.46, frameMargin: 1.10 },
+      size: { w: 0.24, d: 0.09, h: 0.185 }, view: { elev: 16, azim: 1, lookY: 0.46, get frameMargin() { return innerWidth <= 760 ? 1.23 : 1.10; } },
       mount(ui) {
         const review = h('details', { class: 'more', hidden: true }, h('summary', {}, '想一想（选做）'),
           h('p', { class: 'fineprint' }, '没有再加 AgNO₃，形成 AgI 和 Ag₂S 的银离子从哪里来？'));
@@ -294,6 +314,7 @@ export default {
       },
       update(dt) {
         const k = bar.update(dt);
+        drag.update(dt);
         simulate(Math.min(dt, 0.05) * k); paintBench(); mic.update(dt, k);
         if (mic.isOpen) {
           playback.hidden = S.demo;

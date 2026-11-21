@@ -5,7 +5,7 @@ import { draggable } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { demoActs, mountXuean, moreBox, paperSheet, qaFlow, sandbox, wrapPointer } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
-import { V, I, II, AXIS, LEFT, UNIT, gripAt, volumeAt, equilibrium, FORMULA, syringe, pressureScene } from './kit/eqpressure-parts.js';
+import { V, I, II, AXIS, LEFT, UNIT, ROD, faceX, gripAt, volumeAt, equilibrium, FORMULA, syringe, pressureScene } from './kit/eqpressure-parts.js';
 
 const INTRO = '50 mL 注射器已吸入 20 mL NO₂ 和 N₂O₄ 的混合气体，活塞在Ⅰ处，细管端已用橡胶塞封闭。';
 const PULL = '向右拉活塞，让黑色胶头的左边缘对准Ⅱ，看气体颜色。';
@@ -13,9 +13,11 @@ const PUSH = '向左推活塞，让黑色胶头的左边缘对准Ⅰ，再看颜
 const WAIT = '保持活塞位置，观察管内红棕色接下来怎样变化。';
 const AGAIN = '可以反复推拉活塞，比较每次刚移动和停住后的颜色。';
 const compare = d => d > 0.012 ? '变深' : d < -0.012 ? '变浅' : '变化不明显';
-const at = (v, mark) => Math.abs(v - mark) < 0.065;
-const position = v => at(v, I) ? 'Ⅰ' : at(v, II) ? 'Ⅱ' : v < I ? 'Ⅰ左侧' : '两线间';
-const CAM = [[0, 0.096, 0], [0.02, 0.53, 1], 0.36];
+const aligned = (v, mark) => Math.abs(v - mark) < 1e-6;
+const SNAP_RADIUS = 0.018;
+const REVERSAL_VOLUME = 0.12; // 以Ⅰ处容积为单位，从行程最远点累计反向距离。
+const gasCenter = v => LEFT + UNIT * v / 2;
+const CAM = [[gasCenter(I), 0.096, 0], [0.02, 0.53, 1], 0.36];
 
 export default {
   id: 'eqpressure', title: '压强对化学平衡的影响', fig: '实验2-2 · 图2-6', stampText: '实验', style: 'paper',
@@ -36,9 +38,9 @@ export default {
     paperSheet(group, { w: 0.59, d: 0.24, z: 0.004 });
     paperSheet(group, { w: 0.48, d: 0.19, z: 0.004 }).position.y = 0.0008;
     const rig = syringe(group), scene = pressureScene();
-    const card = tag('', 'cond');
+    const card = tag('', 'cond eqpressure-name');
     card.px = [0, -18];
-    const fresh = () => ({ demo: false, v: I, n: 1, held: false, newStroke: true, run: null, serial: 0 });
+    const fresh = () => ({ demo: false, v: I, n: 1, held: false, origin: I, returning: null, newStroke: true, run: null, serial: 0 });
     let S = fresh(), W;
     const draw = () => rig.draw(S.v, S.n);
     draw();
@@ -48,24 +50,37 @@ export default {
       if (S.demo || !S.run) return;
       const r = S.run, c = S.n / S.v;
       const after = r.still < 0.18 ? '—' : compare(c - r.stopC);
-      const cells = [(r.sign > 0 ? '拉至' : '推至') + position(S.v), compare(r.stopC - r.startN / r.startV), after];
+      const cells = [r.auto ? '活塞回位' : r.sign > 0 ? '拉出活塞' : '推入活塞', compare(r.stopC - r.startN / r.startV), after];
       if (W.lastRow === r && W.lastText === cells.join()) return;
       if (W.lastRow === r) W.tbl.set(W.tbl.rows.length - 1, cells);
       else W.tbl.add(cells);
       W.lastRow = r;
       W.lastText = cells.join();
     };
-    const move = p => {
-      if (!S.held || !p) return;
-      const v = volumeAt(p.x), delta = v - S.v;
+    const move = v => {
+      // 忽略胶头已对线后亚像素的吸附尾差，松手不会另起一行记录。
+      if (Math.abs(v - I) < 0.001) v = I;
+      if (Math.abs(v - II) < 0.001) v = II;
+      const delta = v - S.v;
       if (Math.abs(delta) < 1e-6) return;
       const sign = Math.sign(delta);
-      if (S.newStroke || S.run.sign !== sign || S.run.still >= 0.22) {
-        S.run = { sign, startV: S.v, startN: S.n, still: 0, stopC: S.n / S.v, reported: false };
+      const prev = S.run;
+      const reversed = !S.newStroke && (prev.peakV - v) * prev.sign >= REVERSAL_VOLUME;
+      if (S.newStroke || reversed) {
+        const startV = reversed ? prev.peakV : S.v, startN = reversed ? prev.peakN : S.n;
+        if (reversed) {
+          prev.stopC = prev.peakN / prev.peakV;
+          row();
+        }
+        S.run = { sign, auto: Boolean(S.returning), startV, startN, peakV: v, peakN: S.n, still: 0, stopC: startN / startV, reported: false };
         S.newStroke = false;
         S.serial++;
         if (!S.demo) bar.say(null);
-        say(sign > 0 ? '活塞向外拉，管内气体占据的空间变大。' : '活塞向里推，管内气体占据的空间变小。');
+        if (!S.returning) say(sign > 0 ? '活塞向外拉，管内气体占据的空间变大。' : '活塞向里推，管内气体占据的空间变小。');
+      }
+      if ((v - S.run.peakV) * S.run.sign >= 0) {
+        S.run.peakV = v;
+        S.run.peakN = S.n;
       }
       S.v = v;
       S.run.stopC = S.n / v;
@@ -77,13 +92,39 @@ export default {
     const hint = '按住活塞柄，沿针筒左右拖动';
     const drag = draggable(group, [{
       obj: rig.pick, keepOffset: true, anchor: rig.piston, hint: () => mic.isOpen ? '' : hint,
-      enabled: () => !mic.isOpen,
-      onStart() { S.held = true; S.newStroke = true; },
-      onDrag: move,
-      onEnd() { S.held = false; },
+      enabled: () => !mic.isOpen && !S.returning,
+      dropOffset: V(-ROD),
+      dropzones: [[I, 'Ⅰ'], [II, 'Ⅱ']].map(([mark, name]) => ({
+        name, position: V(faceX(mark), AXIS), radius: SNAP_RADIUS,
+        enabled: () => !aligned(S.origin, mark),
+      })),
+      onStart() { S.held = true; S.newStroke = true; S.origin = S.v; },
+      onDrag(p) {
+        if (!S.held) return;
+        const v = volumeAt(p.x);
+        // 进入Ⅰ线的吸附区后，胶头贴线，继续推过热区仍可压到Ⅰ左侧。
+        const catching = aligned(S.origin, II) && Math.hypot(p.x - gripAt(I).x, p.y - AXIS) <= SNAP_RADIUS;
+        move(catching ? Math.max(I, v) : v);
+      },
+      onEnd(moved, zone) {
+        S.held = false;
+        if (!moved || S.newStroke) return;
+        if (zone) S.run.placed = true;
+        else if (!aligned(S.v, S.origin)) {
+          S.returning = { from: S.v, time: 0 };
+          S.newStroke = true;
+          say('胶头还没对准刻线。等活塞回位，再沿针筒拖一次。');
+        }
+      },
     }], { tip: tag('', 'pill eqpressure-grip-tip') });
+    // 公共落点处理接收把手位置。先限制到真实行程，让吸附与松手都使用画面上的筒轴坐标。
+    const pistonDrag = drag.items()[0];
+    const { onDrag, onEnd } = pistonDrag;
+    const onAxis = p => gripAt(volumeAt(p.x));
+    pistonDrag.onDrag = (p, start) => onDrag(onAxis(p), start);
+    pistonDrag.onEnd = (moved, cancelled, p) => onEnd(moved, cancelled, p && onAxis(p));
     const act = demoActs(drag, group);
-    const target = () => !S.held && !mic.isOpen ? rig.handle : null;
+    const target = () => !S.held && !S.returning && !mic.isOpen ? rig.handle : null;
     const restore = sandbox({
       fresh, get: () => S, set(s) { S = s; }, apply: draw,
       view: {
@@ -100,7 +141,7 @@ export default {
       reels: { demo: {
         seal: '演示', label: '老师演示',
         onStart() { restore.onStart(); mic.close(); },
-        onEnd() { mic.close(); restore.onEnd(); },
+        onEnd() { drag.clearDropzones(); mic.close(); restore.onEnd(); },
         shots: [
           { cap: '从Ⅰ拉到Ⅱ，观察气体刚占据更大空间时的颜色。', dur: 2.3, during: demoStroke(I, II) },
           { cap: '活塞停在Ⅱ处，红棕色又逐渐变深。', dur: 3.9 },
@@ -110,16 +151,18 @@ export default {
         ],
       } },
     });
-    const mic = micro({ tag, look, back, group, scene, bar: () => bar, label: '钻进去看',
-      at: () => V(0, 0.046), btnAt: () => V(LEFT + UNIT * S.v / 2, AXIS - 0.016, 0.046),
+    const mic = micro({ tag, look, back, group, scene, bar: () => bar, label: '钻进注射器里看',
+      at: () => V(gasCenter(S.v), 0.046), btnAt: () => V(gasCenter(Math.min(I, S.v)), AXIS - (innerWidth <= 760 ? 0.034 : 0.020), 0.024),
       lookD: CAM[1], dist: CAM[2], scale: innerWidth <= 760 ? 0.010 : 0.0085, key: () => String(S.serial),
-      show: () => Boolean(S.run) && !S.held,
+      show: () => Boolean(S.run) && !S.held && !S.returning,
       state: () => ({ v: S.v, n: S.n, startV: S.run?.startV ?? I, startN: S.run?.startN ?? 1, settled: quiet() }),
     });
     const microEl = [...document.querySelectorAll('.mw')].pop();
     microEl.classList.add('eqpressure-micro');
     const style = h('style', {}, `
-      body.predicting .tag3d.pill.eqpressure-grip-tip { visibility: visible !important; }
+      body.predicting .tag3d.pill.eqpressure-grip-tip,
+      body.predicting .tag3d.eqpressure-name { visibility: visible !important; }
+      .eqpressure-name .cc-name { font-family: system-ui, sans-serif; }
       [data-eqpressure] .big-next:disabled { display: none; }
       [data-eqpressure].in-demo .p-body { visibility: hidden; }
       [data-eqpressure] .answer .formula { font: 600 16px/1.4 system-ui, sans-serif; }
@@ -151,10 +194,10 @@ export default {
       if (quiet()) S.n = goal;
       draw();
       row();
-      if (S.demo || r.reported || r.still < 0.22) return;
+      if (S.demo || S.held || S.returning || r.reported || r.still < 0.22) return;
       const step = bar.current;
       // 初态在Ⅰ；只有在Ⅱ稳定后才进入推回这一步。对线时可以往回微调。
-      const reached = step && at(S.v, step === 'pull' ? II : I);
+      const reached = step && r.placed && aligned(S.v, step === 'pull' ? II : I);
       if (reached && !quiet()) {
         if (!r.waiting) { r.waiting = true; bar.say(WAIT); }
         return;
@@ -164,7 +207,7 @@ export default {
       r.reported = true;
       if (reached) {
         if (step === 'pull') {
-          W.ui.observePrediction(S.serial === 1
+          W.ui.observePrediction(aligned(r.startV, I)
             ? '拉出时' + compare(r.stopC - r.startN / r.startV) + '，停住后' + compare(S.n / S.v - r.stopC) + '。'
             : '这次分段移动了活塞，各段颜色变化见观察记录。可重来，从Ⅰ连续拉到Ⅱ，再和预测对照。');
         }
@@ -175,6 +218,7 @@ export default {
     }
     function reset() {
       if (bar.playing) bar.stop();
+      drag.clearDropzones();
       mic.close();
       S = fresh(); draw();
       W.tbl.clear(); W.lastRow = null; W.lastText = '';
@@ -217,15 +261,26 @@ export default {
       reset,
       update(dt) {
         const k = bar.update(dt);
-        if (k > 0) chemistry(Math.min(0.06, dt) * k);
+        drag.update(k > 0 ? Math.min(dt, 0.08) : 0);
+        if (k > 0) {
+          const tick = Math.min(0.06, dt) * k;
+          if (S.returning) {
+            const r = S.returning;
+            r.time = Math.min(1, r.time + tick / 0.38);
+            move(S.origin + (r.from - S.origin) * (1 - r.time) ** 2);
+            if (r.time === 1) S.returning = null;
+          }
+          chemistry(tick);
+        }
         const c = S.n / S.v;
         const name = c < 0.8 ? '浅红棕色' : c > 1.12 ? '深红棕色' : '红棕色';
         if (lastCard !== name) {
           lastCard = name;
-          card.text('<div class="cc"><div class="cc-t"><span class="cc-name">注射器内</span><span class="cc-res">' + name + '</span></div></div>');
+          card.text('<div class="cc"><div class="cc-t"><span class="cc-name">注射器 · NO₂ 和 N₂O₄</span><span class="cc-res">' + name + '</span></div></div>');
         }
-        card.loc(group, LEFT + UNIT * S.v / 2, AXIS + 0.035, -0.019).show(!S.demo && !mic.isOpen);
+        card.loc(group, gasCenter(S.v), AXIS + 0.035, -0.019).show(!S.demo && !mic.isOpen);
         if (W) W.ui.el.classList.toggle('in-demo', S.demo);
+        rig.volumeLabel.material.opacity = mic.isOpen ? 0.15 : 1;
         mic.update(dt, k);
       },
       dispose() { style.remove(); mic.dispose(); drag.dispose(); bar.dispose(); W?.ui.el.removeAttribute('data-eqpressure'); },

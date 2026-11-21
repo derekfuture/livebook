@@ -139,7 +139,7 @@ export function pourAngle(left) {
 }
 
 const GRIP = 0.076, READY = 0.95;
-export function pouringTube(group, home, name, getSample) {
+export function pouringTube(group, home, name, getSample, yaw = 0) {
   const grip = new THREE.Group();
   grip.position.copy(home); grip.name = name; group.add(grip);
   grip.userData.ringY = 0.068;          // 光圈画在试管架顶上（画在桌面会被架子挡住）
@@ -148,18 +148,22 @@ export function pouringTube(group, home, name, getSample) {
   const upright = tubeLiquid({ R: R_IN, yc: 0.0093, top: T_LEN - 0.012, base: 0.68, specks: 0 });
   const tilted = tiltingLiquid(); tilted.userData.noFrame = true;
   tube.add(upright, tilted);
-  const pick = pickBox(grip, 0.026, 0.062, 0.023, 0, -0.018);
-  const vertical = V(0, 0, 1), rim = V(R_IN, T_LEN - GRIP);
-  const dock = (x, y, angle = READY) => V(x, y + 0.009).sub(rim.clone().applyAxisAngle(vertical, -angle));
-  const outlet = () => rim.clone().applyAxisAngle(vertical, grip.rotation.z).add(grip.position);
+  const pick = pickBox(grip, 0.026, T_LEN, 0.023, 0, T_LEN / 2 - GRIP);
+  const rim = V(R_IN, T_LEN - GRIP);
+  const lip = new THREE.Object3D(); lip.position.copy(rim); grip.add(lip);
+  // 先倾斜再绕竖轴转向：分装时管底朝架前伸出，重力和管唇仍按同一姿态计算。
+  const tilt = (angle, approach = 1) => grip.rotation.set(0, yaw * approach, -angle, 'YXZ');
+  const rimOffset = () => rim.clone().applyEuler(grip.rotation);
+  const dock = (x, y) => V(x, y + 0.009).sub(rimOffset());
+  const outlet = () => rimOffset().add(grip.position);
   const draw = () => {
     const s = getSample(), color = liquorColor(s), a = grip.rotation.z;
-    upright.visible = Math.abs(a) < 0.06;
+    upright.visible = s.vol > 0.001 && Math.abs(a) < 0.001;
     tilted.visible = false;
     if (upright.visible) upright.setLevel(levelY(s.vol)).setColor(color);
     else tilted.fill(s.vol, a, color);
   };
-  return { grip, pick, home, dock, outlet, draw, ready: READY, dispose() { upright.dispose(); tilted.geometry.dispose(); tilted.material.dispose(); } };
+  return { grip, lip, pick, home, tilt, dock, outlet, draw, ready: READY, dispose() { upright.dispose(); tilted.geometry.dispose(); tilted.material.dispose(); } };
 }
 
 export function ironSpoon(group, home) {
@@ -313,9 +317,9 @@ export function equilibriumScene() {
     holoBase: false,
     labels: (kind, molecule) => molecule.rep,
     labelOnly: (kind, molecule) => molecule.rep,
-    init(c) {
+    init(c, st) {
       c.view.paper = null; c.view.film = 0;
-      run = saved ?? { base: initial(), tubes: {}, tube: null, index: 0, dose: null, mode: 'equilibrium', clock: 0, steady: 0, motion: null, lastSlot: -1 };
+      run = saved ?? { base: initial(), tubes: st.tube ? { [st.tube]: initial() } : {}, tube: st.tube, index: 0, dose: null, mode: 'equilibrium', clock: 0, steady: 0, motion: null, lastSlot: -1 };
       saved = null;
       centers = SITES.map(() => null); ligands = homes.map(() => null); metal = null;
       electrons = [0, 1].map(() => {
@@ -383,7 +387,7 @@ export function equilibriumScene() {
       else if (run.mode === 'relax' && run.motion?.joining && sample.arms[run.motion.slot].includes(firstAdded)) detail = '跟着刚滴入的 SCN⁻ 看：它和另外两个 SCN⁻ 一起与 Fe³⁺ 结合。';
       else if (run.mode === 'relax') detail = run.dose.type === 'iron' ? '分开暂时比结合快，Fe(SCN)₃ 变少。' : '结合暂时比分开快，Fe(SCN)₃ 变多。';
       else if (run.motion) detail = run.motion.joining ? 'Fe³⁺ 和三个 SCN⁻ 靠拢、结合。' : '一组 Fe(SCN)₃ 分开，释放 Fe³⁺ 和 SCN⁻。';
-      else detail = `${run.tube ? '新平衡' : '动态平衡'}：结合和分开仍在发生，两边速率相等。`;
+      else detail = `${run.index ? '新平衡' : '动态平衡'}：结合和分开仍在发生，两边速率相等。`;
       return { eq: run.mode === 'iron' ? REDOX : BALANCE, on: true, cap: `${total}<div>${tube} · ${detail}</div>` };
     },
   };

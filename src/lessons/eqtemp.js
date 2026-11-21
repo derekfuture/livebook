@@ -6,21 +6,19 @@ import { demoActs, mountXuean, moreBox, paperSheet, qaFlow, sandbox, wrapPointer
 import { clamp, draggable } from './kit/interact.js';
 import { inviteRing } from './kit/invite.js';
 import { show } from '../ui/prefs.js';
-import { groundLabel } from './kit/labels.js';
 import { micro } from './kit/microworld.js';
 import {
-  V, BATH_X, BATH_T, ROOM, RADIUS, RIM, WATER, LOW, HIGH, CLEAR, BATH_NAMES, FLASK_NAMES,
-  FORMULA, NIST, ROOM_C, equilibrium, bath, apparatus, supports, temperatureScene,
+  V, BATH_X, BATH_T, ROOM, RADIUS, RIM, LOW, HIGH, CLEAR, BATH_NAMES, FLASK_NAMES,
+  FORMULA, NIST, ROOM_C, equilibrium, bathLevel, bath, apparatus, supports, temperatureScene,
 } from './kit/eqtemp-parts.js';
 
 const INTRO = '两只烧瓶已通入 NO₂ 和 N₂O₄ 的混合气体。';
 const CLIP = '夹紧弹簧夹', SOAK = '浸入热水和冰水', WATCH = '观察红棕色';
 const DRAG = '拖动烧瓶，让两瓶一起浸入水中';
-const SWAP = '也可以提起烧瓶，在水面上方把一只拖到对面，再把两只浸回水中。';
+const SWAP = '也可以把两只烧瓶提过杯口，将一只拖到对面，再把两只浸回水中。';
 const OPEN_TUBE = '两瓶气体仍相通。先点弹簧夹夹紧乳胶管，再分别比较颜色。';
 const START = { x: 0, y: HIGH, angle: 0 };
-const ALIGN = 0.010;
-const shortWide = () => innerWidth > 760 && innerWidth <= 1050 && innerHeight <= 550;
+const ALIGN = 0.010, BATH_ZONE = 0.057, STAND_ZONE = 0.030;
 const MICRO_CAM = [[0, 0.115, 0], [0.02, 0.56, 1], 0.35];
 const pair = (value) => [value, value];
 const indexAt = (angle) => Math.cos(angle) > 0 ? [0, 1] : [1, 0];
@@ -54,20 +52,22 @@ export default {
     const backing = paperSheet(group, { w: 0.39, d: 0.20, z: 0.014 });
     backing.position.y = 0.0009;
     backing.renderOrder = 1.2;
-    BATH_X.forEach((x, side) => {
-      bath(group, side);
-      groundLabel(group, BATH_NAMES[side], {
-        x, z: 0.069, h: 0.014, color: side ? '#3f6277' : '#965938', opacity: 1,
-      });
+    const plates = [];
+    const nameplate = (obj, text, x, y, z = 0) => {
+      plates.push(tag(text, 'eqtemp-name').loc(obj, x, y, z));
+    };
+    const baths = BATH_X.map((x, side) => {
+      nameplate(group, `烧杯 · ${BATH_NAMES[side]}`, x, 0.004, 0.059);
+      return bath(group, side);
     });
-    const holders = supports(group);
-    const { rig, flasks, clip, clipPick, draw } = apparatus(group);
+    const holders = supports(group, nameplate);
+    const { rig, flasks, clip, clipPick, draw } = apparatus(group, nameplate);
     const cards = BATH_X.map(() => tag('', 'cond'));
     cards.forEach((c) => { c.px = [0, -24]; c.el.setAttribute('data-eqtemp-card', ''); });
-    const connection = tag('气体相通 ↔', 'pill').loc(clip, 0, 0.018, 0).show(false);
+    const connection = tag('气体相通 ↔', 'pill').loc(clip, 0, 0.044, 0).show(false);
     const scene = temperatureScene();
     const peerRing = inviteRing(group, { color: 0xf26a36, minOpacity: 0.55 });
-    let W, cancelled = false;
+    let W;
     const fresh = () => ({
       demo: false, pose: { ...START }, rest: { ...START }, grip: null, returning: null,
       closed: false, pinch: 0, immersed: false, finished: false, elapsed: 0, temp: pair(ROOM),
@@ -90,7 +90,7 @@ export default {
     };
     const grip = (id) => {
       S.returning = null;
-      S.grip = { id, from: { ...S.pose }, start: [...S.c], crossed: false };
+      S.grip = { id, from: { ...S.pose }, start: [...S.c], crossed: false, leftRest: false };
     };
     const move = (id, p) => {
       if (S.grip?.id !== id) return;
@@ -98,56 +98,53 @@ export default {
       const radius = BATH_X[id];
       const side = Math.sign(radius * Math.cos(S.rest.angle));
       const x0 = from.x + radius * Math.cos(from.angle);
-      let y = clamp(p.y, LOW, HIGH + 0.034);
+      // 拿离当前停放点时先跟手，拖离这块热区后才允许它再次吸附。
+      if (Math.hypot(p.x - x0, p.y - from.y) > (S.immersed ? BATH_ZONE : STAND_ZONE)) g.leftRest = true;
+      let y = clamp(p.y, S.closed ? LOW : CLEAR, HIGH + 0.034);
       if (!S.closed && !g.openTube && y < from.y - 0.004) {
         g.openTube = true;
         say(OPEN_TUBE);
       }
-      g.blocked = false;
       let angle = from.angle, x = clamp(from.x + p.x - x0, -0.040, 0.040);
       const toward = side * (x0 - p.x);
-      // While both flasks clear the rims, a drag toward the other bath can turn the joined assembly.
-      if (S.finished && y >= CLEAR - 0.004 && (toward > 0.012 || g.crossed)) {
+      // 杯口上方，横向拖出本侧水浴的吸附范围才换边。
+      if (S.finished && y >= CLEAR && (toward > BATH_ZONE || g.crossed)) {
         g.crossed = true;
-        const progress = clamp(toward / (2 * Math.abs(radius) - 0.002), 0, 1);
+        const progress = clamp((toward - BATH_ZONE) / (2 * Math.abs(radius) - BATH_ZONE - STAND_ZONE), 0, 1);
         angle = S.rest.angle + (id === 0 ? 1 : -1) * Math.acos(1 - 2 * progress);
-        x = 0;
+        x *= 1 - progress;
       } else if (g.crossed) {
         angle = S.pose.angle;
         x = 0;
       }
-      if (y < CLEAR && (!align(angle) || Math.abs(x) > ALIGN)) {
+      if (y < CLEAR && align(angle) && Math.abs(p.x - radius * Math.cos(angle)) <= BATH_ZONE) {
+        x = clamp(x, -ALIGN, ALIGN);
+      } else if (y < CLEAR && (!align(angle) || Math.abs(x) > ALIGN)) {
         // Entering through the mouth precedes lateral movement within the beaker.
         if (S.pose.y < CLEAR - 0.004) x = clamp(x, -ALIGN, ALIGN);
-        else { y = CLEAR; g.blocked = true; }
+        else y = CLEAR;
       }
       S.pose = { x, y, angle };
     };
 
-    const dock = (angle, inWater, y, before) => {
+    const dock = (angle, inWater) => {
       const changed = inWater && (!S.immersed || indexAt(S.rest.angle)[0] !== indexAt(angle)[0]);
       S.immersed = inWater;
-      S.rest = { x: 0, y: inWater ? y : HIGH, angle };
+      S.rest = { x: 0, y: inWater ? LOW : HIGH, angle };
       if (changed) {
-        S.run = { number: (S.run?.number ?? 0) + 1, start: before, ids: indexAt(angle) };
+        S.run = { number: (S.run?.number ?? 0) + 1, start: S.grip.start, ids: indexAt(angle) };
         S.elapsed = 0;
         done('soak');
         say(S.finished ? SWAP : '比较两只烧瓶里红棕色的变化。');
       } else if (!inWater && S.finished) say(SWAP);
     };
-    const release = (moved) => {
+    const release = (moved, zone) => {
       if (!S.grip) return;
-      const g = S.grip, { x, y, angle } = S.pose;
-      S.grip = null;
-      const aligned = align(angle) && Math.abs(x) <= ALIGN;
-      const down = S.closed && aligned && y <= WATER - 0.016;
-      const up = aligned && y >= CLEAR - 0.005;
-      if (moved && !cancelled && !g.blocked && (down || up)) {
-        const alignedAngle = indexAt(angle)[0] === 0 ? 0 : Math.PI;
-        dock(alignedAngle, down, y, g.start);
-      } else if (moved && !cancelled && S.closed) {
+      const { x, y, angle } = S.pose;
+      if (moved && !zone && S.closed && S.grip.leftRest) {
         say('烧瓶没有放到位。先提过杯口，再对准两只烧杯放下。');
       }
+      S.grip = null;
       // Choose the shortest equivalent rotation, with the flasks above the rim while turning.
       let target = S.rest.angle;
       while (target - angle > Math.PI) target -= 2 * Math.PI;
@@ -159,6 +156,18 @@ export default {
     const hover = () => S.finished ? '拖动烧瓶，可提起、换边' : DRAG;
     const drag = draggable(group, flasks.map((f, id) => ({
       obj: f.pick, keepOffset: true, anchor: f.body, hint: () => mic.isOpen ? '' : hover(),
+      dropOffset: V(0, -RADIUS),
+      dropzones: BATH_X.flatMap((x, side) => {
+        const angle = side === id ? 0 : Math.PI;
+        return [
+          { name: BATH_NAMES[side], position: V(x, LOW - RADIUS), radius: BATH_ZONE,
+            enabled: () => S.closed && (!S.immersed || S.grip?.leftRest) && indexAt(S.pose.angle)[side] === id && align(S.pose.angle),
+            onDrop: () => dock(angle, true) },
+          { name: FLASK_NAMES[id], position: V(x, HIGH - RADIUS), radius: STAND_ZONE,
+            enabled: () => S.closed && (indexAt(S.rest.angle)[side] === id || S.grip?.crossed) && (S.immersed || S.grip?.leftRest),
+            onDrop: () => dock(angle, false) },
+        ];
+      }),
       enabled: () => !mic.isOpen, onStart: () => grip(id), onDrag: (p) => move(id, p), onEnd: release,
     })), {
       tip: tag('', 'pill'),
@@ -169,6 +178,8 @@ export default {
     const recenter = () => {
       const { pose } = S;
       draw(pose, S.pinch, S.c);
+      const level = bathLevel(pose.y);
+      baths.forEach((setLevel) => setLevel(level));
       const free = clamp(Math.max(Math.abs(pose.x) / 0.024, Math.abs(Math.sin(pose.angle)) / 0.42,
         (pose.y - HIGH - 0.004) / 0.019), 0, 1);
       holders.forEach((apply) => apply(pose.y, free));
@@ -214,8 +225,8 @@ export default {
     });
     [...document.querySelectorAll('.lbar')].pop()?.setAttribute('data-eqtemp', '');
     const mic = micro({
-      tag, look, back, group, scene, bar: () => bar, label: '钻进去看', at: () => V(0, 0.084),
-      btnAt: () => V(0, shortWide() ? 0.055 : 0.021, 0.069),
+      tag, look, back, group, scene, bar: () => bar, label: '钻进两只烧瓶对照看', at: () => V(0, 0.084),
+      btnAt: () => V(BATH_X[0], S.pose.y - 0.016, 0.021),
       lookD: MICRO_CAM[1], dist: MICRO_CAM[2], scale: 0.0087,
       show: () => S.immersed && S.run && !S.grip && !S.returning,
       state: () => {
@@ -224,6 +235,12 @@ export default {
       },
     });
     const layout = h('style', {}, `
+      .tag3d.eqtemp-name {
+        padding: 1px 4px; background: #fffcf2e8; color: #423d35; border-radius: 2px;
+        font: 600 clamp(11px, 1vw, 15px)/1.25 var(--sans); white-space: nowrap; text-shadow: none;
+        pointer-events: none;
+      }
+      body.predicting .tag3d.eqtemp-name { visibility: visible !important; }
       [data-eqtemp].eqtemp-demo .p-body { visibility: hidden; }
       [data-eqtemp] .big-next:disabled { display: none; }
       [data-eqtemp] .formula sub { font-size: 0.65em; line-height: 0; }
@@ -243,12 +260,20 @@ export default {
       .eqtemp-counts { display: flex; justify-content: space-evenly; gap: 10px; padding: 6px 0; font-variant-numeric: tabular-nums; }
       .eqtemp-counts span:first-child b { color: #984f2c; }
       .eqtemp-counts span:last-child b { color: #385f76; }
+      .eqtemp-playback { margin-top: 6px; }
+      .eqtemp-playback button {
+        pointer-events: auto; cursor: pointer; padding: 4px 12px; margin: 0 3px;
+        border: 1px solid #827c70; border-radius: 5px; background: #fffaf0; color: #39372f; font: 14px var(--sans);
+      }
       @media (max-width: 760px) {
         .mw[data-eqtemp] .mw-hud, .mw[data-eqtemp] .mw-scale {
           left: 12px !important; width: calc(100vw - 24px) !important;
         }
         .mw[data-eqtemp] .mw-scale { top: 57px !important; text-align: left; width: calc(100vw - 116px) !important; }
-        .mw[data-eqtemp] .mw-hud { top: 35vh !important; }
+        .mw[data-eqtemp] .mw-hud {
+          top: auto !important; bottom: 5vh; padding: 8px 4px; box-sizing: border-box;
+          background: #fffaf1f2; border-radius: 5px;
+        }
         .lbar[data-eqtemp] { gap: 5px; }
         .lbar[data-eqtemp] .lb-steps { gap: 2px; flex-wrap: nowrap; }
         .lbar[data-eqtemp] .lb-steps i { width: 16px; height: 16px; line-height: 15px; }
@@ -270,7 +295,12 @@ export default {
       }
     `);
     document.head.append(layout);
-    [...document.querySelectorAll('.mw')].pop()?.setAttribute('data-eqtemp', '');
+    const microRoot = [...document.querySelectorAll('.mw')].pop();
+    microRoot.setAttribute('data-eqtemp', '');
+    const pause = h('button', { type: 'button', onclick: () => { scene.paused = !scene.paused; } }, '暂停');
+    const playback = h('div', { class: 'eqtemp-playback' }, pause,
+      h('button', { type: 'button', onclick: () => mic.mw.reset() }, '从头看'));
+    microRoot.querySelector('.mw-hud').append(playback);
 
     const returnStep = (dt) => {
       const r = S.returning;
@@ -286,7 +316,7 @@ export default {
     };
     const chemistry = (dt) => {
       const { x, angle, y } = S.pose, ids = indexAt(angle);
-      const wetted = S.closed && align(angle) && Math.abs(x) <= ALIGN ? clamp((WATER + RADIUS - y) / (2 * RADIUS), 0, 1) : 0;
+      const wetted = S.closed && align(angle) && Math.abs(x) <= ALIGN ? clamp((bathLevel(y) + RADIUS - y) / (2 * RADIUS), 0, 1) : 0;
       ids.forEach((id, k) => {
         const s = S.temp[id];
         const rate = 0.075 + 1.85 * wetted;
@@ -326,18 +356,15 @@ export default {
         const diff = S.c[id] - ROOM_C;
         const result = diff > 0.00025 ? '深红棕色' : diff < -0.00025 ? '浅红棕色' : '红棕色';
         cards[k].text(`<div class="cc"><div class="cc-t"><span class="cc-name">${FLASK_NAMES[id]}</span><span class="cc-res">${result}</span></div></div>`)
-          .loc(group, BATH_X[k], S.pose.y + 0.014, -0.026).show(show);
+          .loc(group, BATH_X[k], S.pose.y + 0.076, -0.018).show(show);
       });
     };
-    const wrapped = wrapPointer(drag, bar);
-    const pointer = { ...wrapped, up(ray, event) {
-      cancelled = event?.type === 'pointercancel';
-      try { return wrapped.up(ray, event); } finally { cancelled = false; }
-    } };
+    const pointer = wrapPointer(drag, bar);
 
     const reset = () => {
       if (bar.playing) bar.stop();
       mic.close();
+      drag.clearDropzones();
       S = fresh();
       recenter();
       W.tbl.clear();
@@ -394,6 +421,7 @@ export default {
       reset,
       update(dt) {
         const k = bar.update(dt), d = Math.min(dt, 1 / 30) * k;
+        drag.update(k ? Math.min(dt, 0.08) : 0);
         if (d > 0) {
           S.pinch = Math.min(1, S.pinch + (S.closed ? d * 6 : 0));
           returnStep(d);
@@ -407,8 +435,14 @@ export default {
           W.ui.el.classList.toggle('eqtemp-demo', S.demo);
         }
         connection.show(!S.demo && Boolean(S.grip?.openTube));
+        for (const plate of plates) plate.show(!mic.isOpen);
         displayCards();
         mic.update(dt, k);
+        if (mic.isOpen) {
+          playback.hidden = S.demo;
+          const label = scene.paused ? '继续' : '暂停';
+          if (pause.textContent !== label) pause.textContent = label;
+        }
       },
       dispose() { layout.remove(); mic.dispose(); peerRing.dispose(); bar.dispose(); drag.dispose(); },
       debug: { get S() { return S; }, bar, qa, mic, picks: { clip: clipPick, A: flasks[0].pick, B: flasks[1].pick }, rig },

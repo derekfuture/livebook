@@ -1,9 +1,26 @@
 // 选择性必修1，第96～97页。宏观盐桥和微观图共用同一条倒 U 形曲线。
 import * as THREE from 'three';
 import { textSprite } from './microworld.js';
-import { V } from './galvanic-parts.js';
+import { clip, V } from './galvanic-parts.js';
 
 export const span = 0.047, leg = 0.047;
+export function bridgeClip(color) {
+  const grip = clip(color);
+  const jaws = grip.children.filter(part => part.geometry.type === 'BoxGeometry');
+  // 从铆钉处张开，稍侧转夹身，让学生从实验台正面也能看到开口。
+  function open(held) {
+    grip.rotation.y = held ? 0.9 : 0;
+    for (const jaw of jaws) {
+      const side = Math.sign(jaw.position.z);
+      const angle = held ? 0.86 : 0;
+      jaw.rotation.x = -side * angle;
+      jaw.position.y = -0.004 - 0.005 * Math.cos(angle);
+      jaw.position.z = side * (0.0019 + 0.005 * Math.sin(angle));
+    }
+  }
+  return { grip, open };
+}
+
 function arch(w, h, r) {
   const path = new THREE.CurvePath();
   const line = (a, b) => path.add(new THREE.LineCurve3(a, b));
@@ -77,6 +94,11 @@ export function transportScene() {
   const start = V(zincX - 0.35, 1.37, 0.54), dissolved = V(-5.6, 0.45, 3.8);
   const free = V(6.15, 0.55, 3.6), receive = V(5.78, 1.32, 1.25), deposit = V(5.48, 1.37, 0.55);
   const emitted = 1.55, arriving = 4.2, reduced = 6.3, deposited = 7.9, end = 9;
+  // 持续通电时轮换观察两处电极表面，换景时淡出，避免把下一组看成上一组粒子倒着走。
+  const period = end + 2;
+  const phase = () => time % period;
+  const ionStarts = [-0.22, 0.065, 0.38];
+  const origin = V(), landing = V(), approach = V();
   const label = (c, word, color) => {
     const sprite = textSprite(word, color, '#fff');
     sprite.scale.set(3.55, 1.33, 1);
@@ -87,6 +109,10 @@ export function transportScene() {
     holoBase: false, still: true, labels: () => false, labelOnly: () => false,
     get time() { return time; },
     set time(v) { time = v; },
+    get opacity() {
+      const t = phase();
+      return (time < period ? 1 : segment(t, 0, 0.45)) * (1 - segment(t, period - 0.45, period));
+    },
     init(c, st) {
       time = 0;
       c.view.film = 0;
@@ -133,11 +159,15 @@ export function transportScene() {
       electronName = label(c, 'e⁻', '#30374e');
     },
     step(c, st, dt) {
-      if (st.closed) time = Math.min(time + dt, end);
-      const t = st.closed ? time : st.worked ? end : 0;
-      zn.g.position.lerpVectors(start, dissolved, segment(t, emitted, 3.8));
-      if (t < reduced) cu.g.position.lerpVectors(free, receive, segment(t, 1.6, arriving));
-      else cu.g.position.lerpVectors(receive, deposit, segment(t, reduced, deposited));
+      if (st.closed && !st.paused) time += dt;
+      const t = st.closed ? phase() : st.worked ? end : 0;
+      const nextSite = Math.floor(time / period) % 2;
+      origin.copy(start).x += nextSite * 0.9;
+      approach.copy(receive).x -= nextSite * 1.09;
+      landing.copy(deposit).x -= nextSite * 1.09;
+      zn.g.position.lerpVectors(origin, dissolved, segment(t, emitted, 3.8));
+      if (t < reduced) cu.g.position.lerpVectors(free, approach, segment(t, 1.6, arriving));
+      else cu.g.position.lerpVectors(approach, landing, segment(t, reduced, deposited));
       names.forEach((name, i) => {
         name.visible = i === (t < emitted ? 0 : 1) || i === (t < reduced ? 2 : 3);
         name.position.copy(i < 2 ? zn.g.position : cu.g.position).add(V(i < 2 ? -0.65 : 0.25, -0.87, 0.65));
@@ -146,9 +176,9 @@ export function transportScene() {
         const delay = 0.32 * j;
         const u = segment(t, 1.23 + delay, 5.05 + delay);
         e.visible = st.closed && u > 0 && t < reduced;
-        if (u < 0.15) e.position.lerpVectors(start, wire.getPointAt(0), u / 0.15);
+        if (u < 0.15) e.position.lerpVectors(origin, wire.getPointAt(0), u / 0.15);
         else if (u < 0.8) e.position.copy(wire.getPointAt((u - 0.15) / 0.65));
-        else e.position.lerpVectors(wire.getPointAt(1), receive.clone().add(V(j ? 0.37 : -0.37, 0.46, 0.42)), (u - 0.8) / 0.2);
+        else e.position.lerpVectors(wire.getPointAt(1), approach.clone().add(V(j ? 0.37 : -0.37, 0.46, 0.42)), (u - 0.8) / 0.2);
         e.position.z += 0.16;
       });
       electronName.visible = electrons[0].visible;
@@ -156,8 +186,10 @@ export function transportScene() {
       ions.forEach(({ atom, name, sign, n }) => {
         // 每侧两粒出桥补偿两个单位电荷，另一粒仍在桥内。
         const u = segment(t, emitted + (2 - n) * 0.35, end - n * 0.4);
-        const f = THREE.MathUtils.lerp(0.073 + n * 0.15, n ? 0.68 : 0.18, u);
+        // 两种离子交错分布，起点与净迁移方向无关。
+        const f = THREE.MathUtils.lerp(ionStarts[n], n ? 0.68 : 0.18, u);
         atom.g.position.copy(salt.getPointAt(0.5 + sign * Math.min(0.5, f))).add(V(0, 3.65, 1.4));
+        atom.g.position.z += sign * 0.25;
         const out = Math.max(0, (f - 0.5) / 0.18);
         atom.g.position.add(V(sign * out * (n === 2 ? 0.57 : -0.75), -out * 0.28, out * (n === 2 ? 2.1 : 0.32)));
         atom.g.visible = st.immersed || out > 0;
@@ -169,14 +201,15 @@ export function transportScene() {
     },
     text(c, st) {
       if (!st.closed) return { eq: '电路断开', cap: !st.immersed
-        ? (st.wired ? '盐桥已离开溶液。导线仍连着两极，电路中没有持续电流。' : '导线和盐桥都没有接通，电路中没有持续电流。')
+        ? (st.wired ? '导线仍连着两极，电路中没有持续电流。把盐桥放回两杯溶液，就能再看离子迁移。' : '导线和盐桥都没有接通，电路中没有持续电流。')
         : '盐桥两端已经浸入溶液，外电路还没有接通。' };
-      if (time < 1.23) return { eq: '锌极　│　盐桥　│　铜极', cap: '看锌片表面的一个锌原子，同时留意盐桥内的两种离子。' };
-      if (time < arriving) return { eq: 'Zn − 2e⁻ = Zn²⁺', cap: '锌原子失去两个电子，Zn²⁺ 进入溶液。电子沿导线流向铜极。' };
-      if (time < reduced) return { eq: 'Cu²⁺ + 2e⁻ = Cu', cap: '看铜片表面，两个电子先后到达同一个 Cu²⁺。' };
-      if (time < deposited) return { eq: 'Cu²⁺ + 2e⁻ = Cu', cap: 'Cu²⁺ 得到两个电子，变成铜原子，沉积在铜片上。' };
-      if (time < end) return { eq: 'Zn + Cu²⁺ = Zn²⁺ + Cu', cap: '两个 Cl⁻ 移入锌侧溶液，两个 K⁺ 移入铜侧溶液，两侧保持电中性。' };
-      return { eq: 'Zn + Cu²⁺ = Zn²⁺ + Cu', cap: '一组反应示意完毕。锌侧移入两个 Cl⁻，铜侧移入两个 K⁺，两侧保持电中性。电路仍接通。' };
+      const t = phase();
+      if (t < 1.23) return { eq: '锌极　│　盐桥　│　铜极', cap: '看锌片表面的一个锌原子，同时留意盐桥内的两种离子。' };
+      if (t < arriving) return { eq: 'Zn − 2e⁻ = Zn²⁺', cap: '锌原子失去两个电子，Zn²⁺ 进入溶液。电子沿导线流向铜极。' };
+      if (t < reduced) return { eq: 'Cu²⁺ + 2e⁻ = Cu', cap: '看铜片表面，两个电子先后到达同一个 Cu²⁺。' };
+      if (t < deposited) return { eq: 'Cu²⁺ + 2e⁻ = Cu', cap: 'Cu²⁺ 得到两个电子，变成铜原子，沉积在铜片上。' };
+      if (t < end) return { eq: 'Zn + Cu²⁺ = Zn²⁺ + Cu', cap: '两个 Cl⁻ 移入锌侧溶液，两个 K⁺ 移入铜侧溶液，两侧保持电中性。' };
+      return { eq: 'Zn + Cu²⁺ = Zn²⁺ + Cu', cap: '电路仍接通。换一处电极表面，继续追踪下一组粒子。' };
     },
   };
 }

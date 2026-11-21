@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { lessonBar } from './kit/lessonbar.js';
 import { demoActs, mountXuean, moreBox, paperSheet, qaFlow, sandbox, wrapPointer } from './kit/chemlesson.js';
 import { clamp, draggable } from './kit/interact.js';
-import { tubeBench, T_Y, T_LEN, R_IN, DROP, levelY } from './kit/tubebench.js';
+import { tubeBench, T_Y, T_LEN, DROP, levelY } from './kit/tubebench.js';
 import { water2 } from './kit/chemfx.js';
 import { micro } from './kit/microworld.js';
 import { textPlate } from './kit/props.js';
@@ -19,7 +19,7 @@ const HOME_MIX = V(-0.078, 0.088), HOME_FEED = V(-0.124, 0.088);
 const HOME_SPOON = V(-0.017, 0.0036, 0.036), BOTTLE = V(0.13, 0, 0.008);
 const MICRO_CAM = [[X[1], 0.112, 0], [0.03, 1.03, 1], 0.305];
 const INTRO = '混合试管里已有 5 mL 0.005 mol/L FeCl₃ 溶液。';
-const INVALID = 'a 管已加料，本轮对照失效。';
+const DOCK_RADIUS = 0.023;
 const TILT_TRAVEL = 0.026;
 const STEPS = ['mix', 'split', 'iron', 'salt'];
 
@@ -46,9 +46,9 @@ export default {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
     paperSheet(group, { w: 0.34, d: 0.16, z: 0.018 });
-    let S, W, generation = 0, cancelled = false;
+    let S, W, generation = 0;
     const feed = pouringTube(group, HOME_FEED, '稀 KSCN 试管', () => sample(S.feed));
-    const mix = pouringTube(group, HOME_MIX, '混合试管', () => S.mix);
+    const mix = pouringTube(group, HOME_MIX, '混合试管', () => S.mix, 1.1);
     const sources = [feed, mix];
     const spoon = ironSpoon(group, HOME_SPOON);
     const wood = paint(0xd9c9a6);
@@ -61,14 +61,33 @@ export default {
     standPart(0.004, 0.048, 0.018, -0.059, 0.036, -0.008);
     standPart(0.088, 0.004, 0.011, -0.101, 0.06, -0.012);
 
-    const nameplate = (word, x, z, w) => {
-      const p = textPlate(word, { w, h: 0.009, bg: '#fffaf0', font: `bold ${word.length === 1 ? 158 : 72}px "Songti SC", serif` });
-      p.position.set(x, 0.005, z); group.add(p);
+    // 上行标器材，下行随实际装料变化。每种字样只生成一次纹理。
+    const contents = [];
+    const plate = (word, x, y, z, w) => {
+      const p = textPlate(word, { w, h: 0.007, bg: '#fffaf0', font: 'bold 66px "Songti SC", serif' });
+      p.position.set(x, y, z); group.add(p);
+      return p;
     };
-    nameplate('稀 KSCN', HOME_FEED.x, 0.021, 0.036);
-    nameplate('混合试管', HOME_MIX.x, 0.021, 0.037);
-    nameplate('1 mol/L', BOTTLE.x, 0.026, 0.031);
-    NAMES.forEach((n, k) => nameplate(n, X[k], 0.0157, 0.012));
+    const nameplate = (name, x, z, w, words, current) => {
+      plate(name, x, 0.011, z, w);
+      const labels = words.map((word) => plate(word, x, 0.004, z, w));
+      contents.push(() => {
+        const index = current();
+        labels.forEach((label, k) => { label.visible = k === index; });
+      });
+    };
+    nameplate('试管', HOME_FEED.x, 0.021, 0.043, ['稀 KSCN', '空'], () => S.feed > 1e-6 ? 0 : 1);
+    nameplate('混合试管', HOME_MIX.x, 0.021, 0.044, ['FeCl₃ 溶液', '混合溶液', '空'], () => S.mix.vol < 1e-6 ? 2 : S.mix.scn ? 1 : 0);
+    nameplate('滴瓶、滴管', BOTTLE.x, 0.027, 0.044, ['1 mol/L KSCN'], () => 0);
+    nameplate('药匙', 0.021, 0.065, 0.037, ['铁粉', '空'], () => S.loaded ? 0 : 1);
+    NAMES.forEach((n, k) => nameplate(`试管 ${n}`, X[k], 0.018, 0.044,
+      ['空', '混合溶液', '对照液', '已加铁粉', '已加 KSCN', '铁粉＋KSCN'], () => {
+        const s = S.tubes[k];
+        if (s.ferrous > 0) return s.drops ? 5 : 3;
+        if (s.drops) return 4;
+        if (k === 0 && S.base) return 2;
+        return s.vol > 1e-6 ? 1 : 0;
+      }));
 
     const B = tubeBench(group, {
       tag, exact: true, rate: 1.35, getS: () => S.bench,
@@ -83,8 +102,6 @@ export default {
           bar.say(`把 <b>1 mol/L KSCN 滴管</b>对准试管 c。已滴 ${s.drops} / 4 滴。`);
           say(`试管 c 已滴 ${s.drops} 滴。观察红色的深浅。`);
         }
-        if (k !== 2) say(`KSCN 滴进了试管 ${NAMES[k]}。可从“更多”全部重来，按课本滴入试管 c。`);
-        if (k === 2 && s.drops > 4) say(`试管 c 已滴 ${s.drops} 滴，超过课本的 4 滴。`);
       },
     });
     const fresh = () => ({
@@ -95,7 +112,7 @@ export default {
     });
     S = fresh();
 
-    const say = (msg) => { if (!S.demo) W?.ui.status(S.invalid ? INVALID : msg); };
+    const say = (msg) => { if (!S.demo) W?.ui.status(S.invalid || msg); };
     const done = (id) => { if (!S.demo && !S.invalid) bar.done(id); };
     const write = (key, cells) => {
       if (S.demo || !W) return;
@@ -108,12 +125,18 @@ export default {
       if (type === 'salt' && last?.type === type && last.tube === NAMES[k]) last.pulses.push(after);
       else S.doses.push({ type, tube: NAMES[k], before, after, pulses: type === 'salt' ? [after] : [] });
       S.confirm = 0;
-      if (k === 0 && !S.invalid && !S.demo) {
-        S.invalid = true; S.finished = false;
+      if (S.invalid || S.demo) return;
+      let reason;
+      if (k === 0) reason = 'a 管已加料';
+      else if (k === 1 && type === 'salt') reason = 'b 管误加了 KSCN';
+      else if (k === 2 && type === 'iron') reason = 'c 管误加了铁粉';
+      else if (k === 2 && after.drops > 4) reason = 'c 管的 KSCN 超过 4 滴';
+      if (reason) {
+        S.invalid = `${reason}，本轮对照失效。`; S.finished = false;
         W.next.hidden = W.review.hidden = true; W.redo.hidden = false;
         W.ui.relock({ full: false }); W.ui.observePrediction(null);
         if (W.ui.step === 2) W.ui.go(1);
-        bar.undo('salt'); bar.say(INVALID); W.ui.need(INVALID);
+        bar.undo('salt'); bar.say(S.invalid); W.ui.need(S.invalid); say(S.invalid);
       }
     };
     const shade = (s) => {
@@ -128,38 +151,46 @@ export default {
     const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0011, 1, 12), water2({ base: 0.76 }));
     stream.renderOrder = 9.6; stream.visible = false; stream.userData.noFrame = true; stream.raycast = () => {};
     group.add(stream);
-    const dockFeed = () => feed.dock(HOME_MIX.x, MOUTH);
-    const dockMix = (k) => mix.dock(X[k], MOUTH);
+    const dockFeed = () => V(HOME_MIX.x, MOUTH + 0.009);
+    const dockMix = (k) => V(X[k], MOUTH + 0.009);
     const dockSpoon = (k) => V(X[k], MOUTH + 0.007);
 
     const toolEnabled = (i) => i === 0 ? !S.mixed : i === 1 ? S.mixed && !S.base : !!S.base && S.loaded;
     const destinations = (i) => i === 0 ? [HOME_MIX.x] : X;
     const remaining = (i, k) => i === 0 ? S.feed : PORTION - S.tubes[k].vol;
+    let applyingSnap = false;
     const moveTube = (i, p) => {
       const tube = sources[i], { grip, home, ready } = tube;
       // 对口时以管唇为支点。手往上抬使管底升高，往下放则扶正。
-      if (S.pours && Math.abs(p.x - S.pours.start.x) > 0.016) S.pours = null;
+      const mouthY = MOUTH + 0.009;
+      // 向上是抬管底；横移或下拉离开管口热区才脱附。
+      if (S.pours && Math.hypot(p.x - S.pours.target, Math.min(0, p.y - mouthY)) > DOCK_RADIUS) S.pours = null;
       if (!S.pours) {
-        const x = clamp(p.x, -0.174, 0.165), y = clamp(p.y, home.y, 0.217);
+        const x = clamp(p.x, -0.174, 0.165), y = clamp(p.y, home.y + tube.lip.position.y, 0.217);
         let proximity = 0;
         destinations(i).forEach((target, k) => {
           if (remaining(i, k) < 1e-6) return;
-          const dist = tube.dock(target, MOUTH).distanceTo(p);
-          proximity = Math.max(proximity, clamp(1 - dist / 0.026, 0, 1));
-          if (dist < 0.006) {
+          const dist = Math.hypot(target - p.x, MOUTH + 0.009 - p.y);
+          proximity = Math.max(proximity, clamp(1 - dist / DOCK_RADIUS, 0, 1));
+          if (dist < 0.0025) {
             const left = (i === 0 ? S.feed : S.mix.vol) - remaining(i, k);
             S.pours = { i, k, target, start: p.clone(), limit: pourAngle(left) };
           }
         });
-        grip.position.set(x, y, Math.min(0.032, Math.abs(x - home.x) * 0.72) * (1 - proximity));
-        grip.rotation.z = -ready * proximity;
+        tube.tilt(ready * proximity, proximity);
+        const travel = Math.abs(x - home.x - tube.lip.position.x);
+        grip.position.set(x, y, Math.min(0.032, travel * 0.72) * (1 - proximity))
+          .sub(tube.lip.position.clone().applyEuler(grip.rotation));
       }
       const pour = S.pours;
       if (pour) {
+        // 公共吸附退出后，以手实际停住的位置作为抬管底的起点。
+        if (applyingSnap) pour.start.copy(p);
+        pour.start.y = Math.min(pour.start.y, p.y);
         const lift = clamp((p.y - pour.start.y) / TILT_TRAVEL, 0, 1);
         const angle = ready + lift * (pour.limit - ready);
-        grip.position.copy(tube.dock(pour.target, MOUTH, angle));
-        grip.rotation.z = -angle;
+        tube.tilt(angle);
+        grip.position.copy(tube.dock(pour.target, MOUTH));
       }
     };
     const moveSpoon = (p) => {
@@ -167,10 +198,8 @@ export default {
       spoon.tool.position.set(x, y, HOME_SPOON.z * (1 - clamp((y - 0.06) / 0.05, 0, 1)));
       spoon.tool.rotation.x = 0;
     };
-    const releaseIron = () => {
+    const releaseIron = (k) => {
       const p = spoon.tool.position;
-      const k = X.findIndex((x) => Math.hypot(p.x - x, p.z) < R_IN - 0.001 && p.y > MOUTH + 0.003 && p.y < MOUTH + 0.022);
-      if (k < 0) return;
       S.loaded = false;
       S.falling = { k };
       spoon.tool.rotation.x = 0.65;
@@ -187,7 +216,7 @@ export default {
       if (k === 1) {
         S.ironB = true; done('iron');
         say('铁粉落进了试管 b。观察红色的变化，再给试管 c 滴加 KSCN。');
-      } else say(`铁粉落进了试管 ${NAMES[k]}。可从“更多”全部重来，按课本加到试管 b。`);
+      }
     };
 
     const tubeHints = ['稀 KSCN：对准混合试管口，再向上拖动管底', '混合试管：对准接液管口，再向上拖动管底'];
@@ -195,7 +224,11 @@ export default {
     const dropHint = '1 mol/L KSCN：提起滴管，对准试管口，按住滴加';
     const holders = [
       ...sources.map((tube, i) => ({
-        obj: tube.pick, anchor: tube.grip, keepOffset: true, plane: 'xy', offset: 0,
+        obj: tube.pick, anchor: tube.lip, keepOffset: true, plane: 'xy', offset: 0,
+        dropzones: destinations(i).map((x, k) => ({
+          name: i ? `试管 ${NAMES[k]}` : '混合试管', position: V(x, MOUTH + 0.009), radius: DOCK_RADIUS,
+          enabled: () => !S.pours && remaining(i, k) > 1e-6,
+        })),
         hint: () => toolEnabled(i) ? tubeHints[i] : '',
         enabled: () => toolEnabled(i),
         onStart: () => { S.carry[i] = true; },
@@ -205,13 +238,18 @@ export default {
       {
         obj: spoon.pick, anchor: spoon.tool, keepOffset: true, plane: 'xy',
         get offset() { return spoon.tool.position.z; },
+        dropzones: X.map((x, k) => ({
+          name: `试管 ${NAMES[k]}`, position: dockSpoon(k), radius: 0.023, onDrop: () => releaseIron(k),
+        })),
         hint: () => toolEnabled(2) ? spoonHint : '',
         enabled: () => toolEnabled(2),
         onStart: () => { S.carry[2] = true; },
         onDrag: (p) => moveSpoon(p),
-        onEnd: (moved) => { S.carry[2] = false; if (moved && !cancelled) releaseIron(); },
+        onEnd: () => { S.carry[2] = false; },
       },
-      { ...B.items[0], get offset() { return B.droppers[0].position.z; }, hint: () => S.base ? dropHint : '', enabled: () => !!S.base },
+      { ...B.items[0], dropzones: X.map((x, k) => ({
+        name: `试管 ${NAMES[k]}`, position: V(x, MOUTH + 0.012), radius: 0.023,
+      })), get offset() { return B.droppers[0].position.z; }, hint: () => S.base ? dropHint : '', enabled: () => !!S.base },
     ];
     const drag = draggable(group, holders, { tip: tag('', 'pill sticky').loc(group, 0, -9, 0) });
     const act = demoActs(drag, group);
@@ -225,11 +263,25 @@ export default {
     B.tubes.forEach((tube) => tube.add(new THREE.Line(markGeometry, markMaterial)));
     const mixCard = tag('', 'cond'); mixCard.px = [0, -30];
     const scene = equilibriumScene();
+    let viewing = 1;
+    const doorVisible = () => S.base && !S.carry[2] && !S.bench.carry[0];
     const mic = micro({
-      tag, look, back, group, label: '钻进去看', scene,
-      at: () => V(X[1], 0.062), btnAt: () => V(X[1], 0.16, -0.005),
-      show: () => Boolean(S.base), state: () => ({ base: S.base, doses: S.doses }),
+      tag: (word, cls, open) => tag(word, cls, () => { viewing = 1; open(); }),
+      look, back, group, label: '钻进试管 b 里看', scene,
+      at: () => V(X[S.demo ? 1 : viewing], 0.062), btnAt: () => V(X[1], innerWidth <= 760 ? 0.075 : 0.083, 0.009),
+      show: doorVisible, state: () => ({
+        base: S.base, tube: S.demo ? null : NAMES[viewing],
+        doses: S.demo ? S.doses : S.doses.filter((d) => d.tube === NAMES[viewing]),
+      }),
       bar: () => bar, lookD: MICRO_CAM[1], dist: MICRO_CAM[2], scale: 0.0068,
+    });
+
+    const otherDoors = [0, 2].map((k) => {
+      const door = tag(`钻进试管 ${NAMES[k]} 里看 ⊙`, 'pill mw-go', () => { viewing = k; mic.open(); });
+      return () => {
+        const y = innerWidth <= 760 ? (k === 0 ? 0.045 : 0.105) : 0.098;
+        door.loc(group, X[k], y, 0.009).show(doorVisible() && !mic.isOpen && !bar.playing && S.doses.some((dose) => dose.tube === NAMES[k]));
+      };
     });
 
     const microPanel = [...document.querySelectorAll('.mw')].pop();
@@ -294,24 +346,24 @@ export default {
     document.head.append(layout);
 
     const toPour = (i, dest) => act.path(sources[i].pick, [
-      () => sources[i].grip.position.clone(),
-      () => sources[i].grip.position.clone().setY(0.192),
+      () => sources[i].outlet(),
+      () => sources[i].outlet().setY(0.192),
       () => dest().setY(0.192),
       [dest, 0.07],
       () => dest().add(V(0, TILT_TRAVEL + 0.008)),
     ], { t0: 0.03, t1: 0.54, release: 0.93 });
     const demoSpoon = act.path(spoon.pick, [
-      HOME_SPOON, V(HOME_SPOON.x, 0.15, HOME_SPOON.z), V(X[1], 0.15), dockSpoon(1),
+      HOME_SPOON, V((X[0] + X[1]) / 2, 0.075), V((X[0] + X[1]) / 2, 0.15), V(X[1], 0.15), dockSpoon(1),
     ], { t0: 0.06, t1: 0.59, release: 0.63 });
 
     const setBench = () => S.tubes.forEach((s, k) => B.setTube(k, { vol: s.vol, color: liquorColor(s), sediment: s.iron > 1e-9 ? 0.10 : 0, sedColor: 0x59585a }));
     const poseHome = () => {
-      sources.forEach(({ grip, home }) => { grip.position.copy(home); grip.rotation.z = 0; });
+      sources.forEach(({ grip, home }) => { grip.position.copy(home); grip.rotation.set(0, 0, 0); });
       spoon.tool.position.copy(HOME_SPOON); spoon.tool.rotation.x = 0;
       B.droppers[0].position.copy(B.droppers[0].B.tipHome);
     };
     const switchSet = () => {
-      mic.close(); poseHome(); stream.visible = false; setBench();
+      drag.clearDropzones(); mic.close(); poseHome(); stream.visible = false; setBench();
       mixCard.show(false); B.cards.forEach((c) => c.show(false));
     };
     const sandboxState = () => {
@@ -334,8 +386,8 @@ export default {
       steps: [
         { id: 'mix', title: '混合两种溶液', todo: '把装有 <b>5 mL 0.015 mol/L KSCN 溶液的试管</b>对准混合试管口。向上拖动管底倒入，向下扶正即停。', target: () => !S.carry[0] && !S.pours ? feed.grip : null },
         { id: 'split', title: '平均分装', todo: '把<b>混合试管</b>依次对准 a、b、c，向上拖动管底，让液面分别达到标线。', target: () => !S.carry[1] && !S.pours ? mix.grip : null },
-        { id: 'iron', title: '试管 b 加铁粉', get todo() { return S.invalid ? INVALID : '把<b>铁粉药匙</b>的匙头移到试管 b 口上方，再松手。和试管 a 比颜色。'; }, target: () => !S.invalid && S.loaded && !S.carry[2] ? spoon.tool : null },
-        { id: 'salt', title: '试管 c 加 KSCN', get todo() { return S.invalid ? INVALID : '提起 <b>1 mol/L KSCN 滴管</b>，对准试管 c，按住滴 4 滴。和试管 a 比颜色。'; }, target: () => !S.invalid && !S.bench.carry[0] ? B.droppers[0] : null },
+        { id: 'iron', title: '试管 b 加铁粉', get todo() { return S.invalid || '把<b>铁粉药匙</b>的匙头移到试管 b 口上方，再松手。和试管 a 比颜色。'; }, target: () => !S.invalid && S.loaded && !S.carry[2] ? spoon.tool : null },
+        { id: 'salt', title: '试管 c 加 KSCN', get todo() { return S.invalid || '提起 <b>1 mol/L KSCN 滴管</b>，对准试管 c，按住滴 4 滴。和试管 a 比颜色。'; }, target: () => !S.invalid && !S.bench.carry[0] ? B.droppers[0] : null },
       ],
       reels: {
         demo: {
@@ -364,7 +416,7 @@ export default {
       if (!mic.isOpen) return;
       back();
       window.__lb?.live.reframe();
-      look(...MICRO_CAM, bar.playing ? () => bar.stop() : undefined);
+      look([X[S.demo ? 1 : viewing], 0.112, 0], MICRO_CAM[1], MICRO_CAM[2], bar.playing ? () => bar.stop() : undefined);
     };
     window.addEventListener('resize', refitMicro);
 
@@ -408,7 +460,7 @@ export default {
     };
     const returnHome = (obj, home, dt) => {
       const a = 1 - Math.exp(-16 * dt);
-      obj.position.lerp(home, a); obj.rotation.z *= 1 - a; obj.rotation.x *= 1 - a;
+      obj.position.lerp(home, a); obj.rotation.z *= 1 - a; obj.rotation.y *= 1 - a; obj.rotation.x *= 1 - a;
       if (obj.position.distanceToSquared(home) < 1e-8 && Math.abs(obj.rotation.z) < 0.005 && Math.abs(obj.rotation.x) < 0.005) {
         obj.position.copy(home); obj.rotation.set(0, 0, 0);
       }
@@ -422,9 +474,9 @@ export default {
         const acts = [iron ? '加入铁粉' : '', s.drops ? `滴加 ${s.drops} 滴 KSCN` : ''].filter(Boolean);
         if (acts.length) write(name, [`${name} ${acts.join('；')}`, shade(s)]);
       });
-      if (!S.invalid && S.ironB && c.drops >= 4 && S.confirm > 1.3 && !S.finished) {
+      if (!S.invalid && S.ironB && c.drops === 4 && S.confirm > 1.3 && !S.finished) {
         S.finished = true; done('salt'); W.next.hidden = false; W.review.hidden = false;
-        if (c.drops === 4) say('颜色已经可以对照。掀开结论，也可以钻进去看。');
+        say('颜色已经可以对照。掀开结论，也可以钻进去看。');
       }
       if (S.finished || S.invalid) {
         const observed = `b ${compare(b, a)}，c ${compare(c, a)}`;
@@ -438,7 +490,7 @@ export default {
     };
 
     const reset = () => {
-      generation++;
+      generation++; viewing = 1;
       if (bar.playing) bar.stop();
       B.drops.clear(); spoon.dust.clear(); S = fresh(); switchSet();
       W?.tbl.clear();
@@ -448,16 +500,14 @@ export default {
       }
       bar.undo(...STEPS); bar.say(null); say(INTRO);
     };
-    const wrapped = wrapPointer(drag, bar);
-    const pointer = { ...wrapped, up(ray, e) {
-      cancelled = e?.type === 'pointercancel';
-      try { return wrapped.up(ray, e); } finally { cancelled = false; }
-    } };
+    const pointer = wrapPointer(drag, bar);
     const update = (dt, t) => {
       B.droppers[0].userData.ringY = B.droppers[0].position.y + 0.05;
       const speed = bar.update(dt), h = Math.min(dt, 1 / 30) * speed;
       if (h > 0) {
+        applyingSnap = true; drag.update(h); applyingSnap = false;
         transfer(h);
+        contents.forEach((refresh) => refresh());
         sources.forEach((tube, i) => { if (!S.carry[i]) returnHome(tube.grip, tube.home, h); tube.draw(); });
         if (!S.carry[2]) returnHome(spoon.tool, spoon.home, h);
         spoon.dust.update(h, (p, d) => {
@@ -482,6 +532,7 @@ export default {
         if (show) c.text(card(`试管 ${NAMES[k]}`, !k || !S.doses.length ? shade(s) : compare(s, S.tubes[0]))).loc(group, X[k], MOUTH, 0);
         c.show(show);
       });
+      otherDoors.forEach((refresh) => refresh());
       if (speed) mic.update(dt, speed);
       if (mic.isOpen) {
         pause.hidden = bar.playing;

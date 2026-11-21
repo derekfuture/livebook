@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { h } from '../ui/Panel.js';
 import { draggable, clamp } from './kit/interact.js';
+import { dropzones } from './kit/dropzone.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { paperSheet, mountXuean, moreBox, wrapPointer, sandbox, demoActs, qaFlow } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
@@ -10,7 +11,6 @@ import { apparatus, additionScene, V, HOME, WET, X, R, RIM, LEVEL, FORMULA } fro
 const STEP = '将乙烯通入盛有溴的四氯化碳溶液的试管中，观察现象。';
 const DRAG = '拖动导气管，把下端伸到橙色液面以下。';
 const CLEAR = '整管溶液由橙色逐渐变为无色。';
-const compact = () => innerWidth <= 1050;
 const source = '必修第二册第 68 页 · 实验 7-3 · 图 7-11';
 const microCam = [[X, 0.089, 0], [0.015, 0.38, 1], 0.26];
 const colorName = (p) => p >= 1 ? '无色' : p >= 0.18 ? '浅橙色' : '橙色';
@@ -34,17 +34,28 @@ export default {
     paperSheet(group, { w: 0.32, d: 0.17 });
     const rig = apparatus(group), scene = additionScene();
     const card = tag('', 'cond');
+    card.px = [51, 0];
+    const contents = tag('', 'ethene-plate ethene-contents').loc(group, X - R, LEVEL, 0);
+    const pipeHint = '按住玻璃管向下拖。';
+    const pipePlate = tag('导气管 · 乙烯', 'ethene-plate ethene-pipe').loc(rig.stem, 0.0024, 0.018, 0);
+    const hintLine = h('span', { hidden: true }, pipeHint);
+    pipePlate.el.append(hintLine);
+    const plates = [
+      pipePlate,
+      tag('试管架', 'ethene-plate').loc(group, X + 0.029, 0.024, -0.020),
+      contents,
+    ];
     const fresh = () => ({
       demo: false, pos: HOME.clone(), grip: false, returning: null, progress: 0,
       gas: [], nextBubble: 0, sequence: 0, flowing: false, faded: false,
     });
     let S = fresh(), W, cancelled = false, lastCard = '';
-    const wet = () => Math.abs(S.pos.x - X) < R - 0.0024 && S.pos.y < LEVEL - 0.001;
+    const wet = () => S.pos.y < LEVEL;
     const say = (msg) => { if (!S.demo) W?.ui.status(msg); };
     const record = (action, observation) => { if (!S.demo) W?.tbl.add([action, observation]); };
     const mic = micro({
-      tag, look, back, group, scene, at: () => V(X, LEVEL - 0.005), btnAt: () => compact() ? V(X - 0.044, 0.036) : V(X + 0.046, 0.024),
-      label: '钻进去看', state: () => ({ progress: S.progress, paused: S.demo && pausedDemo }),
+      tag, look, back, group, scene, at: () => V(X, LEVEL - 0.005), btnAt: () => V(X, RIM - 0.014, R),
+      label: '钻进试管里看', state: () => ({ progress: S.progress, paused: S.demo && pausedDemo }),
       show: () => W?.ui.step === 1 && !S.grip, bar: () => bar, scale: 0.013, lookD: microCam[1], dist: microCam[2],
     });
     let pausedDemo = false;
@@ -55,6 +66,13 @@ export default {
     const layout = h('style', {}, `
       [data-ethene-demo] .p-body, [data-ethene-demo] .p-tabs {visibility:hidden}
       .ethene-demo-note {position:absolute;left:24px;right:24px;top:104px}
+      .tag3d.ethene-plate {font:13px/1.3 var(--song);color:#51483b;background:#fffaf0;
+        padding:2px 6px;border:1px solid #c8bba3;border-radius:2px;text-shadow:none}
+      body.predicting .tag3d.ethene-plate {visibility:visible !important}
+      .ethene-pipe {translate:calc(50% + 5px) 0}
+      @media(max-width:1050px){.tag3d.ethene-pipe {max-width:6em;white-space:normal;font-size:12px;padding:2px 4px}}
+      .ethene-pipe span:not([hidden]) {display:block}
+      .ethene-contents {translate:calc(-50% - 4px) 0}
       [data-ethene-panel] .answer .src {min-height:52px;padding-right:64px}
       [data-ethene-panel] .answer .seal-stamp {width:44px;height:44px;font-size:16px;bottom:12px;right:16px;writing-mode:horizontal-tb;letter-spacing:0;line-height:1;display:grid;place-items:center}
       .mw[data-ethene] .mw-hud {left:calc(50% + 160px) !important;top:auto !important;bottom:17%;transform:translateX(-50%);width:min(580px,52vw) !important}
@@ -68,39 +86,55 @@ export default {
         .mw[data-ethene] .mw-close {top:45px !important;right:12px;left:auto !important}
       }
       @media(min-width:761px) and (max-width:1050px){.mw[data-ethene] .mw-close {top:6px !important;left:auto !important;right:8px}.mw[data-ethene] .mw-hud{left:66% !important;bottom:14%}.mw[data-ethene] .mw-scale{left:63% !important;top:5px !important}}
+      @media(min-width:761px) and (max-width:1050px) and (max-height:500px){
+        .lbar {bottom:2px;gap:5px;padding:4px 7px;font-size:14px;line-height:1.25}
+      }
     `);
     document.head.append(layout);
 
+    const bore = R - 0.0032, mouthAxis = V(X, RIM);
+    const guide = dropzones(group);
+    let atMouth = false, lastHandX = X;
+    const guided = guide.wrap({
+      dropzones: [{ name: '试管口', position: mouthAxis, radius: 2.5 * R, enabled: () => atMouth }],
+      onDrag(p) {
+        const outside = Math.abs(p.x - X) > bore;
+        S.pos.set(p.x, outside ? Math.max(RIM, p.y) : p.y, 0);
+        rig.pose(S.pos);
+      },
+    });
     function move(p) {
       if (!p || !S.grip) return;
-      let x = clamp(p.x, X - 0.061, X + 0.057), y = clamp(p.y, LEVEL - 0.026, HOME.y + 0.022);
-      // 插进试管以后横拖只能抵到内壁。先提出管口，才可移到管外。
-      const bore = R - 0.0032;
-      if (y < RIM + 0.001) {
-        if (S.pos.y < RIM + 0.001 && Math.abs(S.pos.x - X) <= bore + 1e-6) x = clamp(x, X - bore, X + bore);
-        else if (Math.abs(x - X) > bore) y = RIM + 0.001;
-      }
-      S.pos.set(x, y, 0);
-      rig.pose(S.pos);
+      const y = clamp(p.y, WET.y, HOME.y + 0.022);
+      const inside = S.pos.y < RIM && y < RIM;
+      // 进管后从已对中的位置继续横移；手只向下时不把管尖拉回内壁。
+      const x = inside ? clamp(S.pos.x + p.x - lastHandX, X - bore, X + bore)
+        : clamp(p.x, X - 0.061, X + 0.057);
+      lastHandX = p.x;
+      atMouth = !inside && y <= RIM + 1.5 * R;
+      mouthAxis.y = y; // 吸附目标与手等高，只扶正横向偏差。
+      guided.onDrag(V(x, y));
     }
     function end(moved) {
+      guide.clear();
       if (!S.grip) return;
       S.grip = false;
-      if (!moved || (!cancelled && wet())) return;
+      if (!moved || (wet() && !cancelled)) return;
       S.returning = { from: S.pos.clone(), t: 0 };
-      if (!cancelled && S.progress < 1) say(S.progress > 0
-        ? '导气管已离开液面。再伸入溶液，可接着观察。'
-        : '导气管下端还在液面上方。沿试管口往下拖。');
+      if (!cancelled && !S.progress) say('导气管下端还在液面上方。沿试管口往下拖。');
     }
     const drag = draggable(group, [{
       obj: rig.pick, anchor: rig.tip, keepOffset: true, plane: 'xy', enabled: () => !mic.isOpen,
-      hint: '拖动乙烯导气管', onStart() { S.grip = true; S.returning = null; },
+      hint: pipeHint, onStart() {
+        S.grip = true; S.returning = null; hintLine.hidden = true;
+        lastHandX = S.pos.x; atMouth = false; guided.onStart();
+      },
       onDrag: move, onEnd: end,
-    }], { tip: tag('', 'pill') });
+    }]);
     const act = demoActs(drag, group);
     const demo = sandbox({
       get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar,
-      apply() { mic.close(); rig.pose(S.pos); rig.display(S.progress, S.gas); },
+      apply() { guide.clear(); hintLine.hidden = true; mic.close(); rig.pose(S.pos); rig.display(S.progress, S.gas); },
       view: {
         save: () => mic.isOpen ? { clock: scene.clock } : null,
         restore: (v) => { mic.open(); scene.clock = v.clock; },
@@ -116,7 +150,14 @@ export default {
       ] } },
     });
     const wrapped = wrapPointer(drag, bar);
-    const pointer = { ...wrapped, up(ray, event) {
+    const canvas = document.getElementById('c');
+    const hideHint = () => { hintLine.hidden = true; };
+    canvas.addEventListener('pointerleave', hideHint);
+    const pointer = { ...wrapped, move(ray, event) {
+      const handled = wrapped.move(ray, event);
+      hintLine.hidden = S.grip || S.demo || mic.isOpen || !drag.hovered();
+      return handled;
+    }, up(ray, event) {
       cancelled = event?.type === 'pointercancel';
       try { return wrapped.up(ray, event); } finally { cancelled = false; }
     } };
@@ -130,7 +171,7 @@ export default {
         rig.pose(S.pos);
         if (u === 1) S.returning = null;
       }
-      const flow = !S.returning && wet();
+      const flow = wet();
       if (flow !== S.flowing) {
         S.flowing = flow;
         if (flow) {
@@ -139,6 +180,7 @@ export default {
           if (!S.demo && !bar.finished) bar.say('观察试管里的颜色。提起导气管，暂停向溶液通入乙烯。');
         } else {
           record('导管提出液面', '液内不再产生新气泡');
+          if (S.progress < 1) say('导气管已离开液面。再伸入溶液，可接着观察。');
           if (!S.demo) bar.say(null);
         }
       }
@@ -169,6 +211,7 @@ export default {
     }
     function reset() {
       if (bar.playing) bar.stop();
+      guide.clear(); hideHint();
       mic.close();
       S = fresh(); rig.pose(S.pos); rig.display(0, S.gas);
       W.tbl.clear(); W.review.hidden = true;
@@ -178,9 +221,14 @@ export default {
     const qa = qaFlow(drag, [
       { name: '导管停在液面上方', drag: rig.pick, to: V(X, LEVEL + 0.009) },
       { name: '核对溶液仍为橙色', run() { if (S.progress || !S.pos.equals(HOME)) throw Error('未通气时的液色或归位错误'); } },
-      { name: '导管伸入液面以下', drag: rig.pick, to: WET, wait: 7 },
+      { name: '导管伸入液面以下', drag: rig.pick, to: WET, wait: 0.5, scale: 1 },
+      { name: '提出导管暂停通气', drag: rig.pick, to: HOME },
+      { name: '核对中途停气', run() {
+        if (S.flowing || S.progress <= 0 || S.progress >= 1 || !S.pos.equals(HOME)) throw Error('提管后应停止通气并保留褪色进度');
+      } },
+      { name: '重新通入乙烯', drag: rig.pick, to: WET, wait: 7 },
       { name: '核对褪色和结论', run() { if (S.progress !== 1 || !bar.finished) throw Error('通气后未完成褪色'); } },
-      { name: '钻进去看', run: () => mic.open(), wait: 3 },
+      { name: '钻进试管里看', run: () => mic.open(), wait: 3 },
       { name: '回到桌上', run: () => mic.close(), wait: 1.5 },
     ]);
     return {
@@ -207,6 +255,7 @@ export default {
       reset,
       update(dt) {
         const rate = bar.update(dt);
+        guide.update(rate ? dt : 0);
         pausedDemo = !rate;
         if (rate) updateGas(Math.min(dt, 0.05) * rate);
         rig.display(S.progress, S.gas);
@@ -221,13 +270,17 @@ export default {
         }
         if (word !== lastCard) {
           lastCard = word;
+          contents.text(S.progress >= 1 ? '试管 · 1,2-二溴乙烷溶液' : '试管 · 溴的四氯化碳溶液');
           card.text('<div class="cc"><div class="cc-t"><span class="cc-name">试管</span><span class="cc-res">' + word + '</span></div></div>');
         }
-        card.loc(group, X + (compact() ? -0.044 : 0.040), LEVEL + 0.014, 0).show(!S.demo && !mic.isOpen);
+        card.loc(group, X + R, LEVEL + 0.014, 0).show(!S.demo && !mic.isOpen);
+        for (const plate of plates) plate.show(!mic.isOpen);
         if (mic.isOpen) replayNote.hidden = !S.progress;
         mic.update(dt, rate);
       },
       dispose() {
+        canvas.removeEventListener('pointerleave', hideHint);
+        guide.dispose();
         W?.ui.el.removeAttribute('data-ethene-panel');
         W?.ui.el.removeAttribute('data-ethene-demo');
         W?.demoNote.remove(); layout.remove(); mic.dispose(); bar.dispose(); drag.dispose();

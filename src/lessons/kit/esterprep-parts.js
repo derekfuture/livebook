@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { chemBeaker, chemLamp, glassMat, glassTube, rubberTube, stopper, testTube, tubeClamp, tubeRack } from './chem.js';
 import { water2, tubeLiquid, bubble2 } from './chemfx.js';
-import { groundLabel, faceLabel, textTex } from './labels.js';
+import { faceLabel, textTex } from './labels.js';
 import { dropBottle, lampCap } from './labops.js';
+import { beaker } from './props.js';
 import { textSprite } from './microworld.js';
 
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -15,7 +16,8 @@ export const TIP = V(0.084, 0.084),
   DOCK = V(TIP.x, TIP.y - 0.035 - 0.005);
 export const SOURCE = V(-0.149, 0.01),
   SITES = [-0.08, -0.034, 0.012],
-  BATH = 0.101;
+  BATH = 0.101, BATH_WATER_Y = 0.046;
+export const bathSite = (i) => V(BATH + (i - 1) * 0.033, 0.078);
 const BORE = 0.012, DROP_RADIUS = 0.0018;
 export const visibleLayer = (thickness) => thickness > 0.00045;
 const ink = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.52 });
@@ -42,6 +44,174 @@ function rack(parent, x, height = 0.039) {
   stand.position.x = x;
   parent.add(stand);
 }
+const plateStyle = { color: '#243b44', stroke: '#fff', opacity: 1 };
+function plate(parent, text, x, y, z, h = 0.008) {
+  const label = faceLabel(parent, text, { ...plateStyle, x, y, z, h });
+  let current = text;
+  label.setText = (value) => {
+    if (value === current) return;
+    current = value;
+    const { tex, aspect } = textTex(value, { ...plateStyle, strokeW: 8 });
+    label.material.map = tex;
+    label.geometry.dispose();
+    label.geometry = new THREE.PlaneGeometry(h * aspect, h);
+  };
+  return label;
+}
+
+// 用内腔的圆截面求水平液位。圆底试管和量筒共享同一条自由液面。
+function levelLiquid(parent, radius, bottom, top, round = false) {
+  const center = bottom + radius;
+  const radiusAt = (y) => Math.sqrt(Math.max(0, radius ** 2 - (round ? Math.max(0, center - y) ** 2 : 0)));
+  const profile = [];
+  for (let i = 0; i <= 12; i++) {
+    const y = bottom + (round ? radius : 0) * i / 12;
+    profile.push(new THREE.Vector2(radiusAt(y), y));
+    if (!round) break;
+  }
+  profile.push(new THREE.Vector2(radius, top));
+  const cut = new THREE.Plane(V(0, -1, 0), 0);
+  const mat = water2({ color: 0xb9d1d7, base: 0.57 });
+  mat.clippingPlanes = [cut];
+  const wall = part(parent, new THREE.LatheGeometry(profile, 40), mat);
+  wall.renderOrder = 8;
+  const floor = part(parent, new THREE.CircleGeometry(radius, 40), mat, V(0, bottom));
+  floor.rotation.x = -Math.PI / 2;
+  const count = 64, geo = new THREE.PlaneGeometry(1, 1, 1, count);
+  const surface = part(parent, geo, water2({ color: 0xb6cdd3, base: 0.66 }));
+  surface.frustumCulled = false;
+  surface.renderOrder = 9;
+  const bowl = Array.from({ length: 16 }, (_, i) => {
+    const u = i / 15;
+    return new THREE.Vector2(radius * u, 0.0007 * u ** 5);
+  });
+  bowl.push(new THREE.Vector2(radius, 0));
+  const meniscus = part(parent, new THREE.LatheGeometry(bowl, 48), surface.material);
+  meniscus.renderOrder = 9;
+  const dy = (top - bottom) / count;
+  const slices = Array.from({ length: count }, (_, i) => {
+    const y = bottom + (i + 0.5) * dy;
+    return { y, r: radiusAt(y) };
+  });
+  let lastAngle, lastVolume, level = bottom;
+  return (volume, angle) => {
+    const tilted = Math.abs(angle) > 0.002;
+    wall.visible = volume > 0.001;
+    floor.visible = !round && wall.visible;
+    surface.visible = tilted && wall.visible;
+    meniscus.visible = !tilted && wall.visible;
+    if (!wall.visible) return bottom;
+    const sin = Math.sin(angle), cos = Math.cos(angle);
+    if (angle !== lastAngle || volume !== lastVolume) {
+      lastAngle = angle;
+      lastVolume = volume;
+      if (!tilted) level = bottom + volume * 1e-6 / (Math.PI * radius ** 2);
+      else {
+        let low = bottom * cos - radius, high = top * cos + radius;
+        for (let i = 0; i < 17; i++) {
+          const mid = (low + high) / 2;
+          let area = 0;
+          for (const { y, r } of slices) {
+            const u = Math.min(1, Math.max(-1, (mid - y * cos) / (r * Math.abs(sin))));
+            area += r * r * (Math.acos(-u) + u * Math.sqrt(1 - u * u));
+          }
+          if (area * dy * 1e6 < volume) low = mid;
+          else high = mid;
+        }
+        level = (low + high) / 2;
+        const lo = Math.max(bottom, (level - radius * Math.abs(sin)) / cos);
+        const hi = Math.min(top, (level + radius * Math.abs(sin)) / cos);
+        const coords = geo.attributes.position;
+        for (let j = 0; j <= count; j++) {
+          const y = lo + (hi - lo) * j / count;
+          const x = (level - y * cos) / sin;
+          const z = Math.sqrt(Math.max(0, radiusAt(y) ** 2 - x ** 2));
+          coords.setXYZ(2 * j, x, y, -z);
+          coords.setXYZ(2 * j + 1, x, y, z);
+        }
+        coords.needsUpdate = true;
+        geo.computeVertexNormals();
+      }
+      meniscus.position.y = level;
+    }
+    cut.constant = parent.localToWorld(V(level * sin, level * cos)).y;
+    return level;
+  };
+}
+
+const MEASURE_H = 0.091, MEASURE_R = 0.0063;
+export const CUP_HOME = V(SOURCE.x + MEASURE_R, MEASURE_H + 0.003);
+function measure(parent) {
+  const lip = node(parent), bottom = 0.004;
+  const step = 1e-6 / (Math.PI * MEASURE_R ** 2);
+  const cup = beaker({ r: MEASURE_R + 0.0005, h: MEASURE_H, spout: false });
+  const ticks = [], z = MEASURE_R + 0.0013;
+  for (let i = 0; i <= 100; i++) {
+    const y = bottom + step * i / 10;
+    const major = i % 10 === 0;
+    ticks.push(V(-0.005, y, z), V(major ? 0.0008 : i % 5 === 0 ? -0.0008 : -0.0022, y, z));
+    if (major) plate(cup, String(i / 10), 0.0032, y, z, 0.003);
+  }
+  const scale = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(ticks), new THREE.LineBasicMaterial({ color: 0x304756 }));
+  scale.renderOrder = 14;
+  cup.add(scale);
+  cup.liquid.visible = cup.surface.visible = false;
+  cup.position.set(-MEASURE_R, -MEASURE_H, 0);
+  lip.add(cup);
+  cylinder(cup, 0.0105, 0.003, V(0, 0.0015), ink(0xc4d3d4));
+  plate(cup, 'mL', 0, 0.087, MEASURE_R, 0.0045);
+  const liquid = node(cup);
+  const fill = levelLiquid(liquid, MEASURE_R, bottom, MEASURE_H);
+  // 平视时显示液体中央的纵切面，避免前后筒壁的反光盖住凹底。
+  const section = node(cup);
+  const sectionMat = new THREE.MeshBasicMaterial({ color: 0xadcad2, transparent: true, opacity: 0.72, depthWrite: false, side: THREE.DoubleSide });
+  const body = part(section, new THREE.PlaneGeometry(MEASURE_R * 2, 1), sectionMat);
+  const curve = Array.from({ length: 33 }, (_, i) => {
+    const u = (i - 16) / 16;
+    return V(MEASURE_R * u, 0.00095 * u ** 4);
+  });
+  const bowl = new THREE.Shape(curve.map(({ x, y }) => new THREE.Vector2(x, y)));
+  bowl.lineTo(MEASURE_R, 0);
+  bowl.lineTo(-MEASURE_R, 0);
+  const crest = part(section, new THREE.ShapeGeometry(bowl), sectionMat);
+  const edge = part(crest, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(curve), 36, 0.00009, 6, false),
+    new THREE.MeshBasicMaterial({ color: 0x305661 }));
+  edge.renderOrder = 13;
+  const unit = plate(section, 'mL', 0.0032, 0, z, 0.0031);
+  pick(lip, [0.021, MEASURE_H, 0.022], V(-MEASURE_R, -MEASURE_H / 2));
+  lip.position.copy(CUP_HOME);
+  lip.draw = (ml, angle, reading) => {
+    lip.rotation.z = angle;
+    liquid.visible = !reading;
+    section.visible = reading;
+    if (!reading) { fill(ml, angle); return; }
+    const depth = ml * step;
+    body.scale.y = depth;
+    body.position.y = bottom + depth / 2;
+    crest.position.y = bottom + depth;
+    // 单位贴在相邻两条整毫升线之间，不盖住数字。
+    unit.position.y = bottom + (Math.floor(ml) + 1.5) * step;
+  };
+  // 管口下沿恰好接触液面的倾角。按截弦面积积分求此时能留下的体积。
+  lip.pourAngle = (ml) => {
+    const depth = MEASURE_H - bottom;
+    let low = 0, high = Math.PI / 2 - 0.0001;
+    for (let j = 0; j < 14; j++) {
+      const mid = (low + high) / 2;
+      let area = 0;
+      for (let i = 0; i < 32; i++) {
+        const x = MEASURE_R * ((i + 0.5) / 16 - 1);
+        area += 2 * Math.sqrt(MEASURE_R ** 2 - x * x) * Math.max(0, depth - (MEASURE_R - x) * Math.tan(mid));
+      }
+      if (area * MEASURE_R / 16 * 1e6 > ml) low = mid;
+      else high = mid;
+    }
+    return -(low + high) / 2;
+  };
+  lip.readY = (ml) => CUP_HOME.y - MEASURE_H + bottom + ml * step;
+  return lip;
+}
+
 function porcelain(parent) {
   const chips = node(parent),
     material = ink(0xe9e4d8);
@@ -92,20 +262,8 @@ export function bench(group) {
   const reactor = sample(prep, LENGTH);
   reactor.position.copy(BASE);
   reactor.rotation.z = ANGLE;
-  const filled = reactor.children.find((child) => child.setLevel);
-  const liquidGeometry = filled.children[0];
-  let lastHeight = -1;
-  function reactorLevel(height) {
-    if (Math.abs(lastHeight - height) < 0.0002) return;
-    lastHeight = height;
-    filled.setLevel(height);
-    if (!height) return;
-    const coords = liquidGeometry.geometry.attributes.position;
-    for (let i = 0; i < coords.count; i++)
-      if (Math.abs(coords.getY(i) - height) < 0.00001) coords.setY(i, height - Math.tan(ANGLE) * coords.getX(i));
-    coords.needsUpdate = true;
-    liquidGeometry.geometry.computeVertexNormals();
-  }
+  const fillReactor = levelLiquid(reactor, 0.0116, 0.0014, LENGTH, true);
+  const reactorLevel = (ml) => BASE.y + fillReactor(ml, reactor.rotation.z);
   const bits = porcelain(reactor);
   bits.position.y = 0.007;
   const beads = Array.from({ length: 6 }, () =>
@@ -145,44 +303,106 @@ export function bench(group) {
   pick(plug, [0.028, 0.023, 0.025], V(0.005, 0.004));
   const reflux = part(plug, new THREE.TubeGeometry(pipe.curve, 80, 0.0015, 10, false), ink(0x74b4c7));
   reflux.renderOrder = 12;
-  const drop = part(prep, new THREE.SphereGeometry(0.0023, 12, 8), water2({ color: 0xd1dce0, base: 0.7 }));
+  const wisps = node(plug);
+  const wave = new THREE.CatmullRomCurve3([V(-0.004, 0), V(-0.002, 0.00075), V(0.002, -0.00075), V(0.004, 0)]);
+  const trail = new THREE.TubeGeometry(wave, 16, 0.00048, 6, false);
+  const vapor = [0, 1, 2].map(() => {
+    const wisp = part(wisps, trail, new THREE.MeshBasicMaterial({ color: 0xf0f7fa, transparent: true, depthWrite: false }));
+    wisp.renderOrder = 12;
+    return wisp;
+  });
+  plate(wisps, '蒸气（示意）', 0.015, 0.034, 0.006);
+  const drop = part(plug, new THREE.SphereGeometry(0.0018, 16, 12), ink(0x8bb5c1));
   drop.renderOrder = 12;
+  function drawDistillate(on, phase, surfaceY) {
+    wisps.visible = drop.visible = on;
+    if (!on) return;
+    vapor.forEach((wisp, i) => {
+      const t = (phase + i / vapor.length) % 1, along = 0.03 + 0.74 * t;
+      pipe.curve.getPoint(along, wisp.position);
+      const dir = pipe.curve.getTangent(along);
+      wisp.rotation.z = Math.atan2(dir.y, dir.x);
+      wisp.material.opacity = Math.sin(Math.PI * t);
+    });
+    const grow = Math.min(1, phase / 0.32);
+    drop.scale.set(grow, grow * 1.25, grow);
+    const travel = Math.max(0, Math.min(1, (phase - 0.32) / 0.5));
+    pipe.curve.getPoint(0.8 + 0.2 * travel, drop.position);
+    if (phase > 0.82) drop.position.y += (surfaceY - TIP.y) * ((phase - 0.82) / 0.18) ** 2;
+  }
   const bottle = dropBottle(group, V(SOURCE.x, 0), { r: 0.015, h: 0.041 });
-  const title = faceLabel(group, '乙醇', { x: SOURCE.x, y: 0.032, z: 0.017, h: 0.008, color: '#25384a', stroke: '#fff' });
-  title.renderOrder = 14;
-  title.setText = (text) => {
-    const label = textTex(text, { color: '#25384a', stroke: '#fff' });
-    title.material.map = label.tex;
-    title.geometry.dispose();
-    title.geometry = new THREE.PlaneGeometry(0.008 * label.aspect, 0.008);
-  };
+  plate(bottle, '滴瓶 · 乙酸乙酯', 0, 0.025, 0.017);
+  const cup = measure(group);
+  const stream = [0, 1].map(() => {
+    const jet = cylinder(group, 0.001, 1, V(), water2({ color: 0xaac9d1, base: 0.72 }));
+    jet.renderOrder = 12;
+    return jet;
+  });
+  function drawStream(from, contact, surface) {
+    const points = [from, contact, surface];
+    stream.forEach((jet, i) => {
+      const a = points[i], b = points[i + 1];
+      jet.visible = !!a && !!b;
+      if (!jet.visible) return;
+      const axis = b.clone().sub(a);
+      jet.position.copy(a).lerp(b, 0.5);
+      jet.scale.y = axis.length();
+      jet.quaternion.setFromUnitVectors(V(0, 1), axis.normalize());
+    });
+  }
   const pip = node(group);
   cylinder(pip, 0.002, 0.05, V(0, 0.025), glassMat({ opacity: 0.6 }));
   const bulb = part(pip, new THREE.SphereGeometry(0.006, 18, 14), ink(0x935548), V(0, 0.056));
   bulb.scale.y = 1.45;
   const core = cylinder(pip, 0.0012, 0.033, V(0, 0.02), ink(0xc2d6da));
   pick(pip, [0.021, 0.045, 0.021], V(0, 0.048));
+  plate(pip, '滴管 · 乙酸乙酯', 0, 0.068, 0.008);
   pip.userData.ringY = 0.054;
   const drip = part(group, new THREE.SphereGeometry(DROP_RADIUS, 12, 8), ink(0xb7cdd1));
   drip.renderOrder = 12;
   const chips = porcelain(prep);
   chips.position.set(-0.143, 0.002, 0);
   pick(chips, [0.026, 0.02, 0.022], V(0, 0.006));
-  const label = groundLabel(prep, '接收试管', { x: REST.x, z: 0.033, h: 0.009 });
+  plate(chips, '碎瓷片', 0, 0.014, 0.01);
+  plate(lamp, '酒精灯', 0, 0.021, 0.034, 0.012);
+  plate(support, '试管夹', -0.038, 0.137, 0.016);
+  plate(support, '铁架台', -0.031, 0.010, -0.004);
+  plate(plug, '橡胶塞 · 导管', 0.04, 0.028, 0.008);
+  const reactorName = plate(prep, '', BASE.x - 0.031, BASE.y + 0.015, 0.014);
+  const receiverName = plate(receiver, '', 0, 0.006, 0.015);
+  plate(prep, '试管架', REST.x, 0.004, 0.025);
+  const holder = node(hydro);
+  holder.position.x = BATH;
+  const postX = 0.06, railZ = -0.034;
+  part(hydro, new THREE.BoxGeometry(0.028, 0.004, 0.037), metal, V(BATH + postX, 0.002, railZ));
+  cylinder(hydro, 0.0022, 0.151, V(BATH + postX, 0.077, railZ), metal);
+  part(holder, new THREE.BoxGeometry(0.097, 0.003, 0.004), metal, V(0.014, 0, railZ));
+  const paper = new THREE.MeshBasicMaterial({ color: 0xfff9e9, side: THREE.DoubleSide });
   const tubes = SITES.map((x, i) => {
+    const dx = bathSite(i).x - BATH;
+    const stem = cylinder(holder, 0.0014, 0.023, V(dx, 0, -0.023), metal);
+    stem.rotation.x = Math.PI / 2;
+    const jaw = part(holder, new THREE.TorusGeometry(0.0133, 0.0013, 8, 28, Math.PI * 1.45), metal, V(dx, 0));
+    jaw.rotation.set(Math.PI / 2, 0, Math.PI * 0.78);
     const tube = sample(hydro, 0.087);
     rack(hydro, x);
     tube.position.set(x, 0.009, 0);
-    faceLabel(tube, 'ABC'[i], { y: 0.067, z: 0.013, h: 0.009, color: '#344957', stroke: '#fff' });
+    const badge = part(tube, new THREE.PlaneGeometry(0.030, 0.027), paper, V(0, 0.073, 0.0148));
+    badge.userData.qaSupport = true;
+    plate(tube, 'ABC'[i] + ' 管', 0, 0.082, 0.015);
+    tube.contents = plate(tube, '', 0, 0.073, 0.015, 0.008);
+    tube.medium = plate(tube, '', 0, 0.064, 0.015, 0.008);
+    plate(hydro, '试管架', x, 0.004, 0.025);
     return tube;
   });
-  const bath = chemBeaker({ r: 0.052, h: 0.062, level: 0.046, color: 0xc5dbe0 });
+  const bath = chemBeaker({ r: 0.052, h: 0.062, level: BATH_WATER_Y, color: 0xc5dbe0 });
   bath.position.x = BATH;
   hydro.add(bath);
-  groundLabel(hydro, '70～80 ℃ 水浴', { x: BATH, z: 0.067, h: 0.009 });
+  plate(bath, '烧杯 · 70～80 ℃ 热水', 0, 0.018, 0.053);
   return {
     prep,
     hydro,
+    holder,
     reactor,
     reactorLevel,
     cork,
@@ -190,18 +410,19 @@ export function bench(group) {
     beads,
     receiver,
     plug,
-    pipe,
+    drawDistillate,
     reflux,
     lamp,
     cap,
     bottle,
-    title,
+    cup,
+    drawStream,
+    reactorName,
+    receiverName,
     pip,
     core,
     drip,
-    drop,
     chips,
-    label,
     tubes,
   };
 }

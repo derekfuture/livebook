@@ -26,11 +26,19 @@ export const LEFT = -0.053, START = 0.023, LIGHT = 0.087, SUN = 0.151;
 export const WRAPPED = V(LEFT, (TOP + WATER) / 2, 0.001);
 export const LOOSE = V(-0.119, (TOP - WATER) / 2 + 0.005, 0.001);
 
-export function apparatus(parent, x, side) {
+function nameplate(parent, text, y, z, h = 0.0078) {
+  const label = faceLabel(parent, text, { y, z, h, color: '#35322b', stroke: null, opacity: 1 });
+  const plate = mesh(label, new THREE.PlaneGeometry(label.geometry.parameters.width + 0.0018, h),
+    new THREE.MeshBasicMaterial({ color: 0xfffaed }), 0, 0, -0.0001);
+  plate.renderOrder = 11;
+  return label;
+}
+
+export function apparatus(parent, x, name) {
   const rig = new THREE.Group(); parent.add(rig); rig.position.x = x;
   const base = mesh(rig, new RoundedBoxGeometry(0.073, 0.007, 0.064, 2, 0.0024), mat(0x595d60), 0, 0.005, -0.003);
   const metal = mat(0x8b9090);
-  const postX = side * 0.026;
+  const postX = -0.026;
   mesh(rig, new THREE.CylinderGeometry(0.0017, 0.002, 0.141, 16), metal, postX, 0.079, -0.018);
   const support = mesh(rig, new THREE.CylinderGeometry(0.002, 0.002, 0.033, 14), metal, postX / 2, 0.056, -0.009);
   support.quaternion.setFromUnitVectors(V(0, 1), V(postX, 0, -0.018).normalize());
@@ -39,6 +47,11 @@ export function apparatus(parent, x, side) {
   const bath = chemBeaker({ r: 0.026, h: 0.042, level: WATER - 0.009, color: 0xb3d3d9, marks: false });
   bath.position.y = 0.009; rig.add(bath);
   const tube = testTube({ r: R, len: TOP - MOUTH }); tube.rotation.z = Math.PI; tube.position.y = TOP; rig.add(tube);
+  const labels = new THREE.Group(); rig.add(labels);
+  nameplate(labels, name + ' · 起始为 CH₄ 和 Cl₂', 0.158, 0.002);
+  nameplate(labels, '铁架台', 0.006, 0.030);
+  nameplate(labels, '烧杯 · 饱和 NaCl 溶液', 0.025, 0.028);
+  nameplate(labels, '铁夹', 0.057, 0.003, 0.0074).position.x = postX;
   const gasMat = new THREE.MeshBasicMaterial({ color: 0xb2b943, transparent: true, opacity: 0.73, depthWrite: false });
   const gas = mesh(rig, new THREE.CylinderGeometry(R, R, 1, 40), gasMat, 0, 0, 0);
   const dome = mesh(rig, new THREE.SphereGeometry(R, 40, 16, 0, Math.PI * 2, 0, Math.PI / 2), gasMat, 0, TOP - R - 0.0008, 0);
@@ -56,9 +69,11 @@ export function apparatus(parent, x, side) {
     d.rotation.y = angle; d.renderOrder = 9.4;
     return d;
   });
-  return { rig, base, tube, pick: hit(rig, 0.073, 0.023, 0.065, 0.013),
+  return { rig, base, tube, labels, pick: hit(rig, 0.076, 0.035, 0.068, 0.0175),
     draw(p) {
-      const level = WATER + p * 0.044;
+      const rise = p * 0.044, level = WATER + rise;
+      const bathRadius = bath.r - 0.0012;
+      bath.setLevel(WATER - bath.position.y - rise * R * R / (bathRadius * bathRadius - R * R));
       gas.scale.y = dome.position.y - level; gas.position.y = (dome.position.y + level) / 2;
       gasMat.opacity = 0.73 * (1 - p * 0.97);
       brine.scale.y = level - MOUTH; brine.position.y = (level + MOUTH) / 2; meniscus.position.y = level;
@@ -83,6 +98,7 @@ export function foilSheet(parent) {
   const surface = mesh(foil, geo, new THREE.MeshStandardMaterial({ color: 0xf1f3f4, envMap: env, envMapIntensity: 1.4, metalness: 0.84,
     roughness: 0.24, side: THREE.DoubleSide }), 0, 0, 0);
   const lid = mesh(foil, new THREE.CylinderGeometry(0.0157, 0.0167, 0.0025, 24), surface.material, 0, 0.052, 0);
+  const label = nameplate(foil, '铝箔', 0, 0.020);
   let last = -1;
   const draw = k => {
     if (k === last) return;
@@ -100,7 +116,7 @@ export function foilSheet(parent) {
     lid.visible = k > 0.96;
   };
   draw(0);
-  return { foil, pick: hit(foil, 0.034, 0.10, 0.030, 0), draw, dispose: () => env.dispose() };
+  return { foil, label, pick: hit(foil, 0.054, 0.111, 0.042, 0), draw, dispose: () => env.dispose() };
 }
 
 export function lightAreas(group) {
@@ -151,24 +167,54 @@ export function substitutionScene() {
       }
       const dirs = [V(1, 1, 1), V(-1, -1, 1), V(-1, 1, -1), V(1, -1, -1)].map(v => v.normalize()
         .applyAxisAngle(V(1, 0), -0.27));
-      function organic(parent, n, x) {
-        const carbon = atom(parent, 'C', V(x, 2.65));
-        dirs.forEach((d, i) => {
-          const el = i < n ? 'Cl' : 'H';
-          bond(parent, carbon, atom(parent, el, carbon.position.clone().addScaledVector(d, i < n ? 1.77 : 1.09)));
-        });
-        label(parent, ORGANIC[n], x, 5);
-      }
-      // 同一视角的两份结构快照。两列之间没有碰撞、断键或成键动画。
-      const pairs = ORGANIC.slice(0, 4).map((_, n) => {
-        const pair = new THREE.Group(); c.layer.add(pair);
-        organic(pair, n, -3.35); organic(pair, n + 1, 3.35);
-        bond(pair, atom(pair, 'Cl', V(-4.35, -0.85)), atom(pair, 'Cl', V(-2.35, -0.85)));
-        bond(pair, atom(pair, 'H', V(2.71, -0.85)), atom(pair, 'Cl', V(3.99, -0.85)));
-        label(pair, 'Cl₂', -3.35, -2.17); label(pair, 'HCl', 3.35, -2.17);
-        label(pair, '→', 0, 1.25);
-        return pair;
+      // 同一碳骨架逐次保留取代产物。每段开头转动分子，让本次被替下的氢朝向右侧。
+      const substrate = new THREE.Group(); c.layer.add(substrate);
+      const carbonPos = V(-2.25, 1.85);
+      const carbon = atom(substrate, 'C', carbonPos);
+      // 绕正四面体的对边中点轴转半圈，各次都能从原来的视角看清四个位置。
+      const poses = dirs.map((dir, i) => {
+        const pose = new THREE.Quaternion();
+        if (i) pose.setFromAxisAngle(dir.clone().add(dirs[0]).normalize(), Math.PI);
+        return pose;
       });
+      const sites = dirs.map(() => {
+        const h = atom(substrate, 'H', carbonPos), cl = atom(substrate, 'Cl', carbonPos);
+        return { h, cl, rod: bond(substrate, carbon, h) };
+      });
+      const partner = atom(substrate, 'Cl', V(4, 1.85));
+      const clBond = bond(substrate, sites[0].cl, partner);
+      const productBond = bond(substrate, sites[0].h, partner);
+      const names = ORGANIC.map(name => label(substrate, name, carbonPos.x, 4.7));
+      const chlorineName = label(substrate, 'Cl₂', 3.4, 4.7);
+      const acidName = label(substrate, 'HCl', 3.4, 4.7);
+      const rotation = new THREE.Quaternion(), dir = V(0, 0);
+      const freeCl = V(2.25, 2.35), freePartner = V(4.23, 2.35);
+      const hEnd = V(2.95, 1.85), partnerEnd = V(4.23, 1.85);
+      const drawSubstitution = (n, phase) => {
+        rotation.copy(poses[Math.max(n - 1, 0)]).slerp(poses[n], ease(phase / 0.20));
+        const u = ease((phase - 0.26) / 0.48);
+        for (let i = 0; i < sites.length; i++) {
+          const { h, cl, rod } = sites[i];
+          dir.copy(dirs[i]).applyQuaternion(rotation);
+          h.visible = i >= n; cl.visible = i <= n;
+          h.position.copy(carbonPos).addScaledVector(dir, 1.09);
+          cl.position.copy(carbonPos).addScaledVector(dir, 1.77);
+          if (i === n) {
+            // 两条分开的弧线标出原子的去向，不模拟自由基链反应的基元步骤。
+            h.position.lerp(hEnd, u); h.position.y -= Math.sin(Math.PI * u) * 1.55;
+            cl.position.lerp(freeCl, 1 - u); cl.position.y += Math.sin(Math.PI * u) * 0.85;
+          }
+          rod.visible = i !== n || u < 0.025 || u > 0.975;
+          align(rod, carbonPos, (i < n || (i === n && u > 0.975)) ? cl.position : h.position);
+        }
+        partner.position.copy(freePartner).lerp(partnerEnd, u);
+        const site = sites[n];
+        align(clBond, site.cl.position, partner.position);
+        align(productBond, site.h.position, partner.position);
+        clBond.visible = u < 0.025; productBond.visible = u > 0.975;
+        names.forEach((name, i) => { name.visible = (i === n && u === 0) || (i === n + 1 && u === 1); });
+        chlorineName.visible = u === 0; acidName.visible = u === 1;
+      };
       const water = new THREE.Group(); c.layer.add(water);
       const film = mesh(water, new THREE.BoxGeometry(12, 3.45, 3.4),
         new THREE.MeshBasicMaterial({ color: 0x88bdc8, transparent: true, opacity: 0.25, depthWrite: false }), 0, -2, 0);
@@ -180,9 +226,12 @@ export function substitutionScene() {
       const ionLabel = label(water, 'H₃O⁺', -2.05, -2.65), clLabel = label(water, 'Cl⁻', 2.85, -2.4);
       draw = t => {
         const n = Math.floor(t / PERIOD);
-        pairs.forEach((g, i) => { g.visible = i === n; });
         water.visible = t >= WATER_START;
-        if (!water.visible) return;
+        substrate.visible = !water.visible;
+        if (substrate.visible) {
+          drawSubstitution(n, (t % PERIOD) / PERIOD);
+          return;
+        }
         const u = t - WATER_START, enter = ease((u - 0.8) / 2), transfer = ease((u - 2.8) / 1.2);
         h.position.set(-0.20 * (1 - enter), 2.65 - 3.08 * enter - 0.70 * transfer, -0.80 * transfer);
         cl.position.set(h.position.x + 1.28 + 1.54 * transfer, 2.65 - 3.08 * enter - 0.78 * transfer, 0);
@@ -195,7 +244,7 @@ export function substitutionScene() {
       draw(0);
     },
     step(c, s, dt) {
-      if (!time.paused) time.t = Math.min(time.t + dt, MICRO_END);
+      if (!time.paused) time.t = Math.min(time.t + dt, s.progress * MICRO_END);
       draw(time.t);
     },
     text() {
@@ -205,7 +254,11 @@ export function substitutionScene() {
       }
       const n = Math.floor(time.t / PERIOD);
       const eq = f(ORGANIC[n]) + ' + ' + f('Cl2') + '　<span style="font-size:0.68em">光</span>⟶　' + f(ORGANIC[n + 1]) + ' + ' + f('HCl');
-      return { eq, cap: '左边是反应前，右边是反应后。找一找被替下的氢和两个氯各在哪里。', on: true };
+      const phase = (time.t % PERIOD) / PERIOD;
+      const cap = phase <= 0.26 ? '看右侧的氯分子。两个氯原子各会到哪里？'
+        : phase < 0.74 ? '一个氯原子替下一个氢原子，另一个氯原子与这个氢原子组成 HCl。'
+        : '碳原子上少了一个氢，多了一个氯。';
+      return { eq, cap, on: true };
     },
   };
 }

@@ -4,7 +4,6 @@ import { glassMat, testTube, tubeRack } from './chem.js';
 import { tubeLiquid } from './chemfx.js';
 import { dropBottle } from './labops.js';
 import { textSprite } from './microworld.js';
-import { groundLabel } from './labels.js';
 import { clamp } from './interact.js';
 
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -23,7 +22,7 @@ const pick = (w, h, y) => {
 export const limit = (n) => clamp(n, 0, 1);
 export const smooth = (n) => { const u = limit(n); return u * u * (3 - 2 * u); };
 
-export function apparatus(group) {
+export function apparatus(group, tag) {
   const rack = tubeRack({ h: RACK, r: RADIUS + 0.0022, w: 0.051, d: 0.039 });
   rack.position.x = TX;
   group.add(rack);
@@ -33,9 +32,35 @@ export function apparatus(group) {
   const tubePick = pick(0.019, LENGTH * 0.86, LENGTH * 0.55);
   tube.add(tubePick);
   group.add(tube);
-  groundLabel(group, 'NaCl 溶液', { x: TX, z: 0.032, h: 0.009, opacity: 1 });
+  const plates = [];
+  const plate = (obj, kind, contents, y, z) => {
+    const text = contents ? `<small>${kind}</small> ${contents}` : kind;
+    plates.push(tag(text, 'pptconvert-plate').loc(obj, 0, y, z));
+  };
+  plate(rack, '试管架', '', 0.004, 0.020);
+  plate(tube, '试管', '初装 NaCl 溶液', 0.060, RADIUS + 0.001);
   const liquid = tubeLiquid({ R: RADIUS - 0.00035, yc: RADIUS + 0.0008, top: LENGTH, color: 0xdde8ec, base: 0.22, specks: 0 });
   tube.add(liquid);
+  liquid.milk.scale.setScalar(0.995);
+  // 只调整液面那一圈和顶盖。下方的液体仍贴合圆底，管壁两侧的高度差抵消倾角。
+  let surface, surfaceIndices, lastTilt;
+  const levelSurface = (top, tilt) => {
+    liquid.setLevel(top);
+    const geo = liquid.milk.geometry, pos = geo.attributes.position;
+    if (surface !== geo) {
+      surface = geo; surfaceIndices = [];
+      for (let i = 0; i < pos.count; i++) {
+        if (Math.abs(pos.getY(i) - liquid.level) < 0.000001) surfaceIndices.push(i);
+      }
+      lastTilt = null;
+    }
+    if (tilt === lastTilt) return;
+    lastTilt = tilt;
+    const slope = Math.tan(tilt);
+    for (const i of surfaceIndices) pos.setY(i, liquid.level - pos.getX(i) * slope);
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+  };
   // 同一簇颗粒由白变黄再变黑。振荡时从底部扬起，静置时沉回清液下方。
   const flocs = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0),
     new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.97 }), 96);
@@ -76,8 +101,10 @@ export function apparatus(group) {
     if (flocs.instanceColor) flocs.instanceColor.needsUpdate = true;
   };
   const droppers = XS.map((x, i) => {
-    const bottle = dropBottle(group, V(x), { brown: i === 0, label: NAMES[i], r: 0.015, h: 0.038 });
+    const bottle = dropBottle(group, V(x), { brown: i === 0, r: 0.015, h: 0.038 });
+    plate(bottle, '滴瓶', NAMES[i] + ' 溶液', 0.021, 0.015);
     const body = new THREE.Group();
+    plate(body, '滴管', NAMES[i], 0.068, 0);
     const glass = glassMat({ opacity: 0.31 });
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.00225, 0.00225, 0.039, 20), glass);
     stem.position.y = 0.0235;
@@ -109,18 +136,12 @@ export function apparatus(group) {
   falling.scale.y = 1.3;
   falling.visible = false;
   group.add(falling);
-  const aimRing = new THREE.Mesh(new THREE.TorusGeometry(RADIUS - 0.001, 0.00052, 10, 48),
-    new THREE.MeshBasicMaterial({ color: 0xb36526, depthTest: false }));
-  aimRing.rotation.x = Math.PI / 2;
-  aimRing.position.set(TX, BASE + LENGTH + 0.002, 0);
-  aimRing.visible = false; aimRing.renderOrder = 20;
-  group.add(aimRing);
   // 给取景器计入提起后的胶头高度。
   const frame = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.001, 0.001), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
   frame.position.set(TX, BASE + LENGTH + 0.083, 0);
   frame.raycast = () => {};
   group.add(frame);
-  return { tube, tubePick, liquid, droppers, falling, drawFlocs, aimRing };
+  return { tube, tubePick, liquid, droppers, falling, drawFlocs, levelSurface, plates };
 }
 
 export const observed = ([ag, iodide, sulfide]) => sulfide === DOSE[2] ? '黑色沉淀' : sulfide ? '局部变黑（示意）'
@@ -129,6 +150,8 @@ export const observed = ([ag, iodide, sulfide]) => sulfide === DOSE[2] ? '黑色
 // 每条轨迹始终对应同一个离子。三块晶格只画局部排列，不表示晶胞。
 const TYPES = { Ag: [0xe9ecf1, 0.66], Cl: [0x4cbf63, 0.6], I: [0x885ba8, 0.72], S: [0xe8c23c, 0.44] };
 const KI = 7, NA2S = 20, END = 34;
+const phaseAt = (time) => time <= KI ? 0 : time <= NA2S ? 1 : 2;
+const introduced = { Ag: 0, Cl: 0, I: 1, S: 2 };
 export const microSpan = [KI, END];
 const endTime = ([ag, iodide, sulfide]) => sulfide ? (sulfide < DOSE[2] ? 27.8 : END)
   : iodide ? (iodide === 1 ? 14 : NA2S) : ag === 1 ? 4 : KI;
@@ -242,9 +265,10 @@ export function conversionScene() {
     step(c, st, dt) {
       stop = endTime(st.counts);
       t = Math.min(stop, st.microTime ?? t + (paused ? 0 : dt));
-      tracks.forEach(({ path, until }, i) => {
+      const phase = phaseAt(t);
+      tracks.forEach(({ type, path, until }, i) => {
         const ball = balls[i];
-        ball.visible = t >= path[0][0] && t < until;
+        ball.visible = introduced[type] <= phase && t >= path[0][0] && t < until;
         if (!ball.visible) return;
         let j = 1;
         while (j < path.length && path[j][0] <= t) j++;
@@ -256,12 +280,12 @@ export function conversionScene() {
         }
       });
       labels.forEach(({ label, from, to, offset, ball }) => {
-        label.visible = t >= from && t <= to;
+        label.visible = t >= from && t <= to && (!ball || ball.visible);
         if (label.visible && ball) label.position.copy(ball.position).add(offset);
       });
     },
     text() {
-      return { eq: FORMULAS[t <= KI ? 0 : t <= NA2S ? 1 : 2], on: true, cap: captions.find(([end]) => t <= end)[1] };
+      return { eq: FORMULAS[phaseAt(t)], on: true, cap: captions.find(([end]) => t <= end)[1] };
     },
   };
 }

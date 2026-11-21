@@ -2,13 +2,12 @@
 import * as THREE from 'three';
 import { testTube, tubeRack } from './chem.js';
 import { glass2, tubeLiquid, bubble2 } from './chemfx.js';
-import { groundLabel } from './labels.js';
 import { textSprite } from './microworld.js';
 import { clamp } from './interact.js';
 
 export const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 export const X = 0.018, R = 0.013, BASE = 0.0085, RIM = 0.106, LEVEL = 0.052;
-export const HOME = V(X, RIM + 0.006), WET = V(X, LEVEL - 0.021);
+export const HOME = V(X, RIM + 0.006), WET = V(X, LEVEL - 0.026);
 export const FORMULA = 'CH₂=CH₂ + Br₂ → BrCH₂—CH₂Br';
 const BEND = 0.09;
 const smooth = (u) => { const t = clamp(u, 0, 1); return t * t * (3 - 2 * t); };
@@ -36,13 +35,16 @@ export function apparatus(group) {
     new THREE.MeshStandardMaterial({ color: 0x86999b }));
   lip.rotation.x = Math.PI / 2;
   tip.add(lip);
-  const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.0057, 0.0057, BEND, 12),
+  const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, BEND, 12),
     new THREE.MeshBasicMaterial({ visible: false }));
   pick.position.y = BEND / 2;
   pick.userData.pick = true;
+  const elbowPick = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.014, 0.014), pick.material);
+  elbowPick.position.set(-0.012, BEND / 2 - 0.002, 0);
+  elbowPick.userData.pick = true;
+  pick.add(elbowPick);
   tip.add(pick);
   const hose = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0x907864, roughness: 0.85 }));
-  groundLabel(group, '乙烯', { x: -0.082, z: 0.006, h: 0.012, opacity: 1 });
   const last = V(Infinity, 0);
   function pose(p) {
     tip.position.copy(p);
@@ -103,6 +105,7 @@ export function additionScene() {
   const vertical = V(0, 1);
   for (const p of product) p.applyAxisAngle(vertical, -0.64);
   let clock = 0, atoms, bonds, labels;
+  let productBonds = false;
   const bondColor = new THREE.Color(0x9b9fa3), highlight = new THREE.Color(0xd69951);
   const up = V(0, 1), axis = V(0, 0);
   const links = [[0, 1], [0, 1], [0, 2], [0, 3], [1, 4], [1, 5], [6, 7], [0, 6], [1, 7]];
@@ -136,6 +139,7 @@ export function additionScene() {
     step(c, st, dt) {
       if (st.progress > 0 && !st.paused) clock = Math.min(7.0, clock + dt);
       const approach = smooth((clock - 1.5) / 2.3), make = smooth((clock - 4.1) / 2.9);
+      productBonds = make >= 0.5;
       const left = -2.7 * (1 - approach), right = 3.0 * (1 - approach);
       const origin = V(0, 2.5);
       atoms.forEach((a, i) => {
@@ -154,7 +158,7 @@ export function additionScene() {
         // 旧键淡出后整组换成高亮的新键，避免叠出四元环或留下游离的 Br。
         const oldBond = i === 1 || i === 6, newBond = i >= 7;
         b.visible = atoms[start].visible && atoms[end].visible &&
-          !(oldBond && make >= 0.5) && !(newBond && make < 0.5);
+          !(oldBond && productBonds) && !(newBond && !productBonds);
         if (!b.visible) return;
         axis.subVectors(z, a);
         b.material.opacity = oldBond ? 1 - make : 1;
@@ -174,7 +178,7 @@ export function additionScene() {
     text(c, st) {
       if (!st.progress) return { eq: 'Br—Br', on: true, cap: '溶液中有溴分子。乙烯还没有通入。' };
       if (clock < 1.5) return { eq: 'CH₂=CH₂　+　Br—Br', on: true, cap: '看两个碳之间的双键，再找到溴分子里的两个溴原子。' };
-      if (clock < 4.1) return { eq: 'CH₂=CH₂　+　Br—Br', on: true, cap: '乙烯分子和溴分子靠近。留意四个氢原子连在哪里。' };
+      if (!productBonds) return { eq: 'CH₂=CH₂　+　Br—Br', on: true, cap: '乙烯分子和溴分子靠近。留意四个氢原子连在哪里。' };
       if (clock < 7.0) return { eq: 'C=C → C—C', on: true, cap: '碳碳双键变为单键，Br—Br 键断开，两个碳各与一个溴成键。' };
       if (st.progress < 1) return { eq: 'BrCH₂—CH₂Br', on: true, cap: '生成了 1,2-二溴乙烷。溶液中还有未反应的溴。' };
       return { eq: 'BrCH₂—CH₂Br', on: true, cap: '生成了 1,2-二溴乙烷。四个氢原子仍连在原来的碳上。' };

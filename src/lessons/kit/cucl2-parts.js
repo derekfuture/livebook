@@ -14,8 +14,8 @@ export const X = [-0.029, 0.029],
   HALF = 0.035;
 export const PAPER_TIP = 0.018,
   PAPER_Z = 0.013;
-export const HOME = [V(0.108, 0.054, 0.008), ...X.map((x) => V(x, RIM + HALF - 0.003)), V(0.075, 0.0035, PAPER_Z)];
-export const pourAt = () => V(X[1] + 0.0065, RIM + 0.007, HOME[0].z);
+export const HOME = [V(0.108, 0.054, 0.008), V(-0.128, 0.145), V(-0.078, 0.145), V(0.075, 0.0035, PAPER_Z)];
+export const pourAt = (side = 1) => V(X[side] + 0.0065, RIM + 0.007, HOME[0].z);
 export const dipAt = (i) => V(X[i], LEVEL + 0.006);
 export const paperAt = (i) => V(X[i] + PAPER_TIP, RIM + 0.002, PAPER_Z);
 const unit = (n) => Math.max(0, Math.min(1, n));
@@ -73,11 +73,15 @@ function cell(group) {
   });
   // 低矮的托座托住弯管，留出看两极的视线。
   box(group, 0.085, 0.005, 0.038, 0x697b7b, V(0, 0.0025));
+  const tubeNames = ['U 形管', 'U形管·氯化铜溶液'].map((text) =>
+    nameplate(group, text, V(0, 0.005, 0.020), 0.074, 0.010, '#f3edda'));
   for (const x of [-0.02, 0.02]) box(group, 0.009, 0.006, 0.02, 0x596969, V(x, 0.008));
   return (f) => {
     const y = 0.005 + f * (LEVEL - 0.005);
     plane.set(V(0, -1), y).applyMatrix4(group.matrixWorld);
     water.visible = f > 0;
+    tubeNames[0].visible = f === 0;
+    tubeNames[1].visible = f > 0;
     surfaces.forEach((s) => {
       s.visible = y > bendY;
       s.position.y = y;
@@ -121,6 +125,7 @@ function supply(group) {
     V(-0.014, 0.024, 0.0236),
   );
   const needle = new THREE.Group();
+  nameplate(body, '电流表', V(0.026, 0.025, 0.0236), 0.027, 0.009, '#bdc8c0');
   needle.position.set(0, -0.01, 0.0002);
   dial.add(needle);
   box(needle, 0.0008, 0.0155, 0.0003, 0x854433, V(0, 0.0078));
@@ -192,6 +197,8 @@ export function apparatus(group) {
     return rod;
   });
   const leads = [wire(group, 0x354345), wire(group, 0xa24a3f)];
+  const rodNames = ['负极侧石墨棒', '正极侧石墨棒'].map((text) =>
+    nameplate(group, text, V(0, 0), 0.043, 0.009, '#f3edda'));
   // 铜层贴在实际浸没的棒段上，自下而上逐渐显现。
   const deposit = part(
     rods[0],
@@ -209,11 +216,13 @@ export function apparatus(group) {
   const drawCup = pouringCup(beaker, bath);
   const lip = part(beaker, new THREE.TorusGeometry(beaker.r, 0.00047, 8, 48), surface(0xb0c9cb), V(0, beaker.h));
   lip.rotation.x = Math.PI / 2;
-  nameplate(beaker, 'CuCl₂', V(0, 0.024, 0.0275), 0.033, 0.012, '#f3edda');
+  const cupNames = ['烧杯·氯化铜溶液', '烧杯'].map((text) =>
+    nameplate(beaker, text, V(0, 0.024, 0.0275), 0.050, 0.012, '#f3edda'));
   const drip = part(group, new THREE.CylinderGeometry(0.001, 0.0012, 1, 10), water2({ color: 0x398f86, base: 0.77 }));
   drip.renderOrder = 9.5;
   const paper = part(group, new THREE.BoxGeometry(PAPER_TIP * 2, 0.0013, 0.015), surface(0xe9e2bf));
   paper.rotation.x = 0.22;
+  const paperName = nameplate(group, '湿润的碘化钾淀粉试纸', V(0, 0), 0.064, 0.009, '#f3edda');
   const stainMat = new THREE.MeshBasicMaterial({
     map: canvasTex(256, 80, (c, w, h) => {
       const shade = c.createLinearGradient(0, 0, w, 0);
@@ -241,20 +250,27 @@ export function apparatus(group) {
     const [cup, neg, pos, strip] = S.pos;
     bath.position.copy(cup);
     drawCup(S.fill, S.tilt);
+    cupNames[0].visible = S.fill < 1;
+    cupNames[1].visible = S.fill === 1;
     setLevel(S.fill);
     paper.position.copy(strip);
+    const lifted = unit((strip.y - HOME[3].y) / (RIM - HOME[3].y));
+    paperName.position.set(strip.x + lifted * (strip.x < 0 ? -0.060 : 0.041), Math.max(0.005, strip.y - 0.005), strip.z + 0.026);
     stainMat.opacity = S.blue;
     stain.visible = S.blue > 0;
     rods.forEach((rod, i) => {
       rod.position.copy(i ? pos : neg);
+      rodNames[i].position.set(rod.position.x + (i ? 0.030 : -0.030), rod.position.y + HALF - 0.003, 0.0068);
       leads[i].update(source.terminals[i], rod.position.clone().add(V(0, HALF + 0.001)), i ? 0.019 : 0.009);
     });
     const immersed = Math.max(0, LEVEL - (neg.y - HALF));
     deposit.scale.y = Math.max(0.00001, immersed * Math.min(1, S.charge / 2.5));
     deposit.visible = S.charge > 0 && immersed > 0;
     source.draw(S.power, S.power);
-    const streamEnd = Math.max(0.014, 0.005 + S.fill * (LEVEL - 0.005));
-    drip.visible = S.grip === 0 && S.tilt > 0 && S.fill < 1;
+    const outer = X[1] + Math.sqrt(Math.max(0, (R - 0.0011) ** 2 - cup.z ** 2));
+    const wallY = 0.05 - Math.sqrt(Math.max(0, outer ** 2 - cup.x ** 2));
+    const streamEnd = Math.max(wallY, 0.005 + S.fill * (LEVEL - 0.005));
+    drip.visible = S.grip === 0 && !S.returns[0] && S.tilt > 0 && S.fill < 1;
     if (drip.visible) {
       const p = cup;
       drip.scale.y = Math.max(0.001, p.y - streamEnd);
@@ -325,27 +341,24 @@ function circuit(c, label) {
 }
 
 export function electrodeScene() {
-  let time = 0, offset = 0, lastCharge = 0, idleTime = 0, paused = false, active = false, phaseIndex = 0;
+  let time = 0, idleTime = 0, paused = false, active = false, phaseIndex = 0;
   let ions, electrons, marks, bond, prior, arrows, replaying;
-  function replay(charge) {
-    // 只放大最近一组的时长。早期开看或重看，都先从通电前演起。
-    offset = Math.max(0, charge - CYCLE);
-    lastCharge = charge;
+  function replay() {
+    // 每组电极反应用独立的慢放时钟，短时通电也能看完一次电子转移。
     time = -1.5;
+    idleTime = 0;
     paused = false;
   }
   return {
     holoBase: false,
-    get time() { return { time, offset, idleTime, replaying }; },
-    set time(v) { ({ time, offset, idleTime, replaying } = v); },
+    get time() { return { time, idleTime }; },
+    set time(v) { ({ time, idleTime } = v); },
     get paused() { return paused; },
     set paused(v) { paused = v; },
     replay,
     init(c, st) {
       c.view.film = 0;
-      replay(st.charge);
-      if (!st.running) time = st.charge - offset;
-      idleTime = 0;
+      replay();
       function label(word, p, width = 3.5) {
         const mark = textSprite(word, '#233c40', 'white');
         mark.scale.set(width, width * 0.375, 1);
@@ -363,14 +376,12 @@ export function electrodeScene() {
       marks = Object.fromEntries(['Cu²⁺', 'Cl⁻', 'Cu', 'Cl₂', 'e⁻'].map((s) => [s, label(s, V(0, 0))]));
     },
     step(c, st, dt) {
-      const target = st.charge - offset;
       if (!paused) {
         idleTime += dt;
-        time = Math.min(target, time + (st.charge - lastCharge) + dt * 0.9);
-        replaying = st.charge > 0 && time < target - 0.02;
+        if (st.charge > 0) time = st.running ? time + dt : Math.min(CYCLE, time + dt);
       }
-      lastCharge = st.charge;
-      active = time >= 0 && (st.running || time < target);
+      replaying = st.charge > 0 && time < CYCLE;
+      active = time >= 0 && (st.running || replaying);
       arrows.forEach((arrow) => { arrow.visible = active; });
       const cycle = Math.floor(Math.max(0, time) / CYCLE);
       const t = Math.max(0, time) % CYCLE;

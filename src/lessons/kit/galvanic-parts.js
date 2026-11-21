@@ -47,7 +47,7 @@ export function clip(color) {
   return grip;
 }
 
-export function ammeter() {
+export function ammeter(name = '') {
   const g = new THREE.Group();
   const frame = new THREE.Mesh(roundedBox(0.094, 0.067, 0.028, 0.004), paint(0x354746, { keep: true }));
   frame.position.y = 0.036;
@@ -77,6 +77,10 @@ export function ammeter() {
         c.font = '24px serif';
         c.fillText('0', -154, -149);
         c.restore();
+        c.font = 'bold 38px "PingFang SC", sans-serif';
+        c.fillStyle = '#33403d';
+        c.textAlign = 'center';
+        c.fillText(name, w * 0.78, h * 0.86);
       }),
     }),
   );
@@ -108,8 +112,8 @@ export function interfaceScene() {
   const start = V(-3.7, 0.68, 1.06);
   const transfer = {
     direct: '锌原子失去两个电子，成为 Zn²⁺ 进入溶液。沿导线看，两个电子正向铜片移动。',
-    meter: '锌原子失去两个电子，成为 Zn²⁺ 进入溶液。电子沿导线经过电流表，到达铜片。',
-    open: '锌原子失去两个电子，成为 Zn²⁺ 进入溶液。氢离子在锌片表面得到电子。',
+    meter: '锌原子失去两个电子，成为 Zn²⁺ 进入溶液。两个电子沿接有电流表的导线移向铜片。',
+    open: '锌原子失去两个电子，成为 Zn²⁺ 进入溶液。两个电子移向锌片表面的氢离子。',
   };
   const title = (c, word) => {
     const t = textSprite(word, '#222d3c', '#fff');
@@ -219,8 +223,8 @@ export function interfaceScene() {
           3.1 - 2.1 * reach + rise * 0.65,
         );
         const charged = time < arrival[i];
-        m.ionLabel.visible = charged;
-        m.atomLabel.visible = !charged && time < 7.2;
+        m.ionLabel.visible = charged && (i === 0 || time >= arrival[0]);
+        m.atomLabel.visible = !charged && time < 7.2 && i === 0;
         const label = charged ? m.ionLabel : m.atomLabel;
         label.position.copy(m.g.position);
         label.position.x += s * 1.1;
@@ -228,7 +232,7 @@ export function interfaceScene() {
         m.glowS.visible = charged;
         m.glowS.material.opacity = 0.42;
         const e = electrons[i],
-          u = progress(1.1 + i * 0.48, arrival[i]);
+          u = progress(1.1, arrival[i]);
         if (connected && u < 0.88) e.position.copy(path.getPointAt(u / 0.88));
         else
           e.position
@@ -256,7 +260,7 @@ export function interfaceScene() {
       else if (time < arrival[1]) cap = '第一个氢离子得到一个电子，成为氢原子。';
       else if (time < 7.2) cap = '两个氢离子各得一个电子，形成的两个氢原子靠拢。';
       else cap = '两个氢原子结合成一个氢分子，从金属表面放出。';
-      return { on: st.zinc, eq: time < arrival[0] ? 'Zn − 2e⁻ = Zn²⁺' : '2H⁺ + 2e⁻ = H₂↑', cap };
+      return { on: st.zinc, eq: !st.zinc ? '' : time < arrival[0] ? 'Zn − 2e⁻ = Zn²⁺' : '2H⁺ + 2e⁻ = H₂↑', cap };
     },
   };
 }

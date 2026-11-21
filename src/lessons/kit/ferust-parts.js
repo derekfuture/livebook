@@ -3,28 +3,42 @@ import * as THREE from 'three';
 import { testTube, glassTube, chemBeaker } from './chem.js';
 import { water2 } from './chemfx.js';
 import { canvasTex } from './props.js';
-import { plate } from './dianzhi-parts.js';
 import { textSprite } from './microworld.js';
 
 export const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 export const CUP = -0.105, TUBE = -0.018, WATER = 0.098;
-export const RIM = 0.132, CUP_RIM = 0.068, HALF = 0.032;
+export const RIM = 0.132, CUP_RIM = 0.068, BRINE_LEVEL = 0.061, HALF = 0.032;
 const BASE = 0.009, SURFACE = 0.048, FOOT = 0.02;
 const mesh = (geometry, color) => new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, roughness: 0.65 }));
 
-export function apparatus(group) {
-  const salt = chemBeaker({ r: 0.027, h: CUP_RIM, level: 0.061, color: 0xc5dce0, marks: false });
+export function apparatus(group, tag) {
+  const salt = chemBeaker({ r: 0.027, h: CUP_RIM, level: BRINE_LEVEL, color: 0xc5dce0, marks: false });
   salt.position.x = CUP;
-  const label = plate('饱和食盐水', 0.046, 0.012);
-  label.position.set(0, 0.025, 0.028);
-  salt.add(label);
   group.add(salt);
+  const nameplate = (text, x, y, z) => tag(text, 'ferust-name').loc(group, x, y, z);
+  const cupName = nameplate('烧杯 · 饱和食盐水', CUP, 0.025, 0.028);
+  const mainName = nameplate('具支试管 · 空气', TUBE, 0.086, 0.015);
+  const bathName = nameplate('试管 · 水', WATER, 0.024, 0.018);
+  const pipeName = nameplate('细导管', 0.078, 0.115, 0.005);
+  const jointName = nameplate('橡胶管', 0.037, 0.107, 0.006);
+  const rackName = nameplate('试管架', 0.04, 0.0048, 0.027);
+  const nailName = nameplate('酸洗除锈的铁钉', CUP, CUP_RIM, 0.008);
+  const capName = nameplate('橡胶塞', 0, 0, 0);
+  function nameplates(s, microOpen) {
+    const desk = !microOpen && !s.near;
+    cupName.show(desk); jointName.show(desk); rackName.show(desk);
+    mainName.text(s.inside ? '具支试管 · 铁钉和空气' : '具支试管 · 空气').show(desk);
+    bathName.show(!microOpen); pipeName.show(!microOpen);
+    const high = s.nail.y > RIM;
+    nailName.loc(group, s.nail.x - (high ? 0.026 : 0), high ? s.nail.y : s.nail.y + Math.cos(s.angle) * HALF + 0.012, 0.008)
+      .text(s.wet ? '铁钉 · 食盐水膜' : '酸洗除锈的铁钉').show(desk && !s.inside);
+    capName.loc(group, s.cap.x, s.cap.y + 0.009, 0.016).show(desk);
+  }
 
   const main = testTube({ r: 0.013, len: RIM - BASE });
   const bath = testTube({ r: 0.017, len: 0.095 - BASE });
   main.position.set(TUBE, BASE, 0);
   bath.position.set(WATER, BASE, 0);
-  main.userData.ringY = RIM + 0.001;
   group.add(main, bath);
   const branch = 0.106;
   group.add(glassTube([V(TUBE + 0.012, branch), V(0.004, branch), V(0.025, branch)], { r: 0.0039 }));
@@ -67,7 +81,7 @@ export function apparatus(group) {
   nail.material.metalness = 0.42;
   nail.material.roughness = 0.31;
   const film = new THREE.Mesh(new THREE.CylinderGeometry(0.00294, 0.00285, 0.05, 22),
-    new THREE.MeshPhongMaterial({ color: 0xb0d1d9, transparent: true, opacity: 0.42, shininess: 90 }));
+    new THREE.MeshPhongMaterial({ color: 0xb4e0e6, specular: 0xffffff, transparent: true, opacity: 0.55, shininess: 100 }));
   nail.add(film);
   const cap = mesh(new THREE.LatheGeometry([[0, 0], [0.012, 0], [0.0125, 0.001],
     [0.015, 0.016], [0.0148, 0.0177], [0.0142, 0.018], [0, 0.018]]
@@ -80,13 +94,17 @@ export function apparatus(group) {
       return new THREE.Vector2(0.0168 * Math.cos(a), 0.0168 * (1 + Math.sin(a)) * bath.scale.y);
     }).concat([new THREE.Vector2(0.0168, SURFACE - BASE)]), 48), water2({ color: 0x96c5d6 }));
   liquid.position.set(WATER, BASE + 0.0009, 0); liquid.renderOrder = 7;
-  const disc = (r, col) => {
-    const s = new THREE.Mesh(new THREE.CircleGeometry(r, 40),
+  const surface = (r, inner, depth, col) => {
+    const profile = Array.from({ length: 16 }, (_, i) => {
+      const t = i / 15;
+      return new THREE.Vector2(inner + (r - inner) * t, depth * t ** 6);
+    });
+    const s = new THREE.Mesh(new THREE.LatheGeometry(profile, 40),
       new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.72, side: THREE.DoubleSide }));
-    s.rotation.x = -Math.PI / 2; s.renderOrder = 8; group.add(s); return s;
+    s.renderOrder = 8; group.add(s); return s;
   };
-  const outside = disc(0.0168, 0xaccdd5), meniscus = disc(0.00335, 0x326a79);
-  const column = new THREE.Mesh(new THREE.CylinderGeometry(0.00335, 0.00335, 1, 26), new THREE.MeshPhongMaterial({ color: 0x62a5b9, transparent: true, opacity: 0.7, shininess: 85, depthWrite: false }));
+  const outside = surface(0.0168, 0.0039, 0.00065, 0xaccdd5), meniscus = surface(0.00335, 0, 0.0008, 0x326a79);
+  const column = new THREE.Mesh(new THREE.CylinderGeometry(0.00335, 0.00335, 1, 26, 1, true), new THREE.MeshPhongMaterial({ color: 0x62a5b9, transparent: true, opacity: 0.7, shininess: 85, depthWrite: false }));
   column.renderOrder = 8;
   group.add(liquid, column);
   const waterLevel = (fraction) => {
@@ -97,9 +115,9 @@ export function apparatus(group) {
     const top = SURFACE + rise;
     column.position.set(WATER, (FOOT + top) / 2, 0); column.scale.y = top - FOOT;
     meniscus.position.set(WATER, top + 0.0001, 0);
-    outside.userData.ringY = Math.max(top + 0.002, 0.066);
+    bath.glass.userData.ringY = Math.max(top + 0.002, 0.066);
   };
-  return { nail, cap, film, main, meniscus, outside, waterLevel };
+  return { nail, cap, film, bathGlass: bath.glass, meniscus, waterLevel, nameplates };
 }
 
 // 两个铁原子、一个氧分子和两个水分子。保留每个原子，示意原子去向，最后汇入铁面的沉淀。
@@ -108,9 +126,10 @@ export function corrosionScene() {
   let time = 0, paused = false, atoms, electrons, labels, links, carbon, deposits, film;
   const ends = [V(0.35, 3.0, 1.8), V(3.05, 4.25, -0.7), V(5.2, 2.3, 1.4), V(2.05, 1.25, 1)];
   const ions = [V(-4.3, 3.5, 1.15), V(-1.8, 2.9, -1)];
-  const sites = [V(-2.6, 0.12, 0.45), V(0.65, 0.12, -0.65)];
-  // 两个水分子从两侧靠近氧分子。换画产物时，每个 H 已紧邻其所属的 O。
-  const contact = [2.22, 3.42, 0.7, 4.94].map(x => V(x, 1.5, 0.55));
+  const sites = [V(-2.6, 0.64, 0.45), V(0.65, 0.64, -0.65)];
+  const settled = sites.flatMap(site => [site.clone().add(V(-0.93, 0.12)), site.clone().add(V(0.93, 0.12))]);
+  // 两个水分子从两侧靠近氧分子。保留两条 O–H 键，另两个 H 分别移向氧分子的两个 O。
+  const contact = [1.58, 2.78, -1.58, 5.35].map(x => V(x, 1.5, 0.55));
   const hydroxyl = [V(-0.76, 0.59), V(0.76, 0.59), V(-0.76, 0.59), V(0.76, 0.59)];
   const hydrogenOwner = [2, 0, 1, 3];
   const starts = [V(-4.6, 0.53, 0.7), V(-2.9, 0.53, -0.6),
@@ -128,8 +147,11 @@ export function corrosionScene() {
     get paused() { return paused; }, set paused(v) { paused = v; },
     init(c) {
       time = 0; paused = false; c.view.film = 0;
-      const slab = mesh(new THREE.BoxGeometry(12.8, 1.05, 5.4), 0x65717b);
-      slab.position.y = -0.55; c.layer.add(slab);
+      const tile = new THREE.BoxGeometry(2.54, 1.05, 1.78);
+      for (let x = -2; x <= 2; x++) for (let z = -1; z <= 1; z++) {
+        const slab = mesh(tile, 0x65717b);
+        slab.position.set(2.56 * x, -0.55, 1.8 * z); c.layer.add(slab);
+      }
       const water = new THREE.Mesh(new THREE.BoxGeometry(12.8, 4.95, 5.4),
         new THREE.MeshBasicMaterial({ color: 0x9cceda, opacity: 0.11, transparent: true, depthWrite: false }));
       water.position.y = 2.48; c.layer.add(water); film = water;
@@ -150,7 +172,7 @@ export function corrosionScene() {
       for (let j = 0; j < 48; j++) {
         const patch = mesh(mineral, 0xc4d1c5);
         const n = Math.floor(j / 2), a = n * 2.4, r = 0.43 * Math.sqrt(n);
-        patch.position.copy(sites[j % 2]).add(V(r * Math.cos(a), -0.1, r * 0.7 * Math.sin(a)));
+        patch.position.copy(sites[j % 2]).setY(0.02).add(V(r * Math.cos(a), 0, r * 0.7 * Math.sin(a)));
         patch.material.vertexColors = true; patch.rotation.y = a; patch.visible = false;
         c.layer.add(patch); deposits.push(patch);
       }
@@ -170,25 +192,29 @@ export function corrosionScene() {
       links = [];
     },
     step(c, st, dt) {
-      if (!paused) time = Math.min(time + dt, st.seen ? 21 : st.wet ? 13 : 0);
+      if (!paused) time = Math.min(time + dt, st.reacted ? 21 : 13 * st.progress);
       for (let i = 0; i < 2; i++) {
         p(i).lerpVectors(starts[i], ions[i], ramp(1.6 + i * 0.7, 4 + i * 0.7)).lerp(sites[i], ramp(10.7, 13));
       }
       for (let i = 0; i < 4; i++) {
         p(i + 2).lerpVectors(starts[i + 2], contact[i], ramp(0.4, 4))
-          .lerp(ends[i], ramp(5.7, 8.3)).lerp(sites[i >> 1], ramp(10.7, 13));
+          .lerp(ends[i], ramp(7.5, 9.6)).lerp(settled[i], ramp(10.7, 13));
       }
       links = [];
-      if (time < 5.7) {
+      if (time < 5.9) {
         for (const d of [-0.13, 0.13]) links.push([p(2).clone().add(V(0, d)), p(3).clone().add(V(0, d))]);
       }
       for (let i = 0; i < 4; i++) {
-        const water = 4 + (i >> 1), owner = hydrogenOwner[i];
-        const before = time < 5.7;
-        const oxygen = before ? water : 2 + owner;
-        const offset = before ? starts[i + 6].clone().sub(starts[water]) : hydroxyl[owner];
-        p(i + 6).copy(p(oxygen)).addScaledVector(offset, 1 - ramp(11.9, 13));
-        if (time < 13) links.push([p(oxygen), p(i + 6)]);
+        const water = 4 + (i >> 1), owner = hydrogenOwner[i], target = 2 + owner;
+        const h = p(i + 6);
+        h.copy(p(water)).add(starts[i + 6]).sub(starts[water]);
+        if (target !== water) {
+          const u = ramp(5.9, 7.5);
+          h.lerp(p(target).clone().add(hydroxyl[owner]), u);
+          h.y += 0.38 * Math.sin(Math.PI * u);
+          if (u > 0 && u < 1) continue;
+        }
+        if (time < 15) links.push([p(time < 5.9 ? water : target), h]);
       }
       electrons.forEach((e, i) => {
         const donor = starts[i >> 1], u = ramp(1.6 + i * 0.35, 4.8 + i * 0.35);
@@ -206,21 +232,18 @@ export function corrosionScene() {
       mark('C', V(3.6, 0.15, 0.8), 0.25, -0.58, time < 8.3);
       mark('Fe', p(0), -1.1, 0.75, time < 1.6);
       mark('Fe²⁺', p(0), -0.1, 1, time >= 1.6 && time < 12);
-      mark('O₂', p(2), 0.4, 1.1, time < 5.7);
-      mark('H₂O', p(4), -0.62, 1.2, time < 5.7);
-      mark('OH⁻', p(3), -0.55, 1.3, time >= 6.4 && time < 11.9);
-      mark('Fe(OH)₂', sites[0], -0.2, 1.5, time >= 12.4 && time < 15);
+      mark('O₂', p(2), 0.4, 1.1, time < 5.9);
+      mark('H₂O', p(4), -0.62, 1.2, time < 5.9);
+      mark('OH⁻', p(3), -0.55, 1.3, time >= 7.5 && time < 11.9);
+      mark('Fe(OH)₂', sites[0], -0.2, 1.5, time >= 13 && time < 15);
       const e = electrons.find((dot) => dot.visible);
       mark('e⁻', (e || electrons[0]).position, 0.3, -0.8, !!e);
       const surfaceView = time >= 15;
-      for (const m of atoms) {
-        m.g.visible = time < 13;
-        m.g.scale.setScalar(1 - ramp(11.9, 13));
-      }
+      for (const m of atoms) m.g.visible = !surfaceView;
       for (const m of carbon) m.g.visible = !surfaceView;
       film.visible = !surfaceView;
       for (let i = 0; i < deposits.length; i++) {
-        const d = deposits[i], grow = ramp(11.9 + i * 0.055, 13 + i * 0.055);
+        const d = deposits[i], grow = ramp(13 + i * 0.04, 14 + i * 0.04);
         d.visible = grow > 0;
         if (!d.visible) continue;
         const oxidized = ramp(16 + i * 0.032, 17.5 + i * 0.032);
@@ -232,12 +255,12 @@ export function corrosionScene() {
     links: () => links,
     text(c, st) {
       if (time < 1.6) return { eq: '铁钉表面的水膜', cap: '水膜中溶有氧气。找一找铁和碳与水膜接触的地方。' };
-      if (time < 5.7) return { eq: '2Fe − 4e⁻ = 2Fe²⁺', cap: '两个铁原子各失去两个电子。Fe²⁺ 进入水膜，电子沿金属流向碳。' };
-      if (time < 10.7) return { eq: 'O₂ + 2H₂O + 4e⁻ = 4OH⁻', cap: '在碳表面，氧得到电子，与水形成 OH⁻。动画只示意原子去向，不代表反应机理。' };
-      if (time < 13 || !st.seen) return { eq: '2Fe + O₂ + 2H₂O = 2Fe(OH)₂', cap: 'Fe²⁺ 和 OH⁻ 在铁表面附近相遇，生成附着在铁面上的 Fe(OH)₂ 沉淀。' };
-      if (time < 15) return { eq: '2Fe + O₂ + 2H₂O = 2Fe(OH)₂', cap: '塞紧管口时，管内的氧气补入水膜。气体压强下降，外界大气压推动水柱上升。' };
-      if (time < 18.6) return { eq: '以后在空气中 · 表面变化示意', cap: '把时间拉长看铁钉表面。Fe(OH)₂ 继续被氧化，生成红褐色的 Fe(OH)₃。' };
-      return { eq: '铁锈的主要成分　Fe₂O₃·xH₂O', cap: 'Fe(OH)₃ 失去部分水，形成疏松的锈层。水和氧仍能接触铁，腐蚀还会继续。' };
+      if (time < 5.9) return { eq: '2Fe − 4e⁻ = 2Fe²⁺', cap: '两个铁原子各失去两个电子。Fe²⁺ 进入水膜，电子沿金属流向碳。' };
+      if (time < 10.7) return { eq: 'O<sub>2</sub> + 2H<sub>2</sub>O + 4e⁻ = 4OH⁻', cap: '在碳表面，氧得到电子，与水形成 OH⁻。动画只示意原子去向，不代表反应机理。' };
+      if (time < 13 || !st.reacted) return { eq: '2Fe + O<sub>2</sub> + 2H<sub>2</sub>O = 2Fe(OH)<sub>2</sub>', cap: 'Fe²⁺ 和 OH⁻ 在铁表面附近相遇，生成附着在铁面上的 Fe(OH)<sub>2</sub> 沉淀。' };
+      if (time < 15) return { eq: '2Fe + O<sub>2</sub> + 2H<sub>2</sub>O = 2Fe(OH)<sub>2</sub>', cap: '铁面上形成了 Fe(OH)<sub>2</sub> 沉淀。' };
+      if (time < 18.6) return { eq: '以后在空气中 · 表面变化示意', cap: '把时间拉长看铁钉表面。Fe(OH)<sub>2</sub> 继续被氧化，生成红褐色的 Fe(OH)<sub>3</sub>。' };
+      return { eq: '铁锈的主要成分　Fe<sub>2</sub>O<sub>3</sub>·xH<sub>2</sub>O', cap: 'Fe(OH)<sub>3</sub> 失去部分水，形成疏松的锈层。水和氧仍能接触铁，腐蚀还会继续。' };
     },
   };
 }

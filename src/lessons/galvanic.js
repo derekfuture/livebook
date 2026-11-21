@@ -17,6 +17,8 @@ const CX = 0.035,
   HALF = 0.048;
 const REST = [V(CX - 0.024, RIM + 0.002), V(CX + 0.024, RIM + 0.002), V(0.136, 0.015), V(-0.037, 0.015)];
 const lower = (i) => V(REST[i].x, 0.051);
+const stripOffset = V(0, -HALF);
+const jawOffset = V(0, -0.011);
 const intro = '杯里盛着稀硫酸。把搭在杯口的锌片、铜片分别向下拖入溶液，比较两片金属的表面。';
 const rows = {
   zinc: ['锌片入酸', '锌片冒泡'],
@@ -53,10 +55,10 @@ export default {
     const cup = chemBeaker({ r: R, h: RIM, level: LEVEL, marks: false, color: 0xc9e1e5 });
     cup.position.x = CX;
     group.add(cup);
-    const acid = plate('稀硫酸', 0.039, 0.013);
-    acid.position.set(CX, 0.025, R + 0.001);
+    const acid = plate('烧杯 · 稀硫酸', 0.056, 0.010);
+    acid.position.set(CX, 0.023, R + 0.001);
     group.add(acid);
-    const meter = ammeter();
+    const meter = ammeter('电流表');
     meter.g.position.set(-0.101, 0, -0.022);
     group.add(meter.g);
     const terminals = meter.posts.map((p) =>
@@ -65,13 +67,22 @@ export default {
         .add(meter.g.position)
         .add(V(0, 0.017, 0)),
     );
+    const blackPostTop = meter.posts[0].position.clone().add(meter.g.position);
+    blackPostTop.y += meter.posts[0].geometry.parameters.height / 2;
     const tools = [strip(false), strip(true), clip(0x30373e), clip(0xaf3c2c)];
     tools.forEach((o) => group.add(o));
-    const metalLabels = ['Zn', 'Cu'].map((s, i) => {
+    const metalLabels = ['锌片', '铜片'].map((s, i) => {
       const p = plate(s, 0.015, 0.009, { bg: i ? '#be7048' : '#abb7bc' });
       p.position.set(0, 0.029, 0.0014);
       tools[i].add(p);
       return p;
+    });
+    const clipLabels = ['黑导线夹', '红导线夹'].map((word, i) => {
+      const label = plate(word, 0.026, 0.008);
+      label.position.set(0, 0.005, 0.005);
+      label.raycast = THREE.Mesh.prototype.raycast;
+      tools[i + 2].add(label);
+      return label;
     });
     const leads = [wire(group, 0x30383e), wire(group, 0xb54335)];
     const gasGeometry = new THREE.SphereGeometry(1, 14, 10);
@@ -99,12 +110,13 @@ export default {
     let S = fresh(),
       W,
       gen = 0;
-    const circuit = () => {
-      if (!S.wet.every(Boolean)) return 'open';
-      if (S.ends[0] === 'copper') return 'direct';
-      return S.ends[0] === 'post' && S.ends[1] === 'copper' ? 'meter' : 'open';
+    const circuitMode = (zinc, copper, blackEnd, redEnd) => {
+      if (!zinc || !copper) return 'open';
+      if (blackEnd === 'copper') return 'direct';
+      return blackEnd === 'post' && redEnd === 'copper' ? 'meter' : 'open';
     };
-    const reaction = () => ({ circuit: circuit(), zinc: S.wet[0], copper: S.wet[1] });
+    const settledCircuit = () => circuitMode(...S.wet, ...S.ends);
+    const contact = { zinc: false, copper: false, circuit: 'open' };
     const scene = interfaceScene();
     const mic = micro({
       tag,
@@ -113,14 +125,14 @@ export default {
       group,
       scene,
       at: () => V(CX, 0.095, 0),
-      btnAt: () => V(CX + 0.023, 0.011, 0.085),
+      btnAt: () => V(CX, 0.011, R),
       scale: 0.011,
       dist: 0.3,
       lookD: [0.025, 0.48, 1],
-      label: '钻进去看',
-      state: reaction,
-      key: () => [...S.wet, circuit()].join('/'),
-      show: () => S.wet.some(Boolean),
+      label: '钻进烧杯里看',
+      state: () => ({ ...contact }),
+      key: () => [contact.zinc, contact.copper, contact.circuit].join('/'),
+      show: () => contact.zinc || contact.copper,
       bar: () => bar,
     });
     const overlay = document.querySelectorAll('.mw');
@@ -147,7 +159,7 @@ export default {
       }`,
     );
     document.head.append(layout);
-    const pin = (i) => V(0, HALF, 0).applyEuler(tools[i].rotation).add(S.pos[i]);
+    const pin = (i) => V(0, HALF, 0).applyEuler(tools[i].rotation).add(tools[i].position);
     const copperDock = () => pin(1).add(V(0, 0.011, 0));
     const redFirst = () => bar.current === 'direct' && S.ends[1] === 'copper';
     const removeRed = '先把红夹从铜片取下，再把黑夹夹到铜片上端。';
@@ -159,12 +171,14 @@ export default {
     }
     function showConnection(fallback = '导线未接通。') {
       if (S.demo) return;
-      const mode = circuit();
+      const mode = settledCircuit();
       let msg = fallback;
       if (mode !== 'open') {
-        record(mode);
         msg = rows[mode].join('：') + '。';
-        if (mode === 'direct' || bar.has('direct')) bar.done(mode);
+        if (mode === 'direct' || S.seen.direct) {
+          record(mode);
+          bar.done(mode);
+        }
       }
       let hint = null;
       if (redFirst()) hint = removeRed;
@@ -177,11 +191,18 @@ export default {
       }
     }
     function renderTools() {
+      const small = innerWidth <= 760;
+      acid.scale.setScalar(small ? 1.55 : 1);
+      acid.position.y = small ? 0.035 : 0.023;
+      clipLabels.forEach((label) => label.scale.setScalar(small ? 1.55 : 1));
       for (let i = 0; i < 4; i++) {
         tools[i].position.copy(S.pos[i]);
         if (i < 2) {
           const tilt = clamp((S.pos[i].y - lower(i).y) / (REST[i].y - lower(i).y), 0, 1);
           tools[i].rotation.x = (-Math.PI / 2) * tilt;
+          metalLabels[i].scale.setScalar(small ? 1.6 : 1);
+          metalLabels[i].rotation.x = -tools[i].rotation.x * 0.65;
+          metalLabels[i].position.z = 0.0014 + 0.0045 * Math.sin(metalLabels[i].rotation.x);
           metalLabels[i].userData.ringY = pin(i).y + 0.003;
         }
       }
@@ -199,74 +220,91 @@ export default {
       red.quaternion.setFromAxisAngle(redEnd.sub(redStart).normalize(), 0.47);
       red.position.copy(redStart).sub(redStart.clone().applyQuaternion(red.quaternion));
     }
-    function clipTarget(i, grip) {
-      if (S.wet[1] && S.ends[3 - i] !== 'copper' && jawTouchesTop(grip, pin(1), tools[1].geometry.parameters.width / 2)) {
-        return ['copper', copperDock()];
-      }
-      const post = meter.posts[0];
-      const top = post.position.clone().add(meter.g.position);
-      top.y += post.geometry.parameters.height / 2;
-      if (i === 2 && jawTouchesTop(grip, top, post.geometry.parameters.radiusTop)) return ['post', terminals[0]];
-      return null;
+    function immerse(i) {
+      S.wet[i] = true;
+      if (S.demo) return;
+      const key = i === 0 ? 'zinc' : 'copper';
+      const observation = settledCircuit() === 'open' ? rows[key] : [rows[key][0], '电路接通，铜片冒泡'];
+      record(key, observation);
+      bar.done(key);
+      showConnection(observation.join('：') + '。');
+    }
+    let departure = null;
+    function zones(i) {
+      if (i < 2) return [{
+        name: '烧杯', position: lower(i).add(stripOffset), radius: 0.026,
+        onDrop: () => immerse(i),
+      }];
+      const copper = {
+        dock: 'copper', name: '铜片上端', position: () => pin(1), radius: 0.032,
+        enabled: () => departure?.zone !== copper && S.wet[1] && S.ends[3 - i] !== 'copper',
+        onDrop: () => { S.ends[i - 2] = 'copper'; showConnection(); },
+      };
+      if (i === 3) return [copper];
+      const post = {
+        dock: 'post', name: '黑接线柱', position: () => terminals[0].clone().add(jawOffset), radius: 0.029,
+        enabled: () => departure?.zone !== post,
+        onDrop: () => { S.ends[0] = 'post'; showConnection(); },
+      };
+      return [copper, post];
     }
     const hints = ['把锌片向下插入稀硫酸', '把铜片向下插入稀硫酸', '拖动黑夹，连接或断开导线', '把红夹夹到铜片上'];
     const drags = tools.map((obj, i) => ({
       obj,
       keepOffset: true,
       plane: 'xy',
+      dropOffset: i < 2 ? stripOffset : jawOffset,
+      dropzones: zones(i),
       hint: hints[i],
       onStart() {
         S.drag = i;
         S.returns[i] = null;
+        const zone = i >= 2 && this.dropzones.find((z) => z.dock === S.ends[i - 2]);
+        departure = zone ? { zone, distance: 0, idle: 0 } : null;
       },
       onDrag(p) {
         if (i < 2 && S.wet[i]) return;
-        if (i >= 2 && S.ends[i - 2] !== 'free') {
+        if (departure) {
+          const distance = p.clone().add(jawOffset).distanceTo(departure.zone.position());
+          if (S.ends[i - 2] !== 'free' && distance <= 0.004) return;
           S.ends[i - 2] = 'free';
-          showConnection();
+          // 向外取夹时跟手；回拖或短暂停手后，原接点重新参与公共吸附。
+          if (distance > departure.zone.radius || distance < departure.distance - 0.0001) departure = null;
+          else if (distance > departure.distance) {
+            departure.distance = distance;
+            departure.idle = 0;
+          }
         }
         S.pos[i].copy(p).setZ(0);
         S.pos[i].y = clamp(p.y, i < 2 ? HALF + 0.002 : 0.015, 0.18);
         renderTools();
       },
-      onEnd(moved) {
+      onEnd(moved, zone) {
         S.drag = -1;
-        if (!moved || (i < 2 && S.wet[i])) return;
-        const p = S.pos[i];
-        if (i < 2) {
-          const bottom = pinBottom(i);
-          if (
-            Math.hypot(bottom.x - CX, bottom.z) < R - 0.011 &&
-            Math.abs(p.x - S.pos[1 - i].x) > 0.019 &&
-            bottom.y < LEVEL - 0.006
-          ) {
-            S.wet[i] = true;
-            S.returns[i] = { from: p.clone(), to: p.clone().setY(lower(i).y), elapsed: 0 };
-            // 保留学生实际放置的位置，接线夹和气泡都取这个电极的位置。
-            const key = i === 0 ? 'zinc' : 'copper';
-            if (!S.demo) {
-              const observation = circuit() === 'open' ? rows[key] : [rows[key][0], '电路接通，铜片冒泡'];
-              record(key, observation);
-              bar.done(key);
-              showConnection(observation.join('：') + '。');
-            }
-            return;
-          }
-        } else {
-          const hit = clipTarget(i, p);
-          if (hit) {
-            S.ends[i - 2] = hit[0];
-            p.copy(hit[1]);
-            showConnection();
-            return;
-          }
-        }
-        S.returns[i] = { from: p.clone(), elapsed: 0 };
+        departure = null;
+        if (!moved || zone) return;
+        if (i >= 2 && S.ends[i - 2] !== 'free') return;
+        S.returns[i] = { from: S.pos[i].clone(), elapsed: 0 };
         if (i >= 2) showConnection('导线未接通。将导线夹对准接点，再松手。');
       },
     }));
     function pinBottom(i) {
-      return V(0, -HALF, 0).applyEuler(tools[i].rotation).add(S.pos[i]);
+      return V(0, -HALF, 0).applyEuler(tools[i].rotation).add(tools[i].position);
+    }
+    const inAcid = (p) => p.y < LEVEL && Math.hypot(p.x - CX, p.z) < R;
+    function updateContact(bottoms) {
+      contact.zinc = inAcid(bottoms[0]);
+      contact.copper = inAcid(bottoms[1]);
+      const top = pin(1);
+      let blackEnd = 'free';
+      if (jawTouchesTop(S.pos[2], top, 0.009)) blackEnd = 'copper';
+      else if (jawTouchesTop(S.pos[2], blackPostTop, 0.0048)) blackEnd = 'post';
+      const redEnd = jawTouchesTop(S.pos[3], top, 0.009) ? 'copper' : 'free';
+      const mode = circuitMode(contact.zinc, contact.copper, blackEnd, redEnd);
+      if (S.drag >= 0 && !S.demo && mode !== contact.circuit) {
+        W.ui.status(mode === 'open' ? '导线未接通。' : '导线已接通。');
+      }
+      contact.circuit = mode;
     }
     // 电极放稳以后只操作导线；两个导线夹始终可以重新拿起。
     drags.slice(0, 2).forEach((d, i) => {
@@ -303,6 +341,8 @@ export default {
       },
     );
     const apply = () => {
+      departure = null;
+      drag.clearDropzones();
       mic.close();
       renderTools();
     };
@@ -361,27 +401,33 @@ export default {
     function update(dt) {
       const k = bar.update(dt),
         elapsed = Math.min(dt, 0.05) * k;
+      if (departure && departure.distance > 0) {
+        departure.idle += elapsed;
+        if (departure.idle >= 0.09) departure = null;
+      }
+      drag.update(elapsed);
       S.returns.forEach((r, i) => {
         if (!r) return;
         r.elapsed += elapsed;
         const t = clamp(r.elapsed / 0.38, 0, 1);
-        S.pos[i].lerpVectors(r.from, r.to || REST[i], t);
+        S.pos[i].lerpVectors(r.from, REST[i], t);
         if (t === 1) S.returns[i] = null;
       });
       renderTools();
-      const mode = circuit(), connected = mode !== 'open';
-      const current = connected ? 0.6 / (120 + (mode === 'meter' ? 5 : 0)) : 0;
-      const dial = mode === 'meter' ? current / 0.01 : 0;
+      const bottoms = [pinBottom(0), pinBottom(1)];
+      updateContact(bottoms);
+      const mode = contact.circuit, connected = mode !== 'open';
+      const dial = mode === 'meter' ? 0.48 : 0;
       S.needle += (dial - S.needle) * Math.min(1, elapsed * 14);
       meter.needle.rotation.z = 0.78 - 1.56 * S.needle;
       const emitter = connected ? 1 : 0;
-      const bottom = pinBottom(emitter);
-      S.credit += S.wet[0] ? elapsed * (connected ? (current / 0.005) * 12 : 8) : 0;
+      const bottom = bottoms[emitter];
+      S.credit += contact.zinc ? elapsed * (connected ? 12 : 8) : 0;
       while (S.credit >= 1) {
         const n = ++S.emitted;
         S.gas.push({
           x: bottom.x + 0.006 * Math.sin(n * 7),
-          y: bottom.y + 0.006 + (n % 4) * 0.003,
+          y: bottom.y + Math.min(0.006 + (n % 4) * 0.003, (LEVEL - bottom.y) / 2),
           z: bottom.z + 0.003,
           r: 0.0012 + (n % 5) * 0.0002,
         });
@@ -399,8 +445,8 @@ export default {
           mesh.scale.setScalar(bubble.r);
         }
       });
-      const stamp = connected ? '铜片冒泡' : S.wet[0] ? '锌片冒泡' : '无气泡';
-      const note = mode === 'meter' ? '指针偏转' : S.wet[1] && !connected ? '铜片未产生气泡' : '';
+      const stamp = connected ? '铜片冒泡' : contact.zinc ? '锌片冒泡' : '无气泡';
+      const note = contact.copper && !connected ? '铜片未产生气泡' : '';
       card
         .text(
           '<div class="cc"><div class="cc-t"><span class="cc-name">烧杯里</span><span class="cc-res">' +
@@ -410,7 +456,7 @@ export default {
             '</div>',
         )
         .loc(group, innerWidth <= 760 ? -0.094 : CX + R + 0.024, innerWidth <= 760 ? 0.132 : 0.07, 0)
-        .show(S.wet.some(Boolean) && !mic.isOpen && !bar.playing);
+        .show((contact.zinc || contact.copper) && !mic.isOpen && !bar.playing);
       mic.update(dt, k);
     }
     const qa = qaFlow(drag, [
@@ -422,7 +468,7 @@ export default {
       {
         name: '核对',
         run: () => {
-          if (!bar.finished || circuit() !== 'open' || S.needle > 0.01 || W.next.hidden) throw Error('断路或观察记录异常');
+          if (!bar.finished || contact.circuit !== 'open' || S.needle > 0.01 || W.next.hidden) throw Error('断路或观察记录异常');
         },
       },
     ]);
@@ -432,7 +478,13 @@ export default {
       toggles: ['cards', 'steps'],
       size: { w: 0.34, d: 0.18, h: 0.14 },
       view: { elev: 24, azim: 0, lookY: 0.42, frameMargin: 1.08 },
-      pointer: wrapPointer(drag, bar),
+      pointer: wrapPointer({
+        ...drag,
+        up(ray, event) {
+          departure = null;
+          return drag.up(ray, event);
+        },
+      }, bar),
       reset,
       update,
       mount(ui) {
@@ -451,7 +503,7 @@ export default {
           h(
             'p',
             { class: 'fineprint' },
-            '依据课本第 36 页图6-6、图6-7。指针偏角和气泡速率为示意。模型假设有效电动势为 0.60 V、电池内阻为 120 Ω、电流表内阻为 5 Ω，用来估算闭路时的电流。断路时电流为零。气泡突出显示主要析氢位置。粒子图只追踪一组反应，导线长度和电子运动时间经过缩放。',
+            '依据课本第 36 页图6-6、图6-7。指针偏角和气泡速率为示意。气泡突出显示主要析氢位置。粒子图只追踪一组反应，导线长度和电子运动时间经过缩放。',
           ),
         );
         const base = mountXuean(ui, {

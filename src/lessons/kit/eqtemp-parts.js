@@ -62,8 +62,21 @@ function rod(parent, a, b, radius, mat) {
   return mesh;
 }
 
+const CUP_RADIUS = 0.052;
+// WATER 是浸没后的液面。按浸入水中的球冠体积计算排水量。
+const WATER_RADIUS = CUP_RADIUS * 0.95;
+export function bathLevel(centerY) {
+  const empty = WATER - 4 * RADIUS ** 3 / (3 * WATER_RADIUS ** 2);
+  let level = empty;
+  for (let i = 0; i < 6; i++) {
+    const h = clamp(level - centerY + RADIUS, 0, 2 * RADIUS);
+    level = empty + h * h * (RADIUS - h / 3) / WATER_RADIUS ** 2;
+  }
+  return level;
+}
+
 export function bath(parent, side) {
-  const hot = side === 0, r = 0.052;
+  const hot = side === 0, r = CUP_RADIUS;
   const cup = beaker({ r, h: RIM, level: WATER, spout: false });
   cup.position.set(BATH_X[side], 0, 0);
   const floor = cup.children.find((o) => o.geometry?.type === 'CylinderGeometry' && o !== cup.glass && o !== cup.liquid);
@@ -80,15 +93,21 @@ export function bath(parent, side) {
   cup.surface.material.depthWrite = false;
   cup.surface.renderOrder = 6;
   // Water and ice share the same depth ordering. Ice sits away from the flask path.
+  const icePieces = [];
   if (!hot) {
     const iceMat = new THREE.MeshPhysicalMaterial({ color: 0xe4f3fc, roughness: 0.32, transparent: true, opacity: 0.82 });
     for (const [x, z, a] of [[-0.023, -0.036, 0.1], [0, -0.043, 0.5], [0.023, -0.036, 0.8]]) {
       const ice = part(cup, new THREE.DodecahedronGeometry(0.0071), iceMat, V(x, WATER - 0.003, z), 7);
+      icePieces.push(ice);
       ice.rotation.set(0.28, a, 0.18);
       ice.scale.set(1, 0.83, 0.96);
     }
   }
   parent.add(cup);
+  return (level) => {
+    cup.setLevel(level);
+    icePieces.forEach((ice) => { ice.position.y = level - 0.003; });
+  };
 }
 
 function tintedGas(parent) {
@@ -124,7 +143,7 @@ function tintedGas(parent) {
 }
 
 const NECK_TOP = 0.054, MANIFOLD = 0.071;
-export function apparatus(parent) {
+export function apparatus(parent, nameplate) {
   const rig = new THREE.Group();
   parent.add(rig);
   const glassTube = glass2({ tint: 0xe0f1ec, base: 0.26, rim: 0.45, band: 0.35 });
@@ -140,6 +159,7 @@ export function apparatus(parent) {
     });
     profile.push(new THREE.Vector2(0.0084, 0.031), new THREE.Vector2(0.0084, NECK_TOP));
     glass(body, new THREE.LatheGeometry(profile, 56), undefined, 11, { base: 0.035, rim: 0.64, band: 0.42 });
+    nameplate(body, `${FLASK_NAMES[id]} · NO₂、N₂O₄`, 0, 0.043, 0.012);
     const tint = tintedGas(body);
     const lip = part(body, new THREE.TorusGeometry(0.0084, 0.00105, 8, 36), paint(0xb2c6c6), V(0, NECK_TOP));
     lip.rotation.x = -Math.PI / 2;
@@ -166,6 +186,8 @@ export function apparatus(parent) {
   const spring = part(clip, new THREE.TorusGeometry(0.0038, 0.0008, 8, 25), paint(0x556264), V(0, 0, 0.006));
   spring.rotation.y = Math.PI / 2;
   clip.userData.ringY = HIGH + MANIFOLD + 0.010;
+  nameplate(clip, '弹簧夹', 0, 0.019);
+  nameplate(rig, '乳胶管', -0.029, MANIFOLD + 0.004);
   const clipPick = pick(clip, '弹簧夹', [0.035, 0.026, 0.032]);
   return {
     rig, flasks, clip, clipPick,
@@ -182,11 +204,12 @@ export function apparatus(parent) {
   };
 }
 
-export function supports(parent) {
+export function supports(parent, nameplate) {
   const collarY = NECK_TOP - 0.002;
   const steel = paint(0x657579);
   return BATH_X.map((x) => {
     const sign = Math.sign(x), post = x + sign * 0.079;
+    nameplate(parent, '铁架台', post - sign * 0.024, 0.003, 0.024);
     box(parent, [0.040, 0.006, 0.053], V(post, 0.003, -0.024), 0x435055, true);
     rod(parent, V(post, 0.006, -0.024), V(post, HIGH + collarY + 0.008, -0.024), 0.0033, steel);
     const bracket = new THREE.Group();
@@ -214,7 +237,7 @@ const rot = [1, -1].map((sign) => new THREE.Quaternion()
   .multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 0, 1), -sign * Math.PI / 2)));
 
 export function temperatureScene() {
-  let slots, motion, clock, turn, cycling, saved, halo;
+  let slots, motion, clock, turn, cycling, saved, halo, balanced;
   const site = (side, i) => V(...SITES[i]).add(V(BATH_X[side] * 105));
   const spacing = () => {
     const progress = smooth(motion.t / 1.12);
@@ -229,10 +252,11 @@ export function temperatureScene() {
   const count = (side) => slots[side].filter(bonded).length;
   return {
     holoBase: false,
+    paused: false,
     labels: (_, m) => m.rep,
     labelOnly: (_, m) => m.rep,
     snapshot() {
-      return { counts: [0, 1].map((side) => slots[side].map((slot) => slot.joined)), clock, turn,
+      return { counts: [0, 1].map((side) => slots[side].map((slot) => slot.joined)), clock, turn, balanced, paused: this.paused,
         motion: motion && { side: motion.side, i: slots[motion.side].indexOf(motion.slot), t: motion.t, join: motion.join }, cycling };
     },
     resume(snapshot) { saved = snapshot; },
@@ -245,6 +269,8 @@ export function temperatureScene() {
       clock = saved?.clock ?? -0.7;
       turn = saved?.turn ?? 0;
       cycling = saved?.cycling ?? null;
+      balanced = saved?.balanced ?? false;
+      this.paused = saved?.paused ?? false;
       motion = saved?.motion ? { ...saved.motion, slot: slots[saved.motion.side][saved.motion.i] } : null;
       saved = null;
       halo = part(c.layer, new THREE.RingGeometry(2.68, 2.78, 44), new THREE.MeshBasicMaterial({
@@ -286,6 +312,7 @@ export function temperatureScene() {
       return [[motion.slot.mols[0].g.position.clone().add(V(0.23)), motion.slot.mols[1].g.position.clone().add(V(-0.23))]];
     },
     step(c, st, dt) {
+      if (this.paused) return;
       if (motion) {
         motion.t += dt;
         if (motion.t >= 1.12) {
@@ -298,6 +325,7 @@ export function temperatureScene() {
         clock += dt;
         if (clock >= 0.48) {
           const mismatch = [0, 1].filter((side) => count(side) !== dimerCount(st.current[side]));
+          if (!mismatch.length && st.settled) balanced = true;
           const side = cycling?.side ?? (mismatch.includes(turn) ? turn : mismatch[0]) ?? turn;
           const join = cycling?.join ?? (mismatch.length ? count(side) < dimerCount(st.current[side]) : count(side) < PAIRS);
           const slot = slots[side].find((slot) => slot.joined !== join);
@@ -319,12 +347,10 @@ export function temperatureScene() {
         const dimers = count(i);
         return `<span><b>${BATH_NAMES[i]} · ${FLASK_NAMES[st.ids[i]]}</b><br>NO₂ ${SAMPLE - 2 * dimers} 个　N₂O₄ ${dimers} 个</span>`;
       });
-      let words = clock < 0 ? '先看两只烧瓶浸泡前的分子数。' : '比较两只烧瓶里两种分子各有几个。';
+      let words = balanced ? '' : clock < 0 ? '先看两只烧瓶浸泡前的分子数。' : '比较两只烧瓶里两种分子各有几个。';
       if (motion) words = `${BATH_NAMES[motion.side]}一侧：${motion.join ? '两个 NO₂ 靠拢，结合成一个 N₂O₄。' : '一个 N₂O₄ 的 N—N 键断开，分成两个 NO₂。'}`;
-      else if (clock >= 0 && st.settled && [0, 1].every((i) => count(i) === dimerCount(st.current[i]))) {
-        words = '新平衡下，结合和分解仍在进行，正、逆反应速率相等。';
-      }
-      return { eq: FORMULA, on: true, cap: `<div class="eqtemp-counts">${lines.join('')}</div><div>${words}</div>` };
+      const status = balanced ? '<div><b>已达新平衡</b>：正、逆反应速率相等。</div>' : '';
+      return { eq: FORMULA, on: true, cap: `<div class="eqtemp-counts">${lines.join('')}</div>${status}<div style="min-height:1.5em">${words}</div>` };
     },
   };
 }

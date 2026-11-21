@@ -9,12 +9,14 @@ import { V, LEN, RIM, X, PAD, HOT, apparatus, shellScene, liquidY, salts, solids
 
 const INTRO = '回想钠遇水时浮在水面，熔成小球，四处游动。镁在冷水和热水中会怎样？';
 const INIT = '将镁条贴着砂纸来回拖，磨亮后提起，把一端放进试管口，再松手。';
-const QUANT = '把量筒的倒液口移到试管口上方，倒入 2 mL 水。';
+const QUANT = '平视量筒，读凹液面最低处。把 2 mL 水倒入试管。';
 const COLD = '提起酚酞滴管，悬在管口上方滴入 2 滴，观察冷水里的镁条。';
 const LIGHT = '点燃酒精灯，准备加热镁条所在的试管。';
 const HEAT = '用试管夹斜持试管，管口朝向无人处。在外焰上来回移动，使盛有液体的一段管壁均匀受热。';
 const RETURN_HOT = '观察气泡和颜色后，将试管放回架上。';
 const COVER = '把灯帽提到灯芯正上方，放下盖灭酒精灯。';
+const UNCOVER = '提起灯帽，移到灯旁放下，再点燃酒精灯继续加热。';
+const ATOMS = '比较 Na、Mg、Al 的原子结构';
 const DUPLICATE = '两份样品加了同一种试剂，无法作酸碱对照。换掉刚才误滴的那一份，再加另一种试剂。';
 const SUB = ['Ⅰ', 'Ⅱ'];
 const IDs = ['ribbon', 'water', 'cold', 'heat', 'alPrep', 'alTest', 'mgPrep', 'mgTest'];
@@ -65,7 +67,7 @@ export default {
       coldSeen: false, lit: false, heat: 0, warmth: 0, boiled: false, packed: false, replace: -1, loaded: [0, 0], nh: [0, 0],
       split: [0, 0], tubes: X.map(newTube), grip: null, returns: {}, poses: Object.fromEntries(
         Object.entries(gear).map(([key, t]) => [key, pose(t.home)])),
-      flight: [], drip: 0, stream: null, clock: 0,
+      capped: false, seating: null, readKey: null, lastSample: -1, flight: [], drip: 0, stream: null, clock: 0,
     });
     let S = fresh(), W, saved, viewTime, playingAction, lastPrompt = '';
     const done = (id) => { if (!S.demo) bar.done(id); };
@@ -136,7 +138,7 @@ export default {
     }
 
     function allowed(key) {
-      if (mic?.isOpen || S.replace >= 0) return false;
+      if (S.seating || S.readKey || mic?.isOpen || S.replace >= 0) return false;
       if (isTube(key) && S.tubes[Number(key[1])].finished) return true;
       if (S.mode === 2) return false;
       if (S.packed && !inSalt()) return key === 'al';
@@ -144,7 +146,7 @@ export default {
         if (key === 'strip') return !S.inserted;
         if (key === 'cold') return S.inserted && S.water < 2;
         if (key === 'ind') return S.water >= 2 && !S.coldSeen;
-        if (key === 'cap') return S.boiled && S.lit;
+        if (key === 'cap') return S.lit || S.capped;
         if (key === 'hotTube') return S.coldSeen && !S.boiled;
         return false;
       }
@@ -164,6 +166,7 @@ export default {
       if (!S.coldSeen) return [S.ind >= 2 ? null : 'ind', S.ind >= 2 ? '观察冷水里镁条表面和液体的颜色。' : COLD];
       if (S.packed && !inSalt()) return ['al', '观察热水中的现象后，拿起 AlCl₃ 量筒，开始沉淀对照。'];
       if (!inSalt()) {
+        if (S.capped) return ['cap', UNCOVER];
         if (S.boiled) return S.grip?.key === 'hotTube' ? [null, RETURN_HOT] : ['cap', COVER];
         return S.lit ? ['hotTube', HEAT] : ['lamp', LIGHT];
       }
@@ -185,14 +188,13 @@ export default {
       if (!allowed(key)) return '';
       if (key === 'strip') return '拖动镁条，在砂纸上来回磨';
       if (key === 'hotTube') return '用试管夹斜持试管，在外焰上来回移动';
-      if (key === 'cap') return COVER;
+      if (key === 'cap') return S.capped ? UNCOVER : COVER;
       if (key === 'cold' || key === 'al' || key === 'mg') return '拖动量筒，使倒液口对准试管口';
       if (isTube(key)) return !S.tubes[Number(key[1])].finished && S.split[section()] < 1 ? '提起试管，向同组Ⅱ管分装' : '提起试管，左右轻摇';
       return '提起' + ({ nh: '氨水', ind: '酚酞', acid: '盐酸', base: 'NaOH' }[key]) + '滴管，使尖端悬在管口上方';
     };
     function start(key) {
       if (!allowed(key)) return;
-      if (key === 'al' && S.packed && !inSalt()) S.mode = 0;
       delete S.returns[key];
       const p = S.poses[key];
       S.grip = { key, split: isTube(key) && !S.tubes[Number(key[1])].finished && S.split[section()] < 1, prevX: p.x, prevY: p.y, shake: 0, direction: 0, reversed: false, lifted: false };
@@ -218,6 +220,7 @@ export default {
     function move(key, p) {
       const g = S.grip;
       if (!p || g?.key !== key) return;
+      if (key === 'al' && S.packed && !inSalt()) S.mode = 0;
       const t = gear[key], home = t.home, a = S.poses[key];
       const x = clamp(p.x, -0.19, 0.19), y = clamp(p.y, home.y < 0.010 ? 0.003 : 0.006, 0.234);
       const tube = isTube(key) || key === 'hotTube';
@@ -241,9 +244,9 @@ export default {
         heatWall(a, g);
       } else if (key === 'cap') {
         a.y = Math.max(a.y, t.home.y);
-        if (Math.abs(a.x - HOT) >= 0.008) g.aboveWick = false;
-        else if (a.y > capSeat.y + 0.015) g.aboveWick = true;
-        if (Math.abs(a.x - HOT) < 0.018) a.y = Math.max(a.y, capSeat.y);
+        if (a.y > capSeat.y + 0.014) g.aboveWick = true;
+        if (S.capped && !g.aboveWick) a.x = HOT;
+        if (Math.abs(a.x - HOT) < 0.018) a.y = Math.max(a.y, S.lit ? 0.094 : capSeat.y);
       } else if (isTube(key) && !g.split) {
         const j = Number(key[1]), dx = a.x - g.prevX;
         if (g.lifted && a.y >= RIM + 0.030 && Math.abs(dx) > 0.0002) {
@@ -266,29 +269,45 @@ export default {
       g.prevX = a.x; g.prevY = a.y;
       snapObj(key);
     }
-    function end(key, moved) {
+    function end(key, moved, zone) {
       const g = S.grip, a = S.poses[key];
       if (g?.key !== key) return;
-      if (key === 'strip' && moved && Math.abs(a.x - A.mg.home.x) < 0.0064 &&
-          a.y - 0.012 <= RIM && a.y - 0.012 > RIM - 0.026) {
+      if (moved && zone && gear[key].bottle && (g.lastDropX === undefined || Math.abs(g.lastDropX - a.x) > 0.008)) {
+        // 管尖刚对准就松手也落一滴；已在此管连续滴加时不额外补一滴。
+        S.drip = 1; transfer(0);
+      }
+      if (key === 'strip' && moved && zone) {
         S.inserted = true;
         done('ribbon');
         record(['放入镁条', clean() ? '表面已磨亮' : '氧化膜未除净']);
         if (clean()) say('磨亮的镁条已落入试管。接下来加入水和酚酞。');
         if (!clean()) say('镁条表面还留着氧化膜。留意反应是否明显，也可以全部重来再比较。');
       } else if (moved && key === 'strip' && !clean() && a.y > 0.02) say('镁条已放回砂纸。贴着砂纸磨亮，再把一端伸进试管口。');
-      if (key === 'cap' && moved && g.aboveWick && Math.abs(a.x - HOT) < 0.005 && Math.abs(a.y - capSeat.y) < 0.006) {
-        a.x = HOT; a.y = capSeat.y;
-        S.lit = false; S.packed = true;
-        done('heat');
-        say('镁与热水反应比与冷水明显。接下来用氨水制取两种白色沉淀。');
+      if (key === 'cap' && S.lit && moved && zone && g.aboveWick) {
+        S.seating = { y: a.y, t: 0 };
+      } else if (key === 'cap' && S.capped && (!g.aboveWick || Math.abs(a.x - HOT) < 0.018)) {
+        Object.assign(a, pose(capSeat));
       } else {
+        if (key === 'cap') S.capped = false;
         S.returns[key] = { from: { ...a }, t: 0 };
         if (key === 'hotTube' && S.boiled) say(COVER);
       }
       S.grip = null; S.stream = null;
     }
     function tickReturns(d) {
+      if (S.seating) {
+        const cap = S.seating;
+        cap.t = Math.min(1, cap.t + d / DURATION);
+        S.poses.cap.x = HOT;
+        S.poses.cap.y = THREE.MathUtils.lerp(cap.y, capSeat.y, cap.t * cap.t * (3 - 2 * cap.t));
+        if (cap.t === 1) {
+          S.seating = null; S.lit = false; S.capped = true;
+          if (S.boiled) {
+            S.packed = true; done('heat');
+            say('镁与热水反应比与冷水明显。接下来用氨水制取两种白色沉淀。');
+          } else say(UNCOVER);
+        }
+      }
       for (const [key, r] of Object.entries(S.returns)) {
         r.t += d;
         const u = Math.min(1, r.t / DURATION), k = u * u * (3 - 2 * u);
@@ -307,7 +326,7 @@ export default {
         if (u === 1) delete S.returns[key];
       }
     }
-    const canLight = () => S.coldSeen && !S.lit && !S.packed && !mic.isOpen;
+    const canLight = () => S.coldSeen && !S.lit && !S.capped && !S.returns.cap && !S.packed && !mic.isOpen;
     function light() {
       if (!canLight()) return;
       S.lit = true; say(HEAT);
@@ -323,6 +342,7 @@ export default {
     }
     function onDrop(key, j) {
       if (key === 'ind') { S.ind++; return; }
+      S.lastSample = j;
       const t = S.tubes[j], i = Math.floor(j / 2);
       t.vol += 0.05;
       if (key === 'nh') {
@@ -344,11 +364,11 @@ export default {
     const pending = (key, j) => S.flight.filter((q) => q.key === key && q.j === j).length;
     function transfer(d) {
       S.stream = null;
-      const key = S.grip?.key, i = section(), k = activePair();
+      const hand = S.grip, key = hand?.key, i = section(), k = activePair();
       if (!key) return;
       const a = S.poses[key], wet = !inSalt();
       if (key === 'hotTube' || key === 'cap' || S.replace >= 0) return;
-      const pour = ['cold', 'al', 'mg'].includes(key) || (S.grip.split && S.split[i] < 1);
+      const pour = ['cold', 'al', 'mg'].includes(key) || (hand.split && S.split[i] < 1);
       const pos = wet ? [A.mg.home.x] : X;
       const j = pos.findIndex((x) => Math.abs(x - a.x) < 0.0066);
       if (j < 0 || a.y < RIM + 0.001 || a.y > RIM + (pour ? 0.019 : 0.033)) return;
@@ -358,16 +378,18 @@ export default {
           if (j !== k + 1 || S.nh[i] < ammoniaNeed(i) + 1) return;
           const from = S.tubes[k], to = S.tubes[j], f = Math.min(1 - S.split[i], d * 1.6);
           const volume = f * (from.vol + to.vol) / 2;
+          S.lastSample = j;
           from.vol -= volume; to.vol += volume; from.solid -= f; to.solid += f; S.split[i] += f;
           if (S.split[i] >= 1) { done(saltStep(i, false)); say('两支试管现在各有一份白色沉淀。分别用盐酸和 NaOH 溶液比较。'); }
         } else {
           if (!wet && j !== k) return;
           const prev = wet ? S.water : S.loaded[i], v = Math.min(2 - prev, d * 2.5);
           if (v <= 0) return;
-          if (wet) { S.water += v; if (S.water >= 2) { done('water'); say('已加入 2 mL 水，观察滴入酚酞后的变化。'); } }
-          else { S.loaded[i] += v; S.tubes[k].vol += v; if (S.loaded[i] >= 2) say('Ⅰ管中已加入' + stockName(i) + '。'); }
+          if (wet) { S.water += v; if (S.water >= 2) { done('water'); say('水已倒入试管，接着滴入酚酞。'); } }
+          else { S.lastSample = k; S.loaded[i] += v; S.tubes[k].vol += v; if (S.loaded[i] >= 2) say('Ⅰ管中已加入 ' + salts[i] + ' 溶液。'); }
         }
-        S.stream = { x: a.x, y: a.y - (isTube(key) ? 0.007 : 0), end: RIM - LEN + liquidY(wet ? S.water : S.tubes[j].vol) };
+        const lip = isTube(key) ? 0.008 : 0;
+        S.stream = { milky: isTube(key), x: a.x + lip * Math.cos(a.rot), y: a.y + lip * Math.sin(a.rot), end: RIM - LEN + liquidY(wet ? S.water : S.tubes[j].vol) };
       } else if (['ind', 'nh', 'acid', 'base'].includes(key)) {
         if (!wet && (j < k || j > k + 1)) return;
         if (key === 'ind' && S.ind + pending(key, j) >= 2) return;
@@ -386,7 +408,7 @@ export default {
         }
         S.drip += d * (key === 'ind' ? 2.8 : 9);
         if (S.drip >= 1) {
-          S.drip %= 1;
+          hand.lastDropX = a.x; S.drip %= 1;
           S.flight.push({ x: a.x, y: a.y, v: 0.16, key, j });
         }
       }
@@ -412,6 +434,23 @@ export default {
         }
       }
     }
+    function setPlate(plate, name) {
+      if (plate.name !== name) { plate.name = name; plate.setText(name); }
+    }
+    const measureKey = () => S.packed ? prepKey(section()) : 'cold';
+    function readMeasure(key) {
+      const cup = gear[key].cup, pos = gear[key].home;
+      S.readKey = key;
+      look([pos.x + cup.position.x, pos.y + cup.position.y + cup.level, 0], [0, 0, 1],
+        0.130, () => { S.readKey = null; });
+    }
+    function leaveMeasure() {
+      if (S.readKey) { S.readKey = null; back(); }
+    }
+    const reader = tag('近看量筒刻度', 'pill', () => {
+      if (S.readKey) leaveMeasure(); else readMeasure(measureKey());
+    });
+    reader.el.setAttribute('role', 'button');
     function draw() {
       const wet = !inSalt(), i = section(), t = S.clock;
       if (W) W.replace.hidden = S.replace < 0 || S.demo;
@@ -424,11 +463,12 @@ export default {
       A.stripMat.color.setHex(clean() ? 0xe2e8eb : 0x86898b);
       A.stripMat.roughness = clean() ? 0.23 : 0.68;
       A.lamp.flame.setOn(S.lit);
+      A.lamp.flame.scale.setScalar(S.seating ? clamp((S.poses.cap.y - 0.061) / 0.033, 0, 1) : 1);
       A.lamp.flame.update(t);
       A.lamp.flame.visible = S.lit;
-      A.cold.cup.setLevel(0.004 + (2 - S.water) * 0.0084);
-      const tiltedWater = A.cold.tilted(S.poses.cold.rot, 2 - S.water, clearColor);
-      A.cold.cup.liquid.visible = A.cold.cup.surface.visible = S.water < 1.999 && !tiltedWater;
+      setPlate(A.cold.lab, S.water >= 2 ? '空量筒' : '量筒 · 水');
+      A.cold.fill(2 - S.water, S.poses.cold.rot);
+      setPlate(A.wetName, !S.inserted ? '空试管' : S.ind ? '试管 · 镁、水和酚酞' : S.water ? '试管 · 镁和水' : '试管 · 镁条');
       const wetLevel = liquidY(S.water + S.ind * 0.05);
       const pink = clean() ? 0xdb4983 : 0xe5a2b5;
       const tint = new THREE.Color(clearColor).lerp(new THREE.Color(pink), S.ind ? S.heat : 0);
@@ -444,15 +484,18 @@ export default {
       });
       A.measures.forEach((m, j) => {
         m.g.visible = m.lab.visible = j === i && S.mode !== 2 && (!wet || S.packed);
-        m.cup.setLevel(0.004 + (2 - S.loaded[j]) * 0.0084);
-        const tilted = m.tilted(S.poses[prepKey(j)].rot, 2 - S.loaded[j], clearColor);
-        m.cup.liquid.visible = m.cup.surface.visible = S.loaded[j] < 1.999 && !tilted;
+        setPlate(m.lab, S.loaded[j] >= 2 ? '空量筒' : '量筒 · ' + salts[j]);
+        m.fill(2 - S.loaded[j], S.poses[prepKey(j)].rot);
       });
       A.tubes.forEach((tube, j) => {
         const sample = S.tubes[j];
+        const solid = remaining(j);
+        const content = !sample.vol ? '空管' : solid > 0.001 ? solids[Math.floor(j / 2)] + ' 沉淀' :
+          sample.reagent ? '澄清溶液' : salts[Math.floor(j / 2)] + ' 溶液';
+        setPlate(A.tubeNames[j], content);
         tube.liq.visible = !tube.tilted(S.poses['t' + j].rot, sample.vol, remaining(j) > 0.02 ? 0xf7f5ea : clearColor);
         tube.liq.setLevel(liquidY(sample.vol)).setColor(clearColor)
-          .setMilk(Math.min(1, remaining(j)), 0xfffcf3, 0xcccbc4).update(t);
+          .setMilk(solid / 2.8, 0xfffcf3, 0xb5b4ac).update(t);
       });
       A.drops.forEach((m, n) => {
         const q = S.flight[n]; m.visible = Boolean(q);
@@ -461,12 +504,19 @@ export default {
       A.stream.visible = Boolean(S.stream);
       if (S.stream) {
         const s = S.stream;
+        A.stream.material.color.setHex(s.milky ? 0xf5f3e6 : 0xb0cbd4);
         A.stream.position.set(s.x, (s.y + s.end) / 2, 0);
         A.stream.scale.y = Math.max(0.001, s.y - s.end);
       }
-      const showCard = !S.demo && !mic.isOpen && !S.grip;
+      const key = S.readKey || measureKey(), cylinder = gear[key], reading = !!S.readKey;
+      A.sizePlates(reading, mic.isOpen);
+      reader.text(reading ? '回到实验台' : '近看量筒刻度')
+        .loc(cylinder.g, cylinder.cup.position.x + (reading ? 0.019 : 0), reading ? cylinder.cup.level - 0.041 : 0.009, 0.006)
+        .show(!S.demo && !S.grip && !mic.isOpen && (reading || allowed(key)));
+      if (W) W.atoms.hidden = S.mode !== 2 || S.demo || mic.isOpen;
+      const showCard = !S.demo && !mic.isOpen && !reading && !S.grip;
       cards.forEach((c, j) => {
-        const active = wet ? j === 0 && S.water > 0 : S.tubes[j].vol > 0;
+        const active = wet ? j === 0 && S.water > 0 : S.tubes[j].vol > 0 && (innerWidth > 760 || S.lastSample === j);
         c.show(showCard && active);
         if (!showCard || !active) return;
         const name = wet ? '镁条试管' : (j < 2 ? '铝' : '镁') + SUB[j % 2] + '管' + (S.tubes[j].reagent ? ' · ' + (S.tubes[j].reagent === 'acid' ? '盐酸' : 'NaOH') : '');
@@ -478,14 +528,39 @@ export default {
       });
     }
 
-    const mic = micro({ tag, look, back, group, scene, bar: () => bar, label: '比较原子结构',
-      at: () => V(0, 0.102), btnAt: () => V(0, 0.016, 0.055),
+    const microPoint = () => V(0, 0.11, 0.02);
+    const mic = micro({ tag, look, back, group, scene, bar: () => bar,
+      label: ATOMS, at: microPoint,
       scale: 0.0108, dist: 0.35, lookD: [0, 0.27, 1],
-      show: () => S.coldSeen && !S.grip, state: () => ({}) });
+      show: () => false, state: () => ({}) });
+
+    // 管尖和量筒倒液口就是拖动原点。分装时用斜管下沿，镁条用竖起后先入管的一端。
+    const heatedWall = V(-Math.sin(ANGLE) * (LEN - 0.0075), -Math.cos(ANGLE) * (LEN - 0.0075));
+    const splitLip = V(0.008 * Math.cos(-1.64), 0.008 * Math.sin(-1.64));
+    function zones(key) {
+      if (key === 'strip') return [{ name: '镁条试管', position: V(A.mg.home.x, RIM - 0.016), radius: 0.028 }];
+      if (key === 'cap') return [{ name: '灯芯', position: V(HOT, 0.071), radius: 0.030, enabled: () => S.lit && S.grip?.aboveWick === true }];
+      if (key === 'hotTube') {
+        // 两个落点对应外焰扫过的两段湿管壁，仍须亲手往返移动才能加热。
+        return [0, 0.015].map((depth) => ({ name: '外焰', position: flamePoint(depth).add(heatedWall), radius: 0.020,
+          enabled: () => S.lit && S.grip?.lifted }));
+      }
+      if (key === 'cold' || key === 'ind') return [{ name: '镁条试管', position: mouth(A.mg.home.x), radius: 0.028 }];
+      return X.map((x, j) => ({
+        name: (j < 2 ? '铝' : '镁') + SUB[j % 2] + '管',
+        position: isTube(key) ? mouth(x).add(splitLip) : mouth(x), radius: 0.024,
+        enabled: () => {
+          if (Math.floor(j / 2) !== section()) return false;
+          if (isTube(key)) return S.grip?.split && S.grip.lifted && j === activePair() + 1;
+          return key === 'acid' || key === 'base' ? !S.tubes[j].finished : j === activePair();
+        },
+      }));
+    }
     const drag = draggable(group, Object.keys(gear).map((key) => ({
+      dropzones: zones(key), dropOffset: key === 'strip' ? V(0, -0.012) : key === 'hotTube' ? heatedWall : isTube(key) ? splitLip : null,
       obj: pick(key), plane: 'xy', offset: 0, keepOffset: true, anchor: gear[key].g,
       hint: () => hint(key), enabled: () => allowed(key),
-      onStart: () => start(key), onDrag: (p) => move(key, p), onEnd: (moved) => end(key, moved),
+      onStart: () => start(key), onDrag: (p) => move(key, p), onEnd: (moved, zone) => end(key, moved, zone),
     })), { tip: tag('', 'pill'), taps: [{ obj: A.lamp.children[0], enabled: canLight,
       hint: LIGHT, onTap: light }] });
     const act = demoActs(drag, group);
@@ -497,7 +572,7 @@ export default {
     const placeStrip = () => trip('strip', [V(PAD, RIM + 0.018), V(A.mg.home.x, RIM + 0.018), V(A.mg.home.x, RIM - 0.004)]);
     const warm = () => trip('hotTube', [V(A.mg.home.x, RIM + 0.052),
       ...[0, 0.015, 0, 0.015, 0, 0.015, 0].map(flamePoint)], { t1: 0.85 });
-    const cover = () => trip('cap', [V(A.cap.home.x, 0.085), V(HOT, 0.085), capSeat]);
+    const cover = () => trip('cap', [V(A.cap.home.x, 0.099), V(HOT, 0.099), V(HOT, 0.071)], { release: 0.71 });
     const split = (i) => slide('t' + (2 * i), X[2 * i + 1]);
     const shake = (j) => {
       const x = X[j], y = RIM + 0.046;
@@ -557,22 +632,24 @@ export default {
     };
     const bar = lessonBar({ look, back, group, ringOptions: { minOpacity: 0.58 },
       steps: IDs.map((id, j) => ({ id, title: TITLES[j], todo: j === 0 ? INIT : TITLES[j],
-        target: () => { const [key] = cue(); return mic.isOpen || S.grip || !key ? null : key === 'lamp' ? A.lamp : gear[key].g; } })),
+        target: () => { const [key] = cue(); return mic.isOpen || S.readKey || S.grip || S.seating || !key ? null : key === 'lamp' ? A.lamp : gear[key].g; } })),
       reels: { demo: { label: '老师演示', seal: '演示',
         onStart() {
           W?.ui.el.classList.add('period3-demo');
           saved = S; viewTime = mic.isOpen ? scene.time() : null;
-          mic.close(); S = fresh(); S.demo = true; draw();
+          if (S.readKey) back();
+          drag.clearDropzones(); mic.close(); S = fresh(); S.demo = true; draw();
         },
         onEnd() {
           W?.ui.el.classList.remove('period3-demo');
           mic.close(); S = saved; saved = null; draw();
           if (viewTime !== null) { mic.open(); scene.time(viewTime); }
+          if (S.readKey) readMeasure(S.readKey);
           lastPrompt = '';
         },
         shots: [sequence(0, 2), sequence(2, 4), sequence(4, 7), sequence(7, 10), sequence(10, 12),
           sequence(12, 15), sequence(15, 17), { cap: '比较三种原子的电子层、核电荷和半径。', dur: 4,
-            cam: [[0, 0.152, 0], [0, 0.27, 1], 0.35], enter: () => mic.open(true) }],
+            cam: () => { const p = microPoint(); return [[p.x, p.y + 0.05, p.z], [0, 0.27, 1], 0.35]; }, enter: () => mic.open(true) }],
       } },
     });
     const layer = [...document.querySelectorAll('.mw')].pop(); layer.dataset.period3 = '';
@@ -590,7 +667,7 @@ export default {
       @media(max-width:760px) {
         .lbar[data-period3] .lb-steps { display:none }
         .mw[data-period3] .mw-hud,.mw[data-period3] .mw-scale { left:4%!important;width:92%!important }
-        .mw[data-period3] .mw-hud { top:34vh!important }
+        .mw[data-period3] .mw-hud { top:34vh!important;background:rgba(250,248,241,.94);padding:4px 0 }
         .mw[data-period3] .mw-eq { font-size:20px }
         [data-period3] .opts { grid-template-columns:1fr 1fr;gap:4px }
         .tag3d[data-period3-card] .cc { padding:2px 4px }
@@ -602,7 +679,7 @@ export default {
     document.head.append(layout);
     const reset = () => {
       if (bar.playing) bar.stop();
-      playingAction = null; mic.close(); S = fresh(); draw(); lastPrompt = '';
+      playingAction = null; drag.clearDropzones(); leaveMeasure(); mic.close(); S = fresh(); draw(); lastPrompt = '';
       W.review.hidden = W.evidence.hidden = true; W.tbl.clear(); W.ui.observePrediction(null); W.ui.relock();
       bar.undo(...IDs); bar.say(null); say(INTRO);
     };
@@ -641,7 +718,9 @@ export default {
             ['Si', 'H₂SiO₃', '弱酸'], ['P', 'H₃PO₄', '中强酸'], ['S', 'H₂SO₄', '强酸'], ['Cl', 'HClO₄', '强于硫酸'],
           ].map((row) => h('tr', {}, row.map((v) => h('td', {}, v)))))),
           h('p', {}, '从 Si 到 Cl，酸性依次增强，说明这四种元素的非金属性逐渐增强。'));
-        W = { ...mountXuean(ui, { controls: [replace, review, model, moreBox([], reset)], headers: ['操作', '本轮所见'], intro: INTRO }), ui, review, evidence, replace };
+        const atoms = h('button', { class: 'go ghost', hidden: true, onclick: () => mic.open() }, ATOMS);
+        ui.el.querySelector('.flap-wrap').after(atoms);
+        W = { ...mountXuean(ui, { controls: [replace, review, model, moreBox([], reset)], headers: ['操作', '本轮所见'], intro: INTRO }), ui, review, evidence, replace, atoms };
         ui.el.dataset.period3 = '';
         const next = ui.el.querySelector('.progress-need').previousElementSibling;
         next.classList.add('big-next'); ui.controls.prepend(evidence, next); W.next.remove();
@@ -654,6 +733,7 @@ export default {
           const q = playingAction; q.time += d; q.fn(Math.min(1, q.time / q.dur));
           if (q.time >= q.dur) playingAction = null;
         }
+        drag.update(Math.min(d, 0.08));
         if (d > 0) tick(d);
         if (!S.demo) {
           const prompt = cue()[1];

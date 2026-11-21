@@ -84,6 +84,8 @@ export function syringe(group) {
     faceLabel(group, label, { x: faceX(v), y: AXIS - 0.006, z: r, h: 0.016, color: '#29383a', stroke: '#f4f0e5', opacity: 1 });
   }
 
+  const volumeLabel = faceLabel(group, '20 mL', { x: faceX(I) - 0.010, y: AXIS + 0.019, z: r * 0.69, h: 0.0105, color: '#29383a', stroke: '#f4f0e5', opacity: 1 });
+
   const gasMat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, uniforms: { conc: { value: 1 } },
     vertexShader: `varying vec3 n; varying vec3 eye;
@@ -110,7 +112,7 @@ export function syringe(group) {
   }
   const handle = cylinder(piston, 0, 0, 0.0045, 0.028, 0.028, pad);
   cylinder(piston, -0.0048, 0, 0.0055, 0.011, 0.018, stem);
-  const pick = mesh(piston, new THREE.BoxGeometry(0.017, 0.056, 0.053), new THREE.MeshBasicMaterial({ visible: false }), 0, 0, 0);
+  const pick = mesh(piston, new THREE.BoxGeometry(0.032, 0.062, 0.056), new THREE.MeshBasicMaterial({ visible: false }), 0, 0, 0);
   // 黑色胶头和十字推杆也是同一根活塞的抓取部位。
   for (const child of piston.children.slice()) {
     if (child !== pick) pick.add(child);
@@ -119,7 +121,7 @@ export function syringe(group) {
   pick.userData.track = true;
   pick.name = '活塞柄';
   handle.userData.ringY = AXIS + 0.002;
-  return { handle, pick, piston, draw(v, n) {
+  return { handle, pick, piston, volumeLabel, draw(v, n) {
     gas.position.x = LEFT + UNIT * v / 2;
     gas.scale.y = UNIT * v;
     gasMat.uniforms.conc.value = n / v;
@@ -135,9 +137,14 @@ const rot = [1, -1].map(sign => new THREE.Quaternion().setFromAxisAngle(V(1), -M
 // 用同一对 NO₂ 片段演完整个过程。成键位时，所有六个原子和 MOL.N2O4 重合。
 export function pressureScene() {
   let clock = 0, saved = null, slots, frame, wall, endFace, cap;
-  const chamberWidth = v => 10 + 6 * (v - MIN);
-  const layout = [[0.28, 1.6, -3.6], [0.70, 2.6, 0.15], [0.31, 1.55, 4.0]];
-  const netStart = 2.6, netEnd = 4.45;
+  const chamberWidth = v => 9.2 * v;
+  // 每个位置容纳一组 N₂O₄ 或两个 NO₂。Ⅰ处 4 个 NO₂、6 个 N₂O₄，之后按同一比例取整。
+  const layout = [[0.28, -4.5], [0.73, -4.1], [0.21, -1.6], [0.66, -1.3],
+    [0.32, 1.4], [0.79, 1.8], [0.26, 4.2], [0.69, 4.5]];
+  const splitOrder = [1, 6, 5, 4, 3, 7, 2, 0];
+  const splitCount = n => Math.round(2 * n);
+  const molScale = 0.65;
+  const volumeStart = 1.65, netStart = 3.65, netEnd = 5.5;
   const motionText = join => join ? '两个 NO₂ 靠拢，两个氮原子之间形成键。' : 'N₂O₄ 的氮氮键断开，两个 NO₂ 分开。';
   function appearance(c, slot, joined) {
     const kind = joined ? 'N2O4' : 'NO2';
@@ -159,29 +166,33 @@ export function pressureScene() {
   }
   function draw(c, st) {
     const outward = st.v > st.startV;
-    // 中间一组只示意这一段的净反应方向，粒子个数不表示变化量。
-    const change = st.n - st.startN;
-    const netJoin = change < 0;
-    const volumePhase = smooth((clock - 0.55) / 1.1);
+    const before = splitCount(st.startN), after = splitCount(st.n);
+    const netJoin = after < before;
+    const volumePhase = smooth((clock - volumeStart) / 1.1);
     const width = chamberWidth(st.startV + (st.v - st.startV) * volumePhase);
-    const left = -8.1, right = left + width;
+    const left = -chamberWidth(II) / 2, right = left + width;
     endFace.position.set(right, 1.95, 0);
     line(frame, [[right,0,5.8],[left,0,5.8],[left,0,-5.8],[right,0,-5.8]]);
     line(wall, [[right,0,5.8],[right,0,-5.8],[right,0.9,-5.8],[right,0,-5.8]]);
-    const net = change === 0 ? 0 : smooth((clock - netStart) / (netEnd - netStart));
-    const gaps = [0, netJoin ? 1 - net : net, 1]; // 0 = joined, 1 = separated
-    if (clock < 0.55) cap = '先看活塞移动前的分子和它们占据的空间。';
+    const net = smooth((clock - netStart) / (netEnd - netStart));
+    const gaps = [];
+    splitOrder.forEach((slot, rank) => {
+      const from = Number(rank < before), to = Number(rank < after);
+      gaps[slot] = from + (to - from) * net;
+    });
+    if (clock < volumeStart) cap = '先看活塞移动前的分子和它们占据的空间。';
     else if (clock < netStart) cap = outward ? '空间变大的一瞬间，NO₂ 数目未变，浓度减小。' : '空间变小的一瞬间，NO₂ 数目未变，浓度增大。';
-    else if (net < 1 && change !== 0) {
+    else if (net < 1 && before !== after) {
       cap = netJoin ? '本段净消耗 NO₂。图中两个 NO₂ 结合成一个 N₂O₄（示意）。'
         : '本段净生成 NO₂。图中一个 N₂O₄ 分解成两个 NO₂（示意）。';
     } else if (st.settled && clock >= netEnd) {
       // 新平衡里，一个分解事件与另一个位置的一次结合交替出现。
       const t = Math.max(0, clock - netEnd - 1.15), cycle = Math.floor(t / 4.8);
-      const u = t % 4.8, split = cycle % 2 === 0 ? 0 : 2, join = 2 - split;
+      const u = t % 4.8, pair = [splitOrder[after], splitOrder[1]];
+      const split = pair[cycle % 2], join = pair[1 - cycle % 2];
       const a = smooth((u - 0.55) / 1.2), b = smooth((u - 2.8) / 1.2);
       const splitFirst = netJoin;
-      const first = splitFirst ? split : join, second = 2 - first;
+      const first = splitFirst ? split : join, second = splitFirst ? join : split;
       gaps[split] = splitFirst ? a : b;
       gaps[join] = 1 - (splitFirst ? b : a);
       const active = a > 0 && a < 1 ? first : b > 0 && b < 1 ? second : -1;
@@ -190,12 +201,13 @@ export function pressureScene() {
     slots.forEach((slot, i) => {
       const gap = gaps[i], joined = gap < 0.001;
       appearance(c, slot, joined);
-      const [fx, y, z] = layout[i], drift = 0.18 * Math.sin(clock * 1.2 + i * 1.8);
+      const [fx, z] = layout[i], drift = 0.09 * Math.sin(clock * 1.2 + i * 1.8);
       slot.mols.forEach((m, j) => {
-        m.g.position.set(left + width * fx + drift, y + 0.13 * Math.sin(clock + i), z + 0.17 * Math.cos(clock + i));
+        m.g.scale.setScalar(molScale);
+        m.g.position.set(left + width * fx + drift, 1.2 + 0.08 * Math.sin(clock + i), z + 0.12 * Math.cos(clock + i));
         if (joined) m.g.rotation.set(0, 0, 0);
         else {
-          m.g.position.x += (j ? 1 : -1) * (1.12 + gap * 1.04);
+          m.g.position.x += (j ? 1 : -1) * molScale * (1.12 + gap * Math.min(1.04, width * 0.085));
           m.g.quaternion.copy(rot[j]);
         }
         m.rep = false;

@@ -53,7 +53,7 @@ function probe(group, id, g) {
     sphere(g, V(0, 0.004), 0.0036, paint(0xaed7d7));
     box(g, 0, 0.057, 0.009, 0.021, 0.014, 0.0015, paint(0xc4d9c4));
     const values = ['—', ...PH.map((n) => '≈' + n)].map((v) => faceLabel(g, v, { y: 0.057, z: 0.010, h: 0.009, color: '#203e39', stroke: null }));
-    faceLabel(g, 'pH', { y: 0.041, z: 0.009, h: 0.0075, color: '#385453', stroke: null });
+    faceLabel(g, 'pH 笔', { y: 0.041, z: 0.009, h: 0.009, color: '#385453', stroke: null });
     g.read = (side) => values.forEach((v, k) => { v.visible = k === side + 1; });
   } else {
     for (const x of [-0.007, 0.007]) cyl(g, x, 0.017, 0, 0.0026, 0.033, dark);
@@ -61,7 +61,7 @@ function probe(group, id, g) {
     const bulb = sphere(g, V(0, 0.087), 0.011, paint(0xbacac7, { transparent: true, opacity: 0.78 }));
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xffda73, transparent: true, depthWrite: false }));
     glow.scale.setScalar(0.059); glow.position.copy(bulb.position); g.add(glow);
-    faceLabel(g, '导电', { y: 0.053, z: 0.009, h: 0.009, stroke: null });
+    faceLabel(g, '导电测试器', { y: 0.057, z: 0.009, h: 0.0068, stroke: null });
     g.read = (side) => {
       bulb.material.color.setHex([0xbacac7, 0xffed90, 0xc9ae70][side + 1]);
       bulb.material.emissive.setHex([0, 0xffbd47, 0x6e521c][side + 1]);
@@ -95,7 +95,7 @@ export function bench(group) {
     const meniscus = part(b, new THREE.TorusGeometry(R * 0.947, 0.00050, 8, 64), paint(0x9bb4b9), 0, WATER);
     meniscus.rotation.x = Math.PI / 2;
     group.add(b); b.position.x = x;
-    faceLabel(b, ACIDS[i], { y: 0.061, z: R, h: 0.014, color: '#243a44', stroke: '#fff' });
+    faceLabel(b, '烧杯 · ' + ACIDS[i], { y: 0.061, z: R, h: 0.012, color: '#243a44', stroke: '#fff' });
     const gas = [];
     const geo = new THREE.SphereGeometry(1, 12, 10), mat = paint(0xdee9e9, { transparent: true, opacity: 0.85, roughness: 0.14 });
     for (let j = 0; j < 28; j++) {
@@ -105,13 +105,19 @@ export function bench(group) {
   });
   const tools = HOME.map((p, id) => {
     const g = new THREE.Group(); group.add(g); g.position.copy(p);
-    if (id < 4) probe(group, id, g); else ribbon(g);
-    const pick = new THREE.Mesh(new THREE.BoxGeometry(id < 4 ? 0.028 : 0.023, id < 4 ? 0.080 : 0.013, id < 4 ? 0.020 : 0.025),
+    let plate;
+    if (id < 4) probe(group, id, g);
+    else {
+      ribbon(g);
+      plate = faceLabel(g, '镁条', { y: 0.009, z: 0.014, h: 0.009, color: '#243a44', stroke: '#fff' });
+    }
+    const height = id < 2 ? 0.077 : id < 4 ? 0.100 : 0.015;
+    const pick = new THREE.Mesh(new THREE.BoxGeometry(id < 4 ? 0.028 : 0.024, height, id < 2 ? 0.022 : 0.026),
       new THREE.MeshBasicMaterial({ visible: false }));
-    pick.position.y = id < 4 ? 0.044 : 0.007;
+    pick.position.y = height / 2;
     pick.userData.pick = true; g.add(pick);
     g.userData.ringY = id < 4 ? p.y + 0.035 : 0.002;
-    return { g, pick };
+    return { g, pick, plate };
   });
   function drawBubbles(side, age, origin) {
     // 两段等量镁均完全反应，两杯最终放出的氢气相同。只改变各气泡的出生时刻。
@@ -167,9 +173,7 @@ function transferPair(layer, side) {
   const label = (text, x) => faceLabel(g, text, { x, y: -2.25, h: 0.68, color: '#223c46', stroke: '#fff' });
   const before = label(side ? 'CH₃COOH' : 'HCl', -1.35), after = label(side ? 'CH₃COO⁻' : 'Cl⁻', -1.35);
   const water = label('H₂O', 0), ion = label('H₃O⁺', 0);
-  return (active, u) => {
-    g.visible = active;
-    if (!active) return;
+  return (u) => {
     const approach = ease(u / 0.34), transfer = ease((u - 0.34) / 0.28), apart = ease((u - 0.62) / 0.38);
     ox.position.copy(waterAt).lerp(near, approach).x += apart * 1.55;
     h.position.copy(startH).lerp(ox.position.clone().add(V(-0.91, -0.13, 0.2)), transfer);
@@ -182,30 +186,29 @@ function transferPair(layer, side) {
 }
 
 export function ionizationScene() {
-  let clock = 0, pairs = [], saved = null;
-  const shotLength = 4.5;
-  const side = () => Number(clock >= shotLength);
+  let clock = 0, drawPair, saved = null;
+  const duration = 4.5;
   const eqs = ['HCl + H<sub>2</sub>O → Cl<sup>−</sup> + H<sub>3</sub>O<sup>+</sup>',
     'CH<sub>3</sub>COOH + H<sub>2</sub>O ⇌ CH<sub>3</sub>COO<sup>−</sup> + H<sub>3</sub>O<sup>+</sup>'];
   return {
     holoBase: false, solid: true, still: true,
     snapshot: () => clock,
     resume: (t) => { saved = t; },
-    init(c) {
+    init(c, st) {
       clock = saved ?? 0; saved = null;
       c.view.film = 0; c.view.paper = null;
-      pairs = ACIDS.map((_, i) => transferPair(c.layer, i));
+      drawPair = transferPair(c.layer, st.side);
     },
     step(c, st, dt) {
-      clock = Math.min(clock + dt, 2 * shotLength);
-      const u = clamp((clock - side() * shotLength - 0.7) / 2.9, 0, 1);
-      pairs.forEach((draw, i) => draw(side() === i, u));
+      clock = Math.min(clock + dt, duration);
+      const u = clamp((clock - 0.7) / 2.9, 0, 1);
+      drawPair(u);
     },
     text(_, st) {
-      const cap = !side() ? '氯化氢把 H⁺ 转移给水，生成 Cl⁻ 和 H₃O⁺。'
-        : clock < 2 * shotLength ? '看一个醋酸分子怎样把羧基上的 H⁺ 转移给水。'
-        : '盐酸中的 H₃O⁺ 更多，pH 更小。' + (st.ec ? '可移动的离子更多，灯更亮。' : '') + (st.mg ? '加镁之初，盐酸中冒泡更快。' : '');
-      return { eq: eqs[side()], cap, on: true };
+      const cap = clock < duration
+        ? (st.side ? '看一个醋酸分子怎样把羧基上的 H⁺ 转移给水。' : '氯化氢把 H⁺ 转移给水，生成 Cl⁻ 和 H₃O⁺。')
+        : (st.side ? '醋酸只有部分分子电离。' : '氯化氢在稀溶液中全部电离。');
+      return { eq: eqs[st.side], cap, on: true };
     },
   };
 }

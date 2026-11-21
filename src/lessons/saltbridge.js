@@ -2,13 +2,12 @@
 import * as THREE from 'three';
 import { h } from '../ui/Panel.js';
 import { chemBeaker } from './kit/chem.js';
-import { plate } from './kit/dianzhi-parts.js';
-import { ammeter, clip, jawTouchesTop, strip, V } from './kit/galvanic-parts.js';
+import { ammeter, strip, V } from './kit/galvanic-parts.js';
 import { clamp, draggable } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { micro } from './kit/microworld.js';
 import { demoActs, moreBox, mountXuean, paperSheet, qaFlow, sandbox, think, wrapPointer } from './kit/chemlesson.js';
-import { lead, leg, saltBridge, span, transportScene } from './kit/saltbridge-parts.js';
+import { bridgeClip, lead, leg, saltBridge, span, transportScene } from './kit/saltbridge-parts.js';
 
 const mid = 0.038, radius = 0.043, rim = 0.073, level = 0.054, bridgeZ = 0.006;
 const centers = [mid - 0.062, mid + 0.062];
@@ -22,7 +21,7 @@ const moves = [
   ['bridge', '放入盐桥', '拿起盐桥，越过杯口，把两端分别浸入两杯溶液。', 0, () => dock.clone()],
   ['black', '夹住锌片', '把电流表的黑导线夹夹到锌片上端。', 1, () => pins[0].clone().add(V(0, 0.011))],
   ['red', '夹住铜片', '把电流表的红导线夹夹到铜片上端，观察指针。', 2, () => pins[1].clone().add(V(0, 0.011))],
-  ['out', '取出盐桥', '保持导线连接，向上取出盐桥，观察指针。', 0, lift],
+  ['out', '取出盐桥', '保持接线，提起盐桥，移到杯外再松手，观察指针。', 0, lift],
 ];
 export default {
   id: 'saltbridge', title: '盐桥与锌铜原电池', fig: '图4-1', stampText: '实验', style: 'paper',
@@ -42,17 +41,19 @@ export default {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
     paperSheet(group, { w: 0.42, d: 0.26 });
+    const names = [];
+    function nameplate(obj, text, x, y, z, side = '') {
+      const badge = tag('<span>' + text + '</span>', 'saltbridge-name ' + side).loc(obj, x, y, z);
+      names.push(badge);
+      return badge;
+    }
     centers.forEach((x, i) => {
       const cup = chemBeaker({ r: radius, h: rim, level, color: i ? 0x429cda : 0xe1ece9, marks: false });
       cup.position.x = x;
-      const name = plate(i ? 'CuSO₄' : 'ZnSO₄', 0.039, 0.013);
-      name.position.set(0, 0.022, radius + 0.001);
-      cup.add(name);
+      nameplate(cup, i ? '烧杯 · CuSO₄ 溶液' : '烧杯 · ZnSO₄ 溶液', i ? 0.012 : -0.012, 0.019, radius, 'cup-name');
       const metal = strip(i === 1);
       metal.position.copy(pins[i]).y -= 0.048;
-      const mark = plate(i ? 'Cu' : 'Zn', 0.016, 0.01, { bg: i ? '#cf8b69' : '#bdc8ce' });
-      mark.position.set(0, 0.033, 0.0014);
-      metal.add(mark);
+      nameplate(metal, i ? '铜片' : '锌片', 0, 0.033, 0.002);
       group.add(cup, metal);
     });
     const meter = ammeter();
@@ -60,17 +61,21 @@ export default {
     meter.g.scale.setScalar(0.85);
     group.add(meter.g);
     const bridge = saltBridge();
-    const tools = [bridge.grip, clip(0x343e42), clip(0xb74a39)];
+    const clips = [bridgeClip(0x343e42), bridgeClip(0xb74a39)];
+    const tools = [bridge.grip, ...clips.map(c => c.grip)];
     group.add(bridge.body, tools[1], tools[2]);
     const leads = meter.posts.map((post, i) => {
       const pin = post.position.clone().add(V(0, 0.0045)).multiplyScalar(0.85).add(meter.g.position);
       return lead(group, pin, i ? 1 : -1);
     });
-    const card = tag('', 'cond');
+    const bridgeName = nameplate(bridge.body, '盐桥<small>含 KCl 饱和溶液的琼脂</small>', 0, 0.006, 0.001, 'bridge-name');
+    tools.slice(1).forEach((tool, i) => {
+      nameplate(tool, i ? '红导线夹' : '黑导线夹', i ? 0.006 : -0.006, 0.006, 0.006, i ? 'right-name' : 'left-name');
+    });
     const fresh = () => ({
       demo: false, pos: home.map(p => p.clone()), attached: [false, false], resting: false,
       returns: [null, null, null], immersed: false, worked: false, observedOn: false, removal: false,
-      needle: 0, lastRecord: '', drag: -1,
+      needle: 0, lastRecord: '', drag: -1, microPaused: false,
     });
     let S = fresh(), W, generation = 0;
     const wired = () => S.attached.every(Boolean);
@@ -82,6 +87,8 @@ export default {
         tool.userData.ringY = S.pos[i].y + 0.005;
       });
       bridge.body.rotation.x = angle();
+      clips.forEach((c, i) => c.open(S.drag === i + 1 && !S.attached[i]));
+      bridgeName.el.classList.toggle('on-tray', S.pos[0].x < centers[0] - radius && S.pos[0].y < level);
       leads.forEach((updateLead, i) => updateLead(S.pos[i + 1].clone().add(V(0, 0.008))));
       meter.needle.rotation.z = 0.78 - S.needle * 1.05;
     }
@@ -97,12 +104,15 @@ export default {
       }
       S.immersed = wet;
     }
-    function record(action, observation) {
+    function record(action, hint = '点电流表，凑近看指针。') {
       if (S.demo || !W) return;
-      W.ui.status(action + '，' + observation + '。');
-      if (S.lastRecord === action + observation) return;
-      S.lastRecord = action + observation;
-      W.tbl.add([action, observation]);
+      W.ui.status(hint);
+      if (S.lastRecord === action) return;
+      S.lastRecord = action;
+      W.tbl.add([action, '']);
+      const note = h('input', { class: 'saltbridge-observation', 'aria-label': action + '后的指针位置',
+        placeholder: '记下你看到的', oninput: e => { e.target.defaultValue = e.target.value; } });
+      W.tbl.el.querySelector('tbody tr:last-child td:last-child').append(note);
     }
     function done(id) {
       if (S.demo) return;
@@ -113,25 +123,54 @@ export default {
       }
     }
     function invalid(msg) { if (!S.demo) W.ui.status(msg); }
-    const needleAtRest = () => S.needle < 0.02 ? '指针在零点' : '指针正在回落';
+    let inspecting = false;
+    function inspectMeter() {
+      inspecting = true;
+      look([mid, 0.033, 0.086], [0, 0.02, 1], 0.17, () => { inspecting = false; });
+    }
+    function toggleMeter() {
+      if (S.demo) return;
+      if (bar.ui?.step === 0) bar.ui.go(1);
+      if (inspecting) { inspecting = false; back(); }
+      else inspectMeter();
+    }
+    const meterButton = tag('电流表 ⊕', 'pill saltbridge-meter', toggleMeter).loc(group, mid, 0.006, 0.095);
     const scene = transportScene();
     const mic = micro({
-      tag, look, back, group, scene, at: () => V(mid, 0.07, 0.027), btnAt: () => V(innerWidth <= 760 ? mid - 0.092 : mid, 0.008, 0.13),
-      scale: 0.0115, dist: 0.30, lookD: [0, 0.46, 1], label: '钻进去看',
-      state: () => ({ immersed: S.immersed, wired: wired(), closed: closed(), worked: S.worked }),
-      key: () => [S.immersed, wired(), closed()].join('/'), show: () => S.resting || S.worked, bar: () => bar,
+      tag: (text, cls, click) => tag(text, cls + ' saltbridge-micro-entry', click),
+      look, back, group, scene, at: () => V(mid, 0.07, 0.027), btnAt: () => V(centers[0], 0.051, radius),
+      scale: 0.0115, dist: 0.30, lookD: [0, 0.46, 1], label: '从锌极追踪整个电路',
+      state: () => ({ immersed: S.immersed, wired: wired(), closed: closed(), worked: S.worked, paused: S.microPaused }),
+      key: () => [S.immersed, wired(), closed()].join('/'), show: () => !inspecting && S.drag < 0 && (S.resting || S.worked), bar: () => bar,
     });
     const overlays = document.querySelectorAll('.mw');
     const overlay = overlays[overlays.length - 1];
     overlay.classList.add('saltbridge-micro');
-    const replay = h('button', { class: 'saltbridge-replay', onclick: () => { scene.time = 0; } }, '重播');
-    overlay.querySelector('.mw-hud').append(replay);
+    const drawing = overlay.querySelector('canvas');
+    const pause = h('button', { class: 'saltbridge-replay', onclick: () => { S.microPaused = !S.microPaused; } }, '暂停');
+    const replay = h('button', { class: 'saltbridge-replay', onclick: () => { scene.time = 0; S.microPaused = false; } }, '重播');
+    overlay.querySelector('.mw-hud').append(pause, replay);
     const skin = h('style', {}, `
       .saltbridge-micro .mw-dim{background:rgba(249,247,239,.94);mask-image:none;-webkit-mask-image:none}
+      .saltbridge-name span{display:block;text-align:center;background:#fffaf0;color:#34342d;padding:2px 4px;border-radius:2px;font:600 13px/1.15 var(--sans);text-shadow:none}
+      .saltbridge-name small{display:block;font-size:12px}
+      .saltbridge-name.bridge-name span{transform:translateY(-53%)}
+      @media(min-width:761px){.saltbridge-name.bridge-name.on-tray span{transform:translate(-30%,-53%)}}
+      .saltbridge-name.left-name span{transform:translateX(-50%)}
+      .saltbridge-name.right-name span{transform:translateX(50%)}
+      .tag3d.saltbridge-meter,.tag3d.saltbridge-micro-entry{animation:none}
+      body.predicting .tag3d.saltbridge-name,body.predicting .tag3d.saltbridge-meter{visibility:visible!important}
+      .saltbridge-observation{width:100%;box-sizing:border-box;text-align:center;border:0;border-bottom:1px dotted #ab9f8b;background:transparent;font:inherit;color:inherit}
+      .saltbridge-replay + .saltbridge-replay{margin-left:5px}
       .saltbridge-replay{pointer-events:auto;cursor:pointer;margin-top:6px;padding:3px 12px;border:1px solid #a69d8b;border-radius:3px;background:#fffaf0;color:#443f36}
       #panel .answer .src{padding-right:56px;min-height:28px}
       #panel .answer .seal-stamp{width:38px;height:38px;font-size:15px;bottom:9px;border-width:2px}
       @media(max-width:760px){
+        .saltbridge-name span,.saltbridge-name small{font-size:10px;padding:1px 2px}
+        .saltbridge-name.bridge-name.on-tray span{transform:translateY(115%)}
+        .saltbridge-name.left-name span,.saltbridge-name.right-name span{transform:translateY(-135%)}
+        .saltbridge-name.cup-name span{max-width:62px;white-space:normal}
+        .saltbridge-micro-entry{font-size:10px!important;padding:3px 5px!important}
         body.lesson-on #viewctl{top:49px;bottom:auto;right:10px;flex-direction:row;align-items:center;gap:4px;pointer-events:none}
         #viewctl button{pointer-events:auto}
         #viewctl .show-tg:last-of-type,#viewctl .lesson-community{margin:0}
@@ -170,10 +209,33 @@ export default {
     }
     const drag = draggable(group, tools.map((tool, i) => ({
       obj: tool, anchor: i === 0 ? bridge.body : tool, plane: 'xy', offset: home[i].z, keepOffset: true,
+      dropOffset: i ? V(0, -0.011) : V(-span, -leg),
+      dropzones: [{
+        name: ['两杯溶液', '锌片上端', '铜片上端'][i],
+        position: i ? pins[i - 1] : dock.clone().add(V(-span, -leg)),
+        radius: i ? 0.03 : 0.037,
+        enabled: () => i ? S.pos[i].y > rim + 0.009 : !S.resting &&
+          (aligned(S.pos[0]) || S.pos[0].y >= rim + leg + 0.005),
+        onDrop() {
+          if (i) {
+            S.attached[i - 1] = true;
+            done(moves[i][0]);
+            if (!closed()) record(i === 1 ? '黑夹接锌片' : '红夹接铜片');
+          } else {
+            S.resting = true;
+            done('bridge');
+            if (!closed()) record('放入盐桥');
+          }
+        },
+      }],
       hint: () => i === 0 && S.resting ? '向上提起盐桥，观察电流表' : hints[i],
-      onStart() { S.drag = i; S.returns[i] = null; },
+      onStart() { S.drag = i; },
       onDrag(p) {
-        if (i === 0) moveBridge(p);
+        S.returns[i] = null;
+        if (i === 0) {
+          moveBridge(p);
+          if (S.pos[0].y >= rim + leg + 0.005) S.resting = false;
+        }
         else {
           const pos = S.pos[i], side = i === 1 ? -1 : 1;
           const wall = centers[i - 1] + side * (radius + 0.009);
@@ -182,45 +244,34 @@ export default {
             x = side < 0 ? Math.min(wall, x) : Math.max(wall, x);
           }
           pos.set(x, clamp(p.y, 0.014, 0.17), home[i].z);
-          if (S.attached[i - 1] && !jawTouchesTop(S.pos[i], pins[i - 1], 0.009)) {
+          if (S.attached[i - 1]) {
             S.attached[i - 1] = false;
+            S.lastRecord = '';
             S.removal = false;
             S.observedOn = false;
-            if (!S.demo) W.ui.status('导线夹已离开电极，外电路断开。');
+            if (!S.demo) W.ui.status('导线夹已松开，外电路断开。');
           }
         }
         render();
       },
-      onEnd(moved) {
+      onEnd(moved, zone) {
         S.drag = -1;
-        if (!moved) return;
-        if (!i) {
-          if (S.immersed) {
-            S.resting = true;
-            settle(0, S.pos[0].clone().setY(dock.y));
-            done('bridge');
-            if (!closed()) record('放入盐桥', needleAtRest());
-          } else if (S.resting && aligned(S.pos[0]) && S.pos[0].y < rim + leg) {
-            // 尚未提出杯口，松手后仍由杯沿托住横管。
-            settle(0, S.pos[0].clone().setY(dock.y));
-          } else {
-            S.resting = false;
-            settle(i);
-            if (!S.removal && !bar.has('out') && S.pos[0].distanceTo(home[0]) > 0.008) invalid(rimHint);
-          }
-          contact();
-        } else if (jawTouchesTop(S.pos[i], pins[i - 1], 0.009)) {
-          S.attached[i - 1] = true;
-          S.pos[i].copy(moves[i][4]());
-          done(moves[i][0]);
-          if (!closed()) record(i === 1 ? '黑夹接锌片' : '红夹接铜片', needleAtRest());
-        } else {
+        if (!moved || zone) return;
+        if (i) {
+          S.attached[i - 1] = false;
           settle(i);
           invalid('导线夹没有夹住金属片。把夹口对准金属片上端再松手。');
+        } else if (S.resting && aligned(S.pos[0])) {
+          settle(0, dock);
+        } else {
+          settle(0);
+          if (!S.removal && !bar.has('out') && S.pos[0].distanceTo(home[0]) > 0.008) invalid(rimHint);
         }
         render();
       },
-    })), { tip: tag('', 'pill') });
+    })), { tip: tag('', 'pill'), taps: [{
+      obj: meter.g, hint: () => inspecting ? '回到实验台' : '凑近看指针', onTap: toggleMeter,
+    }] });
     const act = demoActs(drag, group);
     const shots = moves.map(([, , cap, i, to], j) => ({
       cap, dur: 3.4,
@@ -234,15 +285,24 @@ export default {
     shots[4].dur = 5;
     shots[4].during = act.path(tools[0], [() => S.pos[0], lift, home[0].clone().setY(lift().y), home[0]],
       { t1: 0.86, release: 0.9 });
-    const apply = () => { mic.close(); render(); };
+    const apply = () => {
+      drag.clearDropzones();
+      mic.close();
+      if (inspecting) { inspecting = false; back(); }
+      render();
+    };
     const bar = lessonBar({
       look, back, group, ringOptions: { minOpacity: 0.57 },
       steps: moves.map(([id, title, todo, i]) => ({ id, title, todo, target: () => id === 'out' && S.immersed && !wired()
         ? tools[S.attached[0] ? 2 : 1] : tools[i] })),
       reels: { demo: { label: '老师演示', seal: '演示', shots, ...sandbox({
         get: () => S, set: s => { S = s; }, fresh, apply, bar: () => bar,
-        view: { save: () => mic.isOpen ? { generation, time: scene.time } : null,
-          restore: v => { if (v.generation === generation) { mic.open(); scene.time = v.time; } } },
+        view: { save: () => ({ generation, inspecting, micro: mic.isOpen, paused: S.microPaused, time: scene.time }),
+          restore: v => {
+            if (v.generation !== generation) return;
+            if (v.inspecting) inspectMeter();
+            else if (v.micro) { mic.open(); scene.time = v.time; S.microPaused = v.paused; }
+          } },
       }) } },
     });
     function reset() {
@@ -262,6 +322,7 @@ export default {
     }
     function update(dt) {
       const k = bar.update(dt);
+      drag.update(dt * k);
       S.returns.forEach((r, i) => {
         if (!r) return;
         r.elapsed += dt * k;
@@ -270,24 +331,26 @@ export default {
         if (i === 0 && r.to.equals(home[0]) && r.from.x > home[0].x + 0.025) {
           S.pos[i].y = THREE.MathUtils.lerp(r.from.y, home[0].y, clamp((t - 0.78) / 0.22, 0, 1));
         }
-        if (i === 0 && S.resting) contact();
-        if (t === 1) S.returns[i] = null;
+        if (t === 1) {
+          S.pos[i].copy(r.to);
+          S.returns[i] = null;
+        }
+        if (i === 0) contact();
       });
       const on = closed();
       S.needle = THREE.MathUtils.damp(S.needle, on ? 1 : 0, 11, dt * k);
       if (on && S.needle > 0.9 && !S.observedOn) {
         S.worked = S.observedOn = true;
-        record('接通电路', '指针偏转');
+        record('接通电路', '点电流表看指针，也可以从锌极追踪整个电路。');
       }
-      if (!S.demo && S.removal && S.pos[0].y < rim + leg) {
-        const hint = S.needle < 0.02 ? '盐桥两端已离开液面，指针回到零点。继续向上提过杯口。'
-          : '盐桥两端已离开液面，指针正在回落。';
+      if (!S.demo && S.removal && S.drag === 0 && S.resting) {
+        const hint = '盐桥两端已离开液面。观察指针，再向上提过杯口。';
         if (hint !== S.liftHint) W.ui.status(hint);
         S.liftHint = hint;
       } else S.liftHint = null;
-      if (!on && S.needle < 0.02 && S.removal && (!S.resting || S.pos[0].y >= rim + leg) && wired()) {
+      if (S.removal && !S.immersed && wired() && S.drag !== 0 && !S.returns[0] && S.pos[0].equals(home[0]) && S.needle < 0.02) {
         S.removal = S.observedOn = false;
-        record('保持接线，取出盐桥', '指针回到零点');
+        record('保持接线，取出盐桥', '点电流表看指针。想再看离子迁移，可以放回盐桥。');
         done('out');
         if (!S.demo) W.ui.observePrediction('导线仍连着，取出盐桥后指针回到零点。');
       }
@@ -297,11 +360,13 @@ export default {
           : !S.attached[0] ? hints[1] : !S.attached[1] ? hints[2] : null;
         if (missing !== S.guidance) { S.guidance = missing; bar.say(missing); }
       }
-      const stamp = S.needle < 0.02 ? '零点' : on ? '偏转' : '回落';
-      card.text('<div class="cc"><div class="cc-t"><span class="cc-name">电流表</span><span class="cc-res">' + stamp + '</span></div></div>')
-        .loc(group, mid, 0.005, 0.112).show(!S.demo && !mic.isOpen && (S.resting || S.worked));
-      replay.hidden = S.demo || !on;
+      names.forEach(name => name.show(!mic.isOpen && !inspecting));
+      meterButton.text(S.demo ? '电流表' : inspecting ? '回到实验台' : '电流表 ⊕').show(!mic.isOpen);
+      if (!mic.isOpen) S.microPaused = false;
+      pause.hidden = replay.hidden = S.demo || !on;
+      pause.textContent = S.microPaused ? '继续' : '暂停';
       mic.update(dt, k);
+      if (mic.isOpen) drawing.style.opacity = on ? scene.opacity : 1;
     }
     render();
     const qa = qaFlow(drag, [
@@ -320,7 +385,7 @@ export default {
       } },
     ]);
     return {
-      group: root, card: false, toggles: ['cards', 'steps'],
+      group: root, card: false, toggles: ['steps'],
       size: { w: 0.39, h: 0.155, d: 0.22 }, view: { elev: 26, azim: 0, lookY: 0.39, frameMargin: 1.08 },
       pointer: wrapPointer(drag, bar), reset, update,
       mount(ui) {

@@ -6,7 +6,7 @@ import { lessonBar } from './kit/lessonbar.js';
 import { demoActs, mountXuean, moreBox, paperSheet, qaFlow, wrapPointer } from './kit/chemlesson.js';
 import { clamp, draggable } from './kit/interact.js';
 import { micro } from './kit/microworld.js';
-import { V, X, TIP, TOP, EQ, DROP, apparatus, meniscusScale, plotCurve, ions, pH } from './kit/titration-parts.js';
+import { V, X, TIP, TOP, EQ, DROP, WALL_SECTORS, levelAt, emptyReading, cupLevel, apparatus, meniscusScale, plotCurve, ions, pH } from './kit/titration-parts.js';
 
 const INTRO = '两支滴定管已用水检查，均不漏水。各用所盛溶液润洗两次。';
 const NAMES = ['酸式滴定管', '碱式滴定管'],
@@ -15,7 +15,7 @@ const TITLES = ['分别润洗、装液和排气泡', '记录初读数', '量取�
 const MODEL =
   '课本第 91—92 页。标准盐酸为 0.100 0 mol/L，待测液取 20.00 mL。模型取 25 ℃，假定强酸强碱完全电离，忽略活度和指示剂体积。理论 pH 按电荷守恒与水的离子积计算。';
 const SCALE =
-  '每次润洗取 4 mL，每滴酸约 0.04 mL，均为示意。靠近终点时减慢滴速，颜色按酚酞变色范围近似显示。拖瓶摇动时联动放酸，松手关阀。观察计时按 5 倍速显示，器材尺寸和离子数为示意。';
+  '每次润洗取 4 mL，每滴酸约 0.04 mL，均为示意。靠近终点时减慢滴速，颜色按酚酞变色范围近似显示。连续滴酸加快显示，观察计时为 5 倍速。器材尺寸和离子数为示意。';
 const FIX = (v) => v.toFixed(2),
   round = (v) => Math.round(v * 100) / 100;
 const freshTube = () => ({
@@ -23,6 +23,8 @@ const freshTube = () => ({
   poured: 0,
   charge: 0,
   wet: false,
+  wall: Array(WALL_SECTORS).fill(0),
+  roll: 0,
   reading: null,
   primed: false,
   zero: false,
@@ -71,13 +73,19 @@ export default {
       sampled: false,
       trial: 1,
       flow: null,
+      transfer: null,
+      closeScale: null,
+      flights: [],
       dye: 0,
       trace: [],
       acid: 0,
       initial: null,
       final: null,
       clock: 0,
-      fraction: 0,
+      acidOpen: false,
+      dropTime: 0,
+      mixed: 0,
+      slosh: 0,
       returns: [],
       pulse: 0,
       source: null,
@@ -87,11 +95,11 @@ export default {
     let s = fresh(),
       saved,
       W,
-      readAt,
       lastDraw = '',
       cancelled = false,
       restoredMicro = false,
       panelView;
+    const lens = tag('', 'tit-lens').show(false);
     const card = tag('', 'cond'),
       scene = ions();
     const mic = micro({
@@ -101,17 +109,17 @@ export default {
       group: g,
       scene,
       at: () => s.flask.clone().add(V(0, 0.026)),
-      btnAt: () => s.flask.clone().add(V(0.053, 0.043)),
-      state: () => ({ volume: s.acid }),
-      show: () => s.sampled && !s.grip,
+      btnAt: () => s.flask.clone().add(V(0, 0.047, 0.009)),
+      state: () => ({ volume: arrivedAcid() }),
+      show: () => s.sampled && !s.grip && !s.flights.length,
       bar: () => bar,
-      label: '钻进去看',
+      label: '钻进锥形瓶里看',
       lookD: [0, 0.53, 1],
       dist: 0.31,
       scale: 0.008,
     });
     const microOverlay = Array.from(document.querySelectorAll('.mw')).pop();
-    const enabled = (fn) => () => !mic.isOpen && fn();
+    const enabled = (fn) => () => !mic.isOpen && !s.transfer && fn();
     const msg = (t) => {
       if (!s.demo) W?.ui.status(t);
     };
@@ -123,11 +131,13 @@ export default {
     const near = () => s.acid >= round(EQ - DROP / 2);
     const over = () => s.acid > EQ;
     const sampling = () => s.station === 1 && !s.sampled;
+    const finalReady = () => !finished() && (s.clock >= 30 || (over() && !inFlight('acid')));
     // The same meniscus is visible while dispensing and while recording.
     function meterTube() {
       const i = activeTube();
+      if (s.transfer) return -1;
       if (i >= 0) return s.tubes[i].reading !== null ? i : -1;
-      if (s.initial === null || (s.clock >= 30 && !finished())) return 0;
+      if (s.initial === null || finalReady()) return 0;
       return sampling() ? 1 : -1;
     }
     const activeTube = () => s.tubes.findIndex((t) => !t.zero);
@@ -135,6 +145,18 @@ export default {
       s.source = src;
       s.pulse = 0.32;
     };
+    const inFlight = (field) => s.flights.reduce((sum, drop) => sum + (drop.field === field ? drop.amount : 0), 0);
+    const arrivedAcid = () => round(s.acid - inFlight('acid'));
+    function releaseDrop(i, field, amount, half = false, age = 0) {
+      note(i);
+      const prev = s.flights[s.flights.length - 1];
+      if (field !== 'acid' && prev && prev.field === field && prev.age < 0.085 && !half) {
+        prev.amount += amount;
+        return;
+      }
+      const start = i === 2 ? pipTo() : V(X[i], TIP);
+      s.flights.push({ i, field, amount, start, half, age });
+    }
     function prompt() {
       const i = activeTube();
       if (i >= 0) {
@@ -144,7 +166,7 @@ export default {
           return t.rinses < 2
             ? `将${REAGENTS[i]}的烧杯嘴拖到${n}上口，加入第 ${t.rinses + 1} 份润洗液。`
             : `用烧杯向${n}装液至零刻度以上。`;
-        if (t.charge && !t.wet) return `向外拖动${n}上半部，倾斜转动，润湿内壁。`;
+        if (t.charge && !t.wet) return `将${n}上半部向外拖到接近水平，再向下拖，使管身转一圈。`;
         if (t.wet) return `点${n}的阀，将润洗液从下端放入废液烧杯。`;
         if (!t.primed)
           return i
@@ -153,37 +175,40 @@ export default {
         if (t.reading > 0) return `液面低于零刻度。用${REAGENTS[i]}补液，再调零。`;
         return `按住${n}的阀放液，接近零刻度时轻点，凹液面最低处到零时松手。`;
       }
-      if (s.initial === null) return '平视放大的酸式滴定管，点凹液面最低处对应的高度，记下初读数。';
+      if (s.initial === null) return '平视酸式滴定管的放大刻度，读出凹液面最低处的初读数，填入记录。';
       if (!s.parked) return '向左前方拖开废液烧杯，空出两支滴定管下方的位置。';
       if (!s.sampled) {
         if (!sampling()) return '拖锥形瓶到碱式滴定管尖嘴正下方。';
         if (s.base > 20) return '取样超过 20.00 mL，点击重新取样。';
-        return '按住玻璃球放液，松手即停。接近 20.00 mL 时轻点，最后点凹液面最低处确认体积。';
+        return '按住碱式滴定管的玻璃球放液，接近 20.00 mL 时轻点。平视凹液面最低处，填入读数。';
       }
       if (s.dye < 2)
         return s.station === 1 ? '把锥形瓶拖到右侧空位，再加酚酞。' : '提起酚酞滴管，对准锥形瓶口滴入 2 滴。';
       if (s.station !== 0) return '拖锥形瓶到酸式滴定管下方的白纸上。';
-      if (over()) return '盐酸已过量。本轮留作对照，可重复滴定。';
+      if (s.acid >= EQ && arrivedAcid() !== s.acid) return '观察酸滴落入锥形瓶。';
+      if (over()) return finished() ? '本轮已标为过量，可重复滴定。' : '盐酸已过量。读出酸式滴定管的末读数，记下本轮耗酸量。';
       if (finished()) return '这次的读数已记入表中。';
-      if (s.clock >= 30) return '点放大图中凹液面最低处对应的高度，记录末读数。';
-      if (s.acid >= EQ) return '观察无色能否保持半分钟。';
-      return near()
-        ? '粉红色已变浅。松手关阀，轻点酸式滴定管活塞，加半滴酸。'
-        : '小幅左右拖动锥形瓶，边滴酸边摇动，松手关阀。';
+      if (s.clock >= 30) return '平视酸式滴定管的放大刻度，读出凹液面最低处的末读数，填入记录。';
+      if (s.acid >= EQ) return s.mixed < EQ ? '轻摇锥形瓶使溶液混匀，再观察颜色。' : '观察无色能否保持半分钟。';
+      if (near()) return inFlight('acid') ? '观察酸滴落入锥形瓶。' : '轻点酸式滴定管活塞，加半滴酸，再轻摇锥形瓶。';
+      return s.acidOpen ? '轻轻左右拖动锥形瓶摇匀。再点活塞可暂停滴酸。' : '点酸式滴定管活塞开始滴酸，再轻轻左右拖动锥形瓶摇匀。';
     }
     function target() {
       const i = activeTube();
+      if (s.transfer) return null;
       if (i >= 0) {
         const t = s.tubes[i];
         if (t.reading > 0) return b.cups[i].g;
         if (i === 1 && t.reading !== null && !t.primed) return b.tubes[i].nozzle;
         return !t.charge && t.reading === null ? b.cups[i].g : t.charge && !t.wet ? b.tubes[i].t : b.tubes[i].valve;
       }
-      if (s.initial === null || finished() || s.acid >= EQ) return null;
+      if (finished()) return null;
+      if (s.initial === null || finalReady()) return b.tubes[0].meniscus;
+      if (s.acid >= EQ) return b.flask;
       if (!s.parked) return b.waste;
-      if (sampling()) return s.base >= 20 ? null : b.tubes[1].valve;
+      if (sampling()) return s.base >= 20 ? b.tubes[1].meniscus : b.tubes[1].valve;
       if (s.sampled && s.dye < 2) return s.station === 1 ? b.flask : b.pip;
-      return near() ? b.tubes[0].valve : b.flask;
+      return s.station === 0 && !s.acidOpen ? b.tubes[0].valve : b.flask;
     }
     const refresh = () => {
       if (!s.demo) {
@@ -191,36 +216,28 @@ export default {
         msg(prompt());
       }
     };
-    const addAcid = (v) => {
+    const addAcid = (v, age = 0) => {
       if (over() || finished()) return;
       s.acid = round(s.acid + v);
       s.trace.push(s.acid);
       s.tubes[0].reading = s.acid;
       s.clock = 0;
-      note(0);
-      if (over()) {
-        saveAttempt({ used: s.acid, field: 'used', note: '过量' });
-        if (!s.demo) W.repeat.hidden = false;
-      } else if (s.acid === EQ) done(4);
+      releaseDrop(0, 'acid', v, v < DROP, age);
       if (near()) refresh();
     };
     const cupAllowed = (i) =>
       activeTube() === i && !s.tubes[i].charge && (s.tubes[i].reading === null || s.tubes[i].reading > 0);
-    const pourTo = (i) => V(X[i], TOP + 0.002);
-    const returns = (name, i, from, to, angle = 0) =>
-      s.returns.push({ name, i, from: from.clone(), to: to.clone(), angle, t: 0 });
+    const pourTo = (i) => V(X[i], TOP + 0.009);
+    const returns = (name, i, from, to, angle = 0, roll = 0) =>
+      s.returns.push({ name, i, from: from.clone(), to: to.clone(), angle, roll, t: 0 });
     const begin = (name, i) => {
       s.returns = s.returns.filter((r) => r.name !== name || r.i !== i);
       s.grip = name;
     };
-    const guarded = (obj, anchor, ok, hint, handlers) => ({
-      obj,
-      anchor,
-      keepOffset: true,
-      enabled: enabled(ok),
-      hint: () => (!mic.isOpen && ok() ? hint : ''),
-      ...handlers,
-    });
+    const guarded = (obj, anchor, ok, hint, handlers) => {
+      const available = enabled(ok);
+      return { obj, anchor, keepOffset: true, enabled: available, hint: () => available() ? hint : '', ...handlers };
+    };
     const drags = [];
     b.cups.forEach((c, i) => {
       drags.push(
@@ -228,28 +245,23 @@ export default {
           dropzones: [{
             name: `${NAMES[i]}上口`,
             position: () => pourTo(i),
-            radius: 0.0104,
+            radius: 0.021,
             enabled: () => cupAllowed(i),
             onDrop() {
-              const t = s.tubes[i];
-              if (t.rinses < 2) {
-                t.charge = 4;
-                t.poured += t.charge;
-              } else {
-                const fill = t.primed ? -2 : -2.5;
-                t.poured += (t.reading ?? 25) - fill;
-                t.reading = fill;
-              }
+              const t = s.tubes[i], rinse = t.rinses < 2;
+              const start = rinse ? 0 : t.reading ?? emptyReading;
+              const end = rinse ? 4 : t.primed ? -2 : -2.5;
+              s.transfer = { kind: rinse ? 'rinse' : 'fill', i, time: 0, duration: rinse ? 0.52 : 0.88,
+                start, end, poured: t.poured };
             },
           }],
           onStart: () => begin('cup', i),
           onDrag(p) {
-            const a = -c.sign * clamp((p.y - 0.055) * 8, 0, 1.23);
-            s.cupAngle[i] = a;
-            s.cupPos[i].copy(p).sub(c.lip.position.clone().applyAxisAngle(V(0, 0, 1), a));
+            const approach = clamp((p.y - 0.055) / (pourTo(i).y - 0.055), 0, 1);
+            poseCup(i, p, approach);
           },
           onEnd(moved, dropped) {
-            returns('cup', i, s.cupPos[i], cupHome[i], s.cupAngle[i]);
+            if (!dropped) returns('cup', i, s.cupPos[i], cupHome[i], s.cupAngle[i]);
             s.grip = null;
             refresh();
             if (moved && !cancelled && !dropped) {
@@ -264,18 +276,28 @@ export default {
         }),
       );
     });
-    const tiltTo = (i) => V(X[i] + (i ? 1 : -1) * 0.119, TIP + 0.038);
+    const tiltTo = (i) => V(X[i] + (i ? 1 : -1) * 0.125, TIP - 0.005);
     b.tubes.forEach((tube, i) =>
       drags.push(
         guarded(tube.body, tube.grasp, () => !!s.tubes[i].charge && !s.tubes[i].wet, '拖住管身向外倾转，润湿全部内壁', {
           onStart: () => begin('tube', i),
           onDrag(p) {
-            s.tubes[i].angle = clamp(Math.atan2(X[i] - p.x, Math.max(0.003, p.y - TIP)), -1.48, 1.48);
+            const t = s.tubes[i], sign = i ? -1 : 1;
+            const travel = Math.atan2(Math.max(0, sign * (X[i] - p.x)), p.y - TIP);
+            const start = t.roll ? 1.26 + 0.30 * t.roll / (2 * Math.PI) : Math.abs(t.angle) / 1.25;
+            // Follow the same tilt-then-roll path between sparse pointer events.
+            const steps = Math.max(1, Math.ceil(Math.abs(travel - start) / 0.025));
+            for (let j = 1; j <= steps; j++) {
+              const u = start + (travel - start) * j / steps;
+              t.angle = sign * Math.min(u * 1.25, Math.PI / 2 - 0.002);
+              t.roll = clamp((u - 1.26) / 0.30, 0, 1) * Math.PI * 2;
+              tube.sweepWall(t, t.angle, t.roll);
+            }
           },
           onEnd() {
             const t = s.tubes[i];
-            if (!cancelled && Math.abs(t.angle) > 1.05) t.wet = true;
-            returns('tube', i, V(0), V(0), t.angle);
+            t.wet = !cancelled && t.wall.every((coverage) => coverage >= 0.999);
+            returns('tube', i, V(0), V(0), t.angle, t.roll % (2 * Math.PI));
             s.grip = null;
             refresh();
           },
@@ -300,15 +322,13 @@ export default {
       }),
     );
     const station = (i) => V(X[i], 0.001);
-    const flaskOK = () => s.parked && !finished() && !over() && (!sampling() || !s.base);
+    const flaskOK = () => s.parked && !finished() && !inFlight('dye') && !inFlight('base') && (!sampling() || !s.base);
     const neck = V(0, 0.062);
     const flaskZone = (index, name, base, ready) => ({
       name, position: () => base().add(neck), radius: 0.016,
       enabled: () => flaskOK() && s.station !== index && ready(),
       onDrop() { s.station = index; },
     });
-    const flaskStart = flaskHome.clone();
-    let lastX = 0;
     drags.push(
       guarded(b.flaskPick, b.flask, flaskOK, '拖动锥形瓶，对准尖嘴；滴定时轻轻摇动', {
         dropOffset: neck,
@@ -319,43 +339,37 @@ export default {
         ],
         onStart() {
           begin('flask', 0);
-          flaskStart.copy(s.flask);
-          lastX = s.flask.x;
         },
         onDrag(p) {
-          s.flask.set(p.x, clamp(p.y, 0.001, 0.135), 0);
-          if (s.station === 0 && s.dye === 2 && Math.abs(p.x - X[0]) <= 0.008 && s.flask.y < 0.012) {
-            s.fraction += Math.abs(p.x - lastX);
-            while (!over()) {
-              const travel = DROP / (s.acid < 19.76 ? 175 : 2.5);
-              if (s.fraction < travel) break;
-              s.fraction -= travel;
-              addAcid(DROP);
-              if (near()) {
-                s.fraction = 0;
-                break;
-              }
-            }
+          if (s.station !== 0) {
+            s.flask.set(p.x, clamp(p.y, 0.001, 0.135), 0);
+            return;
           }
-          lastX = p.x;
+          const x = clamp(p.x, X[0] - 0.006, X[0] + 0.006);
+          const dx = x - s.flask.x;
+          s.flask.x = x;
+          if (Math.abs(dx) > 0.00005) {
+            s.slosh = clamp(s.slosh - dx * 32, -0.09, 0.09);
+            const needsMix = s.mixed < EQ && arrivedAcid() === EQ;
+            s.mixed = arrivedAcid();
+            if (needsMix) refresh();
+          }
         },
         onEnd(moved, dropped) {
-          if (!dropped) returns('flask', 0, s.flask, s.station === null || s.station === 2 ? flaskStart : station(s.station));
+          if (!dropped) returns('flask', 0, s.flask, s.station === null || s.station === 2 ? flaskHome : station(s.station));
           s.grip = null;
           refresh();
         },
       }),
     );
     const pipTo = () => s.flask.clone().add(V(0, 0.068));
-    const pipOK = () => s.sampled && s.station === 2 && s.dye < 2;
+    const pipOK = () => s.sampled && s.station === 2 && s.dye < 2 && !inFlight('dye');
     drags.push(
       guarded(b.pipPick, b.pip, pipOK, '将酚酞滴管尖端悬在瓶口上方', {
         dropzones: [{
           name: '锥形瓶口', position: pipTo, radius: 0.016, enabled: pipOK,
           onDrop() {
-            s.dye++;
-            note(2);
-            if (s.dye === 2) done(3);
+            releaseDrop(2, 'dye', 1);
           },
         }],
         onStart: () => begin('pip', 0),
@@ -370,16 +384,12 @@ export default {
       }),
     );
     function prime(i) {
-      s.tubes[i].primed = true;
-      s.tubes[i].reading = -2;
-      s.wasteVol += 0.5;
-      note(i);
-      refresh();
+      s.transfer = { kind: 'prime', i, time: 0, duration: 0.34, start: s.tubes[i].reading, end: -2, waste: s.wasteVol };
     }
     function valveOK(i) {
       const t = s.tubes[i];
       if (activeTube() === i) return t.wet || (t.reading !== null && t.reading <= 0 && (!i || t.primed));
-      return i ? sampling() && s.base <= 20 : s.station === 0 && near() && !finished() && !over();
+      return i ? sampling() && s.base <= 20 : s.station === 0 && s.dye === 2 && !finished() && !over() && (!near() || !inFlight('acid'));
     }
     // One light press releases one drop. Holding the valve repeats drops until release.
     function dispense(i, drops = 1) {
@@ -388,7 +398,7 @@ export default {
       t.reading = round(t.reading + amount);
       if (t.zero) s.base = t.reading;
       else s.wasteVol += amount;
-      if (!s.pulse || s.source !== i) note(i);
+      releaseDrop(i, t.zero ? 'base' : 'waste', amount);
     }
     const valves = b.tubes.map((tube, i) =>
       guarded(tube.handle, tube.valve, () => valveOK(i), i ? '轻挤乳胶管中的玻璃球' : '轻转玻璃活塞', {
@@ -396,14 +406,17 @@ export default {
           if (!valveOK(i)) return;
           const t = s.tubes[i];
           if (t.wet) {
-            s.wasteVol += t.charge;
-            t.charge = 0;
-            t.wet = false;
-            t.rinses++;
-            note(i);
+            s.transfer = { kind: 'drain', i, time: 0, duration: 0.48, start: t.charge, end: 0, waste: s.wasteVol };
           } else if (!t.primed) prime(i);
-          else if (!i && t.zero) addAcid(DROP / 2);
-          else {
+          else if (!i && t.zero) {
+            if (near()) addAcid(DROP / 2);
+            else {
+              s.acidOpen = !s.acidOpen;
+              s.dropTime = 0;
+              if (s.acidOpen) addAcid(DROP);
+            }
+            refresh();
+          } else {
             s.flow = { i, time: -0.24 };
             dispense(i);
           }
@@ -457,7 +470,13 @@ export default {
         },
       ),
     );
-    const drag = draggable(g, drags, { tip: tag('', 'pill') });
+    const readTaps = b.tubes.map((tube, i) =>
+      guarded(tube.readPick, tube.meniscus, () => meterTube() === i, '近看刻度和凹液面', {
+        onTap() {
+          s.closeScale = s.closeScale === i ? null : i;
+        },
+      }));
+    const drag = draggable(g, drags, { taps: readTaps, tip: tag('', 'pill') });
     function drawTable() {
       if (s.demo) return;
       W.tbl.clear();
@@ -468,7 +487,7 @@ export default {
         });
         W.tbl.add([String(r.trial), ...cells], { highlight: false });
       }
-      if (s.initial !== null && !finished() && !over())
+      if (s.initial !== null && !finished())
         W.tbl.add([String(s.trial), s.sampled ? FIX(s.base) : '—', FIX(s.initial), '—', '—']);
     }
     function saveAttempt(values) {
@@ -476,10 +495,11 @@ export default {
       drawTable();
       const valid = s.rows.filter((r) => r.ok);
       if (!s.demo && valid.length) {
+        const validFinal = finished() && !over();
         const avg = valid.reduce((sum, r) => sum + (0.1 * r.used) / r.base, 0) / valid.length;
         W.result.textContent =
-          (finished() ? `本轮浓度 ${((0.1 * (s.final - s.initial)) / s.base).toPrecision(4)} mol/L。` : '') +
-          (valid.length > 1 || !finished()
+          (validFinal ? `本轮浓度 ${((0.1 * (s.final - s.initial)) / s.base).toPrecision(4)} mol/L。` : '') +
+          (valid.length > 1 || !validFinal
             ? `${valid.length} 次有效滴定的平均浓度为 ${avg.toPrecision(4)} mol/L。`
             : '');
       }
@@ -487,7 +507,7 @@ export default {
     }
     function record(value) {
       const i = meterTube();
-      if (i < 0 || !prep() || s.flow || value === null) return;
+      if (i < 0 || !prep() || s.flow || !Number.isFinite(value) || value < 0 || value > 25) return;
       const trueValue = s.tubes[i].reading;
       if (sampling() && trueValue !== 20) {
         msg(trueValue < 20 ? '取样不足 20.00 mL，继续放液。' : prompt());
@@ -495,7 +515,7 @@ export default {
       }
       const err = round(value - trueValue);
       if (err) {
-        const deviation = `${err > 0 ? '偏大' : '偏小'} ${FIX(Math.abs(err))} mL`;
+        const deviation = err > 0 ? '偏大' : '偏小';
         const field = sampling() ? 'base' : s.initial === null ? 'initial' : 'final';
         saveAttempt({
           [field]: value,
@@ -504,7 +524,7 @@ export default {
           used: field === 'final' ? round(value - s.initial) : null,
         });
         msg(`读数${deviation}。请平视凹液面最低处，重新读数。`);
-        if (s.clock >= 30 && !s.demo) W.repeat.hidden = false;
+        if (!over() && s.clock >= 30 && !s.demo) W.repeat.hidden = false;
         return;
       }
       if (sampling()) {
@@ -517,7 +537,17 @@ export default {
         drawTable();
       } else {
         s.final = value;
-        const count = saveAttempt({ final: value, used: round(value - s.initial) });
+        const values = { final: value, used: round(value - s.initial) };
+        if (over()) {
+          saveAttempt({ ...values, field: 'used', note: '过量' });
+          if (!s.demo) {
+            W.repeat.hidden = false;
+            W.entry.value = '';
+          }
+          refresh();
+          return;
+        }
+        const count = saveAttempt(values);
         done(5);
         if (!s.demo) {
           W.review.hidden = false;
@@ -525,6 +555,7 @@ export default {
           W.ui.observePrediction(`本轮加入 ${FIX(s.acid)} mL 盐酸。终点附近，曲线比起初陡得多。`);
         }
       }
+      if (!s.demo) W.entry.value = '';
       refresh();
     }
 
@@ -592,47 +623,108 @@ export default {
     );
     cut();
     const shake = drags.find((d) => d.obj === b.flaskPick);
+    tap('打开酸式滴定管活塞', b.tubes[0].handle);
     function rocking(k) {
-      if (k < 0.04 || k > 0.96 || s.acid >= 19.96) {
-        if (s.grip === 'flask') shake.onEnd();
-        return;
-      }
-      if (!s.grip) shake.onStart();
-      shake.onDrag(station(0).add(V(0.0068 * Math.sin(k * 170), 0)));
+      if (!k) return;
+      if (s.grip !== 'flask') shake.onStart();
+      shake.onDrag(station(0).add(V(0.0055 * Math.sin(k * 38), 0)));
+      if (k === 1) shake.onEnd();
     }
     sequence.push({
-      name: '摇动锥形瓶，观察曲线逐滴延伸',
+      name: '轻摇锥形瓶，观察酸滴落入瓶内',
       during: rocking,
-      dur: 5,
+      dur: 7,
       run() {
-        for (let j = 0; j <= 1500; j++) rocking(j / 1500);
+        for (let j = 1; j <= 750 && !near(); j++) {
+          rocking(j / 751);
+          tick(0.04);
+        }
+        rocking(1);
       },
     });
     tap('轻转活塞加入半滴酸', b.tubes[0].handle);
+    gesture('轻摇锥形瓶使溶液混匀', b.flaskPick, () => station(0).add(V(0.005, 0)), () => station(0));
     cut();
     action('观察半分钟内是否返色', () => {}, 6.6);
     action('平视记录末读数', () => record(s.acid));
     cut();
+    function poseCup(i, lip, approach) {
+      const c = b.cups[i];
+      const angle = -c.sign * approach * c.water.pourAngle(cupLevel(s.tubes[i].poured));
+      s.cupAngle[i] = angle;
+      s.cupPos[i].copy(lip).sub(c.lip.position.clone().applyAxisAngle(V(0, 0, 1), angle));
+    }
+    function transferLiquid(dt) {
+      const f = s.transfer;
+      if (!f) return;
+      f.time += dt;
+      const k = Math.min(1, f.time / f.duration), t = s.tubes[f.i];
+      const value = k === 1 ? f.end : f.start + (f.end - f.start) * k;
+      if (f.kind === 'rinse' || f.kind === 'drain') t.charge = value;
+      else t.reading = value;
+      if (f.kind === 'rinse' || f.kind === 'fill') {
+        t.poured = f.poured + Math.abs(value - f.start);
+        poseCup(f.i, pourTo(f.i), 1);
+        if (k === 1) returns('cup', f.i, s.cupPos[f.i], cupHome[f.i], s.cupAngle[f.i]);
+      } else {
+        s.wasteVol = f.waste + Math.abs(value - f.start);
+        if (k === 1 && f.kind === 'drain') {
+          t.rinses++;
+          t.wet = false;
+          t.wall.fill(0);
+        }
+        if (k === 1 && f.kind === 'prime') t.primed = true;
+      }
+      if (k === 1) {
+        s.transfer = null;
+        refresh();
+      }
+    }
     function sync() {
       b.cups.forEach((c, i) => {
         c.g.position.copy(s.cupPos[i]);
         c.g.rotation.z = s.cupAngle[i];
         const t = s.tubes[i];
-        c.g.setLevel(Math.max(0, 0.035 - t.poured * 0.00064));
+        c.water.set(cupLevel(t.poured), s.cupAngle[i]);
         b.tubes[i].set(
           t.reading,
           t.charge,
           t.angle,
           t.reading !== null && !t.primed,
-          s.flow?.i === i ? 1 : s.source === i ? s.pulse / 0.32 : 0,
+          (!i && s.acidOpen) || s.flow?.i === i || (s.transfer?.i === i && ['prime', 'drain'].includes(s.transfer.kind)) ? 1 : s.source === i ? s.pulse / 0.32 : 0,
           t.bend,
+          t.roll,
+          t.wall,
         );
       });
       b.waste.position.copy(s.waste);
-      b.waste.setLevel(s.wasteVol * 0.0008);
+      b.waste.setLevel(s.wasteVol ? 0.004 + (s.wasteVol - inFlight('waste')) * 0.00095 : 0);
       b.flask.position.copy(s.flask);
       b.pip.position.copy(s.pip);
-      b.setFlask(s.base, s.acid, s.dye);
+      const base = round(s.base - inFlight('base')), acid = arrivedAcid();
+      b.setFlask(base, acid, s.dye, s.mixed, s.slosh, X[0] - s.flask.x);
+      const f = s.transfer;
+      b.stream.visible = !!f;
+      if (f) {
+        const pouring = f.kind === 'fill' || f.kind === 'rinse';
+        const t = s.tubes[f.i];
+        const top = pouring ? pourTo(f.i) : V(X[f.i], TIP);
+        if (!pouring && f.i) g.worldToLocal(b.tubes[1].nozzle.getWorldPosition(top));
+        const bottom = pouring ? TIP + (t.reading === null ? levelAt(emptyReading-t.charge) : levelAt(t.reading)) : b.waste.level;
+        b.stream.scale.y = Math.max(0.001, top.y - bottom);
+        b.stream.position.copy(top).y -= b.stream.scale.y / 2;
+      }
+      b.drops.forEach((mesh, j) => {
+        const drop = s.flights[j];
+        mesh.visible = !!drop;
+        if (!drop) return;
+        const bottom = drop.field === 'waste' ? b.waste.level : s.flask.y + base*0.0005 + acid*0.00045;
+        const k = Math.min(1, drop.age/0.32);
+        mesh.position.copy(drop.start);
+        mesh.position.y += (bottom - drop.start.y)*k*k;
+        const scale = drop.half ? 0.79 : 1;
+        mesh.scale.set(scale, scale*(1.1+0.5*k), scale);
+      });
     }
     const bar = lessonBar({
       look,
@@ -687,11 +779,12 @@ export default {
         let start = 0,
           previous = -1;
         const parts = sequence.slice(first, end).map((q) => {
-          const duration = q.dur || (q.drag ? 1.45 : 0.75);
+          const pouring = b.cups.some((cup) => cup.pick === q.drag);
+          const duration = q.dur || (pouring ? 2.1 : q.drag ? 1.3 : 0.78);
           const apply =
             q.during ||
             (q.drag
-              ? act.drag(q.drag, q.to, { from: q.from, t0: 0.03, t1: 0.59, release: 0.63 })
+              ? act.drag(q.drag, q.to, { from: q.from, t0: 0.03, t1: pouring ? 0.49 : 0.59, release: pouring ? 0.52 : 0.63 })
               : q.tap
                 ? act.tap(q.tap, 0.35)
                 : act.at(0.4, q.run));
@@ -734,6 +827,7 @@ export default {
       }
       drawTable();
       W.result.textContent = '';
+      W.entry.value = '';
       W.review.hidden = W.repeat.hidden = true;
       W.ui.relock({ full: !repeat });
       W.ui.observePrediction(null);
@@ -745,7 +839,10 @@ export default {
       sync();
     }
     const qa = qaFlow(drag, [
-      ...sequence.map((q) => ({ ...q, wait: q.dur === 6.6 ? 8 : 0.6 })),
+      ...sequence.map((q) => {
+        const pouring = b.cups.some((cup) => cup.pick === q.drag);
+        return { ...q, wait: q.dur === 6.6 ? 8 : pouring ? 1.4 : 0.6 };
+      }),
       {
         name: '核对体积、浓度与结论',
         run() {
@@ -764,25 +861,48 @@ export default {
           s.cupPos[r.i].lerpVectors(r.from, r.to, k);
           s.cupAngle[r.i] = r.angle * (1 - k);
         } else if (r.name === 'tip') s.tubes[1].bend = r.angle * (1 - k);
-        else if (r.name === 'tube') s.tubes[r.i].angle = r.angle * (1 - k);
-        else s[r.name].lerpVectors(r.from, r.to, k);
+        else if (r.name === 'tube') {
+          s.tubes[r.i].angle = r.angle * (1 - k);
+          s.tubes[r.i].roll = r.roll * (1 - k);
+        } else s[r.name].lerpVectors(r.from, r.to, k);
       }
       s.returns = s.returns.filter((r) => r.t < 0.4);
+      transferLiquid(dt);
       if (!s.demo) flowFor(dt);
-      if (s.acid === EQ && !finished() && s.clock < 30) {
+      const before = arrivedAcid();
+      const acidDt = s.demo && s.acid < 19.76 ? dt * 5 : dt;
+      s.slosh *= Math.exp(-7 * dt);
+      if (s.acidOpen) {
+        s.dropTime += acidDt;
+        while (!near()) {
+          const interval = s.acid < 19.76 ? 0.042 : 0.40;
+          if (s.dropTime < interval) break;
+          s.dropTime -= interval;
+          // Emit at distinct instants even when one frame spans several drops.
+          addAcid(DROP, s.dropTime - acidDt);
+        }
+        if (near()) s.acidOpen = false;
+      }
+      for (const drop of s.flights) {
+        drop.age += drop.field === 'acid' ? acidDt : dt;
+        if (drop.field === 'dye' && drop.age >= 0.32) {
+          s.dye += drop.amount;
+          if (s.dye === 2) done(3);
+          refresh();
+        }
+      }
+      s.flights = s.flights.filter((drop) => drop.age < 0.32);
+      const acid = arrivedAcid();
+      if (before !== acid && near()) {
+        if (acid === EQ) done(4);
+        refresh();
+      }
+      if (acid === EQ && s.mixed === EQ && !finished() && s.clock < 30) {
         s.clock = Math.min(30, s.clock + dt * 5);
         if (s.clock === 30) refresh();
       }
       s.pulse = Math.max(0, s.pulse - dt);
       sync();
-      b.drop.visible = s.pulse > 0;
-      if (b.drop.visible) {
-        const k = 1 - s.pulse / 0.32,
-          from = s.source === 2 ? pipTo() : V(X[s.source], TIP);
-        b.drop.position.copy(from);
-        b.drop.position.y -= 0.06 * k * k;
-        b.drop.scale.y = 1.4;
-      }
     }
     return {
       group: root,
@@ -803,16 +923,15 @@ export default {
       toggles: ['steps', 'cards'],
       mount(ui) {
         const graph = h('canvas', { style: 'display:block;width:100%;height:auto', 'aria-label': '滴定曲线' });
-        const meter = h('canvas', {
-          style: 'display:block;width:100%;height:auto;cursor:crosshair;touch-action:manipulation',
-          'aria-label': '点凹液面最低处记录读数',
-        });
-        meter.onclick = (e) => {
-          const r = meter.getBoundingClientRect();
-          if (!s.demo && readAt) record(readAt((e.clientY - r.top) / r.height));
-        };
-        const readBox = h('div', {}, meter),
-          chartBox = h('div', {}, graph);
+        const meter = h('canvas', { width: 184, height: 196, 'aria-label': '滴定管刻度与凹液面' });
+        lens.el.append(meter);
+        const entry = h('input', { type: 'number', inputmode: 'decimal', step: '0.01', min: 0, max: 25,
+          required: true, 'aria-label': '滴定管读数' });
+        const readBox = h('form', { class: 'tit-record', onsubmit(e) {
+          e.preventDefault();
+          if (!s.demo) record(entry.valueAsNumber);
+        } }, entry, ' mL ', h('button', { type: 'submit' }, '记下读数'));
+        const chartBox = h('div', {}, graph);
         const review = h(
           'details',
           { class: 'more', hidden: true },
@@ -838,6 +957,7 @@ export default {
           ui,
           graph,
           meter,
+          entry,
           readBox,
           chartBox,
           review,
@@ -851,6 +971,18 @@ export default {
           {},
           `
           .titration-demo .status,.titration-demo .more,.titration-demo .data,.titration-demo .progress-need,.titration-demo button.go,.titration-demo .fineprint {visibility:hidden}
+          .tag3d.tit-lens{width:0;height:0;z-index:4;pointer-events:none}
+          .tit-lens canvas{display:block;position:absolute;top:0;transform:translateY(var(--level,-50%));right:19px;width:134px;height:142px;border:2px solid #657974;border-radius:16px;background:#fffdf5;box-shadow:0 3px 9px #47412e30}
+          .tit-lens.close-scale canvas{width:172px;height:184px}
+          @media(max-width:760px){.tit-lens canvas{width:92px;height:100px}.tit-lens.close-scale canvas{width:112px;height:120px}}
+          .tit-lens::after{content:'';position:absolute;top:0;right:0;width:19px;border-top:1px solid #506963}
+          .tit-lens.base canvas,.tit-lens.base::after{right:auto;left:19px}
+          .tit-lens.base::after{left:0}
+          .tit-record{display:flex;gap:.45em;align-items:center;margin:8px 0}
+          .tit-record[hidden]{display:none}
+          .tit-record input,.tit-record button{border:1px solid #b4ae9f;background:#fffdf5;border-radius:3px;color:inherit;font:inherit;padding:4px 8px}
+          .tit-record input{width:6em;text-align:right;font-variant-numeric:tabular-nums}
+          .tit-record button{cursor:pointer;border-color:#74857b}
           .xuean[data-titration] td small{display:block;font:12px/1.4 sans-serif;color:#874a38}
           .xuean[data-titration] .answer .src{padding-right:55px;min-height:45px}
           .xuean[data-titration] .answer .seal-stamp{right:14px;bottom:12px}
@@ -870,24 +1002,30 @@ export default {
         tick(Math.min(dt, 0.08) * speed);
         if (!(s.demo && restoredMicro)) mic.update(dt, speed);
         if (!W) return;
-        const color = !s.dye || s.acid >= EQ ? '无色' : pH(s.acid) < 10 ? '浅粉红' : '红色';
+        const acid = arrivedAcid();
+        const color = !s.dye || s.mixed >= EQ ? '无色' : pH(s.mixed) < 10 ? '浅粉红' : '红色';
         card
           .text(
-            `<div class="cc"><div class="cc-t"><span class="cc-name">锥形瓶</span><span class="cc-res">${color}</span></div>${over() ? '<div>盐酸过量</div>' : s.acid === EQ ? `<div>已观察 ${Math.floor(s.clock)} s</div>` : ''}</div>`,
+            `<div class="cc"><div class="cc-t"><span class="cc-name">锥形瓶</span><span class="cc-res">${color}</span></div>${acid === EQ && s.mixed === EQ ? `<div>已观察 ${Math.floor(s.clock)} s</div>` : ''}</div>`,
           )
           .loc(g, s.flask.x + 0.025, 0.065, -0.014)
-          .show(show.cards && !s.demo && !mic.isOpen && !s.grip && s.base > 0);
+          .show(show.cards && !s.demo && !mic.isOpen && !s.grip && !s.flights.length && s.base > 0);
         const i = meterTube(),
           volume = i >= 0 ? s.tubes[i].reading : null;
-        const key = [s.demo, i, volume, s.sampled, s.acid, finished()].join('/');
+        if (s.closeScale !== i) s.closeScale = null;
+        lens.el.classList.toggle('close-scale', i >= 0 && s.closeScale === i);
+        lens.show(i >= 0 && !mic.isOpen && !s.grip);
+        if (i >= 0) lens.loc(b.tubes[i].t, 0, levelAt(volume), 0.006);
+        const key = [s.demo, i, volume, s.sampled, acid, finished()].join('/');
         if (key !== lastDraw) {
           lastDraw = key;
           W.ui.el.classList.toggle('titration-demo', s.demo);
-          W.readBox.hidden = i < 0;
+          W.readBox.hidden = s.demo || i < 0 || !prep();
           W.resample.hidden = !sampling() || s.base <= 20;
           W.chartBox.hidden = !s.sampled;
-          if (i >= 0) readAt = meniscusScale(W.meter, NAMES[i], s.tubes[i]);
-          if (s.sampled) plotCurve(W.graph, s.acid, s.trace);
+          lens.el.classList.toggle('base', i === 1);
+          if (i >= 0) meniscusScale(W.meter, volume);
+          if (s.sampled) plotCurve(W.graph, acid, s.trace);
         }
       },
       reset: () => reset(),

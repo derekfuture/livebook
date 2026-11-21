@@ -10,8 +10,13 @@ export const X = [-0.039, 0.039],
   TIP = 0.078,
   LENGTH = 0.183,
   TOP = TIP + LENGTH;
+const ZERO = 0.167, UNIT = 0.0049, BOTTOM = 0.036;
+export const levelAt = (reading) => ZERO - reading * UNIT;
+export const emptyReading = (ZERO - BOTTOM) / UNIT;
+export const cupLevel = (poured) => Math.max(0.004, 0.035 - poured * 0.00064);
 export const EQ = 19.98,
   DROP = 0.04;
+export const WALL_SECTORS = 32;
 export function pH(volume) {
   const excess = (0.1 * (volume - EQ)) / (20 + volume);
   const major = (Math.abs(excess) + Math.hypot(excess, 2e-7)) / 2;
@@ -48,10 +53,79 @@ function rim(g, r, y) {
   const o = mesh(g, new T.TorusGeometry(r, 0.00055, 8, 48), solid(0x99acb1), 0, y);
   o.rotation.x = Math.PI / 2;
 }
-function label(g, text, y, z, w) {
-  const o = textPlate(text, { w, h: 0.009, bg: '#fffaf0', color: '#283536', font: 'bold 118px sans-serif' });
-  o.position.set(0, y, z);
+function label(g, text, y, z, w, x = 0) {
+  const fontSize = Math.min(135, 450 / (text.length - (text.match(/[A-Za-z ·]/g) || []).length * 0.48));
+  const o = textPlate(text, { w, h: 0.009, bg: '#fffaf0', color: '#283536', font: `600 ${fontSize}px sans-serif` });
+  o.position.set(x, y, z);
+  o.renderOrder = 12;
   g.add(o);
+  return o;
+}
+
+// Slice a cylindrical vessel into vertical chords. The plane that encloses
+// the current volume stays horizontal in world space as the vessel tilts.
+function levelLiquid(group, radius, bottom, top, material) {
+  const count = 40, depth = top - bottom;
+  const chords = Array.from({ length: count + 1 }, (_, i) => {
+    const angle = Math.PI * i / count;
+    return { x: -radius * Math.cos(angle), z: radius * Math.sin(angle) };
+  });
+  const weights = chords.slice(1).map((c, i) => (c.x - chords[i].x) * (c.z + chords[i].z));
+  const area = weights.reduce((a, b) => a + b, 0);
+  const mean = (height, slope) => weights.reduce((sum, w, i) =>
+    sum + w * clamp(height - slope * (chords[i].x + chords[i+1].x) / 2, 0, depth), 0) / area;
+  const geo = new T.BufferGeometry(), coords = new Float32Array(chords.length * 12), indices = [];
+  for (let i = 0; i < count; i++) {
+    for (let j = 0; j < 4; j++) {
+      const a = 4*i+j, b = 4*i+(j+1)%4;
+      indices.push(a, b+4, b, a, a+4, b+4);
+    }
+  }
+  geo.setIndex(indices);
+  geo.setAttribute('position', new T.BufferAttribute(coords, 3));
+  const fluid = mesh(group, geo, material, 0, bottom);
+  fluid.material.flatShading = true;
+  fluid.material.roughness = 0.45;
+  fluid.renderOrder = 7;
+  fluid.frustumCulled = false;
+  function surface(level, angle) {
+    const slope = Math.tan(angle), span = Math.abs(slope) * radius;
+    let lo = -span, hi = depth + span;
+    for (let i = 0; i < 16; i++) {
+      const mid = (lo + hi) / 2;
+      if (mean(mid, slope) < level - bottom) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+  let lastLevel, lastAngle;
+  return {
+    surface,
+    pourAngle(level) {
+      let lo = 0, hi = Math.PI/2 - 0.001;
+      for (let i = 0; i < 15; i++) {
+        const mid = (lo+hi)/2, slope = Math.tan(mid);
+        if (mean(depth-radius*slope, slope) > level-bottom) lo = mid;
+        else hi = mid;
+      }
+      return (lo+hi)/2;
+    },
+    set(level, angle) {
+      if (lastLevel === level && lastAngle === angle) return;
+      lastLevel = level;
+      lastAngle = angle;
+      fluid.visible = level > bottom + 0.00005;
+      if (!fluid.visible) return;
+      const intercept = surface(level, angle), slope = Math.tan(angle);
+      chords.forEach(({x,z}, i) => {
+        const h = clamp(intercept - slope * x, 0, depth);
+        coords.set([x,0,-z, x,0,z, x,h,z, x,h,-z], i*12);
+      });
+      geo.attributes.position.needsUpdate = true;
+      geo.computeVertexNormals();
+      geo.computeBoundingBox();
+    },
+  };
 }
 export function apparatus(g) {
   const steel = solid(0x485358),
@@ -65,10 +139,7 @@ export function apparatus(g) {
     const t = new T.Group();
     t.position.set(x, TIP, 0);
     g.add(t);
-    const r = 0.0052,
-      bottom = 0.036,
-      zero = 0.167,
-      unit = 0.0049;
+    const r = 0.0052, bottom = BOTTOM, zero = ZERO, unit = UNIT;
     const shaft = profile(
       t,
       [
@@ -122,6 +193,9 @@ export function apparatus(g) {
     grasp.position.y = 0.125;
     t.add(grasp);
     const liq = cylinder(t, r * 0.9, r * 0.9, 1, water2({ color: clear, base: 0.59 }), 0, bottom);
+    const levelGroup = new T.Group();
+    t.add(levelGroup);
+    const tilted = levelLiquid(levelGroup, r * 0.9, bottom, LENGTH, water2({ color: clear, base: 0.59 }));
     const meniscus = profile(
       t,
       [
@@ -131,6 +205,7 @@ export function apparatus(g) {
       ],
       solid(0x8bafb6),
     );
+    const readPick = pick(meniscus, 0.014, 0.012, 0.012, 0);
     const tex = canvasTex(160, 1536, (c, w, h) => {
       c.fillStyle = '#475253';
       c.strokeStyle = '#445153';
@@ -155,16 +230,20 @@ export function apparatus(g) {
       r + 0.0001,
     );
     scale.renderOrder = 10;
-    const wetWall = cylinder(
-      t,
-      0.00495,
-      0.00495,
-      LENGTH - bottom - 0.003,
-      water2({ color: clear, base: 0.22 }),
-      0,
-      (LENGTH + bottom) / 2,
-    );
+    // Each strip remembers the highest point reached by liquid on that side.
+    const wetWall = mesh(t, new T.CylinderGeometry(r * 0.95, r * 0.95, 1, WALL_SECTORS, 1, true),
+      water2({ color: 0x81bac4, base: 0.47 }), 0, bottom);
     wetWall.renderOrder = 6;
+    wetWall.frustumCulled = false;
+    function sweepWall(tube, angle, roll) {
+      const radius = r * 0.9, depth = LENGTH - bottom;
+      const intercept = tilted.surface(bottom + tube.charge * UNIT, angle);
+      for (let j = 0; j < WALL_SECTORS; j++) {
+        const x = radius * Math.sin(2 * Math.PI * j / WALL_SECTORS + roll);
+        const reach = clamp(intercept - Math.tan(angle) * x, 0, depth) / depth;
+        tube.wall[j] = Math.max(tube.wall[j], reach);
+      }
+    }
     const tipFill = profile(
       t,
       [
@@ -192,7 +271,8 @@ export function apparatus(g) {
       tipFill.geometry = new T.LatheGeometry([new T.Vector2(0.00045, 0.0008), new T.Vector2(0.00185, 0.016)], 24);
       nozzle.add(tipFill);
     }
-    const set = (reading, rinse, angle, bubble, open, bend = 0) => {
+    label(levelGroup, i ? '碱式滴定管 · NaOH' : '酸式滴定管 · HCl', 0.124, r + 0.001, 0.064, i ? 0.036 : -0.036);
+    const set = (reading, rinse, angle, bubble, open, bend, roll, wall) => {
       if (i) {
         let x = 0,
           y = 0.036;
@@ -210,10 +290,20 @@ export function apparatus(g) {
         nozzle.position.set(x - 0.016 * Math.sin(bend), y - 0.016 * Math.cos(bend), 0);
       }
       t.rotation.set(0, 0, angle);
-      t.rotateY(angle * 0.68);
-      wetWall.visible = rinse > 0 && Math.abs(angle) > 0.55;
+      t.rotateY(roll);
+      wetWall.visible = rinse > 0;
+      if (wetWall.visible) {
+        const pos = wetWall.geometry.attributes.position;
+        for (let j = 0; j <= WALL_SECTORS; j++) {
+          pos.setY(j, wall[j % WALL_SECTORS] * (LENGTH - bottom));
+          pos.setY(j + WALL_SECTORS + 1, 0);
+        }
+        pos.needsUpdate = true;
+      }
       const h = reading === null ? rinse * 0.0049 : zero - reading * unit - bottom;
-      liq.visible = meniscus.visible = h > 0.0002;
+      liq.visible = meniscus.visible = h > 0.0002 && Math.abs(angle) < 0.001;
+      levelGroup.rotation.y = -roll;
+      tilted.set(liq.visible ? bottom : bottom + h, angle);
       liq.scale.y = Math.max(0.0002, h);
       liq.position.y = bottom + h / 2;
       meniscus.position.y = bottom + h;
@@ -223,13 +313,15 @@ export function apparatus(g) {
       valve.rotation.x = i ? 0 : open * 1.1;
     };
     t.userData.ringY = TIP + 0.13;
-    return { t, body, grasp, valve, handle, set, nozzle, endPick, pivot };
+    return { t, body, grasp, meniscus, readPick, valve, handle, set, sweepWall, nozzle, endPick, pivot };
   });
   const cups = X.map((x, i) => {
     const cup = beaker({ r: 0.017, h: 0.044, level: 0.033, color: clear, opacity: 0.42 });
     cup.position.x = i ? 0.139 : -0.139;
     g.add(cup);
-    label(cup, i ? 'NaOH' : 'HCl', 0.026, 0.018, 0.028);
+    label(cup, i ? '烧杯 · 待测 NaOH' : '烧杯 · 标准盐酸', 0.026, 0.018, 0.050);
+    cup.liquid.visible = cup.surface.visible = false;
+    const water = levelLiquid(cup, cup.inner, 0.004, 0.044, water2({ color: 0xabccd0, base: 0.60 }));
     // Orient the spout toward its tube. The drag anchor is the lip itself.
     const sign = i ? -1 : 1;
     if (i) {
@@ -240,12 +332,12 @@ export function apparatus(g) {
     const lip = new T.Group();
     lip.position.set(sign * 0.021, 0.04, 0);
     cup.add(lip);
-    return { g: cup, lip, pick: pick(cup, 0.037, 0.046, 0.037, 0.023), sign };
+    return { g: cup, lip, water, pick: pick(cup, 0.037, 0.046, 0.037, 0.023), sign };
   });
   const waste = beaker({ r: 0.052, h: 0.034, level: 0, spout: false, color: clear, opacity: 0.3 });
   waste.setColor(clear, 0.3);
   g.add(waste);
-  label(waste, '废液', 0.019, 0.053, 0.022);
+  label(waste, '废液烧杯', 0.012, 0.053, 0.034);
   const wastePick = pick(waste, 0.092, 0.034, 0.076, 0.017);
   const flask = new T.Group();
   g.add(flask);
@@ -278,29 +370,62 @@ export function apparatus(g) {
       fm,
     );
   liquid.renderOrder = 7;
+  const patchMap = canvasTex(64, 64, (ctx) => {
+    const fade = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    fade.addColorStop(0, '#e4eded');
+    fade.addColorStop(1, 'rgba(228,237,237,0)');
+    ctx.fillStyle = fade;
+    ctx.fillRect(0, 0, 64, 64);
+  });
+  const clearPatch = mesh(flask, new T.PlaneGeometry(2, 2),
+    new T.MeshBasicMaterial({ map: patchMap, transparent: true, depthWrite: false }));
+  clearPatch.rotation.x = -Math.PI / 2;
+  clearPatch.renderOrder = 8;
   const flaskPick = pick(flask, 0.042, 0.046, 0.042, 0.026);
-  const bottle = dropBottle(g, V(0.187), { label: '酚酞' });
+  const flaskTags = ['锥形瓶 · 空', '锥形瓶 · NaOH', '锥形瓶 · NaOH、酚酞', '锥形瓶 · 反应液'].map(
+    (name) => label(flask, name, 0.008, 0.025, 0.052));
+  label(g, '铁架台', 0.014, -0.050, 0.026);
+  label(g, '滴定管夹', 0.174, 0, 0.033);
+  const bottle = dropBottle(g, V(0.187));
+  label(bottle, '滴瓶 · 酚酞', 0.020, 0.014, 0.038);
   const pip = new T.Group();
   g.add(pip);
   pip.position.copy(bottle.tipHome);
   cylinder(pip, 0.002, 0.0009, 0.046, glass, 0, 0.023);
   const bulb = mesh(pip, new T.SphereGeometry(0.0058, 16, 12), solid(0x9d4547), 0, 0.052);
   bulb.scale.y = 1.55;
+  label(pip, '酚酞滴管', 0.067, 0.002, 0.030);
   const pipPick = pick(pip, 0.015, 0.024, 0.016, 0.052);
   pip.userData.ringY = 0.062;
-  const drop = mesh(g, new T.SphereGeometry(0.0017, 16, 12), solid(0xa2c0c6), 0, 0);
-  drop.scale.y = 1.4;
-  drop.visible = false;
+  const stream = cylinder(g, 0.00105, 0.00085, 1, water2({ color: 0x91bec5, base: 0.82 }), 0, 0);
+  stream.renderOrder = 11;
+  stream.visible = false;
+  const drops = Array.from({length: 10}, () => {
+    const drop = mesh(g, new T.SphereGeometry(0.00165, 14, 12), solid(0x87acb4), 0, 0);
+    drop.visible = false;
+    drop.renderOrder = 11;
+    return drop;
+  });
   const paper = mesh(g, new T.BoxGeometry(0.081, 0.0006, 0.065), solid(0xfffdf6), X[0], 0.0004, 0.002);
   paper.receiveShadow = true;
-  function setFlask(base, acid, dye) {
+  function setFlask(base, acid, dye, mixed, slosh, impactX) {
+    const index = acid ? 3 : dye ? 2 : base ? 1 : 0;
+    flaskTags.forEach((plate, i) => { plate.visible = i === index; });
     liquid.visible = base > 0;
     const h = 0.0005 * base + acid * 0.00045;
     liquid.scale.y = h / 0.017;
-    const pink = dye ? clamp((pH(acid) - 8.2) / 2.2, 0, 1) : 0;
+    liquid.rotation.z = slosh;
+    clearPatch.visible = acid > mixed && !!dye && pH(mixed) > 8.2;
+    if (clearPatch.visible) {
+      const radius = Math.min(0.012, 0.005 + (acid - mixed) * 0.005);
+      clearPatch.scale.set(radius, radius * 0.85, 1);
+      clearPatch.position.set(impactX, 0.0006 + h + impactX * Math.sin(slosh), 0);
+      clearPatch.rotation.y = -slosh;
+    }
+    const pink = dye ? clamp((pH(mixed) - 8.2) / 2.2, 0, 1) : 0;
     fm.color.setHex(clear).lerp(new T.Color(0xda3778), pink);
   }
-  return { tubes, cups, waste, wastePick, flask, flaskPick, pip, pipPick, pipHome: bottle.tipHome, drop, setFlask };
+  return { tubes, cups, waste, wastePick, flask, flaskPick, pip, pipPick, pipHome: bottle.tipHome, stream, drops, setFlask };
 }
 
 export function ions() {
@@ -402,66 +527,38 @@ function instrumentPaper(canvas) {
   return c;
 }
 
-export function meniscusScale(canvas, name, tube) {
-  const c = instrumentPaper(canvas),
-    h = canvas.height,
-    volume = tube.reading;
-  if (!tube.zero) {
-    c.font = '21px sans-serif';
-    c.fillText('尖嘴内（放大示意）', 423, 64);
-    c.beginPath();
-    c.moveTo(480, 90);
-    c.lineTo(480, 145);
-    c.lineTo(501, 242);
-    c.lineTo(511, 242);
-    c.lineTo(532, 145);
-    c.lineTo(532, 90);
-    c.fillStyle = '#c2d8db';
-    c.fill();
-    c.strokeStyle = '#5c7478';
-    c.lineWidth = 3;
-    c.stroke();
-    if (!tube.primed) {
-      c.beginPath();
-      c.ellipse(506, 143, 16, 29, 0, 0, Math.PI * 2);
-      c.fillStyle = '#faf8f1';
-      c.fill();
-      c.stroke();
-    }
-    c.fillStyle = '#3c4a46';
-    c.font = '24px sans-serif';
-  }
-  const lo = Math.floor((volume - 0.2) * 10 + 0.00001) / 10,
-    step = volume < -0.2 ? Math.ceil(-lo * 2) / 10 : 0.1,
-    y = (v) => 46 + ((v - lo) / step) * 44;
-  c.fillText(name + '  /  mL', 18, 30);
-  c.fillStyle = '#c2d8db';
+export function meniscusScale(canvas, reading) {
+  const c = canvas.getContext('2d'), w = canvas.width, h = canvas.height;
+  c.clearRect(0, 0, w, h);
+  // A fixed band of graduations: the meniscus moves between the marks.
+  const aboveZero = reading < -0.22;
+  const center = aboveZero ? reading / 2 : Math.round(reading * 5) / 5;
+  const span = aboveZero ? 0.55 - reading : 0.55;
+  const y = (v) => h * (0.5 + (v-center)/span);
+  const left = w*0.37, right = w*0.82, mid = (left+right)/2, low = y(reading);
+  c.fillStyle = '#d0e3e4';
+  c.strokeStyle = '#4d7075';
+  c.lineWidth = 2;
   c.beginPath();
-  c.moveTo(241, y(volume) - 18);
-  c.quadraticCurveTo(306, y(volume) + 18, 371, y(volume) - 18);
-  c.lineTo(371, h);
-  c.lineTo(241, h);
-  c.fill();
-  c.strokeStyle = '#5c7478';
-  c.lineWidth = 3;
-  c.beginPath();
-  c.moveTo(241, y(volume) - 18);
-  c.quadraticCurveTo(306, y(volume) + 18, 371, y(volume) - 18);
+  c.moveTo(left, low-12);
+  c.quadraticCurveTo(mid, low+12, right, low-12);
   c.stroke();
-  for (let j = 0; j < 6; j++) {
-    const v = volume < -0.2 ? j * step : Math.round((lo + j / 10) * 10) / 10,
-      yy = y(v);
-    if (v < 0 || yy > h - 12 || yy < 37) continue;
-    c.fillStyle = '#3c4a46';
-    c.fillRect(214, yy - 1, 60, 2);
-    c.fillText(v.toFixed(1), 148, yy + 8);
+  c.lineTo(right,h); c.lineTo(left,h); c.fill();
+  c.strokeStyle = '#839393';
+  for (const x of [left,right]) {
+    c.beginPath(); c.moveTo(x,0); c.lineTo(x,h); c.stroke();
   }
-  c.fillRect(239, 34, 2, h);
-  c.fillRect(370, 34, 2, h);
-  return (fraction) => {
-    const value = Math.round((lo + ((fraction * h - 46) * step) / 44) * 100) / 100;
-    return value >= 0 && value <= 25 ? value : null;
-  };
+  c.fillStyle = '#283c3f';
+  c.font = '21px sans-serif';
+  c.textAlign = 'right';
+  for (let n = Math.max(0, Math.ceil((center-span/2)*10)); n <= Math.min(250,(center+span/2)*10); n++) {
+    const yy = y(n/10), major = n%5 === 0;
+    c.fillRect(left, yy-1, w*(major ? 0.23 : 0.11), 2);
+    if (!aboveZero || major) c.fillText((n/10).toFixed(1), left-5, yy+7);
+  }
+  c.font = '18px sans-serif';
+  c.fillText('mL', w-3, h-12);
+  canvas.style.setProperty('--level', `${-100 * low / h}%`);
 }
 
 export function plotCurve(canvas, volume, trace) {
@@ -470,7 +567,6 @@ export function plotCurve(canvas, volume, trace) {
     x = (v) => 65 + (v / xmax) * 505,
     y = (p) => 234 - p * 14;
   c.fillText('理论 pH  ' + pH(volume).toFixed(2), 15, 27);
-  c.fillText(volume.toFixed(2) + ' mL', 448, 27);
   c.font = '19px sans-serif';
   for (const p of [0, 7, 14]) {
     c.fillStyle = '#dbdcd3';
@@ -484,7 +580,10 @@ export function plotCurve(canvas, volume, trace) {
   c.lineWidth = 4;
   c.beginPath();
   c.moveTo(x(0), y(pH(0)));
-  for (const v of trace) c.lineTo(x(v), y(pH(v)));
+  for (const v of trace) {
+    if (v > volume) break;
+    c.lineTo(x(v), y(pH(v)));
+  }
   c.stroke();
   c.fillStyle = '#a84958';
   c.beginPath();

@@ -1,7 +1,7 @@
 // 图 1-3 的前壁剖开，以便从杯外看到内筒、隔热层和搅拌环。
 import * as THREE from 'three';
 import { glass2, water2 } from './chemfx.js';
-import { faceLabel, groundLabel } from './labels.js';
+import { faceLabel } from './labels.js';
 import { canvasTex } from './props.js';
 import { clamp } from './interact.js';
 import { homeTo, spread } from './microlayout.js';
@@ -136,7 +136,10 @@ export function cover(group) {
   loop.rotation.z = 0.07;
   const grip = put(rod, new THREE.SphereGeometry(0.0023, 16, 12), glass, 0, 0.094, 0);
   grip.scale.y = 1.3;
-  return { body, pick: pick(body, 0.07, 0.009, 0.061, 0, 0.003), rod, grip, rodPick: pick(rod, 0.009, 0.03, 0.009, 0, 0.082) };
+  faceLabel(body, '杯盖', { x: 0, y: 0.006, z: 0.041, h: 0.008 });
+  faceLabel(rod, '玻璃搅拌器', { x: 0.016, y: 0.092, h: 0.008, color: '#344c49', stroke: '#fff9e8' });
+  const lidPick = pick(body, 0.07, 0.009, 0.061, 0, 0.003);
+  return { body, pick: lidPick, ringTarget: top, rod, grip, rodPick: pick(rod, 0.009, 0.03, 0.009, 0, 0.082) };
 }
 
 const CYL_H = 0.089,
@@ -241,10 +244,11 @@ export function graduate(group, name, sign) {
   const scale = canvasTex(160, 720, (c, w, h) => {
     c.fillStyle = '#274642';
     c.font = 'bold 37px sans-serif';
+    c.fillText('mL', 72, 40);
     c.lineWidth = 3;
     c.strokeStyle = '#395953';
     for (let i = 0; i <= 60; i++) {
-      const y = h - 4 - (i * (h - 8)) / 60;
+      const y = h * (1 - i / 60);
       c.beginPath();
       c.moveTo(5, y);
       c.lineTo(i % 10 === 0 ? 62 : i % 5 === 0 ? 44 : 26, y);
@@ -257,11 +261,35 @@ export function graduate(group, name, sign) {
     new THREE.PlaneGeometry(0.016, 0.087),
     new THREE.MeshBasicMaterial({ map: scale, transparent: true, depthWrite: false }),
     0,
-    0,
+    -0.001,
     0.0141,
   ).renderOrder = 7;
-  faceLabel(body, name, { y: -0.034, z: 0.015, h: 0.008, color: '#223f3d', stroke: '#fffff6' });
-  return { body, pick: pick(body, 0.029, 0.084, 0.029), liquid: cylinderLiquid(body), lip: V(sign * 0.016, 0.045, 0) };
+  const mouth = new THREE.Object3D();
+  mouth.position.set(sign * 0.016, 0.045, 0);
+  body.add(mouth);
+  // 直立读数时，壁边的液面略高，刻度对准中央最低处。
+  const meniscus = put(body, new THREE.LatheGeometry([
+    new THREE.Vector2(0, 0), new THREE.Vector2(0.010, 0),
+    new THREE.Vector2(0.012, 0.0003), new THREE.Vector2(CYL_R * 0.95, 0.0012),
+  ], 48), water2({ color: 0xbad9dc, base: 0.6 }));
+  meniscus.renderOrder = 4;
+  const edgePoints = Array.from({ length: 25 }, (_, i) => {
+    const a = (i / 24 - 0.5) * Math.PI, x = Math.sin(a);
+    return V(CYL_R * 0.95 * x, 0.0012 * x ** 6, CYL_R * 0.95 * Math.cos(a));
+  });
+  put(meniscus, new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edgePoints), 32, 0.00014, 6, false),
+    mat(0x809997)).renderOrder = 6;
+  const fill = cylinderLiquid(body);
+  const plate = faceLabel(body, name, { y: -0.034, z: 0.015, h: 0.0075, color: '#223f3d', stroke: '#fffff6' });
+  const empty = faceLabel(body, '量筒 · 空', { y: -0.034, z: 0.015, h: 0.0075, color: '#223f3d', stroke: '#fffff6' });
+  return { body, mouth, pick: pick(body, 0.033, 0.09, 0.033), liquid(ml, angle) {
+    fill(ml, angle);
+    meniscus.position.y = -CYL_H / 2 + (CYL_H - 0.002) * ml / 60;
+    meniscus.visible = ml > 0 && Math.abs(angle) < 0.005;
+    plate.visible = ml > 0;
+    empty.visible = !plate.visible;
+  } };
+
 }
 export function cleaning(group, x, clothX) {
   const stand = new THREE.Group();
@@ -303,8 +331,8 @@ export function cleaning(group, x, clothX) {
       0.001 + i * 0.0014,
       -0.006,
     ).rotation.y = 0.08 - i * 0.04;
-  groundLabel(group, '冲洗', { x, y: 0.001, z: 0.027, h: 0.008 });
-  groundLabel(group, '擦干', { x: clothX, y: 0.001, z: 0.067, h: 0.008 });
+  faceLabel(group, '冲洗槽 · 水', { x, y: 0.009, z: 0.019, h: 0.008, color: '#324744', stroke: '#fff9e8' });
+  faceLabel(group, '干布', { x: clothX, y: 0.006, z: 0.064, h: 0.008, color: '#324744', stroke: '#fff9e8' });
   return water;
 }
 export function probe(group) {
@@ -317,6 +345,7 @@ export function probe(group) {
   cyl(body, 0.0025, length, glass, 0, length / 2 - grip, 0);
   const radius = 0.0027, bulb = put(body, new THREE.SphereGeometry(radius, 16, 12), red, 0, -grip, 0);
   bulb.scale.y = 1.5;
+  const plate = faceLabel(body, '温度计', { x: -0.012, y: 0.049, h: 0.008, color: '#344c49', stroke: '#fff9e8' });
   const center = V();
   const col = cyl(body, 0.00092, 1, red, 0, -grip, 0);
   col.geometry.translate(0, 0.5, 0);
@@ -334,7 +363,7 @@ export function probe(group) {
   });
   put(body, new THREE.PlaneGeometry(0.0058, 0.061), new THREE.MeshBasicMaterial({ map: tex }), 0.0042, 0.014, 0);
   return {
-    body,
+    body, bulb, plate,
     ringTarget: cyl(body, 0.00265, 0.0013, mat(0xa3b0aa), 0, 0.025, 0),
     pick: pick(body, 0.011, 0.09, 0.009),
     immersed(x, width, bottom, surface) {
@@ -343,7 +372,7 @@ export function probe(group) {
         center.y - radius * bulb.scale.y >= bottom && center.y + radius * bulb.scale.y <= surface;
     },
     read: (t) => {
-      col.scale.y = 0.0385 + clamp((t - 20) / 10, 0, 1) * 0.061;
+      col.scale.y = grip + 0.014 - 0.0305 + 0.061 * (7 + 706 * clamp((t - 20) / 10, 0, 1)) / 720;
     },
   };
 }
@@ -468,7 +497,7 @@ export function heatScene() {
     text(c, st) {
       const e = c.events[0];
       const cap = made
-        ? '图中只追踪一对反应离子。碱稍过量，溶液中仍有少量 OH⁻。反应放热，周围水分子的热运动加快（幅度夸大）。'
+        ? '图中只追踪一对反应离子。' + (st.excess ? '碱稍过量，溶液中仍有少量 OH⁻。' : '') + '反应放热，周围水分子的热运动加快（幅度夸大）。'
         : e?.temp
           ? '同一个氧原子与两个氢原子结合，形成一个水分子。橙色表示放出的能量。'
           : e
@@ -481,4 +510,28 @@ export function heatScene() {
       return { eq: 'H<sup>+</sup> + OH<sup>−</sup> ═ H<sub>2</sub>O', on: made > 0, cap };
     },
   };
+}
+
+// 贴在温度计旁的正视放大图。液柱和本体使用同一个温度，分度为 0.2 ℃。
+export function drawThermometer(canvas, temperature, peak) {
+  const c = canvas.getContext('2d');
+  const y = (t) => 181 - (t - 24) * 29;
+  c.clearRect(0, 0, 82, 206);
+  c.fillStyle = '#354b47';
+  c.textAlign = 'center';
+  c.font = '13px sans-serif';
+  c.fillText(peak ? '峰值留影' : '温度计', 41, 17);
+  c.font = '11px sans-serif';
+  c.fillText('℃', 68, 33);
+  c.fillStyle = '#d6ddd5';
+  c.fillRect(19, 31, 7, 154);
+  c.fillStyle = '#ab432f';
+  c.fillRect(20, y(temperature), 5, 187 - y(temperature));
+  c.textAlign = 'left';
+  c.fillStyle = '#354b47';
+  for (let i = 0; i <= 25; i++) {
+    const row = y(24 + i / 5);
+    c.fillRect(28, row - 0.5, i % 5 ? 6 : 12, 1);
+    if (i % 5 === 0) c.fillText(String(24 + i / 5), 44, row + 4);
+  }
 }

@@ -27,8 +27,8 @@ function carbonPair(order) {
   return atoms;
 }
 export const models = [
-  { name: '甲烷', formula: 'CH₄', atoms: tetra(), tag: '四面体', obs: '四个氢分居正四面体的四个顶点。' },
-  { name: '乙烷', formula: 'C₂H₆', atoms: carbonPair(1), tag: '每个碳周围呈四面体', obs: '碳碳单键两端，每个碳的四根键都朝向四面体顶点。' },
+  { name: '甲烷', formula: 'CH₄', atoms: tetra(), tag: '四面体', obs: '五个原子不共面。碳在正四面体中心，四个氢在四个顶点。' },
+  { name: '乙烷', formula: 'C₂H₆', atoms: carbonPair(1), tag: '局部四面体', obs: '碳碳单键两端，每个碳的四根键都朝向四面体顶点。' },
   { name: '乙烯', formula: 'C₂H₄', atoms: carbonPair(2), tag: '共平面', obs: '两个碳和四个氢在同一平面内。' },
   { name: '乙炔', formula: 'C₂H₂', atoms: carbonPair(3), tag: '共线', obs: '两个碳和两个氢在同一直线上。' },
   { name: '二氯甲烷', formula: 'CH₂Cl₂', atoms: tetra(true), tag: '重合', obs: '两种画法的同种原子逐一重合，表示同一种分子。' },
@@ -142,6 +142,27 @@ export function structureScene() {
   };
 }
 
+// 零件盘前沿的名牌稍微立起，从斜上方也能读出元素符号。
+function partsLabel(k) {
+  const elements = k === 4 ? ['C', 'H', 'Cl'] : ['C', 'H'];
+  const names = { C: '碳球 C', H: '氢球 H', Cl: '氯球 Cl' };
+  const c = document.createElement('canvas');
+  c.width = 200 * elements.length; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f7f4e8'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.strokeStyle = '#a7b3ab'; ctx.lineWidth = 3; ctx.strokeRect(2, 2, c.width - 4, c.height - 4);
+  ctx.font = '600 36px "PingFang SC", sans-serif'; ctx.textBaseline = 'middle';
+  elements.forEach((el, i) => {
+    const x = i * 200 + 28;
+    ctx.fillStyle = '#' + COLOR[el].toString(16).padStart(6, '0');
+    ctx.strokeStyle = '#81867c'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, 32, 14, 0, TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#283239'; ctx.fillText(names[el], x + 26, 34);
+  });
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Mesh(new THREE.PlaneGeometry(elements.length * 0.035, 0.0112), new THREE.MeshBasicMaterial({ map: tex }));
+}
+
 // 垫纸上的零件位置与真实的球共用坐标，球拿走后留下一个空位。
 export function modelSheet(k) {
   const w = 1240, h = 652, canvas = document.createElement('canvas');
@@ -163,12 +184,17 @@ export function modelSheet(k) {
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.31, 0.163), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
   sheet.rotation.x = -Math.PI / 2; sheet.position.set(0.007, 0.00184, 0); sheet.receiveShadow = true;
+  const label = partsLabel(k);
+  label.position.set(0.095, -0.069, 0.0054);
+  label.rotation.x = Math.PI * 0.39;
+  sheet.add(label);
   return sheet;
 }
 
 // 与三维坐标独立的课本结构式。先按元素字宽截短键线，Cl 的两字符不会挤偏竖键。
 export function drawFormula(canvas, k, compact = false) {
-  const ctx = canvas.getContext('2d'), width = compact && k < 4 ? 144 : 320, height = 92;
+  const labeled = k === 4 && !compact;
+  const ctx = canvas.getContext('2d'), width = compact && k < 4 ? 144 : 320, height = labeled ? 114 : 92;
   canvas.width = width * 3; canvas.height = height * 3;
   ctx.scale(3, 3);
   ctx.font = '600 15px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -201,5 +227,10 @@ export function drawFormula(canvas, k, compact = false) {
   }
   draw(k === 4 ? 85 : width / 2, models[k].atoms);
   if (k === 4) draw(235, comparison());
-  canvas.setAttribute('aria-label', k === 4 ? '二氯甲烷的两种结构式，氯分别画在相邻和相对的位置' : models[k].name + '的结构式');
+  if (labeled) {
+    ctx.font = '14px "PingFang SC", sans-serif';
+    ctx.fillStyle = '#33434e';
+    ctx.fillText('第一种', 85, 101); ctx.fillText('第二种', 235, 101);
+  }
+  canvas.setAttribute('aria-label', k === 4 ? '二氯甲烷的两种结构式：第一种把两个氯画在相邻位置，第二种画在相对位置。' : models[k].name + '的结构式');
 }

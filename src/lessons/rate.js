@@ -11,18 +11,18 @@ import { bench, V, X, BX, BASE, LOW, RIM, LEN, NAMES, level, rateScene } from '.
 const TITLES = ['水浴与气泡', '浓度与浑浊', '水浴与浑浊', '催化剂与气泡'];
 const INTRO = [
   '两管各装有 2 mL 5% H₂O₂，两支滴管吸有 1 mol/L FeCl₃。',
-  '甲、乙分别装有 2 mL 和 1 mL 0.1 mol/L Na₂S₂O₃。两只量筒各装有 2 mL 0.1 mol/L 稀硫酸。',
-  '甲、乙各装有 2 mL 0.1 mol/L Na₂S₂O₃。两只量筒各装有 2 mL 0.1 mol/L 稀硫酸。',
+  '甲、乙分别装有 2 mL 和 1 mL 0.1 mol/L Na₂S₂O₃。两侧量筒装 0.1 mol/L 稀硫酸，中间量筒装蒸馏水，点量筒名牌可平视刻度。',
+  '甲、乙各装有 2 mL 0.1 mol/L Na₂S₂O₃。量筒内是 0.1 mol/L 稀硫酸，点量筒名牌可平视刻度。',
   '三管各装有 2 mL 10% H₂O₂。选两管分别加催化剂，留一管作对照。',
 ];
 const DIR = {
   startFe: '拖动一支 FeCl₃ 滴管对准同侧管口，另一支同步。每次各滴一滴，共两滴。',
-  bath: '提起试管越过杯口，将甲、乙分别浸入冷水和热水。',
-  water: '把装有 1 mL 蒸馏水的量筒口对准乙管口，倾入后摇匀。',
+  bath: '提起试管越过杯口，一支浸入冷水，另一支浸入热水。',
+  water: '平视量筒，核对所需的 1 mL 蒸馏水，再倒入乙管摇匀。',
   dilute: '提起加了水的试管，轻轻左右摇匀，再放回架上。',
-  acid: '拖动一只稀硫酸量筒对准同侧试管口，两管同步加酸。',
-  shake: '轻摇任一支试管，两管同步振荡。',
-  time: '观察两支试管，比较从加酸到出现乳白色浑浊的时间。',
+  acid: '平视量筒，核对每管所需的 2 mL 稀硫酸，再拖到同侧管口同步加酸。',
+  shake: '轻摇任一支试管，两管同步振荡，再放回原位。',
+  time: '哪支试管初现乳白色浑浊，就按秒表上对应的记时键。',
   gas: '比较两支试管中气泡冒出的快慢。',
   catalyst: '把 MnO₂ 药匙和 FeCl₃ 滴管分别拖到两支试管口，另一管留作对照。',
   fe: '把 FeCl₃ 滴管对准另一支试管口，滴入两滴。',
@@ -30,21 +30,22 @@ const DIR = {
   mn: '把盛有少量 MnO₂ 的药匙送到另一支试管口。',
   watch: '分别与空白管比较，加入催化剂后冒泡有什么变化？',
 };
-const NOTE = '用量和操作见必修第二册第 44、57–58 页。试剂已按课本量取。探究某影响因素时，需保持其他条件因素相同。拖动一支滴管或一只量筒，可同步给两管加试剂。水浴温度、气泡密度、反应时间和可见浑浊的阈值均为示意。温度组按水浴温度比较。两管同时加酸，计时包含等待振荡的时间。模型从振匀后估算整管的浑浊变化，并加快显示。催化剂组的气泡只示意各管相对空白管的变化。微观图追踪部分粒子的相遇及总反应中的原子去向，省略溶剂和中间步骤。碰撞与活化能见选择性必修 1 第 27–29 页。';
+const NOTE = '用量和操作见必修第二册第 44、57–58 页。试剂已按课本量取。探究某影响因素时，需保持其他条件因素相同。拖动一支滴管或一只量筒，可同步给两管加试剂。水浴温度、气泡密度、反应时间和可见浑浊的阈值均为示意。温度组按水浴温度比较。酸液接触原液时开始反应和计时。振荡使溶液混合得更均匀。秒表与反应同步加快显示。催化剂组的气泡只示意各管相对空白管的变化。微观图追踪部分粒子的相遇及总反应中的原子去向，省略溶剂和中间步骤。碰撞与活化能见选择性必修 1 第 27–29 页。';
 const isBath = (m) => m === 0 || m === 2;
 const isThio = (m) => m === 1 || m === 2;
 const bathName = (b) => b === 0 ? '冷水' : '热水';
 const ID = (m) => 'run' + m;
 const RING = { color: 0xef693a, minOpacity: 0.64 };
+const BATH_RADIUS = .023;
 const WARN = '量筒口、滴管尖端或药匙前端要对准管口，试剂才能进入试管。';
 const REPEAT = '点此组实验名称可用新试剂再做一次。';
 const ENERGY = '<svg role="img" aria-label="反应能量示意图" viewBox="0 0 292 91" width="270" height="84"><path d="M18 6v64h260" fill="none" stroke="#89959d"/><path d="M24 49C60 49 65 10 114 10S165 65 228 65" fill="none" stroke="#776b67" stroke-width="3"/><path d="M24 49C64 49 77 33 114 33S165 65 228 65" fill="none" stroke="#39796e" stroke-width="3"/><g font-size="10" fill="#354755"><text x="144" y="14">无催化剂</text><text x="137" y="39">有催化剂</text><text x="2" y="10">能量</text><text x="219" y="85">反应过程</text></g></svg>';
 const rackX = (mode,i) => mode === 3 ? [-.052,0,.052][i] : X[i];
 function trial(mode) {
-  return { mode, recorded: false, water: -1, stirred: false, acid: false, mixedAt: null, temp: [15,45],
+  return { mode, recorded: false, water: -1, stirred: false, acid: false, clock: 0, mixedAt: null, temp: [15,45],
     age: 0, pour: null, hold: null, returns: {}, drops: 0, mn: -1, fe: -1,
     tubes: X.map((_,i) => ({ x: rackX(mode,i), y: BASE, ml: mode === 1 && i === 1 ? 1 : 2, bath: -1,
-      iron: false, mn: false, age: 0, gas: 0, flux: 0, cloud: 0, clock: 0, marked: null })),
+      iron: false, mn: false, age: 0, gas: 0, flux: 0, cloud: 0, progress: 0, reading: null })),
   };
 }
 const fresh = () => ({ demo: false, near: false, ...trial(0), rounds: [0,0,0,0], completed: [false,false,false,false] });
@@ -64,6 +65,7 @@ export default {
     const {tubes,baths,tools,trails} = bench(group);
     const props = [...tubes,...tools];
     const cards = tubes.map(() => tag('', 'cond'));
+    const releaseHint = tag('', 'pill').show(false);
     const scene = rateScene();
     let W, cancelled = false, S = fresh(), lastDir = '', pause, lastLayout, swapTime = 0;
     const say = (msg) => { if (!S.demo) W?.ui.status(msg); };
@@ -77,6 +79,8 @@ export default {
     const isPair = i => (i < 2 && S.acid) || i === 3 || i === 4 || pairedFe(i);
     const bathReady = () => S.tubes.slice(0,2).every(t => t.bath >= 0);
     const mixed = () => S.mixedAt !== null;
+    const bathAvailable = (i,b) => !S.tubes.some((t,j)=>j!==i && t.bath===b);
+    const nearBath = (p,b) => Math.hypot(p.x-BX[b],p.y-LOW) <= BATH_RADIUS;
     const poured = () => S.pour != null;
     const direction = () => {
       if (S.recorded) return REPEAT;
@@ -91,7 +95,7 @@ export default {
       return mixed() ? DIR.time : DIR.shake;
     };
     const suggest = () => {
-      if (S.hold || S.pour || mic.isOpen || S.recorded) return null;
+      if (S.near || S.hold || S.pour || mic.isOpen || S.recorded) return null;
       const d = direction();
       if (d === DIR.bath) return tubes[S.tubes[0].bath < 0 ? 0 : 1].body;
       if (d === DIR.startFe) return tools[5].body;
@@ -106,7 +110,7 @@ export default {
     function guide(force = false) {
       if (S.demo || !W) return;
       let msg = direction();
-      if (S.recorded && !bar.finished) msg = '已记下本组现象。在左侧选择' + TITLES[S.completed.indexOf(false)] + '，接着比较。';
+      if (S.recorded && !bar.finished && (S.mode !== 1 || S.water === 1)) msg = '已记下本组现象。在左侧选择' + TITLES[S.completed.indexOf(false)] + '，接着比较。';
       if (force || msg !== lastDir) { lastDir = msg; bar.say(msg);
         const strip = document.querySelector('.lbar.do');
         if (strip) {
@@ -122,7 +126,7 @@ export default {
       return pairedFe(i) || (S.mode === 3 && i !== 8);
     }
     function active(i) {
-      if (!visible(i) || mic.isOpen || S.recorded || poured()) return false;
+      if (S.near || !visible(i) || mic.isOpen || S.recorded || poured()) return false;
       if (pairedFe(i)) return S.drops < 2;
       if (i < n()) return S.acid ? !mixed() : (isBath(S.mode) && (S.mode !== 0 || S.drops === 2)) || (S.mode === 1 && S.water === i);
       if (i < 5) return !S.acid && (S.mode === 1 ? S.stirred : bathReady());
@@ -144,7 +148,7 @@ export default {
       tools[3].bottle.position.x = tools[3].home.x;
       props.forEach((o,i) => {
         const on = visible(i); o.body.visible = on;
-        if (i < 3) { o.rack.visible = on; o.rack.position.x = rackX(S.mode,i); o.update(S.tubes[i]); }
+        if (i < 3) { o.rack.visible = on; o.rack.position.x = rackX(S.mode,i); o.update(S.tubes[i]); o.contents(isThio(S.mode)); }
         if (o.label) o.label.visible = on;
         if (o.bottle) { o.bottle.visible = on; o.body.userData.ringY = .051; }
         o.body.rotation.z = 0;
@@ -156,7 +160,7 @@ export default {
     }
     function select(m) {
       if (S.hold || (!S.demo && bar.playing)) return;
-      mic.close();
+      leaveReading(); drag.clearDropzones(); mic.close();
       Object.assign(S,trial(m));
       S.rounds[m]++;
       arrange(); lastLayout = null;
@@ -173,9 +177,6 @@ export default {
       const p = props[i].body.position;
       S.hold = { i, lastX: p.x, direction: 0, stroke: 0, reversed: false, moved: false };
     }
-    function opening(p) {
-      return S.tubes.slice(0,n()).findIndex((t) => Math.abs(p.x-t.x) < .0085 && p.y >= t.y+LEN-.004 && p.y < t.y+LEN+.014);
-    }
     function move(i,p) {
       const g = S.hold;
       if (g?.i !== i) return;
@@ -186,8 +187,11 @@ export default {
         const dock = rest(i), bath = S.tubes[i].bath, high = RIM+.005;
         // A tube must clear its rack or beaker before moving across the rim.
         if (isBath(S.mode) && !S.acid) {
-          if (original.y < high && Math.abs(original.x-dock.x)<.013 && p.y < high) p.x = clamp(p.x,dock.x-.006,dock.x+.006);
+          const requestedBath = BX.findIndex((_,b)=>nearBath(p,b));
+          const channel = [X[i], ...BX].find(x => Math.abs(original.x-x) < .016);
+          if (original.y < high && channel !== undefined && p.y < high) p.x = clamp(p.x,channel-.006,channel+.006);
           else if (p.y < high && ![...BX, X[i]].some(x => Math.abs(p.x-x)<.016)) p.y = high;
+          g.dropBath = requestedBath >= 0 && nearBath(p,requestedBath) && bathAvailable(i,requestedBath) ? requestedBath : -1;
         } else {
           // Rock about a small region above the support. Only a return stroke counts.
           if (bath < 0 && p.y < .057) p.x = clamp(p.x,dock.x-.002,dock.x+.002);
@@ -200,7 +204,10 @@ export default {
             const sign = Math.sign(dx);
             if (sign !== g.direction) { if (g.stroke >= .005) g.firstStroke = true; g.stroke = 0; g.direction = sign; }
             g.stroke += Math.abs(dx);
-            if (g.firstStroke && g.stroke >= .005) g.reversed = true;
+            if (g.firstStroke && g.stroke >= .005) {
+              g.reversed = true;
+              if (S.acid && !mixed()) S.mixedAt = S.clock;
+            }
             g.lastX = p.x;
           }
           o.body.rotation.z = clamp((dock.x-p.x)*6,-.12,.12);
@@ -211,12 +218,12 @@ export default {
           }
         }
       } else {
-        const k = opening(p);
+
         if (i < 6) {
           const gap = Math.min(p.distanceTo(mouth(0)),p.distanceTo(mouth(1)));
           const near = 1-clamp(gap/.042,0,1);
           o.body.rotation.z = tools[i-3].side*near*1.91;
-        } else if (i === 7) o.body.rotation.z = (k >= 0 ? -.32 : 0);
+        } else if (i === 7) o.body.rotation.z = -.32 * (1-clamp(Math.min(...S.tubes.slice(0,n()).map((_,k)=>p.distanceTo(mouth(k))))/.04,0,1));
         if (isPair(i)) {
           const peer = peerOf(i);
           const q = p.clone(); q.x = S.tubes[0].x + S.tubes[1].x - p.x;
@@ -229,54 +236,78 @@ export default {
       const o = props[i].body;
       S.returns[i] = { p: o.position.toArray(), rz: o.rotation.z, t: 0 };
     }
-    function end(i,moved) {
+    function end(i,moved,zone) {
       const g = S.hold;
       if (g?.i !== i) return;
       S.hold = null;
       if (!moved || !g.moved || cancelled) { putBack(i); if (isPair(i)) putBack(peerOf(i)); return; }
       if (i < 3) {
         if (isBath(S.mode) && !S.acid) {
-          const pos = tpos(i), b = BX.findIndex(x => Math.abs(x-pos.x)<.016);
-          const occupied = S.tubes.some((t,k) => k !== i && t.bath === b && b >= 0);
-          if (b >= 0 && !occupied && pos.y < .025) {
-            S.tubes[i].bath = b; S.age = 0;
-            say(NAMES[i]+'管已浸入'+bathName(b)+'。');
-          } else if (Math.abs(pos.x-X[i]) < .012 && pos.y < .024) S.tubes[i].bath = -1;
-          else if (occupied) say('这杯已放了一支试管。另一杯可以用来比较不同温度。');
-          else say('提起试管越过杯口，等管底浸入水中再松手。');
-        } else if (g.reversed) {
-          if (S.acid) { S.mixedAt = S.tubes[i].clock; say('两管已同步振荡。观察哪管先变浑浊。'); }
+          if (zone && tpos(i).distanceToSquared(zone.position()) < 1e-10) {
+            S.tubes[i].bath = zone.bath; S.age = 0;
+            if (zone.bath >= 0) say(NAMES[i]+'管已浸入'+bathName(zone.bath)+'。');
+          } else say('提起试管越过杯口，等管底浸入水中再松手。');
+        } else if (zone && g.reversed) {
+          if (S.acid) say('两管已同步振荡。观察哪管先变浑浊。');
           else if (S.water === i) { S.stirred = true; say(NAMES[i]+'管中的原液和蒸馏水已摇匀。'); }
         }
       } else {
-        const k = opening(props[i].body.position);
-        const both = isPair(i) && k >= 0 && opening(props[peerOf(i)].body.position) === 1-k;
-        if (k >= 0 && (both || i === 5 || (i === 6 && S.mode === 3 && k !== S.mn && (S.fe < 0 || k === S.fe)) || (i === 7 && k !== S.fe))) {
-          S.pour = { i, k, t: 0 }; return;
-        }
-        say(k >= 0 && i >= 6 ? '这支管已经选作一组。把另一种催化剂加入别的试管，留一支空白对照。' : WARN);
+        if (zone) { S.pour = { i, k: zone.tube, t: 0 }; return; }
+        say(WARN);
       }
       putBack(i); if (isPair(i)) putBack(peerOf(i));
       guide();
     }
+    function targets(i) {
+      if (i < 3) {
+        const bathing = () => isBath(S.mode) && !S.acid;
+        const nearBottom = (x,y,r) => tpos(i).distanceToSquared(V(x,y)) <= r*r;
+        const rack = { name: '试管架', bath: -1, position: () => V(rackX(S.mode,i),BASE), radius: .018,
+          enabled: () => bathing() ? nearBottom(rackX(S.mode,i),BASE,.018) : S.tubes[i].bath < 0 };
+        return [rack, ...BX.map((x,b) => ({ name: bathName(b)+'烧杯', bath: b, position: () => V(x,LOW), radius: BATH_RADIUS,
+          enabled: () => isBath(S.mode) && (bathing() ? nearBath(tpos(i),b) && bathAvailable(i,b) : S.tubes[i].bath===b) }))];
+      }
+      return NAMES.map((name,k) => ({ name: name+'管口', tube:k, position: () => mouth(k), radius: .018,
+        enabled: () => {
+          if (k >= n()) return false;
+          if (isPair(i)) {
+            const left = S.tubes[k].x < S.tubes[1-k].x;
+            return left === (i === 3 || i === 8);
+          }
+          if (i === 6) return k !== S.mn && (S.fe < 0 || S.fe === k);
+          return i !== 7 || k !== S.fe;
+        } }));
+    }
     const drag = draggable(group, props.map((o,i) => ({
       obj:o.pick, anchor:o.body, keepOffset:true, hint:() => hint(i), enabled:() => active(i),
-      onStart:() => begin(i), onDrag:p => move(i,p), onEnd:moved => end(i,moved),
+      dropzones:targets(i), onStart:() => begin(i), onDrag:p => move(i,p), onEnd:(moved,zone) => end(i,moved,zone),
     })),{tip:tag('','pill')});
     function transfer(dt) {
       const a = S.pour;
       if (!a) return;
-      const before = clamp(a.t/.40,0,1);
+      const duration = a.i <= 5 ? .62 : .44;
+      const before = clamp(a.t/duration,0,1);
       a.t += dt;
-      const u = clamp(a.t/.40,0,1);
+      const u = clamp(a.t/duration,0,1);
       const pair = isPair(a.i), ids = pair ? [0,1] : [a.k];
       for (const k of ids) {
         const t = S.tubes[k], p = mouth(k), y = t.y+level(t.ml);
+        if (a.i < 5 && u >= 1/7) { t.acid = true; S.acid = true; }
         if (a.i < 6) t.ml += (a.i < 5 ? 2 : 1)*(u-before);
         const drop = trails[k]; drop.visible = true;
         drop.material.color.setHex((a.i === 6 || a.i === 8) ? 0xe6bc63 : a.i === 7 ? 0x373136 : 0xa4c9d8);
-        drop.scale.set(1,a.i <= 5 ? 2.5 : 1,1);
-        drop.position.set(p.x,p.y+(y-p.y)*u,0);
+        if (a.i <= 5) {
+          const length = (p.y-y)*Math.min(1,u*7);
+          drop.scale.set(.70,length/.004,.70);
+          drop.position.set(p.x,p.y-length/2,0);
+        } else {
+          drop.scale.set(1,1.25,1);
+          drop.position.set(p.x,p.y+(y-p.y)*u*u,0);
+        }
+      }
+      if (a.i === 6 || a.i === 8) {
+        tools[a.i-3].volume(1-(S.drops+u)/2);
+        if (pair) tools[peerOf(a.i)-3].volume(1-(S.drops+u)/2);
       }
       if (a.i <= 5) ids.forEach((k) => tools[pair ? k : 2].volume(1-u));
       if (u < 1) return;
@@ -285,8 +316,8 @@ export default {
         S.drops++; ids.forEach(k=>{S.tubes[k].iron=true;}); putBack(peerOf(a.i));
         say(S.drops === 1 ? '两管各滴入了一滴。再次对准管口，各滴第二滴。' : '两管各滴入了两滴 FeCl₃，均已冒泡。');
       }
-      else if (pair) { S.acid = true; putBack(7-a.i); say('两管各加入了 2 mL 稀硫酸，开始计时。'); }
-      else if (a.i === 5) { S.water = a.k; say(NAMES[a.k]+'管中加入了 1 mL 蒸馏水。'); }
+      else if (pair) { putBack(7-a.i); say('两管已同时加酸，秒表正在计时。'); }
+      else if (a.i === 5) { S.water = a.k; say(NAMES[a.k]+'管中已加入蒸馏水。'); }
       else if (a.i === 6) {
         S.fe = a.k; S.drops++; S.tubes[a.k].iron = true;
         say(S.drops === 1 ? '已滴入一滴。把滴管再送到同一支管口，滴第二滴。' : NAMES[a.k]+'管已滴入两滴 FeCl₃。');
@@ -309,11 +340,13 @@ export default {
       if (S.mode === 3) return t.mn ? '少量 MnO₂' : t.iron ? S.drops+' 滴 FeCl₃' : '未加催化剂';
       return (k ? '1' : '2') + ' mL 原液' + (S.water === k ? ' + 1 mL 水' : '');
     };
-    const obs = t => isThio(S.mode) ? t.marked === null ? '澄清' : '乳白浑浊' :
+    const obs = t => isThio(S.mode) ? t.progress < 1 ? '澄清' : '乳白浑浊' :
       S.mode === 3 && (t.mn || t.iron) ? '比空白管快' : t.flux < .3 ? '气泡极少' : t.flux < 3 ? '缓慢冒泡' : t.flux < 6 ? '冒泡' : '密集冒泡';
-    const observedTime = t => '约 '+Math.round(t.marked)+' s（示意）';
+    const observedTime = t => t.reading+' s（示意）';
     function react(dt) {
       S.age += dt;
+      const elapsed = dt * (S.demo ? 6 : 3);
+      if (S.acid && !S.recorded) S.clock += elapsed;
       for (let k=0;k<n();k++) {
         const t = S.tubes[k]; t.age += dt;
         if (!isThio(S.mode)) {
@@ -321,20 +354,19 @@ export default {
           t.gas += dt*t.flux; continue;
         }
         if (!S.acid) continue;
-        t.clock += mixed() ? dt*6 : dt;
-        if (!mixed()) continue;
         // Common visible-sulfur threshold. Illustrative concentration and temperature factors only.
         const relative = ((S.mode === 1 && k === 1) ? 1 : 2) * 2 / t.ml;
         const temperature = t.bath < 0 ? 25 : S.temp[t.bath];
         const threshold = 19 / (relative * (4/t.ml) * Math.pow(1.55,(temperature-25)/10));
-        const elapsed = t.clock - S.mixedAt;
-        t.cloud = clamp((elapsed/threshold-.8)*1.8,0,1);
-        if (t.marked === null && elapsed >= threshold) t.marked = S.mixedAt + threshold;
+        t.progress += elapsed * (mixed() ? 1 : .68) / threshold;
+        // The first visible haze and the split button share the same observation threshold.
+        t.cloud = t.progress < 1 ? 0 : clamp(.12+(t.progress-1)*1.6,0,1);
+        if (S.demo && t.progress >= 1 && t.reading === null) t.reading = Math.floor(S.clock);
       }
     }
     function record() {
       if (S.recorded || S.hold || S.pour) return;
-      const ready = isThio(S.mode) ? S.acid && mixed() && S.tubes.slice(0,2).every(t => t.marked !== null)
+      const ready = isThio(S.mode) ? S.acid && mixed() && S.tubes.slice(0,2).every(t => t.reading !== null)
         : S.age >= 2.0 && (S.mode === 0 ? bathReady() : S.mn >= 0 && S.drops === 2);
       if (!ready) return;
       S.recorded = true;
@@ -343,7 +375,7 @@ export default {
       if (S.demo) return;
       for (let i=0;i<n();i++) {
         const t = S.tubes[i];
-        W.tbl.add([TITLES[S.mode]+' · '+S.rounds[S.mode], NAMES[i]+' · '+condition(i), isThio(S.mode) ? observedTime(t) + (S.mixedAt >= 5 ? '，含振荡前等待约 '+Math.round(S.mixedAt)+' s' : '') : obs(t)]);
+        W.tbl.add([TITLES[S.mode]+' · '+S.rounds[S.mode], NAMES[i]+' · '+condition(i), isThio(S.mode) ? observedTime(t) + (S.mixedAt >= 5 ? '，操作偏差：加酸后约 '+Math.round(S.mixedAt)+' s 才振荡' : '') : obs(t)]);
       }
       if (!valid) {
         say('水加进了甲管。两管总体积不同，加酸后酸的浓度也不同。点浓度与浑浊重做，保留这次记录。');
@@ -367,23 +399,62 @@ export default {
         extra = dense;
         explain = '比较同样大小的一小团溶液。浓度较大的一侧，硫代硫酸根更多，单位时间内相遇的机会更多。';
       } else {
-        const hot = S.tubes[0].bath === 1 ? 0 : 1;
+        ids.sort((a,b)=>S.tubes[a].x-S.tubes[b].x);
+        const hot = S.tubes[ids[0]].bath === 1 ? 0 : 1;
         tempo[hot] = 1.3; tempo[1-hot] = .83; attempts[hot] = 1;
         explain = '热水浴中的试管内，粒子平均运动得更快，具有足够能量的粒子比例也更大。';
       }
-      return { sulfur, labels: ids.map(i=>S.mode === 1 ? NAMES[i]+'管' : condition(i)), places: ids.map(i=>bathName(S.tubes[i].bath)+'浴中的试管内'), extra, tempo, attempts, explain };
+      return { sulfur, labels: ids.map(i=>isBath(S.mode) ? '试管'+NAMES[i]+' · '+bathName(S.tubes[i].bath)+'浴' : S.mode === 1 ? NAMES[i]+'管' : condition(i)), places: ids.map(i=>bathName(S.tubes[i].bath)+'浴中的试管内'), extra, tempo, attempts, explain };
     }
+    function leaveReading() {
+      if (S.near) { S.near = false; back(); }
+    }
+    function readCylinder(j) {
+      if (!visible(j+3) || S.hold || S.pour || S.demo || S.returns[j+3]) return;
+      const tool = tools[j];
+      S.near = true; S.readIndex = j;
+      look([tool.home.x+tool.side*.008,.006+tool.fillHeight(),0],[0,0,1],.16,()=>{S.near=false;});
+    }
+    const plates = tools.slice(0,3).map((_,j)=>tag('量筒 · '+(j===2?'蒸馏水':'稀硫酸'),'pill rate-plate',()=>readCylinder(j)));
+    const exitReading = tag('回到实验台','pill',leaveReading);
+    const watch = tag('', 'rate-watch').loc(group,0,.006,.103);
+    const dial = h('output',{},'0 s');
+    const keys = [0,1].map(i => h('button',{type:'button',onclick:()=>{
+      const t = S.tubes[i];
+      if (S.demo || !S.acid || t.progress < 1 || t.reading !== null) return;
+      t.reading = Math.floor(S.clock); record();
+    }},'记'+NAMES[i]+'管'));
+    watch.el.append(h('span',{},'秒表（示意）'),dial,h('div',{},keys));
+    const bathReadings = baths.map((cup,b)=>tag('', 'pill rate-degrees').loc(cup,b ? .025 : -.025,.112,0));
     const syncCards = () => {
-      const show = !S.demo && !mic.isOpen && !S.hold && !S.pour;
+      const show = !S.near && !S.demo && !mic.isOpen && !S.hold && !S.pour;
       cards.forEach((card,i) => {
         if (i >= n() || !show) { card.show(false); return; }
-        const t = S.tubes[i], read = S.acid ? (t.marked === null ? Math.floor(t.clock)+' s（示意）' : observedTime(t)) : '';
-        card.text('<div class="cc"><div class="cc-t"><span class="cc-name">'+NAMES[i]+'管</span><span class="cc-res">'+obs(t)+'</span></div><div class="cc-note"></div></div>')
+        const t = S.tubes[i];
+        card.text('<div class="cc"><div class="cc-t"><span class="cc-name">'+NAMES[i]+'管</span><span class="cc-res">'+obs(t)+'</span></div></div>')
           .loc(group,t.x,t.y+LEN+.014,0).show(true);
-        const note = card.el.querySelector('.cc-note');
-        if (note.textContent !== read) note.textContent = read;
-        note.hidden = !read;
       });
+      const onBench = !S.near && !mic.isOpen;
+      watch.show(onBench && isThio(S.mode));
+      const [left,right] = S.tubes;
+      const shownTime = left.reading !== null && right.reading !== null ? Math.max(left.reading,right.reading) : Math.floor(S.clock);
+      const timeText = shownTime+' s';
+      if (dial.textContent !== timeText) dial.textContent = timeText;
+      keys.forEach((key,i)=>{
+        const t = S.tubes[i];
+        key.disabled = !onBench || S.demo || !S.acid || t.progress < 1 || t.reading !== null;
+        const label = t.reading === null ? '记'+NAMES[i]+'管' : NAMES[i]+' '+t.reading+' s';
+        if (key.textContent !== label) key.textContent = label;
+      });
+      bathReadings.forEach((tag,b)=>{
+        baths[b].meter.visible = S.mode === 2;
+        baths[b].meter.setTemp(S.temp[b]);
+        tag.text(S.temp[b]+' ℃').show(onBench && S.mode === 2);
+      });
+      const dropBath = onBench && !S.demo ? S.hold?.dropBath : undefined;
+      baths.forEach((cup,b)=>{cup.dropRim.visible=b===dropBath;});
+      releaseHint.show(dropBath >= 0);
+      if (dropBath >= 0) releaseHint.loc(baths[dropBath],0,RIM+.01,.024).text('松手放入'+bathName(dropBath)+'烧杯');
     };
     function update(dt) {
       const k = bar.update(dt), d = Math.min(dt,.055)*k;
@@ -391,9 +462,20 @@ export default {
         swapTime -= d;
         if (swapTime <= 0) props.forEach((o,i)=>{o.body.visible=visible(i);});
       }
+      drag.update(d);
       if (d > 0) { returning(d); transfer(d); react(d); record(); }
       tools.forEach(tool=>{if(tool.body.visible) tool.update?.();});
       tubes.forEach((tube,i)=> { if (tube.body.visible) tube.update(S.tubes[i]); });
+      plates.forEach((plate,j)=>{
+        const o=tools[j];
+        const reading = S.near && S.readIndex === j;
+        plate.loc(o.body,o.side*.008 - (reading ? .016 : 0),reading ? -.007 : -.049,reading ? .012 : .039)
+          .show(visible(j+3) && (!S.near || reading) && !mic.isOpen && !S.demo);
+        plate.el.classList.toggle('passive',!!(S.near || S.hold || S.pour || S.returns[j+3]));
+      });
+      const readingTool = tools[S.readIndex || 0];
+      exitReading.loc(group,readingTool.home.x+readingTool.side*.008+.021,.017+readingTool.fillHeight(),.009).show(S.near && !S.demo);
+      entry.text('钻进试管'+NAMES[focusTube()]+'里看 ⊙');
       syncCards(); guide(); mic.update(dt,k);
       if (W && lastLayout !== S.demo) {
         W.ui.el.classList.toggle('rate-demo',S.demo); lastLayout = S.demo;
@@ -404,7 +486,7 @@ export default {
     // Both the projected demonstration and QA use the same grip, tip and release handlers.
     const intoBath = (i,b) => [tpos(i),V(X[i],RIM+.018),V(BX[b],RIM+.018),V(BX[b],LOW)];
     const rock = i => { const x=rest(i).x, y=S.tubes[i].bath < 0 ? .064 : .027;
-      return [tpos(i),V(x,y),V(x+.009,y),V(x-.009,y),V(x,y)]; };
+      return [tpos(i),V(x,y),V(x+.009,y),V(x-.009,y),V(x,y),rest(i)]; };
     const pathAct = (i,points,start,end) => {
       let path;
       return k => { if (!path || k < start) path = act.path(props[i].pick,points(),{t0:start,t1:end-.03,release:end}); path(k); };
@@ -426,18 +508,22 @@ export default {
     ];
     let studentPose;
     const sb = sandbox({get:()=>S,set:s=>{S=s;},fresh,apply:arrange,
-      view:{save:()=>mic.isOpen ? scene.snapshot() : null,restore:s=>{ if(s) { scene.resume(s); mic.open(); } }}});
+      view:{save:()=>S.near ? {readIndex:S.readIndex} : mic.isOpen ? scene.snapshot() : null,restore:s=>{ if(s.readIndex != null) readCylinder(s.readIndex); else { scene.resume(s); mic.open(); } }}});
     const bar = lessonBar({look,back,group,ringOptions:RING,
       steps:TITLES.map((title,i)=>({id:ID(i),title,todo:[DIR.startFe,DIR.water,DIR.bath,DIR.catalyst][i],target:suggest})),
       reels:{demo:{label:'老师演示',seal:'演示',shots,onStart(){
         studentPose = props.map(o=>[o.body.position.clone(),o.body.rotation.z]);
-        sb.onStart(); mic.close();
+        drag.clearDropzones(); const reading = S.near; sb.onStart(); if (reading) back(); mic.close();
       },onEnd(){
         swapTime=0; sb.onEnd();
         props.forEach((o,i)=>{o.body.position.copy(studentPose[i][0]);o.body.rotation.z=studentPose[i][1];});
         lastDir='';}}}});
-    const mic = micro({tag,look,back,group,scene,bar:()=>bar,label:'钻进去看',state:microState,at:()=>V(0,.081),
-      btnAt:()=>V(0,.021,.052),lookD:[0,.56,1],dist:.32,scale:.0085,show:()=>microReady() && !S.hold && !S.pour});
+    const focusTube = () => S.mode === 3 && S.fe >= 0 ? S.fe : 0;
+    const insideTube = () => tpos(focusTube()).add(V(0,.032));
+    let entry;
+    const entryTag = (...args) => { entry = tag(...args); return entry; };
+    const mic = micro({tag:entryTag,look,back,group,scene,bar:()=>bar,label:'钻进试管甲里看',state:microState,at:insideTube,
+      btnAt:()=>tpos(focusTube()).add(V(0,LEN-.033,.011)),lookD:[0,.56,1],dist:.32,scale:.0085,show:()=>!S.near && microReady() && !S.hold && !S.pour});
     const mw = mic.mw, mwEl = [...document.querySelectorAll('.mw')].pop(); mwEl.dataset.rate = '';
     const controls = h('div',{class:'rate-play'},pause=h('button',{onclick:()=>{scene.pause();pause.textContent=scene.paused?'继续':'暂停';}},'暂停'),
       h('button',{onclick:()=>{scene.replay();pause.textContent='暂停';}},'从头看'));
@@ -453,6 +539,13 @@ export default {
     const pointer = {...wrapped,items:trayItems,up(ray,e){cancelled=e?.type==='pointercancel'; try{return wrapped.up(ray,e);}finally{cancelled=false;}}};
     const layout = h('style',{},`
       [data-rate-panel] .big-next:disabled,[data-rate-panel].rate-demo .p-body {display:none}
+      .tag3d.rate-plate {animation:none}
+      .tag3d.rate-plate.passive {pointer-events:none}
+      .tag3d.rate-watch {display:grid;justify-items:center;gap:3px;padding:6px 10px;border:2px solid #344a50;border-radius:12px;background:#435a60;color:white;text-shadow:none;box-shadow:0 3px 5px #26383a55;font:600 11px/1.2 sans-serif}
+      .rate-watch output {display:block;width:100%;border-radius:3px;background:#e4edcf;color:#22352f;text-align:center;font:600 20px/1.15 monospace}
+      .rate-watch button {pointer-events:auto;margin:1px 2px;border:0;border-radius:4px;padding:4px 7px;background:#fff2bb;color:#293c42;cursor:pointer}
+      .rate-watch button:disabled {background:#d6dfda;color:#475652;cursor:default}
+      .rate-watch[style*="opacity: 0"] button {pointer-events:none}
       [data-rate-panel] .rate-modes .seg {display:grid;grid-template-columns:1fr 1fr}
       [data-rate-panel] .rate-temps {font-size:13px;display:flex;gap:12px;margin:8px 0}
       [data-rate-panel] .rate-temps[hidden],.rate-energy[hidden] {display:none}
@@ -465,7 +558,7 @@ export default {
     `); document.head.append(layout);
     function reset() {
       if (bar.playing) bar.stop();
-      mic.close(); S=fresh(); S.rounds[0]=1; arrange(); W.mode.set(0);
+      leaveReading(); drag.clearDropzones(); mic.close(); S=fresh(); S.rounds[0]=1; arrange(); W.mode.set(0);
       TITLES.forEach((_,i)=>W.mode.tick(i,false)); W.tbl.clear(); W.review.hidden=true; W.temps.hidden=true;
       W.ui.el.querySelectorAll('details[open]').forEach(el=>{el.open=false;});
       W.cold.value = S.temp[0]; W.hot.value = S.temp[1];
@@ -477,14 +570,18 @@ export default {
     const bathStep = (i,b,wait=1)=>({name:NAMES[i]+'管浸入'+bathName(b),run:byHand(i,()=>intoBath(i,b)),wait});
     const shakeStep = (i,wait=1)=>({name:'振荡'+NAMES[i]+'管',run:byHand(i,()=>rock(i)),wait});
     const dose = (i,k,name,wait=1.5)=>({name,drag:props[i].pick,to:()=>mouth(k),wait});
+    const takeReading = (i,wait=1) => ({name:'记下'+NAMES[i]+'管的秒表读数',run:()=>{
+      keys[i].click();
+      if (S.tubes[i].reading === null) throw Error('秒表尚未记时');
+    },wait});
     const change = m => ({name:TITLES[m],run:()=>W.mode.set(m,true)});
     const inspect = label => [{name:label+'微观',run:()=>{if(!S.recorded) throw Error('本组还没有观察记录'); mic.open();},wait:2,scale:1},
       {name:'回到桌上',run:()=>mic.close(),wait:2}];
     const qa = qaFlow(drag,[
       dose(8,0,'同步滴入第一滴'),dose(6,1,'同步滴入第二滴'),
       bathStep(0,0),bathStep(1,1,4),...inspect('水浴'),
-      change(1),dose(5,1,'乙管加水'),shakeStep(1),dose(3,0,'同时加酸'),shakeStep(0,8),...inspect('浓度'),
-      change(2),bathStep(0,0),bathStep(1,1),dose(3,0,'水浴中同时加酸'),shakeStep(0,8),...inspect('温度'),
+      change(1),dose(5,1,'乙管加水'),shakeStep(1),dose(3,0,'同时加酸'),shakeStep(0,7),takeReading(0,7),takeReading(1),...inspect('浓度'),
+      change(2),bathStep(0,0),bathStep(1,1),dose(3,0,'水浴中同时加酸'),shakeStep(0,4),takeReading(1,9),takeReading(0),...inspect('温度'),
       change(3),dose(7,0,'甲管加 MnO₂'),dose(6,1,'乙管滴第一滴'),dose(6,1,'乙管滴第二滴',4),...inspect('催化剂'),
       {name:'核对记录和结论',run:()=>{if (!bar.finished||W.tbl.rows.length!==9||S.fe===S.mn) throw Error('观察链不完整');}},
     ]);

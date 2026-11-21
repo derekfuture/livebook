@@ -5,7 +5,7 @@ import { beaker, canvasTex } from './props.js';
 import { chemLamp, glassMat, testTube, tubeRack } from './chem.js';
 import { tubeLiquid, bubble2 } from './chemfx.js';
 import { dropBottle } from './labops.js';
-import { faceLabel, groundLabel } from './labels.js';
+import { airLabel, faceLabel } from './labels.js';
 import { textSprite } from './microworld.js';
 
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -29,6 +29,12 @@ function mesh(parent, geo, mat, x = 0, y = 0, z = 0) {
   return m;
 }
 function box(g, dims, mat, ...pos) { return mesh(g, new THREE.BoxGeometry(...dims), mat, ...pos); }
+// 铭牌朝向学生，文字在支架或器材跟前，不随桌面透视压扁。
+function plate(parent, text, x, y, z, h = 0.0075) {
+  const label = airLabel(parent, text, { x, y, z, h, color: '#293d48', stroke: '#fff' });
+  label.userData.plateHeight = h;
+  return label;
+}
 function tool(g, name, dims, y = 0) {
   const pick = box(g, dims, new THREE.MeshBasicMaterial({ visible: false }), 0, y);
   pick.userData.pick = true;
@@ -38,7 +44,7 @@ function tool(g, name, dims, y = 0) {
 }
 
 // 斜管中各横截面被水平液面截成圆弓，按体积找水面高度。
-function tiltedLiquid(parent, radius, height, rounded) {
+function tiltedLiquid(parent, radius, height, rounded, bottom = 0) {
   const rows = 28, sides = 22, stride = sides + 2, dy = height / rows;
   const geometry = new THREE.BufferGeometry();
   const pos = new THREE.Float32BufferAttribute(new Float32Array((rows + 1) * stride * 3), 3);
@@ -54,10 +60,11 @@ function tiltedLiquid(parent, radius, height, rounded) {
   geometry.setIndex(index);
   const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.65, side: THREE.DoubleSide, depthWrite: false });
   const fluid = mesh(parent, geometry, mat);
+  fluid.position.y = bottom;
   fluid.renderOrder = 9.7; fluid.visible = false; fluid.frustumCulled = false; fluid.raycast = () => {};
   const rAt = (y) => rounded && y < radius ? Math.sqrt(Math.max(0, radius ** 2 - (y - radius) ** 2)) : radius;
   return (angle, vol, color) => {
-    fluid.visible = Math.abs(angle) > 0.10 && vol > 0.005;
+    fluid.visible = Math.abs(angle) > 0.001 && vol > 0.005;
     if (!fluid.visible) return false;
     mat.color.set(color);
     const sin = Math.abs(Math.sin(angle)), cos = Math.cos(angle);
@@ -72,8 +79,13 @@ function tiltedLiquid(parent, radius, height, rounded) {
       }
       if (capacity * 1e6 < vol) lo = h; else hi = h;
     }
+    // 接近直立时，相交区很薄，专门在水面两侧布点，避免液面斜成一层台阶。
+    const lower = cos > 0.1 ? THREE.MathUtils.clamp((hi - radius * sin) / cos, 0, height) : height / 2;
+    const upper = cos > 0.1 ? THREE.MathUtils.clamp((hi + radius * sin) / cos, lower, height) : height;
     for (let j = 0; j <= rows; j++) {
-      const y = j * dy, r = rAt(y), half = r ? Math.acos(cut(hi, y, r) / r) : 0;
+      const u = 2 * j / rows;
+      const y = u <= 1 ? lower * u : lower + (upper - lower) * (u - 1);
+      const r = rAt(y), half = r ? Math.acos(cut(hi, y, r) / r) : 0;
       for (let k = 0; k < stride; k++) {
         const a = k > sides ? -half : -half + 2 * half * k / sides;
         pos.setXYZ(j * stride + k, -Math.sign(angle) * r * Math.cos(a), y, r * Math.sin(a));
@@ -113,7 +125,7 @@ function tube(parent, x, name, heating) {
 
 function pipette(parent, x, name) {
   const bottle = dropBottle(parent, V(x), { r: 0.015, h: 0.032 });
-  faceLabel(bottle, name, { y: 0.015, z: 0.016, h: 0.008, opacity: 1, color: '#283d4a', stroke: '#fff' });
+  faceLabel(bottle, name + '滴瓶', { y: 0.015, z: 0.016, h: 0.008, opacity: 1, color: '#283d4a', stroke: '#fff' });
   const g = node(parent, x, bottle.tipHome.y);
   mesh(g, new THREE.CylinderGeometry(0.0025, 0.0008, 0.041, 16), glassMat({ opacity: 0.44 }), 0, 0.0205);
   mesh(g, new THREE.CylinderGeometry(0.0012, 0.0005, 0.022, 12), paint(0xc1d5da), 0, 0.011);
@@ -122,17 +134,50 @@ function pipette(parent, x, name) {
   const bulb = mesh(g, new THREE.SphereGeometry(0.0055, 18, 12), rubber, 0, 0.049);
   bulb.scale.y = 1.55;
   g.userData.ringY = 0.041;
+  plate(g, name + '滴管', 0, 0.061, 0);
   return { ...tool(g, name, [0.020, 0.056, 0.019], 0.031), bottle };
 }
 
 function measure(parent, x, name) {
   const h = 0.057, r = 0.0068, g = node(parent, x, h + 0.002);
-  const cup = beaker({ r, h, spout: false, level: 0.021, color: CLEAR, scale: { height: 0.042, max: 5, divisions: 25, every: 5 } });
+  const cup = beaker({ r, h, spout: false, level: 0.021, color: CLEAR });
   g.add(cup);
   cup.position.set(-r, -h, 0);
   mesh(cup, new THREE.CylinderGeometry(0.012, 0.013, 0.003, 6), paint(0xb6c5c5), 0, 0.001);
-  const lab = groundLabel(parent, name, { x: x - r, z: 0.021, h: 0.009, opacity: 1 });
-  return { ...tool(g, name, [0.024, h, 0.021], -h / 2), cup, lab, tilted: tiltedLiquid(cup, r * 0.94, h, false) };
+  const lab = plate(g, '量筒 · ' + name, -r, -h, 0.028);
+  const graduation = canvasTex(160, 940, (ctx) => {
+    ctx.fillStyle = ctx.strokeStyle = '#35454c';
+    ctx.font = 'bold 54px sans-serif';
+    ctx.textBaseline = 'middle';
+    for (let n = 0; n <= 25; n++) {
+      const y = 890 - n * 33.6, major = n % 5 === 0;
+      ctx.lineWidth = major ? 5 : 3;
+      ctx.beginPath(); ctx.moveTo(12, y); ctx.lineTo(major ? 76 : 48, y); ctx.stroke();
+      if (major && n) ctx.fillText(String(n / 5), 84, y);
+    }
+  });
+  const scale = mesh(cup, new THREE.PlaneGeometry(0.008, 0.047),
+    new THREE.MeshBasicMaterial({ map: graduation, transparent: true, depthWrite: false }),
+    -0.0014, 0.025, r + 0.0005);
+  scale.renderOrder = 8;
+  faceLabel(cup, 'mL', { y: 0.050, z: r, h: 0.004, color: '#35454c', stroke: '#fff' });
+  // 水平视线下能看出中央低、管壁处高，最低处与量筒的刻度共用高度。
+  const profile = Array.from({ length: 17 }, (_, n) => new THREE.Vector2(
+    r * 0.945 * n / 16, 0.00095 * (n / 16) ** 4));
+  const meniscus = mesh(cup, new THREE.LatheGeometry(profile, 48), new THREE.MeshBasicMaterial({
+    color: 0x779ca5, transparent: true, opacity: 0.65, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  meniscus.renderOrder = 6.5;
+  const tilted = tiltedLiquid(cup, r * 0.94, h - 0.004, false, 0.004);
+  function fill(volume, angle) {
+    const level = 0.004 + volume * 0.0084;
+    cup.setLevel(level);
+    const sloped = tilted(angle, volume, CLEAR);
+    cup.surface.visible = false;
+    cup.liquid.visible = meniscus.visible = volume > 0.001 && !sloped;
+    meniscus.position.y = level;
+  }
+  return { ...tool(g, name, [0.024, h, 0.021], -h / 2), cup, lab, fill };
 }
 
 export function apparatus(group) {
@@ -154,8 +199,14 @@ export function apparatus(group) {
       }
     }), roughness: 1,
   }), PAD, 0.0015);
-  groundLabel(wet, '砂纸', { x: PAD, z: 0.029, h: 0.010 });
+  plate(wet, '砂纸', PAD, 0.003, 0.031);
+  plate(wet, '试管架', mg.home.x, 0.004, 0.024);
+  const wetName = plate(mg.g, '空试管', 0, -0.045, 0.013);
+  plate(mg.g, '试管夹', 0.032, -0.019, 0.012);
+  plate(wet, '酒精灯', HOT, 0.004, 0.024);
+  plate(capBody, '灯帽', 0, 0.003, 0.012);
   const strip = node(wet, PAD, 0.0035);
+  plate(strip, '镁条', 0, 0.008, 0);
   strip.userData.ringY = 0.005;
   const stripMat = new THREE.MeshStandardMaterial({ color: 0x8f9293, roughness: 0.5, metalness: 0.38 });
   box(strip, [0.024, 0.0014, 0.005], stripMat);
@@ -171,15 +222,28 @@ export function apparatus(group) {
   const nh = pipette(compare, -0.112, '氨水');
   const acid = pipette(compare, 0.107, '盐酸');
   const base = pipette(compare, 0.143, 'NaOH');
-  const labs = X.map((x, i) => groundLabel(compare, i % 2 ? 'Ⅱ' : 'Ⅰ', { x, z: 0.024, h: 0.008, opacity: 1 }));
-  solids.forEach((s, i) => groundLabel(compare, s, { x: (X[i * 2] + X[i * 2 + 1]) / 2, z: 0.040, h: 0.011, opacity: 1 }));
+  const tubeNames = tubes.map((tube, j) => {
+    const name = (j < 2 ? '铝' : '镁') + (j % 2 ? 'Ⅱ管' : 'Ⅰ管');
+    plate(tube.g, name, 0, -0.040, 0.010);
+    return plate(tube.g, '空管', 0, -RIM + 0.004, 0.024);
+  });
   const dropMat = paint(0xb0cbd4, { keep: true });
   const drops = Array.from({ length: 12 }, () => mesh(group, new THREE.SphereGeometry(0.0015, 10, 8), dropMat));
-  const stream = mesh(group, new THREE.CylinderGeometry(0.0011, 0.0009, 1, 10), dropMat);
+  const stream = mesh(group, new THREE.CylinderGeometry(0.0011, 0.0009, 1, 10), dropMat.clone());
   stream.renderOrder = 10;
   const stripTool = tool(strip, '镁条', [0.030, 0.008, 0.015]);
 
-  return { wet, compare, mg, sand, strip: stripTool, stripMat, seated, lamp, cap, bubbles, cold, ind, tubes, measures, nh, acid, base, labs, drops, stream };
+  const plates = [];
+  group.traverse((obj) => { if (obj.userData.plateHeight) plates.push(obj); });
+  function sizePlates(reading, microOpen) {
+    const factor = reading ? 0.58 : innerWidth <= 760 ? 1.75 : 1;
+    for (const label of plates) {
+      label.material.visible = !microOpen;
+      const height = label.userData.plateHeight * factor;
+      if (label.scale.y !== height) label.scale.multiplyScalar(height / label.scale.y);
+    }
+  }
+  return { wet, compare, mg, sand, strip: stripTool, stripMat, seated, lamp, cap, bubbles, cold, ind, tubes, measures, nh, acid, base, wetName, tubeNames, sizePlates, drops, stream };
 }
 
 // 电子层用圆表示，电子按层计数。最外圈按表 4-5 的半径使用同一比例。
@@ -216,7 +280,7 @@ export function shellScene() {
       models.forEach((m, i) => { m.visible = elapsed > i * 0.8; });
     },
     text() {
-      return { eq: 'Na　→　Mg　→　Al', on: true,
+      return { eq: '原子结构示意　Na　Mg　Al', on: true,
         cap: elapsed < 1.6 ? '数一数电子层，再比较各原子的最外层电子数。' :
           '核外都有三层电子。核电荷增加，原子半径减小（单位 nm），原子核对最外层电子的吸引总体增强。' };
     },

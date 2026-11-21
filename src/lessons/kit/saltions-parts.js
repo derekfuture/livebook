@@ -19,6 +19,7 @@ export const DISH = 0.044,
   MAT = -0.082,
   STRIP = 0.104;
 export const NAMES = { ba: 'BaCl₂', oh: 'NaOH', co: 'Na₂CO₃', acid: '盐酸' };
+export const PH_COLORS = { 酸性: 0xc94b38, 微酸性: 0xc4bc46, 中性: 0x82a651, 碱性: 0x657ba8 };
 const neutral = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.65, side: THREE.DoubleSide });
 function mesh(parent, geo, material, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(geo, material);
@@ -48,6 +49,103 @@ function grains(parent, n, radius, color, size, dish = false) {
   }
   return g;
 }
+// Vertical slices of the round cavity share one horizontal free surface.
+// At the pouring angle that plane just meets the inside edge of the lip.
+function liquidIn(cup) {
+  const r = cup.r - 0.0012, base = 0.0012, depth = cup.h - base;
+  const slices = 40, dx = 2 * r / slices;
+  const weights = Array.from({ length: slices }, (_, i) => Math.sqrt(r * r - (-r + (i + 0.5) * dx) ** 2));
+  const total = weights.reduce((sum, v) => sum + v, 0);
+  function meanHeight(left, slope) {
+    return weights.reduce((sum, w, i) => sum + w * clamp(left - (i + 0.5) * dx * slope, 0, depth), 0) / total;
+  }
+  let lastFill, lastSlope, lastHeight, lastAngle;
+  function slopeAtLip(fill) {
+    if (lastFill === fill) return lastSlope;
+    let lo = 0, hi = depth * slices / r;
+    for (let i = 0; i < 20; i++) {
+      const mid = (lo + hi) / 2;
+      if (meanHeight(depth, mid) > fill) lo = mid;
+      else hi = mid;
+    }
+    lastFill = fill;
+    return lastSlope = (lo + hi) / 2;
+  }
+  const geo = new THREE.BufferGeometry();
+  const pos = new THREE.Float32BufferAttribute((slices + 1) * 4 * 3, 3);
+  geo.setAttribute('position', pos);
+  const faces = [];
+  for (let j = 0; j < slices; j++) {
+    for (let k = 0; k < 4; k++) {
+      const a = j * 4 + k, b = j * 4 + (k + 1) % 4;
+      faces.push(a, b, a + 4, b, b + 4, a + 4);
+    }
+  }
+  geo.setIndex(faces);
+  const body = mesh(cup, geo, water2({ color: 0x9dc4cf, base: 0.64 }));
+  body.frustumCulled = false;
+  body.renderOrder = 8;
+  return {
+    angle: (height) => Math.atan(slopeAtLip(Math.max(0, height - base))),
+    draw(height, angle) {
+      if (lastHeight === height && lastAngle === angle) return;
+      lastHeight = height;
+      lastAngle = angle;
+      body.visible = angle > 0.001 && height > base;
+      cup.setLevel(body.visible ? 0 : height);
+      if (!body.visible) return;
+      const slope = Math.tan(angle);
+      let low = 0, high = depth + 2 * r * slope;
+      for (let i = 0; i < 19; i++) {
+        const mid = (low + high) / 2;
+        if (meanHeight(mid, slope) < height - base) low = mid;
+        else high = mid;
+      }
+      const left = (low + high) / 2, width = Math.min(2 * r, left / slope);
+      for (let j = 0; j <= slices; j++) {
+        const d = width * j / slices, x = d - r;
+        const z = Math.sqrt(Math.max(0, r * r - x * x));
+        const y = base + clamp(left - d * slope, 0, depth);
+        pos.setXYZ(4 * j, x, base, -z);
+        pos.setXYZ(4 * j + 1, x, y, -z);
+        pos.setXYZ(4 * j + 2, x, y, z);
+        pos.setXYZ(4 * j + 3, x, base, z);
+      }
+      pos.needsUpdate = true;
+      geo.computeVertexNormals();
+    },
+  };
+}
+
+const SCALE_BASE = 0.003, ML = 0.0023;
+export const WATER_LEVEL = SCALE_BASE + 20 * ML;
+function cylinderScale(cup) {
+  const tex = canvasTex(384, 1200, (ctx, w, h) => {
+    ctx.fillStyle = '#324956';
+    ctx.font = 'bold 60px sans-serif';
+    ctx.textBaseline = 'middle';
+    for (let ml = 1; ml <= 25; ml++) {
+      const y = h - (SCALE_BASE + ml * ML) / cup.h * h;
+      const major = ml % 5 === 0;
+      ctx.fillRect(12, y - 1.5, major ? 145 : 75, major ? 5 : 3);
+      if (major) ctx.fillText(String(ml), 172, y);
+    }
+    ctx.font = '48px sans-serif';
+    ctx.fillText('mL', 178, h - 51);
+  });
+  const scale = mesh(cup, new THREE.PlaneGeometry(0.014, cup.h), new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, depthWrite: false,
+  }), 0.002, cup.h / 2, cup.r + 0.0004);
+  scale.renderOrder = 12;
+  const profile = Array.from({ length: 16 }, (_, i) => {
+    const u = i / 15;
+    return new THREE.Vector2(u * (cup.r - 0.0012), 0.0011 * u ** 5);
+  });
+  profile.push(new THREE.Vector2(cup.r - 0.0012, 0));
+  const meniscus = mesh(cup, new THREE.LatheGeometry(profile, 48), water2({ color: 0xa9cbd1, base: 0.48 }), 0, WATER_LEVEL);
+  meniscus.renderOrder = 9;
+  return meniscus;
+}
 export function bench(group) {
   const tools = {},
     bottles = {};
@@ -69,7 +167,19 @@ export function bench(group) {
   balance.position.x = PAN;
   mesh(balance, new THREE.BoxGeometry(0.071, 0.014, 0.058), ink, 0, 0.008);
   mesh(balance, new THREE.CylinderGeometry(0.026, 0.022, 0.006, 40), metal, 0, 0.018);
-  const readout = ['0.0 g', '5.0 g'].map((t) => plate(balance, t, 0.037, 0.011, 0, 0.009, 0.03, '#c6d2bc'));
+  const display = plate(balance, '0.0 g', 0.037, 0.011, 0, 0.009, 0.03, '#c6d2bc').material.map;
+  let displayed = '0.0 g';
+  function readout(mass) {
+    const text = mass.toFixed(1) + ' g';
+    if (text === displayed) return;
+    displayed = text;
+    const canvas = display.image, ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#c6d2bc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#23293a';
+    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    display.needsUpdate = true;
+  }
   const spoon = spatula({ color: 0xddd3b9 });
   spoon.scale.setScalar(0.56);
   spoon.rotation.y = -0.46;
@@ -82,9 +192,9 @@ export function bench(group) {
     mesh(paper, new THREE.BoxGeometry(0.046, 0.001, 0.009), ivory, 0, 0.002, s * 0.021).rotation.x = -s * 0.42;
   const sample = grains(paper, 52, 0.014, 0xd9ceb6, 0.0034);
   tool('paper', paper, V(PAN, 0.022), [0.046, 0.009, 0.044], [0, 0.004, 0]);
-  const cylinder = chemBeaker({ r: 0.0115, h: 0.064, level: 0.049, color: 0xc3dfe5 });
+  const cylinder = chemBeaker({ r: 0.0115, h: 0.064, level: WATER_LEVEL, color: 0xc3dfe5, marks: false });
   mesh(cylinder, new THREE.CylinderGeometry(0.018, 0.019, 0.004, 8), glassMat({ opacity: 0.55 }), 0, 0.002);
-  plate(cylinder, '20 mL', 0.025, 0.009, 0, 0.032, 0.012);
+  const meniscus = cylinderScale(cylinder);
   function pouring(id, cup, x, y, r, height) {
     cup.position.set(r + 0.003, -height, 0);
     return tool(id, cup, V(x - r - 0.003, y + height), [2 * r, height, 2 * r], [r + 0.003, -height / 2, 0]);
@@ -108,28 +218,9 @@ export function bench(group) {
     const m = mesh(sediment, floc, white, r * Math.cos(a), 0.002 + (1 - r / R) * 0.002, r * Math.sin(a));
     m.scale.set(1.5, 0.62, 1.2);
   }
+  const fallingSalt = grains(group, 18, 0.007, 0xd8cdad, 0.0025);
   const cloud = milky(bowl.liq, { n: 45, speck: 0.0009 });
   pouring('cup', bowl, CUP, 0.001, R, H);
-  // At the lip the free surface cuts a wedge out of the tilted beaker.
-  const pourGeo = new THREE.CylinderGeometry(1, 1, 1, 40);
-  const outline = pourGeo.attributes.position.clone();
-  const pouringWater = mesh(bowl, pourGeo, water2({ color: 0x9cc6d2, base: 0.68 }));
-  pouringWater.renderOrder = 9.5;
-  pouringWater.frustumCulled = false;
-  pouringWater.visible = false;
-  const waterWidth = (left) => 1.6 * (R - 0.001) * Math.pow(left, 2 / 3);
-  function filterWater(left) {
-    const r = R - 0.001, width = waterWidth(left);
-    const positions = pourGeo.attributes.position;
-    for (let i = 0; i < positions.count; i++) {
-      const u = (outline.getX(i) + 1) / 2;
-      const x = -r + width * u;
-      const z = Math.sign(outline.getZ(i)) * Math.sqrt(Math.max(0, r * r - x * x));
-      positions.setXYZ(i, x, 0.001 + (outline.getY(i) + 0.5) * (H - 0.002) * (1 - u), z);
-    }
-    positions.needsUpdate = true;
-    pourGeo.computeVertexNormals();
-  }
   const rod = new THREE.Group();
   const shaft = mesh(
     rod,
@@ -142,7 +233,8 @@ export function bench(group) {
   tool('rod', rod, V(0.013, 0.003, 0.04), [0.009, 0.084, 0.01], [0, 0.042, 0]);
   for (const [i, id] of ['ba', 'oh', 'co', 'acid'].entries()) {
     const x = [-0.115, -0.069, -0.023, 0.125][i];
-    const b = (bottles[id] = dropBottle(group, V(x, 0.001), { label: NAMES[id], r: 0.016, h: 0.041 }));
+    const b = (bottles[id] = dropBottle(group, V(x, 0.001), { r: 0.016, h: 0.041 }));
+    plate(b, '滴瓶 · ' + NAMES[id], 0.036, 0.008, 0, 0.023, 0.0165);
     const d = new THREE.Group();
     mesh(d, new THREE.CylinderGeometry(0.0025, 0.0009, 0.046, 12), glassMat({ color: 0x8da0ab, opacity: 0.7 }), 0, 0.023);
     mesh(d, new THREE.SphereGeometry(0.0057, 16, 12), neutral(0x884d40), 0, 0.051).scale.y = 1.6;
@@ -240,13 +332,7 @@ export function bench(group) {
   strip.position.set(STRIP, 0.001, 0.012);
   mesh(strip, new THREE.BoxGeometry(0.045, 0.001, 0.023), ivory);
   mesh(strip, new THREE.BoxGeometry(0.039, 0.001, 0.009), neutral(0xe1bc70), 0, 0.001);
-  const swatches = [
-    ['酸性', 0xc94b38],
-    ['微酸性', 0xa8b953],
-    ['中性', 0x82a651],
-    ['碱性', 0x657ba8],
-  ];
-  swatches.forEach(([label, color], i) => {
+  Object.entries(PH_COLORS).forEach(([label, color], i) => {
     const x = (i - 1.5) * 0.014;
     mesh(strip, new THREE.BoxGeometry(0.012, 0.001, 0.008), neutral(color), x, 0, 0.02);
     const p = plate(strip, label, 0.014, 0.006, x, 0.001, 0.027);
@@ -254,7 +340,9 @@ export function bench(group) {
   });
   const stain = mesh(strip, new THREE.CircleGeometry(0.004, 24), neutral(0x9aab51), -0.006, 0.002);
   stain.rotation.x = -Math.PI / 2;
-  const drop = mesh(group, new THREE.SphereGeometry(0.0017, 12, 8), water2({ color: 0x94b4be, base: 0.75 }));
+  const drop = mesh(group, lathe([[0, -0.0021], [0.0015, -0.0014], [0.0019, -0.0004], [0.0015, 0.001], [0, 0.0031]]),
+    new THREE.MeshPhysicalMaterial({ color: 0x668994, transparent: true, opacity: 0.85, roughness: 0.18 }));
+  drop.renderOrder = 12;
   const stream = mesh(group, new THREE.CylinderGeometry(0.0014, 0.0015, 1, 10), water2({ color: 0x8cb4bf, base: 0.7 }));
   const spray = Array.from({ length: 5 }, () =>
     mesh(group, new THREE.SphereGeometry(0.0013, 10, 8), water2({ color: 0xc0d6d9, base: 0.85 })),
@@ -281,9 +369,8 @@ export function bench(group) {
   stream.renderOrder = 12;
   draining.renderOrder = 11;
   return {
-    pouringWater,
-    filterWater,
-    waterWidth,
+    liquid: { water: liquidIn(cylinder), cup: liquidIn(bowl), filtrate: liquidIn(receiver) },
+    meniscus,
     spray,
     draining,
     filterArm,
@@ -292,6 +379,7 @@ export function bench(group) {
     balance,
     readout,
     sample,
+    fallingSalt,
     spoon,
     cylinder,
     bowl,

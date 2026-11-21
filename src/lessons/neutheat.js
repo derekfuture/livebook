@@ -5,8 +5,8 @@ import { draggable, clamp } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { paperSheet, mountXuean, moreBox, wrapPointer, qaFlow, demoActs } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
-import { groundLabel } from './kit/labels.js';
-import { calorimeter, cover, graduate, cleaning, probe, heatLossArrows, heatScene, cupSurface, RIM, V } from './kit/neutheat-parts.js';
+import { faceLabel } from './kit/labels.js';
+import { calorimeter, cover, graduate, cleaning, probe, heatLossArrows, heatScene, drawThermometer, cupSurface, RIM, V } from './kit/neutheat-parts.js';
 
 const ACID = -0.133,
   PARK = -0.077,
@@ -20,7 +20,10 @@ const LID = V(0, RIM),
 const ACID_T = V(-0.009, 0.078),
   BASE_T = V(BASE, 0.088),
   MIX_T = V(-0.009, 0.083);
-const POUR = [V(-0.043, 0.092), V(0.043, 0.092)];
+const MOUTHS = [V(-0.007, 0.086), V(0.007, 0.086)];
+const POUR_ANGLE = 1.67;
+const lipOffset = (i, angle) => V(i ? -0.016 : 0.016, 0.045).applyAxisAngle(V(0, 0, 1), angle);
+const POUR = MOUTHS.map((mouth, i) => mouth.clone().sub(lipOffset(i, i ? POUR_ANGLE : -POUR_ANGLE)));
 const ROOM = 25,
   CP = 4.18,
   N = 0.05 * 0.5,
@@ -34,7 +37,7 @@ const HOME = { acid: V(ACID, 0.049), base: V(BASE, 0.049), lid: LID, thermo: CLO
 const NAMES = { acid: '盐酸量筒', base: 'NaOH 量筒', thermo: '温度计', lid: '杯盖', rod: '玻璃搅拌器' };
 const RINSE = '把温度计下端移到右侧水流下冲洗。';
 const WIPE = '将冲洗过的温度计放到干布上擦干。';
-const OPEN = '提起杯盖和搅拌器，放到量热计左侧的圆印上。';
+const OPEN = '提起杯盖和搅拌器，放到量热计左侧的空位上。';
 const CLOSE = '把杯盖放回量热计口，盖严。';
 const TASKS = [
   ['lid', OPEN, OFF],
@@ -72,6 +75,7 @@ const freshTrial = (i) => ({
   dock: 'cloth',
   read: ROOM,
   peak: null,
+  pending: null,
   t1: null,
   acid: null,
   base: null,
@@ -91,6 +95,7 @@ const fresh = () => ({
   returns: {},
   held: null,
   flow: null,
+  closeup: null,
   finished: false,
 });
 const average = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
@@ -140,42 +145,22 @@ export default {
     const fillCup = calorimeter(group),
       lid = cover(group),
       th = probe(group);
-    const cylinders = [graduate(group, '盐酸', 1), graduate(group, 'NaOH', -1)];
+    const cylinders = [graduate(group, '量筒 · 盐酸', 1), graduate(group, '量筒 · NaOH 溶液', -1)];
     const tools = { lid, thermo: th, acid: cylinders[0], base: cylinders[1], rod: { body: lid.rod, pick: lid.rodPick, ringTarget: lid.grip } };
     const wash = cleaning(group, WASH, DRY);
-    const targetRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.029, 0.03, 72),
-      new THREE.MeshBasicMaterial({ color: 0x797b6d, transparent: true, opacity: 0.55, side: THREE.DoubleSide }),
-    );
-    targetRing.rotation.x = -Math.PI / 2;
-    targetRing.position.set(PARK, 0.001, 0);
-    group.add(targetRing);
-    groundLabel(group, '量热计', { x: 0, z: 0.053, h: 0.009 });
-    groundLabel(group, '盐酸', { x: ACID, z: 0.03, h: 0.008 });
-    groundLabel(group, 'NaOH 溶液', { x: BASE, z: 0.03, h: 0.008 });
-    // 提示环留在器材上，手拿起来后，以细小的落点提示杯盖孔或冲洗处。
-    const aim = new THREE.Mesh(
-      new THREE.RingGeometry(0.005, 0.0057, 48),
-      new THREE.MeshBasicMaterial({
-        color: 0x386b64,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.9,
-        depthTest: false,
-      }),
-    );
-    aim.rotation.x = -Math.PI / 2;
-    aim.renderOrder = 15;
-    group.add(aim);
+    const contents = ['空', '盐酸', '混合液'].map((name) =>
+      faceLabel(group, '量热计 · ' + name, { y: 0.008, z: 0.039, h: 0.009, color: '#243f3c', stroke: '#fff9e8' }));
     const stream = new THREE.Mesh(
       new THREE.CylinderGeometry(0.0013, 0.0016, 1, 10),
       new THREE.MeshBasicMaterial({ color: 0x9cc2c7, transparent: true, opacity: 0.84 }),
     );
     group.add(stream);
     stream.visible = false;
-    const card = tag('', 'cond');
+    const lens = tag('', 'nh-lens');
+    const dial = h('canvas', { width: 82, height: 206, 'aria-label': '温度计放大刻度' });
+    lens.el.append(dial);
     const offProbe = tag('温度计已离开混合液', 'pill');
-    card.px = [-76, -8];
+
     let S = fresh(),
       W = null,
       saved = null,
@@ -193,45 +178,40 @@ export default {
     const putPose = (k, p) => {
       S.poses[k] = p.clone();
     };
-    const tilt = (i, p) => {
+    const tilt = (i, grip) => {
       const side = i ? 1 : -1;
-      const approach = clamp((0.078 - side * p.x) / 0.035, 0, 1);
-      return side * 1.67 * approach * clamp((p.y - 0.054) / 0.033, 0, 1);
+      if (trial().closed || (trial().vol[i] < 50 && S.flow?.i !== i)) return 0;
+      // 仅在倒液握持点附近倾斜，越过杯口或举得过高都会扶正。
+      return side * POUR_ANGLE * clamp(1 - grip.distanceTo(POUR[i]) / 0.024, 0, 1);
+    };
+    const workingMouth = (i) => {
+      const a = cylinders[i];
+      return a.mouth.position.clone().applyQuaternion(a.body.quaternion).add(a.body.position);
     };
     function render() {
-      const r = trial(),
-        goal = task()?.[2];
-      aim.visible = !S.demo && !!S.held && task()?.[0] === S.held && !!goal;
-      if (aim.visible) {
-        if (S.held === 'acid' || S.held === 'base') aim.position.set(0, RIM + 0.002, 0);
-        else if (S.held === 'thermo')
-          aim.position.set(
-            goal.x,
-            goal === CLOTH ? 0.006 : goal === CLEAN ? 0.031 : goal === BASE_T ? 0.095 : RIM + 0.006,
-            0,
-          );
-        else aim.position.copy(goal).y += 0.005;
-      }
-      for (const k of ['acid', 'base', 'lid', 'thermo']) tools[k].body.position.copy(pose(k));
+      const r = trial();
+      lid.body.position.copy(pose('lid'));
       cylinders.forEach((a, i) => {
-        const angle = tilt(i, a.body.position);
+        const grip = pose(i ? 'base' : 'acid'), angle = tilt(i, grip);
         a.body.rotation.z = angle;
+        a.body.position.copy(grip);
         a.liquid(50 - r.vol[i], angle);
         a.body.userData.ringY = a.body.position.y + 0.035;
       });
+      contents.forEach((plate, i) => { plate.visible = i === (r.vol[1] ? 2 : r.vol[0] ? 1 : 0); });
       lid.rod.position.y = Math.max(0.003 - lid.body.position.y, -0.047) + r.strokeY;
-      lid.body.userData.ringY = lid.body.position.y + 0.006;
-      const p = th.body.position;
-      // 玻璃温度计平放在布上。提起时围绕手实际握住的位置转正。
-      const fromTable = clamp((p.y - CLOTH.y) / 0.055, 0, 1);
-      th.body.rotation.x = -Math.acos(fromTable);
-      th.ringTarget.userData.ringY = p.y + 0.025 * fromTable + 0.001;
+      lid.ringTarget.userData.ringY = lid.body.position.y + 0.006;
+      const p = pose('thermo');
+      const upright = clamp((p.y - CLOTH.y) / 0.055, 0, 1);
+      th.body.rotation.x = -Math.acos(upright);
+      th.plate.rotation.x = -th.body.rotation.x;
+      th.body.position.copy(p);
+      th.ringTarget.userData.ringY = th.body.position.y + 0.025 * upright + 0.001;
       fillCup(r.vol[0] + r.vol[1]);
-      wash.visible = r.dock === 'wash' || (S.held === 'thermo' && near(p, CLEAN, 0.012));
-      stream.visible = !!S.flow;
-      if (S.flow) {
-        const i = S.flow.i,
-          src = cylinders[i].lip.clone().applyQuaternion(cylinders[i].body.quaternion).add(cylinders[i].body.position);
+      wash.visible = near(p, CLEAN, 0.010);
+      stream.visible = !!S.flow && S.flow.running;
+      if (stream.visible) {
+        const src = workingMouth(S.flow.i);
         const bottom = cupSurface(r.vol[0] + r.vol[1]);
         stream.position.set(src.x, (bottom + src.y) / 2, src.z);
         stream.scale.y = Math.max(0.0001, src.y - bottom);
@@ -243,8 +223,10 @@ export default {
     };
     const rowView = (r) => [
       String(r.number),
-      ...[r.acid, r.base, r.t1, r.t2].map((v) => (v == null ? '—' : fix(v))),
-      r.t2 == null ? '—' : fix(rowDelta(r)),
+      ...[r.acid, r.base].map((v) => (v == null ? '—' : fix(v))),
+      r.t1 == null ? '—' : r.t1.toFixed(2),
+      r.t2 == null ? '—' : fix(r.t2),
+      r.t2 == null ? '—' : rowDelta(r).toFixed(2),
     ];
     function refresh() {
       if (S.demo || !W) return;
@@ -257,16 +239,19 @@ export default {
       if (task()) {
         const groupIndex = GROUPS.reduce((v, p, i) => (r.phase >= p ? i : v), 0);
         for (let i = 0; i < groupIndex; i++) bar.done(String(i));
-        const hint = '第 ' + r.number + ' 次 · ' + task()[1];
+        const prompt = r.pending === 't2' ? '平视温度计的峰值留影，记下最高温度。'
+          : r.pending ? '平视温度计，读出液柱顶端的温度并记录。' : task()[1];
+        const hint = '第 ' + r.number + ' 次 · ' + prompt;
         bar.say(hint);
         say(hint);
       }
+      W.entry.hidden = !r.pending;
       if (r.t2 != null)
         W.result.textContent =
           '第 ' +
           r.number +
           ' 次温升约 ' +
-          fix(rowDelta(r)) +
+          rowDelta(r).toFixed(2) +
           ' ℃。若热量全部留在溶液中，理论温升约 ' +
           (Q / (100 * CP)).toFixed(2) +
           ' ℃，相差约 ' +
@@ -276,7 +261,7 @@ export default {
         W.review.hidden = false;
         W.result.textContent = summary(S.rows);
         W.ui.observePrediction('倒完碱液到盖好杯盖：\n' + S.rows.map((row) =>
-          `第 ${row.number} 次：${fix(row.openTime)} s，温升 ${fix(rowDelta(row))} ℃`).join('\n'));
+          `第 ${row.number} 次：${fix(row.openTime)} s，温升 ${rowDelta(row).toFixed(2)} ℃`).join('\n'));
       }
     }
     const advance = () => {
@@ -295,7 +280,7 @@ export default {
     };
     function newTrial(spoiled = '') {
       const n = trial().number - (spoiled ? 1 : 0);
-      const starts = Object.fromEntries(['lid', 'thermo', 'acid', 'base'].map((k) => [k, tools[k].body.position.clone()]));
+      const starts = Object.fromEntries(['lid', 'thermo', 'acid', 'base'].map((k) => [k, pose(k).clone()]));
       S.trial = freshTrial(n);
       S.held = null;
       S.flow = null;
@@ -306,29 +291,47 @@ export default {
         if (spoiled) say(spoiled + '本次换用新样品，保留此前各次的完整记录。');
       }
     }
-    function receive(i, p) {
-      const r = trial(),
-        expected = i ? 10 : 1;
-      if (r.phase !== expected || r.closed || r.vol[i] >= 50) return;
-      const angle = tilt(i, p),
-        lip = cylinders[i].lip
-          .clone()
-          .applyAxisAngle(V(0, 0, 1), angle)
-          .add(p);
-      if (Math.abs(lip.x) > 0.025 || lip.y < RIM || lip.y > RIM + 0.051) return;
-      // 倾角决定能倒出的体积。停止继续倾斜或提前移走，未倒出的液体留在量筒。
-      const a = Math.abs(angle);
-      const retained = a >= Math.PI / 2 ? 0 : 60 * Math.max(0, 1 - (0.014 * Math.tan(a)) / 0.087);
-      const newVol = clamp(50 - retained, 0, 50),
-        old = r.vol[i];
-      if (newVol <= old) return;
-      r.vol[i] = newVol;
-      if (i) r.heat += Q * (Math.min(1, (newVol * 0.00055) / N) - Math.min(1, (old * 0.00055) / N));
-      S.flow = { i, life: 0.19 };
-      if (newVol >= 50) advance();
+    function pour(dt) {
+      const f = S.flow;
+      if (!f) return;
+      const r = trial(), i = f.i, k = i ? 'base' : 'acid', mouth = workingMouth(i);
+      const angle = Math.abs(cylinders[i].body.rotation.z);
+      const capacity = angle >= Math.PI / 2 ? 0 : 60 * clamp(1 - 0.014 * Math.tan(angle) / 0.087, 0, 1);
+      const before = r.vol[i];
+      if (Math.abs(mouth.x) < 0.025 && mouth.y >= RIM) {
+        r.vol[i] += Math.min(Math.max(0, 50 - capacity - before), 50 * dt / 0.95);
+      }
+      f.running = r.vol[i] > before;
+      if (i) r.heat += Q * (Math.min(1, r.vol[i] * 0.00055 / N) - Math.min(1, before * 0.00055 / N));
+      if (r.vol[i] >= 50) {
+        S.flow = null;
+        advance();
+        if (S.held !== k) goBack(k, pose(k));
+      }
+    }
+    function record(value) {
+      const r = trial(), key = r.pending;
+      if (!key || S.held) return;
+      const expected = key === 't2' ? r.peak : r.read;
+      if (!Number.isFinite(value) || Math.abs(value - expected) > 0.105) {
+        say('再看液柱顶端和相邻刻度，读到 0.1 ℃。');
+        return;
+      }
+      r[key] = value;
+      r.pending = null;
+      if (!S.demo) W.input.value = '';
+      if (key === 'base') r.t1 = (r.base + r.acid) / 2;
+      if (key === 't2') {
+        S.rows.push({ ...r });
+        if (r.number === 3) {
+          S.finished = true;
+          if (!S.demo) W.ui.unlock();
+        }
+      }
+      advance();
     }
     const inCup = () => th.immersed(0, 0.0268, cupSurface(0), cupSurface(trial().vol[0] + trial().vol[1]));
-    function measureOrClean(p) {
+    function measureOrClean(p, landed) {
       const r = trial(),
         phase = r.phase,
         goal = task()?.[2];
@@ -340,7 +343,7 @@ export default {
         : rinse
           ? near(p, goal, 0.014)
           : goal === BASE_T ? th.immersed(BASE, 0.014, 0.005, 0.077) : Math.abs(p.x - goal.x) < 0.005 && inCup();
-      if (!touching) {
+      if (!landed || !touching) {
         const intoBase = (phase === 4 || phase === 5) && near(p, BASE_T, 0.009);
         const intoAcid = (phase === 7 || phase === 8) && near(p, ACID_T, 0.008);
         if ((rinse || wipe) && (intoBase || intoAcid)) {
@@ -352,18 +355,16 @@ export default {
         }
         return;
       }
-      if (phase === 3) {
-        r.dock = 'acid';
-        r.read = r.acid = PAIRS[r.number - 1][0];
-      }
-      if (phase === 6) {
-        r.dock = 'base';
-        r.read = r.base = PAIRS[r.number - 1][1];
-        r.t1 = (r.base + r.acid) / 2;
+      if (phase === 3 || phase === 6) {
+        r.dock = r.pending = phase === 3 ? 'acid' : 'base';
+        r.read = PAIRS[r.number - 1][phase === 3 ? 0 : 1];
+        refresh();
+        if (S.demo) record(r.read);
+        return;
       }
       if (phase === 12) {
         r.dock = 'mix';
-        r.read = r.t1;
+        r.read = average(PAIRS[r.number - 1]);
         r.peak = r.read;
       }
       if (rinse) r.dock = 'wash';
@@ -381,32 +382,73 @@ export default {
         say(summary(S.rows));
       }
     }
-    function release(k, cancelled) {
+    function release(k, landed) {
       if (S.held !== k) return;
       S.held = null;
-      if (k === 'acid' || k === 'base') S.flow = null;
+      if ((k === 'acid' || k === 'base') && S.flow?.i === (k === 'base' ? 1 : 0)) {
+        if (landed) return;
+        S.flow = null;
+      }
       const r = trial();
       if (k === 'rod') {
         if (r.phase !== 13 && r.phase !== 14) r.rodReturn = { y: r.strokeY, time: 0 };
         return;
       }
       const p = pose(k).clone();
-      if (!cancelled && task()?.[0] === k) {
-        if (k === 'lid' && near(p, task()[2], task()[2] === LID ? 0.009 : 0.022)) {
+      if (!cancel && !r.pending && task()?.[0] === k) {
+        if (k === 'lid' && landed) {
           r.closed = task()[2] === LID;
           advance();
-        } else if (k === 'thermo') measureOrClean(p);
+        } else if (k === 'thermo') measureOrClean(p, landed);
       }
       goBack(k, p);
     }
+    function inspectCylinder(k) {
+      S.closeup = k;
+      if (!k) { back(); return; }
+      const i = k === 'base' ? 1 : 0;
+      const surface = 0.0045 + (50 - trial().vol[i]) * 0.087 / 60;
+      look([i ? BASE : ACID, surface, 0], [0, 0, 1], 0.16, () => { S.closeup = null; });
+    }
+    const leaveScale = tag('回到实验台', 'pill view', () => inspectCylinder(null));
     let cancel = false;
+    // 拖动坐标取手握处；落点检测用筒嘴或球泡。杯盖直接用中心。
+    const offset = (k) => {
+      if (k === 'thermo' && task()?.[2] !== CLOTH) return th.bulb.position;
+      if (k === 'acid' || k === 'base') {
+        const i = k === 'base' ? 1 : 0;
+        return lipOffset(i, i ? POUR_ANGLE : -POUR_ANGLE);
+      }
+      return V();
+    };
+    const destination = (k) => {
+      const goal = task()[2];
+      if (k === 'acid' || k === 'base') return MOUTHS[k === 'base' ? 1 : 0];
+      if (k === 'thermo' && goal !== CLOTH) return goal.clone().add(th.bulb.position);
+      return goal;
+    };
+    const canDock = (k) => {
+      if (trial().pending || task()?.[0] !== k || !task()[2]) return false;
+      if (k === 'thermo') {
+        const bulb = th.bulb.position.clone().applyQuaternion(th.body.quaternion).add(th.body.position);
+        return near(bulb, destination(k), 0.034);
+      }
+      return true;
+    };
     const items = ['lid', 'acid', 'base', 'thermo', 'rod'].map((k) => ({
       obj: tools[k].pick,
       anchor: tools[k].body,
+      get dropOffset() { return offset(k); },
+      dropzones: k === 'rod' ? undefined : [{
+        name: NAMES[k], position: () => destination(k), radius: k === 'lid' ? 0.034 : 0.027,
+        enabled: () => canDock(k),
+      }],
       plane: 'xy',
       keepOffset: true,
-      hint: () => (k === 'base' && trial().dock === 'base' ? '' : NAMES[k]),
-      enabled: () => k !== 'base' || trial().dock !== 'base',
+      hint: () => k === 'base' && trial().dock === 'base' ? ''
+        : k === 'acid' || k === 'base' ? NAMES[k] + ' · 轻点看刻度' : NAMES[k],
+      onTap: k === 'acid' || k === 'base' ? () => inspectCylinder(S.closeup === k ? null : k) : undefined,
+      enabled: () => (k !== 'base' || trial().dock !== 'base') && !(S.flow && !S.held && k === (S.flow.i ? 'base' : 'acid')),
       onDrag(p) {
         if (!p || (S.finished && trial().phase > 16)) return;
         S.held = k;
@@ -428,17 +470,19 @@ export default {
           }
           return;
         }
-        const minY = k === 'lid' ? 0.001 : k === 'thermo' ? CLOTH.y : 0.049;
+        const cylinder = k === 'acid' || k === 'base';
+        const minY = cylinder ? 0.049 : k === 'lid' ? OFF.y : CLOTH.y;
         const q = V(clamp(p.x, -0.17, 0.18), clamp(p.y, minY, 0.165));
         putPose(k, q);
-        if (k === 'acid' || k === 'base') receive(k === 'acid' ? 0 : 1, q);
+        if ((k === 'acid' || k === 'base') && task()?.[0] === k && !S.flow)
+          S.flow = { i: k === 'base' ? 1 : 0, running: false };
         render();
       },
-      onEnd: () => release(k, cancel),
+      onEnd: (moved, zone) => release(k, !!zone),
     }));
     const drag = draggable(group, items, { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
-    const target = () => (!S.held && !mic?.isOpen && task() ? tools[task()[0]].ringTarget || tools[task()[0]].body : null);
+    const target = () => (!S.closeup && !S.held && !mic?.isOpen && task() ? tools[task()[0]].ringTarget || tools[task()[0]].body : null);
     function heat(dt, measuringMix) {
       const r = trial(),
         ml = r.vol[1];
@@ -448,19 +492,15 @@ export default {
       if (r.phase === 11) r.openTime += dt;
       r.heat *= Math.exp(-dt * (open ? 0.021 : 0.0007));
       const c = (50 + ml) * CP,
-        solution = (50 * r.acid + ml * r.base) / (50 + ml) + r.heat / c;
+        solution = (50 * PAIRS[r.number - 1][0] + ml * PAIRS[r.number - 1][1]) / (50 + ml) + r.heat / c;
       if (measuringMix) {
         const prev = r.read;
         r.read += (solution - r.read) * (1 - Math.exp(-dt * (r.strokes > 0 ? 3.8 : 0.42)));
         r.peak = Math.max(r.peak, r.read);
-        if (r.phase === 14 && (r.read <= prev || Math.abs(solution - r.read) < 0.004)) {
-          r.t2 = +fix(r.peak);
-          S.rows.push({ ...r });
-          if (r.number === 3) {
-            S.finished = true;
-            if (!S.demo) W?.ui.unlock();
-          }
-          advance();
+        if (r.phase === 14 && !r.pending && (r.read <= prev || Math.abs(solution - r.read) < 0.004)) {
+          r.pending = 't2';
+          refresh();
+          if (S.demo) record(+fix(r.peak));
         }
       }
     }
@@ -471,7 +511,7 @@ export default {
     function demoOp(index, begin, end) {
       const [k, , goal] = TASKS[index];
       if (!goal) return () => {};
-      const from = () => tools[k].body.position.clone();
+      const from = () => pose(k).clone();
       const over = () => V(goal.x, Math.max(goal.y + 0.018, 0.117));
       return act.path(tools[k].pick, [from, () => V(from().x, over().y), over, goal], {
         t0: begin,
@@ -486,9 +526,14 @@ export default {
           dur,
           during: act.seq(...indexes.map((op, j) => demoOp(op, (j + 0.05) / indexes.length, (j + 0.94) / indexes.length))),
         });
-      block([0, 1, 2, 3], '将盐酸倒入内筒，盖好，测盐酸初温。', 3.7);
+      block([0], OPEN, 0.8);
+      block([1], TASKS[1][1], 1.0);
+      shots.push({ cap: '盐酸流入内筒。', dur: 1.15 });
+      block([2, 3], '盖好杯盖，测盐酸初温。', 1.8);
       block([4, 5, 6, 7, 8], '冲洗并擦干温度计，测碱液初温，再冲洗、擦干。', 4.0);
-      block([9, 10, 11, 12], '把碱液迅速倒入，立即盖好，插入温度计。', 3.7);
+      block([9, 10], '移开杯盖，将碱液迅速倒入内筒。', 1.8);
+      shots.push({ cap: '碱液流入内筒。', dur: 1.15 });
+      block([11, 12], '立即盖好杯盖，插入温度计。', 1.8);
       shots.push({
         cap: '上下移动玻璃搅拌器，观察温度计液柱。',
         dur: 2.8,
@@ -503,10 +548,18 @@ export default {
         const r = S.rows[i];
         if (r)
           bar.caption(
-            '第 ' + (i + 1) + ' 次 · 最高温约 ' + fix(r.t2) + ' ℃，温升约 ' + fix(rowDelta(r)) + ' ℃。冲洗、擦干温度计。',
+            '第 ' + (i + 1) + ' 次 · 最高温约 ' + fix(r.t2) + ' ℃，温升约 ' + rowDelta(r).toFixed(2) + ' ℃。冲洗、擦干温度计。',
           );
       };
     }
+    let shotNumber;
+    shots.forEach((shot, index) => {
+      const enter = shot.enter;
+      shot.enter = () => {
+        shotNumber.textContent = (index + 1) + ' / ' + shots.length + ' ';
+        enter?.();
+      };
+    });
     bar = lessonBar({
       look,
       back,
@@ -519,6 +572,11 @@ export default {
           label: '老师演示',
           shots,
           onStart() {
+            const film = document.querySelector('.lbar.film.demo');
+            shotNumber = film.querySelector('.lb-n');
+            film.querySelector('.lb-steps').replaceChildren();
+            drag.clearDropzones();
+            for (const shot of shots) shot.during?.(0);
             saved = S;
             mw.classList.add('nh-demo');
             W?.ui.el.classList.add('nh-demo');
@@ -527,12 +585,14 @@ export default {
             render();
           },
           onEnd() {
+            drag.clearDropzones();
             S = saved;
             saved = null;
             mw.classList.remove('nh-demo');
             W?.ui.el.classList.remove('nh-demo');
             render();
-            if (mic.isOpen) look([0, 0.141, 0], [0, 0.38, 1], 0.3);
+            if (S.closeup) inspectCylinder(S.closeup);
+            else if (mic.isOpen) look([0, 0.141, 0], [0, 0.38, 1], 0.3);
           },
         },
       },
@@ -545,13 +605,13 @@ export default {
       bar: () => bar,
       scene: heatScene(),
       at: () => V(0, 0.091, 0),
-      btnAt: () => V(0, 0.004, 0.079),
-      label: '钻进去看',
+      btnAt: () => V(0, 0.019, 0.037),
+      label: '钻进量热计内筒看',
       scale: 0.0095,
       dist: 0.3,
       lookD: [0, 0.38, 1],
-      show: () => trial().vol[0] > 0 && !S.held,
-      state: () => ({ mixed: trial().vol[1] > 0 }),
+      show: () => trial().vol[0] > 0 && !S.held && !S.closeup,
+      state: () => ({ mixed: trial().vol[1] > 0, excess: trial().vol[1] * 0.00055 > N }),
       key: () => String(trial().number),
     });
     const mw = Array.from(document.querySelectorAll('.mw')).pop();
@@ -589,10 +649,14 @@ export default {
       if (bar.playing) bar.stop();
       mic.close();
       setPause(false);
+      if (S.closeup) inspectCylinder(null);
+      drag.clearDropzones();
       S = fresh();
       render();
       if (W) {
         W.tbl.clear();
+        W.entry.hidden = true;
+        W.input.value = '';
         W.result.textContent = '';
         W.review.hidden = true;
         W.ui.observePrediction(null);
@@ -606,19 +670,20 @@ export default {
     for (let i = 0; i < 3; i++) {
       TASKS.forEach(([k, label, goal], j) => {
         const name = '第' + (i + 1) + '次·' + label;
-        if (goal) qa.push({ name, ...normalDrag(k, goal), wait: 0.46 });
+        if (goal) qa.push({ name, ...normalDrag(k, goal), wait: k === 'acid' || k === 'base' ? 1.6 : 0.46 });
+        if (j === 3 || j === 6 || j === 14) qa.push({
+          name: '记录第' + (i + 1) + '次' + (j === 14 ? '最高温' : '初温'),
+          run() {
+            if (trial().pending !== (j === 3 ? 'acid' : j === 6 ? 'base' : 't2')) throw Error('温度计未就位');
+            W.input.value = fix(j === 14 ? trial().peak : trial().read);
+            W.entry.querySelector('button').click();
+          },
+        });
         if (j === 13)
           qa.push(
             { name: name + '上提', ...normalDrag(k, strokeUp) },
             { name: name + '下移', ...normalDrag(k, strokeDown), wait: 4 },
           );
-        if (j === 14)
-          qa.push({
-            name: '读取第' + (i + 1) + '次最高温',
-            run: () => {
-              if (trial().t2 == null) throw Error('未取得本次最高温');
-            },
-          });
       });
     }
     qa.push(
@@ -638,6 +703,11 @@ export default {
       `
       [data-neutheat] .answer .src{padding-right:52px;min-height:38px}
       [data-neutheat] .answer .seal-stamp{bottom:10px;right:10px;font-size:16px;width:38px;height:38px;writing-mode:horizontal-tb}
+      .nh-lens{pointer-events:none}
+      .nh-lens canvas{display:block;width:82px;height:206px;transform:translateX(-52px);border-radius:34px 34px 10px 10px;background:#faf7eb;box-shadow:0 2px 8px #473f3240}
+      [data-neutheat] .nh-entry:not([hidden]){display:flex;gap:6px;align-items:center;margin:6px 0}
+      [data-neutheat] .nh-entry input{width:68px;padding:4px 6px;font:inherit}
+      [data-neutheat] .nh-entry button{font:inherit;cursor:pointer}
       [data-neutheat] .data {font-variant-numeric:tabular-nums;}
       [data-neutheat] .data :is(th,td){padding:5px 2px;text-align:center;}
       [data-neutheat] .big-next:disabled{display:none;}
@@ -648,7 +718,8 @@ export default {
       [data-neutheat] .verdict.comparison > span:last-child{white-space:pre-line;font-variant-numeric:tabular-nums}
       [data-neutheat] .nh-player{display:flex;justify-content:center;gap:8px;pointer-events:auto;margin-top:5px}
       [data-neutheat] .nh-player button{font:inherit;color:#384b4a;background:#fbf9ed;border:1px solid #b0b8ae;border-radius:5px;padding:3px 10px;cursor:pointer}
-      @media(max-width:760px){.mw[data-neutheat] :is(.mw-hud,.mw-scale){left:8px!important;width:calc(100% - 16px)!important}
+      @media(max-width:760px){.nh-lens canvas{width:72px;height:180px;transform:translate(-53px,-10px)}
+      .mw[data-neutheat] :is(.mw-hud,.mw-scale){left:8px!important;width:calc(100% - 16px)!important}
       .mw[data-neutheat] .mw-close{left:auto!important;right:8px;top:42px!important}.mw[data-neutheat] .mw-hud{top:17vh!important}}
     `,
     );
@@ -676,14 +747,19 @@ export default {
           h('p', { class: 'fineprint' }, '三次生成的水一样多。比较每次的温差，哪一次有更多热散到了周围？'),
         );
         const result = h('p', { class: 'nh-result' });
+        const input = h('input', { type: 'number', step: '0.1', required: true, 'aria-label': '温度读数' });
+        const entry = h('form', { class: 'nh-entry', hidden: true, onsubmit(e) {
+          e.preventDefault();
+          record(input.valueAsNumber);
+        } }, input, ' ℃ ', h('button', { type: 'submit' }, '记下读数'));
         W = {
           ...mountXuean(ui, {
-            controls: [result, review, model, moreBox([], reset)],
+            controls: [entry, result, review, model, moreBox([], reset)],
             headers: ['次数', '盐酸', 'NaOH', '平均 t₁', '最高 t₂', '温差'],
             tableTitle: '观察记录 · 温度 / ℃（示意）',
             intro: INTRO,
           }),
-          ui,
+          ui, entry, input,
           review,
           result,
         };
@@ -698,6 +774,8 @@ export default {
       update(dt) {
         const k = bar.update(dt),
           d = Math.min(dt, 0.06) * k;
+        drag.update(d);
+        pour(d);
         for (const [key, r] of Object.entries(S.returns)) {
           r.time += Math.min(dt, 0.06) * Math.min(k, 1);
           const u = clamp(r.time / 0.38, 0, 1);
@@ -714,10 +792,6 @@ export default {
           trial().strokeY = rodReturn.y * (1 - u * u * (3 - 2 * u));
           if (u >= 1) delete trial().rodReturn;
         }
-        if (S.flow) {
-          S.flow.life -= d;
-          if (S.flow.life <= 0) S.flow = null;
-        }
         render();
         const r = trial(),
           measuringMix = r.dock === 'mix' && inCup();
@@ -727,22 +801,13 @@ export default {
           observed = r.t2 != null;
         offProbe.loc(group, th.body.position.x, th.body.position.y + 0.055, 0)
           .show(r.dock === 'mix' && !measuringMix && !observed && !mic.isOpen && !S.demo);
-        const name = r.dock === 'base' ? '碱液量筒' : '量热计';
-        const cooled = observed && r.dock === 'mix' && r.read < r.t2 - 0.05;
-        const tagText = cooled ? '回落' : observed ? '最高温' : r.dock === 'mix' ? '测温中' : '初温';
         lossArrows(r, r.heatTime, near(pose('lid'), LID, 0.004));
-        card
-          .text(
-            '<div class="cc"><div class="cc-t"><span class="cc-name">' +
-              name +
-              '</span><span class="cc-res">' +
-              tagText +
-              '</span></div><div class="cc-obs"><b>约 ' +
-              fix(observed && !cooled ? r.t2 : r.read) +
-              '</b><small> ℃</small></div></div>',
-          )
-          .loc(group, r.dock === 'base' ? BASE : 0, 0.127, -0.02)
-          .show(measuring && !S.demo && !S.held && !mic.isOpen);
+        leaveScale.loc(group, S.closeup === 'base' ? BASE : ACID, 0.027 + (50 - r.vol[S.closeup === 'base' ? 1 : 0]) * 0.087 / 60, 0.016)
+          .show(!!S.closeup && !S.demo && !mic.isOpen);
+        const reading = !S.closeup && measuring && (r.pending || r.dock === 'mix') && !observed && (!S.held || S.held === 'rod') && !mic.isOpen && !S.demo;
+        th.plate.visible = !reading;
+        lens.loc(th.body, -0.002, 0.028, 0).show(!!reading);
+        if (reading) drawThermometer(dial, r.pending === 't2' ? r.peak : r.read, r.pending === 't2');
         if (!mic.isOpen && paused) setPause(false);
         if (!paused && (!S.demo || !mic.isOpen)) mic.update(dt, k);
       },

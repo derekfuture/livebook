@@ -7,14 +7,16 @@ import { clamp, draggable } from './kit/interact.js';
 import { micro } from './kit/microworld.js';
 import { V, X, BX, RIM, WATER, LEN, BASE, R, RACK, HOMES, HOME, BATH, NAMES, bench, silverScene } from './kit/silvermirror-parts.js';
 
-const INTRO = '洁净试管在架上。第一支滴管已量取 1 mL 2% AgNO₃ 溶液。';
+const INTRO = '先平视硝酸银滴管的刻度，读凹液面最低处。';
 const FORMULA = 'CH₃CHO + 2[Ag(NH₃)₂]OH　△→　CH₃COONH₄ + 2Ag↓ + 3NH₃ + H₂O';
 const METHOD = '在洁净的试管中加入1 mL 2% AgNO₃溶液，然后边振荡试管边逐滴滴入2%氨水，使最初产生的沉淀恰好溶解，制得银氨溶液。再滴入3滴乙醛，振荡后将试管放在热水浴中温热。观察实验现象。';
 const ENDPOINT = 4; // 示意滴量。学生按沉淀是否消失判断，此数不作为实测值显示。
+const POUR_TIME = 0.70, FALL_TIME = 0.22;
+const SCALE_VIEW = [[HOMES[0].x - 0.002, HOMES[0].y + 0.035, 0], [0, 0, 1], 0.116];
 const SHAKE = [V(X, 0.052), V(X - 0.012, 0.052), V(X + 0.012, 0.052), V(X, 0.052)];
 const SOAK = [V(X, RIM + 0.012), V(BX, RIM + 0.012), BATH];
 const steps = [
-  ['salt', '加入硝酸银溶液', '提起 AgNO₃ 滴管，对准洁净试管口加入 1 mL 溶液。'],
+  ['salt', '加入硝酸银溶液', '核对课本要求的 1 mL，再提起硝酸银滴管，对准洁净试管口加液。'],
   ['ammonia', '滴氨水至澄清', '把氨水滴管悬在管口，按住逐滴加入，试管会同步轻振。沉淀刚消失就松手。'],
   ['aldehyde', '滴入乙醛', '把乙醛滴管悬在管口，滴入 3 滴乙醛。'],
   ['mix', '振荡试管', '把试管提出架子，在空中左右轻摇。'],
@@ -37,13 +39,13 @@ export default {
   create({ tag, look, back }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     paperSheet(group, { w: 0.405, d: 0.18, z: 0.008 });
-    const { tube, tubePick, pipettes, liquid, film, drop } = bench(group);
+    const { tube, tubePick, pipettes, liquid, levelSurface, tubeName, plates, film, drop, stream } = bench(group, tag);
     // Include a raised pipette in the initial framing without adding apparatus.
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.001, 0.001), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     frame.position.set(X, 0.127, 0); group.add(frame);
     const card = tag('', 'cond'), scene = silverScene();
     const fresh = () => ({
-      demo: false, salt: false, nh: 0, aldehyde: 0, mixed: false, wet: false, growth: 0, observed: 0, deviation: '',
+      demo: false, salt: false, saltOut: 0, saltIn: 0, stock: [1, 1, 1], reading: false, nh: 0, aldehyde: 0, mixed: false, wet: false, earlyBath: false, growth: 0, observed: 0, deviation: '',
       pos: [...HOMES, HOME].map(p => p.clone()), returns: [], grip: null, flight: null, rock: 0, clock: 0,
     });
     let S = fresh(), W, cancelled = false, bathFocus = false;
@@ -57,15 +59,23 @@ export default {
     const tipTarget = () => S.pos[3].clone().add(V(0, LEN + 0.007));
     const turbidity = () => [0, 1, 0.73, 0.32][S.nh] || 0;
     // Levels and the height wetted by shaking are exaggerated together for projection.
-    const level = () => S.salt ? 0.020 + Math.min(0.010, S.nh * 0.0014) + S.aldehyde * 0.0009 : 0;
+    const level = () => 0.020 * S.saltIn + Math.min(0.010, S.nh * 0.0014) + S.aldehyde * 0.0009;
+    function readScale() {
+      S.reading = true;
+      look(...SCALE_VIEW, () => { S.reading = false; });
+    }
+    const scaleButton = tag('看滴管刻度', 'pill view', () => {
+      if (S.reading) { S.reading = false; back(); } else readScale();
+    });
+    scaleButton.el.setAttribute('role', 'button');
     const mic = micro({ tag, look, back: () => { bathFocus = false; back(); }, group, scene, at: () => S.pos[3].clone().add(V(0, 0.022)),
-      btnAt: () => S.pos[3].clone().add(V(-0.038, S.wet ? 0.074 : LEN + 0.019)),
-      label: '钻进管壁看', state: () => ({ growth: S.growth }), show: () => S.aldehyde === 3 && !S.grip, bar: () => bar,
+      btnAt: () => S.pos[3].clone().add(V(0, LEN - 0.003, R)),
+      label: '钻进试管里看', state: () => ({ growth: S.growth }), show: () => S.aldehyde === 3 && !S.earlyBath && !S.grip, bar: () => bar,
       lookD: [0.03, 0.34, 1], scale: 0.010, dist: 0.32 });
 
     const receive = id => {
       if (id === 0) {
-        S.salt = true; log('加入 AgNO₃ 溶液', '1 mL，澄清'); done('salt'); say('把 2% 氨水一滴一滴加进去，留意最初出现的沉淀。');
+        S.salt = true; log('加入 AgNO₃ 溶液', '溶液澄清'); done('salt'); say('把 2% 氨水一滴一滴加进去，留意最初出现的沉淀。');
       } else if (id === 1) {
         S.nh++;
         if (S.nh === 1) { log('初滴氨水', '出现棕褐色沉淀'); say('管底出现棕褐色沉淀。继续逐滴加入，观察沉淀。'); }
@@ -88,13 +98,19 @@ export default {
     };
     const canDose = id => id === 0 ? !S.salt : id === 1 ? S.salt && !S.aldehyde : S.nh >= ENDPOINT && S.aldehyde < 3;
     function aim(id) {
-      const p = S.pos[id], mouth = S.pos[3];
-      return Math.abs(p.x - mouth.x) < R - 0.001 && p.y >= mouth.y + LEN && p.y <= mouth.y + LEN + 0.022;
+      return S.pos[id].distanceTo(tipTarget()) < 0.0025;
     }
-    function dose(id) {
-      if (!aim(id) || S.flight || !canDose(id)) return;
+    function dose(id, parked = false) {
+      if (!aim(id) || S.flight || !canDose(id) || (id && S.stock[id] < 0.12)) return;
       S.flight = { id, p: S.pos[id].clone(), time: 0, target: S.pos[3].clone().add(V(0, Math.max(0.002, level()))) };
-      S.grip.next = 0.85;
+      if (id === 0) {
+        S.flight.parked = parked;
+        S.flight.base = S.saltOut;
+        S.flight.duration = (1 - S.saltOut) * POUR_TIME;
+      } else {
+        S.stock[id] -= 0.12;
+        S.grip.next = 0.85;
+      }
     }
     const closeUp = () => {
       bathFocus = true;
@@ -102,7 +118,7 @@ export default {
     };
     function grab(id) {
       S.returns[id] = null;
-      S.grip = { id, next: 0, moved: false, previous: S.pos[id].x, direction: 0, travel: 0, reversed: false, crossed: S.wet };
+      S.grip = { id, next: 0, moved: false, previous: S.pos[id].x, direction: 0, travel: 0, reversed: false, leftRack: S.wet, leftBath: !S.wet, crossed: S.wet };
     }
     function move(id, p) {
       const grip = S.grip;
@@ -123,7 +139,7 @@ export default {
           if (HOMES.some(home => Math.abs(x - home.x) < 0.016)) floor = Math.max(floor, 0.047);
           pos.set(x, Math.max(y, floor), 0);
         }
-        if (!grip.next && aim(id)) dose(id);
+        if (id > 0 && !grip.next && aim(id)) dose(id);
         return;
       }
       let y = clamp(p.y, BASE, 0.112), nx = x;
@@ -131,6 +147,11 @@ export default {
       if (pos.y < rackClear && Math.abs(pos.x - X) < 0.004 && y < rackClear) nx = X;
       if (Math.abs(nx - X) < 0.024 && Math.abs(nx - X) > 0.003) y = Math.max(rackClear, y);
       // Crossing the rim needs a lift first. Below the rim, glass stops the hand.
+      // The rim guides the tube sideways while the hand controls its descent.
+      if (y >= rimClear || grip.crossed) {
+        const distance = Math.hypot(x - BX, y - (RIM + 0.009));
+        nx = THREE.MathUtils.lerp(BX, nx, THREE.MathUtils.smoothstep(distance, 0.026, 0.040));
+      }
       const inside = Math.abs(nx - BX) < 0.020;
       if (y >= rimClear) grip.crossed = inside;
       if (y < rimClear && inside && !grip.crossed) { nx = BX - 0.042; }
@@ -139,6 +160,8 @@ export default {
         else nx = BX - 0.042;
       }
       if (grip.crossed && inside) y = clamp(p.y, 0.003, 0.112);
+      if (y > RACK + 0.022) grip.leftRack = true;
+      if (y > RIM + 0.002) grip.leftBath = true;
       const dx = nx - grip.previous;
       if (S.aldehyde && !S.mixed && y >= rackClear && Math.abs(nx - X) < 0.029 && Math.abs(dx) > 0.0001) {
         const dir = Math.sign(dx);
@@ -152,28 +175,35 @@ export default {
       }
       grip.previous = nx; pos.set(nx, y, 0);
     }
-    function release(id, moved) {
+    function release(id, moved, zone) {
       const grip = S.grip; if (grip?.id !== id) return;
       const p = S.pos[id], acted = moved && grip.moved && !cancelled;
-      if (id < 3 && acted && aim(id)) {
+      if (id < 3 && acted && zone && aim(id)) {
         if (!canDose(id) && !S.flight) {
           if (id === 2 && S.nh < ENDPOINT) say('先滴氨水，等沉淀恰好溶解，再加入乙醛。');
           if (id === 1 && !S.salt) say('试管里还没有 AgNO₃ 溶液。');
         } else if (!grip.next) dose(id);
       }
       if (id === 3 && acted) {
-        if (grip.crossed && Math.abs(p.x - BX) < 0.020 && p.y < WATER - 0.013) {
+        if (zone?.position === BATH && grip.crossed) {
           if (!S.wet) {
-            log('放入热水浴', '观察内壁');
-            if (S.aldehyde !== 3 || !S.mixed) deviate('水浴过早。可继续观察，重做时先滴入 3 滴乙醛，振荡后再温热。');
+            if (S.aldehyde !== 3 || !S.mixed) {
+              S.earlyBath = true;
+              deviate('水浴过早，本轮不演示反应结果。请重做，滴入 3 滴乙醛并振荡后再温热。');
+            }
+            log('放入热水浴', S.earlyBath ? '水浴过早' : '观察内壁');
             if (!S.demo && S.aldehyde) {
               if (!S.deviation) { bar.say('观察水浴中试管的内壁。', 'warm'); say('试管已浸入热水。留意最早出现银点的位置。'); }
               closeUp();
             }
           }
           S.wet = true;
-        } else if (p.y < RACK && Math.abs(p.x - X) < 0.004) S.wet = false;
+        } else if (zone?.position === HOME) S.wet = false;
         else if (!S.wet && S.mixed) say('先提过烧杯口，再把试管底部放入热水。');
+      }
+      if (S.flight?.id === 0 && id === 0) {
+        if (acted && zone) S.flight.parked = true;
+        else S.flight.duration = Math.min(S.flight.duration, S.flight.time);
       }
       const home = id < 3 ? HOMES[id] : S.wet ? BATH : HOME;
       if (p.distanceTo(home) > 0.0001) {
@@ -186,26 +216,48 @@ export default {
     }
 
     const picks = [...pipettes.map(d => d.pick), tubePick], bodies = [...pipettes.map(d => d.g), tube];
+    const pipZone = { name: '试管口', position: tipTarget, radius: 0.024 };
+    const tubeZones = [
+      { name: '热水浴', position: BATH, radius: 0.033, enabled: () => S.grip?.leftBath && S.grip.crossed },
+      { name: '试管架', position: HOME, radius: 0.020, enabled: () => S.grip?.leftRack },
+    ];
     const drag = draggable(group, picks.map((obj, id) => ({
-      obj, anchor: bodies[id], keepOffset: true, enabled: () => !mic.isOpen,
+      obj, anchor: bodies[id], keepOffset: true, dropzones: id < 3 ? [pipZone] : tubeZones,
+      enabled: () => !mic.isOpen && !S.reading && !(S.flight && (id === 3 || S.flight.parked && id === 0)),
       hint: () => id === 3 ? '提起试管，轻摇或放入热水浴' : `提起${NAMES[id]}滴管，尖端对准管口`,
-      onStart: () => grab(id), onDrag: p => move(id, p), onEnd: moved => release(id, moved),
+      onStart: () => grab(id), onDrag: p => move(id, p), onEnd: (moved, zone) => release(id, moved, zone),
     })), { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
-    const cardText = () => S.observed === 3 ? '银镜' : S.observed === 2 ? '银斑' : S.observed === 1 ? '银点' :
-      turbidity() ? '有沉淀' : S.salt ? '澄清' : '洁净';
+    const cardText = () => S.earlyBath ? '水浴过早' : S.observed === 3 ? '银镜' : S.observed === 2 ? '银斑' : S.observed === 1 ? '银点' :
+      turbidity() ? '有沉淀' : S.saltIn ? '澄清' : '洁净';
     function apply() {
       bodies.forEach((o, id) => { o.position.copy(S.pos[id]); });
       tube.rotation.z = S.rock;
       tube.userData.ringY = S.pos[3].y + 0.048;
-      pipettes.forEach((d, i) => { d.g.userData.ringY = d.g.position.y + d.pick.position.y - 0.004; d.fluid.visible = i !== 0 || (!S.salt && S.flight?.id !== 0); });
+      pipettes.forEach((d, i) => {
+        d.g.userData.ringY = d.g.position.y + d.pick.position.y - 0.004;
+        d.fill(i ? S.stock[i] : 1 - S.saltOut);
+      });
+      let content = S.saltIn ? '试管 · AgNO₃ 溶液' : '洁净试管';
+      if (S.nh && S.nh < ENDPOINT) content = '试管 · 溶液与棕褐色沉淀';
+      else if (S.aldehyde) content = S.wet || S.growth ? '试管 · 银氨溶液与乙醛的反应混合物' : '试管 · 银氨溶液与乙醛';
+      else if (S.nh) content = '试管 · 银氨溶液';
+      tubeName.text(content);
+      const reading = S.reading || (S.demo && bar.shot === 0);
+      plates.forEach(plate => plate.show(!mic.isOpen && (!reading || plate.obj === pipettes[0].g)));
       liquid.setLevel(level()).setMilk(turbidity(), 0x74513e, 0x55392d).update(S.clock);
-      film(S.growth); drop.visible = !!S.flight;
-      if (S.flight) {
-        const u = Math.min(1, S.flight.time / 0.24);
-        drop.position.copy(S.flight.p).lerp(S.flight.target, u * u);
-        const length = S.flight.id === 0 ? 1.3 + 7 * Math.sin(Math.PI * u) : 1.45;
-        drop.scale.set(1, length, 1);
+      levelSurface(S.rock);
+      film(S.growth);
+      const f = S.flight;
+      drop.visible = !!f && f.id !== 0; stream.visible = !!f && f.id === 0;
+      if (drop.visible) {
+        const u = Math.min(1, f.time / FALL_TIME);
+        drop.position.copy(f.p).lerp(f.target, u * u);
+      } else if (stream.visible) {
+        const travel = t => THREE.MathUtils.lerp(f.p.y, S.pos[3].y + Math.max(0.002, level()), clamp(t / FALL_TIME, 0, 1) ** 2);
+        const head = travel(f.time), tail = travel(f.time - f.duration);
+        stream.position.set(f.p.x, (head + tail) / 2, f.p.z);
+        stream.scale.y = Math.max(0.00001, tail - head);
       }
     }
     apply();
@@ -220,6 +272,7 @@ export default {
         restore(s) {
           if (S !== s.owner || !W?.ui.el.isConnected) return;
           if (s.micro) { scene.restore(s.micro); mic.open(); }
+          else if (S.reading) readScale();
           else if (s.near) closeUp();
           const stage = window.__lb.stage;
           stage.shot(s); stage.user.yaw = s.yaw; stage.user.pitch = s.pitch;
@@ -230,7 +283,7 @@ export default {
       const carry = act.path(picks[id], [HOMES[id], V(HOMES[id].x, BASE + LEN + 0.012), tipTarget],
         { t0: 0.03, t1: 0.36, release: 0.96 });
       return { cap: steps[id][2], dur, enter: () => carry(0), during(k) {
-        if (until()) { if (S.grip?.id === id) release(id, true); }
+        if (until()) { if (S.grip?.id === id) drag.items()[id].onEnd(true); }
         else carry(k);
       } };
     };
@@ -241,26 +294,27 @@ export default {
         label: '演示', onStart() { sb.onStart(); mic.close(); W.ui.el.classList.add('silver-demo'); W.microEl.classList.add('silver-film'); },
         onEnd() { mic.close(); W.ui.el.classList.remove('silver-demo'); W.microEl.classList.remove('silver-film'); sb.onEnd(); },
         shots: [
+          { cap: '平视凹液面最低处，读数为 1 mL。', dur: 3.5, cam: SCALE_VIEW },
           demoDose(0, () => S.salt, 3.2), demoDose(1, () => S.nh >= ENDPOINT, 7),
           demoDose(2, () => S.aldehyde >= 3, 5.8), route(SHAKE, 3, '提出试管，左右轻轻振荡。'),
           route(SOAK, 3.2, '越过杯口，把试管放入热水浴。'),
           { cap: '观察管壁上银点怎样连成亮面。', dur: 8, cam: [[BX, 0.04, 0], [0.02, 0.32, 1], 0.18] },
-          { cap: '钻进管壁，跟着电子看银的去向。', dur: 11.4,
+          { cap: '钻进试管，跟着电子看银怎样沉积在内壁上。', dur: 11.4,
             cam: [[BX, BATH.y + 0.072, 0], [0.03, 0.34, 1], 0.32], enter: () => mic.open(true) },
         ],
       } } });
     const leaveMicro = mic.mw.onClose;
-    mic.mw.onClose = () => { leaveMicro(); if (S.demo && bar.playing && bar.shot === 6) bar.stop(); };
+    mic.mw.onClose = () => { leaveMicro(); if (S.demo && bar.shot === 7) bar.stop(); };
     function advance(dt) {
       S.clock += dt;
       S.returns.forEach((r, i) => {
-        if (!r) return;
+        if (!r || (i === 0 && S.flight?.parked)) return;
         r.t += dt; const k = Math.min(1, r.t / 0.44), p = S.pos[i];
         if (r.across) {
           p.x = THREE.MathUtils.lerp(r.from.x, r.home.x, clamp((k - 0.20) / 0.53, 0, 1));
           p.y = k < 0.2 ? THREE.MathUtils.lerp(r.from.y, r.high, k / 0.2) : THREE.MathUtils.lerp(r.high, r.home.y, clamp((k - 0.73) / 0.27, 0, 1));
         } else p.copy(r.from).lerp(r.home, k);
-        if (k === 1) { p.copy(r.home); S.returns[i] = null; }
+        if (k === 1) { p.copy(r.home); S.returns[i] = null; if (i === 1 || i === 2) S.stock[i] = 1; }
       });
       const grip = S.grip;
       S.rock *= Math.exp(-dt * 12);
@@ -269,11 +323,21 @@ export default {
         if (grip.id === 1 && canDose(1)) S.rock = 0.086 * Math.sin(S.clock * 12);
         if (!grip.next) dose(grip.id);
       }
-      if (S.flight) {
-        S.flight.time += dt;
-        if (S.flight.time >= 0.24) { const id = S.flight.id; S.flight = null; receive(id); }
+      const f = S.flight;
+      if (f) {
+        if (f.id === 0 && !f.parked && !aim(0)) f.duration = Math.min(f.duration, f.time);
+        f.time += dt;
+        if (f.id === 0) {
+          S.saltOut = Math.min(1, f.base + Math.min(f.time, f.duration) / POUR_TIME);
+          S.saltIn = Math.min(1, f.base + clamp(f.time - FALL_TIME, 0, f.duration) / POUR_TIME);
+          if (f.time >= f.duration + FALL_TIME) {
+            S.flight = null;
+            if (S.saltIn >= 1 - 1e-8) receive(0);
+            else if (f.parked) dose(0, true);
+          }
+        } else if (f.time >= FALL_TIME) { S.flight = null; receive(f.id); }
       }
-      if (S.wet && S.pos[3].y < WATER - 0.01 && S.nh >= ENDPOINT && S.aldehyde && S.growth < 1) {
+      if (S.wet && !S.earlyBath && S.pos[3].y < WATER - 0.01 && S.nh >= ENDPOINT && S.aldehyde && S.growth < 1) {
         S.growth = Math.min(1, S.growth + dt / (7 + Math.min(8, S.nh - ENDPOINT)));
         const phase = S.growth >= 0.92 ? 3 : S.growth >= 0.48 ? 2 : S.growth >= 0.19 ? 1 : 0;
         if (phase > S.observed) {
@@ -291,7 +355,7 @@ export default {
     }
     function reset() {
       if (bar.playing) bar.stop();
-      mic.close(); back(); bathFocus = false; S = fresh(); apply(); W.tbl.clear(); W.aldehydeRow = null; W.review.hidden = true;
+      drag.clearDropzones(); mic.close(); back(); bathFocus = false; S = fresh(); apply(); W.tbl.clear(); W.aldehydeRow = null; W.review.hidden = true;
       W.retry.hidden = true; W.ui.observePrediction(null); W.ui.relock(); bar.undo(...steps.map(s => s[0])); bar.say(null); say(INTRO);
     }
     const single = (id, name) => ({ name, drag: picks[id], to: tipTarget, wait: 0.96, scale: 1 });
@@ -304,7 +368,7 @@ export default {
       pathStep('振荡试管', SHAKE), pathStep('放入热水浴', SOAK),
       { name: '观察银镜', wait: 9, run() {} },
       { name: '核对本轮', run() { if (S.nh !== ENDPOINT || S.aldehyde !== 3 || !S.mixed || !bar.finished) throw Error('配制、振荡或银镜未完成'); } },
-      { name: '钻进管壁看', run: () => mic.open(), wait: 5, scale: 1 },
+      { name: '钻进试管里看', run: () => mic.open(), wait: 5, scale: 1 },
       { name: '回到桌上', run: () => mic.close(), wait: 2 },
     ]);
     const wrapped = wrapPointer(drag, bar);
@@ -330,6 +394,18 @@ export default {
           model.insertBefore(crops[2], model.children[1]); ui.el.querySelector('.answer .formula')?.remove();
         } else model.insertBefore(h('p', { class: 'fineprint' }, METHOD), model.children[1]);
         W.css = h('style', {}, `
+          .tag3d.silver-name { padding:2px 5px; border-radius:2px; background:#fffdf2ed; color:#32434a; font:500 13px/1.15 var(--sans); text-shadow:none }
+          body.predicting .tag3d.silver-name { visibility:visible!important }
+          @media (min-width:761px) and (max-width:1000px) and (max-height:540px) {
+            #panel[data-silvermirror] { width:36vw }
+            .lbar { left:calc(36vw + 26px); right:42px; bottom:5px; width:auto; transform:none }
+          }
+          @media (max-width:760px), (max-width:1000px) and (max-height:540px) {
+            .tag3d.silver-name {font-size:10px;max-width:60px;white-space:normal;text-align:center;padding:1px 2px}
+            .lbar { gap:5px; padding:4px 6px; font-size:13px; line-height:1.3 }
+            .lb-steps { gap:2px }
+            .lb-steps i { width:15px; height:15px; font-size:10px; line-height:14px }
+          }
           [data-silvermirror].silver-demo .p-body {visibility:hidden}
           [data-silvermirror] .big-next:disabled { display:none }
           [data-silvermirror] .formula { font-size:17px; line-height:1.55 }
@@ -356,10 +432,15 @@ export default {
         ui.observePrediction(null); bar.attach(ui);
       },
       update(dt) {
-        const k = bar.update(dt); if (k > 0) advance(Math.min(dt, 0.05) * k); apply();
+        const k = bar.update(dt);
+        if (k > 0) { drag.update(dt); advance(Math.min(dt, 0.05) * k); }
+        apply();
+        scaleButton.text(S.reading ? '回到实验台' : '看滴管刻度')
+          .loc(pipettes[0].g, S.reading ? 0.012 : 0, S.reading ? 0.050 : 0.078, 0)
+          .show(!S.demo && !S.salt && !S.grip && !S.returns[0] && !mic.isOpen);
         card.text(`<div class="cc"><div class="cc-t"><span class="cc-name">试管</span><span class="cc-res">${cardText()}</span></div></div>`)
-          .loc(group, S.pos[3].x + (S.wet ? 0.031 : 0), S.pos[3].y + LEN + (S.wet ? -0.009 : 0.019), 0)
-          .show(!S.demo && !mic.isOpen && !S.grip);
+          .loc(group, S.pos[3].x + (S.wet || S.flight?.id === 0 || S.returns[0] ? 0.031 : 0), S.pos[3].y + LEN + (S.wet ? -0.009 : 0.019), 0)
+          .show(!S.demo && !mic.isOpen && !S.grip && !S.reading);
         mic.update(dt, k);
         if (mic.isOpen && W) W.pause.textContent = scene.paused ? '继续' : '暂停';
       },

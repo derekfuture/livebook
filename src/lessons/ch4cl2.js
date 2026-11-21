@@ -1,7 +1,7 @@
 // 必修第二册，第 64–65 页，实验 7-1、图 7-8。
 import * as THREE from 'three';
 import { h } from '../ui/Panel.js';
-import { draggable, clamp } from './kit/interact.js';
+import { draggable, clamp, rayToLocal } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { demoActs, mountXuean, moreBox, paperSheet, qaFlow, sandbox, wrapPointer } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
@@ -11,9 +11,9 @@ const INTRO = '两支倒置的试管均已用排饱和 NaCl 溶液法收集半�
 const COVER = '拖动铝箔，贴到左边试管上，套住气体部分。';
 const MOVE = '拖住右边铁架台的底座，将整套装置放在光亮处，避开日光直射。';
 const WATCH = '让右管静置，看气体颜色、管壁和管内液面。';
-const REVEAL = '将铝箔从左管移开，露出整支试管，比较两管。';
+const REVEAL = '揭开左管的铝箔，放回左侧桌面，比较两支试管。';
 const LOST = '左管提前见光，本轮无法验证遮光对照。';
-const DIRECT = '装置进入了日光直射处。反应可能过于剧烈，本轮停止观察。请全部重来。';
+const DIRECT = '右管应放在光亮处，避开日光直射。本轮已中止。';
 const fine = text => h('p', { class: 'fineprint' }, text);
 
 export default {
@@ -41,9 +41,10 @@ export default {
     coverText.userData.noFrame = true;
     group.add(coverText);
     lightAreas(group);
-    const left = apparatus(group, LEFT, -1), right = apparatus(group, START, -1);
+    const left = apparatus(group, LEFT, '左试管'), right = apparatus(group, START, '右试管');
     const sheet = foilSheet(group);
     const cards = [tag('', 'cond'), tag('', 'cond')];
+    const sunlightNotice = tag('日光直射，已中止观察', 'pill callout').loc(right.rig, 0, 0.181, 0).show(false);
     const scene = substitutionScene();
     let W, cancelled = false;
     const fresh = () => ({ demo: false, near: false, covered: false, lit: false, lostControl: false, invalid: false,
@@ -54,7 +55,7 @@ export default {
     const done = id => { if (!S.demo) bar.done(id); };
     const log = (...row) => { if (!S.demo) W?.tbl.add(row); };
     function place() {
-      coverText.visible = !W || W.ui.step === 0;
+      coverText.visible = !S.finished;
       right.rig.position.fromArray(S.rig);
       sheet.foil.position.fromArray(S.foil);
       const alignment = clamp(1 - sheet.foil.position.distanceTo(WRAPPED) / 0.018, 0, 1);
@@ -91,8 +92,8 @@ export default {
       say(LOST);
     }
     function settle(key, target) {
-      const from = S[key].slice();
-      S.returning = { key, from, to: target.toArray(), t: 0 };
+      const from = S[key].slice(), to = target.toArray();
+      if (from.some((v, i) => v !== to[i])) S.returning = { key, from, to, t: 0 };
     }
     function start(key) {
       if (!available(key)) return;
@@ -105,39 +106,51 @@ export default {
       place();
       if (key === 'foil' && S.covered && S.lit && S.progress < 1 && foilIsAway()) loseControl();
     }
-    function releaseFoil(moved) {
-      const p = sheet.foil.position;
-      if (moved && !cancelled && !S.covered && p.distanceTo(WRAPPED) < 0.010) {
+    // 鼠标落在桌面的浅色区域时，用同一个落点把铝箔吸回原位，不受抓取高度影响。
+    let overDesk = false;
+    function checkDesk(ray) {
+      const p = S.grip === 'foil' && S.covered && ray && rayToLocal(ray, group, 'xz');
+      overDesk = !!p && p.x >= -0.16 && p.x <= -0.067 && p.z >= 0.024 && p.z <= 0.122;
+    }
+    const coverZone = { name: '左试管', position: WRAPPED, radius: 0.041, enabled: () => !overDesk };
+    const restZone = { name: '左侧桌面', position: LOOSE,
+      get radius() { return overDesk ? Infinity : 0.036; }, enabled: () => S.covered };
+    const lightZone = { name: '光亮处', position: V(LIGHT, 0), radius: 0.036, enabled: () => S.covered };
+    const sunZone = { name: '日光直射', position: V(SUN, 0), radius: 0.033 };
+    function releaseFoil(moved, zone) {
+      if (!cancelled && zone === coverZone && !S.covered) {
         S.covered = true;
         log('左管套上铝箔', appearance(S.leftProgress));
         done('cover'); say(S.lostControl ? LOST : MOVE);
-      } else if (moved && !cancelled && S.covered && foilIsAway()) {
+      } else if (!cancelled && zone === restZone) {
         S.covered = false;
         log('揭开铝箔当下', leftObservation());
         if (!S.lit) {
           if (!S.demo) bar.undo('cover');
           say(COVER);
         } else if (!S.lostControl && S.progress >= 1) finish();
-      } else if (moved && !cancelled) say(S.covered ? '铝箔还挡着气柱，再向旁边移一点。' : '铝箔还没套住左管，把它对准黄绿色的气柱。');
-      settle('foil', S.covered ? WRAPPED : LOOSE);
-    }
-    function releaseRig(moved) {
-      const x = S.rig[0];
-      if (moved && !cancelled && S.rig[1] < 0.008) {
-        if (Math.abs(x - SUN) < 0.027) {
-          S.invalid = true; S.rig = [x, 0, 0];
-          log('放在日光直射处', '中止观察'); say(DIRECT);
-          if (!S.demo) bar.say(DIRECT);
-          return;
-        }
-        if (S.covered && Math.abs(x - LIGHT) < 0.029) {
-          S.lit = true; S.rig = [x, 0, 0];
-          log('右管放在光亮处', '起初呈黄绿色');
-          done('light'); say(WATCH); return;
-        }
+      } else if (!zone) {
+        if (moved && !cancelled) say(S.lostControl ? LOST : bar.stepList.find(step => step.id === bar.current)?.todo);
+        settle('foil', S.covered ? WRAPPED : LOOSE);
       }
-      if (moved && !cancelled) say(S.covered ? '把底座放到光亮处的桌面上，再松手。' : '先用铝箔套住左管，留下遮光对照。');
-      settle('rig', V(START, 0));
+    }
+    function releaseRig(moved, zone) {
+      if (!cancelled && zone === sunZone) {
+        S.invalid = true;
+        log('放在日光直射处', '中止观察'); say(DIRECT);
+        if (!S.demo) {
+          W.retry.hidden = false;
+          W.ui.need(DIRECT);
+          bar.say(DIRECT);
+        }
+      } else if (!cancelled && zone === lightZone) {
+        S.lit = true;
+        log('右管放在光亮处', '起初呈黄绿色');
+        done('light'); say(WATCH);
+      } else {
+        if (moved && !cancelled) say(S.covered ? MOVE : COVER);
+        settle('rig', V(START, 0));
+      }
     }
     const available = key => !mic.isOpen && !S.invalid && !S.finished && (!S.returning || S.returning.key === key) && (key === 'foil' || !S.lit);
     const items = [
@@ -145,15 +158,16 @@ export default {
       ['rig', right.pick, right.rig, () => '拖动底座，把右管移到光亮处'],
     ].map(([key, obj, anchor, hint]) => ({
       obj, anchor, offset: key === 'foil' ? LOOSE.z : 0, keepOffset: true,
+      dropzones: key === 'foil' ? [coverZone, restZone] : [lightZone, sunZone],
       enabled: () => available(key), hint: () => available(key) ? hint() : '',
       onStart: () => start(key), onDrag: p => move(key, p),
-      onEnd(moved) {
+      onEnd(moved, zone) {
         if (S.grip !== key) return;
         S.grip = '';
-        if (key === 'foil') releaseFoil(moved); else releaseRig(moved);
+        if (key === 'foil') releaseFoil(moved, zone); else releaseRig(moved, zone);
       },
     }));
-    const drag = draggable(group, items, { tip: tag('', 'pill') });
+    const drag = draggable(group, items, { tip: tag('', 'pill ch4cl2-drag-tip') });
     const act = demoActs(drag, group);
     const safeTarget = target => !S.invalid && !S.lostControl && !S.grip && !mic.isOpen ? target : null;
     const sb = sandbox({ get: () => S, set: s => { S = s; }, fresh, apply: place });
@@ -168,8 +182,8 @@ export default {
       ],
       reels: { demo: {
         seal: '演示', label: '老师演示',
-        onStart() { savedMicro = mic.isOpen ? { ...scene.time } : null; sb.onStart(); mic.close(); W?.ui.el.classList.add('ch4cl2-demo'); },
-        onEnd() { W?.ui.el.classList.remove('ch4cl2-demo'); sb.onEnd(); if (savedMicro) { mic.open(); Object.assign(scene.time, savedMicro); savedMicro = null; } },
+        onStart() { drag.clearDropzones(); savedMicro = mic.isOpen ? { ...scene.time } : null; sb.onStart(); mic.close(); W?.ui.el.classList.add('ch4cl2-demo'); },
+        onEnd() { drag.clearDropzones(); W?.ui.el.classList.remove('ch4cl2-demo'); sb.onEnd(); if (savedMicro) { mic.open(); Object.assign(scene.time, savedMicro); savedMicro = null; } },
         shots: [
           { cap: COVER, dur: 3.2, during: act.drag(sheet.pick, WRAPPED, { from: LOOSE }) },
           { cap: MOVE, dur: 3.4, during: act.drag(right.pick, V(LIGHT, 0), { from: V(START, 0) }) },
@@ -179,17 +193,19 @@ export default {
         ],
       } },
     });
-    const mic = micro({ tag, look, back, group, scene, bar: () => bar, label: '钻进去看',
-      at: () => V(S.rig[0], 0.102), btnAt: () => V(S.rig[0], 0.018, 0.045),
+    const mic = micro({ tag, look, back, group, scene, bar: () => bar, label: '钻进右试管里看',
+      at: () => V(S.rig[0], 0.102), btnAt: () => V(S.rig[0], 0.145, 0.013),
       lookD: [0.05, 0.29, 1], dist: 0.245, scale: 0.0105,
-      show: () => S.lit && !S.invalid && !S.grip, state: () => ({}) });
+      show: () => S.lit && !S.invalid && !S.grip, state: () => ({ progress: S.progress }) });
     const mw = Array.from(document.querySelectorAll('.mw')).pop();
     mw.classList.add('ch4cl2-micro');
     const pause = h('button', { onclick: () => { scene.time.paused = !scene.time.paused; } }, '暂停');
     const replay = h('button', { onclick: () => { scene.time.t = 0; scene.time.paused = false; } }, '从头看');
     mw.querySelector('.mw-hud').append(h('div', { class: 'ch4cl2-play' }, pause, replay));
-    mw.querySelector('.mw-scale').textContent = '总反应的原子去向';
+    mw.querySelector('.mw-scale').textContent = '总反应中原子的去向（示意）';
     const css = h('style', {}, `
+      body.predicting .tag3d.pill.ch4cl2-drag-tip{visibility:visible!important}
+      .ch4cl2-drag-tip:empty{display:none}
       #panel.ch4cl2-demo{bottom:auto;height:auto}
       .ch4cl2-demo .p-tabs,.ch4cl2-demo .p-body{display:none}
       .ch4cl2-micro .mw-cap{font-size:15px}
@@ -209,18 +225,22 @@ export default {
     `);
     document.head.append(css);
     const wrapped = wrapPointer(drag, bar);
-    const pointer = { ...wrapped, up(ray, e) {
-      cancelled = e?.type === 'pointercancel';
-      try { return wrapped.up(ray, e); } finally { cancelled = false; }
-    } };
+    const pointer = { ...wrapped,
+      move(ray, e) { checkDesk(ray); return wrapped.move(ray, e); },
+      up(ray, e) {
+        checkDesk(ray);
+        cancelled = e?.type === 'pointercancel';
+        try { return wrapped.up(ray, e); } finally { cancelled = false; overDesk = false; }
+      },
+    };
     function reset() {
       if (bar.playing) bar.stop();
-      mic.close(); S = fresh(); place();
+      drag.clearDropzones(); mic.close(); S = fresh(); place();
       W.tbl.clear(); W.review.hidden = W.retry.hidden = true; W.ui.observePrediction(null); W.ui.relock();
       bar.undo('cover', 'light', 'watch', 'compare'); bar.say(null); say(INTRO);
     }
     function observe(dt) {
-      if (S.invalid || !S.lit || !mw.hidden) return;
+      if (S.invalid || !S.lit || (mic.isOpen && scene.time.paused)) return;
       const exposed = !S.covered || (S.grip === 'foil' && foilIsAway());
       if (S.lostControl && exposed) S.leftProgress = Math.min(1, S.leftProgress + dt / 11);
       if (S.progress >= 1) return;
@@ -237,7 +257,7 @@ export default {
     }
     function card(tag, name, value, x) {
       tag.text(`<div class="cc"><div class="cc-t"><span class="cc-name">${name}</span><span class="cc-res">${value}</span></div></div>`)
-        .loc(group, x, 0.165, 0).show(!bar.playing && !mic.isOpen && !S.grip);
+        .loc(group, x, 0.182, 0).show(!bar.playing && !mic.isOpen && !S.grip);
     }
     const qa = qaFlow(drag, [
       { name: '铝箔套住左管', drag: sheet.pick, to: WRAPPED },
@@ -247,11 +267,15 @@ export default {
       { name: '钻进去看', run() { if (!S.finished || !bar.finished) throw Error('观察完成后结论仍未解锁'); mic.open(); }, wait: 2, scale: 1 },
       { name: '回到桌上', run: () => mic.close(), wait: 2 },
     ]);
+    // 真鼠标直接落在桌面上。吸附后不可再按铝箔与鼠标间的距离修正鼠标位置。
+    const compareMouse = qa[3].mouse;
+    compareMouse.to = () => V(-0.113, 0, 0.075);
+    compareMouse.anchor = () => null;
     return {
       group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.36, d: 0.15, h: 0.19 }, view: { elev: 17, azim: 1, lookY: 0.48, frameMargin: 1.06 },
       mount(ui) {
-        const retry = h('button', { class: 'go', hidden: true, onclick: reset }, '重做遮光对照');
+        const retry = h('button', { class: 'go', hidden: true, onclick: reset }, '全部重来');
         const review = h('details', { class: 'more', hidden: true }, h('summary', {}, '想一想（选做）'),
           fine('管壁上的油滴会是一氯甲烷吗？结合第 64–65 页给出的沸点想一想。'));
         const model = h('details', { class: 'more' }, h('summary', {}, '模型、近似和出处'),
@@ -264,6 +288,7 @@ export default {
       reset,
       update(dt) {
         const k = bar.update(dt), d = dt * k;
+        drag.update(d);
         const r = S.returning;
         if (r) {
           r.t += Math.min(dt, 0.06) * (k > 0 ? 1 : 0);
@@ -273,7 +298,10 @@ export default {
         }
         observe(d); place();
         card(cards[0], '左管', S.covered ? '已遮光' : appearance(S.leftProgress), LEFT);
-        card(cards[1], '右管', S.invalid ? '已中止' : appearance(S.progress), S.rig[0]);
+        if (S.invalid) cards[1].show(false);
+        else card(cards[1], '右管', appearance(S.progress), S.rig[0]);
+        sunlightNotice.show(S.invalid && !bar.playing);
+        left.labels.visible = right.labels.visible = sheet.label.visible = !mic.isOpen;
         mic.update(dt, k);
         pause.textContent = scene.time.paused ? '继续' : '暂停';
         pause.hidden = scene.time.t >= MICRO_END;
