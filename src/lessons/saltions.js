@@ -4,7 +4,7 @@ import { clamp, draggable, rayToLocal } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { demoActs, mountXuean, moreBox, paperSheet, qaFlow, think, wrapPointer } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
-import { bench, ionScene, V, WATER_LEVEL, CUP, R, H, PAN, FILTER, RECEIVER, DISH, DY, MAT, STRIP, NAMES, PH_COLORS } from './kit/saltions-parts.js';
+import { bench, ionScene, V, WATER_LEVEL, CUP, R, H, PAN, PAN_Z, FILTER, RECEIVER, DISH, DY, MAT, MAT_Z, STRIP, STRIP_Z, NAMES, PH_COLORS } from './kit/saltions-parts.js';
 
 const INTRO = '用药匙把粗盐放到已去皮的天平上称量。';
 const GROUPS = [
@@ -24,10 +24,19 @@ const wall = () => mouth(CUP + R - 0.003);
 const capOff = V(DISH - 0.048, 0.015 * 0.75, 0.053);
 const wick = V(DISH, 0.016 + 0.072 * 0.75);
 const wet = (x, y) => V(x, y, 0.012);
+// Rod axis through the paper contact and just above the glass lip (shaft radius 1.65 mm).
+const guideTip = V(FILTER - 0.009, 0.10543, 0);
+const guideRim = V(FILTER + 0.032, 0.12993, 0);
+const guideSpout = guideTip.clone().lerp(guideRim, 1.30);
+const grip = V(DISH + 0.031, DY + 0.019, 0.013);
+const onMat = V(MAT + 0.031, 0.022, MAT_Z + 0.013);
+const carryHeight = grip.y + 0.022;
+const lifted = grip.clone().setY(carryHeight);
+const aboveMat = onMat.clone().setY(carryHeight);
 const phases = {
-  weigh: [0, 'spoon', '用药匙把粗盐移到称量纸上，观察天平示数，称取 5.0 g。', V(PAN, 0.029, 0.011)],
+  weigh: [0, 'spoon', '用药匙把粗盐移到称量纸上，观察天平示数，称取 5.0 g。', V(PAN, 0.029, PAN_Z + 0.011)],
   salt: [0, 'paper', '看天平示数，再提起称量纸，把粗盐倒进烧杯。', mouth(CUP)],
-  water: [0, 'water', '平视量筒，凹液面最低点对应多少毫升？读数后，将水倒入 100 mL 烧杯。', mouth(CUP)],
+  water: [0, 'water', '平视量筒，凹液面最低点对应多少毫升？读数后，将水倒入 100 mL 烧杯。', V(CUP, H + 0.044)],
   insert: [0, 'rod', '把玻璃棒下端伸进烧杯的水里。', wet(CUP - 0.012, 0.01)],
   mix: [0, 'rod', '在杯底左右移动玻璃棒，搅拌至盐粒溶解。', wet(CUP + 0.012, 0.01)],
   ba: [1, 'ba', '把 BaCl₂ 滴管提到杯口中央，滴加 2～3 mL 后静置。', mouth(CUP)],
@@ -36,20 +45,20 @@ const phases = {
   co: [3, 'co', '把 Na₂CO₃ 滴管移到杯口，滴加 2～3 mL 饱和溶液。', mouth(CUP)],
   ohTest: [4, 'oh', '静置后，提起 NaOH 滴管，沿杯壁检验上层清液。', wall()],
   coTest: [4, 'co', '再用 Na₂CO₃ 滴管沿杯壁检验上层清液。', wall()],
-  guide: [5, 'rod', '把玻璃棒下端斜靠在漏斗的三层滤纸一侧。', wet(FILTER + 0.012, 0.114)],
-  filter: [5, 'cup', '提起粗盐水烧杯，让杯嘴靠在玻璃棒上，沿棒过滤。', wet(FILTER + 0.023, 0.147)],
+  guide: [5, 'rod', '把玻璃棒下端斜靠在漏斗的三层滤纸一侧。', guideTip],
+  filter: [5, 'cup', '按住粗盐水烧杯，让杯嘴靠在玻璃棒上，沿棒倾倒。松手可暂停。', guideSpout],
   acid: [6, 'acid', '把盐酸滴管移到滤液上方，逐滴加入盐酸。', V(RECEIVER, 0.076)],
   acidRod: [6, 'rod', '把玻璃棒伸进接滤液的烧杯。', wet(RECEIVER - 0.012, 0.027)],
   acidMix: [6, 'rod', '在滤液中左右移动玻璃棒，观察气泡。', wet(RECEIVER + 0.012, 0.027)],
   sample: [6, 'rod', '用玻璃棒蘸取滤液，检验酸碱性。', wet(RECEIVER, 0.026)],
-  ph: [6, 'rod', '将棒端的滤液点在右侧 pH 试纸上，观察颜色。', wet(STRIP - 0.006, 0.0035)],
+  ph: [6, 'rod', '将棒端的滤液点在右侧 pH 试纸上，观察颜色。', V(STRIP - 0.006, 0.0035, STRIP_Z)],
   pour: [7, 'filtrate', '提起滤液烧杯，把杯嘴移到蒸发皿上方，倒入滤液。', V(DISH, DY + 0.026)],
   light: [7, 'cap', '点燃蒸发皿下的酒精灯。'],
   heatRod: [7, 'rod', '把玻璃棒下端伸进蒸发皿。', wet(DISH - 0.012, DY + 0.012)],
   heatMix: [7, 'rod', '在皿中来回搅拌。看到较多固体时，用灯帽盖灭酒精灯。', wet(DISH + 0.012, DY + 0.012)],
   stop: [7, 'cap', '皿中已出现较多固体，把灯帽移到灯芯上盖灭酒精灯，利用余热蒸干。', wick],
-  grip: [8, 'tongs', '待余热蒸干后，将坩埚钳的钳口移到蒸发皿右缘。', V(DISH + 0.031, DY + 0.019, 0.013)],
-  cool: [8, 'tongs', '用坩埚钳将蒸发皿轻放在左侧陶土网上冷却。', V(MAT + 0.031, 0.025, 0.013)],
+  grip: [8, 'tongs', '待余热蒸干，拖动坩埚钳夹住蒸发皿右缘，保持按住。', grip],
+  cool: [8, 'tongs', '先向上提起蒸发皿，再移到左前方的陶土网上，轻放后松手。', onMat],
 };
 const STOP_AT = 0.62;
 const waterCheck = '凹液面最低点在 20 mL 刻度，与教材用量相符。';
@@ -86,13 +95,12 @@ export default {
     const root = new THREE.Group(),
       group = new THREE.Group();
     root.add(group);
-    paperSheet(group, { w: 0.44, d: 0.235, z: 0.01 });
+    paperSheet(group, { w: 0.49, d: 0.34, z: 0.01 });
     const B = bench(group),
       T = B.tools;
     T.cap = { g: B.capper.cap, pick: B.capper.cap, home: capOff };
     B.capper.cap.name = '灯帽';
-    T.rod.home.set(0.079, 0.003, 0.012);
-    T.cup.home.z = T.rod.home.z;
+    T.cup.home.z = 0.012;
     T.filtrate.g.userData.ringY = 0.031;
     T.lamp.g.userData.ringY = 0.039;
     const fresh = () => ({
@@ -140,6 +148,8 @@ export default {
       evaporation: 0,
       cooling: 0,
       gripped: false,
+      lifted: false,
+      carryReturn: null,
       landed: false,
     });
     let S = fresh(),
@@ -166,7 +176,7 @@ export default {
     let reading = false;
     function readScale() {
       reading = true;
-      look([0.112, T.water.home.y - B.cylinder.h + WATER_LEVEL, 0], [0, 0, 1], 0.093, () => { reading = false; });
+      look([T.water.home.x + B.cylinder.position.x, T.water.home.y - B.cylinder.h + WATER_LEVEL, T.water.home.z], [0, 0, 1], 0.093, () => { reading = false; });
     }
     function closeScale() {
       reading = false;
@@ -188,7 +198,7 @@ export default {
       nameplate(B.cylinder, 0, 0.001, 0.020, () => level('water') ? '量筒 · 蒸馏水' : '量筒'),
       nameplate(B.bowl, 0, 0.014, R + 0.001, () => S.transferred === 1 ? '烧杯' : S.mixed ? '烧杯 · 粗盐水' : S.salted || progress('paper') ? '烧杯 · 粗盐' : '烧杯'),
       nameplate(T.rod.g, -0.006, 0.048, 0.009, '玻璃棒'),
-      ...Object.entries(NAMES).map(([id, name]) => nameplate(T[id].g, 0, 0.068, 0, '<span class="saltions-dropper">胶头滴管</span><span class="saltions-sep"> · </span>' + name)),
+      ...Object.entries(NAMES).map(([id, name]) => nameplate(T[id].g, 0, 0.077, 0, '<span class="saltions-dropper">胶头滴管</span><span class="saltions-sep"> · </span>' + name)),
       nameplate(B.funnel, 0, 0.016, 0.024, () => S.transferred ? '漏斗 · 滤纸和滤渣' : '漏斗 · 滤纸'),
       nameplate(B.fs, 0.004, 0.010, 0.037, '铁架台'),
       nameplate(B.receiver, 0, 0.01, R + 0.001, () => level('filtrate') ? '烧杯 · 滤液' : '接滤液烧杯'),
@@ -240,6 +250,9 @@ export default {
       .lbar[data-saltions].film .lb-n{display:none}
       body.predicting .tag3d.saltions-name{visibility:visible!important}
       .tag3d.saltions-name{border-radius:2px;background:#fffbf1ed;padding:2px 5px;color:#3f4949;font:500 clamp(10px,.92vw,14px)/1.15 var(--sans);text-shadow:none}
+      .saltions-dropper{display:block;text-align:center}
+      .saltions-sep{display:none}
+      .tag3d.saltions-name{text-align:center}
       .saltions-playback{display:flex;gap:8px;justify-content:center;margin-top:8px;pointer-events:auto}
       .saltions-playback button{display:inline-block;background:#fffaf1;color:#384952;border:1px solid #aca9a1;border-radius:5px;padding:2px 9px}
       @media(max-width:760px){
@@ -250,8 +263,6 @@ export default {
         .lbar[data-saltions].do .lb-steps i.done{font-size:0}
         .lbar[data-saltions].do .lb-steps i.done::after{line-height:13px}
         .tag3d.saltions-name{text-align:center;padding:1px 2px}
-        .saltions-dropper{display:block}
-        .saltions-sep{display:none}
       }
       @media(max-width:760px){.lbar[data-saltions].film{bottom:max(12px,env(safe-area-inset-bottom))}.saltions-micro .mw-hud{left:10px!important;width:calc(100% - 20px)!important;top:52vh!important;background:#fffcf4;padding:8px;box-sizing:border-box}}
     `,
@@ -291,7 +302,7 @@ export default {
       S.returns[id] = { from: S.pos[id].clone(), to: to.clone(), t: 0 };
     }
     function enable(id) {
-      if (S.phase === 'end' || mic.isOpen || S.effect || reading) return false;
+      if (S.carryReturn || S.phase === 'end' || mic.isOpen || S.effect || reading) return false;
       if (S.retry) return id === 'cap' && S.lit;
       if (phases[S.phase][1] === id) return true;
       if (id === 'acid' && inside('guide', 'filter')) return S.transferred === 0;
@@ -467,13 +478,20 @@ export default {
       go('acidRod');
     }
     const close = (p, q, dx, dy) => Math.abs(p.x - q.x) <= dx && Math.abs(p.y - q.y) <= dy && Math.abs(p.z - q.z) < 0.022;
-    const rodSlope = Math.tan(0.31);
+    const guideSlope = (guideRim.x - guideTip.x) / (guideRim.y - guideTip.y);
+    // Two points set the supported angle: the tip on the bottom and the shaft against the rim.
+    const rests = {
+      cup: { tip: wet(CUP - 0.012, 0.003), rim: wet(CUP + 0.0235, H + 0.001) },
+      filtrate: { tip: wet(RECEIVER - 0.012, 0.019), rim: wet(RECEIVER + 0.020, 0.071) },
+      dish: { tip: wet(DISH - 0.018, DY + 0.011), rim: wet(DISH + 0.028, DY + 0.021) },
+      guide: { tip: guideTip, rim: guideRim },
+    };
     function onGuide(p) {
-      if (!S.rodDock) return false;
-      const height = p.y - S.rodDock.y;
-      return height > 0.019 && height < 0.065 &&
-        Math.abs(p.x - S.rodDock.x - height * rodSlope) < 0.004 &&
-        Math.abs(p.z - S.rodDock.z) < 0.004;
+      if (S.rodDock !== rests.guide) return false;
+      const height = p.y - guideTip.y;
+      return height > 0.023 && height < 0.040 &&
+        Math.abs(p.x - guideTip.x - height * guideSlope) < 0.004 &&
+        Math.abs(p.z - guideTip.z) < 0.004;
     }
     function finishDrag(id, p) {
       if (!enable(id)) return false;
@@ -484,11 +502,10 @@ export default {
         target = spec[3];
       if (id === 'rod' && phase === 'acid' && close(p, phases.sample[3], 0.017, 0.01)) {
         S.sampled = true;
-        S.rodDock = p.clone();
+        S.rodDock = rests.filtrate;
         go('ph');
         return true;
       }
-      if (phase === 'filter') { S.filterDocked = onGuide(p); return S.filterDocked; }
       if (id !== spec[1] || !target) return false;
       const stir = ['mix', 'acidMix', 'heatMix'].includes(phase);
       const cx = phase === 'mix' ? CUP : phase === 'acidMix' ? RECEIVER : DISH;
@@ -515,18 +532,18 @@ export default {
         case 'insert':
         case 'acidRod':
         case 'heatRod':
-          S.rodDock = p.clone();
+          S.rodDock = phase === 'insert' ? rests.cup : phase === 'acidRod' ? rests.filtrate : rests.dish;
           if (phase === 'heatRod') S.stirSide = Math.sign(p.x - DISH);
           S.stir = 0;
           go(keys[idx(phase) + 1]);
           break;
         case 'heatMix':
-          S.rodDock = p.clone();
+          S.rodDock = rests.dish;
           break;
         case 'mix':
         case 'acidMix':
           if (S.stir < 0.017) {
-            S.rodDock = p.clone();
+            S.rodDock = phase === 'mix' ? rests.cup : rests.filtrate;
             status('让棒端留在液体里，左右拖动一段距离。');
             break;
           }
@@ -538,12 +555,12 @@ export default {
           if (phase === 'acidMix') go('sample');
           break;
         case 'guide':
-          S.rodDock = p.clone();
+          S.rodDock = rests.guide;
           go('filter');
           break;
         case 'sample':
           S.sampled = true;
-          S.rodDock = p.clone();
+          S.rodDock = rests.filtrate;
           go('ph');
           break;
         case 'ph':
@@ -573,20 +590,6 @@ export default {
           break;
         case 'pour':
           transfer(id, p);
-          break;
-        case 'grip':
-          if (S.evaporation < 0.999) {
-            status('皿中还有少量水，等余热蒸干再夹持。');
-            break;
-          }
-          S.gripped = true;
-          S.gripOffset = V(DISH, DY).sub(p);
-          go('cool');
-          break;
-        case 'cool':
-          S.landed = true;
-          S.gripped = false;
-          S.cooling = 0.65;
           break;
       }
       return true;
@@ -633,11 +636,14 @@ export default {
     const retryButton = h('button', { class: 'go', hidden: true, onclick: retryStep }, '重做本步');
     let cancelled = false, pointerRay = null,
       heldPoint = null;
-    const grabOffset = V(), tipOffset = V();
+    const grabOffset = V(), tipOffset = V(), grabStart = V();
     const stirring = () => ['mix', 'acidMix', 'heatMix'].includes(S.phase);
     const pourGoals = { water: 'water', cup: 'filter', paper: 'salt', filtrate: 'pour' };
-    function rodAngle(u) {
-      T.rod.g.rotation.set(0, -0.85 * (1 - u), (-Math.PI / 2) * (1 - u) - 0.31 * u, 'YXZ');
+    function rodAngle(u, p) {
+      const rest = S.rodDock;
+      const contact = rest ? clamp(1 - p.distanceTo(rest.tip) / 0.018, 0, 1) : 0;
+      const lean = rest ? Math.atan2(rest.rim.x - rest.tip.x, rest.rim.y - rest.tip.y) : 0.31;
+      T.rod.g.rotation.set(0, -0.85 * (1 - u), (-Math.PI / 2) * (1 - u) - u * (0.31 + contact * (lean - 0.31)), 'YXZ');
     }
     function progress(id) {
       return S.effect?.id === id ? Math.min(1, S.effect.t / S.effect.dur) : 0;
@@ -652,11 +658,12 @@ export default {
       const { g, home } = T[id];
       if (id === 'rod') {
         const u = clamp(p.distanceTo(home) / 0.034, 0, 1);
-        rodAngle(u);
+        rodAngle(u, p);
       } else if (pourGoals[id]) {
         const goal = phases[pourGoals[id]][3];
         const u = clamp(((p.x - home.x) / (goal.x - home.x)) * 1.65, 0, 1);
-        const near = clamp(1 - p.distanceTo(goal) / 0.035, 0, 1);
+        const near = id === 'water' ? clamp(1 - Math.hypot(p.x - goal.x, p.z - goal.z) / 0.055, 0, 1)
+          : clamp(1 - p.distanceTo(goal) / 0.035, 0, 1);
         const angle = id === 'paper' ? -0.9 : B.liquid[id].angle(level(id));
         g.rotation.z = angle * u * near;
       }
@@ -670,21 +677,34 @@ export default {
       const raw = rayToLocal(ray, group, 'xy', getZ(id));
       if (!raw) return;
       raw.add(grabOffset);
-      pose(id, raw);
+      const goal = id === 'cup' ? guideSpout : id === 'cap' ? wick : id === 'acid' && !S.filtered ? mouth(CUP)
+        : id === 'rod' && S.phase === 'acid' ? phases.sample[3] : phases[S.phase][3];
+      // Blend depths along the pointer ray as the grasp moves from its row to the working vessel.
       const tipUnderHand = () => {
         const offset = heldPoint.clone().multiply(T[id].g.scale).applyQuaternion(T[id].g.quaternion);
-        return rayToLocal(ray, group, 'xy', getZ(id) + offset.z)?.sub(offset);
+        const atDepth = z => rayToLocal(ray, group, 'xy', z + offset.z).sub(offset);
+        if (id === 'tongs' && S.gripped) {
+          // Intersect the pointer ray with the vertical plane joining ring and mat.
+          const from = atDepth(grip.z), to = atDepth(onMat.z);
+          const span = onMat.x - grip.x - (to.x - from.x);
+          return from.lerp(to, clamp((from.x - grip.x) / (span || 1), 0, 1));
+        }
+        const from = atDepth(grabStart.z), to = atDepth(goal.z);
+        const moved = from.distanceTo(grabStart), left = to.distanceTo(goal);
+        return from.lerp(to, clamp(1.35 * moved / (moved + left || 1), 0, 1));
       };
+      const aim = tipUnderHand();
+      pose(id, aim);
       let tip = tipUnderHand();
       if (id === 'rod' && tip && tip.y < 0.002) {
-        let low = 0, high = clamp(raw.distanceTo(T[id].home) / 0.034, 0, 1);
+        let low = 0, high = clamp(aim.distanceTo(T[id].home) / 0.034, 0, 1);
         for (let i = 0; i < 8; i++) {
           const mid = (low + high) / 2;
-          rodAngle(mid);
+          rodAngle(mid, aim);
           if (tipUnderHand().y >= 0.002) low = mid;
           else high = mid;
         }
-        rodAngle(low);
+        rodAngle(low, aim);
         tip = tipUnderHand();
       }
       if (tip) tipOffset.subVectors(tip, raw);
@@ -693,6 +713,7 @@ export default {
       const zone = (name, position, enabled, radius = 0.026) => ({
         name, position, enabled, radius, onDrop: (point) => finishDrag(id, point),
       });
+      if (id === 'tongs' || id === 'cup' || id === 'water') return [];
       if (id === 'cap') return [zone('灯芯', wick, () => S.lit)];
       if (NAMES[id]) return [
         zone('粗盐水烧杯中央', mouth(CUP), () => inside('ba', 'filter') && !testingClearLiquid()),
@@ -721,6 +742,7 @@ export default {
         onStart() {
           if (!enable(id)) return;
           S.hand = id;
+          grabStart.copy(S.pos[id]);
           tipOffset.set(0, 0, 0);
           if (id === 'cup') S.filterDocked = false;
           if (pointerRay) grabOffset.subVectors(S.pos[id], rayToLocal(pointerRay, group, 'xy', getZ(id)));
@@ -733,13 +755,39 @@ export default {
           if (!p || S.hand !== id || (id === 'cap' && !S.lit)) return;
           const old = S.pos[id],
             q = p.clone().add(tipOffset);
-          q.x = clamp(q.x, -0.152, 0.151);
+          q.x = clamp(q.x, -0.21, 0.215);
           q.y = clamp(q.y, 0.002, 0.178);
-          q.z = id === 'cap' ? capOff.z * clamp(Math.hypot(q.x - wick.x, q.y - wick.y) / 0.068, 0, 1) : getZ(id);
           if (!heldPoint || id !== 'rod') pose(id, q);
           if (B.liquid[id]) {
             const cup = T[id].model, angle = T[id].g.rotation.z;
             q.y = Math.max(q.y, cup.h * Math.cos(angle) - 0.003 * Math.sin(angle) + 0.001);
+            if (id === 'water') {
+              // Clear the receiving beaker even when the pointer takes a straight path.
+              const approach = clamp((0.069 - Math.abs(q.z - T.cup.home.z)) / 0.023, 0, 1);
+              if (Math.abs(q.x - CUP) < 0.061) {
+                q.y = Math.max(q.y, cup.h * Math.cos(angle) + 0.005 * Math.sin(angle) + (H + 0.004) * approach);
+              }
+            }
+          }
+          if (id === 'cup') S.filterDocked = S.phase === 'filter' && onGuide(q);
+          if (id === 'tongs') {
+            if (!S.gripped && close(q, grip, 0.008, 0.006) && Math.abs(q.z - grip.z) < 0.009) {
+              if (S.evaporation < 0.999) status('皿中还有少量水，等余热蒸干再夹持。');
+              else {
+                q.copy(grip);
+                S.gripped = true;
+                S.lifted = false;
+                go('cool');
+              }
+            }
+            if (S.gripped) {
+              if (q.y >= carryHeight - 0.002) S.lifted = true;
+              const travel = S.lifted ? clamp((q.x - grip.x) / (onMat.x - grip.x), 0, 1) : 0;
+              q.x = grip.x + travel * (onMat.x - grip.x);
+              q.z = grip.z + travel * (onMat.z - grip.z);
+              const floor = !S.lifted ? grip.y : travel < 0.96 ? carryHeight : onMat.y;
+              q.y = Math.max(q.y, floor);
+            }
           }
           if (id === 'rod' && ['mix', 'acidMix', 'heatMix'].includes(S.phase)) {
             const x = S.phase === 'mix' ? CUP : S.phase === 'acidMix' ? RECEIVER : DISH,
@@ -761,18 +809,28 @@ export default {
         onEnd(moved, zone) {
           if (S.hand !== id) return;
           const p = S.pos[id];
-          if (moved && !zone && !cancelled && stirring() && id === 'rod') finishDrag(id, p);
+          if (moved && !zone && !cancelled && (id === 'water' || (stirring() && id === 'rod'))) finishDrag(id, p);
           S.hand = '';
           heldPoint = null;
           tipOffset.set(0, 0, 0);
           if (S.effect?.id === id || (id === 'cap' && (!S.lit || !moved))) return;
           if (id === 'rod' && S.rodDock) {
-            if (p.distanceTo(S.rodDock) > 0.0002) returning(id, S.rodDock);
+            returning(id, S.rodDock.tip);
             return;
           }
-          if (id === 'cup' && S.filterDocked) return;
-          if (id === 'tongs' && S.gripped) returning(id, phases.grip[3]);
-          else returning(id);
+          if (id === 'cup') S.filterDocked = false;
+          if (id === 'tongs' && S.gripped) {
+            if (!cancelled && p.distanceTo(onMat) < 0.009) {
+              S.landed = true;
+              S.gripped = false;
+              S.cooling = 0.65;
+            } else {
+              // Retrace the carry above the ring before setting the dish back.
+              S.carryReturn = S.lifted ? [p.clone().setY(Math.max(carryHeight, p.y)), lifted, grip] : [grip];
+              return;
+            }
+          }
+          returning(id);
         },
       }));
     const drag = draggable(group, drags, {
@@ -786,9 +844,10 @@ export default {
       const [, id, todo, to] = phases[p],
         tool = T[id];
       const from = () => S.pos[id].clone();
-      const docked = (id === 'tongs' && p === 'cool') || (id === 'rod' && ['mix', 'heatMix', 'acidMix'].includes(p));
+      const docked = id === 'rod' && ['mix', 'heatMix', 'acidMix'].includes(p);
       const points = p === 'heatMix'
         ? [from, to, phases.heatRod[3], to, phases.heatRod[3], to, phases.heatRod[3], to]
+        : p === 'cool' ? [grip, [lifted, 0.04], aboveMat, onMat]
         : docked
           ? [from, to]
           : [from, () => from().setY(Math.max(from().y, to.y) + 0.015), () => to.clone().add(V(0, 0.016)), to];
@@ -798,7 +857,10 @@ export default {
         cap: todo,
         speed: p === 'ba' || p === 'co' ? 1.8 : p === 'filter' ? 1.65 : 1,
         dur: duration[p] || (pouring ? 1.9 : NAMES[id] ? 1.55 : 1.0),
-        during: p === 'light' ? act.tap(tool.pick, 0.3) : act.path(tool.pick, points, { t0: 0.06, t1: release - 0.04, release }),
+        during: p === 'light' ? act.tap(tool.pick, 0.3) : act.path(tool.pick, points, {
+          start: p !== 'cool', t0: 0.06, t1: p === 'filter' ? 0.30 : release - 0.04,
+          release: p === 'grip' ? 2 : p === 'filter' ? 0.88 : release,
+        }),
       };
     });
     shots.splice(keys.indexOf('guide'), 0, {
@@ -868,8 +930,25 @@ export default {
     const demoBar = document.querySelector('.lbar');
     demoBar.dataset.saltions = '';
     demoBar.querySelector('.lb-steps').dataset.total = shots.length;
+    const heldTool = (id) => drag.items().find(item => item.obj === T[id].pick);
     const qaSteps = route.map((p) => {
       const [, id, , to] = phases[p];
+      if (p === 'filter' || p === 'grip') return {
+        name: phases[p][2], wait: p === 'filter' ? 2.5 : 0.2,
+        run() {
+          const tool = heldTool(id);
+          tool.onStart(S.pos[id]);
+          tool.onDrag(to.clone());
+        },
+      };
+      if (p === 'cool') return {
+        name: phases[p][2], wait: 1,
+        run() {
+          const tongs = heldTool(id);
+          for (const point of [lifted, aboveMat, onMat]) tongs.onDrag(point.clone());
+          tongs.onEnd(true);
+        },
+      };
       return {
         name: p === 'baTest' ? '沿壁检验硫酸根' : phases[p][2],
         ...(to ? { drag: T[id].pick, to: () => to } : { tap: T[id].pick }),
@@ -886,6 +965,8 @@ export default {
       { name: '钻进去看', run: () => mic.open(), wait: 3 },
       { name: '回到桌上', run: () => mic.close(), wait: 2 },
     );
+    const filterStep = qaSteps.findIndex(step => step.name === phases.filter[2]);
+    qaSteps.splice(filterStep + 1, 0, { name: '放回粗盐水烧杯', release: T.cup.pick });
     qaSteps.push({
       name: '核对精盐与结论',
       run: () => {
@@ -904,12 +985,11 @@ export default {
         r.t += dt;
         const u = clamp(r.t / 0.43, 0, 1);
         S.pos[id].lerpVectors(r.from, r.to, u * u * (3 - 2 * u));
+        if (id === 'water') S.pos.water.y += 0.070 * Math.sin(Math.PI * u);
         if (u === 1) delete S.returns[id];
       }
       retryButton.hidden = !S.retry || S.lit || S.demo;
-      const prep = inside('weigh', 'mix'),
-        acidifying = inside('acid', 'pour');
-      B.balance.visible = prep;
+      const prep = inside('weigh', 'mix');
       const paperPour = progress('paper'), spoonPour = progress('spoon');
       const onPan = S.pos.paper.distanceTo(T.paper.home) < 0.002;
       B.readout(onPan && !S.salted ? 5 * (S.weighed ? 1 : spoonPour) : 0);
@@ -930,7 +1010,6 @@ export default {
       }
       B.sample.visible = spoonPour > 0 || S.weighed && !S.salted;
       B.spoon.heap.visible = !S.weighed;
-      B.fs.visible = B.funnel.visible = inside('guide', 'pour');
       // Lift the stem clear before swinging the filter aside. Keep the residue in view.
       const lift = clamp(S.filterClear * 2, 0, 1);
       const turn = clamp((S.filterClear - 0.5) * 2, 0, 1) * 1.36;
@@ -941,32 +1020,13 @@ export default {
       B.draining.position.set(FILTER, 0.063 - ((S.collected * 8) % 1) * (0.042 - 0.023 * S.collected), 0);
       B.residue.visible = S.transferred > 0;
       B.residue.scale.setScalar(Math.sqrt(S.transferred));
-      B.heater.visible = stage() >= idx('pour') || S.landed;
-      B.mat.visible = stage() >= idx('grip') || S.landed;
       T.rod.g.userData.ringY = S.phase === 'heatRod' && !S.hand ? 0.019 : undefined;
-      B.strip.visible = acidifying;
       B.stain.visible = !!S.stained;
       B.stain.material.color.setHex(PH_COLORS[S.stained] || PH_COLORS['碱性']);
       for (const [id, t] of Object.entries(T)) {
         const o = t.g,
           p = S.pos[id];
         o.position.copy(p);
-        if (NAMES[id]) {
-          const active = id === 'acid' ? inside('guide', 'sample') || S.phase === 'ph' : inside('ba', 'coTest');
-          B.bottles[id].visible = o.visible = active || !!S.returns[id] || S.effect?.id === id;
-        } else {
-          o.visible = {
-            cap: B.heater.visible,
-            spoon: prep,
-            paper: prep,
-            water: prep,
-            cup: !S.filtered || S.hand === 'cup' || !!S.returns.cup,
-            filtrate: (stage() >= idx('guide') && !S.filled) || !!S.returns.filtrate,
-            rod: !S.landed && !inside('grip', 'cool'),
-            lamp: B.heater.visible,
-            tongs: B.mat.visible,
-          }[id];
-        }
         if (S.hand !== id) pose(id, p);
       }
 
@@ -986,9 +1046,8 @@ export default {
       B.cloud.set(S.cloud);
       B.cloud.update(2 * (1 - S.cloud));
 
-      B.dish.visible = B.heater.visible;
-      B.dish.position.set(S.landed ? MAT : DISH, S.landed ? 0.006 : DY, 0);
-      if (S.gripped) B.dish.position.copy(S.pos.tongs).add(S.gripOffset);
+      B.dish.position.set(S.landed ? MAT : DISH, S.landed ? 0.003 : DY, S.landed ? MAT_Z : 0);
+      if (S.gripped) B.dish.position.copy(S.pos.tongs).sub(grip).add(V(DISH, DY));
       const brine = (S.filled ? 1 : progress('filtrate')) * (1 - S.evaporation);
       B.brine.visible = brine > 0.001;
       B.brine.scale.set(0.54 + brine * 0.46, brine, 0.54 + brine * 0.46);
@@ -1010,7 +1069,6 @@ export default {
       const flame = B.capper.update(dt, S.lit);
       if ((S.hand === 'cap' && S.lit) || S.returns.cap) B.capper.cap.position.copy(S.pos.cap);
       else S.pos.cap.copy(B.capper.cap.position);
-      B.capper.cap.visible = B.heater.visible;
       B.lamp.flame.setOn(flame);
       B.lamp.flame.update(dt);
       const e = S.effect;
@@ -1034,7 +1092,7 @@ export default {
         }
       }
       if (pouring) {
-        const tip = S.rodDock, spout = S.pos.cup;
+        const tip = guideTip, spout = S.pos.cup;
         const flow = spout.clone().sub(tip);
         B.stream.visible = true;
         B.stream.position.copy(tip).addScaledVector(flow, 0.5);
@@ -1054,7 +1112,7 @@ export default {
           0.008 + Math.cos(i * 5) * 0.012,
         );
       });
-      const evap = B.heater.visible && S.filled;
+      const evap = S.filled;
       const name = evap ? '蒸发皿里' : S.filtered ? '滤液烧杯' : '烧杯里';
       const word = evap
         ? S.evaporation >= 0.999
@@ -1083,7 +1141,7 @@ export default {
             word +
             '</span></div></div>',
         )
-        .loc(group, S.landed ? MAT : evap ? DISH - 0.04 : S.filtered ? RECEIVER : 0.064, S.landed ? 0.048 : evap ? DY + 0.046 : 0.084, -0.005)
+        .loc(group, S.landed ? MAT : evap ? DISH - 0.04 : S.filtered ? RECEIVER : CUP, S.landed ? 0.048 : evap ? DY + 0.046 : 0.084, S.landed ? MAT_Z : -0.005)
         .show(S.salted && !S.hand && !S.effect && !S.filterDocked && !reading && !mic.isOpen && !bar?.playing);
       for (const refresh of plates) refresh();
       playback.hidden = !!bar?.playing;
@@ -1095,7 +1153,7 @@ export default {
       S.cloud = Math.max(0, S.cloud - delta * 0.78);
       S.gas = Math.max(0, S.gas - delta * 0.34);
       if (S.phase === 'filter') {
-        if (S.filterDocked) S.transferred = Math.min(1, S.transferred + delta * 0.8);
+        if (S.hand === 'cup' && S.filterDocked) S.transferred = Math.min(1, S.transferred + delta * 0.8);
         S.collected = Math.min(S.transferred, S.collected + delta * 0.6);
         if (S.collected === 1) {
           S.filtered = true;
@@ -1160,6 +1218,18 @@ export default {
           if (S.evaporation < STOP_AT) status('皿边有液滴飞溅。来回搅拌，观察皿中固体的多少。');
         }
       }
+      if (S.carryReturn) {
+        const pos = S.pos.tongs, target = S.carryReturn[0];
+        const distance = pos.distanceTo(target);
+        pos.lerp(target, Math.min(1, delta * 0.24 / (distance || 1)));
+        if (pos.distanceTo(target) < 0.00001) S.carryReturn.shift();
+        if (!S.carryReturn.length) {
+          S.carryReturn = null;
+          S.gripped = false;
+          go('grip');
+          returning('tongs');
+        }
+      }
       if (S.phase === 'grip') S.evaporation = Math.min(1, S.evaporation + delta * 0.32);
       if (S.landed && S.phase === 'cool' && (S.cooling -= delta) <= 0) {
         record('移到陶土网上冷却', S.splashed ? '皿中有白色精盐，加热时曾有飞溅损失。' : '蒸发皿中留下白色精盐。');
@@ -1206,8 +1276,8 @@ export default {
       group: root,
       card: false,
       toggles: ['cards', 'steps'],
-      size: { w: 0.34, d: 0.17, h: 0.21 },
-      view: { auto: false, elev: 26, azim: 0, lookY: 0.25, margin: 1.1 },
+      size: { w: 0.48, d: 0.34, h: 0.24 },
+      view: { auto: false, elev: 38, azim: 0, lookY: 0.25, margin: 1.1 },
       pointer,
       reset,
       update,

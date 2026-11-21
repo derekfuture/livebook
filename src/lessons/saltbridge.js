@@ -7,16 +7,20 @@ import { clamp, draggable } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { micro } from './kit/microworld.js';
 import { demoActs, moreBox, mountXuean, paperSheet, qaFlow, sandbox, think, wrapPointer } from './kit/chemlesson.js';
-import { bridgeClip, lead, leg, saltBridge, span, transportScene } from './kit/saltbridge-parts.js';
+import { bridgeClip, gripRadius, lead, leg, saltBridge, span, transportScene } from './kit/saltbridge-parts.js';
 
-const mid = 0.038, radius = 0.043, rim = 0.073, level = 0.054, bridgeZ = 0.006;
+const mid = 0.038, radius = 0.043, rim = 0.073, level = 0.054, bridgeZ = 0.012;
+const glassBase = 0.0006, lipRadius = 0.00065, lean = Math.PI / 18;
 const centers = [mid - 0.062, mid + 0.062];
-const pins = centers.map((x, i) => V(x + (i ? 0.019 : -0.019), 0.1, -0.008));
-const dock = V(mid, rim + 0.006, bridgeZ);
+const outside = centers[0] - radius - span - 0.006, clear = rim + leg + 0.005;
+const stripTop = glassBase + 0.096 * Math.cos(lean) + 0.009 * Math.sin(lean);
+const pins = centers.map((x, i) => V(x + (i ? 0.0373 : -0.0373), stripTop, -0.008));
+const dock = V(mid, glassBase + rim + lipRadius + gripRadius, bridgeZ);
 const lift = () => dock.clone().setY(rim + leg + 0.014);
 const home = [V(-0.129, 0.0052, bridgeZ), V(-0.086, 0.015, pins[0].z), V(0.186, 0.015, pins[1].z)];
 const intro = '锌片浸在硫酸锌溶液里，铜片浸在硫酸铜溶液里。拿起左边的盐桥，让两端分别浸入两杯溶液。';
 const rimHint = '先向上提，让盐桥两端都高过杯沿，再横移到两杯上方。';
+const outHint = '先提起盐桥，让两端高过杯沿，再向左移。等两端都移到烧杯外再松手。';
 const moves = [
   ['bridge', '放入盐桥', '拿起盐桥，越过杯口，把两端分别浸入两杯溶液。', 0, () => dock.clone()],
   ['black', '夹住锌片', '把电流表的黑导线夹夹到锌片上端。', 1, () => pins[0].clone().add(V(0, 0.011))],
@@ -50,9 +54,16 @@ export default {
     centers.forEach((x, i) => {
       const cup = chemBeaker({ r: radius, h: rim, level, color: i ? 0x429cda : 0xe1ece9, marks: false });
       cup.position.x = x;
+      const lip = new THREE.Mesh(new THREE.TorusGeometry(radius + 0.0018, lipRadius, 8, 48),
+        new THREE.MeshBasicMaterial({ color: 0xa5bbbc, transparent: true, opacity: 0.65, depthWrite: false }));
+      lip.rotation.x = Math.PI / 2;
+      lip.position.y = glassBase + rim;
+      cup.add(lip);
       nameplate(cup, i ? '烧杯 · CuSO₄ 溶液' : '烧杯 · ZnSO₄ 溶液', i ? 0.012 : -0.012, 0.019, radius, 'cup-name');
       const metal = strip(i === 1);
-      metal.position.copy(pins[i]).y -= 0.048;
+      metal.rotation.z = i ? -lean : lean;
+      metal.position.copy(pins[i]);
+      metal.translateY(-0.048);
       nameplate(metal, i ? '铜片' : '锌片', 0, 0.033, 0.002);
       group.add(cup, metal);
     });
@@ -187,12 +198,11 @@ export default {
       }`);
     document.head.append(skin);
     const hints = ['拿起盐桥，把两端分别放入两杯溶液', '把黑夹夹到锌片上端', '把红夹夹到铜片上端'];
-    function settle(i, to = home[i]) {
-      S.returns[i] = { from: S.pos[i].clone(), to: to.clone(), elapsed: 0 };
+    function settle(i, to = home[i], next = []) {
+      S.returns[i] = { from: S.pos[i].clone(), to: to.clone(), elapsed: 0, next };
     }
     function moveBridge(p) {
-      const pos = S.pos[0], clear = rim + leg + 0.005;
-      const outside = centers[0] - radius - span - 0.006;
+      const pos = S.pos[0];
       const y = clamp(p.y, home[0].y, 0.17);
       let x = clamp(p.x, -0.184, 0.174);
       // 低于杯沿时玻璃挡住横移。先抬高手，再平移，不让器材自行升空。
@@ -234,7 +244,6 @@ export default {
         S.returns[i] = null;
         if (i === 0) {
           moveBridge(p);
-          if (S.pos[0].y >= rim + leg + 0.005) S.resting = false;
         }
         else {
           const pos = S.pos[i], side = i === 1 ? -1 : 1;
@@ -261,11 +270,23 @@ export default {
           S.attached[i - 1] = false;
           settle(i);
           invalid('导线夹没有夹住金属片。把夹口对准金属片上端再松手。');
-        } else if (S.resting && aligned(S.pos[0])) {
-          settle(0, dock);
         } else {
-          settle(0);
-          if (!S.removal && !bar.has('out') && S.pos[0].distanceTo(home[0]) > 0.008) invalid(rimHint);
+          const pos = S.pos[0];
+          if (pos.x <= outside) {
+            S.resting = false;
+            settle(0);
+          } else if (S.resting) {
+            if (aligned(pos)) settle(0, pos.clone().setY(dock.y));
+            else settle(0, dock.clone().setY(pos.y), [dock]);
+            if (wired() && !bar.has('out')) {
+              invalid(outHint);
+              bar.say(outHint, 'out');
+            }
+          } else {
+            const height = Math.max(clear, pos.y);
+            settle(0, pos.clone().setY(height), [home[0].clone().setY(height), home[0]]);
+            invalid(rimHint);
+          }
         }
         render();
       },
@@ -328,12 +349,10 @@ export default {
         r.elapsed += dt * k;
         const t = clamp(r.elapsed / 0.40, 0, 1);
         S.pos[i].lerpVectors(r.from, r.to, t);
-        if (i === 0 && r.to.equals(home[0]) && r.from.x > home[0].x + 0.025) {
-          S.pos[i].y = THREE.MathUtils.lerp(r.from.y, home[0].y, clamp((t - 0.78) / 0.22, 0, 1));
-        }
         if (t === 1) {
           S.pos[i].copy(r.to);
-          S.returns[i] = null;
+          if (r.next.length) settle(i, r.next[0], r.next.slice(1));
+          else S.returns[i] = null;
         }
         if (i === 0) contact();
       });
@@ -343,7 +362,7 @@ export default {
         S.worked = S.observedOn = true;
         record('接通电路', '点电流表看指针，也可以从锌极追踪整个电路。');
       }
-      if (!S.demo && S.removal && S.drag === 0 && S.resting) {
+      if (!S.demo && S.removal && S.drag === 0 && S.pos[0].y < clear) {
         const hint = '盐桥两端已离开液面。观察指针，再向上提过杯口。';
         if (hint !== S.liftHint) W.ui.status(hint);
         S.liftHint = hint;
@@ -379,7 +398,11 @@ export default {
       ...moves.slice(1, 3).map(([, name, , i, to]) => ({ name, drag: tools[i], to })),
       { name: '钻进去看', run: () => { if (!closed() || !S.worked) throw Error('电路未通'); mic.open(); }, wait: 3 },
       { name: '回到桌上', run: () => mic.close(), wait: 2 },
-      { name: '取出盐桥', drag: tools[0], to: lift, wait: 2 },
+      { name: '在两杯上方松手', drag: tools[0], to: lift, wait: 2 },
+      { name: '核对落回杯沿', run: () => {
+        if (!closed() || !S.resting || S.pos[0].y !== dock.y || S.needle < 0.9 || bar.has('out') || !W.next.hidden) throw Error('提前松手未正确落回杯沿');
+      } },
+      { name: '取出盐桥', drag: tools[0], to: () => home[0].clone().setY(lift().y), wait: 2 },
       { name: '核对归零', run: () => {
         if (closed() || !wired() || S.needle > 0.02 || !bar.finished || W.next.hidden) throw Error('取桥对照未完成');
       } },

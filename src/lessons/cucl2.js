@@ -122,7 +122,10 @@ export default {
     function dragItem(i, p) {
       const pos = S.pos[i];
       pos.copy(p).setZ(HOME[i].z);
-      pos.y = clamp(p.y, i === 0 ? HOME[0].y : i === 3 ? HOME[3].y : HALF + 0.002, 0.197);
+      pos.y = clamp(p.y, HOME[i].y, 0.197);
+      if (i === 1 || i === 2) {
+        pos.z = S.demo ? p.z : HOME[i].z * (1 - THREE.MathUtils.smoothstep(pos.y, 0.056, dipAt(i - 1).y));
+      }
       if (i === 0) {
         // 杯嘴是支点。只在杯嘴真正位于开口上方时才倾倒。
         const distance = Math.min(...X.map((_, side) => pos.distanceTo(pourAt(side))));
@@ -229,6 +232,15 @@ export default {
       },
     );
     const act = demoActs(drag, group);
+    // 在电源前方竖起并横移，对准各自的管口后才向后送。收棒沿原路返回。
+    const rodPaths = X.map((x, i) => {
+      const home = HOME[i + 1];
+      const height = RIM + 2 * HALF + 0.006;
+      return [home, V(home.x, height, home.z), V(x, height, home.z), V(x, height), dipAt(i)];
+    });
+    const rodTiming = { t1: 0.91, release: 0.95 };
+    const rodCamera = [[-0.035, 0.117, 0.02], [0.22, 0.38, 1], 0.57];
+    const paperPath = [HOME[3], V(HOME[3].x, RIM + 0.005, PAPER_Z), paperAt(1)];
     const sb = sandbox({
       get: () => S,
       set: (s) => {
@@ -273,7 +285,7 @@ export default {
             drag.clearDropzones();
             mic.close();
             sb.onEnd();
-            document.body.classList.remove('cucl2-demo');
+            document.body.classList.remove('cucl2-demo', 'cucl2-handoff');
           },
           shots: [
             {
@@ -286,13 +298,14 @@ export default {
             },
             ...rig.rods.map((rod, i) => ({
               cap: i === 0 ? '把接负极的石墨棒插入左管。' : '把接正极的石墨棒插入右管。',
-              dur: 2.6,
-              during: act.drag(rod, dipAt(i), { from: HOME[i + 1], release: 0.7 }),
+              dur: 3.6,
+              cam: rodCamera,
+              during: act.path(rod, rodPaths[i], rodTiming),
             })),
             {
               cap: STEPS[2][2],
               dur: 3,
-              during: act.path(rig.paper, [HOME[3], V(HOME[3].x, RIM + 0.005, PAPER_Z), paperAt(1)], { t1: 0.72 }),
+              during: act.path(rig.paper, paperPath, { t1: 0.72 }),
             },
             { cap: STEPS[3][2], dur: 5, during: act.tap(rig.sw, 0.14) },
             {
@@ -300,6 +313,31 @@ export default {
               dur: 12,
               cam: [[0, MICRO_AT[1] + 0.05, 0], MICRO_DIR, 0.32],
               enter: () => mic.open(true),
+            },
+            {
+              cap: '断开电源，观察电流表指针回到零位。',
+              dur: 3,
+              enter: () => mic.close(),
+              during: act.tap(rig.sw, 0.38),
+            },
+            {
+              cap: '移开试纸，观察纸端留下的蓝色。',
+              dur: 2.2,
+              during: act.path(rig.paper, paperPath.slice().reverse(), rodTiming),
+            },
+            ...[1, 0].map((i) => ({
+              cap: i ? '从右管竖直提起正极棒，再放回桌上。' : '从左管竖直提起负极棒，观察棒端的红色铜层。',
+              dur: 3.6,
+              cam: rodCamera,
+              enter: () => { S.wet[i] = false; },
+              during: act.path(rig.rods[i], rodPaths[i].slice().reverse(), rodTiming),
+            })),
+            {
+              cap: '演示结束，回到你自己的实验桌，接着刚才的进度做。',
+              dur: 2.2,
+              during(k) {
+                document.body.classList.toggle('cucl2-handoff', k >= 0.7);
+              },
             },
           ],
         },
@@ -356,6 +394,8 @@ export default {
       .cucl2-demo #panel {visibility:hidden}
       .cucl2-demo .lbar.film {z-index:59}
       .cucl2-demo .cucl2-micro .mw-close {display:none}
+      .cucl2-lesson::after {content:'';position:fixed;inset:0;z-index:58;background:#f6f3ea;opacity:0;pointer-events:none;transition:opacity .45s}
+      .cucl2-lesson.cucl2-handoff::after {opacity:1}
       .cucl2-micro .half-cell {display:inline-block;white-space:nowrap}
       .cucl2-eq {display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:.65}
       .cucl2-eq small {font-size:.56em;line-height:1.05}
@@ -372,6 +412,7 @@ export default {
         body.cucl2-lesson.lesson-on:not(.predicting):not(.hide-steps) .lbar.do,.cucl2-demo .lbar.film {display:grid;grid-template-columns:auto 1fr auto auto;gap:2px 6px;padding:4px 7px;font-size:13px;line-height:1.2}
         .cucl2-lesson .lb-main {grid-column:2 / -1}
         .cucl2-lesson .lb-steps {grid-column:2;max-width:none;flex-wrap:nowrap}
+        .cucl2-demo .lb-steps {flex-wrap:wrap}
         .cucl2-lesson .lb-seal {writing-mode:horizontal-tb;white-space:nowrap}
         .cucl2-micro .mw-hud {top:43vh!important}
         .cucl2-micro .mw-eq {font-size:18px;line-height:1.45}
@@ -476,7 +517,8 @@ export default {
       reset,
       update(dt) {
         const k = bar.update(dt);
-        drag.update(dt * k);
+        // 演示的落点精确给定；鼠标吸附会把正在拔出的棒拉回管中。
+        if (!S.demo) drag.update(dt * k);
         advance(Math.min(dt, 0.08) * k);
         rig.draw(S);
         const stage = S.charge > 0 ? (S.power ? '冒气泡' : '留有铜层') : '液面相平';
@@ -538,7 +580,7 @@ export default {
       },
       dispose() {
         gen++;
-        document.body.classList.remove('cucl2-lesson', 'cucl2-demo');
+        document.body.classList.remove('cucl2-lesson', 'cucl2-demo', 'cucl2-handoff');
         style.remove();
         bar.dispose();
         mic.dispose();

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { h } from '../ui/Panel.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { draggable, clamp } from './kit/interact.js';
+import { draggable, clamp, rayToLocal } from './kit/interact.js';
 import { demoActs, mountXuean, moreBox, paperSheet, qaFlow, sandbox, wrapPointer } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
 import { X, R, RIM, WATER, HOME, ACIDS, GAS_TIME, DISSOCIATION, V, bench, kindOf, bubbleCount, WINDOW, ionizationScene } from './kit/weakacid-parts.js';
@@ -10,14 +10,13 @@ import { X, R, RIM, WATER, HOME, ACIDS, GAS_TIME, DISSOCIATION, V, bench, kindOf
 const INTRO = '两杯酸体积相同，浓度都是 0.1 mol/L。';
 const KEYS = ['ph', 'ec', 'mg'];
 const TITLES = ['测 pH', '试验导电能力', '加入等量镁条'];
-const TODO = ['把 pH 笔浸入对应的酸，松手后点笔身读数，在表中填写并确认。', '把两个导电测试器分别浸入标明的酸，比较灯光。', '先提起探头，再把等量镁条分别放进两杯，比较刚入液时的气泡。'];
-const HINT = ['拖动 pH 笔，浸入液面', '拖动导电测试器，两极浸入液面', '拿起镁条，放进杯口'];
+const TODO = ['沿立柱向下拖动 pH 笔，让笔尖浸入酸液。松手后点笔身读数，在表中填写并确认。', '沿立柱向下拖动两个导电测试器，让两极都浸入酸液，比较两盏灯的亮暗。', '先提起探头，再把等量镁条分别放进两杯，比较刚入液时的气泡。'];
+const HINT = ['沿立柱上下拖动 pH 笔', '沿立柱上下拖动导电测试器', '拿起镁条，放进杯口'];
 const MISSING = ['笔尖还没有浸入液面。', '两根电极都要浸入液面，灯才会亮。', '镁条还在杯外。提过杯沿，再从杯口放入。'];
-const LIFT = '先把探头提到杯沿上方，再从杯口放入。';
 const VALUES = [null, ['灯亮', '灯微亮'], ACIDS.map((_, side) => bubbleCount(side, WINDOW) + ' 个气泡')];
 const ROWS = ['pH（理论）', '导电测试', '前 3 秒（示意）'];
 const snapRadius = (id) => id < 4 ? 0.044 : 0.038;
-const aim = (id, side) => V(X[side] + (id < 2 ? -0.016 : id < 4 ? 0.016 : 0), id < 4 ? WATER - 0.008 : RIM + 0.006);
+const aim = (id, side) => V(id < 4 ? HOME[id].x : X[side], id < 4 ? WATER - 0.008 : RIM + 0.006);
 const microCam = (side) => [[X[side], 0.114, 0], [0, 0.43, 1], 0.32];
 // 入液为 0 秒。同一条下落轨迹用于桌面实验和起始片段回放。
 function stripHeight(from, age) {
@@ -56,7 +55,7 @@ export default {
       docked: [false, false, false, false], pos: HOME.map((p) => p.clone()), returns: HOME.map(() => null),
       seen: KEYS.map(() => [false, false]), last: [-1, -1], wet: -1,
       strips: [-1, -1], age: [-1, -1], drop: [0, 0], replay: -1,
-      mouth: false, wall: false, blockedCup: -1,
+      blockedCup: -1,
     });
     let S = fresh();
     const ready = (j) => S.seen[j].every(Boolean);
@@ -108,32 +107,24 @@ export default {
       S.held = id;
       S.lifting = S.docked[id] ? id : -1;
       S.wet = S.docked[id] ? id % 2 : -1;
-      S.mouth = !!S.docked[id]; S.wall = false;
     };
     function move(id, p) {
       if (S.held !== id) return;
       S.returns[id] = null;
       // 从杯中取出时跟手离开；离开热区以后再靠近，才重新吸附。
       if (S.lifting === id && p.distanceTo(aim(id, id % 2)) > snapRadius(id)) S.lifting = -1;
-      if (id < 4) S.docked[id] = false;
-      const v = S.pos[id], old = v.clone(), margin = kindOf(id) === 0 ? 0.005 : 0.012;
-      v.set(clamp(p.x, -0.18, 0.18), clamp(p.y, 0.002, 0.201), 0);
+      const v = S.pos[id];
       if (id < 4) {
-        const cx = X[id % 2], dx = v.x - cx, near = Math.abs(dx) <= R + margin;
-        const crossedMouth = old.y >= RIM && v.y < RIM &&
-          Math.abs(THREE.MathUtils.lerp(old.x, v.x, (old.y - RIM) / (old.y - v.y)) - cx) <= R;
-        if (!near || v.y > RIM + 0.023) S.mouth = false;
-        else if (v.y >= RIM || crossedMouth) S.mouth = true;
-        if (near && !S.mouth && v.y < RIM) {
-          if (!S.wall) say(LIFT);
-          S.wall = true;
-          v.x = cx + Math.sign(old.x - cx || dx || 1) * (R + margin + 0.0001);
-        } else {
-          S.wall = false;
-          if (S.mouth && S.lifting !== id) v.x = aim(id, id % 2).x;
-        }
+        S.docked[id] = false;
+        v.y = clamp(p.y, WATER - 0.008, HOME[id].y);
+        S.wet = v.y < WATER - 0.003 ? id % 2 : -1;
+        if (S.wet >= 0 && id >= 2) observed(1, S.wet);
+        draw();
+        return;
       }
-      // 杯壁挡住横移。已在杯内时先提起；从杯外靠近时可以沿杯沿滑入。
+      const old = v.clone(), margin = 0.012;
+      v.set(clamp(p.x, -0.18, 0.18), clamp(p.y, 0.002, 0.201), 0);
+      // 镁条从杯口放入，杯壁挡住横移。
       for (const cx of X) {
         const dx = v.x - cx, prev = old.x - cx;
         if (v.y >= RIM + 0.002) continue;
@@ -144,15 +135,12 @@ export default {
         } else if (Math.abs(Math.abs(dx) - R) <= margin) v.y = RIM + 0.002;
       }
       const side = sideOf(v.x, margin);
-      if (side >= 0) v.y = Math.max(v.y, id < 4 ? 0.006 : RIM - 0.003);
-      if (id < 4 && side >= 0 && side !== id % 2) v.y = Math.max(v.y, RIM + 0.002);
-      S.wet = id < 4 && side >= 0 && v.y < WATER - 0.003 ? side : -1;
-      if (S.wet >= 0 && id >= 2) observed(1, S.wet);
+      if (side >= 0) v.y = Math.max(v.y, RIM - 0.003);
       draw();
     }
     function release(id, moved, zone) {
       if (S.held !== id) return;
-      const p = S.pos[id], side = sideOf(p.x, kindOf(id) === 0 ? 0.005 : 0.012);
+      const p = S.pos[id], side = id < 4 ? id % 2 : sideOf(p.x, 0.012);
       const immersed = S.wet === id % 2;
       S.held = -1; S.wet = -1;
       if (!moved) return;
@@ -176,14 +164,12 @@ export default {
           else if (!ready(1)) say('先测完两杯原溶液。加入镁条后，溶液的组成会改变。');
           else if (S.strips.includes(side)) say('这杯已放入一段镁条。另一段放进另一杯，才能比较。');
           else { S.blockedCup = side; say('先把这杯里的探头提出来，再放镁条。'); }
-        } else if (id < 4 && side >= 0 && side !== id % 2) say('这支探头专用于' + ACIDS[id % 2] + '。请按器材上的名称选杯。');
-        else if (id < 4 && S.wall) say(LIFT);
-        else if (id >= 4 || !S.seen[kindOf(id)][id % 2]) say(MISSING[kindOf(id)]);
+        } else if (id >= 4 || !S.seen[kindOf(id)][id % 2]) say(MISSING[kindOf(id)]);
         if (id < 4) S.docked[id] = false;
         if (S.blockedCup === id % 2 && id < 4 && !S.docked[id % 2] && !S.docked[id % 2 + 2]) {
           say('可以从杯口放入镁条了。'); S.blockedCup = -1;
         }
-        S.returns[id] = { from: p.clone(), t: 0, inside: side >= 0 && p.y < RIM };
+        S.returns[id] = { from: p.clone(), t: 0, inside: id >= 4 && side >= 0 && p.y < RIM };
       }
       draw();
     }
@@ -205,7 +191,7 @@ export default {
       hint: () => id < 2 && S.docked[id] ? '点笔身看读数，向上拖可取出' : (id < 4 ? ACIDS[id % 2] + '专用 · ' : '') + HINT[kindOf(id)],
       enabled: () => available(id) && !mic.isOpen && S.reading < 0,
       dropzones: (id < 4 ? [id % 2] : [0, 1]).map((side) => ({
-        name: '烧杯 · ' + ACIDS[side], position: aim(id, side), radius: snapRadius(id), enabled: () => S.lifting !== id && (id >= 4 || S.mouth),
+        name: '烧杯 · ' + ACIDS[side], position: aim(id, side), radius: snapRadius(id), enabled: () => S.lifting !== id,
       })),
       onStart: () => start(id), onDrag: (p) => move(id, p), onEnd: (moved, zone) => release(id, moved, zone),
       onTap: id < 2 ? () => readPen(id) : undefined,
@@ -253,11 +239,33 @@ export default {
         }))] } },
     });
     const wrapped = wrapPointer(drag, bar);
-    const pointer = { ...wrapped, up(ray, event) {
-      // 拔探头时不吸住手；若仍在杯口处松手，用实际的松手位置判断是否放回杯中。
-      S.lifting = -1;
-      return wrapped.up(ray, event);
-    } };
+    let grip = null;
+    const constrainedRay = new THREE.Raycaster();
+    function onRail(ray) {
+      if (!grip || !ray || S.held < 0 || S.held >= 4) return ray;
+      const p = rayToLocal(ray, group);
+      if (!p) return ray;
+      // 把抓取点限制在立柱的行程内，拖动、吸附和松手都使用同一个位置。
+      p.x = HOME[S.held].x + grip.x;
+      p.y = clamp(p.y - grip.y, WATER - 0.008, HOME[S.held].y) + grip.y;
+      constrainedRay.ray.copy(ray.ray);
+      constrainedRay.ray.origin.copy(group.localToWorld(p)).addScaledVector(ray.ray.direction, -1);
+      return constrainedRay;
+    }
+    const pointer = { ...wrapped,
+      down(ray, event) {
+        const hit = wrapped.down(ray, event);
+        grip = hit && S.held >= 0 && S.held < 4 ? rayToLocal(ray, group)?.sub(S.pos[S.held]) : null;
+        return hit;
+      },
+      move: (ray, event) => wrapped.move(onRail(ray), event),
+      up(ray, event) {
+        S.lifting = -1;
+        const hit = wrapped.up(onRail(ray), event);
+        grip = null;
+        return hit;
+      },
+    };
     function advance(dt) {
       S.returns.forEach((r, id) => {
         if (!r || S.held === id) return;

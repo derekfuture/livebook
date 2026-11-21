@@ -1,6 +1,6 @@
 // 尺寸、气泡和时间均为示意。坐标以台面为原点，玻璃出气口和试管共用同一液面。
 import * as THREE from 'three';
-import { chemBeaker, chemLamp, glassTube, stopper, testTube, tubeClamp, tubeRack } from './chem.js';
+import { chemBeaker, chemLamp, glassTube, stopper, testTube, tubeClamp } from './chem.js';
 import { bubble2, glass2, tubeLiquid, water2 } from './chemfx.js';
 import { textTex } from './labels.js';
 import { textSprite } from './microworld.js';
@@ -9,10 +9,11 @@ export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 export const FX = -0.071, WX = 0.025, XS = [0.087, 0.147];
 export const MOUTH = V(FX, 0.143), SEAT = V(FX, 0.138), FLUID = 0.082;
 export const RIM = 0.089, LEVEL = 0.044;
-export const HOME = { cup: V(-0.153, 0.032), chips: V(-0.112, 0.005), plug: V(FX, 0.237), tip: V((XS[0] + XS[1]) / 2, RIM + 0.014), wash: V(WX - 0.021, 0.148) };
+export const HOME = { cup: V(-0.153, 0.032), chips: V(-0.112, 0.005), plug: V(FX, 0.237), tip: V(0.067, 0.008), wash: V(WX - 0.021, 0.148) };
 export const LIFT = HOME.wash.clone().add(V(0, 0.041));
 export const POUR = V(FX, MOUTH.y + 0.012), DROP = MOUTH.clone().add(V(0, 0.004));
-export const wetPoint = (i) => V(XS[i], LEVEL - 0.016);
+// 横段下缘搭在试管口沿，下端浸入检验液。
+export const wetPoint = (i) => V(XS[i], RIM + 0.0019 - 0.077);
 export const NAMES = ['酸性高锰酸钾溶液', '溴的四氯化碳溶液'];
 const mat = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.54 });
 function mesh(parent, geometry, material, p = V()) {
@@ -192,14 +193,24 @@ export function apparatus(group) {
   const inletHose = tubing(group, () => plug.position.clone().add(outlet), () => inlet.position);
 
   const shades = [new THREE.Color(0x8b277c), new THREE.Color(0xe08324)];
+  // 图 3-9 的两支检验试管共用一架，左侧留孔收放同一支导管。
+  const rack = node(group, V((HOME.tip.x + XS[1]) / 2 + 0.003)), wood = mat(0xd9c9a6);
+  mesh(rack, new THREE.BoxGeometry(0.114, HOME.tip.y, 0.037), wood, V(0, HOME.tip.y / 2));
+  mesh(rack, new THREE.BoxGeometry(0.112, 0.005, 0.005), wood, V(0, 0.052, -0.016));
+  for (const x of [-0.054, 0.054]) rod(rack, V(x, HOME.tip.y, -0.016), V(x, 0.052, -0.016), 0.002, wood);
+  for (const x of [XS[0], HOME.tip.x, XS[1]]) {
+    const r = x === HOME.tip.x ? 0.0033 : 0.0142;
+    const ring = mesh(rack, new THREE.TorusGeometry(r, 0.0014, 8, 32), wood, V(x - rack.position.x, 0.052));
+    ring.rotation.x = Math.PI / 2;
+    rod(rack, V(x - rack.position.x, 0.052, -0.016), V(x - rack.position.x, 0.052, -r), 0.0015, wood);
+  }
   const tubes = XS.map((x, i) => {
-    const rack = tubeRack({ r: 0.0142, h: 0.052, w: 0.042, d: 0.037 }); rack.position.x = x; group.add(rack);
     const t = testTube({ r: 0.013, len: RIM - 0.008 }); t.position.set(x, 0.008, 0); group.add(t);
     const l = tubeLiquid({ R: 0.0128, yc: 0.014, top: 0.079, base: 0.65, specks: 0 }); t.add(l); l.setLevel(LEVEL - 0.008);
     return l;
   });
-  const tip = node(group, HOME.tip), bend = V(-0.014, 0.077);
-  const stem = glassPath(tip, [V(), V(0, 0.072), V(-0.003, 0.077), bend]);
+  const tip = node(group, HOME.tip), bend = V(-0.016, 0.077);
+  const stem = glassPath(tip, [V(), V(0, 0.072), V(-0.004, 0.077), V(-0.013, 0.077), bend]);
   const tipPick = pick(tip, V(0, 0.038), [0.021, 0.085, 0.020]);
   const endHose = tubing(group, () => washOut, () => tip.position.clone().add(bend));
   const bubbles = Array.from({ length: 3 }, () => Array.from({ length: 7 }, () => {
@@ -211,6 +222,7 @@ export function apparatus(group) {
     display(s, wet) {
       for (const key of Object.keys(HOME)) this[key].position.copy(s.pos[key]);
       inlet.userData.ringY = inlet.position.y;
+      stem.userData.ringY = tip.position.y + 0.055;
       pourSurface(s.fill, s.tilt);
       const surfaceY = cy - 0.027 + (FLUID - cy + 0.027) * Math.cbrt(s.fill);
       liquid.setLevel(surfaceY);

@@ -21,6 +21,7 @@ const WASH_BACK = '进气口已离开溶液。把长管放回液面下，继续�
 const PUT_OUT = '两处管口都已离开液体。点酒精灯熄火。';
 const BOTH = '紫色和橙色溶液都逐渐变为无色。';
 const COLOR = ['紫色', '橙色'];
+const CLEAR_RIM = RIM + 0.014;
 const colorWord = (i, v) => v >= 1 ? '无色' : v > 0.03 ? '变浅' : COLOR[i];
 const MIC_AT = () => V(FX, FLUID), CAM = [[FX, FLUID + 0.06, 0], [0.03, 0.35, 1], 0.27];
 export default {
@@ -55,7 +56,8 @@ export default {
     };
     const record = (action, obs) => { if (!S.demo) { S.rows.push([action, obs]); W?.tbl.add([action, obs]); } };
     const wet = () => XS.findIndex(x => Math.abs(S.pos.tip.x - x) <= 0.0095 && S.pos.tip.y < LEVEL - 0.001);
-    const tipInside = () => XS.some(x => Math.abs(S.pos.tip.x-x) < 0.011) && S.pos.tip.y < RIM;
+    const tubeAt = p => p && p.y <= RIM ? XS.findIndex(x => Math.abs(p.x - x) < 0.011) : -1;
+    const tipInside = () => tubeAt(S.pos.tip) >= 0;
     const stopHint = () => tipInside() ? TIP_OUT : S.lifted ? PUT_OUT : WASH_OUT;
     const refresh = () => { if (!S.demo) bar.say(null); };
     const cards = ['烧瓶', '试管', '试管'].map((name, i) => {
@@ -98,7 +100,7 @@ export default {
       plate(group, [FX, 0.003, 0.046], '酒精灯'),
       plate(rig.wash, [0.002, -0.018, 0.005], '进气长管', () => !S.grip),
       plate(group, [WX, 0.009, 0.045], contents('洗气管', '氢氧化钠', '溶液')),
-      plate(rig.tip, [0.014, 0.057, 0], '导管', () => !S.grip),
+      plate(rig.tip, [0.008, 0.066, 0], '导管', () => !S.grip),
       ...XS.map((x, i) => plate(group, [x, 0.009, 0.045], i ? contents('检验试管', '溴的', '四氯化碳', '溶液') : contents('检验试管', '酸性', '高锰酸钾', '溶液'))),
       plate(group, [(XS[0] + XS[1]) / 2, 0.040, 0.017], '试管架'),
     ];
@@ -172,16 +174,16 @@ export default {
       }
       if (k === 'tip') {
         const oldTube = XS.findIndex(v => Math.abs(pos.x - v) <= 0.010);
-        if (y < RIM + 0.001 && oldTube >= 0 && pos.y < RIM) x = clamp(x, XS[oldTube] - 0.0099, XS[oldTube] + 0.0099);
+        if (pos.y < 0.055 && Math.abs(pos.x - HOME.tip.x) < 0.001) x = HOME.tip.x;
+        else if (y < RIM + 0.001 && oldTube >= 0 && pos.y < RIM) x = clamp(x, XS[oldTube] - 0.0099, XS[oldTube] + 0.0099);
         else if (y < RIM && XS.every(v => Math.abs(x - v) > 0.0099)) y = RIM + 0.001;
-        y = Math.max(0.024, y);
-        // 进出两段吸附区时，让玻璃管连续移动到新的对准位置。
+        y = Math.max(wetPoint(0).y, y);
         S.tipAim = (S.tipAim || V()).set(x, y, 0);
       } else { pos.set(x, y, 0); rig[k].position.copy(pos); }
     }
     function release(k, moved, zone) {
       if (S.grip !== k) return;
-      S.grip = null; S.tipAim = null;
+      S.grip = null;
       if (!moved) return;
       const p = S.pos[k];
       if (!cancelled) {
@@ -206,21 +208,18 @@ export default {
           }
           refresh(); return;
         }
-        if (k === 'tip' && zone && (!tipInside() || Math.abs(p.x - XS[zone.tube]) < 0.010)) {
-          homeward(k, zone.position, 0.18);
-          if (!zone.mouth && p.y > RIM) S.returns.tip.via = V(XS[zone.tube], RIM + 0.002);
-          if (zone.mouth) status('让导管下端伸到液面以下。换管时先把下端提过管口。');
-          if (S.steps.has('observe')) status(TIP_OUT);
-          refresh(); return;
-        }
       }
       if (k === 'tip') {
-        if ((S.steps.has('observe') || S.bump) && !tipInside()) { status(WASH_OUT); refresh(); }
-        else status('让导管下端伸到液面以下。换管时先把下端提过管口。');
+        // 管口可以吸附，管内任一深度松手也能让弯管搭稳。
+        const tube = cancelled ? -1 : zone?.tube ?? tubeAt(S.tipAim);
+        const seat = tube >= 0 ? wetPoint(tube) : HOME.tip;
+        S.tipAim = seat.clone();
+        if (S.steps.has('observe') || S.bump) status(seat === HOME.tip ? WASH_OUT : TIP_OUT);
+        else if (seat === HOME.tip) status('让导管下端伸到液面以下。换管时先把下端提过管口。');
+        refresh(); return;
       }
       if (k === 'chips' && zone && S.fill < 1) status('先将混合液加入烧瓶，再放碎瓷片。');
       homeward(k, k === 'wash' && S.lifted ? LIFT : HOME[k]);
-      if (k === 'tip' && tipInside()) S.returns.tip.via = V(p.x, RIM + 0.006);
     }
     function light() {
       if (!S.sealed) { status('先装好带温度计的塞子，接通洗气装置。'); return; }
@@ -244,9 +243,9 @@ export default {
       wash: [{ name: '洗气管', position: LIFT, radius: 0.022, enabled: () => !S.lifted },
         { name: '洗气管', position: HOME.wash, radius: 0.022, enabled: canRestoreWash }],
       tip: XS.flatMap((x, i) => [
-        { name: '检验试管口', position: V(x, RIM + 0.002), radius: 0.025, tube: i, mouth: true,
+        { name: '检验试管口', position: V(x, RIM + 0.002), radius: 0.018, tube: i,
           enabled: () => startTube !== i && (!tipInside() || Math.abs(S.pos.tip.x - x) < 0.010) },
-        { name: NAMES[i], position: wetPoint(i), radius: 0.032, tube: i,
+        { name: NAMES[i], position: wetPoint(i), radius: 0.018, tube: i,
           enabled: () => !tipInside() || Math.abs(S.pos.tip.x - x) < 0.010 },
       ]),
     };
@@ -254,7 +253,7 @@ export default {
       obj: rig[k + 'Pick'], anchor: rig[k], keepOffset: true, plane: 'xy', dropzones: zones[k],
       enabled: () => allowed(k) || (k === 'plug' && S.sealed && !S.lit && !S.seen.heated && !mic.isOpen && !S.reading),
       hint: () => allowed(k) ? (k === 'wash' && S.lifted ? '向下拖进气长管' : hints[k]) : k === 'plug' && S.sealed && !S.lit && !S.seen.heated ? '点塞子取下' : '',
-      onStart() { if (allowed(k)) { S.grip = k; delete S.returns[k]; if (k === 'tip') startTube = wet(); } },
+      onStart() { if (allowed(k)) { S.grip = k; delete S.returns[k]; if (k === 'tip') startTube = tubeAt(S.pos.tip); } },
       onDrag: p => move(k, p), onEnd: (moved, zone) => release(k, moved, zone),
       ...(k === 'plug' ? { onTap() {
         if (S.sealed && !S.lit && !S.seen.heated) {
@@ -304,9 +303,9 @@ export default {
         { cap: TODOS[2][2], dur: 3.3, during: act.drag(rig.plugPick, SEAT, { from: HOME.plug, t0: 0.06, t1: 0.84, release: 0.91 }) },
         { cap: '平视温度计，观察液柱升到 170 ℃ 刻线。', dur: 6.4, cam: scaleCamera(), during: act.tap(rig.lampPick, 0.06) },
         { cap: '观察进气长管下端冒出的气泡。', dur: 2.8, cam: [[WX, 0.065, 0], [0, 0.10, 1], 0.20] },
-        { cap: '将洗过的气体通入酸性高锰酸钾溶液。', dur: 5.4, during: act.path(rig.tipPick, [HOME.tip, V(XS[0], HOME.tip.y), wetPoint(0)], { t0: 0.04, t1: 0.36, release: 0.4 }) },
-        { cap: '提出导管，改通入溴的四氯化碳溶液。', dur: 6.5, during: act.path(rig.tipPick, [wetPoint(0), V(XS[0], HOME.tip.y), V(XS[1], HOME.tip.y), wetPoint(1)], { t0: 0.04, t1: 0.48, release: 0.53 }) },
-        { cap: TIP_OUT, dur: 2, during: act.path(rig.tipPick, [wetPoint(1), V(XS[1], HOME.tip.y), HOME.tip]) },
+        { cap: '将洗过的气体通入酸性高锰酸钾溶液。', dur: 5.4, during: act.path(rig.tipPick, [HOME.tip, V(HOME.tip.x, CLEAR_RIM), V(XS[0], CLEAR_RIM), wetPoint(0)], { t0: 0.04, t1: 0.36, release: 0.4 }) },
+        { cap: '提出导管，改通入溴的四氯化碳溶液。', dur: 6.5, during: act.path(rig.tipPick, [wetPoint(0), V(XS[0], CLEAR_RIM), V(XS[1], CLEAR_RIM), wetPoint(1)], { t0: 0.04, t1: 0.48, release: 0.53 }) },
+        { cap: TIP_OUT, dur: 2, during: act.drag(rig.tipPick, V(XS[1], CLEAR_RIM), { from: wetPoint(1) }) },
         { cap: WASH_OUT, dur: 2, during: act.drag(rig.washPick, LIFT, { from: HOME.wash }) },
         { cap: PUT_OUT, dur: 1.5, during: act.tap(rig.lampPick, 0.3) },
         { cap: '追踪相邻碳上的氢和羟基。', dur: 10.5, cam: CAM, enter: () => mic.open(true) },
@@ -334,16 +333,24 @@ export default {
     function updateMatter(dt) {
       S.time += dt;
       if (S.tipAim) {
-        const tip = S.pos.tip, distance = tip.distanceTo(S.tipAim);
-        if (distance) tip.lerp(S.tipAim, Math.min(1, dt * 0.42 / distance));
+        const tip = S.pos.tip, aim = S.tipAim;
+        // 跨孔时先竖直提出，再横移对孔，最后落到底座或试管口沿。
+        let next = aim;
+        const tube = tubeAt(aim), sameTube = tube >= 0 && tubeAt(tip) === tube;
+        if (S.grip !== 'tip' && !sameTube && Math.abs(tip.x - aim.x) > 0.0001) {
+          if (tip.y < CLEAR_RIM) next = V(tip.x, CLEAR_RIM);
+          else next = V(aim.x, Math.max(CLEAR_RIM, aim.y));
+        }
+        const distance = tip.distanceTo(next), step = dt * 0.42;
+        if (distance <= step) {
+          tip.copy(next);
+          if (next === aim && !S.grip) { S.tipAim = null; refresh(); }
+        } else tip.lerp(next, step / distance);
       }
       for (const [key, a] of Object.entries(S.returns)) {
         a.elapsed += dt;
         const u = Math.min(1, a.elapsed / a.duration);
-        if (a.via) {
-          if (u < 0.65) S.pos[key].lerpVectors(a.from, a.via, u / 0.65);
-          else S.pos[key].lerpVectors(a.via, a.to, (u - 0.65) / 0.35);
-        } else S.pos[key].lerpVectors(a.from, a.to, key === 'chips' && S.chips ? u*u : u*u*(3-2*u));
+        S.pos[key].lerpVectors(a.from, a.to, key === 'chips' && S.chips ? u*u : u*u*(3-2*u));
         if (u >= 1) delete S.returns[key];
       }
       S.pouring = (S.grip === 'cup' || S.pourLatched) && atLip(S.pos.cup) && S.fill < 1;
@@ -460,15 +467,17 @@ export default {
       { name: '放碎瓷片', drag: rig.chipsPick, to: DROP },
       { name: '塞好橡胶塞', drag: rig.plugPick, to: SEAT },
       { name: '点灯加热', tap: rig.lampPick, wait: 6 },
-      { name: '通入紫色检验液', drag: rig.tipPick, to: wetPoint(0), wait: 4 },
-      { name: '提出导管', drag: rig.tipPick, to: HOME.tip },
-      { name: '通入橙色检验液', drag: rig.tipPick, to: wetPoint(1), wait: 5 },
+      { name: '通入紫色检验液', drag: rig.tipPick, to: V(XS[0], RIM + 0.002), wait: 4 },
+      { name: '在液面下浅处松手', drag: rig.tipPick, to: V(XS[0] + 0.003, LEVEL - 0.003) },
+      { name: '检查弯管搭稳', run() { if (!S.pos.tip.equals(wetPoint(0))) throw Error('浅插松手后导管没有搭在管口'); } },
+      { name: '提出导管', drag: rig.tipPick, to: V(XS[0], CLEAR_RIM) },
+      { name: '通入橙色检验液', drag: rig.tipPick, to: V(XS[1], RIM + 0.002), wait: 5 },
       { name: '试管内不能直接熄灯', tap: rig.lampPick },
       { name: '检查收尾前仍在加热', run() { if (!S.lit || bar.finished || !S.steps.has('observe')) throw Error('提前熄灯或解锁'); } },
-      { name: '提出检验导管', drag: rig.tipPick, to: HOME.tip },
+      { name: '提出检验导管', drag: rig.tipPick, to: V(XS[1], CLEAR_RIM) },
       { name: '提起洗气管长管', drag: rig.washPick, to: LIFT },
       { name: '熄灭酒精灯', tap: rig.lampPick },
-      { name: '检查观察记录', run() { if (S.lit || !S.lifted || !S.chips || S.branch !== 'ethene' || !bar.finished || S.fade.some(p => p !== 1)) throw Error('本轮操作或褪色未完成'); } },
+      { name: '检查观察记录', run() { if (!S.pos.tip.equals(HOME.tip)) throw Error('导管未放回试管架'); if (S.lit || !S.lifted || !S.chips || S.branch !== 'ethene' || !bar.finished || S.fade.some(p => p !== 1)) throw Error('本轮操作或褪色未完成'); } },
       { name: '钻进去看', run: () => mic.open(), wait: 3 },
       { name: '回到桌上', run: () => mic.close(), wait: 1.5 },
     ]);

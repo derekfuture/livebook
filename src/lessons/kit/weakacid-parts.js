@@ -9,7 +9,8 @@ export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 export const X = [-0.086, 0.086], R = 0.035, RIM = 0.069, WATER = 0.046;
 export const ACIDS = ['盐酸', '醋酸'];
 // 每杯各有一支 pH 笔和一个导电测试器，按器材种类、溶液排列。
-export const HOME = [-0.109, 0.063, -0.063, 0.109].map((x) => V(x, 0.131))
+const CLAMP_OFFSET = 0.019;
+export const HOME = [X[0] - CLAMP_OFFSET, X[1] - CLAMP_OFFSET, X[0] + CLAMP_OFFSET, X[1] + CLAMP_OFFSET].map((x) => V(x, 0.131))
   .concat([V(-0.156, 0.002), V(0.156, 0.002)]);
 export const kindOf = (id) => Math.floor(id / 2);
 const KA = 1.75e-5, C = 0.1;
@@ -44,8 +45,15 @@ function probe(group, id, g) {
   stand.position.x = HOME[id].x;
   group.add(stand);
   box(stand, 0, 0.003, -0.065, 0.038, 0.006, 0.046, ivory, 0.002);
-  cyl(stand, 0, 0.085, -0.072, 0.0021, 0.169, metal);
-  box(stand, 0, 0.168, -0.036, 0.019, 0.004, 0.072, dark);
+  cyl(stand, 0, 0.091, -0.072, 0.0021, 0.182, metal);
+  // 横臂的后端套在立柱上，前端的两片夹爪夹住仪表外壳。
+  const arm = new THREE.Group();
+  g.add(arm);
+  arm.position.y = 0.046;
+  cyl(arm, 0, 0, -0.072, 0.004, 0.009, dark);
+  box(arm, 0, 0, -0.041, 0.007, 0.005, 0.062, dark);
+  box(arm, 0, 0, -0.010, 0.030, 0.005, 0.004, dark);
+  for (const x of [-0.014, 0.014]) box(arm, x, 0, -0.001, 0.003, 0.005, 0.018, dark);
   box(g, 0, 0.053, 0, 0.026, 0.044, 0.017, kind ? dark : ivory, 0.004);
   faceLabel(g, ACIDS[id % 2], { y: kind ? 0.040 : 0.069, z: 0.009, h: 0.006, color: kind ? '#ffffff' : '#385453', stroke: null });
   if (kind === 0) {

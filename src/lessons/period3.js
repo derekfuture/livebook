@@ -33,6 +33,8 @@ const flamePoint = (depth) => V(HOT + Math.sin(ANGLE) * (LEN - depth) - 0.004, 0
 const capSeat = V(HOT, 0.049);
 const batchSize = (key) => key === 'acid' ? 10 : 6;
 const DURATION = 0.40;
+// 量筒以倒液口为原点。直立横移时，筒底要高过试管口。
+const carryHeight = (measure) => RIM + measure.home.y + 0.012;
 
 export default {
   id: 'period3', title: '第三周期元素性质的递变', fig: '探究', stampText: '实验', style: 'paper',
@@ -51,7 +53,7 @@ export default {
   create({ tag, look, back }) {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
-    paperSheet(group, { w: 0.53, d: 0.24 });
+    paperSheet(group, { w: 0.53, d: 0.36, z: -0.086 });
     const A = apparatus(group);
     const scene = shellScene();
     const cards = Array.from({ length: 4 }, () => tag('', 'cond'));
@@ -310,8 +312,19 @@ export default {
       }
       for (const [key, r] of Object.entries(S.returns)) {
         r.t += d;
+        const a = S.poses[key], tool = gear[key], b = tool.home;
+        if (tool.cup && (Math.abs(r.from.x - b.x) > 0.001 || r.from.rot !== 0)) {
+          const u = Math.min(1, r.t / 1.05);
+          const phase = THREE.MathUtils.smoothstep;
+          const high = Math.max(r.from.y, carryHeight(tool));
+          a.y = THREE.MathUtils.lerp(r.from.y, high, phase(u, 0, 0.27));
+          a.rot = r.from.rot * (1 - phase(u, 0.22, 0.42));
+          a.x = THREE.MathUtils.lerp(r.from.x, b.x, phase(u, 0.42, 0.76));
+          a.y = THREE.MathUtils.lerp(a.y, b.y, phase(u, 0.76, 1));
+          if (u === 1) delete S.returns[key];
+          continue;
+        }
         const u = Math.min(1, r.t / DURATION), k = u * u * (3 - 2 * u);
-        const a = S.poses[key], b = gear[key].home;
         a.x = THREE.MathUtils.lerp(r.from.x, b.x, k);
         a.y = THREE.MathUtils.lerp(r.from.y, b.y, k);
         a.rot = r.from.rot * (1 - k);
@@ -441,7 +454,7 @@ export default {
     function readMeasure(key) {
       const cup = gear[key].cup, pos = gear[key].home;
       S.readKey = key;
-      look([pos.x + cup.position.x, pos.y + cup.position.y + cup.level, 0], [0, 0, 1],
+      look([pos.x + cup.position.x, pos.y + cup.position.y + cup.level, gear[key].g.parent.position.z], [0, 0, 1],
         0.130, () => { S.readKey = null; });
     }
     function leaveMeasure() {
@@ -452,10 +465,9 @@ export default {
     });
     reader.el.setAttribute('role', 'button');
     function draw() {
-      const wet = !inSalt(), i = section(), t = S.clock;
+      const wet = !inSalt(), t = S.clock;
+      const row = wet ? A.wet : A.compare;
       if (W) W.replace.hidden = S.replace < 0 || S.demo;
-      A.wet.visible = wet; A.compare.visible = !wet;
-      A.cold.g.visible = A.cold.lab.visible = !S.packed;
       Object.keys(gear).forEach(snapObj);
       A.strip.g.visible = !S.inserted;
       A.seated.visible = S.inserted;
@@ -483,7 +495,6 @@ export default {
         b.scale.setScalar(0.8 + u * 0.60);
       });
       A.measures.forEach((m, j) => {
-        m.g.visible = m.lab.visible = j === i && S.mode !== 2 && (!wet || S.packed);
         setPlate(m.lab, S.loaded[j] >= 2 ? '空量筒' : '量筒 · ' + salts[j]);
         m.fill(2 - S.loaded[j], S.poses[prepKey(j)].rot);
       });
@@ -499,13 +510,13 @@ export default {
       });
       A.drops.forEach((m, n) => {
         const q = S.flight[n]; m.visible = Boolean(q);
-        if (q) { m.position.set(q.x, q.y, 0); m.scale.y = 1.55; m.renderOrder = 11; }
+        if (q) { m.position.set(q.x, q.y, row.position.z); m.scale.y = 1.55; m.renderOrder = 11; }
       });
       A.stream.visible = Boolean(S.stream);
       if (S.stream) {
         const s = S.stream;
         A.stream.material.color.setHex(s.milky ? 0xf5f3e6 : 0xb0cbd4);
-        A.stream.position.set(s.x, (s.y + s.end) / 2, 0);
+        A.stream.position.set(s.x, (s.y + s.end) / 2, row.position.z);
         A.stream.scale.y = Math.max(0.001, s.y - s.end);
       }
       const key = S.readKey || measureKey(), cylinder = gear[key], reading = !!S.readKey;
@@ -524,7 +535,7 @@ export default {
         const target = wet ? A.mg : A.tubes[j];
         c.text('<div class="cc"><div class="cc-t"><span class="cc-name">' + name +
           '</span><span class="cc-res">' + word + '</span></div></div>')
-          .loc(group, target.home.x, RIM + (j % 2 ? 0.014 : 0.035), -0.008);
+          .loc(row, target.home.x, RIM + (wet || j % 2 ? 0.014 : 0.035), -0.008);
       });
     }
 
@@ -558,7 +569,7 @@ export default {
     }
     const drag = draggable(group, Object.keys(gear).map((key) => ({
       dropzones: zones(key), dropOffset: key === 'strip' ? V(0, -0.012) : key === 'hotTube' ? heatedWall : isTube(key) ? splitLip : null,
-      obj: pick(key), plane: 'xy', offset: 0, keepOffset: true, anchor: gear[key].g,
+      obj: pick(key), plane: 'xy', offset: gear[key].g.parent.position.z, keepOffset: true, anchor: gear[key].g,
       hint: () => hint(key), enabled: () => allowed(key),
       onStart: () => start(key), onDrag: (p) => move(key, p), onEnd: (moved, zone) => end(key, moved, zone),
     })), { tip: tag('', 'pill'), taps: [{ obj: A.lamp.children[0], enabled: canLight,
@@ -568,6 +579,10 @@ export default {
     const trip = (key, points, opt = {}) => act.path(pick(key), [gear[key].home, ...points], {
       t0: 0.015, t1: 0.50, release: 0.94, ...opt });
     const slide = (key, x) => trip(key, [V(gear[key].home.x, 0.142), V(x, 0.142), mouth(x)]);
+    const pourMeasure = (key, x) => {
+      const high = carryHeight(gear[key]);
+      return trip(key, [V(gear[key].home.x, high), V(x, high), mouth(x)], { t1: 0.36, release: 0.70 });
+    };
     const rub = () => trip('strip', [V(PAD - 0.015, 0.0035), V(PAD + 0.016, 0.0035), V(PAD - 0.012, 0.0035)], { t1: 0.81 });
     const placeStrip = () => trip('strip', [V(PAD, RIM + 0.018), V(A.mg.home.x, RIM + 0.018), V(A.mg.home.x, RIM - 0.004)]);
     const warm = () => trip('hotTube', [V(A.mg.home.x, RIM + 0.052),
@@ -593,7 +608,7 @@ export default {
     const moves = [
       { cap: '把镁条贴着砂纸来回移动，除去表面的氧化膜。', name: '打磨镁条', fn: rub, dur: 1.7 },
       { cap: '把磨亮的镁条放入试管。', name: '放入镁条', fn: placeStrip, dur: 1.6 },
-      { cap: '向试管中加入 2 mL 水。', name: '倒入水', fn: () => slide('cold', A.mg.home.x), dur: 2.8 },
+      { cap: '向试管中加入 2 mL 水。', name: '倒入水', fn: () => pourMeasure('cold', A.mg.home.x), dur: 4 },
       { cap: '滴入 2 滴酚酞，先观察冷水里的镁条。', name: '冷水和酚酞', fn: () => slide('ind', A.mg.home.x), dur: 4.8 },
       { cap: LIGHT, name: '点燃酒精灯', fn: () => act.tap(A.lamp.children[0], 0.25), dur: 1.3 },
       { cap: HEAT, name: '加热至沸腾', fn: warm, dur: 5.4 },
@@ -602,7 +617,7 @@ export default {
     for (const i of [0, 1]) {
       const k = i * 2;
       moves.push(
-        { name: '倒入' + salts[i], cap: '向Ⅰ管加入' + stockName(i) + '。', fn: () => slide(prepKey(i), X[k]), dur: 3.2 },
+        { name: '倒入' + salts[i], cap: '向Ⅰ管加入' + stockName(i) + '。', fn: () => pourMeasure(prepKey(i), X[k]), dur: 4 },
         { name: salts[i] + '滴氨水', cap: '滴加氨水，直到白色沉淀不再增加。', fn: () => slide('nh', X[k]), dur: 4.8 },
         { name: '分装' + solids[i], cap: '将' + solids[i] + ' 沉淀分装在两支试管中。', fn: () => split(i), dur: 3.0 });
       for (const [offset, key] of [[0, 'acid'], [1, 'base']]) {
@@ -658,6 +673,11 @@ export default {
       [data-period3].period3-demo .p-body {visibility:hidden}
       [data-period3] .big-next:disabled { display:none }
       .mw[data-period3] .mw-hud { top:80px!important }
+      .mw[data-period3] .mw-dim {
+        background:rgba(246,242,232,.86);
+        -webkit-mask-image:none;mask-image:none;
+        -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+      }
       .period3-evidence {margin:6px 0 10px;padding:8px 10px;background:#f5f0e5;color:#423d36;font:14px/1.45 var(--sans)}
       .period3-evidence p {margin:3px 0}
       .period3-evidence table {width:100%;border-collapse:collapse}
@@ -701,7 +721,7 @@ export default {
       group: root, card: false, pointer: { ...drag,
         down(r, e) { if (bar.playing) { bar.stop(); return true; } return drag.down(r, e); },
         items: () => drag.items().filter((item) => item.enabled()) }, toggles: ['cards', 'steps'],
-      size: { w: 0.36, d: 0.11, h: 0.21 }, view: { azim: 0, elev: 18, lookY: 0.46, get frameMargin() { return innerWidth <= 760 ? 1.46 : 1.13; } },
+      size: { w: 0.38, d: 0.24, h: 0.21 }, view: { azim: 0, elev: 38, lookY: 0.46, get frameMargin() { return innerWidth <= 760 ? 1.46 : 1.13; } },
       mount(ui) {
         const review = h('details', { class: 'more', hidden: true }, h('summary', {}, '想一想（选做）'),
           h('p', { class: 'fineprint' }, '氯化铝和氯化镁都能用氨水制出白色沉淀。只加盐酸，能区分这两种沉淀吗？'));

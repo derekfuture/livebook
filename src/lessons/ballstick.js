@@ -9,27 +9,29 @@ import { show } from '../ui/prefs.js';
 import { micro } from './kit/microworld.js';
 import { seg } from './kit/ui.js';
 import { groundLabel } from './kit/labels.js';
-import { models, ball, comparison, home, origin, COLOR, R, sticks, modelSheet, drawFormula, structureScene, V } from './kit/ballstick-parts.js';
+import { models, ball, boardLift, comparison, home, origin, COLOR, R, sticks, modelSheet, drawFormula, structureScene, V } from './kit/ballstick-parts.js';
 
 const intro = '把白色氢球拖到碳球伸出的棍端，松手接好。';
-const rotate = '拖动搭好的模型，从另一个方向看。';
+const rotate = '左右拖动模型可转动它，上下拖动可改变观察视角。';
 const joinEthane = '把另一颗碳球接到深灰色棍端，再接氢球。';
 const snapRadius = 0.021;
 const compare = '左右拖动实物模型，对准第二种画法的半透明模型。';
+const thirdTurn = new THREE.Quaternion().setFromAxisAngle(V(0, 1), 2 * Math.PI / 3);
 const shapes = ['每个碳周围呈四面体', '原子共面，未排成直线', '所有原子排成直线'];
 const writeNote = '在观察记录中选择你看到的结构特点。';
 const legend = { H: '氢球', C: '碳球', Cl: '氯球' };
 const evidence = '实验步骤见课本第 95 页，烃的分子结构探究见第 70 页。球的颜色区分元素。球径、棍长和键角采用理想化模型，均为示意。平行棍表示键的重数，细线和淡色面辅助观察空间位置。';
 function startingAngle(k) {
-  if (k === 1) return new THREE.Euler(-1, -0.55, -0.15);
-  if (k === 0 || k === 4) return new THREE.Euler(0.21, 0, 0.09);
-  return new THREE.Euler(0.03, -0.2, 0.09);
+  if (k === 1) return new THREE.Euler(-0.19, -0.3, 0.23, 'YZX');
+  if (k === 2) return new THREE.Euler(Math.PI / 2 - 0.2, -0.2, 0, 'YXZ');
+  if (k === 4) return new THREE.Euler(-0.128, -0.2, -0.22, 'YXZ');
+  return new THREE.Euler(0, -0.2, 0);
 }
 const makeState = () => ({
   demo: false, k: 0, held: null, returns: [],
   pages: models.map(({ atoms }, k) => ({
     slots: atoms.map((_, i) => i ? -1 : 0), q: new THREE.Quaternion().setFromEuler(startingAngle(k)), observed: false, note: '',
-    base: new THREE.Quaternion(), turn: 0,
+    base: new THREE.Quaternion(), turn: 0, pitch: 0,
   })),
 });
 const assembled = m => m.slots.indexOf(-1) === -1;
@@ -46,25 +48,27 @@ export default {
     quote: '有机化合物中的每个碳原子不仅能与其他原子形成4个共价键，而且碳原子与碳原子之间也能形成共价键，可以形成单键、双键或三键。……实验数据表明，甲烷分子中的5个原子不在同一平面上，而是形成了正四面体的空间结构。碳原子位于正四面体的中心，4个氢原子分别位于4个顶点。分子中的４个C—H 的长度和强度相同，相互之间的夹角相等。',
     formula: '', src: '课本第 60、62 页 · 认识有机化合物',
   },
-  create({ tag, look, back }) {
+  create({ tag, look, back, camera }) {
     const root = new THREE.Group(), group = new THREE.Group();
     root.add(group);
-    paperSheet(group, { w: 0.36, d: 0.2, z: 0.015 });
-    const board = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.0018, 0.163), new THREE.MeshStandardMaterial({ color: 0xf1e8d4, roughness: 1 }));
-    board.position.set(0.007, 0.0009, 0); board.receiveShadow = true; group.add(board);
-    const title = groundLabel(group, '', { x: -0.051, y: 0.002, z: 0.064, h: 0.015, opacity: 1 });
     const card = tag('', 'cond');
     const optionalRing = inviteRing(group, { minOpacity: 0.58 });
     const rigs = models.map(({ atoms }, k) => {
-      const frame = new THREE.Group(); group.add(frame); frame.add(modelSheet(k));
+      const frame = new THREE.Group(); group.add(frame);
+      paperSheet(frame, { w: 0.36, d: 0.2, z: 0.015 });
+      const board = new THREE.Mesh(new THREE.BoxGeometry(0.31, 0.0018, 0.163), new THREE.MeshStandardMaterial({ color: 0xf1e8d4, roughness: 1 }));
+      board.position.set(0.007, 0.0009, 0); board.receiveShadow = true; frame.add(board);
+      groundLabel(frame, models[k].name + '  ' + models[k].formula, { x: -0.051, y: 0.002, z: 0.064, h: 0.015, opacity: 1 });
+      frame.add(modelSheet(k));
       const balls = atoms.map(a => ball(a.el)), core = balls[0];
-      const centerBall = new THREE.Mesh(core.geometry, core.material);
+      const centerBall = core.clone();
       core.material = new THREE.MeshBasicMaterial({ visible: false }); core.userData.pick = true;
       core.add(centerBall); core.position.copy(origin(k)); frame.add(core);
       balls.forEach(b => { b.userData.track = true; });
       atoms.forEach((a, i) => {
         if (!i) return null;
         const rod = sticks(V(), a.p.clone().sub(atoms[a.parent].p), a.order);
+        if (a.order === 2) rod.rotation.x = Math.PI / 2;
         balls[a.parent].add(rod);
       });
       const ends = atoms.map((a, i) => {
@@ -83,7 +87,7 @@ export default {
           b.position.copy(a.p); site.add(b);
           if (i) site.add(sticks(V(), a.p, 1, true));
         });
-        frame.add(reference); reference.position.copy(core.position);
+        frame.add(reference);
       }
       return { frame, balls, core, centerBall, ends, reference };
     });
@@ -92,7 +96,7 @@ export default {
     const rig = () => rigs[S.k];
     const def = () => models[S.k];
     function render() {
-      rigs.forEach((r, k) => { r.frame.visible = k === S.k; });
+      rigs.forEach((r, k) => { r.frame.visible = S.demo || k === S.k; });
       const m = page(), r = rig();
       r.core.quaternion.copy(m.q);
       r.core.position.copy(origin(S.k));
@@ -111,18 +115,25 @@ export default {
           const animated = S.held?.i === i ? S.held : S.returns.find(x => x.i === i);
           b.position.copy(animated ? animated.pos : home(S.k, i));
           if (def().atoms[i].el === 'C') {
-            const u = clamp(b.position.distanceTo(home(S.k, i)) / 0.06, 0, 1);
-            b.quaternion.identity().slerp(m.q, u);
+            const rest = home(S.k, i), u = clamp(Math.hypot(b.position.x - rest.x, b.position.z - rest.z) / 0.06, 0, 1);
+            b.rotation.copy(S.k === 1 ? new THREE.Euler(0, 0.715, -Math.PI / 2, 'YXZ') : startingAngle(S.k));
+            b.quaternion.slerp(m.q, u);
           }
           b.userData.ringY = Math.max(0.003, b.position.y - R[def().atoms[i].el] + 0.001);
         }
         r.ends[i].visible = !m.slots.includes(i);
       }
+      r.core.position.y += boardLift(r.core);
+      if (S.k > 0 && S.k < 4 && m.slots[1] < 0) {
+        const carbon = r.balls[1];
+        carbon.position.y += Math.max(0, boardLift(carbon));
+      }
       r.reference.visible = S.k === 4 && assembled(m);
-      r.reference.quaternion.copy(m.base);
+      r.reference.position.copy(r.core.position);
       if (r.reference.visible) {
+        r.reference.quaternion.copy(thirdTurn).multiply(m.base).multiply(thirdTurn.clone().invert());
         for (const site of r.reference.children) {
-          const b = site.userData.site, p = b.p.clone().applyQuaternion(m.base);
+          const b = site.userData.site, p = b.p.clone().applyQuaternion(r.reference.quaternion);
           site.visible = !def().atoms.some(a => a.el === b.el && p.distanceTo(a.p.clone().applyQuaternion(m.q)) < 0.0002);
         }
       }
@@ -131,14 +142,14 @@ export default {
     function target(i) {
       const site = def().atoms[i], host = rig().balls[site.parent];
       const local = site.p.clone().sub(def().atoms[site.parent].p);
-      return group.worldToLocal(host.localToWorld(local));
+      return rig().frame.worldToLocal(host.localToWorld(local));
     }
     function available(i) {
       const m = page(), atoms = def().atoms;
       return atoms.map((a, slot) => slot > 0 && a.el === atoms[i].el && !m.slots.includes(slot) ? slot : -1).filter(slot => slot > 0);
     }
     function hint(i) {
-      if (i === 0) return S.k === 4 && assembled(page()) ? compare : '拖动碳球，转动整个模型';
+      if (i === 0) return assembled(page()) ? (S.k === 4 ? compare : rotate) : '拖动碳球，转动整个模型';
       if (S.k === 1 && i === 1) return joinEthane;
       return '把' + legend[def().atoms[i].el] + '接到空棍端';
     }
@@ -164,13 +175,19 @@ export default {
     }
     function select(k) {
       drag.clearDropzones();
+      if (!S.demo && S.k !== k) {
+        const view = window.__lb.stage.user;
+        page().pitch = view.pitch;
+        view.pitch = S.pages[k].pitch;
+      }
+      rig().core.visible = true;
       S.k = k; S.held = null; S.returns = [];
       present(); guide();
     }
     function present() {
       const k = S.k;
       microEntry.text('钻进' + def().name + '模型看 ⊙');
-      render(); title.setText(def().name + '  ' + def().formula);
+      render();
       if (W) {
         W.entry.hidden = S.demo || k >= 4 || !page().observed;
         W.choice.value = page().note;
@@ -217,7 +234,7 @@ export default {
       const t = (z - eye.z) / (p.z - eye.z);
       return eye.clone().lerp(p, t);
     }
-    const eyePosition = () => group.worldToLocal(window.__lb.stage.camera.getWorldPosition(V()));
+    const eyePosition = () => rig().frame.worldToLocal(camera.getWorldPosition(V()));
     const dropPoint = (i, slot) => inPlane(target(slot), eyePosition(), home(S.k, i).z);
     function grab(i, p) {
       S.returns = S.returns.filter(x => x.i !== i);
@@ -229,17 +246,16 @@ export default {
       if (!g || g.i !== i) return;
       const m = page();
       if (!i) {
-        const dx = (p.x - g.start.x) * 23, dy = (p.y - g.start.y) * 23;
+        const dx = (p.x - g.start.x) * 23;
         if (S.k === 4 && assembled(m)) {
           // 两种画法相差三分之一圈。在接近重合时连续收拢，手仍按着就能看到结果。
           const angle = g.turn + dx, period = 2 * Math.PI;
           const aligned = period / 3 + Math.round((angle - period / 3) / period) * period;
           const gap = angle - aligned;
           m.turn = aligned + gap * THREE.MathUtils.smoothstep(Math.abs(gap), 0.14, 0.28);
-          m.q.copy(m.base).multiply(new THREE.Quaternion().setFromAxisAngle(V(0, 1), m.turn));
+          m.q.setFromAxisAngle(V(0, 1), m.turn).multiply(m.base);
         } else {
-          const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-dy, dx, 0, 'YXZ'));
-          m.q.copy(q).multiply(g.q);
+          m.q.setFromAxisAngle(V(0, 1), dx).multiply(g.q);
         }
         g.angle = g.q.angleTo(m.q);
       } else {
@@ -252,7 +268,7 @@ export default {
         }
         const u = clamp(1 - dist / 0.04, 0, 1);
         g.pos.copy(nearest ? inPlane(flat, eye, z + (nearest.z - z) * u * u * (3 - 2 * u)) : flat);
-        const floor = def().atoms[i].el === 'C' ? 0.055 : R[def().atoms[i].el] + 0.002;
+        const floor = home(S.k, i).y;
         g.pos.y = Math.max(nearest ? Math.min(floor, nearest.y) : floor, g.pos.y);
       }
       render();
@@ -261,7 +277,7 @@ export default {
       const m = page(), ref = comparison();
       return def().atoms.every(a => {
         const p = a.p.clone().applyQuaternion(m.q);
-        return ref.some(b => a.el === b.el && p.distanceTo(b.p.clone().applyQuaternion(m.base)) < 0.0002);
+        return ref.some(b => a.el === b.el && p.distanceTo(b.p.clone().applyQuaternion(rig().reference.quaternion)) < 0.0002);
       });
     }
     function release(i, moved, cancelled) {
@@ -303,13 +319,38 @@ export default {
       onStart: p => grab(i, p), onDrag: p => move(i, p), onEnd: moved => release(i, moved, cancelled),
     })));
     const drag = draggable(group, drags, { tip: tag('', 'pill') });
-    const pointer = { ...drag, items: () => drags.filter(d => d.enabled()), up(ray, e) {
-      cancelled = e?.type === 'pointercancel'; const used = drag.up(ray, e); cancelled = false; return used;
-    } };
+    const pointer = { ...drag, items: () => drags.filter(d => d.enabled()),
+      down(ray, e) {
+        const hit = drag.down(ray, e);
+        if (hit && e && S.held?.i === 0 && S.k < 4 && assembled(page())) {
+          S.held.screen = { x: e.clientX, y: e.clientY, pitch: window.__lb.stage.user.pitch };
+        }
+        return hit;
+      },
+      move(ray, e) {
+        const g = S.held;
+        if (!g?.screen || !e) return drag.move(ray, e);
+        const stage = window.__lb.stage, sensitivity = 4 / Math.min(innerWidth, innerHeight);
+        const yaw = (e.clientX - g.screen.x) * sensitivity;
+        const elevation = Math.asin(stage.rig.dir.y);
+        const pitch = clamp(g.screen.pitch + (g.screen.y - e.clientY) * sensitivity,
+          stage.rig.minEl - elevation, 1.4 - elevation);
+        stage.user.cur.pitch = stage.user.pitch = pitch;
+        page().q.setFromAxisAngle(V(0, 1), yaw).multiply(g.q);
+        g.angle = Math.hypot(yaw, pitch - g.screen.pitch);
+        render();
+        return true;
+      },
+      up(ray, e) {
+        cancelled = e?.type === 'pointercancel';
+        const used = drag.up(ray, e);
+        cancelled = false;
+        return used;
+      },
+    };
     const scene = structureScene();
     // 入口贴在当前模型最上方的球边，中心留给学生抓住转动。
     function entryPosition() {
-      const camera = window.__lb.stage.camera;
       let top = -Infinity, position = rig().core.position;
       rig().balls.forEach((b, i) => {
         const edge = group.worldToLocal(b.getWorldPosition(V()));
@@ -320,7 +361,7 @@ export default {
       return position;
     }
     let microEntry;
-    const mic = micro({ tag: (...args) => (microEntry = tag(...args)), look, back, group, scene, label: '钻进甲烷模型看', at: () => V(-0.026, 0.09, 0),
+    const mic = micro({ tag: (...args) => (microEntry = tag(...args)), look, back, group, scene, label: '钻进甲烷模型看', at: () => rig().frame.position.clone().add(V(-0.026, 0.09, 0)),
       btnAt: () => assembled(page()) ? entryPosition() : rig().core.position, scale: 0.012, dist: 0.36, lookD: [0.035, 0.38, 1],
       state: () => ({ k: S.k }), key: () => S.k, show: () => S.k < 4 && assembled(page()) && !S.held, bar: () => bar });
     const hud = Array.from(document.querySelectorAll('.mw')).pop();
@@ -348,23 +389,53 @@ export default {
     document.head.append(layout);
     const act = demoActs(drag, group);
     function rotationAction(k) {
-      const start = origin(k), end = start.clone().add(V(k === 4 ? 2 * Math.PI / (3 * 23) : 0.043, k === 4 ? 0 : 0.014));
+      const start = () => rigs[k].core.position.clone(), end = () => start().add(V(k === 4 ? 2 * Math.PI / (3 * 23) : 0.043, k === 4 ? 0 : 0.014));
       return { start, end };
+    }
+    // 演示时把五个盘排在同一页上。拼装仍用各盘自己的局部坐标。
+    const demoScale = 0.43;
+    const stations = [V(-0.19, 0, 0.30), V(0.19, 0, 0.30), V(0.19), V(-0.19), V(-0.19, 0, -0.30)];
+    function trayCamera(k, microView = false) {
+      const focus = microView ? V(-0.026, 0.14, 0) : V(0.006, 0.038, 0);
+      const dir = microView ? V(0.035, 0.38, 1) : V(0.017, 0.65, 1);
+      return [focus.add(stations[k]).multiplyScalar(demoScale), dir, (microView ? 0.36 : 0.52) * demoScale];
     }
     const shots = models.map((model, k) => {
       const { balls } = rigs[k], n = balls.length;
       const actions = balls.slice(1).map((b, j) => act.drag(b, () => dropPoint(j + 1, j + 1), {
-        from: () => home(k, j + 1), t0: (j + 0.04) / n, t1: (j + 0.75) / n, release: (j + 0.83) / n,
+        from: () => b.position, t0: (j + 0.04) / n, t1: (j + 0.75) / n, release: (j + 0.83) / n,
       }));
       const { start, end } = rotationAction(k);
       actions.push(act.drag(balls[0], end, { from: start, t0: (n - 0.96) / n, t1: (n - 0.2) / n, release: (n - 0.13) / n }));
       const during = act.seq(...actions);
-      return { cap: k === 4 ? compare : '搭建' + model.name + '，转动模型观察。', dur: n * 0.94 + 0.7,
-        enter: () => { mic.close(); select(k); during(0); }, during };
+      const workTime = n * 0.94 + 0.7, travel = k ? 1.8 : 1.2, dur = travel + workTime;
+      const [to, dir, dist] = trayCamera(k);
+      const [from, prevDir, prevDist] = k ? trayCamera(k - 1, k === 3) : [to, dir, dist];
+      return { cap: k === 4 ? compare : '搭建' + model.name + '，转动模型观察。', dur,
+        cam(t) {
+          const u = THREE.MathUtils.smoothstep(t * dur / travel, 0, 1);
+          const pullback = k ? 0.13 * demoScale * Math.sin(Math.PI * u) : 0;
+          return [from.clone().lerp(to, u).toArray(), prevDir.clone().lerp(dir, u).toArray(), THREE.MathUtils.lerp(prevDist, dist, u) + pullback];
+        },
+        enter: () => { mic.close(); select(k); during(0); },
+        during: t => during(clamp((t * dur - travel) / workTime, 0, 1)) };
     });
-    const microShot = { cap: '先数乙烯的六个原子，再从侧面看它们的位置。', dur: 7.5, cam: [[-0.026, 0.14, 0], [0.035, 0.38, 1], 0.36], enter: () => mic.open(true) };
+    const [focus, direction, distance] = trayCamera(2, true);
+    const microShot = { cap: '先数乙烯的六个原子，再从侧面看它们的位置。', dur: 7.5,
+      cam: [focus.toArray(), direction.toArray(), distance], enter: () => mic.open(true) };
     shots.splice(3, 0, microShot);
-    function apply() { drag.clearDropzones(); mic.close(); present(); }
+    function apply() {
+      drag.clearDropzones(); mic.close();
+      const selected = S.k;
+      group.scale.setScalar(S.demo ? demoScale : 1);
+      rigs.forEach((r, index) => {
+        if (S.demo) r.frame.position.copy(stations[index]);
+        else r.frame.position.set(0, 0, 0);
+        r.core.visible = true;
+        S.k = index; render();
+      });
+      S.k = selected; present();
+    }
     const box = sandbox({ get: () => S, set: s => { S = s; }, fresh: makeState, apply,
       view: { save: () => mic.isOpen ? { t: scene.phase, paused: scene.paused, generation } : null, restore: v => {
         if (v.generation === generation) { mic.open(); scene.phase = v.t; scene.paused = v.paused; }
@@ -376,7 +447,7 @@ export default {
     });
     function reset() {
       generation++; if (bar.playing) bar.stop();
-      S = makeState(); mic.close(); W.tbl.clear(); W.ui.relock(); W.ui.observePrediction('');
+      S = makeState(); mic.close(); window.__lb.stage.user.pitch = 0; W.tbl.clear(); W.ui.relock(); W.ui.observePrediction('');
       W.pick.el.querySelectorAll('.tick').forEach(x => x.remove()); W.optional.open = false;
       W.ui.el.querySelectorAll('details[open]').forEach(x => { x.open = false; });
       W.next.hidden = true; bar.undo(...models.slice(0, 4).map(m => m.name)); select(0);
@@ -389,8 +460,8 @@ export default {
       qa.push(...qaFlow(drag, r.balls.slice(1).map((b, j) => ({ name: model.name + '接' + legend[model.atoms[j + 1].el] + (j + 1),
         drag: b, to: () => dropPoint(j + 1, j + 1), wait: 0.12 }))));
       const { start, end } = rotationAction(k);
-      qa.push({ name: '转动' + model.name, wait: 0.15, mouse: { kind: 'drag', obj: r.core, to: () => end.clone(), over: drag.hovered },
-        run() { grab(0, start); move(0, end); release(0, true, false); } });
+      qa.push({ name: '转动' + model.name, wait: 0.15, mouse: { kind: 'drag', obj: r.core, to: end, over: drag.hovered },
+        run() { grab(0, start()); move(0, end()); release(0, true, false); } });
       if (k < 4) qa.push({ name: '填写' + model.name + '的观察记录', run() {
         W.choice.value = shapes[Math.max(0, k - 1)]; W.choice.dispatchEvent(new Event('change'));
       }, wait: 0.1 });
@@ -406,9 +477,10 @@ export default {
       update(dt) {
         const k = bar.update(dt);
         drag.update(k ? dt : 0);
+        const m = page();
         for (const x of S.returns) { x.t += dt * k; x.pos.lerpVectors(x.from, home(S.k, x.i), clamp(x.t / 0.36, 0, 1)); }
         if (S.returns.length) { S.returns = S.returns.filter(x => x.t < 0.36); render(); }
-        const m = page(), n = m.slots.filter(slot => slot >= 0).length, all = assembled(m);
+        const n = m.slots.filter(slot => slot >= 0).length, all = assembled(m);
         const label = S.k === 4 && all ? (coincides() ? '重合' : '未重合') : all ? def().tag : '搭建中';
         card.text('<div class="cc"><div class="cc-t"><span class="cc-name">' + def().name + '</span><span class="cc-res">' + label + '</span></div>' +
           (all ? '' : '<div class="cc-note">已接 ' + (n - 1) + ' 个球</div>') + '</div>')

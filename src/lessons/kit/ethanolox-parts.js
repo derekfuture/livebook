@@ -6,7 +6,7 @@ import { airLabel, faceLabel } from './labels.js';
 
 export const vec = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 export const LAMP = -0.105, TUBE = 0.048, RIM = 0.112, LEVEL = 0.039;
-export const WIRE_HOME = vec(-0.023, 0.002), HEAT = vec(LAMP, 0.090), ABOVE = vec(TUBE, RIM + 0.004), DIP = vec(TUBE, 0.018);
+export const WIRE_HOME = vec(-0.023, 0.00175), HEAT = vec(LAMP, 0.090), ABOVE = vec(TUBE, RIM + 0.004), DIP = vec(TUBE, 0.018);
 export const ADD = vec(TUBE, RIM + 0.005);
 const copper = new THREE.Color(0xc2643d), oxide = new THREE.Color(0x201d21);
 
@@ -17,8 +17,9 @@ function pick(parent, width, height, centre) {
 
 export function apparatus(group) {
   const lamp = chemLamp(); lamp.position.x = LAMP; group.add(lamp);
-  const lampPick = pick(lamp, 0.047, 0.066, vec(0, 0.039));
   const cap = lampCap(group, lamp, { off: vec(LAMP - 0.048, 0, 0.016) });
+  // 点燃时拿下的是灯帽；盖好时点击范围仍覆盖灯身。
+  const lampPick = pick(cap.cap, 0.047, 0.066, vec(0, 0.039 - cap.cap.position.y));
   cap.cap.material.color.setHex(0x8796a1); cap.cap.material.opacity = 0.84;
   const rack = tubeRack({ r: 0.014, h: 0.062, w: 0.054 }); rack.position.x = TUBE; group.add(rack);
   const tube = testTube({ r: 0.012, len: RIM - 0.009 }); tube.position.set(TUBE, 0.009, 0); group.add(tube);
@@ -48,9 +49,23 @@ export function apparatus(group) {
   const drop = new THREE.Mesh(new THREE.SphereGeometry(0.0021, 16, 12), fluid); group.add(drop); drop.renderOrder = 10;
   const wire = new THREE.Group(); group.add(wire); wire.position.copy(WIRE_HOME);
   const surface = new THREE.MeshStandardMaterial({ color: copper, metalness: 0.42, roughness: 0.34 });
-  const curve = Array.from({ length: 145 }, (_, idx) => { const turn = idx / 24 * Math.PI * 2; return vec(0.0076 * Math.cos(turn), 0.0001 + 0.019 * idx / 144, 0.0076 * Math.sin(turn)); });
+  const curve = Array.from({ length: 145 }, (_, idx) => { const turn = idx / 24 * Math.PI * 2; return vec(0.0076 * Math.cos(turn), 0.019 * Math.max(0, idx - 18) / 126, 0.0076 * Math.sin(turn)); });
   const coil = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(curve), 180, 0.00135, 10, false), surface);
   const stem = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([curve[curve.length - 1], vec(0.0068, 0.023), vec(0.002, 0.030), vec(0.001, 0.063), vec(0.001, 0.113)]), 45, 0.00125, 10, false), surface.clone());
+  // 拇指和食指从前后捏住长柄，螺旋端留在下方。
+  const fingers = new THREE.Group();
+  fingers.position.set(0.001, 0.103, 0); wire.add(fingers);
+  const rounded = new THREE.SphereGeometry(1, 20, 14);
+  function fingerPad(x, y, z, width, height, depth, angle) {
+    const part = new THREE.Mesh(rounded, skin);
+    part.position.set(x, y, z); part.scale.set(width, height, depth); part.rotation.z = angle; fingers.add(part);
+  }
+  fingerPad(0.023, 0.003, -0.001, 0.012, 0.010, 0.007, 0.3);
+  fingerPad(0.010, 0.006, -0.003, 0.013, 0.0033, 0.0034, 0.24);
+  fingerPad(0.010, -0.001, 0.003, 0.013, 0.0038, 0.0036, -0.22);
+  for (let i = 0; i < 3; i++) fingerPad(0.018 + i * 0.004, -0.003, 0.001, 0.004, 0.005, 0.003, -0.3);
+  const dropFingers = fingers.clone();
+  dropFingers.position.set(0.004, 0.050, 0); dropper.add(dropFingers);
   wire.add(coil, stem); const wirePick = pick(wire, 0.019, 0.115, vec(0, 0.057));
   const plate = { color: '#364655', stroke: '#fffaf1', opacity: 1, h: 0.008 };
   faceLabel(lamp, '酒精灯 · 酒精', { ...plate, y: 0.019, z: 0.036 });
@@ -62,7 +77,7 @@ export function apparatus(group) {
   const tubeName = airLabel(tube, '空试管', { y: 0.073, z: 0.014, h: 0.009 });
   let tubeText, dropperText;
   const frame = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.001, 0.001), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); frame.position.set(TUBE, 0.244, 0); group.add(frame);
-  return { lamp, lampPick, cap, wire, coil, wirePick, bottle, dropper, dropPick, drop, tube, hand, palm, rimPick, liquid,
+  return { lamp, lampPick, cap, wire, coil, fingers, dropFingers, wirePick, bottle, dropper, bulb, dropPick, drop, tube, hand, palm, rimPick, liquid,
     contents(remaining, level, reacted) {
       column.visible = remaining > 0;
       column.scale.y = 0.037 * remaining;

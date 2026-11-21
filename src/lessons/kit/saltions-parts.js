@@ -8,16 +8,16 @@ import { textSprite } from './microworld.js';
 import { clamp } from './interact.js';
 
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-export const CUP = 0.025,
+export const CUP = -0.033,
   R = 0.025,
   H = 0.059;
-export const PAN = -0.087,
-  FILTER = -0.068,
+export const PAN = -0.148, PAN_Z = 0.103,
+  FILTER = -0.127,
   RECEIVER = FILTER + 0.019;
-export const DISH = 0.044,
+export const DISH = 0.103,
   DY = 0.099,
-  MAT = -0.082,
-  STRIP = 0.104;
+  MAT = 0.056, MAT_Z = 0.111,
+  STRIP = 0.165, STRIP_Z = 0.064;
 export const NAMES = { ba: 'BaCl₂', oh: 'NaOH', co: 'Na₂CO₃', acid: '盐酸' };
 export const PH_COLORS = { 酸性: 0xc94b38, 微酸性: 0xc4bc46, 中性: 0x82a651, 碱性: 0x657ba8 };
 const neutral = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.65, side: THREE.DoubleSide });
@@ -147,8 +147,7 @@ function cylinderScale(cup) {
   return meniscus;
 }
 export function bench(group) {
-  const tools = {},
-    bottles = {};
+  const tools = {};
   const metal = neutral(0x79858d),
     ivory = neutral(0xf3ede0),
     ink = neutral(0x46545a);
@@ -164,7 +163,7 @@ export function bench(group) {
   }
   const balance = new THREE.Group();
   group.add(balance);
-  balance.position.x = PAN;
+  balance.position.set(PAN, 0, PAN_Z);
   mesh(balance, new THREE.BoxGeometry(0.071, 0.014, 0.058), ink, 0, 0.008);
   mesh(balance, new THREE.CylinderGeometry(0.026, 0.022, 0.006, 40), metal, 0, 0.018);
   const display = plate(balance, '0.0 g', 0.037, 0.011, 0, 0.009, 0.03, '#c6d2bc').material.map;
@@ -185,13 +184,13 @@ export function bench(group) {
   spoon.rotation.y = -0.46;
   const spoonSalt = grains(spoon, 28, 0.0068, 0xe6dabc, 0.003);
   spoon.heap.add(spoonSalt);
-  tool('spoon', spoon, V(-0.041, 0.004, 0.017), [0.065, 0.012, 0.023], [0.027, 0.004, 0.012]);
+  tool('spoon', spoon, V(-0.096, 0.0025, 0.119), [0.065, 0.012, 0.023], [0.027, 0.004, 0.012]);
   const paper = new THREE.Group();
   mesh(paper, new THREE.BoxGeometry(0.046, 0.001, 0.038), ivory);
   for (const s of [-1, 1])
     mesh(paper, new THREE.BoxGeometry(0.046, 0.001, 0.009), ivory, 0, 0.002, s * 0.021).rotation.x = -s * 0.42;
   const sample = grains(paper, 52, 0.014, 0xd9ceb6, 0.0034);
-  tool('paper', paper, V(PAN, 0.022), [0.046, 0.009, 0.044], [0, 0.004, 0]);
+  tool('paper', paper, V(PAN, 0.022, PAN_Z), [0.046, 0.009, 0.044], [0, 0.004, 0]);
   const cylinder = chemBeaker({ r: 0.0115, h: 0.064, level: WATER_LEVEL, color: 0xc3dfe5, marks: false });
   mesh(cylinder, new THREE.CylinderGeometry(0.018, 0.019, 0.004, 8), glassMat({ opacity: 0.55 }), 0, 0.002);
   const meniscus = cylinderScale(cylinder);
@@ -199,7 +198,8 @@ export function bench(group) {
     cup.position.set(r + 0.003, -height, 0);
     return tool(id, cup, V(x - r - 0.003, y + height), [2 * r, height, 2 * r], [r + 0.003, -height / 2, 0]);
   }
-  pouring('water', cylinder, 0.112, 0.001, 0.0115, 0.064);
+  pouring('water', cylinder, 0.006, 0.001, 0.0115, 0.064);
+  tools.water.home.z = -0.127;
   const bowl = chemBeaker({ r: R, h: H, level: 0, color: 0xc9dfe3 });
   const raw = grains(bowl, 45, R * 0.66, 0xe7dfcc, 0.0033);
   const sand = grains(bowl, 16, R * 0.81, 0x816f5a, 0.0013);
@@ -230,10 +230,10 @@ export function bench(group) {
     0.042,
   );
   shaft.renderOrder = 10;
-  tool('rod', rod, V(0.013, 0.003, 0.04), [0.009, 0.084, 0.01], [0, 0.042, 0]);
+  tool('rod', rod, V(-0.089, 0.002, 0.061), [0.009, 0.084, 0.01], [0, 0.042, 0]);
   for (const [i, id] of ['ba', 'oh', 'co', 'acid'].entries()) {
-    const x = [-0.115, -0.069, -0.023, 0.125][i];
-    const b = (bottles[id] = dropBottle(group, V(x, 0.001), { r: 0.016, h: 0.041 }));
+    const x = [-0.088, -0.040, 0.068, 0.145][i];
+    const b = dropBottle(group, V(x, 0.001, -0.158), { r: 0.016, h: 0.041 });
     plate(b, '滴瓶 · ' + NAMES[id], 0.036, 0.008, 0, 0.023, 0.0165);
     const d = new THREE.Group();
     mesh(d, new THREE.CylinderGeometry(0.0025, 0.0009, 0.046, 12), glassMat({ color: 0x8da0ab, opacity: 0.7 }), 0, 0.023);
@@ -317,7 +317,7 @@ export function bench(group) {
   lampG.scale.setScalar(0.75);
   const capper = lampCap(group, lampG, { off: V(DISH - 0.048, 0, 0.053) });
   const mat = new THREE.Group();
-  mat.position.set(MAT, 0.003, 0);
+  mat.position.set(MAT, 0.001, MAT_Z);
   group.add(mat);
   const grid = neutral(0x80898c);
   for (let i = -8; i <= 8; i++) {
@@ -326,10 +326,10 @@ export function bench(group) {
   }
   mesh(mat, new THREE.CylinderGeometry(0.025, 0.026, 0.002, 32), neutral(0xcbc3b1), 0, 0.0018);
   const tongs = crucibleTongs({ len: 0.067 });
-  tool('tongs', tongs, V(0.094, 0.003, 0.013), [0.07, 0.014, 0.02], [0.028, 0, 0]);
+  tool('tongs', tongs, V(0.114, 0.0028, 0.123), [0.07, 0.014, 0.02], [0.028, 0, 0]);
   const strip = new THREE.Group();
   group.add(strip);
-  strip.position.set(STRIP, 0.001, 0.012);
+  strip.position.set(STRIP, 0.001, STRIP_Z);
   mesh(strip, new THREE.BoxGeometry(0.045, 0.001, 0.023), ivory);
   mesh(strip, new THREE.BoxGeometry(0.039, 0.001, 0.009), neutral(0xe1bc70), 0, 0.001);
   Object.entries(PH_COLORS).forEach(([label, color], i) => {
@@ -375,7 +375,6 @@ export function bench(group) {
     draining,
     filterArm,
     tools,
-    bottles,
     balance,
     readout,
     sample,

@@ -9,7 +9,7 @@ import { airLabel, faceLabel } from './labels.js';
 import { textSprite } from './microworld.js';
 
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-export const LEN = 0.084, RIM = LEN + 0.010, X = [-0.064, -0.024, 0.020, 0.060];
+export const LEN = 0.084, RIM = LEN + 0.008, X = [-0.064, -0.024, 0.020, 0.060];
 export const HOT = 0.068, PAD = -0.068;
 const CLEAR = 0xcbdfe4, WALL = 0.008;
 export const salts = ['AlCl₃', 'MgCl₂'];
@@ -126,11 +126,12 @@ function tube(parent, x, name, heating) {
 function pipette(parent, x, name) {
   const bottle = dropBottle(parent, V(x), { r: 0.015, h: 0.032 });
   faceLabel(bottle, name + '滴瓶', { y: 0.015, z: 0.016, h: 0.008, opacity: 1, color: '#283d4a', stroke: '#fff' });
-  const g = node(parent, x, bottle.tipHome.y);
+  const seatHeight = 0.004, seatBottom = 0.038;
+  const g = node(parent, x, bottle.mouthY - seatBottom);
   mesh(g, new THREE.CylinderGeometry(0.0025, 0.0008, 0.041, 16), glassMat({ opacity: 0.44 }), 0, 0.0205);
   mesh(g, new THREE.CylinderGeometry(0.0012, 0.0005, 0.022, 12), paint(0xc1d5da), 0, 0.011);
   const rubber = paint(0x953e37);
-  mesh(g, new THREE.CylinderGeometry(0.006, 0.006, 0.004, 18), rubber, 0, 0.040);
+  mesh(g, new THREE.CylinderGeometry(0.006, 0.006, seatHeight, 18), rubber, 0, seatBottom + seatHeight / 2);
   const bulb = mesh(g, new THREE.SphereGeometry(0.0055, 18, 12), rubber, 0, 0.049);
   bulb.scale.y = 1.55;
   g.userData.ringY = 0.041;
@@ -139,7 +140,7 @@ function pipette(parent, x, name) {
 }
 
 function measure(parent, x, name) {
-  const h = 0.057, r = 0.0068, g = node(parent, x, h + 0.002);
+  const h = 0.057, r = 0.0068, g = node(parent, x, h + 0.001);
   const cup = beaker({ r, h, spout: false, level: 0.021, color: CLEAR });
   g.add(cup);
   cup.position.set(-r, -h, 0);
@@ -181,7 +182,7 @@ function measure(parent, x, name) {
 }
 
 export function apparatus(group) {
-  const wet = node(group), compare = node(group);
+  const wet = node(group), compare = node(group, 0, 0, -0.184);
   const mg = tube(wet, -0.002, '镁条试管', true);
   const lamp = chemLamp();
   wet.add(lamp);
@@ -215,11 +216,11 @@ export function apparatus(group) {
   const bubbles = Array.from({ length: 22 }, () => mesh(mg.body, new THREE.SphereGeometry(0.001, 10, 8), bubble2({ color: 0x627f8d, white: 0.48 })));
   bubbles.forEach((b) => { b.renderOrder = 11; });
 
-  const cold = measure(wet, -0.135, '水');
+  const cold = measure(wet, -0.159, '水');
   const ind = pipette(wet, 0.128, '酚酞');
   const tubes = X.map((x, j) => tube(compare, x, solids[Math.floor(j / 2)], false));
-  const measures = salts.map((s) => measure(group, -0.149, s));
-  const nh = pipette(compare, -0.112, '氨水');
+  const measures = [measure(compare, -0.188, salts[0]), measure(compare, -0.130, salts[1])];
+  const nh = pipette(compare, -0.101, '氨水');
   const acid = pipette(compare, 0.107, '盐酸');
   const base = pipette(compare, 0.143, 'NaOH');
   const tubeNames = tubes.map((tube, j) => {

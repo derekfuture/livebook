@@ -14,7 +14,7 @@ export const X = [-0.029, 0.029],
   HALF = 0.035;
 export const PAPER_TIP = 0.018,
   PAPER_Z = 0.013;
-export const HOME = [V(0.108, 0.054, 0.008), V(-0.128, 0.145), V(-0.078, 0.145), V(0.075, 0.0035, PAPER_Z)];
+export const HOME = [V(0.108, 0.054, 0.008), V(-0.137, 0.007, 0.065), V(-0.084, 0.007, 0.065), V(0.075, 0.0035, PAPER_Z)];
 export const pourAt = (side = 1) => V(X[side] + 0.0065, RIM + 0.007, HOME[0].z);
 export const dipAt = (i) => V(X[i], LEVEL + 0.006);
 export const paperAt = (i) => V(X[i] + PAPER_TIP, RIM + 0.002, PAPER_Z);
@@ -208,6 +208,8 @@ export function apparatus(group) {
   deposit.renderOrder = 9.4;
   deposit.geometry.translate(0, 0.5, 0);
   deposit.position.y = -HALF;
+  // 铜附着在通电时浸没的那一段，提起石墨棒后仍留在原处。
+  const platedLength = LEVEL - (dipAt(0).y - HALF);
   const bath = new THREE.Group();
   group.add(bath);
   const beaker = chemBeaker({ r: 0.027, h: 0.052, level: 0.047, marks: false, color: 0x398f86 });
@@ -260,12 +262,14 @@ export function apparatus(group) {
     stain.visible = S.blue > 0;
     rods.forEach((rod, i) => {
       rod.position.copy(i ? pos : neg);
-      rodNames[i].position.set(rod.position.x + (i ? 0.030 : -0.030), rod.position.y + HALF - 0.003, 0.0068);
-      leads[i].update(source.terminals[i], rod.position.clone().add(V(0, HALF + 0.001)), i ? 0.019 : 0.009);
+      const lift = unit((rod.position.y - HOME[i + 1].y) / 0.065);
+      rod.rotation.x = (lift - 1) * Math.PI / 2;
+      const end = V(0, HALF + 0.001).applyQuaternion(rod.quaternion).add(rod.position);
+      rodNames[i].position.set(rod.position.x + lift * (i ? 0.030 : -0.030), end.y - lift * 0.004, end.z + (1 - lift) * 0.080 + 0.0068);
+      leads[i].update(source.terminals[i], end, i ? 0.019 : 0.009);
     });
-    const immersed = Math.max(0, LEVEL - (neg.y - HALF));
-    deposit.scale.y = Math.max(0.00001, immersed * Math.min(1, S.charge / 2.5));
-    deposit.visible = S.charge > 0 && immersed > 0;
+    deposit.scale.y = Math.max(0.00001, platedLength * Math.min(1, S.charge / 2.5));
+    deposit.visible = S.charge > 0;
     source.draw(S.power, S.power);
     const outer = X[1] + Math.sqrt(Math.max(0, (R - 0.0011) ** 2 - cup.z ** 2));
     const wallY = 0.05 - Math.sqrt(Math.max(0, outer ** 2 - cup.x ** 2));

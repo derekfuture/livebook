@@ -23,8 +23,40 @@ function roundedBox(w, h, d, r) {
   geo.computeVertexNormals();
   return geo;
 }
+const stripWidth = 0.018, stripThickness = 0.0024;
 export function strip(copper) {
-  return box(0.018, 0.096, 0.0024, copper ? 0xbb633c : 0x97a5ad);
+  return box(stripWidth, 0.096, stripThickness, copper ? 0xbb633c : 0x97a5ad);
+}
+export function electrodeHolder(radius, spacing) {
+  const holder = new THREE.Group();
+  const w = stripWidth / 2 + 0.0004, d = stripThickness / 2 + 0.0003;
+  const outer = radius - spacing + 0.003;
+  const shape = new THREE.Shape();
+  shape.moveTo(-w - 0.003, -0.005);
+  shape.lineTo(outer, -0.005);
+  shape.lineTo(outer, 0.005);
+  shape.lineTo(-w - 0.003, 0.005);
+  shape.closePath();
+  const slot = new THREE.Path();
+  slot.moveTo(-w, -d);
+  slot.lineTo(-w, d);
+  slot.lineTo(w, d);
+  slot.lineTo(w, -d);
+  slot.closePath();
+  shape.holes.push(slot);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.004, bevelEnabled: false });
+  geo.rotateX(-Math.PI / 2);
+  const plastic = paint(0x378675, { keep: true });
+  for (const side of [-1, 1]) {
+    const support = new THREE.Mesh(geo, plastic);
+    support.position.x = side * spacing;
+    if (side < 0) support.rotation.y = Math.PI;
+    const hook = new THREE.Mesh(roundedBox(0.003, 0.010, 0.010, 0.001), plastic);
+    hook.position.set(outer - 0.0015, -0.004, 0);
+    support.add(hook);
+    holder.add(support);
+  }
+  return holder;
 }
 const jawWidth = 0.0065, jawLength = 0.01, jawCenterY = -0.009, gripHeight = 0.017;
 export function jawTouchesTop(grip, top, halfWidth) {

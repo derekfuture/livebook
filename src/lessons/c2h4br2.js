@@ -1,18 +1,20 @@
 // 人教版必修第二册，印刷第 68 页（PDF 零基页序 72），实验 7-3、图 7-11。
 import * as THREE from 'three';
 import { h } from '../ui/Panel.js';
-import { draggable, clamp } from './kit/interact.js';
+import { draggable, clamp, rayToLocal } from './kit/interact.js';
 import { dropzones } from './kit/dropzone.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { paperSheet, mountXuean, moreBox, wrapPointer, sandbox, demoActs, qaFlow } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
-import { apparatus, additionScene, V, HOME, WET, X, R, RIM, LEVEL, FORMULA } from './kit/c2h4br2-parts.js';
+import { apparatus, additionScene, V, HOME, WET, BEND, X, R, RIM, LEVEL, FORMULA } from './kit/c2h4br2-parts.js';
 
 const STEP = '将乙烯通入盛有溴的四氯化碳溶液的试管中，观察现象。';
 const DRAG = '拖动导气管，把下端伸到橙色液面以下。';
+const STOW = '溶液已褪色。将导气管提出液面，松手放回管架。';
 const CLEAR = '整管溶液由橙色逐渐变为无色。';
 const source = '必修第二册第 68 页 · 实验 7-3 · 图 7-11';
 const microCam = [[X, 0.089, 0], [0.015, 0.38, 1], 0.26];
+const gripAt = (tip, angle = 0) => tip.clone().add(V(-Math.sin(angle), Math.cos(angle)).multiplyScalar(BEND / 2));
 const colorName = (p) => p >= 1 ? '无色' : p >= 0.18 ? '浅橙色' : '橙色';
 
 export default {
@@ -36,9 +38,8 @@ export default {
     const card = tag('', 'cond');
     card.px = [51, 0];
     const contents = tag('', 'ethene-plate ethene-contents').loc(group, X - R, LEVEL, 0);
-    const pipeHint = '按住玻璃管向下拖。';
-    const pipePlate = tag('导气管 · 乙烯', 'ethene-plate ethene-pipe').loc(rig.stem, 0.0024, 0.018, 0);
-    const hintLine = h('span', { hidden: true }, pipeHint);
+    const pipePlate = tag('导气管 · 乙烯', 'ethene-plate ethene-pipe').loc(rig.stem, 0.008, 0.018, 0);
+    const hintLine = h('span', { hidden: true });
     pipePlate.el.append(hintLine);
     const plates = [
       pipePlate,
@@ -46,7 +47,7 @@ export default {
       contents,
     ];
     const fresh = () => ({
-      demo: false, pos: HOME.clone(), grip: false, returning: null, progress: 0,
+      demo: false, pos: HOME.clone(), angle: Math.PI / 2, grip: false, returning: null, progress: 0,
       gas: [], nextBubble: 0, sequence: 0, flowing: false, faded: false,
     });
     let S = fresh(), W, cancelled = false, lastCard = '';
@@ -94,38 +95,49 @@ export default {
 
     const bore = R - 0.0032, mouthAxis = V(X, RIM);
     const guide = dropzones(group);
-    let atMouth = false, lastHandX = X;
+    const axis = V(0, 0, 1), clearance = RIM + 0.012;
+    let atMouth = false, lastHandX = X, hand = null, startAngle = 0;
+    const startTip = V(0, 0), startCenter = V(0, 0), handFromCenter = V(0, 0), handFromTip = V(0, 0);
     const guided = guide.wrap({
       dropzones: [{ name: '试管口', position: mouthAxis, radius: 2.5 * R, enabled: () => atMouth }],
       onDrag(p) {
         const outside = Math.abs(p.x - X) > bore;
         S.pos.set(p.x, outside ? Math.max(RIM, p.y) : p.y, 0);
-        rig.pose(S.pos);
+        rig.pose(S.pos, S.angle);
       },
     });
     function move(p) {
       if (!p || !S.grip) return;
-      const y = clamp(p.y, WET.y, HOME.y + 0.022);
+      // p 含按下时的平移偏差。转动后再扣掉同一抓点的新偏差。
+      const turn = clamp((startCenter.y - p.y) / 0.032, 0, 1);
+      S.angle = startAngle * (1 - turn);
+      const tip = p.clone().add(handFromCenter).sub(handFromTip.clone().applyAxisAngle(axis, S.angle - startAngle));
+      const y = clamp(tip.y, WET.y, 0.221 - BEND * Math.cos(S.angle));
       const inside = S.pos.y < RIM && y < RIM;
-      // 进管后从已对中的位置继续横移；手只向下时不把管尖拉回内壁。
-      const x = inside ? clamp(S.pos.x + p.x - lastHandX, X - bore, X + bore)
-        : clamp(p.x, X - 0.061, X + 0.057);
-      lastHandX = p.x;
-      atMouth = !inside && y <= RIM + 1.5 * R;
-      mouthAxis.y = y; // 吸附目标与手等高，只扶正横向偏差。
+      const x = inside ? clamp(S.pos.x + tip.x - lastHandX, X - bore, X + bore)
+        : clamp(tip.x, X - 0.080, X + 0.080);
+      lastHandX = tip.x;
+      atMouth = !inside && y <= RIM + 0.5 * R;
+      mouthAxis.y = y; // 只对中管尖，竖直方向仍由手控制。
       guided.onDrag(V(x, y));
     }
     function end(moved) {
       guide.clear();
       if (!S.grip) return;
       S.grip = false;
-      if (!moved || (wet() && !cancelled)) return;
-      S.returning = { from: S.pos.clone(), t: 0 };
-      if (!cancelled && !S.progress) say('导气管下端还在液面上方。沿试管口往下拖。');
+      const to = (cancelled ? startTip.y < LEVEL : wet()) ? WET : HOME;
+      S.returning = { from: S.pos.clone(), angle: S.angle, to, t: 0, finish: moved && !cancelled };
+      if (moved && to === HOME && !cancelled && !S.progress) say('导气管下端还在液面上方。沿试管口往下拖。');
     }
+    const canDrag = () => !mic.isOpen && (S.demo || !bar.finished);
+    const pipeHint = () => S.progress === 1 ? '按住玻璃管向上提。' : '按住玻璃管向下拖。';
     const drag = draggable(group, [{
-      obj: rig.pick, anchor: rig.tip, keepOffset: true, plane: 'xy', enabled: () => !mic.isOpen,
-      hint: pipeHint, onStart() {
+      obj: rig.pick, keepOffset: true, plane: 'xy', enabled: canDrag,
+      hint: () => canDrag() ? pipeHint() : '', onStart() {
+        startTip.copy(S.pos); startAngle = S.angle;
+        startCenter.copy(gripAt(startTip, startAngle));
+        handFromCenter.subVectors(hand || startCenter, startCenter);
+        handFromTip.subVectors(hand || startCenter, startTip);
         S.grip = true; S.returning = null; hintLine.hidden = true;
         lastHandX = S.pos.x; atMouth = false; guided.onStart();
       },
@@ -134,7 +146,7 @@ export default {
     const act = demoActs(drag, group);
     const demo = sandbox({
       get: () => S, set: (s) => { S = s; }, fresh, bar: () => bar,
-      apply() { guide.clear(); hintLine.hidden = true; mic.close(); rig.pose(S.pos); rig.display(S.progress, S.gas); },
+      apply() { guide.clear(); hintLine.hidden = true; mic.close(); rig.pose(S.pos, S.angle); rig.display(S.progress, S.gas); },
       view: {
         save: () => mic.isOpen ? { clock: scene.clock } : null,
         restore: (v) => { mic.open(); scene.clock = v.clock; },
@@ -142,10 +154,12 @@ export default {
     });
     const bar = lessonBar({
       look, back, group, ringOptions: { minOpacity: 0.52 },
-      steps: [{ id: 'observe', title: '通入乙烯，观察颜色', todo: DRAG, target: () => !mic.isOpen && !S.flowing && !S.grip ? rig.stem : null }],
+      steps: [{ id: 'observe', title: '通入乙烯，观察颜色', todo: DRAG, target: () => !mic.isOpen && !S.flowing && !S.grip ? rig.stem : null },
+        { id: 'stow', title: '提起导气管并归位', todo: STOW, target: () => !mic.isOpen && !S.grip && !S.returning ? rig.stem : null }],
       reels: { demo: { label: '老师演示', seal: '演示', ...demo, shots: [
-        { dur: 4.2, cap: DRAG, during: act.drag(rig.pick, WET, { from: HOME, t0: 0.08, t1: 0.88, release: 0.93 }) },
+        { dur: 4.2, cap: DRAG, during: act.drag(rig.pick, gripAt(WET), { from: gripAt(HOME, Math.PI / 2), t0: 0.08, t1: 0.88, release: 0.93 }) },
         { dur: 6.2, cap: '看液面下的气泡，也看整管溶液的颜色。' },
+        { dur: 3.2, cap: STOW, during: act.drag(rig.pick, gripAt(V(X, clearance)), { from: gripAt(WET), t0: 0.06, t1: 0.64, release: 0.67 }) },
         { dur: 11.0, cap: '跟着两个溴原子，看它们最后各连在哪里。', cam: microCam, enter: () => mic.open(true) },
       ] } },
     });
@@ -153,9 +167,13 @@ export default {
     const canvas = document.getElementById('c');
     const hideHint = () => { hintLine.hidden = true; };
     canvas.addEventListener('pointerleave', hideHint);
-    const pointer = { ...wrapped, move(ray, event) {
+    const pointer = { ...wrapped, down(ray, event) {
+      hand = rayToLocal(ray, group);
+      try { return wrapped.down(ray, event); } finally { hand = null; }
+    }, move(ray, event) {
       const handled = wrapped.move(ray, event);
-      hintLine.hidden = S.grip || S.demo || mic.isOpen || !drag.hovered();
+      hintLine.hidden = S.grip || S.demo || mic.isOpen || bar.finished || !drag.hovered();
+      if (!hintLine.hidden) hintLine.textContent = pipeHint();
       return handled;
     }, up(ray, event) {
       cancelled = event?.type === 'pointercancel';
@@ -166,10 +184,28 @@ export default {
       if (S.returning) {
         const r = S.returning;
         r.t += dt;
-        const u = Math.min(1, r.t / 0.42);
-        S.pos.lerpVectors(r.from, HOME, u * u * (3 - 2 * u));
-        rig.pose(S.pos);
-        if (u === 1) S.returning = null;
+        const home = r.to === HOME;
+        const lift = home && r.from.y < clearance;
+        const liftTime = lift ? 0.24 : 0;
+        if (r.t < liftTime) {
+          S.pos.y = THREE.MathUtils.lerp(r.from.y, clearance, r.t / liftTime);
+        } else {
+          const u = clamp((r.t - liftTime) / 0.45, 0, 1);
+          const k = u * u * (3 - 2 * u);
+          S.pos.lerpVectors(r.from, r.to, k);
+          if (lift) S.pos.y = THREE.MathUtils.lerp(clearance, HOME.y, k);
+          S.angle = THREE.MathUtils.lerp(r.angle, home ? Math.PI / 2 : 0, k);
+          if (u === 1) {
+            S.pos.copy(r.to);
+            S.returning = null;
+            if (home && r.finish && S.progress === 1 && !S.demo) {
+              bar.done('stow');
+              W.review.hidden = false;
+              say(CLEAR);
+            }
+          }
+        }
+        rig.pose(S.pos, S.angle);
       }
       const flow = wet();
       if (flow !== S.flowing) {
@@ -177,7 +213,7 @@ export default {
         if (flow) {
           record('导管伸入液面下', '管口冒出气泡');
           if (S.progress < 1) say('乙烯正从导管口冒出。观察溶液的颜色。');
-          if (!S.demo && !bar.finished) bar.say('观察试管里的颜色。提起导气管，暂停向溶液通入乙烯。');
+          if (!S.demo && bar.current === 'observe') bar.say('观察试管里的颜色。提起导气管，暂停向溶液通入乙烯。');
         } else {
           record('导管提出液面', '液内不再产生新气泡');
           if (S.progress < 1) say('导气管已离开液面。再伸入溶液，可接着观察。');
@@ -205,35 +241,38 @@ export default {
         record('继续通入乙烯', '溶液变为无色');
         W.ui.observePrediction(CLEAR);
         bar.done('observe');
-        W.review.hidden = false;
-        say(CLEAR);
+        say(STOW);
       }
     }
     function reset() {
       if (bar.playing) bar.stop();
       guide.clear(); hideHint();
       mic.close();
-      S = fresh(); rig.pose(S.pos); rig.display(0, S.gas);
+      S = fresh(); rig.pose(S.pos, S.angle); rig.display(0, S.gas);
       W.tbl.clear(); W.review.hidden = true;
       W.ui.observePrediction(null); W.ui.relock();
-      bar.undo('observe'); bar.say(null); say(STEP);
+      bar.undo('observe', 'stow'); bar.say(null); say(STEP);
     }
     const qa = qaFlow(drag, [
-      { name: '导管停在液面上方', drag: rig.pick, to: V(X, LEVEL + 0.009) },
+      { name: '导管停在液面上方', drag: rig.pick, to: gripAt(V(X, LEVEL + 0.009)) },
       { name: '核对溶液仍为橙色', run() { if (S.progress || !S.pos.equals(HOME)) throw Error('未通气时的液色或归位错误'); } },
-      { name: '导管伸入液面以下', drag: rig.pick, to: WET, wait: 0.5, scale: 1 },
-      { name: '提出导管暂停通气', drag: rig.pick, to: HOME },
+      { name: '导管伸入液面以下', drag: rig.pick, to: gripAt(V(X, LEVEL - 0.009)), wait: 0.5, scale: 1 },
+      { name: '提出导管暂停通气', drag: rig.pick, to: gripAt(V(X, RIM + 0.002)) },
       { name: '核对中途停气', run() {
         if (S.flowing || S.progress <= 0 || S.progress >= 1 || !S.pos.equals(HOME)) throw Error('提管后应停止通气并保留褪色进度');
       } },
-      { name: '重新通入乙烯', drag: rig.pick, to: WET, wait: 7 },
-      { name: '核对褪色和结论', run() { if (S.progress !== 1 || !bar.finished) throw Error('通气后未完成褪色'); } },
+      { name: '重新通入乙烯', drag: rig.pick, to: gripAt(WET), wait: 7 },
+      { name: '核对褪色后仍须提管', run() { if (S.progress !== 1 || !S.flowing || bar.current !== 'stow') throw Error('提管前的结论状态错误'); } },
+      { name: '褪色后提管归位', drag: rig.pick, to: gripAt(V(X, clearance)) },
+      { name: '核对停气归位和结论', run() {
+        if (S.flowing || S.gas.length || S.returning || !S.pos.equals(HOME) || !bar.finished) throw Error('归位收尾错误');
+      } },
       { name: '钻进试管里看', run: () => mic.open(), wait: 3 },
       { name: '回到桌上', run: () => mic.close(), wait: 1.5 },
     ]);
     return {
       group: root, pointer, card: false, toggles: ['cards', 'steps'],
-      size: { w: 0.20, d: 0.10, h: 0.21 }, view: { elev: 16, azim: 0, lookY: 0.50, frameMargin: 1.29 },
+      size: { w: 0.20, d: 0.10, h: 0.235 }, view: { auto: false, elev: 16, azim: 0, lookY: 0.49, margin: 1.22 },
       mount(ui) {
         const review = h('details', { class: 'more', hidden: true }, h('summary', {}, '想一想（选做）'),
           h('p', { class: 'fineprint' }, '对照反应前后，乙烯里的氢少了吗？两个溴原子分别连在哪个碳上？'));

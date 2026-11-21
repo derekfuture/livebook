@@ -23,8 +23,8 @@ function hit(parent, width, height, depth, y) {
 }
 const R = 0.012, TOP = 0.149, MOUTH = 0.025, WATER = 0.047;
 export const LEFT = -0.053, START = 0.023, LIGHT = 0.087, SUN = 0.151;
-export const WRAPPED = V(LEFT, (TOP + WATER) / 2, 0.001);
-export const LOOSE = V(-0.119, (TOP - WATER) / 2 + 0.005, 0.001);
+export const WRAPPED = V(LEFT, (TOP + WATER) / 2, 0);
+export const LOOSE = V(-0.135, 0.0004, 0.001);
 
 function nameplate(parent, text, y, z, h = 0.0078) {
   const label = faceLabel(parent, text, { y, z, h, color: '#35322b', stroke: null, opacity: 1 });
@@ -48,7 +48,7 @@ export function apparatus(parent, x, name) {
   bath.position.y = 0.009; rig.add(bath);
   const tube = testTube({ r: R, len: TOP - MOUTH }); tube.rotation.z = Math.PI; tube.position.y = TOP; rig.add(tube);
   const labels = new THREE.Group(); rig.add(labels);
-  nameplate(labels, name + ' · 起始为 CH₄ 和 Cl₂', 0.158, 0.002);
+  const tubeLabel = nameplate(labels, name + ' · 起始为 CH₄ 和 Cl₂', 0.158, 0.002);
   nameplate(labels, '铁架台', 0.006, 0.030);
   nameplate(labels, '烧杯 · 饱和 NaCl 溶液', 0.025, 0.028);
   nameplate(labels, '铁夹', 0.057, 0.003, 0.0074).position.x = postX;
@@ -69,7 +69,7 @@ export function apparatus(parent, x, name) {
     d.rotation.y = angle; d.renderOrder = 9.4;
     return d;
   });
-  return { rig, base, tube, labels, pick: hit(rig, 0.076, 0.035, 0.068, 0.0175),
+  return { rig, base, tube, labels, tubeLabel, pick: hit(rig, 0.076, 0.035, 0.068, 0.0175),
     draw(p) {
       const rise = p * 0.044, level = WATER + rise;
       const bathRadius = bath.r - 0.0012;
@@ -84,7 +84,7 @@ export function apparatus(parent, x, name) {
     } };
 }
 
-// 一张预先折过的铝箔从正面贴到管壁，两边合拢；遮住管内气柱，夹爪在箔内。
+// 同一张箔先从桌面抬起，经烧杯前方靠到管壁，再绕管合拢。揭箔沿原路返回。
 export function foilSheet(parent) {
   const foil = new THREE.Group(); parent.add(foil);
   const cols = 24, rows = 15, geo = new THREE.PlaneGeometry(1, 1, cols, rows);
@@ -95,28 +95,50 @@ export function foilSheet(parent) {
     [0.47, '#cad5dc'], [0.62, '#66727c'], [0.71, '#f9fbff'], [0.85, '#bec6cf'], [1, '#526173']]) light.addColorStop(at, color);
   ctx.fillStyle = light; ctx.fillRect(0, 0, 256, 64);
   const env = new THREE.CanvasTexture(reflection); env.mapping = THREE.EquirectangularReflectionMapping; env.colorSpace = THREE.SRGBColorSpace;
-  const surface = mesh(foil, geo, new THREE.MeshStandardMaterial({ color: 0xf1f3f4, envMap: env, envMapIntensity: 1.4, metalness: 0.84,
+  const surface = mesh(foil, geo, new THREE.MeshStandardMaterial({ color: 0xafb6bf, envMap: env, envMapIntensity: 1.0, metalness: 0.84,
     roughness: 0.24, side: THREE.DoubleSide }), 0, 0, 0);
-  const lid = mesh(foil, new THREE.CylinderGeometry(0.0157, 0.0167, 0.0025, 24), surface.material, 0, 0.052, 0);
-  const label = nameplate(foil, '铝箔', 0, 0.020);
+  const lid = mesh(surface, new THREE.CylinderGeometry(0.0187, 0.0197, 0.0025, 24), surface.material, 0, 0.0535, 0);
+  const label = nameplate(foil, '铝箔', 0.005, 0.020);
+  const reach = Math.hypot(LOOSE.x - LEFT, LOOSE.y - WRAPPED.y);
+  const seamAngle = Math.atan2(0.026, 0.018); // 接缝正对铁夹与立杆之间的连接杆
+  surface.rotation.order = 'YXZ';
   let last = -1;
-  const draw = k => {
-    if (k === last) return;
-    last = k;
+  const progressAt = hand => unit(1 - Math.hypot(hand.x - LEFT, hand.y - WRAPPED.y) / reach);
+  const draw = progress => {
+    if (progress === last) return;
+    last = progress;
+    const lift = ease(progress / 0.38);
+    const across = ease((progress - 0.14) / 0.46);
+    const turn = ease((progress - 0.52) / 0.16);
+    const approach = ease((progress - 0.68) / 0.11);
+    const curl = ease((progress - 0.79) / 0.15);
+    const seat = ease((progress - 0.94) / 0.06);
+    foil.position.set(THREE.MathUtils.lerp(LOOSE.x, LEFT, across),
+      LOOSE.y + (WRAPPED.y + 0.021 - LOOSE.y) * lift - 0.021 * seat,
+      THREE.MathUtils.lerp(LOOSE.z, 0.054, lift) * (1 - approach));
+    surface.rotation.set(-(1 - lift) * Math.PI / 2, seamAngle * turn, 0);
+
     const pos = geo.attributes.position;
     for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) {
-      const u = 2 * i / cols - 1, v = j / rows, a = u * (0.87 + k * 2.26);
+      const u = 2 * i / cols - 1, v = j / rows;
       const ridge = Math.sin(0.76 * i + 0.24 * j + Math.sin(j * 0.63)) * Math.cos(0.29 * j - i * 0.11);
       const wrinkle = 0.00155 * ridge + 0.00062 * Math.sin(j * 1.33 + i * 0.34 + Math.cos(i * 0.51));
-      const radius = 0.0168 + wrinkle;
-      pos.setXYZ(j * (cols + 1) + i, (1 - k) * u * 0.014 + radius * Math.sin(a),
-        (0.5 - v) * 0.104 + wrinkle * 0.8, radius * Math.cos(a));
+      const radius = 0.019 + wrinkle + 0.003 * ease((v - 0.70) / 0.18);
+      // 平片贴在管外的切平面上。逐渐缩小弯曲半径，直到两条边在管后相遇。
+      const angle = Math.PI * curl, a = u * angle;
+      const bendRadius = angle > 0 ? THREE.MathUtils.lerp(0.044, Math.PI * radius, curl) / angle : 0;
+      const x = angle > 0 ? bendRadius * Math.sin(a) : u * 0.044;
+      const z = THREE.MathUtils.lerp(Math.abs(wrinkle), radius, approach) - 2 * bendRadius * Math.sin(a / 2) ** 2;
+      // 接缝下端给连接杆留出口，其余下缘伸入杯口、遮到液面。
+      const notch = 0.020 * ease((Math.abs(u) - 0.78) / 0.13);
+      pos.setXYZ(j * (cols + 1) + i, x, (0.5 - v) * 0.104 + wrinkle * 0.8 + notch * v, z);
     }
     pos.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere(); geo.computeBoundingBox();
-    lid.visible = k > 0.96;
+    lid.visible = curl > 0.96;
+    label.position.z = 0.021 + turn * (0.030 - 0.026 * curl);
   };
   draw(0);
-  return { foil, label, pick: hit(foil, 0.054, 0.111, 0.042, 0), draw, dispose: () => env.dispose() };
+  return { foil, label, pick: surface, progressAt, draw, dispose: () => env.dispose() };
 }
 
 export function lightAreas(group) {

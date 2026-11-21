@@ -15,12 +15,13 @@ const POUR_TIME = 0.70, FALL_TIME = 0.22;
 const SCALE_VIEW = [[HOMES[0].x - 0.002, HOMES[0].y + 0.035, 0], [0, 0, 1], 0.116];
 const SHAKE = [V(X, 0.052), V(X - 0.012, 0.052), V(X + 0.012, 0.052), V(X, 0.052)];
 const SOAK = [V(X, RIM + 0.012), V(BX, RIM + 0.012), BATH];
+const bathZone = V(BX, WATER / 2);
 const steps = [
-  ['salt', '加入硝酸银溶液', '核对课本要求的 1 mL，再提起硝酸银滴管，对准洁净试管口加液。'],
+  ['salt', '加入硝酸银溶液', '读出 1 mL 后，按住硝酸银滴管，对准洁净试管口加液。松手可暂停，再次对准可加完余量。'],
   ['ammonia', '滴氨水至澄清', '把氨水滴管悬在管口，按住逐滴加入，试管会同步轻振。沉淀刚消失就松手。'],
   ['aldehyde', '滴入乙醛', '把乙醛滴管悬在管口，滴入 3 滴乙醛。'],
   ['mix', '振荡试管', '把试管提出架子，在空中左右轻摇。'],
-  ['warm', '热水浴温热', '提起试管，越过烧杯口，放入热水。观察试管内壁。'],
+  ['warm', '热水浴温热', '提起试管，越过杯口。管底浸入热水后松手，试管夹会夹住管身。观察试管内壁。'],
 ];
 export default {
   id: 'silvermirror', title: '乙醛的银镜反应', fig: '实验3-7 · 图3-17', stampText: '实验', style: 'paper',
@@ -39,7 +40,7 @@ export default {
   create({ tag, look, back }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     paperSheet(group, { w: 0.405, d: 0.18, z: 0.008 });
-    const { tube, tubePick, pipettes, liquid, levelSurface, tubeName, plates, film, drop, stream } = bench(group, tag);
+    const { tube, tubePick, pipettes, liquid, levelSurface, tubeName, plates, film, drop, stream, jaws } = bench(group, tag);
     // Include a raised pipette in the initial framing without adding apparatus.
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.001, 0.001), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
     frame.position.set(X, 0.127, 0); group.add(frame);
@@ -100,11 +101,10 @@ export default {
     function aim(id) {
       return S.pos[id].distanceTo(tipTarget()) < 0.0025;
     }
-    function dose(id, parked = false) {
+    function dose(id) {
       if (!aim(id) || S.flight || !canDose(id) || (id && S.stock[id] < 0.12)) return;
       S.flight = { id, p: S.pos[id].clone(), time: 0, target: S.pos[3].clone().add(V(0, Math.max(0.002, level()))) };
       if (id === 0) {
-        S.flight.parked = parked;
         S.flight.base = S.saltOut;
         S.flight.duration = (1 - S.saltOut) * POUR_TIME;
       } else {
@@ -159,7 +159,7 @@ export default {
         if (grip.crossed) nx = clamp(nx, BX - 0.019, BX + 0.019);
         else nx = BX - 0.042;
       }
-      if (grip.crossed && inside) y = clamp(p.y, 0.003, 0.112);
+      if (grip.crossed && inside) y = clamp(p.y, BATH.y, 0.112);
       if (y > RACK + 0.022) grip.leftRack = true;
       if (y > RIM + 0.002) grip.leftBath = true;
       const dx = nx - grip.previous;
@@ -182,10 +182,10 @@ export default {
         if (!canDose(id) && !S.flight) {
           if (id === 2 && S.nh < ENDPOINT) say('先滴氨水，等沉淀恰好溶解，再加入乙醛。');
           if (id === 1 && !S.salt) say('试管里还没有 AgNO₃ 溶液。');
-        } else if (!grip.next) dose(id);
+        } else if (id > 0 && !grip.next) dose(id);
       }
       if (id === 3 && acted) {
-        if (zone?.position === BATH && grip.crossed) {
+        if (zone?.position === bathZone && grip.crossed) {
           if (!S.wet) {
             if (S.aldehyde !== 3 || !S.mixed) {
               S.earlyBath = true;
@@ -201,15 +201,12 @@ export default {
         } else if (zone?.position === HOME) S.wet = false;
         else if (!S.wet && S.mixed) say('先提过烧杯口，再把试管底部放入热水。');
       }
-      if (S.flight?.id === 0 && id === 0) {
-        if (acted && zone) S.flight.parked = true;
-        else S.flight.duration = Math.min(S.flight.duration, S.flight.time);
-      }
+      if (S.flight?.id === 0 && id === 0) S.flight.duration = Math.min(S.flight.duration, S.flight.time);
       const home = id < 3 ? HOMES[id] : S.wet ? BATH : HOME;
       if (p.distanceTo(home) > 0.0001) {
         const across = Math.abs(p.x - home.x) > (id < 3 ? 0.004 : 0.019);
         const nearBath = Math.max(p.x, home.x) > BX - 0.042;
-        const high = id < 3 ? Math.max(0.049, p.y, tipTarget().y * (Math.abs(p.x - X) < 0.014 ? 1 : 0)) : Math.max(p.y, nearBath ? RIM + 0.004 : RACK + 0.002);
+        const high = id < 3 ? Math.max(0.049, p.y + 0.006, tipTarget().y * (Math.abs(p.x - X) < 0.014 ? 1 : 0)) : Math.max(p.y, nearBath ? RIM + 0.004 : RACK + 0.002);
         S.returns[id] = { from: p.clone(), home: home.clone(), high, across, t: 0 };
       }
       S.grip = null;
@@ -218,12 +215,13 @@ export default {
     const picks = [...pipettes.map(d => d.pick), tubePick], bodies = [...pipettes.map(d => d.g), tube];
     const pipZone = { name: '试管口', position: tipTarget, radius: 0.024 };
     const tubeZones = [
-      { name: '热水浴', position: BATH, radius: 0.033, enabled: () => S.grip?.leftBath && S.grip.crossed },
+      { name: '热水浴', position: bathZone, radius: WATER / 2 + R, enabled: () =>
+        !!S.grip?.crossed && S.grip.leftBath && S.pos[3].y <= WATER && Math.abs(S.pos[3].x - BX) < 0.020 },
       { name: '试管架', position: HOME, radius: 0.020, enabled: () => S.grip?.leftRack },
     ];
     const drag = draggable(group, picks.map((obj, id) => ({
       obj, anchor: bodies[id], keepOffset: true, dropzones: id < 3 ? [pipZone] : tubeZones,
-      enabled: () => !mic.isOpen && !S.reading && !(S.flight && (id === 3 || S.flight.parked && id === 0)),
+      enabled: () => !mic.isOpen && !S.reading && !(S.flight && id === 3),
       hint: () => id === 3 ? '提起试管，轻摇或放入热水浴' : `提起${NAMES[id]}滴管，尖端对准管口`,
       onStart: () => grab(id), onDrag: p => move(id, p), onEnd: (moved, zone) => release(id, moved, zone),
     })), { tip: tag('', 'pill') });
@@ -233,6 +231,7 @@ export default {
     function apply() {
       bodies.forEach((o, id) => { o.position.copy(S.pos[id]); });
       tube.rotation.z = S.rock;
+      jaws.scale.z = S.wet && S.grip?.id !== 3 && !S.returns[3] ? 1 : 1.5;
       tube.userData.ringY = S.pos[3].y + 0.048;
       pipettes.forEach((d, i) => {
         d.g.userData.ringY = d.g.position.y + d.pick.position.y - 0.004;
@@ -308,7 +307,7 @@ export default {
     function advance(dt) {
       S.clock += dt;
       S.returns.forEach((r, i) => {
-        if (!r || (i === 0 && S.flight?.parked)) return;
+        if (!r) return;
         r.t += dt; const k = Math.min(1, r.t / 0.44), p = S.pos[i];
         if (r.across) {
           p.x = THREE.MathUtils.lerp(r.from.x, r.home.x, clamp((k - 0.20) / 0.53, 0, 1));
@@ -325,7 +324,7 @@ export default {
       }
       const f = S.flight;
       if (f) {
-        if (f.id === 0 && !f.parked && !aim(0)) f.duration = Math.min(f.duration, f.time);
+        if (f.id === 0 && !aim(0)) f.duration = Math.min(f.duration, f.time);
         f.time += dt;
         if (f.id === 0) {
           S.saltOut = Math.min(1, f.base + Math.min(f.time, f.duration) / POUR_TIME);
@@ -333,7 +332,6 @@ export default {
           if (f.time >= f.duration + FALL_TIME) {
             S.flight = null;
             if (S.saltIn >= 1 - 1e-8) receive(0);
-            else if (f.parked) dose(0, true);
           }
         } else if (f.time >= FALL_TIME) { S.flight = null; receive(f.id); }
       }
@@ -363,7 +361,13 @@ export default {
       const d = drag.items()[3]; d.onStart(); points.forEach(p => d.onDrag(p)); d.onEnd(true);
     } });
     const qa = qaFlow(drag, [
-      single(0, '加入硝酸银溶液'), ...Array.from({ length: ENDPOINT }, (_, i) => single(1, '滴氨水 ' + (i + 1))),
+      single(0, '对准管口加液后松手'),
+      { name: '按住滴管加完余量', wait: 1.5, scale: 1, run() {
+        const pipette = drag.items()[0];
+        pipette.onStart(); pipette.onDrag(V(HOMES[0].x, tipTarget().y)); pipette.onDrag(tipTarget());
+      } },
+      { name: '松手放回硝酸银滴管', release: picks[0], wait: 0.6, scale: 1 },
+      ...Array.from({ length: ENDPOINT }, (_, i) => single(1, '滴氨水 ' + (i + 1))),
       ...[1, 2, 3].map(n => single(2, '滴乙醛 ' + n)),
       pathStep('振荡试管', SHAKE), pathStep('放入热水浴', SOAK),
       { name: '观察银镜', wait: 9, run() {} },

@@ -1,4 +1,4 @@
-// 图 7-11。导管原点是出气口，试管和导管共用同一个液面高度。
+// 图 7-11。试管和导管共用同一个液面高度。
 import * as THREE from 'three';
 import { testTube, tubeRack } from './chem.js';
 import { glass2, tubeLiquid, bubble2 } from './chemfx.js';
@@ -7,14 +7,26 @@ import { clamp } from './interact.js';
 
 export const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 export const X = 0.018, R = 0.013, BASE = 0.0085, RIM = 0.106, LEVEL = 0.052;
-export const HOME = V(X, RIM + 0.006), WET = V(X, LEVEL - 0.026);
+const GLASS_R = 0.0024;
+export const WET = V(X, LEVEL - 0.026);
 export const FORMULA = 'CH₂=CH₂ + Br₂ → BrCH₂—CH₂Br';
-const BEND = 0.09;
+export const BEND = RIM + GLASS_R - WET.y;
+export const HOME = V(X + BEND / 2, RIM + 0.075);
 const smooth = (u) => { const t = clamp(u, 0, 1); return t * t * (3 - 2 * t); };
 
 export function apparatus(group) {
   const rack = tubeRack({ h: 0.066, r: R + 0.0017, w: 0.063, d: 0.049 });
   rack.position.x = X;
+  // 管架后侧的托架托住横管，管口上方留出绕抓点转动的空间。
+  const support = new THREE.MeshStandardMaterial({ color: 0xb9a77f, roughness: 0.65 });
+  const seatY = HOME.y - GLASS_R;
+  for (const dx of [-0.029, -0.021]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0015, seatY - 0.008, 12), support);
+    post.position.set(dx, (seatY + 0.008) / 2, -0.017);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.0035, 0.002, 0.021), support);
+    arm.position.set(dx, seatY - 0.001, -0.007);
+    rack.add(post, arm);
+  }
   const tube = testTube({ r: R, len: RIM - BASE });
   tube.position.set(X, BASE, 0);
   const solution = tubeLiquid({ R: R - 0.0002, yc: R + 0.0012, top: RIM - BASE, base: 0.47, specks: 0 });
@@ -22,19 +34,21 @@ export function apparatus(group) {
   tube.add(solution);
   const liquidColor = new THREE.Color(), orange = new THREE.Color(0xef7115), clear = new THREE.Color(0xf0f1ed);
   const tip = new THREE.Group();
+  const pipe = new THREE.Group();
+  tip.add(pipe);
   const path = new THREE.CurvePath();
   path.add(new THREE.QuadraticBezierCurve3(V(0, BEND - 0.010), V(0, BEND), V(-0.010, BEND)));
   path.add(new THREE.LineCurve3(V(-0.010, BEND), V(-0.026, BEND)));
-  const glass = new THREE.Mesh(new THREE.TubeGeometry(path, 52, 0.0024, 16, false), glass2({ tint: 0x80949d, base: 0.32, rim: 0.74 }));
+  const glass = new THREE.Mesh(new THREE.TubeGeometry(path, 52, GLASS_R, 16, false), glass2({ tint: 0x80949d, base: 0.32, rim: 0.74 }));
   glass.renderOrder = 10;
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.0024, 0.0024, BEND - 0.010, 20, 1, true), glass.material);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(GLASS_R, GLASS_R, BEND - 0.010, 20, 1, true), glass.material);
   stem.position.y = (BEND - 0.010) / 2;
   stem.renderOrder = 10;
-  tip.add(stem, glass);
+  pipe.add(stem, glass);
   const lip = new THREE.Mesh(new THREE.TorusGeometry(0.0021, 0.00038, 8, 24),
     new THREE.MeshStandardMaterial({ color: 0x86999b }));
   lip.rotation.x = Math.PI / 2;
-  tip.add(lip);
+  pipe.add(lip);
   const pick = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, BEND, 12),
     new THREE.MeshBasicMaterial({ visible: false }));
   pick.position.y = BEND / 2;
@@ -43,16 +57,17 @@ export function apparatus(group) {
   elbowPick.position.set(-0.012, BEND / 2 - 0.002, 0);
   elbowPick.userData.pick = true;
   pick.add(elbowPick);
-  tip.add(pick);
+  pipe.add(pick);
   const hose = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0x907864, roughness: 0.85 }));
   const last = V(Infinity, 0);
-  function pose(p) {
-    tip.position.copy(p);
-    if (p.equals(last)) return;
+  function pose(p, angle) {
+    if (p.equals(last) && angle === pipe.rotation.z) return;
     last.copy(p);
-    const end = V(p.x - 0.025, p.y + BEND);
+    tip.position.copy(p);
+    pipe.rotation.z = angle;
+    const end = V(-0.025, BEND).applyQuaternion(pipe.quaternion).add(p);
     const curve = new THREE.CubicBezierCurve3(V(-0.082, 0.0008, -0.017), V(-0.082, 0.044, -0.017),
-      end.clone().add(V(-0.06, 0)), end);
+      end.clone().add(V(-0.06, 0).applyQuaternion(pipe.quaternion)), end);
     hose.geometry.dispose();
     hose.geometry = new THREE.TubeGeometry(curve, 38, 0.0030, 12, false);
   }
@@ -64,8 +79,8 @@ export function apparatus(group) {
     return bead;
   });
   group.add(rack, tube, hose, tip);
-  pose(HOME);
-  return { tip, stem, pick, pose, display(progress, gas) {
+  pose(HOME, Math.PI / 2);
+  return { stem, pick, pose, display(progress, gas) {
     // 调色只表示溴的相对剩余量。褪色后仍画出透明的液体和液面。
     solution.setColor(liquidColor.copy(clear).lerp(orange, Math.pow(1 - progress, 0.72)));
     bubbles.forEach((b, i) => {

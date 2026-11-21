@@ -43,24 +43,29 @@ export default {
     lightAreas(group);
     const left = apparatus(group, LEFT, '左试管'), right = apparatus(group, START, '右试管');
     const sheet = foilSheet(group);
+    const foilHand = new THREE.Object3D(); group.add(foilHand);
     const cards = [tag('', 'cond'), tag('', 'cond')];
     const sunlightNotice = tag('日光直射，已中止观察', 'pill callout').loc(right.rig, 0, 0.181, 0).show(false);
     const scene = substitutionScene();
     let W, cancelled = false;
     const fresh = () => ({ demo: false, near: false, covered: false, lit: false, lostControl: false, invalid: false,
       progress: 0, leftProgress: 0, finished: false, recorded: 0, grip: '', returning: null,
-      foil: LOOSE.toArray(), rig: [START, 0, 0] });
+      foilTravel: 0, foil: LOOSE.toArray(), rig: [START, 0, 0] });
     let S = fresh();
     const say = msg => { if (!S.demo) W?.ui.status(msg); };
     const done = id => { if (!S.demo) bar.done(id); };
     const log = (...row) => { if (!S.demo) W?.tbl.add(row); };
-    function place() {
+    function place(dt = 0) {
       coverText.visible = !S.finished;
       right.rig.position.fromArray(S.rig);
-      sheet.foil.position.fromArray(S.foil);
-      const alignment = clamp(1 - sheet.foil.position.distanceTo(WRAPPED) / 0.018, 0, 1);
-      sheet.draw(alignment);
-      sheet.foil.userData.ringY = sheet.foil.position.y + 0.018;
+      foilHand.position.fromArray(S.foil);
+      const remaining = sheet.progressAt(foilHand.position) - S.foilTravel;
+      // 快拖或松手吸附时也经过中间姿态；慢拖、反向拖都直接跟手。
+      const travel = Math.min(dt, 0.05) * 1.4;
+      S.foilTravel += clamp(remaining, -travel, travel);
+      sheet.draw(S.foilTravel);
+      left.tubeLabel.visible = S.foilTravel < 0.65 || S.foilTravel > 0.99;
+      sheet.foil.userData.ringY = sheet.foil.position.y + (S.covered ? 0.018 : 0.003);
       right.base.userData.ringY = right.rig.position.y + 0.012;
       right.tube.userData.ringY = 0.095;
       left.draw(S.leftProgress); right.draw(S.progress);
@@ -69,7 +74,7 @@ export default {
     const appearance = p => p >= 0.48 ? '有油滴' : p >= 0.20 ? '颜色变浅' : '黄绿色';
     const leftObservation = () => S.leftProgress >= 0.48 ? '气体变浅，管壁有油滴，液面上升'
       : S.leftProgress >= 0.06 ? '管内液面也有上升' : '气体仍呈黄绿色，液面未见上升';
-    const foilIsAway = () => sheet.foil.position.distanceTo(WRAPPED) > 0.040;
+    const foilIsAway = () => sheet.progressAt(foilHand.position) < 0.87;
     function finish() {
       S.finished = true;
       done('compare');
@@ -112,7 +117,7 @@ export default {
       const p = S.grip === 'foil' && S.covered && ray && rayToLocal(ray, group, 'xz');
       overDesk = !!p && p.x >= -0.16 && p.x <= -0.067 && p.z >= 0.024 && p.z <= 0.122;
     }
-    const coverZone = { name: '左试管', position: WRAPPED, radius: 0.041, enabled: () => !overDesk };
+    const coverZone = { name: '左试管', position: WRAPPED, radius: 0.041, enabled: () => !S.covered };
     const restZone = { name: '左侧桌面', position: LOOSE,
       get radius() { return overDesk ? Infinity : 0.036; }, enabled: () => S.covered };
     const lightZone = { name: '光亮处', position: V(LIGHT, 0), radius: 0.036, enabled: () => S.covered };
@@ -154,7 +159,7 @@ export default {
     }
     const available = key => !mic.isOpen && !S.invalid && !S.finished && (!S.returning || S.returning.key === key) && (key === 'foil' || !S.lit);
     const items = [
-      ['foil', sheet.pick, sheet.foil, () => S.covered ? '移开铝箔，观察左管' : '拖动铝箔，套住左管'],
+      ['foil', sheet.pick, foilHand, () => S.covered ? '移开铝箔，观察左管' : '拖动铝箔，套住左管'],
       ['rig', right.pick, right.rig, () => '拖动底座，把右管移到光亮处'],
     ].map(([key, obj, anchor, hint]) => ({
       obj, anchor, offset: key === 'foil' ? LOOSE.z : 0, keepOffset: true,
@@ -185,10 +190,10 @@ export default {
         onStart() { drag.clearDropzones(); savedMicro = mic.isOpen ? { ...scene.time } : null; sb.onStart(); mic.close(); W?.ui.el.classList.add('ch4cl2-demo'); },
         onEnd() { drag.clearDropzones(); W?.ui.el.classList.remove('ch4cl2-demo'); sb.onEnd(); if (savedMicro) { mic.open(); Object.assign(scene.time, savedMicro); savedMicro = null; } },
         shots: [
-          { cap: COVER, dur: 3.2, during: act.drag(sheet.pick, WRAPPED, { from: LOOSE }) },
+          { cap: COVER, dur: 3.2, during: act.drag(sheet.pick, WRAPPED, { from: LOOSE, t1: 0.86, release: 0.9 }) },
           { cap: MOVE, dur: 3.4, during: act.drag(right.pick, V(LIGHT, 0), { from: V(START, 0) }) },
           { cap: WATCH, dur: 8.2 },
-          { cap: REVEAL, dur: 3.4, during: act.drag(sheet.pick, LOOSE, { from: WRAPPED }) },
+          { cap: REVEAL, dur: 3.4, during: act.drag(sheet.pick, LOOSE, { from: WRAPPED, t1: 0.86, release: 0.9 }) },
           { cap: '左管仍呈黄绿色。右管颜色变浅，管壁有油滴，液面升高。', dur: 3.6 },
         ],
       } },
@@ -288,7 +293,8 @@ export default {
       reset,
       update(dt) {
         const k = bar.update(dt), d = dt * k;
-        drag.update(d);
+        // 演示逐帧提供手的位置；学生拖动时保留落点吸附。
+        if (!(S.demo && S.grip === 'foil')) drag.update(d);
         const r = S.returning;
         if (r) {
           r.t += Math.min(dt, 0.06) * (k > 0 ? 1 : 0);
@@ -296,7 +302,7 @@ export default {
           S[r.key] = r.from.map((v, i) => v + (r.to[i] - v) * s);
           if (u === 1) S.returning = null;
         }
-        observe(d); place();
+        observe(d); place(d);
         card(cards[0], '左管', S.covered ? '已遮光' : appearance(S.leftProgress), LEFT);
         if (S.invalid) cards[1].show(false);
         else card(cards[1], '右管', appearance(S.progress), S.rig[0]);

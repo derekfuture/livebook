@@ -1,6 +1,7 @@
 // 图 3-17。试管模型的原点在圆底，滴管模型的原点在尖端。
 import * as THREE from 'three';
-import { chemBeaker, glassMat, testTube, tubeRack } from './chem.js';
+import { chemBeaker, glassMat, testTube, tubeClamp, tubeRack } from './chem.js';
+import { stand } from './props.js';
 import { tubeLiquid, water2 } from './chemfx.js';
 import { dropBottle } from './labops.js';
 import { faceLabel } from './labels.js';
@@ -11,7 +12,7 @@ export const X = 0.021, BX = 0.100, RIM = 0.061, WATER = 0.046;
 export const LEN = 0.087, BASE = 0.009, R = 0.0093, RACK = 0.022;
 export const NAMES = ['2% AgNO₃', '2% 氨水', '乙醛'];
 export const HOMES = [-0.135, -0.084, -0.033].map(x => V(x, 0.032));
-export const HOME = V(X, BASE), BATH = V(BX, 0.003);
+export const HOME = V(X, BASE), BATH = V(BX, 0.006);
 const mat = color => new THREE.MeshStandardMaterial({ color, roughness: 0.42 });
 function part(parent, geometry, material, p = V()) {
   const mesh = new THREE.Mesh(geometry, material);
@@ -141,6 +142,19 @@ export function bench(group, tag) {
   const bath = chemBeaker({ r: 0.031, h: RIM, level: WATER, marks: false, color: 0xe2eef0 });
   group.add(bath); bath.position.x = BX;
   nameplate(bath, '烧杯 · 热水', 0.009, 0.032);
+  const support = stand({ height: 0.40, baseW: 0.18, baseD: 0.16 });
+  const scale = 0.30, clampY = BATH.y + LEN * 0.80;
+  support.scale.setScalar(scale);
+  support.rotation.y = Math.PI;
+  support.position.x = BX + 0.062;
+  group.add(support);
+  const rodX = support.position.x - support.rodX * scale;
+  support.clamp(clampY / scale, (rodX - BX - R - 0.004) / scale);
+  const jaws = tubeClamp(R);
+  jaws.rotation.y = Math.PI;
+  jaws.position.set(BX, clampY, 0);
+  group.add(jaws);
+  nameplate(support, '铁架台', 0.025, -0.083);
   const pipettes = HOMES.map((home, id) => {
     const bottle = dropBottle(group, V(home.x, 0), { brown: id === 0, r: 0.0155 });
     nameplate(bottle, '滴瓶 · ' + NAMES[id], 0.020, 0.0155);
@@ -164,7 +178,7 @@ export function bench(group, tag) {
   drop.scale.y = 1.45; drop.renderOrder = 11;
   const stream = part(group, new THREE.CylinderGeometry(0.00075, 0.00062, 1, 12), water2({ color: 0xc3dade, base: 0.80 }));
   stream.scale.y = 0.0001; stream.renderOrder = 11;
-  return { tube, tubePick, liquid, levelSurface, tubeName, plates, film, pipettes, drop, stream };
+  return { tube, tubePick, liquid, levelSurface, tubeName, plates, film, pipettes, drop, stream, jaws };
 }
 
 const ELEMENT = { C: [0x3d4350, 0.40], O: [0xe0483a, 0.36], H: [0xf2f1ec, 0.24], Ag: [0xe9ecf1, 0.66], N: [0x4a78d8, 0.36] };

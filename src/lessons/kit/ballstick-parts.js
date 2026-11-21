@@ -62,16 +62,33 @@ export function sticks(a, b, order, ghost = false) {
   }
   return group;
 }
-export const origin = (k) => V(k > 0 && k < 4 ? -0.067 : -0.039, 0.083, -0.004);
+const boardTop = 0.00184;
+export const origin = (k) => V(k > 0 && k < 4 ? -0.067 : -0.039, boardTop, -0.004);
+export function boardLift(part, parentMatrix = new THREE.Matrix4()) {
+  part.updateMatrix();
+  const matrix = parentMatrix.clone().multiply(part.matrix), axes = matrix.elements;
+  const shape = part.geometry?.parameters;
+  let lift = -Infinity;
+  if (shape) {
+    const depth = shape.radius ?? (Math.abs(axes[5]) * shape.height / 2 + Math.hypot(axes[1], axes[9]) * shape.radiusTop);
+    lift = boardTop - axes[13] + depth;
+  }
+  for (const child of part.children) if (child.visible) lift = Math.max(lift, boardLift(child, matrix));
+  return lift;
+}
 export function home(k, i) {
   if (k === 4) {
     const places = [[0.063, 0.034], [0.065, -0.044], [0.12, -0.044], [0.118, 0.034]];
     const [x, z] = places[i - 1];
-    return V(x, R[models[k].atoms[i].el] + 0.002, z);
+    return V(x, R[models[k].atoms[i].el] + boardTop, z);
   }
-  if (k > 0 && i === 1) return V(0.095, 0.056, -0.043);
+  if (k > 0 && i === 1) return V(0.095, R.C + boardTop, k === 1 ? -0.035 : -0.043);
+  if (k === 2) {
+    const j = i - 2;
+    return V(0.063 + (j % 2) * 0.074, R.H + boardTop, 0.012 + Math.floor(j / 2) * 0.036);
+  }
   const j = k ? i - 2 : i - 1, n = models[k].atoms.length - 1, cols = n <= 4 ? 2 : 3;
-  return V(0.063 + (j % cols) * 0.037, R[models[k].atoms[i].el] + 0.002,
+  return V(0.063 + (j % cols) * 0.037, R[models[k].atoms[i].el] + boardTop,
     (k ? -0.004 : -0.035) + Math.floor(j / cols) * 0.043);
 }
 function guide(group, positions, edges) {
@@ -183,7 +200,7 @@ export function modelSheet(k) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.31, 0.163), new THREE.MeshStandardMaterial({ map: tex, roughness: 1 }));
-  sheet.rotation.x = -Math.PI / 2; sheet.position.set(0.007, 0.00184, 0); sheet.receiveShadow = true;
+  sheet.rotation.x = -Math.PI / 2; sheet.position.set(0.007, boardTop, 0); sheet.receiveShadow = true;
   const label = partsLabel(k);
   label.position.set(0.095, -0.069, 0.0054);
   label.rotation.x = Math.PI * 0.39;

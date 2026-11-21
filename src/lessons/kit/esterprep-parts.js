@@ -14,7 +14,7 @@ export const MOUTH = BASE.clone().add(V(-Math.sin(ANGLE) * LENGTH, Math.cos(ANGL
 export const TIP = V(0.084, 0.084),
   REST = V(0.143, 0.009),
   DOCK = V(TIP.x, TIP.y - 0.035 - 0.005);
-export const SOURCE = V(-0.149, 0.01),
+export const SOURCE = V(-0.247, 0.008),
   SITES = [-0.08, -0.034, 0.012],
   BATH = 0.101, BATH_WATER_Y = 0.046;
 export const bathSite = (i) => V(BATH + (i - 1) * 0.033, 0.078);
@@ -140,8 +140,7 @@ function levelLiquid(parent, radius, bottom, top, round = false) {
 }
 
 const MEASURE_H = 0.091, MEASURE_R = 0.0063;
-export const CUP_HOME = V(SOURCE.x + MEASURE_R, MEASURE_H + 0.003);
-function measure(parent) {
+export function measure(parent, x, name) {
   const lip = node(parent), bottom = 0.004;
   const step = 1e-6 / (Math.PI * MEASURE_R ** 2);
   const cup = beaker({ r: MEASURE_R + 0.0005, h: MEASURE_H, spout: false });
@@ -179,8 +178,12 @@ function measure(parent) {
   edge.renderOrder = 13;
   const unit = plate(section, 'mL', 0.0032, 0, z, 0.0031);
   pick(lip, [0.021, MEASURE_H, 0.022], V(-MEASURE_R, -MEASURE_H / 2));
-  lip.position.copy(CUP_HOME);
-  lip.draw = (ml, angle, reading) => {
+  lip.home = V(x + MEASURE_R, MEASURE_H + 0.0004);
+  lip.position.copy(lip.home);
+  const label = plate(cup, name, 0, 0.0045, name.length > 4 ? 0.052 : 0.030, 0.0085);
+  lip.readAt = (ml) => [x, lip.home.y - MEASURE_H + bottom + ml * step, 0];
+  lip.draw = (ml, angle, reading, showLabel) => {
+    label.visible = showLabel;
     lip.rotation.z = angle;
     liquid.visible = !reading;
     section.visible = reading;
@@ -208,7 +211,6 @@ function measure(parent) {
     }
     return -(low + high) / 2;
   };
-  lip.readY = (ml) => CUP_HOME.y - MEASURE_H + bottom + ml * step;
   return lip;
 }
 
@@ -290,6 +292,14 @@ export function bench(group) {
   lamp.pick.name = '酒精灯';
   const cap = lampCap(prep, lamp, { off: V(-0.1, 0, 0.029) });
   const receiver = sample(prep, 0.072);
+  // 同一根铁架台立杆上的横臂在接收位置夹住直试管。
+  const receiverGrip = tubeClamp(0.0125);
+  receiverGrip.position.set(TIP.x, DOCK.y + 0.047, 0);
+  support.add(receiverGrip);
+  const joint = V(TIP.x - 0.017, receiverGrip.position.y, -0.008);
+  const post = V(-0.027, joint.y, -0.029);
+  const link = cylinder(support, 0.002, post.distanceTo(joint), post.clone().lerp(joint, 0.5), metal);
+  link.quaternion.setFromUnitVectors(V(0, 1), joint.sub(post).normalize());
   rack(prep, REST.x);
   receiver.position.copy(REST);
   const plug = node(prep);
@@ -330,9 +340,8 @@ export function bench(group) {
     pipe.curve.getPoint(0.8 + 0.2 * travel, drop.position);
     if (phase > 0.82) drop.position.y += (surfaceY - TIP.y) * ((phase - 0.82) / 0.18) ** 2;
   }
-  const bottle = dropBottle(group, V(SOURCE.x, 0), { r: 0.015, h: 0.041 });
+  const bottle = dropBottle(hydro, V(SOURCE.x, 0), { r: 0.015, h: 0.041 });
   plate(bottle, '滴瓶 · 乙酸乙酯', 0, 0.025, 0.017);
-  const cup = measure(group);
   const stream = [0, 1].map(() => {
     const jet = cylinder(group, 0.001, 1, V(), water2({ color: 0xaac9d1, base: 0.72 }));
     jet.renderOrder = 12;
@@ -350,9 +359,11 @@ export function bench(group) {
       jet.quaternion.setFromUnitVectors(V(0, 1), axis.normalize());
     });
   }
-  const pip = node(group);
-  cylinder(pip, 0.002, 0.05, V(0, 0.025), glassMat({ opacity: 0.6 }));
-  const bulb = part(pip, new THREE.SphereGeometry(0.006, 18, 14), ink(0x935548), V(0, 0.056));
+  const pip = node(hydro);
+  const seat = bottle.mouthY - SOURCE.y, rubber = ink(0x935548);
+  cylinder(pip, 0.002, seat, V(0, seat / 2), glassMat({ opacity: 0.6 }));
+  cylinder(pip, 0.0074, 0.003, V(0, seat + 0.0015), rubber);
+  const bulb = part(pip, new THREE.SphereGeometry(0.006, 18, 14), rubber, V(0, seat + 0.009));
   bulb.scale.y = 1.45;
   const core = cylinder(pip, 0.0012, 0.033, V(0, 0.02), ink(0xc2d6da));
   pick(pip, [0.021, 0.045, 0.021], V(0, 0.048));
@@ -361,14 +372,13 @@ export function bench(group) {
   const drip = part(group, new THREE.SphereGeometry(DROP_RADIUS, 12, 8), ink(0xb7cdd1));
   drip.renderOrder = 12;
   const chips = porcelain(prep);
-  chips.position.set(-0.143, 0.002, 0);
   pick(chips, [0.026, 0.02, 0.022], V(0, 0.006));
   plate(chips, '碎瓷片', 0, 0.014, 0.01);
   plate(lamp, '酒精灯', 0, 0.021, 0.034, 0.012);
   plate(support, '试管夹', -0.038, 0.137, 0.016);
   plate(support, '铁架台', -0.031, 0.010, -0.004);
-  plate(plug, '橡胶塞 · 导管', 0.04, 0.028, 0.008);
-  const reactorName = plate(prep, '', BASE.x - 0.031, BASE.y + 0.015, 0.014);
+  const plugLabel = plate(plug, '橡胶塞 · 导管', 0.04, 0.028, 0.008);
+  const reactorName = plate(prep, '', BASE.x + 0.002, BASE.y + 0.026, 0.020);
   const receiverName = plate(receiver, '', 0, 0.006, 0.015);
   plate(prep, '试管架', REST.x, 0.004, 0.025);
   const holder = node(hydro);
@@ -414,8 +424,7 @@ export function bench(group) {
     reflux,
     lamp,
     cap,
-    bottle,
-    cup,
+    plugLabel,
     drawStream,
     reactorName,
     receiverName,

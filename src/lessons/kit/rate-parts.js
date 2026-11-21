@@ -10,7 +10,8 @@ import { clamp } from './interact.js';
 
 export const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 export const X = [-0.052, 0.052, 0], BX = [-0.134, 0.134];
-export const LEN = 0.099, BASE = 0.009, RIM = 0.081, LOW = 0.007;
+export const LEN = 0.099, BASE = 0.008, RIM = 0.081, LOW = 0.0044;
+export const bathTilt = bath => bath < 0 ? 0 : bath ? .28 : -.28;
 export const NAMES = ['甲', '乙', '丙'];
 const R = 0.0093;
 export const level = (ml) => 0.006 + ml * 0.0135; // expanded vertical scale to read the meniscus
@@ -21,7 +22,7 @@ function mesh(group, geo, material, x = 0, y = 0, z = 0) {
 }
 function pick(g, size, x, y) {
   const p = mesh(g, new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial({ visible: false }), x, y);
-  p.userData.pick = true;
+  p.userData.pick = true; p.userData.track = true;
   return p;
 }
 function rack(parent, x) {
@@ -83,15 +84,18 @@ function receiver(parent, i) {
   };
   return { body, pick: grip, rack: rack(parent, X[i]), contents(on) { sulfur=on; }, update };
 }
-function waterBath(parent, i) {
+function waterBath(parent, i, measured) {
   const cup = beaker({ r: 0.034, h: RIM, level: 0.072, spout: false });
   parent.add(cup); cup.position.x = BX[i];
   cup.glass.material = glass2({ base: 0.06, rim: 0.47, band: 0.32 });
   cup.liquid.material = water2({ color: 0xa9cbd4, base: 0.2, rim: 0.17 });
   groundLabel(cup, i ? '烧杯 · 热水' : '烧杯 · 冷水', { z: 0.049, h: 0.016, color: i ? '#94582f' : '#38586e', opacity: 1 });
-  const meter = thermometer({ min: 0, max: 50, length: .102 });
-  meter.position.set(i ? .020 : -.023,.015,-.007);
-  cup.add(meter); cup.meter = meter;
+  if (measured) {
+    const meter = thermometer({ min: 0, max: 50, length: .102 });
+    meter.rotation.z = i ? -.23 : .23;
+    meter.position.set(i ? .012 : -.012,.01366,-.009);
+    cup.add(meter); cup.meter = meter;
+  }
   const rim = mesh(cup, new THREE.RingGeometry(.032, .036, 64),
     new THREE.MeshBasicMaterial({color:0x00876e, side:THREE.DoubleSide}), 0, RIM+.0017);
   rim.rotation.x = -Math.PI/2;
@@ -197,22 +201,29 @@ function ferric(parent, x, radius = .014) {
   faceLabel(g,'滴管 · FeCl₃',{y:.057,z:.008,h:.008,color:'#294653',stroke:'#fff'});
   return { body: g, home, pick: pick(g, [0.018, 0.029, 0.018], 0, 0.056), bottle, volume: (u) => { col.visible = u > 0; col.scale.y = u; col.position.y = .0005+.0145*u; } };
 }
-export function bench(parent) {
-  const tubes = X.map((_, i) => receiver(parent, i)), baths = BX.map((_, i) => waterBath(parent, i));
-  const acids = [-1, 1].map((side) => cylinder(parent, side, side * 0.078, 2));
-  const water = cylinder(parent, 1, 0.009, 1);
-  const fe = ferric(parent, .132), partner = ferric(parent, -.019), spoon = spatula({ color: 0x30292c });
+function manganese(parent) {
+  const spoon = spatula({ color: 0x30292c });
   spoon.scale.setScalar(0.52); spoon.rotation.y = Math.PI;
   const spoonG = new THREE.Group(); parent.add(spoonG); spoonG.add(spoon);
-  const mn = { body: spoonG, home: V(-0.103, 0.004), pick: pick(spoonG, [0.065, 0.011, 0.013], -0.027, 0.001),
+  return { body: spoonG, home: V(-0.103, 0.004), pick: pick(spoonG, [0.065, 0.011, 0.013], -0.027, 0.001),
     label: groundLabel(parent, '药匙 · MnO₂', { x: -0.127, z: 0.024, h: 0.011 }), volume: (u) => { spoon.heap.visible = u > 0; } };
-  const tools = [...acids, water, fe, mn, partner];
+}
+export function bench(parent, mode) {
+  const tubes = X.slice(0,mode === 3 ? 3 : 2).map((_,i)=>receiver(parent,i));
+  const baths = mode === 0 || mode === 2 ? BX.map((_,i)=>waterBath(parent,i,mode === 2)) : [];
+  const tools = [];
+  if (mode === 1 || mode === 2) [-1,1].forEach((side,i)=>{tools[i]=cylinder(parent,side,side*.078,2);});
+  if (mode === 1) tools[2]=cylinder(parent,1,.009,1);
+  if (mode === 0 || mode === 3) tools[3]=ferric(parent,mode === 0 ? .019 : .132);
+  if (mode === 3) tools[4]=manganese(parent);
+  if (mode === 0) tools[5]=ferric(parent,-.019);
   const trails = tubes.map(() => {
     const g = new THREE.Group(); parent.add(g);
     const d = mesh(g, new THREE.SphereGeometry(0.002, 12, 9), mat(0xc1dce1));
     d.renderOrder = 11; return d;
   });
-  return { tubes, baths, tools, trails };
+  const props = tubes.slice(); props.length = 3;
+  return { parent, tubes, baths, tools, trails, props: props.concat(tools) };
 }
 
 // Atom radii and colors follow microworld.js. Two equally sized observation volumes.

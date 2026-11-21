@@ -5,7 +5,7 @@ import { lessonBar } from './kit/lessonbar.js';
 import { demoActs, mountXuean, moreBox, paperSheet, qaFlow, sandbox, wrapPointer } from './kit/chemlesson.js';
 import { clamp, draggable } from './kit/interact.js';
 import { micro } from './kit/microworld.js';
-import { atomScene, bench, visibleLayer, V, BASE, MOUTH, TIP, DOCK, REST, SOURCE, CUP_HOME, SITES, bathSite, BATH, BATH_WATER_Y, ANGLE } from './kit/esterprep-parts.js';
+import { atomScene, bench, measure, visibleLayer, V, BASE, MOUTH, TIP, DOCK, REST, SOURCE, SITES, bathSite, BATH, BATH_WATER_Y, ANGLE } from './kit/esterprep-parts.js';
 
 const READ_SCALE = '平视液面，读凹液面最低处对应的刻度。';
 const INTRO = '点量筒名牌，平视凹液面最低处。回到实验台，把量筒口移到反应试管口，慢慢倒入乙醇。';
@@ -13,29 +13,31 @@ const OBS = '静置后，上层是无色透明的油状液体，下层是水溶�
 const EARLY = '本轮收集量少，未见清晰分层。';
 const FAULT = '先停火且导管口浸在液体中：冷却时液体沿导管回升。取下接收试管，停止本轮实验，全部重来。';
 const SAMPLE = ['A · 水', 'B · 酸', 'C · 碱'];
+// 一行对应一次加料。每份预先量好的液体有自己的量筒和桌面位置。
+const portion = ([name, amount, tool, x, tube]) => ({ name, amount, tool, x, tube });
 const PRE = [
-  ['乙醇', '2 mL'],
-  ['浓硫酸', '0.5 mL'],
-  ['乙酸', '2 mL'],
-  ['碎瓷片', '几片'],
-  ['饱和 Na₂CO₃ 溶液', '3 mL'],
-];
+  ['乙醇', '2 mL', 'ethanol', -0.222],
+  ['浓硫酸', '0.5 mL', 'sulfuric', -0.186],
+  ['乙酸', '2 mL', 'acetic', -0.15],
+  ['碎瓷片', '几片', 'chips'],
+  ['饱和 Na₂CO₃ 溶液', '3 mL', 'carbonate', -0.114],
+].map(portion);
 const HY = [
-  ['乙酸乙酯', '6 滴', 0],
-  ['乙酸乙酯', '6 滴', 1],
-  ['乙酸乙酯', '6 滴', 2],
-  ['蒸馏水', '5.5 mL', 0],
-  ['3 mol/L H₂SO₄', '0.5 mL', 1],
-  ['蒸馏水', '5.0 mL', 1],
-  ['6 mol/L NaOH', '0.5 mL', 2],
-  ['蒸馏水', '5.0 mL', 2],
-];
+  ['乙酸乙酯', '6 滴', 'pip', null, 0],
+  ['乙酸乙酯', '6 滴', 'pip', null, 1],
+  ['乙酸乙酯', '6 滴', 'pip', null, 2],
+  ['蒸馏水', '5.5 mL', 'waterA', -0.211, 0],
+  ['3 mol/L H₂SO₄', '0.5 mL', 'acidB', -0.185, 1],
+  ['蒸馏水', '5.0 mL', 'waterB', -0.159, 1],
+  ['6 mol/L NaOH', '0.5 mL', 'baseC', -0.133, 2],
+  ['蒸馏水', '5.0 mL', 'waterC', -0.107, 2],
+].map(portion);
 const IDS = ['load', 'connect', 'heat', 'remove', 'settle', 'compare'];
-const PLUG_HOME = MOUTH.clone().add(V(0.044, -0.072));
-const chipHome = V(-0.143, 0.002);
+const PLUG_HOME = V(0.004, 0.013, 0.088);
+const chipHome = V(-0.043, 0.002, 0.055);
 const STAGING_Y = bathSite(1).y, BATH_BOTTOM_Y = 0.008;
 const safeDock = () => DOCK.clone();
-const fresh = () => ({
+const initialState = (cups) => ({
   demo: false,
   near: false,
   load: 0,
@@ -74,7 +76,7 @@ const fresh = () => ({
   paused: false,
   poses: {
     pip: SOURCE.clone(),
-    cup: CUP_HOME.clone(),
+    ...Object.fromEntries(Object.entries(cups).map(([key, cup]) => [key, cup.home.clone()])),
     chips: chipHome.clone(),
     plug: PLUG_HOME.clone(),
     receiver: REST.clone(),
@@ -106,24 +108,30 @@ export default {
       group = new THREE.Group();
     root.add(group);
     paperSheet(group, { w: 0.56, d: 0.27 });
-    const rig = bench(group),
-      equipment = {
-        pip: rig.pip,
-        chips: rig.chips,
-        plug: rig.plug,
-        receiver: rig.receiver,
-        ...Object.fromEntries(rig.tubes.map((tube, i) => ['tube' + i, tube])),
-        cup: rig.cup,
-      };
+    const rig = bench(group);
+    const cups = {};
+    for (const steps of [PRE, HY]) {
+      for (const { name, tool, x } of steps) {
+        if (x != null) cups[tool] = measure(steps === PRE ? rig.prep : rig.hydro, x, name);
+      }
+    }
+    const equipment = {
+      ...cups,
+      pip: rig.pip,
+      chips: rig.chips,
+      plug: rig.plug,
+      receiver: rig.receiver,
+      ...Object.fromEntries(rig.tubes.map((tube, i) => ['tube' + i, tube])),
+    };
+    const fresh = () => initialState(cups);
     let state = fresh(),
       panel,
       bar,
       lastHint = '';
     const reagent = () => (state.hydro ? HY[state.dose] : PRE[state.load]);
-    const dosingKey = () => state.hydro && state.dose < 3 ? 'pip' : 'cup';
-    const doseHome = (key) => key === 'pip' ? SOURCE : CUP_HOME;
+    const dosingKey = () => reagent()?.tool;
     const targetDose = () => {
-      const mouth = state.hydro ? V(SITES[reagent()[2]], 0.096) : state.load === 4 ? REST.clone().add(V(0, 0.072)) : MOUTH.clone();
+      const mouth = state.hydro ? V(SITES[reagent().tube], 0.096) : state.load === 4 ? REST.clone().add(V(0, 0.072)) : MOUTH.clone();
       return mouth.add(V(0, !state.hydro && state.load === 4 ? 0.015 : 0.009));
     };
     const log = (...cells) => {
@@ -135,8 +143,13 @@ export default {
     const done = (id) => {
       if (!state.demo) bar.done(id);
     };
+    const clearance = (key) => key === 'pip' ? 0.117 : 0.198;
+    const overhead = (key, point) => point.clone().setY(Math.max(clearance(key), point.y));
     const home = (key, to) => {
-      state.returns[key] = { start: state.poses[key].clone(), to: to.clone(), time: 0 };
+      const start = state.poses[key].clone();
+      const lift = state.hydro && (key === 'pip' || cups[key]);
+      const top = overhead(key, start);
+      state.returns[key] = { points: lift ? [start, top, to.clone().setY(top.y), to.clone()] : [start, to.clone()], time: 0 };
     };
     const hot = () => state.oil >= 0.98;
     const oilDepth = () => 0.004 * state.oil;
@@ -147,8 +160,8 @@ export default {
       if (state.fault) return state.docked ? FAULT : '已取下接收试管。点全部重来，重新连接装置。';
       if (state.hydro) {
         if (item) return dosingKey() === 'pip'
-          ? `把滴管移到 ${'ABC'[item[2]]} 管口上方，滴入 6 滴乙酸乙酯。`
-          : `用量筒向 ${'ABC'[item[2]]} 管加入${item[1]} ${item[0]}。`;
+          ? `把滴管移到 ${'ABC'[item.tube]} 管口上方，滴入 6 滴乙酸乙酯。`
+          : `用量筒向 ${'ABC'[item.tube]} 管加入${item.amount} ${item.name}。`;
         const next = nextTube();
         if (next >= 0) return `提起 ${'ABC'[next]} 管，左右轻摇，再移到烧杯口上方。`;
         return state.bathTime > 0 ? '三管同时入浴。比较同一时刻三管的酯香强弱（示意）。' : '三管已就位，一起降入热水中。';
@@ -156,9 +169,9 @@ export default {
       if (item)
         return state.load === 3
           ? '把几片碎瓷片拖进斜试管口，防止加热时暴沸。'
-          : `用量筒向${state.load === 4 ? '接收试管' : '反应试管'}加入${item[1]} ${item[0]}${[1, 2].includes(state.load) ? '，边振荡边慢慢加入。' : '，筒口靠近管口后稳住。'}`;
+          : `用量筒向${state.load === 4 ? '接收试管' : '反应试管'}加入${item.amount} ${item.name}${[1, 2].includes(state.load) ? '，边振荡边慢慢加入。' : '，筒口靠近管口后稳住。'}`;
       if (!state.connected) return '拿住橡胶塞，把带导管的塞子塞进斜试管口。';
-      if (!state.docked && !state.heated) return '先把接收试管移到导管正下方，再向上托起，使导管口高出液面约 0.5 cm。';
+      if (!state.docked && !state.heated) return '把接收试管从导管正下方向上托起。导管口高出液面约 0.5 cm 时，松手将试管固定在铁夹上。';
       if (!state.heated) return state.immersed ? '管口已浸入液体，可下移试管；若此时加热再先停火，冷却时可能倒吸。' : '点酒精灯，用小火加热。';
       if (state.lit && !state.removed && !hot()) return '看蒸气在导管内冷凝，液滴进入接收试管。';
       if (!state.removed) return '先下移接收试管，使管口脱离导管，再放回右侧试管架。';
@@ -171,8 +184,8 @@ export default {
     const stepTarget = () => {
       if (state.fault) return state.docked ? rig.receiver.glass : null;
       if (state.near || state.grip || state.returningDose) return null;
-      if (state.hydro) return reagent() ? rig[dosingKey()] : rig.tubes[nextTube()]?.glass || null;
-      if (reagent()) return state.load === 3 ? rig.chips : rig[dosingKey()];
+      if (state.hydro) return reagent() ? equipment[dosingKey()] : rig.tubes[nextTube()]?.glass || null;
+      if (reagent()) return equipment[dosingKey()];
       if (!state.connected) return rig.cork;
       if (!state.docked && !state.heated) return rig.receiver.glass;
       if (!state.heated) return state.immersed ? rig.receiver.glass : rig.lamp;
@@ -182,8 +195,8 @@ export default {
       return state.shaken ? null : rig.receiver.glass;
     };
     const finishDose = () => {
-      const [name, amount, index] = reagent();
-      log(state.hydro ? 'ABC'[index] + ' 管' : state.load === 4 ? '接收试管' : '反应试管', amount === '6 滴' ? name + ' 6 滴' : '已加入' + name);
+      const { name, amount, tube } = reagent();
+      log(state.hydro ? 'ABC'[tube] + ' 管' : state.load === 4 ? '接收试管' : '反应试管', amount === '6 滴' ? name + ' 6 滴' : '已加入' + name);
       if (state.hydro) state.dose++;
       else if (++state.load === 5) done('load');
       state.fraction = 0;
@@ -192,14 +205,9 @@ export default {
     function canMove(key) {
       if (state.near || state.returningDose) return false;
       if (state.fault) return key === 'receiver' && state.docked;
-      if (state.hydro) return key === dosingKey() ? !!reagent() : key.startsWith('tube') && !reagent() && !state.staged[Number(key.slice(4))];
-      return key === 'cup'
-        ? !!reagent() && state.load !== 3
-        : key === 'chips'
-          ? state.load === 3
-          : key === 'plug'
-            ? state.load === 5 && !state.connected
-            : key === 'receiver' && state.connected && !state.observed;
+      if (reagent()) return key === dosingKey();
+      if (state.hydro) return key.startsWith('tube') && !state.staged[Number(key.slice(4))];
+      return key === 'plug' ? !state.connected : key === 'receiver' && state.connected && !state.observed;
     }
     function start(key) {
       if (!canMove(key)) return;
@@ -221,8 +229,8 @@ export default {
           else state.mixed[Number(key.slice(4))] = true;
         }
       }
-      let nextX = clamp(pos.x, -0.17, 0.168),
-        nextY = clamp(pos.y, key === 'cup' ? CUP_HOME.y : key === 'plug' ? 0.072 : 0.002, key === 'pip' ? 0.166 : 0.181);
+      let nextX = clamp(pos.x, -0.255, 0.168),
+        nextY = clamp(pos.y, cups[key]?.home.y ?? (key === 'plug' ? PLUG_HOME.y : 0.002), state.hydro && cups[key] ? clearance(key) : key === 'pip' ? 0.166 : 0.181);
       if (key === 'receiver' && state.connected && !state.removed) {
         const clearance = TIP.y - 0.073;
         if (Math.abs(loc.x - TIP.x) < 0.009 && Math.min(loc.y, nextY) > clearance && Math.abs(nextX - TIP.x) > 0.009) {
@@ -234,17 +242,19 @@ export default {
         if (loc.x <= BATH - 0.064) nextX = BATH - 0.064;
         else nextY = 0.066;
       }
-      loc.set(nextX, nextY, 0);
+      const rest = key === 'plug' ? PLUG_HOME : key === 'chips' ? chipHome : null;
+      const z = rest ? rest.z * clamp((MOUTH.y - nextY) / (MOUTH.y - rest.y), 0, 1) : 0;
+      loc.set(nextX, nextY, z);
       equipment[key].position.copy(loc);
     }
     function end(key, zone) {
       if (state.grip !== key) return;
       state.grip = null;
       const pos = state.poses[key];
-      if (key === 'pip' || key === 'cup') {
+      if (key === 'pip' || cups[key]) {
         state.dropTime = 0;
         if (state.fraction >= 1) state.returningDose = key;
-        home(key, doseHome(key));
+        home(key, cups[key]?.home || SOURCE);
         return;
       }
       if (key === 'chips') {
@@ -332,7 +342,7 @@ export default {
     }
     const rackZone = { name: '试管架', position: REST, radius: 0.025, enabled: () => state.docked || !!state.shaking };
     function zones(key) {
-      if (key === 'pip' || key === 'cup') return [{ name: '管口', position: targetDose, radius: 0.030, enabled: () => !!reagent() }];
+      if (key === 'pip' || cups[key]) return [{ name: '管口', position: targetDose, radius: 0.030, enabled: () => !!reagent() }];
       if (key === 'chips' || key === 'plug') return [{ name: '反应试管口', position: MOUTH, radius: 0.030 }];
       if (key === 'receiver') {
         const canDock = () => !state.removed && !state.fault && !(state.docked && state.heated);
@@ -401,11 +411,12 @@ export default {
       odors = SITES.map(() => tag('', 'cond'));
     function readMeasure() {
       if (state.near) { state.near = false; lastHint = ''; back(); return; }
-      if (!canMove('cup') || state.grip || state.demo || state.returns.cup) return;
+      const key = dosingKey(), cup = cups[key];
+      if (!cup || !canMove(key) || state.grip || state.demo || state.returns[key]) return;
       state.near = true;
       lastHint = '';
-      const ml = parseFloat(reagent()[1]) * (1 - state.fraction);
-      look([CUP_HOME.x - 0.0063, rig.cup.readY(ml), 0], [0, 0, 1], 0.115, () => { state.near = false; lastHint = ''; });
+      const ml = parseFloat(reagent().amount) * (1 - state.fraction);
+      look(cup.readAt(ml), [0, 0, 1], 0.115, () => { state.near = false; lastHint = ''; });
     }
     const measurePlate = tag('', 'pill ester-measure', readMeasure);
     const overlay = Array.from(document.querySelectorAll('.mw')).pop();
@@ -437,6 +448,7 @@ export default {
       'style',
       {},
       '.ester-measure.moving{pointer-events:none}.ester-key{display:block;font:500 15px/1.5 system-ui;margin-top:5px}.ester-scent{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:12px;color:#4c5960}.ester-scent i{width:66px;height:4px;background:linear-gradient(to right,#596d72 var(--scent),#dfddd5 var(--scent))}',
+      '.lbar[data-esterprep].film .lb-steps{width:clamp(32px,6vw,80px);height:4px;gap:0;flex-wrap:nowrap;overflow:hidden;border-radius:2px}.lbar[data-esterprep].film .lb-steps i{flex:1;min-width:0;height:100%;border:0;border-radius:0;font-size:0;background:#636977}.lbar[data-esterprep].film .lb-steps i:is(.done,.cur){background:#f4efe2}.lbar[data-esterprep].film .lb-steps i::after{content:none}',
       '.ester-playback{position:absolute;bottom:15%;left:64%;display:flex;gap:8px}.ester-playback .mw-close{position:static}.ester-micro .mw-eq{font:600 22px/1.3 Georgia,serif}.ester-micro .mw-cap{font-size:16px}@media(max-width:760px){.ester-micro .mw-hud,.ester-micro .mw-scale{left:3vw!important;width:94vw!important}.ester-micro .mw-hud{top:112px!important}.ester-micro .mw-eq{font-size:16px}.ester-playback{left:38%}}',
     );
     document.head.append(style);
@@ -451,41 +463,45 @@ export default {
       drag.update(Math.min(handDt, 0.025));
       for (const [key, ret] of Object.entries(state.returns)) {
         ret.time += handDt;
-        const u = clamp(ret.time / 0.42, 0, 1);
-        state.poses[key].lerpVectors(ret.start, ret.to, u * u * (3 - 2 * u));
-        if (u >= 1) {
+        const legs = ret.points.length - 1;
+        const progress = Math.min(legs, ret.time / (legs === 1 ? 0.42 : 0.28));
+        const segment = Math.min(legs - 1, Math.floor(progress)), u = progress - segment;
+        state.poses[key].lerpVectors(ret.points[segment], ret.points[segment + 1], u * u * (3 - 2 * u));
+        if (progress >= legs) {
           delete state.returns[key];
           if (key === state.returningDose) finishDose();
         }
       }
       if (state.observed && !state.demo && panel && panel.extend.open !== state.hydro) extension(panel.extend.open);
       const item = reagent(), key = dosingKey(), tip = state.poses[key];
-      const tube = state.hydro ? rig.tubes[item?.[2]] : state.load === 4 ? rig.receiver : rig.reactor;
-      const entry = item && state.grip === key && state.fraction < 1 ? tube.entryHeight(tip) : null;
+      const tube = state.hydro ? rig.tubes[item?.tube] : state.load === 4 ? rig.receiver : rig.reactor;
+      const cup = cups[key];
+      const entry = (cup || key === 'pip') && state.grip === key && state.fraction < 1 ? tube.entryHeight(tip) : null;
       const aligned = entry !== null;
-      const ml = key === 'cup' && item && state.load !== 3 ? parseFloat(item[1]) : 0;
+      const ml = cup ? parseFloat(item.amount) : 0;
       const left = Math.max(0, ml * (1 - state.fraction));
-      const angle = aligned && key === 'cup' ? rig.cup.pourAngle(left) : 0;
+      const lifting = state.hydro && cup && state.returns[key]?.time < 0.28;
+      const angle = aligned && cup ? cup.pourAngle(left) : state.hydro && cup && (lifting || state.grip === key && state.fraction >= 1) ? state.tilt : 0;
       state.tilt += clamp(angle - state.tilt, -handDt * 4.8, handDt * 4.8);
-      const pouring = aligned && key === 'cup' && Math.abs(angle - state.tilt) < 0.06;
+      const pouring = aligned && cup && Math.abs(angle - state.tilt) < 0.06;
       rig.reactor.rotation.z = ANGLE + (pouring && !state.hydro && [1, 2].includes(state.load) ? Math.sin(state.phase * Math.PI * 2) * 0.018 : 0);
       rig.drip.visible = aligned && key === 'pip';
       if (rig.drip.visible) {
         state.dropTime += dt / 0.27;
         const fall = Math.min(1, state.dropTime);
-        const surface = state.poses['tube' + item[2]].y + 0.003 + state.ester[item[2]] * 0.0015;
+        const surface = state.poses['tube' + item.tube].y + 0.003 + state.ester[item.tube] * 0.0015;
         rig.drip.position.copy(tip);
         rig.drip.position.y -= (tip.y - surface) * fall * fall;
         if (state.dropTime >= 1) {
           state.dropTime %= 1;
-          state.ester[item[2]]++;
-          state.fraction = state.ester[item[2]] / 6;
+          state.ester[item.tube]++;
+          state.fraction = state.ester[item.tube] / 6;
         }
       } else state.dropTime = 0;
       if (pouring) {
         const prev = state.fraction;
         state.fraction = Math.min(1, prev + dt / 1.25);
-        if (state.hydro) state.vol[item[2]] += (state.fraction - prev) * ml;
+        if (state.hydro) state.vol[item.tube] += (state.fraction - prev) * ml;
       }
       const receiving = state.docked && Math.abs(state.poses.receiver.x - TIP.x) < 0.01 && state.poses.receiver.y + 0.072 > TIP.y;
       if (state.lit && !state.removed && receiving) {
@@ -529,27 +545,34 @@ export default {
       rig.prep.visible = !state.hydro;
       rig.hydro.visible = state.hydro;
       rig.holder.position.y = STAGING_Y - state.bathDepth + 0.058;
-      rig.bottle.visible = rig.pip.visible = !!item && key === 'pip';
-      rig.cup.visible = !!item && key === 'cup' && state.load !== 3;
-      if (rig.cup.visible) rig.cup.draw(ml * (1 - state.fraction), state.tilt, state.near);
-      const cupPos = state.poses.cup;
-      const carrying = state.grip === 'cup' || !!state.returns.cup;
-      measurePlate.el.classList.toggle('moving', carrying || state.demo);
-      measurePlate.text(state.near ? '回到实验台' : '量筒 · ' + (item?.[0] || ''))
-        .loc(group, cupPos.x + (state.near ? 0.014 : -0.006 + 0.045 * Math.sin(state.tilt)),
-          state.near ? rig.cup.readY(left) + 0.013 : cupPos.y + (carrying ? 0.024 : 0.009), 0.012)
-        .show(rig.cup.visible && !mic.isOpen);
+      const steps = state.hydro ? HY : PRE, step = state.hydro ? state.dose : state.load;
+      steps.forEach((row, i) => {
+        const vessel = cups[row.tool];
+        if (!vessel) return;
+        const active = i === step;
+        const volume = parseFloat(row.amount) * (i < step ? 0 : active ? 1 - state.fraction : 1);
+        vessel.draw(volume, active ? state.tilt : 0, active && state.near, !active && !state.near);
+      });
+      measurePlate.show(!!cup && !mic.isOpen);
+      if (cup) {
+        const carrying = state.grip === key || !!state.returns[key];
+        measurePlate.el.classList.toggle('moving', carrying || state.demo);
+        measurePlate.text(state.near ? '回到实验台' : '量筒 · ' + item.name)
+          .loc(group, tip.x + (state.near ? 0.014 : -0.006 + 0.045 * Math.sin(state.tilt)),
+            state.near ? cup.readAt(left)[1] + 0.013 : tip.y + (carrying ? 0.024 : 0.009), 0.012);
+      }
       microButton.text((state.hydro ? '钻进 B 管里看' : '钻进反应试管里看') + ' ⊙');
-      rig.chips.visible = state.load === 3;
+      rig.chips.visible = state.load <= 3;
       state.chipFall = Math.max(0, state.chipFall - dt / 0.38);
       rig.bits.visible = state.load > 3;
       rig.bits.position.y = 0.007 + 0.109 * (1 - (1 - state.chipFall) ** 2);
-      rig.plug.visible = state.load >= 5;
-      rig.core.scale.y = Math.max(0.001, 1 - state.fraction);
+      rig.plug.rotation.x = 1.42 * clamp((MOUTH.y - rig.plug.position.y) / (MOUTH.y - PLUG_HOME.y), 0, 1);
+      rig.plugLabel.rotation.x = -rig.plug.rotation.x;
+      rig.core.scale.y = Math.max(0.001, key === 'pip' ? 1 - state.fraction : 0);
       rig.core.position.y = 0.0035 + 0.0165 * rig.core.scale.y;
       const added =
-        PRE.slice(0, Math.min(state.load, 3)).reduce((sum, row) => sum + parseFloat(row[1]), 0) +
-        (state.load < 3 ? parseFloat(PRE[state.load][1]) * state.fraction : 0);
+        PRE.slice(0, Math.min(state.load, 3)).reduce((sum, row) => sum + parseFloat(row.amount), 0) +
+        (state.load < 3 ? parseFloat(PRE[state.load].amount) * state.fraction : 0);
       const reactorY = rig.reactorLevel(Math.max(0, added - 0.45 * state.oil));
       if (pouring && !state.hydro && state.load < 3) {
         const angle = rig.reactor.rotation.z;
@@ -558,7 +581,7 @@ export default {
         const endY = Math.max(reactorY, BASE.y + 0.003);
         rig.drawStream(tip, hit, V(hit.x - (endY - wallY) * Math.tan(angle), endY));
       } else if (pouring) {
-        const surface = state.hydro ? tube.position.y + 0.013 + state.vol[item[2]] * 0.0055
+        const surface = state.hydro ? tube.position.y + 0.013 + state.vol[item.tube] * 0.0055
           : REST.y + Math.max(0.002, 0.035 * state.fraction);
         rig.drawStream(tip, V(tip.x, surface));
       } else rig.drawStream();
@@ -629,11 +652,12 @@ export default {
     }
     const act = demoActs(drag, group);
     const shots = [];
-    const doseShot = (cap, key) => ({
+    const doseShot = (cap, key, hydro = false) => ({
       cap,
-      dur: 2.5,
+      dur: hydro ? 2.85 : 2.5,
       speed: 2.5,
-      during: act.drag(rig[key].pick, targetDose, { from: () => state.poses[key], t0: 0.01, t1: 0.40, release: 0.80 }),
+      during: hydro ? act.path(equipment[key].pick, [() => state.poses[key], () => overhead(key, state.poses[key]), () => overhead(key, targetDose()), targetDose],
+        { t0: 0.01, t1: 0.37, release: 0.69 }) : act.drag(equipment[key].pick, targetDose, { from: () => state.poses[key], t0: 0.01, t1: 0.40, release: 0.80 }),
     });
     const moveShot = (cap, key, to) => ({
       cap,
@@ -654,11 +678,11 @@ export default {
         { t0: 0.015, t1: 0.89, release: 0.91 },
       );
     }
-    PRE.forEach(([name, amount], i) =>
+    PRE.forEach(({ name, amount, tool }, i) =>
       shots.push(
         i === 3
           ? moveShot('把碎瓷片加入反应试管。', 'chips', MOUTH)
-          : doseShot(`${name} ${amount}，${i === 4 ? '加入接收试管。' : i ? '边振荡边慢慢加入。' : '加入反应试管。'}`, 'cup'),
+          : doseShot(`${name} ${amount}，${i === 4 ? '加入接收试管。' : i ? '边振荡边慢慢加入。' : '加入反应试管。'}`, tool),
       ),
     );
     shots.push(
@@ -671,7 +695,7 @@ export default {
       { cap: '静置后，观察上层的透明油层。', dur: 2.1, speed: 2 },
       { cap: '换到水解实验，三支试管各取六滴酯。', dur: 0.6, enter: () => extension(true) },
     );
-    HY.forEach(([name, amount, index], i) => shots.push(doseShot(`${'ABC'[index]} 管：${name} ${amount}。`, i < 3 ? 'pip' : 'cup')));
+    HY.forEach(({ name, amount, tool, tube }) => shots.push(doseShot(`${'ABC'[tube]} 管：${name} ${amount}。`, tool, true)));
     SITES.forEach((x, i) =>
       shots.push({
         cap: `振荡 ${'ABC'[i]} 管，移到烧杯口上方。`,
@@ -721,6 +745,7 @@ export default {
       ringOptions: { minOpacity: 0.42 },
       reels: { demo: { ...box, label: '老师演示', shots } },
     });
+    document.querySelector('.lbar').setAttribute('data-esterprep', '');
     function reset() {
       if (bar.playing) bar.stop();
       mic.close();
@@ -742,7 +767,7 @@ export default {
     const doseQA = (name, getDest) => ({
       name,
       run: () => {
-        const entry = drag.items().find((it) => it.anchor === rig[dosingKey()]),
+        const entry = drag.items().find((it) => it.anchor === equipment[dosingKey()]),
           run = state;
         entry.onStart();
         entry.onDrag(getDest());
@@ -768,7 +793,7 @@ export default {
       wait: 2.8,
     });
     const qa = qaFlow(drag, [
-      ...PRE.map(([name], i) => (i === 3 ? { name, drag: rig.chips.pick, to: MOUTH } : doseQA(name, targetDose))),
+      ...PRE.map(({ name }, i) => (i === 3 ? { name, drag: rig.chips.pick, to: MOUTH } : doseQA(name, targetDose))),
       { name: '连接导管', drag: rig.plug.pick, to: MOUTH },
       { name: '托起接收试管', drag: rig.receiver.pick, to: safeDock },
       { name: '小火加热', tap: rig.lamp.pick, wait: 5 },
@@ -793,7 +818,7 @@ export default {
         },
         wait: 2,
       },
-      ...HY.map(([name, , index]) => doseQA('ABC'[index] + ' 管 ' + name, targetDose)),
+      ...HY.map(({ name, tube }) => doseQA('ABC'[tube] + ' 管 ' + name, targetDose)),
       ...SITES.map((x, i) => rockQA('振荡就位 ' + 'ABC'[i], 'tube' + i, V(x, 0.009), [bathSite(i)])),
       { name: '观察水解', run: () => {}, wait: 8 },
       {
@@ -810,7 +835,7 @@ export default {
 
     return {
       group: root,
-      size: { w: 0.365, d: 0.15, h: 0.239 },
+      size: { w: 0.49, d: 0.15, h: 0.239 },
       view: { elev: 18, azim: 0, lookY: 0.46, frameMargin: 1.18 },
       card: false,
       toggles: ['cards', 'steps'],

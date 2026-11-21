@@ -63,6 +63,8 @@ function annulus(g, outer, inner, height, y, material, cut = false) {
       ).rotation.y = a;
     }
 }
+// 废液槽在量热计后方，内筒绕靠近槽口的一侧倾倒。
+export const WASTE = V(-0.054, 0.122, -0.073);
 export function calorimeter(group) {
   const g = new THREE.Group();
   group.add(g);
@@ -81,28 +83,50 @@ export function calorimeter(group) {
   cyl(g, 0.039, 0.005, shell, 0, 0.0026, 0);
   annulus(g, 0.039, 0.036, 0.062, 0.005, shell, true);
   annulus(g, 0.036, 0.029, 0.059, 0.006, cork, true);
-  annulus(g, 0.029, 0.027, 0.06, 0.009, steel, true);
-  cyl(g, 0.0288, 0.004, steel, 0, 0.009, 0);
-  ring(g, 0.0284, 0.0011, steel, 0, RIM - 0.001, 0);
-  const liquid = cyl(g, 0.0268, 1, water2({ color: 0xbcdadf, base: 0.48 }), 0, 0, 0);
-  liquid.geometry.translate(0, 0.5, 0);
-  liquid.position.y = cupSurface(0);
-  liquid.renderOrder = 3;
-  const surface = ring(g, 0.0263, 0.00045, mat(0x88a9ad), 0, 0, 0);
-  return (ml) => {
-    liquid.visible = surface.visible = ml > 0;
+  const insert = new THREE.Group();
+  g.add(insert);
+  annulus(insert, 0.029, 0.027, 0.06, 0.009, steel, true);
+  cyl(insert, 0.0288, 0.004, steel, 0, 0.009, 0);
+  ring(insert, 0.0284, 0.0011, steel, 0, RIM - 0.001, 0);
+  const depth = RIM - cupSurface(0);
+  const fill = cylinderLiquid(insert, 0.0268, depth, depth / 0.00043, cupSurface(0));
+  const surface = ring(insert, 0.0263, 0.00045, mat(0x88a9ad), 0, 0, 0);
+
+  const drain = new THREE.Group();
+  drain.position.set(WASTE.x, 0, WASTE.z);
+  g.add(drain);
+  const enamel = mat(0x71918b);
+  annulus(drain, 0.031, 0.028, 0.047, 0.001, enamel);
+  cyl(drain, 0.028, 0.002, enamel, 0, 0.003, 0);
+  cyl(drain, 0.006, 0.001, mat(0x344944), 0, 0.0045, 0);
+  faceLabel(drain, '废液槽', { y: 0.034, z: 0.032, h: 0.009 });
+  const jet = cyl(drain, 0.0015, WASTE.y - 0.006,
+    water2({ color: 0xb8d9dc, base: 0.76 }), 0, (WASTE.y + 0.006) / 2, 0);
+  return { insert, show(ml, angle, pouring) {
+    fill(ml, angle);
+    surface.visible = ml > 0 && angle === 0;
     surface.position.y = cupSurface(ml);
-    liquid.scale.y = Math.max(0.00001, surface.position.y - liquid.position.y);
-  };
+    jet.visible = pouring;
+  } };
 }
 
-export function cover(group) {
+export function cover(group, park) {
+  // 杯盖停放架从外缘承托杯盖，搅拌环可以垂在架内。
+  const rack = new THREE.Group();
+  group.add(rack);
+  rack.position.x = park.x;
+  const support = mat(0x718a84, { metalness: 0.3 });
+  ring(rack, 0.034, 0.0014, support, 0, park.y - 0.0014, 0);
+  for (const a of [0, 2 * Math.PI / 3, 4 * Math.PI / 3]) {
+    cyl(rack, 0.0015, park.y - 0.0014, support,
+      0.034 * Math.sin(a), (park.y - 0.0014) / 2, 0.034 * Math.cos(a));
+  }
   const body = new THREE.Group();
   group.add(body);
   const shape = new THREE.Shape();
   shape.absarc(0, 0, 0.0395, 0, Math.PI * 2, false);
   for (const [x, r] of [
-    [-0.009, 0.0034],
+    [-0.009, 0.0031],
     [0.012, 0.0023],
   ]) {
     const p = new THREE.Path();
@@ -122,16 +146,20 @@ export function cover(group) {
     mat(0x536d68),
   );
   top.rotation.x = -Math.PI / 2;
-  for (const [x, r] of [
-    [-0.009, 0.0038],
-    [0.012, 0.0028],
-  ])
-    ring(body, r, 0.0006, mat(0xc5cfc7), x, 0.0053, 0);
+  // 左孔的厚孔沿贴合温度计杆，右孔给搅拌器留出上下活动的余量。
+  const edge = mat(0xc5cfc7);
+  const lip = new THREE.Group();
+  body.add(lip);
+  lip.position.x = -0.009;
+  annulus(lip, 0.005, 0.0025, 0.0027, 0.005, edge);
+  ring(body, 0.0028, 0.0006, edge, 0.012, 0.0053, 0);
   const rod = new THREE.Group();
   body.add(rod);
   rod.position.x = 0.012;
   const glass = glass2({ base: 0.48, rim: 0.79, tint: 0xb5d0cc });
   cyl(rod, 0.00165, 0.094, glass, 0, 0.047, 0);
+  // 杆在工作位时，下限位环的底面压在右孔孔沿上。
+  cyl(rod, 0.0042, 0.003, mat(0xb96d38), 0, 0.0544, 0);
   const loop = ring(rod, 0.0095, 0.00165, glass, -0.0095, 0, 0);
   loop.rotation.z = 0.07;
   const grip = put(rod, new THREE.SphereGeometry(0.0023, 16, 12), glass, 0, 0.094, 0);
@@ -144,19 +172,19 @@ export function cover(group) {
 
 const CYL_H = 0.089,
   CYL_R = 0.014;
-function cylinderLiquid(g) {
+function cylinderLiquid(g, radius = CYL_R * 0.95, length = CYL_H - 0.002, capacity = 60, bottom = -CYL_H / 2) {
   // 截取倾斜量筒中水平液面以下的几何，并补上水平的液面。
   const n = 32,
     pts = Array.from({ length: n }, (_, i) => [
-      Math.cos((2 * Math.PI * i) / n) * CYL_R * 0.95,
-      Math.sin((2 * Math.PI * i) / n) * CYL_R * 0.95,
+      Math.cos((2 * Math.PI * i) / n) * radius,
+      Math.sin((2 * Math.PI * i) / n) * radius,
     ]);
   const geometry = new THREE.BufferGeometry(),
     material = water2({ color: 0xbad9dc, base: 0.51 });
   const buffer = new THREE.BufferAttribute(new Float32Array(n * 54), 3);
   geometry.setAttribute('position', buffer);
   geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(n * 54), 3));
-  const mesh = put(g, geometry, material, 0, -CYL_H / 2, 0);
+  const mesh = put(g, geometry, material, 0, bottom, 0);
   mesh.frustumCulled = false;
   mesh.renderOrder = 3;
   let old = '';
@@ -167,11 +195,10 @@ function cylinderLiquid(g) {
     mesh.visible = ml > 0.001;
     if (!mesh.visible) return;
     const sn = Math.sin(angle),
-      cs = Math.cos(angle),
-      length = CYL_H - 0.002;
+      cs = Math.cos(angle);
     // 由横截面平均液柱长度反求水平面的高度。
-    let lo = Math.min(0, length * cs) - CYL_R,
-      hi = Math.max(0, length * cs) + CYL_R;
+    let lo = Math.min(0, length * cs) - radius,
+      hi = Math.max(0, length * cs) + radius;
     for (let j = 0; j < 16; j++) {
       const level = (lo + hi) / 2;
       let filled = 0,
@@ -179,11 +206,11 @@ function cylinderLiquid(g) {
       for (let k = 0; k < 32; k++) {
         const u = (k + 0.5) / 16 - 1,
           w = Math.sqrt(1 - u * u);
-        const f = clamp((level - u * CYL_R * sn) / ((Math.abs(cs) < 1e-6 ? 1e-6 : cs) * length), 0, 1);
+        const f = clamp((level - u * radius * sn) / ((Math.abs(cs) < 1e-6 ? 1e-6 : cs) * length), 0, 1);
         filled += w * (cs < 0 ? 1 - f : f);
         weights += w;
       }
-      if (filled / weights < ml / 60) lo = level;
+      if (filled / weights < ml / capacity) lo = level;
       else hi = level;
     }
     const level = (lo + hi) / 2,
@@ -282,16 +309,20 @@ export function graduate(group, name, sign) {
   const fill = cylinderLiquid(body);
   const plate = faceLabel(body, name, { y: -0.034, z: 0.015, h: 0.0075, color: '#223f3d', stroke: '#fffff6' });
   const empty = faceLabel(body, '量筒 · 空', { y: -0.034, z: 0.015, h: 0.0075, color: '#223f3d', stroke: '#fffff6' });
-  return { body, mouth, pick: pick(body, 0.033, 0.09, 0.033), liquid(ml, angle) {
+  return { body, mouth, liquid(ml, angle) {
     fill(ml, angle);
     meniscus.position.y = -CYL_H / 2 + (CYL_H - 0.002) * ml / 60;
     meniscus.visible = ml > 0 && Math.abs(angle) < 0.005;
     plate.visible = ml > 0;
     empty.visible = !plate.visible;
   } };
-
 }
-export function cleaning(group, x, clothX) {
+export function cylinderHandle(group) {
+  const body = new THREE.Group();
+  group.add(body);
+  return { body, pick: pick(body, 0.033, 0.09, 0.033) };
+}
+export function cleaning(group, x, clothX, rack) {
   const stand = new THREE.Group();
   group.add(stand);
   stand.position.x = x;
@@ -304,12 +335,24 @@ export function cleaning(group, x, clothX) {
     V(0, 0.006, -0.019),
     V(0, 0.043, -0.019),
     V(0, 0.047, -0.015),
-    V(0, 0.047, -0.003),
-    V(0, 0.041, 0),
+    V(0, 0.047, -0.011),
+    V(0, 0.041, -0.008),
   ]);
   put(stand, new THREE.TubeGeometry(curve, 30, 0.0019, 10, false), metal);
-  const water = cyl(stand, 0.0011, 0.037, water2({ color: 0xb8dedf, base: 0.7 }), 0, 0.022, 0);
+  const jet = V(0, 0.041, -0.008).sub(V(0, 0.003, 0.010));
+  const water = cyl(stand, 0.0011, jet.length(), water2({ color: 0xb8dedf, base: 0.7 }), 0, 0.022, 0.001);
+  water.quaternion.setFromUnitVectors(V(0, 1, 0), jet.normalize());
   water.visible = false;
+  // 两端的 V 形托口托住水平的温度计杆，球泡伸在接液盘上。
+  const tray = mat(0x648a84);
+  put(group, new THREE.BoxGeometry(0.014, 0.003, 0.116), tray, rack.x, 0.0016, 0);
+  for (const z of [-0.032, 0.032]) {
+    for (const side of [-1, 1]) {
+      put(group, new THREE.BoxGeometry(0.004, 0.012, 0.005), tray,
+        rack.x + side * 0.0036, rack.y - 0.005, z).rotation.z = -side * 0.35;
+    }
+  }
+  faceLabel(group, '湿用托架', { x: rack.x, y: 0.008, z: 0.061, h: 0.007, color: '#324744', stroke: '#fff9e8' });
   const cloth = mat(0xf0e9d6, {
     map: canvasTex(128, 512, (c, w, h) => {
       c.fillStyle = '#f4eee1';
@@ -361,7 +404,7 @@ export function probe(group) {
       if (k % 10 === 0) c.fillText(String(20 + k / 5), 57, clamp(y + 11, 36, h - 5));
     }
   });
-  put(body, new THREE.PlaneGeometry(0.0058, 0.061), new THREE.MeshBasicMaterial({ map: tex }), 0.0042, 0.014, 0);
+  put(body, new THREE.PlaneGeometry(0.0058, 0.047), new THREE.MeshBasicMaterial({ map: tex }), 0.0042, 0.025, 0);
   return {
     body, bulb, plate,
     ringTarget: cyl(body, 0.00265, 0.0013, mat(0xa3b0aa), 0, 0.025, 0),
@@ -372,7 +415,7 @@ export function probe(group) {
         center.y - radius * bulb.scale.y >= bottom && center.y + radius * bulb.scale.y <= surface;
     },
     read: (t) => {
-      col.scale.y = grip + 0.014 - 0.0305 + 0.061 * (7 + 706 * clamp((t - 20) / 10, 0, 1)) / 720;
+      col.scale.y = grip + 0.025 - 0.0235 + 0.047 * (7 + 706 * clamp((t - 20) / 10, 0, 1)) / 720;
     },
   };
 }

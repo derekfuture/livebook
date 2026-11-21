@@ -8,12 +8,14 @@ import { textSprite } from './microworld.js';
 export const V = (x, y, z = 0) => new THREE.Vector3(x, y, z);
 export const CUP = -0.105, TUBE = -0.018, WATER = 0.098;
 export const RIM = 0.132, CUP_RIM = 0.068, BRINE_LEVEL = 0.061, HALF = 0.032;
-const BASE = 0.009, SURFACE = 0.048, FOOT = 0.02;
+export const TUBE_RADIUS = 0.013, TUBE_WALL = 0.0008, BASE = 0.009;
+const SURFACE = 0.048, FOOT = 0.02;
 const mesh = (geometry, color) => new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, roughness: 0.65 }));
 
 export function apparatus(group, tag) {
   const salt = chemBeaker({ r: 0.027, h: CUP_RIM, level: BRINE_LEVEL, color: 0xc5dce0, marks: false });
   salt.position.x = CUP;
+  salt.rotation.y = -Math.PI / 3; // 杯嘴朝左后方，避开横搭在杯沿上的钉帽。
   group.add(salt);
   const nameplate = (text, x, y, z) => tag(text, 'ferust-name').loc(group, x, y, z);
   const cupName = nameplate('烧杯 · 饱和食盐水', CUP, 0.025, 0.028);
@@ -35,7 +37,7 @@ export function apparatus(group, tag) {
     capName.loc(group, s.cap.x, s.cap.y + 0.009, 0.016).show(desk);
   }
 
-  const main = testTube({ r: 0.013, len: RIM - BASE });
+  const main = testTube({ r: TUBE_RADIUS, wall: TUBE_WALL, len: RIM - BASE });
   const bath = testTube({ r: 0.017, len: 0.095 - BASE });
   main.position.set(TUBE, BASE, 0);
   bath.position.set(WATER, BASE, 0);

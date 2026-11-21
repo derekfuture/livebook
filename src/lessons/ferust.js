@@ -5,10 +5,19 @@ import { draggable, clamp } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { paperSheet, qaFlow, demoActs, sandbox, wrapPointer, mountXuean, moreBox, think } from './kit/chemlesson.js';
 import { micro } from './kit/microworld.js';
-import { V, CUP, TUBE, WATER, RIM, CUP_RIM, BRINE_LEVEL, HALF, apparatus, corrosionScene } from './kit/ferust-parts.js';
+import { V, CUP, TUBE, WATER, RIM, CUP_RIM, BRINE_LEVEL, HALF, TUBE_RADIUS, TUBE_WALL, BASE, apparatus, corrosionScene } from './kit/ferust-parts.js';
 
-const DRY = V(CUP, CUP_RIM + 0.005), DIPPED = V(CUP, 0.034);
-const ENTRY = V(TUBE, RIM + HALF - 0.002), BOTTOM = V(TUBE, 0.0122 + HALF);
+// 钉身左段比右侧钉尖粗；向右微倾，两处下缘才会同时搭在杯沿上。
+const DRY_ANGLE = 1.531, DRY = V(CUP - 0.002, CUP_RIM + 0.002195);
+// 钉帽靠杯壁，钉尖落在烧杯底面。
+const REST_ANGLE = 0.789, CUP_FLOOR = 0.0006;
+const DIPPED = V(CUP, CUP_FLOOR + HALF * Math.cos(REST_ANGLE));
+const ENTRY = V(TUBE, RIM + HALF - 0.002);
+// 试管模型只画一层玻璃曲面。钉帽左缘抵住直段，钉尖落在右侧对应的弧面上。
+const TUBE_ANGLE = 0.223, tipX = HALF * Math.sin(TUBE_ANGLE);
+const glassRadius = TUBE_RADIUS + TUBE_WALL;
+const tubeFloor = BASE + glassRadius - Math.sqrt(glassRadius ** 2 - tipX ** 2);
+const BOTTOM = V(TUBE, tubeFloor + HALF * Math.cos(TUBE_ANGLE));
 const PLUG = V(-0.062, 0.001, 0), SEAT = V(TUBE, RIM - 0.005);
 const intro = '将杯口上已经酸洗除锈的铁钉向下拖，浸入饱和食盐水。';
 const insert = '提起铁钉，把钉尖移到具支试管口，对准后松手。';
@@ -42,7 +51,7 @@ export default {
     const { nail, cap, film, bathGlass, meniscus, waterLevel, nameplates } = apparatus(group, tag);
     const card = tag('', 'cond');
     const fresh = () => ({
-      nail: DRY.clone(), cap: PLUG.clone(), angle: Math.PI / 2,
+      nail: DRY.clone(), cap: PLUG.clone(), angle: DRY_ANGLE,
       wet: false, dipped: false, inside: false, sealed: false, seen: false, demo: false,
       rise: 0, progress: 0, oxygenUsed: 0, moving: '', returns: {}, dryWait: 0, drySeen: false, near: false,
     });
@@ -122,6 +131,8 @@ export default {
       const along = dx > 0 ? Math.min(1, (right - S.nail.x) / dx) : 1;
       return S.nail.y - along * dy <= BRINE_LEVEL;
     }
+    const grabPoint = V(0, 0);
+    let grabAngle;
     const nailDrag = {
       obj: nail, keepOffset: true, plane: 'xy', hint: nailHint, enabled: () => !S.inside,
       dropOffset: nailTip,
@@ -130,11 +141,13 @@ export default {
           position: () => V(CUP, clamp(S.nail.y + nailTip.y, DIPPED.y - HALF, BRINE_LEVEL)) },
         tubeZone,
       ],
-      onStart() { S.moving = 'nail'; delete S.returns.nail; },
+      onStart() {
+        S.moving = 'nail';
+        grabPoint.copy(S.nail); grabAngle = S.angle;
+      },
       onDrag(p) {
-        const distance = p.distanceTo(DRY);
-        const angle = S.dipped ? 0.18 * (1 - clamp(p.distanceTo(DIPPED) / 0.02, 0, 1))
-          : Math.PI / 2 * (1 - clamp(distance / 0.031, 0, 1));
+        delete S.returns.nail;
+        const angle = grabAngle * (1 - clamp(p.distanceTo(grabPoint) / (S.dipped ? 0.02 : 0.031), 0, 1));
         S.angle = angle;
         const tipDepth = HALF * Math.cos(angle);
         const x = clamp(p.x, -0.17, 0.135), y = clamp(p.y, tipDepth + 0.002, 0.17);
@@ -160,14 +173,14 @@ export default {
         S.moving = '';
         if (!moved || S.inside) return;
         if (zone === tubeZone) {
-          S.inside = true; putBack('nail', BOTTOM, 0.16, 0.42);
+          S.inside = true; putBack('nail', BOTTOM, TUBE_ANGLE, 0.42);
           record('放入具支试管', S.wet ? '铁钉带着水膜' : '铁钉未经食盐水浸泡');
           done('insert'); status(close);
           if (!S.wet && !S.demo) bar.say(close);
           return;
         }
         S.dipped = S.wet;
-        putBack('nail', S.dipped ? DIPPED : DRY, S.dipped ? 0.18 : Math.PI / 2);
+        putBack('nail', S.dipped ? DIPPED : DRY, S.dipped ? REST_ANGLE : DRY_ANGLE);
         if (S.wet || Math.abs(S.nail.x - TUBE) < 0.026) status(S.sealed ? unseal : insert);
       },
     };
@@ -268,7 +281,7 @@ export default {
     }] });
     const act = demoActs(drag, group);
     const shots = [
-      { cap: intro, dur: 3.2, during: act.drag(nail, DIPPED, { from: DRY, t1: 0.74, release: 0.8 }) },
+      { cap: intro, dur: 3.2, during: act.drag(nail, V(CUP, BRINE_LEVEL), { from: DRY, t1: 0.74, release: 0.8 }) },
       { cap: insert, dur: 4.5, during: act.path(nail, [DIPPED, V(CUP, ENTRY.y + 0.005), V(TUBE, ENTRY.y + 0.005), ENTRY], { t1: 0.79, release: 0.81 }) },
       { cap: close, dur: 3.6, during: act.path(cap, [PLUG, V(PLUG.x, RIM + 0.02, PLUG.z), V(TUBE, RIM + 0.02), SEAT], { t1: 0.78, release: 0.83 }) },
       { cap: compare, dur: 7, during: act.tap(bathGlass, 0.02) },
@@ -302,11 +315,15 @@ export default {
       const speed = bar.update(dt), elapsed = Math.min(dt, 0.1) * speed;
       drag.update(speed ? Math.min(dt, 0.08) : 0);
       for (const key of Object.keys(S.returns)) {
+        if (S.moving === key) continue;
         const r = S.returns[key]; r.t += elapsed;
         const u = clamp(r.t / r.duration, 0, 1);
         const k = key === 'nail' && S.inside ? u * u : THREE.MathUtils.smoothstep(u, 0, 1);
         S[key].lerpVectors(r.from, r.to, k);
-        if (key === 'nail') S.angle = THREE.MathUtils.lerp(r.angle, r.endAngle, k);
+        if (key === 'nail') {
+          S.angle = THREE.MathUtils.lerp(r.angle, r.endAngle, k);
+          if (S.dipped && !S.inside) S.nail.y = Math.max(S.nail.y, CUP_FLOOR + HALF * Math.cos(S.angle));
+        }
         if (u === 1) delete S.returns[key];
       }
       // 耗氧量用等温、外界压强下的等效气体体积表示（m³）。开口后外界空气补入。

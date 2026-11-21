@@ -7,19 +7,20 @@ import { micro } from './kit/microworld.js';
 import { draggable, clamp } from './kit/interact.js';
 import { qaFlow, sandbox, wrapPointer, paperSheet, think, demoActs, mountXuean, moreBox } from './kit/chemlesson.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { V, strip, ammeter, clip, jawTouchesTop, interfaceScene } from './kit/galvanic-parts.js';
+import { V, strip, electrodeHolder, ammeter, clip, jawTouchesTop, interfaceScene } from './kit/galvanic-parts.js';
 import { h } from '../ui/Panel.js';
 
 const CX = 0.035,
   R = 0.052,
   RIM = 0.084,
   LEVEL = 0.059,
-  HALF = 0.048;
-const REST = [V(CX - 0.024, RIM + 0.002), V(CX + 0.024, RIM + 0.002), V(0.136, 0.015), V(-0.037, 0.015)];
-const lower = (i) => V(REST[i].x, 0.051);
+  HALF = 0.048,
+  SLOT_X = 0.024;
+const REST = [V(CX - SLOT_X, HALF + 0.070), V(CX + SLOT_X, HALF + 0.070), V(0.136, 0.015), V(-0.037, 0.015)];
+const lower = (i) => V(REST[i].x, HALF + 0.025);
 const stripOffset = V(0, -HALF);
 const jawOffset = V(0, -0.011);
-const intro = '杯里盛着稀硫酸。把搭在杯口的锌片、铜片分别向下拖入溶液，比较两片金属的表面。';
+const intro = '杯口两侧各有一个绿色绝缘夹。沿各自的夹槽，把锌片和铜片向下拖入稀硫酸，比较两片金属的表面。';
 const rows = {
   zinc: ['锌片入酸', '锌片冒泡'],
   copper: ['铜片入酸', '铜片无气泡'],
@@ -55,6 +56,9 @@ export default {
     const cup = chemBeaker({ r: R, h: RIM, level: LEVEL, marks: false, color: 0xc9e1e5 });
     cup.position.x = CX;
     group.add(cup);
+    const holder = electrodeHolder(R + 0.003, SLOT_X);
+    holder.position.y = RIM + 0.0006;
+    cup.add(holder);
     const acid = plate('烧杯 · 稀硫酸', 0.056, 0.010);
     acid.position.set(CX, 0.023, R + 0.001);
     group.add(acid);
@@ -159,7 +163,7 @@ export default {
       }`,
     );
     document.head.append(layout);
-    const pin = (i) => V(0, HALF, 0).applyEuler(tools[i].rotation).add(tools[i].position);
+    const pin = (i) => V(0, HALF).add(S.pos[i]);
     const copperDock = () => pin(1).add(V(0, 0.011, 0));
     const redFirst = () => bar.current === 'direct' && S.ends[1] === 'copper';
     const removeRed = '先把红夹从铜片取下，再把黑夹夹到铜片上端。';
@@ -190,6 +194,11 @@ export default {
         W.question.open();
       }
     }
+    function bendLead(lead, start, end, lift, angle) {
+      lead.update(start, end, lift);
+      lead.mesh.quaternion.setFromAxisAngle(end.clone().sub(start).normalize(), angle);
+      lead.mesh.position.copy(start).sub(start.clone().applyQuaternion(lead.mesh.quaternion));
+    }
     function renderTools() {
       const small = innerWidth <= 760;
       acid.scale.setScalar(small ? 1.55 : 1);
@@ -198,11 +207,7 @@ export default {
       for (let i = 0; i < 4; i++) {
         tools[i].position.copy(S.pos[i]);
         if (i < 2) {
-          const tilt = clamp((S.pos[i].y - lower(i).y) / (REST[i].y - lower(i).y), 0, 1);
-          tools[i].rotation.x = (-Math.PI / 2) * tilt;
           metalLabels[i].scale.setScalar(small ? 1.6 : 1);
-          metalLabels[i].rotation.x = -tools[i].rotation.x * 0.65;
-          metalLabels[i].position.z = 0.0014 + 0.0045 * Math.sin(metalLabels[i].rotation.x);
           metalLabels[i].userData.ringY = pin(i).y + 0.003;
         }
       }
@@ -211,14 +216,11 @@ export default {
           S.pos[j + 2].copy(copperDock());
           tools[j + 2].position.copy(S.pos[j + 2]);
         }
-      leads[0].update(pin(0), S.pos[2].clone().add(V(0, 0.008, 0)), 0.029);
+      // 黑线从电极后方绕过，红线从表盘前方绕过。
+      bendLead(leads[0], pin(0), S.pos[2].clone().add(V(0, 0.008, 0)), 0.029, -0.28);
       const redStart = terminals[1].clone().sub(V(0, 0.012, 0));
       const redEnd = S.pos[3].clone().add(V(0, 0.008, 0));
-      leads[1].update(redStart, redEnd, 0.022);
-      // 红线向表盘前方弯出，让两条绝缘导线在空间里错开。
-      const red = leads[1].mesh;
-      red.quaternion.setFromAxisAngle(redEnd.sub(redStart).normalize(), 0.47);
-      red.position.copy(redStart).sub(redStart.clone().applyQuaternion(red.quaternion));
+      bendLead(leads[1], redStart, redEnd, 0.022, 0.47);
     }
     function immerse(i) {
       S.wet[i] = true;
@@ -230,6 +232,21 @@ export default {
       showConnection(observation.join('：') + '。');
     }
     let departure = null;
+    let cancelling = false;
+    function returnPath(i) {
+      const from = S.pos[i].clone(), to = REST[i];
+      const path = new THREE.CurvePath();
+      const points = [from];
+      if (i >= 2 && Math.min(from.x, to.x) < CX + R + 0.01 && Math.max(from.x, to.x) > CX - R - 0.01) {
+        const above = Math.max(from.y, pin(0).y + 0.02, pin(1).y + 0.02);
+        points.push(from.clone().setY(above), to.clone().setY(above));
+      }
+      points.push(to);
+      for (let n = 1; n < points.length; n++) {
+        if (!points[n].equals(points[n - 1])) path.add(new THREE.LineCurve3(points[n - 1], points[n]));
+      }
+      return path.curves.length ? path : null;
+    }
     function zones(i) {
       if (i < 2) return [{
         name: '烧杯', position: lower(i).add(stripOffset), radius: 0.026,
@@ -275,22 +292,24 @@ export default {
             departure.idle = 0;
           }
         }
-        S.pos[i].copy(p).setZ(0);
-        S.pos[i].y = clamp(p.y, i < 2 ? HALF + 0.002 : 0.015, 0.18);
+        if (i < 2) S.pos[i].y = clamp(p.y, lower(i).y, REST[i].y);
+        else S.pos[i].set(p.x, clamp(p.y, 0.015, 0.18), 0);
         renderTools();
       },
       onEnd(moved, zone) {
         S.drag = -1;
         departure = null;
         if (!moved || zone) return;
+        if (i < 2 && !cancelling && S.pos[i].y === lower(i).y) {
+          immerse(i);
+          return;
+        }
         if (i >= 2 && S.ends[i - 2] !== 'free') return;
-        S.returns[i] = { from: S.pos[i].clone(), elapsed: 0 };
+        const path = returnPath(i);
+        S.returns[i] = path ? { path, elapsed: 0 } : null;
         if (i >= 2) showConnection('导线未接通。将导线夹对准接点，再松手。');
       },
     }));
-    function pinBottom(i) {
-      return V(0, -HALF, 0).applyEuler(tools[i].rotation).add(tools[i].position);
-    }
     const inAcid = (p) => p.y < LEVEL && Math.hypot(p.x - CX, p.z) < R;
     function updateContact(bottoms) {
       contact.zinc = inAcid(bottoms[0]);
@@ -409,12 +428,13 @@ export default {
       S.returns.forEach((r, i) => {
         if (!r) return;
         r.elapsed += elapsed;
-        const t = clamp(r.elapsed / 0.38, 0, 1);
-        S.pos[i].lerpVectors(r.from, REST[i], t);
+        const duration = Math.max(0.38, r.path.getLength() / 0.32);
+        const t = clamp(r.elapsed / duration, 0, 1);
+        S.pos[i].copy(r.path.getPoint(t));
         if (t === 1) S.returns[i] = null;
       });
       renderTools();
-      const bottoms = [pinBottom(0), pinBottom(1)];
+      const bottoms = [0, 1].map((i) => S.pos[i].clone().add(stripOffset));
       updateContact(bottoms);
       const mode = contact.circuit, connected = mode !== 'open';
       const dial = mode === 'meter' ? 0.48 : 0;
@@ -482,7 +502,10 @@ export default {
         ...drag,
         up(ray, event) {
           departure = null;
-          return drag.up(ray, event);
+          cancelling = event?.type === 'pointercancel';
+          const handled = drag.up(ray, event);
+          cancelling = false;
+          return handled;
         },
       }, bar),
       reset,

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { textSprite } from './microworld.js';
 import { clip, V } from './galvanic-parts.js';
 
-export const span = 0.047, leg = 0.047;
+export const span = 0.047, leg = 0.047, gripRadius = 0.0049;
 export function bridgeClip(color) {
   const grip = clip(color);
   const jaws = grip.children.filter(part => part.geometry.type === 'BoxGeometry');
@@ -40,7 +40,7 @@ function tube(path, radius, material) {
 export function saltBridge() {
   const curve = arch(span, leg, 0.009);
   // 横管中段是握持点；两弯和两腿也可拾取。
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.0049, 0.0049, 0.054, 24, 1, true),
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(gripRadius, gripRadius, 0.054, 24, 1, true),
     new THREE.MeshPhysicalMaterial({ color: 0xc3d9d4, transparent: true, opacity: 0.26, depthWrite: false, roughness: 0.22, clearcoat: 1 }));
   grip.geometry.rotateZ(Math.PI / 2);
   const glass = tube(curve, 0.0047, new THREE.MeshPhysicalMaterial({
