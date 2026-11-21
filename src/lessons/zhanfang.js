@@ -46,8 +46,8 @@ export default {
   conclusion: {
     page: 143, rect: [64, 110, 470, 245],
     quote: '沿一条母线将圆锥的侧面剪开并展平，得到的圆锥的侧面展开图是一个扇形．设圆锥的母线长为 l，底面圆的半径为 r，那么这个扇形的半径为 l，扇形的弧长为底面圆的周长 2πr，因此圆锥的侧面积为 πrl，圆锥的全面积为 πr(r + l)．',
-    why: '围墙的毛毡是圆柱的侧面，剪开展平是长方形：长是底面圆的周长 2π<i>r</i>，宽是外围高。屋顶的毛毡是圆锥的侧面：每条母线都一样长（<i>l</i>），铺平时母线不伸长，毡边都落在离顶点 <i>l</i> 远的地方，所以是半径为 <i>l</i> 的扇形；毡边原来正好绕底面圆一圈，铺平也不伸长，弧长就是 2π<i>r</i>。半径为 <i>l</i> 的整个圆周长 2π<i>l</i>，扇形是整个圆的 ' + FR('2π<i>r</i>', '2π<i>l</i>') + '，面积 = ' + FR('2π<i>r</i>', '2π<i>l</i>') + ' × π<i>l</i>² = π<i>rl</i>（也就是 ' + FR(1, 2) + ' × 弧长 × 半径）。<br><br>毡房：π<i>r</i>² = 12，<i>r</i> ≈ 1.954，圆柱的侧面积 2π × 1.954 × 1.8 ≈ 22.10；圆锥的高 3.2 − 1.8 = 1.4，母线 <i>l</i> = ' + RAD('1.954² + 1.4²') + ' ≈ 2.404，圆锥的侧面积 ' + FR(1, 2) + ' × 2.404 × 12.28 ≈ 14.76。20 个毡房：20 × (22.10 + 14.76) = 737.2，毛毡不能少，至少需要 738 m²。',
-    src: '课本 · 29.3 弧长和扇形面积（圆锥的侧面展开图；毡房的例题在第 143–144 页）',
+    why: '围墙的毛毡是圆柱的侧面，剪开展平是长方形：长是底面圆的周长 2π<i>r</i>，宽是外围高。屋顶的毛毡是圆锥的侧面：每条母线都一样长（<i>l</i>），铺平时母线不伸长，毡边都落在离顶点 <i>l</i> 远的地方，所以是半径为 <i>l</i> 的扇形；毡边原来正好绕底面圆一圈，铺平也不伸长，弧长就是 2π<i>r</i>。半径为 <i>l</i> 的整个圆周长 2π<i>l</i>，扇形是整个圆的 ' + FR('2π<i>r</i>', '2π<i>l</i>') + '，面积 = ' + FR('2π<i>r</i>', '2π<i>l</i>') + ' × π<i>l</i>² = π<i>rl</i>（也就是 ' + FR(1, 2) + ' × 弧长 × 半径）。<br><br>毡房：π<i>r</i>² = 12，<i>r</i> ≈ 1.954，圆柱的侧面积 2π × 1.954 × 1.8 ≈ 22.10；圆锥的高 3.2 − 1.8 = 1.4，母线 <i>l</i> = ' + RAD('<i>r</i>² + 1.4²') + ' ≈ ' + RAD('1.954² + 1.4²') + ' ≈ 2.404，圆锥的侧面积 ' + FR(1, 2) + ' × 2.404 × 12.28 ≈ 14.76。20 个毡房：20 × (22.10 + 14.76) = 737.2，毛毡不能少，至少需要 738 m²。',
+    src: '课本 · 29.3 弧长和扇形面积（圆锥的侧面展开图；毡房的例题在第 137–138 页）',
   },
 
   create({ aim, tag, camera }) {
@@ -417,9 +417,9 @@ export default {
         else { hide(LN.raceA); hide(LN.raceB); DT.rb.visible = DT.ra.visible = false; LN.hem.fade(1); LN.baseC.fade(1); } }
       // 补缺口：半径为 l 的整个圆（白虚线）、补上的那一块（红）
       show(LN.full, f.full && onG ? ring(CS, L, 0, 2 * Math.PI, 0.055, 160) : null);
-      if (f.full && S.pq > 0.001) { const a0 = S.phiC + TH, a1 = a0 + GAP * S.pq; patch.geometry.dispose(); patch.geometry = fanGeo(a0, a1, L); patch.visible = true; show(LN.pArc, ring(CS, L, a0, a1, 0.065, 40)); }
-      else { patch.visible = false; hide(LN.pArc); }
-      fanFill.visible = f.fill; if (f.fill && !fanFill.geometry.attributes.position) { fanFill.geometry.dispose(); fanFill.geometry = fanGeo(S.phiC, S.phiC + TH, L); }
+      if (f.full && S.pq > 0.001) { const a0 = S.phiC + TH, a1 = a0 + GAP * S.pq, key = a0.toFixed(4) + ',' + a1.toFixed(4); if (patch.userData.key !== key) { patch.userData.key = key; patch.geometry.dispose(); patch.geometry = fanGeo(a0, a1, L); show(LN.pArc, ring(CS, L, a0, a1, 0.065, 40)); } patch.visible = true; }
+      else { patch.visible = false; patch.userData.key = ''; hide(LN.pArc); }
+      fanFill.visible = f.fill; if (f.fill && fanFill.userData.phi !== S.phiC) { fanFill.geometry.dispose(); fanFill.geometry = fanGeo(S.phiC, S.phiC + TH, L); fanFill.userData.phi = S.phiC; }          // 按这一次的剪口画（重来后换了母线也对）
       { const [cx, cz] = dirv(S.phiC + TH / 2); setLab(LB.aR, f.fill ? [['≈ 14.76 m²', C.g, false]] : null, [CS[0] + cx * L * 0.55, 0.2, CS[1] + cz * L * 0.55]); }
       // 讲完：两块围回去，墙顶那一圈接缝（两条蓝边接在一起）；两块的面积
       show(LN.seam, f.end ? ring([0, 0], R + 0.035, 0, 2 * Math.PI, H2 + 0.02, 128) : null);
@@ -450,8 +450,8 @@ export default {
       board.h('屋顶'); board(`<span class="n">2</span>圆锥是由一个底面和一个侧面围成的几何体。连接圆锥顶点和底面圆周上任意一点的线段叫作圆锥的<span class="g">母线</span>（毡房的椽杆都顺着母线）`, 'mu');
       prompt('这些母线有多长？');
       later(2800, () => { S.f.tri = true; sfx.ding(1180, { gain: 0.045 }); flash([0, HT, 0], GOLD, false);
-        caption('母线都一样长：l ≈ 2.404 m', '勾股定理：l² = 1.954² + 1.4²');
-        board(`上部圆锥的高 ${I('h')}₁ = 3.2 − 1.8 = 1.4，母线长 <span class="g">${I('l')} = ${RAD('1.954² + 1.4²')} ≈ 2.404</span>`, 'muL');
+        caption('母线都一样长：l ≈ 2.404 m', '勾股定理：l² = r² + 1.4²，l ≈ √(1.954² + 1.4²)');
+        board(`上部圆锥的高 ${I('h')}₁ = 3.2 − 1.8 = 1.4，母线长 <span class="g">${I('l')} = ${RAD(I('r') + '² + 1.4²')} ≈ ${RAD('1.954² + 1.4²')} ≈ 2.404</span>`, 'muL');
         later(2800, () => { beat('cut'); S.f.tri = false; caption('从哪儿剪开？', '沿任意一条母线剪开都行：它们一样长'); prompt('从哪儿剪开？'); }); });
     }
     // 3 剪开 → 4 拉开、铺平（重拍）
@@ -474,8 +474,8 @@ export default {
     // 5 补上缺口 → 扇形是整个圆的 2πr⁄2πl，面积 πrl
     function patched() {
       beat('area'); sfx.ding(1250, { gain: 0.06 }); const [mx, mz] = dirv(S.phiC + TH + GAP / 2); flash([CS[0] + mx * L * 0.7, 0.1, CS[1] + mz * L * 0.7], RED);
-      caption('扇形是整个圆的 {2πr/2πl}：S = {2πr/2πl} × πl² = πrl', '整个圆的面积是 πl²，补上的红色那块是扇形缺的部分');
-      board.h('面积'); board(`<span class="n">4</span>扇形是整个圆的 ${FR('<span class="b">2π' + I('r') + '</span>', '2π' + I('l'))}，面积 ${I('S')} = ${FR('2π' + I('r'), '2π' + I('l'))} × π${I('l')}² = ${FR(1, 2)} × <span class="b">2π${I('r')}</span> × <span class="g">${I('l')}</span> = π${I('rl')}。因此圆锥的侧面积为 π${I('rl')}，圆锥的全面积为 π${I('r')}(${I('r')} + ${I('l')})`, 'area');
+      caption('扇形面积 S = {2πr/2πl} × πl² = πrl', '同一个圆里，扇形的弧长和面积都占整个圆的同一个比例');
+      board.h('面积'); board(`<span class="n">4</span>扇形是整个圆的 ${FR('<span class="b">2π' + I('r') + '</span>', '2π' + I('l'))}，面积 ${I('S')} = ${FR('2π' + I('r'), '2π' + I('l'))} × π${I('l')}² = ${FR(1, 2)} × <span class="b">2π${I('r')}</span> × <span class="g">${I('l')}</span> = π${I('rl')}。因此圆锥的侧面积为 π${I('rl')}；再加上底面圆的面积 π${I('r')}²，圆锥的全面积为 π${I('r')}(${I('r')} + ${I('l')})`, 'area');
       prompt('毡房顶的毛毡有多大？');
       later(2600, () => { S.f.fill = true; S.f.full = false; S.pq = 0; sfx.clink({ freq: 1500, gain: 0.04 });
         caption('圆锥的侧面积：{1/2} × 2.404 × 12.28 ≈ 14.76 m²', '侧面展开扇形的弧长为 2π × 1.954 ≈ 12.28');
@@ -496,8 +496,8 @@ export default {
     }
     function finish() {
       beat('end'); S.done = true; boardEl?.classList.add('review');
-      caption('答：至少需要毛毡 738 m²', '20 × (22.10 + 14.76) = 737.2，毛毡只能多、不能少，取 738');
-      board(`<b>答</b>：搭建 20 个这样的毡房至少需要毛毡 20 × (22.10 + 14.76) ≈ 738 (m²)（算出来是 737.2，毛毡不能少，取 738）。`, 'ans');
+      caption('答：至少需要毛毡 738 m²', '按书中近似值 20 × (22.10 + 14.76) ≈ 737.2，毛毡只能多、不能少，取 738');
+      board(`<b>答</b>：搭建 20 个这样的毡房至少需要毛毡 20 × (22.10 + 14.76) ≈ 738 (m²)（按书中近似值算出约 737.2，毛毡只能多、不能少，取 738）。`, 'ans');
       prompt(''); ui?.unlock?.();
       later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
     }

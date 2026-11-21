@@ -43,10 +43,10 @@ export default {
   ask: '公园中一个长方体石凳，一只蚂蚁以 3 cm/s 的速度从点 M 爬到点 N。<br>最快需要多长时间？',
   need: '蚂蚁只能在石凳的表面上爬。先按住蚂蚁，替它走一条路。',
   conclusion: {
-    page: 50, rect: [44, 300, 470, 448],
+    page: 50, rect: [44, 300, 470, 448], crops: [{ page: 50, rect: [44, 376, 288, 448] }, { page: 50, rect: [306, 306, 426, 448] }],
     quote: '公园中一长方体石凳如图所示，若一只蚂蚁以 3 cm/s 的速度从点 M 爬到点 N，最快需要多长时间（结果保留小数点后一位）？',
     why: '蚂蚁只能在石凳的表面上爬，M 和 N 不在同一个面上。将石凳的表面适当展开，可以展开成平面图形；在平面上，两点之间，线段最短。把右侧面翻到和正面在同一个平面上，N 落在 N′：两条直角边长 30 + 30 = 60（cm）和 40 cm，根据勾股定理，MN′ = √(60² + 40²) = √5200 ≈ 72.1（cm）。把顶面翻上去，N 落在 N″：MN″ = √(30² + 70²) = √5800 ≈ 76.2（cm）。从左侧面绕到后面、从左侧面翻过顶面，分别和这两条一样长（石凳的底面是正方形）。72.1 < 76.2，所以最短的路从正面绕到右侧面，长约 72.1 cm，最快需要 72.1 ÷ 3 ≈ 24.0（s）。<br><br>展开图上的这条线段，合回石凳上就是一条在棱上折了一下的路：在石凳表面上看着是弯的，展开就是直的。',
-    src: '课本 · 20.1 勾股定理及其应用 习题（公园中的长方体石凳）；展开图、“两点之间，线段最短”见七年级上册第六章',
+    src: '课本 · 第二十章 勾股定理 复习题（公园中的长方体石凳，第 44 页）；展开图、“两点之间，线段最短”见七年级上册第六章',
   },
 
   create({ aim, tag }) {
@@ -361,7 +361,7 @@ export default {
       animK(fs, to, () => { for (const g of fs) if (to === 1 && !S.opened[g]) opened(g); if (to === 0 && S.beat === 'fold' && S.k.R === 0 && S.k.T === 0) wow(); }); }
     function animK(fs, to, done) { const from = fs.map((g) => S.k[g]), t0 = now(), id = runId; const step = () => { if (dead || id !== runId) return; const q = clamp((now() - t0) / 0.38, 0, 1); fs.forEach((g, n) => { S.k[g] = lerp(from[n], to, easeOut(q)); }); layout(); if (q < 1) requestAnimationFrame(step); else { if (to === 1 || to === 0) sfx.clink({ freq: to ? 1500 : 1100, gain: 0.04 }); done?.(); } }; step(); }
     function opened(f) {          // 展开：皮翻到和正面同一个平面上，N 落在 N′（N″）
-      S.opened[f] = true; S.order.push(f); const first = S.order.length === 1, nm = first ? 'N′' : 'N″'; S.name[f] = nm; setLabel(LB.trial, '', '', null); layout();
+      S.opened[f] = true; S.order.push(f); const first = S.order.length === 1, nm = f === 'R' ? 'N′' : 'N″'; S.name[f] = nm; setLabel(LB.trial, '', '', null); layout();
       flash(netP(f, ...NC[f], OUT + 0.6), BLUE, 13);
       if (first) { caption('表面展开成了平面', `将石凳的表面适当展开，可以展开成平面图形；N 落在了 ${nm}`); board.h('展开');
         board(`<span class="n">2</span>将石凳的表面适当展开，可以展开成平面图形（展开图）：${FN[f]}翻到和正面在同一个平面上，${i('N')} 落在 <span class="nb">${i(nm)}</span>`, 'unfold');
@@ -410,16 +410,16 @@ export default {
     // 讲完以后点板书：场景摆回那一刻
     function pose(k) {
       runId++; S.pose = k; S.run = null; S.back = null; S.spring = null; S.swingAt = -9; S.ghostOn = false; ghost.R.set(null); ghost.T.set(null); thread.set(null); for (const L of [swing, arc, over]) L.set(null);
-      const first = S.order[0] || 'R';
-      const open = { try: [], unfold: [first], line1: [first], other: ['R', 'T'], fold: [], ans: [] }[k] || [];
+      const first = S.order[0] || 'R', firstCon = S.conOrder[0] || first;
+      const open = { try: [], unfold: [first], line1: [firstCon], other: ['R', 'T'], fold: [], ans: [] }[k] || [];
       S.k = { R: open.includes('R') ? 1 : 0, T: open.includes('T') ? 1 : 0 }; S.closed = ['fold', 'ans'].includes(k);
-      const con = { try: [], unfold: [], line1: [first], other: ['R', 'T'], fold: ['R', 'T'], ans: ['R', 'T'] }[k] || [];
+      const con = { try: [], unfold: [], line1: [firstCon], other: ['R', 'T'], fold: ['R', 'T'], ans: ['R', 'T'] }[k] || [];
       S.con = { R: con.includes('R'), T: con.includes('T') }; for (const f of 'RT') { seg[f].draw = null; seg[f].set(S.con[f] ? SEG[f] : null); tri[f].set(null); sq[f].set(null); }
       seg.T.tint(S.closed ? 0xd2ad55 : GOLD); seg.T.fade(S.closed ? 0.5 : 1); seg.R.fade(1);
       if (k === 'other') S.swingAt = now();
       const end = k === 'ans'; S.ant = end ? { f: 'R', u: D, v: H, hu: 0.6, hv: 0.5 } : { f: 'F', u: 3.4, v: 2.6, hu: 0.6, hv: 0.8 };
       setLabel(LB.clock, end ? `t = ${fmt(LEN.R / V)} s` : '', '#ffe08a', [W + 9.5, H - 4, -D + 3]);
-      const CAP = { try: ['替蚂蚁走的路', '哪一条最短？蚂蚁只能在石凳的表面上爬'], unfold: ['表面展开成了平面', '将石凳的表面适当展开，可以展开成平面图形'], line1: [`M${S.name[first] || 'N′'} = √(${first === 'R' ? '60² + 40²' : '30² + 70²'}) ≈ ${fmt(LEN[first])} cm`, '两点之间，线段最短；勾股定理'], other: [`${fmt(LEN.R)} < ${fmt(LEN.T)}`, '从正面绕到右侧面，比翻过顶面近约 4 cm'], fold: ['两个 N 合成了同一个点', '展开图上的线段，合回去就是石凳表面上的路'], ans: [`答：最快需要约 ${fmt(LEN.R / V)} s`, `${fmt(LEN.R)} ÷ 3 ≈ ${fmt(LEN.R / V)}（s）`] };
+      const CAP = { try: ['替蚂蚁走的路', '哪一条最短？蚂蚁只能在石凳的表面上爬'], unfold: ['表面展开成了平面', '将石凳的表面适当展开，可以展开成平面图形'], line1: [`M${S.name[firstCon] || (firstCon === 'R' ? 'N′' : 'N″')} = √(${firstCon === 'R' ? '60² + 40²' : '30² + 70²'}) ≈ ${fmt(LEN[firstCon])} cm`, '两点之间，线段最短；勾股定理'], other: [`${fmt(LEN.R)} < ${fmt(LEN.T)}`, '从正面绕到右侧面，比翻过顶面近约 4 cm'], fold: ['两个 N 合成了同一个点', '展开图上的线段，合回去就是石凳表面上的路'], ans: [`答：最快需要约 ${fmt(LEN.R / V)} s`, `${fmt(LEN.R)} ÷ 3 ≈ ${fmt(LEN.R / V)}（s）`] };
       frame(open.length > 0); caption(...(CAP[k] || CAP.ans)); layout(); drawTrails();
     }
 

@@ -110,7 +110,7 @@ export default {
   conclusion: {
     page: 159, rect: [68, 427, 476, 669],
     quote: '有些立体图形是由一些平面图形围成的，将它们的表面适当展开，可以展开成平面图形．这样的平面图形称为相应立体图形的展开图．',
-    why: '正方体由 6 个正方形围成，沿着一些棱剪开铺平，就得到它的展开图；把展开图折起来，又围成原来的正方体。同一个正方体，剪法不同，展开图也不同。<br><br>不是 6 个正方形连在一起就都能折成正方体：折一折，有两个面重在一起，另一面就空着；四个正方形围着一个点（田字形）折不起来，因为正方体的每个顶点处只有 3 个面。<br><br>折成正方体后相对的两个面，在展开图上不相邻；同一行里隔一个的两个面相对。课本习题里“中国梦 我的梦”那张展开图，有“的”字一面的相对面上是“国”。<br><br>转一转、翻过来能重合的算同一种，正方体的展开图一共有 11 种：四个面连成一行的 6 种，其余 5 种。',
+    why: '课本上的粉笔盒是长方体，这里把它换成正方体，只看 6 个面怎么排。正方体由 6 个正方形围成，沿着一些棱剪开铺平，就得到它的展开图；把展开图折起来，又围成原来的正方体。同一个正方体，换一种剪法，可能得到另一种展开图。<br><br>不是 6 个正方形连在一起就都能折成正方体：折一折，有两个面重在一起，另一面就空着；四个正方形围着一个点（田字形）折不起来，因为正方体的每个顶点处只有 3 个面。<br><br>折成正方体后相对的两个面，在展开图上不相邻；同一行（或同一列）里连着三个面时，两头的两个面相对。课本习题里“中国梦 我的梦”那张展开图，有“的”字一面的相对面上是“国”。<br><br>转一转、翻过来能重合的算同一种，正方体的展开图一共有 11 种：四个面连成一行的 6 种，其余 5 种。',
     src: '课本 · 6.1.1 立体图形与平面图形（粉笔盒的展开图；正方体展开图见本节练习、习题）',
   },
 
@@ -413,10 +413,10 @@ export default {
     }
     function oppOpened() {          // 打开：三条线躺在展开图上
       sfx.ding(1180, { gain: 0.05 });
-      caption('相对的两个面，在展开图上不挨着', '同一行里隔一个的两个面，折起来正好相对');
-      board.h('探究'); board(num() + '折成正方体后，<span class="gd">相</span><span class="bl">对</span><span class="tl">的</span>两个面在展开图上不相邻；同一行里隔一个的两个面相对', 'opp');
+      caption('相对的两个面，在展开图上不挨着', '同一行连着三个面，两头的两个面折起来正好相对');
+      board.h('探究'); board(num() + '折成正方体后，<span class="gd">相</span><span class="bl">对</span><span class="tl">的</span>两个面在展开图上不相邻；同一行（或同一列）里连着三个面时，两头的两个面相对', 'opp');
       for (const g of gal) for (const f of g.faces) f.userData.dot.visible = true;
-      later(2600, () => { go('count'); countPrompt(); caption('一共有几种？', '先让四个面连成一行：另外两个面放在哪？'); });
+      later(2600, () => { go('count'); if (gal.length >= 11) { wow(); return; } countPrompt(); caption('一共有几种？', '先让四个面连成一行：另外两个面放在哪？'); });
     }
     function countPrompt() {
       const a = gal.filter((g) => g.fam === 0).length, b = gal.length - a;
@@ -447,7 +447,7 @@ export default {
     function finish() {
       S.beat = 'end'; S.done = true; boardEl?.classList.add('review');
       caption('答：可以裁成 11 种展开图', '6 个正方形连在一起、能折成正方体的形状，一共 11 种');
-      board.h('答'); board('<b>答</b>：硬纸板要裁成正方体的展开图：6 个正方形连在一起、能折成正方体的形状一共有 11 种（转一转、翻过来一样的算一种），裁哪一种都能做成粉笔盒；其他形状折不成。', 'ans');
+      board.h('答'); board('<b>答</b>：硬纸板要裁成正方体的展开图：6 个正方形连在一起、能折成正方体的形状一共有 11 种（转一转、翻过来一样的算一种），都能围成正方体的盒子；其他形状折不成。真做粉笔盒，还要在边上留出粘口。', 'ans');
       prompt(''); ui?.unlock?.();
       later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
     }
@@ -507,7 +507,8 @@ export default {
 
     function opening() { caption('纸板要裁成什么形状？能裁出几种？', '要做一只正方体的粉笔盒，先得把硬纸板裁好'); prompt('粉笔盒铺平是什么样子？点一下盒子'); }
     function reset() {
-      runId++; for (const it of gal) { galRoot.remove(it.g); galRoot.remove(it.num); it.num.material.map?.dispose?.(); } gal.length = 0;
+      runId++; { const keepG = new Set([discGeo]), keepM = new Set([kraftMat, edgeMat, ...outMatCache.values()]); for (const G of geoCache.values()) for (const g of Object.values(G)) keepG.add(g);
+        for (const it of gal) { it.g.traverse((o) => { if (!o.isMesh) return; if (!keepG.has(o.geometry)) o.geometry.dispose(); if (!keepM.has(o.material)) o.material.dispose(); }); galRoot.remove(it.g); galRoot.remove(it.num); it.num.material.map?.dispose?.(); it.num.material.dispose(); } } gal.length = 0;
       S = fresh(); S.beatAt = now(); setCells(TEXTBOOK, true); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); }
       cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening();
     }

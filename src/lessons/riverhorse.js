@@ -5,7 +5,7 @@
 //   拖着马沿河边走（马迈着步子走，松手就低头喝水）：河里一根根标杆记下走过的每一处（杆越高路越远）→ 有一处最短；
 //   为什么偏偏在那儿？要是羊圈在河对岸，拉一条直线就行 → 把羊圈那一块（C、B、B 到河边的垂足围成的三角形）沿河折到对岸：B 落到 B′（对称点）；
 //   再拖着马走：CB 和 CB′ 总是一样长（线段垂直平分线上的点与这条线段两个端点的距离相等）；
-//   A、B′ 在河两边了：把折线拉直（重拍 1：两点之间，线段最短），正是最低的那根标杆；
+//   A、B′ 在河两边了：把折线拉直（重拍 1：两点之间，线段最短），就在最低的那根标杆旁边；
 //   别的地方为什么都更远？把马牵到别处 C′：AC′、C′B′ 两条边转到 AB′ 上接起来，比 AB′ 长出一截（重拍 2：三角形两边的和大于第三边）；
 //   C 这个点还有什么特别？牵回 C：∠1 = ∠2（重拍 3：一束光从 A 射到 C 再反射到 B——光行最速原理）→ 答开头的问题。
 import * as THREE from 'three';
@@ -39,7 +39,7 @@ export default {
   need: '拖着马沿河边走，看路程怎么变。',
   conclusion: {
     page: 101, rect: [60, 40, 490, 262],
-    quote: '在任务 1 中，点 A，B 在直线 l 的同侧，你能利用轴对称，把这个问题转化为（1）中的问题吗？',
+    quote: '（２）在任务１中，点 A，B 在直线 l 的同侧，你能利用轴对称，把这个问题转化为（１）中的问题吗（参考图４）？',
     why: '把羊圈那一块沿河边 l 折到对岸：B 落到 B′（B 关于 l 的对称点），l 垂直平分 BB′。线段垂直平分线上的点与这条线段两个端点的距离相等，所以 l 上每一点 C 都有 CB = CB′，AC + CB = AC + CB′。A 和 B′ 在河的两边：两点之间，线段最短，连接 AB′ 交 l 于 C，在 C 处饮马路最短。<br><br>别处为什么都更远：在 l 上任取另一点 C′，AC′ + C′B = AC′ + C′B′ > AB′ = AC + CB（三角形两边的和大于第三边）。在 C 处两边的路和河边夹的角相等——光照到镜面上反射，走的也正是这条最短的路（光行最速原理）。',
     src: '课本 · 综合与实践 最短路径问题（牧民饮马问题，图 1–4）',
   },
@@ -216,6 +216,7 @@ export default {
       ray: line(group, 0xfff1a8, 0.003, Y + 0.0018, 1, 0, 10, 0.8),
     };
     const LPTS = [[-0.185, -0.0008], [0.185, -0.0008]]; setLine(L.l, LPTS);
+    for (const k of ['a1', 'a2', 'a3']) { L[k].material.depthTest = false; for (const q of L[k].userData.subs || []) q.material.depthTest = false; }          // 角弧压在马身上也看得见
     // 羊圈那一块：C、H、B 围成的三角形，放在一个绕河边 l（x 轴）转的组里——折到对岸，B 落到 B′
     const fold = new THREE.Group(); fold.position.y = Y + 0.0004; group.add(fold);
     const paper = new THREE.Mesh(new THREE.BufferGeometry(), lit({ color: 0xc4ecf7, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false, roughness: 0.9, emissive: 0xc4ecf7, emissiveIntensity: 0.35 })); paper.renderOrder = 6; paper.userData.pick = true; paper.userData.noFrame = true; fold.add(paper);
@@ -344,7 +345,7 @@ export default {
       if (S.showEq) { const d = Math.round(dist(C, B) * M) + ' 米'; setLabel(LB.cb, d, '#ffd45c', add(mul(add(C, B), 0.5), [0.012, -0.004]), G + 0.008); setLabel(LB.cb2, d, '#9be3f5', add(mul(add(C, B2), 0.5), [0.012, 0.004]), G + 0.008); }
       else { setLabel(LB.cb, '', '', [0, 0], 0); setLabel(LB.cb2, '', '', [0, 0], 0); }
       setLine(L.glow, S.straight ? [A, B2] : null);
-      if (S.showArcs) { const r = 0.03, a1 = angA(C, A), a2 = angA(C, B), a3 = angA(C, B2);
+      if (S.showArcs) { const C = S.beat === 'shone' || S.done ? [CSTAR, 0] : [S.c, 0], r = 0.03, a1 = angA(C, A), a2 = angA(C, B), a3 = angA(C, B2);          // 讲过“∠1 = ∠2”以后，角一直画在 C 上
         setLine(L.a1, arcPts(C, Math.PI, a1, r)); setLine(L.a2, arcPts(C, 0, a2, r)); setLine(L.a3, arcPts(C, 0, a3, r));
         const at = (a, rr) => [C[0] + rr * Math.cos(a), C[1] + rr * Math.sin(a)], g = S.straight ? '#a6f5e0' : '#7fe3c8';
         setLabel(LB.g1, `∠1 ${deg(Math.PI - Math.abs(a1))}°`, g, at((-Math.PI + a1) / 2, r + 0.014), G + 0.006);
@@ -356,8 +357,8 @@ export default {
     // ================= 一课的主线：每一步都由学生的那一下触发 =================
     function found() {          // 探究：标杆有一处最低
       S.found = true; S.postAt = now(); ripple([slotC(LOW), PV], GOLD); sfx.ding(1100, { gain: 0.05 });
-      caption('有一处最短', '最低的那根标杆：在那儿饮马，路最短');
-      board.h('探究'); board(`<span class="n">1</span>马沿 ${i('l')} 走，<span class="ia">${i('AC')} + ${i('CB')}</span> 跟着变；有一处最短（最低的那根标杆）`, 'walk');
+      caption('有一处最短', '最低的那根标杆附近，饮马的路最短');
+      board.h('探究'); board(`<span class="n">1</span>马沿 ${i('l')} 走，<span class="ia">${i('AC')} + ${i('CB')}</span> 跟着变；最低的那根标杆附近，路最短`, 'walk');
       later(1600, () => { S.beat = 'fold'; S.showFold = true; S.beatAt = now(); S.hint = 0; caption('为什么偏偏在那儿？', '要是羊圈在河对岸，拉一条直线就行'); prompt('要是羊圈在河对岸呢？按住羊圈这一块，沿河折过去'); layout(); });
     }
     function folded() {          // 转化：B 落到 B′
@@ -375,7 +376,7 @@ export default {
     function straightened() {          // 重拍 1：两点之间，线段最短
       S.showLine = true; S.showBis = false; S.punchAt = now(); S.flagAt = now(); S.beat = 'lined'; drawOn(L.glow, [A, B2], 0.55); drawOn(L.guide, [A, B2], 0.7, 0.35); sfx.ding(1320, { gain: 0.07 }); ripple([CSTAR, 0], GOLD); ripple([CSTAR, 0], IMG, 0.28);
       caption('两点之间，线段最短', '连接 AB′，与 l 的交点就是 C：在这里饮马，路最短');
-      board.h('结论'); board(`<span class="n">4</span>${i('A')}、${i('B′')} 在 ${i('l')} 两侧：连接 ${i('AB′')} 交 ${i('l')} 于 ${i('C')}。两点之间，线段最短，${i('AC')} + ${i('CB′')} 最小，也就是 <span class="ia">${i('AC')} + ${i('CB')}</span> 最小——正是最低的那根标杆`, 'line');
+      board.h('结论'); board(`<span class="n">4</span>${i('A')}、${i('B′')} 在 ${i('l')} 两侧：连接 ${i('AB′')} 交 ${i('l')} 于 ${i('C')}。两点之间，线段最短，${i('AC')} + ${i('CB′')} 最小，也就是 <span class="ia">${i('AC')} + ${i('CB')}</span> 最小，就在最低的那根标杆旁边`, 'line');
       later(2400, () => { S.beat = 'proof'; S.beatAt = now(); S.hint = 0; caption('别的地方，为什么都更远？', '把马牵到河边别的地方 C′ 看看'); prompt('别的地方为什么都更远？把马牵到 l 上别处 C′'); layout(); });
     }
     function layDown() { const cp = [S.c, 0]; S.lay = { t0: now(), cp, a: dist(A, cp), b: dist(cp, B2), hit: false }; sfx.whoosh({ dur: 0.6, freq: 900, gain: 0.04 }); }
@@ -395,7 +396,7 @@ export default {
     function finish() {
       S.beat = 'end'; S.done = true; boardEl?.classList.add('review');
       caption('答：在 C 处饮马，走的路最短', '作 B 关于河边 l 的对称点 B′，连接 AB′，与 l 的交点就是 C');
-      board.h('答'); board(`<b>答</b>：作点 ${i('B')} 关于河边 ${i('l')} 的对称点 ${i('B′')}，连接 ${i('AB′')} 交 ${i('l')} 于点 ${i('C')}，在 ${i('C')} 处饮马，走的路最短（约 ${Math.round(len(CSTAR) * M)} 米）。`, 'ans');
+      board.h('答'); board(`<b>答</b>：作点 ${i('B')} 关于河边 ${i('l')} 的对称点 ${i('B′')}，连接 ${i('AB′')} 交 ${i('l')} 于点 ${i('C')}，在 ${i('C')} 处饮马，走的路最短。（这片草原上，最短的路约 ${Math.round(len(CSTAR) * M)} 米。）`, 'ans');
       prompt(''); ui?.unlock?.();
       later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
     }
@@ -409,7 +410,7 @@ export default {
       if (k === 'sym') { S.flip = 0; S.flipped = false; const t0 = now(); const step = () => { if (dead || S.pose !== 'sym') return; const q = clamp((now() - t0) / 0.9, 0, 1); S.flip = easeOut(q); layout(); if (q < 1) requestAnimationFrame(step); else { S.flipped = true; layout(); } }; step(); }
       if (k === 'proof') later(300, layDown);
       if (k === 'light') lightRun();
-      const CAP = { walk: ['有一处最短', '最低的那根标杆：在那儿饮马，路最短'], sym: ['沿河边 l 折过去，B 落在 B′', '折叠后重合的点是对应点，叫作对称点'], eq: ['CB 和 CB′ 总是一样长', '线段垂直平分线上的点与这条线段两个端点的距离相等'], line: ['两点之间，线段最短', '连接 AB′，与 l 的交点就是 C'], proof: ['三角形两边的和大于第三边', 'AC′ + C′B = AC′ + C′B′ > AB′ = AC + CB'], light: ['∠1 = ∠2：光也走这条路', '光行最速原理：光线所行进的“光程”最短'], ans: ['答：在 C 处饮马，走的路最短', '作 B 关于河边 l 的对称点 B′，连接 AB′，与 l 的交点就是 C'] };
+      const CAP = { walk: ['有一处最短', '最低的那根标杆附近，饮马的路最短'], sym: ['沿河边 l 折过去，B 落在 B′', '折叠后重合的点是对应点，叫作对称点'], eq: ['CB 和 CB′ 总是一样长', '线段垂直平分线上的点与这条线段两个端点的距离相等'], line: ['两点之间，线段最短', '连接 AB′，与 l 的交点就是 C'], proof: ['三角形两边的和大于第三边', 'AC′ + C′B = AC′ + C′B′ > AB′ = AC + CB'], light: ['∠1 = ∠2：光也走这条路', '光行最速原理：光线所行进的“光程”最短'], ans: ['答：在 C 处饮马，走的路最短', '作 B 关于河边 l 的对称点 B′，连接 AB′，与 l 的交点就是 C'] };
       caption(...(CAP[k] || CAP.ans)); layout();
     }
 
@@ -426,10 +427,9 @@ export default {
       if (S.beat === 'walk' && !S.found) { const ks = [...seen.keys()]; if (seen.has(LOW) && ks.some((x) => x <= LOW - 4) && ks.some((x) => x >= LOW + 4)) found(); else if (seen.size >= 16 && !S.nudged) { S.nudged = true; prompt('路程会先变短、再变长吗？往另一头走走'); } }
       if (S.beat === 'equal') { S.eqRun += Math.abs(dc); if (S.eqRun > 0.06) equalSeen(); }
       if (S.beat === 'straight' && c === CSTAR) straightened();
-      if (S.beat === 'light' && c === CSTAR) shone();
       layout();
     }
-    function horseUp() { if (S.held !== 'horse') return; S.held = ''; if (S.beat === 'proof' && Math.abs(S.c - CSTAR) > 0.015 && !S.lay) layDown(); }
+    function horseUp() { if (S.held !== 'horse') return; S.held = ''; if (S.beat === 'proof' && Math.abs(S.c - CSTAR) > 0.015 && !S.lay) layDown(); if (S.beat === 'light' && S.c === CSTAR) shone(); }          // 松手时正停在 C 才算
     function foldDown(p) { if (S.beat !== 'fold' || S.flipped) return false; S.held = 'fold'; grabR = Math.max(0.025, -p[1]); sfx.whoosh({ dur: 0.2, freq: 1600, gain: 0.03 }); return true; }
     function foldMove(p) { if (S.held !== 'fold') return; S.flip = Math.acos(clamp(-p[1] / grabR, -1, 1)) / Math.PI; layout(); }          // 手在地上的位置 = 抓住那一点落在地上的影子
     function foldUp() {
