@@ -203,7 +203,7 @@ export default {
     const before = gline(WHITE, 0.035, { glow: 0.18, shadow: 0.2, dash: 0.12, op: 0.9, order: 8 });         // 往右挪之前的那一条
     const para = gline(GOLD, 0.05, { glow: 0.5, shadow: 0.22, order: 12 });                                  // 现在的抛物线
     const axis = gline(BLUE, 0.03, { glow: 0.35, shadow: 0.15, dash: 0.1, order: 9 });                     // 对称轴 x = h
-    const kArr = [arrow(TEAL), arrow(TEAL), arrow(TEAL)], hArr = [arrow(BLUE), arrow(BLUE)], vecH = arrow(BLUE, 0.06), vecK = arrow(TEAL, 0.06);
+    const kArr = [arrow(TEAL), arrow(TEAL), arrow(TEAL)], hArr = [arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE)], vecH = arrow(BLUE, 0.06), vecK = arrow(TEAL, 0.06);
     const look = arrow(BLUE, 0.055), dropP = gline(WHITE, 0.02, { glow: 0, shadow: 0.15, dash: 0.07, op: 0.75, order: 9 }), dropG = gline(WHITE, 0.02, { glow: 0, shadow: 0.15, dash: 0.07, op: 0.75, order: 9 });
     const trails = Array.from({ length: 14 }, () => { const L = gline(GOLD, 0.04, { glow: 0.4, shadow: 0, order: 11 }); L.born = -9; return L; }); let trailAt = null, trailI = 0;
     const target = gline(GOLD, 0.03, { glow: 0.5, shadow: 0.2, dash: 0.06, order: 9 }), landMark = gline(RED, 0.03, { glow: 0.5, shadow: 0.2, dash: 0.06, order: 9 });
@@ -280,7 +280,7 @@ export default {
       kArr.forEach((ar, i) => { const x = [-1, 0, 1][i]; if (fx.kArr && Math.abs(k) > 0.12) ar.to([x, fy(a, 0, 0, x)], [x, fy(a, 0, k, x)]); else ar.off(); });
       setRich(KL, fx.kArr && Math.abs(k) > 0.12 ? [['k', CSS.t], [' = ', CSS.t, false], [num(k), CSS.t, false]] : null, [1.12, fy(a, 0, 0, 1) + k / 2], 0);
       // 往右挪：两支一样长的横箭头
-      hArr.forEach((ar, i) => { const dy = [-0.5, -1.8][i]; const y = S_.k0 + dy * 1, xg = Math.sqrt(-dy / -a); if (fx.hArr && Math.abs(h) > 0.12 && y > FLOOR) ar.to([xg, y], [xg + h, y]); else ar.off(); });
+      hArr.forEach((ar, i) => { const dy = [-0.35, -1.1, -2.0][i % 3], sg = i < 3 ? 1 : -1, y = S_.k0 + dy, xg = sg * Math.sqrt(-dy / -a); if (!((fx.hArr || fx.look) && Math.abs(h) > 0.12 && y > FLOOR + 0.05)) { ar.off(); return; } if (fx.look) ar.to([xg + h, y], [xg, y]); else ar.to([xg, y], [xg + h, y]); });          // 挪的时候：每一点都往右挪 h；问为什么时：新抛物线上每一点都往回看 h，一排一样长的箭头
       setRich(HL, fx.hArr && Math.abs(h) > 0.12 ? [['h', CSS.b], [' = ', CSS.b, false], [num(h), CSS.b, false]] : null, [Math.sqrt(0.5 / -a) + h / 2, S_.k0 - 0.5 + 0.3], 0.5);
       // 为什么是减：点 P 往回看 h，和原来那条一样高
       if (fx.look) { const x = S_.px, y = fy(a, h, k, x), xg = x - h; PD.at([x, y]); look.to([x, y], [xg, y]); dropP.set([[x, y], [x, 0]]); dropG.set([[xg, y], [xg, 0]]);
