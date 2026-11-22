@@ -22,6 +22,7 @@ const PAV = 5.55, RO = 6.6;                          // 铺地外沿、整块园
 const X0 = -4.2, X1 = 4.6, YT = 3.6;              // 坐标格的范围（米）
 const A0 = -0.5, OFF = 1.6;                       // 一开始的喷头：a = −½；喷头在顶点左边 1.6 米
 const TOP = [1.6, 3], LAND = 3.6;                 // 例题：最高处 (1.6, 3)，落在离池中心 3.6 米处
+const TURN_SECONDS = 1.4, JET_SECONDS = 1.2, SECTORS = 192;
 const Y0 = -BASE * S;                             // 水面离书面的高度
 const wx = (x) => x * S, wy = (y) => Y0 + y * S;
 const fy = (a, h, k, x) => a * (x - h) ** 2 + k;
@@ -134,7 +135,22 @@ export default {
     const tubeAlong = (pts3) => new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts3), 56, 0.03 * S, 6, false);
     const jetPts = (a, h, k, x0, x1, th = 0, n = 40) => { const out = []; for (let i = 0; i <= n; i++) { const x = lerp(x0, x1, i / n), y = Math.max(fy(a, h, k, x), -0.02); out.push(new THREE.Vector3(wx(x) * Math.cos(th), wy(y), -wx(x) * Math.sin(th))); } return out; };
     const stream = quiet(new THREE.Mesh(new THREE.BufferGeometry(), streamMat)); stream.renderOrder = 3; stream.visible = false; group.add(stream); let streamKey = '';
-    const crownStreams = Array.from({ length: 32 }, () => { const m = quiet(new THREE.Mesh(new THREE.BufferGeometry(), streamMat)); m.renderOrder = 3; m.visible = false; group.add(m); return m; }); let crownKey = '';
+    const profile = jetPts(-TOP[1] / (LAND - TOP[0]) ** 2, ...TOP, 0, LAND);
+    const waterArc = tubeAlong(profile), crownGroup = new THREE.Group();
+    for (let jetIndex = 0; jetIndex < 32; jetIndex++) {
+      const arc = quiet(new THREE.Mesh(waterArc, streamMat));
+      arc.rotation.y = (jetIndex + 0.5) * Math.PI / 16; arc.renderOrder = 3; crownGroup.add(arc);
+    }
+    crownGroup.visible = false; group.add(crownGroup);
+    const silk = tex(1024, 256, (ctx, width, height) => {
+      ctx.fillStyle = 'rgba(255,222,146,0.29)'; ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = 'rgba(255,235,176,0.62)';
+      for (let jetIndex = 0; jetIndex < 32; jetIndex++) ctx.fillRect((jetIndex + 0.5) * width / 32 - 1, 0, 2, height);
+      ctx.fillRect(0, height * (1 - TOP[0] / LAND) - 1, width, 2); ctx.fillRect(0, 0, width, 2);
+    });
+    const veil = quiet(new THREE.Mesh(new THREE.LatheGeometry(profile.map(point => new THREE.Vector2(point.x, point.y)), SECTORS, Math.PI / 2),
+      basic({ map: silk, transparent: true, depthWrite: false, side: THREE.DoubleSide })));
+    veil.renderOrder = 4; veil.visible = false; group.add(veil);
     const splashes = [];
     const splash = (x, z = 0) => { const m = quiet(new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 40).rotateX(-Math.PI / 2), basic({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }))); m.position.set(wx(x), wy(0) + 0.0003, z); m.userData.born = now(); m.renderOrder = 3; group.add(m); splashes.push(m); };
 
@@ -204,6 +220,20 @@ export default {
     const ghost = gline(WHITE, 0.035, { glow: 0.18, shadow: 0.2, dash: 0.12, op: 0.9, order: 8 });          // 原来的抛物线 y = ax²（课本里的虚线）
     const before = gline(WHITE, 0.035, { glow: 0.18, shadow: 0.2, dash: 0.12, op: 0.9, order: 8 });         // 往右挪之前的那一条
     const para = gline(GOLD, 0.05, { glow: 0.5, shadow: 0.22, order: 12 });                                  // 现在的抛物线
+    const meridian = new THREE.Group(); group.add(meridian); meridian.add(para.core, para.glow, para.shade);
+    function turnFountain(elapsed) {
+      const progress = smooth(0, TURN_SECONDS, elapsed);
+      const water = progress < 1 ? 0 : clamp((elapsed - TURN_SECONDS + 1e-9) / JET_SECONDS, 1 / waterArc.parameters.tubularSegments, 1);
+      meridian.rotation.y = progress * 2 * Math.PI;
+      veil.visible = elapsed >= 0 && water < 1;
+      if (veil.visible) {
+        veil.geometry.setDrawRange(0, Math.floor(progress * SECTORS) * (profile.length - 1) * 6);
+        veil.material.opacity = 0.78 * (1 - water);
+      }
+      crownGroup.visible = water > 0;
+      if (water > 0) waterArc.setDrawRange(0, 6 * Math.floor(water * waterArc.index.count / 6));
+      return water;
+    }
     const axis = gline(BLUE, 0.03, { glow: 0.35, shadow: 0.15, dash: 0.1, order: 9 });                     // 对称轴 x = h
     const kArr = [arrow(TEAL), arrow(TEAL), arrow(TEAL)], hArr = [arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE), arrow(BLUE)], vecH = arrow(BLUE, 0.06), vecK = arrow(TEAL, 0.06);
     const look = arrow(BLUE, 0.055), dropP = gline(WHITE, 0.02, { glow: 0, shadow: 0.15, dash: 0.07, op: 0.75, order: 9 }), dropG = gline(WHITE, 0.02, { glow: 0, shadow: 0.15, dash: 0.07, op: 0.75, order: 9 });
@@ -364,11 +394,11 @@ export default {
       later(2700, () => { finish(); });
     }
     function finish() {
-      S_.step = 'end'; S_.done = true; boardEl?.classList.add('review'); S_.crownAt = now(); flash([0, nozY()], GOLD); sfx.ding(1568, { gain: 0.07 }); later(450, () => sfx.ding(1976, { gain: 0.05 }));
+      S_.step = 'end'; S_.done = true; boardEl?.classList.add('review'); S_.crownAt = now(); flash([0, nozY()], GOLD); sfx.ding(1568, { gain: 0.07 }); later(TURN_SECONDS * 1000, () => { if (!S_.pose) sfx.ding(1976, { gain: 0.05 }); });
       caption('当 x = 0 时，y = 1.08：水管长 1.08 m', '最高点定位置（h, k），再用一个点定形状（a）');
       board.h('答'); board(`<b>答</b>：当 ${I('x')} = 0 时，${I('y')} = −${FR(3, 4)} × 1.6² + 3 = 1.08，水管的长应为 <span class="g">1.08 m</span>。`, 'ans');
       prompt(''); ui?.unlock?.(); layout();
-      later(2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
+      later(TURN_SECONDS * 1000 + 2600, () => { ui?.go?.(2); ui?.fold?.(false); });          // 一课结束：翻到“对照课本原文”
     }
     // 讲完以后点板书：场景摆回那一刻
     function pose(key) {
@@ -478,12 +508,8 @@ export default {
           mainJet.count = n; mainJet.instanceMatrix.needsUpdate = true;
           { const key = lx != null && yn > FLOOR + 0.05 ? [a, h, k].map((v) => v.toFixed(3)).join(',') : '';          // 水柱的管子：参数变了才重新做
             if (key !== streamKey) { streamKey = key; stream.geometry.dispose(); if (key) { stream.geometry = tubeAlong(jetPts(a, h, k, xn, Math.min(lx, R - 0.1)).map((v) => v.setZ(-0.02 * S))); stream.visible = true; } else { stream.geometry = new THREE.BufferGeometry(); stream.visible = false; } } }
-          // 一圈水柱：同一条抛物线绕池中心转开（只在池子后半圈）
-          let c = 0; const on = S_.crownAt > 0 ? clamp((t - S_.crownAt) / 1.2, 0, 1) : 0;
-          if (on > 0 && Math.abs(xn) < 0.05 && lx != null) { for (let j = 0; j < 32; j++) { const th = (j / 32) * Math.PI * 2 + Math.PI / 32; for (const sd of seeds) { if (sd.s > 1.02) continue; const u = (sd.t + t * 0.28 + j * 0.13) % 1; if (u > on) continue; const x = lerp(0, lx, u), y = fy(a, h, k, x); if (y < 0.02) continue; ps.set(wx(x) * Math.cos(th), wy(y), -wx(x) * Math.sin(th)); q.identity(); sc.setScalar(0.03 * S * sd.s); m4.compose(ps, q, sc); crown.setMatrixAt(c++, m4); } if (Math.random() < dt * 0.8) splash(lx * Math.cos(th), -wx(lx) * Math.sin(th)); } }
-          { const ckey = on > 0 && Math.abs(xn) < 0.05 && lx != null ? [a, h, k].map((v) => v.toFixed(3)).join(',') : '';          // 一圈水柱：同一条抛物线绕池中心转开，从喷头一路长出去
-            if (ckey !== crownKey) { crownKey = ckey; crownStreams.forEach((m, j) => { m.geometry.dispose(); if (ckey) { m.geometry = tubeAlong(jetPts(a, h, k, 0, lx, (j / 32) * Math.PI * 2 + Math.PI / 32)); m.visible = true; } else { m.geometry = new THREE.BufferGeometry(); m.visible = false; } }); }
-            if (ckey) for (const m of crownStreams) { const tot = m.geometry.index ? m.geometry.index.count : 0; m.geometry.setDrawRange(0, Math.floor((on * tot) / 6) * 6); } }
+          let c = 0; const on = turnFountain(S_.crownAt >= 0 ? t - S_.crownAt : -1);
+          if (on > 0 && Math.abs(xn) < 0.05 && lx != null) { for (let j = 0; j < 32; j++) { const th = (j / 32) * Math.PI * 2 + Math.PI / 32; for (const sd of seeds) { if (sd.s > 1.02) continue; const u = (sd.t + t * 0.28 + j * 0.13) % 1; if (u > on) continue; const x = lerp(0, lx, u), y = fy(a, h, k, x); if (y < 0.02) continue; ps.set(wx(x) * Math.cos(th), wy(y), -wx(x) * Math.sin(th)); q.identity(); sc.setScalar(0.03 * S * sd.s); m4.compose(ps, q, sc); crown.setMatrixAt(c++, m4); } if (on === 1 && Math.random() < dt * 0.8) splash(lx * Math.cos(th), -wx(lx) * Math.sin(th)); } }
           crown.count = c; crown.instanceMatrix.needsUpdate = true; }
         for (let i = splashes.length - 1; i >= 0; i--) { const m = splashes[i], age = t - m.userData.born; if (age > 1.1) { group.remove(m); m.geometry.dispose(); m.material.dispose(); splashes.splice(i, 1); continue; } m.scale.setScalar((0.05 + age * 0.35) * S); m.material.opacity = 0.6 * (1 - age / 1.1); }
         // 此刻那一句：淡进淡出
@@ -506,7 +532,7 @@ export default {
           { name: '随便拖', run: () => { vDown([S_.h, S_.k]); for (let i = 1; i <= 14; i++) vMove([S_.h - 0.1, S_.k - 0.1]); for (let i = 1; i <= 16; i++) vMove([S_.h + 0.1, S_.k + 0.06]); vUp(); }, wait: 3 },
           { name: '水滴走过最高点', run: () => { pDown(); for (let i = 1; i <= 30; i++) pMove([S_.h - 1.4 + i * 0.1, 0]); pUp(); }, wait: 3 },
           { name: '最高点拖到 (1.6, 3)', run: () => { vDown([S_.h, S_.k]); vMove([1.62, 2.98]); vUp(); }, wait: 0.8 },
-          { name: '落点拖到 3.6', run: () => { lDown(); lMove([4.0, 0]); lMove([3.65, 0]); lUp(); }, wait: 4.6 },
+          { name: '落点拖到 3.6', run: () => { lDown(); lMove([4.0, 0]); lMove([3.65, 0]); lUp(); }, wait: 4.6 + TURN_SECONDS },
         ],
       },
     };
