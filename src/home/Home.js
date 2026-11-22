@@ -69,6 +69,8 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     if (!s) subjects.push((s = { name: b.subject, publisher: b.publisher, color: b.color, books: [] }));
     s.books.push(b);
   }
+  const mathSlot = subjects.findIndex(s => s.name === '数学'), geoSlot = subjects.findIndex(s => s.name === '地理');
+  if (mathSlot >= 0 && geoSlot >= 0) [subjects[mathSlot], subjects[geoSlot]] = [subjects[geoSlot], subjects[mathSlot]];
   // 摆放：一前一后错开着往两边排，两头朝中间转一点；超过 6 科就分成前后两排（每排还是一前一后）
   const N = subjects.length, two = N > 6, front = two ? Math.ceil(N / 2) : N;
   const tall = innerWidth / innerHeight < 0.75 && N <= 4;          // 手机竖着拿：几科从近到远排成一列（左右稍微错开），镜头抬高往下看，每一科都大、好点
@@ -120,9 +122,8 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
       items.push(g);
     }
     s.sp = Math.max(...items.filter((g) => g.userData.s === s).map((g) => g.userData.W)) + 0.14;          // 摊开时一本和一本之间
-    s.thing = s.name === '物理' ? prismThing() : s.name === '化学' ? flaskThing() : s.name === '地理' ? deskGlobe() : null;          // 以后的科目（语文、生物……）各配一件
+    s.thing = s.name === '物理' ? prismThing() : s.name === '化学' ? flaskThing() : s.name === '地理' ? deskGlobe() : s.name === '数学' ? compassThing() : null;
     if (s.thing) { s.thing.position.set(THING.x, 0, THING.z); s.thing.scale.setScalar(THING_S); root.add(s.thing); }
-    const pick = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.42, 1.08), new THREE.MeshBasicMaterial({ visible: false })); pick.position.set(0.05, 0.21, 0.06); root.add(pick); s.pick = pick;
   }
 
   const geoS = subjects.find((s) => s.name === '地理');
@@ -310,7 +311,13 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   // ---- 指针 ----
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   const aim = (e) => { ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, stage.camera); };
-  const pickSubject = () => { const hit = ray.intersectObjects(subjects.map((s) => s.pick), false)[0]; return hit ? subjects.find((s) => s.pick === hit.object) : null; };
+  const owners = new Map();
+  for (const subject of subjects) {
+    for (const part of [subject.card, subject.thing?.userData.body || subject.thing]) part?.traverse(mesh => { if (mesh.isMesh) owners.set(mesh, subject); });
+  }
+  for (const book of items) owners.set(book.userData.mesh, book.userData.s);
+  const surfaces = [...owners.keys()];
+  const pickSubject = () => owners.get(ray.intersectObjects(surfaces, false)[0]?.object);
   const pickBook = () => { const fan = items.filter((g) => g.userData.s === open && g.userData.mode === 'fan'); const hit = ray.intersectObjects(fan.map((g) => g.userData.mesh), false)[0]; return hit ? fan.find((g) => g.userData.mesh === hit.object) : null; };
   const canvas = document.getElementById('c'), ac = new AbortController(), on = { signal: ac.signal };
   canvas.addEventListener('pointermove', (e) => {
@@ -559,6 +566,35 @@ function tentCard(s) {
 }
 
 // ================= 每一科的那件东西（底面落在 y = 0；userData.tick(dt, hot, time)：hot = 0 平时，1 指着它） =================
+
+function compassThing() {
+  const group = new THREE.Group(), compass = new THREE.Group(); group.add(compass);
+  const finish = (color, metalness, roughness) => new THREE.MeshStandardMaterial({ color, metalness, roughness });
+  const brass = finish(0xd5a458, 0.60, 0.36), steel = finish(0xc4d0d4, 0.64, 0.32), enamel = finish(0x194e52, 0.18, 0.4);
+  const pin = finish(0x483d33, 0.42, 0.48), axis = new THREE.Vector3(0, 1, 0);
+  const rod = (parent, start, end, base, tip, material, facets = 16) => {
+    const from = new THREE.Vector3(...start), to = new THREE.Vector3(...end), direction = to.clone().sub(from);
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(tip, base, direction.length(), facets), material);
+    mesh.position.copy(from).lerp(to, 0.5); mesh.quaternion.setFromUnitVectors(axis, direction.normalize());
+    mesh.castShadow = mesh.receiveShadow = true; parent.add(mesh);
+  };
+  compass.position.set(-0.025, 0, -0.10); compass.rotation.y = -0.34;
+  const leg = sign => {
+    const joint = new THREE.Group(); compass.add(joint); joint.rotation.y = sign * 0.38;
+    rod(joint, [0,0.026,0], [0,0.019,0.196], 0.014, 0.012, brass, 6);
+    rod(joint, [0,0.019,0.19], [0,0.012,0.258], 0.013, 0.009, sign > 0 ? enamel : steel);
+    rod(joint, [0,0.012,0.255], [0,0.002,0.30], 0.009, 0.0009, sign > 0 ? pin : steel);
+    return joint;
+  };
+  leg(-1); const pencil = leg(1);
+  rod(compass, [0,0.026,-0.069], [0,0.026,0], 0.012, 0.013, enamel);
+  for (const depth of [-0.056,-0.044,-0.032]) rod(compass, [0,0.026,depth], [0,0.026,depth+0.003], 0.013, 0.013, brass);
+  rod(compass, [0,0,0], [0,0.048,0], 0.029, 0.029, brass, 32);
+  rod(compass, [0,0.048,0], [0,0.051,0], 0.019, 0.017, enamel, 32);
+  rod(compass, [0,0.051,0], [0,0.056,0], 0.007, 0.006, steel);
+  group.userData.tick = (_dt, hot) => { pencil.rotation.y = 0.38 + hot * 0.16; };
+  return group;
+}
 
 /**
  * 物理：一块玻璃三棱镜立在纸上，一束白光从后面斜着照过来，从另一边出来散开成彩虹，落在纸上、桌上。
