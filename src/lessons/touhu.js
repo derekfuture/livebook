@@ -277,29 +277,32 @@ export default {
     const arrow = (color, w = 0.05) => { const L = gline(color, w, { glow: 0.5, shadow: 0.2 }); const hd = quiet(new THREE.Mesh(headGeo, basic({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); hd.renderOrder = 13; hd.visible = false; group.add(hd);
       L.to = (p, q) => { const d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < 0.08) { L.hide(); hd.visible = false; return; } const u = [(q[0] - p[0]) / d, (q[1] - p[1]) / d], hl = Math.min(0.22, d * 0.4); L.set([p, [q[0] - u[0] * hl * 0.8, q[1] - u[1] * hl * 0.8]]); hd.position.set(wx(q[0]), wy(q[1]), Z + 0.0004); hd.rotation.z = Math.atan2(u[1], u[0]); hd.scale.setScalar(hl * S); hd.visible = true; };
       L.off = () => { L.hide(); hd.visible = false; }; L.head = hd; return L; };
-    // 坐标格：淡白的格线、亮一点的坐标轴、刻度数
+    // 坐标格
     function coordinatePlane() {
       const bounds = new THREE.Vector4(X0,FLOOR,X1,YT);
       const shader = new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,forceSinglePass:true,uniforms:{bounds:{value:bounds}},
         vertexShader:`uniform vec4 bounds; varying vec2 coord;
           void main(){coord=mix(bounds.xy,bounds.zw,uv); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
         fragmentShader:`varying vec2 coord;
+          vec2 stroke(vec2 distanceToLine,vec2 radius,vec2 pixel){return 1.-smoothstep(radius-.5*pixel,radius+.5*pixel,distanceToLine);}
           void main(){vec2 pixel=max(fwidth(coord),vec2(.0001));
-            vec2 unit=abs(fract(coord+.5)-.5)/pixel;
-            vec2 halfUnit=abs(fract(2.*coord+.5)-.5)/pixel*.5;
-            vec2 axis=abs(coord)/pixel;
-            vec2 major=(1.-smoothstep(vec2(.12),vec2(1.1),unit))*(1.-smoothstep(vec2(.075),vec2(.22),pixel));
-            vec2 minor=(1.-smoothstep(vec2(.05),vec2(.85),halfUnit))*(1.-smoothstep(vec2(.025),vec2(.1),pixel));
-            float ticks=max((1.-smoothstep(.066,.066+pixel.y,abs(coord.y)))*major.x,(1.-smoothstep(.066,.066+pixel.x,abs(coord.x)))*major.y);
-            float rule=min(axis.x,axis.y), ink=max(ticks,1.-smoothstep(.32,1.38,rule));
-            float grid=max(.38*max(major.x,major.y),.14*max(minor.x,minor.y))*mix(.55,1.,smoothstep(-.1,.1,coord.y));
-            float edge=(1.-smoothstep(.95,2.35,rule))*.52;
-            gl_FragColor=vec4(mix(vec3(.12,.21,.23),vec3(.94,.98,1.),max(ink,step(edge,grid))),max(max(grid,ink*.92),edge));
+            vec2 unit=abs(fract(coord+.5)-.5), halfUnit=.5*abs(fract(2.*coord+.5)-.5);
+            vec2 majorFade=1.-smoothstep(vec2(.075),vec2(.22),pixel);
+            vec2 major=stroke(unit,max(vec2(.009),.72*pixel),pixel)*majorFade;
+            vec2 minor=stroke(halfUnit,max(vec2(.004),.5*pixel),pixel)*(1.-smoothstep(vec2(.025),vec2(.1),pixel));
+            float grid=max(.64*max(major.x,major.y),.26*max(minor.x,minor.y))*mix(.72,1.,smoothstep(-.1,.1,coord.y));
+            vec2 radius=max(vec2(.027),1.35*pixel), offset=abs(coord);
+            vec2 core=stroke(offset,radius,pixel), halo=stroke(offset,2.1*radius,2.*pixel);
+            vec2 marks=stroke(unit,max(vec2(.022),1.05*pixel),pixel)*majorFade*stroke(offset.yx,vec2(.12),pixel.yx);
+            float ink=max(max(core.x,core.y),max(marks.x,marks.y));
+            float rim=.56*max(halo.x,halo.y), alpha=max(grid,max(ink,rim));
+            vec3 base=mix(vec3(.92,.98,1.),vec3(.12,.43,.49),rim/max(alpha,.001));
+            gl_FragColor=vec4(mix(base,vec3(.95,1.,1.),ink),alpha);
           }`});
       const mesh=quiet(new THREE.Mesh(new THREE.PlaneGeometry((X1-X0)*S,(YT-FLOOR)*S),shader));
       mesh.position.set(wx((X1+X0)/2),wy((YT+FLOOR)/2),Z);mesh.renderOrder=7;group.add(mesh);
-      const tips=basic({color:0xf0f6f4,side:THREE.DoubleSide});
-      for(const [x,y,angle] of [[X1+.12,0,0],[0,YT+.12,Math.PI/2]]){const tip=quiet(new THREE.Mesh(headGeo,tips));tip.position.set(wx(x),wy(y),Z+.0001);tip.rotation.z=angle;tip.scale.set(.19*S,.13*S,1);group.add(tip);}
+      const tips=basic({color:0xf2ffff,side:THREE.DoubleSide});
+      for(const [x,y,angle] of [[X1+.15,0,0],[0,YT+.15,Math.PI/2]]){const tip=quiet(new THREE.Mesh(headGeo,tips));tip.position.set(wx(x),wy(y),Z+.0001);tip.rotation.z=angle;tip.scale.set(.29*S,.21*S,1);group.add(tip);}
     }
     coordinatePlane();
 
@@ -317,11 +320,11 @@ export default {
           else ink(q.s, x, h / 2 + 2, q.f, q.c); x += q.w; } }); };
     const label = (hgt, order = 30) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }))); sp.renderOrder = order; sp.userData.h = hgt; sp.userData.k = ''; sp.visible = false; group.add(sp); return sp; };
     const setRich = (sp, segs, p, anchor = 0.5) => { if (!segs) { sp.visible = false; return; } const key = JSON.stringify(segs); if (sp.userData.k !== key) { sp.userData.k = key; const t = richTex(segs); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; const hh = sp.userData.h * (t.image.height / Math.round(64 * 1.55)); sp.userData.w = (hh * t.image.width) / t.image.height; sp.scale.set(sp.userData.w, hh, 1); } sp.position.set(wx(p[0]) + sp.userData.w * (0.5 - anchor), wy(p[1]), Z + 0.002); sp.visible = true; };
-    for (let x = Math.ceil(X0); x <= X1; x++) if (x) setRich(label(0.0105, 20), [[String(x).replace('-', '−'), CSS.w, false]], [x, -0.28]);
-    for (let y = Math.ceil(FLOOR); y <= YT; y++) if (y) setRich(label(0.0105, 20), [[String(y).replace('-', '−'), CSS.w, false]], [-0.28, y]);
-    setRich(label(0.0098, 20), [['x', CSS.w], ['/m', 'rgba(255,255,255,0.8)', false]], [X1 + 0.15, -0.34]);
-    setRich(label(0.0098, 20), [['y', CSS.w], ['/m', 'rgba(255,255,255,0.8)', false]], [0.46, YT + 0.14]);
-    setRich(label(0.009, 20), [['O', 'rgba(255,255,255,0.9)']], [-0.26, -0.28]);
+    for (let x = Math.ceil(X0); x <= X1; x++) if (x) setRich(label(0.0155, 20), [[String(x).replace('-', '−'), CSS.w, false]], [x, -0.32]);
+    for (let y = Math.ceil(FLOOR); y <= YT; y++) if (y) setRich(label(0.0155, 20), [[String(y).replace('-', '−'), CSS.w, false]], [-0.34, y]);
+    setRich(label(0.015, 20), [['x', CSS.w], ['/m', CSS.w, false]], [X1 + 0.18, -0.39]);
+    setRich(label(0.015, 20), [['y', CSS.w], ['/m', CSS.w, false]], [0.52, YT + 0.18]);
+    setRich(label(0.014, 20), [['O', CSS.w]], [-0.32, -0.32]);
     // 发光的点
     const dotTex = (col) => tex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'white'); gr.addColorStop(0.14, 'white'); gr.addColorStop(0.21, col); gr.addColorStop(0.29, col.replace('1)', '0.62)')); gr.addColorStop(.52,col.replace('1)', '0.15)')); gr.addColorStop(1, col.replace('1)', '0)')); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
     const dot = (col, size = 0.012) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ map: dotTex(col), transparent: true, depthTest: false, depthWrite: false }))); sp.scale.setScalar(size); sp.renderOrder = 28; sp.visible = false; group.add(sp); sp.at = (p) => { sp.position.set(wx(p[0]), wy(p[1]), Z + 0.0025); sp.visible = true; }; return sp; };
