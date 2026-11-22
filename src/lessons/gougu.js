@@ -339,7 +339,7 @@ export default {
     }
     function shang() {          // 重拍 1：9 + 16 = 25
       S.shang = true; sfx.ding(1320, { gain: 0.07 }); const pc = ctr(sqPts('c')); flash(T(pc[0], pc[1], 0.5), NT, GOLD, 2.2);
-      say('9 + 16 = 25', '“两矩共长二十有五”：勾、股为边的正方形面积之和，恰好等于以弦为边的正方形面积');
+      say('9 + 16 = 25', '“两矩共长二十有五”：两个小正方形面积之和，等于斜边上的正方形');
       board.h('探究'); board(`<span class="n">1</span>勾三股四弦五：<span class="qa">9</span> + <span class="qb">16</span> = <span class="qc">25</span>，以勾、股为边的正方形的面积之和，恰好等于以弦为边的正方形的面积`, 'shang');
       board(`<span class="n">2</span>以直角三角形斜边为边的正方形的面积，等于某个正方形的面积减去 4 个直角三角形的面积`, 'count');
       S.pairs = ['3,4'];
@@ -461,7 +461,8 @@ export default {
     const taps = [...pondPicks.map(({ obj, side }) => ({ obj, hint: () => `这条边长 ${side} 尺`, enabled: () => S.beat === 'apply' && !S.applied, onTap: () => apply(side) })), tapSide('a'), tapSide('b'), tapSide('c'),
       { obj: SQ.a.f, hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() },
       { obj: SQ.b.f, hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() }];
-    const dragApi = draggable(world, drags, { taps, onClick: () => false, tip: tag?.('', 'pill') });
+    const tip0 = tag?.('', 'pill'), tip = tip0 && { loc(o, x, y, z) { tip0.show(y > -1); tip0.loc(o, x, y, z); return tip; }, text(s) { tip0.text(s); return tip; } };          // 藏签的位置（y = −9）在这么小的 world 里还在画面上：挪到那里就直接藏起来
+    const dragApi = draggable(world, drags, { taps, onClick: () => false, tip });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { say('池宽 1 丈，1 丈 = 10 尺', '池中央的芦苇高出水面 1 尺，拉到岸边中点，顶端刚好碰到水面'); prompt('把芦苇拉到岸边中点，水有多深？芦苇有多长？'); }

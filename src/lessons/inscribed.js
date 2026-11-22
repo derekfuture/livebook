@@ -413,7 +413,7 @@ export default {
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
       const draw = (txt, y, px, weight, maxW, fill, halo) => {
         const parts = txt.split(/(\{\d+\/\d+\})/).filter(Boolean);
-        const font = (size) => { g.font = `${weight} ${size}px "Songti SC","STSong","Times New Roman",serif`; };
+        const font = (size) => { g.font = `${weight} ${size}px "Times New Roman","Songti SC","STSong",serif`; };          // 数字和 ° 用 Times：宋体里 ° 是全角，后面会空一大块
         const width = (part) => {
           if (part[0] !== '{') { font(px); return g.measureText(part).width; }
           const [n, d] = part.slice(1, -1).split('/'); font(px * 0.65);
