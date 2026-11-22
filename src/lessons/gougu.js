@@ -139,8 +139,8 @@ export default {
         if (!dash) quad(ea, eb, s); else { let t = 0; while (t < L - 1e-6) { const ph = (acc + t) % (2 * dash), on = ph < dash, st = Math.max(1e-4, Math.min(L - t, on ? dash - ph : 2 * dash - ph)); if (on) quad(a.clone().addScaledVector(d, t / L), a.clone().addScaledVector(d, (t + st) / L), s); t += st; } acc += L; } }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); return g; };
     const strokes = [];
-    const stroke = (color, w, { glow = 0.42, shadow = 0.32, dash = 0, order = 12, n = NT, parent = world } = {}) => {
-      const mk = (map, col, op, ord) => { const m = quiet(new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: col, map, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide }))); m.renderOrder = ord; m.visible = false; parent.add(m); return m; };
+    const stroke = (color, w, { glow = 0.42, shadow = 0.32, dash = 0, order = 12, n = NT } = {}) => {
+      const mk = (map, col, op, ord) => { const m = quiet(new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: col, map, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide }))); m.renderOrder = ord; m.visible = false; world.add(m); return m; };
       const sh = shadow ? mk(glowTex, 0x0d1014, shadow, order - 2) : null, gl = glow ? mk(glowTex, color, glow, order - 1) : null, co = mk(coreTex, color, 1, order);
       const o = { pts: null, k: 1, drawing: null,
         set(pts, force) { if (this.drawing && !force) { this.drawing.pts = pts; return; } this.pts = pts; if (!pts || pts.length < 2) { for (const m of [co, gl, sh]) if (m) m.visible = false; return; }
@@ -148,7 +148,7 @@ export default {
           if (gl) { gl.geometry.dispose(); gl.geometry = ribbon(pts, n, w * 2.6); gl.visible = true; }
           if (sh) { sh.geometry.dispose(); const off = n.clone().multiplyScalar(-0.015); sh.geometry = ribbon(pts.map((p) => p.clone().add(off)), n, w * 1.7); sh.visible = true; } },
         fade(k) { this.k = k; co.material.opacity = k; if (gl) gl.material.opacity = glow * k; if (sh) sh.material.opacity = shadow * k; },
-        dispose() { for (const m of [co, gl, sh]) if (m) { parent.remove(m); m.geometry.dispose(); m.material.dispose(); } const i = strokes.indexOf(this); if (i >= 0) strokes.splice(i, 1); },
+        dispose() { for (const m of [co, gl, sh]) if (m) { world.remove(m); m.geometry.dispose(); m.material.dispose(); } const i = strokes.indexOf(this); if (i >= 0) strokes.splice(i, 1); },
         color(c) { co.material.color.set(c); if (gl) gl.material.color.set(c); } };
       strokes.push(o); return o; };
     // 新的线“画出来”：从头到尾长出来
@@ -179,13 +179,11 @@ export default {
     const later = (ms, f) => { const id = runId; setTimeout(() => { if (!dead && id === runId) f(); }, ms); };
 
     // 水池里的三角形：勾（半个池宽）、股（水深）、弦（芦苇）
-    const hinge = new THREE.Group(), diagram = new THREE.Group();
-    hinge.position.copy(F(PX, TOP)); diagram.position.copy(hinge.position).negate(); world.add(hinge); hinge.add(diagram);
-    const pondStroke = (color, width, opts) => stroke(color, width, { parent: diagram, n: NF, ...opts });
+    const pondStroke = (color, width, opts) => stroke(color, width, { n: NF, ...opts });
     const PT = { gou: pondStroke(BLUE, 0.16), gu: pondStroke(GREEN, 0.16), guD: pondStroke(GREEN, 0.12, { dash: 0.35 }), xian: pondStroke(GOLD, 0.16), xianD: pondStroke(GOLD, 0.12, { dash: 0.35 }), sq: pondStroke(WHITE, 0.08, { glow: 0.2 }), one: stroke(WHITE, 0.08, { n: NF, glow: 0.2 }) };
     const PL = { gou: label(1.1), gu: label(1.1), xian: label(1.1), one: label(0.9), bank: label(0.95) };
-    const sheet = fill(BLUE, 0.12); sheet.userData.noFrame = false; diagram.add(sheet, PL.gu, PL.xian);
-    const foldAngle = () => -(1 - smooth(0, 1, S.reveal)) * Math.PI / 2;
+    const traceDuration = 1.4;
+    const pondEdges = () => { const surface = F(PX, TOP, 0.06), bank = F(PX + S.side * PH, TOP, 0.06), bottom = F(PX, ROOT_Y, 0.06); return [[surface, bank], [surface, bottom], [bank, bottom]]; };
     // 方砖地上的三角形和三个正方形
     const TR = { a: stroke(BLUE, 0.15), b: stroke(GREEN, 0.15), c: stroke(GOLD, 0.15) };
     const SQ = { a: { f: fill(BLUE, 0.36, 6, true), e: stroke(BLUE, 0.1, { glow: 0.3 }), n: label(1.3) }, b: { f: fill(GREEN, 0.36, 6, true), e: stroke(GREEN, 0.1, { glow: 0.3 }), n: label(1.3) }, c: { f: fill(GOLD, 0.34, 6), e: stroke(GOLD, 0.1, { glow: 0.3 }), n: label(1.3) } };
@@ -215,18 +213,16 @@ export default {
       const t = now();
       // 水池：芦苇和水里的三角形
       reed.rotation.z = -S.th;
-      const banked = S.banked, s = S.side, surf = F(PX, TOP), bank = F(PX + s * PH, TOP), rootP = F(PX, ROOT_Y), revK = S.reveal;
-      const folding = S.pose ? S.pose === 'ans' : S.beat === 'apply' || S.beat === 'end';
-      hinge.position.z = folding ? reed.position.z + 0.10 : surf.z;
-      hinge.rotation.x = folding ? foldAngle() : 0;
-      sheet.set(folding ? [surf, bank, rootP] : null);
+      const banked = S.banked, s = S.side, surf = F(PX, TOP), bank = F(PX + s * PH, TOP), revK = S.reveal;
+      const solving = S.pose ? S.pose === 'ans' : S.beat === 'apply' || S.beat === 'end';
       if (banked) {
-        PT.gou.set([surf, bank]); PT.sq.set([F(PX, TOP - 0.7), F(PX + s * 0.7, TOP - 0.7), F(PX + s * 0.7, TOP)]);
-        if (folding) { PT.gu.set([surf, rootP]); PT.xian.set([bank, rootP]); PT.guD.set(null); PT.xianD.set(null); }
-        else { const k1 = 2.6, k2 = 5; PT.gu.set([surf, F(PX, TOP - k1)]); PT.guD.set([F(PX, TOP - k1), F(PX, TOP - k2)]); const dir = [-s * PH / REED, -DEPTH / REED]; PT.xian.set([bank, F(PX + s * PH + dir[0] * k1 * 1.05, TOP + dir[1] * k1 * 1.05)]); PT.xianD.set([F(PX + s * PH + dir[0] * k1 * 1.05, TOP + dir[1] * k1 * 1.05), F(PX + s * PH + dir[0] * k2 * 1.08, TOP + dir[1] * k2 * 1.08)]); }
+        PT.sq.set([F(PX, TOP - 0.7), F(PX + s * 0.7, TOP - 0.7), F(PX + s * 0.7, TOP)]);
+        PT.guD.fade(solving ? 0.55 : 1); PT.xianD.fade(solving ? 0.55 : 1);
+        if (solving) { const [width, depth, hypotenuse] = pondEdges(); PT.gou.set(width); PT.gu.set(S.applied || revK >= 1 ? depth : null); PT.xian.set(S.applied || revK >= 1 ? hypotenuse : null); PT.guD.set(revK < 1 ? depth : null); PT.xianD.set(revK < 1 ? hypotenuse : null); }
+        else { const k1 = 2.6, k2 = 5; PT.gou.set([surf, bank]); PT.gu.set([surf, F(PX, TOP - k1)]); PT.guD.set([F(PX, TOP - k1), F(PX, TOP - k2)]); const dir = [-s * PH / REED, -DEPTH / REED]; PT.xian.set([bank, F(PX + s * PH + dir[0] * k1 * 1.05, TOP + dir[1] * k1 * 1.05)]); PT.xianD.set([F(PX + s * PH + dir[0] * k1 * 1.05, TOP + dir[1] * k1 * 1.05), F(PX + s * PH + dir[0] * k2 * 1.08, TOP + dir[1] * k2 * 1.08)]); }
         setLabel(PL.gou, '5', '#9be3f5', F(PX + s * PH / 2, TOP + 0.9, 0.3));
-        setLabel(PL.gu, revK >= 1 ? '12' : 'x', '#b6e39a', F(PX - s * 0.9, TOP - (folding ? 6 : 2.2), 0.3));
-        setLabel(PL.xian, revK >= 1 ? '13' : 'x + 1', '#ffe08a', F(PX + s * (PH / 2 + 1.4), TOP - (folding ? 6 : 1.9), 0.3));
+        setLabel(PL.gu, revK >= 1 ? '12' : 'x', '#b6e39a', F(PX - s * 0.9, TOP - (solving ? 6 : 2.2), 0.3));
+        setLabel(PL.xian, revK >= 1 ? '13' : 'x + 1', '#ffe08a', F(PX + s * (PH / 2 + 1.4), TOP - (solving ? 6 : 1.9), 0.3));
         PD.root.visible = revK >= 1; PD.root.position.copy(F(PX, ROOT_Y, 0.1));
       } else { for (const k of ['gou', 'gu', 'guD', 'xian', 'xianD', 'sq']) PT[k].set(null); for (const k of ['gou', 'gu', 'xian']) setLabel(PL[k], '', '', null); PD.root.visible = false; }
       const targetX = PX + (S.th < 0 ? -PH : PH);
@@ -393,10 +389,11 @@ export default {
     function apply(side = 'x + 1') {          // 回到水池
       if (S.beat !== 'apply' || S.applied) return; S.applied = true; sfx.clink({ freq: 1100, gain: 0.05 });
       say('x² + 5² = (x + 1)²', side === 'x + 1' ? '点到的芦苇是斜边，长 x + 1 尺，它的平方写在等号右边' : `点到的直角边长 ${side} 尺，它的平方写在等号左边`);
-      S.revealAt = now(); sfx.whoosh({ dur: 1.4, freq: 500, gain: 0.05 });
+      const [, depth, hypotenuse] = pondEdges();
+      S.revealAt = now(); drawOn(PT.gu, depth, traceDuration); drawOn(PT.xian, hypotenuse, traceDuration); sfx.whoosh({ dur: traceDuration, freq: 500, gain: 0.05 });
     }
     function revealed() {          // 重拍 4：池水变清，看见池底
-      if (S.done || S.pose) return; sfx.ding(1320, { gain: 0.07 }); flash(F(PX, ROOT_Y + 0.2, 0.15), NF, GREEN, 1.6);
+      if (S.done || S.pose) return; sfx.ding(1320, { gain: 0.07 });
       say('水深 12 尺，芦苇长 13 尺', '5² + 12² = 13²');
       later(2400, finish);
     }
@@ -426,10 +423,8 @@ export default {
     const sidePick = () => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })); m.userData.pick = true; m.userData.noFrame = true; world.add(m); return m; };
     const SP = { a: sidePick(), b: sidePick(), c: sidePick() };
     const pondPicks = ['5', 'x', 'x + 1'].map(side => ({ side, obj: sidePick() }));
-    for (const { obj } of pondPicks) diagram.add(obj);
     function placePondPicks() {
-      const surface = F(PX, TOP), bank = F(PX + S.side * PH, TOP), bottom = F(PX, ROOT_Y);
-      const edges = [[surface, bank], [surface, bottom], [bank, bottom]];
+      const edges = pondEdges();
       pondPicks.forEach(({ obj }, i) => {
         obj.geometry.dispose();
         obj.geometry = ribbon(edges[i], NF, 0.65);
@@ -505,7 +500,7 @@ export default {
         for (const k of ['a', 'b']) SQ[k].f.material.opacity = S.pulse && S.beat === 'proof' && S.mergeAt < 0 ? 0.3 + 0.3 * Math.sin(t * 3.4) ** 2 : SQ[k].f.userData.op;
         if (S.cut) { const pk = S.beat === 'proof' && !S.proved ? 0.5 + 0.3 * Math.sin(t * 3.4) ** 2 : 0.62; PC.t1.material.opacity = S.placed[0] ? 0.62 : pk; PC.t2.material.opacity = S.placed[1] ? 0.62 : pk; }
         // 池水变清
-        if (S.revealAt > 0 && S.reveal < 1) { S.reveal = clamp((t - S.revealAt) / 1.4, 0, 1); hinge.rotation.x = foldAngle(); if (S.reveal >= 1) { changed = true; revealed(); } }
+        if (S.revealAt > 0 && S.reveal < 1) { S.reveal = clamp((t - S.revealAt) / traceDuration, 0, 1); if (S.reveal >= 1) { changed = true; revealed(); } }
         murk.material.opacity = 1 - easeOut(S.reveal); waterSec.material.opacity = 0.38 - 0.18 * S.reveal;
         if (changed) layout();
         // 画线、迸光
