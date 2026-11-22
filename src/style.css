@@ -541,15 +541,6 @@ body.predicting:not(.hide-steps):has(#panel.folded) .lbar.do { display:flex; }
 .lbar.film .lb-snd { color: rgba(244,239,226,.6); }
 .lbar.film.paused .lb-main::after { content: "（暂停）"; opacity: .6; }
 
-@media (max-width:760px) {
-  .lbar[data-mobile-dock] { gap:4px 6px; flex-wrap:wrap; }
-  #panel .p-body > .lbar[data-mobile-dock] { position:static; width:100%; transform:none; margin:0 0 8px; box-shadow:none; }
-  .lbar[data-mobile-dock] .lb-main { order:-1; flex:0 0 100%; max-height:4.35em; overflow-y:auto; }
-  #panel .p-body > .lbar[data-mobile-dock] .lb-main { max-height:none; }
-  .lbar[data-mobile-dock] .lb-seal { writing-mode:horizontal-tb; font-size:12px; padding:2px 3px; }
-  .lbar[data-mobile-dock] .lb-steps { flex:1 1 76px; min-width:0; max-width:none; }
-}
-
 
 /* ---------- 观察卡：贴在物体旁边的纸签 ---------- */
 .tag3d.cond { text-shadow: none; white-space: nowrap; }

@@ -415,7 +415,7 @@ export default {
 
     // ================= 步骤栏 + 老师演示 =================
     const bar = lessonBar({
-      look, back, group, dockOnMobile: true,
+      look, back, group,
       steps: [
         { id: 'contact', title: '铜丝接触浓硫酸', todo: '捏住橡胶塞外面露出的<b>铜丝</b>，顺着试管往里（往左下）推到底，使铜丝与浓硫酸接触。（铜丝从橡胶塞侧面的凹槽穿过，可以抽动）', target: () => wireGrip },
         { id: 'heat', title: '加热', todo: '点一下<b>酒精灯</b>：取下灯帽点燃，加热试管。', target: () => (S.lit ? null : lamp) },

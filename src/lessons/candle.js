@@ -139,7 +139,7 @@ export default {
     const toSmoke = () => new THREE.Vector3(C.x + 0.004, CH + 0.03, 0);
 
     const bar = lessonBar({
-      look, back, group, dockOnMobile: true,
+      look, back, group,
       steps: [
         { id: 'wax', title: '(1) 观察石蜡', todo: '把<b>小刀</b>拖到蜡烛上切下一小块石蜡，再把石蜡放进<b>那杯水</b>里。', target: () => (S.cut ? (S.waxCarry ? null : wax) : S.knifeCarry ? null : knife) },
         { id: 'light', title: '(2) 点燃蜡烛', todo: '点一下<b>蜡烛</b>，点燃它。', target: () => candle },
