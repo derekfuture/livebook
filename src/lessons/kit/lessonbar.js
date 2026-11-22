@@ -14,7 +14,7 @@ import { inviteRing } from './invite.js';
  * reels: { name: { seal, label, shots: [{ cap, cam, dur, speed?, enter?, during? }], onStart?, onEnd?(done) } }
  *   cam: [target, dir, dist] 或 (k) => [...]（实验局部坐标，同 ctx.look）；没有 cam 的镜头回到整体
  */
-export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group = null, ringOptions }) {
+export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group = null, ringOptions, dockOnMobile = false }) {
   const ring = group ? inviteRing(group, ringOptions) : null;
   const left = new Set(steps.map((s) => s.id));
   let ui = null, say = null, sayFor = null, near = false;
@@ -29,7 +29,19 @@ export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group 
   const demoB = h('button', { class: 'lb-demo', onclick: () => api.play(demo) }, `▶ 看${reels[demo]?.label || '演示'}`);
   const snd = h('button', { class: 'lb-snd', title: '声音', onclick: () => snd.classList.toggle('off', sfx.mute()) }, '♪');
   const bar = h('div', { class: 'lbar do' }, seal, h('span', { class: 'lb-main' }, num, text), marks, pauseB, exitB, backB, reels[demo] ? demoB : null, snd);
+  if (dockOnMobile) bar.dataset.mobileDock = '';
   document.body.append(bar);
+  const narrow = dockOnMobile ? matchMedia('(max-width: 760px)') : null;
+  let panelBody = null;
+  // 手机展开学案时把步骤放进可滚动的学案，收起学案后仍可边做边看步骤。
+  const placeBar = () => {
+    const host = narrow?.matches && !reel && panelBody?.isConnected && !panelBody.parentElement.classList.contains('folded')
+      ? panelBody : document.body;
+    if (bar.parentElement === host) return;
+    if (host === panelBody) host.prepend(bar);
+    else host.append(bar);
+  };
+  const panelObserver = dockOnMobile ? new MutationObserver(placeBar) : null;
 
   let reel = null, shots = null, i = -1, t = 0, paused = false, endMsg = 0;
   const setCam = (s, k) => { const c = typeof s.cam === 'function' ? s.cam(k) : s.cam; if (c) look(c[0], c[1], c[2], () => api.stop()); };
@@ -67,7 +79,17 @@ export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group 
     caption(html) { if (reel && html) text.innerHTML = html; },             // 正在放第几个镜头（质检脚本用）
     get stepList() { return steps; },
     /** 演示 / 总结完以后在栏里留一句话（几秒后回到当前步骤） */
-    attach(u) { ui = u; renderDo(); api._need(); },
+    attach(u) {
+      ui = u;
+      panelBody = dockOnMobile && u.el?.id === 'panel' ? u.el.querySelector(':scope > .p-body') : null;
+      if (panelBody) {
+        panelObserver.observe(u.el, { attributes: true, attributeFilter: ['class'] });
+        narrow.addEventListener('change', placeBar);
+        placeBar();
+      }
+      renderDo();
+      api._need();
+    },
     get ui() { return ui; },
     _need() { if (!ui) return; if (!left.size) ui.unlock(); else ui.need('还差：' + steps.filter((s) => left.has(s.id)).map((s) => s.title).join('；')); },
     done(id) { if (left.delete(id)) { say = null; renderDo(); api._need(); sfx.ding(990, { gain: 0.05, decay: 0.35 }); } return !left.size; },
@@ -84,6 +106,7 @@ export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group 
       const R = reels[name]; if (!R) return;
       reel = name; shots = R.shots; paused = false; endMsg = 0;
       bar.className = `lbar film ${name}`;
+      if (panelBody) placeBar();
       seal.textContent = R.seal || '演示';
       marks.replaceChildren(...shots.map((_, j) => h('i', {}, String(j + 1))));
       pauseB.textContent = '❚❚';
@@ -99,6 +122,7 @@ export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group 
       back();
       R.onEnd?.(done);
       renderDo();
+      if (panelBody) placeBar();
     },
     /** 每帧调用；返回实验时间的倍数（暂停时 0） */
     update(dt) {
@@ -115,7 +139,13 @@ export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group 
       if (t >= s.dur) { if (i + 1 < shots.length) goShot(i + 1); else { api.stop(true); return ts; } }
       return reel ? s.speed ?? 1 : ts;
     },
-    dispose() { removeEventListener('keydown', key, true); bar.remove(); ring?.dispose(); },
+    dispose() {
+      removeEventListener('keydown', key, true);
+      narrow?.removeEventListener('change', placeBar);
+      panelObserver?.disconnect();
+      bar.remove();
+      ring?.dispose();
+    },
   };
   renderDo();
   return api;

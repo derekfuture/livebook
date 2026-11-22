@@ -97,7 +97,7 @@ export default {
     const drag = draggable(group, [...B.items], { tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const bar = lessonBar({
-      look, back, group,
+      look, back, group, dockOnMobile: true,
       steps: [
         { id: 'drip', title: '滴加 BaCl₂ 溶液', get todo() { return `把 <b>BaCl₂ 稀溶液</b>的滴管提出来，拖到试管口上方，按住，一滴一滴地加，加到 2 mL（约 40 滴）。${S && S.drops ? `已加 <b>${(S.drops * DROP).toFixed(2)} mL</b>（${S.drops} 滴）` : ''}`; }, target: () => (S.bench.carry[0] ? null : B.droppers[0]) },
       ],

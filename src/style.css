@@ -541,6 +541,15 @@ body.predicting:not(.hide-steps):has(#panel.folded) .lbar.do { display:flex; }
 .lbar.film .lb-snd { color: rgba(244,239,226,.6); }
 .lbar.film.paused .lb-main::after { content: "（暂停）"; opacity: .6; }
 
+@media (max-width:760px) {
+  .lbar[data-mobile-dock] { gap:4px 6px; flex-wrap:wrap; }
+  #panel .p-body > .lbar[data-mobile-dock] { position:static; width:100%; transform:none; margin:0 0 8px; box-shadow:none; }
+  .lbar[data-mobile-dock] .lb-main { order:-1; flex:0 0 100%; max-height:4.35em; overflow-y:auto; }
+  #panel .p-body > .lbar[data-mobile-dock] .lb-main { max-height:none; }
+  .lbar[data-mobile-dock] .lb-seal { writing-mode:horizontal-tb; font-size:12px; padding:2px 3px; }
+  .lbar[data-mobile-dock] .lb-steps { flex:1 1 76px; min-width:0; max-width:none; }
+}
+
 
 /* ---------- 观察卡：贴在物体旁边的纸签 ---------- */
 .tag3d.cond { text-shadow: none; white-space: nowrap; }
@@ -1257,6 +1266,12 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
 /* 手机上打开活页：面板占下半屏，右下角的视角按钮（⟲ ? 反馈）挪到面板上面，不然被面板挡住、点不到；＋ － 用双指捏合代替 */
 @media (max-width: 760px) {
   body.lesson-on #viewctl { bottom: calc(52vh + 18px); }
+  /* 反馈按钮较宽，整列按钮左边的空白处仍应能直接操作实验。 */
+  body.lesson-on:not(.shelf-leave) #viewctl { pointer-events: none; }
+  body.lesson-on:not(.shelf-leave) #viewctl button { pointer-events: auto; }
+}
+@media (max-width: 760px) and (max-height: 420px) {
+  body.lesson-on #viewctl .feedback-entry { min-width:64px; padding:0 6px; gap:4px; }
 }
 /* 手机看书时最下面一行：翻页条离屏幕下沿远一点——有的 App 里的浏览器（百度 App）底栏会盖住页面最下面一截，翻页条被压住（反馈 2026-11-12）；
    右下角的按钮放到翻页条上面，不和它挤在同一高度；“需要原书页，可自行导入…”这行字在手机上用不上（手机上不能导入），藏起来，免得压在页码上 */

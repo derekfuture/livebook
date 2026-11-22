@@ -314,7 +314,7 @@ export default {
     // ================= 底部步骤栏 + 老师的演示 =================
     let saved = null;
     const bar = lessonBar({
-      look, back, group,
+      look, back, group, dockOnMobile: true,
       steps: [
         { id: 'a', title: '方案一：密闭加热铜粉', todo: '<b>锥形瓶</b>先放到天平上称；再放到<b>陶土网</b>上，点<b>酒精灯</b>加热；铜粉变黑后盖灭酒精灯，等锥形瓶冷却到室温，再放到天平上称。',
           target: () => { const a = S.A; if (a.m2 != null) return null; if (a.m1 == null) return S.on && S.on !== 'A' ? null : fA; if (a.k < 0.6) return S.at.A !== 'heat' ? fA : S.lit1 ? null : lamp; if (S.lit1) return lamp; return a.T > T0 + 1 || (S.on && S.on !== 'A') ? null : fA; } },
