@@ -417,8 +417,8 @@ export default {
     const bar = lessonBar({
       look, back, group,
       steps: [
-        { id: 'contact', title: '铜丝接触浓硫酸', todo: '捏住橡胶塞外面露出的<b>铜丝</b>，顺着试管往里（往左下）推到底，使铜丝与浓硫酸接触。（铜丝从橡胶塞侧面的凹槽穿过，可以抽动）', target: () => wireGrip },
-        { id: 'heat', title: '加热', todo: '点一下<b>酒精灯</b>：取下灯帽点燃，加热试管。', target: () => (S.lit ? null : lamp) },
+        { id: 'contact', title: '铜丝接触浓硫酸', todo: '捏住塞外的<b>铜丝</b>，沿试管往左下推到底，让铜丝接触浓硫酸。', target: () => wireGrip },
+        { id: 'heat', title: '加热', todo: '点<b>酒精灯</b>，加热试管。', target: () => (S.lit ? null : lamp) },
         { id: 'watch', title: '看品红溶液', todo: '产生的气体通入<b>品红溶液</b>：有什么现象？盯着铜丝和右边的试管。', target: () => null },
         { id: 'stop', title: '向外拉铜丝', todo: '把<b>铜丝</b>顺着试管向外（往右上）拉，终止反应。', target: () => (S.plug !== 'in' && S.pf === 0 ? plug : S.contact > 0 ? wireGrip : null) },
         { id: 'cool', title: '冷却', todo: '点一下<b>酒精灯</b>熄灭它，等试管冷却。', target: () => (S.lit ? lamp : null) },
@@ -724,7 +724,7 @@ export default {
     return {
       group: root, pointer, card: false, toggles: ['cards', 'steps'],
       size: { w: 0.36, d: 0.2, h: 0.24 },
-      view: { elev: 16, azim: -6, lookY: 0.42, frameMargin: 1.06 },
+      view: { elev: 16, azim: -6, lookY: 0.42, frameMargin: 1.06, portraitBottomInset: 32 },
       mount(ui) {
         const ctx = () => (S.said.fade ? '<div>你的记录：加热后铜丝表面冒气泡，生成的气体使品红溶液<b class="y">褪色</b>。</div>' : '');
         const t3 = think({ q: '在这个反应里，谁是氧化剂？', options: ['浓硫酸：+6 价的硫得到电子，被还原成 SO₂', '铜：铜失去了电子', '水：反应生成了水'], wrong: ['铜失去电子、化合价升高（0 → +2），被氧化——它是还原剂。点“钻进去看”，看电子从哪里到哪里。', '水是生成物，没有得失电子。'], ok: '对：浓硫酸氧化了铜，自身被还原成二氧化硫。浓硫酸是氧化剂，铜是还原剂（课本第 5 页）。', status: (m) => W?.status(m), onOk: () => { done('why'); if (W) W.next.hidden = false; } });
