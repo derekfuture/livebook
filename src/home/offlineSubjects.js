@@ -2,6 +2,7 @@ export const OFFLINE_SUBJECTS = [
   { slug: 'physics', label: '物理', htmlMB: 13, zipMB: 7 },
   { slug: 'chemistry', label: '化学', htmlMB: 15, zipMB: 8 },
   { slug: 'geography', label: '地理', htmlMB: 21, zipMB: 13 },
+  { slug: 'math', label: '数学', htmlMB: 13, zipMB: 7 },
 ];
 
 export const offlinePath = (subject, extension) => `/offline-${subject.slug}.${extension}`;
