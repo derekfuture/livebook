@@ -21,8 +21,6 @@ TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下�
           "huaxue-hs1": "化学 必修第一册", "huaxue-hs2": "化学 必修第二册", "huaxue-hsx1": "化学 选择性必修1", "huaxue-hsx2": "化学 选择性必修2", "huaxue-hsx3": "化学 选择性必修3",
           "shuxue-7s": "数学 七年级上册", "shuxue-8s": "数学 八年级上册", "shuxue-8x": "数学 八年级下册", "shuxue-9s": "数学 九年级上册", "shuxue-7x": "数学 七年级下册"}
 
-DRAFT = {"shuxue-7s", "shuxue-8s", "shuxue-8x", "shuxue-9s", "shuxue-7x"}          # 还在试做的书：首页和书的列表里不摆，只能用 ?book=<id> 直接打开
-
 
 FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究|实验|思考)"
 
@@ -34,7 +32,7 @@ def short_fig(fig):
 
 
 def main():
-    books = {b: {"id": b, "title": t, "base": f"/books/{b}/", **({"draft": True} if b in DRAFT else {}), "lessons": {}, "spots": []} for b, t in TITLES.items()}
+    books = {b: {"id": b, "title": t, "base": f"/books/{b}/", "lessons": {}, "spots": []} for b, t in TITLES.items()}
     for r in plan_rows():
         if r["id"] not in BOX:
             print("缺图框：", r["id"]); continue

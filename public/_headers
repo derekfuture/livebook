@@ -13,6 +13,9 @@
 /offline-geography.zip
   Content-Disposition: attachment; filename="livebook-offline-geography.zip"; filename*=UTF-8''%E6%B4%BB%E9%A1%B5%E8%AF%BE%E6%9C%AC%EF%BC%88%E5%9C%B0%E7%90%86%E7%A6%BB%E7%BA%BF%E7%89%88%EF%BC%89.zip
   Cache-Control: public, max-age=0, must-revalidate
+/offline-math.zip
+  Content-Disposition: attachment; filename="livebook-offline-math.zip"; filename*=UTF-8''%E6%B4%BB%E9%A1%B5%E8%AF%BE%E6%9C%AC%EF%BC%88%E6%95%B0%E5%AD%A6%E7%A6%BB%E7%BA%BF%E7%89%88%EF%BC%89.zip
+  Cache-Control: public, max-age=0, must-revalidate
 /books/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
 /*
