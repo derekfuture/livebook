@@ -225,12 +225,13 @@ export default {
     const grid = [];
     for (let x = -XR; x <= XR + 1e-6; x += 0.5) if (Math.abs(x) > 1e-6) grid.push([[x, Y(FB)], [x, Y(FT)]]);
     for (let F = FB; F <= FT; F += 200) if (F) grid.push([[-XR, Y(F)], [XR, Y(F)]]);
-    for (const seg of grid) { const L = gline(0xeaf4ff, 0.014, { glow: 0, shadow: 0.08, op: 0.26, order: 5, z: ZP - 0.01 }); L.set(seg); }
-    const axX = arrow(WHITE, 0.026), axY = arrow(WHITE, 0.026); axX.to([-XR - 0.1, YB], [XR + 0.32, YB], 0.2); axY.to([0, Y(FB) - 0.08], [0, Y(FT) + 0.34], 0.2);
-    for (const L of [axX, axY]) { L.op = 0.92; L.fade(1); L.headFade(0.92); }
-    for (let x = -3; x <= 3; x++) if (x) setRich(label(0.15, 21), [[String(x).replace('-', '−'), CSS.w2, false]], [x, YB - 0.2]);
-    const ticksY = [-800, -400, 400, 800].map((F) => { const sp = label(0.15, 21); setRich(sp, [[String(F).replace('-', '−'), CSS.w2, false]], [-0.1, Y(F)], 1); return { sp, F }; });          // 1200 写在石头那支力的旁边
-    const axNameX = label(0.2, 21), axNameY = label(0.2, 21), labO = label(0.17, 21);
+    for (const seg of grid) { const L = gline(0xeaf4ff, 0.022, { glow: 0, shadow: 0, op: 0.43, order: 5, z: ZP - 0.01 }); L.set(seg); }
+    const axX = arrow(WHITE, 0.046), axY = arrow(WHITE, 0.046); axX.to([-XR - 0.1, YB], [XR + 0.32, YB], 0.27); axY.to([0, Y(FB) - 0.08], [0, Y(FT) + 0.34], 0.27);
+    for (let x = -3; x <= 3; x++) if (x) gline(WHITE, 0.028, { glow: 0, shadow: 0 }).set([[x, YB - 0.07], [x, YB + 0.07]]);
+    for (const force of [-800, -400, 400, 800]) gline(WHITE, 0.028, { glow: 0, shadow: 0 }).set([[-0.08, Y(force)], [0.08, Y(force)]]);
+    for (let x = -3; x <= 3; x++) if (x) setRich(label(0.20, 21), [[String(x).replace('-', '−'), CSS.w, false]], [x, YB - 0.21]);
+    const ticksY = [-800, -400, 400, 800].map((F) => { const sp = label(0.20, 21); setRich(sp, [[String(F).replace('-', '−'), CSS.w, false]], [-0.13, Y(F)], 1); return { sp, F }; });          // 1200 写在石头那支力的旁边
+    const axNameX = label(0.23, 21), axNameY = label(0.23, 21), labO = label(0.20, 21);
     setRich(labO, [['O', CSS.w2]], [-0.16, YB - 0.2]);
 
     // ---- 这一课的数学对象 ----

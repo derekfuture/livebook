@@ -236,9 +236,9 @@ export default {
     const head = (color, order = 14, ground = false) => { const m = quiet(new THREE.Mesh(headGeo, basic({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); m.renderOrder = order; m.visible = false; if (ground) { m.rotation.x = -Math.PI / 2; } group.add(m); return m; };
     // 数轴：近处路边一条白线，每米一个刻度、每 3 米写数，东头一个箭头（向东为正）
     const XL = 10.3;
-    const axis = gline(WHITE, 0.09, { glow: 0.32, shadow: 0.3, order: 8 }); axis.set([V3(-XL, LY, ZE), V3(XL - 0.25, LY, ZE)]);
-    { const hd = head(WHITE, 12, true); hd.position.set(XL + 0.2, LY + 0.002, ZE); hd.scale.set(0.5, 0.36, 1); hd.visible = true; }
-    const tickGeo = (() => { const pos = [], uv = []; for (let x = -10; x <= 10; x++) { const big = x % 3 === 0, hw = big ? 0.035 : 0.022, z0 = ZE, z1 = ZE + (big ? 0.42 : 0.24); pos.push(x - hw, LY, z0, x + hw, LY, z0, x - hw, LY, z1, x - hw, LY, z1, x + hw, LY, z0, x + hw, LY, z1); uv.push(0, 0.5, 1, 0.5, 0, 0.5, 0, 0.5, 1, 0.5, 1, 0.5); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); return g; })();
+    const axis = gline(WHITE, 0.15, { glow: 0.48, shadow: 0.3, order: 8 }); axis.set([V3(-XL, LY, ZE), V3(XL - 0.25, LY, ZE)]);
+    { const hd = head(WHITE, 12, true); hd.position.set(XL + 0.2, LY + 0.002, ZE); hd.scale.set(0.68, 0.50, 1); hd.visible = true; }
+    const tickGeo = (() => { const pos = [], uv = []; for (let x = -10; x <= 10; x++) { const big = x % 3 === 0, hw = big ? 0.052 : 0.032, z0 = ZE, z1 = ZE + (big ? 0.54 : 0.31); pos.push(x - hw, LY, z0, x + hw, LY, z0, x - hw, LY, z1, x - hw, LY, z1, x + hw, LY, z0, x + hw, LY, z1); uv.push(0, 0.5, 1, 0.5, 0, 0.5, 0, 0.5, 1, 0.5, 1, 0.5); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); return g; })();
     { const t = quiet(new THREE.Mesh(tickGeo, basic({ color: WHITE, map: crispTex, transparent: true, opacity: 0.95, depthWrite: false }))); t.renderOrder = 9; group.add(t); }
     // 摄影机正对着的那条线：横穿公路的细虚线，从摄影机前一直到数轴上的 0
     const zeroLine = gline(WHITE, 0.035, { glow: 0, shadow: 0.15, dash: 0.28, order: 7, op: 0.55 }); zeroLine.set([V3(0, LY, -ROAD + 0.05), V3(0, LY, ZE)]);
@@ -250,7 +250,7 @@ export default {
         for (const q of parts) { g.font = q.f; g.shadowColor = 'rgba(8,14,20,0.85)'; g.shadowBlur = px * 0.22; g.lineWidth = px * 0.16; g.strokeStyle = 'rgba(10,16,24,0.6)'; g.strokeText(q.s, x, h / 2 + 2); g.shadowBlur = 0; g.fillStyle = q.c; g.fillText(q.s, x, h / 2 + 2); x += q.w; } }); };
     const label = (hgt, order = 30) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false, depthWrite: false }))); sp.renderOrder = order; sp.userData.h = hgt; sp.userData.k = ''; sp.visible = false; group.add(sp); return sp; };
     const setRich = (sp, segs, p) => { if (!segs) { sp.visible = false; return; } const key = JSON.stringify(segs); if (sp.userData.k !== key) { sp.userData.k = key; const t = richTex(segs); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; sp.userData.w = (sp.userData.h * t.image.width) / t.image.height; sp.scale.set(sp.userData.w, sp.userData.h, 1); } sp.position.copy(p); sp.visible = true; };
-    for (let x = -9; x <= 9; x += 3) setRich(label(0.9, 20), [[NUM(x), 'rgba(255,255,255,0.97)']], V3(x, LY + 0.05, ZE + 1.0));
+    for (let x = -9; x <= 9; x += 3) setRich(label(1.04, 20), [[NUM(x), '#ffffff']], V3(x, LY + 0.05, ZE + 1.15));
     const EQ = label(1.05, 32);          // 车上方的式子
     const dotTex = (col) => tex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, col); gr.addColorStop(0.38, col.replace('1)', '0.5)')); gr.addColorStop(1, col.replace('1)', '0)')); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
     const goldDot = dotTex('rgba(255,200,61,1)'), blueDot = dotTex('rgba(88,196,221,1)');

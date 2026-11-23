@@ -249,12 +249,12 @@ export default {
 
     // 数轴：一根竖着的数轴，0 在水面上，跟着水面一起升降
     const nlG = new THREE.Group(); mathG.add(nlG);
-    const axis = gline(nlG, WHITE, 0.0016, { glow: 0.35, shade: 0.32, op: 0.95 });
+    const axis = gline(nlG, WHITE, 0.0026, { glow: 0.46, shade: 0.32, op: 1 });
     const axisPts = [[XL, -NL * U], [XL, (NL + 0.6) * U]]; axis.set(axisPts);
-    const arrowHead = (() => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.0058, 0, -0.0031, 0, 0, 0.0031, 0, 0], 3)); const m = quiet(new THREE.Mesh(g, basic({ color: WHITE, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }))); m.position.set(XL, (NL + 0.6) * U, ZM + 0.002); m.renderOrder = 45; nlG.add(m); return m; })();
+    const arrowHead = (() => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.0077, 0, -0.0044, 0, 0, 0.0044, 0, 0], 3)); const m = quiet(new THREE.Mesh(g, basic({ color: WHITE, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }))); m.position.set(XL, (NL + 0.6) * U, ZM + 0.002); m.renderOrder = 45; nlG.add(m); return m; })();
     const ticks = [];
-    for (let k = -12; k <= 12; k++) { const L = gline(nlG, WHITE, k % 2 ? 0.0008 : 0.0011, { glow: 0, shade: 0.28, op: k ? 0.88 : 1 }); const hw = k === 0 ? 0.0062 : k % 2 ? 0.0022 : 0.0035; L.set([[XL - hw, k * U], [XL + hw, k * U]]); ticks.push(L);
-      if (k % 2 === 0) { const sp = label(0.0118, 50); nlG.add(sp); setRich(sp, [[String(k).replace('-', '−'), k < 0 ? 'rgba(255,255,255,0.84)' : 'rgba(255,255,255,0.92)', false]], XL - 0.0088, k * U, 1); } }
+    for (let k = -12; k <= 12; k++) { const L = gline(nlG, WHITE, k % 2 ? 0.0011 : 0.0016, { glow: 0, shade: 0.28, op: k ? 0.96 : 1 }); const hw = k === 0 ? 0.0074 : k % 2 ? 0.0028 : 0.0044; L.set([[XL - hw, k * U], [XL + hw, k * U]]); ticks.push(L);
+      if (k % 2 === 0) { const sp = label(0.014, 50); nlG.add(sp); setRich(sp, [[String(k).replace('-', '−'), '#ffffff', false]], XL - 0.0096, k * U, 1); } }
     // 两座山的高度：山尖上的点、水平的虚线、数轴上的空心圈
     const tipA = sprite(DG, 0.0125), tipB = sprite(DB, 0.0125), tipA2 = sprite(DG, 0.0105), tipB2 = sprite(DB, 0.0105);
     const levA2 = gline(mathG, WHITE, 0.0008, { glow: 0, shade: 0.2, dash: 0.003, op: 0.7, order: 30 }), levB2 = gline(mathG, WHITE, 0.0008, { glow: 0, shade: 0.2, dash: 0.003, op: 0.7, order: 30 });
