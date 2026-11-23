@@ -178,7 +178,8 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   items.forEach((g) => place(g, stackPose(g)));
 
   // ---- 屏幕上的东西（都做成纸） ----
-  const last = JSON.parse(localStorage.getItem('livebook.last') || 'null');
+  const saved = JSON.parse(localStorage.getItem('livebook.last') || 'null');
+  const last = books.some((b) => b.id === saved?.book) ? saved : null;
   const next = nextLesson(books, last);
   const backBtn = h('button', { class: 'paper-btn', hidden: true, onclick: () => closeFan() }, '‹ 全部科目');
   const ui = h('div', { id: 'home' },

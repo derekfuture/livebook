@@ -67,13 +67,15 @@ export function offlineButton({ link = false } = {}) {          // link：首页
 
   btn.onclick = async () => {
     if (!tip.hidden) return hide();
-    const selected = new Set(OFFLINE_SUBJECTS);
     const books = new Map(bookList().filter(({ id }) => !FEATURES.hiddenBooks?.includes(id)).map((book) => [book.id, book]));
+    const labels = new Set([...books.values()].map((book) => book.subject));
+    const available = OFFLINE_SUBJECTS.filter(({ label }) => labels.has(label));
+    const selected = new Set(available);
     const title = '选择科目（可多选）';
     const group = el('div', { className: 'offline-subjects' });
     group.setAttribute('role', 'group');
     group.setAttribute('aria-label', title);
-    const options = OFFLINE_SUBJECTS.map((subject) => {
+    const options = available.map((subject) => {
       const mb = el('small');
       const check = el('span', { className: 'offline-check' });
       check.setAttribute('aria-hidden', 'true');
@@ -95,7 +97,7 @@ export function offlineButton({ link = false } = {}) {          // link：首页
     let request = 0;
     const render = async () => {
       const current = ++request;
-      const subjects = OFFLINE_SUBJECTS.filter((subject) => selected.has(subject));
+      const subjects = available.filter((subject) => selected.has(subject));
       const pdfs = imported?.filter(([id]) => subjects.some(({ label }) => books.get(id)?.subject === label)) ?? [];
       const [single] = subjects;
       const describe = (zipBytes = null) => {

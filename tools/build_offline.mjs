@@ -15,8 +15,12 @@ const format = (bytes) => `${(bytes / MiB).toFixed(2)} MiB`;
 
 for (const subject of OFFLINE_SUBJECTS) {
   const ids = Object.keys(books).filter((id) => books[id].title.split(' ')[0] === subject.label && !FEATURES.hiddenBooks?.includes(id));
-  if (!ids.length) throw new Error(`${subject.label}没有可打包的书`);
   const dir = `dist-offline/${subject.slug}`;
+  if (!ids.length) {
+    for (const ext of ['html', 'zip']) fs.rmSync(`public${offlinePath(subject, ext)}`, { force: true });
+    fs.rmSync(dir, { recursive: true, force: true });
+    continue;
+  }
   execSync(`npx vite build --mode offline --outDir ${dir} --logLevel warn`, {
     stdio: 'inherit', env: { ...process.env, NODE_OPTIONS: '', LB_OFFLINE_BOOKS: ids.join(',') },
   });
@@ -33,10 +37,6 @@ for (const subject of OFFLINE_SUBJECTS) {
   fs.writeFileSync(`${dir}/活页课本.html`, html);
   fs.writeFileSync(`${dir}/${offlineZipName(subject)}`, zip);
   console.log(`${subject.label}离线版（${ids.length} 册）：HTML ${format(html.length)}，ZIP ${format(zip.length)}`);
-}
-
-for (const subject of OFFLINE_SUBJECTS) {
-  const dir = `dist-offline/${subject.slug}`;
   fs.copyFileSync(`${dir}/活页课本.html`, `public${offlinePath(subject, 'html')}`);
   fs.copyFileSync(`${dir}/${offlineZipName(subject)}`, `public${offlinePath(subject, 'zip')}`);
 }
