@@ -203,13 +203,15 @@ export default {
     const partial = (pts, k) => { if (k >= 1) return pts; let tot = 0; for (let i = 1; i < pts.length; i++) tot += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); let want = tot * k; const out = [pts[0]]; for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); if (want >= l) { out.push(pts[i]); want -= l; } else { const t = l ? want / l : 0; out.push([lerp(pts[i - 1][0], pts[i][0], t), lerp(pts[i - 1][1], pts[i][1], t)]); break; } } return out; };
     // 箭头（以米计算，横竖比例不一样也不歪）
     const headGeo = new THREE.BufferGeometry(); headGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, -1, 0.5, 0, -1, -0.5, 0], 3));
-    const arrow = (color, w = 0.009) => { const L = gline(color, w, { glow: 0.5, shadow: 0.2, map: MW, order: 12 }); const hd = quiet(new THREE.Mesh(headGeo, basic({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); hd.renderOrder = 15; hd.visible = false; group.add(hd);
-      L.to = (p, q) => { const a = g2m(...p), b = g2m(...q), d = Math.hypot(b[0] - a[0], b[1] - a[1]); if (d < 0.012) { L.hide(); hd.visible = false; return; } const u = [(b[0] - a[0]) / d, (b[1] - a[1]) / d], hl = Math.min(0.026, d * 0.45); L.set([a, [b[0] - u[0] * hl * 0.8, b[1] - u[1] * hl * 0.8]]); hd.position.set(M(b[0]), M(b[1]), Z + 0.0004); hd.rotation.z = Math.atan2(u[1], u[0]); hd.scale.setScalar(M(hl)); hd.visible = true; };
+    const arrow = (color, w = 0.009, headLength = 0.026) => { const L = gline(color, w, { glow: 0.5, shadow: 0.2, map: MW, order: 12 }); const hd = quiet(new THREE.Mesh(headGeo, basic({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); hd.renderOrder = 15; hd.visible = false; group.add(hd);
+      L.to = (p, q) => { const a = g2m(...p), b = g2m(...q), d = Math.hypot(b[0] - a[0], b[1] - a[1]); if (d < 0.012) { L.hide(); hd.visible = false; return; } const u = [(b[0] - a[0]) / d, (b[1] - a[1]) / d], hl = Math.min(headLength, d * 0.45); L.set([a, [b[0] - u[0] * hl * 0.8, b[1] - u[1] * hl * 0.8]]); hd.position.set(M(b[0]), M(b[1]), Z + 0.0004); hd.rotation.z = Math.atan2(u[1], u[0]); hd.scale.setScalar(M(hl)); hd.visible = true; };
       L.off = () => { L.hide(); hd.visible = false; }; return L; };
     // 坐标格：淡白的格线、亮一点的坐标轴（y 轴就画在铜尺正中）
-    for (let x = 1; x <= 12; x++) gline(0xe8f2ff, 0.005, { glow: 0, shadow: 0.08, op: 0.3, order: 6 }).set([[x, YA], [x, YB]]);
-    for (let y = -10; y <= YB; y += 10) if (y) gline(0xe8f2ff, 0.005, { glow: 0, shadow: 0.08, op: 0.3, order: 6 }).set([[XA, y], [XB, y]]);
-    const axX = arrow(WHITE, 0.01), axY = arrow(WHITE, 0.01); axX.fade(0.92); axY.fade(0.92);
+    for (let x = 1; x <= 12; x++) gline(0xe8f2ff, 0.007, { glow: 0, shadow: 0, op: 0.46, order: 6 }).set([[x, YA], [x, YB]]);
+    for (let y = -10; y <= YB; y += 10) if (y) gline(0xe8f2ff, 0.007, { glow: 0, shadow: 0, op: 0.46, order: 6 }).set([[XA, y], [XB, y]]);
+    for (let x = 1; x <= 12; x++) gline(WHITE, 0.009, { glow: 0, shadow: 0 }).set([[x, -1.6], [x, 1.6]]);
+    for (let y = 10; y <= 60; y += 10) gline(WHITE, 0.009, { glow: 0, shadow: 0 }).set([[-0.21, y], [0.21, y]]);
+    const axX = arrow(WHITE, 0.018, 0.042), axY = arrow(WHITE, 0.018, 0.042);
     axX.to([XA, 0], [XB + 0.35, 0]); axY.to([0, YA], [0, YB + 6]);
 
     // 字：斜体衬线（像课本、像 LaTeX），白字或者概念的颜色，底下垫一圈暗光
@@ -220,12 +222,12 @@ export default {
         for (const q of parts) { g.font = q.f; g.shadowColor = 'rgba(8,16,24,0.85)'; g.shadowBlur = px * 0.22; g.lineWidth = px * 0.16; g.strokeStyle = 'rgba(10,20,30,0.55)'; g.strokeText(q.s, x, h / 2 + 2); g.shadowBlur = 0; g.fillStyle = q.c; g.fillText(q.s, x, h / 2 + 2); x += q.w; } }); };
     const label = (hgt, order = 30) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }))); sp.renderOrder = order; sp.userData.h = hgt; sp.userData.k = ''; sp.visible = false; group.add(sp); return sp; };
     const setRich = (sp, segs, p, anchor = 0.5) => { if (!segs) { sp.visible = false; return; } const key = JSON.stringify(segs); if (sp.userData.k !== key) { sp.userData.k = key; const t = richTex(segs); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; const hh = sp.userData.h; sp.userData.w = (hh * t.image.width) / t.image.height; sp.scale.set(sp.userData.w, hh, 1); } sp.position.set(wx(p[0]) + sp.userData.w * (0.5 - anchor), wy(p[1]), Z + 0.002); sp.visible = true; };
-    const TICK = 'rgba(255,255,255,0.86)';
-    for (let x = 1; x <= 12; x++) setRich(label(M(0.064), 20), [[String(x), TICK, false]], [x, -5.6]);
-    const yTicks = []; for (let y = 10; y <= 60; y += 10) { const sp = label(M(0.064), 20); setRich(sp, [[String(y), TICK, false]], [-0.85, y], 1); yTicks.push(sp); }
-    setRich(label(M(0.07), 20), [['x', CSS.w], ['/时辰', 'rgba(255,255,255,0.82)', false]], [XB + 0.1, -5.8], 0.15);
-    setRich(label(M(0.07), 20), [['y', CSS.w], ['/cm', 'rgba(255,255,255,0.82)', false]], [0.45, YB + 6], 0);
-    setRich(label(M(0.064), 20), [['O', 'rgba(255,255,255,0.9)']], [-0.82, -5.2], 1);
+    const TICK = CSS.w;
+    for (let x = 1; x <= 12; x++) setRich(label(M(0.075), 20), [[String(x), TICK, false]], [x, -5.6]);
+    const yTicks = []; for (let y = 10; y <= 60; y += 10) { const sp = label(M(0.075), 20); setRich(sp, [[String(y), TICK, false]], [-0.85, y], 1); yTicks.push(sp); }
+    setRich(label(M(0.078), 20), [['x', CSS.w], ['/时辰', 'rgba(255,255,255,0.82)', false]], [XB + 0.1, -5.8], 0.15);
+    setRich(label(M(0.078), 20), [['y', CSS.w], ['/cm', 'rgba(255,255,255,0.82)', false]], [0.45, YB + 6], 0);
+    setRich(label(M(0.075), 20), [['O', 'rgba(255,255,255,0.9)']], [-0.82, -5.2], 1);
     // 发光的点
     const dotTex = (col) => tex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,1)'); gr.addColorStop(0.24, col); gr.addColorStop(0.36, col.replace('1)', '0.55)')); gr.addColorStop(1, col.replace('1)', '0)')); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
     const ringTex = (col) => tex(128, 128, (g) => { g.strokeStyle = 'rgba(10,16,24,0.55)'; g.lineWidth = 16; g.beginPath(); g.arc(64, 64, 40, 0, 6.3); g.stroke(); g.strokeStyle = col; g.lineWidth = 9; g.beginPath(); g.arc(64, 64, 40, 0, 6.3); g.stroke(); });

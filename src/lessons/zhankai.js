@@ -250,7 +250,7 @@ export default {
     const gal = [];
     const measure = (font, txt) => { const g = document.createElement('canvas').getContext('2d'); g.font = font; return g.measureText(txt).width; };
     const labTex = (txt, col, px = 72) => { const f = `600 ${px}px "Times New Roman","Songti SC",serif`; return tex(Math.ceil(measure(f, txt)) + 40, Math.round(px * 1.5), (g, w, h) => { g.font = f; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = px * 0.2; g.strokeStyle = 'rgba(14,18,22,0.75)'; g.strokeText(txt, w / 2, h / 2 + 2); g.fillStyle = col; g.fillText(txt, w / 2, h / 2 + 2); }); };
-    const label = (txt, col, hgt) => { const t = labTex(txt, col), sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false }))); sp.renderOrder = 30; sp.scale.set((hgt * t.image.width) / t.image.height, hgt, 1); return sp; };
+    const label = (txt, col, hgt) => { const t = labTex(txt, col), sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }))); sp.renderOrder = 30; sp.scale.set((hgt * t.image.width) / t.image.height, hgt, 1); return sp; };
     function addGal(cells, key) {
       const { disp: dc } = canon(cells), fam = run(dc) === 4 ? 0 : 1, J = judge(dc), item = { key, fam, cells: dc, J, faces: [], f: 0, fT0: -9, born: now(), x: 0, tx: 0, z: ROWZ[fam], w: Math.max(...dc.map((c) => c[0])) + 1, h: Math.max(...dc.map((c) => c[1])) + 1, M: dc.map(() => new THREE.Matrix4()), g: new THREE.Group() };
       galRoot.add(item.g);
@@ -287,7 +287,8 @@ export default {
       let f = 1; for (; f > 0.45; f -= 0.04) { g.font = fb(f); const wb = g.measureText(big).width; g.font = fs(f); const ws = small ? g.measureText(small).width : 0; if (Math.max(wb, ws) < w - h * 0.8) break; }
       g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = fb(f); g.fillStyle = '#f6efdf'; g.fillText(big, w / 2, small ? h * 0.37 : h * 0.5); if (small) { g.font = fs(f); g.fillStyle = 'rgba(232,226,210,0.86)'; g.fillText(small, w / 2, h * 0.76); } });
     const cap = { key: '', born: -9, out: 1e9, next: null };
-    function caption(big, small = '') { const key = big + '|' + small; if (key === cap.key) return; cap.key = key; S.cap = [big, small];
+    function clearFoldResult() { if (cap.failed) { cap.key = ''; cap.next = null; cap.out = 1e9; cap.failed = false; capMesh.visible = false; S.cap = []; } }
+    function caption(big, small = '', failed = false) { const key = big + '|' + small; cap.failed = failed; if (key === cap.key) return; cap.key = key; S.cap = [big, small];
       const show = () => { capMesh.material.map?.dispose?.(); capMesh.material.map = capTex(big, small); capMesh.material.needsUpdate = true; capMesh.visible = true; cap.born = now(); cap.out = 1e9; };
       if (capMesh.visible && now() - cap.born > 0.2) { cap.out = now(); cap.next = show; } else show(); }
     const prompt = (txt) => { S.ask = txt; if (ui?.status) ui.status(txt); };
@@ -340,10 +341,10 @@ export default {
     function fold() {
       if (S.anim || S.held >= 0) return;
       const t = now(); S.beatAt = t; sfx.whoosh({ dur: 0.7, freq: 1100, gain: 0.035 });
-      if (J.kind === 'block') { S.anim = { from: 0, to: 0.16, t0: t, dur: 0.45, done: () => { S.vtxAt = now(); sfx.clink({ freq: 520, gain: 0.05 }); blocked(); S.anim = { from: S.f, to: 0, t0: now() + 0.5, dur: 0.5 }; } }; return; }
+      if (J.kind === 'block') { S.anim = { from: 0, to: 0.16, t0: t, dur: 0.45, done: () => { S.vtxAt = now(); sfx.clink({ freq: 520, gain: 0.05 }); blocked(); S.anim = { from: S.f, to: 0, t0: now() + 0.5, dur: 0.5, done: clearFoldResult }; } }; return; }
       S.anim = { from: S.f, to: 1, t0: t, dur: 1.0, done: () => (J.kind === 'ok' ? closed() : clashed()) };
     }
-    function unfold(dur = 0.75, done) { if (S.anim) return; S.anim = { from: S.f, to: 0, t0: now(), dur, done }; sfx.whoosh({ dur: 0.5, freq: 800, gain: 0.03 }); }
+    function unfold(dur = 0.75, done) { if (S.anim) return; clearFoldResult(); S.anim = { from: S.f, to: 0, t0: now(), dur, done }; sfx.whoosh({ dur: 0.5, freq: 800, gain: 0.03 }); }
     function tap() { if ((S.done && !S.pose) || S.anim || S.held >= 0) return; if (S.f > 0.5) { if (S.beat === 'open') return openBox(); unfold(0.75, afterUnfold); } else fold(); }
     function afterUnfold() {
       if (S.beat === 'oppOpen') oppOpened();
@@ -372,14 +373,14 @@ export default {
     function clashed() {          // 折不成：两块撞在一起，另一面空着
       S.clashAt = now(); sfx.clink({ freq: 380, gain: 0.07 }); later(90, () => sfx.clink({ freq: 300, gain: 0.05 }));
       const c = new THREE.Vector3(); let n = 0; J.dup.forEach((d, i) => { if (d) { c.add(tmpV.setFromMatrixPosition(HF[i].matrix)); n++; } }); if (n) ripple(c.multiplyScalar(1 / n), RED, 0.07, true);
-      caption('两个面撞在了一起，另一面空着', '6 个正方形要围成 6 个面：两块折到一处，就少一面');
+      caption('两个面撞在了一起，另一面空着', '6 个正方形要围成 6 个面：两块折到一处，就少一面', true);
       if (S.pose) return;
       if (!S.overlapSaid) { S.overlapSaid = true; board.h('探究'); board((S.failed ? '' : num()) + '不是 6 个正方形连在一起就都是正方体的展开图：折一折，有<span class="rd">两个面重在一起</span>，另一面就空着', 'fail'); }
       S.failed = true;
       if (S.beat === 'edit') afterEdit(); else prompt('点一下打开，挪一挪再试');
     }
     function blocked() {          // 田字：四块围着一个点，折不起来
-      caption('四个面围着一个点，折不起来', '正方体的每个顶点处，只有 3 个面');
+      caption('四个面围着一个点，折不起来', '正方体的每个顶点处，只有 3 个面', true);
       if (S.pose) return;
       if (!S.blocked) { S.blocked = true; board.h('探究'); board((S.failed ? '' : num()) + '四个正方形围着一个点（田字形），折不成正方体：<span class="rd">正方体的每个顶点处只有 3 个面</span>', 'block'); }
       S.failed = true; if (S.beat === 'edit') afterEdit();

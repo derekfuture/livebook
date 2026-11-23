@@ -165,7 +165,8 @@ export default {
     const EQH = 0.023, eqSp = label(EQH, 22); const eq = { key: '', born: -9, out: 1e9, next: null };
     function setEq(runs) { const key = JSON.stringify(runs); if (key === eq.key) return; eq.key = key; S.eq = runs.map((r) => r[0]).join('');
       const show = () => { setLab(eqSp, runs, [-0.03, 0.112], G + 0.104); eq.born = now(); eq.out = 1e9; };
-      if (eqSp.visible && now() - eq.born > 0.2 && !S.live) { eq.out = now(); eq.next = show; } else { show(); if (S.live) eqSp.material.opacity = 1; } }
+      if (S.held === 'cut' || S.live) { eq.next = null; show(); eq.born = -9; eqSp.material.opacity = 1; }
+      else if (eqSp.visible && now() - eq.born > 0.2) { eq.out = now(); eq.next = show; } else show(); }
     const X2 = ['x²', CSS.x2], PL = [' + ', CSS.w], EQ = [' = ', CSS.w], n = (v, c = CSS.w) => [String(v), c];
 
     // ================= 此刻那一句：嵌在台面前沿的一条石带上（平放在地上，比立面好读），不挡画面 =================
