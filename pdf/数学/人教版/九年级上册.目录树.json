@@ -1,0 +1,488 @@
+[
+  {
+    "id": "8fc991bb-4d69-45a4-a25d-41dc8d1fbc06",
+    "title": "第二十五章 一元二次方程",
+    "rich_title": "第二十五章 一元二次方程",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "8fc991bb-4d69-45a4-a25d-41dc8d1fbc06",
+    "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+    "create_time": "2026-08-28T08:51:40.074+0800",
+    "update_time": "2026-08-28T08:51:40.074+0800",
+    "child_nodes": [
+      {
+        "id": "2f8bd38e-5cd6-475f-b85d-a98b9a425c04",
+        "title": "25.1 一元二次方程的概念",
+        "rich_title": "25.1 一元二次方程的概念",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "8fc991bb-4d69-45a4-a25d-41dc8d1fbc06/2f8bd38e-5cd6-475f-b85d-a98b9a425c04",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.093+0800",
+        "update_time": "2026-08-28T08:51:40.093+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e0da798d-613b-42d4-acea-915551eeb18c",
+        "title": "25.2 降次——解一元二次方程",
+        "rich_title": "25.2 降次——解一元二次方程",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "8fc991bb-4d69-45a4-a25d-41dc8d1fbc06/e0da798d-613b-42d4-acea-915551eeb18c",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.115+0800",
+        "update_time": "2026-08-28T08:51:40.115+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "07b6f505-0616-4258-9143-923aa0efccf9",
+        "title": "25.3 实际问题与一元二次方程",
+        "rich_title": "25.3 实际问题与一元二次方程",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "8fc991bb-4d69-45a4-a25d-41dc8d1fbc06/07b6f505-0616-4258-9143-923aa0efccf9",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.134+0800",
+        "update_time": "2026-08-28T08:51:40.134+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fad6c123-c3f4-471a-b817-b56130e42224",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "8fc991bb-4d69-45a4-a25d-41dc8d1fbc06/fad6c123-c3f4-471a-b817-b56130e42224",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.153+0800",
+        "update_time": "2026-08-28T08:51:40.153+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "e1c06f4f-2ebc-48ae-bfbe-3c047cc8b621",
+    "title": "第二十六章 二次函数",
+    "rich_title": "第二十六章 二次函数",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "e1c06f4f-2ebc-48ae-bfbe-3c047cc8b621",
+    "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+    "create_time": "2026-08-28T08:51:40.172+0800",
+    "update_time": "2026-08-28T08:51:40.172+0800",
+    "child_nodes": [
+      {
+        "id": "d8e8f27e-ce8f-4025-a4a0-cae79ac530b6",
+        "title": "26.1 二次函数的概念",
+        "rich_title": "26.1 二次函数的概念",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e1c06f4f-2ebc-48ae-bfbe-3c047cc8b621/d8e8f27e-ce8f-4025-a4a0-cae79ac530b6",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.189+0800",
+        "update_time": "2026-08-28T08:51:40.189+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "702eaf8d-707d-4020-83b5-85a4668844dd",
+        "title": "26.2 二次函数的图象和性质",
+        "rich_title": "26.2 二次函数的图象和性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e1c06f4f-2ebc-48ae-bfbe-3c047cc8b621/702eaf8d-707d-4020-83b5-85a4668844dd",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.210+0800",
+        "update_time": "2026-08-28T08:51:40.210+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "28561321-12ed-4216-8c78-037f9f884742",
+        "title": "26.3 二次函数与一元二次方程",
+        "rich_title": "26.3 二次函数与一元二次方程",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e1c06f4f-2ebc-48ae-bfbe-3c047cc8b621/28561321-12ed-4216-8c78-037f9f884742",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.230+0800",
+        "update_time": "2026-08-28T08:51:40.230+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5a523d62-ac37-4dd1-9987-3164fd147633",
+        "title": "26.4 实际问题与二次函数",
+        "rich_title": "26.4 实际问题与二次函数",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e1c06f4f-2ebc-48ae-bfbe-3c047cc8b621/5a523d62-ac37-4dd1-9987-3164fd147633",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.254+0800",
+        "update_time": "2026-08-28T08:51:40.254+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "910da939-20a6-482b-9120-29b5406577ed",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "e1c06f4f-2ebc-48ae-bfbe-3c047cc8b621/910da939-20a6-482b-9120-29b5406577ed",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.274+0800",
+        "update_time": "2026-08-28T08:51:40.274+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "98f8a17c-1ad9-4c5e-b64b-b2f58fa0bbf3",
+    "title": "第二十七章 反比例函数",
+    "rich_title": "第二十七章 反比例函数",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "98f8a17c-1ad9-4c5e-b64b-b2f58fa0bbf3",
+    "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+    "create_time": "2026-08-28T08:51:40.295+0800",
+    "update_time": "2026-08-28T08:51:40.295+0800",
+    "child_nodes": [
+      {
+        "id": "b7f9aaf7-cac5-4228-b681-d1d61b5cebd4",
+        "title": "27.1 反比例函数的概念",
+        "rich_title": "27.1 反比例函数的概念",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "98f8a17c-1ad9-4c5e-b64b-b2f58fa0bbf3/b7f9aaf7-cac5-4228-b681-d1d61b5cebd4",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.313+0800",
+        "update_time": "2026-08-28T08:51:40.313+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d907ed90-b5d5-442b-83b1-bfab7fff24d0",
+        "title": "27.2 反比例函数的图象和性质",
+        "rich_title": "27.2 反比例函数的图象和性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "98f8a17c-1ad9-4c5e-b64b-b2f58fa0bbf3/d907ed90-b5d5-442b-83b1-bfab7fff24d0",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.332+0800",
+        "update_time": "2026-08-28T08:51:40.332+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "628e895d-4613-4a85-8625-a4ba6637db46",
+        "title": "27.3 实际问题与反比例函数",
+        "rich_title": "27.3 实际问题与反比例函数",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "98f8a17c-1ad9-4c5e-b64b-b2f58fa0bbf3/628e895d-4613-4a85-8625-a4ba6637db46",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.349+0800",
+        "update_time": "2026-08-28T08:51:40.349+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "29f0be47-d007-4671-b7d3-272f8cea0bee",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "98f8a17c-1ad9-4c5e-b64b-b2f58fa0bbf3/29f0be47-d007-4671-b7d3-272f8cea0bee",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.368+0800",
+        "update_time": "2026-08-28T08:51:40.368+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "3d48ece1-89ed-4728-b701-bbcad1b57992",
+    "title": "第二十八章 旋转",
+    "rich_title": "第二十八章 旋转",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "3d48ece1-89ed-4728-b701-bbcad1b57992",
+    "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+    "create_time": "2026-08-28T08:51:40.390+0800",
+    "update_time": "2026-08-28T08:51:40.390+0800",
+    "child_nodes": [
+      {
+        "id": "3c59c42d-1bf2-49bc-978f-dcd976059d3f",
+        "title": "28.1 图形的旋转",
+        "rich_title": "28.1 图形的旋转",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3d48ece1-89ed-4728-b701-bbcad1b57992/3c59c42d-1bf2-49bc-978f-dcd976059d3f",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.410+0800",
+        "update_time": "2026-08-28T08:51:40.410+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "200b12ea-57eb-4163-b0b4-62dbc40be634",
+        "title": "28.2 中心对称",
+        "rich_title": "28.2 中心对称",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3d48ece1-89ed-4728-b701-bbcad1b57992/200b12ea-57eb-4163-b0b4-62dbc40be634",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.431+0800",
+        "update_time": "2026-08-28T08:51:40.431+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3f630ff2-5e31-4948-a4aa-e3309abf9fef",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3d48ece1-89ed-4728-b701-bbcad1b57992/3f630ff2-5e31-4948-a4aa-e3309abf9fef",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.451+0800",
+        "update_time": "2026-08-28T08:51:40.451+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "1c0ff46f-eb7e-4968-bb2a-2358ffc73878",
+    "title": "第二十九章 圆",
+    "rich_title": "第二十九章 圆",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "1c0ff46f-eb7e-4968-bb2a-2358ffc73878",
+    "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+    "create_time": "2026-08-28T08:51:40.471+0800",
+    "update_time": "2026-08-28T08:51:40.471+0800",
+    "child_nodes": [
+      {
+        "id": "60c38174-f985-4bc0-b989-85fac097cfa0",
+        "title": "29.1 圆的有关概念",
+        "rich_title": "29.1 圆的有关概念",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "1c0ff46f-eb7e-4968-bb2a-2358ffc73878/60c38174-f985-4bc0-b989-85fac097cfa0",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.488+0800",
+        "update_time": "2026-08-28T08:51:40.488+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c7f5cade-b547-4e68-9929-6ae7b240a423",
+        "title": "29.2 圆的有关性质",
+        "rich_title": "29.2 圆的有关性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "1c0ff46f-eb7e-4968-bb2a-2358ffc73878/c7f5cade-b547-4e68-9929-6ae7b240a423",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.510+0800",
+        "update_time": "2026-08-28T08:51:40.510+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "55b493df-8ef4-4ea5-bf15-db7136dfbc9b",
+        "title": "29.3 弧长和扇形面积",
+        "rich_title": "29.3 弧长和扇形面积",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "1c0ff46f-eb7e-4968-bb2a-2358ffc73878/55b493df-8ef4-4ea5-bf15-db7136dfbc9b",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.529+0800",
+        "update_time": "2026-08-28T08:51:40.529+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "50e3a475-3d8b-4c76-b57e-92c791cad3b7",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "1c0ff46f-eb7e-4968-bb2a-2358ffc73878/50e3a475-3d8b-4c76-b57e-92c791cad3b7",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.549+0800",
+        "update_time": "2026-08-28T08:51:40.549+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "aa484709-e37c-44e5-a14e-24b6f5fcaee5",
+    "title": "第三十章 直线与圆的位置关系",
+    "rich_title": "第三十章 直线与圆的位置关系",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "aa484709-e37c-44e5-a14e-24b6f5fcaee5",
+    "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+    "create_time": "2026-08-28T08:51:40.567+0800",
+    "update_time": "2026-08-28T08:51:40.567+0800",
+    "child_nodes": [
+      {
+        "id": "9a9b1b35-b010-4984-8467-c68e5acbfeae",
+        "title": "30.1 直线与圆",
+        "rich_title": "30.1 直线与圆",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "aa484709-e37c-44e5-a14e-24b6f5fcaee5/9a9b1b35-b010-4984-8467-c68e5acbfeae",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.585+0800",
+        "update_time": "2026-08-28T08:51:40.585+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d4395bfe-8dc9-4724-9963-ea9840ad2bab",
+        "title": "30.2 三角形的内切圆",
+        "rich_title": "30.2 三角形的内切圆",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "aa484709-e37c-44e5-a14e-24b6f5fcaee5/d4395bfe-8dc9-4724-9963-ea9840ad2bab",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.605+0800",
+        "update_time": "2026-08-28T08:51:40.605+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4c36a74b-f877-43b0-b5bf-2e516530f58d",
+        "title": "30.3 正多边形与圆",
+        "rich_title": "30.3 正多边形与圆",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "aa484709-e37c-44e5-a14e-24b6f5fcaee5/4c36a74b-f877-43b0-b5bf-2e516530f58d",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.623+0800",
+        "update_time": "2026-08-28T08:51:40.623+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cccdce10-5c36-4593-b4a5-3c6ba6a7d7a1",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "aa484709-e37c-44e5-a14e-24b6f5fcaee5/cccdce10-5c36-4593-b4a5-3c6ba6a7d7a1",
+        "tree_id": "7593f06c-44a8-44af-8e38-84e97ffde3ba",
+        "create_time": "2026-08-28T08:51:40.644+0800",
+        "update_time": "2026-08-28T08:51:40.644+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

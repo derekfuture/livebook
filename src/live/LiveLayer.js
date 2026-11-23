@@ -244,13 +244,16 @@ export class LiveLayer {
       const onStep = (i) => { const on = i === 0 && !this.panel.explore; document.body.classList.toggle('predicting', on); this.active?.inst.predicting?.(on); inst.predicting?.(on); };
       api = this.panel.open(def, { pageLabel: `课本第 ${pageNum} 页`, book: { base: this.content.base, PW: book.PW, real: this.textures.source.kind !== 'placeholder', pageUrl: (pg) => this.textures.source.url('hi', pg) }, onStep, onClose: () => (WD?.onClose ? WD.onClose() : this.close()), closeText: WD?.closeText, crumb: WD?.crumb, links: WD?.links, figText: WD?.figText, foldable: MODE === 'float' || stand,
         onFold: (folded) => {
-          if (stand) return;
-          stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8;
-          stage.cameraOffsetY = panelOffsetY(folded, v.portraitBottomInset);
+          if (!stand) {
+            stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8;
+            stage.cameraOffsetY = panelOffsetY(folded, v.portraitBottomInset);
+          }
+          if (inst.panel === 'folded') requestAnimationFrame(() => this.reframe());          // 面板先收着的活页（数学）：纸原来占满整个画面，面板一展开要重新取景，不然纸的一边就出画了
         } });
     }
     ctx.ui = api;
     if (world) inst.mountWorld?.(api); else { inst.mount?.(api); this.panel.arrange?.(); }
+    if (!world && !stand && inst.panel === 'folded' && MODE === 'float') this.panel.fold(true);          // 活页自己声明“面板先收着”（数学：整张纸是主角，提示写在纸上），收成左边一条书脊，点一下展开
     // 实验声明了 toggles（例如 ['cards', 'steps']）：右下角视角按钮上面加两个显示开关；没声明的实验（物理）什么都不加
     const toggles = [];
     if (inst.toggles?.length) {

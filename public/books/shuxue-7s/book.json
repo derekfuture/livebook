@@ -1,0 +1,133 @@
+{
+  "id": "shuxue-7s",
+  "title": "数学 七年级上册",
+  "publisher": "人民教育出版社",
+  "pageCount": 202,
+  "pageSize": [
+    521.575,
+    737.008
+  ],
+  "pageOffset": 6,
+  "chapters": [
+    {
+      "title": "第一章 有理数",
+      "page": 7,
+      "sections": [
+        {
+          "title": "1.1正数和负数",
+          "page": 8
+        },
+        {
+          "title": "1.2有理数及其大小比较",
+          "page": 13
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "第二章 有理数的运算",
+      "page": 30,
+      "sections": [
+        {
+          "title": "2.1有理数的加法与减法",
+          "page": 31
+        },
+        {
+          "title": "2.2有理数的乘法与除法",
+          "page": 44
+        },
+        {
+          "title": "2.3有理数的乘方",
+          "page": 57
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "第三章 代数式",
+      "page": 74,
+      "sections": [
+        {
+          "title": "3.1列代数式表示数量关系",
+          "page": 75
+        },
+        {
+          "title": "3.2代数式的值",
+          "page": 85
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "第四章 整式的加减",
+      "page": 94,
+      "sections": [
+        {
+          "title": "4.1整式",
+          "page": 95
+        },
+        {
+          "title": "4.2整式的加法与减法",
+          "page": 101
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "第五章 一元一次方程",
+      "page": 113,
+      "sections": [
+        {
+          "title": "5.1方程",
+          "page": 116
+        },
+        {
+          "title": "5.2解一元一次方程",
+          "page": 126
+        },
+        {
+          "title": "5.3实际问题与一元一次方程",
+          "page": 139
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    },
+    {
+      "title": "第六章 几何图形初步",
+      "page": 155,
+      "sections": [
+        {
+          "title": "6.1几何图形",
+          "page": 156
+        },
+        {
+          "title": "6.2直线、射线、线段",
+          "page": 168
+        },
+        {
+          "title": "6.3角",
+          "page": 175
+        },
+        {
+          "title": "小结",
+          "page": null
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,9 @@ import { FEATURES } from '../features.js';
 
 const modules = import.meta.glob('../lessons/*.js');
 
-export const BOOK_IDS = OFF?.bookIds ?? Object.keys(books).filter((id) => import.meta.env.DEV || !FEATURES.hiddenBooks?.includes(id));          // 线上不放还没准备好的书（features.js）
+const showDrafts = new URLSearchParams(location.search).has('draft');
+export const BOOK_IDS = OFF?.bookIds ?? Object.keys(books).filter((id) =>
+  (import.meta.env.DEV || !FEATURES.hiddenBooks?.includes(id)) && (!books[id].draft || showDrafts));
 
 // 离线版（U 盘上双击打开）：书的目录、封面这些都打包在 HTML 里（tools/offline_data.mjs）；网站上 OFF 是 null，照常从网址取
 export const OFFLINE = !!OFF;
@@ -34,6 +36,7 @@ export const SUBJECTS = {
   物理: { color: '#2f7bb5', side: 0x3f7cb0 },
   化学: { color: '#6a58b0', side: 0x5d58a6 },
   地理: { color: '#2f8f7a', side: 0x3f8c78 },
+  数学: { color: '#1f93b8', side: 0x2f97bb },
 };
 const OTHER = { color: '#7a6a4a', side: 0x8a7a5a };
 export const subjectOf = (title) => title.split(' ')[0];
@@ -70,6 +73,9 @@ const bookPaths = new Map([
   ['dili-bx2', '/geography/pep/compulsory-2'],
   ['dili-xb1', '/geography/pep/selective-compulsory-1'],
   ['dili-xb2', '/geography/pep/selective-compulsory-2'],
+  ['shuxue-7s', '/math/pep/grade-7-vol-1'],
+  ['shuxue-8s', '/math/pep/grade-8-vol-1'],
+  ['shuxue-8x', '/math/pep/grade-8-vol-2'],
 ]);
 
 export const bookHref = (id) => OFFLINE ? `?book=${id}` : bookPaths.get(id) ?? `/?book=${id}`;          // 还没定路径的书：照旧用 ?book=

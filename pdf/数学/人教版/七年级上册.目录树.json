@@ -1,0 +1,824 @@
+[
+  {
+    "id": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43",
+    "title": "第一章 有理数",
+    "rich_title": "第一章 有理数",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43",
+    "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+    "create_time": "2024-08-06T15:36:24.367+0800",
+    "update_time": "2024-08-06T15:36:24.367+0800",
+    "child_nodes": [
+      {
+        "id": "240b5648-ec75-458f-9f78-62d4fabdaf6b",
+        "title": "1.1正数和负数",
+        "rich_title": "1.1正数和负数",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43/240b5648-ec75-458f-9f78-62d4fabdaf6b",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.422+0800",
+        "update_time": "2024-08-06T15:36:24.422+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2b79d395-8359-4c02-bd44-a9a059543586",
+        "title": "1.2有理数及其大小比较",
+        "rich_title": "1.2有理数及其大小比较",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43/2b79d395-8359-4c02-bd44-a9a059543586",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.463+0800",
+        "update_time": "2024-08-06T15:36:24.463+0800",
+        "child_nodes": [
+          {
+            "id": "94b8c463-e747-4361-ba8d-c4f0eedca22b",
+            "title": "1.2.1 有理数的概念",
+            "rich_title": "1.2.1 有理数的概念",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43/2b79d395-8359-4c02-bd44-a9a059543586/94b8c463-e747-4361-ba8d-c4f0eedca22b",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:05:23.605+0800",
+            "update_time": "2024-08-27T14:05:23.605+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "d68c2ad4-0ee6-4a6e-939a-666e993d9b31",
+            "title": "1.2.2 数轴",
+            "rich_title": "1.2.2 数轴",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43/2b79d395-8359-4c02-bd44-a9a059543586/d68c2ad4-0ee6-4a6e-939a-666e993d9b31",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:05:48.056+0800",
+            "update_time": "2024-08-27T14:05:48.056+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "d167e144-c1b8-4748-aff4-e19d363a04f5",
+            "title": "1.2.3 相反数",
+            "rich_title": "1.2.3 相反数",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43/2b79d395-8359-4c02-bd44-a9a059543586/d167e144-c1b8-4748-aff4-e19d363a04f5",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:06:01.739+0800",
+            "update_time": "2024-08-27T14:06:01.739+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "190b17c3-fee2-45e8-974b-effe4df6150a",
+            "title": "1.2.4 绝对值",
+            "rich_title": "1.2.4 绝对值",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43/2b79d395-8359-4c02-bd44-a9a059543586/190b17c3-fee2-45e8-974b-effe4df6150a",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:06:14.257+0800",
+            "update_time": "2024-08-27T14:06:14.257+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "c41abaa4-a3f3-4938-9f6e-9cc477530f07",
+            "title": "1.2.5 有理数的大小比较",
+            "rich_title": "1.2.5 有理数的大小比较",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43/2b79d395-8359-4c02-bd44-a9a059543586/c41abaa4-a3f3-4938-9f6e-9cc477530f07",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:06:29.745+0800",
+            "update_time": "2024-08-27T14:06:29.745+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "fcdaef0d-f20e-4e98-bfae-f454a7075626",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3d2d6f5d-4db0-4cec-a5af-c135d3f68c43/fcdaef0d-f20e-4e98-bfae-f454a7075626",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.518+0800",
+        "update_time": "2024-08-06T15:36:24.518+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "1345a172-ed24-40fe-89b4-2c0e49822c66",
+    "title": "第二章 有理数的运算",
+    "rich_title": "第二章 有理数的运算",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66",
+    "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+    "create_time": "2024-08-06T15:36:24.630+0800",
+    "update_time": "2024-08-06T15:36:24.630+0800",
+    "child_nodes": [
+      {
+        "id": "11e85aee-9302-4737-b570-393a98c4eb59",
+        "title": "2.1有理数的加法与减法",
+        "rich_title": "2.1有理数的加法与减法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/11e85aee-9302-4737-b570-393a98c4eb59",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.660+0800",
+        "update_time": "2024-08-06T15:36:24.660+0800",
+        "child_nodes": [
+          {
+            "id": "c593b9ce-dfd8-4a4a-99db-6e7740cd2e86",
+            "title": "2.1.1有理数的加法",
+            "rich_title": "2.1.1有理数的加法",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/11e85aee-9302-4737-b570-393a98c4eb59/c593b9ce-dfd8-4a4a-99db-6e7740cd2e86",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T15:08:45.845+0800",
+            "update_time": "2024-08-27T15:08:45.845+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "faa1b583-86ae-4624-abe6-1a65f1ef3790",
+            "title": "2.1.2有理数的减法",
+            "rich_title": "2.1.2有理数的减法",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/11e85aee-9302-4737-b570-393a98c4eb59/faa1b583-86ae-4624-abe6-1a65f1ef3790",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T15:09:05.924+0800",
+            "update_time": "2024-08-27T15:09:05.924+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "e19f11d3-b6cb-4c65-9064-47832616bfcc",
+        "title": "2.2有理数的乘法与除法",
+        "rich_title": "2.2有理数的乘法与除法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/e19f11d3-b6cb-4c65-9064-47832616bfcc",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.682+0800",
+        "update_time": "2024-08-06T15:36:24.682+0800",
+        "child_nodes": [
+          {
+            "id": "91f0db99-3888-4e39-9b2f-933f771a68b2",
+            "title": "2.2.1有理数的乘法",
+            "rich_title": "2.2.1有理数的乘法",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/e19f11d3-b6cb-4c65-9064-47832616bfcc/91f0db99-3888-4e39-9b2f-933f771a68b2",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T15:09:24.519+0800",
+            "update_time": "2024-08-27T15:11:38.603+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "b910a507-5c05-4ec3-ac8d-70c4930b9e5f",
+            "title": "2.2.2有理数的除法",
+            "rich_title": "2.2.2有理数的除法",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/e19f11d3-b6cb-4c65-9064-47832616bfcc/b910a507-5c05-4ec3-ac8d-70c4930b9e5f",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T15:09:42.228+0800",
+            "update_time": "2024-08-27T15:09:42.228+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "c5ad72b2-394a-4f80-93e1-f0a957ba662e",
+        "title": "2.3有理数的乘方",
+        "rich_title": "2.3有理数的乘方",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/c5ad72b2-394a-4f80-93e1-f0a957ba662e",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.705+0800",
+        "update_time": "2024-08-06T15:36:24.705+0800",
+        "child_nodes": [
+          {
+            "id": "488d015e-59b7-4eb2-be31-d4da10317e34",
+            "title": "2.3.1 乘方",
+            "rich_title": "2.3.1 乘方",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/c5ad72b2-394a-4f80-93e1-f0a957ba662e/488d015e-59b7-4eb2-be31-d4da10317e34",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:08:02.262+0800",
+            "update_time": "2024-08-27T14:08:02.262+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "769d2d43-6159-472f-87d1-faf6e6d96666",
+            "title": "2.3.2 科学记数法 2.3.3近似数",
+            "rich_title": "2.3.2 科学记数法 2.3.3近似数",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/c5ad72b2-394a-4f80-93e1-f0a957ba662e/769d2d43-6159-472f-87d1-faf6e6d96666",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:08:21.519+0800",
+            "update_time": "2024-08-27T14:08:21.519+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "06f803ce-ea2e-4be9-83ab-ae4b105535fb",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "1345a172-ed24-40fe-89b4-2c0e49822c66/06f803ce-ea2e-4be9-83ab-ae4b105535fb",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.747+0800",
+        "update_time": "2024-08-06T15:36:24.747+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "9342995a-e706-414c-8dfb-aebbd2d3edeb",
+    "title": "第三章 代数式",
+    "rich_title": "第三章 代数式",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "9342995a-e706-414c-8dfb-aebbd2d3edeb",
+    "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+    "create_time": "2024-08-06T15:36:24.787+0800",
+    "update_time": "2024-08-06T15:36:24.787+0800",
+    "child_nodes": [
+      {
+        "id": "597bff44-4273-4796-ab94-3908be06a95a",
+        "title": "3.1列代数式表示数量关系",
+        "rich_title": "3.1列代数式表示数量关系",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "9342995a-e706-414c-8dfb-aebbd2d3edeb/597bff44-4273-4796-ab94-3908be06a95a",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.808+0800",
+        "update_time": "2024-08-06T15:36:24.808+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "7860a6ec-b6b5-44bc-b035-06e9f6d2eeac",
+        "title": "3.2代数式的值",
+        "rich_title": "3.2代数式的值",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "9342995a-e706-414c-8dfb-aebbd2d3edeb/7860a6ec-b6b5-44bc-b035-06e9f6d2eeac",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.832+0800",
+        "update_time": "2024-08-06T15:36:24.832+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e65b6280-01f7-4609-89de-9bcc1bdc5171",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "9342995a-e706-414c-8dfb-aebbd2d3edeb/e65b6280-01f7-4609-89de-9bcc1bdc5171",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.876+0800",
+        "update_time": "2024-08-06T15:36:24.876+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "9ed1019b-8fd3-4256-941d-10263797db77",
+    "title": "第四章 整式的加减",
+    "rich_title": "第四章 整式的加减",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "9ed1019b-8fd3-4256-941d-10263797db77",
+    "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+    "create_time": "2024-08-06T15:36:24.896+0800",
+    "update_time": "2024-08-06T15:36:24.896+0800",
+    "child_nodes": [
+      {
+        "id": "0930514d-a081-4d8c-9e46-d7e8b91da6d0",
+        "title": "4.1整式",
+        "rich_title": "4.1整式",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "9ed1019b-8fd3-4256-941d-10263797db77/0930514d-a081-4d8c-9e46-d7e8b91da6d0",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.922+0800",
+        "update_time": "2024-08-06T15:36:24.922+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "742df72c-4d20-400c-9bc1-998874528fc4",
+        "title": "4.2整式的加法与减法",
+        "rich_title": "4.2整式的加法与减法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "9ed1019b-8fd3-4256-941d-10263797db77/742df72c-4d20-400c-9bc1-998874528fc4",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.947+0800",
+        "update_time": "2024-08-06T15:36:24.947+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "54d410c1-0c8f-45c6-8d54-d4e8254767f7",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "9ed1019b-8fd3-4256-941d-10263797db77/54d410c1-0c8f-45c6-8d54-d4e8254767f7",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:24.989+0800",
+        "update_time": "2024-08-06T15:36:24.989+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "f1268983-0eb0-42fa-a671-45762d12faf2",
+    "title": "第五章 一元一次方程",
+    "rich_title": "第五章 一元一次方程",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "f1268983-0eb0-42fa-a671-45762d12faf2",
+    "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+    "create_time": "2024-08-06T15:36:25.011+0800",
+    "update_time": "2024-08-06T15:36:25.011+0800",
+    "child_nodes": [
+      {
+        "id": "ae354ff6-f3a7-42b4-8bed-f72f6db7abd2",
+        "title": "5.1方程",
+        "rich_title": "5.1方程",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1268983-0eb0-42fa-a671-45762d12faf2/ae354ff6-f3a7-42b4-8bed-f72f6db7abd2",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:25.031+0800",
+        "update_time": "2024-08-06T15:36:25.031+0800",
+        "child_nodes": [
+          {
+            "id": "aef9eccb-805b-42f9-b613-8dbad05af071",
+            "title": "5.1.1 从算式到方程",
+            "rich_title": "5.1.1 从算式到方程",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "f1268983-0eb0-42fa-a671-45762d12faf2/ae354ff6-f3a7-42b4-8bed-f72f6db7abd2/aef9eccb-805b-42f9-b613-8dbad05af071",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:09:06.095+0800",
+            "update_time": "2024-08-27T14:09:06.095+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "67020de1-2e7d-41e8-ae19-301225caae02",
+            "title": "5.1.2 等式的性质",
+            "rich_title": "5.1.2 等式的性质",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "f1268983-0eb0-42fa-a671-45762d12faf2/ae354ff6-f3a7-42b4-8bed-f72f6db7abd2/67020de1-2e7d-41e8-ae19-301225caae02",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:09:20.944+0800",
+            "update_time": "2024-08-27T14:09:20.944+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "1da26a76-2722-4435-a5f0-e91ac7d13070",
+        "title": "5.2解一元一次方程",
+        "rich_title": "5.2解一元一次方程",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1268983-0eb0-42fa-a671-45762d12faf2/1da26a76-2722-4435-a5f0-e91ac7d13070",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:25.054+0800",
+        "update_time": "2024-08-06T15:36:25.054+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "787292e8-5572-4845-846c-29782c2d85a7",
+        "title": "5.3实际问题与一元一次方程",
+        "rich_title": "5.3实际问题与一元一次方程",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1268983-0eb0-42fa-a671-45762d12faf2/787292e8-5572-4845-846c-29782c2d85a7",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:25.084+0800",
+        "update_time": "2024-08-06T15:36:25.084+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1cc2c732-aa4f-48ba-8bd1-9f43e76cb425",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1268983-0eb0-42fa-a671-45762d12faf2/1cc2c732-aa4f-48ba-8bd1-9f43e76cb425",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:25.126+0800",
+        "update_time": "2024-08-06T15:36:25.126+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c",
+    "title": "第六章 几何图形初步",
+    "rich_title": "第六章 几何图形初步",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c",
+    "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+    "create_time": "2024-08-06T15:36:25.147+0800",
+    "update_time": "2024-08-06T15:36:25.147+0800",
+    "child_nodes": [
+      {
+        "id": "1f3689ad-5372-4d91-9deb-c31699191791",
+        "title": "6.1几何图形",
+        "rich_title": "6.1几何图形",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/1f3689ad-5372-4d91-9deb-c31699191791",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:25.169+0800",
+        "update_time": "2024-08-06T15:36:25.169+0800",
+        "child_nodes": [
+          {
+            "id": "84df226e-3327-419d-a5ad-72fcadda778d",
+            "title": "6.1.1 立体图形与平面图形",
+            "rich_title": "6.1.1 立体图形与平面图形",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/1f3689ad-5372-4d91-9deb-c31699191791/84df226e-3327-419d-a5ad-72fcadda778d",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:09:48.330+0800",
+            "update_time": "2024-08-27T14:09:48.330+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "20e2f0c8-8103-460f-a654-39b2c79b665e",
+            "title": "6.1.2 点、线、面、体",
+            "rich_title": "6.1.2 点、线、面、体",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/1f3689ad-5372-4d91-9deb-c31699191791/20e2f0c8-8103-460f-a654-39b2c79b665e",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:10:02.074+0800",
+            "update_time": "2024-08-27T14:10:02.074+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "36ef5bb4-1479-41b9-94d5-06c7f93031d2",
+        "title": "6.2直线、射线、线段",
+        "rich_title": "6.2直线、射线、线段",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/36ef5bb4-1479-41b9-94d5-06c7f93031d2",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:25.189+0800",
+        "update_time": "2024-08-06T15:36:25.189+0800",
+        "child_nodes": [
+          {
+            "id": "867b6117-74c6-43ec-be35-a44684f392bb",
+            "title": "6.2.1 直线、射线、线段",
+            "rich_title": "6.2.1 直线、射线、线段",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/36ef5bb4-1479-41b9-94d5-06c7f93031d2/867b6117-74c6-43ec-be35-a44684f392bb",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:10:17.186+0800",
+            "update_time": "2024-08-27T14:10:17.186+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "a11ee0ef-317a-4ce6-8dd1-631802094886",
+            "title": "6.2.2 线段的比较与运算",
+            "rich_title": "6.2.2 线段的比较与运算",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/36ef5bb4-1479-41b9-94d5-06c7f93031d2/a11ee0ef-317a-4ce6-8dd1-631802094886",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:10:34.026+0800",
+            "update_time": "2024-12-24T14:29:56.371+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "ffcdd6f2-94c0-4250-9023-64e196216fbf",
+        "title": "6.3角",
+        "rich_title": "6.3角",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/ffcdd6f2-94c0-4250-9023-64e196216fbf",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:25.219+0800",
+        "update_time": "2024-08-06T15:36:25.219+0800",
+        "child_nodes": [
+          {
+            "id": "8f73d866-0c44-4de3-b554-a071edc91338",
+            "title": "6.3.1 角的概念",
+            "rich_title": "6.3.1 角的概念",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/ffcdd6f2-94c0-4250-9023-64e196216fbf/8f73d866-0c44-4de3-b554-a071edc91338",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:10:51.298+0800",
+            "update_time": "2024-08-27T14:10:51.298+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "f3c7d4fb-1c97-4417-9d36-2f478c4c4735",
+            "title": "6.3.2 角的比较与运算",
+            "rich_title": "6.3.2 角的比较与运算",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false,
+              "change_source": "other",
+              "change_remark": ""
+            },
+            "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/ffcdd6f2-94c0-4250-9023-64e196216fbf/f3c7d4fb-1c97-4417-9d36-2f478c4c4735",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:11:17.214+0800",
+            "update_time": "2024-08-27T14:11:17.214+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "bd5fdad0-9196-476f-ba18-e64c1102fbc4",
+            "title": "6.3.3 余角和补角",
+            "rich_title": "6.3.3 余角和补角",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/ffcdd6f2-94c0-4250-9023-64e196216fbf/bd5fdad0-9196-476f-ba18-e64c1102fbc4",
+            "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+            "create_time": "2024-08-27T14:11:36.772+0800",
+            "update_time": "2025-08-19T15:38:47.628+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "1e6afa0a-66ff-495a-97d7-1a1462d3396e",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "3ae3cc7c-d9e2-4e3d-b137-951f989b731c/1e6afa0a-66ff-495a-97d7-1a1462d3396e",
+        "tree_id": "b677a95f-e947-46d3-805c-0b76b71a7379",
+        "create_time": "2024-08-06T15:36:25.258+0800",
+        "update_time": "2024-08-06T15:36:25.258+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

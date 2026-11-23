@@ -256,6 +256,51 @@ BOOKS = {
         "first_body_index": 5,
         "page_offset": 4,
     },
+    "shuxue-7s": {
+        "code": "m7a",
+        "title": "数学 七年级上册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("shuxue-7s"),
+        "toc": toc_path("shuxue-7s"),
+        "first_body_index": 7,
+        "page_offset": 6,
+    },
+    "shuxue-8s": {
+        "code": "m8a",
+        "title": "数学 八年级上册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("shuxue-8s"),
+        "toc": toc_path("shuxue-8s"),
+        "first_body_index": 7,
+        "page_offset": 6,
+    },
+    "shuxue-8x": {
+        "code": "m8b",
+        "title": "数学 八年级下册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("shuxue-8x"),
+        "toc": toc_path("shuxue-8x"),
+        "first_body_index": 7,
+        "page_offset": 6,
+    },
+    "shuxue-9s": {
+        "code": "m9a",
+        "title": "数学 九年级上册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("shuxue-9s"),
+        "toc": toc_path("shuxue-9s"),
+        "first_body_index": 7,
+        "page_offset": 6,
+    },
+    "shuxue-7x": {
+        "code": "m7b",
+        "title": "数学 七年级下册",
+        "publisher": "人民教育出版社",
+        "pdf": pdf_path("shuxue-7x"),
+        "toc": toc_path("shuxue-7x"),
+        "first_body_index": 7,
+        "page_offset": 6,
+    },
 }
 
 HI_HEIGHT = 2048
@@ -265,7 +310,8 @@ MID_HEIGHT = 720          # 只给封面：书桌首页上那几摞书用（hi �
 
 def find_page(doc, title, start):
     """章节标题在正文中第一次出现的页（标题去掉“第N节”前缀后匹配）。"""
-    key = title.split(" ", 1)[-1].replace("跨学科实践：", "")
+    key = title.replace("　", " ").split(" ", 1)[-1].replace("跨学科实践：", "")
+    key = re.sub(r"^[\d.]+\s*", "", key)          # 数学的节名“1.1正数和负数”“13.1 三角形的概念”：课本正文里的节号是全角数字，只按后面的名字找
     m = re.match(r"(课题\s*\d+)", title)
     if m:   # 化学：“课题2 氧气”——题名常在前文出现过，先找页面开头写着“课题2 + 题名”的那一页
         head = re.sub(r"\s", "", m.group(1)) + re.sub(r"\s", "", key)

@@ -1,0 +1,752 @@
+[
+  {
+    "id": "b0a39a1f-ba61-455c-b3e5-657548079d64",
+    "title": "第十三章 三角形",
+    "rich_title": "第十三章 三角形",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "b0a39a1f-ba61-455c-b3e5-657548079d64",
+    "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+    "create_time": "2025-07-29T16:29:41.855+0800",
+    "update_time": "2025-07-29T16:29:41.855+0800",
+    "child_nodes": [
+      {
+        "id": "a347f6a1-fd5c-4fa7-9af9-f8783e95209e",
+        "title": "13.1 三角形的概念",
+        "rich_title": "13.1 三角形的概念",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b0a39a1f-ba61-455c-b3e5-657548079d64/a347f6a1-fd5c-4fa7-9af9-f8783e95209e",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:41.876+0800",
+        "update_time": "2025-07-29T16:29:41.876+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2a6f3bd4-e84e-4476-8286-145f8e8e2376",
+        "title": "13.2 与三角形有关的线段",
+        "rich_title": "13.2 与三角形有关的线段",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b0a39a1f-ba61-455c-b3e5-657548079d64/2a6f3bd4-e84e-4476-8286-145f8e8e2376",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:41.899+0800",
+        "update_time": "2025-07-29T16:29:41.899+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "96ec7b3e-d6c3-449a-a948-c2c76db688e7",
+        "title": "13.3 三角形的内角与外角",
+        "rich_title": "13.3 三角形的内角与外角",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b0a39a1f-ba61-455c-b3e5-657548079d64/96ec7b3e-d6c3-449a-a948-c2c76db688e7",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:41.918+0800",
+        "update_time": "2025-07-29T16:29:41.918+0800",
+        "child_nodes": [
+          {
+            "id": "222112f2-48a8-435a-821b-a56dd805edc8",
+            "title": "阅读与思考 为什么要证明",
+            "rich_title": "阅读与思考 为什么要证明",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "b0a39a1f-ba61-455c-b3e5-657548079d64/96ec7b3e-d6c3-449a-a948-c2c76db688e7/222112f2-48a8-435a-821b-a56dd805edc8",
+            "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+            "create_time": "2025-07-29T16:29:41.938+0800",
+            "update_time": "2025-07-29T16:29:41.938+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "f2ab5db3-9981-4584-a753-277dc25807f1",
+        "title": "数学活动",
+        "rich_title": "数学活动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b0a39a1f-ba61-455c-b3e5-657548079d64/f2ab5db3-9981-4584-a753-277dc25807f1",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:41.958+0800",
+        "update_time": "2025-07-29T16:29:41.958+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e4cf528d-26d5-458c-bb10-63b3b5683cdf",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b0a39a1f-ba61-455c-b3e5-657548079d64/e4cf528d-26d5-458c-bb10-63b3b5683cdf",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:41.976+0800",
+        "update_time": "2025-07-29T16:29:41.976+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "12a0219a-b642-49b3-a123-55d21cae974e",
+    "title": "综合与实践 确定匀质薄板的重心位置",
+    "rich_title": "综合与实践 确定匀质薄板的重心位置",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "12a0219a-b642-49b3-a123-55d21cae974e",
+    "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+    "create_time": "2025-07-29T16:29:41.996+0800",
+    "update_time": "2025-07-29T16:29:41.996+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c",
+    "title": "第十四章 全等三角形",
+    "rich_title": "第十四章 全等三角形",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c",
+    "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+    "create_time": "2025-07-29T16:29:42.013+0800",
+    "update_time": "2025-07-29T16:29:42.013+0800",
+    "child_nodes": [
+      {
+        "id": "335ef04e-1e6b-4048-b69f-364a424946c8",
+        "title": "14.1 全等三角形及其性质",
+        "rich_title": "14.1 全等三角形及其性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c/335ef04e-1e6b-4048-b69f-364a424946c8",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.035+0800",
+        "update_time": "2025-07-29T16:29:42.035+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9faad44b-ac10-4979-82b9-ddd95226338d",
+        "title": "14.2 三角形全等的判定",
+        "rich_title": "14.2 三角形全等的判定",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c/9faad44b-ac10-4979-82b9-ddd95226338d",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.057+0800",
+        "update_time": "2025-10-09T09:42:23.287+0800",
+        "child_nodes": [
+          {
+            "id": "18a9c97d-5305-4029-b830-f66bb49d01f8",
+            "title": "信息技术应用 探究三角形全等的条件",
+            "rich_title": "信息技术应用 探究三角形全等的条件",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c/9faad44b-ac10-4979-82b9-ddd95226338d/18a9c97d-5305-4029-b830-f66bb49d01f8",
+            "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+            "create_time": "2025-07-29T16:29:42.077+0800",
+            "update_time": "2025-07-29T16:29:42.077+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "57162aa5-ec36-42a8-9b08-8cefec8dfdad",
+        "title": "14.3 角的平分线",
+        "rich_title": "14.3 角的平分线",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c/57162aa5-ec36-42a8-9b08-8cefec8dfdad",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.098+0800",
+        "update_time": "2025-07-29T16:29:42.098+0800",
+        "child_nodes": [
+          {
+            "id": "d032b198-862d-465c-8bdf-0b6947d05d30",
+            "title": "图说数学史 公理化方法",
+            "rich_title": "图说数学史 公理化方法",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c/57162aa5-ec36-42a8-9b08-8cefec8dfdad/d032b198-862d-465c-8bdf-0b6947d05d30",
+            "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+            "create_time": "2025-07-29T16:29:42.120+0800",
+            "update_time": "2025-07-29T16:29:42.120+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "ebc62623-a263-4b78-bf9a-69eaf557f7c1",
+        "title": "数学活动",
+        "rich_title": "数学活动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c/ebc62623-a263-4b78-bf9a-69eaf557f7c1",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.140+0800",
+        "update_time": "2025-07-29T16:29:42.140+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ee0a1152-6799-454d-b784-d1c595220e24",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "91c49dc7-e0d9-47d9-aeba-bf598fbb350c/ee0a1152-6799-454d-b784-d1c595220e24",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.162+0800",
+        "update_time": "2025-07-29T16:29:42.162+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "f96ec7a4-12d8-4136-a6d5-617c0aaa2918",
+    "title": "第十五章 轴对称",
+    "rich_title": "第十五章 轴对称",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "f96ec7a4-12d8-4136-a6d5-617c0aaa2918",
+    "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+    "create_time": "2025-07-29T16:29:42.183+0800",
+    "update_time": "2025-07-29T16:29:42.183+0800",
+    "child_nodes": [
+      {
+        "id": "7526eec3-66be-4166-95ff-bfdc3f117327",
+        "title": "15.1 图形的轴对称",
+        "rich_title": "15.1 图形的轴对称",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f96ec7a4-12d8-4136-a6d5-617c0aaa2918/7526eec3-66be-4166-95ff-bfdc3f117327",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.202+0800",
+        "update_time": "2025-07-29T16:29:42.202+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "82f76610-3a66-46ca-9310-b59ff4ebaec4",
+        "title": "15.2 画轴对称的图形",
+        "rich_title": "15.2 画轴对称的图形",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f96ec7a4-12d8-4136-a6d5-617c0aaa2918/82f76610-3a66-46ca-9310-b59ff4ebaec4",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.222+0800",
+        "update_time": "2025-07-29T16:29:42.222+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a03ae84a-442f-42f7-af58-728174c08db8",
+        "title": "15.3 等腰三角形",
+        "rich_title": "15.3 等腰三角形",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f96ec7a4-12d8-4136-a6d5-617c0aaa2918/a03ae84a-442f-42f7-af58-728174c08db8",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.243+0800",
+        "update_time": "2025-07-29T16:29:42.243+0800",
+        "child_nodes": [
+          {
+            "id": "e7803eb7-e372-4692-9507-cac4a621bb95",
+            "title": "探究与发现 三角形中边与角之间的不等关系",
+            "rich_title": "探究与发现 三角形中边与角之间的不等关系",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "f96ec7a4-12d8-4136-a6d5-617c0aaa2918/a03ae84a-442f-42f7-af58-728174c08db8/e7803eb7-e372-4692-9507-cac4a621bb95",
+            "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+            "create_time": "2025-07-29T16:29:42.265+0800",
+            "update_time": "2025-07-29T16:29:42.265+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "db03746a-ddc3-41bb-bf0e-0b3c54173396",
+        "title": "数学活动",
+        "rich_title": "数学活动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f96ec7a4-12d8-4136-a6d5-617c0aaa2918/db03746a-ddc3-41bb-bf0e-0b3c54173396",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.286+0800",
+        "update_time": "2025-07-29T16:29:42.286+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5c13ce40-b9ef-4eb4-b0c3-9ab2068c69b8",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f96ec7a4-12d8-4136-a6d5-617c0aaa2918/5c13ce40-b9ef-4eb4-b0c3-9ab2068c69b8",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.307+0800",
+        "update_time": "2025-07-29T16:29:42.307+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "f1fb620d-e2d7-467f-8678-443e5276e83a",
+    "title": "综合与实践 最短路径问题",
+    "rich_title": "综合与实践 最短路径问题",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "f1fb620d-e2d7-467f-8678-443e5276e83a",
+    "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+    "create_time": "2025-07-29T16:29:42.328+0800",
+    "update_time": "2025-07-29T16:29:42.328+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "5b6f7ab0-cdc3-4b5a-a0ff-a035a80b2054",
+    "title": "第十六章 整式的乘法",
+    "rich_title": "第十六章 整式的乘法",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "5b6f7ab0-cdc3-4b5a-a0ff-a035a80b2054",
+    "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+    "create_time": "2025-07-29T16:29:42.345+0800",
+    "update_time": "2025-07-29T16:29:42.345+0800",
+    "child_nodes": [
+      {
+        "id": "6dc2a461-ddb6-471f-9f9e-b22b4e905410",
+        "title": "16.1 幂的运算",
+        "rich_title": "16.1 幂的运算",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5b6f7ab0-cdc3-4b5a-a0ff-a035a80b2054/6dc2a461-ddb6-471f-9f9e-b22b4e905410",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.365+0800",
+        "update_time": "2025-07-29T16:29:42.365+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3d20f802-32ef-411f-82d8-de376e15517d",
+        "title": "16.2 整式的乘法",
+        "rich_title": "16.2 整式的乘法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5b6f7ab0-cdc3-4b5a-a0ff-a035a80b2054/3d20f802-32ef-411f-82d8-de376e15517d",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.387+0800",
+        "update_time": "2025-07-29T16:29:42.387+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "57b3de99-605f-4bc9-a58b-c0c6d5ee1e9b",
+        "title": "16.3 乘法公式",
+        "rich_title": "16.3 乘法公式",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5b6f7ab0-cdc3-4b5a-a0ff-a035a80b2054/57b3de99-605f-4bc9-a58b-c0c6d5ee1e9b",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.411+0800",
+        "update_time": "2025-07-29T16:29:42.411+0800",
+        "child_nodes": [
+          {
+            "id": "79fcb5ca-3216-485f-83bd-ec2c904e5961",
+            "title": "阅读与思考 杨辉三角",
+            "rich_title": "阅读与思考 杨辉三角",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "5b6f7ab0-cdc3-4b5a-a0ff-a035a80b2054/57b3de99-605f-4bc9-a58b-c0c6d5ee1e9b/79fcb5ca-3216-485f-83bd-ec2c904e5961",
+            "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+            "create_time": "2025-07-29T16:29:42.433+0800",
+            "update_time": "2025-07-29T16:29:42.433+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "a1195456-43f8-4b81-aec8-b2c0ba22da25",
+        "title": "数学活动",
+        "rich_title": "数学活动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5b6f7ab0-cdc3-4b5a-a0ff-a035a80b2054/a1195456-43f8-4b81-aec8-b2c0ba22da25",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.453+0800",
+        "update_time": "2025-07-29T16:29:42.453+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fb3f30fe-65eb-43f9-a1e2-700bf5591dfc",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "5b6f7ab0-cdc3-4b5a-a0ff-a035a80b2054/fb3f30fe-65eb-43f9-a1e2-700bf5591dfc",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.474+0800",
+        "update_time": "2025-07-29T16:29:42.474+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "74ea7fd3-ed8f-492d-a994-02c6709d644f",
+    "title": "第十七章 因式分解",
+    "rich_title": "第十七章 因式分解",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "74ea7fd3-ed8f-492d-a994-02c6709d644f",
+    "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+    "create_time": "2025-07-29T16:29:42.495+0800",
+    "update_time": "2025-07-29T16:29:42.495+0800",
+    "child_nodes": [
+      {
+        "id": "479dc288-d91f-4c5e-b261-42d6feac8e07",
+        "title": "17.1 用提公因式法分解因式",
+        "rich_title": "17.1 用提公因式法分解因式",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "74ea7fd3-ed8f-492d-a994-02c6709d644f/479dc288-d91f-4c5e-b261-42d6feac8e07",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.514+0800",
+        "update_time": "2025-07-29T16:29:42.514+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1f8a3363-7aab-4913-8373-0f2f3cf13c52",
+        "title": "17.2 用公式法分解因式",
+        "rich_title": "17.2 用公式法分解因式",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "74ea7fd3-ed8f-492d-a994-02c6709d644f/1f8a3363-7aab-4913-8373-0f2f3cf13c52",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.542+0800",
+        "update_time": "2025-07-29T16:29:42.542+0800",
+        "child_nodes": [
+          {
+            "id": "c2c224b8-66b2-452a-8036-e25fbd3b43b2",
+            "title": "阅读与思考 x²+(p+q)x+pq型式子的因式分解",
+            "rich_title": "阅读与思考 x²+(p+q)x+pq型式子的因式分解",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "74ea7fd3-ed8f-492d-a994-02c6709d644f/1f8a3363-7aab-4913-8373-0f2f3cf13c52/c2c224b8-66b2-452a-8036-e25fbd3b43b2",
+            "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+            "create_time": "2025-07-29T16:29:42.568+0800",
+            "update_time": "2025-07-29T16:29:42.568+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "4ca2511e-f98c-4f0b-91a8-dd24a176a0e7",
+        "title": "数学活动",
+        "rich_title": "数学活动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "74ea7fd3-ed8f-492d-a994-02c6709d644f/4ca2511e-f98c-4f0b-91a8-dd24a176a0e7",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.588+0800",
+        "update_time": "2025-07-29T16:29:42.588+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8b1d97e1-44a2-4853-9c0d-b5f47b69e02b",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "74ea7fd3-ed8f-492d-a994-02c6709d644f/8b1d97e1-44a2-4853-9c0d-b5f47b69e02b",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.609+0800",
+        "update_time": "2025-07-29T16:29:42.609+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "d09e11fe-98d6-4306-bdeb-ba67bed4d490",
+    "title": "第十八章 分式",
+    "rich_title": "第十八章 分式",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490",
+    "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+    "create_time": "2025-07-29T16:29:42.629+0800",
+    "update_time": "2025-07-29T16:29:42.629+0800",
+    "child_nodes": [
+      {
+        "id": "b5e19b7a-2285-4867-bbee-53df0db3ce6a",
+        "title": "18.1 分式及其基本性质",
+        "rich_title": "18.1 分式及其基本性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490/b5e19b7a-2285-4867-bbee-53df0db3ce6a",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.646+0800",
+        "update_time": "2025-07-29T16:29:42.646+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9d6a4c3a-77dd-4672-8d23-bf3a61d79059",
+        "title": "18.2 分式的乘法与除法",
+        "rich_title": "18.2 分式的乘法与除法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490/9d6a4c3a-77dd-4672-8d23-bf3a61d79059",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.667+0800",
+        "update_time": "2025-07-29T16:29:42.667+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "bb3e5a1f-d021-4859-af7a-2b538d448a36",
+        "title": "18.3 分式的加法与减法",
+        "rich_title": "18.3 分式的加法与减法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490/bb3e5a1f-d021-4859-af7a-2b538d448a36",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.685+0800",
+        "update_time": "2025-07-29T16:29:42.685+0800",
+        "child_nodes": [
+          {
+            "id": "ac537a40-6530-4669-8d59-d8793ec4d0e6",
+            "title": "阅读与思考 容器中的水能倒完吗",
+            "rich_title": "阅读与思考 容器中的水能倒完吗",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490/bb3e5a1f-d021-4859-af7a-2b538d448a36/ac537a40-6530-4669-8d59-d8793ec4d0e6",
+            "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+            "create_time": "2025-07-29T16:29:42.704+0800",
+            "update_time": "2025-07-29T16:29:42.704+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "872e54f9-91c5-42bf-aa1f-f9142eaf51d9",
+        "title": "18.4 整数指数幂",
+        "rich_title": "18.4 整数指数幂",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490/872e54f9-91c5-42bf-aa1f-f9142eaf51d9",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.725+0800",
+        "update_time": "2025-07-29T16:29:42.725+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "85836e21-9ac8-4eda-997d-8562479f713e",
+        "title": "18.5 分式方程",
+        "rich_title": "18.5 分式方程",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490/85836e21-9ac8-4eda-997d-8562479f713e",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.753+0800",
+        "update_time": "2025-07-29T16:29:42.753+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "7b5edd27-429e-4ced-aee9-55649dc74888",
+        "title": "数学活动",
+        "rich_title": "数学活动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490/7b5edd27-429e-4ced-aee9-55649dc74888",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.773+0800",
+        "update_time": "2025-07-29T16:29:42.773+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2e683262-1647-4c26-9dec-b1b7290e3678",
+        "title": "小结",
+        "rich_title": "小结",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d09e11fe-98d6-4306-bdeb-ba67bed4d490/2e683262-1647-4c26-9dec-b1b7290e3678",
+        "tree_id": "37dcf330-a406-4f3a-8602-0222736f9a90",
+        "create_time": "2025-07-29T16:29:42.794+0800",
+        "update_time": "2025-07-29T16:29:42.794+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]
