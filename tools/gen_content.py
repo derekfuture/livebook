@@ -13,14 +13,18 @@ from find_bbox import plan_rows
 ROOT = Path(__file__).resolve().parent.parent
 BOX = json.loads((ROOT / "tools" / "bbox-overrides.json").read_text())
 EXTRA_SPOTS = [
+    {"lesson": "freespring", "page": 38, "bbox": [101, 166, 153, 289], "label": "图2.1-4 · 翻开活页"},
     {"lesson": "pendulum", "page": 101, "bbox": [138, 236, 386, 416], "label": "图11.4-3 · 翻开活页"},
 ]
-TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "dili-7s": "地理 七年级上册", "dili-8s": "地理 八年级上册", "dili-8x": "地理 八年级下册", "dili-xb1": "地理 选择性必修1", "dili-bx1": "地理 必修第一册", "dili-bx2": "地理 必修第二册", "dili-xb2": "地理 选择性必修2", "shuxue-7s": "数学 七年级上册", "shuxue-8s": "数学 八年级上册", "shuxue-8x": "数学 八年级下册", "shuxue-9s": "数学 九年级上册", "shuxue-7x": "数学 七年级下册"}
+TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "dili-7s": "地理 七年级上册", "dili-8s": "地理 八年级上册", "dili-8x": "地理 八年级下册", "dili-xb1": "地理 选择性必修1", "dili-bx1": "地理 必修第一册", "dili-bx2": "地理 必修第二册", "dili-xb2": "地理 选择性必修2",
+          "wuli-hs1": "物理 必修第一册", "wuli-hs2": "物理 必修第二册", "wuli-hs3": "物理 必修第三册", "wuli-hsx1": "物理 选择性必修第一册", "wuli-hsx2": "物理 选择性必修第二册", "wuli-hsx3": "物理 选择性必修第三册",
+          "huaxue-hs1": "化学 必修第一册", "huaxue-hs2": "化学 必修第二册", "huaxue-hsx1": "化学 选择性必修1", "huaxue-hsx2": "化学 选择性必修2", "huaxue-hsx3": "化学 选择性必修3",
+          "shuxue-7s": "数学 七年级上册", "shuxue-8s": "数学 八年级上册", "shuxue-8x": "数学 八年级下册", "shuxue-9s": "数学 九年级上册", "shuxue-7x": "数学 七年级下册"}
 
 DRAFT = {"shuxue-7s", "shuxue-8s", "shuxue-8x", "shuxue-9s", "shuxue-7x"}          # 还在试做的书：首页和书的列表里不摆，只能用 ?book=<id> 直接打开
 
 
-FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究|思考)"
+FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究|实验|思考)"
 
 
 def short_fig(fig):
@@ -35,7 +39,7 @@ def main():
         if r["id"] not in BOX:
             print("缺图框：", r["id"]); continue
         fig = r["fig"]
-        title = re.sub(r"^(图[\d.\-/]+\s*)+", "", fig).strip() if fig.startswith("图") else re.sub(r"^(实验活动\d+|实验\d+-\d+|探究|思考)\s*", "", fig).strip()
+        title = re.sub(r"^(图[\d.\-/]+\s*)+", "", fig).strip() if fig.startswith("图") else re.sub(r"^(实验活动\d+|实验\d+-\d+|探究|实验|思考)\s*", "", fig).strip()
         title = title or r["sec"]
         title = title.replace("问题：", "")
         sec = re.sub(r"^[\d.]+\s*", "", r["sec"])

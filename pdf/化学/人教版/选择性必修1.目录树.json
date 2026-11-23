@@ -1,0 +1,623 @@
+[
+  {
+    "id": "ab53a3c4-8e07-355b-8144-333a46c3b854",
+    "title": "第一章 化学反应的热效应",
+    "rich_title": "第一章 化学反应的热效应",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "ab53a3c4-8e07-355b-8144-333a46c3b854",
+    "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+    "create_time": "2023-06-15T19:01:00.819+0800",
+    "update_time": "2023-06-15T19:01:00.819+0800",
+    "child_nodes": [
+      {
+        "id": "eb48dfb0-5de5-3026-816f-ae6b3aece09d",
+        "title": "第一节 反应热",
+        "rich_title": "第一节 反应热",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ab53a3c4-8e07-355b-8144-333a46c3b854/eb48dfb0-5de5-3026-816f-ae6b3aece09d",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:01.013+0800",
+        "update_time": "2023-06-15T19:01:01.013+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2652e205-31fb-34f0-976f-dd424624a0cb",
+        "title": "第二节 反应热的计算",
+        "rich_title": "第二节 反应热的计算",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ab53a3c4-8e07-355b-8144-333a46c3b854/2652e205-31fb-34f0-976f-dd424624a0cb",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:01.199+0800",
+        "update_time": "2023-06-15T19:01:01.199+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e79012a4-ec82-35b7-be9f-03ac594a0b8f",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "ab53a3c4-8e07-355b-8144-333a46c3b854/e79012a4-ec82-35b7-be9f-03ac594a0b8f",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:01.381+0800",
+        "update_time": "2023-08-09T00:18:58.888+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "92ec7062-11e5-3367-98e9-aa700086fe09",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ab53a3c4-8e07-355b-8144-333a46c3b854/92ec7062-11e5-3367-98e9-aa700086fe09",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:01.571+0800",
+        "update_time": "2023-06-15T19:01:01.571+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "22977b7f-5b09-388b-9543-f33e96dd4fa9",
+    "title": "第二章 化学反应速率与化学平衡",
+    "rich_title": "第二章 化学反应速率与化学平衡",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "22977b7f-5b09-388b-9543-f33e96dd4fa9",
+    "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+    "create_time": "2023-06-15T19:01:01.752+0800",
+    "update_time": "2023-06-15T19:01:01.752+0800",
+    "child_nodes": [
+      {
+        "id": "0a3e9174-1846-3883-b786-b54f1760e441",
+        "title": "第一节 化学反应速率",
+        "rich_title": "第一节 化学反应速率",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "22977b7f-5b09-388b-9543-f33e96dd4fa9/0a3e9174-1846-3883-b786-b54f1760e441",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:01.952+0800",
+        "update_time": "2023-06-15T19:01:01.952+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9867926c-4f4e-3487-86a3-375e4d3eeb1d",
+        "title": "第二节 化学平衡",
+        "rich_title": "第二节 化学平衡",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "22977b7f-5b09-388b-9543-f33e96dd4fa9/9867926c-4f4e-3487-86a3-375e4d3eeb1d",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:02.157+0800",
+        "update_time": "2023-06-15T19:01:02.157+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "46a74dc6-3085-314c-a704-83dca0486f6f",
+        "title": "第三节 化学反应的方向",
+        "rich_title": "第三节 化学反应的方向",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "22977b7f-5b09-388b-9543-f33e96dd4fa9/46a74dc6-3085-314c-a704-83dca0486f6f",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:02.356+0800",
+        "update_time": "2023-06-15T19:01:02.356+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5b56b08d-661c-3d32-843d-13a500bb3e9b",
+        "title": "第四节 化学反应的调控",
+        "rich_title": "第四节 化学反应的调控",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "22977b7f-5b09-388b-9543-f33e96dd4fa9/5b56b08d-661c-3d32-843d-13a500bb3e9b",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:02.538+0800",
+        "update_time": "2023-06-15T19:01:02.538+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c006f4e7-a0e8-3c5f-a5b4-8a2713ddf9cf",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "22977b7f-5b09-388b-9543-f33e96dd4fa9/c006f4e7-a0e8-3c5f-a5b4-8a2713ddf9cf",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:02.738+0800",
+        "update_time": "2023-08-09T00:19:00.380+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "06cda786-912a-3328-9902-8d4b2ab35888",
+        "title": "实验活动1 探究影响化学平衡移动的因素",
+        "rich_title": "实验活动1 探究影响化学平衡移动的因素",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "22977b7f-5b09-388b-9543-f33e96dd4fa9/06cda786-912a-3328-9902-8d4b2ab35888",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:02.939+0800",
+        "update_time": "2023-08-09T00:19:00.751+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1b13d33a-b166-3dde-88b2-241749bdaf90",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "22977b7f-5b09-388b-9543-f33e96dd4fa9/1b13d33a-b166-3dde-88b2-241749bdaf90",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:03.132+0800",
+        "update_time": "2023-06-15T19:01:03.132+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "ce91d025-0b68-3011-8fef-03501e472678",
+    "title": "第三章 水溶液中的离子反应与平衡",
+    "rich_title": "第三章 水溶液中的离子反应与平衡",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "ce91d025-0b68-3011-8fef-03501e472678",
+    "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+    "create_time": "2023-06-15T19:01:03.323+0800",
+    "update_time": "2023-06-15T19:01:03.323+0800",
+    "child_nodes": [
+      {
+        "id": "2c105929-4948-3fcb-add2-70eb0ffa56cc",
+        "title": "第一节 电离平衡",
+        "rich_title": "第一节 电离平衡",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce91d025-0b68-3011-8fef-03501e472678/2c105929-4948-3fcb-add2-70eb0ffa56cc",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:03.516+0800",
+        "update_time": "2023-06-15T19:01:03.516+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d8c6a277-2bcf-3643-b85b-447a70ce924e",
+        "title": "第二节 水的电离和溶液的pH",
+        "rich_title": "第二节 水的电离和溶液的pH",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce91d025-0b68-3011-8fef-03501e472678/d8c6a277-2bcf-3643-b85b-447a70ce924e",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:03.721+0800",
+        "update_time": "2023-06-15T19:01:03.721+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9c8995b9-9c84-3f6c-87d9-17699ed225a2",
+        "title": "第三节 盐类的水解",
+        "rich_title": "第三节 盐类的水解",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce91d025-0b68-3011-8fef-03501e472678/9c8995b9-9c84-3f6c-87d9-17699ed225a2",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:03.918+0800",
+        "update_time": "2023-06-15T19:01:03.918+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3d10f6c6-c175-3ed8-a28b-6ab8606b81f6",
+        "title": "第四节 沉淀溶解平衡",
+        "rich_title": "第四节 沉淀溶解平衡",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce91d025-0b68-3011-8fef-03501e472678/3d10f6c6-c175-3ed8-a28b-6ab8606b81f6",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:04.110+0800",
+        "update_time": "2023-06-15T19:01:04.110+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b6dd1d7c-74b2-38d8-bbd9-f488971dcc0c",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "ce91d025-0b68-3011-8fef-03501e472678/b6dd1d7c-74b2-38d8-bbd9-f488971dcc0c",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:04.303+0800",
+        "update_time": "2023-08-09T00:19:02.195+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b4a0ca3d-2403-3a6d-97dc-233e3d89b96d",
+        "title": "实验活动2 强酸与强碱的中和滴定",
+        "rich_title": "实验活动2 强酸与强碱的中和滴定",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce91d025-0b68-3011-8fef-03501e472678/b4a0ca3d-2403-3a6d-97dc-233e3d89b96d",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:04.495+0800",
+        "update_time": "2023-06-15T19:01:04.495+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0ec5c94f-ea34-3a08-8a34-49594e6bc088",
+        "title": "实验活动3 盐类水解的应用",
+        "rich_title": "实验活动3 盐类水解的应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "ce91d025-0b68-3011-8fef-03501e472678/0ec5c94f-ea34-3a08-8a34-49594e6bc088",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:04.689+0800",
+        "update_time": "2023-08-09T00:19:02.771+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e0632133-1be1-388e-83c8-00d084712fe1",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce91d025-0b68-3011-8fef-03501e472678/e0632133-1be1-388e-83c8-00d084712fe1",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:04.888+0800",
+        "update_time": "2023-06-15T19:01:04.888+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932",
+    "title": "第四章 化学反应与电能",
+    "rich_title": "第四章 化学反应与电能",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932",
+    "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+    "create_time": "2023-06-15T19:01:05.066+0800",
+    "update_time": "2023-06-15T19:01:05.066+0800",
+    "child_nodes": [
+      {
+        "id": "3ea07ba3-956c-38c1-b49d-62af3c488510",
+        "title": "第一节 原电池",
+        "rich_title": "第一节 原电池",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932/3ea07ba3-956c-38c1-b49d-62af3c488510",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:05.253+0800",
+        "update_time": "2023-06-15T19:01:05.253+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9a0aee73-8afa-31ab-b7af-05b1bf918f70",
+        "title": "第二节 电解池",
+        "rich_title": "第二节 电解池",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932/9a0aee73-8afa-31ab-b7af-05b1bf918f70",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:05.439+0800",
+        "update_time": "2023-06-15T19:01:05.439+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1795e34d-9f0c-30c7-bf7e-460b0cddfed9",
+        "title": "第三节 金属的腐蚀与防护",
+        "rich_title": "第三节 金属的腐蚀与防护",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932/1795e34d-9f0c-30c7-bf7e-460b0cddfed9",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:05.628+0800",
+        "update_time": "2023-06-15T19:01:05.628+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ddc2945f-1a95-3d82-8430-4eb49138d041",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932/ddc2945f-1a95-3d82-8430-4eb49138d041",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:05.842+0800",
+        "update_time": "2023-08-09T00:19:04.071+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "357f3b18-2c54-3101-9a4b-e02956fd666e",
+        "title": "实验活动4 简单的电镀实验",
+        "rich_title": "实验活动4 简单的电镀实验",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932/357f3b18-2c54-3101-9a4b-e02956fd666e",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:06.053+0800",
+        "update_time": "2023-08-09T00:19:04.462+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8abc8a23-5505-3a29-8213-7c30c8a90d25",
+        "title": "实验活动5 制作简单的燃料电池",
+        "rich_title": "实验活动5 制作简单的燃料电池",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932/8abc8a23-5505-3a29-8213-7c30c8a90d25",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:06.256+0800",
+        "update_time": "2023-08-09T00:19:04.827+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e9e58626-2620-31c4-9a3a-e123cf2d6760",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "4e082a34-8f3c-3f29-aa19-fcb0e3f20932/e9e58626-2620-31c4-9a3a-e123cf2d6760",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:06.458+0800",
+        "update_time": "2023-06-15T19:01:06.458+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "7fdebfe4-399e-3be2-8ba8-5457c6b1e029",
+    "title": "综合专题",
+    "rich_title": "综合专题",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "7fdebfe4-399e-3be2-8ba8-5457c6b1e029",
+    "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+    "create_time": "2023-06-15T19:01:06.653+0800",
+    "update_time": "2023-06-15T19:01:06.653+0800",
+    "child_nodes": [
+      {
+        "id": "bd0c64c3-3b42-3dad-aeb4-7e45e516d1db",
+        "title": "电化学专题",
+        "rich_title": "电化学专题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7fdebfe4-399e-3be2-8ba8-5457c6b1e029/bd0c64c3-3b42-3dad-aeb4-7e45e516d1db",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:06.830+0800",
+        "update_time": "2023-06-15T19:01:06.830+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2be218ca-5526-307b-bd8d-036f7b300bc5",
+        "title": "化学反应速率与平衡专题",
+        "rich_title": "化学反应速率与平衡专题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7fdebfe4-399e-3be2-8ba8-5457c6b1e029/2be218ca-5526-307b-bd8d-036f7b300bc5",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:07.025+0800",
+        "update_time": "2023-06-15T19:01:07.025+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "04097dd0-86a5-32e8-b9b3-f47f0dc185ed",
+        "title": "水溶液中的离子平衡专题",
+        "rich_title": "水溶液中的离子平衡专题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7fdebfe4-399e-3be2-8ba8-5457c6b1e029/04097dd0-86a5-32e8-b9b3-f47f0dc185ed",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:07.239+0800",
+        "update_time": "2023-06-15T19:01:07.239+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5999c610-b662-311b-bb59-389c61f73883",
+        "title": "化学反应进行的方向",
+        "rich_title": "化学反应进行的方向",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7fdebfe4-399e-3be2-8ba8-5457c6b1e029/5999c610-b662-311b-bb59-389c61f73883",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:07.447+0800",
+        "update_time": "2023-06-15T19:01:07.447+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ee6c1093-3d66-3c80-b25f-70d5853ef3ee",
+        "title": "各类平衡常数的应用",
+        "rich_title": "各类平衡常数的应用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7fdebfe4-399e-3be2-8ba8-5457c6b1e029/ee6c1093-3d66-3c80-b25f-70d5853ef3ee",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:07.637+0800",
+        "update_time": "2023-06-15T19:01:07.637+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "bca9528a-83d2-3878-86ea-cc3d73668a34",
+        "title": "探究性化学实验专题",
+        "rich_title": "探究性化学实验专题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7fdebfe4-399e-3be2-8ba8-5457c6b1e029/bca9528a-83d2-3878-86ea-cc3d73668a34",
+        "tree_id": "f3c84ad7-50a6-4488-9b10-239c3806272f",
+        "create_time": "2023-06-15T19:01:07.820+0800",
+        "update_time": "2023-06-15T19:01:07.820+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

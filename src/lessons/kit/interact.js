@@ -1,6 +1,7 @@
 // 指针交互：把屏幕射线换算到实验里的局部坐标，做“拖着走”。
 import * as THREE from 'three';
 import { glowTexture } from './props.js';
+import { dropzones } from './dropzone.js';
 
 const _p = new THREE.Plane(), _v = new THREE.Vector3(), _n = new THREE.Vector3();
 
@@ -33,12 +34,16 @@ export function hitAny(ray, objs) {
  * 返回 pointer 对象，直接给实验的 pointer 用。
  * opts.taps = [{ obj, hint, onTap(ray) }]：只能点的实物（开关、灯、小桌……），点一下就做一个动作
  * opts.tip：ctx.tag('', 'pill') 做的标签——鼠标移到能动的东西上时，在它旁边说一句“拖到挂钩上”之类的提示，并给它一圈光
+ * dropzones: [{ name, position: Vector3 | () => Vector3, radius, enabled?, onDrop? }]
+ * 落点圈和拖动平面一致；dropOffset 是从 onDrag 坐标到工作端的局部偏移。onEnd(moved, zone) 只在放稳时收到 zone。
  */
-export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
+export function draggable(root, drags, { onClick, taps = [], tip, highlight = false } = {}) {
   let active = null;
   const canvas = () => document.getElementById('c');
+  const drops = drags.some((item) => item.dropzones?.length) ? dropzones(root, tip) : null;
+  const withDrops = new Map();
+  if (drops) for (const item of drags) if (item.dropzones?.length) withDrops.set(item, drops.wrap(item));
   let halo = null, frame = null;
-  const GLOW = false;
   const BIG = 0.09;          // 超过这么大（实验自己的单位，米）的东西算“大件”
   const box = new THREE.Box3(), c = new THREE.Vector3(), sz = new THREE.Vector3();
   const showHint = (item) => {
@@ -57,17 +62,29 @@ export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
     root.worldToLocal(c);
     const s = root.getWorldScale(new THREE.Vector3()).x || 1;
     const big = Math.max(sz.x, sz.y, sz.z) / s > BIG;
-    // 暂时不用光晕和描边，只靠光标和文字提示（以后要恢复，把 GLOW 改成 true）
-    halo.visible = GLOW && !big; frame.visible = GLOW && big;
+    halo.visible = highlight && !big; frame.visible = highlight && big;
     if (big) { frame.position.copy(c); frame.scale.set(sz.x / s + 0.002, sz.y / s + 0.002, sz.z / s + 0.002); }
     else { halo.position.copy(c); halo.scale.setScalar(Math.max(0.02, (Math.max(sz.x, sz.y, sz.z) / s) * 0.9)); }
     const h = typeof item.hint === 'function' ? item.hint() : item.hint;
     // 提示文字：小件放在它上方；大件放在它靠里的那条边上，不压住中间的器材
     if (tip) { if (h) (big ? tip.loc(root, c.x, c.y + (sz.y / s) / 2 + 0.006, c.z - (sz.z / s) / 2) : tip.loc(root, c.x, c.y + (sz.y / s) * 0.6 + 0.012, c.z)).text(h); else tip.loc(root, 0, -9, 0); }
   };
-  const all = () => [...drags, ...taps];
+  const all = () => [...drags.map((item) => withDrops.get(item) || item), ...taps];
+  const dragPoint = (ray, { d, delta }) => {
+    const p = rayToLocal(ray, root, d.plane || 'xy', d.offset || 0);
+    if (p && delta) p.add(delta);
+    return p;
+  };
   let hovered = null;
+  const leave = () => { hovered = null; canvas().style.cursor = ''; if(halo)showHint(null); };
+  if(highlight)canvas().addEventListener('pointerleave', leave);
   return {
+    dispose() { if(highlight)canvas().removeEventListener('pointerleave', leave); drops?.dispose(); },
+    update(dt) { drops?.update(dt); },
+    clearDropzones() {
+      if (active?.d.dropzones?.length) { active = null; canvas().style.cursor = ''; }
+      drops?.clear();
+    },
     items: all,          // 给测试脚本用：列出能拖 / 能点的东西
     hovered: () => hovered,      // 给测试脚本用：鼠标现在停在哪件东西上
     down(ray, e) {
@@ -75,7 +92,8 @@ export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
       if (!hit) { return onClick ? onClick(ray, e) : false; }
       const tap = taps.find((x) => x.obj === hit);
       if (tap) { showHint(null); tap.onTap?.(ray, e); return true; }
-      const d = drags.find((x) => x.obj === hit);
+      const item = drags.find((x) => x.obj === hit);
+      const d = withDrops.get(item) || item;
       const p = rayToLocal(ray, root, d.plane || 'xy', d.offset || 0);
       // keepOffset：记住“抓的地方”和物体位置之差，拖的时候物体不会跳到鼠标下面
       // anchor：onDrag 里真正被设置位置的对象（拾取盒可能只是它的一部分，中心不在它的原点）
@@ -106,8 +124,7 @@ export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
         if (!moved) return true;
         active.moved = true;
       }
-      const p = rayToLocal(ray, root, active.d.plane || 'xy', active.d.offset || 0);
-      if (p && active.delta) p.add(active.delta);
+      const p = dragPoint(ray, active);
       if (p && active.d.onDrag) { active.moved = true; active.d.onDrag(p, active.start); }
       return true;
     },
@@ -115,9 +132,12 @@ export function draggable(root, drags, { onClick, taps = [], tip } = {}) {
       if (!active) return false;
       const d = active.d, cancelled = e?.type === 'pointercancel';
       const moved = active.moved || cancelled || !!(active.screen && e && Math.hypot(e.clientX - active.screen.x, e.clientY - active.screen.y) > 5);
+      const drop = d.dropzones?.length;
+      const p = drop && moved && !cancelled && ray ? dragPoint(ray, active) : undefined;
       active = null;
       canvas().style.cursor = '';
-      d.onEnd?.(moved);
+      if (drop) d.onEnd(moved, cancelled, p);
+      else d.onEnd?.(moved);
       if (!moved) d.onTap?.();
       return true;
     },

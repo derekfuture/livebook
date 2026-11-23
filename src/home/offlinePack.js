@@ -1,33 +1,30 @@
-// 下载离线版：放进 U 盘或拷到电脑上，双击“活页课本.html”就能用，不用联网。
-// 离线版的 HTML 部署时放在 /offline.html（tools/build_offline.mjs 生成）。这台电脑上导入过课本 PDF 的话，一起打成 zip：
-//   活页课本/活页课本.html + 活页课本/books/<id>.js（PDF 的 base64，离线版打开那本书时读）。全在浏览器里做，PDF 不上传。
+// 网页打包时每科一个 HTML，课本放进同一目录里的 books/<id>.js，由对应科目的 HTML 按书目读取。PDF 不上传。
 import { allPdfs } from '../book/pdfStore.js';
 import { bookName } from '../content/editions.js';
-import { getBook } from '../content/index.js';
-import { OFFLINE_README } from './offlineReadme.js';
+import { bookList, getBook } from '../content/index.js';
+import { FEATURES } from '../features.js';
+import { offlinePackReadme } from './offlineReadme.js';
+import { OFFLINE_SUBJECTS, offlineHtmlName, offlinePath, offlineZipName } from './offlineSubjects.js';
 import { rememberRuntimeError } from '../ui/runtimeErrors.js';
 
 const el = (tag, attrs = {}, ...kids) => { const e = Object.assign(document.createElement(tag), attrs); for (const k of kids.flat()) if (k != null) e.append(k); return e; };
-const HTML_MB = 24;          // 离线版 HTML 大约多大（提示里估算大小用；2026-11-10 加了地理以后约 24 MB）
-const ZIP_NAME = '活页课本（离线版）.zip';
-const ZIP_MB = 15;          // 网站上那个压缩包大约多大（Cloudflare 回 HEAD 时不带文件大小，提示里就用这个数；2026-11-15 是 14.5 MB）
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 不带课本的离线版：部署时已经在网站上做好了压缩包（/offline.zip，tools/build_offline.mjs）。有的话就让浏览器直接下载它——
-// 下载栏里有进度、失败了可以在下载栏里点重试、迅雷之类的下载软件也接得住；不用先把 24 MB 拿进网页再打包（那一步出错整个就失败了，反馈 2026-11-15）。
+// 不带课本的离线版：部署时已经在网站上按科目做好了压缩包（tools/build_offline.mjs）。有的话就让浏览器直接下载它——
+// 下载栏里有进度、失败了可以在下载栏里点重试、迅雷之类的下载软件也接得住；不用先把 HTML 拿进网页再打包。
 // （Cloudflare Pages 不支持断点续传：网断了浏览器只能从头重下）
 // 有就返回压缩包大小（字节；不知道大小时是 0），没有（本地开发、网站上没放）返回 null
-async function serverZip() {
-  try { const r = await fetch('/offline.zip', { method: 'HEAD', cache: 'no-store' }); return r.ok && /zip/.test(r.headers.get('content-type') || '') ? Number(r.headers.get('content-length')) || 0 : null; }
+async function serverZip(subject) {
+  try { const r = await fetch(offlinePath(subject, 'zip'), { method: 'HEAD', cache: 'no-store' }); return r.ok && /zip/.test(r.headers.get('content-type') || '') ? Number(r.headers.get('content-length')) || 0 : null; }
   catch { return null; }
 }
-const downloadServerZip = () => { const a = el('a', { href: '/offline.zip', download: ZIP_NAME }); document.body.append(a); a.click(); a.remove(); };
+const downloadServerZip = (subject) => { const a = el('a', { href: offlinePath(subject, 'zip'), download: offlineZipName(subject) }); document.body.append(a); a.click(); a.remove(); };
 
-// 带课本时要在网页里打包，先把离线版的 HTML 拿下来：一边拿一边报进度；网断了自动再试两次
-async function fetchOfflineHtml(onProgress) {
+// 在网页里打包时，先下载各科 HTML。网断了自动再试两次。
+async function fetchOfflineHtml(subject, onProgress) {
   for (let attempt = 1; ; attempt++) {
     try {
-      const r = await fetch('/offline.html');
+      const r = await fetch(offlinePath(subject, 'html'));
       if (!r.ok || !(r.headers.get('content-type') || '').includes('html')) throw Object.assign(new Error('网站上没有离线版'), { final: true });
       let bytes;
       if (r.body?.getReader) {
@@ -54,69 +51,148 @@ async function pdfScript(id, rec) {
 
 export function offlineButton({ link = false } = {}) {          // link：首页左下角那一行里的小字样式
   const btn = el('button', { className: link ? 'home-link home-offline' : 'paper-btn', textContent: link ? '下载离线版' : '⤓ 下载离线版' });
-  const tip = el('div', { className: 'imp-tip up', hidden: true });
+  const tip = el('div', { className: 'imp-tip up offline-tip', hidden: true });
   document.body.append(tip);
-  const place = () => { const r = btn.getBoundingClientRect(); tip.style.left = `${Math.max(12, r.left + r.width / 2 - 165)}px`; tip.style.bottom = `${innerHeight - r.top + 12}px`; };
+  const place = () => {
+    const r = btn.getBoundingClientRect(), center = r.left + r.width / 2, width = tip.offsetWidth;
+    const left = Math.max(12, Math.min(center - width / 2, innerWidth - width - 12));
+    tip.style.left = `${left}px`;
+    tip.style.bottom = `${innerHeight - r.top + 12}px`;
+    tip.style.setProperty('--offline-arrow', `${Math.max(16, Math.min(center - left, width - 16))}px`);
+  };
   const hide = () => { tip.hidden = true; };
   const acts = (...bs) => el('div', { className: 'imp-acts' }, bs.filter(Boolean).map(([t, fn, ghost]) => el('button', { className: 'imp-btn' + (ghost ? ' ghost' : ''), textContent: t, onclick: fn })));
-  const show = (...kids) => { tip.replaceChildren(...kids.filter(Boolean)); place(); tip.hidden = false; return new Promise((r) => setTimeout(r, 30)); };          // 等一下再干重活，提示先画出来
+  const show = (...kids) => { tip.replaceChildren(...kids.filter(Boolean)); tip.hidden = false; place(); return wait(30); };          // 等提示画出来再干重活
   addEventListener('resize', () => { if (!tip.hidden) place(); });
 
   btn.onclick = async () => {
     if (!tip.hidden) return hide();
-    const pdfs = await allPdfs();
-    const zipBytes = pdfs.length ? null : await serverZip();
-    const mb = zipBytes != null ? Math.max(1, Math.round(zipBytes / 1e6) || ZIP_MB) : Math.round(HTML_MB + pdfs.reduce((s, [, r]) => s + r.size * 1.34, 0) / 1e6);
-    const names = pdfs.map(([id]) => bookName(id, getBook(id).title)).join('、');
-    show(el('b', { textContent: '下载离线版' }),
-      el('p', { textContent: pdfs.length
-        ? `一个压缩包（约 ${mb} MB）。解压到 U 盘或电脑上，用 Chrome 或 Edge 打开里面的“活页课本.html”，不用联网。`
-        : `一个压缩包（约 ${mb} MB）。先解压，再用 Chrome 或 Edge 打开里面的“活页课本.html”，不用联网。` }),
-      el('p', { className: 'imp-how', textContent: pdfs.length ? `这台电脑上导入过的课本会一起放进去：${names}。` : '在书里导入过课本 PDF 的话，会一起放进离线版。' }),
-      el('p', { className: 'imp-how', textContent: '离线版保存的是本次下载时的内容。活页课本会持续更新，想使用新内容，可以回到网站重新下载。关注「德里克的 AI 教学实验室」，了解更新消息。' }),
-      acts(['下载', () => download(pdfs, zipBytes)], ['取消', hide, true]));
+    const selected = new Set(OFFLINE_SUBJECTS);
+    const books = new Map(bookList().filter(({ id }) => !FEATURES.hiddenBooks?.includes(id)).map((book) => [book.id, book]));
+    const title = '选择科目（可多选）';
+    const group = el('div', { className: 'offline-subjects' });
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', title);
+    const options = OFFLINE_SUBJECTS.map((subject) => {
+      const mb = el('small');
+      const check = el('span', { className: 'offline-check' });
+      check.setAttribute('aria-hidden', 'true');
+      const option = el('button', { type: 'button', className: 'offline-subject' },
+        check, el('span', { className: 'offline-subject-name', textContent: subject.label }), mb);
+      option.onclick = () => {
+        if (selected.has(subject)) selected.delete(subject);
+        else selected.add(subject);
+        render();
+      };
+      group.append(option);
+      return { subject, option, mb };
+    });
+    const size = el('p'), includes = el('p', { className: 'imp-how' });
+    size.setAttribute('aria-live', 'polite');
+    const actions = acts(['下载', null], ['取消', hide, true]);
+    const downloadBtn = actions.firstElementChild;
+    let imported;
+    let request = 0;
+    const render = async () => {
+      const current = ++request;
+      const subjects = OFFLINE_SUBJECTS.filter((subject) => selected.has(subject));
+      const pdfs = imported?.filter(([id]) => subjects.some(({ label }) => books.get(id)?.subject === label)) ?? [];
+      const [single] = subjects;
+      const describe = (zipBytes = null) => {
+        let total = 0;
+        for (const { subject, option, mb } of options) {
+          const checked = selected.has(subject);
+          const pdfBytes = (imported ?? []).reduce((sum, [id, rec]) => books.get(id)?.subject === subject.label ? sum + (rec.size ?? rec.blob?.size ?? 0) : sum, 0);
+          const estimate = checked && zipBytes != null
+            ? Math.round(zipBytes / 1e6) || subject.zipMB
+            : Math.round(subject.htmlMB + pdfBytes * 1.34 / 1e6);
+          option.setAttribute('aria-pressed', String(checked));
+          mb.textContent = `约 ${estimate} MB`;
+          if (checked) total += estimate;
+        }
+        size.textContent = subjects.length ? `合计约 ${total} MB · 解压后不用联网。` : '请至少选一科，才能下载。';
+      };
+      downloadBtn.disabled = true;
+      describe();
+      includes.textContent = pdfs.length
+        ? `${pdfs.map(([id]) => bookName(id, books.get(id).title)).join('、')}的课本 PDF 会随离线版一起下载。`
+        : '选中科目里已导入的课本 PDF 也会一起打包。';
+      if (!subjects.length || !imported) return;
+      const zipBytes = subjects.length === 1 && !pdfs.length ? await serverZip(single) : null;
+      if (current !== request || tip.hidden || !tip.contains(group)) return;
+      if (zipBytes != null) describe(zipBytes);
+      downloadBtn.onclick = () => download(subjects, pdfs, zipBytes);
+      downloadBtn.disabled = false;
+    };
+    show(el('b', { textContent: title }),
+      group, size,
+      el('p', { textContent: '解压后，用 Chrome 或 Edge 打开对应科目的 HTML。' }),
+      includes,
+      el('p', { className: 'imp-how', textContent: '离线版保存的是本次下载时的内容。活页课本会持续更新，想使用新内容，可以回到网站重新下载。关注“德里克的 AI 教学实验室”，了解更新消息。' }),
+      actions);
+    render();
+    imported = await allPdfs();
+    if (!tip.hidden && tip.contains(group)) render();
   };
 
-  const started = (...extra) => show(el('p', { textContent: '开始下载了。解压到 U 盘或电脑上，双击里面的“活页课本.html”。' }), ...extra, acts(['好的', hide]));
+  const started = (open, ...extra) => show(el('p', { textContent: `开始下载了。解压到 U 盘或电脑上，${open}` }), ...extra, acts(['好的', hide]));
 
-  // 只要离线版、不带课本：网站上有做好的压缩包就直接下（浏览器下载栏里看进度），没有再在网页里打包
-  const plain = async (note) => {
-    if ((await serverZip()) != null) { downloadServerZip(); return started(el('p', { className: 'imp-how', textContent: note || '下载进度在浏览器的下载栏里。' })); }
-    return download([], null);
-  };
-
-  const download = async (pdfs, zipBytes) => {
-    if (!pdfs.length && zipBytes != null) { downloadServerZip(); return started(el('p', { className: 'imp-how', textContent: '下载进度在浏览器的下载栏里。' })); }
+  const download = async (subjects, pdfs, zipBytes, withoutPdfs = false) => {
+    const [single] = subjects;
+    const plainNote = withoutPdfs ? el('p', { className: 'imp-how', textContent: '这次下载不带课本。打开离线版后，可以在书里导入课本 PDF。' }) : null;
+    if (zipBytes != null) {
+      downloadServerZip(single);
+      return started('双击里面的“活页课本.html”。', plainNote,
+        el('p', { className: 'imp-how', textContent: '下载进度在浏览器的下载栏里。' }));
+    }
     const msg = el('p', { textContent: '正在下载离线版……' });
+    msg.setAttribute('role', 'status');
     await show(msg);
+    const isCurrent = () => !tip.hidden && tip.contains(msg);
     let step = 'html';
+    let currentSubject = single;
     try {
-      // 1. 离线版的 HTML（报进度；网断了自动再试）
-      const html = await fetchOfflineHtml((got) => { msg.textContent = `正在下载离线版…… ${Math.min(HTML_MB, Math.floor(got / 1e6))} / ${HTML_MB} MB`; });
-      const files = [
-        { name: '活页课本/活页课本.html', data: html },
-        { name: '活页课本/打开说明.txt', data: new TextEncoder().encode(OFFLINE_README) },
-      ];
+      // 1. 每科一个 HTML，逐科下载并显示进度。
+      const folder = '活页课本', files = [];
+      for (const [i, subject] of subjects.entries()) {
+        currentSubject = subject;
+        const progress = (got) => {
+          msg.textContent = `正在下载${subject.label}离线版（${i + 1}/${subjects.length}）…… ${Math.min(subject.htmlMB, Math.floor(got / 1e6))} / ${subject.htmlMB} MB`;
+        };
+        progress(0);
+        const html = await fetchOfflineHtml(subject, progress);
+        files.push({ name: `${folder}/${offlineHtmlName(subject)}`, data: html });
+      }
+      files.push({ name: `${folder}/打开说明.txt`, data: new TextEncoder().encode(offlinePackReadme(subjects)) });
       // 2. 导入过的课本：一本读不出来（文件被清理软件删了之类），跳过它接着打包，最后说一声——不让一本书拖垮整个离线版
       step = 'pdf';
       const skipped = [];
       for (const [i, [id, rec]] of pdfs.entries()) {
         msg.textContent = `正在打包课本（${i + 1}/${pdfs.length}）……`;
         await wait(30);
-        try { files.push({ name: `活页课本/books/${id}.js`, data: await pdfScript(id, rec) }); }
-        catch (e) { skipped.push(bookName(id, getBook(id)?.title || id)); rememberRuntimeError(e, `离线版打包课本 ${id}`); }
+        try { files.push({ name: `${folder}/books/${id}.js`, data: await pdfScript(id, rec) }); }
+        catch (e) { skipped.push(bookName(id, getBook(id).title)); rememberRuntimeError(e, `离线版打包课本 ${id}`); }
       }
       // 3. 打成压缩包，交给浏览器下载
       step = 'zip';
-      save(zip(files), ZIP_NAME);
-      started(skipped.length ? el('p', { className: 'imp-how', textContent: `${skipped.join('、')}没能放进去：这台电脑上导入的文件读不出来了。打开离线版以后，可以在书里重新导入。` }) : null);
+      msg.textContent = '正在生成压缩包……';
+      await wait(30);
+      save(zip(files), offlineZipName(...subjects));
+      if (isCurrent()) started(subjects.length === 1 ? `双击“${offlineHtmlName(single)}”。` : '双击相应科目的 HTML 文件。', plainNote,
+        skipped.length ? el('p', { className: 'imp-how', textContent: `这台电脑上的${skipped.join('、')}文件读不出来，没能放进离线版。打开后，可以在书里重新导入。` }) : null);
     } catch (e) {
-      // 说清是哪一步没成，记下来（提反馈时随诊断信息带上）；给一条一定走得通的路：只下载离线版、不带课本
-      rememberRuntimeError(e, `离线版下载 ${step}`);
-      const why = step === 'html' ? (e.final ? '网站上暂时没有离线版' : '下载离线版时网络断了') : '打包时出错了';
-      show(el('p', { textContent: `没下载成功：${why}。` }),
+      rememberRuntimeError(e, `离线版下载 ${step}${step === 'html' ? ` ${currentSubject.slug}` : ''}`);
+      if (!isCurrent()) return;
+      const why = step === 'html' ? (e.final ? `网站上暂时没有${currentSubject.label}离线版` : `下载${currentSubject.label}离线版时网络断了`) : '打包时出错了';
+      const plain = async () => {
+        const status = el('p', { textContent: '正在准备离线版……' });
+        show(status);
+        const plainZip = subjects.length === 1 ? await serverZip(single) : null;
+        if (!tip.hidden && tip.contains(status)) download(subjects, [], plainZip, true);
+      };
+      show(el('p', { textContent: `没下载成功，${why}。` }),
         pdfs.length ? el('p', { className: 'imp-how', textContent: '可以先只下载离线版（不带课本），打开以后在书里重新导入课本 PDF。' }) : null,
-        acts(['再试一次', () => download(pdfs, zipBytes)], pdfs.length ? ['只下载离线版', () => plain('不带课本。打开离线版以后，可以在书里导入课本 PDF。下载进度在浏览器的下载栏里。')] : null, ['关闭', hide, true]));
+        acts(['再试一次', () => download(subjects, pdfs, zipBytes, withoutPdfs)], pdfs.length ? ['只下载离线版', plain] : null, ['关闭', hide, true]));
     }
   };
   return btn;

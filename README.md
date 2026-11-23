@@ -80,7 +80,7 @@ npm run dev        # http://127.0.0.1:5188
 想用别的目录里的 PDF，设环境变量 `LIVEBOOK_PDF_DIR` 指向它（里面的结构和 `pdf/` 一样）。
 
 部署：`./tools/deploy.sh`（Cloudflare Pages；会去掉书页图片，只留封面）。`./tools/deploy.sh --preview` 不上传，在本地 <http://127.0.0.1:5195> 打开和线上一样的版本。
-离线版：`node tools/build_offline.mjs` → `dist-offline/活页课本.html`（部署时会先做这一步，放到网站上供下载）。Cloudflare 单个文件不能超过 25 MiB，离线版要控制在这个大小以内。
+离线版：`node tools/build_offline.mjs` 按物理、化学、地理构建，排除未上线的书。双击 `dist-offline/<physics|chemistry|geography>/活页课本.html` 即可使用；网站下载用的是 `public/offline-<科目>.html` 和 `.zip`，每个文件不得超过 25 MiB。离线构建可用 `LB_OFFLINE_BOOKS`（逗号分隔的书 ID）指定要打包的册；这个变量不影响普通网站构建和开发服务器。
 
 教材路径按科目、版本和册次排列，例如 `/physics/pep/grade-8-vol-2`、`/geography/pep/selective-compulsory-1`（`pep` 表示人教版）；地理世界是 `/?subject=dili`。深链接：原有的 `?book=wuli-8x` 也可打开这本书（物理 `wuli-8s` `wuli-8x` `wuli-9`，化学 `huaxue-9s` `huaxue-9x`，地理 `dili-7s` `dili-8s` `dili-8x` `dili-bx1` `dili-bx2` `dili-xb1` `dili-xb2`），`#p=23` 翻到 PDF 第 23 页，`#live=lever` 直接打开某张活页，`&pages=placeholder` 在本地假装没有书页图片（看线上没导入课本时的样子）。
 键盘：← → 翻页，T 目录，Esc 合上活页；老师演示时空格暂停。

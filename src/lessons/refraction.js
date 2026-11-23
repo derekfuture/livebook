@@ -1,9 +1,9 @@
+import { protractorTexture } from './kit/protractor.js';
 // 图4.4-3 光的折射 + 图4.4-1 让硬币出现。只有世界内界面：所有操作都是场景里的实物。
 //   ① 激光射入水中：拖激光笔绕入射点 O 转（拖进水里就是“从水中射入空气”），或用实验板上的选项；
 //   ② 让硬币出现：往杯里加水。两个小实验之间像立体书一样折叠切换。
 // 坐标：竖直面 xy，水面 y = Y0，入射点 O = (0, Y0)。激光笔的位置用极角 φ 表示：从 +y 量起，左负右正。
 import * as THREE from 'three';
-import { canvasTex } from './kit/props.js';
 import { beaker } from './kit/props.js';
 import { OpticsScene, RayView, laserPen } from './kit/optics.js';
 import { draggable, clamp, deg } from './kit/interact.js';
@@ -62,19 +62,7 @@ export default {
     // 法线（虚线）
     laserScene.add(polyline([new THREE.Vector3(0, 0.01, 0.001), new THREE.Vector3(0, Y0 + 0.13, 0.001)], { dashed: true, color: 0x1d2433, width: 1.4, dash: 0.008, gap: 0.006 }));
     // 量角器：一块竖直的圆形刻度盘，圆心在入射点，0° 在法线上，每 1° 一小格、10° 标数字（课本实验里用光屏上的量角器读角）
-    const protTex = canvasTex(1024, 1024, (c, w) => {
-      const cx = w / 2, R = w * 0.47;
-      c.fillStyle = 'rgba(255,253,245,0.82)'; c.beginPath(); c.arc(cx, cx, R, 0, 7); c.fill();
-      c.strokeStyle = '#1d2433'; c.fillStyle = '#1d2433'; c.lineWidth = 3; c.beginPath(); c.arc(cx, cx, R, 0, 7); c.stroke();
-      c.textAlign = 'center'; c.font = 'bold 30px sans-serif';
-      for (let k = 0; k < 360; k++) {
-        const a = (k * Math.PI) / 180, major = k % 10 === 0, mid = k % 5 === 0;
-        const r0 = R - (major ? 34 : mid ? 24 : 14);
-        c.lineWidth = major ? 3 : 1.6;
-        c.beginPath(); c.moveTo(cx + Math.sin(a) * R, cx - Math.cos(a) * R); c.lineTo(cx + Math.sin(a) * r0, cx - Math.cos(a) * r0); c.stroke();
-        if (major) { const v = k <= 90 ? k : k <= 180 ? 180 - k : k <= 270 ? k - 180 : 360 - k; c.fillText(String(v), cx + Math.sin(a) * (R - 56), cx - Math.cos(a) * (R - 56) + 10); }
-      }
-    });
+    const protTex = protractorTexture();
     const prot = new THREE.Mesh(new THREE.CircleGeometry(0.075, 64), new THREE.MeshBasicMaterial({ map: protTex, transparent: true, depthWrite: false }));
     prot.position.set(0, Y0, -0.016); prot.renderOrder = 1;
     laserScene.add(prot);

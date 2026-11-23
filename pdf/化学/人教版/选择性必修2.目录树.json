@@ -1,0 +1,543 @@
+[
+  {
+    "id": "20dab8e8-b2ea-3b93-bcce-0dd1ebbf6d51",
+    "title": "第一章 原子结构与性质",
+    "rich_title": "第一章 原子结构与性质",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "20dab8e8-b2ea-3b93-bcce-0dd1ebbf6d51",
+    "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+    "create_time": "2023-06-15T19:01:09.095+0800",
+    "update_time": "2023-06-15T19:01:09.095+0800",
+    "child_nodes": [
+      {
+        "id": "b55a7f4b-941f-306e-ba50-6106f0397014",
+        "title": "第一节 原子结构",
+        "rich_title": "第一节 原子结构",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "20dab8e8-b2ea-3b93-bcce-0dd1ebbf6d51/b55a7f4b-941f-306e-ba50-6106f0397014",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:09.290+0800",
+        "update_time": "2023-06-15T19:01:09.290+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0bf4a4f3-ad55-31d5-a881-e46ac5b3c92b",
+        "title": "第二节 原子结构与元素的性质",
+        "rich_title": "第二节 原子结构与元素的性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "20dab8e8-b2ea-3b93-bcce-0dd1ebbf6d51/0bf4a4f3-ad55-31d5-a881-e46ac5b3c92b",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:09.497+0800",
+        "update_time": "2023-06-15T19:01:09.497+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6fd177b6-9fa8-3c6d-bdd9-58748686dc0d",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "20dab8e8-b2ea-3b93-bcce-0dd1ebbf6d51/6fd177b6-9fa8-3c6d-bdd9-58748686dc0d",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:09.694+0800",
+        "update_time": "2023-08-09T00:19:07.231+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1bdd494a-fd42-34ce-8258-aec02a25e3aa",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "20dab8e8-b2ea-3b93-bcce-0dd1ebbf6d51/1bdd494a-fd42-34ce-8258-aec02a25e3aa",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:09.887+0800",
+        "update_time": "2023-06-15T19:01:09.887+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "6832c9bc-a926-3102-8cd5-8739ce770956",
+    "title": "第二章 分子结构与性质",
+    "rich_title": "第二章 分子结构与性质",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "6832c9bc-a926-3102-8cd5-8739ce770956",
+    "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+    "create_time": "2023-06-15T19:01:10.081+0800",
+    "update_time": "2023-06-15T19:01:10.081+0800",
+    "child_nodes": [
+      {
+        "id": "1312481c-963f-37d1-aa4a-1f1c4f3e1d1c",
+        "title": "第一节 共价键",
+        "rich_title": "第一节 共价键",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "6832c9bc-a926-3102-8cd5-8739ce770956/1312481c-963f-37d1-aa4a-1f1c4f3e1d1c",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:10.284+0800",
+        "update_time": "2023-06-15T19:01:10.284+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e61a1561-59d5-35f1-981a-7e7ae1f1da8b",
+        "title": "第二节 分子的空间结构",
+        "rich_title": "第二节 分子的空间结构",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "6832c9bc-a926-3102-8cd5-8739ce770956/e61a1561-59d5-35f1-981a-7e7ae1f1da8b",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:10.576+0800",
+        "update_time": "2023-06-15T19:01:10.576+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5f62f2ad-8f9f-37a8-99b3-840836c5728b",
+        "title": "第三节 分子结构与物质的性质",
+        "rich_title": "第三节 分子结构与物质的性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "6832c9bc-a926-3102-8cd5-8739ce770956/5f62f2ad-8f9f-37a8-99b3-840836c5728b",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:10.768+0800",
+        "update_time": "2023-06-15T19:01:10.768+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "179988f4-ad20-3b75-94f5-30ac05975c57",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "6832c9bc-a926-3102-8cd5-8739ce770956/179988f4-ad20-3b75-94f5-30ac05975c57",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:10.971+0800",
+        "update_time": "2023-06-15T19:01:10.971+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f",
+    "title": "第三章 晶体结构与性质",
+    "rich_title": "第三章 晶体结构与性质",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f",
+    "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+    "create_time": "2023-06-15T19:01:11.169+0800",
+    "update_time": "2023-06-15T19:01:11.169+0800",
+    "child_nodes": [
+      {
+        "id": "5cd0ef55-18f8-3570-8881-58a2e9ed5f0f",
+        "title": "第一节 物质的聚集状态与晶体的常识",
+        "rich_title": "第一节 物质的聚集状态与晶体的常识",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f/5cd0ef55-18f8-3570-8881-58a2e9ed5f0f",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:11.379+0800",
+        "update_time": "2023-06-15T19:01:11.379+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "19cebf2b-115e-3453-8be5-d6c5b2f5c93c",
+        "title": "第二节 分子晶体与共价晶体",
+        "rich_title": "第二节 分子晶体与共价晶体",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f/19cebf2b-115e-3453-8be5-d6c5b2f5c93c",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:11.583+0800",
+        "update_time": "2023-06-15T19:01:11.583+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cc8bfdec-b197-3514-919b-0da565f11f9c",
+        "title": "第三节 金属晶体与离子晶体",
+        "rich_title": "第三节 金属晶体与离子晶体",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f/cc8bfdec-b197-3514-919b-0da565f11f9c",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:11.769+0800",
+        "update_time": "2023-06-15T19:01:11.769+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1e5ee9e3-97cb-3ebb-ba84-bbda084b71a9",
+        "title": "第四节 配合物与超分子",
+        "rich_title": "第四节 配合物与超分子",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f/1e5ee9e3-97cb-3ebb-ba84-bbda084b71a9",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:11.969+0800",
+        "update_time": "2023-06-15T19:01:11.969+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6a0709a4-0208-32a5-87bc-61716f350612",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f/6a0709a4-0208-32a5-87bc-61716f350612",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:12.164+0800",
+        "update_time": "2023-08-09T00:19:09.600+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "312b4d72-8468-35d5-8d90-0ef60e1147a5",
+        "title": "实验活动 简单配合物的形成",
+        "rich_title": "实验活动 简单配合物的形成",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f/312b4d72-8468-35d5-8d90-0ef60e1147a5",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:12.380+0800",
+        "update_time": "2023-08-09T00:19:10.024+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3fc9f9c5-ad2e-3098-a48c-6f4c4977a56c",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bd9ff0c5-e9fa-346d-8fbd-7dc4a25d585f/3fc9f9c5-ad2e-3098-a48c-6f4c4977a56c",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:12.579+0800",
+        "update_time": "2023-06-15T19:01:12.579+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "70309625-cdaf-3b5a-b017-2589f252c936",
+    "title": "高考复习",
+    "rich_title": "高考复习",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "70309625-cdaf-3b5a-b017-2589f252c936",
+    "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+    "create_time": "2023-06-15T19:01:12.786+0800",
+    "update_time": "2023-06-15T19:01:12.786+0800",
+    "child_nodes": [
+      {
+        "id": "95a8d7c3-b525-318e-b904-42887c1871dc",
+        "title": "物质的性质和转化规律",
+        "rich_title": "物质的性质和转化规律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/95a8d7c3-b525-318e-b904-42887c1871dc",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:12.971+0800",
+        "update_time": "2023-06-15T19:01:12.971+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fd934c74-e2ce-3eb1-b1db-8d37b846e204",
+        "title": "化学思维路径构建策略",
+        "rich_title": "化学思维路径构建策略",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/fd934c74-e2ce-3eb1-b1db-8d37b846e204",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:13.156+0800",
+        "update_time": "2023-06-15T19:01:13.156+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ecc27155-cab0-376a-95ab-a3035bfa3bc8",
+        "title": "化学大题中的“有机推断”",
+        "rich_title": "化学大题中的“有机推断”",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/ecc27155-cab0-376a-95ab-a3035bfa3bc8",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:13.350+0800",
+        "update_time": "2023-06-15T19:01:13.350+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b340dacf-e12e-3ea4-ac5c-85131b21c128",
+        "title": "高考化学复习（一）",
+        "rich_title": "高考化学复习（一）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/b340dacf-e12e-3ea4-ac5c-85131b21c128",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:13.595+0800",
+        "update_time": "2023-06-15T19:01:13.595+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cd95ac9a-026d-3a5f-853e-a32fbae7f9a4",
+        "title": "高考化学复习（三）",
+        "rich_title": "高考化学复习（三）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/cd95ac9a-026d-3a5f-853e-a32fbae7f9a4",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:13.783+0800",
+        "update_time": "2023-06-15T19:01:13.783+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b271fd3c-4c1a-33f2-8e28-75a6961bb30f",
+        "title": "高考化学复习（二）",
+        "rich_title": "高考化学复习（二）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/b271fd3c-4c1a-33f2-8e28-75a6961bb30f",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:13.964+0800",
+        "update_time": "2023-06-15T19:01:13.964+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "146d19ae-f599-3bf8-9e95-41f625b82d22",
+        "title": "高考化学复习（四）",
+        "rich_title": "高考化学复习（四）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/146d19ae-f599-3bf8-9e95-41f625b82d22",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:14.167+0800",
+        "update_time": "2023-06-15T19:01:14.167+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "22780c40-b600-33ec-a962-8934327efabc",
+        "title": "核心素养视域下的化学问题解决",
+        "rich_title": "核心素养视域下的化学问题解决",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/22780c40-b600-33ec-a962-8934327efabc",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:14.355+0800",
+        "update_time": "2023-06-15T19:01:14.355+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0d83bd2a-b13e-3621-bec9-3ed9ea06c960",
+        "title": "高考化学复习（五）—— 有机合成常见信息分析",
+        "rich_title": "高考化学复习（五）—— 有机合成常见信息分析",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/0d83bd2a-b13e-3621-bec9-3ed9ea06c960",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:14.542+0800",
+        "update_time": "2023-06-15T19:01:14.542+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "113ab2c7-7f0b-3426-838c-b2bd98d184e9",
+        "title": "证据推理与模型认知—电化学复习策略与方法",
+        "rich_title": "证据推理与模型认知—电化学复习策略与方法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/113ab2c7-7f0b-3426-838c-b2bd98d184e9",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:14.733+0800",
+        "update_time": "2023-06-15T19:01:14.733+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e0aabf5d-de29-3d1a-91bf-60e3557b7e42",
+        "title": "同分异构体的判断与书写",
+        "rich_title": "同分异构体的判断与书写",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/e0aabf5d-de29-3d1a-91bf-60e3557b7e42",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:14.939+0800",
+        "update_time": "2023-06-15T19:01:14.939+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ffe49375-4e3c-3be5-b93e-dc02a5744543",
+        "title": "“运用原理分析问题”解题策略",
+        "rich_title": "“运用原理分析问题”解题策略",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/ffe49375-4e3c-3be5-b93e-dc02a5744543",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:15.128+0800",
+        "update_time": "2023-06-15T19:01:15.128+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d90b8012-7ee0-3b75-a0d4-cc3ec4e69d73",
+        "title": "高三化学应考策略",
+        "rich_title": "高三化学应考策略",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "70309625-cdaf-3b5a-b017-2589f252c936/d90b8012-7ee0-3b75-a0d4-cc3ec4e69d73",
+        "tree_id": "614ce40d-3b75-4760-9250-55fdb63875c0",
+        "create_time": "2023-06-15T19:01:15.321+0800",
+        "update_time": "2023-06-15T19:01:15.321+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

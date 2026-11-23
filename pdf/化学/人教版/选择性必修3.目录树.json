@@ -1,0 +1,716 @@
+[
+  {
+    "id": "4c8cd870-c0e8-3235-89fd-98f98346b5e5",
+    "title": "##引言",
+    "rich_title": "##引言",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "4c8cd870-c0e8-3235-89fd-98f98346b5e5",
+    "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+    "create_time": "2023-06-18T23:14:16.517+0800",
+    "update_time": "2023-08-09T00:19:13.663+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "b83a0f81-065f-3785-a70d-c1d3efcaaa54",
+    "title": "第一章 有机化合物的结构特点与研究方法",
+    "rich_title": "第一章 有机化合物的结构特点与研究方法",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "b83a0f81-065f-3785-a70d-c1d3efcaaa54",
+    "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+    "create_time": "2023-06-18T23:14:16.707+0800",
+    "update_time": "2023-06-18T23:14:16.707+0800",
+    "child_nodes": [
+      {
+        "id": "3c0ee7a9-ab2f-3734-a87e-99e72e04ab15",
+        "title": "第一节 有机化合物的结构特点",
+        "rich_title": "第一节 有机化合物的结构特点",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b83a0f81-065f-3785-a70d-c1d3efcaaa54/3c0ee7a9-ab2f-3734-a87e-99e72e04ab15",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:16.902+0800",
+        "update_time": "2023-06-18T23:14:16.902+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "40f5aa69-ef6b-31ba-9bf3-195135588f40",
+        "title": "第二节 研究有机化合物的一般方法",
+        "rich_title": "第二节 研究有机化合物的一般方法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b83a0f81-065f-3785-a70d-c1d3efcaaa54/40f5aa69-ef6b-31ba-9bf3-195135588f40",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:17.090+0800",
+        "update_time": "2023-08-09T00:19:14.373+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "48dab282-b63b-3908-8708-a958c81771d0",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "b83a0f81-065f-3785-a70d-c1d3efcaaa54/48dab282-b63b-3908-8708-a958c81771d0",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:17.286+0800",
+        "update_time": "2023-08-09T00:19:14.734+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "feb2da62-b363-34ab-9ced-37848d8644dc",
+    "title": "第二章 烃",
+    "rich_title": "第二章 烃",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "feb2da62-b363-34ab-9ced-37848d8644dc",
+    "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+    "create_time": "2023-06-18T23:14:17.475+0800",
+    "update_time": "2023-06-18T23:14:17.475+0800",
+    "child_nodes": [
+      {
+        "id": "0a6e6d0d-7697-3d3a-a3f1-6dd61c23be5b",
+        "title": "第一节 烷烃",
+        "rich_title": "第一节 烷烃",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "feb2da62-b363-34ab-9ced-37848d8644dc/0a6e6d0d-7697-3d3a-a3f1-6dd61c23be5b",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:17.667+0800",
+        "update_time": "2023-08-09T00:19:15.277+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "67d3cfa2-3982-3982-9567-e5b7fd2a716e",
+        "title": "第二节 烯烃 炔烃",
+        "rich_title": "第二节 烯烃 炔烃",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "feb2da62-b363-34ab-9ced-37848d8644dc/67d3cfa2-3982-3982-9567-e5b7fd2a716e",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:17.852+0800",
+        "update_time": "2023-08-09T00:19:15.636+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "31258175-9e4e-397a-9861-1939231be648",
+        "title": "第三节 芳香烃",
+        "rich_title": "第三节 芳香烃",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "feb2da62-b363-34ab-9ced-37848d8644dc/31258175-9e4e-397a-9861-1939231be648",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:18.061+0800",
+        "update_time": "2023-06-18T23:14:18.061+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "538d2763-0c26-3869-9e48-b5fbfd6c8afb",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "feb2da62-b363-34ab-9ced-37848d8644dc/538d2763-0c26-3869-9e48-b5fbfd6c8afb",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:18.262+0800",
+        "update_time": "2023-08-09T00:19:16.120+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "f1e66c36-dd84-3db9-b54d-a853f27df963",
+    "title": "第三章 烃的衍生物",
+    "rich_title": "第三章 烃的衍生物",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963",
+    "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+    "create_time": "2023-06-18T23:14:18.443+0800",
+    "update_time": "2023-06-18T23:14:18.443+0800",
+    "child_nodes": [
+      {
+        "id": "9103b98d-6541-3474-8104-f0ce488bb46e",
+        "title": "第一节 卤代烃",
+        "rich_title": "第一节 卤代烃",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963/9103b98d-6541-3474-8104-f0ce488bb46e",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:18.634+0800",
+        "update_time": "2023-06-18T23:14:18.634+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "72b63c33-3805-329c-9207-669c77480a14",
+        "title": "第二节 醇 酚",
+        "rich_title": "第二节 醇 酚",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963/72b63c33-3805-329c-9207-669c77480a14",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:18.815+0800",
+        "update_time": "2023-08-09T00:19:16.931+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "eed3b60c-7384-3c56-bcdb-d2fd57c1ef69",
+        "title": "第三节 醛 酮",
+        "rich_title": "第三节 醛 酮",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963/eed3b60c-7384-3c56-bcdb-d2fd57c1ef69",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:19.000+0800",
+        "update_time": "2023-06-18T23:14:19.000+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e033c97d-f1ce-39e2-a465-e6f8e1719081",
+        "title": "第四节 羧酸 羧酸衍生物",
+        "rich_title": "第四节 羧酸 羧酸衍生物",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963/e033c97d-f1ce-39e2-a465-e6f8e1719081",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:19.208+0800",
+        "update_time": "2023-06-18T23:14:19.208+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8345ca68-b8b5-3fe2-8fc5-c7c47e392416",
+        "title": "第五节 有机合成",
+        "rich_title": "第五节 有机合成",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963/8345ca68-b8b5-3fe2-8fc5-c7c47e392416",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:19.407+0800",
+        "update_time": "2023-08-09T00:19:17.616+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ac9bfbb3-1b3b-32e5-8887-001ff723031d",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963/ac9bfbb3-1b3b-32e5-8887-001ff723031d",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:19.608+0800",
+        "update_time": "2023-08-09T00:19:17.969+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9b602c0c-e112-3fca-bc7d-3dcc03c28988",
+        "title": "实验活动1 乙酸乙酯的制备与性质",
+        "rich_title": "实验活动1 乙酸乙酯的制备与性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963/9b602c0c-e112-3fca-bc7d-3dcc03c28988",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:19.806+0800",
+        "update_time": "2023-08-09T00:19:18.345+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "3481a624-5152-3d7b-bcab-87203bd60913",
+        "title": "实验活动2 有机化合物中常见官能团的检验",
+        "rich_title": "实验活动2 有机化合物中常见官能团的检验",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "f1e66c36-dd84-3db9-b54d-a853f27df963/3481a624-5152-3d7b-bcab-87203bd60913",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:20.009+0800",
+        "update_time": "2023-08-09T00:19:18.742+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "93785bbc-f854-3010-ae2c-614cf51e8cf4",
+    "title": "第四章 生物大分子",
+    "rich_title": "第四章 生物大分子",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "93785bbc-f854-3010-ae2c-614cf51e8cf4",
+    "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+    "create_time": "2023-06-18T23:14:20.200+0800",
+    "update_time": "2023-06-18T23:14:20.200+0800",
+    "child_nodes": [
+      {
+        "id": "d1140aef-9bae-388a-9365-72211a23a1d9",
+        "title": "第一节 糖类",
+        "rich_title": "第一节 糖类",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "93785bbc-f854-3010-ae2c-614cf51e8cf4/d1140aef-9bae-388a-9365-72211a23a1d9",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:20.397+0800",
+        "update_time": "2023-08-09T00:19:19.288+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ce6c7f80-9186-373a-957f-5e09018673ae",
+        "title": "第二节 蛋白质",
+        "rich_title": "第二节 蛋白质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "93785bbc-f854-3010-ae2c-614cf51e8cf4/ce6c7f80-9186-373a-957f-5e09018673ae",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:20.585+0800",
+        "update_time": "2023-08-09T00:19:19.676+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f99bd9f5-0cda-3236-a17b-f220739526c0",
+        "title": "第三节 核酸",
+        "rich_title": "第三节 核酸",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "93785bbc-f854-3010-ae2c-614cf51e8cf4/f99bd9f5-0cda-3236-a17b-f220739526c0",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:20.778+0800",
+        "update_time": "2023-06-18T23:14:20.778+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8135ebe4-0c2d-3a0f-a91a-d70fa0ca9762",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "93785bbc-f854-3010-ae2c-614cf51e8cf4/8135ebe4-0c2d-3a0f-a91a-d70fa0ca9762",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:20.973+0800",
+        "update_time": "2023-08-09T00:19:20.394+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "ae086db6-13f2-3efe-afcf-fe82cae5b969",
+        "title": "实验活动3 糖类的性质",
+        "rich_title": "实验活动3 糖类的性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "93785bbc-f854-3010-ae2c-614cf51e8cf4/ae086db6-13f2-3efe-afcf-fe82cae5b969",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:21.159+0800",
+        "update_time": "2023-08-09T00:19:20.747+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "a5cc7a79-7f56-3657-9314-7289d0095a4f",
+    "title": "第五章 合成高分子",
+    "rich_title": "第五章 合成高分子",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "a5cc7a79-7f56-3657-9314-7289d0095a4f",
+    "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+    "create_time": "2023-06-18T23:14:21.362+0800",
+    "update_time": "2023-06-18T23:14:21.362+0800",
+    "child_nodes": [
+      {
+        "id": "d742a63d-de8d-31ad-8d6d-7e1509a77bc4",
+        "title": "第一节 合成高分子的基本方法",
+        "rich_title": "第一节 合成高分子的基本方法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a5cc7a79-7f56-3657-9314-7289d0095a4f/d742a63d-de8d-31ad-8d6d-7e1509a77bc4",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:21.540+0800",
+        "update_time": "2023-06-18T23:14:21.540+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1860a57d-2f70-3dc9-a75b-3b5f580972b2",
+        "title": "第二节 高分子材料",
+        "rich_title": "第二节 高分子材料",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a5cc7a79-7f56-3657-9314-7289d0095a4f/1860a57d-2f70-3dc9-a75b-3b5f580972b2",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:21.727+0800",
+        "update_time": "2023-08-09T00:19:21.503+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "d82807bc-a112-3e92-bc8d-44753308e5b4",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "a5cc7a79-7f56-3657-9314-7289d0095a4f/d82807bc-a112-3e92-bc8d-44753308e5b4",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:21.933+0800",
+        "update_time": "2023-08-09T00:19:21.890+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "a254fc62-30fa-31c3-9322-0862b724b85f",
+    "title": "高考复习",
+    "rich_title": "高考复习",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f",
+    "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+    "create_time": "2023-06-18T23:14:22.129+0800",
+    "update_time": "2023-06-18T23:14:22.129+0800",
+    "child_nodes": [
+      {
+        "id": "7edfa75b-3e22-38aa-a793-59a0fa17d238",
+        "title": "物质的性质和转化规律",
+        "rich_title": "物质的性质和转化规律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/7edfa75b-3e22-38aa-a793-59a0fa17d238",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:22.304+0800",
+        "update_time": "2023-06-18T23:14:22.304+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0cc207af-2a64-3fa5-8eef-82ffdc9e3f67",
+        "title": "化学思维路径构建策略",
+        "rich_title": "化学思维路径构建策略",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/0cc207af-2a64-3fa5-8eef-82ffdc9e3f67",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:22.495+0800",
+        "update_time": "2023-06-18T23:14:22.495+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2cae6698-da0f-3c38-82be-ae6621ce0df6",
+        "title": "化学大题中的“有机推断”",
+        "rich_title": "化学大题中的“有机推断”",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/2cae6698-da0f-3c38-82be-ae6621ce0df6",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:22.679+0800",
+        "update_time": "2023-06-18T23:14:22.679+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "18bf23bd-962e-3ba9-ba4d-6b55f8d876b5",
+        "title": "高考化学复习（一）",
+        "rich_title": "高考化学复习（一）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/18bf23bd-962e-3ba9-ba4d-6b55f8d876b5",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:22.881+0800",
+        "update_time": "2023-06-18T23:14:22.881+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1a9e1371-eb94-3596-8af7-6a013413c7b7",
+        "title": "高考化学复习（三）",
+        "rich_title": "高考化学复习（三）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/1a9e1371-eb94-3596-8af7-6a013413c7b7",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:23.074+0800",
+        "update_time": "2023-06-18T23:14:23.074+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0f2626e5-eb51-3811-a75f-34576169d84f",
+        "title": "高考化学复习（二）",
+        "rich_title": "高考化学复习（二）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/0f2626e5-eb51-3811-a75f-34576169d84f",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:23.258+0800",
+        "update_time": "2023-06-18T23:14:23.258+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8081059d-9834-3894-9dc6-bc43f86a1648",
+        "title": "高考化学复习（四）",
+        "rich_title": "高考化学复习（四）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/8081059d-9834-3894-9dc6-bc43f86a1648",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:23.434+0800",
+        "update_time": "2023-06-18T23:14:23.434+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "483662df-c760-3b5b-8c86-503235badde2",
+        "title": "核心素养视域下的化学问题解决",
+        "rich_title": "核心素养视域下的化学问题解决",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/483662df-c760-3b5b-8c86-503235badde2",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:23.641+0800",
+        "update_time": "2023-06-18T23:14:23.641+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "096474e7-d49a-3e96-a841-b2f6e56760b0",
+        "title": "高考化学复习（五）—— 有机合成常见信息分析",
+        "rich_title": "高考化学复习（五）—— 有机合成常见信息分析",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/096474e7-d49a-3e96-a841-b2f6e56760b0",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:23.847+0800",
+        "update_time": "2023-06-18T23:14:23.847+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0d6b81a3-fd7b-3dbe-876e-b03bcaf58573",
+        "title": "证据推理与模型认知—电化学复习策略与方法",
+        "rich_title": "证据推理与模型认知—电化学复习策略与方法",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/0d6b81a3-fd7b-3dbe-876e-b03bcaf58573",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:24.051+0800",
+        "update_time": "2023-06-18T23:14:24.051+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "7a6b18aa-7816-3b27-ba7a-c8b63b5d4561",
+        "title": "同分异构体的判断与书写",
+        "rich_title": "同分异构体的判断与书写",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/7a6b18aa-7816-3b27-ba7a-c8b63b5d4561",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:24.242+0800",
+        "update_time": "2023-06-18T23:14:24.242+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "471ad7af-81c7-3429-9291-6aa88144b765",
+        "title": "“运用原理分析问题”解题策略",
+        "rich_title": "“运用原理分析问题”解题策略",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/471ad7af-81c7-3429-9291-6aa88144b765",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:24.437+0800",
+        "update_time": "2023-06-18T23:14:24.437+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "5555291e-84be-318e-bcc1-4430246ca656",
+        "title": "高三化学应考策略",
+        "rich_title": "高三化学应考策略",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "a254fc62-30fa-31c3-9322-0862b724b85f/5555291e-84be-318e-bcc1-4430246ca656",
+        "tree_id": "078f7ea9-41f2-44de-a6c9-a3beb5838af4",
+        "create_time": "2023-06-18T23:14:24.629+0800",
+        "update_time": "2023-06-18T23:14:24.629+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

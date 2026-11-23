@@ -1,0 +1,745 @@
+[
+  {
+    "id": "d3bdf54c-dedf-3b76-a7f6-a9a201e9b25c",
+    "title": "第一章 分子动理论",
+    "rich_title": "第一章 分子动理论",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "d3bdf54c-dedf-3b76-a7f6-a9a201e9b25c",
+    "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:41.269+0800",
+    "update_time": "2023-06-20T14:11:41.269+0800",
+    "child_nodes": [
+      {
+        "id": "cbd8e3b9-2b75-33e0-b90e-df4af1a67760",
+        "title": "1.分子动理论的基本内容",
+        "rich_title": "1.分子动理论的基本内容",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "d3bdf54c-dedf-3b76-a7f6-a9a201e9b25c/cbd8e3b9-2b75-33e0-b90e-df4af1a67760",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:41.594+0800",
+        "update_time": "2023-06-20T14:11:41.594+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "294bf017-3b15-3240-b31f-6e54d6768cb9",
+        "title": "2.实验：用油膜法估测油酸分子的大小",
+        "rich_title": "2.实验：用油膜法估测油酸分子的大小",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "d3bdf54c-dedf-3b76-a7f6-a9a201e9b25c/294bf017-3b15-3240-b31f-6e54d6768cb9",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:41.796+0800",
+        "update_time": "2023-06-20T14:11:41.796+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "647c3115-734c-3fc5-b5b8-cf22817454de",
+        "title": "3.分子运动速率分布规律",
+        "rich_title": "3.分子运动速率分布规律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "d3bdf54c-dedf-3b76-a7f6-a9a201e9b25c/647c3115-734c-3fc5-b5b8-cf22817454de",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:42.059+0800",
+        "update_time": "2023-08-09T00:14:32.429+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "444696c1-783f-33ee-8552-f91107e11dca",
+        "title": "4.分子动能和分子势能",
+        "rich_title": "4.分子动能和分子势能",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "d3bdf54c-dedf-3b76-a7f6-a9a201e9b25c/444696c1-783f-33ee-8552-f91107e11dca",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:42.293+0800",
+        "update_time": "2023-06-20T14:11:42.293+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "57c8b29e-d89b-39c1-9727-98fc7123dd6b",
+    "title": "第二章 气体、固体和液体",
+    "rich_title": "第二章 气体、固体和液体",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "57c8b29e-d89b-39c1-9727-98fc7123dd6b",
+    "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:42.520+0800",
+    "update_time": "2023-06-20T14:11:42.520+0800",
+    "child_nodes": [
+      {
+        "id": "1df662bf-7930-3f34-8995-04249d7cb88a",
+        "title": "1.温度和温标",
+        "rich_title": "1.温度和温标",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "57c8b29e-d89b-39c1-9727-98fc7123dd6b/1df662bf-7930-3f34-8995-04249d7cb88a",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:42.718+0800",
+        "update_time": "2023-08-09T00:14:33.011+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8bf2eac9-a44e-3953-84c4-2c3ef41acfc4",
+        "title": "2.气体的等温变化",
+        "rich_title": "2.气体的等温变化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "57c8b29e-d89b-39c1-9727-98fc7123dd6b/8bf2eac9-a44e-3953-84c4-2c3ef41acfc4",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:42.952+0800",
+        "update_time": "2023-06-20T14:11:42.952+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "7d9a72ef-e63c-3130-b8d1-093b7d505203",
+        "title": "3.气体的等压变化和等容变化",
+        "rich_title": "3.气体的等压变化和等容变化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "57c8b29e-d89b-39c1-9727-98fc7123dd6b/7d9a72ef-e63c-3130-b8d1-093b7d505203",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:43.159+0800",
+        "update_time": "2023-06-20T14:11:43.159+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f13f63cd-3fa1-30d7-b4d3-861ca179b2f2",
+        "title": "4.固体",
+        "rich_title": "4.固体",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "57c8b29e-d89b-39c1-9727-98fc7123dd6b/f13f63cd-3fa1-30d7-b4d3-861ca179b2f2",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:43.360+0800",
+        "update_time": "2023-06-20T14:11:43.360+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "eb34154e-edc8-3da3-973f-d7ad2b141618",
+        "title": "5.液体",
+        "rich_title": "5.液体",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "57c8b29e-d89b-39c1-9727-98fc7123dd6b/eb34154e-edc8-3da3-973f-d7ad2b141618",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:43.583+0800",
+        "update_time": "2023-08-09T00:14:33.786+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "ce9f82cc-db21-3981-b45f-a127211fc6a6",
+    "title": "第三章 热力学定律",
+    "rich_title": "第三章 热力学定律",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "ce9f82cc-db21-3981-b45f-a127211fc6a6",
+    "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:43.793+0800",
+    "update_time": "2023-06-20T14:11:43.793+0800",
+    "child_nodes": [
+      {
+        "id": "7899d625-d483-329d-8141-f9d77c664470",
+        "title": "1.功、热和内能的改变",
+        "rich_title": "1.功、热和内能的改变",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce9f82cc-db21-3981-b45f-a127211fc6a6/7899d625-d483-329d-8141-f9d77c664470",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:44.006+0800",
+        "update_time": "2023-06-20T14:11:44.006+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "8ed5cd65-8312-3fc9-9e16-2912b65ccf5a",
+        "title": "2.热力学第一定律",
+        "rich_title": "2.热力学第一定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce9f82cc-db21-3981-b45f-a127211fc6a6/8ed5cd65-8312-3fc9-9e16-2912b65ccf5a",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:44.224+0800",
+        "update_time": "2023-06-20T14:11:44.224+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1e07b8b9-1b20-323a-b093-eb2fb255607a",
+        "title": "3.能量守恒定律",
+        "rich_title": "3.能量守恒定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "ce9f82cc-db21-3981-b45f-a127211fc6a6/1e07b8b9-1b20-323a-b093-eb2fb255607a",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:44.448+0800",
+        "update_time": "2023-08-09T00:14:34.552+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "19111565-0c26-322e-8493-5c130269cc04",
+        "title": "4.热力学第二定律",
+        "rich_title": "4.热力学第二定律",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "ce9f82cc-db21-3981-b45f-a127211fc6a6/19111565-0c26-322e-8493-5c130269cc04",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:44.651+0800",
+        "update_time": "2023-06-20T14:11:44.651+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "b7e79925-2df1-3c74-aff7-aa165285a581",
+    "title": "第四章 原子结构和波粒二象性",
+    "rich_title": "第四章 原子结构和波粒二象性",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "b7e79925-2df1-3c74-aff7-aa165285a581",
+    "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:44.868+0800",
+    "update_time": "2023-06-20T14:11:44.868+0800",
+    "child_nodes": [
+      {
+        "id": "fc83be8f-a783-3022-8790-152853a16f37",
+        "title": "1.普朗克黑体辐射理论",
+        "rich_title": "1.普朗克黑体辐射理论",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b7e79925-2df1-3c74-aff7-aa165285a581/fc83be8f-a783-3022-8790-152853a16f37",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:45.077+0800",
+        "update_time": "2023-06-20T14:11:45.077+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "cfdc9007-8f7a-3bc2-85aa-a4d42e7674bf",
+        "title": "2.光电效应",
+        "rich_title": "2.光电效应",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b7e79925-2df1-3c74-aff7-aa165285a581/cfdc9007-8f7a-3bc2-85aa-a4d42e7674bf",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:45.274+0800",
+        "update_time": "2023-06-20T14:11:45.274+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b6245e4e-6bfe-32b2-9080-8751d185dd3e",
+        "title": "3.原子的核式结构模型",
+        "rich_title": "3.原子的核式结构模型",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b7e79925-2df1-3c74-aff7-aa165285a581/b6245e4e-6bfe-32b2-9080-8751d185dd3e",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:45.468+0800",
+        "update_time": "2023-06-20T14:11:45.468+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f8018a26-6c40-3508-8f2d-e03017094393",
+        "title": "4.氢原子光谱和玻尔的原子模型",
+        "rich_title": "4.氢原子光谱和玻尔的原子模型",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b7e79925-2df1-3c74-aff7-aa165285a581/f8018a26-6c40-3508-8f2d-e03017094393",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:45.677+0800",
+        "update_time": "2023-06-20T14:11:45.677+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2937469c-5199-3f7e-a459-b1d1138386a9",
+        "title": "5.粒子的波动性和量子力学的建立",
+        "rich_title": "5.粒子的波动性和量子力学的建立",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "b7e79925-2df1-3c74-aff7-aa165285a581/2937469c-5199-3f7e-a459-b1d1138386a9",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:45.886+0800",
+        "update_time": "2023-06-20T14:11:45.886+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "49848abd-ae58-3cfe-9b1e-d9ab9f399b7b",
+    "title": "第五章 原子核",
+    "rich_title": "第五章 原子核",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "49848abd-ae58-3cfe-9b1e-d9ab9f399b7b",
+    "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:46.112+0800",
+    "update_time": "2023-06-20T14:11:46.112+0800",
+    "child_nodes": [
+      {
+        "id": "4db4bb0c-4258-3982-b9d0-75c0366519b2",
+        "title": "1.原子核的组成",
+        "rich_title": "1.原子核的组成",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "49848abd-ae58-3cfe-9b1e-d9ab9f399b7b/4db4bb0c-4258-3982-b9d0-75c0366519b2",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:46.326+0800",
+        "update_time": "2023-06-20T14:11:46.326+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "a4981866-c075-38d1-b7f2-dd61e9ef54d5",
+        "title": "2.放射性元素的衰变",
+        "rich_title": "2.放射性元素的衰变",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "49848abd-ae58-3cfe-9b1e-d9ab9f399b7b/a4981866-c075-38d1-b7f2-dd61e9ef54d5",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:46.525+0800",
+        "update_time": "2023-06-20T14:11:46.525+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "57fce4ba-e602-328c-b541-7b7663bc930c",
+        "title": "3.核力与结合能",
+        "rich_title": "3.核力与结合能",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "49848abd-ae58-3cfe-9b1e-d9ab9f399b7b/57fce4ba-e602-328c-b541-7b7663bc930c",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:46.712+0800",
+        "update_time": "2023-06-20T14:11:46.712+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0266b8b1-b654-3a68-8e7d-a9165682b41d",
+        "title": "4.核裂变与核聚变",
+        "rich_title": "4.核裂变与核聚变",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "49848abd-ae58-3cfe-9b1e-d9ab9f399b7b/0266b8b1-b654-3a68-8e7d-a9165682b41d",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:46.910+0800",
+        "update_time": "2023-06-20T14:11:46.910+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "6c7d705b-85e0-36e9-9f4a-5e355d5c7015",
+        "title": "5.“基本”粒子",
+        "rich_title": "5.“基本”粒子",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "49848abd-ae58-3cfe-9b1e-d9ab9f399b7b/6c7d705b-85e0-36e9-9f4a-5e355d5c7015",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:47.091+0800",
+        "update_time": "2023-06-20T14:11:47.091+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "54f20575-fff0-3d14-a56f-c372d65448d3",
+    "title": "课题研究",
+    "rich_title": "课题研究",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "54f20575-fff0-3d14-a56f-c372d65448d3",
+    "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:47.297+0800",
+    "update_time": "2023-08-09T00:14:36.910+0800",
+    "child_nodes": null
+  },
+  {
+    "id": "230315c0-18c7-3a93-b734-28a8dad69259",
+    "title": "高考复习",
+    "rich_title": "高考复习",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "230315c0-18c7-3a93-b734-28a8dad69259",
+    "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+    "create_time": "2023-06-20T14:11:47.475+0800",
+    "update_time": "2023-06-20T14:11:47.475+0800",
+    "child_nodes": [
+      {
+        "id": "5d237eb8-9e3a-33a0-87f6-e46c052ca671",
+        "title": "力学复习之能量与动量",
+        "rich_title": "力学复习之能量与动量",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/5d237eb8-9e3a-33a0-87f6-e46c052ca671",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:47.655+0800",
+        "update_time": "2023-06-20T14:11:47.655+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "850efd11-ade4-3a00-9ac0-4b1937c1ef50",
+        "title": "电学复习之带电物体在场中的运动",
+        "rich_title": "电学复习之带电物体在场中的运动",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/850efd11-ade4-3a00-9ac0-4b1937c1ef50",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:47.856+0800",
+        "update_time": "2023-06-20T14:11:47.856+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "e562482f-7ef6-3384-85e3-c1b0caa87d14",
+        "title": "电学实验考点大全",
+        "rich_title": "电学实验考点大全",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/e562482f-7ef6-3384-85e3-c1b0caa87d14",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:48.072+0800",
+        "update_time": "2023-06-20T14:11:48.072+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "de7ea0c7-3998-3a4a-8d7f-0f1d94e67c80",
+        "title": "高考物理复习（一）",
+        "rich_title": "高考物理复习（一）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/de7ea0c7-3998-3a4a-8d7f-0f1d94e67c80",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:48.260+0800",
+        "update_time": "2023-06-20T14:11:48.260+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "dba22296-bd3c-3ffe-a779-724c64fccbe2",
+        "title": "高考物理复习（二）",
+        "rich_title": "高考物理复习（二）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/dba22296-bd3c-3ffe-a779-724c64fccbe2",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:48.445+0800",
+        "update_time": "2023-06-20T14:11:48.445+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "26f2fb15-711d-3615-abc9-d394c53c582e",
+        "title": "高考物理复习（三）",
+        "rich_title": "高考物理复习（三）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/26f2fb15-711d-3615-abc9-d394c53c582e",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:48.654+0800",
+        "update_time": "2023-06-20T14:11:48.654+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "abec8352-63e7-3ce7-acde-787e8510229d",
+        "title": "高考物理复习（四）",
+        "rich_title": "高考物理复习（四）",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/abec8352-63e7-3ce7-acde-787e8510229d",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:48.841+0800",
+        "update_time": "2023-06-20T14:11:48.841+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fa132a92-c44f-3cbe-b235-eb347ad3b5af",
+        "title": "高考物理复习（五）—— 物理模型与建模",
+        "rich_title": "高考物理复习（五）—— 物理模型与建模",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/fa132a92-c44f-3cbe-b235-eb347ad3b5af",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:49.038+0800",
+        "update_time": "2023-06-20T14:11:49.038+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "72f818cd-b308-37a7-99e8-3dc580c8619d",
+        "title": "《力与运动》专题",
+        "rich_title": "《力与运动》专题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/72f818cd-b308-37a7-99e8-3dc580c8619d",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:49.229+0800",
+        "update_time": "2023-06-20T14:11:49.229+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "58de05fa-e41a-32b5-b46a-64d22b4e8077",
+        "title": "牛顿定律考查方式及题目变化",
+        "rich_title": "牛顿定律考查方式及题目变化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/58de05fa-e41a-32b5-b46a-64d22b4e8077",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:49.437+0800",
+        "update_time": "2023-06-20T14:11:49.437+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0bc53016-61d2-378d-88c7-68010d59f045",
+        "title": "力学中的功能关系与能量守恒",
+        "rich_title": "力学中的功能关系与能量守恒",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/0bc53016-61d2-378d-88c7-68010d59f045",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:49.644+0800",
+        "update_time": "2023-06-20T14:11:49.644+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9ed52f50-661b-3a34-9334-a6547d3bafba",
+        "title": "与动量有关的力学问题",
+        "rich_title": "与动量有关的力学问题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/9ed52f50-661b-3a34-9334-a6547d3bafba",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:49.833+0800",
+        "update_time": "2023-06-20T14:11:49.833+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "19cf6fa4-f1d8-358e-ab04-2c3f8785c2a5",
+        "title": "计算题备考策略",
+        "rich_title": "计算题备考策略",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/19cf6fa4-f1d8-358e-ab04-2c3f8785c2a5",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:50.035+0800",
+        "update_time": "2023-06-20T14:11:50.035+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "0a7b86ff-1938-3b98-a0d9-d48af28cb041",
+        "title": "高考备考之场的问题",
+        "rich_title": "高考备考之场的问题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "230315c0-18c7-3a93-b734-28a8dad69259/0a7b86ff-1938-3b98-a0d9-d48af28cb041",
+        "tree_id": "dfb166d8-0e81-11ee-baab-8c409e55d11a",
+        "create_time": "2023-06-20T14:11:50.233+0800",
+        "update_time": "2023-06-20T14:11:50.233+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

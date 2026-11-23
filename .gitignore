@@ -22,7 +22,9 @@ public/mock/
 # pdf.js 的资源：npm run dev / build 前从 node_modules 拷过来
 public/pdfjs/
 
-# 离线版（node tools/build_offline.mjs 生成；部署时随网站放在 /offline.html）
+# 离线版（node tools/build_offline.mjs 生成；部署时随网站提供分科下载）
 dist-offline/
 public/offline.html
 public/offline.zip
+public/offline-*.html
+public/offline-*.zip

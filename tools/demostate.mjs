@@ -12,7 +12,7 @@ const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } });
 await ctx.addInitScript(() => { window.WebSocket = class { constructor() { this.readyState = 0; } addEventListener() {} removeEventListener() {} send() {} close() {} }; });     // 别人改文件不刷新这个页面
 await ctx.addInitScript({ path: VT }); await ctx.addInitScript(() => localStorage.clear());
 const p = await ctx.newPage(); p.on('pageerror', (e) => console.log('ERR', e.message));
-await p.goto(`http://127.0.0.1:5188/?book=${book}#live=${id}`);
+await p.goto(`http://127.0.0.1:${process.env.LB_PORT || 5188}/?book=${book}#live=${id}`);
 await p.waitForFunction(() => window.__lb?.live?.isOpen && !window.__lb.live.opening, null, { timeout: 40000 });
 await p.waitForTimeout(1500);
 await p.evaluate(() => [...document.querySelectorAll('button')].find((x) => x.textContent.trim() === '不猜了，直接动手 →' && x.offsetParent)?.click());

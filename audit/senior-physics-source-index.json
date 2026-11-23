@@ -1,0 +1,1683 @@
+{
+  "scope": "Explicit 实验/演示/做一做 headings and large-font 实验 chapter titles. Unlabelled activities, reference cases and continuations still require manual review.",
+  "books": [
+    {
+      "id": "wuli-hs1",
+      "source_file": "必修第一册.pdf",
+      "sha256": "b0a84622a6ddc13c693ace0c5f4c8e906d7343ce2da47aa5ff396d063b88052a",
+      "pdf_pages": 134,
+      "activities": [
+        {
+          "id": "wuli-hs1:p22:1",
+          "pdf_index": 22,
+          "pdf_file_page": 23,
+          "heading": "实验",
+          "bbox": [
+            95.51,
+            441.58,
+            132.81,
+            455.69
+          ],
+          "page_figure_references": [
+            "图1.2-7",
+            "图1.2-8"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p26:1",
+          "pdf_index": 26,
+          "pdf_file_page": 27,
+          "heading": "实验",
+          "bbox": [
+            95.51,
+            515.18,
+            132.81,
+            529.3
+          ],
+          "page_figure_references": [
+            "图1.3-1",
+            "图1.3-2"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p40:1",
+          "pdf_index": 40,
+          "pdf_file_page": 41,
+          "heading": "实验：探究小车速度随时间变化的规律",
+          "bbox": [
+            119.52,
+            157.36,
+            527.52,
+            186.62
+          ],
+          "page_figure_references": [
+            "图2.1-1"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p42:1",
+          "pdf_index": 42,
+          "pdf_file_page": 43,
+          "heading": "做一做",
+          "bbox": [
+            95.05,
+            65.65,
+            131.05,
+            79.76
+          ],
+          "page_figure_references": [
+            "图2.1-2",
+            "图2.1-3",
+            "图2.1-4"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p52:1",
+          "pdf_index": 52,
+          "pdf_file_page": 53,
+          "heading": "演示",
+          "bbox": [
+            95.61,
+            127.55,
+            132.9,
+            141.66
+          ],
+          "page_figure_references": [
+            "图2.4-1",
+            "图2.4-2"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p52:2",
+          "pdf_index": 52,
+          "pdf_file_page": 53,
+          "heading": "实验",
+          "bbox": [
+            95.51,
+            592.44,
+            132.81,
+            606.55
+          ],
+          "page_figure_references": [
+            "图2.4-1",
+            "图2.4-2"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p53:1",
+          "pdf_index": 53,
+          "pdf_file_page": 54,
+          "heading": "做一做",
+          "bbox": [
+            102.32,
+            582.9,
+            138.32,
+            597.01
+          ],
+          "page_figure_references": [
+            "图2.4-3"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p63:1",
+          "pdf_index": 63,
+          "pdf_file_page": 64,
+          "heading": "演示",
+          "bbox": [
+            102.79,
+            364.92,
+            140.08,
+            379.04
+          ],
+          "page_figure_references": [
+            "图3.1-5",
+            "图3.1-6",
+            "图3.1-7"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p64:1",
+          "pdf_index": 64,
+          "pdf_file_page": 65,
+          "heading": "实验",
+          "bbox": [
+            95.51,
+            289.83,
+            132.81,
+            303.94
+          ],
+          "page_figure_references": [
+            "图3.1-8"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p69:1",
+          "pdf_index": 69,
+          "pdf_file_page": 70,
+          "heading": "演示",
+          "bbox": [
+            102.78,
+            659.04,
+            140.08,
+            673.15
+          ],
+          "page_figure_references": [
+            "图3.2-3"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p73:1",
+          "pdf_index": 73,
+          "pdf_file_page": 74,
+          "heading": "实验",
+          "bbox": [
+            102.79,
+            66.36,
+            140.08,
+            80.48
+          ],
+          "page_figure_references": [
+            "图3.3-3",
+            "图3.3-4",
+            "图3.3-5"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p77:1",
+          "pdf_index": 77,
+          "pdf_file_page": 78,
+          "heading": "实验",
+          "bbox": [
+            102.79,
+            190.68,
+            140.08,
+            204.79
+          ],
+          "page_figure_references": [
+            "图3.4-3",
+            "图3.4-4"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p92:1",
+          "pdf_index": 92,
+          "pdf_file_page": 93,
+          "heading": "实验：探究加速度与力、质量的关系",
+          "bbox": [
+            121.77,
+            61.45,
+            505.77,
+            90.71
+          ],
+          "page_figure_references": [
+            "图4.2-1"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p115:1",
+          "pdf_index": 115,
+          "pdf_file_page": 116,
+          "heading": "做一做",
+          "bbox": [
+            102.34,
+            150.82,
+            138.34,
+            164.93
+          ],
+          "page_figure_references": [
+            "图4.6-6"
+          ]
+        },
+        {
+          "id": "wuli-hs1:p125:1",
+          "pdf_index": 125,
+          "pdf_file_page": 126,
+          "heading": "学生实验",
+          "bbox": [
+            67.98,
+            110.62,
+            163.98,
+            139.88
+          ],
+          "page_figure_references": []
+        }
+      ]
+    },
+    {
+      "id": "wuli-hs2",
+      "source_file": "必修第二册.pdf",
+      "sha256": "367414e1cffd74c8f9a4d3ceac666f675a2b005f31c558449ebbef4f70183d8e",
+      "pdf_pages": 114,
+      "activities": [
+        {
+          "id": "wuli-hs2:p6:1",
+          "pdf_index": 6,
+          "pdf_file_page": 7,
+          "heading": "演示",
+          "bbox": [
+            94.87,
+            586.45,
+            132.17,
+            600.56
+          ],
+          "page_figure_references": [
+            "图5.1-1"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p8:1",
+          "pdf_index": 8,
+          "pdf_file_page": 9,
+          "heading": "演示",
+          "bbox": [
+            96.12,
+            65.89,
+            133.41,
+            80.0
+          ],
+          "page_figure_references": [
+            "图5.1-3",
+            "图5.1-4"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p8:2",
+          "pdf_index": 8,
+          "pdf_file_page": 9,
+          "heading": "做一做",
+          "bbox": [
+            96.1,
+            425.18,
+            132.1,
+            439.29
+          ],
+          "page_figure_references": [
+            "图5.1-3",
+            "图5.1-4"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p10:1",
+          "pdf_index": 10,
+          "pdf_file_page": 11,
+          "heading": "演示",
+          "bbox": [
+            94.32,
+            459.98,
+            131.62,
+            474.09
+          ],
+          "page_figure_references": [
+            "图5.2-1"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p14:1",
+          "pdf_index": 14,
+          "pdf_file_page": 15,
+          "heading": "实验：探究平抛运动的特点",
+          "bbox": [
+            120.0,
+            54.6,
+            408.0,
+            83.86
+          ],
+          "page_figure_references": [
+            "图5.3-1"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p21:1",
+          "pdf_index": 21,
+          "pdf_file_page": 22,
+          "heading": "做一做",
+          "bbox": [
+            102.32,
+            65.65,
+            138.32,
+            79.76
+          ],
+          "page_figure_references": [
+            "图5.4-3",
+            "图5.4-4",
+            "图5.4-5"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p32:1",
+          "pdf_index": 32,
+          "pdf_file_page": 33,
+          "heading": "做一做",
+          "bbox": [
+            95.05,
+            320.04,
+            131.05,
+            334.15
+          ],
+          "page_figure_references": [
+            "图6.2-2",
+            "图6.2-3",
+            "图6.2-4"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p32:2",
+          "pdf_index": 32,
+          "pdf_file_page": 33,
+          "heading": "实验",
+          "bbox": [
+            96.46,
+            652.3,
+            133.75,
+            666.41
+          ],
+          "page_figure_references": [
+            "图6.2-2",
+            "图6.2-3",
+            "图6.2-4"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p49:1",
+          "pdf_index": 49,
+          "pdf_file_page": 50,
+          "heading": "做一做",
+          "bbox": [
+            102.32,
+            239.49,
+            138.32,
+            253.61
+          ],
+          "page_figure_references": [
+            "图7.1-1",
+            "图7.1-2",
+            "图7.1-3"
+          ]
+        },
+        {
+          "id": "wuli-hs2:p99:1",
+          "pdf_index": 99,
+          "pdf_file_page": 100,
+          "heading": "实验：验证机械能守恒定律",
+          "bbox": [
+            127.28,
+            61.45,
+            415.28,
+            90.71
+          ],
+          "page_figure_references": [
+            "图8.5-1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wuli-hs3",
+      "source_file": "必修第三册.pdf",
+      "sha256": "0067ec9533094c02e85e619e6f713b6aedff7f704410753cb72df124b93d4951",
+      "pdf_pages": 143,
+      "activities": [
+        {
+          "id": "wuli-hs3:p7:1",
+          "pdf_index": 7,
+          "pdf_file_page": 8,
+          "heading": "实验",
+          "bbox": [
+            102.79,
+            528.65,
+            140.08,
+            542.76
+          ],
+          "page_figure_references": [
+            "图9.1-2",
+            "图9.1-3"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p8:1",
+          "pdf_index": 8,
+          "pdf_file_page": 9,
+          "heading": "做一做",
+          "bbox": [
+            95.51,
+            175.69,
+            131.51,
+            189.81
+          ],
+          "page_figure_references": [
+            "图9.1-4"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p19:1",
+          "pdf_index": 19,
+          "pdf_file_page": 20,
+          "heading": "演示",
+          "bbox": [
+            102.79,
+            561.95,
+            140.08,
+            576.07
+          ],
+          "page_figure_references": [
+            "图9.3-6",
+            "图9.3-7",
+            "图9.3-8",
+            "图9.3-9"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p24:1",
+          "pdf_index": 24,
+          "pdf_file_page": 25,
+          "heading": "演示",
+          "bbox": [
+            96.47,
+            66.36,
+            133.77,
+            80.48
+          ],
+          "page_figure_references": [
+            "图9.4-5",
+            "图9.4-6",
+            "图9.4-7"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p42:1",
+          "pdf_index": 42,
+          "pdf_file_page": 43,
+          "heading": "实验",
+          "bbox": [
+            96.22,
+            484.57,
+            133.52,
+            498.68
+          ],
+          "page_figure_references": [
+            "图10.4-1"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p44:1",
+          "pdf_index": 44,
+          "pdf_file_page": 45,
+          "heading": "演示",
+          "bbox": [
+            95.51,
+            199.59,
+            132.81,
+            213.7
+          ],
+          "page_figure_references": [
+            "图10.4-4",
+            "图10.4-1",
+            "图10.4-4",
+            "图10.4-5"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p62:1",
+          "pdf_index": 62,
+          "pdf_file_page": 63,
+          "heading": "实验",
+          "bbox": [
+            95.51,
+            66.36,
+            132.81,
+            80.48
+          ],
+          "page_figure_references": [
+            "图11.2-2"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p63:1",
+          "pdf_index": 63,
+          "pdf_file_page": 64,
+          "heading": "演示",
+          "bbox": [
+            103.37,
+            565.5,
+            140.67,
+            579.61
+          ],
+          "page_figure_references": [
+            "图11.2-3"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p66:1",
+          "pdf_index": 66,
+          "pdf_file_page": 67,
+          "heading": "实验：导体电阻率的测量",
+          "bbox": [
+            120.4,
+            61.45,
+            384.4,
+            90.71
+          ],
+          "page_figure_references": [
+            "图11.3-1"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p76:1",
+          "pdf_index": 76,
+          "pdf_file_page": 77,
+          "heading": "实验：练习使用多用电表",
+          "bbox": [
+            120.01,
+            62.4,
+            384.01,
+            91.65
+          ],
+          "page_figure_references": [
+            "图11.5-1",
+            "图11.5-2"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p77:1",
+          "pdf_index": 77,
+          "pdf_file_page": 78,
+          "heading": "做一做",
+          "bbox": [
+            101.84,
+            456.1,
+            137.84,
+            470.21
+          ],
+          "page_figure_references": [
+            "图11.5-3",
+            "图11.5-4"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p93:1",
+          "pdf_index": 93,
+          "pdf_file_page": 94,
+          "heading": "实验：电池电动势和内阻的测量",
+          "bbox": [
+            127.51,
+            61.45,
+            463.51,
+            90.71
+          ],
+          "page_figure_references": [
+            "图12.3-1"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p110:1",
+          "pdf_index": 110,
+          "pdf_file_page": 111,
+          "heading": "演示",
+          "bbox": [
+            95.61,
+            199.36,
+            132.9,
+            213.48
+          ],
+          "page_figure_references": [
+            "图13.1-4",
+            "图13.1-5",
+            "图13.1-6",
+            "图13.1-7"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p113:1",
+          "pdf_index": 113,
+          "pdf_file_page": 114,
+          "heading": "演示",
+          "bbox": [
+            103.42,
+            673.7,
+            140.72,
+            687.81
+          ],
+          "page_figure_references": []
+        },
+        {
+          "id": "wuli-hs3:p119:1",
+          "pdf_index": 119,
+          "pdf_file_page": 120,
+          "heading": "实验",
+          "bbox": [
+            102.79,
+            526.92,
+            140.08,
+            541.03
+          ],
+          "page_figure_references": [
+            "图13.3-2",
+            "图13.3-3"
+          ]
+        },
+        {
+          "id": "wuli-hs3:p124:1",
+          "pdf_index": 124,
+          "pdf_file_page": 125,
+          "heading": "做一做",
+          "bbox": [
+            95.35,
+            570.91,
+            131.35,
+            585.02
+          ],
+          "page_figure_references": [
+            "图13.4-1",
+            "图13.4-2"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wuli-hsx1",
+      "source_file": "选择性必修第一册.pdf",
+      "sha256": "4e9e5e29e6420035e008e2b0494c9d6ee2c64600c6d861f96bc63ec139aae79a",
+      "pdf_pages": 130,
+      "activities": [
+        {
+          "id": "wuli-hsx1:p6:1",
+          "pdf_index": 6,
+          "pdf_file_page": 7,
+          "heading": "演示",
+          "bbox": [
+            94.74,
+            544.22,
+            132.04,
+            558.33
+          ],
+          "page_figure_references": [
+            "图1.1-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p9:1",
+          "pdf_index": 9,
+          "pdf_file_page": 10,
+          "heading": "做一做",
+          "bbox": [
+            102.32,
+            281.02,
+            138.32,
+            295.13
+          ],
+          "page_figure_references": [
+            "图1.1-4",
+            "图1.1-5"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p21:1",
+          "pdf_index": 21,
+          "pdf_file_page": 22,
+          "heading": "实验：验证动量守恒定律",
+          "bbox": [
+            127.09,
+            61.45,
+            391.09,
+            90.71
+          ],
+          "page_figure_references": []
+        },
+        {
+          "id": "wuli-hsx1:p25:1",
+          "pdf_index": 25,
+          "pdf_file_page": 26,
+          "heading": "实验",
+          "bbox": [
+            102.6,
+            469.1,
+            139.89,
+            483.21
+          ],
+          "page_figure_references": [
+            "图1.1-2",
+            "图1.5-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p30:1",
+          "pdf_index": 30,
+          "pdf_file_page": 31,
+          "heading": "做一做",
+          "bbox": [
+            95.07,
+            62.11,
+            131.07,
+            76.22
+          ],
+          "page_figure_references": [
+            "图1.6-2",
+            "图1.6-3",
+            "图1.6-4"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p38:1",
+          "pdf_index": 38,
+          "pdf_file_page": 39,
+          "heading": "做一做",
+          "bbox": [
+            95.53,
+            62.81,
+            131.53,
+            76.93
+          ],
+          "page_figure_references": [
+            "图2.1-2",
+            "图2.1-3",
+            "图2.1-4"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p41:1",
+          "pdf_index": 41,
+          "pdf_file_page": 42,
+          "heading": "做一做",
+          "bbox": [
+            102.91,
+            581.59,
+            138.91,
+            595.7
+          ],
+          "page_figure_references": [
+            "图2.2-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p42:1",
+          "pdf_index": 42,
+          "pdf_file_page": 43,
+          "heading": "演示",
+          "bbox": [
+            95.44,
+            444.9,
+            132.74,
+            459.01
+          ],
+          "page_figure_references": [
+            "图2.2-4"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p44:1",
+          "pdf_index": 44,
+          "pdf_file_page": 45,
+          "heading": "做一做",
+          "bbox": [
+            95.05,
+            396.69,
+            131.05,
+            410.8
+          ],
+          "page_figure_references": [
+            "图2.2-6",
+            "图2.2-7"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p48:1",
+          "pdf_index": 48,
+          "pdf_file_page": 49,
+          "heading": "做一做",
+          "bbox": [
+            94.92,
+            398.96,
+            130.92,
+            413.07
+          ],
+          "page_figure_references": [
+            "图2.3-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p51:1",
+          "pdf_index": 51,
+          "pdf_file_page": 52,
+          "heading": "做一做",
+          "bbox": [
+            102.51,
+            423.63,
+            138.51,
+            437.74
+          ],
+          "page_figure_references": [
+            "图2.4-2",
+            "图2.4-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p52:1",
+          "pdf_index": 52,
+          "pdf_file_page": 53,
+          "heading": "演示",
+          "bbox": [
+            95.51,
+            65.92,
+            132.81,
+            80.03
+          ],
+          "page_figure_references": [
+            "图2.4-4"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p52:2",
+          "pdf_index": 52,
+          "pdf_file_page": 53,
+          "heading": "实验",
+          "bbox": [
+            95.51,
+            401.39,
+            132.81,
+            415.5
+          ],
+          "page_figure_references": [
+            "图2.4-4"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p55:1",
+          "pdf_index": 55,
+          "pdf_file_page": 56,
+          "heading": "实验：用单摆测量重力加速度",
+          "bbox": [
+            125.29,
+            61.45,
+            437.29,
+            90.71
+          ],
+          "page_figure_references": [
+            "图2.5-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p59:1",
+          "pdf_index": 59,
+          "pdf_file_page": 60,
+          "heading": "做一做",
+          "bbox": [
+            102.4,
+            207.7,
+            138.4,
+            221.81
+          ],
+          "page_figure_references": [
+            "图2.6-2",
+            "图2.6-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p59:2",
+          "pdf_index": 59,
+          "pdf_file_page": 60,
+          "heading": "做一做",
+          "bbox": [
+            102.47,
+            601.7,
+            138.47,
+            615.81
+          ],
+          "page_figure_references": [
+            "图2.6-2",
+            "图2.6-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p66:1",
+          "pdf_index": 66,
+          "pdf_file_page": 67,
+          "heading": "演示",
+          "bbox": [
+            95.42,
+            521.36,
+            132.71,
+            535.47
+          ],
+          "page_figure_references": [
+            "图3.1-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p67:1",
+          "pdf_index": 67,
+          "pdf_file_page": 68,
+          "heading": "做一做",
+          "bbox": [
+            101.93,
+            543.24,
+            137.93,
+            557.35
+          ],
+          "page_figure_references": [
+            "图3.1-2",
+            "图3.1-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p68:1",
+          "pdf_index": 68,
+          "pdf_file_page": 69,
+          "heading": "演示",
+          "bbox": [
+            95.51,
+            255.81,
+            132.81,
+            269.93
+          ],
+          "page_figure_references": [
+            "图3.1-2",
+            "图3.1-4"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p69:1",
+          "pdf_index": 69,
+          "pdf_file_page": 70,
+          "heading": "做一做",
+          "bbox": [
+            102.32,
+            669.43,
+            138.32,
+            683.54
+          ],
+          "page_figure_references": [
+            "图3.1-5"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p75:1",
+          "pdf_index": 75,
+          "pdf_file_page": 76,
+          "heading": "演示",
+          "bbox": [
+            102.69,
+            399.44,
+            139.99,
+            413.55
+          ],
+          "page_figure_references": [
+            "图3.3-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p76:1",
+          "pdf_index": 76,
+          "pdf_file_page": 77,
+          "heading": "演示",
+          "bbox": [
+            95.72,
+            379.12,
+            133.02,
+            393.23
+          ],
+          "page_figure_references": [
+            "图3.3-2",
+            "图3.3-3",
+            "图3.3-4"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p78:1",
+          "pdf_index": 78,
+          "pdf_file_page": 79,
+          "heading": "演示",
+          "bbox": [
+            94.86,
+            449.99,
+            132.16,
+            464.1
+          ],
+          "page_figure_references": [
+            "图3.4-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p79:1",
+          "pdf_index": 79,
+          "pdf_file_page": 80,
+          "heading": "演示",
+          "bbox": [
+            102.6,
+            198.74,
+            139.89,
+            212.85
+          ],
+          "page_figure_references": [
+            "图3.4-1",
+            "图3.4-2",
+            "图3.4-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p81:1",
+          "pdf_index": 81,
+          "pdf_file_page": 82,
+          "heading": "做一做",
+          "bbox": [
+            102.2,
+            177.96,
+            138.2,
+            192.07
+          ],
+          "page_figure_references": [
+            "图3.4-4",
+            "图3.4-5"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p83:1",
+          "pdf_index": 83,
+          "pdf_file_page": 84,
+          "heading": "演示",
+          "bbox": [
+            102.36,
+            459.72,
+            139.66,
+            473.83
+          ],
+          "page_figure_references": [
+            "图3.5-1",
+            "图3.5-2"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p91:1",
+          "pdf_index": 91,
+          "pdf_file_page": 92,
+          "heading": "实验",
+          "bbox": [
+            102.6,
+            455.47,
+            139.89,
+            469.58
+          ],
+          "page_figure_references": [
+            "图4.1-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p94:1",
+          "pdf_index": 94,
+          "pdf_file_page": 95,
+          "heading": "演示",
+          "bbox": [
+            95.04,
+            539.76,
+            132.34,
+            553.87
+          ],
+          "page_figure_references": [
+            "图4.2-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p97:1",
+          "pdf_index": 97,
+          "pdf_file_page": 98,
+          "heading": "演示",
+          "bbox": [
+            102.6,
+            109.04,
+            139.89,
+            123.15
+          ],
+          "page_figure_references": [
+            "图4.2-6",
+            "图4.2-7",
+            "图4.2-8",
+            "图4.2-9"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p98:1",
+          "pdf_index": 98,
+          "pdf_file_page": 99,
+          "heading": "做一做",
+          "bbox": [
+            95.24,
+            230.29,
+            131.24,
+            244.4
+          ],
+          "page_figure_references": [
+            "图4.2-10",
+            "图4.2-11",
+            "图4.2-12"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p99:1",
+          "pdf_index": 99,
+          "pdf_file_page": 100,
+          "heading": "演示",
+          "bbox": [
+            102.22,
+            441.58,
+            139.52,
+            455.7
+          ],
+          "page_figure_references": [
+            "图4.3-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p102:1",
+          "pdf_index": 102,
+          "pdf_file_page": 103,
+          "heading": "做一做",
+          "bbox": [
+            94.95,
+            420.12,
+            130.95,
+            434.23
+          ],
+          "page_figure_references": [
+            "图4.3-5",
+            "图4.3-6"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p105:1",
+          "pdf_index": 105,
+          "pdf_file_page": 106,
+          "heading": "实验：用双缝干涉测量光的波长",
+          "bbox": [
+            127.46,
+            61.45,
+            463.46,
+            90.71
+          ],
+          "page_figure_references": [
+            "图4.4-1",
+            "图4.4-2"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p113:1",
+          "pdf_index": 113,
+          "pdf_file_page": 114,
+          "heading": "演示",
+          "bbox": [
+            103.92,
+            312.98,
+            141.22,
+            327.09
+          ],
+          "page_figure_references": [
+            "图4.6-1",
+            "图4.6-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx1:p115:1",
+          "pdf_index": 115,
+          "pdf_file_page": 116,
+          "heading": "做一做",
+          "bbox": [
+            102.51,
+            62.81,
+            138.51,
+            76.93
+          ],
+          "page_figure_references": []
+        }
+      ]
+    },
+    {
+      "id": "wuli-hsx2",
+      "source_file": "选择性必修第二册.pdf",
+      "sha256": "e134c14fbfe6d4242a6dcb8677d43bd889fe6a6d48b3dc7358ed911f86033bed",
+      "pdf_pages": 122,
+      "activities": [
+        {
+          "id": "wuli-hsx2:p7:1",
+          "pdf_index": 7,
+          "pdf_file_page": 8,
+          "heading": "演示",
+          "bbox": [
+            102.79,
+            66.36,
+            140.08,
+            80.48
+          ],
+          "page_figure_references": [
+            "图1.1-1",
+            "图1.1-2",
+            "图1.1-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p12:1",
+          "pdf_index": 12,
+          "pdf_file_page": 13,
+          "heading": "演示",
+          "bbox": [
+            95.51,
+            351.66,
+            132.81,
+            365.77
+          ],
+          "page_figure_references": [
+            "图1.2-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p18:1",
+          "pdf_index": 18,
+          "pdf_file_page": 19,
+          "heading": "演示",
+          "bbox": [
+            95.61,
+            442.9,
+            132.9,
+            457.01
+          ],
+          "page_figure_references": [
+            "图1.3-2"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p28:1",
+          "pdf_index": 28,
+          "pdf_file_page": 29,
+          "heading": "实验",
+          "bbox": [
+            95.51,
+            591.13,
+            132.81,
+            605.24
+          ],
+          "page_figure_references": []
+        },
+        {
+          "id": "wuli-hsx2:p34:1",
+          "pdf_index": 34,
+          "pdf_file_page": 35,
+          "heading": "做一做",
+          "bbox": [
+            94.39,
+            489.67,
+            130.39,
+            503.78
+          ],
+          "page_figure_references": [
+            "图2.2-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p42:1",
+          "pdf_index": 42,
+          "pdf_file_page": 43,
+          "heading": "做一做",
+          "bbox": [
+            97.71,
+            65.18,
+            133.71,
+            79.29
+          ],
+          "page_figure_references": [
+            "图2.3-10",
+            "图2.3-11",
+            "图2.3-12",
+            "图2.3-9"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p42:2",
+          "pdf_index": 42,
+          "pdf_file_page": 43,
+          "heading": "演示",
+          "bbox": [
+            95.61,
+            276.2,
+            132.9,
+            290.32
+          ],
+          "page_figure_references": [
+            "图2.3-10",
+            "图2.3-11",
+            "图2.3-12",
+            "图2.3-9"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p45:1",
+          "pdf_index": 45,
+          "pdf_file_page": 46,
+          "heading": "演示",
+          "bbox": [
+            102.88,
+            66.36,
+            140.18,
+            80.48
+          ],
+          "page_figure_references": [
+            "图2.4-1",
+            "图2.4-2",
+            "图2.4-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p45:2",
+          "pdf_index": 45,
+          "pdf_file_page": 46,
+          "heading": "演示",
+          "bbox": [
+            102.88,
+            494.3,
+            140.18,
+            508.41
+          ],
+          "page_figure_references": [
+            "图2.4-1",
+            "图2.4-2",
+            "图2.4-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p46:1",
+          "pdf_index": 46,
+          "pdf_file_page": 47,
+          "heading": "做一做",
+          "bbox": [
+            95.05,
+            150.22,
+            131.05,
+            164.33
+          ],
+          "page_figure_references": [
+            "图2.4-3",
+            "图2.4-4",
+            "图2.4-5"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p54:1",
+          "pdf_index": 54,
+          "pdf_file_page": 55,
+          "heading": "演示",
+          "bbox": [
+            95.51,
+            162.27,
+            132.81,
+            176.38
+          ],
+          "page_figure_references": [
+            "图3.1-2",
+            "图3.1-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p62:1",
+          "pdf_index": 62,
+          "pdf_file_page": 63,
+          "heading": "实验",
+          "bbox": [
+            96.08,
+            636.5,
+            133.37,
+            650.62
+          ],
+          "page_figure_references": [
+            "图3.3-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p75:1",
+          "pdf_index": 75,
+          "pdf_file_page": 76,
+          "heading": "演示",
+          "bbox": [
+            102.5,
+            547.69,
+            139.8,
+            561.81
+          ],
+          "page_figure_references": [
+            "图4.1-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p88:1",
+          "pdf_index": 88,
+          "pdf_file_page": 89,
+          "heading": "做一做",
+          "bbox": [
+            94.64,
+            495.57,
+            130.64,
+            509.68
+          ],
+          "page_figure_references": [
+            "图4.4-1",
+            "图4.4-2",
+            "图4.4-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p89:1",
+          "pdf_index": 89,
+          "pdf_file_page": 90,
+          "heading": "做一做",
+          "bbox": [
+            102.32,
+            262.66,
+            138.32,
+            276.77
+          ],
+          "page_figure_references": [
+            "图4.4-4",
+            "图4.4-5"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p101:1",
+          "pdf_index": 101,
+          "pdf_file_page": 102,
+          "heading": "实验",
+          "bbox": [
+            102.79,
+            540.19,
+            140.08,
+            554.3
+          ],
+          "page_figure_references": [
+            "图5.2-1",
+            "图5.2-2"
+          ]
+        },
+        {
+          "id": "wuli-hsx2:p103:1",
+          "pdf_index": 103,
+          "pdf_file_page": 104,
+          "heading": "实验",
+          "bbox": [
+            102.4,
+            66.36,
+            139.69,
+            80.48
+          ],
+          "page_figure_references": [
+            "图5.2-2",
+            "图5.2-5",
+            "图5.2-6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wuli-hsx3",
+      "source_file": "选择性必修第三册.pdf",
+      "sha256": "f8c2e78365349f773f03185b70790c3088225de6c7469e5078c4049a12cfab9e",
+      "pdf_pages": 143,
+      "activities": [
+        {
+          "id": "wuli-hsx3:p7:1",
+          "pdf_index": 7,
+          "pdf_file_page": 8,
+          "heading": "演示",
+          "bbox": [
+            103.24,
+            460.62,
+            140.53,
+            474.73
+          ],
+          "page_figure_references": [
+            "图1.1-2",
+            "图1.1-3"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p9:1",
+          "pdf_index": 9,
+          "pdf_file_page": 10,
+          "heading": "做一做",
+          "bbox": [
+            102.32,
+            171.62,
+            138.32,
+            185.73
+          ],
+          "page_figure_references": [
+            "图1.1-6",
+            "图1.1-7"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p11:1",
+          "pdf_index": 11,
+          "pdf_file_page": 12,
+          "heading": "实验：用油膜法估测油酸分子的大小",
+          "bbox": [
+            127.07,
+            61.45,
+            511.07,
+            90.71
+          ],
+          "page_figure_references": [
+            "图1.2-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p16:1",
+          "pdf_index": 16,
+          "pdf_file_page": 17,
+          "heading": "演示",
+          "bbox": [
+            95.51,
+            521.73,
+            132.81,
+            535.85
+          ],
+          "page_figure_references": [
+            "图1.3-3",
+            "图1.3-4"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p27:1",
+          "pdf_index": 27,
+          "pdf_file_page": 28,
+          "heading": "实验",
+          "bbox": [
+            102.89,
+            403.92,
+            140.19,
+            418.04
+          ],
+          "page_figure_references": [
+            "图2.1-1",
+            "图2.2-1"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p29:1",
+          "pdf_index": 29,
+          "pdf_file_page": 30,
+          "heading": "做一做",
+          "bbox": [
+            102.32,
+            65.9,
+            138.32,
+            80.01
+          ],
+          "page_figure_references": [
+            "图2.2-4",
+            "图2.2-5"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p36:1",
+          "pdf_index": 36,
+          "pdf_file_page": 37,
+          "heading": "实验",
+          "bbox": [
+            95.04,
+            154.96,
+            132.34,
+            169.07
+          ],
+          "page_figure_references": [
+            "图2.4-4",
+            "图2.4-5",
+            "图2.4-6"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p40:1",
+          "pdf_index": 40,
+          "pdf_file_page": 41,
+          "heading": "实验",
+          "bbox": [
+            95.54,
+            424.84,
+            132.83,
+            438.95
+          ],
+          "page_figure_references": [
+            "图2.5-1",
+            "图2.5-2"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p42:1",
+          "pdf_index": 42,
+          "pdf_file_page": 43,
+          "heading": "实验",
+          "bbox": [
+            95.84,
+            334.71,
+            133.14,
+            348.82
+          ],
+          "page_figure_references": [
+            "图2.5-5",
+            "图2.5-6",
+            "图2.5-7"
+          ]
+        },
+        {
+          "id": "wuli-hsx3:p52:1",
+          "pdf_index": 52,
+          "pdf_file_page": 53,
+          "heading": "做一做",
+          "bbox": [
+            95.05,
+            633.52,
+            131.05,
+            647.64
+          ],
+          "page_figure_references": [
+            "图3.1-3",
+            "图3.1-4"
+          ]
+        }
+      ]
+    }
+  ]
+}

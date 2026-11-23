@@ -1,0 +1,1009 @@
+[
+  {
+    "id": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f",
+    "title": "第五章 化工生产中的重要非金属元素",
+    "rich_title": "第五章 化工生产中的重要非金属元素",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f",
+    "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+    "create_time": "2023-06-15T19:00:47.824+0800",
+    "update_time": "2023-06-15T19:00:47.824+0800",
+    "child_nodes": [
+      {
+        "id": "7c9968f0-ecb8-3f64-be3e-37d0d6e2193e",
+        "title": "第一节 硫及其化合物",
+        "rich_title": "第一节 硫及其化合物",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/7c9968f0-ecb8-3f64-be3e-37d0d6e2193e",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:48.016+0800",
+        "update_time": "2023-06-15T19:00:48.016+0800",
+        "child_nodes": [
+          {
+            "id": "9798ebdb-9f81-3667-bc9d-a3b16d341077",
+            "title": "硫和二氧化硫",
+            "rich_title": "硫和二氧化硫",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/7c9968f0-ecb8-3f64-be3e-37d0d6e2193e/9798ebdb-9f81-3667-bc9d-a3b16d341077",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:48.219+0800",
+            "update_time": "2023-06-15T19:00:48.219+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "f926b193-59f1-36c2-93a8-737b39842126",
+            "title": "硫酸和硫酸根离子的检验",
+            "rich_title": "硫酸和硫酸根离子的检验",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/7c9968f0-ecb8-3f64-be3e-37d0d6e2193e/f926b193-59f1-36c2-93a8-737b39842126",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:48.403+0800",
+            "update_time": "2023-06-15T19:00:48.403+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "5a3c188c-ae02-31ce-987e-136e2edcdce7",
+            "title": "浓硫酸的性质",
+            "rich_title": "浓硫酸的性质",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/7c9968f0-ecb8-3f64-be3e-37d0d6e2193e/5a3c188c-ae02-31ce-987e-136e2edcdce7",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:48.593+0800",
+            "update_time": "2023-08-09T00:18:45.492+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "b2ea859b-688e-3be1-8f8c-dd14e9ef845a",
+            "title": "不同价态含硫物质的转化",
+            "rich_title": "不同价态含硫物质的转化",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/7c9968f0-ecb8-3f64-be3e-37d0d6e2193e/b2ea859b-688e-3be1-8f8c-dd14e9ef845a",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:48.785+0800",
+            "update_time": "2023-06-15T19:00:48.785+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "e74f373d-6aeb-351a-af3f-1d712bb36830",
+            "title": "练习与应用",
+            "rich_title": "练习与应用",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/7c9968f0-ecb8-3f64-be3e-37d0d6e2193e/e74f373d-6aeb-351a-af3f-1d712bb36830",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:48.967+0800",
+            "update_time": "2023-06-15T19:00:48.967+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "df6c5c5c-c403-3273-9c30-60f71dafc282",
+        "title": "第二节 氮及其化合物",
+        "rich_title": "第二节 氮及其化合物",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/df6c5c5c-c403-3273-9c30-60f71dafc282",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:49.164+0800",
+        "update_time": "2023-06-15T19:00:49.164+0800",
+        "child_nodes": [
+          {
+            "id": "b2762d06-999a-3af7-98d4-4d202c0d4495",
+            "title": "氮气与氮的固定、一氧化氮和二氧化氮",
+            "rich_title": "氮气与氮的固定、一氧化氮和二氧化氮",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/df6c5c5c-c403-3273-9c30-60f71dafc282/b2762d06-999a-3af7-98d4-4d202c0d4495",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:49.360+0800",
+            "update_time": "2023-06-15T19:00:49.360+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "e48b8ddd-145f-3758-94e8-3e0e32000327",
+            "title": "氨",
+            "rich_title": "氨",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/df6c5c5c-c403-3273-9c30-60f71dafc282/e48b8ddd-145f-3758-94e8-3e0e32000327",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:49.555+0800",
+            "update_time": "2023-08-09T00:18:46.608+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "62c7eb43-631d-35bb-86ea-61c00b4175e4",
+            "title": "铵盐和氨的制法",
+            "rich_title": "铵盐和氨的制法",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/df6c5c5c-c403-3273-9c30-60f71dafc282/62c7eb43-631d-35bb-86ea-61c00b4175e4",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:49.739+0800",
+            "update_time": "2023-06-15T19:00:49.739+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "990ba287-9401-3313-b8b9-66a1dd298bda",
+            "title": "硝酸",
+            "rich_title": "硝酸",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/df6c5c5c-c403-3273-9c30-60f71dafc282/990ba287-9401-3313-b8b9-66a1dd298bda",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:49.929+0800",
+            "update_time": "2023-06-15T19:00:49.929+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "ef57373c-63dc-36c7-8e57-2f960426631e",
+            "title": "酸雨及防治、研究与实践——测定雨水的pH",
+            "rich_title": "酸雨及防治、研究与实践——测定雨水的pH",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/df6c5c5c-c403-3273-9c30-60f71dafc282/ef57373c-63dc-36c7-8e57-2f960426631e",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:50.114+0800",
+            "update_time": "2023-08-09T00:18:47.318+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "e673ea06-d12d-34bb-9da7-d3ec49c4ada6",
+            "title": "练习与应用",
+            "rich_title": "练习与应用",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/df6c5c5c-c403-3273-9c30-60f71dafc282/e673ea06-d12d-34bb-9da7-d3ec49c4ada6",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:50.302+0800",
+            "update_time": "2023-06-15T19:00:50.302+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "dc3bff1d-c64b-3c18-8fc3-f1da8df751fc",
+        "title": "第三节 无机非金属材料",
+        "rich_title": "第三节 无机非金属材料",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/dc3bff1d-c64b-3c18-8fc3-f1da8df751fc",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:50.517+0800",
+        "update_time": "2023-06-15T19:00:50.517+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "529643d6-e701-31c7-bcc8-6d13a69a3a21",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/529643d6-e701-31c7-bcc8-6d13a69a3a21",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:50.711+0800",
+        "update_time": "2023-08-09T00:18:48.108+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b5c22eb1-ba8a-31d0-b774-d5b3b3120d0c",
+        "title": "实验活动4 用化学沉淀法去除粗盐中的杂质离子",
+        "rich_title": "实验活动4 用化学沉淀法去除粗盐中的杂质离子",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/b5c22eb1-ba8a-31d0-b774-d5b3b3120d0c",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:50.909+0800",
+        "update_time": "2023-06-15T19:00:50.909+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "81c8640e-f9d9-3f2f-a329-bf589f7ca5f5",
+        "title": "实验活动5 不同价态含硫物质的转化",
+        "rich_title": "实验活动5 不同价态含硫物质的转化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/81c8640e-f9d9-3f2f-a329-bf589f7ca5f5",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:51.089+0800",
+        "update_time": "2023-08-09T00:18:48.671+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "45bc4b03-839d-31e2-b983-a914ed1e660b",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "773bd1d1-1ab5-3c97-8a21-3ddbbc2d628f/45bc4b03-839d-31e2-b983-a914ed1e660b",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:51.279+0800",
+        "update_time": "2023-06-15T19:00:51.279+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce",
+    "title": "第六章 化学反应与能量",
+    "rich_title": "第六章 化学反应与能量",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce",
+    "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+    "create_time": "2023-06-15T19:00:51.465+0800",
+    "update_time": "2023-06-15T19:00:51.465+0800",
+    "child_nodes": [
+      {
+        "id": "a050a6b3-2e32-3918-b6da-4fcbde75d1a8",
+        "title": "第一节 化学反应与能量变化",
+        "rich_title": "第一节 化学反应与能量变化",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/a050a6b3-2e32-3918-b6da-4fcbde75d1a8",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:51.667+0800",
+        "update_time": "2023-06-15T19:00:51.667+0800",
+        "child_nodes": [
+          {
+            "id": "66329ef3-ed5a-312d-8906-d222111e7602",
+            "title": "化学反应与热能",
+            "rich_title": "化学反应与热能",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/a050a6b3-2e32-3918-b6da-4fcbde75d1a8/66329ef3-ed5a-312d-8906-d222111e7602",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:51.854+0800",
+            "update_time": "2023-06-15T19:00:51.854+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "c282f6fb-7d22-3874-aa6d-d8180ae8ba22",
+            "title": "化学反应与电能",
+            "rich_title": "化学反应与电能",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/a050a6b3-2e32-3918-b6da-4fcbde75d1a8/c282f6fb-7d22-3874-aa6d-d8180ae8ba22",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:52.039+0800",
+            "update_time": "2023-06-15T19:00:52.039+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "717c6962-df25-3445-a903-030e485d470e",
+            "title": "练习与应用",
+            "rich_title": "练习与应用",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/a050a6b3-2e32-3918-b6da-4fcbde75d1a8/717c6962-df25-3445-a903-030e485d470e",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:52.230+0800",
+            "update_time": "2023-06-15T19:00:52.230+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "0ccec63f-691f-355e-a87d-e183bf94f38b",
+        "title": "第二节 化学反应的速率与限度",
+        "rich_title": "第二节 化学反应的速率与限度",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/0ccec63f-691f-355e-a87d-e183bf94f38b",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:52.418+0800",
+        "update_time": "2023-06-15T19:00:52.418+0800",
+        "child_nodes": [
+          {
+            "id": "58c293a7-ffb7-34d9-a31c-07a16b594825",
+            "title": "化学反应的速率",
+            "rich_title": "化学反应的速率",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/0ccec63f-691f-355e-a87d-e183bf94f38b/58c293a7-ffb7-34d9-a31c-07a16b594825",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:52.612+0800",
+            "update_time": "2023-06-15T19:00:52.612+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "c7eb0da8-4d9a-3bed-a1a2-07d12ac20312",
+            "title": "影响化学反应速率的因素",
+            "rich_title": "影响化学反应速率的因素",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/0ccec63f-691f-355e-a87d-e183bf94f38b/c7eb0da8-4d9a-3bed-a1a2-07d12ac20312",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:52.806+0800",
+            "update_time": "2023-06-15T19:00:52.806+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "a2720677-8e8c-3943-bf59-7889df1cb2a2",
+            "title": "化学反应的限度、化学反应条件的控制",
+            "rich_title": "化学反应的限度、化学反应条件的控制",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/0ccec63f-691f-355e-a87d-e183bf94f38b/a2720677-8e8c-3943-bf59-7889df1cb2a2",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:53.017+0800",
+            "update_time": "2023-06-15T19:00:53.017+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "5f3b37e7-169c-37cd-a975-b10a230ee190",
+            "title": "练习与应用",
+            "rich_title": "练习与应用",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/0ccec63f-691f-355e-a87d-e183bf94f38b/5f3b37e7-169c-37cd-a975-b10a230ee190",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:53.204+0800",
+            "update_time": "2023-06-15T19:00:53.204+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "5707a282-54f0-3cec-98b9-ef01d14c7d99",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/5707a282-54f0-3cec-98b9-ef01d14c7d99",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:53.457+0800",
+        "update_time": "2023-08-09T00:18:51.227+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "1fe6ad0e-067e-3c48-a6d3-fd3d3c8bf588",
+        "title": "实验活动6 化学能转化成电能",
+        "rich_title": "实验活动6 化学能转化成电能",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/1fe6ad0e-067e-3c48-a6d3-fd3d3c8bf588",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:53.667+0800",
+        "update_time": "2023-08-09T00:18:51.562+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "9821b64a-283c-3c6b-879c-818d608dc523",
+        "title": "实验活动7 化学反应速率的影响因素",
+        "rich_title": "实验活动7 化学反应速率的影响因素",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/9821b64a-283c-3c6b-879c-818d608dc523",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:53.879+0800",
+        "update_time": "2023-08-09T00:18:51.905+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "c449130c-5760-3d5d-8319-673cf7dbdc1c",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "7d0d1e3a-166c-377f-aac0-d0b4b6bd48ce/c449130c-5760-3d5d-8319-673cf7dbdc1c",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:54.089+0800",
+        "update_time": "2023-06-15T19:00:54.089+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056",
+    "title": "第七章 有机化合物",
+    "rich_title": "第七章 有机化合物",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056",
+    "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+    "create_time": "2023-06-15T19:00:54.276+0800",
+    "update_time": "2023-06-15T19:00:54.276+0800",
+    "child_nodes": [
+      {
+        "id": "dfecf17e-50d3-3be0-a746-3319b65e2fea",
+        "title": "第一节 认识有机化合物",
+        "rich_title": "第一节 认识有机化合物",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/dfecf17e-50d3-3be0-a746-3319b65e2fea",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:54.477+0800",
+        "update_time": "2023-06-15T19:00:54.477+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "006218c7-4821-3ccf-aa32-20edcfb145a8",
+        "title": "第二节 乙烯与有机高分子材料",
+        "rich_title": "第二节 乙烯与有机高分子材料",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/006218c7-4821-3ccf-aa32-20edcfb145a8",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:54.666+0800",
+        "update_time": "2023-06-15T19:00:54.666+0800",
+        "child_nodes": [
+          {
+            "id": "1ed1ed76-221f-30ea-b9cf-d8300207b7e3",
+            "title": "乙烯",
+            "rich_title": "乙烯",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/006218c7-4821-3ccf-aa32-20edcfb145a8/1ed1ed76-221f-30ea-b9cf-d8300207b7e3",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:54.875+0800",
+            "update_time": "2023-06-15T19:00:54.875+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "99fbdf96-eb6f-38ea-b617-87f454c2cae4",
+            "title": "烃、同分异构体的书写",
+            "rich_title": "烃、同分异构体的书写",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/006218c7-4821-3ccf-aa32-20edcfb145a8/99fbdf96-eb6f-38ea-b617-87f454c2cae4",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:55.095+0800",
+            "update_time": "2023-06-15T19:00:55.095+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "20ddc68c-bd13-315c-9e33-e665d133e4d3",
+            "title": "有机高分子材料",
+            "rich_title": "有机高分子材料",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/006218c7-4821-3ccf-aa32-20edcfb145a8/20ddc68c-bd13-315c-9e33-e665d133e4d3",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:55.291+0800",
+            "update_time": "2023-06-15T19:00:55.291+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "214d69df-e37e-3865-911e-ea66f7753903",
+            "title": "练习与应用",
+            "rich_title": "练习与应用",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/006218c7-4821-3ccf-aa32-20edcfb145a8/214d69df-e37e-3865-911e-ea66f7753903",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:55.468+0800",
+            "update_time": "2023-06-15T19:00:55.468+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "f1193730-7aef-3ff6-8ff8-42794272c2e5",
+        "title": "第三节 乙醇与乙酸",
+        "rich_title": "第三节 乙醇与乙酸",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/f1193730-7aef-3ff6-8ff8-42794272c2e5",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:55.672+0800",
+        "update_time": "2023-06-15T19:00:55.672+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "f3a2f8e5-3beb-38a5-8e4a-29d03865ffe1",
+        "title": "第四节 基本营养物质",
+        "rich_title": "第四节 基本营养物质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/f3a2f8e5-3beb-38a5-8e4a-29d03865ffe1",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:55.860+0800",
+        "update_time": "2023-06-15T19:00:55.860+0800",
+        "child_nodes": [
+          {
+            "id": "1815c9a8-03a3-3f4a-95a5-090a64257f84",
+            "title": "糖类",
+            "rich_title": "糖类",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/f3a2f8e5-3beb-38a5-8e4a-29d03865ffe1/1815c9a8-03a3-3f4a-95a5-090a64257f84",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:56.057+0800",
+            "update_time": "2023-06-15T19:00:56.057+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "970a8193-4340-3f44-9da6-603055b22ef3",
+            "title": "蛋白质",
+            "rich_title": "蛋白质",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/f3a2f8e5-3beb-38a5-8e4a-29d03865ffe1/970a8193-4340-3f44-9da6-603055b22ef3",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:56.251+0800",
+            "update_time": "2023-06-15T19:00:56.251+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "b15811dd-3659-3c9c-bce7-bcdae3cb48ca",
+            "title": "油脂",
+            "rich_title": "油脂",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials",
+              "hidden": false
+            },
+            "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/f3a2f8e5-3beb-38a5-8e4a-29d03865ffe1/b15811dd-3659-3c9c-bce7-bcdae3cb48ca",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:56.457+0800",
+            "update_time": "2023-06-15T19:00:56.457+0800",
+            "child_nodes": null
+          },
+          {
+            "id": "46610ced-b44a-3e42-830a-efc2970412d4",
+            "title": "练习与应用",
+            "rich_title": "练习与应用",
+            "description": null,
+            "chapter_type": null,
+            "language": "zh-CN",
+            "custom_properties": {
+              "tree_type": "teachingmaterials"
+            },
+            "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/f3a2f8e5-3beb-38a5-8e4a-29d03865ffe1/46610ced-b44a-3e42-830a-efc2970412d4",
+            "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+            "create_time": "2023-06-15T19:00:56.661+0800",
+            "update_time": "2023-08-09T00:18:54.706+0800",
+            "child_nodes": null
+          }
+        ]
+      },
+      {
+        "id": "d8054554-6504-3df5-ad19-89acb30bb8e9",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/d8054554-6504-3df5-ad19-89acb30bb8e9",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:56.869+0800",
+        "update_time": "2023-06-15T19:00:56.869+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "275d1307-cbf4-341f-ba54-bea89d97d397",
+        "title": "实验活动8 搭建球棍模型认识有机化合物分子结构的特点",
+        "rich_title": "实验活动8 搭建球棍模型认识有机化合物分子结构的特点",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/275d1307-cbf4-341f-ba54-bea89d97d397",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:57.068+0800",
+        "update_time": "2023-08-09T00:18:55.236+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "766ff26a-8353-3eb2-8b7a-caa33f250bc4",
+        "title": "实验活动9 乙醇、乙酸的主要性质",
+        "rich_title": "实验活动9 乙醇、乙酸的主要性质",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/766ff26a-8353-3eb2-8b7a-caa33f250bc4",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:57.268+0800",
+        "update_time": "2023-08-09T00:18:55.576+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "fb7bd79b-0678-3051-85ee-c04031a80bf0",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "bfaacd91-0fe2-398d-9ed2-f8eefd79f056/fb7bd79b-0678-3051-85ee-c04031a80bf0",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:57.484+0800",
+        "update_time": "2023-06-15T19:00:57.484+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "6cac3f81-8163-3b2e-badb-79240c5a2a72",
+    "title": "第八章 化学与可持续发展",
+    "rich_title": "第八章 化学与可持续发展",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "6cac3f81-8163-3b2e-badb-79240c5a2a72",
+    "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+    "create_time": "2023-06-15T19:00:57.681+0800",
+    "update_time": "2023-06-15T19:00:57.681+0800",
+    "child_nodes": [
+      {
+        "id": "326dc406-0f44-3c4d-856a-5b3644cdab83",
+        "title": "第一节 自然资源的开发利用",
+        "rich_title": "第一节 自然资源的开发利用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "6cac3f81-8163-3b2e-badb-79240c5a2a72/326dc406-0f44-3c4d-856a-5b3644cdab83",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:57.879+0800",
+        "update_time": "2023-06-15T19:00:57.879+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "17db38e0-02c5-3372-a9f0-74ad4796fb72",
+        "title": "第二节 化学品的合理使用",
+        "rich_title": "第二节 化学品的合理使用",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "6cac3f81-8163-3b2e-badb-79240c5a2a72/17db38e0-02c5-3372-a9f0-74ad4796fb72",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:58.075+0800",
+        "update_time": "2023-06-15T19:00:58.075+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "2ca64ef4-0e5e-343b-8236-5ebfcbab03f0",
+        "title": "第三节 环境保护与绿色化学",
+        "rich_title": "第三节 环境保护与绿色化学",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "6cac3f81-8163-3b2e-badb-79240c5a2a72/2ca64ef4-0e5e-343b-8236-5ebfcbab03f0",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:58.259+0800",
+        "update_time": "2023-06-15T19:00:58.259+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "4f864656-adaf-332b-bfd5-6faf6d0e22d1",
+        "title": "整理与提升",
+        "rich_title": "整理与提升",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "6cac3f81-8163-3b2e-badb-79240c5a2a72/4f864656-adaf-332b-bfd5-6faf6d0e22d1",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:58.447+0800",
+        "update_time": "2023-08-09T00:18:56.872+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "147cb58d-dd00-34ad-9321-1b2aa6f72ae8",
+        "title": "全章复习",
+        "rich_title": "全章复习",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials"
+        },
+        "node_path": "6cac3f81-8163-3b2e-badb-79240c5a2a72/147cb58d-dd00-34ad-9321-1b2aa6f72ae8",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:58.644+0800",
+        "update_time": "2023-08-09T00:18:57.239+0800",
+        "child_nodes": null
+      }
+    ]
+  },
+  {
+    "id": "3202bc88-11c2-3aea-83d3-f295b4ec9ec7",
+    "title": "综合专题",
+    "rich_title": "综合专题",
+    "description": null,
+    "chapter_type": null,
+    "language": "zh-CN",
+    "custom_properties": {
+      "tree_type": "teachingmaterials"
+    },
+    "node_path": "3202bc88-11c2-3aea-83d3-f295b4ec9ec7",
+    "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+    "create_time": "2023-06-15T19:00:58.846+0800",
+    "update_time": "2023-06-15T19:00:58.846+0800",
+    "child_nodes": [
+      {
+        "id": "0cf1003d-ffac-31de-9d9b-32e2fd1af74e",
+        "title": "突破无机推断题",
+        "rich_title": "突破无机推断题",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3202bc88-11c2-3aea-83d3-f295b4ec9ec7/0cf1003d-ffac-31de-9d9b-32e2fd1af74e",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:59.046+0800",
+        "update_time": "2023-06-15T19:00:59.046+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "b14ccd34-466e-3e71-9edf-dfb1fcd0e751",
+        "title": "探究性实验设计的一般思路",
+        "rich_title": "探究性实验设计的一般思路",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3202bc88-11c2-3aea-83d3-f295b4ec9ec7/b14ccd34-466e-3e71-9edf-dfb1fcd0e751",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:59.236+0800",
+        "update_time": "2023-06-15T19:00:59.236+0800",
+        "child_nodes": null
+      },
+      {
+        "id": "488f6ffd-3133-3b1f-a4c3-58a0169d4389",
+        "title": "物质制备实验设计的一般思路",
+        "rich_title": "物质制备实验设计的一般思路",
+        "description": null,
+        "chapter_type": null,
+        "language": "zh-CN",
+        "custom_properties": {
+          "tree_type": "teachingmaterials",
+          "hidden": false
+        },
+        "node_path": "3202bc88-11c2-3aea-83d3-f295b4ec9ec7/488f6ffd-3133-3b1f-a4c3-58a0169d4389",
+        "tree_id": "c1048b60-3971-432e-9ffe-23327fa04366",
+        "create_time": "2023-06-15T19:00:59.426+0800",
+        "update_time": "2023-06-15T19:00:59.426+0800",
+        "child_nodes": null
+      }
+    ]
+  }
+]

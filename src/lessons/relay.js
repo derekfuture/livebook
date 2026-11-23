@@ -5,6 +5,7 @@
 //   按下按钮：线圈中有电流，电磁铁把衔铁吸下，B、C 接通（电动机转、绿灯亮），A、B 断开（红灯灭）；松开按钮，弹簧把衔铁拉回去。
 // 直接操作：点开关 / 按住按钮；拖铁钉上下；拖滑片。面板也有。
 import * as THREE from 'three';
+import { relayMechanism } from './kit/relayMechanism.js';
 import { seg, buttons, goals, note, table } from './kit/ui.js';
 import { draggable, clamp } from './kit/interact.js';
 import { battery, switchPart } from './kit/circuit.js';
@@ -73,19 +74,7 @@ export default {
     group.add(nailG);
 
     // ================= 场景二：电磁继电器 =================
-    const relG = new THREE.Group();
-    const baseR = inked(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.006, 0.07), paint(0x2f4f8a)), { width: 1.2 }); baseR.position.y = 0.003;
-    const core = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.035, 18), paint(0x9aa3b2)), 0.001); core.position.set(-0.005, 0.024, 0);
-    const cw = hull(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.028, 20), paint(0xc8743a)), 0.001); cw.position.set(-0.005, 0.022, 0);
-    const post = inked(new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.05, 0.016), paint(0xc9b38a)), { width: 1 }); post.position.set(-0.04, 0.028, 0);
-    const armG = new THREE.Group(); armG.position.set(-0.04, 0.05, 0);
-    const armM = inked(new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.004, 0.014), paint(0xc9b38a)), { width: 1 }); armM.position.x = 0.042;
-    const contactB = new THREE.Mesh(new THREE.SphereGeometry(0.003, 10, 8), paint(0x23293a)); contactB.position.x = 0.078;
-    armG.add(armM, contactB);
-    const spring = new THREE.Mesh(new THREE.TorusKnotGeometry(0.004, 0.0008, 40, 6, 1, 8), paint(0x8f99a8)); spring.position.set(-0.05, 0.035, 0); spring.scale.set(1, 2.5, 1);
-    const cA = new THREE.Mesh(new THREE.SphereGeometry(0.003, 10, 8), paint(0x23293a)); cA.position.set(0.038, 0.058, 0);
-    const cC = new THREE.Mesh(new THREE.SphereGeometry(0.003, 10, 8), paint(0x23293a)); cC.position.set(0.038, 0.04, 0);
-    relG.add(baseR, core, cw, post, armG, spring, cA, cC);
+    const { group: relG, arm: armG } = relayMechanism();
     for (const [t, x, y] of [['A', 0.05, 0.062], ['B', 0.055, 0.05], ['C', 0.05, 0.038], ['D', -0.015, 0.005], ['E', 0.005, 0.005]]) tag(t, 'mag').loc(relG, x, y, 0.012);
     tag('衔铁', 'pill').loc(relG, -0.005, 0.065, 0); tag('电磁铁', 'pill').loc(relG, -0.005, 0.01, 0.03); tag('弹簧', 'pill').loc(relG, -0.06, 0.02, 0.02);
     // 工作电路：电动机（风扇）、红灯（A–B 接通时亮）、绿灯（B–C 接通时亮）

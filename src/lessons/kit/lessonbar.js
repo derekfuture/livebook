@@ -14,10 +14,10 @@ import { inviteRing } from './invite.js';
  * reels: { name: { seal, label, shots: [{ cap, cam, dur, speed?, enter?, during? }], onStart?, onEnd?(done) } }
  *   cam: [target, dir, dist] 或 (k) => [...]（实验局部坐标，同 ctx.look）；没有 cam 的镜头回到整体
  */
-export function lessonBar({ look, back, steps, reels, demo = 'demo', group = null }) {
-  const ring = group ? inviteRing(group) : null;
+export function lessonBar({ look, back, steps, reels = {}, demo = 'demo', group = null, ringOptions }) {
+  const ring = group ? inviteRing(group, ringOptions) : null;
   const left = new Set(steps.map((s) => s.id));
-  let ui = null, say = null, sayFor = null;
+  let ui = null, say = null, sayFor = null, near = false;
   const seal = h('span', { class: 'lb-seal' }, '动手');
   const num = h('b', { class: 'lb-n' });
   const text = h('span', { class: 'lb-txt' });
@@ -28,13 +28,13 @@ export function lessonBar({ look, back, steps, reels, demo = 'demo', group = nul
   const backB = h('button', { class: 'lb-back', onclick: () => back() }, '回到全景');
   const demoB = h('button', { class: 'lb-demo', onclick: () => api.play(demo) }, `▶ 看${reels[demo]?.label || '演示'}`);
   const snd = h('button', { class: 'lb-snd', title: '声音', onclick: () => snd.classList.toggle('off', sfx.mute()) }, '♪');
-  const bar = h('div', { class: 'lbar do' }, seal, h('span', { class: 'lb-main' }, num, text), marks, pauseB, exitB, backB, demoB, snd);
+  const bar = h('div', { class: 'lbar do' }, seal, h('span', { class: 'lb-main' }, num, text), marks, pauseB, exitB, backB, reels[demo] ? demoB : null, snd);
   document.body.append(bar);
 
   let reel = null, shots = null, i = -1, t = 0, paused = false, endMsg = 0;
   const setCam = (s, k) => { const c = typeof s.cam === 'function' ? s.cam(k) : s.cam; if (c) look(c[0], c[1], c[2], () => api.stop()); };
   const renderDo = () => {
-    bar.className = 'lbar do';
+    bar.className = near ? 'lbar do near' : 'lbar do';
     seal.textContent = '动手';
     marks.replaceChildren(...stepEls);
     const k = steps.findIndex((s) => left.has(s.id));
@@ -68,6 +68,7 @@ export function lessonBar({ look, back, steps, reels, demo = 'demo', group = nul
     get stepList() { return steps; },
     /** 演示 / 总结完以后在栏里留一句话（几秒后回到当前步骤） */
     attach(u) { ui = u; renderDo(); api._need(); },
+    get ui() { return ui; },
     _need() { if (!ui) return; if (!left.size) ui.unlock(); else ui.need('还差：' + steps.filter((s) => left.has(s.id)).map((s) => s.title).join('；')); },
     done(id) { if (left.delete(id)) { say = null; renderDo(); api._need(); sfx.ding(990, { gain: 0.05, decay: 0.35 }); } return !left.size; },
     undo(...ids) { let ch = false; for (const id of ids) if (!left.has(id) && steps.some((s) => s.id === id)) { left.add(id); ch = true; } if (ch) { renderDo(); api._need(); } },
@@ -77,7 +78,7 @@ export function lessonBar({ look, back, steps, reels, demo = 'demo', group = nul
     get finished() { return !left.size; },
     /** 当前这一步的补充说明（例如“酒精灯还没点燃”），换到下一步时自动清掉 */
     say(html, forStep = api.current || 'end') { say = html; sayFor = forStep; if (!reel) renderDo(); },
-    near(on) { bar.classList.toggle('near', !!on); },
+    near(on) { near = !!on; bar.classList.toggle('near', near); },
     play(name) {
       if (reel) api.stop();
       const R = reels[name]; if (!R) return;

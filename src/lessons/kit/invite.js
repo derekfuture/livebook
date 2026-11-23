@@ -9,7 +9,7 @@ const ringTex = () => tex || (tex = canvasTex(128, 128, (g, W) => {
   g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 7; g.beginPath(); g.arc(W / 2, W / 2, W * 0.4, 0, Math.PI * 2); g.stroke();
 }));
 
-export function inviteRing(group, { color = 0xff6a3d, ground = 0.02 } = {}) {
+export function inviteRing(group, { color = 0xff6a3d, ground = 0.02, minOpacity = 0 } = {}) {
   const ring = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: ringTex(), color, transparent: true, opacity: 0, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.renderOrder = 6; ring.raycast = () => {}; ring.visible = false;
   group.add(ring);
@@ -38,10 +38,11 @@ export function inviteRing(group, { color = 0xff6a3d, ground = 0.02 } = {}) {
       box.getCenter(c); box.getSize(sz);
       const r = Math.hypot(sz.x, sz.z) / 2 + 0.012;      // 按底面的对角线：方箱子四个角外面也露出光圈
       const onTable = box.min.y < ground;
-      ring.position.set(c.x, onTable ? 0.0015 : c.y, c.z);
+      const ry = target.userData?.ringY;          // 插在试管架上的东西：桌面那一圈会被架子挡住，课程给一个高度（架子顶上）
+      ring.position.set(c.x, typeof ry === 'number' ? ry : onTable ? 0.0015 : c.y, c.z);
       const k = (t * 0.9) % 1;
       ring.scale.setScalar(r * 2 * (0.85 + k * 0.4));
-      ring.material.opacity = 0.85 * (1 - k);
+      ring.material.opacity = minOpacity + (0.85 - minOpacity) * (1 - k);
       ring.visible = true;
     },
     dispose() { group.remove(ring); ring.geometry.dispose(); ring.material.dispose(); },

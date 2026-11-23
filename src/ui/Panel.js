@@ -66,6 +66,7 @@ export class Panel {
     this._onFold = onFold;
     this._onStep = onStep;
     this.prediction = null;
+    this.observation = undefined;
     this.unlocked = false;
     if (def.index) {          // 目录类的页（地球目录）：只有标题、一句介绍、一块控件区；没有“动手→对照课本原文”的步骤，也不盖章
       this.explore = true; this.statusEl = h('p', { class: 'status' }); this.controlsEl = h('div'); this.dataEl = h('div'); this.nowEl = h('div', { class: 'now' }, this.statusEl);
@@ -163,19 +164,30 @@ export class Panel {
     }
     if (stamps.has(def.id)) setTimeout(() => this.unlock(true), 0);     // 以前做完过：结论可以直接看，但这一次的进度照常显示
 
+    const self = this;
     return {
       controls: this.controlsEl,
+      notes: this.notesEl,
       data: this.dataEl,
       status: (msg) => { this.statusEl.innerHTML = msg || ''; },
       ask: (html) => { if (this.askP) this.askP.innerHTML = html; if (this.askMini) this.askMini.innerHTML = html; },          // 换了情境（从地球上别的地方进来）：开头的问题跟着换
       need: (msg) => this.need(msg),
       unlock: () => this.unlock(),
-      relock: () => this.relock(),
+      relock: (o) => this.relock(o),
       prediction: () => this.prediction,
+      observePrediction: (text) => {
+        if (this.observation === text) return;
+        this.observation = text;
+        if (this.flap.classList.contains('open')) {
+          this._predictionComparison();
+          this.flap.style.minHeight = `${this.answerEl.offsetHeight}px`;
+        }
+      },
       // 给自己排步骤的实验用：当前提示（status + 题目）所在的块、面板本身、翻到第几步
       now: this.nowEl,
       el: this.el,
       go: (i) => this.go(i),
+      get step() { return self.step; },          // 现在翻在第几页（0 = 预测 / 问题）
       fold: (on) => this.fold(on),          // 收起 / 展开面板（数学的活页：纸面要大，面板先收成一条书脊，做完再展开）
     };
   }
@@ -218,7 +230,7 @@ export class Panel {
     for (const r of rows) { r.classList.add('answers'); this.askEl.append(r); }
     const notes = [...this.controlsEl.children].filter((x) => x.matches('p.note') && x.textContent.length > 24);
     for (const n of notes) this.notesEl.append(n);
-    this.notesBox.hidden = !notes.length;
+    this.notesBox.hidden = !this.notesEl.childElementCount;
   }
 
   need(msg) {
@@ -241,38 +253,61 @@ export class Panel {
   }
 
   /** 重来：这一次的进度回到刚打开的样子——结论重新合上、锁上（以前盖过的章、书架上的记录不动） */
-  relock() {
+  relock({ full = true } = {}) {          // full：全部重来（回到第一次打开的样子）；false：只是换一套器材再做一轮（停在实验页）
     this.unlocked = false;
     this.flap.classList.add('locked'); this.flap.classList.remove('open');
     this.flapFront.querySelector('span').textContent = this.explore ? '🔒 先动手看看' : '🔒 做完实验再掀开';
     this.need(this.def.need || '');
     this.toProve.disabled = true;
     if (this.gBtns) { this.guessIdx = null; this.gBtns.forEach((b) => { b.classList.remove('on'); b.disabled = false; }); this.guessNote.hidden = true; }          // 重来：重新猜
+    if (!this.explore && this.opts && this.prediction != null) {          // 预测也回到没猜的样子（“全部重来”要完全回到第一次打开时）
+      this.prediction = null;
+      [...this.opts.children].forEach((b) => b.classList.remove('picked')); this.opts.classList.remove('locked');
+      this.goBtn.classList.add('ghost'); this.goBtn.textContent = '不猜了，直接动手 →';
+      this.tabs?.[0]?.classList.remove('done', 'skip');
+      localStorage.removeItem(`livebook.pick.${this.def.id}`);
+    }
     this.tabs?.[1]?.classList.remove('done');
+    clearTimeout(this._sealT); this.tabs?.[2]?.classList.remove('done'); this.sealEl?.classList.remove('on');          // 这一轮的结论也回到没掀开的样子（以前盖过的章、书架上的记录不动）
+    if (full) {
+      this.tabs?.[0]?.classList.remove('done', 'skip');          // 上一轮点了“不猜了”留下的跳过标记也清掉（探索模式的问题页同样回到没读过）
+      this.el.querySelectorAll('details[open]').forEach((d) => { d.open = false; });          // 展开过的折叠项（更多、换个条件、模型和出处……）收起来
+      if (this.tabs?.length && this.step !== 0) this.go(0);          // 回到第一页（预测 / 问题），和第一次打开一样
+    }
     this.el.querySelector('.p-body').scrollTop = 0;
   }
 
   _openFlap() {
     if (!this.unlocked || this.flap.classList.contains('open')) return;
+    this._predictionComparison();
+    this.flap.classList.add('open');
+    this.flap.style.minHeight = `${this.answerEl.offsetHeight}px`;
+    this._sealT = setTimeout(() => { this.sealEl.classList.add('on'); stamps.give(this.def.id); this.tabs[2].classList.add('done'); }, 950);
+  }
+
+  _predictionComparison() {
     const v = this.verdictEl;
     // 预测模式：这次没猜就回看上次的预测（以前做过的直接掀结论时）；探索模式没有 predict，不读旧的预测记录
     const p = this.explore ? null : this.def.predict;
-    const last = p ? localStorage.getItem(`livebook.pick.${this.def.id}`) : null;
+    const last = p && this.observation === undefined ? localStorage.getItem(`livebook.pick.${this.def.id}`) : null;
     const mine = p ? this.prediction ?? (last != null && p.options[+last] != null ? +last : null) : null;
     const who = this.prediction == null ? '上次你的预测' : '你的预测';
-    if (this.explore) { const g = this._guessSay(); v.className = `verdict${g ? (this.guessIdx === this.def.guess.answer ? ' ok' : ' no') : ''}`; v.textContent = g; }          // 探索模式：先猜了就说猜得对不对；没猜不说“这次没有先预测”
+    // 猜是可选的，不判对错：只把猜的和实际的并排放（QUALITY 二.5）
+    if (this.explore) { v.className = 'verdict'; v.textContent = this._guessSay(); }          // 探索模式：先猜了就把猜的和实际的并排放；没猜不说“这次没有先预测”
+    else if (this.observation !== undefined) {
+      const entry = (title, text) => h('span', {}, h('b', {}, title), h('span', {}, text));
+      v.className = 'verdict comparison';
+      v.replaceChildren(entry('你的预测', mine == null ? '这次没有先预测。' : p.options[mine]),
+        entry('实验里看到的', this.observation || '本轮尚未完成比较。'));
+    }
     else if (mine == null) { v.className = 'verdict'; v.textContent = '这次没有先预测。对照实验看看课本的结论。'; }
-    else if (mine === p.answer) { v.className = 'verdict ok'; v.textContent = `✓ ${who}「${p.options[mine]}」是对的。`; }
-    else { v.className = 'verdict no'; v.textContent = `${who}是「${p.options[mine]}」，对照实验再想一想。正确的是「${p.options[p.answer]}」。`; }
-    this.flap.classList.add('open');
-    this.flap.style.minHeight = `${this.answerEl.offsetHeight}px`;
-    setTimeout(() => { this.sealEl.classList.add('on'); stamps.give(this.def.id); this.tabs[2].classList.add('done'); }, 950);
+    else { v.className = 'verdict'; v.textContent = `${who}：“${p.options[mine]}”　　实验里看到的：“${p.options[p.answer]}”`; }
   }
 
   /** 探索模式里先猜的那一下：猜对了没有（没猜就空着） */
   _guessSay() {
     const g = this.def?.guess; if (!g || this.guessIdx == null) return '';
-    return this.guessIdx === g.answer ? `你先猜的“${g.options[this.guessIdx]}”是对的。` : `你先猜的是“${g.options[this.guessIdx]}”，实际是“${g.options[g.answer]}”。`;
+    return `你先猜的：“${g.options[this.guessIdx]}”　　实际：“${g.options[g.answer]}”`;          // 不判对错，并排放
   }
 
   /** 退出时存下这次的预测和数据表，下次进来能回看 */
