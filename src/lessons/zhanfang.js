@@ -11,6 +11,7 @@
 // 所有尺寸、展开的每一刻都由真几何算出来：铺平时母线长、毡边长都不变（等距变形）；课本的数按 π 取 3.142 逐步算。
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -397,7 +398,7 @@ export default {
       else { hide(LN.axis); hide(LN.rTop); hide(LN.pole); hide(LN.sq); setLab(LB.h1, null); setLab(LB.rT, null); setLab(LB.l, null); }
       // 屋顶毡在草地上：要剪的那条母线（鼠标停的地方）、剪口、毡边（蓝）
       const onG = S.onGrass;
-      if (S.beat === 'cut' && S.hov != null && !S.held && S.cut <= 0) { show(LN.prev, coneRay(S.hov)); const m = coneRay(S.hov)[3]; setLab(LB.lp, [['l', C.g], [' ≈ 2.404', C.g, false]], [m[0] + 0.55, m[1] + 0.15, m[2] + 0.1]); }
+      if (S.beat === 'cut' && !S.held && S.cut <= 0) { const guide = coneRay(S.hov ?? 0.35); show(LN.prev, guide); const m = guide[3]; setLab(LB.lp, [['l', C.g], [' ≈ 2.404', C.g, false]], [m[0] + 0.55, m[1] + 0.15, m[2] + 0.1]); }
       else { hide(LN.prev); setLab(LB.lp, null); }
       if (onG && S.cut > 0 && S.ft <= 0) show(LN.cut, coneRay(S.phiC, L * S.cut, 0.04)); else hide(LN.cut);
       if (onG && S.ft > 0) { show(LN.eA, roofRay(0)); show(LN.eB, roofRay(TH)); const a = roofRay(0)[3], b = roofRay(TH)[3];
@@ -460,7 +461,7 @@ export default {
       caption('沿一条母线剪开了', '铺平以后，会是什么形状？'); prompt('铺平了，是什么形状？');
     }
     function flattened() {
-      beat('fan'); S.f.fan = true; S.race = now() + 0.9; S.raceDone = false;
+      beat('fan'); S.f.fan = true; S.race = now(); S.raceDone = false;
       sfx.whoosh({ dur: 0.5, freq: 300, gain: 0.06 }); sfx.ding(1320, { gain: 0.07 }); flash([CS[0], 0.08, CS[1]], GOLD, true, 0, 0.3, 1.3); flash([CS[0], 0.08, CS[1]], BLUE, true, 0.25, 0.3, 1.3);
       caption('圆锥的侧面展开图是一个扇形', '这个扇形的半径为 l，扇形的弧长为底面圆的周长 2πr');
       board(`<span class="n">3</span>沿一条母线将圆锥的侧面剪开并展平，得到的圆锥的侧面展开图是一个<b>扇形</b>：半径为 <span class="g">${I('l')}</span>，弧长为底面圆的周长 <span class="b">2π${I('r')}</span>`, 'fan');
@@ -544,7 +545,7 @@ export default {
         onEnd: () => { if (S.held !== 'lift') return; S.held = ''; drop('up');
           if (Math.hypot(S.free[0], S.free[1]) < 1.2) animFp(ROOF, 0.45);          // 没拿开：放回屋顶
           else animFp([CS[0], HUP, CS[1]], 0.55, () => animFp(GRASS, 0.55, lifted)); } },          // 拿开了：飘到右边空地上，落下
-      { obj: cutPick, plane: 'xy', offset: CS[1], hint: () => (S.hov == null ? '' : '从顶点往下拖，沿这条母线剪开'), enabled: ok('cut'),
+      { obj: cutPick, cueShape: LN.prev.parts[0].m, cueText: '从顶点往下拖，沿这条母线剪开', plane: 'xy', offset: CS[1], hint: () => (S.hov == null ? '' : '从顶点往下拖，沿这条母线剪开'), enabled: ok('cut'),
         onStart: (p) => { if (S.hov == null) return; S.held = 'cut'; S.phiC = S.hov; S.cut = 0.03; sfx.whoosh({ dur: 0.25, freq: 2400, gain: 0.025 }); },
         onDrag: (p) => { if (S.held !== 'cut') return; S.cut = clamp(Math.max(S.cut, (H1 + 0.03 - p.y) / H1), 0, 1); S.moved = now(); if (S.cut >= 0.97) cutDone(); },
         onEnd: () => { if (S.held !== 'cut') return; S.held = ''; if (S.cut > 0.5) anim('cut', 1, 0.15, cutDone); else anim('cut', 0, 0.3); } },
@@ -552,7 +553,7 @@ export default {
         onStart: (p) => { S.held = 'open'; S.t0 = S.ft; S.grab = [p.x, p.z]; sfx.whoosh({ dur: 0.5, freq: 600, gain: 0.04 }); },
         onDrag: (p) => { if (S.held !== 'open') return; S.ft = clamp(S.t0 + Math.hypot(p.x - S.grab[0], p.z - S.grab[1]) / 2.2, 0, 1); S.moved = now(); },
         onEnd: () => { if (S.held !== 'open') return; S.held = ''; if (S.ft > 0.4) anim('ft', 1, 0.2 + 0.55 * (1 - S.ft), flattened, (k) => 1 - (1 - k) * (1 - k)); else anim('ft', 0, 0.45); } },
-      { obj: fanPick, plane: 'xz', offset: 0.05, hint: () => '按住缺口旁边的半径，转过去把它补满', enabled: ok('patch'),
+      { obj: fanPick, cueShape: LN.eB.parts[0].m, plane: 'xz', offset: 0.05, hint: () => '按住缺口旁边的半径，转过去把它补满', enabled: ok('patch'),
         onStart: (p) => { S.held = 'patch'; sfx.whoosh({ dur: 0.4, freq: 800, gain: 0.03 }); },
         onDrag: (p) => { if (S.held !== 'patch') return; const d = wrap2(Math.atan2(p.x - CS[0], p.z - CS[1]) - (S.phiC + TH)); S.pq = d > GAP + (2 * Math.PI - GAP) / 2 ? 0 : clamp(d / GAP, 0, 1); S.moved = now(); },
         onEnd: () => { if (S.held !== 'patch') return; S.held = ''; if (S.pq > 0.72) anim('pq', 1, 0.3, patched); else anim('pq', 0, 0.35); } },
@@ -567,7 +568,11 @@ export default {
     const hover = (r) => { if (S.beat !== 'cut' || S.held) return; const h = r.intersectObject(cutPick, false)[0]; if (!h) { S.hov = null; return; } const lp = world.worldToLocal(h.point.clone()); S.hov = Math.atan2(lp.x - CS[0], lp.z - CS[1]); };
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } hover(r); return dragApi.down(r, e); }, move: (r, e) => { hover(r); return dragApi.move(r, e); }, up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     // 清场重来（换一批学生，或者想重新讲一遍）——键盘 R
-    function reset() { runId++; tweens.length = 0; S = fresh(); wallKey = roofKey = ''; rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+      if (S.anim) return;
+      return { wall: wallPick, lift: roofPick, cut: cutPick, open: openPick, patch: fanPick, wrap: stripPick }[S.beat];
+    });
+    function reset() { cue.reset(); runId++; tweens.length = 0; S = fresh(); wallKey = roofKey = ''; rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
     // 卡住很久，才给一句提示（不拦着人）
@@ -581,13 +586,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.97,
       size: { w: 13.5 * U, d: 9.2 * U, h: (GD + 3.4) * U },
       view: { elev: 44, azim: 6, lookY: 0.3, frameMargin: 0.95 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'zf-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.zb-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S.ask) ui.status?.(S.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t; void dt;
         stepTweens(t);
@@ -609,6 +614,7 @@ export default {
         for (const [i, s] of flock.entries()) { s.s.rotation.y = s.yaw + 0.22 * Math.sin(t * 0.25 + i * 1.7); if (s.graze) s.head.position.y = 0.3 + 0.03 * Math.sin(t * 2.2 + i); }
         world.updateMatrixWorld(); camL.copy(camera.position); world.worldToLocal(camL);
         for (const Ln of LINES) if (Ln.pts) refreshLine(Ln);
+        cue.update();
       },
       debug: {
         get S() { return S; }, rows, R, L, TH, CS, U, GD, HT, H1, H2, pose,

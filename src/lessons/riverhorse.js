@@ -10,6 +10,7 @@
 //   C 这个点还有什么特别？牵回 C：∠1 = ∠2（重拍 3：一束光从 A 射到 C 再反射到 B——光行最速原理）→ 答开头的问题。
 import * as THREE from 'three';
 import { add, sub, mul, unit, dist, clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -44,7 +45,7 @@ export default {
     src: '课本 · 综合与实践 最短路径问题（牧民饮马问题，图 1–4）',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     let ui = null, dead = false;
     const T0 = performance.now(), now = () => (performance.now() - T0) / 1000;
@@ -441,7 +442,7 @@ export default {
     const uv = (p) => [p.x, -p.z];
     const foldDrag = (obj) => ({ obj, plane: 'xz', offset: G + 0.002, hint: () => '按住，往河对岸翻过去', enabled: () => S.beat === 'fold' && !S.flipped, onStart: (p) => foldDown(uv(p)), onDrag: (p) => foldMove(uv(p)), onEnd: () => foldUp() });
     const drags = [
-      { obj: horsePick, plane: 'xz', offset: G + 0.004, hint: () => '拖着马沿河边走', onStart: (p) => horseDown(uv(p)), onDrag: (p) => horseMove(uv(p)), onEnd: () => horseUp() },
+      { obj: horsePick, cueShape: horse, plane: 'xz', offset: G + 0.004, hint: () => '拖着马沿河边走', onStart: (p) => horseDown(uv(p)), onDrag: (p) => horseMove(uv(p)), onEnd: () => horseUp() },
       foldDrag(penPick), foldDrag(paper),
     ];
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });
@@ -449,7 +450,12 @@ export default {
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('到河边哪里饮马，走的路最短？', '牧民从蒙古包 A 出发，到河边饮马，再去羊圈 B'); prompt('到河边哪里饮马，走的路最短？'); }
     // 清场重来（换一批学生，或者想重新讲一遍）——键盘 R
-    function reset() { runId++; S = fresh(); seen.clear(); drawPosts(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } for (const k of ['lay1', 'lay2', 'over', 'mark', 'ray']) { setLine(L[k], null); setOp(L[k], 1); } spark.material.opacity = 0; cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+      if (S.beat === 'fold') return penPick;
+      if ((S.beat === 'walk' && !S.found) || (S.beat === 'proof' && !S.lay && !S.proofDone)
+          || ['equal', 'straight', 'light'].includes(S.beat)) return horsePick;
+    });
+    function reset() { cue.reset(); runId++; S = fresh(); seen.clear(); drawPosts(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } for (const k of ['lay1', 'lay2', 'over', 'mark', 'ray']) { setLine(L[k], null); setOp(L[k], 1); } spark.material.opacity = 0; cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -460,13 +466,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: 0.39, d: 0.32, h: 0.05 },
       view: { elev: 34, azim: 10, lookY: 0.2, frameMargin: 1.0 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'rh-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.rb-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) { opening(); drawOn(L.l, LPTS, 0.9, 0.5); drawOn(L.ac, [A, [S.c, 0]], 0.6, 1.2); drawOn(L.cb, [[S.c, 0], B], 0.7, 1.6); } else if (S.ask) ui.status?.(S.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t;
         flowTex.offset.x -= dt * 0.25;
@@ -494,8 +500,7 @@ export default {
           const e = 1 - (1 - k) ** 2; f.rays.forEach((r, q) => { const a = (q / f.rays.length) * Math.PI * 2 + 0.13, d = [Math.cos(a), Math.sin(a)], r0 = 0.006 + 0.024 * e, r1 = r0 + 0.012 * (1 - k); r.geometry.dispose(); r.geometry = ribbon([add(f.p, mul(d, r0)), add(f.p, mul(d, r1))], r.userData.w / 2, 0); r.visible = true; r.material.opacity = 1 - k; }); }
         // 光迹慢慢淡掉
         for (const m of trails) { if (!m.visible) continue; const k = (t - m.userData.t0) / 1.6; if (k >= 1) { m.visible = false; continue; } m.material.opacity = 0.42 * (1 - k); }
-        // 折纸：等人去折的时候一呼一吸
-        paper.material.opacity = S.beat === 'fold' && !S.held ? 0.45 + 0.3 * Math.sin(t * 3.2) ** 2 : 0.6;
+        paper.material.opacity = 0.6;
         // 拉直的那一下：光带亮一下再收住；最低的标杆鼓一下
         { const k = clamp((t - S.punchAt) / 0.9, 0, 1); setOp(L.glow, S.straight ? 0.45 + 0.55 * (1 - k) : 0); }
         { const k = Math.max(clamp((t - S.punchAt) / 0.9, 0, 1), S.straight ? 0 : 1), k2 = clamp((t - S.postAt) / 0.9, 0, 1), b = Math.max(k < 1 ? Math.sin(k * Math.PI) : 0, k2 < 1 ? Math.sin(k2 * Math.PI) : 0); if (b > 0 || S.postBig) { drawPosts(1 + 0.8 * b); S.postBig = b > 0; } }
@@ -519,6 +524,7 @@ export default {
         if (!S.held && !S.done && S.hint < 1 && t - S.beatAt > 15 && t - gait.moved > 4) {
           const H1 = { fold: ['按住羊圈这一块，往河对岸翻过去', '沿河边 l 折叠'], equal: ['拖着马走：看 CB 和 CB′ 的长度', ''], straight: ['A、B′ 在河的两边：怎么连最短？', '把马牵到 A、C、B′ 连成一条直线的地方'], proof: ['提示：在 l 上另外任取一点 C′', '证明 AC + CB < AC′ + C′B'], light: ['把马牵回 C，看 ∠1 和 ∠2', ''] }[S.beat];
           if (H1) { S.hint = 1; caption(...H1); } }
+        cue.update();
       },
       debug: {
         get S() { return S; }, seen, CSTAR, len, rows, pose,

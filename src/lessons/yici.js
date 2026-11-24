@@ -11,6 +11,7 @@
 //   一下子：十二道光从直线上每个时辰的点平射到铜尺上，嵌出子丑寅卯……亥十二条等距的刻线（答开头的问题）。
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -56,7 +57,7 @@ export default {
     src: '课本 · 23.2 一次函数的图象和性质（第 118–122 页）；铜壶滴漏为中国国家博物馆藏品',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     let ui = null, dead = false;
     const T0 = performance.now(), now = () => (performance.now() - T0) / 1000;
@@ -475,16 +476,36 @@ export default {
     function kUp() { if (S_.held !== 'k') return; S_.held = ''; if (S_.step === 'k' && S_.kNeg && S_.k !== 0) kDone(); }
     const pick = (r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), basic({ visible: false })); m.userData.pick = true; m.userData.noFrame = true; group.add(m); return m; };
     const tPick = pick(M(0.05)), bPick = pick(M(0.036)), kPick = pick(M(0.036));
+    // Grab anywhere on the exposed shaft or brass pointer. The graph's zero-hour
+    // handle remains available too. Measure the change from the grab height.
+    const arrowPick = new THREE.Group(), stemPick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), basic({ visible: false }));
+    const headPick = new THREE.Mesh(new THREE.BoxGeometry(M(0.10), M(0.032), M(0.035)), stemPick.material);
+    headPick.position.x = M(0.031);
+    headPick.userData.pick = stemPick.userData.pick = true;
+    arrowPick.userData.noFrame = true;
+    arrowPick.add(stemPick, headPick); arrowG.add(arrowPick);
+    let grabB = 0;
     const drags = [
+      { obj: arrowPick, plane: 'xy', offset: arrowG.position.z, enabled: canB, cueColor: CSS.t,
+        hint: () => canB() ? '把子时的浮箭往上拖' : '',
+        cueText: () => S_.step === 'fit' ? '上下拖：子时壶里先有多少水' : '把子时的浮箭往上拖',
+        onStart: p => { if (p && bDown()) grabB = S_.b - toG(p)[1]; },
+        onDrag: p => bMove([0, toG(p)[1] + grabB]), onEnd: bUp },
       { obj: tPick, plane: 'xy', offset: Z, hint: () => (canT() ? '拖着时间走' : ''), enabled: canT, onStart: () => tDown(), onDrag: (p) => tMove(toG(p)), onEnd: () => tUp() },
       { obj: bPick, plane: 'xy', offset: Z, hint: () => (canB() ? '上下拖：子时壶里先有多少水' : ''), enabled: canB, onStart: () => bDown(), onDrag: (p) => bMove(toG(p)), onEnd: () => bUp() },
-      { obj: kPick, plane: 'xy', offset: Z, hint: () => (canK() ? '上下拖蓝点，改变每个时辰的水位变化量' : ''), enabled: canK, onStart: () => kDown(), onDrag: (p) => kMove(toG(p)), onEnd: () => kUp() },
+      { obj: kPick, cueColor: CSS.b, plane: 'xy', offset: Z, hint: () => (canK() ? '上下拖蓝点，改变每个时辰的水位变化量' : ''), enabled: canK, onStart: () => kDown(), onDrag: (p) => kMove(toG(p)), onEnd: () => kUp() },
     ];
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('用这件文物做一个匀速模型', '假设卯时读数是 19 cm，申时是 44 cm'); prompt('拖着时间走，浮箭每个时辰升多少？'); }
-    function reset() { runId++; S_ = fresh(); trailKey = null; for (const L of trails) { L.hide(); L.born = -9; } for (const L of rays) L.hide(); main.hide(); drawRuler(0); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S_.step, () => {
+      if (S_.step === 'run') return tPick;
+      if (S_.step === 'b') return arrowPick;
+      if (S_.step === 'k') return kPick;
+      if (S_.step === 'fit') return S_.k === KF ? arrowPick : kPick;
+    });
+    function reset() { cue.reset(); runId++; S_ = fresh(); trailKey = null; for (const L of trails) { L.hide(); L.born = -9; } for (const L of rays) L.hide(); main.hide(); drawRuler(0); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -496,13 +517,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: M(2.8), d: M(1.6), h: M(2.56) },
       view: { elev: 11, azim: 0, lookY: 0.45, frameMargin: 1.0 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'yc-board' + (S_.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.yb-row'); if (!S_.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S_.ask) ui.status?.(S_.ask);
         requestAnimationFrame(() => aim?.(DIRV)); setTimeout(() => { if (!dead) aim?.(DIRV); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t;
         flowTex.offset.x -= dt * 0.02; flowTex.offset.y += dt * 0.012;
@@ -528,16 +549,16 @@ export default {
           if (k >= 1) { for (const L of F.rays) { L.hide(); for (const m of [L.core, L.glow, L.shade]) if (m) { group.remove(m); m.geometry.dispose(); m.material.dispose(); } lineMeshes.splice(lineMeshes.indexOf(L), 1); } flashes.splice(i, 1); } }
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
-        // 该动手的那一点：轻轻一呼一吸
-        { const br = 1 + 0.2 * Math.sin(t * 3.4) ** 2, s = S_.step;
-          tDot.scale.setScalar(M(0.05) * (s === 'run' && !S_.held ? br : 1)); tRing.scale.setScalar(M(0.06) * (s === 'run' && !S_.held ? br : 1));
-          bDot.scale.setScalar(M(0.056) * (s === 'b' && !S_.held ? br : 1)); kDot.scale.setScalar(M(0.056) * (s === 'k' && !S_.held ? br : 1)); }
         tPick.position.set(wx(S_.t), wy(0), Z); bPick.position.set(wx(0), wy(S_.b), Z); kPick.position.copy(kDot.position); kPick.position.z = Z;
+        const exposed = Math.min(M(0.75), Math.max(0, arrowG.position.y - M(LID)));
+        stemPick.scale.set(M(0.035), exposed, M(0.035)); stemPick.position.y = -exposed / 2;
+        arrowPick.visible = canB();
         bPick.visible = canB(); kPick.visible = canK();
         // 卡住很久才给提示（不拦着人）
         if (!S_.held && !S_.done && S_.hint < 1 && t - S_.stepAt > 15 && t - S_.moved > 4) {
           const H1 = { run: ['时间往右拖：每过一个时辰，浮箭升多少？', '拖过 4 个时辰看看'], b: ['子时的浮箭是青色的点', '往上拖：壶里先多些水，直线跟着怎么动？'], k: ['k 变成负数会怎样？', '把蓝点往下拖过青点那一层：水往外放'], fit: ['两点之间：横着差几个时辰？竖着差几厘米？', '先让直线一样斜，再上下挪'] }[S_.step];
           if (H1) { S_.hint = 1; caption(...H1); } }
+        cue.update();
       },
       debug: {
         get S() { return S_; }, rows, pose, cap: () => S_.cap,

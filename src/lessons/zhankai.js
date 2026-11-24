@@ -12,6 +12,7 @@
 // 所有的“能不能折成”“落在哪一面”“一共 11 种”都由程序真的折一遍算出来（六连方块一共 35 种，逐个折）。
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -114,7 +115,7 @@ export default {
     src: '课本 · 6.1.1 立体图形与平面图形（粉笔盒的展开图；正方体展开图见本节练习、习题）',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     let ui = null, dead = false;
     const T0 = performance.now(), now = () => (performance.now() - T0) / 1000;
@@ -399,7 +400,7 @@ export default {
       if (first || quiet) return;
       if (!S.multi) { S.multi = true; caption('又折成了正方体', '同一个正方体，展开图不止一种'); board.h('探究'); board(num() + '把纸板复原成粉笔盒；换一种剪法，也能围成同一个正方体：正方体的展开图<b>不止一种</b>', 'multi'); }
       else caption(`第 ${gal.length} 种`, it.fam === 0 ? '四个面连成一行' : run(it.cells) === 3 ? '最长的一行连着三个' : '两个两个错开，像台阶');
-      if (gal.length >= 11) return later(1000, wow);
+      if (gal.length >= 11) return wow();
       if (S.beat === 'edit') afterEdit(); else if (S.beat === 'count') countPrompt();
     }
     function afterEdit() {          // 不止一种、折不成，两样都见过了：问相对的面
@@ -427,8 +428,8 @@ export default {
     function wow() {          // 找齐 11 种：11 张展开图一起折起来
       if (S.wowAt > 0) return; S.wowAt = now(); go('wow', '');
       const order = [...gal].sort((p, q) => p.fam - q.fam || p.x - q.x);
-      order.forEach((it, k) => { it.fT0 = now() + 0.25 + k * 0.08; later(250 + k * 80 + 700, () => { sfx.clink({ freq: 1100 + k * 70, gain: 0.03 }); ripple(new THREE.Vector3(it.x, MY + 0.003, it.z), k === order.length - 1 ? GOLD : WHITE, 0.022); }); });
-      later(250 + 11 * 80 + 900, () => { sfx.ding(1320, { gain: 0.07 }); later(380, () => sfx.ding(1760, { gain: 0.05 }));
+      order.forEach((it, k) => { it.fT0 = now() + k * 0.08; later(k * 80 + 700, () => { sfx.clink({ freq: 1100 + k * 70, gain: 0.03 }); ripple(new THREE.Vector3(it.x, MY + 0.003, it.z), k === order.length - 1 ? GOLD : WHITE, 0.022); }); });
+      later(11 * 80 + 900, () => { sfx.ding(1320, { gain: 0.07 }); later(380, () => sfx.ding(1760, { gain: 0.05 }));
         const last = gal[gal.length - 1]; last.num.material.map = labTex('11', '#ffd45c'); last.num.material.needsUpdate = true;
         caption('11 种展开图，折起来是同一个正方体', '正方体的展开图，一共 11 种');
         board.h('结论'); board(num() + '四个面连成一行的有 6 种，其余的有 5 种：正方体的展开图一共有 <b>11</b> 种', 'eleven');
@@ -507,7 +508,14 @@ export default {
     }
 
     function opening() { caption('纸板要裁成什么形状？能裁出几种？', '要做一只正方体的粉笔盒，先得把硬纸板裁好'); prompt('粉笔盒铺平是什么样子？点一下盒子'); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+      if (S.anim || S.done || S.beat === 'wow' || S.dreamOpen) return;
+      if (S.f > 0.5) return boxPick;
+      if (S.beat === 'dream') return HF[4];
+      if (canMove() && S.beat !== 'oppOpen') return HF.find((_, i) => free(i));
+    });
     function reset() {
+      cue.reset();
       runId++; { const keepG = new Set([discGeo]), keepM = new Set([kraftMat, edgeMat, ...outMatCache.values()]); for (const G of geoCache.values()) for (const g of Object.values(G)) keepG.add(g);
         for (const it of gal) { it.g.traverse((o) => { if (!o.isMesh) return; if (!keepG.has(o.geometry)) o.geometry.dispose(); if (!keepM.has(o.material)) o.material.dispose(); }); galRoot.remove(it.g); galRoot.remove(it.num); it.num.material.map?.dispose?.(); it.num.material.dispose(); } } gal.length = 0;
       S = fresh(); S.beatAt = now(); setCells(TEXTBOOK, true); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); }
@@ -523,13 +531,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.97,
       size: { w: 0.4, d: 0.35, h: 0.06 },
       view: { elev: 50, azim: 12, lookY: 0.12, frameMargin: 1.0 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'zk-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.zb-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S.ask) ui.status?.(S.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t;
         if (S.anim && t >= S.anim.t0) { const a = S.anim, k = clamp((t - a.t0) / a.dur, 0, 1); S.f = lerp(a.from, a.to, ease(k)); if (k >= 1) { S.anim = null; a.done?.(); } }
@@ -578,6 +586,7 @@ export default {
           const a = gal.filter((g) => g.fam === 0).length;
           const H1 = { open: ['盒子的前面翘着呢', '点一下盒子，把它打开'], edit: S.multi ? ['五个连成一行，还能折成吗？', '挪一挪，试试看'] : ['最下面那一块，挪到别的边上呢？', '按住它，拖到别的空格上，再点一下折起来'], oppAsk: ['先挪回一个能折成的', '比如四个连成一行，上面一个、下面一个'], oppOpen: ['点一下盒子，把它打开', ''], count: a < 6 ? ['四个连成一行：上面那一块挪到别的位置呢？', '下面那一块也可以挪'] : ['最长一行只连着三个，可以怎么摆？', '还有两个两个错开、像台阶一样的'], dream: ['点一下纸板，折起来', ''], dreamOpen: ['点一下盒子，打开看看', ''] }[S.beat];
           if (H1) { S.hint = 1; S.beatAt = t; caption(...H1); } }
+        cue.update();
       },
       debug: {
         get S() { return S; }, get J() { return J; }, ALL, rows, pose, gal, canon, judge,

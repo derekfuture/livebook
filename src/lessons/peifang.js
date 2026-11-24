@@ -10,6 +10,7 @@
 //   拖大正方形的角改一次项系数：缺角总是 (一次项系数的一半)²；拖到课本的 x² + 6x + 4 = 0：两边同时加 (6/2)²，即 9（重拍 4）→ 配方法 → 答。
 import * as THREE from 'three';
 import { add, sub, mul, unit, dist, clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -40,7 +41,7 @@ export default {
     src: '课本 · 25.2.1 配方法；花拉子米的题和图见他在 9 世纪上半叶写的代数书',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     let XS = XN * U;          // 画出来的 x（换方程时会变）
     let ui = null, dead = false;
@@ -291,7 +292,7 @@ export default {
       say('两段一样长：外形是正方形，只缺一个角', `缺角 5 × 5 = 25，边长正是 10 的一半`);
       setEq([X2, PL, ['5x', CSS.bx], PL, ['5x', CSS.bx], EQ, n(C0)]);
       board.h('探究'); board(`<span class="n">1</span>把 <span class="bx">10${i('x')}</span> 那条切成一样长的两半，拼在正方形的右边和上面：外形成了正方形，只缺一个角 <span class="sq">5 × 5 = 25</span>。两段不一样长时，补满缺角也只能得到邻边不等的长方形`, 'cut');
-      later(1400, () => { prompt('缺的那一角，拿什么补上？'); layout(); });
+      prompt('缺的那一角，拿什么补上？'); layout();
     }
     function patchUp() {
       if (S.beat !== 'patch') return; const ph = h2() * U, target = [O[0] + XS + ph / 2, O[1] + XS + ph / 2];
@@ -379,7 +380,10 @@ export default {
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { say('一个数的平方加上它的 10 倍等于 39', '花拉子米的古题（9 世纪上半叶，现代转述）：用边长表示这个数，边长是多少？'); prompt('x² + 10x 能拼成一个正方形吗？'); }
-    function reset() { runId++; S = fresh(); anims.length = 0; rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } for (const k of ['side', 'sideX', 'side5', 'big']) K[k].set(null); cap.key = ''; eq.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+      return { cut: cutPick, patch: patchPick, root: bigPick, gen: bPick }[S.beat];
+    });
+    function reset() { cue.reset(); runId++; S = fresh(); anims.length = 0; rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } for (const k of ['side', 'sideX', 'side5', 'big']) K[k].set(null); cap.key = ''; eq.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -390,13 +394,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: 0.41, d: 0.29, h: 0.1 },
       view: { elev: 57, azim: 0, lookY: 0.2, frameMargin: 1.02 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'pf-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.pr'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S.ask) ui.status?.(S.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t;
         // 线自己画出来
@@ -407,13 +411,9 @@ export default {
         // 此刻那一句、方程：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
         if (eq.out < 1e9) { const k = clamp(1 - (t - eq.out) / 0.3, 0, 1); eqSp.material.opacity = k; if (k <= 0) { eq.out = 1e9; const nx = eq.next; eq.next = null; nx?.(); } } else if (!S.live) eqSp.material.opacity = clamp((t - eq.born) / 0.4, 0, 1);
-        // 等人动手的地方：轻轻一呼一吸
-        const br = 0.6 + 0.4 * Math.sin(t * 3.2) ** 2;
-        K.cut.alpha(S.beat === 'cut' && !S.held && !S.moved ? br : 1);
-        K.patch.alpha(S.beat === 'patch' && !S.held ? br : 1);
         if (S.beat === 'patch') { const ph = h2() * U; patchPick.position.set(S.patch[0], G + 0.004, -S.patch[1]); patchPick.scale.set(ph, 1, ph); patchPick.visible = true; } else patchPick.visible = false;
-        if (S.beat === 'root' && !S.held) K.big.alpha(br); else if (S.filled) K.big.alpha(1);
-        bHandle.userData.glow.material.opacity = S.beat === 'gen' && !S.held ? 0.4 + 0.5 * Math.sin(t * 3.2) ** 2 : 0.5;
+        if (S.filled) K.big.alpha(1);
+        bHandle.userData.glow.material.opacity = 0.5;
         // 补好的那一下：大正方形亮一下
         { const k = clamp((t - S.bigAt) / 1.2, 0, 1); if (k < 1) K.big.parts[1].material.opacity = K.big.base[1] * (1 + 1.2 * Math.sin(k * Math.PI)); }
         flame.scale.set(0.006 + 0.0006 * Math.sin(t * 13), 0.009 + 0.0012 * Math.sin(t * 9.3 + 1), 1);
@@ -422,6 +422,7 @@ export default {
           const H1 = { cut: S.unequal ? ['两段一样长试试', '外形的两条边，一条是 x 加右边那段，一条是 x 加上面那段'] : ['长条可以切开', '拖白色的刀口，切下一段拼到正方形上面'], patch: ['缺角是 5 × 5', '把右边那块绿地毯拖进缺角'], root: ['8 × 8 = 64', '点一下大正方形'], gen: ['课本上的方程是 x² + 6x + 4 = 0', '把大正方形的右下角往里拖，一次项系数变成 6'] }[S.beat];
           if (H1) { S.hint = 1; say(...H1); } }
         void dt;
+        cue.update();
       },
       debug: {
         get S() { return S; }, xs: () => XS, rows, pose, cap: () => S.cap, eq: () => S.eq,

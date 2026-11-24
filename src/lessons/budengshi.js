@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -56,7 +57,7 @@ export default {
     src: '课本 · 11.1.2 不等式的性质（两个基本事实在第 123 页，性质1 在第 124 页，性质2、性质3 和开头的问题在第 125 页）',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     const world = new THREE.Group(), mathG = new THREE.Group(); group.add(world, mathG);
     let ui = null, dead = false;
@@ -416,8 +417,8 @@ export default {
       S.step = 'add-done'; S.stepAt = now(); flash(XL, Wl(), TEAL); sfx.ding(1180, { gain: 0.06 });
       currentReading();
       board.h('探究'); board(`<span class="n">1</span>不等式的性质1：不等式两边加（或减）同一个数（或式子），不等号的方向不变。如果 ${Ag} &gt; ${Bb}，那么 ${Ag} <span class="t">± ${I('c')}</span> &gt; ${Bb} <span class="t">± ${I('c')}</span>`, 'add');
-      later(1900, () => { S.dTo = { from: S.d, t0: now() }; sfx.whoosh({ dur: 0.8, freq: 700, gain: 0.03 }); });
-      later(3100, () => { S.step = 'pos'; S.showImg = true; S.c = 1; S.snap = 1; S.stepAt = now(); S.hint = 0; flash(XL, W0 + PA.h * U, GOLD, 0.004, 0.013);
+      S.dTo = { from: S.d, t0: now() }; sfx.whoosh({ dur: 0.8, freq: 700, gain: 0.03 });
+      later(1200, () => { S.step = 'pos'; S.showImg = true; S.c = 1; S.snap = 1; S.stepAt = now(); S.hint = 0; flash(XL, W0 + PA.h * U, GOLD, 0.004, 0.013);
         S.d = 0; S.dTo = null; layout(); });
     }
     function posFound() {          // 性质2
@@ -524,7 +525,11 @@ export default {
       move: (r, e) => { const out = dragApi.move(r, e), it = dragApi.hovered?.(), c = canvasEl(); if (c) { const h = it && it.enabled?.() !== false ? (typeof it.hint === 'function' ? it.hint() : it.hint) : ''; if (h) c.dataset.tip = h; else delete c.dataset.tip; } return out; },
       up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('已知 a > b，−2a 与 −2b 谁大？', 'a、b：两座山的山尖相对原水面的坐标'); prompt(OPEN_ASK, '先看加减：水涨水落，两个山尖的坐标怎样变？'); }
-    function reset() { runId++; S = fresh(); for (const sp of wowDots) sp.visible = false; for (const L of wowTicks) L.hide(); for (const L of wowThreads) L.hide(); for (const L of wowUp) L.hide(); arcA.hide(); arcB.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; const cv = canvasEl(); if (cv) delete cv.dataset.tip; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S.step, () => {
+      if (S.step === 'add') return waterPick;
+      if (['pos', 'zero', 'neg1', 'neg2', 'div'].includes(S.step)) return pickA;
+    });
+    function reset() { cue.reset(); runId++; S = fresh(); for (const sp of wowDots) sp.visible = false; for (const L of wowTicks) L.hide(); for (const L of wowThreads) L.hide(); for (const L of wowUp) L.hide(); arcA.hide(); arcB.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; const cv = canvasEl(); if (cv) delete cv.dataset.tip; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -535,13 +540,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: 0.43, d: 0.31, h: 0.16 },
       view: { elev: 25, azim: 0, lookY: 0.4, frameMargin: 1.0 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'bd-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.bd-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) { opening(); axis.draw(axisPts, 0.9, 0.4); } else { ui.ask?.(S.ask); ui.status?.(S.instruction); }
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); mirror.dispose?.(); const c = canvasEl(); if (c) delete c.dataset.tip; },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); mirror.dispose?.(); const c = canvasEl(); if (c) delete c.dataset.tip; },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t; mirror.material.uniforms.uT.value = t;
         // 水面回到原来的高度；答完以后金点回到 −2
@@ -566,15 +571,12 @@ export default {
           if (k >= 1) { for (const L of F.rays) { L.hide(); for (const m of [L.core, L.glow, L.shade]) if (m) { mathG.remove(m); m.geometry.dispose(); m.material.dispose(); } lineList.splice(lineList.indexOf(L), 1); } flashes.splice(i, 1); } }
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
-        // 该动手的东西轻轻一呼一吸：开头是水面，后面是金点
-        { const b = 1 + 0.2 * Math.sin(t * 3.4) ** 2, wait = !S.held && !S.done && t - S.moved > 2.5;
-          imgA.scale.setScalar(0.0185 * (wait && ['pos', 'zero', 'neg1', 'neg2', 'div'].includes(S.step) ? b : 1));
-        }
         pickA.position.copy(imgA.position); pickB.position.copy(imgB.position); pickA.visible = S.showImg; pickB.visible = S.showImg && Math.abs(S.c) * (relA() - relB()) * U > 0.017;          // 两个点挨在一起时只留金点能抓（拖哪个都是同一个乘数）
         // 卡住很久，才给提示（不拦着人），提示是问题
         if (!S.held && !S.done && S.hint < 1 && t - S.stepAt > 15 && t - S.moved > 4) {
           const H1 = { add: ['水涨上来、落下去，山尖相对水面的坐标各变了多少？', '按住水面，上下拖'], pos: ['金点往上拉：2a 和 2b，谁在上面？', '金点是 a 乘那个数，蓝点是 b 乘那个数'], zero: ['金点拉到水面，是乘了几？', ''], neg1: ['金点拉到水下，停在 −a 那儿：它和 A 的倒影有什么关系？', ''], neg2: ['−2a 在 −12 那儿：它和 −2b 谁在上面？', ''], div: ['除以 −2，就是乘几？金点拉到那儿看看', ''] }[S.step];
           if (H1) { S.hint = 1; if (S.asked) prompt(S.ask, H1.filter(Boolean).join(' ')); else caption(...H1); } }
+        cue.update();
       },
       debug: {
         get S() { return S; }, rows, pose, cap: () => S.cap,

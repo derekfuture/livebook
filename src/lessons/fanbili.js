@@ -13,6 +13,7 @@
 //   回到撬石头：拖到 F = 200 N，l = 3 m → 答：动力臂至少加长 1.5 m。
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 import { rockMat, worldUV } from './kit/strata.js';
@@ -51,7 +52,7 @@ export default {
     src: '课本 · 27.2 反比例函数的图象和性质（第 67–71 页）；撬石头的问题在第 75 页，用矩形“画”双曲线在第 83 页',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const textbookQuote = this.conclusion.quote;
     const root = new THREE.Group(), world = new THREE.Group(); root.add(world); world.scale.setScalar(SC);
     let ui = null, dead = false;
@@ -365,12 +366,12 @@ export default {
     }
     function fanOut() {          // 一下子：十个面积都是 600 的矩形一个接一个亮出来，对角的顶点连成一条曲线
       S.step = 'wow'; S.fanAt = now(); S.stepAt = now(); S.hint = 0;
-      fan.forEach((R, i) => { R.born = S.fanAt + 0.15 + i * 0.16; });
-      FANX.forEach((x, i) => later(150 + i * 160, () => { sfx.clink({ freq: 880 * Math.pow(2, i / 7), gain: 0.04 }); }));
-      later(150 + FANX.length * 160 + 100, () => { S.showA = true; branch.a.draw(branchPts(K0, 1), 0.9); sfx.ding(1568, { gain: 0.06 }); later(500, () => sfx.ding(1976, { gain: 0.045 }));
+      fan.forEach((R, i) => { R.born = S.fanAt + i * 0.16; });
+      FANX.forEach((x, i) => later(i * 160, () => { sfx.clink({ freq: 880 * Math.pow(2, i / 7), gain: 0.04 }); }));
+      later(FANX.length * 160 + 100, () => { S.showA = true; branch.a.draw(branchPts(K0, 1), 0.9); sfx.ding(1568, { gain: 0.06 }); later(500, () => sfx.ding(1976, { gain: 0.045 }));
         caption('每个矩形都占六格，对角的顶点连成一条曲线', '手握到哪儿，动力和动力臂的乘积都是 600 N·m');
         board(`<span class="n">2</span>都代表 <span class="t">600 N·m</span> 的矩形，公共角在 ${I('O')}，把对角的顶点用平滑的曲线连起来，就是 <span class="g">${I('F')}</span> = ${FR('<span class="t">600</span>', I('l'))} 的图象：${I('F')} 随 ${I('l')} 的变化而变化，它们的积 ${I('Fl')} 始终保持不变`, 'fan'); });
-      later(150 + FANX.length * 160 + 2600, () => { S.fanDone = true; S.step = 'cross'; S.xy = true; S.stepAt = now(); S.hint = 0; layout();
+      later(FANX.length * 160 + 2600, () => { S.fanDone = true; S.step = 'cross'; S.xy = true; S.stepAt = now(); S.hint = 0; layout();
         caption('x 是手的位置，支点右边为正', 'y 是手上的力，往下压为正。把手拖过支点，看 x 和 y 怎么变'); prompt('越靠近支点越费力……把力拖到支点另一边去看看'); });
       layout();
     }
@@ -471,7 +472,12 @@ export default {
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('动力臂 1.5 m 时，至少要多大的力？', '阻力 1200 N，阻力臂 0.5 m：撬动这块石头，手握在哪儿、要多大的力？'); prompt('按住金色的力，沿撬棍挪一挪：握在不同的地方，要多大的力？'); }
-    function reset() { runId++; S = fresh(); made.length = 0; for (const R of fan) R.born = -9; tempR.born = -9; setRect(tempR, 0, 0, '', false); branch.a.hide(); branch.b.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S.step, () => {
+      if (S.step === 'rock' && !S.jumpOn) return rockPick;
+      if (S.step === 'mono' && now() - S.stepAt < 2.4) return;
+      if (['rect', 'more', 'cross', 'mono', 'neg', 'final'].includes(S.step)) return effPick;
+    });
+    function reset() { cue.reset(); runId++; S = fresh(); made.length = 0; for (const R of fan) R.born = -9; tempR.born = -9; setRect(tempR, 0, 0, '', false); branch.a.hide(); branch.b.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -482,7 +488,7 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: 2 * UE * SC, d: 3.3 * SC, h: (Y(FT) + 0.55) * SC },
       view: { elev: 26, azim: 0, lookY: 0.5, frameMargin: 1.0 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'fb-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         const quote = u.el?.querySelector('.answer blockquote');
         if (quote && quote.textContent === textbookQuote) quote.innerHTML = textbookQuote.replace('k/x', FR(I('k'), I('x')));
@@ -490,7 +496,7 @@ export default {
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S.ask) ui.status?.(S.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t;
         // 一笔画出来的线
@@ -511,10 +517,6 @@ export default {
         if (S.step === 'backing') { const k = clamp((t - S.backAt) / 1.2, 0, 1); S.xr = lerp(S.xr0, -A0, easeOut(k)); if (S.xr0 > 0 && S.xr > -0.02 && S.xr < 0.02) S.xr = -0.02; if (S.x0 > 0.3) S.x = lerp(S.x0, 1.5, easeOut(k)); layout(); if (k >= 1) backDone(); }
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
-        // 该动手的地方：轻轻一呼一吸
-        const br = 1 + 0.22 * Math.sin(t * 3.4) ** 2;
-        effDot.scale.setScalar(0.3 * (!S.held && ['rect', 'more', 'cross', 'mono', 'neg', 'final'].includes(S.step) ? br : 1));
-        rockDot.scale.setScalar(0.2 * (!S.held && S.step === 'rock' ? 1.3 * br : 1));
         // 拾取：力的整支箭头、曲线上的点
         { const x = S.x, F = x ? clamp(Fof(x), FB - 120, FT + 160) : 0, y0 = Math.min(Y(F), YB), y1 = Math.max(Y(F), YB); effPick.position.set(x, (y0 + y1) / 2, ZP); effPick.scale.set(0.36, Math.max(0.3, y1 - y0), 1); effPick2.position.set(x, x ? Y(F) : YB + 0.3, ZP); }
         // 卡住很久才给提示（不拦着人）
@@ -522,6 +524,7 @@ export default {
           const H1 = { rect: ['松开手：看看动力臂和力围成的矩形', '和石头那边的比一比'], more: ['再换一个地方松手', '高的窄，矮的宽：面积呢？'], cross: ['把力往左拖，拖过支点', '压在支点上会怎样？'], mono: ['从左边拖到右边，跨过支点', '看 y 怎么跳'], rock: ['按住石头往右挪', '挪过支点，k 变成负的'], neg: ['从左往右拖着力走', '在每一支上，y 是变大还是变小？'], final: ['往外拖：力会变小', '拖到 200 N'] }[S.step];
           if (H1) { S.hint = 1; caption(...H1); } }
         void dt;
+        cue.update();
       },
       debug: {
         get S() { return S; }, rows, pose, cap: () => S.cap, made,

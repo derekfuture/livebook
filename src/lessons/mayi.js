@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { add, sub, mul, dist, clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -49,7 +50,7 @@ export default {
     src: '课本 · 第二十章 勾股定理 复习题（公园中的长方体石凳，第 44 页）；展开图、“两点之间，线段最短”见七年级上册第六章',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), world = new THREE.Group(); root.add(world);
     const CX = (BOX.x0 + BOX.x1) / 2, CV = (BOX.v0 + BOX.v1) / 2;
     world.scale.setScalar(K); world.position.set(-CX * K, BASE * K, CV * K);          // 地面顶上是 y = 0（cm），土层底面贴着书
@@ -439,7 +440,16 @@ export default {
     let heard = false, touchAt = -9;          // 最后一次动手的时间：卡住多久才给提示，按这个算（开场蚂蚁自己在转，不算）
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } touchAt = now(); return dragApi.down(r, e); }, move: (r, e) => { if (S.held) touchAt = now(); if (S.held === 'ant') { antMove(r); return true; } return dragApi.move(r, e); }, up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('蚂蚁从 M 爬到 N，最快要多久？', '公园里的长方体石凳；蚂蚁每秒爬 3 cm，只能在石凳的表面上爬'); prompt('替蚂蚁找一条路：按住蚂蚁，沿石凳表面拖到 N'); }
-    function reset() { runId++; S = fresh(); S.beatAt = now(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+      if (S.beat === 'try' && !S.arrived) return antPick;
+      if (['line', 'line2'].includes(S.beat) && openN().length) return mPick;
+      if (S.beat === 'unfold' || S.beat === 'other') {
+        const face = ['R', 'T'].find(f => !S.opened[f]);
+        if (face && !openN().length) return skinPick[face];
+      }
+      if (S.beat === 'fold') return skinOK('R') ? skinPick.R : skinPick.T;
+    });
+    function reset() { cue.reset(); runId++; S = fresh(); S.beatAt = now(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); }
       for (const L of lines) { L.draw = null; } ghost.R.set(null); ghost.T.set(null); for (const f of 'RT') { seg[f].set(null); seg[f].tint(GOLD); seg[f].fade(1); tri[f].set(null); sq[f].set(null); } thread.set(null); swing.set(null); arc.set(null); over.set(null);
       setLabel(LB.trial, '', '', null); setLabel(LB.clock, '', '', null); cap.key = ''; antAim.snap = true; hideTip(); frame(false); ui?.relock?.(); ui?.go?.(1); opening(); layout(); drawTrails(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
@@ -451,13 +461,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: (BOX.x1 - BOX.x0) * K, d: (BOX.v1 - BOX.v0) * K, h: (H + D + BASE) * K },
       view: { elev: 24, azim: 30, lookY: 0.3, frameMargin: 0.98 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'my-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.mb-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S.ask) ui.status?.(S.ask);
         const dir = () => (S.wide ? DIRO : DIRC); frameO.visible = !!S.wide; frameC.visible = !S.wide; requestAnimationFrame(() => aim?.(dir())); setTimeout(() => { if (!dead) aim?.(dir()); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t;
         // 走回 M、最后沿最短的路爬到 N：按路程取蚂蚁的位置
@@ -479,10 +489,9 @@ export default {
           swing.set([{ f: 'F', pts: [[0, 0], [L * Math.cos(ang), L * Math.sin(ang)]] }]); const ap = []; for (let n = 0; n <= 30; n++) { const b = lerp(aT, ang, n / 30); ap.push([L * Math.cos(b), L * Math.sin(b)]); } arc.set(k > 0.02 ? [{ f: 'F', pts: ap }] : null);
           over.set(k >= 1 ? [{ f: 'F', pts: [[W + D, H], mul([W + D, H], L / LEN.R)] }] : null); for (const m of [swing, arc, over]) m.fade(fade);
           if (fade <= 0) { S.swingAt = -9; for (const m of [swing, arc, over]) { m.set(null); m.fade(1); } } }
-        // 皮：等人去翻的时候一呼一吸；翻开着就是一张淡蓝的纸（正面那张也亮，三张连成一个平面图形）
-        const breathe = S.beat === 'unfold' || S.beat === 'other';
-        for (const f of 'FRT') { const k = f === 'F' ? Math.max(S.k.R, S.k.T) : S.k[f], wait = breathe && f !== 'F' && !S.opened[f] && k < 0.01 && !S.held ? 0.08 + 0.16 * Math.sin(t * 3.2) ** 2 : 0, on = Math.max(wait, smooth(0, 0.15, k) * (f === 'F' ? 0.24 : 0.4));
-          skin[f].material.opacity = S.closed ? 0 : on; grid[f].material.opacity = S.closed ? 0 : smooth(0.6, 1, k) * 0.28; edgeL[f].fade(S.closed ? 0 : Math.max(wait * 3, smooth(0, 0.15, k))); }
+        // 翻开的面与正面连成一张淡蓝的展开图。
+        for (const f of 'FRT') { const k = f === 'F' ? Math.max(S.k.R, S.k.T) : S.k[f], on = smooth(0, 0.15, k) * (f === 'F' ? 0.24 : 0.4);
+          skin[f].material.opacity = S.closed ? 0 : on; grid[f].material.opacity = S.closed ? 0 : smooth(0.6, 1, k) * 0.28; edgeL[f].fade(S.closed ? 0 : smooth(0, 0.15, k)); }
         for (const f of 'RT') triFill[f].material.opacity = lerp(triFill[f].material.opacity, tri1(f) ? 0.24 : 0, Math.min(1, dt * 5));
         if (S.ghostOn) { const k = S.closed ? clamp(1 - (t - S.wowAt) / 1.4, 0, 1) : 1; for (const g of 'RT') ghost[g].fade(0.5 * k * (g === 'T' ? 0.7 : 1)); if (S.closed && k <= 0) { S.ghostOn = false; ghost.R.set(null); ghost.T.set(null); } }
         // 合上以后：最短的那条一直亮着，长的那条淡下去
@@ -497,6 +506,7 @@ export default {
           const o = S.order[0] ? other(S.order[0]) : 'T';
           const H1 = { try: ['蚂蚁要怎么爬，才能到 N？', '按住它，沿着石凳的表面拖过去试试（N 是右后方顶上的那个角）'], unfold: ['要是石凳的表面能摊平呢？', '按住右侧面（或顶面）往外翻，翻到和正面在同一个平面上'], line: [`在平面上，M 到 ${S.name[S.order[0]]} 怎么走最短？`, '两点之间，线段最短'], line2: [`在平面上，M 到 ${S.name[o]} 怎么走最短？`, '两点之间，线段最短'], other: [`${FN[o]}也能翻开吗？`, '翻到和正面在同一个平面上，N 会落在哪儿？'], fold: ['这两条线段，回到石凳上是什么样？', '按住翻开的面，往回合'] }[S.beat];
           if (H1) { S.hint = 1; caption(...H1); } }
+        cue.update();
       },
       debug: {
         get S() { return S; }, rows, pose, LEN,

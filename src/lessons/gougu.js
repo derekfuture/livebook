@@ -10,6 +10,7 @@
 //   回到水池：x² + 5² = (x + 1)²，x = 12；池水变清，看见池底（重拍 4）→ 答开头的问题。
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -40,7 +41,7 @@ export default {
     src: '课本 · 20.1 勾股定理及其应用（赵爽弦图）；水池的题出自《九章算术》，见本节习题',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), world = new THREE.Group(); root.add(world);
     world.scale.setScalar(U); world.position.set(-((PB.x0 + PB.x1) / 2) * U, 0, ((PB.w0 + PB.w1) / 2) * U);
     let ui = null, dead = false;
@@ -360,10 +361,10 @@ export default {
       for (const k of ['a', 'b', 'c']) { const p = ctr(sqPts(k)); flash(T(p[0], p[1], 0.4), NT, k === 'a' ? BLUE : k === 'b' ? GREEN : GOLD, 1.3); }
       say('两条直角边的平方和，等于斜边的平方', '猜想：a² + b² = c²');
       board.h('猜想'); board(`<span class="n">3</span>如果直角三角形的两条直角边长分别为 ${it('a')}，${it('b')}，斜边长为 ${it('c')}，那么 <span class="qa">${it('a')}²</span> + <span class="qb">${it('b')}²</span> = <span class="qc">${it('c')}²</span>`, 'vary');
-      later(2800, () => { S.free = true; go('proof', '所有的直角三角形都这样吗？为什么？', '赵爽（约 3 世纪）用一张弦图说明了原因。先把两个小正方形拼在一起', '点一下蓝色或绿色的正方形，把它们拼在一起'); S.pulse = 'b'; });
+      later(2800, () => { S.free = true; go('proof', '所有的直角三角形都这样吗？为什么？', '赵爽（约 3 世纪）用一张弦图说明了原因。先把两个小正方形拼在一起', '点一下蓝色或绿色的正方形，把它们拼在一起'); });
     }
     function mergeSquares() {          // 两个小正方形拼在一起，切成四个三角形和一个黄方
-      if (S.beat !== 'proof' || S.mergeAt > 0) return; S.mergeAt = now(); S.pulse = ''; S.free = false; sfx.whoosh({ dur: 0.6, freq: 800, gain: 0.04 });
+      if (S.beat !== 'proof' || S.mergeAt > 0) return; S.mergeAt = now(); S.free = false; sfx.whoosh({ dur: 0.6, freq: 800, gain: 0.04 });
       const t0 = now(); const step = () => { if (dead) return; S.merge = clamp((now() - t0) / 0.9, 0, 1); layout(); if (S.merge < 1) requestAnimationFrame(step); else afterMerge(); }; step();
     }
     const pieceText = () => S.a === S.b ? '两条直角边等长，四个全等的红色直角三角形恰好拼满，中间不留空' : '四个全等的红色直角三角形之间，还有一个边长为 b − a 的黄色正方形';
@@ -405,7 +406,7 @@ export default {
     }
     // 讲完以后点板书：场景摆回那一刻
     function pose(k) {
-      S.pose = k; S.frameAt = -9; S.pulse = ''; S.revealAt = -9;
+      S.pose = k; S.frameAt = -9; S.revealAt = -9;
       const base = { banked: true, th: S.side * TB, reveal: 0, cut: false, merge: 0, rot: [0, 0], placed: [false, false], counted: true, grow: { a: 1, b: 1, c: 1 } };
       Object.assign(S, base);
       if (k === 'pond') { S.grow = { a: 0, b: 0, c: 0 }; say('芦苇、水深、半个池宽，围成一个直角三角形', '勾 5，股 x，弦 x + 1'); }
@@ -460,18 +461,26 @@ export default {
       { obj: reedPick, plane: 'xy', offset: 0, hint: () => '按住芦苇，往岸边拉', enabled: () => S.beat === 'pond' && !S.banked, onStart: () => { S.held = 'reed'; }, onDrag: (p) => reedMove(p), onEnd: () => reedUp() },
       { obj: pkA, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'A'; }, onDrag: (p) => stakeMove('A', p), onEnd: () => { S.held = ''; } },
       { obj: pkB, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'B'; }, onDrag: (p) => stakeMove('B', p), onEnd: () => { S.held = ''; } },
-      { obj: PC.t1, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[0], onStart: () => rotDown(0), onDrag: (p) => rotMove(0, p), onEnd: () => rotUp(0) },
-      { obj: PC.t2, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[1], onStart: () => rotDown(1), onDrag: (p) => rotMove(1, p), onEnd: () => rotUp(1) },
+      { obj: PC.t1, cueColor: '#fc8076', plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[0], onStart: () => rotDown(0), onDrag: (p) => rotMove(0, p), onEnd: () => rotUp(0) },
+      { obj: PC.t2, cueColor: '#fc8076', plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[1], onStart: () => rotDown(1), onDrag: (p) => rotMove(1, p), onEnd: () => rotUp(1) },
     ];
-    const taps = [...pondPicks.map(({ obj, side }) => ({ obj, hint: () => `这条边长 ${side} 尺`, enabled: () => S.beat === 'apply' && !S.applied, onTap: () => apply(side) })), tapSide('a'), tapSide('b'), tapSide('c'),
+    const taps = [...pondPicks.map(({ obj, side }) => ({ obj, cueText: '点一下水池三角形的任意一条边', hint: () => `这条边长 ${side} 尺`, enabled: () => S.beat === 'apply' && !S.applied, onTap: () => apply(side) })), tapSide('a'), tapSide('b'), tapSide('c'),
       { obj: SQ.a.f, hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() },
-      { obj: SQ.b.f, hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() }];
+      { obj: SQ.b.f, cueColor: '#83d89b', hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() }];
     const tip0 = tag?.('', 'pill'), tip = tip0 && { loc(o, x, y, z) { tip0.show(y > -1); tip0.loc(o, x, y, z); return tip; }, text(s) { tip0.text(s); return tip; } };          // 藏签的位置（y = −9）在这么小的 world 里还在画面上：挪到那里就直接藏起来
     const dragApi = draggable(world, drags, { taps, onClick: () => false, tip });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { say('池宽 1 丈，1 丈 = 10 尺', '池中央的芦苇高出水面 1 尺，拉到岸边中点，顶端刚好碰到水面'); prompt('把芦苇拉到岸边中点，水有多深？芦苇有多长？'); }
-    function reset() { runId++; for (const s of strokes) { s.drawing = null; } draws.length = 0; S = fresh(); S.beatAt = now(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); placePicks(); aim?.(DIR); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+      if (S.beat === 'pond' && !S.banked) return reedPick;
+      if (S.beat === 'gougu') return Object.entries(SP).find(([k]) => S.growAt[k] < 0)?.[1];
+      if (S.beat === 'vary' && S.pairs.length < 3) return pkA;
+      if (S.beat === 'proof' && S.mergeAt < 0) return SQ.b.f;
+      if (S.cut && !S.proved) return S.placed[0] ? PC.t2 : PC.t1;
+      if (S.beat === 'apply' && !S.applied) return pondPicks[0].obj;
+    });
+    function reset() { cue.reset(); runId++; for (const s of strokes) { s.drawing = null; } draws.length = 0; S = fresh(); S.beatAt = now(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); placePicks(); aim?.(DIR); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -483,22 +492,19 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: (PB.x1 - PB.x0) * U, d: (PB.w1 - PB.w0) * U, h: TOP * U },
       view: { elev: 52, azim: -5, lookY: 0.45, frameMargin: 0.98 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'gg-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.gb-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S.ask) ui.status?.(S.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t;
         // 正方形从边上扫出来
         let changed = false;
         for (const k of ['a', 'b', 'c']) if (S.growAt[k] > 0 && S.grow[k] < 1) { S.grow[k] = clamp((t - S.growAt[k]) / 0.7, 0, 1); changed = true; }
         if (S.frameAt > 0 && t - S.frameAt < 2.8) changed = true;
-        // 等人动手的那一样东西：一呼一吸
-        for (const k of ['a', 'b']) SQ[k].f.material.opacity = S.pulse && S.beat === 'proof' && S.mergeAt < 0 ? 0.3 + 0.3 * Math.sin(t * 3.4) ** 2 : SQ[k].f.userData.op;
-        if (S.cut) { const pk = S.beat === 'proof' && !S.proved ? 0.5 + 0.3 * Math.sin(t * 3.4) ** 2 : 0.62; PC.t1.material.opacity = S.placed[0] ? 0.62 : pk; PC.t2.material.opacity = S.placed[1] ? 0.62 : pk; }
         // 池水变清
         if (S.revealAt > 0 && S.reveal < 1) { S.reveal = clamp((t - S.revealAt) / traceDuration, 0, 1); if (S.reveal >= 1) { changed = true; revealed(); } }
         murk.material.opacity = 1 - easeOut(S.reveal); waterSec.material.opacity = 0.38 - 0.18 * S.reveal;
@@ -518,6 +524,7 @@ export default {
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
         void dt;
+        cue.update();
       },
       debug: {
         get S() { return S; }, rows, pose, tri, pieces,

@@ -1,0 +1,11 @@
+.math-action-cue { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+.math-action-cue svg { width: 100%; height: 100%; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.math-action-cue .shadow { stroke: #3b3027; stroke-width: 6px; opacity: .72; }
+.math-action-cue .light { stroke: var(--cue-color); stroke-width: 8px; filter: blur(4px); animation: math-cue-breathe 1.7s ease-in-out infinite alternate; }
+.math-action-cue .core { stroke: var(--cue-color); stroke-width: 2.6px; }
+.math-action-cue span { position: absolute; transform: translate(-50%, -100%); width: max-content; max-width: min(34em, 90vw); text-align: center;
+  color: #fff8e3; font: 600 clamp(15px, 1.3vw, 19px)/1.4 var(--song); text-shadow: 0 1px 3px #332719, 0 0 4px #332719;
+  -webkit-text-stroke: 2.8px #493b2f; paint-order: stroke fill; }
+body.math-guiding :is(.hover-tip, .tag3d.pill) { visibility: hidden; }
+@keyframes math-cue-breathe { from { opacity: .55; } to { opacity: 1; stroke-width: 12px; } }
+@media (prefers-reduced-motion: reduce) { .math-action-cue .light { animation: none; } }
