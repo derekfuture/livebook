@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { paint } from '../../live/ink.js';
 import { block } from './electronicsBench.js';
-import { canvasTex } from './props.js';
+import { canvasTex, textPlate } from './props.js';
 import { BALL_RADIUS as R, LIP_HEIGHT } from './ballRange.js';
 
 export const LIP = 0.09,
@@ -11,6 +11,7 @@ export const PAN_X = 0.19,
   PAN_Y = 0.039,
   FLAT = 0.03,
   LENGTH = 0.14;
+export const RELEASE_X = [0.204, 0.246];
 export function trackHeight(x) {
   return 0.075 * (Math.max(0, x - LIP - FLAT) / LENGTH) ** 2;
 }
@@ -53,8 +54,13 @@ export function ballRangeRig() {
       0.0016,
       0x848d8c,
     );
-  const notch = block(group, 0.002, 0.004, 0.025, 0, 0, 0, 0xac7245);
-  notch.visible = false;
+  // 侧面的字牌指着球心所在的横截面，轨道上没有挡住滚动的凸块。
+  RELEASE_X.forEach((x, i) => {
+    const y = CY + trackHeight(x) - R;
+    const tag = textPlate(i ? 'B' : 'A', { w: 0.019, h: 0.016, bg: '#e9dfc7', color: '#534633', font: 'bold 320px sans-serif' });
+    tag.position.set(x, y - 0.008, 0.014);
+    group.add(tag);
+  });
   const bobZ = 0.026;
   block(group, 0.004, 0.003, 0.036, LIP, CY - R - 0.002, 0.011, 0x676a65);
   tube([new THREE.Vector3(LIP, CY - R, bobZ), new THREE.Vector3(LIP, PAPER_Y + 0.017, bobZ)], 0.00048, 0x74624c);
@@ -63,7 +69,7 @@ export function ballRangeRig() {
   bob.position.set(LIP, PAPER_Y + 0.01, bobZ);
   group.add(bob);
   block(group, WIDTH, 0.0075, DEPTH + 0.029, LEFT + WIDTH / 2, PAPER_Y - 0.004, 0.0145, 0x96826b);
-  block(group, 0.058, 0.008, 0.032, 0.117, 0.004, 0.111, 0xb49c75);
+  block(group, 0.086, 0.008, 0.032, 0.117, 0.004, 0.111, 0xb49c75);
   block(group, 0.005, 0.02, DEPTH, LEFT + 0.0025, PAPER_Y + 0.01, 0, 0xa18f74);
   const tex = canvasTex(2640, 648, () => {});
   const paper = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH, DEPTH), new THREE.MeshBasicMaterial({ map: tex }));
@@ -75,13 +81,15 @@ export function ballRangeRig() {
     c.fillStyle = '#e6d4ae';
     c.fillRect(0, 0, w, h);
     c.fillStyle = '#4f493f';
-    c.font = '44px sans-serif';
+    c.font = 'bold 37px sans-serif';
     c.textAlign = 'center';
     for (let mm = 0; mm <= 400; mm++) {
       const x = w * (1 - (mm / 1000 + 0.006) / (SPAN + 0.012));
       c.fillRect(x, 0, 2, mm % 10 === 0 ? 48 : mm % 5 === 0 ? 32 : 17);
-      if (mm % 20 === 0) c.fillText(String(mm / 10), x, 100);
+      if (mm % 10 === 0) c.fillText(String(mm / 10), x, 99);
     }
+    c.font = '25px sans-serif';
+    c.fillText('cm', w - 72, 128);
   });
   const face = new THREE.Mesh(
     new THREE.PlaneGeometry(SPAN + 0.012, 0.022),
@@ -90,10 +98,15 @@ export function ballRangeRig() {
   face.rotation.x = -Math.PI / 2;
   face.position.y = 0.0011;
   scale.add(face);
+  // 尺面的一小条零刻线也是步骤提示圈的定位点。
+  const zero = new THREE.Mesh(new THREE.PlaneGeometry(0.0004, 0.0075), new THREE.MeshBasicMaterial({color: 0x514737}));
+  zero.rotation.x = -Math.PI / 2;
+  zero.position.set(SPAN / 2, 0.00115, -0.0072);
+  scale.add(zero);
   const balls = [0x616e7e, 0xc7a674].map((c) => {
     const b = new THREE.Mesh(new THREE.SphereGeometry(R, 36, 24), paint(c));
     const pick = new THREE.Mesh(
-      new THREE.SphereGeometry(R * 1.35, 12, 8),
+      new THREE.SphereGeometry(R * 1.5, 12, 8),
       new THREE.MeshBasicMaterial({ visible: false }),
     );
     pick.userData.pick = true;
@@ -125,38 +138,31 @@ export function ballRangeRig() {
       py = (z) => (z + DEPTH / 2) * 6000;
     c.fillStyle = '#f3eddb';
     c.fillRect(0, 0, 2640, 648);
-    if (origin !== null) {
-      c.strokeStyle = '#836849';
-      c.lineWidth = 2;
+    const line = (x, z1, z2, color) => {
+      c.strokeStyle = color;
+      c.lineWidth = 3;
       c.beginPath();
-      c.moveTo(px(origin), py(-0.012));
-      c.lineTo(px(origin), py(0.038));
+      c.moveTo(x, py(z1));
+      c.lineTo(x, py(z2));
       c.stroke();
+    };
+    c.font = 'bold 52px sans-serif';
+    c.textAlign = 'center';
+    if (origin) {
+      line(px(LIP), -0.012, 0.034, '#81694c');
       c.fillStyle = '#645642';
-      c.font = '34px sans-serif';
-      c.fillText('O', px(origin) + 8, py(-0.013));
+      c.fillText('O', px(LIP), py(-0.015));
     }
     for (const m of marks) {
       const x = px(LIP - m.range);
-      c.fillStyle = '#414043';
+      line(x, 0, 0.012, '#9a907e');
+      c.fillStyle = m.excluded ? '#826f63' : '#333439';
       c.beginPath();
-      c.ellipse(x, py(0), 8, 6, -0.25, 0, 2 * Math.PI);
+      c.ellipse(x, py(0), 7, 6, -0.25, 0, 2 * Math.PI);
       c.fill();
-      if (m.excluded) {
-        c.fillStyle = '#966b59';
-        c.font = '38px sans-serif';
-        c.fillText('×', x + 7, py(-0.002));
-      }
-      if (m.read !== null) {
-        c.strokeStyle = '#87795d';
-        c.lineWidth = 2;
-        c.beginPath();
-        c.moveTo(x, py(0.001));
-        c.lineTo(x, py(0.018));
-        c.stroke();
-      }
+      c.fillText(m.excluded ? '×' : m.label, x, py(-0.004));
     }
     tex.needsUpdate = true;
   }
-  return { group, paper, scale, balls, screen, notch, weigh, ink };
+  return { group, paper, scale, balls, screen, bob, zero, weigh, ink };
 }

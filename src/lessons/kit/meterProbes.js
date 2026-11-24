@@ -34,13 +34,14 @@ export function meterProbes(
     changed,
     allow,
     mayLift,
+    dock = null,
     bounds = { x: [-0.23, 0.24], z: [-0.17, 0.16] },
     homes = { red: [-0.025, 0.001, 0.078], black: [-0.052, 0.001, 0.078] },
   },
 ) {
   const probes = {},
     group = circuit.group;
-  let shorted = false;
+  let shorted = false, returning = null;
   for (const [name, color] of [
     ['red', 0xb74738],
     ['black', 0x333d41],
@@ -64,7 +65,7 @@ export function meterProbes(
     const bend = socket.clone().add(new THREE.Vector3(name === 'red' ? 0.008 : -0.016, 0, 0.034));
     const mid = bend.clone().lerp(end, 0.45);
     mid.y = 0.004;
-    mid.z += 0.024;
+    mid.z += dock && name === 'black' ? 0.041 : 0.024;
     const footprint = circuit._footprint(circuit.get('M'));
     const points = [socket, bend, mid, end];
     if (end.z < footprint.z1 + 0.006 && end.x > footprint.x0 && end.x < footprint.x1) {
@@ -88,6 +89,7 @@ export function meterProbes(
     circuit.solve();
   }
   function reset() {
+    returning = null;
     for (const name of Object.keys(probes)) {
       disconnect(name);
       probes[name].handle.position.copy(probes[name].home);
@@ -111,6 +113,7 @@ export function meterProbes(
         moved = false;
       },
       onDrag(point) {
+        if (dock && !moved && Math.hypot(point.x - origin.x, point.z - origin.z) < 0.0005) return;
         if (!moved) {
           const reason = mayLift(name);
           if (reason) {
@@ -133,30 +136,59 @@ export function meterProbes(
         let target = distance(nearest[1]) < 0.014 ? nearest[0] : null;
         let contact = !target && !other.target && distance(other.handle.position) < 0.013;
         let reason = allow(name, target, contact);
+        if (dock) {
+          if (!reason && !target && !contact && distance(p.home) > dock.radius) reason = dock.miss;
+          if (reason) {
+            const from = pos.clone();
+            returning = { elapsed: 0, move(t) {
+              pos.lerpVectors(from, origin, t);
+              cable(name, t < 1);
+              if (t === 1) {
+                connect(originalTarget, wasShort);
+                changed(reason);
+              }
+            } };
+            changed(reason);
+            return;
+          }
+          if (!target && !contact) pos.copy(p.home);
+        }
         if (reason) {
           target = originalTarget;
           contact = wasShort;
           pos.copy(origin);
         }
-        if (target) {
-          p.target = target;
-          pos.copy(circuit.terminalWorld(target));
-          circuit.wire('M.' + name, target, { draw: false });
-        } else if (contact) {
-          pos.copy(other.handle.position);
-          shorted = true;
-          circuit.wire('M.red', 'M.black', { draw: false });
-        } else pos.y = 0.001;
-        cable(name);
-        circuit.solve();
+        connect(target, contact);
         changed(reason);
       },
     };
+    function connect(target, contact) {
+      const pos = p.handle.position;
+      if (target) {
+        p.target = target;
+        pos.copy(circuit.terminalWorld(target));
+        circuit.wire('M.' + name, target, { draw: false });
+      } else if (contact) {
+        pos.copy(other.handle.position);
+        shorted = true;
+        circuit.wire('M.red', 'M.black', { draw: false });
+      } else pos.y = 0.001;
+      cable(name);
+      circuit.solve();
+    }
   });
   reset();
   return {
     probes,
     drags,
+    get returning() { return !!returning; },
+    update(dt) {
+      if (!returning) return;
+      returning.elapsed += dt;
+      const t = Math.min(1, returning.elapsed / 0.4);
+      returning.move(t * (2 - t));
+      if (t === 1) returning = null;
+    },
     follow(id) {
       for (const [name, p] of Object.entries(probes))
         if (p.target === id) {

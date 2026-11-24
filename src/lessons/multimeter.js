@@ -2,10 +2,10 @@
 import * as THREE from 'three';
 import { paint } from '../live/ink.js';
 import { Circuit, battery, switchPart, lampPart, resistorPart } from './kit/circuit.js';
-import { nets } from './kit/bench.js';
+import { qaFlow } from './kit/chemlesson.js';
 import { draggable, clamp } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { note, buttons, table } from './kit/ui.js';
+import { h, table } from './kit/ui.js';
 import { METER_STOPS, ohmScaleValue } from './kit/multimeter.js';
 import { multimeterTool } from './kit/multimeterTool.js';
 import { meterProbes } from './kit/meterProbes.js';
@@ -16,10 +16,9 @@ export default {
   title: '练习使用指针式多用电表',
   stampText: '测量',
   predict: {
-    q: '测完小灯泡两端的电压，想用同一只表测通过灯泡的电流，该怎样接表？',
+    q: '怎样用同一只表测灯泡的电压、电流和定值电阻的阻值？从测电压换到测电流，表笔该怎样接？',
     options: ['断电后拆开一处，将表串入', '保持并联，只换电流挡', '让两表笔直接相碰'],
     answer: 0,
-    hint: '被测电流要从红表笔流入，再从黑表笔流出。',
   },
   conclusion: {
     page: 76, rect: [216.5, 655.02, 531.56, 718.13],
@@ -30,14 +29,25 @@ export default {
   create(ctx) {
     const circuit = new Circuit(),
       group = circuit.group;
-    const meter = circuit.add(multimeterTool(), [-0.14, 0]);
+    const meter = circuit.add(multimeterTool({ largeSelector: true }), [-0.14, 0]);
+    // 让螺丝槽略高于表壳，调零时步骤光圈落在槽口这一层。
+    meter.zero.scale.y = 1.4;
+    meter.zero.position.y += 0.0002;
     circuit.add(battery('E', { cells: 1, emf: 1.5, r: 0.2 }), [0.04, -0.11]);
     const sw = circuit.add(switchPart('S'), [0.15, -0.1]);
-    circuit.add(lampPart('L', { rated: 1.5, R0: 3, Rhot: 12 }), [0.16, 0]);
-    circuit.add(resistorPart('R', { R: 1000 }), [0.08, 0.105]);
+    const lamp = circuit.add(lampPart('L', { rated: 1.5, R0: 3, Rhot: 12 }), [0.16, 0]);
+    const resistor = circuit.add(resistorPart('R', { R: 1000 }), [0.105, 0.106]);
+    for (const sign of [-1, 1]) {
+      const lead = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(sign * 0.012, 0.016, -0.004),
+        new THREE.Vector3(sign * 0.021, 0.016, -0.004),
+        new THREE.Vector3(sign * 0.024, 0.016, 0.006),
+      ]);
+      resistor.group.add(new THREE.Mesh(new THREE.TubeGeometry(lead, 12, 0.00072, 8, false), paint(0x8f9692)));
+    }
     const plug = new THREE.Group(),
       metal = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.011, 16), paint(0xb5b2a2));
-    metal.position.y = 0.003;
+    metal.position.y = 0.006;
     plug.add(metal);
     const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.0045, 0.019, 20), paint(0x986849));
     grip.position.set(0, 0.011, -0.005);
@@ -45,7 +55,7 @@ export default {
     plug.add(grip);
     circuit.add({ name: 'J', group: plug, terminals: { pin: [0, 0.002, 0] }, branches: () => [] }, [0, 0]);
     const attached = circuit.terminalWorld('L.a'),
-      loose = new THREE.Vector3(0.094, 0.001, -0.026);
+      loose = new THREE.Vector3(0.073, 0.001, -0.016);
     let plugged = true,
       pair;
     function parkPlug(on) {
@@ -56,377 +66,447 @@ export default {
       if (on) circuit.wire('J.pin', 'L.a', { draw: false });
       circuit.solve();
     }
-    circuit.wire('E.+', 'S.a');
+    circuit.wire('E.+', 'S.a', { color: 0xac5140 });
     circuit.wire('S.b', 'J.pin');
-    circuit.wire('L.b', 'E.-');
+    circuit.wire('L.b', 'E.-', { color: 0x535b60, points: [
+      [0.195, 0.018, 0.001], [0.202, 0.009, -0.132], [0.006, 0.008, -0.139], [0.005, 0.02, -0.105],
+    ] });
     parkPlug(true);
-    let ui,
-      rows,
-      near = false,
-      aim = null,
-      instruction = '',
-      zeroed = false,
-      calibrated = false,
-      adjustment = 0,
-      grab = 0,
-      dragged = false;
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'zero', title: '机械调零', todo: 'OFF 挡先看指针是否指在左端零线。', target: () => aim },
-        { id: 'volt', title: '测电压', todo: '点亮灯泡，电压挡并联读数。', target: () => aim },
-        { id: 'amp', title: '测电流', todo: '断电，拆开灯泡一侧导线，电流挡串入断开处。', target: () => aim },
-        { id: 'ohm', title: '测电阻', todo: '短接调零后测台前独立电阻，读数乘倍率。', target: () => aim },
-        { id: 'off', title: '收表', todo: '提起两支表笔，转回 OFF。', target: () => aim },
-      ],
-    });
-    const say = (msg, obj = null) => {
-      aim = near ? null : obj;
-      instruction = msg;
-      bar.say(msg);
-    };
+    // 台面上的套圈标出笔尖和拔下的插头可以停放的位置。
+    const point = (x, y, z) => new THREE.Vector3(x, y, z);
+    function seat(at, color) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.008, 0.0094, 40),
+        new THREE.MeshBasicMaterial({ color }));
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(at.x, 0.0006, at.z);
+      group.add(ring);
+    }
+    seat(loose, 0xaa8667);
+    const lampLeft = 'L.a', lampRight = 'L.b', pin = 'J.pin';
+    const bothOn = (a, b) => (red.target === a && black.target === b) || (black.target === a && red.target === b);
     const stop = () => METER_STOPS[meter.stop];
-    pair = meterProbes(circuit, ['L.a', 'L.b', 'S.b', 'J.pin', 'R.a', 'R.b'], {
-      changed(reason) {
-        enter();
-        if (reason) say(reason);
-        else guide();
+    const bias = () => ({ 1: 0.13, 10: -0.11, 100: 0.08 }[stop().multiplier] || 0);
+    const steps = [['zero', '机械调零'], ['volt', '测电压'], ['amp', '测电流'], ['cal', '欧姆调零'], ['ohm', '测电阻'], ['off', '收表']];
+    let ui, aim, overload = false, near = '', calibrated = false, adjustment = 0, plugReturn, movingPlug;
+    const bar = lessonBar({ ...ctx, group, back: leave,
+      steps: steps.map(([id, title]) => ({ id, title, todo: title, target: () => ui?.step === 1 ? aim : null })) });
+    pair = meterProbes(circuit, [lampLeft, lampRight, pin, 'R.a', 'R.b'], {
+      dock: { radius: 0.02, miss: '笔尖没有碰到接点，表笔回到原位。' },
+      homes: { red: [-0.015, 0.001, 0.067], black: [-0.061, 0.001, 0.067] },
+      allow(name, target) {
+        if (!target) return '';
+        if (stop().mode === 'ohm' && !target.startsWith('R.')) return '欧姆挡由表内电池供电，请测量已脱离电路的电阻。';
+        if (stop().mode === 'amp' && sw.closed) return '开关仍闭合，先断电再接电流表。';
+        const other = name === 'red' ? black : red;
+        if (target === other.target) return '两笔碰在同一接线柱上，请分接两端。';
+        if (stop().mode === 'amp' && plugged && [other.target, target].every(t => t === lampLeft || t === lampRight))
+          return '电流挡并在灯泡两端会使灯泡短路。先断电，拆开一处导线。';
+        return '';
       },
-      allow,
-      mayLift(name) {
-        return sw.closed && stop().mode === 'amp' && pair.probes[name].target
-          ? '先断开开关，再移动串在电路里的表笔。'
-          : '';
-      },
+      mayLift: name => sw.closed && stop().mode === 'amp' && pair.probes[name].target ? '先断开开关，再移动串在电路里的表笔。' : '',
+      changed(reason) { guide(reason); },
     });
     const { red, black } = pair.probes;
-    function enter() {
-      if (ui && document.body.classList.contains('predicting')) ui.go(1);
-    }
-    function across(targets, a, b) {
-      return targets.includes(a) && targets.includes(b);
-    }
-    function allow(name, target, touch) {
-      if (!target || touch) return '';
-      const mode = stop().mode;
-      if (mode === 'ohm' && !target.startsWith('R.')) return '欧姆挡自带电源。把表笔移到台前已经脱离电路的定值电阻。';
-      const opposite = (name === 'red' ? black : red).target;
-      if (mode === 'amp' && sw.closed) return '接入或移动电流挡表笔前，先断开灯泡电路的开关。';
-      if (mode === 'amp' && across([opposite, target], 'L.a', 'L.b'))
-        return '电流挡不能跨接灯泡两端。拆开导线，将两笔分别接在断开处。';
-      return '';
-    }
-    function onNode(p, id) {
-      const net = nets(circuit);
-      return p.target && net(p.target) === net(id);
-    }
-    function valid(mode) {
-      if (!zeroed || stop().mode !== mode) return false;
-      if (mode === 'volt') return sw.closed && plugged && onNode(red, 'L.a') && onNode(black, 'L.b');
-      if (mode === 'amp')
-        return sw.closed && !plugged && ['J.pin', 'S.b'].includes(red.target) && black.target === 'L.a';
-      return calibrated && across([red.target, black.target], 'R.a', 'R.b');
-    }
-    function guide() {
-      if (!zeroed) return say('点表盘近看，拖动指针下方的定位螺丝，让针尖指到左端 0。', meter.zero);
-      if (bar.has('ohm') && bar.has('volt') && bar.has('amp')) {
-        if (red.target || black.target || pair.shorted)
-          return say('把两支表笔提离接点，放回台面。', (red.target || pair.shorted ? red : black).handle);
-        if (stop().mode !== 'off') return say('转动选择开关回到 OFF。', meter.selector);
-        bar.done('off');
-        return say('表笔已收起，选择开关已回到 OFF。');
-      }
-      const mode = !bar.has('volt') ? 'volt' : !bar.has('amp') ? 'amp' : 'ohm';
-      if (mode === 'amp' && plugged) {
-        if (sw.closed) return say('先断开灯泡开关，再提起连接灯泡左柱的棕色插头。', sw.group);
-        if (red.target || black.target)
-          return say('开关已断开。先把两支表笔从灯泡上移到空桌面，再拔棕色插头。', (red.target ? red : black).handle);
-        return say('把灯泡左柱上的棕色插头拖开，留下串入电流表的位置。', plug);
-      }
-      if (mode === 'ohm' && sw.closed) return say('先断开灯泡开关，再提起两支表笔。', sw.group);
-      if (stop().mode !== mode)
-        return say(
-          '转动选择开关到' +
-            {
-              volt: '直流电压挡。电源是一节 1.5 V 电池。',
-              amp: '直流电流挡。先选较大量程试测。',
-              ohm: '电阻挡。先选一个倍率试测。',
-            }[mode],
-          meter.selector,
-        );
-      if (mode === 'ohm' && !calibrated) {
-        if (!pair.shorted) return say('把两笔移离接线柱，让红、黑笔的金属尖端互相接触。', red.handle);
-        return say(
-          '保持两笔短接，' + (meter.trimOffset > 0 ? '向左' : '向右') + '慢拖 Ω 调零旋钮，让针尖对准外圈右端 0。',
-          meter.trim,
-        );
-      }
-      if (!valid(mode)) {
-        if (mode === 'volt' && !plugged)
-          return say(
-            sw.closed ? '先断电，重新插回灯泡左柱的导线。' : '把棕色插头拖回灯泡左柱，恢复供电回路。',
-            sw.closed ? sw.group : plug,
-          );
-        if (mode === 'volt' && !sw.closed) return say('点开关合闸，让灯泡正常发光。', sw.group);
-        if (mode === 'amp' && !sw.closed && !plugged && ['J.pin', 'S.b'].includes(red.target) && black.target === 'L.a')
-          return say('两笔已经串入断开处。合上开关。', sw.group);
-        if (mode === 'volt')
-          return say(
-            !onNode(red, 'L.a') ? '把红笔尖拖到灯泡的左接线柱。' : '把黑笔尖拖到灯泡的右接线柱。',
-            !onNode(red, 'L.a') ? red.handle : black.handle,
-          );
-        if (mode === 'amp')
-          return say(
-            !['J.pin', 'S.b'].includes(red.target) ? '把红笔尖接在刚拔下的棕色插头上。' : '把黑笔尖接回灯泡左柱。',
-            !['J.pin', 'S.b'].includes(red.target) ? red.handle : black.handle,
-          );
-        return say('两支笔分开，各自接触台前定值电阻的一端。', !red.target ? red.handle : black.handle);
-      }
-      if (meter.fraction > 1.015) return say('指针超过满刻度。先断电，换较大量程再读。', sw.group);
-      if (mode === 'ohm' && (meter.fraction < 0.2 || meter.fraction > 0.8))
-        return say('指针太靠近刻度一端。换倍率，再短接两笔重新调零。', meter.selector);
-      say(
-        near
-          ? mode === 'ohm'
-            ? '沿针尖点外圈 Ω 刻度，读数须乘所选倍率。'
-            : '沿针尖点内圈直流刻度。'
-          : '点表盘近看，沿针尖找到所选挡位的刻度。',
-        meter.face,
-      );
+    seat(red.home, 0xaa5140);
+    seat(black.home, 0x4d595b);
+    const parked = p => p.handle.position.distanceTo(p.home) < 0.0001 && !p.target && !pair.shorted;
+    const unparked = () => !parked(red) ? red : !parked(black) ? black : null;
+    const onCircuit = p => [lampLeft, lampRight, pin].includes(p.target);
+    const connected = () => {
+      if (bar.current === 'volt') return stop().mode === 'volt' && sw.closed && plugged && red.target === lampLeft && black.target === lampRight;
+      if (bar.current === 'amp') return stop().mode === 'amp' && sw.closed && !plugged && red.target === pin && black.target === lampLeft;
+      return bar.current === 'ohm' && stop().mode === 'ohm' && calibrated && bothOn('R.a', 'R.b');
+    };
+    const readable = () => connected() && meter.fraction > 0 && meter.fraction <= 1 &&
+      (stop().mode !== 'ohm' || (meter.fraction >= 0.2 && meter.fraction <= 0.8));
+    const rows = table(['挡位', '刻度', '测量值']);
+    const field = () => h('input', { type: 'number', step: 'any', inputmode: 'decimal', required: true,
+      style: 'width:5.4em;font:inherit;padding:3px 6px;margin-left:6px' });
+    const raw = field(), value = field(), rawLabel = h('span'), resultLabel = h('span');
+    const form = h('form', { hidden: true, 'data-keep': '1', onsubmit(e) { e.preventDefault(); record(); },
+      style: 'line-height:1.8;font-variant-numeric:tabular-nums' },
+      h('label', { style: 'display:block' }, rawLabel, raw),
+      h('label', { style: 'display:block' }, resultLabel, value),
+      h('button', { type: 'submit', class: 'go', style: 'margin-top:6px' }, '记下读数'));
+    const status = h('p', { class: 'status', style: 'font-variant-numeric:tabular-nums' });
+    const unit = () => ({ volt: 'V', amp: 'mA', ohm: 'Ω' }[stop().mode]);
+    const active = () => !pair.returning && !plugReturn;
+    const atDesk = () => !near && active() && !bar.finished;
+    // 只在玻璃窗上近看；调零、选挡时保留整表，读数时正对两条完整刻度弧。
+    const windowPick = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.0003, 0.065),
+      new THREE.MeshBasicMaterial({ visible: false }));
+    windowPick.userData.pick = true;
+    windowPick.position.set(0, 0.0202, -0.049);
+    meter.group.add(windowPick);
+    function inspect() {
+      if (near) return;
+      near = readable() ? 'scale' : 'meter';
+      bar.near(true);
+      const small = ctx.camera.aspect < 1;
+      const checkingZero = bar.current === 'zero';
+      const z = near === 'scale' ? -0.054 : checkingZero ? -0.042 : -0.003;
+      const distance = near === 'scale' ? (small ? 0.17 : 0.155) : checkingZero ? 0.218 : 0.315;
+      ctx.look([meter.group.position.x, 0.02, z], [0, 1, 0.015], distance, leave);
+      guide();
     }
     function leave() {
       if (near) ctx.back();
-      near = false;
+      near = '';
       bar.near(false);
       guide();
     }
-    function inspect() {
-      enter();
-      if (near) return;
-      near = true;
-      bar.near(true);
-      const reading = valid(stop().mode) && stop().mode !== 'off';
-      ctx.look(
-        [meter.group.position.x, 0.019, reading ? -0.052 : -0.036],
-        [0, 1, 0.04],
-        reading ? 0.145 : 0.183,
-        leave,
-      );
-      guide();
+    function guide(feedback = '') {
+      const mode = bar.current;
+      const set = (text, obj) => {
+        const offscreen = near && obj && ![meter.selector, meter.zero, meter.trim, meter.group].includes(obj);
+        const knob = [meter.zero, meter.trim, meter.selector].includes(obj);
+        aim = offscreen ? null : knob ? obj.children[0] : obj || null;
+        if (offscreen) text = '回到全景。' + text;
+        bar.say([feedback, text].filter(Boolean).join(' '));
+      };
+      status.textContent = '挡位 ' + stop().label + '　·　' + (sw.closed ? '开关闭合' : '开关断开') + '　·　' + (lamp.brightness > 0.1 ? '灯亮' : '灯灭');
+      const show = readable() && near === 'scale';
+      if (form.hidden === show) { raw.value = value.value = ''; form.hidden = !show; }
+      if (show) {
+        rawLabel.textContent = mode === 'ohm' ? '外圈刻度' : '内圈刻度';
+        resultLabel.textContent = '测量值（' + unit() + '）';
+      }
+      if (!mode) return set('表笔已归位，选择开关已回到 OFF。可以掀开结论了。');
+      if (mode === 'zero') return near
+        ? set('左右微调定位螺丝，使指针对准内圈左端的 0。', meter.zero)
+        : set('两笔分开，选择开关在 OFF。点表盘近看，检查直流零点。', meter.group);
+      if (mode === 'off') {
+        const p = unparked();
+        if (p) return set('测量完毕，把两支笔尖放回台面同色圆圈。', p.handle);
+        if (stop().mode !== 'off') return set('两支表笔已分开，把选择开关转回 OFF。', meter.selector);
+        bar.done('off');
+        return guide();
+      }
+      if (mode === 'volt') {
+        if (!plugged) return set('将棕色插头插回灯泡左柱，恢复供电回路。', grip);
+        if (!sw.closed) return set('合上开关，让电池给小灯泡正常供电。', sw.group);
+        if (stop().mode !== 'volt') return set('灯亮了。电源为 1.5 V，转到比估计电压大的直流电压量程。', meter.selector);
+        if (bothOn(lampLeft, lampRight) && meter.fraction < 0) return set('指针向左反偏。交换两笔，让红笔接高电势端。', red.handle);
+        if (red.target !== lampLeft) return set('把红笔尖接到灯泡左柱，这一端连着电源正极。', red.handle);
+        if (black.target !== lampRight) return set('把黑笔尖接到灯泡右柱，使电压表并在灯泡两端。', black.handle);
+      } else if (mode === 'amp') {
+        if (plugged) {
+          if (sw.closed) return set('断开开关，准备把电流表串入灯泡回路。', sw.group);
+          if (unparked()) return set('灯灭了，把两支表笔放回同色圆圈。', unparked().handle);
+          return set('把灯泡左柱的棕色插头拖到棕圈，留出串联的断口。', grip);
+        }
+        if (sw.closed && !bothOn(pin, lampLeft)) return set('断口还没接好，先断开开关。', sw.group);
+        if (stop().mode !== 'amp') return set('导线已拆开。电流大小未知，先选较大的直流电流量程。', meter.selector);
+        if (sw.closed && meter.fraction < 0) return set('指针向左反偏。先断电，再交换两支表笔。', sw.group);
+        if (bothOn(pin, lampLeft) && !sw.closed) {
+          if (overload) return set('已断电，换较大的电流量程再合闸。', meter.selector);
+          return set('电流表已串在断口，合上开关观察指针。', sw.group);
+        }
+        if (red.target !== pin) return set('红笔尖接棕色插头，让电流从红笔流入表内。', red.handle);
+        if (black.target !== lampLeft) return set('黑笔尖接灯泡空出的左柱，接通电流的去路。', black.handle);
+        if (meter.fraction > 1) return set('指针已超过满刻度。断开开关，换较大量程。', sw.group);
+      } else {
+        if (sw.closed) return set('断开开关，把表笔从灯泡电路移开。', sw.group);
+        const p = [red, black].find(onCircuit);
+        if (p) return set('把笔尖放回同色圆圈，使电表与外电源分开。', p.handle);
+        if (stop().mode !== 'ohm') return set('待测电阻没有接电源。阻值未知，可先用中等倍率 ×10 试测。', meter.selector);
+        if (!calibrated) {
+          if (!pair.shorted) {
+            if (red.target || black.target) return set('换倍率后要重新调零。把两支笔放回同色圆圈，再将笔尖相碰。', (red.target ? red : black).handle);
+            return set('将一支笔尖拖到另一支笔尖上，短接相当于接入零电阻。', red.handle);
+          }
+          return set('两笔已短接。' + (meter.trimOffset > 0 ? '向左' : '向右') + '微调 Ω 旋钮，使针尖对准外圈右端的 0。', meter.trim);
+        }
+        if (!bothOn('R.a', 'R.b')) return set('两笔分开，各接台前定值电阻的一端。', !red.target ? red.handle : black.handle);
+        if (!readable()) return set('针尖靠近' + (meter.fraction < 0.2 ? '∞ 端，增大' : '零端，减小') + '倍率，让指针落在中间区域。', meter.selector);
+      }
+      if (show && feedback) return set('');
+      if (readable()) return show
+        ? set(mode === 'ohm' ? '读外圈红色刻度，乘所选倍率，填入阻值。' : '读内圈黑色刻度，按所选量程换算后填入测量值。')
+        : set('指针已偏转。点表盘近看，读出' + ({ volt: '灯泡两端的电压', amp: '通过灯泡的电流', ohm: '定值电阻的阻值' }[mode]) + '。', meter.group);
     }
     function choose(index) {
-      enter();
-      if (index === meter.stop) {
-        guide();
-        return;
-      }
-      if (!zeroed && index !== 0) return say('先在 OFF 挡完成机械调零。', meter.zero);
-      if (METER_STOPS[index].mode === 'amp' && sw.closed && (red.target || black.target))
-        return say('先断开开关，再切换到电流挡。', sw.group);
-      if (METER_STOPS[index].mode === 'ohm' && [red.target, black.target].some((s) => s && !s.startsWith('R.')))
-        return say(
-          '先把两笔移离灯泡电路，再换电阻挡。',
-          red.target && !red.target.startsWith('R.') ? red.handle : black.handle,
-        );
-      calibrated = false;
-      meter.trimOffset = adjustment + ({ 1: 0.13, 10: -0.11, 100: 0.08 }[METER_STOPS[index].multiplier] || 0);
+      const next = METER_STOPS[index];
+      if (index === meter.stop) return guide();
+      if (bar.current === 'zero') return guide('先在 OFF 挡校准指针。');
+      if (bar.current === 'off' && next.mode === 'off' && unparked()) return guide();
+      if (sw.closed && (onCircuit(red) || onCircuit(black)) && (stop().mode === 'amp' || next.mode === 'amp'))
+        return guide('带电换电流挡有短路危险，先断开开关。');
+      if (next.mode === 'ohm' && (onCircuit(red) || onCircuit(black))) return guide('先让两支笔离开外电路，再换电阻挡。');
+      calibrated = overload = false;
       meter.setStop(index);
+      meter.trimOffset = adjustment + bias();
+      circuit.solve();
+      if (near) leave();
       guide();
     }
-    function read(point) {
-      const mark = meter.pickScale(point),
-        mode = stop().mode;
-      if (!valid(mode) || !['volt', 'amp', 'ohm'].includes(mode) || meter.fraction > 1.015) {
-        guide();
-        return;
+    function record() {
+      if (form.hidden || !readable()) return;
+      const mode = bar.current, a = raw.valueAsNumber, b = value.valueAsNumber;
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return;
+      const ohm = mode === 'ohm';
+      const expected = ohm ? ohmScaleValue(meter.fraction) : meter.fraction * 10;
+      // 黑圈每小格 0.2；本电阻在 ×100 挡的指针位于红圈 10 这条刻线上。
+      if (a < 0 || Math.abs(a - expected) > (ohm ? 0.5 : 0.101)) {
+        return guide('刻度读' + (a > expected ? '大' : '小') + '了。' + (ohm ? '外圈从右向左增大，刻线疏密不均。' : '内圈从左向右增大，每小格是 0.2。'));
       }
-      if (mode === 'ohm' && (meter.fraction < 0.2 || meter.fraction > 0.8)) {
-        guide();
-        return;
-      }
-      if (!mark || mark.scale !== (mode === 'ohm' ? 'ohm' : 'dc'))
-        return say(mode === 'ohm' ? '认外圈红色的 Ω 刻度。' : '认内圈黑色直流刻度。');
-      if (Math.abs(mark.fraction - meter.fraction) > 0.018) return say('看针尖所指的位置，沿相应弧线再读一次。');
-      const raw = mode === 'ohm' ? Math.round(ohmScaleValue(mark.fraction)) : Math.round(mark.fraction * 50) / 5;
-      const value = mode === 'ohm' ? raw * stop().multiplier : (raw * stop().range) / 10;
-      const unit = mode === 'ohm' ? 'Ω' : mode === 'volt' ? 'V' : 'mA';
-      const display = mode === 'amp' ? Math.round(value * 1000) : mode === 'volt' ? value.toFixed(2) : value;
+      const factor = ohm ? stop().multiplier : stop().range * (mode === 'amp' ? 1000 : 1) / 10;
+      if (b < 0 || Math.abs(b - a * factor) > (mode === 'volt' ? 0.00501 : mode === 'amp' ? 0.50001 : 0.00001))
+        return guide(ohm ? '刻度读对了，阻值还要乘选择开关所指的倍率。' : '刻度读对了。内圈的 10 对应满量程，用刻度数除以 10 再乘量程。');
+      rows.add([stop().label, String(a), '≈ ' + b + ' ' + unit()]);
+      const calc = ohm ? a + ' × ' + stop().multiplier : a + ' ÷ 10 × ' + stop().label;
+      const result = ({ volt: '灯泡两端的电压', amp: '通过灯泡的电流', ohm: '电阻的阻值' }[mode]) + '约为 ' + b + ' ' + unit() + '。';
       rows.el.hidden = false;
-      rows.add([stop().label, String(raw), display + ' ' + unit]);
       bar.done(mode);
       leave();
-      const next = instruction;
-      const calculation =
-        mode === 'ohm' ? '外圈 ' + raw + ' × ' + stop().multiplier : '内圈 ' + raw + ' ÷ 10 × ' + stop().label;
-      say(calculation + ' = ' + display + ' ' + unit + '。' + next, aim);
+      guide(result);
+      work.textContent = calc + (Math.abs(a * factor - b) < 0.000001 ? ' = ' : ' ≈ ') + b + ' ' + unit();
     }
-    function adjust(obj, isZero) {
+    const work = h('p', { class: 'note' });
+    const canAdjust = isZero => active() && (near !== 'scale') && (isZero ? bar.current === 'zero' : ['cal', 'ohm'].includes(bar.current));
+    function adjust(isZero) {
+      const obj = isZero ? meter.zero : meter.trim;
+      let initial;
       return {
-        obj,
-        plane: 'xz',
-        offset: meter.selector.position.y,
-        hint: isZero ? '拖动机械调零螺丝' : '拖动欧姆调零旋钮',
-        onStart() {
-          enter();
-          grab = isZero ? meter.mechanical : adjustment;
-        },
+        obj, plane: 'xz', offset: obj.position.y,
+        enabled: () => canAdjust(isZero),
+        hint: isZero ? '左右拖：调机械零点' : '左右拖：调欧姆零点',
+        onStart() { initial = isZero ? meter.mechanical : adjustment; },
         onDrag(p, from) {
-          if (!from) return;
           if (isZero) {
-            if (stop().mode !== 'off' || red.target || black.target || pair.shorted)
-              return say('先提起两笔并转至 OFF，再调指针定位螺丝。');
-            let v = clamp(grab + (p.x - from.x) * 2.5, -0.12, 0.12);
+            let v = clamp(initial + (p.x - from.x) * 2.5, -0.12, 0.12);
             if (Math.abs(v) < 0.005) v = 0;
             meter.mechanical = v;
             meter.zero.rotation.y = v * 8;
-          } else {
-            if (stop().mode !== 'ohm' || !pair.shorted) return say('先选欧姆挡，把两支表笔短接。');
-            const bias = { 1: 0.13, 10: -0.11, 100: 0.08 }[stop().multiplier];
-            adjustment = clamp(grab + (p.x - from.x) * 10, -0.3, 0.3);
-            if (Math.abs(adjustment + bias) < 0.015) adjustment = -bias;
-            meter.trimOffset = adjustment + bias;
+          } else if (stop().mode === 'ohm' && pair.shorted) {
+            adjustment = clamp(initial + (p.x - from.x) * 10, -0.3, 0.3);
+            if (Math.abs(adjustment + bias()) < 0.016) adjustment = -bias();
+            meter.trimOffset = adjustment + bias();
             meter.trim.rotation.y = adjustment * 8;
             circuit.solve();
           }
         },
         onEnd(moved) {
-          if (!moved) {
-            inspect();
-            return;
+          if (!moved) return;
+          if (isZero && meter.mechanical === 0) {
+            bar.done('zero');
+            leave();
+            return guide('指针对准直流零点了。');
           }
-          if (isZero) {
-            zeroed = meter.mechanical === 0;
-            if (zeroed) bar.done('zero');
-            else bar.undo('zero');
-          } else calibrated = stop().mode === 'ohm' && pair.shorted && Math.abs(meter.trimOffset) < 0.001;
-          guide();
+          if (!isZero) {
+            if (stop().mode !== 'ohm' || !pair.shorted) return guide('只有在电阻挡短接两笔，才能校准欧姆零点。');
+            calibrated = meter.trimOffset === 0;
+            if (calibrated) {
+              bar.done('cal');
+              leave();
+              return guide('短接时指针指向 0 Ω，这一倍率已调零。');
+            }
+          }
+          guide('指针还没对准零线。');
         },
+        onTap: inspect,
       };
     }
-    const desk = draggable(
-      group,
-      [
-        ...pair.drags,
-        adjust(meter.zero, true),
-        adjust(meter.trim, false),
-        {
-          obj: meter.selector,
-          plane: 'xz',
-          offset: meter.selector.position.y,
-          hint: '沿圆周转动选择开关',
-          onDrag(p) {
-            choose(meter.pickStop(meter.group.worldToLocal(group.localToWorld(p.clone()))));
-          },
-          onTap: inspect,
-        },
-        {
-          obj: plug,
-          plane: 'xz',
-          offset: 0.02,
-          keepOffset: true,
-          hint: '拔下或插回灯泡导线',
-          onStart() {
-            enter();
-            dragged = false;
-          },
-          onDrag(p) {
-            if (sw.closed) return;
-            dragged = true;
-            plug.position.set(p.x, 0.028, p.z);
-            pair.follow('J.pin');
-            circuit._dirty = true;
-          },
-          onEnd(moved) {
-            if (!moved) return;
-            if (!dragged) return say('先断电，再拔插导线。', sw.group);
-            parkPlug(Math.hypot(plug.position.x - attached.x, plug.position.z - attached.z) < 0.018);
-            guide();
-          },
-        },
-      ],
-      {
-        highlight: true,
-        taps: [
-          {
-            obj: sw.group,
-            hint: '合上或断开开关',
-            onTap() {
-              enter();
-              if (!sw.closed && stop().mode === 'amp' && plugged && (red.target || black.target))
-                return say('电流挡先串入断开处，再合闸。', plug);
-              sw.toggle();
-              guide();
-            },
-          },
-          {
-            obj: meter.face,
-            hint: '近看表盘或点选挡位',
-            onTap(ray) {
-              const hit = ray.intersectObject(meter.face)[0];
-              if (!hit) return;
-              const p = meter.group.worldToLocal(hit.point.clone());
-              const r = Math.hypot(p.x - meter.selector.position.x, p.z - meter.selector.position.z);
-              if (r > 0.014 && r < 0.028) {
-                choose(meter.pickStop(p));
-                return;
-              }
-              if (near) read(p);
-              else inspect();
-            },
-          },
-        ],
-      },
-    );
-    function reset() {
-      near = false;
-      ctx.back();
-      bar.near(false);
-      sw.closed = false;
-      parkPlug(true);
-      pair.reset();
-      meter.setStop(0);
-      adjustment = 0;
-      meter.trimOffset = 0;
-      meter.mechanical = 0.032;
-      meter.zero.rotation.y = meter.mechanical * 8;
-      meter.trim.rotation.y = 0;
-      zeroed = calibrated = false;
-      bar.undo('zero', 'volt', 'amp', 'ohm', 'off');
-      rows?.clear();
-      if (rows) rows.el.hidden = true;
+    const probeDrags = pair.drags.map((d, i) => {
+      const p = i === 0 ? red : black;
+      return { ...d, obj: p.grip.children.find(c => c.userData.pick), anchor: p.handle,
+        enabled: () => atDesk() && bar.current !== 'zero',
+        hint: i === 0 ? '拖笔尖：移动红表笔' : '拖笔尖：移动黑表笔' };
+    });
+    const switchPick = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.032, 0.025),
+      new THREE.MeshBasicMaterial({ visible: false }));
+    switchPick.position.y = 0.017;
+    switchPick.userData.pick = true;
+    sw.group.add(switchPick);
+    function toggle() {
+      if (!sw.closed && stop().mode === 'amp' && (onCircuit(red) || onCircuit(black)) && (plugged || !bothOn(pin, lampLeft)))
+        return guide('电流挡还没有串在断口，保持断电。');
+      sw.toggle();
+      if (sw.closed && stop().mode === 'amp') overload = meter.fraction > 1;
       guide();
     }
+    const canMovePlug = () => atDesk() && bar.current === 'amp' && !onCircuit(red) && !onCircuit(black);
+    const canSelect = () => active() && near !== 'scale' && !bar.finished;
+    let previewStop;
+    const selectDrag = {
+      obj: meter.selector, plane: 'xz', offset: meter.selector.position.y, enabled: canSelect,
+      hint: '点或转：近看或选挡',
+      onStart() { previewStop = meter.stop; },
+      onDrag(p) {
+        const local = meter.group.worldToLocal(group.localToWorld(p.clone()));
+        previewStop = meter.pickStop(local);
+        meter.selector.rotation.y = Math.PI * 0.66 - previewStop * 2 * Math.PI / METER_STOPS.length;
+      },
+      onEnd(moved) {
+        if (!moved) return;
+        meter.setStop(meter.stop);
+        choose(previewStop);
+      },
+      onTap: inspect,
+    };
+    const plugDrag = {
+      obj: grip, anchor: plug, plane: 'xz', offset: 0.025, keepOffset: true,
+      enabled: canMovePlug, hint: '拖动：拔插灯泡导线',
+      onStart() { movingPlug = false; },
+      onDrag(p) {
+        if (sw.closed) return;
+        if (!movingPlug) {
+          if (Math.hypot(p.x - plug.position.x, p.z - plug.position.z) < 0.0005) return;
+          circuit.removeWire(pin, lampLeft);
+          circuit.solve();
+          movingPlug = true;
+        }
+        plug.position.set(p.x, 0.025, p.z);
+        circuit._dirty = true;
+      },
+      onEnd(moved) {
+        if (!moved) return;
+        if (sw.closed) return guide('开关仍闭合，先断电再拔插导线。');
+        if (!movingPlug) return;
+        movingPlug = false;
+        const dest = plugged ? loose : attached;
+        if (Math.hypot(plug.position.x - dest.x, plug.position.z - dest.z) <= 0.018) parkPlug(!plugged);
+        else plugReturn = { start: plug.position.clone(), t: 0 };
+        guide(plugReturn ? '插头没有对准，回到原位。' : '');
+      },
+    };
+    const tapItems = [
+      { obj: switchPick, enabled: () => atDesk() && bar.current !== 'zero', hint: () => sw.closed ? '点一下：断开开关' : '点一下：闭合开关', onTap: toggle },
+      { obj: windowPick, enabled: () => !near && active() && !bar.finished, hint: '点一下：近看表盘', onTap: inspect },
+      { obj: meter.face, enabled: canSelect, hint: '点挡位：转选择开关', onTap(ray) {
+        const hit = ray.intersectObject(meter.face)[0];
+        if (!hit) return;
+        const p = meter.group.worldToLocal(hit.point.clone());
+        const r = Math.hypot(p.x - meter.selector.position.x, p.z - meter.selector.position.z);
+        if (r > 0.014 && r < 0.039) choose(meter.pickStop(p));
+        else if (!near) inspect();
+      } },
+    ];
+    const desk = draggable(group, [...probeDrags, adjust(true), adjust(false), selectDrag, plugDrag],
+      { tip: ctx.tag('', 'pill'), taps: tapItems });
+    function reset() {
+      near = '';
+      ctx.back(); bar.near(false);
+      plugReturn = null;
+      movingPlug = false;
+      sw.closed = false;
+      pair.reset();
+      parkPlug(true);
+      meter.mechanical = 0.032;
+      meter.zero.rotation.y = meter.mechanical * 8;
+      meter.trimOffset = adjustment = meter.trim.rotation.y = 0;
+      meter.setStop(0);
+      meter.update(1);
+      calibrated = overload = false;
+      rows.clear(); rows.el.hidden = false; work.textContent = '';
+      form.hidden = true; raw.value = value.value = '';
+      bar.undo(...steps.map(s => s[0]));
+      ui.relock(); guide();
+    }
+    const stepBar = document.querySelector('.lbar');
+    const mobileLayout = h('style', {}, `
+      @media(max-width:760px) {
+        body.lesson-on .lbar[data-meter] {bottom:6px;flex-wrap:wrap;gap:3px 8px}
+        .lbar[data-meter] .lb-main {flex:1 1 85%}
+        .lbar[data-meter] .lb-steps {margin-left:30px;max-width:none}
+        .lbar[data-meter] .lb-snd {margin-left:auto}
+        body:not(.predicting):not(.hide-steps) #panel.meter-panel {
+          bottom:calc(8px + var(--meter-bar));height:calc(52vh - var(--meter-bar))
+        }
+      }`);
+    const observeBar = new ResizeObserver(() => ui.el.style.setProperty('--meter-bar', (stepBar.offsetHeight + 6) + 'px'));
+    const center = obj => group.worldToLocal(obj.getWorldPosition(point()));
+    const target = id => circuit.terminalWorld(id);
+    const select = index => {
+      const a = -Math.PI * 0.66 + index * Math.PI / 4;
+      return { name: '选 ' + METER_STOPS[index].label, drag: meter.selector,
+        to: () => center(meter.selector).add(point(0.023 * Math.sin(a), 0, -0.023 * Math.cos(a))) };
+    };
+    const turn = (isZero, delta) => {
+      const obj = isZero ? meter.zero : meter.trim;
+      const step = qaFlow(desk, [{ name: isZero ? '调直流零点' : '调欧姆零点', drag: obj,
+        to: () => center(obj).add(point(delta, 0, 0)) }])[0];
+      step.run = () => {
+        const d = desk.items().find(it => it.obj === obj), start = center(obj);
+        d.onStart(); d.onDrag(step.mouse.to(), start); d.onEnd(true);
+      };
+      return step;
+    };
+    function carry(i, to, name) {
+      return { name, drag: probeDrags[i].obj,
+        to: () => (typeof to === 'string' ? target(to) : to()).clone().setY(0.025) };
+    }
+    const home = i => carry(i, () => (i ? black : red).home, i ? '收黑笔' : '收红笔');
+    const short = () => carry(0, () => black.handle.position, '短接笔尖');
+    const pressSwitch = { name: '拨开关', tap: switchPick };
+    const zoom = { name: '近看表盘', tap: windowPick };
+    function write(name, a, b, next) {
+      return { name, run() {
+        if (form.hidden) throw Error('未进入读数');
+        raw.value = String(a); value.value = String(b); form.querySelector('button').click();
+        if (bar.current !== next) throw Error(name + '之后步骤错误');
+      } };
+    }
     return {
-      group,
-      pointer: desk,
-      toggles: ['steps'],
-      size: { w: 0.45, d: 0.32, h: 0.085 },
-      view: { azim: 0, elev: 46, lookY: 0.3, margin: 1.04 },
+      group: new THREE.Group().add(group), toggles: ['steps'], reset,
+      size: { w: 0.44, d: 0.31, h: 0.055 }, view: { azim: 0, elev: 55, lookY: 0.26, get frameMargin() { return innerWidth <= 760 ? 1.12 : 0.99; } },
+      pointer: {
+        items: () => desk.items().filter(d => d.enabled()),
+        down(ray, event) {
+          if (ui.step === 2) return false;
+          const held = desk.down(ray, event);
+          if (held && ui.step === 0) ui.go(1);
+          return held;
+        },
+        move(ray, event) { return ui?.step === 1 && desk.move(ray, event); },
+        up: desk.up,
+      },
       mount(panel) {
         ui = panel;
-        bar.attach(ui);
-        rows = table(['所选挡位', '表盘读数', '实测值']);
-        rows.el.hidden = true;
-        ui.data.append(rows.el);
-        ui.notes.append(
-          note('内圈直流刻度为 0–10，满刻度对应所选量程；外圈电阻刻度直接乘倍率。'),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
+        stepBar.dataset.meter = '';
+        ui.el.classList.add('meter-panel');
+        ui.el.append(mobileLayout);
+        observeBar.observe(stepBar);
+        bar.attach({ need: () => ui.need(''), unlock: () => ui.unlock() });
+        const src = ui.el.querySelector('.answer .src');
+        src.style.paddingRight = '78px'; src.style.minHeight = '54px';
+        ui.controls.append(status, form);
+        ui.data.append(rows.el, work, h('button', { class: 'go ghost', onclick: reset }, '全部重来'));
         reset();
       },
       update(dt) {
+        pair.update(dt);
+        if (plugReturn) {
+          const r = plugReturn;
+          r.t = Math.min(1, r.t + dt / 0.4);
+          plug.position.lerpVectors(r.start, plugged ? attached : loose, r.t * (2 - r.t));
+          circuit._dirty = true;
+          if (r.t === 1) { parkPlug(plugged); plugReturn = null; }
+        }
         circuit.update(dt);
+        if (circuit.dots) circuit.dots.visible = false;
         bar.update(dt);
       },
+      debug: { bar, qa: [
+        zoom, turn(true, -0.0128), pressSwitch, select(4),
+        carry(0, () => point(0, 0, 0), '放偏后归位'), carry(0, lampLeft, '红笔接高电势端'), carry(1, lampRight, '黑笔接低电势端'),
+        zoom, write('错读直流刻度', 4, 1, 'volt'), write('量程换算错误', 5.9, 5.9, 'volt'), write('记下电压', 5.9, 1.48, 'amp'),
+        pressSwitch, home(0), home(1), { name: '拆开灯泡一端', drag: grip, to: () => loose.clone().setY(0.025) },
+        select(7), carry(0, pin, '红笔接插头'), carry(1, lampLeft, '黑笔接断口'), pressSwitch, zoom, write('记下电流', 2.4, 120, 'cal'),
+        pressSwitch, home(0), home(1), select(2), short(), turn(false, 0.011),
+        carry(0, 'R.a', '红笔接电阻'), carry(1, 'R.b', '试测偏转太小'), select(3),
+        home(0), home(1), short(), turn(false, -0.019), carry(0, 'R.a', '红笔重接电阻'), carry(1, 'R.b', '针尖落在中间区域'),
+        zoom, write('漏乘倍率', 10, 10, 'ohm'), write('记下电阻', 10, 1000, 'off'), home(0), home(1), select(0),
+        { name: '掀开结论', run() {
+          if (!bar.finished || rows.rows.length !== 3 || !parked(red) || !parked(black)) throw Error('测量或收表未完成');
+          ui.go(2); ui.el.querySelector('.flap-front').click();
+          if (!ui.el.querySelector('.flap.open')) throw Error('结论没有打开');
+        } },
+      ].map(s => s.mouse ? s : qaFlow(desk, [s])[0]) },
       dispose() {
-        desk.dispose();
-        pair.dispose();
-        meter.dispose();
-        bar.dispose();
-        circuit.dispose();
-      },
+        observeBar.disconnect(); mobileLayout.remove();
+        ui?.el.classList.remove('meter-panel'); ui?.el.style.removeProperty('--meter-bar');
+        desk.dispose(); pair.dispose(); meter.dispose(); bar.dispose(); circuit.dispose(); },
     };
   },
 };

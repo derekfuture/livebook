@@ -63,10 +63,10 @@ export function pendulumSeries(samples) {
   const periodFit = fit('period'),
     squaredFit = fit('squared');
   const lengths = rows.map((r) => r.l).sort((a, b) => a - b),
-    span = lengths.at(-1) - lengths[0];
+    span = lengths[lengths.length - 1] - lengths[0];
   // 四种摆长和至少20cm跨度是本活页的取样要求，不是教材规定的固定数值。
   const distinct = lengths.reduce((list, l) => {
-    if (!list.length || l - list.at(-1) >= 0.049) list.push(l);
+    if (!list.length || l - list[list.length - 1] >= 0.049) list.push(l);
     return list;
   }, []);
   return {

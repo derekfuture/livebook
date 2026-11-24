@@ -1,7 +1,7 @@
 // 配制好的油酸酒精溶液：取 1.00 mL 纯油酸，加酒精至总体积 500 mL。
 export const OIL_FRACTION = 1 / 500;
 export const GRID = 0.01; // 玻璃板每格边长 1 cm。
-export const DROP_ML = 0.018;
+export const DROP_ML = 0.020;
 const monolayerHeight = 2.0e-9; // 本模型形成的紧密单层厚度，实验读数仍来自学生描线和数格。
 export function pureOilPerDrop(startMl, endMl, count, fraction = OIL_FRACTION) {
   if (!(startMl > endMl && endMl >= 0 && count > 0 && Number.isInteger(count) && fraction > 0 && fraction <= 1))

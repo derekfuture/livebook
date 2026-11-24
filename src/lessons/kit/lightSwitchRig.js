@@ -1,15 +1,32 @@
 import * as THREE from 'three';
 import { paint } from '../../live/ink.js';
-import { canvasTex } from './props.js';
-import { block, caption, wire, wireGeometry } from './electronicsBench.js';
+import { canvasTex, glowTexture } from './props.js';
+import { block, wire, wireGeometry } from './electronicsBench.js';
 import { battery, switchPart } from './circuit.js';
-import { EMITTER_WIDTH, EMITTER_Y, SENSOR_Y, SHADE_Y, SHADE_WIDTH, SENSOR_RADIUS, SHADE_FRACTION, FOOTPRINT } from './lightSwitch.js';
+import { VISIBLE_CURRENT, EMITTER_WIDTH, EMITTER_Y, SENSOR_Y, SHADE_Y, SHADE_WIDTH, SENSOR_RADIUS, SHADE_FRACTION, FOOTPRINT } from './lightSwitch.js';
 
 export const SENSOR_X = -0.105,
   SENSOR_Z = -0.018,
   SHADE_HOME = SENSOR_X + 0.067;
 export const R_POS = [0.031, 0.028, 0.045];
 export const knobAngle = (ohms) => (-0.75 + (1.5 * (ohms - 1000)) / 50000) * Math.PI;
+// 铭牌按文字长度排版，斜看实验板时仍能认出接线符号。
+function caption(parent, text, x, y, z, w = 0.041, h = 0.012) {
+  const map = canvasTex(Math.round(100 * w / h), 100, (g, W, H) => {
+    g.fillStyle = '#f2e7cb';
+    g.fillRect(0, 0, W, H);
+    g.fillStyle = '#3d4641';
+    g.font = 'bold 73px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, W / 2, H / 2, W - 14);
+  });
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map }));
+  plate.rotation.x = -Math.PI / 2;
+  plate.position.set(x, y, z);
+  parent.add(plate);
+}
+
 export function lightSwitchRig() {
   const group = new THREE.Group(),
     v = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -19,12 +36,17 @@ export function lightSwitchRig() {
   block(group, 0.008, EMITTER_Y + 0.01, 0.009, lampX, (EMITTER_Y + 0.01) / 2, -0.092, 0x8d9696);
   block(group, 0.012, 0.008, 0.083, lampX, EMITTER_Y + 0.012, -0.055, 0x899598);
   block(group, EMITTER_WIDTH + 0.012, 0.012, EMITTER_WIDTH + 0.012, SENSOR_X, EMITTER_Y + 0.006, SENSOR_Z, 0x667477);
+  caption(group, '模拟日光', SENSOR_X, EMITTER_Y + 0.0122, SENSOR_Z + 0.013, 0.050, 0.014);
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(EMITTER_WIDTH + 0.01, 0.003, EMITTER_WIDTH + 0.01),
+    new THREE.MeshBasicMaterial({ color: 0xffe6aa }));
+  rim.position.set(SENSOR_X, EMITTER_Y - 0.0013, SENSOR_Z);
+  group.add(rim);
   const diffuser = new THREE.Mesh(
     new THREE.PlaneGeometry(EMITTER_WIDTH, EMITTER_WIDTH),
     new THREE.MeshBasicMaterial({ color: 0xfff6d7 }),
   );
   diffuser.rotation.x = Math.PI / 2;
-  diffuser.position.set(SENSOR_X, EMITTER_Y - 0.0002, SENSOR_Z);
+  diffuser.position.set(SENSOR_X, EMITTER_Y - 0.0029, SENSOR_Z);
   group.add(diffuser);
   // 光敏面在滑片下方。电阻的蛇形沟槽也随实际受光变亮或变暗。
   const rgtex = canvasTex(256, 256, (g, w, h) => {
@@ -60,19 +82,17 @@ export function lightSwitchRig() {
   rg.position.set(SENSOR_X, SENSOR_Y, SENSOR_Z);
   group.add(rg);
   block(group, 0.026, 0.018, 0.026, SENSOR_X, 0.009, SENSOR_Z, 0x586567);
-  caption(group, 'RG', SENSOR_X, 0.001, SENSOR_Z + 0.026);
+  caption(group, '光敏电阻 RG', SENSOR_X, 0.001, SENSOR_Z + 0.045, 0.055, 0.014);
   for (const x of [SENSOR_X - 0.035, SHADE_HOME + 0.022]) {
     block(group, 0.008, SHADE_Y, 0.009, x, SHADE_Y / 2, SENSOR_Z + 0.039, 0x677271);
   }
   const railZ = SENSOR_Z + 0.039;
   block(group, 0.133, 0.006, 0.007, SENSOR_X + 0.025, SHADE_Y - 0.005, railZ, 0x808a89);
-  const shade = new THREE.Group();
-  group.add(shade);
-  block(shade, SHADE_WIDTH, 0.0018, SHADE_WIDTH, 0, 0, 0, 0x3c4146);
+  const shade = block(group, SHADE_WIDTH, 0.0018, SHADE_WIDTH, 0, 0, 0, 0x3c4146);
   block(shade, 0.009, 0.003, 0.016, 0, 0, 0.031, 0x826847);
   block(shade, 0.019, 0.006, 0.012, 0, 0.001, 0.039, 0xb78e5f);
   shade.position.set(SHADE_HOME, SHADE_Y, SENSOR_Z);
-  const mark = block(group, 0.0016, 0.0006, 0.009, SHADE_HOME, SHADE_Y - 0.0018, railZ, 0x974b38);
+  const mark = block(group, 0.002, 0.001, 0.009, SHADE_HOME, SHADE_Y - 0.0014, railZ, 0xb44230);
   mark.visible = false;
   caption(group, '遮光片', SHADE_HOME, 0.001, 0.054);
   // 电位器的刻度直接印在轴周围，只有旋钮随手势旋转。
@@ -102,25 +122,23 @@ export function lightSwitchRig() {
   dial.rotation.x = -Math.PI / 2;
   dial.position.set(R_POS[0], 0.0162, R_POS[2]);
   group.add(dial);
-  // 拾取印在旋钮前方的 R₁ 标识，避免整个刻度盘的中心落在旋钮上。
-  const dialPick = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.030, 0.009),
-    new THREE.MeshBasicMaterial({ visible: false }),
-  );
-  dialPick.rotation.x = -Math.PI / 2;
-  dialPick.position.set(R_POS[0], 0.0163, R_POS[2] + 0.025);
-  dialPick.userData.pick = true;
-  group.add(dialPick);
-  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.012, 40), paint(0x49504e));
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.015, 0.012, 40), paint(0x49504e));
   knob.position.set(R_POS[0], 0.023, R_POS[2]);
   group.add(knob);
-  block(knob, 0.0016, 0.0007, 0.009, 0, 0.006, -0.007, 0xebc689);
+  block(knob, 0.0023, 0.0009, 0.009, 0, 0.006, -0.007, 0xebc689);
   const E = battery('E', { cells: 4 }),
     S = switchPart('S');
   E.group.scale.setScalar(0.64);
   E.group.position.set(0.097, 0, -0.103);
   S.group.position.set(0.149, 0, -0.064);
   group.add(E.group, S.group);
+  // 刀柄翘起时也能抓住，整只开关共用一个命中区。
+  const switchPick = S.group.children[0];
+  const switchHit = new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.043, 0.024),
+    new THREE.MeshBasicMaterial({ visible: false }));
+  switchHit.position.y = 0.018;
+  switchHit.userData.pick = true;
+  switchPick.add(switchHit);
   const point = (part, key) => group.worldToLocal(part.group.localToWorld(v(...part.terminals[key])));
   const plus = point(E, '+'),
     negative = point(E, '-'),
@@ -128,11 +146,11 @@ export function lightSwitchRig() {
   wire(group, [plus, [0.172, 0.005, -0.09], point(S, 'a')], 0x945742);
   const ports = {};
   function port(key, x, z, label, color) {
-    const jack = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.009, 16), paint(color));
+    const jack = new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.0065, 0.009, 16), paint(color));
     jack.position.set(x, 0.005, z);
     group.add(jack);
     ports[key] = v(x, 0.011, z);
-    caption(group, label, x, 0.001, z + 0.012, 0.017, 0.008);
+    caption(group, label, key === 'c' ? x - 0.017 : x, 0.001, z + (key === 'c' ? 0.003 : 0.013), 0.016, 0.014);
   }
   port('p1', 0.067, -0.041, '+', 0xb55a4c);
   port('p2', 0.092, -0.041, '+', 0xb55a4c);
@@ -149,15 +167,16 @@ export function lightSwitchRig() {
   wire(group, [ports.c, [0.125, 0.005, 0.037], [0.127, 0.013, 0.051]], 0x8b7f68);
   wire(group, [[0.131, 0.014, 0.056], emitter, [0.152, 0.003, 0.09], ports.n2], 0x424a4a);
   wire(group, [base, [0.121, 0.01, 0.052], [0.124, 0.015, 0.053]], 0x9c8c75);
-  caption(group, 'b', 0.113, 0.001, 0.064, 0.014, 0.008);
-  caption(group, 'e', 0.146, 0.001, 0.066, 0.014, 0.008);
+  caption(group, 'b', 0.108, 0.001, 0.067, 0.013, 0.014);
+  caption(group, 'e', 0.136, 0.001, 0.080, 0.013, 0.014);
   wire(
     group,
     [
       [SENSOR_X + 0.01, SENSOR_Y - 0.004, SENSOR_Z],
       [SENSOR_X + 0.026, 0.004, SENSOR_Z - 0.001],
-      [-0.035, 0.003, 0.011],
-      [0.085, 0.003, 0.052],
+      [-0.040, 0.003, 0.004],
+      [0.061, 0.003, 0.003],
+      [0.092, 0.003, 0.039],
       base,
     ],
     0x8e715a,
@@ -168,9 +187,10 @@ export function lightSwitchRig() {
     block(group, 0.0014, 0.0064, 0.0074, r2.position.x + x, 0.012, -0.009, x < 0 ? 0xb1783a : 0x715442);
   wire(group, [vs, [0.193, 0.004, -0.038], [0.176, 0.007, -0.01], [0.171, 0.012, -0.009]], 0xaa664e);
   const led = new THREE.Mesh(
-    new THREE.SphereGeometry(0.0065, 24, 18),
-    new THREE.MeshBasicMaterial({ color: 0x623a32 }),
+    new THREE.SphereGeometry(0.009, 32, 20),
+    new THREE.MeshPhongMaterial({ color: 0x623a32, specular: 0xffb2a5, shininess: 68 }),
   );
+  led.scale.set(1, 1.35, 1);
   led.position.set(0.166, 0.02, 0.016);
   group.add(led);
   block(group, 0.02, 0.008, 0.018, 0.166, 0.004, 0.016, 0x515b5e);
@@ -183,13 +203,24 @@ export function lightSwitchRig() {
     ],
     0x96735c,
   );
-  caption(group, 'LED', 0.184, 0.001, 0.028);
-  caption(group, '330 Ω', 0.187, 0.001, -0.007, 0.031, 0.01);
-  const anchors = [v(0.006, 0.011, 0.053), v(SENSOR_X - 0.01, SENSOR_Y - 0.003, SENSOR_Z), v(0.17, 0.015, 0.018)];
-  const homes = [v(0.008, 0.005, 0.092), v(-0.054, 0.005, 0.086), v(0.179, 0.005, 0.074)];
+  const light = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xff0a18,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  light.scale.setScalar(0.061);
+  light.position.copy(led.position);
+  light.position.y += 0.009;
+  group.add(light);
+  caption(group, '红灯 LED', 0.18, 0.001, 0.059);
+  caption(group, 'R₂', 0.19, 0.001, -0.009, 0.019, 0.012);
+  const anchors = [v(0.033, 0.009, 0.012), v(SENSOR_X - 0.01, SENSOR_Y - 0.003, SENSOR_Z), v(0.17, 0.015, 0.018)];
+  const homes = [v(0.016, 0.008, -0.024), v(-0.067, 0.008, 0.090), v(0.179, 0.008, 0.085)];
   const leads = anchors.map((anchor, i) => {
     const color = [0xa57941, 0x795f51, 0xb65e49][i];
-    const plug = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.011, 18), paint(color));
+    const plug = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.005, 0.014, 20), paint(color));
+    block(plug, 0.006, 0.001, 0.002, 0, 0.0072, 0, 0xf0daab);
+    const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0085, 0.017, 20),
+      new THREE.MeshBasicMaterial({ visible: false }));
+    hit.userData.pick = true;
+    plug.add(hit);
     group.add(plug);
     plug.position.copy(homes[i]);
     const cable = new THREE.Mesh(new THREE.BufferGeometry(), paint(color));
@@ -200,18 +231,31 @@ export function lightSwitchRig() {
   function route(i) {
     const { anchor, plug, cable } = leads[i],
       end = plug.position;
-    const bend = anchor.clone().lerp(end, 0.52);
-    bend.y = 0.003;
-    bend.z += 0.024;
+    // R₁ 从旋钮座后侧出线。RG 的线沿板的左侧引出。
+    const points = [anchor];
+    if (i === 0) {
+      points.push(v(0.040, 0.006, -0.001));
+      if (end.z > 0.012) points.push(v(0.076, 0.006, 0.003), v(0.086, 0.006, 0.058));
+    } else if (i === 1) {
+      points.push(v(-0.142, 0.006, 0.012), v(-0.126, 0.004, 0.074));
+      if (end.x > 0) points.push(v(-0.052, 0.005, 0.108), v(0.031, 0.005, 0.109));
+    } else {
+      points.push(v(0.181, 0.008, 0.023));
+    }
+    points.push(end);
     cable.geometry.dispose();
-    cable.geometry = wireGeometry([anchor, bend, end]);
+    cable.geometry = wireGeometry(points);
   }
   leads.forEach((l, i) => route(i));
   function draw(resistance, collector) {
     knob.rotation.y = -knobAngle(resistance);
     const b = Math.sqrt(Math.min(1, collector / 0.012));
-    led.material.color.setRGB(0.12 + 0.88 * b, 0.024 + 0.1 * b, 0.018 + 0.035 * b);
+    const lit = collector >= VISIBLE_CURRENT;
+    led.material.color.setRGB(lit ? 0.85 + 0.15 * b : 0.16, lit ? 0.004 + 0.014 * b : 0.018, 0.023);
+    led.material.emissive.setRGB(lit ? 0.52 + b * 0.46 : 0, lit ? 0.002 + b * 0.006 : 0, 0);
+    light.visible = lit;
+    light.material.opacity = 0.35 + 0.35 * b;
     shadeOffset.value.set(shade.position.x - SENSOR_X, shade.position.z - SENSOR_Z);
   }
-  return { group, S, rg, shade, knob, dial: dialPick, led, mark, ports, leads, route, draw };
+  return { group, S, shade, knob, switchPick, mark, ports, leads, route, draw };
 }

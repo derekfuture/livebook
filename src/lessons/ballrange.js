@@ -1,9 +1,25 @@
-import { ballRangeRig, LIP, PAPER_Y, CY, PAN_X, PAN_Y, FLAT, LENGTH, trackHeight } from './kit/ballRangeRig.js';
+import * as THREE from 'three';
+import { ballRangeRig, LIP, PAPER_Y, CY, PAN_X, PAN_Y, RELEASE_X, trackHeight } from './kit/ballRangeRig.js';
 import { rangeShot, BALL_MASSES, BALL_RADIUS as R } from './kit/ballRange.js';
 import { rollingExitSpeed } from './kit/projectileTrack.js';
+import { inviteRing } from './kit/invite.js';
+import { show } from '../ui/prefs.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { draggable, clamp } from './kit/interact.js';
-import { table, note, h, buttons } from './kit/ui.js';
+import { draggable, clamp, rayToLocal } from './kit/interact.js';
+import { qaFlow } from './kit/chemlesson.js';
+import { table, h, buttons } from './kit/ui.js';
+
+const vec = (x, y, z) => new THREE.Vector3(x, y, z);
+const seats = RELEASE_X.map(x => vec(x, CY + trackHeight(x), 0));
+const homes = [0.093, 0.141].map(x => vec(x, PAPER_Y + R, 0.111));
+const panAt = vec(PAN_X, PAN_Y + R, 0.052), lipAt = vec(LIP, CY, 0);
+const rulerHome = vec(LIP - 0.183, PAPER_Y + 0.001, 0.068);
+const rulerAt = vec(LIP - 0.2, PAPER_Y + 0.001, 0.022);
+const letters = ['A', 'B'], names = ['重球', '轻球'];
+const predictions = ['比较各球质量乘射程的总和', '只把碰后的两段射程相加', '比较两球谁先落地'];
+const labels = ['P', 'M', 'N'], descriptions = ['单飞重球', '碰后重球', '碰后轻球'];
+const steps = [['setup', '称球、定原点'], ['solo', '量碰前射程'], ['hit', '量碰后射程'], ['repeat', '换高度复测']];
+const cm = mm => (mm / 10).toFixed(1);
 
 export default {
   id: 'ballrange',
@@ -11,449 +27,388 @@ export default {
   title: '用两球落点验证动量守恒',
   stampText: '验证',
   predict: {
-    q: '两球从同一水平槽口飞出，怎样利用地上的落点比较碰撞前后的动量？',
-    options: ['将球的质量乘以它的水平射程', '只把碰后的两段射程相加', '比较两球谁先落地'],
+    q: '不测速度，怎样用两球的落点验证碰撞前后总动量是否守恒？',
+    options: predictions,
     answer: 0,
-    hint: '球的落差相同，离槽时竖直分速度都是零。',
   },
   conclusion: {
     page: 24, rect: [68.5, 131.46, 520.69, 193.54],
     quote: '在这个实验中也可以不测量速度的具体数值。做平抛运动的小球落到地面，它们的下落高度相同，飞行时间也就相同。因此，小球碰撞后的速度之比就等于它们落地时飞行的水平距离之比。根据这一思路，也可以验证动量守恒定律。',
-    why: '在水平槽口做对心碰撞。两球的飞行时间相同，由 v = x/t，可用 m₁x₀ 与 m₁x₁ + m₂x₂ 比较碰前和碰后总动量。同组两次要让重球从相同位置静止滚下。',
+    why: '两球从同一水平槽口飞出，下落高度相同。把质量与射程的乘积除以共同的飞行时间，就得到水平方向的动量。',
     src: '课本第 20 页 · 第一章 第4节 实验：验证动量守恒定律',
   },
   create(ctx) {
-    const rig = ballRangeRig(),
-      { group, balls, scale, paper, screen, notch } = rig;
-    let attached, pan, weights, origin, marks, base, after, shot, near, rows, form, fields, evidence, aim, ui, history;
-    let sample, dragging, startScale, fromLip;
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'setup', title: '称球定原点', todo: '分别称两球质量，沿铅垂线在纸上定 O。', target: () => aim },
-        { id: 'solo', title: '量碰前射程', todo: '先让重球单独滚下，测量它飞出的水平距离。', target: () => aim },
-        { id: 'hit', title: '量碰后射程', todo: '放轻球，从原标记放重球，测两个落点。', target: () => aim },
-        { id: 'verify', title: '检验动量', todo: '换一个释放位置，再用实测质量与射程检验。', target: () => aim },
-      ],
-    });
-    const say = (s, o) => {
-      aim = near ? null : o;
-      bar.say(s);
-    };
+    const rig = ballRangeRig();
+    const { group, balls, paper, scale, bob, screen } = rig;
+    const masses = [null, null], records = [], marks = [];
+    const rows = table(['释放点', 'OP / cm', 'OM / cm', 'ON / cm']);
+    const massNote = h('p', { class: 'note', style: 'font-size:14px;color:#514b42' });
+    const sums = h('div', { style: 'font-size:14px;color:#463e34;line-height:1.55;font-variant-numeric:tabular-nums' });
+    const field = h('input', { type: 'number', inputmode: 'decimal', step: 'any', required: true, style: 'width:5em;font:inherit' });
+    const caption = h('span');
+    const form = h('form', { onsubmit(e) { e.preventDefault(); read(); } },
+      h('label', {}, caption, ' ', field), ' ', h('button', { class: 'go', type: 'submit', style: 'width:auto;margin:0' }, '记下读数'));
+    let ui, near, aim, origin, pan, attached, soloSeat, shot, returning, held, cancelled;
+    let zeroed, first, dragDepth, candidate;
+    const ring = inviteRing(group, { ground: -1 });
+    const bar = lessonBar({ ...ctx, back: leave,
+      steps: steps.map(([id, title]) => ({ id, title, todo: title, target: () => aim })) });
+    const pending = () => marks.find(m => !m.excluded && m.mm === null);
+    const measured = () => marks.filter(m => !m.excluded);
+    const tell = text => ui?.status(text);
     const ink = () => rig.ink(origin, marks);
-    const aligned = () =>
-      origin !== null &&
-      Math.abs(scale.position.x + 0.2 - origin) < 0.0016 &&
-      Math.abs(scale.position.z - 0.022) < 0.002;
-    const current = () => [base?.dot, ...(after?.dots || [])].filter(Boolean);
-    function nextMark() {
-      return current().find((m) => m.read === null);
-    }
-    function updateForm() {
-      if (!form) return;
-      form.hidden = !(
-        weights.every(Boolean) &&
-        origin !== null &&
-        base &&
-        after &&
-        current().every((m) => m.read !== null) &&
-        !after.saved
-      );
-      const mass = weights.map((v, i) => (v ? (i ? '轻' : '重') + '球 ' + v + ' g' : '')).filter(Boolean);
-      const distances = current()
-        .filter((m) => m.read !== null)
-        .map((m) => m.name + ' ' + m.read + ' mm');
-      evidence.textContent = [...mass, ...distances].join('；');
+    const lightOnPaper = () => records.length > 0 && soloSeat === null && !balls[1].position.equals(homes[1]) && pan !== 1;
+    function guide() {
+      aim = null;
+      function say(text, obj) { aim = near || shot || held || ui?.step === 0 ? null : obj; bar.say(text); }
+      if (shot) return say('看球第一次碰到纸的地方，纸上会留下印迹。');
+      if (near === 'mass') return say('读秤上的克数，记下这只球的质量。');
+      if (near === 'origin') return say('点铅锤尖端正下方的纸面，把槽口的投影标为 O。');
+      if (near === 'read') return say('沿落点的细线读到最近的毫米刻线，用厘米记录。');
+      if (bar.finished) return say('两个高度都已检验，可以掀开课本结论。');
+      if (masses.includes(null)) {
+        if (pan !== null && masses[pan] === null) return say('点秤的显示屏，读球的质量。', screen);
+        if (pan !== null) return say('把称好的球拖回木座，腾出秤盘。', balls[pan]);
+        const i = masses[0] === null ? 0 : 1;
+        return say('把' + names[i] + '拖到空秤盘上，单独称它的质量。', balls[i]);
+      }
+      if (!origin) return say('点铅锤近看，找出量水平射程的起点。', bob);
+      if (pending()) {
+        if (!zeroed) return say('把尺拖到落点旁，让零刻线与 O 线重合。', scale);
+        return say('点尺近看，量' + descriptions[labels.indexOf(pending().label)] + '从 O 到 ' + pending().label + ' 的距离。', scale);
+      }
+      if (lightOnPaper())
+        return say('把轻球拖回木座，清空落点区再换高度。', balls[1]);
+      if (soloSeat === null) return say(records.length ? '换到另一个字母标记，先让重球单独滚下。' : '槽口留空，把重球拖到 A 或 B 松手，留下碰前的落点 P。', balls[0]);
+      if (!attached) return say('把轻球拖到水平槽口，让它静止等候碰撞。', balls[1]);
+      return say('把重球拖回 ' + letters[soloSeat] + ' 松手，使碰前速度与单飞时相同。', balls[0]);
     }
     function leave() {
-      ctx.back();
+      if (near) ctx.back();
       near = null;
+      form.hidden = true;
       bar.near(false);
       guide();
     }
-    function focus(key, x, y, z, dist) {
-      near = key;
+    function close(which, at, direction, distance) {
+      near = which;
+      form.hidden = which === 'origin';
+      if (!form.hidden) {
+        ui.fold(false);
+        caption.textContent = which === 'mass' ? names[pan] + '质量 / g' : 'O' + pending().label + ' / cm';
+        field.value = '';
+      }
       bar.near(true);
-      ctx.look([x, y, z], [0, 1, 0.025], dist, leave);
+      ctx.look(at.toArray(), direction, distance, leave);
       guide();
     }
-    function guide() {
-      if (shot) return say('观察重球到达槽口，以及球第一次接触记录纸的位置。');
-      if (near === 'mass') return say('电子秤显示的是现在放在盘中的球的质量。回全景继续。');
-      if (weights.some((v) => !v))
-        return say(
-          '把' + (!weights[0] ? '深色重球' : '浅色轻球') + '单独拖到右侧电子秤上，称好后取下，再称另一只。',
-          balls[weights[0] ? 1 : 0],
-        );
-      if (origin === null)
-        return say(
-          near ? '在铅垂线尖端正下方点纸，留下水平射程的零线 O。' : '点铅垂线下面的白纸近看，标出槽口的竖直投影。',
-          paper,
-        );
-      if (after?.saved) {
-        const result = '碰前 ' + after.before.toFixed(1) + '、碰后 ' + after.following.toFixed(1) + ' g·cm。';
-        if (!after.valid)
-          return say(
-            result + '两次释放位置不同。放回轻球，把重球拖到原标记，重新测量。',
-            attached ? balls[0] : balls[1],
-          );
-        return say(
-          result +
-            (history.length >= 2
-              ? '两种释放高度都已检验。'
-              : after.repeat
-                ? '这组释放位置与上一组相近。换一个高度，先让重球单独滚下。'
-                : '下一组换一个释放高度，先让重球单独滚下。'),
-          history.length >= 2 ? null : balls[0],
-        );
-      }
-      if (!base) return say('先留空槽口，把重球拖到斜槽较高处并松手。', balls[0]);
-      if (nextMark()) {
-        if (!aligned()) {
-          if (Math.abs(scale.position.z - 0.022) < 0.005)
-            return say('尺已靠近落点。沿纸边横移，把右端零刻线对准 O。', scale);
-          return say('将台前的尺拖到落点旁，把零刻线对齐纸上的 O。', scale);
+    function inspectScale() {
+      const m = pending();
+      if (!m || !zeroed) return guide();
+      // 看得到落点两侧的整段厘米、毫米刻度，避免用镜头中心充当读数线。
+      const center = LIP - Math.round(m.range * 20) / 20;
+      close('read', vec(center, PAPER_Y, 0.005), [0, 1, 0.045], 0.17);
+    }
+    function read() {
+      const value = field.valueAsNumber;
+      if (!Number.isFinite(value)) return;
+      if (near === 'mass') {
+        const expected = BALL_MASSES[pan] * 1000;
+        if (value !== expected) return tell('读数与秤面不符，显示的单位是克。');
+        masses[pan] = value;
+        massNote.textContent = names.map((n, i) => n + ' ' + (masses[i] === null ? '—' : masses[i] + ' g')).join('　');
+        tell(names[pan] + '质量已记为 ' + value + ' g。');
+        leave();
+      } else if (near === 'read') {
+        const m = pending();
+        const expected = Math.round(m.range * 1000);
+        if (Math.abs(value * 10 - expected) > 1e-6) {
+          return tell(value >= expected * 0.8 ? '尺上的数字是厘米，每一小格是 0.1 cm。' :
+            '读数偏' + (value * 10 > expected ? '大' : '小') + '。从带数字的长线数到落点细线，每格 0.1 cm。');
         }
-        const mark = nextMark();
-        return say(
-          near
-            ? '沿' + mark.name + '的黑色落点对到尺面，点它的毫米刻度。'
-            : '点尺面近看，量' + mark.name + '的落点到 O 的距离。',
-          scale,
-        );
-      }
-      if (!after)
-        return say(
-          attached ? '重球拖回槽上的赭色释放标记再松手。' : '将浅色轻球放到水平槽口，再从原标记释放重球。',
-          attached ? balls[0] : balls[1],
-        );
-      updateForm();
-      say('三段射程已量好。展开笔记本，用质量乘射程比较碰前、碰后两项。');
-    }
-    function dock(i) {
-      balls[i].position.set(0.104 + i * 0.026, PAPER_Y + R, 0.111);
-    }
-    function removeFromPan(i) {
-      if (pan === i) {
-        pan = null;
-        rig.weigh(0);
+        m.mm = Math.round(value * 10);
+        rows.set(records.length, [letters[soloSeat], ...labels.map(l => {
+          const mark = measured().find(d => d.label === l);
+          return mark && mark.mm !== null ? cm(mark.mm) : '—';
+        })]);
+        if (m.label === 'P') {
+          bar.done('solo');
+          tell('OP = ' + cm(m.mm) + ' cm，记下了同高度单飞的射程。');
+        } else if (m.label === 'M') tell('OM = ' + cm(m.mm) + ' cm，这是碰后重球的射程。');
+        else compare();
+        leave();
       }
     }
-    function start(x) {
-      if (attached && base && Math.abs(x - base.x) <= 0.0025) x = base.x;
-      const height = trackHeight(x);
-      if (height < 1e-8) {
-        balls[0].position.set(x, CY, 0);
-        return say('球在水平段。把它提到弯槽上再松手。', balls[0]);
-      }
-      const collision = attached,
-        end = LIP + (collision ? 2 * R : 0),
-        pts = [{ x, y: CY + height, t: 0 }];
+    function compare() {
+      const [p, m, n] = measured().map(mark => mark.mm);
+      const before = masses[0] * p / 10, after = (masses[0] * m + masses[1] * n) / 10;
+      sums.append(h('p', {}, h('b', {}, letters[soloSeat] + ' 点 · 质量 × 射程'), h('br'),
+        '碰前　' + masses[0] + ' × ' + cm(p) + ' = ' + before.toFixed(1) + ' g·cm', h('br'),
+        '碰后　' + masses[0] + ' × ' + cm(m) + ' + ' + masses[1] + ' × ' + cm(n) + ' = ' + after.toFixed(1) + ' g·cm'));
+      records.push(soloSeat);
+      tell('ON = ' + cm(n) + ' cm。碰前、碰后的质量乘射程之和在读尺误差内相等，这组结果支持动量守恒。');
+      bar.done('hit');
+      if (records.length === 2) bar.done('repeat');
+      soloSeat = null;
+    }
+    function start(seat, collision) {
+      const x = RELEASE_X[seat], height = trackHeight(x), end = LIP + (collision ? 2 * R : 0);
+      const pts = [{ x, y: CY + height, t: 0 }];
       for (let j = 1; j <= 64; j++) {
-        const u = x + ((end - x) * j) / 64,
-          y = CY + trackHeight(u),
-          prev = pts[j - 1];
-        const v0 = rollingExitSpeed(Math.max(0, CY + height - prev.y)),
-          v1 = rollingExitSpeed(Math.max(0, CY + height - y));
-        pts.push({ x: u, y, t: prev.t + (2 * Math.hypot(u - prev.x, y - prev.y)) / (v0 + v1) });
+        const u = x + (end - x) * j / 64, y = CY + trackHeight(u), prev = pts[j - 1];
+        const v0 = rollingExitSpeed(Math.max(0, CY + height - prev.y));
+        const v1 = rollingExitSpeed(Math.max(0, CY + height - y));
+        pts.push({ x: u, y, t: prev.t + 2 * Math.hypot(u - prev.x, y - prev.y) / (v0 + v1) });
       }
-      const physics = rangeShot(height, collision);
-      shot = { physics, pts, x, t: 0, collision, printed: [], dots: [] };
+      if (!collision) {
+        marks.length = 0;
+        soloSeat = seat;
+        rows.add([letters[seat], '—', '—', '—']);
+      } else marks.splice(1);
+      ink();
+      shot = { collision, seat, pts, physics: rangeShot(height, collision), t: 0, printed: [] };
+      balls[0].position.copy(seats[seat]);
+      attached = false;
+      tell('');
       guide();
     }
-    function finish(s) {
-      shot = null;
-      if (!s.collision) {
-        base = { x: s.x, dot: s.dots[0] };
-        after = null;
-        notch.position.set(s.x, CY + trackHeight(s.x) - R - 0.002, 0);
-        notch.visible = true;
-        if (history.length && history.every((h) => Math.abs(h - s.x) < 0.012))
-          say('本次落点已留下。要比较新的高度，请把重球换到相距更远的位置再单独放一次。', balls[0]);
-        else guide();
-      } else {
-        attached = false;
-        if (!base || Math.abs(base.x - s.x) > 0.0025) {
-          s.dots.forEach((m) => (m.excluded = true));
-          ink();
-          after = base ? { dots: s.dots, saved: false, valid: false } : null;
-          say(
-            base
-              ? '这次释放位置变了。纸上以 × 标出这两个落点，可量作对照；要复测就把重球拖回原标记。'
-              : '两个碰后落点已留下。还要让重球单独飞一次，测同一高度的碰前射程。',
-            balls[0],
-          );
-        } else {
-          after = { dots: s.dots, saved: false, valid: true };
-          guide();
-        }
-      }
-      updateForm();
-    }
-    function update(dt) {
-      bar.update(dt);
-      if (!shot) return;
+    function advance(dt) {
       const s = shot;
       s.t += dt;
-      const flightTime = s.t - s.pts.at(-1).t;
+      const flightTime = s.t - s.pts[s.pts.length - 1].t;
       if (flightTime < 0) {
-        const i = s.pts.findIndex((q) => q.t >= s.t),
-          a = s.pts[Math.max(0, i - 1)],
-          b = s.pts[i];
+        const i = s.pts.findIndex(q => q.t >= s.t), a = s.pts[Math.max(0, i - 1)], b = s.pts[i];
         const f = a.t === b.t ? 0 : (s.t - a.t) / (b.t - a.t);
         balls[0].position.set(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, 0);
         return;
       }
       s.physics.flights.forEach((f, i) => {
-        const p = s.physics.position(i, flightTime);
-        const drift = clamp(flightTime - f.land, 0, 0.13);
-        balls[i].position.set(LIP - Math.min(0.395, p.x + f.v * drift * (1 - drift / 0.26)), CY - p.drop, 0);
+        const p = s.physics.position(i, flightTime), drift = clamp(flightTime - f.land, 0, 0.12);
+        balls[i].position.set(LIP - p.x - f.v * drift * (1 - drift / 0.24), CY - p.drop, 0);
         if (!s.printed[i] && flightTime >= f.land) {
           s.printed[i] = true;
-          const dot = { range: f.range, read: null, name: s.collision ? (i ? '轻球' : '碰后重球') : '单独飞出的重球' };
-          s.dots[i] = dot;
-          marks.push(dot);
+          marks.push({ label: labels[s.collision ? 1 + i : 0], range: f.range, mm: null, excluded: s.seat !== soloSeat });
           ink();
         }
       });
-      if (flightTime >= Math.max(...s.physics.flights.map((f) => f.land)) + 0.13) finish(s);
-    }
-    function read(p) {
-      const m = nextMark();
-      if (!m || !aligned()) return guide();
-      if (near !== 'read') {
-        focus('read', LIP - m.range, PAPER_Y, 0.01, ctx.camera.aspect < 1 ? 0.085 : 0.13);
-        return;
-      }
-      if (Math.abs(p.x - (LIP - m.range)) > 0.0018)
-        return say('从这个落点沿垂直于尺边的方向对齐毫米刻线，读它到 O 的距离。');
-      m.read = Math.round((scale.position.x + 0.2 - p.x) * 1000);
-      ink();
-      if (m === base.dot) bar.done('solo');
-      if (after?.valid && after.dots.every((d) => d.read !== null)) bar.done('hit');
-      updateForm();
-      leave();
-    }
-    function reset() {
-      if (near) leave();
-      near = null;
-      attached = false;
-      pan = null;
-      weights = [null, null];
-      origin = null;
-      marks = [];
-      base = after = shot = null;
-      history = [];
-      dock(0);
-      dock(1);
-      rig.weigh(0);
-      notch.visible = false;
-      scale.position.set(LIP - 0.2 + 0.012, PAPER_Y + 0.001, 0.068);
-      ink();
-      rows?.clear();
-      if (evidence) evidence.textContent = '';
-      fields?.forEach((f) => (f.value = ''));
-      if (form) form.hidden = true;
-      bar.undo('setup', 'solo', 'hit', 'verify');
+      if (flightTime < Math.max(...s.physics.flights.map(f => f.land)) + 0.13) return;
+      // 轻球先离槽，两个落点仍须按 P、M、N 参与同一组计算。
+      marks.sort((a, b) => labels.indexOf(a.label) - labels.indexOf(b.label));
+      shot = null;
+      if (s.seat !== soloSeat) tell('释放点' + (s.seat < soloSeat ? '较低，入射速度偏小' : '较高，入射速度偏大') + '。两个 × 属于这次碰撞，不能和 P 配成一组。');
+      else tell(s.collision ? '两球分开了。M 是重球的落点，N 是轻球的落点。' : 'P 是重球第一次触纸的位置。');
       guide();
     }
-    const manip = draggable(
-      group,
-      [
-        ...balls.map((b, i) => ({
-          obj: b,
-          plane: 'xy',
-          offset: 0,
-          enabled: () => !near && !shot,
-          hint: i ? '轻球：移到秤盘或槽口' : '重球：称量后沿斜槽上移，松手滚下',
-          onStart() {
-            dragging = false;
-            sample = b.position.clone();
-            fromLip = attached;
-          },
-          onDrag(p, start) {
-            if (!start) return;
-            dragging = true;
-            removeFromPan(i);
-            if (i) attached = false;
-            b.position.set(sample.x + p.x - start.x, Math.max(PAPER_Y + R, sample.y + p.y - start.y), 0);
-            if (b.position.y > CY - 0.04 && b.position.x >= LIP) {
-              b.position.x = clamp(p.x, LIP, LIP + FLAT + LENGTH);
-              b.position.y = CY + trackHeight(b.position.x);
-            }
-          },
-          onEnd() {
-            if (!dragging) return;
-            const { x, y } = b.position;
-            if (Math.abs(x - PAN_X) < 0.037 && y < PAN_Y + 0.055) {
-              if (pan !== null) {
-                b.position.copy(sample);
-                if (i) attached = fromLip;
-                return say('秤盘上已经有一只球，先把它移回台前。');
-              }
-              pan = i;
-              weights[i] = BALL_MASSES[i] * 1000;
-              rig.weigh(weights[i]);
-              b.position.set(PAN_X, PAN_Y + R, 0.052);
-            } else if (i === 1 && Math.abs(x - LIP) < 0.032 && y > CY - 0.045) {
-              attached = true;
-              b.position.set(LIP, CY, 0);
-            } else if (i === 0 && x > LIP + FLAT && y > CY - 0.045) {
-              start(x);
-              return;
-            } else if (i === 0 && x >= LIP && y > CY - 0.045) {
-              b.position.set(Math.max(x, LIP + (attached ? 2 * R : 0)), CY, 0);
-            } else dock(i);
-            if (weights.every(Boolean) && origin !== null) bar.done('setup');
-            updateForm();
-            guide();
-          },
-        })),
-        {
-          obj: paper,
-          plane: 'xz',
-          offset: PAPER_Y,
-          enabled: () => !shot,
-          hint: '沿铅垂线在纸上定原点',
-          onStart(p) {
-            sample = p?.clone();
-          },
-          onTap() {
-            if (!sample) return guide();
-            if (origin !== null) {
-              if (!near && aligned() && nextMark()) read(sample);
-              else guide();
-              return;
-            }
-            if (near !== 'origin') {
-              focus('origin', LIP, PAPER_Y, 0.025, 0.09);
-              return;
-            }
-            if (Math.abs(sample.x - LIP) > 0.0018 || Math.abs(sample.z - 0.026) > 0.006)
-              return say('在铅锤尖端正下方点纸。');
-            origin = sample.x;
-            ink();
-            if (weights.every(Boolean)) bar.done('setup');
-            leave();
-          },
+    function reject(obj, from, msg) {
+      returning = { obj, from: obj.position.clone(), to: from, t: 0 };
+      tell(msg);
+      guide();
+    }
+    const free = () => !shot && !returning && !near && !bar.finished;
+    const hint = (enabled, text) => () => enabled() && ui?.step === 1 ? (typeof text === 'function' ? text() : text) : '';
+    function ballHint(i) {
+      if (masses[i] === null) return '拖动：放上秤盘';
+      if (masses.includes(null) || (i === 1 && (lightOnPaper() || attached))) return '拖动：放回木座';
+      return i ? '拖动：放到槽口' : '拖动：从标记放球';
+    }
+    function ballDrag(obj, i) {
+      // 通过所抓球心的视线找目标。秤盘、木座与轨道不在同一深度，换深度时仍保持在指尖。
+      const sites = [{ kind: 'home', at: homes[i], radius: 0.022 }, { kind: 'pan', at: panAt, radius: 0.026 },
+        ...(i ? [{ kind: 'lip', at: lipAt, radius: 0.021 }] : seats.map((at, seat) => ({ kind: 'rail', seat, at, radius: 0.023 })))];
+      return { obj, plane: 'xy', get offset() { return held === obj ? dragDepth : obj.position.z; },
+        keepOffset: true, enabled: free, hint: hint(free, () => ballHint(i)),
+        onStart() { first = obj.position.clone(); dragDepth = first.z; held = obj; candidate = null; },
+        onDrag(p) {
+          const eye = group.worldToLocal(ctx.camera.getWorldPosition(vec()));
+          const atDepth = z => Math.abs(p.z - eye.z) < 1e-8 ? p.clone() : eye.clone().lerp(p, (z - eye.z) / (p.z - eye.z));
+          let best = 1;
+          candidate = null;
+          for (const site of sites) {
+            const d = atDepth(site.at.z).distanceTo(site.at) / site.radius;
+            if (d < best) { best = d; candidate = site; }
+          }
+          const to = atDepth(candidate ? candidate.at.z : dragDepth);
+          obj.position.copy(to);
+          obj.position.y = Math.max(PAPER_Y + R, to.y);
+          if (pan === i) rig.weigh(0);
         },
-        {
-          obj: scale,
-          plane: 'xz',
-          offset: PAPER_Y + 0.002,
-          enabled: () => !shot,
-          hint: '移尺使零线对齐 O，沿尺读落点',
-          onStart(p) {
-            startScale = scale.position.clone();
-            sample = p?.clone();
-          },
-          onDrag(p, start) {
-            if (near || !start || origin === null) return;
-            scale.position.x = clamp(startScale.x + p.x - start.x, LIP - 0.23, LIP - 0.17);
-            scale.position.z = clamp(startScale.z + p.z - start.z, 0.022, 0.077);
-          },
-          onEnd(moved) {
-            if (moved && Math.abs(scale.position.z - 0.022) < 0.006) scale.position.z = 0.022;
-            if (moved && origin !== null && Math.abs(scale.position.x + 0.2 - origin) < 0.004)
-              scale.position.x = origin - 0.2;
+        onTap: guide,
+        onEnd(moved) {
+          held = null;
+          if (!moved) return;
+          const fail = msg => reject(obj, first, msg);
+          if (cancelled || !candidate) return fail('球没有放稳，已回到刚才的位置。');
+          const { kind, at, seat } = candidate;
+          if (kind === 'pan' && pan !== null && pan !== i) return fail('秤盘上已经有球，两只球要分开称。');
+          if (kind === 'rail' || kind === 'lip') {
+            if (!origin) return fail('质量和原点还未备齐，这次没有放球。');
+            if (pending()) return fail('这张纸上还有未读的落点，先记下这一球的射程。');
+            if (kind === 'lip' && soloSeat === null) return fail('先留空槽口，测重球单飞的射程。');
+            if (kind === 'rail' && soloSeat !== null && !attached) return fail('单飞射程已记下，槽口还缺轻球。');
+            if (kind === 'rail' && lightOnPaper())
+              return fail('纸上还有轻球，先把它收回木座。');
+            if (kind === 'rail' && soloSeat === null && records.includes(seat)) return fail('这个高度已经检验过，换另一个标记。');
+          }
+          if (pan === i) pan = null;
+          if (i) attached = kind === 'lip';
+          obj.position.copy(at);
+          if (kind === 'pan') pan = i;
+          rig.weigh(pan === null ? 0 : BALL_MASSES[pan] * 1000);
+          if (kind === 'rail') return start(seat, attached);
+          if (kind === 'pan' && masses[i] === null) {
+            close('mass', screen.position.clone().setZ(0.071), [0, 1, 0.5], 0.18);
+            tell('秤面稳定了。');
+          } else {
+            tell(kind === 'lip' ? '轻球已静止在水平槽口。' : kind === 'home' ? '球已放回木座。' : '球已放稳。');
             guide();
-          },
-          onTap() {
-            if (sample) read(sample);
-          },
+          }
         },
-      ],
-      {
-        highlight: true,
-        taps: [
-          {
-            obj: screen,
-            enabled: () => !near && !shot,
-            hint: '读电子秤',
-            onTap() {
-              focus('mass', PAN_X, 0.02, 0.084, 0.105);
-            },
-          },
-        ],
-      },
-    );
-    function record() {
-      if (!base || !after || after.saved || current().some((m) => m.read === null)) return;
-      const [m1, m2] = weights,
-        [p, m, n] = current().map((v) => v.read);
-      // 比较质量乘射程，两侧再除以共同的飞行时间才是动量。
-      const before = (m1 * p) / 10,
-        following = (m1 * m + m2 * n) / 10;
-      if (
-        [before, following].some(
-          (v, i) => !Number.isFinite(fields[i].valueAsNumber) || Math.abs(fields[i].valueAsNumber - v) > 0.55,
-        )
-      )
-        return say('质量用 g，射程把 mm 换成 cm。碰后把重球和轻球各自的质量乘射程再相加。');
-      rows.add([
-        weights.join(' / '),
-        [p, m, n].join(' / '),
-        before.toFixed(1),
-        following.toFixed(1),
-        after.valid ? '同点释放' : '释放点改变',
-      ]);
-      Object.assign(after, {
-        saved: true,
-        before,
-        following,
-        repeat: history.some((x) => Math.abs(x - base.x) < 0.012),
-      });
-      form.hidden = true;
-      fields.forEach((f) => (f.value = ''));
-      if (after.valid && history.every((x) => Math.abs(x - base.x) >= 0.012)) history.push(base.x);
-      if (history.length >= 2) {
-        bar.done('verify');
-        guide();
-      } else guide();
+      };
+    }
+    function rulerDrag() {
+      const enabled = () => free() && origin && !!pending();
+      return { obj: scale, plane: 'xz', offset: rulerAt.y, keepOffset: true, enabled,
+        hint: hint(enabled, () => zeroed ? '点一下：凑近读尺' : '拖动：零线对准 O'),
+        onStart() { first = scale.position.clone(); held = scale; },
+        onDrag(p) { scale.position.set(clamp(p.x, LIP - 0.25, LIP - 0.15), rulerAt.y, clamp(p.z, 0.012, 0.08)); },
+        onEnd(moved) {
+          held = null;
+          if (!moved) return;
+          if (cancelled || Math.abs(scale.position.x - rulerAt.x) > 0.005 || Math.abs(scale.position.z - rulerAt.z) > 0.007)
+            return reject(scale, first, '尺的零线没有对上 O，尺已回到原处。');
+          zeroed = true;
+          scale.position.copy(rulerAt);
+          tell('零刻线已对齐 O，尺边与飞出方向平行。');
+          guide();
+        }, onTap: inspectScale,
+      };
+    }
+    const needOrigin = () => free() && !origin && !masses.includes(null);
+    const pickPaper = () => near === 'origin';
+    const massScreen = () => free() && pan !== null;
+    function markOrigin(p) {
+      if (!p || Math.hypot(p.x - LIP, p.z - 0.026) > 0.005) return tell('这点偏离铅锤尖端，量射程的起点会偏。');
+      origin = true;
+      ink(); bar.done('setup'); leave();
+      tell('O 在槽口的正下方，三段水平射程都从这里量起。');
+    }
+    const tip = ctx.tag('', 'pill');
+    const hideTip = () => tip.loc(group, 0, -9, 0);
+    const canvas = document.getElementById('c');
+    canvas.addEventListener('pointerleave', hideTip);
+    const manip = draggable(group, [...balls.map(ballDrag), rulerDrag()], { tip, taps: [
+      { obj: bob, enabled: needOrigin, hint: hint(needOrigin, '点一下：近看铅锤'), onTap() {
+        close('origin', vec(LIP, PAPER_Y, 0.026), [0, 0.8, 1], 0.18);
+      } },
+      { obj: paper, enabled: () => pickPaper() || needOrigin(), hint: hint(() => pickPaper() || needOrigin(), () => near ? '点纸面：标出 O' : '点一下：近看铅锤'),
+        onTap(ray) { if (near) markOrigin(rayToLocal(ray, group, 'xz', PAPER_Y)); else close('origin', vec(LIP, PAPER_Y, 0.026), [0, 0.8, 1], 0.18); } },
+      { obj: screen, enabled: massScreen, hint: hint(massScreen, '点一下：读秤面'), onTap() {
+        close('mass', screen.position.clone().setZ(0.071), [0, 1, 0.5], 0.18);
+      } },
+    ] });
+    const pointer = { ...manip, down(ray, e) {
+      const hit = manip.down(ray, e);
+      if (hit && ui?.step === 0) { ui.go(1); guide(); }
+      return hit;
+    }, up(ray, e) { cancelled = e?.type === 'pointercancel'; const ok = manip.up(ray, e); cancelled = false; return ok; } };
+    function reset() {
+      if (near) ctx.back();
+      near = shot = returning = held = pan = soloSeat = null;
+      origin = attached = zeroed = false;
+      masses.fill(null);
+      records.length = marks.length = 0;
+      balls.forEach((b, i) => b.position.copy(homes[i]));
+      rig.weigh(0); scale.position.copy(rulerHome); ink();
+      form.hidden = true; field.value = ''; sums.replaceChildren(); rows.clear();
+      massNote.textContent = '重球 —　轻球 —';
+      tell('斜槽末端水平，两球大小相同。');
+      bar.near(false); bar.undo(...steps.map(s => s[0]));
+      ui?.relock(); guide();
     }
     reset();
+    const submit = (name, value, check) => ({ name, run() {
+      if (form.hidden) throw Error('未进入读数视图');
+      field.value = String(value);
+      form.querySelector('button').click();
+      if (!check()) throw Error('读数或记录状态不符');
+    } });
+    const paperPoint = (name, dx) => {
+      const p = vec(LIP + dx, PAPER_Y, 0.026), obj = new THREE.Mesh(new THREE.PlaneGeometry(0, 0));
+      obj.visible = false; obj.position.copy(p); group.add(obj);
+      return { name, mouse: { kind: 'tap', obj }, run: () => markOrigin(p) };
+    };
+    const carry = (name, i, to) => ({ name, drag: balls[i], to });
+    const openRuler = () => ({ name: '近看落点和尺刻', tap: scale });
+    const trial = (seat, testMistakes) => {
+      const x = seats[seat], h0 = trackHeight(x.x);
+      const ranges = [rangeShot(h0, false).flights[0], ...rangeShot(h0, true).flights].map(f => cm(Math.round(f.range * 1000)));
+      return [
+        carry('从 ' + letters[seat] + ' 单飞', 0, x),
+        ...(testMistakes ? [{ name: '把零刻线对准 O', drag: scale, to: rulerAt }] : []),
+        openRuler(),
+        ...(testMistakes ? [submit('读错一格', +ranges[0] + 0.1, () => near === 'read' && pending()?.mm === null)] : []),
+        submit('记录 OP', ranges[0], () => near === null && measured()[0]?.mm === +ranges[0] * 10),
+        carry('轻球就位', 1, lipAt),
+        ...(testMistakes ? [carry('从较低标记误放', 0, seats[0]), { name: '核对两枚作废印迹', run() {
+          if (marks.filter(m => m.excluded).length !== 2 || pending()) throw Error('异高数据混入本组');
+        } }, carry('重新放轻球', 1, lipAt)] : []),
+        carry('从原标记碰撞', 0, x), openRuler(),
+        submit('记录 OM', ranges[1], () => pending()?.label === 'N'),
+        openRuler(), submit('记录 ON 并比较', ranges[2], () => records.includes(seat)),
+      ];
+    };
+    const qa = qaFlow(manip, [
+      carry('试放到秤盘外', 0, vec(0.045, 0.12, 0.05)),
+      { name: '检查球已归位', run() { if (!balls[0].position.equals(homes[0])) throw Error('未归位'); } },
+      carry('称重球', 0, panAt), submit('读重球质量', 32, () => masses[0] === 32),
+      carry('腾出秤盘', 0, homes[0]), carry('称轻球', 1, panAt),
+      submit('读轻球质量', 11, () => masses[1] === 11), { name: '近看铅锤', tap: bob },
+    ]);
+    qa.push(paperPoint('试点偏离锤尖的位置', -0.016), paperPoint('标出原点 O', 0),
+      ...qaFlow(manip, [...trial(1, true), carry('收起纸上的轻球', 1, homes[1]), ...trial(0, false)]),
+      { name: '核对两次检验并掀开结论', run() {
+        if (!bar.finished || records.join() !== '1,0' || rows.rows.length !== 2 || sums.children.length !== 2) throw Error('两组记录不完整');
+        ui.go(2); ui.el.querySelector('.flap-front').click();
+      } });
     return {
-      group,
-      size: { w: 0.69, d: 0.24, h: 0.38 },
-      view: { azim: 3, elev: 28, lookY: 0.4, margin: 1.05 },
-      pointer: {
-        ...manip,
-        down(ray, e) {
-          if (document.body.classList.contains('predicting')) ui?.go(1);
-          return manip.down(ray, e);
-        },
-      },
-      toggles: ['steps'],
+      group: new THREE.Group().add(group), pointer, reset,
+      size: { w: 0.65, d: 0.245, h: 0.38 }, view: { azim: 2, elev: 27, frameMargin: 1.03 },
+      toggles: ['steps'], predicting() { if (ui) guide(); },
       mount(panel) {
         ui = panel;
-        bar.attach(panel);
-        rows = table(['重/轻质量 g', '碰前重/碰后重/轻 mm', '碰前 g·cm', '碰后 g·cm', '条件']);
-        const labels = ['碰前质量乘射程 / (g·cm)', '碰后两项之和 / (g·cm)'];
-        fields = labels.map((label) => h('input', { type: 'number', step: '.1', 'aria-label': label }));
-        form = h(
-          'div',
-          { class: 'ctl' },
-          ...fields.map((f, i) => h('label', {}, labels[i] + ' ', f)),
-          buttons([{ text: '记录并比较', onClick: record }]).el,
-        );
-        form.hidden = true;
-        evidence = note('');
-        panel.data.append(evidence, rows.el, form);
-        panel.notes.append(
-          note(
-            '同半径实心球在水平槽口对心相碰；本模型碰撞恢复系数取 0.82，短水平段忽略切向冲量，飞行中忽略空气阻力。记录纸垫在软垫上，黑点表示第一次触纸的位置。',
-          ),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
+        bar.attach({ need: () => panel.need(''), unlock: () => panel.unlock() });
+        panel.controls.append(form);
+        panel.data.append(massNote, rows.el, sums);
+        panel.notes.append(h('p', { class: 'note' }, '模型中忽略空气阻力。纸上的黑点记录球第一次触纸的位置。'), buttons([{ text: '全部重做', onClick: reset }]).el);
+        panel.el.querySelector('.answer').style.paddingBottom = '90px';
+        panel.el.querySelector('.flap-front').addEventListener('click', () => {
+          if (!bar.finished) return;
+          const prediction = panel.prediction();
+          const yourPick = prediction === null || prediction === undefined ? '' : '你的预测：“' + predictions[prediction] + '”。';
+          panel.el.querySelector('.verdict').textContent = yourPick + '两次实测中，重球单飞的质量乘射程都接近碰后两球各自质量乘射程的和。';
+        });
+        tell('斜槽末端水平，两球大小相同。');
         guide();
       },
-      update,
-      dispose() {
-        manip.dispose();
-        bar.dispose();
+      update(dt) {
+        const speed = bar.update(dt);
+        const target = show.steps && ui?.step === 1 && !near && !held && !returning ? aim : null;
+        ring.update(target === scale ? rig.zero : target, dt);
+        if (returning) {
+          const r = returning;
+          r.t = Math.min(1, r.t + dt / 0.38);
+          r.obj.position.lerpVectors(r.from, r.to, r.t * (2 - r.t));
+          if (r.t === 1) {
+            r.obj.position.copy(r.to);
+            returning = null;
+            rig.weigh(pan === null ? 0 : BALL_MASSES[pan] * 1000);
+            guide();
+          }
+        }
+        if (shot) advance(dt * speed);
       },
+      debug: { bar, qa },
+      dispose() { canvas.removeEventListener('pointerleave', hideTip); manip.dispose(); bar.dispose(); ring.dispose(); },
     };
   },
 };

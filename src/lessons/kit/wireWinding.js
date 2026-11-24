@@ -2,14 +2,18 @@
 export const WIRE_MM = 0.625;
 export const MAX_TURNS = 32;
 
+export function woundTurns(parts) {
+  return parts.length ? parts[parts.length - 1].end : 0;
+}
+
 export function advanceWinding(parts, turns, pitch) {
-  const current = parts.at(-1)?.end || 0;
+  const current = woundTurns(parts);
   const end = Math.max(0, Math.min(MAX_TURNS, current + turns));
   if (end < current) {
-    while (parts.length && parts.at(-1).start >= end) parts.pop();
-    if (parts.length) parts.at(-1).end = end;
+    while (parts.length && parts[parts.length - 1].start >= end) parts.pop();
+    if (parts.length) parts[parts.length - 1].end = end;
   } else if (end > current) {
-    if (parts.at(-1)?.pitch === pitch) parts.at(-1).end = end;
+    if (parts[parts.length - 1]?.pitch === pitch) parts[parts.length - 1].end = end;
     else parts.push({ start: current, end, pitch });
   }
 }
@@ -25,7 +29,7 @@ export function alongWire(parts, turn) {
 
 // 同一条母线上读相邻完整线圈的两个外边缘，包含首末两根丝各半个直径。
 export function windingEdges(parts) {
-  const turns = parts.at(-1)?.end || 0;
+  const turns = woundTurns(parts);
   const count = Math.round(turns);
   if (count === 0 || Math.abs(turns - count) > 0.06) return null;
   const first = turns - count + 0.75;
