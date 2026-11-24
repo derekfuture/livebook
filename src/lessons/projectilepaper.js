@@ -100,13 +100,10 @@ export default {
     }
     function near() {
       view = true; bar.near(true);
-      if (ctx.camera.aspect < 1) {
-        // 竖屏保留原点、落点和读数所需的整段刻度，留出底部步骤栏的位置。
-        const width = Math.max(0.10, ...marks.map(m => m.x));
-        const depth = Math.max(...marks.map(m => m.drop));
-        const distance = Math.max(0.28, (width + 0.035) * 1.72, (depth + 0.028) * 2.12);
-        ctx.look([EXIT_X + width / 2, EXIT_Y - depth / 2 - 0.018, PAPER_Z], [0, 0, 1], distance, leave);
-      } else ctx.look([PAPER_LEFT + PAPER_W / 2, PAPER_TOP - PAPER_H / 2, PAPER_Z], [0, 0, 1], 0.55, leave);
+      // 正对纸面读尺时，以整套装置居中，给左侧高槽和下方底座留出空间。
+      // 竖屏右侧有工具按钮，下方有步骤栏，可用画面的中心略偏左上。
+      if (ctx.camera.aspect < 1) ctx.look([0.004, 0.102, PAPER_Z], [0, 0, 1], 0.71, leave);
+      else ctx.look([-0.018, 0.14, PAPER_Z], [0, 0, 1], 0.68, leave);
       refresh();
     }
     function markOrigin() {
@@ -355,7 +352,7 @@ export default {
       } },
     ];
     return {
-      group: root, size: { w: 0.43, h: 0.31, d: 0.115 }, view: { azim: 4, elev: 17, frameMargin: 1.03 },
+      group: root, size: { w: 0.43, h: 0.31, d: 0.115 }, view: { azim: 4, elev: 17, frameMargin: 1.08 },
       toggles: ['steps'], reset, debug: { bar, qa: qaFlow(manip, qa) },
       pointer: {
         items: () => manip.items().filter(d => d.enabled()),

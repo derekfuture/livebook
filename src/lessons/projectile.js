@@ -304,7 +304,11 @@ export default {
     return {
       group: root, pointer, reset, toggles: ['steps'],
       size: { w: 0.86, d: 0.43, h: 0.69 },
-      view: { elev: 10, azim: 0, frameMargin: 1.11 },
+      view: {
+        elev: 14, azim: 0, lookY: 0.5,
+        // 夹头升到 44 cm 时，锤轴会高过立柱；窄屏还要给上下操作栏留位置。
+        get frameMargin() { return innerWidth <= 760 ? 1.24 : 1.15; },
+      },
       mount(panel) {
         ui = panel;
         bar.attach({ need() {}, unlock() { ui.unlock(); ui.need(''); } });
