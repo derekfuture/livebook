@@ -15,6 +15,17 @@ const N_WATER = 1.33;
 const TW = 0.3, TD = 0.12, TH = 0.11;   // 水槽
 const Y0 = TH + 0.004;                   // 水面高度
 const RA = 0.11, RW = 0.095;             // 激光笔离 O 的距离：空气中 / 水中
+const onScale = (x, y) => new THREE.Vector3(x, y, 0);
+
+// 从水面交点沿原方向截短线段，保留量角器上读出的夹角。
+function visibleRayEnd(start, end) {
+  const dx = end.x - start.x, dy = end.y - start.y;
+  const tx = dx ? ((dx > 0 ? TW / 2 : -TW / 2) - start.x) / dx : Infinity;
+  const ty = dy ? ((dy > 0 ? Y0 + 0.16 : 0.003) - start.y) / dy : Infinity;
+  const t = Math.min(1, tx, ty);
+  return { x: start.x + t * dx, y: start.y + t * dy };
+}
+
 const CRIT = Math.asin(1 / N_WATER) / deg;
 
 export default {
@@ -60,11 +71,14 @@ export default {
     tank.add(box, water, surf);
     laserScene.add(tank);
     // 法线（虚线）
-    laserScene.add(polyline([new THREE.Vector3(0, 0.01, 0.001), new THREE.Vector3(0, Y0 + 0.13, 0.001)], { dashed: true, color: 0x1d2433, width: 1.4, dash: 0.008, gap: 0.006 }));
+    const normal = polyline([onScale(0, 0.01), onScale(0, Y0 + 0.13)], { dashed: true, color: 0x1d2433, width: 1.4, dash: 0.008, gap: 0.006 });
+    normal.material.transparent = true;
+    normal.renderOrder = 18;
+    laserScene.add(normal);
     // 量角器：一块竖直的圆形刻度盘，圆心在入射点，0° 在法线上，每 1° 一小格、10° 标数字（课本实验里用光屏上的量角器读角）
     const protTex = protractorTexture();
     const prot = new THREE.Mesh(new THREE.CircleGeometry(0.075, 64), new THREE.MeshBasicMaterial({ map: protTex, transparent: true, depthWrite: false }));
-    prot.position.set(0, Y0, -0.016); prot.renderOrder = 1;
+    prot.position.copy(onScale(0, Y0)); prot.renderOrder = 1;
     laserScene.add(prot);
     const tN = tag('法线', 'pill');
     // 激光笔 + 幽灵笔（光路可逆的提示）
@@ -132,17 +146,18 @@ export default {
 
     const layoutLaser = () => {
       const G = geom();
-      pen.position.set(G.start.x, G.start.y, 0.004);
+      pen.position.copy(onScale(G.start.x, G.start.y));
       pen.rotation.z = Math.atan2(Y0 - G.start.y, -G.start.x);
       const d = { x: -G.start.x, y: Y0 - G.start.y };
       const tr = sc.trace(G.start, d, { maxLen: 0.32 });
       const hit = tr.hits.find((x) => x.kind === 'refract' || x.kind === 'tir');
       const tir = hit?.kind === 'tir';
-      const clip = (p) => ({ x: clamp(p.x, -TW / 2, TW / 2), y: clamp(p.y, 0.003, Y0 + 0.16) });
-      rays.set([{ pts: tr.pts.slice(0, S.pred ? 2 : 3).map(clip), color: 0xff2a2a }], (x, y) => new THREE.Vector3(x, y, 0.002));
+      const pts = tr.pts.slice(0, 2);
+      if (!S.pred && tr.pts.length > 2) pts.push(visibleRayEnd(pts[1], tr.pts[2]));
+      rays.set([{ pts, color: 0xff2a2a }], onScale);
       // 水面处总有一点反射光（全反射时就是全部）
       const refl = { x: -G.start.x * 0.85, y: Y0 + (G.start.y - Y0) * 0.85 };
-      weak.set(tir || S.pred ? [] : [{ pts: [{ x: 0, y: Y0 }, refl], color: 0xff5a5a }], (x, y) => new THREE.Vector3(x, y, 0.002));
+      weak.set(tir || S.pred ? [] : [{ pts: [{ x: 0, y: Y0 }, refl], color: 0xff5a5a }], onScale);
       const r = hit && !tir ? hit.r / deg : null;
       const f = (x) => (Math.round(x * 10) / 10).toString();
       S.cur = { ...G, r, tir };
@@ -150,8 +165,11 @@ export default {
       arcs.clear();
       const arcAt = (ang, up, sgn, col) => {
         const p = [];
-        for (let k = 0; k <= 20; k++) { const t = (ang * deg * k) / 20; p.push(new THREE.Vector3(sgn * Math.sin(t) * 0.032, Y0 + (up ? 1 : -1) * Math.cos(t) * 0.032, 0.003)); }
-        arcs.add(polyline(p, { color: col, width: 1.6 }));
+        for (let k = 0; k <= 20; k++) { const t = (ang * deg * k) / 20; p.push(onScale(sgn * Math.sin(t) * 0.032, Y0 + (up ? 1 : -1) * Math.cos(t) * 0.032)); }
+        const arc = polyline(p, { color: col, width: 1.6 });
+        arc.material.transparent = true;
+        arc.renderOrder = 18;
+        arcs.add(arc);
       };
       if (G.i > 0.5) arcAt(G.i, !G.fromWater, G.side, 0xd4006c);
       if (r != null && r > 0.5 && !S.pred) arcAt(r, G.fromWater, -G.side, 0x2f7fd8);
