@@ -45,85 +45,139 @@ export function mathActionCue(camera, pointer, dragApi, select) {
   const items = new Map(dragApi.items().map(item => [item.obj, item]));
   const label = document.createElement('div');
   label.className = 'math-action-cue';
-  label.hidden = true;
+  label.setAttribute('aria-hidden', 'true');
   document.body.append(label);
   const bounds = new Box3(), point = new Vector3();
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  let current, pulse, pressed = false, quietUntil = 0, started = 0, lastFrame = -Infinity;
+  const canvas = document.getElementById('c');
+  let current, step, hovered, lit, pulse, pressed = false;
+  let idleSince = 0, quietUntil = 0, started = 0, lastFrame = -Infinity;
 
-  function clear() {
+  function hideLabel() {
+    if (label.getAttribute('aria-hidden') !== 'true') label.setAttribute('aria-hidden', 'true');
+  }
+  function stopLight() {
     pulse?.restore();
-    pulse = null;
-    current = null;
-    label.hidden = true;
+    pulse = lit = null;
   }
-  function pause() {
-    quietUntil = performance.now() + 3000;
-    clear();
+  function setHover(item) {
+    if (hovered === item) return;
+    idleSince = performance.now();
+    if (hovered && !item) quietUntil = idleSince + 3000;
+    hovered = item;
   }
+  function updateHoverCursor() {
+    const hit = dragApi.hovered();
+    if (hit?.cueTapOnly?.()) canvas.style.cursor = 'pointer';
+    return hit;
+  }
+  function leave() {
+    setHover(null);
+    if (!pressed) canvas.style.cursor = '';
+  }
+  canvas.addEventListener('pointerleave', leave);
+
   return {
     pointer: {
       ...pointer,
       down(ray, e) {
         pressed = pointer.down(ray, e);
-        if (pressed) pause();
+        if (pressed) {
+          if (canvas.style.cursor === 'grab') canvas.style.cursor = 'grabbing';
+          setHover(null);
+          stopLight();
+          hideLabel();
+        }
         return pressed;
       },
       move(ray, e) {
         const result = pointer.move(ray, e);
-        const hovered = dragApi.hovered()?.obj;
-        const selected = items.get(select());
-        if (pressed || (hovered && (selected?.obj === hovered || selected?.cueAlternate === hovered))) pause();
+        const hit = updateHoverCursor();
+        if (!pressed) setHover(e?.pointerType === 'mouse' ? hit : null);
         return result;
       },
       up(ray, e) {
-        if (pressed) pause();
+        const result = pointer.up(ray, e);
+        if (pressed) {
+          idleSince = performance.now();
+          quietUntil = idleSince + 3000;
+          if (e?.pointerType === 'mouse' && e.type === 'pointerup'
+              && document.elementFromPoint(e.clientX, e.clientY) === canvas) {
+            dragApi.move(ray, e);
+            updateHoverCursor();
+          }
+        }
         pressed = false;
-        return pointer.up(ray, e);
+        return result;
       },
     },
-    update() {
-      const item = items.get(select()), time = performance.now();
-      const guiding = !!item && item.enabled?.() !== false && item.obj.visible;
-      document.body.classList.toggle('math-guiding', guiding);
-      if (!guiding || pressed || time < quietUntil) {
-        if (current) clear();
-        return;
-      }
-      if (item !== current) {
-        clear();
+    update(nextStep) {
+      const time = performance.now();
+      const selected = items.get(select());
+      const item = selected?.obj.visible && selected.enabled?.() !== false ? selected : null;
+      document.body.classList.toggle('math-guiding', !!item);
+      if (current !== item || step !== nextStep) {
         current = item;
-        pulse = highlight(item);
-        started = time;
-      } else if (time - lastFrame < 32) return;
+        step = nextStep;
+        idleSince = time;
+        hovered = null;
+        hideLabel();
+        stopLight();
+      }
+      if (!item || pressed) return;
+      if (time - lastFrame < 32) return;
       lastFrame = time;
-      const phase = (time - started) * (2 * Math.PI / 1800);
-      const breath = reduced.matches ? 0.5 : (1 - Math.cos(phase)) / 2;
-      pulse.brighten(1 + 0.2 * breath);
+      if (hovered && (!hovered.obj.visible || hovered.enabled?.() === false)) leave();
+      const focus = hovered && hovered.obj !== item.cueAlternate ? hovered : item;
+      if (time >= quietUntil || hovered) {
+        if (focus !== lit) {
+          stopLight();
+          pulse = highlight(focus);
+          lit = focus;
+          started = time;
+        }
+        const phase = (time - started) * (2 * Math.PI / 1800);
+        const breath = reduced.matches ? 0.5 : (1 - Math.cos(phase)) / 2;
+        pulse.brighten(hovered ? 1.22 : 1 + 0.2 * breath);
+      } else if (lit) stopLight();
 
+      if (!hovered && time - idleSince < 8000) { hideLabel(); return; }
       // Project the existing pick bounds to place the text above the handle.
       // Three caches geometry bounds, so this does not sample mesh vertices.
-      item.obj.updateWorldMatrix(true, false);
-      bounds.setFromObject(item.obj);
-      if (bounds.isEmpty()) { label.hidden = true; return; }
+      focus.obj.updateWorldMatrix(true, false);
+      bounds.setFromObject(focus.obj);
+      if (bounds.isEmpty()) { hideLabel(); return; }
       bounds.getCenter(point);
       point.y = bounds.max.y;
       point.project(camera);
-      if (point.z < -1 || point.z > 1) { label.hidden = true; return; }
-      const hint = item.cueText || item.hint;
+      if (point.z < -1 || point.z > 1) { hideLabel(); return; }
+      const hint = focus.cueText || focus.hint;
       const message = typeof hint === 'function' ? hint() : hint;
       if (label.textContent !== message) label.textContent = message;
-      label.hidden = false;
+      label.classList.toggle('idle', !hovered);
+      if (label.getAttribute('aria-hidden') !== 'false') label.setAttribute('aria-hidden', 'false');
       const half = label.offsetWidth / 2 + 8;
       let x = (1 + point.x) * innerWidth / 2;
-      if (item.cueTarget?.isSprite && !item.obj.isGroup) {
+      if (focus.cueTarget?.isSprite && !focus.obj.isGroup) {
         // Offset a standalone point label. A multipart prop keeps its label above its pick bounds.
         x += x + 2 * half < innerWidth ? half + 4 : -half - 4;
       }
       label.style.left = Math.max(half, Math.min(innerWidth - half, x)) + 'px';
       label.style.top = Math.max(label.offsetHeight + 8, (1 - point.y) * innerHeight / 2 - 8) + 'px';
     },
-    reset() { clear(); pressed = false; quietUntil = 0; },
-    dispose() { clear(); label.remove(); document.body.classList.remove('math-guiding'); },
+    reset() {
+      stopLight();
+      hideLabel();
+      current = hovered = null;
+      pressed = false;
+      quietUntil = 0;
+      canvas.style.cursor = '';
+    },
+    dispose() {
+      stopLight();
+      canvas.removeEventListener('pointerleave', leave);
+      label.remove();
+      document.body.classList.remove('math-guiding');
+    },
   };
 }

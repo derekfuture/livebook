@@ -576,7 +576,7 @@ export default {
         if (!S.held && !S.done && S.hint < 1 && t - S.stepAt > 15 && t - S.moved > 4) {
           const H1 = { add: ['水涨上来、落下去，山尖相对水面的坐标各变了多少？', '按住水面，上下拖'], pos: ['金点往上拉：2a 和 2b，谁在上面？', '金点是 a 乘那个数，蓝点是 b 乘那个数'], zero: ['金点拉到水面，是乘了几？', ''], neg1: ['金点拉到水下，停在 −a 那儿：它和 A 的倒影有什么关系？', ''], neg2: ['−2a 在 −12 那儿：它和 −2b 谁在上面？', ''], div: ['除以 −2，就是乘几？金点拉到那儿看看', ''] }[S.step];
           if (H1) { S.hint = 1; if (S.asked) prompt(S.ask, H1.filter(Boolean).join(' ')); else caption(...H1); } }
-        cue.update();
+        cue.update(S.step);
       },
       debug: {
         get S() { return S; }, rows, pose, cap: () => S.cap,

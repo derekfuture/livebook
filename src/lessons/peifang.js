@@ -422,7 +422,7 @@ export default {
           const H1 = { cut: S.unequal ? ['两段一样长试试', '外形的两条边，一条是 x 加右边那段，一条是 x 加上面那段'] : ['长条可以切开', '拖白色的刀口，切下一段拼到正方形上面'], patch: ['缺角是 5 × 5', '把右边那块绿地毯拖进缺角'], root: ['8 × 8 = 64', '点一下大正方形'], gen: ['课本上的方程是 x² + 6x + 4 = 0', '把大正方形的右下角往里拖，一次项系数变成 6'] }[S.beat];
           if (H1) { S.hint = 1; say(...H1); } }
         void dt;
-        cue.update();
+        cue.update(S.beat);
       },
       debug: {
         get S() { return S; }, xs: () => XS, rows, pose, cap: () => S.cap, eq: () => S.eq,

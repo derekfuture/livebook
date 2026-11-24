@@ -557,7 +557,7 @@ export default {
         if (!S_.held && !S_.done && S_.hint < 1 && t - S_.stepAt > 15 && t - S_.moved > 4) {
           const H1 = { run: ['时间往右拖：每过一个时辰，浮箭升多少？', '拖过 4 个时辰看看'], b: ['子时的浮箭是青色的点', '往上拖：壶里先多些水，直线跟着怎么动？'], k: ['k 变成负数会怎样？', '把蓝点往下拖过青点那一层：水往外放'], fit: ['两点之间：横着差几个时辰？竖着差几厘米？', '先让直线一样斜，再上下挪'] }[S_.step];
           if (H1) { S_.hint = 1; caption(...H1); } }
-        cue.update();
+        cue.update(S_.step);
       },
       debug: {
         get S() { return S_; }, rows, pose, cap: () => S_.cap,

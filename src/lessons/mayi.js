@@ -508,7 +508,7 @@ export default {
           const o = S.order[0] ? other(S.order[0]) : 'T';
           const H1 = { try: ['蚂蚁要怎么爬，才能到 N？', '按住它，沿着石凳的表面拖过去试试（N 是右后方顶上的那个角）'], unfold: ['要是石凳的表面能摊平呢？', '按住右侧面（或顶面）往外翻，翻到和正面在同一个平面上'], line: [`在平面上，M 到 ${S.name[S.order[0]]} 怎么走最短？`, '两点之间，线段最短'], line2: [`在平面上，M 到 ${S.name[o]} 怎么走最短？`, '两点之间，线段最短'], other: [`${FN[o]}也能翻开吗？`, '翻到和正面在同一个平面上，N 会落在哪儿？'], fold: ['这两条线段，回到石凳上是什么样？', '按住翻开的面，往回合'] }[S.beat];
           if (H1) { S.hint = 1; caption(...H1); } }
-        cue.update();
+        cue.update(S.beat);
       },
       debug: {
         get S() { return S; }, rows, pose, LEN,

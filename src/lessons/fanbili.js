@@ -523,7 +523,7 @@ export default {
           const H1 = { rect: ['松开手：看看动力臂和力围成的矩形', '和石头那边的比一比'], more: ['再换一个地方松手', '高的窄，矮的宽：面积呢？'], cross: ['把力往左拖，拖过支点', '压在支点上会怎样？'], mono: ['从左边拖到右边，跨过支点', '看 y 怎么跳'], rock: ['按住石头往右挪', '挪过支点，k 变成负的'], neg: ['从左往右拖着力走', '在每一支上，y 是变大还是变小？'], final: ['往外拖：力会变小', '拖到 200 N'] }[S.step];
           if (H1) { S.hint = 1; caption(...H1); } }
         void dt;
-        cue.update();
+        cue.update(S.step);
       },
       debug: {
         get S() { return S; }, rows, pose, cap: () => S.cap, made,

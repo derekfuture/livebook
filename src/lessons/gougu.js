@@ -523,7 +523,7 @@ export default {
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
         void dt;
-        cue.update();
+        cue.update(S.beat);
       },
       debug: {
         get S() { return S; }, rows, pose, tri, pieces,

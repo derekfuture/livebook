@@ -642,7 +642,7 @@ export default {
         if (!S_.held && !S_.done && S_.hint < 1 && t - S_.stepAt > 15 && t - S_.moved > 4) {
           const H1 = { k: ['按住水柱的最高点往上提', '提高 1 米以上，松手'], h: ['按住最高点往右拖', '挪 1 米以上，松手'], why: ['看点 P 和原来那条：哪儿一样高？', '那支横着的箭头有多长？'], gen: ['往上、往下、往左、往右都拖一拖', '后面留下的那一族抛物线，形状变了吗？'], max: ['把水滴拖过最高点', '从左边拖到右边'], app: ['最高点拖到金色圆圈 (1.6, 3)', ''], appA: ['红点是水落下的地方', '拖到 3.6 那道红线上'] }[S_.step];
           if (H1) { S_.hint = 1; caption(...H1); } }
-        cue.update();
+        cue.update(S_.step);
       },
       debug: {
         get S() { return S_; }, rows, pose, cap: () => S_.cap,

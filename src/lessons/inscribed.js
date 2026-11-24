@@ -971,7 +971,7 @@ export default {
     let deckDrag = null;
     const deckPointer = {
       down: (r, e) => { if (S.mode !== 'deck') return false; if (S.intro) { S.intro = false; toChart(); return true; } if (r.intersectObject(rollMesh, false).length) { toChart(); return true; } deckDrag = { x: e?.clientX ?? 0, y: e?.clientY ?? 0, raw: S.ship.slice() }; userTouched++; return true; },
-      move: (r, e) => { if (S.mode !== 'deck') return false; if (!deckDrag || !e) return true; const dx = e.clientX - deckDrag.x, dy = e.clientY - deckDrag.y; const raw = add(deckDrag.raw, add(mul(eye().dir, -dy * 0.00022), mul([eye().dir[1], -eye().dir[0]], dx * 0.00022)));
+      move: (r, e) => { if (S.mode !== 'deck' || !deckDrag || !e) return false; const dx = e.clientX - deckDrag.x, dy = e.clientY - deckDrag.y; const raw = add(deckDrag.raw, add(mul(eye().dir, -dy * 0.00022), mul([eye().dir[1], -eye().dir[0]], dx * 0.00022)));
         deckDrag = { x: e.clientX, y: e.clientY, raw: [clamp(raw[0], SEA.u0 + 0.009, SEA.u1 - 0.009), clamp(raw[1], SEA.v0 + 0.009, shore(clamp(raw[0], SEA.u0 + 0.009, SEA.u1 - 0.009)) - 0.013)] }; moveShip(deckDrag.raw); deckLook(); return true; },
       up: () => { if (S.mode !== 'deck') return false; deckDrag = null; return true; },
     };
@@ -988,7 +988,7 @@ export default {
       { obj: K.cut, cueTarget: F.ship, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canCut() ? '按住拖出来：剪下这个角' : ''), enabled: () => canCut(), onStart: () => cutDown(), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() },
       ...chips.map((c, i) => ({ obj: c, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canBase(i) ? '拖进圆心的角里' : ''), enabled: () => canBase(i), onStart: () => chipDown(i), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() })),
       { obj: K.probe, cueTarget: L.probe, plane: 'xz', offset: 0.003 + INK_Y, hint: () => (canProbe() ? '拖着这根光转' : ''), enabled: () => canProbe(), onStart: () => probeDown(), onDrag: (p) => probeMove(uv(p)), onEnd: () => probeUp() },
-      ...[0, 1].flatMap((i) => [pa[i], po[i]].map((obj) => ({ obj, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canPair(i) ? '点一下：用情况（1）' : canTake(i) ? '拖开' : ''), enabled: () => canPair(i) || canTake(i), onStart: (p) => takeDown(i, uv(p)), onDrag: (p) => takeMove(uv(p)), onEnd: () => takeUp(), onTap: () => pairTap(i) }))),          // 角片本身：窄的那块在船上难点，圆心那块宽一倍
+      ...[0, 1].flatMap((i) => [pa[i], po[i]].map((obj) => ({ obj, plane: 'xz', offset: 0.006 + INK_Y, cueTapOnly: () => canPair(i), hint: () => (canPair(i) ? '点一下：用情况（1）' : canTake(i) ? '拖开' : ''), enabled: () => canPair(i) || canTake(i), onStart: (p) => takeDown(i, uv(p)), onDrag: (p) => takeMove(uv(p)), onEnd: () => takeUp(), onTap: () => pairTap(i) }))),          // 角片本身：窄的那块在船上难点，圆心那块宽一倍
       { obj: K.ship, cueTarget: boat, plane: 'xz', offset: 0.004, keepOffset: false, hint: () => (canShip() ? '拖着小船开；点一下站到船头' : ''), enabled: () => canShip(), onStart: () => { userTouched++; steering = true; }, onEnd: () => { steering = false; }, onDrag: (p) => {
         const q = uv(p);
         if (S.beat === 'vary' && Math.abs(q[0]) > C0[0] && Math.abs(q[1] - B0[1]) < 0.00025) q[1] = B0[1];
@@ -1068,7 +1068,7 @@ export default {
         if (S.call === 'ship' && S.beat === 'classify' && S.cls && !S.clsHint && t - S.clsAt > 18 && t - S.movedAt > 3 && !(S.cls.in && S.cls.out && S.cls.side)) { S.clsHint = true; lightText('船在这段弧上开，浮标和这个角的位置会变', '往弧的两头开一开：浮标会跑到角的边上、角的外面'); }
         if (S.call === 'take' && S.cs && !S.cs.taken && !S.takeHint && performance.now() - S.takeAt > 12000) { S.takeHint = true; lightText('∠BAC 和这两对是什么关系？', '大的一对减去小的一对：把小的那一对拿开'); }
         if (S.family > 0) { group.updateMatrixWorld(); contour.material.uniforms.inv.value.copy(group.matrixWorld).invert(); }
-        cue.update();
+        cue.update(S.beat);
       },
       debug: {
         get S() { return S; },

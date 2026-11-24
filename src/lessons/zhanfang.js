@@ -614,7 +614,7 @@ export default {
         for (const [i, s] of flock.entries()) { s.s.rotation.y = s.yaw + 0.22 * Math.sin(t * 0.25 + i * 1.7); if (s.graze) s.head.position.y = 0.3 + 0.03 * Math.sin(t * 2.2 + i); }
         world.updateMatrixWorld(); camL.copy(camera.position); world.worldToLocal(camL);
         for (const Ln of LINES) if (Ln.pts) refreshLine(Ln);
-        cue.update();
+        cue.update(S.beat);
       },
       debug: {
         get S() { return S; }, rows, R, L, TH, CS, U, GD, HT, H1, H2, pose,

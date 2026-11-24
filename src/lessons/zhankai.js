@@ -587,7 +587,7 @@ export default {
           const a = gal.filter((g) => g.fam === 0).length;
           const H1 = { open: ['盒子的前面翘着呢', '点一下盒子，把它打开'], edit: S.multi ? ['五个连成一行，还能折成吗？', '挪一挪，试试看'] : ['最下面那一块，挪到别的边上呢？', '按住它，拖到别的空格上，再点一下折起来'], oppAsk: ['先挪回一个能折成的', '比如四个连成一行，上面一个、下面一个'], oppOpen: ['点一下盒子，把它打开', ''], count: a < 6 ? ['四个连成一行：上面那一块挪到别的位置呢？', '下面那一块也可以挪'] : ['最长一行只连着三个，可以怎么摆？', '还有两个两个错开、像台阶一样的'], dream: ['点一下纸板，折起来', ''], dreamOpen: ['点一下盒子，打开看看', ''] }[S.beat];
           if (H1) { S.hint = 1; S.beatAt = t; caption(...H1); } }
-        cue.update();
+        cue.update(S.beat);
       },
       debug: {
         get S() { return S; }, get J() { return J; }, ALL, rows, pose, gal, canon, judge,

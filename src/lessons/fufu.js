@@ -548,7 +548,7 @@ export default {
         if (!S.held && !S.done && S.hint < 1 && t - S.stepAt > 15 && t - S.moved > 4) {
           const H1 = { s1: ['车开到摄影机以前，在哪儿？', '转一转摄影机侧面的摇把：逆时针是往回放'], s2: ['速度变成 0、再变成负的，车往哪边开？', '拖蓝点往摄影机那边挪'], s3: ['车头朝西，倒着放时它往哪边退？', '逆时针转摇把，往回放'], fam: ['什么时候所有车的位置坐标都是 0？', '转摇把往前放'] }[S.step];
           if (H1) { S.hint = 1; caption(...H1); } }
-        cue.update();
+        cue.update(S.step);
       },
       debug: {
         get S() { return S; }, rows, pose, cap: () => S.cap, hub: () => [hubP.x, hubP.y, hubP.z], at: { LY, ZA, ZE },

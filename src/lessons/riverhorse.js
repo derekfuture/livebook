@@ -524,7 +524,7 @@ export default {
         if (!S.held && !S.done && S.hint < 1 && t - S.beatAt > 15 && t - gait.moved > 4) {
           const H1 = { fold: ['按住羊圈这一块，往河对岸翻过去', '沿河边 l 折叠'], equal: ['拖着马走：看 CB 和 CB′ 的长度', ''], straight: ['A、B′ 在河的两边：怎么连最短？', '把马牵到 A、C、B′ 连成一条直线的地方'], proof: ['提示：在 l 上另外任取一点 C′', '证明 AC + CB < AC′ + C′B'], light: ['把马牵回 C，看 ∠1 和 ∠2', ''] }[S.beat];
           if (H1) { S.hint = 1; caption(...H1); } }
-        cue.update();
+        cue.update(S.beat);
       },
       debug: {
         get S() { return S; }, seen, CSTAR, len, rows, pose,
