@@ -267,7 +267,7 @@ export default {
     const heating = () => S.lit && Math.abs(S.lampX - powderPos().x) < 0.03 && !S.broken;
     const A = {
       plug() {
-        if (S.broken) return status('试管已经炸裂了。点“再做一次”。');
+        if (S.broken) return status('试管已经炸裂了。要重新开始，请打开“更多”，选择“全部重来（清空记录）”。');
         if (S.plug === 'in') {
           if (S.lit || S.Tg > 40) return status('正在加热，<b>不能拔塞子</b>。');
           S.plug = 'out'; return status(S.powder ? '拔出了橡胶塞。' : '拔出了橡胶塞。用<b>药匙</b>取一些高锰酸钾送进试管（把药匙拖到试管口），再在试管口放<b>一团棉花</b>。');
@@ -591,11 +591,11 @@ export default {
       }
       // 倒吸：水沿导管进到热试管里，试管炸裂
       endWater.visible = S.suck > 0.02; endWater.scale.y = Math.min(0.075, S.suck * 0.09);      // 导管内径约 2 mm：0.1 mL 水大约是 3 cm 长的水柱（画面上略缩短）
-      if (S.suck > 3.0 && !S.broken && S.Tglass > 70) { S.broken = 'suck'; S.lit = false; warn('水倒吸进了热的试管，试管骤然冷却，炸裂了'); status('<b>水倒吸进热试管，试管炸裂了。</b>所以停止加热时，要<b>先把导管移出水面，再熄灭酒精灯</b>。点“再做一次”。'); }
+      if (S.suck > 3.0 && !S.broken && S.Tglass > 70) { S.broken = 'suck'; S.lit = false; warn('水倒吸进了热的试管，试管骤然冷却，炸裂了'); status('<b>水倒吸进热试管，试管炸裂了。</b>所以停止加热时，要<b>先把导管移出水面，再熄灭酒精灯</b>。要重新开始，请打开“更多”，选择“全部重来（清空记录）”。'); }
       if (S.stoppedRight === false && S.suck > 0.3 && !S.seen.has('suckwarn')) { S.seen.add('suckwarn'); status('导管里的水在<b>往回吸</b>！赶快把导管口<b>拖出水面</b>。'); }
       if (S.stoppedRight === false && S.end === 'air' && !S.broken && S.suck < 0.05 && !S.seen.has('saved')) { S.seen.add('saved'); done('stop'); status('及时把导管拖出了水面，没有倒吸进试管。记住正确的顺序：<b>先撤导管，再熄灯</b>。'); }
       // 管口朝上加热：冷凝水倒流到试管底
-      if (S.tilt === 'up' && S.Tp > 130 && !S.broken) { S.upT = (S.upT || 0) + h; if (S.upT > 2.5) { S.broken = 'tilt'; S.lit = false; warn('冷凝水倒流到热的试管底部，试管炸裂了'); status('试管口朝上，管口的<b>冷凝水倒流到热的试管底部</b>，试管炸裂了。所以试管口要<b>略向下倾斜</b>。点“再做一次”。'); } }
+      if (S.tilt === 'up' && S.Tp > 130 && !S.broken) { S.upT = (S.upT || 0) + h; if (S.upT > 2.5) { S.broken = 'tilt'; S.lit = false; warn('冷凝水倒流到热的试管底部，试管炸裂了'); status('试管口朝上，管口的<b>冷凝水倒流到热的试管底部</b>，试管炸裂了。所以试管口要<b>略向下倾斜</b>。要重新开始，请打开“更多”，选择“全部重来（清空记录）”。'); } }
       // 没放棉花：粉末进入导管，水槽里的水变红
       if (!S.cotton && made > 0 && S.end !== 'air') { S.purple = Math.min(1, S.purple + h * 0.05); if (Math.random() < h * 8) purple.spawn({ p: endPiece.position.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 0.01, 0.004, (Math.random() - 0.5) * 0.01), size: 0.0009, life: 2 }); if (S.purple > 0.15 && !S.seen.has('purple')) { S.seen.add('purple'); status('水槽里的水<b>变成了紫红色</b>：没放棉花，加热时高锰酸钾粉末顺着导管进到了水里。'); } }
       if (S.purple > 0) tr.setColor(new THREE.Color(CHEM.water).lerp(new THREE.Color(0xa13a8e), S.purple * 0.8).getHex(), 0.32 + S.purple * 0.2);

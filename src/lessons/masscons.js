@@ -251,7 +251,7 @@ export default {
         near(HOME.C.clone().setY(0.08), [-0.12, 0.25, 1], 0.38);
       },
       seal(on) {
-        if (S.B.tilted) return status('这一次已经做完了。点“更多”里的“再做一次”。');
+        if (S.B.tilted) return status('这一次已经做完了。要重新开始，请打开“更多”，选择“全部重来（清空记录）”。');
         if (S.on === 'B') S.on = null; S.at.B = 'home';
         S.B.sealed = on; S.B.m1 = null; S.B.m2 = null; status(on ? '换成了<b>塞紧的锥形瓶</b>：碳酸钠在瓶底，小试管里装着盐酸。' : '换回了敞口的烧杯。');
       },
@@ -485,7 +485,7 @@ export default {
       if (k === 'A') {
         const a = S.A;
         if (a.m1 == null && a.k === 0) { a.m1 = m; status(`方案一，反应前：m₁ = <b>${m.toFixed(2)} g</b>。现在把锥形瓶拖到左边的<b>陶土网</b>上，点燃酒精灯加热。`); }
-        else if (a.m1 == null && a.k > 0) { if (!S.noM1A) { S.noM1A = true; status('还没称反应前的质量就加热了——这一组的 m₁ 不知道了。点左边“更多”里的<b>全部重来</b>，先称、再加热。'); } }
+        else if (a.m1 == null && a.k > 0) { if (!S.noM1A) { S.noM1A = true; status('还没称反应前的质量就加热了——这一组的 m₁ 不知道了。要重新开始，请打开“更多”，选择“全部重来（清空记录）”，先称、再加热。'); } }
         else if (a.k > 0.6 && a.m2 == null) {
           if (a.T > 30) { if (!S.hotWarn) { S.hotWarn = true; status(`锥形瓶还热着（约 ${Math.round(a.T)} ℃），读数是 ${m.toFixed(2)} g${m < a.m1 - 0.005 ? '——比反应前少了一点：鼓起的小气球排开空气，受到了浮力' : ''}。课本要求<b>待装置冷却后</b>再称量。`); } return; }
           a.m2 = m; log(['方案一：铜粉在密闭的锥形瓶里加热', a.m1.toFixed(2), m.toFixed(2), Math.abs(m - a.m1) < 0.015 ? '<b>不变</b>' : (m - a.m1).toFixed(2)]);
