@@ -485,7 +485,7 @@ export default {
     arrowPick.add(stemPick, headPick); arrowG.add(arrowPick);
     let grabB = 0;
     const drags = [
-      { obj: arrowPick, cueTarget: [arrowBody, bDot], cueGrow: knob, cueGlow: { anchor: arrowG, size: M(0.55) }, cueAlternate: bPick, plane: 'xy', offset: arrowG.position.z, enabled: canB,
+      { obj: arrowPick, cueTarget: bDot, cueAlternate: bPick, plane: 'xy', offset: arrowG.position.z, enabled: canB,
         hint: () => canB() ? '把子时的浮箭往上拖' : '',
         cueText: () => S_.step === 'fit' ? '上下拖：子时壶里先有多少水' : '把子时的浮箭往上拖',
         onStart: p => { if (p && bDown()) grabB = S_.b - toG(p)[1]; },

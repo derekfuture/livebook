@@ -127,12 +127,14 @@ export default {
       for (let k = 0; k < 46; k++) { const x = rnd() * w, y = rnd() * h, r = 50 + rnd() * 150, col = rnd() < 0.5 ? 'rgba(150,146,138,0.14)' : 'rgba(208,206,198,0.12)'; wrap(x, y, r, (X, Y) => { const gr = g.createRadialGradient(X, Y, 0, X, Y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(X - r, Y - r, 2 * r, 2 * r); }); }
       for (let k = 0; k < 9000; k++) { const r = 1 + rnd() * 3.6, t = rnd(), x = rnd() * w, y = rnd() * h, e = r * (0.6 + rnd() * 0.5), a = rnd() * 3; g.fillStyle = t < 0.45 ? `rgba(30,30,32,${0.45 + rnd() * 0.45})` : t < 0.75 ? `rgba(110,108,104,${0.3 + rnd() * 0.4})` : `rgba(240,238,230,${0.4 + rnd() * 0.4})`; wrap(x, y, r, (X, Y) => { g.beginPath(); g.ellipse(X, Y, r, e, a, 0, 6.3); g.fill(); }); } });
     graniteTex.wrapS = graniteTex.wrapT = THREE.RepeatWrapping;
+    const granite = lit({ map: graniteTex, vertexColors: true, roughness: 0.74 });
+    const stoneFace = { R: granite.clone(), T: granite.clone() };
     { const g = new RoundedBoxGeometry(W, H, D, 3, 0.7), p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv, cols = [];
       for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
         if (ax >= ay && ax >= az) uv.setXY(i, z / 26, y / 26); else if (ay >= az) uv.setXY(i, x / 26, z / 26); else uv.setXY(i, x / 26, y / 26);
         const b = n.getY(i) > 0.5 ? 1.05 : 0.8 + 0.2 * smooth(-H / 2, H / 2, y); cols.push(b, b, b * 0.99); }
       g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-      const stool = new THREE.Mesh(g, lit({ map: graniteTex, vertexColors: true, roughness: 0.74 })); stool.castShadow = true; stool.receiveShadow = true; stool.raycast = () => {}; stool.position.set(W / 2, H / 2, -D / 2); world.add(stool); }
+      const stool = new THREE.Mesh(g, [stoneFace.R, granite, stoneFace.T, granite, granite, granite]); stool.castShadow = true; stool.receiveShadow = true; stool.raycast = () => {}; stool.position.set(W / 2, H / 2, -D / 2); world.add(stool); }
     { const crumb = solid(new THREE.Mesh(new THREE.DodecahedronGeometry(1, 0), lit({ color: 0xcf9550, roughness: 0.8, flatShading: true }))); crumb.scale.set(1.25, 0.72, 1.05); crumb.position.set(W - 1.5, H + 0.5, -(D - 1.5)); crumb.rotation.y = 0.6; world.add(crumb);
       for (const [x, z, r] of [[W - 3.6, D - 1.2, 0.38], [W - 1.1, D - 3.4, 0.3]]) { const c = solid(new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), crumb.material)); c.position.set(x, H + r * 0.5, -z); world.add(c); } }
 
@@ -141,7 +143,7 @@ export default {
     const G = { F: gF, R: gR, T: gT };
     const P = (f, u, v, w = 0) => { const a = AX[f]; return new THREE.Vector3(a.o[0] + a.u[0] * u + a.v[0] * v + a.n[0] * w, a.o[1] + a.u[1] * u + a.v[1] * v + a.n[1] * w, a.o[2] + a.u[2] * u + a.v[2] * v + a.n[2] * w); };          // 合上时面上一点
     const netP = (f, u, v, w = 0) => { G[f].updateMatrix(); return new THREE.Vector3(u, v, w).applyMatrix4(G[f].matrix); };          // 现在（可能翻开着）面上一点
-    const skin = {}, grid = {}, skinCue = {};
+    const skin = {}, grid = {};
     for (const f of 'FRT') {
       skin[f] = quiet(new THREE.Mesh(new THREE.PlaneGeometry(FW[f], FH[f]).translate(FW[f] / 2, FH[f] / 2, OUT), lit({ color: 0xc8ecf8, emissive: 0xc8ecf8, emissiveIntensity: 0.5, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, roughness: 0.9 }))); skin[f].renderOrder = 6; G[f].add(skin[f]);
       const gp = []; for (let x = 10; x < FW[f] - 0.1; x += 10) gp.push(x, 0, OUT + 0.05, x, FH[f], OUT + 0.05); for (let y = 10; y < FH[f] - 0.1; y += 10) gp.push(0, y, OUT + 0.05, FW[f], y, OUT + 0.05);
@@ -429,9 +431,9 @@ export default {
     const mPick = new THREE.Mesh(new THREE.SphereGeometry(4.4, 12, 8), basic({ visible: false })); mPick.position.set(0.8, 0.8, 1.2); mPick.userData.pick = true; mPick.userData.noFrame = true; gF.add(mPick);
     // 拖动用活页本身的坐标（不缩放的 root）：kit 把提示收起来时放到 y = −9（米），在 cm 的组里会落在画面里
     const RU = (v, ax) => world.position[ax] + v * K, cm = (p) => p && new THREE.Vector3((p.x - world.position.x) / K, (p.y - world.position.y) / K, (p.z - world.position.z) / K);
-    const skinDrag = (f) => ({ obj: skinPick[f], cueTarget: skin[f], cuePulse: amount => { skinCue[f] = amount; }, plane: f === 'R' ? 'xz' : 'yz', offset: f === 'R' ? RU(H / 2, 'y') : RU(W / 2, 'x'), hint: () => (!skinOK(f) ? '' : S.k[f] > 0.5 ? '按住，合上' : f === 'R' ? '按住，往外翻开' : '按住，往上翻开'), enabled: () => skinOK(f) && S.held !== 'ant', onStart: (p) => skinDown(f, cm(p)), onDrag: (p) => skinMove(f, cm(p)), onEnd: () => skinUp(f) });
+    const skinDrag = (f) => ({ obj: skinPick[f], cueTarget: skin[f], cuePulse: gain => stoneFace[f].color.setScalar(S.k[f] === 0 ? gain : 1), plane: f === 'R' ? 'xz' : 'yz', offset: f === 'R' ? RU(H / 2, 'y') : RU(W / 2, 'x'), hint: () => (!skinOK(f) ? '' : S.k[f] > 0.5 ? '按住，合上' : f === 'R' ? '按住，往外翻开' : '按住，往上翻开'), enabled: () => skinOK(f) && S.held !== 'ant', onStart: (p) => skinDown(f, cm(p)), onDrag: (p) => skinMove(f, cm(p)), onEnd: () => skinUp(f) });
     const drags = [
-      { obj: antPick, cueTarget: antBody, cueGrow: antBody, cueGlow: { anchor: ant, size: 15 }, plane: 'xz', offset: 0, hint: () => (antOK() ? '按住蚂蚁，在石凳上拖着走' : ''), enabled: () => antOK(), onStart: () => antDown(), onDrag: () => {}, onEnd: () => antUp() },
+      { obj: antPick, cueTarget: antBody, plane: 'xz', offset: 0, hint: () => (antOK() ? '按住蚂蚁，在石凳上拖着走' : ''), enabled: () => antOK(), onStart: () => antDown(), onDrag: () => {}, onEnd: () => antUp() },
       skinDrag('R'), skinDrag('T'),
       { obj: mPick, cueTarget: DM, plane: 'xy', offset: RU(OUT + LIFT, 'z'), hint: () => (threadOK() ? `从 M 拉一条线段到 ${S.name[openN()[0]] || 'N'}` : ''), enabled: () => threadOK(), onStart: (p) => threadDown(cm(p)), onDrag: (p) => threadMove(cm(p)), onEnd: () => threadUp() },
     ];
@@ -491,7 +493,7 @@ export default {
           if (fade <= 0) { S.swingAt = -9; for (const m of [swing, arc, over]) { m.set(null); m.fade(1); } } }
         // 翻开的面与正面连成一张淡蓝的展开图。
         for (const f of 'FRT') { const k = f === 'F' ? Math.max(S.k.R, S.k.T) : S.k[f], on = smooth(0, 0.15, k) * (f === 'F' ? 0.24 : 0.4);
-          skin[f].material.opacity = S.closed ? 0 : Math.max(on, (skinCue[f] || 0) * 0.72); grid[f].material.opacity = S.closed ? 0 : smooth(0.6, 1, k) * 0.28; edgeL[f].fade(S.closed ? 0 : smooth(0, 0.15, k)); }
+          skin[f].material.opacity = S.closed ? 0 : on; grid[f].material.opacity = S.closed ? 0 : smooth(0.6, 1, k) * 0.28; edgeL[f].fade(S.closed ? 0 : smooth(0, 0.15, k)); }
         for (const f of 'RT') triFill[f].material.opacity = lerp(triFill[f].material.opacity, tri1(f) ? 0.24 : 0, Math.min(1, dt * 5));
         if (S.ghostOn) { const k = S.closed ? clamp(1 - (t - S.wowAt) / 1.4, 0, 1) : 1; for (const g of 'RT') ghost[g].fade(0.5 * k * (g === 'T' ? 0.7 : 1)); if (S.closed && k <= 0) { S.ghostOn = false; ghost.R.set(null); ghost.T.set(null); } }
         // 合上以后：最短的那条一直亮着，长的那条淡下去

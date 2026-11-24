@@ -480,7 +480,7 @@ export default {
     function velUp() { if (S.held === 'vel') S.held = ''; }
     function setV(v) { const fromX = S.vAnim ? S.vAnim.x : carX(); S.v = v; if (v !== 0) S.face = v > 0 ? 1 : -1; S.vAnim = { t0: now(), fromX, toX: v * S.t, fromZ: S.zCar, toZ: laneOf(v, S.zCar), x: fromX }; record(v, 3); layout(); }
     const drags = [
-      { obj: crankPick, cueTarget: cam, cueGlow: { anchor: cam, offset: [0, BY, -0.48], size: 5.6 }, cueText: () => S.step === 'fam' ? '转摇把往前放' : '逆时针转摇把，往回放', plane: 'xy', offset: hubP.z, hint: () => (S.step === 'fam' ? '转摇把：七辆车一起放' : '转摇把：顺时针往前放，逆时针往回放'), enabled: () => ['s1', 's3', 'fam'].includes(S.step) || S.done, onStart: (p) => crankDown(p), onDrag: (p) => crankMove(p), onEnd: () => crankUp() },
+      { obj: crankPick, cueTarget: cam, cueText: () => S.step === 'fam' ? '转摇把往前放' : '逆时针转摇把，往回放', plane: 'xy', offset: hubP.z, hint: () => (S.step === 'fam' ? '转摇把：七辆车一起放' : '转摇把：顺时针往前放，逆时针往回放'), enabled: () => ['s1', 's3', 'fam'].includes(S.step) || S.done, onStart: (p) => crankDown(p), onDrag: (p) => crankMove(p), onEnd: () => crankUp() },
       { obj: velPick, cueTarget: velKnob, plane: 'xz', offset: LY, hint: () => '拖着左右挪：速度变大、变小', enabled: () => S.step === 's2', onStart: () => velDown(), onDrag: (p) => velMove(p), onEnd: () => velUp() },
     ];
     const tip0 = tag?.('', 'pill'), tip = tip0 && { loc(o, x, y, z) { if (y <= -9) tip0.show(false); else { tip0.show(true); tip0.loc(o, x, y, z); } return tip; }, text(h) { tip0.text(h); return tip; } };          // 这一课以米为单位：kit 把提示“藏”到 y = −9 还在画面里，改成真的藏起来
