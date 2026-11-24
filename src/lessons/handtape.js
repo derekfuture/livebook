@@ -136,6 +136,11 @@ export default {
       board.position.set(x, (SLOT_Y - 0.001) / 2, 0);
       group.add(board);
     }
+    const direction = textPlate('← 运动正方向', {
+      w: 0.135, h: 0.026, font: 'bold 72px sans-serif', color: '#294953', bg: '#f7edcf',
+    });
+    direction.position.set(-0.18, 0.022, 0.028);
+    group.add(direction);
     const texture = canvasTex(W, H, () => {}),
       ink = texture.canvas.getContext('2d');
     const paper = new THREE.Mesh(
@@ -213,7 +218,7 @@ export default {
     group.add(guide);
 
     let phase, ui, trace, segment, origin, powered, returning, records, near;
-    let reading, counts, values, firstColumn;
+    let reading, counts, values, firstColumn, rawReadings;
     const anatomy = constructionDiagram();
     const estimates = [];
     const graph = chart({
@@ -222,10 +227,11 @@ export default {
       fit: true,
       height: 125,
       series: [{ points: estimates, line: false, dots: true }],
-      legend: '以第一个移开的点为零时刻，每个点表示一次对 E 点速度的估计。',
+      legend: '以第一个移开的点为零时刻。图中各点表示对 E 点速度的估计，正值表示纸带向左运动。',
     });
     const now = () => performance.now() / 1000;
     const pulled = () => threaded.x - grip.position.x;
+    const atPullLimit = () => grip.position.x <= threaded.x - LIMIT;
     const steps = [
       ['fix', '固定计时器', '找到铜色线圈和打点的振针，拧紧底座前的螺钉，固定计时器。'],
       ['install', '安装纸带', '底座固定好了。把右边的纸带头向左穿过限位孔，直到左端露出。'],
@@ -238,7 +244,7 @@ export default {
     function target() {
       if (near || returning || phase === 'retry') return null;
       if (phase === 'fix') return bolt;
-      if (phase === 'mark' && (!powered || segment)) return timer.group;
+      if (phase === 'mark' && (!powered || segment || atPullLimit())) return timer.group;
       if (['select', 'read'].includes(phase)) return paper;
       return hit;
     }
@@ -307,13 +313,15 @@ export default {
       firstColumn = Number(header.value);
       const cols = ['时间 / s', '位移 / mm'];
       if (firstColumn === 2) cols.reverse();
-      records = table(['E 时刻 / s', '区间', ...cols, '平均速度 / (m/s)']);
+      records = table(['E 时刻 / s', '区间', ...cols, '平均速度 / (m/s)'], {
+        note: '取向左为正方向。纸带上的点从左到右依次打出，两点的尺读数之差给出位移大小。',
+      });
       ui.data.prepend(records.el);
       say('表头已定。数一数从 D 到 G 有几个打点间隔。');
       fields();
     };
     const work = h('p', { class: 'note', style: 'color:#394955;font-size:14px;line-height:1.55' });
-    const status = ['DG 间隔数', 'D 的位置 / mm', 'G 的位置 / mm', 'DF 间隔数', 'F 的位置 / mm'];
+    const status = ['DG 间隔数', 'D 的尺读数 / mm', 'G 的尺读数 / mm', 'DF 间隔数', 'F 的尺读数 / mm'];
     function fields() {
       design.hidden = !(near && !firstColumn);
       form.hidden = !(near && firstColumn && reading < 5);
@@ -337,7 +345,7 @@ export default {
             ' × 0.02 s = ' +
             (n * PERIOD).toFixed(2) +
             ' s。' +
-            (reading === 0 ? '沿 D 点向下读尺，数字是厘米，每小格 1 mm。' : '沿 F 点读尺，和 D 的读数相减。'),
+            (reading === 0 ? '沿 D 点向下读尺。尺上数字是厘米，每小格 1 mm，估读到 0.1 mm。' : '沿 F 点读尺，和 D 的读数相减。'),
         );
       } else {
         const j = reading === 1 ? 0 : reading === 2 ? 5 : 3;
@@ -345,13 +353,19 @@ export default {
         if (Math.abs(diff) > 0.7)
           return say('读数偏' + (diff > 0 ? '大' : '小') + '。对准点的中心，尺上 1 cm 要记作 10 mm。');
         values.push(n);
-        if (reading === 1) say('已记下 D 的位置。沿 G 点向下读同一把尺。');
+        if (reading === 1) {
+          rawReadings = h('span');
+          work.append(rawReadings, h('br'));
+        }
+        rawReadings.textContent = '尺读数（mm）　' +
+          values.map((value, i) => ['D', 'G', 'F'][i] + ' ' + value.toFixed(1)).join('　');
+        if (reading === 1) say('已记下 D 的读数。沿 G 点向下读同一把尺。');
         else {
           const name = reading === 2 ? 'DG' : 'DF';
           const dx = +(n - values[0]).toFixed(1),
             dt = counts[counts.length - 1] * PERIOD,
             v = dx / 1000 / dt;
-          const cells = [dt.toFixed(2), String(dx)];
+          const cells = [dt.toFixed(2), dx.toFixed(1)];
           if (firstColumn === 2) cells.reverse();
           const firstMoving = trace.marks.find((m) => m.x > trace.marks[0].x);
           const time = (segment[1].tick - firstMoving.tick) * PERIOD;
@@ -369,11 +383,11 @@ export default {
               {},
               name +
                 '：(' +
-                n +
+                n.toFixed(1) +
                 ' − ' +
-                values[0] +
+                values[0].toFixed(1) +
                 ') mm = ' +
-                dx +
+                dx.toFixed(1) +
                 ' mm；' +
                 (dx / 1000).toFixed(4) +
                 ' m ÷ ' +
@@ -440,7 +454,7 @@ export default {
         powered = true;
         origin = now();
         trace = handTrace(origin, pulled());
-        say('灯亮了。抓住左端水平向左拉，试试改变手速。');
+        say('灯亮了。取向左为正方向，抓住纸带左端向左水平拉，试试改变手速。');
       } else {
         trace.sample(now(), pulled());
         powered = false;
@@ -522,11 +536,9 @@ export default {
           if (!powered) return rebound(start, '灯没亮，拉过的纸带上没有点。先接通电源。');
           trace.sample(now(), pulled());
           segment = comparison(trace.marks);
-          say(
-            segment
-              ? '纸带上留下了一行点。打完点，立即点开关断电。'
-              : '点还挤在一起。继续平稳地拉出一段，再断电。',
-          );
+          if (segment) say('纸带上留下了一行点。打完点，立即点开关断电。');
+          else if (atPullLimit()) say('纸带已拉到底，清晰的点还不够。先断电，取下纸带平放，换新后拉慢一些。');
+          else say('清晰的点还不够。继续平稳地拉出一段，再断电。');
         } else if (phase === 'extract') {
           if (grip.position.x > extracted.x + 0.002) return say('右端还在孔里。继续向左抽到纸带完全离开。');
           phase = 'lay';
@@ -641,6 +653,7 @@ export default {
         fields();
       },
       update(dt) {
+        direction.visible = !near;
         if (powered && (!held || now() - lastMove > 0.065)) trace.sample(now(), pulled());
         timer.update(powered, powered ? now() - origin : 0);
         showPower(powered);

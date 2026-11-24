@@ -43,6 +43,7 @@ export default {
     let ui, aim, lift, trial, pair, near, held, fallSpeed, verified, hooked, loaded, owners, positions, measured, result;
     const bar = lessonBar({ ...ctx, group, back: leave, steps: steps.map(([id, title]) => ({ id, title, todo: title, target: () => aim })) });
     const rows = table(['车 前/后（kg）', '盘 前/后（g）', '前车（cm）', '后车（cm）']);
+    const gaps = h('p', { style: 'font-size:16px;font-variant-numeric:tabular-nums' });
     const work = h('div', {}), field = h('input', { type: 'number', step: '0.1', inputmode: 'decimal', style: 'width:6em' });
     const caption = h('label', {}), submit = h('button', { type: 'submit', class: 'go' }, '记下读数');
     caption.append(field);
@@ -57,7 +58,7 @@ export default {
     function guide(prefix = '') {
       const tell = (message, target) => say(prefix + message, target);
       const away = positions.findIndex(value => value > 0.00001);
-      if (bar.finished) return tell('加重的' + names[mass(0) > mass(1) ? 0 : 1] + '走得较近。时间相同，位移之比就是加速度之比。');
+      if (bar.finished) return tell('加重的' + names[mass(0) > mass(1) ? 0 : 1] + '走得较近。两车都从静止开始做匀加速直线运动，且运动时间相同，所以位移之比等于加速度之比。');
       if (trial) return tell('比较车旁三段等时位移：点距相等才是匀速。');
       if (!pair && away >= 0) return tell('向右拖' + names[away] + '回零线。', body[away]);
       if (!bar.has('balance')) {
@@ -114,7 +115,7 @@ export default {
       if (near) ctx.back();
       near = held = result = false; fallSpeed = lift = 0; trial = pair = null;
       verified = [false, false]; hooked = [false, false]; loaded = [true, true]; owners = [null, null]; positions = [0, 0]; measured = [null, null];
-      returns.clear(); rows.clear(); work.replaceChildren(); form.hidden = true; field.value = ''; brake.position.y = 0;
+      returns.clear(); rows.clear(); work.replaceChildren(); gaps.hidden = form.hidden = true; field.value = ''; brake.position.y = 0;
       rig.setLift(lift); cars.forEach((_, index) => sync(index)); weights.forEach(attachWeight);
       cars.forEach(({ pan, disc }) => { pan.add(disc); disc.position.set(0, -0.0255, 0); });
       marks.flat().forEach(mark => { mark.visible = false; }); bar.near(false); bar.undo(...steps.map(step => step[0]));
@@ -125,22 +126,37 @@ export default {
     const wedgeDrag = { obj: wedgeGrip, anchor: wedge, plane: 'xy', offset: 0.085, keepOffset: true,
       enabled: () => free() && !bar.has('balance') && positions.every(value => !value), hint: '左右拖：调垫块高低',
       onDrag(pos) {
+        gaps.hidden = true;
         lift = clamp((0.388 - pos.x) * 1000 * WEDGE.rise / WEDGE.len, 0, 30);
         verified.fill(false); rig.setLift(lift); cars.forEach((_, index) => sync(index));
         marks.flat().forEach(mark => { mark.visible = false; }); displayLift();
       }, onEnd() { lift = Math.round(lift); rig.setLift(lift); cars.forEach((_, index) => sync(index)); displayLift(); guide(); },
     };
     const carDrags = cars.map((cart, index) => {
-      let before, origin;
+      let before, origin, samples;
       return { obj: body[index], plane: 'xz', get offset() { return local(body[index]).y; }, keepOffset: true,
         enabled: () => free() && (pair ? (result || invalid()) && positions[index] > 0 : !hooked.some(Boolean) && (positions[index] > 0 || !bar.has('balance') && !verified[index] && !positions.some(Boolean))),
         hint: () => positions[index] ? '向右拖：小车归零' : '向左推：松手试滑',
-        onStart() { before = positions[index]; origin = local(body[index]).x; },
-        onDrag(pos) { positions[index] = clamp(before + (origin - pos.x) / Math.cos(board.rotation.z), 0, before || TRAVEL); sync(index); },
-        onEnd(moved) {
+        onStart(_, time = performance.now()) {
+          before = positions[index]; origin = local(body[index]).x;
+          samples = [{ time, x: before }];
+        },
+        onDrag(pos, _, time = performance.now()) {
+          const x = clamp(before + (origin - pos.x) / Math.cos(board.rotation.z), 0, before || TRAVEL);
+          if (!before) {
+            if (x !== positions[index]) {
+              gaps.hidden = true;
+              marks[index].forEach(mark => { mark.visible = false; });
+            }
+            samples.push({ time, x });
+            while (samples.length > 2 && samples[1].time <= time - 100) samples.shift();
+          }
+          positions[index] = x; sync(index);
+        },
+        onEnd(moved, time = performance.now()) {
           if (!moved) return;
           const from = positions[index];
-          if (before || from < 0.004) {
+          if (before) {
             const dest = from < 0.006 ? 0 : before;
             return settle(body[index], t => { positions[index] = from + (dest - from) * t; sync(index); }, () => {
               if (positions.every(value => !value)) { pair = null; result = false; measured.fill(null); cars.forEach((_, lane) => sync(lane)); }
@@ -148,10 +164,14 @@ export default {
               guide();
             });
           }
-          const run = tractionRun({ mode: 'balance', lift, cartIndex: 0, hangerIndex: 0, startOffset: from, pushSpeed: 0.14 });
+          const first = samples[0], last = samples.at(-1);
+          const pushSpeed = time - last.time > 160 ? 0 : (last.x - first.x) * 1000 / Math.max(1, last.time - first.time);
+          if (!from) return guide();
+          if (pushSpeed <= 0) return say('向右拖回零线，再向左轻推，在车还在动时松手。', body[index]);
+          const run = tractionRun({ mode: 'balance', lift, cartIndex: 0, hangerIndex: 0, startOffset: from, pushSpeed });
           const discriminant = run.v0 ** 2 + 2 * run.a * (TRAVEL - from);
           if (discriminant >= 0) run.end = 2 * (TRAVEL - from) / (run.v0 + Math.sqrt(discriminant));
-          trial = { run, index, from }; marks[index].forEach(mark => { mark.visible = false; }); guide();
+          trial = { run, index, from }; guide();
         },
       };
     });
@@ -164,7 +184,7 @@ export default {
         hooked[index] = from.distanceTo(target) < 0.026;
         const dest = hooked[index] ? target : rig.panHome(index);
         settle(cart.pan, t => cart.pan.position.lerpVectors(from, dest, t), () => {
-          sync(index); if (hooked[index]) marks[index].forEach(mark => { mark.visible = false; });
+          sync(index); if (hooked[index]) { marks[index].forEach(mark => { mark.visible = false; }); gaps.hidden = true; }
           if (hooked.every(Boolean)) bar.done('hook');
           guide(hooked[index] ? '小盘挂牢了。' : '没挂上绳端。');
         });
@@ -233,11 +253,23 @@ export default {
       for (const [key, ret] of returns) { ret.time = Math.min(1, ret.time + dt / 0.36); ret.draw(1 - (1 - ret.time) ** 2); if (ret.time === 1) { returns.delete(key); ret.end(); } }
       if (trial) {
         const { run, index, from } = trial; advance(run, dt * speed); positions[index] = from + run.x; sync(index);
-        marks[index].forEach((mark, number) => { const time = number * 0.12; if (time <= run.t) { mark.position.x = START_X - from - run.v0 * time - run.a * time ** 2 / 2; mark.visible = true; } });
+        const track = marks[index];
+        track.forEach((mark, number) => {
+          const time = number * 0.12;
+          if (mark.visible || time > run.t) return;
+          mark.position.x = START_X - from - run.v0 * time - run.a * time ** 2 / 2;
+          mark.visible = true;
+          if (number === 3) {
+            const distances = track.slice(1).map((end, i) => ((track[i].position.x - end.position.x) * 1000).toFixed(1));
+            gaps.textContent = names[index] + '三段等时位移约为 ' + distances.join('、') + ' mm。';
+            gaps.hidden = false;
+          }
+        });
         if (run.t >= run.end) {
-          trial = null; verified[index] = marks[index][3].visible && Math.abs(run.a) < 0.013;
+          trial = null; verified[index] = track[3].visible && Math.abs(run.a) < 0.013;
           if (verified.every(Boolean)) { bar.done('balance'); displayLift(); }
-          guide(!marks[index][3].visible ? '松手太晚，挡块前不够留三段点距。' : verified[index] ? '点距均匀，阻力已平衡。' : run.a < 0 ? '点距变短，车在减速。' : '点距变长，车在加速。');
+          if (!track[3].visible) guide(positions[index] >= TRAVEL - 1e-8 ? '到挡块前没留下四个记号。' : '车在第四个记号前停住了。');
+          else guide(verified[index] ? '点距均匀，阻力已平衡。' : run.a < 0 ? '点距变短，车在减速。' : '点距变长，车在加速。');
         }
       }
       dt *= 0.5;
@@ -256,7 +288,16 @@ export default {
     }
     reset();
     const dragTo = (name, obj, to, extra) => ({ name, drag: obj, to, ...extra });
-    const push = index => dragTo('试滑' + names[index], body[index], () => boardAt(START_X - 0.022, 0.028, LANES[index]));
+    const push = index => {
+      const action = qaFlow(pointer, [dragTo('试滑' + names[index], body[index], () => boardAt(START_X - 0.022, 0.028, LANES[index]), { wait: 4 })])[0];
+      action.run = () => {
+        const drag = carDrags[index];
+        drag.onStart(null, 0);
+        drag.onDrag(action.mouse.to(), null, 150);
+        drag.onEnd(true, 150);
+      };
+      return action;
+    };
     const zero = index => dragTo(names[index] + '归零', body[index], () => boardAt(START_X, 0.028, LANES[index]));
     const hang = index => dragTo('挂' + names[index] + '小盘', pans[index], () => rig.panHook(index), { scale: 1 });
     const release = () => {
@@ -273,7 +314,7 @@ export default {
       group: new THREE.Group().add(group), card: false, size: { w: 0.91, d: 0.39, h: 0.29 }, view: { elev: 38, azim: -12, frameMargin: 1.02 }, toggles: ['steps'], reset,
       pointer: { ...pointer, items: () => pointer.items().filter(item => item.enabled()), down(ray, event) { const hit = pointer.down(ray, event); if (hit && ui?.step === 0) ui.go(1); return hit; }, move(ray, event) { return ui?.step === 1 && pointer.move(ray, event); } },
       mount(panel) {
-        ui = panel; bar.attach({ ...panel, need: () => {} }); panel.controls.append(form);
+        ui = panel; bar.attach({ ...panel, need: () => {} }); panel.controls.append(form, gaps);
         panel.data.append(note('本模型中，空车各 0.50 kg，小盘和盘中重物各 10 g。试滑每隔 0.12 s 留一条红线；两车放行用半速慢放。'), rows.el, work, buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el);
         const source = ui.el.querySelector('.answer .src'); source.style.paddingRight = '84px'; source.style.minHeight = '52px';
         guide();

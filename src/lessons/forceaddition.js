@@ -82,7 +82,7 @@ export default {
   conclusion: {
     page: 77, rect: [63.78, 613.94, 378.79, 698.32],
     quote: '通过多次的实验探究我们会发现，两个力合成时，如果以表示这两个力的有向线段为邻边作平行四边形，这两个邻边之间的对角线就代表合力的大小和方向（图3.4-4）。这个规律叫作平行四边形定则 （parallelogram rule）。',
-    why: '同一根橡皮条的固定端不动，圆环两次停在同一个 O 点，橡皮条的伸长和方向都相同。环平衡时，两表拉力的矢量和与单表拉力相等。读数和环心复位都有误差，实测的单表箭头与作图所得的对角线可能略有偏差。',
+    why: '同一根橡皮条的固定端不动，圆环两次停在同一个 O 点，橡皮条的伸长和方向都相同。环平衡时，两表拉力的矢量和与单表拉力相等。读数和环心复位都有误差，按本轮单表读数画出的箭头与作图所得的对角线可能略有偏差。',
     src: '课本第 73 页 · 第三章 第4节 力的合成和分解',
   },
   create(ctx) {
@@ -151,8 +151,12 @@ export default {
 
     const steps = [['pair', '测两个分力'], ['single', '测等效的单个力'], ['draw', '作图比较'], ['repeat', '换夹角检验']];
     const rounds = [];
-    const rows = table(['组', '夹角', 'F₁ / N', 'F₂ / N', '单表 / N', '作图 / N']);
+    const rows = table(['组', '夹角', 'F₁ / N', 'F₂ / N', '单表 / N', '作图 / N'], { note: 'F₁、F₂ 和单表 F 均为模拟测力计读数。' });
     const calculation = h('p', { class: 'note' });
+    for (const note of [rows.el.querySelector('.note'), calculation]) {
+      note.style.color = '#594f40';
+      note.style.fontSize = '14px';
+    }
     const paperY = paper.position.y + 0.0004;
     const sheet = pickBox(0.28, 0.001, 0.20);
     sheet.position.set(-0.263, paperY, 0.145);
@@ -172,7 +176,7 @@ export default {
     const field = h('input', { type: 'number', step: 'any', inputmode: 'decimal', required: true, style: 'width:5em;margin:0 .5em' });
     const headerPaper = h('style', {}, 'body.theme-day #hud-top .brand{background:#fff7e5;padding:5px 8px;border-radius:3px}');
     const fieldName = h('span');
-    const form = h('form', { onsubmit(e) { e.preventDefault(); recordGauge(); } },
+    const form = h('form', { onsubmit(e) { e.preventDefault(); if (phase === 'measure') recordLength(); else recordGauge(); } },
       h('label', {}, fieldName, field), h('button', { type: 'submit', class: 'go', style: 'width:auto;margin:0' }, '记下'));
     const enter = () => { if (ui?.step !== 1) ui?.go(1); };
     function say(text, obj) {
@@ -190,7 +194,7 @@ export default {
       return !lifted && ['pair', 'readPair', 'park'].includes(phase) ? meters : meters.slice(0, 1);
     }
     function equilibrium(active) {
-      return balanceRing(point, active.map(m => m.handle), meterRest, FM.PER_N);
+      return balanceRing(active.length === 1 ? E : point, active.map(m => m.handle), meterRest, FM.PER_N);
     }
     function updateRig() {
       const active = activeMeters(), state = equilibrium(active);
@@ -273,6 +277,32 @@ export default {
     }
     const forceTip = i => shift(origin, mark.dirs[i], scale * mark.values[i]);
     const vertex = () => shift(forceTip(0), mark.dirs[1], scale * mark.values[1]);
+    const gridSize = () => scale / 2;
+    function atVertex(p) {
+      const from = phase === 'side' ? forceTip(0) : origin;
+      return distance(p, vertex()) <= Math.min(0.007, distance(from, vertex()) * 0.18);
+    }
+    function drawGraduations() {
+      const end = vertex(), dir = unit(end.x - origin.x, end.z - origin.z);
+      const normal = { x: -dir.z, z: dir.x };
+      const zero = shift(origin, normal, 0.009);
+      const tenths = Math.ceil(distance(origin, end) / gridSize() * 10) + 2;
+      line(zero, shift(zero, dir, tenths * gridSize() / 10), '#71695d', 2);
+      for (let i = 0; i <= tenths; i++) {
+        const tick = shift(zero, dir, i * gridSize() / 10);
+        line(tick, shift(tick, normal, i % 5 === 0 ? 0.004 : 0.002), '#71695d', 2);
+        if (i % 10 === 0) {
+          const p = shift(tick, normal, 0.012);
+          const [x, y] = paperPoint(p);
+          g.fillStyle = '#fffdf4';
+          g.fillRect(x - 14, y - 24, 28, 28);
+          g.textAlign = 'center';
+          label(String(i / 10), p, '#534c42', 0.007);
+          g.textAlign = 'start';
+        }
+      }
+      line(end, shift(end, normal, 0.009), '#71695d', 2, [4, 3]);
+    }
     const drawingPhase = () => phase === 'side' || phase === 'diagonal';
     function drawSheet() {
       const left = -0.406, right = -0.119, top = 0.048, bottom = 0.254;
@@ -280,32 +310,39 @@ export default {
       g.fillStyle = '#fffdf4';
       g.fillRect(x, y, u - x, v - y);
       g.strokeStyle = '#c0b7a2'; g.lineWidth = 3; g.strokeRect(x, y, u - x, v - y);
-      for (let xx = left + scale / 2; xx < right; xx += scale / 2)
+      for (let xx = left + gridSize(); xx < right; xx += gridSize())
         line({ x: xx, z: top + 0.034 }, { x: xx, z: bottom - 0.024 }, '#e8e6d9', 1.4);
-      for (let zz = top + 0.034; zz <= bottom - 0.024; zz += scale / 2)
+      for (let zz = top + 0.034; zz <= bottom - 0.024; zz += gridSize())
         line({ x: left, z: zz }, { x: right, z: zz }, '#e8e6d9', 1.4);
       const groupNo = rounds.length + (phase === 'result' ? 0 : 1);
       label('第 ' + groupNo + ' 组 · 力的图示', { x: left + 0.009, z: top + 0.022 }, '#534c42', 0.012);
       const key = { x: right - scale - 0.034, z: top + 0.016 };
       line(key, { x: key.x + scale, z: key.z }, '#534c42', 4);
+      for (const dx of [0, gridSize(), scale])
+        line({ x: key.x + dx, z: key.z - 0.002 }, { x: key.x + dx, z: key.z + 0.002 }, '#534c42', 3);
       label('1 N', { x: key.x + scale + 0.005, z: key.z + 0.003 }, '#534c42', 0.01);
       mark.values.forEach((value, i) => {
         if (value !== null) arrow(origin, forceTip(i), colors[i]);
       });
       if (single) arrow(origin, shift(origin, single.dir, single.value * scale), '#278063', 8);
-      if (phase === 'diagonal' || phase === 'result') {
+      if (['diagonal', 'measure', 'result'].includes(phase)) {
         for (const i of [0, 1]) line(forceTip(i), vertex(), '#625d52', 3, [11, 8]);
       }
-      if (phase === 'result') arrow(origin, vertex(), '#383933', 3.8, [9, 8]);
+      if (phase === 'measure' || phase === 'result') arrow(origin, vertex(), '#383933', 3.8, [9, 8]);
+      if (phase === 'measure' && near === 'paper') drawGraduations();
       if (drawingPhase() && near === 'paper') {
         const from = phase === 'side' ? forceTip(0) : origin;
         pen.position.copy(vec(from, paperY));
         circle(from, 0.004, phase === 'side' ? colors[0] : '#514941');
-        if (pencil) arrow(from, pencil, '#484640', 4, [9, 7]);
+        if (pencil) {
+          const snapped = atVertex(pencil);
+          arrow(from, snapped ? vertex() : pencil, '#484640', 4, [9, 7]);
+          if (snapped) circle(vertex(), 0.004, '#484640');
+        }
       }
       label('O', { x: origin.x - 0.012, z: origin.z + 0.004 }, '#554c41', 0.011);
       [[colors[0], 'F₁'], [colors[1], 'F₂'], ['#278063', '单表 F'], ['#383933', '对角线']].forEach(([color, name], i) => {
-        if ((i === 2 && !single) || (i === 3 && phase !== 'result')) return;
+        if ((i === 2 && !single) || (i === 3 && phase !== 'result' && phase !== 'measure')) return;
         const a = { x: left + [0.009, 0.062, 0.113, 0.199][i], z: bottom - 0.011 };
         line(a, { x: a.x + 0.014, z: a.z }, color, 4, i === 3 ? [8, 5] : []);
         label(name, { x: a.x + 0.018, z: a.z + 0.004 }, color, 0.01);
@@ -347,9 +384,13 @@ export default {
         return tell('点' + numbers[i] + '表读数，确定这支分力箭头的长度。', meters[i].grip);
       }
       if (phase === 'park') return tell('两个分力已记下。把②表拖到右下虚线框，撤去它的拉力。', meters[1].grip);
+      if (phase === 'release') return tell('把①表向 E 移近，直到细绳松弛、红针回零，再松手。', meters[0].grip);
       if (phase === 'single') return tell('只拖①表，使环心对准 O 再松手，重现两表共同拉的效果。', meters[0].grip);
       if (phase === 'readSingle') return tell('环心回到 O，橡皮条和两表拉时一样长，方向也相同。点①表读出等效的力。', meters[0].grip);
       if (drawingPhase() && near !== 'paper') return tell('三个力已按同一标尺画出。点左下的力图，比较三支箭头。', sheet);
+      if (phase === 'measure') return near === 'paper'
+        ? tell('笔尖已吸附到交点。沿对角线读出长度，每大格分成十小格。')
+        : tell('点左下的力图，量出对角线的长度。', sheet);
       if (phase === 'side') return tell('从蓝箭头尖拖出一条与棕箭头平行、同向、等长的边。', pen);
       if (phase === 'diagonal') return tell('两组对边已平行且等长。从 O 拖到对角顶点，和绿色单表箭头比较。', pen);
       if (phase === 'result' && near === 'paper' && rounds.length === 1)
@@ -417,35 +458,48 @@ export default {
     function openSheet() {
       if (phase === 'result' && rounds.length === 1) { startRound(); return; }
       near = 'paper'; bar.near(true); drawPaper();
+      if (phase === 'measure') showLengthField();
       const narrow = innerWidth <= 760;
       ctx.look([narrow ? -0.253 : -0.263, paperY, narrow ? 0.187 : 0.151], [0, 1, 0.016], narrow ? 0.52 : 0.49, leave);
       guide();
     }
     function finishLine() {
       if (!pencil) return;
-      const startPoint = phase === 'side' ? forceTip(0) : origin;
-      const miss = distance(pencil, vertex());
+      const snapped = atVertex(pencil);
       pencil = null;
-      const length = distance(startPoint, vertex());
-      if (miss > Math.min(0.007, length * 0.18)) {
+      if (!snapped) {
         drawPaper();
         return say(phase === 'side' ? '这条边和棕箭头还不相等或不平行。看着格线，从蓝箭头尖再画一次。'
           : '这条线没有连到两条虚线的交点。从 O 再画一次。', pen);
       }
       if (phase === 'side') phase = 'diagonal';
       else {
-        const row = rows.rows[rounds.length].slice();
-        const multiple = (length / scale).toFixed(1);
-        row[5] = '≈' + multiple;
-        const v = vertex(), direction = unit(v.x - origin.x, v.z - origin.z);
-        const angle = included([direction, single.dir]);
-        mark.close = angle <= 6 && Math.abs(length / scale - single.value) <= 0.25;
-        mark.comparison = mark.close ? '对角线和单表箭头近乎重合。'
-          : '两支箭头的方向相差约 ' + Math.round(angle) + '°，长度偏差对应约 ' + Math.abs(length / scale - single.value).toFixed(1) + ' N。';
-        calculation.textContent = '按标尺换算，对角线表示的力约为 ' + multiple + ' × 1 N = ' + multiple + ' N。';
-        rows.set(rounds.length, row); rounds.push(mark);
-        phase = 'result'; bar.done(rounds.length === 1 ? 'draw' : 'repeat');
+        phase = 'measure';
+        showLengthField();
       }
+      drawPaper(); guide();
+    }
+    function showLengthField() {
+      ui.fold(false); form.hidden = false; field.value = '';
+      fieldName.textContent = '对角线长度 / 大格';
+    }
+    function recordLength() {
+      if (near !== 'paper') return;
+      const end = vertex(), grids = Number(field.value);
+      if (!(grids > 0) || Math.abs(grids - distance(origin, end) / gridSize()) > 0.11 ||
+          Math.abs(grids * 10 - Math.round(grids * 10)) > 1e-6)
+        return say('从 O 旁的 0 刻线数到对角线末端，读到 0.1 大格。');
+      const force = grids / 2;
+      const direction = unit(end.x - origin.x, end.z - origin.z);
+      const angle = included([direction, single.dir]);
+      mark.close = angle <= 6 && Math.abs(force - single.value) <= 0.25;
+      mark.comparison = mark.close ? '对角线和单表箭头近乎重合。'
+        : '两支箭头的方向相差约 ' + Math.round(angle) + '°，长度偏差对应约 ' + Math.abs(force - single.value).toFixed(1) + ' N。';
+      calculation.textContent = '按图换算：' + grids + ' 大格 ÷ 2 大格 × 1 N = ' + force + ' N。';
+      const row = rows.rows[rounds.length].slice();
+      row[5] = '≈' + force;
+      rows.set(rounds.length, row); rounds.push(mark);
+      form.hidden = true; phase = 'result'; bar.done(rounds.length === 1 ? 'draw' : 'repeat');
       drawPaper(); guide();
     }
     function restoreHandle(dt) {
@@ -476,6 +530,12 @@ export default {
         m.handle = { x: clamp(x - along * m.dir.x + across * m.dir.z, -0.04, 0.411),
           z: clamp(z - along * m.dir.z - across * m.dir.x, i === 1 ? 0.035 : -0.239,
             phase === 'pair' && i === 0 ? -0.035 : phase === 'single' ? 0.187 : 0.244) };
+        if (phase === 'release' || phase === 'single') {
+          // 细绳可以弯下，表的硬挂钩不能推过圆环。
+          const minReach = meterRest - CORD_LENGTH * 0.65;
+          const dz = m.handle.z - E.z;
+          m.handle.x = Math.max(m.handle.x, E.x + Math.sqrt(Math.max(0, minReach ** 2 - dz ** 2)));
+        }
         if (lifted) {
           const f = clamp(distance(start.handle, m.handle) / Math.max(0.006, distance(start.handle, dock)), 0, 1);
           const a = Math.atan2(start.dir.z, start.dir.x) * (1 - f);
@@ -491,10 +551,10 @@ export default {
     const canRead = i => (phase === 'readPair' && mark.values[i] === null) || (phase === 'readSingle' && i === 0);
     const drags = meters.map((m, i) => {
       const enabled = () => near === null && !returning && (phase === 'pair' || canRead(i) ||
-        (phase === 'park' && i === 1) || (phase === 'single' && i === 0));
+        (phase === 'park' && i === 1) || ((phase === 'release' || phase === 'single') && i === 0));
       return {
         obj: m.grip, anchor: m.mesh, plane: 'xz', offset: Y, keepOffset: true, enabled,
-        hint: () => !enabled() || ui?.step !== 1 ? '' : canRead(i) ? '点一下：读测力计' : phase === 'park' ? '拖动：放下②表' : phase === 'single' ? '拖动：拉环回 O' : '向外拖：拉紧细绳',
+        hint: () => !enabled() || ui?.step !== 1 ? '' : canRead(i) ? '点一下：读测力计' : phase === 'park' ? '拖动：放下②表' : phase === 'release' ? '向环推：放松①表' : phase === 'single' ? '拖动：拉环回 O' : '向外拖：拉紧细绳',
         onStart() { enter(); start = { handle: { ...m.handle }, dir: { ...m.dir }, contact: contact || { ...m.handle } }; },
         onTap() { if (canRead(i)) openGauge(i); },
         onDrag(p) {
@@ -513,7 +573,11 @@ export default {
           if (phase === 'park') {
             if (distance(m.handle, dock) > 0.016) return reject(m, '②表还没放进虚线框，细绳重新接上了。把表平放到框内。');
             lifted = false; m.handle = { ...dock }; m.dir = { x: 1, z: 0 };
-            phase = 'single'; updateRig(); drawPaper(); guide('②表已回零。');
+            phase = 'release'; updateRig(); drawPaper(); guide('②表已回零。');
+          } else if (phase === 'release') {
+            if (m.force > 1e-6 || distance(point, m.handle) > meterRest - 0.003)
+              return reject(m, '细绳还没松弛。把①表再向 E 移近些。');
+            phase = 'single'; guide('两个拉力都已撤去。');
           } else if (phase === 'single') {
             if (distance(point, mark.o) > tol) {
               const lengthOK = Math.abs(distance(point, FIXED) - distance(mark.o, FIXED)) <= tol;
@@ -536,7 +600,7 @@ export default {
       onEnd(moved) { if (moved) finishLine(); },
     });
     const ringEnabled = () => phase === 'pair' && near === null && !returning;
-    const sheetEnabled = () => near === null && (drawingPhase() || phase === 'result');
+    const sheetEnabled = () => near === null && (drawingPhase() || phase === 'measure' || phase === 'result');
     const desk = draggable(group, drags, {
       tip, taps: [
         { obj: pick, enabled: ringEnabled, hint: () => ringEnabled() && ui?.step === 1 ? '点一下：标记环心' : '', onTap: noteRing },
@@ -587,13 +651,33 @@ export default {
       { name: '近看第二只表', tap: meters[1].grip }, submitReading('记录第二个分力'),
       ...(n === 1 ? [{ name: '放在框外', drag: meters[1].grip, to: vec({ x: 0.23, z: 0.145 }) }] : []),
       { name: '撤去第二只表', drag: meters[1].grip, to: vec(dock) },
+      ...(n === 1 ? [{ name: '带着旧拉力直接拉回 O', drag: meters[0].grip, to: toO },
+        { name: '核对旧拉力尚未撤去', run() { if (phase !== 'release') throw Error('未放松就进入单表测量'); } }] : []),
+      { name: '放松第一只表', drag: meters[0].grip, to: vec(shift(E, unit(1, -0.52), meterRest - 0.021)) },
+      { name: '核对撤力和原标记', run() {
+        if (phase !== 'single' || distance(point, E) > tol || meters.some(m => m.force > 1e-6) ||
+            distance(point, meters[0].handle) > meterRest - 0.003 || !mark.values.every(v => v > 0))
+          throw Error('两表未回零、细绳未松弛或记录丢失');
+      } },
       ...(n === 1 ? [{ name: '环心偏离 O 就松手', drag: meters[0].grip, to: vec({ x: 0.235, z: -0.045 }) }] : []),
       { name: '单表拉回 O', drag: meters[0].grip, to: toO },
       { name: '近看单表', tap: meters[0].grip }, submitReading('记录等效的力'),
       { name: '近看三个力', tap: sheet },
       ...(n === 1 ? [{ name: '平行边画短了', drag: pen, to: () => vec(forceTip(0), paperY).lerp(vec(vertex(), paperY), 0.45) }] : []),
       { name: '补平行边', drag: pen, to: () => vec(vertex(), paperY) },
-      { name: '作对角线', drag: pen, to: () => vec(vertex(), paperY) },
+      { name: '作对角线', drag: pen, to: () => vec(shift(vertex(), { x: 0, z: 1 }, 0.004), paperY) },
+      ...(n === 1 ? [{ name: '核对量图误读可重试', run() {
+        if (phase !== 'measure') throw Error('对角线未吸附到交点');
+        field.value = '0.2'; form.requestSubmit();
+        if (form.hidden || rows.rows[0][5] !== '—') throw Error('误读已写入记录');
+        leave();
+      } }, { name: '回到力图量取长度', tap: sheet }] : []),
+      { name: '按图读对角线长度', run() {
+        if (phase !== 'measure' || form.hidden || rows.rows[n - 1][5] !== '—') throw Error('量图前就填入结果');
+        const grids = Math.floor(distance(origin, vertex()) / gridSize() * 10) / 10;
+        field.value = String(grids); form.requestSubmit();
+        if (rows.rows[n - 1][5] !== '≈' + grids / 2) throw Error('记录没有使用本轮量图读数');
+      } },
       { name: '核对本组图和记录', run() {
         if (phase !== 'result' || rounds.length !== n || rows.rows[n - 1].includes('—')) throw Error('本组尚未测完');
         const row = rows.rows[n - 1];

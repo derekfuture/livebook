@@ -1,153 +1,90 @@
-// 用同一把毫米尺量接线点间距。移尺复测时，已经读过的两端坐标成对保存。
+// 尺的首末刻线各距贴图边缘 8 像素，两线之间为 700 mm。
 import * as THREE from 'three';
 import { rulerMesh } from './props.js';
 import { clamp, draggable } from './interact.js';
 
-const SPAN = 0.7,
-  WIDTH = 0.028,
-  THICK = 0.003;
-export function wireLengthStation(group, circuit, { look, back, say, enter, record }) {
-  // rulerMesh 的首末刻线各距贴图边缘 8 像素。两线之间应恰为 700 mm。
-  const ruler = rulerMesh({
-    length: (SPAN * 4096) / 4080,
-    width: WIDTH,
-    thick: THICK,
-    divisions: 700,
-    every: 10,
-    labelEvery: 20,
-  });
-  group.add(ruler);
-  // 小黄铜铆钉标出可抓取的尺端，提示圈只围住手指应落下的位置。
-  const grip = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.003, 0.003, 0.0006, 16),
-    new THREE.MeshBasicMaterial({ color: 0xa78b54 }),
-  );
-  grip.position.set(-SPAN / 2 + 0.007, THICK / 2, WIDTH / 2 - 0.005);
+export function wireLengthStation(group, circuit, { look, back, say, enter, ask, record, finish, tip }) {
+  const span = 0.7, width = 0.028, park = 0.225;
+  const ruler = rulerMesh({ length: span * 4096 / 4080, width, thick: 0.003, divisions: 700, every: 10, labelEvery: 20 });
+  const ends = ['X.a', 'X.b'].map(id => circuit.terminalWorld(id));
+  const alignedZ = ends[0].z + width / 2 + 0.004;
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.0006, 16), new THREE.MeshBasicMaterial({ color: 0xa78b54 }));
+  grip.position.set(-0.34, 0.0015, 0.008);
   ruler.add(grip);
-  const ends = ['X.a', 'X.b'].map((id) => circuit.terminalWorld(id));
-  const alignedZ = ends[0].z + WIDTH / 2 + 0.004;
-  let near = null,
-    left = null,
-    previousOrigin = null;
-  const zero = () => ruler.position.x - SPAN / 2;
-  const aligned = () => Math.abs(ruler.position.z - alignedZ) <= 0.005;
-  const canRepeat = () => previousOrigin === null || Math.abs(zero() - previousOrigin) >= 0.005;
+  group.add(ruler);
+  // 贴着接线柱中心的细指标，把同一横坐标引到尺的刻线边。
+  const marks = ends.map(p => {
+    const mark = new THREE.Mesh(new THREE.BoxGeometry(0.00027, 0.0002, 0.012), new THREE.MeshBasicMaterial({ color: 0x783928 }));
+    mark.position.set(p.x, 0.0033, p.z + 0.007);
+    group.add(mark);
+    return mark;
+  });
+  let end, left, count, previous, origin, returning;
+  const aligned = () => Math.abs(ruler.position.z - alignedZ) < 0.001;
+  const expected = () => (ends[end].x - ruler.position.x + span / 2) * 1000;
   function guide() {
-    if (!aligned()) say('把刻度尺拖到两接线柱前，让刻线边贴近金属丝。');
-    else if (!canRepeat()) say('两端的差已记录。把尺沿金属丝挪动至少半厘米，用另一段刻度再量一次。');
-    else if (left === null) say('点左接线柱旁的尺，近看这个接入点落在哪一毫米。');
-    else say('左端读到 ' + left + ' mm。点右接线柱旁的尺，读同一把尺的另一端。');
+    say(count === 2 ? '两次长度已取平均。把尺拖回台前，腾出金属丝。'
+      : count ? '沿丝把尺平移半厘米以上，用另一段刻度复测两柱间距。'
+      : '把刻度尺拖到丝旁，量两接线柱之间通电的一段。柱外的丝头也看得见。', grip);
   }
-  function leave() {
-    if (near !== null) back();
-    near = null;
+  function inspect() {
+    if (!aligned() || count === 2 || (previous !== null && Math.abs(previous - ruler.position.x) < 0.005)) return guide();
+    end = left === null ? 0 : 1;
+    const side = end ? '右' : '左';
+    look([ends[end].x, 0.005, alignedZ - 0.002], [0, 1, 0.012], 0.16);
+    say((end ? '左柱读到 ' + left + ' mm。' : '') + '读' + side + '柱中心细线所对的刻度。尺上数字是厘米，每小格是 1 mm。');
+    ask(side + '柱位置 / mm', value => {
+      if (!Number.isFinite(value) || Math.abs(value - expected()) > 0.55)
+        return say('看接线柱中心的细线，从有数字的厘米线数小格，再换算成毫米。');
+      if (end === 0) { left = value; inspect(); return; }
+      previous = ruler.position.x;
+      count++;
+      const a = left;
+      left = end = null;
+      back();
+      record(a, value, count);
+    });
   }
-  function inspect(end) {
-    if (!aligned() || !canRepeat()) {
-      guide();
-      return;
-    }
-    if ((end === 0) !== (left === null)) {
-      guide();
-      return;
-    }
-    near = end;
-    look([ends[end].x, 0.006, alignedZ - WIDTH / 2], [0, 1, 0.08], 0.115, leave);
-    say(end ? '沿右接线柱中心向下，在尺上点出毫米位置。' : '尺上数字是厘米。点左接线柱正下方的毫米刻线。');
-  }
-  function read(ray) {
-    const hit = ray.intersectObject(ruler, false)[0];
-    if (!hit) return;
-    const n = Math.round(1000 * (group.worldToLocal(hit.point.clone()).x - zero()));
-    const expected = (ends[near].x - zero()) * 1000;
-    if (Math.abs(n - expected) > 1) {
-      say('读接线柱中心正下方的尺刻，余下的丝头不计入长度。');
-      return;
-    }
-    if (near === 0) {
-      left = n;
-      leave();
-      guide();
-      return;
-    }
-    const start = left;
-    left = null;
-    previousOrigin = zero();
-    leave();
-    record(start, n);
-  }
-  const drag = draggable(
-    group,
-    [
-      {
-        obj: ruler,
-        plane: 'xz',
-        offset: THICK / 2,
-        keepOffset: true,
-        hint: '沿金属丝移尺，点接线柱旁的尺刻近看',
-        onStart() {
-          enter();
-        },
-        onDrag(p) {
-          ruler.position.x = clamp(p.x, -0.06, 0.06);
-          ruler.position.z = clamp(p.z, alignedZ, 0.14);
-          left = null;
-        },
-        onEnd(moved) {
-          if (moved) guide();
-        },
-        onTap() {
-          if (tappedEnd >= 0) inspect(tappedEnd);
-          else guide();
-        },
-      },
-    ],
-    { highlight: true },
-  );
+  const pointer = draggable(group, [{
+    obj: ruler, plane: 'xz', offset: 0.0015, keepOffset: true, enabled: () => end === null && !returning,
+    hint: '拖尺：贴近金属丝',
+    onStart() { enter(); origin = ruler.position.clone(); },
+    onDrag(p) {
+      ruler.position.set(clamp(p.x, -0.06, 0.06), 0.0015, clamp(p.z, alignedZ - 0.025, park + 0.015));
+      marks.forEach(m => { m.visible = false; });
+    },
+    onTap: inspect,
+    onEnd(moved) {
+      if (!moved) return;
+      if (Math.abs(ruler.position.z - alignedZ) < 0.024 && count < 2) {
+        ruler.position.z = alignedZ;
+        marks.forEach(m => { m.visible = true; });
+        left = null;
+        inspect();
+      } else if (count === 2 && Math.abs(ruler.position.z - park) < 0.035) {
+        ruler.position.z = park;
+        finish();
+      } else {
+        returning = { start: ruler.position.clone(), t: 0 };
+        say(count === 2 ? '尺还在丝旁，向台前再拖远一点。' : '尺边还没贴到丝旁，重新把刻线边拖到两柱前。', grip);
+      }
+    },
+  }], { tip });
   function reset() {
-    leave();
-    left = null;
-    previousOrigin = null;
-    ruler.position.set(-0.006, THICK / 2, 0.14);
+    end = left = previous = returning = null;
+    count = 0;
+    ruler.position.set(-0.006, 0.0015, park);
+    marks.forEach(m => { m.visible = false; });
   }
   reset();
-  let tappedEnd = null;
-  return {
-    ruler,
-    grip,
-    guide,
-    reset,
-    leave,
-    get stowed() {
-      return ruler.position.z >= 0.13;
+  return { ruler, grip, alignedZ, park, pointer, expected, guide, reset,
+    leave() { end = null; back(); say('点尺面，继续读接线柱的位置。', grip); },
+    update(dt) {
+      if (!returning) return;
+      returning.t = Math.min(1, returning.t + dt / 0.38);
+      ruler.position.lerpVectors(returning.start, origin, 1 - (1 - returning.t) ** 2);
+      if (returning.t === 1) { returning = null; marks.forEach(m => { m.visible = aligned(); }); }
     },
-    get near() {
-      return near !== null;
-    },
-    pointer: {
-      items: drag.items,
-      down(ray, e) {
-        if (near !== null) {
-          read(ray);
-          return true;
-        }
-        const hit = ray.intersectObject(ruler, false)[0];
-        if (!hit) return false;
-        const x = group.worldToLocal(hit.point.clone()).x;
-        tappedEnd = ends.findIndex((p) => Math.abs(p.x - x) < 0.04);
-        return drag.down(ray, e);
-      },
-      move(ray) {
-        if (near !== null) return true;
-        return drag.move(ray);
-      },
-      up() {
-        return drag.up();
-      },
-    },
-    dispose() {
-      drag.dispose();
-      ruler.material[2].map.dispose();
-    },
+    dispose() { pointer.dispose(); ruler.material[2].map.dispose(); },
   };
 }

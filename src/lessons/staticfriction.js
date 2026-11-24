@@ -1,11 +1,17 @@
 import * as THREE from 'three';
 import { FM } from './kit/forcemeter.js';
-import { frictionTrial, pullTo, STATIC_MU } from './kit/staticFriction.js';
+import { frictionTrial, pullTo } from './kit/staticFriction.js';
 import { AXIS, BOARD, BLOCK, RING, vec, staticFrictionRig } from './kit/staticFrictionRig.js';
 import { draggable, clamp } from './kit/interact.js';
 import { qaFlow } from './kit/chemlesson.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { h, chart, table } from './kit/ui.js';
+
+const division = 0.2;
+const nearestTick = (force) => Math.round(force / division);
+// 读到最近刻线：偏差达到半格，或已跨到另一条最近刻线，都需重新测量。
+const overshot = (s) => s.slipped && (s.slidingPeak - s.onsetForce >= division / 2 ||
+  nearestTick(s.slidingPeak) !== nearestTick(s.onsetForce));
 
 export default {
   id: 'staticfriction',
@@ -23,7 +29,7 @@ export default {
       { page: 70, rect: [216.48, 369.33, 531.52, 477.16] },
     ],
     quote: '由于这时相互接触的两个物体之间只有相对运动的趋势，而没有相对运动，所以这时的摩擦力叫作静摩擦力（static frictional force）。静摩擦力的方向总是跟物体相对运动趋势的方向相反。只要沙发与地面间没有产生相对运动，静摩擦力的大小就随着推力的增大而增大，并与推力保持大小相等。……静摩擦力的增大有一个限度。图3.2-5中木块所受静摩擦力的最大值Fmax在数值上等于物体即将开始运动时的拉力。两物体之间实际产生的静摩擦力F在0与最大静摩擦力Fmax之间，即0 < F ≤ Fmax',
-    why: '木块静止时，静摩擦力与水平拉力大小相等、方向相反。木块即将运动时，静摩擦力达到最大。小纸团留下了这一刻的指针位置。',
+    why: '木块静止时，静摩擦力与水平拉力大小相等、方向相反。木块即将运动时，静摩擦力达到最大。缓慢拉动时，可以从纸团留下的位置读出木块即将运动时的拉力。',
     src: '课本第 65–66 页 · 第三章 第2节 摩擦力',
   },
   create(ctx) {
@@ -40,14 +46,19 @@ export default {
     let ui, s, inserted, held, unload, near, returnDrag, draggingBlock, blockStart, target;
     let retry, reading, t, nextDraw, aim, onset, release;
     graph.extra = (c, X, Y) => {
-      for (const mark of [onset, release]) {
+      const peak = inserted && overshot(s) ? [s.slidingPeakTime, s.slidingPeak, '滑动后峰值'] : null;
+      for (const mark of [onset, peak || release]) {
         if (!mark) continue;
         const [time, force, label] = mark;
-        c.fillStyle = label === '刚动' ? '#8c392a' : '#485c66';
-        c.beginPath(); c.arc(X(time), Y(force), 5, 0, 2 * Math.PI); c.fill();
-        c.font = '22px sans-serif';
-        c.textAlign = label === '刚动' ? 'right' : 'left';
-        c.fillText(label, X(time) + (label === '刚动' ? -6 : 6), Y(force) - 8);
+        const x = X(time), y = Y(force), first = label === '刚动';
+        c.fillStyle = c.strokeStyle = first ? '#8c392a' : '#38556b';
+        c.beginPath(); c.arc(x, y, 4, 0, 2 * Math.PI); c.fill();
+        c.font = '22px sans-serif'; c.textAlign = 'left';
+        const width = c.measureText(label).width;
+        const left = clamp(first ? x - 12 - width : x + 12, X(0) + 3, X(graph.x.max) - width);
+        const base = first && peak ? y + 34 : Math.max(24, y - 15);
+        c.beginPath(); c.moveTo(x, y); c.lineTo(clamp(x, left, left + width), base > y ? base - 19 : base + 3); c.stroke();
+        c.fillText(label, left, base);
       }
     };
     const steps = [
@@ -70,7 +81,7 @@ export default {
       aim = null;
       if (retry) { aim = unload || draggingBlock || returnDrag ? null : rig.block; bar.say('把木块向左拖回起线，重新轻拉。'); }
       else if (near) bar.say(help);
-      else if (bar.finished) bar.say('纸团记下了木块刚动前的最大拉力，可以掀开课本结论了。');
+      else if (bar.finished) bar.say('你已读出木块即将运动时的拉力，可以掀开课本结论了。');
       else if (held || unload || returnDrag) bar.say(held && s.slipped ? '木块已离开起线。看红针和纸团怎样分开，再松手。' : '');
       else {
         aim = { light: meter.ring, paper, pull: meter.ring, read: paper }[bar.current];
@@ -89,7 +100,7 @@ export default {
     }
     function read() {
       if (!near) return;
-      const value = field.valueAsNumber, tick = Math.round(s.peak * 5) / 5;
+      const value = field.valueAsNumber, tick = nearestTick(s.peak) * division;
       if (!Number.isFinite(value) || value < 0 || value > FM.MAX) return status('这把测力计的量程是 0～5 N。');
       if (Math.abs(tick - value) > 0.001) {
         status(value === 0 ? '你读到的是松手后的红针。纸团仍停在刚才的最高读数处。'
@@ -138,15 +149,15 @@ export default {
     function endPull() {
       if (s.tension > 0.2) release = [t, s.tension, '松手'];
       held = false; unload = s.handle > s.x || s.v > 0;
-      if (s.slipped && (!inserted || s.peak > STATIC_MU * s.mass * 9.8 + 0.14)) {
+      if (s.slipped && (!inserted || overshot(s))) {
         retry = true;
-        status(inserted ? '这一下拉得太快。木块已经滑动，纸团还被往前推，这次峰值不能用。'
+        status(inserted ? '木块刚动后，指针又把纸团推远了。把木块拖回起线，再慢慢拉。'
           : '木块越过了起线。这次拉得太远，看不到它保持静止时的情形。');
       } else if (!s.slipped && s.peak >= 0.2 && bar.current === 'light') {
         rows.add(['静止', '红针偏转，木块仍在起线']);
         bar.done('light'); status('木块没动，红针却偏了。静摩擦力与向右的拉力等大，方向向左。');
       } else if (s.slipped) {
-        bar.done('pull'); status('木块一动，拉力就变小了。红针退回，纸团留在最远处。');
+        bar.done('pull'); status('这次缓拉，纸团保留的读数与木块即将运动时的读数一致。');
       } else if (s.peak > 0 && inserted) status('木块还在起线，纸团只记下了木块静止时的拉力。再拉远一些。');
       guide();
     }
@@ -208,13 +219,14 @@ export default {
       { obj: face, enabled: canRead, hint: tip('点一下：近看全尺'), onTap: inspect },
     ] });
     function advance(dt) {
-      const before = s.slipped;
-      pullTo(s, held ? target : Math.max(s.x, s.handle - dt * 0.25), dt);
+      const before = s.slipped, previousPeak = s.slidingPeak;
+      pullTo(s, held ? target : Math.max(s.x, s.handle - dt * 0.25), dt, t);
       draw();
       if (!before && s.slipped && held) {
-        onset = [t + s.onsetTime, s.onsetForce, '刚动'];
+        onset = [s.onsetTime, s.onsetForce, '刚动'];
         trace.push(onset.slice(0, 2)); guide();
       }
+      if (s.slidingPeak > previousPeak && s.slidingPeak > s.onsetForce) trace.push([s.slidingPeakTime, s.slidingPeak]);
       if (unload && Math.abs(s.handle - s.x) < 0.00005 && !s.v) {
         s.handle = s.x; s.tension = 0; unload = false; draw(); sample(dt, true); guide();
       } else sample(dt, false);
@@ -259,7 +271,7 @@ export default {
         { name: '缓拉至木块起动', drag: grip, to: vec(RING + 0.0719, AXIS, 0) },
         { name: '对照回零指针和纸团', tap: paperPick },
         { name: '误读回零指针', run() { enterRead(0); if (!near || bar.finished) throw Error('误读通过'); } },
-        { name: '记录纸团所在刻度', run() { enterRead(Math.round(s.peak * 5) / 5); } },
+        { name: '记录纸团所在刻度', run() { enterRead(nearestTick(s.peak) * division); } },
         { name: '掀开课本原文', run() {
           if (!bar.finished || rows.rows.length !== 2 || reading < 2.8 || reading > 3.2 || !s.slipped || s.tension || s.x <= 0) throw Error('缺少测量记录或木块未起动');
           ui.go(2); ui.el.querySelector('.flap-front').click();
