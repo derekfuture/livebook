@@ -51,8 +51,10 @@ export default {
       back: leave,
       steps: steps.map(([id, title]) => ({ id, title, todo: title, target: () => (ui?.step === 1 ? aim : null) })),
     });
-    const rows = table(['入射角 θ₁', '折射角 θ₂', '折射率 n']);
+    const rows = table(['入射角 θ₁', '折射角 θ₂', '折射率估值 n']);
     const formula = h('p', { class: 'note' });
+    const repeatNote = h('p', { class: 'note', hidden: true },
+      '换个入射方向，玻璃的折射率仍相同。角度读到整度会使估值有偏差，角度较小时尤其明显。');
     const inputs = ['入射角 θ₁', '折射角 θ₂'].map((name) =>
       h('input', {
         type: 'number',
@@ -418,9 +420,9 @@ export default {
       bar.near(true);
       form.hidden = false;
       draw();
-      const portrait = ctx.camera.aspect < 1;
+      const spaceForSteps = ctx.camera.aspect < 1 || innerWidth <= 1024;
       ctx.look(
-        [work.position.x + prot.position.x, PAPER_Y + prot.position.y, front + (portrait ? 0.014 : 0)],
+        [work.position.x + prot.position.x, PAPER_Y + prot.position.y, front + (spaceForSteps ? 0.014 : 0)],
         [0, 1, 0.001],
         0.32,
         leave,
@@ -470,7 +472,8 @@ export default {
       const expected = [m.incident, m.refracted].map((a) => Math.abs(a / deg));
       for (let i = 0; i < 2; i++) {
         const value = values[i];
-        if (Number.isInteger(value) && value > 0 && value < 90 && Math.abs(value - expected[i]) <= 1) continue;
+        // 半格时两边都可读，只为角度换算的浮点舍入留余量。
+        if (Number.isInteger(value) && value > 0 && value < 90 && Math.abs(value - expected[i]) <= 0.5 + 1e-12) continue;
         const name = i ? '折射角' : '入射角',
           ray = i ? 'OO′' : 'OA';
         const reference = Number.isFinite(value) && Math.abs(value - (90 - expected[i])) <= 2;
@@ -490,7 +493,7 @@ export default {
       read = true;
       bar.done('measure');
       leave();
-      say('入射角和折射角都从法线量起。这块玻璃的实测折射率约为 ' + n + '。');
+      say('根据本轮模拟读数，估得玻璃的折射率 n ≈ ' + n + '。');
     }
     const manip = draggable(work, [...pinDrags, brickDrag, paperDrag, scaleDrag], {
       tip,
@@ -568,6 +571,7 @@ export default {
       trial();
       rows.clear();
       formula.textContent = '';
+      repeatNote.hidden = true;
       ui?.relock();
       if (ui) ctx.reframe();
       guide();
@@ -582,6 +586,7 @@ export default {
           ui.relock({ full: false });
           ui.unlock();
           ui.need('');
+          repeatNote.hidden = false;
           again.hidden = true;
         },
       },
@@ -631,7 +636,7 @@ export default {
             'style',
             {},
             `
-          @media (max-width:760px) {
+          @media (max-width:1024px) {
             .lbar[data-lesson="glasspins"] { flex-wrap:wrap; gap:3px 7px; }
             .lbar[data-lesson="glasspins"] .lb-main { flex:1 0 calc(100% - 45px); }
             .lbar[data-lesson="glasspins"] .lb-steps { margin-left:auto; }
@@ -641,7 +646,7 @@ export default {
         );
         bar.attach({ need: () => ui.need(''), unlock: () => ui.unlock() });
         ui.controls.append(form);
-        ui.data.append(rows.el, formula);
+        ui.data.append(rows.el, formula, repeatNote);
         ui.controls.append(again);
         ui.notes.append(h('button', { class: 'go ghost', onclick: reset }, '全部重来'));
         const source = ui.el.querySelector('.answer .src');

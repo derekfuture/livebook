@@ -33,16 +33,27 @@ export function gravityPendulumRig() {
     for (const z of [-0.10, 0.10]) block(group, 0.023, 0.294, 0.023, x, 0.147, z, 0xb49a72);
   block(group, 0.15, 0.024, 0.105, 0.19, 0.329, 0, 0x586866);
   cyl(group, 0.009, 0.666, 0.19, 0.674, 0, 0x939f9d);
-  const arm = cyl(group, 0.006, 0.38, 0.01, 0.978, SUSPEND.z, 0x939f9d);
+  const arm = cyl(group, 0.006, 0.38, 0.01, 0.995, SUSPEND.z - 0.015, 0x939f9d);
   arm.rotation.z = Math.PI / 2;
-  block(group, 0.034, 0.026, 0.059, 0.19, 0.978, 0.013, 0x5c6968);
-  const clamp = block(group, 0.037, 0.027, 0.027, SUSPEND.x, 0.9735, SUSPEND.z, 0x697b79);
+  block(group, 0.034, 0.026, 0.059, 0.19, 0.995, 0.013, 0x5c6968);
+  // 左钳口固定，右钳口绕上方的销轴张开；闭合时两片下沿正是读尺的悬点。
+  block(group, 0.018, 0.041, 0.027, SUSPEND.x - 0.010, SUSPEND.y + 0.0205, SUSPEND.z, 0x697b79);
+  const jaw = new THREE.Group();
+  jaw.position.set(SUSPEND.x + 0.011, SUSPEND.y + 0.041, SUSPEND.z);
+  group.add(jaw);
+  block(jaw, 0.018, 0.041, 0.027, -0.001, -0.0205, 0, 0x526662);
+  const pin = cyl(group, 0.006, 0.034, jaw.position.x, jaw.position.y, SUSPEND.z, 0xab8552);
+  pin.rotation.x = Math.PI / 2;
+  function openClamp(open) { jaw.rotation.z = open ? Math.PI / 3 : 0; }
   // 夹子外留一段自由线端。把这一端向下抽，另一端的摆线等量缩短。
-  const tailX = SUSPEND.x + 0.055;
-  const bridge = cyl(group, 0.0015, tailX - SUSPEND.x, (SUSPEND.x + tailX) / 2, 0.978, 0.039, 0x594e40);
+  const tailX = SUSPEND.x + 0.055, cordTop = jaw.position.y + 0.010;
+  const bridgeX = (SUSPEND.x + tailX) / 2;
+  block(group, tailX - SUSPEND.x - 0.003, 0.010, 0.027, bridgeX, cordTop - 0.0065, SUSPEND.z, 0x697b79);
+  cyl(group, 0.0013, cordTop - SUSPEND.y, SUSPEND.x, (cordTop + SUSPEND.y) / 2, SUSPEND.z, 0x594e40);
+  const bridge = cyl(group, 0.0015, tailX - SUSPEND.x, bridgeX, cordTop, SUSPEND.z, 0x594e40);
   bridge.rotation.z = Math.PI / 2;
-  const tail = cyl(group, 0.0015, 1, tailX, 0, 0.039, 0x594e40);
-  const grip = cyl(group, 0.010, 0.028, tailX, 0, 0.039, 0x9d683c);
+  const tail = cyl(group, 0.0015, 1, tailX, 0, SUSPEND.z, 0x594e40);
+  const grip = cyl(group, 0.010, 0.028, tailX, 0, SUSPEND.z, 0x9d683c);
   const pivot = new THREE.Group();
   pivot.position.set(SUSPEND.x, SUSPEND.y, SUSPEND.z);
   group.add(pivot);
@@ -125,8 +136,8 @@ export function gravityPendulumRig() {
   function pose(length, angle) {
     const slack = 0.92 - length;
     tail.scale.y = slack;
-    tail.position.y = 0.978 - slack / 2;
-    grip.position.y = 0.978 - slack;
+    tail.position.y = cordTop - slack / 2;
+    grip.position.y = cordTop - slack;
     pivot.rotation.z = angle;
     cord.scale.y = length - RADIUS;
     cord.position.y = -(length - RADIUS) / 2;
@@ -143,7 +154,7 @@ export function gravityPendulumRig() {
     ball,
     grip,
     caseFace,
-    clamp,
+    openClamp,
     key,
     watch,
     screen,

@@ -3,7 +3,7 @@ import { paint } from '../../live/ink.js';
 import { canvasTex, glowTexture } from './props.js';
 import { block, wire, wireGeometry } from './electronicsBench.js';
 import { battery, switchPart } from './circuit.js';
-import { VISIBLE_CURRENT, EMITTER_WIDTH, EMITTER_Y, SENSOR_Y, SHADE_Y, SHADE_WIDTH, SENSOR_RADIUS, SHADE_FRACTION, FOOTPRINT } from './lightSwitch.js';
+import { EMITTER_WIDTH, EMITTER_Y, SENSOR_Y, SHADE_Y, SHADE_WIDTH, SENSOR_RADIUS, SHADE_FRACTION, FOOTPRINT } from './lightSwitch.js';
 
 export const SENSOR_X = -0.105,
   SENSOR_Z = -0.018,
@@ -249,12 +249,10 @@ export function lightSwitchRig() {
   leads.forEach((l, i) => route(i));
   function draw(resistance, collector) {
     knob.rotation.y = -knobAngle(resistance);
-    const b = Math.sqrt(Math.min(1, collector / 0.012));
-    const lit = collector >= VISIBLE_CURRENT;
-    led.material.color.setRGB(lit ? 0.85 + 0.15 * b : 0.16, lit ? 0.004 + 0.014 * b : 0.018, 0.023);
-    led.material.emissive.setRGB(lit ? 0.52 + b * 0.46 : 0, lit ? 0.002 + b * 0.006 : 0, 0);
-    light.visible = lit;
-    light.material.opacity = 0.35 + 0.35 * b;
+    const brightness = Math.sqrt(Math.min(1, collector / 0.012));
+    led.material.color.setRGB(0.16 + 0.84 * brightness, 0.018, 0.023);
+    led.material.emissive.setRGB(0.98 * brightness, 0.008 * brightness, 0);
+    light.material.opacity = 0.70 * brightness;
     shadeOffset.value.set(shade.position.x - SENSOR_X, shade.position.z - SENSOR_Z);
   }
   return { group, S, shade, knob, switchPick, mark, ports, leads, route, draw };

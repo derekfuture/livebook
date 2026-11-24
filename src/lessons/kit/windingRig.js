@@ -86,6 +86,23 @@ export function windingRig() {
   }
   const rulerGrip = block(scale, 0.006, 0.0018, 0.003, 0.025, 0, RULE_W / 2 + 0.0015, 0xb7a380);
   group.add(scale);
+  // 两个相向的三角只指认贴尺的这一排，与丝的外缘留出空白供学生估读。
+  const markShape = new THREE.BufferGeometry();
+  markShape.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0, -0.00085, 0, -0.00036, -0.00085, 0, 0.00036,
+  ], 3));
+  const markInk = new THREE.MeshBasicMaterial({ color: 0x275990, side: THREE.DoubleSide });
+  const leftMark = new THREE.Mesh(markShape, markInk);
+  const rightMark = leftMark.clone();
+  rightMark.rotation.y = Math.PI;
+  group.add(leftMark, rightMark);
+  function markRow(edges) {
+    leftMark.visible = rightMark.visible = !!edges;
+    if (!edges) return;
+    leftMark.position.set(START + edges.left / 1000 - 0.00055, AXIS + wireRadius, coilRadius);
+    rightMark.position.set(START + edges.right / 1000 + 0.00055, AXIS + wireRadius, coilRadius);
+  }
+  markRow(null);
   const guide = new THREE.Group();
   group.add(guide);
   block(guide, 0.006, 0.003, 0.008, 0, -0.003, 0, 0x94734b);
@@ -185,5 +202,7 @@ export function windingRig() {
       32,
     );
   }
-  return { group, knob, scale, rulerGrip, guide, end, render, dispose: () => texture.dispose() };
+  return { group, knob, scale, rulerGrip, guide, end, render, markRow,
+    dispose() { texture.dispose(); markShape.dispose(); markInk.dispose(); },
+  };
 }

@@ -112,12 +112,13 @@ export default {
         return give('还可以在亮处调大 R₁，再试灯何时亮。');
       }
       if (!bar.has('trim')) {
-        if (!uncovered()) return give('先向右移开滑片，让光敏电阻充分受光。', shade);
-        if (lit()) return give('亮处红灯还亮。向右拖旋钮增大 R₁，停在灯刚灭处。', knob);
-        return give('旋钮调过了。向左回调到灯亮，再向右微调到刚灭。', knob);
+        if (!uncovered()) return give('先把滑片从 RG 上方移开，让它充分受光。', shade);
+        if (lit()) return give('亮处红灯还亮。拖动旋钮，让指针转向较大刻度，停在灯刚灭处。', knob);
+        return give('旋钮调过了。先调小 R₁ 让灯亮起，再慢慢调大到灯刚灭。', knob);
       }
-      if (!bar.has('cover')) return give('向左推滑片遮住 RG，观察红灯何时亮起。', shade);
-      return give('向右移开滑片，观察光照恢复时红灯何时熄灭。', shade);
+      if (!bar.has('cover')) return give('把滑片推向 RG，观察红灯何时亮起。', shade);
+      if (!lit()) return give('灯已灭。先把滑片推向 RG，直到红灯重新亮起。', shade);
+      return give('把滑片从 RG 上方移开，观察光照增强时红灯何时熄灭。', shade);
     }
     function turnPower() {
       S.toggle();
@@ -189,7 +190,9 @@ export default {
           rows.add(['逐渐遮光', '亮起']);
           bar.done('cover');
           guide('受光变弱，RG 的阻值变大，红灯亮了。');
-        } else if (bar.finished && resistance > firstR && !lit(firstX)) {
+        } else if (!bar.finished) {
+          crossed = true; guide('红灯亮了。');
+        } else if (resistance > firstR && !lit(firstX)) {
           compared = true; guide();
         }
       }
@@ -301,7 +304,7 @@ export default {
         ui = panel;
         bar.attach({ need: () => ui.need(''), unlock() { ui.unlock(); ui.need(''); } });
         ui.status('图 5.3-5 甲　红色发光二极管模拟路灯。');
-        ui.controls.append(circuitFigure());
+        ui.controls.append(circuitFigure(), h('p', {}, '滑片完全遮住 RG 时，仍有少量散射光照到它。RG 的阻值和红灯刚亮时的光照条件均为模型示意。'));
         ui.data.append(rows.el, buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el);
         ui.el.querySelector('.answer .src').style.cssText = 'padding-right:82px;min-height:52px';
         document.head.append(layout); document.body.append(tip); guide();

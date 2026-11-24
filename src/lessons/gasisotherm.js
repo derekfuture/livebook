@@ -9,12 +9,32 @@ import { qaFlow } from './kit/chemlesson.js';
 
 const initialLength = 0.032;
 const areaCm2 = AREA * 10000;
-const volumeOf = length => AREA * length * 1e6;
+const lengthError = 0.5, pressureError = 2.5;
+const volumeError = lengthError * areaCm2 / 10;
 const volumeAxis = { min: 0, max: 4.5, ticks: [0, 1, 2, 3, 4], label: 'V / cm³' };
 const inverseAxis = { min: 0, max: 0.7, ticks: [0, 0.2, 0.4, 0.6], label: '(1/V) / cm⁻³' };
 const goal = '同一团空气温度不变时，压强和体积有什么关系？';
-const result = '换横轴后，各点靠近一条过原点的直线。同一团空气温度不变时，压强与体积成反比。';
 const first = '把红褐色橡胶套拖到筒底开口，封住同一团空气。';
+
+function referenceFor(data) {
+  const ranges = data.map(({ v, p }) => [(v - volumeError) * (p - pressureError), (v + volumeError) * (p + pressureError)]);
+  const lower = Math.max(...ranges.map(range => range[0])), upper = Math.min(...ranges.map(range => range[1]));
+  const slope = (lower + upper) / 2;
+  return { slope, count: ranges.filter(([low, high]) => low <= slope && slope <= high).length };
+}
+
+function predictionEvidence(data) {
+  let pair, closest = Infinity;
+  for (const small of data) for (const large of data) {
+    const difference = Math.abs(large.v - 2 * small.v);
+    if (large.v > small.v && difference <= 3 * volumeError && difference < closest) {
+      pair = [large, small]; closest = difference;
+    }
+  }
+  const reading = row => `${row.v.toFixed(2)} cm³、${row.p} kPa`;
+  return pair ? `本轮实测：${reading(pair[0])} → ${reading(pair[1])}。` :
+    '本轮没有体积约为二比一的一对读数。由等温反比关系推得：体积减半，压强变为原来的两倍。';
+}
 
 export default {
   id: 'gasisotherm',
@@ -29,7 +49,7 @@ export default {
   conclusion: {
     page: 28, rect: [216.5, 486.49, 531.5, 583.92],
     quote: '英国科学家玻意耳和法国科学家马略特各自通过实验发现，一定质量的某种气体，在温度不变的情况下，压强p 与体积V 成反比……',
-    why: '换横轴时，每个点的压强都保持原值。以体积的倒数为横轴，测量点靠近一条过原点的直线，说明 p 与 1/V 成正比。',
+    why: '若 p–1/V 图上的测量点靠近同一条过原点的直线，就支持压强与体积成反比。',
     src: '课本第 24 页 · 第二章 第2节 气体的等温变化',
   },
   create(ctx) {
@@ -37,7 +57,7 @@ export default {
     const { group, holder, face, ruler, cap, grip, capPick } = rig;
     const data = [];
     let length = initialLength, air = openAir(length);
-    let ui, target, view, returning, volume = null;
+    let ui, target, view, returning, column = null, reference = null;
     let sealed = false, dragging = false, settled = true;
     let fraction = 0, inverse = false;
     const steps = [['seal', '封闭空气'], ['read', '测第一组'], ['vary', '改变体积'], ['graph', '换轴检验']];
@@ -54,9 +74,23 @@ export default {
     const flip = buttons([{ text: '换成 p–1/V 图', onClick() {
       if (!bar.has('vary')) return;
       inverse = !inverse;
+      choices.el.hidden = key.hidden = true;
       flip.btns[0].textContent = inverse ? '换回 p–V 图' : '换成 p–1/V 图';
       guide();
     } }]);
+    const choices = buttons(['接近', '不接近'].map(text => ({ text, ghost: true, onClick() {
+      if (!inverse || fraction !== 1 || reference) return;
+      reference = referenceFor(data);
+      choices.el.hidden = true;
+      key.textContent = `你的判断：${text}。虚线：反比参考。`;
+      key.hidden = false;
+      bar.done('graph'); drawGraph(); guide();
+    } })));
+    const key = h('p', { class: 'note' });
+    function evidence() {
+      return `按尺、表各半小格估计，${data.length} 个点中有 ${reference.count} 个与参考线相符。` +
+        (reference.count === data.length ? '这组读数支持反比关系。' : '有点偏离，先复核读数，再考虑其他关系。');
+    }
     function drawGraph() {
       plot.x = fraction === 0 ? volumeAxis : fraction === 1 ? inverseAxis : { min: 0, max: 1, ticks: [], label: '' };
       plot.draw();
@@ -64,9 +98,7 @@ export default {
     plot.extra = (g, X, Y) => {
       const k = fraction * fraction * (3 - 2 * fraction);
       const xAt = v => X(plot.x.max * ((1 - k) * v / volumeAxis.max + k / (v * inverseAxis.max)));
-      if (bar.has('vary')) {
-        // 用学生交的读数最小二乘拟合 p = C/V。两种图共用 C 和同一批点。
-        const c = data.reduce((s, d) => s + d.p / d.v, 0) / data.reduce((s, d) => s + 1 / (d.v * d.v), 0);
+      if (bar.has('vary') && (fraction === 0 || (fraction === 1 && reference))) {
         g.save();
         g.beginPath();
         g.rect(X(0), Y(300), X(plot.x.max) - X(0), Y(0) - Y(300));
@@ -74,16 +106,14 @@ export default {
         g.beginPath();
         g.strokeStyle = '#54808a';
         g.lineWidth = 2.5;
-        g.setLineDash([8, 6]);
         if (fraction === 1) {
+          g.setLineDash([8, 6]);
           g.moveTo(X(0), Y(0));
-          g.lineTo(X(inverseAxis.max), Y(c * inverseAxis.max));
+          g.lineTo(X(inverseAxis.max), Y(reference.slope * inverseAxis.max));
         } else {
-          for (let i = 0; i <= 160; i++) {
-            const v = Math.pow(200, i / 160);
-            if (i === 0) g.moveTo(xAt(v), Y(c / v));
-            else g.lineTo(xAt(v), Y(c / v));
-          }
+          [...data].sort((left, right) => left.v - right.v).forEach((point, index) => {
+            if (!index) g.moveTo(xAt(point.v), Y(point.p)); else g.lineTo(xAt(point.v), Y(point.p));
+          });
         }
         g.stroke();
         g.restore();
@@ -97,19 +127,19 @@ export default {
     const stable = () => !dragging && Math.abs(air.temperature - ROOM_T) < 0.65;
     const repeat = () => data.some(d => Math.abs(d.length - length) < 0.001);
     function guide(prefix = '') {
-      if (bar.finished) return say(inverse ? result : '横轴换回体积，同一批点又排成了弯线。');
+      if (inverse && fraction === 1) return say(reference ? evidence() : '只看散点：它们接近同一条过原点的直线吗？');
       if (bar.has('vary')) return say(inverse ? '每个点保持原来的高度，横坐标换成体积的倒数。' :
-        prefix + '这些点描出了等温线。点“换成 p–1/V 图”，检验压强与体积是否成反比。');
+        prefix + '点“换成 p–1/V 图”，检验压强与体积是否成反比。');
       if (!sealed) return say(prefix + first, cap);
       if (!stable()) return say('柱塞停住后表针还在动，空气正在恢复室温。等表针停稳再读。', face);
       if (view === 'dial') return say('沿针尖读绝对压强，每小格 5 kPa。');
-      if (view === 'scale') return say('平视柱塞下沿的红边，左列是柱长，右列是相应的体积。');
-      if (volume !== null) return say(prefix + '点压力表，读同一体积下的压强。', face);
+      if (view === 'scale') return say('平视柱塞下沿的红边，读空气柱长，每小格 1 mm。');
+      if (column !== null) return say(prefix + '点压力表，读同一体积下的压强。', face);
       if (repeat()) {
         if (data.length >= 4) return say('这些点挤在一起。把柱塞再推低或拉高，让体积范围更宽些。', grip);
         return say(prefix + '缓慢推拉棕色握柄，选不同体积，共测四组。', grip);
       }
-      return say(prefix + '点筒旁刻度尺，读柱塞下沿对应的体积。', ruler);
+      return say(prefix + '点筒旁刻度尺，量空气柱长。', ruler);
     }
     function leave() {
       if (view) ctx.back();
@@ -122,7 +152,7 @@ export default {
     function inspect(which) {
       if (!sealed || !stable() || bar.has('vary')) return guide();
       if (repeat()) return guide('这个位置已记过。');
-      if (which === 'dial' && volume === null) return guide('先量体积。');
+      if (which === 'dial' && column === null) return guide('先量柱长。');
       view = which;
       const scale = which === 'scale';
       const targetY = scale ? ZERO_Y + 0.026 : holder.position.y + STEM;
@@ -131,7 +161,7 @@ export default {
       ctx.look([scale ? 0.008 : 0, targetY, scale ? 0.00585 : DIAL_FRONT], [0, 0, 1],
         scale ? (portrait ? 0.14 : 0.18) : (portrait ? 0.115 : 0.15), leave);
       bar.near(true);
-      label.textContent = scale ? '体积 V / cm³' : '压强 p / kPa';
+      label.textContent = scale ? '柱长 l / mm' : '压强 p / kPa';
       field.value = '';
       form.hidden = false;
       if (innerWidth <= 760) form.scrollIntoView({ block: 'nearest' });
@@ -141,23 +171,26 @@ export default {
       const v = field.valueAsNumber;
       if (!Number.isFinite(v) || !view || !stable()) return;
       if (view === 'scale') {
-        const delta = v - volumeOf(length);
-        if (Math.abs(delta) > 0.051) return say(`体积读${delta > 0 ? '大' : '小'}了。看红边平齐的右列刻度，每小格 0.10 cm³。`);
-        volume = Number(v.toFixed(2));
-        calc.textContent = `V = Sl = ${areaCm2.toFixed(2)} cm² × ${(volume / areaCm2).toFixed(2)} cm = ${volume.toFixed(2)} cm³`;
-        leave(); guide('体积已记下。');
+        const delta = v - length * 1000;
+        if (Math.abs(delta) > lengthError) return say(`柱长读${delta > 0 ? '大' : '小'}了。看与红边平齐的刻度，每小格 1 mm。`);
+        const cm = v / 10, volume = cm * areaCm2;
+        const cmText = String(Number(cm.toPrecision(14)));
+        column = { raw: field.value, volume, formula: `${field.value} mm = ${cmText} cm；V = Sl = ${areaCm2.toFixed(2)} cm² × ${cmText} cm ≈ ${volume.toFixed(2)} cm³` };
+        calc.textContent = column.formula;
+        leave(); guide('已由柱长算出体积。');
         return;
       }
       const delta = v - air.pressure / 1000;
-      if (Math.abs(delta) > 2.51) return say(`压强读${delta > 0 ? '大' : '小'}了。从有数字的长刻线数到针尖，每小格 5 kPa。`);
+      if (Math.abs(delta) > pressureError) return say(`压强读${delta > 0 ? '大' : '小'}了。从有数字的长刻线数到针尖，每小格 5 kPa。`);
       const p = Number(v.toFixed(1));
       const previous = data[data.length - 1];
+      const volume = column.volume;
       data.push({ v: volume, p, length });
-      rows.add([(10 * volume / areaCm2).toFixed(1), volume.toFixed(2), String(p), (1 / volume).toFixed(3)]);
-      calc.textContent = `V = ${areaCm2.toFixed(2)} cm² × ${(volume / areaCm2).toFixed(2)} cm = ${volume.toFixed(2)} cm³　·　1/V ≈ ${(1 / volume).toFixed(3)} cm⁻³`;
+      rows.add([column.raw, volume.toFixed(2), String(p), (1 / volume).toFixed(3)]);
+      calc.textContent = `${column.formula}　·　1/V ≈ ${(1 / volume).toFixed(3)} cm⁻³`;
       const compare = !previous ? '第一组读数落在图上了。' :
         `比上一组体积${volume > previous.v ? '大' : '小'}，压强${p === previous.p ? '读数相同' : p > previous.p ? '升高' : '降低'}。`;
-      volume = null;
+      column = null;
       bar.done('read');
       const volumes = data.map(d => d.v);
       if (data.length >= 4 && Math.max(...volumes) - Math.min(...volumes) >= 1) {
@@ -169,7 +202,8 @@ export default {
     }
     function clearData() {
       data.length = 0;
-      volume = null;
+      column = reference = null;
+      choices.el.hidden = key.hidden = true;
       fraction = 0;
       inverse = false;
       rows.clear();
@@ -182,7 +216,9 @@ export default {
     function putCap(moved) {
       if (!moved) return;
       const destination = sealed ? CAP_HOME : SEAT;
-      if (cap.position.distanceTo(destination) > 0.008) {
+      const aligned = Math.hypot(cap.position.x - SEAT.x, cap.position.z - SEAT.z) <= 0.0011;
+      const seated = aligned && cap.position.y >= SEAT.y - 0.002 && cap.position.y <= SEAT.y + 0.0006;
+      if (sealed ? cap.position.distanceTo(destination) > 0.008 : !seated) {
         returning = { from: cap.position.clone(), time: 0 };
         say(sealed ? '橡胶套仍封着筒口。' : '筒口还敞着。对准细管的下端再松手。', cap);
         return;
@@ -207,7 +243,8 @@ export default {
         onDrag(p) {
           const next = clamp(p.y - ZERO_Y, MIN_LENGTH, MAX_LENGTH);
           if (next === length) return;
-          length = next; dragging = true; volume = null;
+          if (column) calc.textContent = '';
+          length = next; dragging = true; column = null;
           rig.set(length, air.pressure);
         },
         onEnd(moved) {
@@ -215,7 +252,7 @@ export default {
           if (moved) guide(sealed ? '' : '空气通过开口进出，表针停在大气压附近。');
         } },
     ], { tip, taps: [
-      { obj: ruler, enabled: desk, hint: '点一下：凑近读体积', onTap: () => inspect('scale') },
+      { obj: ruler, enabled: desk, hint: '点一下：凑近读柱长', onTap: () => inspect('scale') },
       { obj: face, enabled: desk, hint: '点一下：凑近读压强', onTap: () => inspect('dial') },
     ] });
     const hideTip = () => tip.loc(group, 0, -9, 0);
@@ -249,9 +286,9 @@ export default {
     }
     const measure = (i, l) => [
       ...(i ? [{ name: '推拉柱塞 ' + i, drag: grip, to: new THREE.Vector3(0, ZERO_Y + l, 0), wait: 14 }] : []),
-      { name: '近看体积 ' + i, tap: ruler },
-      ...(!i ? [qaRead('错读体积', 'scale', 32, true)] : []),
-      qaRead('记下体积 ' + i, 'scale', () => volumeOf(length).toFixed(2)),
+      { name: '近看柱长 ' + i, tap: ruler },
+      ...(!i ? [qaRead('把体积当作柱长', 'scale', 3.2, true)] : []),
+      qaRead('记下柱长 ' + i, 'scale', () => (length * 1000).toFixed(1)),
       { name: '近看表盘 ' + i, tap: face },
       ...(!i ? [qaRead('错读压强', 'dial', 150, true)] : []),
       qaRead('记下压强 ' + i, 'dial', () => Math.round(air.pressure / 1000)),
@@ -277,10 +314,18 @@ export default {
         fitSteps.observe(stepBar);
         bar.attach({ need: () => panel.need(''), unlock: () => { panel.unlock(); panel.need(''); } });
         panel.status('<b>' + goal + '</b><br>筒底对准零刻度。S = 1.00 cm²，V = Sl。');
-        panel.controls.append(form);
-        panel.data.append(plot.el, flip.el, rows.el, calc);
-        panel.notes.append(h('p', { class: 'note' }, '模型取室温 20 ℃，忽略接管容积。虚线是按本组读数拟合的曲线。'),
+        panel.controls.append(form, calc);
+        panel.data.append(plot.el, key, choices.el, flip.el, rows.el);
+        panel.notes.append(h('p', { class: 'note' }, '模型取室温 20 ℃，忽略接管容积。'),
           buttons([{ text: '全部重做', onClick: reset }]).el);
+        panel.el.querySelector('.flap-front').addEventListener('click', () => {
+          const flap = panel.el.querySelector('.flap.open');
+          if (!flap) return;
+          const guess = ui.prediction();
+          const prefix = guess == null ? '' : `你的预测：“${panel.el.querySelectorAll('.opt')[guess].textContent}”。`;
+          flap.querySelector('.verdict').textContent = prefix + predictionEvidence(data);
+          flap.style.minHeight = `${flap.querySelector('.answer').offsetHeight}px`;
+        });
         const src = panel.el.querySelector('.answer .src');
         src.style.minHeight = '64px'; src.style.paddingRight = '76px';
         guide();
@@ -304,14 +349,23 @@ export default {
         if (fraction !== end) {
           fraction += Math.sign(end - fraction) * Math.min(Math.abs(end - fraction), dt / 0.95);
           drawGraph();
-          if (fraction === 1 && !bar.finished) { bar.done('graph'); guide(); }
+          if (fraction === 1) {
+            choices.el.hidden = !!reference; key.hidden = !reference; guide();
+          }
         }
       },
       debug: { bar, qa: qaFlow(pointer, [
-        { name: '橡胶套没对准', drag: capPick, to: new THREE.Vector3(0.022, 0.017, 0) },
+        { name: '橡胶套偏开七毫米', drag: capPick, to: SEAT.clone().add(new THREE.Vector3(0.007, 0, 0)) },
+        { name: '橡胶套插得太浅', drag: capPick, to: SEAT.clone().add(new THREE.Vector3(0, -0.004, 0)) },
+        { name: '错放后仍敞口', run() { if (sealed || cap.position.distanceTo(CAP_HOME) > 0.0001) throw Error('橡胶套未归位'); } },
         { name: '封住筒口', drag: capPick, to: SEAT },
         ...[initialLength, 0.024, 0.016, 0.04].flatMap((l, i) => measure(i, l)),
         { name: '换横轴', run: () => flip.btns[0].click(), wait: 2 },
+        { name: '观察散点后作判断', run() {
+          if (bar.finished || choices.el.hidden || !key.hidden) throw Error('判断前已显示结果');
+          choices.btns[1].click();
+          if (!reference || reference.count !== data.length || key.hidden) throw Error('未按读数检验');
+        } },
         { name: '掀开课本结论', run() {
           if (!bar.finished || data.length !== 4 || fraction !== 1) throw Error('实测点或换轴未完成');
           ui.go(2);

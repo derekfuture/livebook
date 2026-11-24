@@ -29,7 +29,7 @@ export default {
   conclusion: {
     page: 20, rect: [217.0, 411.81, 531.07, 514.0],
     quote: '物体在 y 方向的分运动是从静止开始、加速度为 g 的匀加速运动，vy＝gt。',
-    why: '忽略空气阻力，A 和 B 的初始竖直速度都是零，竖直加速度都是 g。平抛运动的竖直分运动是自由落体运动。',
+    why: '以抛出点为原点，取竖直向下为 y 轴正方向。忽略空气阻力，A 和 B 的初始竖直速度都是零，竖直加速度都是 g。平抛运动的竖直分运动是自由落体运动。',
     src: '课本第 16 页 · 第五章 第4节 抛体运动的规律',
   },
   create(ctx) {
@@ -121,17 +121,19 @@ export default {
     const rows = table(['轮次', '高度 / cm', '拉锤角度', '落地先后']);
     const slowCaption = '四分之一速慢放，两球从同一高度同时出发。';
     const firstGuide = '向左拉开锤头再松手，看水平飞出的 A 和自由下落的 B 谁先落地。';
-    let ui, height, phase, angle, elapsed, trial, first, changedHeight, replay, result;
+    const trials = [];
+    const reference = () => trials[trials.length - 1];
+    let ui, height, phase, angle, elapsed, trial, replay, result;
 
     function target() {
       if (!canSet() || ui?.step !== 1) return null;
-      if (bar.current === 'height' && height === first.h) return collar;
-      if (bar.current === 'speed' && height !== changedHeight.h) return collar;
+      if (bar.current === 'height' && height === reference().h) return collar;
+      if (bar.current === 'speed' && height !== reference().h) return collar;
       return head;
     }
     const bar = lessonBar({ ...ctx, group, steps: [
       { id: 'drop', title: '比较落地先后', todo: firstGuide, target },
-      { id: 'height', title: '只改高度', todo: '上下拖夹头换一个高度，再把锤头拉到红线松手，保持第一次的力度。', target },
+      { id: 'height', title: '只改高度', todo: '上下拖夹头换一个高度，再把锤头拉到红线松手，保持上一轮的力度。', target },
       { id: 'speed', title: '只改力度', todo: '保持高度，比红线多拉或少拉一段再松手，比较落地先后。', target },
     ] });
     const actions = buttons([
@@ -140,14 +142,13 @@ export default {
     ]);
     const replayButton = actions.btns[0];
     const canSet = () => phase === 'ready' || phase === 'landed';
-    const reference = () => changedHeight || first;
     const hint = (enabled, words) => () => ui?.step === 1 && enabled() ? words : '';
     function guide() {
       if (bar.finished) return bar.say('两次改变条件，两球都同时落地。可以掀开课本结论，或继续试。');
-      if (bar.current === 'height' && height !== first.h)
-        return bar.say('高度已改变。把锤头中心拉到红线再松手，用第一次的力度比较。');
-      if (bar.current === 'speed' && height !== changedHeight.h)
-        return bar.say('上下拖夹头，回到 ' + cm(changedHeight.h) + ' cm，再单独改变力度。');
+      if (bar.current === 'height' && height !== reference().h)
+        return bar.say('高度已改变。把锤头中心拉到红线再松手，用上一轮的力度比较。');
+      if (bar.current === 'speed' && height !== reference().h)
+        return bar.say('上下拖夹头，回到 ' + cm(reference().h) + ' cm，再单独改变力度。');
       bar.say(null);
     }
     function prepare() {
@@ -169,7 +170,8 @@ export default {
     function reset() {
       height = 0.34;
       angle = elapsed = 0;
-      trial = first = changedHeight = null;
+      trial = null;
+      trials.length = 0;
       replay = false;
       result = '';
       rows.clear();
@@ -193,24 +195,31 @@ export default {
       });
       sfx.clink({ freq: 510 });
       if (!replay) {
-        rows.add([String(rows.rows.length + 1), String(cm(height)), angle + '°', '同时']);
-        if (!first) {
-          first = trial;
+        const samePull = trials.find(t => t.angle === angle && t.h !== height);
+        const sameHeight = trials.find(t => t.h === height && t.angle !== angle);
+        const repeated = trials.find(t => t.h === height && t.angle === angle);
+        trial.round = trials.length + 1;
+        trials.push(trial);
+        rows.add([String(trial.round), String(cm(height)), angle + '°', '同时']);
+        if (trial.round === 1) {
           result = 'A 沿曲线飞出，B 竖直下落。两球同时碰到承接板。';
           bar.done('drop');
-        } else if (bar.current === 'height' && height !== first.h && angle === first.angle) {
-          changedHeight = trial;
-          result = (height > first.h ? '放得更高，两球都落得更久' : '放得更低，两球都更早落地') + '，仍然同时着板。';
-          bar.done('height');
-        } else if (bar.current === 'speed' && height === changedHeight.h && angle !== changedHeight.angle) {
-          result = (angle > changedHeight.angle ? '击打更重，A 飞得更远' : '击打更轻，A 飞得更近') + '，却仍和 B 同时落地。';
-          bar.done('speed');
-        } else if (!bar.finished) {
-          const sameHeight = height === reference().h, samePull = angle === reference().angle;
-          if (sameHeight && samePull) result = '高度和力度都没变，两球仍同时落地。';
-          else if (!sameHeight && !samePull) result = '两球同时落地。高度和力度一起变了，无法单独比较其中一个条件。';
-          else result = '两球同时落地。这次只改了' + (sameHeight ? '力度' : '高度') + '。';
-        } else result = '这次 A 和 B 也同时落地。';
+        } else if (samePull || sameHeight) {
+          const comparisons = [];
+          if (samePull) {
+            const observation = height > samePull.h ? '放得更高，两球下落用时都更长。' : '放得更低，两球下落用时都更短。';
+            comparisons.push(`与第 ${samePull.round} 轮力度相同，这次${observation}`);
+            bar.done('height');
+          }
+          if (sameHeight) {
+            const observation = angle > sameHeight.angle ? '击打更重，A 飞得更远。' : '击打更轻，A 飞得更近。';
+            comparisons.push(`与第 ${sameHeight.round} 轮高度相同，这次${observation}`);
+            bar.done('speed');
+          }
+          result = comparisons.join('') + '两球仍同时落地。';
+        } else {
+          result = repeated ? `与第 ${repeated.round} 轮的高度和力度都相同，两球仍同时落地。` : '两球同时落地。高度和力度一起变了，无法单独比较其中一个条件。';
+        }
       }
       showReference();
       ui.status(result);
@@ -360,13 +369,26 @@ export default {
           { name: '改变释放高度', drag: collar, to: new THREE.Vector3(-0.31, FLOOR + R + 0.42 + 0.082, -0.11) },
           { name: '用原力度再击打', drag: head, to: pullTo(34), wait: 2 },
           { name: '核对高度对照', run() {
-            check(bar.current === 'speed' && rows.rows.length === 2 && changedHeight.h === 0.42 &&
-              changedHeight.angle === first.angle && changedHeight.end > first.end, '高度对照或回看记数有误');
+            check(bar.current === 'speed' && rows.rows.length === 2 && trial.h === 0.42 &&
+              trial.angle === trials[0].angle && trial.end > trials[0].end, '高度对照或回看记数有误');
           } },
           { name: '同高度加大力度', drag: head, to: pullTo(56), wait: 2 },
           { name: '核对力度对照与结论', run() {
-            check(bar.finished && rows.rows.length === 3 && trial.end === changedHeight.end &&
-              trial.v > changedHeight.v && !ui.el.querySelector('.flap').classList.contains('locked'), '力度对照或结论有误');
+            check(bar.finished && rows.rows.length === 3 && trial.end === trials[1].end &&
+              trial.v > trials[1].v && !ui.el.querySelector('.flap').classList.contains('locked'), '力度对照或结论有误');
+          } },
+          { name: '重做并交换对照顺序', run: reset },
+          { name: '记录原高度和力度', drag: head, to: pullTo(34), wait: 2 },
+          { name: '先只改力度', drag: head, to: pullTo(56), wait: 2 },
+          { name: '核对先完成的力度对照', run() {
+            check(bar.has('speed') && bar.current === 'height' && result.includes('与第 1 轮高度相同') &&
+              ui.el.querySelector('.flap').classList.contains('locked'), '先改力度时进度有误');
+          } },
+          { name: '再改变高度', drag: collar, to: new THREE.Vector3(-0.31, FLOOR + R + 0.42 + 0.082, -0.11) },
+          { name: '按第二轮力度击打', drag: head, to: pullTo(56), wait: 2 },
+          { name: '核对第二、三轮的高度对照', run() {
+            check(bar.finished && rows.rows.length === 3 && result.includes('与第 2 轮力度相同') &&
+              !ui.el.querySelector('.flap').classList.contains('locked'), '交换顺序后结论未解锁');
           } },
         ]),
       },

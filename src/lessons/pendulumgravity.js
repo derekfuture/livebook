@@ -1,6 +1,6 @@
 // 选择性必修第一册，第 51–53 页。用图 2.5-3 的直接读尺法量到球心。
 import { gravityPendulumRig, SUSPEND, RADIUS } from './kit/gravityPendulumRig.js';
-import { advancePendulum, pendulumEstimate, timingMark } from './kit/gravityPendulum.js';
+import { GRAVITY, advancePendulum, pendulumEstimate, timingMark } from './kit/gravityPendulum.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { draggable, clamp } from './kit/interact.js';
 import { qaFlow } from './kit/chemlesson.js';
@@ -35,6 +35,8 @@ export default {
     let catching, grabAngle, grabLength, grabX, lastFrame;
     const bar = lessonBar({ ...ctx, group, back: leave, steps: stages.map(([id, title]) =>
       ({ id, title, todo: id === 'length' ? first : title, target: () => ui?.step === 1 ? target : null })) });
+    const stepBar = document.querySelector('.lbar');
+    let shortOverview = false, holding = false, layoutPending = false, adjusting = false;
     const say = (message, obj = null) => { target = obj; bar.say(message); };
     const labels = ['悬点刻度 / cm', '球顶刻度 / cm', '球心刻度 / cm'];
     const heights = () => [SUSPEND.y, SUSPEND.y - length + RADIUS, SUSPEND.y - length];
@@ -54,7 +56,8 @@ export default {
     const graph = chart({ preserveAspect: true,
       x: { label: 'l / m', min: 0, max: 0.9 }, y: { label: 'T² / s²', min: 0, max: 4 },
       series: [{ points, dots: true, line: false, color: '#28656f' }] });
-    const data = h('div', {}, log.el, graph.el, average);
+    const comparison = h('div', { class: 'sum-ctx', hidden: true });
+    const data = h('div', {}, log.el, graph.el, average, comparison);
     const resetButton = h('button', { class: 'go ghost', onclick: reset }, '全部重来');
 
     function guide() {
@@ -73,11 +76,13 @@ export default {
       say('点竖尺凑近读数。摆长的起点在夹子下方的悬点。', scale);
     }
     function closeView() {
-      if (view) ctx.back();
+      if (view || shortOverview) ctx.back();
+      shortOverview = false;
       rig.straightedge.visible = false;
       view = null;
       rulerForm.hidden = true;
       bar.near(false);
+      fitLayout();
     }
     function leave() { closeView(); guide(); }
     function readView() {
@@ -91,12 +96,44 @@ export default {
       ctx.look([(ALIGNED + SUSPEND.x) / 2, y, 0], [0, 0, 1], 0.34, leave);
       bar.near(true); guide();
     }
-    function watchView() {
+    function frameWatch() {
       const y = SUSPEND.y - length;
-      view = 'watch';
       ctx.look([-0.038, (y + 0.37) / 2, 0.035], [0, 0.015, 1], Math.max(amplitude > 5 * DEG ? 0.93 : 0.75, Math.abs(y - 0.37) * 2.8 + 0.29), leave);
-      bar.near(true);
     }
+    function watchView() {
+      view = 'watch';
+      bar.near(true);
+      fitLayout();
+    }
+    // 矮横屏按顶栏和步骤栏之间的实际空位取景。计时只框住摆球的运动范围、中线和停表。
+    function fitLayout() {
+      if (!ui || view === 'ruler' || !document.body.classList.contains('lesson-on')) return;
+      if (holding) { layoutPending = true; return; }
+      layoutPending = false;
+      const bounds = stepBar.getBoundingClientRect();
+      if (innerWidth <= 760 || innerHeight > 600 || !bounds.height) {
+        if (view === 'watch') frameWatch();
+        else if (shortOverview) ctx.back();
+        shortOverview = false;
+        return;
+      }
+      const watch = view === 'watch', y = SUSPEND.y - length;
+      const low = watch ? Math.min(y - RADIUS - 0.04, rig.watch.position.y) : -0.02;
+      const high = watch ? Math.max(y + length * (1 - Math.cos(amplitude)) + RADIUS, rig.watch.position.y + 0.10) : 1.03;
+      const top = (document.querySelector('#btn-import')?.getBoundingClientRect().bottom || 48) + 8;
+      const bottom = bounds.top - 8;
+      const swing = length * Math.sin(amplitude) + RADIUS;
+      const left = watch ? SUSPEND.x - swing : -0.40;
+      const right = watch ? Math.max(rig.watch.position.x + 0.07, SUSPEND.x + swing) : 0.40;
+      const pxPerMeter = Math.min(Math.max(40, bottom - top) / (high - low), Math.max(80, bounds.width - 64) / (right - left));
+      const centerY = (high + low) / 2 - (innerHeight - top - bottom) / (2 * pxPerMeter);
+      const center = point((left + right) / 2, centerY, 0.035);
+      const dist = innerHeight / (2 * Math.tan(ctx.camera.fov * DEG / 2) * pxPerMeter) + 0.07;
+      const dir = watch ? point(0, 0, 1) : point(-0.12, 0.18, 1).normalize();
+      ctx.lookFrom(center.clone().addScaledVector(dir, dist).toArray(), center.toArray(), leave);
+      shortOverview = !watch;
+    }
+    const layoutObserver = new ResizeObserver(fitLayout);
     function readLength() {
       if (view !== 'ruler') return;
       const value = rulerInput.valueAsNumber, correct = scaleValue(), k = readings.length;
@@ -155,10 +192,16 @@ export default {
       if (samples.length === 3) {
         const mean = samples.reduce((sum, s) => sum + s.gravity, 0) / samples.length;
         average.textContent = '平均 g = (' + samples.map(s => s.gravity.toFixed(2)).join(' + ') + ') / 3 ≈ ' + mean.toFixed(2) + ' m/s²。';
+        comparison.replaceChildren(
+          h('div', {}, '模拟设定 g = ' + GRAVITY + ' m/s²，与本轮平均值相差约 ' + Math.abs(mean - GRAVITY).toFixed(2) + ' m/s²。'),
+          h('div', {}, '想一想，摆长读数和起停表的时机会怎样影响算出的 g？'),
+          h('div', {}, '选做：查一查当地的重力加速度，和你的测量结果比较。'));
+        comparison.hidden = false;
         bar.done('repeat'); guide();
+        comparison.scrollIntoView({ block: 'nearest' });
       } else say('第 ' + samples.length + ' 组已上图。测三组取平均。可再按表，或把球带回中线、拖线端换摆长。', ball);
     }
-    const ready = () => !bar.finished && !returning;
+    const ready = () => !bar.finished && !returning && !adjusting;
     const hint = text => () => ui?.step === 1 ? text : '';
     const tip = ctx.tag('', 'pill').show(false);
     tip.el.style.transition = 'none';
@@ -195,26 +238,28 @@ export default {
           watchView(); guide();
           if (amplitude > 5 * DEG) say('摆角约 ' + Math.round(amplitude / DEG) + '°，小角度公式会有偏差。拖回中线，轻拉到 5° 以内。', ball);
         } },
-      { obj: grip, plane: 'xy', offset: 0.039, enabled: () => ready() && !running && !view && !pending,
-        hint: hint('上下拖：收放摆线'),
-        onStart() { grabLength = length; },
+      { obj: grip, plane: 'xy', offset: SUSPEND.z, enabled: () => ready() && !running && !view && !pending,
+        hint: hint('按住松夹，上下拖线'),
+        onStart() { grabLength = length; adjusting = true; rig.openClamp(true); say('铁夹已松开。上下拖线端调摆长，松手夹紧。'); },
         onDrag(p, from) { if (from) { length = clamp(grabLength + p.y - from.y, 0.46, 0.83); rig.pose(length, 0); } },
         onEnd() {
-          if (Math.abs(length - grabLength) < 1e-6) return;
+          adjusting = false; rig.openClamp(false);
+          if (Math.abs(length - grabLength) < 1e-6) { guide(); return; }
           readings = []; measured = null; work.textContent = ''; rig.display(0, '待计时');
-          if (aligned) { readView(); say('摆长变了。重新从悬点读尺，才知道这一组的摆长。'); } else guide();
+          if (aligned) { readView(); say('铁夹已夹紧。重新读悬点刻度，量出这一组的摆长。'); } else guide();
         } },
     ], { tip, taps: [{ obj: caseFace, enabled: () => ready() && running && view !== 'ruler',
       hint: () => ui?.step !== 1 ? '' : !view ? '点一下：近看停表' : start ? '点一下：停表' : '点一下：起表', onTap: press }] });
 
     function reset() {
+      adjusting = false; rig.openClamp(false); holding = layoutPending = false;
       qaClock = false; closeView(); aligned = running = false; returning = start = pending = measured = null;
       readings = []; samples.length = points.length = 0; length = 0.64;
       angle = omega = amplitude = elapsed = stopped = 0; turns = { 1: 0, '-1': 0 }; lastFrame = null;
       rig.ruler.position.set(HOME, SUSPEND.y + 0.035, -0.012);
       rig.pose(length, 0); rig.display(0, '待计时');
       work.textContent = average.textContent = ''; count.value = time.value = rulerInput.value = '';
-      log.clear(); graph.draw(); graph.el.hidden = timerForm.hidden = true;
+      log.clear(); graph.draw(); graph.el.hidden = timerForm.hidden = comparison.hidden = true;
       bar.undo(...stages.map(s => s[0])); ui?.relock(); ui?.fold(false); guide();
     }
     // 质检把实验时钟停在穿越中线的那一帧，鼠标仍需按真实的表键。
@@ -290,14 +335,20 @@ export default {
         items: () => pointer.items().filter(d => d.enabled()),
         down(ray, event) {
           const handled = pointer.down(ray, event);
-          if (handled && ui?.step === 0) ui.go(1);
+          if (handled) { holding = true; if (ui?.step === 0) ui.go(1); }
           return handled;
         },
         move(ray, event) { tip.show(ui?.step === 1); return ui?.step === 1 && pointer.move(ray, event); },
-        up(ray, event) { return pointer.up(ray, event); },
+        up(ray, event) {
+          holding = false;
+          const handled = pointer.up(ray, event);
+          if (layoutPending) fitLayout();
+          return handled;
+        },
       },
       mount(panel) {
         ui = panel;
+        layoutObserver.observe(stepBar); layoutObserver.observe(canvas);
         bar.attach({ need: () => ui.need(''), unlock() { ui.unlock(); ui.need(''); } });
         if (ui.el.querySelector('.page-crop')) ui.el.querySelector('.answer .formula').hidden = true;
         const source = ui.el.querySelector('.answer .src');
@@ -320,7 +371,7 @@ export default {
         lastFrame = now;
       },
       debug: { bar, qa },
-      dispose() { canvas.removeEventListener('pointerleave', hideTip); pointer.dispose(); rig.dispose(); bar.dispose(); },
+      dispose() { layoutObserver.disconnect(); canvas.removeEventListener('pointerleave', hideTip); pointer.dispose(); rig.dispose(); bar.dispose(); },
     };
   },
 };

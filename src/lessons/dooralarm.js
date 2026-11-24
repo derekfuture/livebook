@@ -39,7 +39,7 @@ export default {
     const magnetPlane = DOOR_Z + MOUNT_Z;
     const canvas = h('canvas', { width: 310, height: 90, style: 'width:100%;display:block' });
     const diagram = alarmNotebook(canvas);
-    const rows = table(['门', '干簧管', '触点', '绿灯', '蜂鸣器']);
+    const rows = table(['门上磁体', '干簧管', '触点', '绿灯', '蜂鸣器']);
     const returns = new Map();
     let ui,
       aim,
@@ -58,7 +58,7 @@ export default {
     const steps = [
       ['reed', '检验干簧管', '把磁体移到门框玻璃管下，再移开，检验簧片能否吸合、分开。'],
       ['mount', '安装磁体', '簧片能随磁体分开。把磁体放进玻璃管正下方的门扇卡座。'],
-      ['circuit', '按图接线', '磁体已固定。把棕线接 K，让干簧管控制线圈。'],
+      ['circuit', '按图接线', '其余元件已检查正常，固定导线已接好。按图接四根线，棕线接 K，黑线接负极，绿线接 a，黄线接 b。'],
       ['door', '开关门检验', '拉开门再关好，检验能否自动报警和解除报警。'],
     ];
     function back() {
@@ -99,6 +99,7 @@ export default {
           return say('电源已断开。先把绿线插头拖回绿圈，腾出 b。', wires[2].plug);
         if (reversedSeen && wires[2].to === null && wires[3].to === 'a')
           return say('b 已空出。把蜂鸣器的黄线从 a 移到 b。', wires[3].plug);
+        if (wires.every((w) => w.to === null)) return say(steps[2][2], wires[0].plug);
         const i = wires.findIndex((w) => w.to === null);
         if (i >= 0) return say(prefix + instructions[i], wires[i].plug);
         return say(prefix + '合上开关 S，检验两条支路。', S.group);
@@ -114,10 +115,11 @@ export default {
         return;
       }
       if (boardView) return back();
-      if (bar.finished) return say('已验证开门报警、关门灯亮且警报解除。可以掀开课本结论。');
-      if (!rows.rows.length) return say('把门关紧，让磁体对准干簧管，看哪条支路接通。', handle);
-      if (rows.rows.length === 1) return say('门关好，c 接 a，绿灯亮。拉开把手，看磁体离开后哪条支路接通。', handle);
-      say('门打开，c 接 b，灯灭、蜂鸣器响。把门推回去，检验警报能否解除。', handle);
+      const result = state.ledCurrent ? 'c 接 a，绿灯亮，蜂鸣器停。' : state.buzzing ? 'c 接 b，绿灯灭，蜂鸣器响。' : '';
+      if (bar.finished) return say(result + '可以掀开课本结论。');
+      if (!rows.rows.length) return say(result + '把门推向门框，让磁体靠近干簧管。', handle);
+      if (rows.rows.length === 1) return say(result + '拉开把手，观察磁体离开后哪条支路接通。', handle);
+      say(result + '把门推回去，观察警报何时解除。', handle);
     }
     function returnTo(obj, destination, update) {
       returns.set(obj, { start: obj.position.clone(), destination: destination.clone(), t: 0, update });
@@ -248,7 +250,7 @@ export default {
                 door.attach(magnet);
                 mounted = true;
                 bar.done('mount');
-                guide('磁体已固定。');
+                guide();
               }
             } else {
               returnTo(magnet, rig.homeMagnet);
@@ -355,20 +357,22 @@ export default {
         bar.done('circuit');
         guide();
       }
-      if (bar.finished) return;
-      const shut = angle < 0.035 && state.reed && state.ledCurrent > 0;
-      const open = angle > 0.22 && !state.reed && state.buzzing;
-      if (rows.rows.length === 1 ? !open : !shut) return;
-      rows.add([
-        shut ? '关闭' : '打开',
-        state.reed ? '接通' : '断开',
-        'c–' + state.contact,
-        state.ledCurrent ? '亮' : '灭',
-        state.buzzing ? '响' : '停',
-      ]);
-      rows.el.hidden = false;
-      if (rows.rows.length === 3) bar.done('door');
-      guide();
+      const near = state.reed && state.ledCurrent > 0;
+      const far = !state.reed && state.buzzing;
+      if (!bar.finished && (rows.rows.length === 1 ? far : near)) {
+        rows.add([
+          near ? '靠近' : '离开',
+          state.reed ? '接通' : '断开',
+          'c–' + state.contact,
+          state.ledCurrent ? '亮' : '灭',
+          state.buzzing ? '响' : '停',
+        ]);
+        rows.el.hidden = false;
+        if (rows.rows.length === 3) bar.done('door');
+        guide();
+      } else if (state.buzzing !== previous.buzzing || state.ledCurrent !== previous.ledCurrent) {
+        guide();
+      }
     }
     reset();
     const connect = (i, id) => ({ name: '接线 ' + i + ' → ' + id, drag: wires[i].plug, to: tips[id] });
@@ -451,8 +455,9 @@ export default {
           connect(2, 'a'),
           power,
           check('正确接线关门亮灯', () => rows.rows.length === 1 && state.ledCurrent && !state.buzzing),
-          doorStep('拉开门触发报警', 1.04),
-          doorStep('推回门解除报警', -0.08),
+          doorStep('把门拉开一道缝触发报警', 0.21),
+          check('门微开时应记下报警', () => rows.rows.length === 2 && state.buzzing && !state.ledCurrent),
+          doorStep('推回到磁体靠近时解除报警', 0.1),
           check('关门开门再关门', () => bar.finished && rows.rows.length === 3 && state.ledCurrent && !state.buzzing),
           {
             name: '掀开课本原文',

@@ -55,7 +55,8 @@ export default {
     const phoneStyle = h(
       'style',
       {},
-      `@media (max-width:760px) {
+      `.board .momentum-note, .momentum-totals .note { font-size:14px; line-height:1.5; color:#354750; }
+      @media (max-width:760px) {
       body.lesson-on #viewctl { top:52px; bottom:auto; flex-direction:row; align-items:center; }
       #viewctl .lesson-community { margin:0; padding:0; border:0; }
       .lbar.do { flex-wrap:wrap; row-gap:2px; }
@@ -80,6 +81,7 @@ export default {
       time,
       passed;
     let events, readings, placed, sleeves, coilOn, tied, ray, returning;
+    let tieStartZ, lastDragZ;
     // 木座上的小件也要在器材高度显示步骤光圈。
     const ring = inviteRing(group, { ground: 0.004 });
     const bar = lessonBar({
@@ -87,7 +89,10 @@ export default {
       back: leave,
       steps: stages.map(([id, title]) => ({ id, title, todo: title, target: () => aim })),
     });
-    const data = table(['总动量<br>kg·m/s', '碰前', '碰后']);
+    const data = table(['总动量<br>kg·m/s', '碰前', '碰后', '差的绝对值'], {
+      note: '计时器只读到 0.1 ms，算出的总动量可能略有差别。表中总动量和差值都用未舍入的速度计算。',
+    });
+    data.el.classList.add('momentum-totals');
     const speeds = table(['滑块', 'Δt / ms', 'v / (m/s)']);
     const massLine = h('p', { class: 'note', style: 'font-size:15px;color:#354750' }),
       formula = h('p', { class: 'note', style: 'font-size:15px;line-height:1.6;color:#354750' }),
@@ -215,9 +220,11 @@ export default {
       if (springRound()) {
         if (!coilOn) return say('把木座上的轻弹簧放在两滑块之间。', rig.coil);
         if (!tied) {
+          if (tieStartZ !== null) return say('继续按住甲，向天平一侧拖，把线圈套紧。');
           mark(springX[0] + squeeze);
-          return say('向右推甲压缩弹簧，到标记处松手，让预系好的线圈套住两块。', carts[0]);
+          return say('向右推甲压缩弹簧，到标记处保持按住。', carts[0]);
         }
+        if (held) return say('细线已绷紧，可以松手。');
         return say('两块被细线固定，都静止。点细线模拟烧断，观察分开后的方向。', rig.thread);
       }
       return say('乙已静止。向右轻推甲，在左门前松手，让遮光片自由通过光电门。', carts[0]);
@@ -263,6 +270,7 @@ export default {
       pan = ballast = null;
       round = 0;
       air = held = coilOn = tied = false;
+      tieStartZ = null;
       settle = drift = leftDrift = 0;
       tilt = 0.006;
       sleeves = [false, false];
@@ -319,16 +327,18 @@ export default {
       guide();
     }
     function momentum() {
-      const v = [
-        [0, 0],
-        [0, 0],
-      ];
-      for (const r of readings) v[r.event.stage][r.event.glider] = r.speed;
-      const terms = v.map((pair) =>
-        pair.map((speed, i) => kg(masses[i]) + ' × (' + speed.toFixed(3) + ')').join(' + '),
+      const byStage = [[null, null], [null, null]];
+      for (const r of readings) byStage[r.event.stage][r.event.glider] = r;
+      const terms = byStage.map((pair) =>
+        pair.map((r, i) => {
+          const velocity = r ? '(' + (r.speed < 0 ? '−' : '') + '10/' + r.dt.toFixed(1) + ')' : '0';
+          return kg(masses[i]) + ' × ' + velocity;
+        }).join(' + '),
       );
-      const sums = v.map((pair) => pair.reduce((sum, speed, i) => sum + (masses[i] / 1000) * speed, 0));
-      return { terms, sums };
+      const total = (speedOf) => byStage.map((pair) =>
+        pair.reduce((sum, r, i) => sum + (r ? (masses[i] / 1000) * speedOf(r) : 0), 0),
+      );
+      return { terms, sums: total((r) => r.speed), displayedSums: total((r) => Number(r.speed.toFixed(3))) };
     }
     function read() {
       if (bar.current === 'mass' && onScale() && masses[pan] === null) return recordMass();
@@ -342,7 +352,7 @@ export default {
         return tell(
           '时间读对了。' + eventName(e) + (e.direction > 0 ? '向右过门，速度取正。' : '向左过门，速度取负。'),
         );
-      const speed = Number(((sign * FLAG_WIDTH * 1000) / dt).toFixed(3));
+      const speed = (sign * FLAG_WIDTH * 1000) / dt;
       readings.push({ event: e, dt, speed });
       speeds.add([eventName(e), dt.toFixed(1), speed.toFixed(3)]);
       formula.textContent =
@@ -357,19 +367,21 @@ export default {
     }
     function compare() {
       if (!measured() || pendingEvent() || bar.finished) return;
-      const { sums, terms } = momentum(),
+      const { sums, displayedSums, terms } = momentum(),
         inputs = [before, after];
       for (let i = 0; i < 2; i++) {
-        if (!Number.isFinite(inputs[i].valueAsNumber) || Math.abs(inputs[i].valueAsNumber - sums[i]) > 0.000501)
+        const answer = inputs[i].valueAsNumber;
+        if (![sums[i], displayedSums[i]].some((sum) => Math.abs(answer - sum) <= 0.0005 + 1e-12))
           return tell((i ? '碰后' : '碰前') + '总动量要用 kg 乘 m/s，两项带符号相加。');
       }
-      const result = inputs.map((el) => Number(el.valueAsNumber.toFixed(3)).toFixed(3));
-      data.add([modes[round], ...result]);
+      const result = sums.map((sum) => sum.toFixed(3).replace(/^-0\.000$/, '0.000'));
+      const difference = Math.abs(sums[1] - sums[0]);
+      data.add([modes[round], ...result, difference < 1e-12 ? '0' : String(Number(difference.toPrecision(2)))]);
       archive.append(
         h(
           'details',
           {},
-          h('summary', {}, modes[round] + ' · 测量记录'),
+          h('summary', {}, modes[round] + ' · 仿真读数'),
           speeds.el.cloneNode(true),
           h(
             'p',
@@ -500,10 +512,34 @@ export default {
         right = carts[1].position.x - 0.055;
       rig.coil.position.set((left + right) / 2, springSeat.y, 0);
       rig.coil.scale.x = clamp((right - left) / freeLength, 0.15, 1);
-      if (!run) {
-        const a = -0.48 * clamp((right - left - freeLength + squeeze) / squeeze, 0, 1);
-        rig.thread.rotation.z = a;
-        rig.thread.position.set(0.14 * (1 - Math.cos(a)), TRACK_Y + 0.004 - 0.14 * Math.sin(a), 0);
+    }
+    function lowerThread(fraction) {
+      const a = -0.48 * (1 - fraction);
+      rig.thread.rotation.z = a;
+      rig.thread.scale.z = 1 + 0.7 * (1 - fraction);
+      rig.thread.position.set(0.14 * (1 - Math.cos(a)), TRACK_Y + 0.004 - 0.14 * Math.sin(a), 0);
+    }
+    function compress(p) {
+      const cart = carts[0], stop = springX[0] + squeeze;
+      if (tieStartZ === null) {
+        const last = cart.position.x;
+        cart.position.x = clamp(p.x, springX[0], stop);
+        springShape();
+        if (cart.position.x >= stop - 0.001) {
+          const fraction = clamp((stop - last) / Math.max(0.001, p.x - last), 0, 1);
+          tieStartZ = lastDragZ + fraction * (p.z - lastDragZ);
+          cart.position.x = stop;
+          springShape();
+          guide();
+        }
+      }
+      lastDragZ = p.z;
+      if (tieStartZ === null || tied) return;
+      const fraction = clamp((p.z - tieStartZ) / 0.067, 0, 1);
+      lowerThread(fraction);
+      if (fraction === 1) {
+        tied = true;
+        guide();
       }
     }
     function railItem(i) {
@@ -536,14 +572,16 @@ export default {
           held = true;
           drift = settle = 0;
           cartStart = lastX = carts[i].position.x;
+          lastDragZ = 0;
           firstMove = lastMove = performance.now();
         },
         onDrag(p) {
+          if (springRound() && coilOn) return compress(p);
           let lo = -0.56,
             hi = 0.56;
           if (!preparing() && i === 0) {
             lo = cartStart;
-            hi = springRound() ? springX[0] + squeeze : homeX[0] + 0.12;
+            hi = homeX[0] + 0.12;
           }
           if (i === 1) lo = carts[0].position.x + 0.11;
           else hi = Math.min(hi, carts[1].position.x - 0.11);
@@ -553,7 +591,6 @@ export default {
             lastMove = performance.now();
           }
           carts[i].position.x = x;
-          if (springRound() && coilOn) springShape();
         },
         onEnd(moved) {
           held = false;
@@ -570,13 +607,11 @@ export default {
               carts[i].position.x = dest;
               return guide('滑块已就位。');
             }
-          } else if (springRound() && !cancelled && moved && x >= springX[0] + squeeze - 0.004) {
-            tied = true;
-            carts[0].position.x = springX[0] + squeeze;
-            springShape();
-            rig.thread.visible = true;
-            return guide();
-          } else if (!springRound() && !cancelled && moved && dx > 0.012 && performance.now() - lastMove < 330) {
+          } else if (springRound()) {
+            tieStartZ = null;
+            if (tied) return guide();
+            lowerThread(0);
+          } else if (!cancelled && moved && dx > 0.012 && performance.now() - lastMove < 330) {
             const launch = clamp(dx / Math.max(0.03, (lastMove - firstMove) / 1000), 0.16, 0.72);
             return startTrial(launch);
           }
@@ -586,9 +621,9 @@ export default {
             returning = { obj: carts[i], owner: rig.rail, from, to, t: 0 };
             group.attach(carts[i]);
           }
-          guide(
-            preparing() ? '还没到标记处。' : springRound() ? '弹簧还没有压到线圈位置。' : '松手时甲要向右运动。',
-          );
+          if (preparing()) return guide('还没到标记处。');
+          if (springRound()) return guide(dx > 0 ? '线还没套牢，弹簧把甲弹回了。' : '');
+          guide('松手时甲要向右运动。');
         },
       };
     }
@@ -613,6 +648,7 @@ export default {
       () => {
         coilOn = true;
         springShape();
+        lowerThread(0);
         rig.thread.visible = true;
         guide('弹簧刚好接触两端。');
       },
@@ -680,7 +716,7 @@ export default {
         })),
         {
           obj: rig.threadPick,
-          enabled: () => free() && tied,
+          enabled: () => free() && tied && !held,
           hint: '点一下：模拟烧断细线',
           onTap: () => startTrial(0),
         },
@@ -694,10 +730,10 @@ export default {
         const r = returning;
         r.t = Math.min(1, r.t + dt / 0.38);
         r.obj.position.lerpVectors(r.from, r.to, 1 - (1 - r.t) ** 2);
+        if (coilOn && r.obj === carts[0]) springShape();
         if (r.t === 1) {
           r.owner.attach(r.obj);
           returning = null;
-          if (coilOn && !run) springShape();
         }
       }
       if (bar.current === 'level' && air) {
@@ -838,7 +874,12 @@ export default {
       park(0, springX[0]),
       park(1, springX[1]),
       move('放入轻弹簧', rig.coilPick, springSeat),
-      park(0, springX[0] + squeeze),
+      move('压到标记后提前松手', cartPicks[0], atRail(springX[0] + squeeze)),
+      { name: '核对回弹', run() {
+        if (tied || Math.abs(carts[0].position.x - springX[0]) > 1e-6 || Math.abs(rig.coil.scale.x - 1) > 1e-6)
+          throw Error('未套线时松手应回弹到原长');
+      } },
+      move('压住甲并套紧细线', cartPicks[0], point(springX[0] + 0.12, TRACK_Y, 0.16)),
       { ...tap('烧断细线', rig.threadPick), wait: 10 },
       ...qaMeasure([0, 1], false),
       {
@@ -885,6 +926,7 @@ export default {
         ui.status('遮光片宽 10 mm。沿导轨向右为正。');
         ui.controls.append(readForm, formula, pForm);
         ui.data.append(
+          h('p', { class: 'note momentum-note' }, '仿真读数。调平后忽略阻力。弹开按理想弹性碰撞计算，粘连后两块同速。忽略搭扣质量。'),
           massLine,
           speeds.el,
           data.el,

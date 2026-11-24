@@ -78,7 +78,9 @@ export function wireLengthStation(group, circuit, { look, back, say, enter, ask,
   }
   reset();
   return { ruler, grip, alignedZ, park, pointer, expected, guide, reset,
-    leave() { end = null; back(); say('点尺面，继续读接线柱的位置。', grip); },
+    get near() { return end !== null; },
+    get stowed() { return !returning && ruler.position.z === park; },
+    leave() { end = left = null; back(); say('点尺面，继续读接线柱的位置。', grip); },
     update(dt) {
       if (!returning) return;
       returning.t = Math.min(1, returning.t + dt / 0.38);

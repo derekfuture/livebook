@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { paint, inked } from '../live/ink.js';
 import { textPlate, woodBlock } from './kit/props.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { draggable, rayToLocal, clamp } from './kit/interact.js';
+import { draggable, clamp } from './kit/interact.js';
 import { h, table } from './kit/ui.js';
 import { qaFlow } from './kit/chemlesson.js';
 import { GROOVES, FORCE_DIV, compareRotors, isolatedFactor } from './kit/centripetal.js';
@@ -16,7 +16,15 @@ const SHAFT = [-0.149, 0.149],
   BANDS = 18,
   SLEEVE = 0.073,
   LEVEL = [0.106, 0.134],
-  CRANK = 0.057;
+  CRANK = 0.057,
+  RADII = [0.06, 0.12],
+  PIVOT_X = RADII[0] + BALL + 0.002,
+  PIVOT_Y = TRAY + 0.030,
+  // 横臂短端受球的推力，长端的销沿套筒托耳滑动，横臂自身长度不变。
+  ARM_X = PIVOT_X - 0.005,
+  ARM_Y = SLEEVE_TOP - SLEEVE + 0.004 - PIVOT_Y,
+  ARM_LENGTH = Math.hypot(ARM_X, ARM_Y),
+  ARM_ANGLE = Math.atan2(ARM_Y, ARM_X);
 export default {
   id: 'centripetal',
   fig: '图6.2-4',
@@ -30,8 +38,8 @@ export default {
   },
   conclusion: {
     page: 33,
-    rect: [87.79, 263.42, 322.79, 325.32],
-    quote: '精确的实验表明，向心力的大小可以表示为 Fn＝mω2r',
+    rect: [87.79, 263.42, 322.79, 403.0],
+    quote: '精确的实验表明，向心力的大小可以表示为 Fn＝mω2r 或者 Fn＝m r v 2',
     why: '匀速转动时，挡板对球的水平压力指向圆心。球对挡板的反作用力经横臂使套筒下降，左右标尺的露出长度可用来比较向心力。保持角速度相同时，改变半径也会改变线速度；用线速度表示同一关系为 F = mv²/r。',
     src: '课本第 29 页 · 第六章 第2节 向心力',
   },
@@ -78,30 +86,27 @@ export default {
       const length = i ? 0.1 : 0.161;
       box(rotor, length, 0.007, 0.04, length / 2 - 0.01, TRAY, 0, metal, true);
       for (const z of [-0.021, 0.021]) box(rotor, length, 0.012, 0.003, length / 2 - 0.01, TRAY + 0.006, z, blue);
-      const stop = new THREE.Group();
-      rotor.add(stop);
-      const carriage = new THREE.Group();
-      rotor.add(carriage);
-      box(carriage, 0.006, 0.03, 0.035, 0.019, TRAY + 0.02, 0, 0x9b673d, true);
-      for (const z of [-0.019, 0.019]) box(carriage, 0.014, 0.03, 0.004, 0.023, TRAY + 0.016, z, metal);
-      const pivot = cyl(carriage, 0.003, 0.045, 0.023, TRAY + 0.03, 0, 0xcab477);
-      pivot.rotation.x = Math.PI / 2;
-      cyl(stop, 0.006, 0.014, 0.022, TRAY + 0.038, 0, 0x80644d);
-      const knob = cyl(stop, 0.01, 0.014, 0.025, TRAY + 0.05, 0, 0xbf9457);
-      const pick = new THREE.Mesh(
-        new THREE.BoxGeometry(0.028, 0.024, 0.032),
-        new THREE.MeshBasicMaterial({ visible: false }),
-      );
-      pick.position.set(0.002, 0.002, 0);
-      pick.userData.pick = true;
-      knob.add(pick);
-      // 挡板和横臂同侧联动；读数用理想标定，忽略挡板的微小径向位移。
-      const lever = link(rotor, 0.0033, 0x555f61);
+      const pivots = (i ? [RADII[0]] : RADII).map((r) => {
+        const rocker = new THREE.Group();
+        rocker.position.set(r + BALL + 0.002, PIVOT_Y, 0);
+        rotor.add(rocker);
+        for (const z of [-0.019, 0.019])
+          box(rotor, 0.007, 0.028, 0.004, rocker.position.x, PIVOT_Y - 0.014, z, metal);
+        const pin = cyl(rotor, 0.003, 0.046, rocker.position.x, PIVOT_Y, 0, 0xcab477);
+        pin.rotation.x = Math.PI / 2;
+        box(rocker, 0.004, 0.037, 0.032, 0, -0.005, 0, 0x9b673d, true);
+        return rocker;
+      });
+      const v = (x, y, z) => new THREE.Vector3(x, y, z);
+      link(pivots[0], 0.0033, 0x555f61)(v(0, 0, -0.013), v(-ARM_X, ARM_Y, -0.013));
+      // 两个挡板的支点都固定在长槽上，以相同力臂通过平行连杆传力。
+      const tie = i ? null : box(rotor, RADII[1] - RADII[0], 0.004, 0.004, 0, 0, -0.014, metal);
       cyl(rotor, 0.009, 0.163, 0, SLEEVE_TOP - 0.0815, 0, metal);
       const bands = BANDS;
       for (let j = 0; j < bands; j++)
         cyl(rotor, 0.0125, UNIT, 0, SLEEVE_TOP - (j + 0.5) * UNIT, 0, j % 2 ? 0xf8efda : 0xad4836);
       const sleeve = cyl(rotor, 0.015, SLEEVE, 0, SLEEVE_TOP - SLEEVE / 2, 0, 0x465a62);
+      box(sleeve, 0.044, 0.004, 0.012, -0.01, -SLEEVE / 2, -0.012, metal);
       cyl(rotor, 0.0145, 0.002, 0, SLEEVE_TOP + 0.001, 0, 0xa7a8a0);
       box(rotor, 0.013, 0.004, 0.006, 0, SLEEVE_TOP + 0.002, 0.011, i ? 0xa0523d : 0x326c78);
       const coilLen = SLEEVE_TOP - SLEEVE - (TRAY + 0.009);
@@ -116,7 +121,7 @@ export default {
       );
       coil.position.y = TRAY + 0.009;
       rotor.add(coil);
-      return { rotor, stop, knob, carriage, sleeve, lever, coil, coilLen };
+      return { rotor, pivots, tie, sleeve, coil, coilLen };
     });
     const handle = new THREE.Group();
     handle.position.set(SHAFT[1], CRANK, 0);
@@ -220,22 +225,25 @@ export default {
       ui,
       aim = null;
     const trials = [
-      { id: 'mass', title: '只换质量', change: '质量加倍', fixed: '半径、角速度相同' },
-      { id: 'radius', title: '只换半径', change: '半径加倍', fixed: '质量、角速度相同' },
-      { id: 'omega', title: '只换角速度', change: '角速度加倍', fixed: '质量、半径相同' },
+      { id: 'mass', change: '质量加倍', fixed: '半径、角速度相同' },
+      { id: 'radius', change: '半径加倍', fixed: '质量、角速度相同' },
+      { id: 'omega', change: '角速度加倍', fixed: '质量、半径相同' },
     ];
+    const measured = new Set();
     const bar = lessonBar({
       ...ctx,
       group,
       back: leave,
-      steps: trials.map((t) => ({
-        id: t.id,
-        title: t.title,
-        todo: t.fixed + '，只让左球' + t.change + '。',
+      steps: trials.map((_, index) => ({
+        id: String(index + 1),
+        title: '第' + (index + 1) + '组对照',
+        todo: '每次只改变一个量，比较两尺露出的格数。',
         target: () => aim,
       })),
     });
-    const records = table(['左球的变化', '左尺 / 格', '右尺 / 格', '向心力比（左 ÷ 右）']);
+    const records = table(['左球的变化', '左尺 / 格', '右尺 / 格', '向心力比（左 ÷ 右）'], {
+      note: '格数是从模型标尺上估读的。左右两尺每格代表的力相同。',
+    });
     const caption = h('span');
     const input = h('input', {
       type: 'number',
@@ -287,19 +295,26 @@ export default {
       );
       stations.forEach((s, i) => {
         s.rotor.rotation.y = theta[i];
-        const r = i ? 0.06 : radius;
-        s.stop.position.x = r;
-        s.carriage.position.x = r;
         const exposed = Math.min(BANDS, result[i].force / FORCE_DIV) * UNIT;
+        const angle = ARM_ANGLE - Math.asin((ARM_Y - exposed) / ARM_LENGTH);
+        for (const rocker of s.pivots) rocker.rotation.z = angle;
+        if (s.tie) {
+          s.tie.position.x = PIVOT_X + (RADII[1] - RADII[0]) / 2 - 0.011 * Math.sin(angle);
+          s.tie.position.y = PIVOT_Y + 0.011 * Math.cos(angle);
+        }
         s.sleeve.position.y = SLEEVE_TOP - SLEEVE / 2 - exposed;
         s.coil.scale.y = (s.coilLen - exposed) / s.coilLen;
-        s.lever(new THREE.Vector3(0, s.sleeve.position.y + 0.015, 0), new THREE.Vector3(r + 0.019, TRAY + 0.036, 0));
       });
       balls.forEach((b, i) => {
         if (b === dragging || b === returning?.ball) return;
-        if (i === 2) place(b.obj, stations[1].rotor, 0.06, TRAY + 0.0035 + BALL, 0);
-        else if (i === left) place(b.obj, stations[0].rotor, radius, TRAY + 0.0035 + BALL, 0);
-        else place(b.obj, group, b.home.x, 0.024, b.home.z);
+        if (i !== 2 && i !== left) return place(b.obj, group, b.home.x, 0.024, b.home.z);
+        const station = stations[i === 2 ? 1 : 0];
+        const r = i === 2 ? RADII[0] : radius;
+        const angle = station.pivots[0].rotation.z;
+        const y = TRAY + 0.0035 + BALL;
+        // 让球面贴住绕销转动的挡板内侧。
+        const x = r + BALL + 0.002 + (PIVOT_Y - y) * Math.tan(angle) - (BALL + 0.002) / Math.cos(angle);
+        place(b.obj, station.rotor, x, y, 0);
       });
       return result;
     }
@@ -309,25 +324,26 @@ export default {
       if (near !== null) return tell('从顶帽下数到套筒上沿，红、白各算一格，估读到半格。');
       if (frozen)
         return tell('两尺已同时定格。点套筒，数露出的红白格。', stations[frozen.readings[0] === null ? 0 : 1].sleeve);
-      const id = bar.current;
+      const factor = isolatedFactor(mass(), radius, level);
+      const id = factor && !measured.has(factor) ? factor : trials.find((trial) => !measured.has(trial.id)).id;
       const want = id === 'mass' ? 1 : 0;
       if (left === null) return tell('把 ' + balls[want].mass * 1000 + ' g 球拖进左槽，贴住挡板。', balls[want].obj);
+      if (level && id !== 'omega')
+        return tell('把皮带向下拖回等径轮槽，使两球角速度相同。', belt);
       if (left !== want)
         return tell(
-          (id === 'mass' ? '半径、角速度保持相同。' : '先恢复两球等质量。') +
+          (id === 'mass' ? '' : '先恢复两球等质量。') +
             '把左球拖回球座，再换 ' +
             balls[want].mass * 1000 +
             ' g 球。',
           balls[left].obj,
         );
-      if (level && id !== 'omega')
-        return tell('把皮带向下拖回等径轮槽，使两球角速度相同。', belt);
       if ((radius === 0.12) !== (id === 'radius'))
         return tell(
           id === 'radius'
-            ? '两球一样重、转得一样快。沿长槽把挡板从 6 cm 拖到 12 cm。'
-            : '沿长槽把挡板拖回 6 cm，使两球的轨道半径相同。',
-          stations[0].knob,
+            ? '两球等质量、角速度相同。把左球移到 12 cm 处的挡板旁。'
+            : '把左球移回 6 cm 处的挡板旁，使两球的轨道半径相同。',
+          balls[left].obj,
         );
       if (id === 'omega' && !level)
         return tell('两球质量、半径相同。把皮带向上拖到左小右大的轮槽。', belt);
@@ -378,24 +394,15 @@ export default {
         return guide((other ? '左' : '右') + '尺记下 ' + value + ' 格。');
       }
       const [a, b] = frozen.readings;
-      const ratio = (a / b).toFixed(2);
-      const trial = trials.find((t) => t.id === bar.current);
+      const ratio = Number((a / b).toFixed(1));
       const factor = isolatedFactor(mass(), radius, level);
-      const valid = factor === trial.id;
-      const message = valid
-        ? trial.fixed +
-          '，左球' +
-          trial.change +
-          (factor === 'omega' ? '，所需向心力约为右球的四倍。' : '，所需向心力也约加倍。')
-        : factor
-          ? '这组只改变了' +
-            { mass: '质量', radius: '半径', omega: '角速度' }[factor] +
-            '。本步要比较' +
-            trial.title.slice(2) +
-            '。'
-          : mass() === 0.05 && radius === 0.06 && !level
-            ? '两球条件相同，还看不出改变一个量的影响。'
-            : '同时改变了几个量，不能把力的变化归给其中一个。';
+      const trial = trials.find((t) => t.id === factor);
+      const message = trial
+        ? trial.fixed + '，左球' + trial.change + '。这次估读的向心力比约为 ' + ratio +
+          '，理论值为 ' + (factor === 'omega' ? 4 : 2) + '。'
+        : mass() === 0.05 && radius === 0.06 && !level
+          ? '两球条件相同，还看不出改变一个量的影响。'
+          : '同时改变了几个量，不能把力的变化归给其中一个。';
       const changes = [mass() === 0.1 && '质量加倍', radius === 0.12 && '半径加倍', level === 1 && '角速度加倍'].filter(
         Boolean,
       );
@@ -410,94 +417,71 @@ export default {
       frozen = null;
       omega = 0;
       draw();
-      if (valid) bar.done(trial.id);
+      if (trial && !measured.has(factor)) {
+        measured.add(factor);
+        bar.done(String(measured.size));
+      }
       leave();
     }
     function home(ball) {
       return point(ball.home.x, 0.024, ball.home.z);
     }
-    function slot() {
-      return group.worldToLocal(stations[0].rotor.localToWorld(point(radius, TRAY + 0.0035 + BALL, 0)));
+    function slot(r = radius) {
+      return group.worldToLocal(stations[0].rotor.localToWorld(point(r, TRAY + 0.0035 + BALL, 0)));
     }
-    // 跨高度搬球：以球座、槽位和横向轴定出拖动平面，抓在球边也不会跳到球心。
-    const plane = new THREE.Plane(),
-      localRay = new THREE.Ray();
-    let grabOffset, pointerDown = false;
+    const localRay = new THREE.Ray();
+    let pointerDown = false;
     function dragBall(b, i) {
-      function destination() {
-        return left === i ? slot() : home(b);
-      }
+      let start, offset, targets;
       return {
         obj: b.obj,
         keepOffset: true,
         enabled: stopped,
-        hint: () => (left === i ? '拖动：把球放回球座' : '拖动：把球放入左槽'),
+        hint: () => (left === i ? '拖球：换位置或放回球座' : '拖动：把球放入左槽'),
         onStart() {
           dragging = b;
           group.attach(b.obj);
-          const seat = slot(),
-            start = home(b);
-          plane.setFromCoplanarPoints(start, seat, start.clone().add(point(0.08, 0, 0)));
-          const hit = pointerDown && localRay.intersectPlane(plane, point(0, 0, 0));
-          grabOffset = hit && b.obj.position.clone().sub(hit);
+          start = b.obj.position.clone();
+          targets = RADII.map((r) => ({ pos: slot(r), r }));
+          if (left === i) targets.push({ pos: home(b), r: null });
+          offset = start.clone().sub(localRay.closestPointToPoint(start, point(0, 0, 0)));
         },
         onDrag(p) {
-          const hit = grabOffset && localRay.intersectPlane(plane, point(0, 0, 0));
-          b.obj.position.copy(hit ? hit.add(grabOffset) : p);
+          if (pointerDown) {
+            // 指针决定屏幕位置，离射线最近的搬球路线决定深度；转盘停在哪个角度都能换位。
+            const ray = localRay.clone();
+            ray.origin.add(offset);
+            const onRay = point(0, 0, 0);
+            let nearest = Infinity;
+            for (const { pos } of targets) {
+              if (start.distanceToSquared(pos) < 1e-10) continue;
+              const gap = ray.distanceSqToSegment(start, pos, onRay);
+              if (gap < nearest) {
+                nearest = gap;
+                b.obj.position.copy(onRay);
+              }
+            }
+          } else b.obj.position.copy(p);
           b.obj.position.y = Math.max(BALL, b.obj.position.y);
         },
         onEnd(moved) {
           dragging = null;
-          if (!moved) {
-            draw();
-            return;
+          if (!moved) return draw();
+          const target = targets.find(({ pos }) => b.obj.position.distanceTo(pos) < 0.025);
+          if (!target || (left !== null && left !== i)) {
+            returning = { ball: b, from: b.obj.position.clone(), to: start, time: 0 };
+            return say(target ? '左槽已有球，先把原球放回球座。' : '球没落到位，已松手。对准球座或挡板旁再放。');
           }
-          const installed = left === i,
-            target = installed ? home(b) : slot();
-          const close = b.obj.position.distanceTo(target) < 0.027;
-          if (!close || (!installed && left !== null)) {
-            returning = { ball: b, from: b.obj.position.clone(), to: destination(), time: 0 };
-            return say(close ? '左槽已有球，先把原球放回球座。' : '球没落到位，已松手。对准球座或挡板旁再放。');
-          }
-          left = installed ? null : i;
+          const changedRadius = target.r !== null && radius !== target.r;
+          left = target.r === null ? null : i;
+          if (left !== null) radius = target.r;
           draw();
           showConditions();
-          guide(installed ? '左槽空出来了。' : '');
+          guide(left === null ? '左槽空出来了。' : changedRadius ? '左球半径已调到 ' + radius * 100 + ' cm。' : '');
         },
       };
     }
-    const stop = stations[0];
-    // 半径和皮带只在进入相应槽位时接合，半途松手会退回原档。
-    let fromR, knobStart, startLevel;
-    const radiusDrag = {
-      obj: stop.knob,
-      keepOffset: true,
-      enabled: stopped,
-      plane: 'xz',
-      offset: TRAY + 0.05,
-      hint: '沿槽拖：改变轨道半径',
-      onStart() {
-        fromR = radius;
-        knobStart = pos(stop.knob);
-      },
-      onDrag(p) {
-        const along = (p.x - knobStart.x) * Math.cos(theta[0]) - (p.z - knobStart.z) * Math.sin(theta[0]);
-        radius = clamp(fromR + along, 0.06, 0.12);
-        draw();
-      },
-      onEnd(moved) {
-        if (!moved) return;
-        const target = fromR === 0.06 ? 0.12 : 0.06;
-        if (Math.abs(radius - target) > 0.009) {
-          returning = { from: radius, to: fromR, time: 0, kind: 'radius' };
-          return say('挡板没到定位处，松手退回原位。');
-        }
-        radius = target;
-        draw();
-        showConditions();
-        guide('左球半径已调到 ' + radius * 100 + ' cm。');
-      },
-    };
+    let startLevel;
     const beltDrag = {
       obj: beltGrip,
       keepOffset: true,
@@ -516,13 +500,13 @@ export default {
         if (!moved) return;
         const target = 1 - startLevel;
         if (Math.abs(levelMix - target) > 0.18) {
-          returning = { from: levelMix, to: startLevel, time: 0, kind: 'belt' };
+          returning = { from: levelMix, to: startLevel, time: 0 };
           return say('皮带没进另一层轮槽，松手退回原槽。');
         }
         level = levelMix = target;
         draw();
         showConditions();
-        guide(level ? '皮带不打滑，右轮转一圈，左轮转两圈。' : '两轮又转得一样快了。');
+        guide(level ? '皮带不打滑，右轮转一圈，左轮转两圈。' : '下层两轮等径，角速度相同。');
       },
     };
     function startTurn(p, time) {
@@ -583,7 +567,7 @@ export default {
       if (reason) {
         omega = 0;
         draw();
-        return say(reason, left === null ? balls[bar.current === 'mass' ? 1 : 0].obj : grip);
+        return say(reason, left === null ? balls[measured.has('mass') ? 0 : 1].obj : grip);
       }
       frozen = { divs, readings: [null, null] };
       guide();
@@ -612,7 +596,7 @@ export default {
     const canvas = document.getElementById('c');
     const hideTip = () => tip.show(false);
     canvas.addEventListener('pointerleave', hideTip);
-    const desk = draggable(group, [...balls.slice(0, 2).map(dragBall), radiusDrag, beltDrag, crank], {
+    const desk = draggable(group, [...balls.slice(0, 2).map(dragBall), beltDrag, crank], {
       tip,
       taps: stations.map((s, i) => ({
         obj: s.sleeve,
@@ -652,9 +636,10 @@ export default {
       radius = 0.06;
       theta = [0, Math.PI];
       records.clear();
+      measured.clear();
       records.el.hidden = true;
       explanation.textContent = '';
-      bar.undo(...trials.map((t) => t.id));
+      bar.undo(...bar.stepList.map((t) => t.id));
       leave();
       draw();
       showConditions();
@@ -667,10 +652,10 @@ export default {
       drag: balls[i].obj,
       to: out ? () => home(balls[i]) : slot,
     });
-    const shiftRadius = (distance) => ({
-      name: '移动挡板',
-      drag: stop.knob,
-      to: () => pos(stop.knob).add(point(distance * Math.cos(theta[0]), 0, -distance * Math.sin(theta[0]))),
+    const shiftRadius = (r) => ({
+      name: '把左球移到 ' + r * 100 + ' cm 处',
+      drag: balls[0].obj,
+      to: () => slot(r),
     });
     const check = (test, message) => {
       if (!test) throw Error(message);
@@ -698,7 +683,7 @@ export default {
         form.querySelector('button').click();
       },
     });
-    const measure = (i, first, wrong = false) => [
+    const measure = (factor, count, first, wrong = false) => [
       spin,
       { name: '近看左尺', tap: stations[0].sleeve },
       ...(wrong
@@ -722,22 +707,21 @@ export default {
       {
         name: '核对本组记录',
         run() {
-          check(bar.has(trials[i].id) && records.rows.length === i + 1, '单变量记录不完整');
+          check(measured.has(factor) && measured.size === count && records.rows.length === count, '单变量记录不完整');
         },
       },
     ];
     const qa = qaFlow(desk, [
       { name: '松手时没有对准球座', drag: balls[0].obj, to: () => slot().lerp(home(balls[0]), 0.5) },
+      { name: '把皮带换到上层轮槽', drag: beltGrip, to: () => pos(beltGrip).add(point(0, LEVEL[1] - LEVEL[0], 0)) },
+      ...measure('omega', 1, 16, true),
+      { name: '把皮带换回等径轮槽', drag: beltGrip, to: () => pos(beltGrip).add(point(0, LEVEL[0] - LEVEL[1], 0)) },
+      shiftRadius(0.12),
+      ...measure('radius', 2, 8),
+      shiftRadius(0.06),
       moveBall(0, true),
       moveBall(1, false),
-      ...measure(0, 8, true),
-      moveBall(1, true),
-      moveBall(0, false),
-      shiftRadius(0.06),
-      ...measure(1, 8),
-      shiftRadius(-0.06),
-      { name: '把皮带换到上层轮槽', drag: beltGrip, to: () => pos(beltGrip).add(point(0, LEVEL[1] - LEVEL[0], 0)) },
-      ...measure(2, 16),
+      ...measure('mass', 3, 8),
       {
         name: '掀开课本结论',
         run() {
@@ -764,14 +748,14 @@ export default {
             ui.need('');
           },
         });
-        ui.status('挡板对球的压力提供向心力。球推挡板，横臂压下套筒，露出的格数越多，力越大。');
+        ui.status('挡板对球的压力提供向心力。球推挡板，横臂绕支点转动，压下套筒。露出的格数越多，力越大。');
         ui.controls.append(conditions, form);
         ui.data.append(records.el, explanation, h('button', { class: 'go ghost', onclick: reset }, '全部重来'));
         ui.notes.append(
           h('p', { class: 'note' }, '模型忽略皮带打滑。两侧套筒按同一比例放大行程，松手保留匀速转动时的读数。'),
         );
         const fallback = ui.el.querySelector('.answer blockquote');
-        if (fallback) fallback.textContent = fallback.textContent.replace('Fn＝mω2r', 'Fₙ＝mω²r');
+        if (fallback) fallback.textContent = fallback.textContent.replace('Fn＝mω2r', 'Fₙ＝mω²r').replace('Fn＝m r v 2', 'Fₙ＝mv²/r');
         const source = ui.el.querySelector('.answer .src');
         source.style.paddingRight = '82px';
         source.style.minHeight = '48px';
@@ -790,7 +774,6 @@ export default {
         const t = Math.min(1, r.time / 0.38),
           f = 1 - (1 - t) ** 2;
         if (r.ball) r.ball.obj.position.lerpVectors(r.from, r.to, f);
-        else if (r.kind === 'radius') radius = r.from + (r.to - r.from) * f;
         else levelMix = r.from + (r.to - r.from) * f;
         if (t === 1) returning = null;
         draw();

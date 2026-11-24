@@ -25,7 +25,7 @@ export default {
   conclusion: {
     page: 64,
     rect: [217.04, 329.12, 531.48, 421.9],
-    quote: '实验和理论分析都表明，理想变压器原、副线圈的电压之比，等于原、副线圈的匝数之比……',
+    quote: '实验和理论分析都表明，理想变压器原、副线圈的电压之比，等于原、副线圈的匝数之比，即',
     why: '共同的交变磁通在各匝中产生感应电动势。匝数越多，感应电动势越大。实际读数受绕组电阻、漏磁和电表负载影响。',
     src: '课本第 60 页 · 第三章 第3节 变压器',
   },
@@ -48,6 +48,7 @@ export default {
       checked = false,
       sampled = false,
       near = false,
+      settled = false,
       stable = 0;
     const bar = lessonBar({
       ...ctx,
@@ -123,7 +124,7 @@ export default {
       return leads[start + (correct(a) && (!correct(b) || a.turns === b.turns) ? 1 : 0)].obj;
     }
     function guidance() {
-      if (!trials.length) return ['选首组副线圈匝数，估计副电压，把测量方案记在电路图旁。'];
+      if (!trials.length) return ['选首组副线圈匝数，点“记下方案”后装线圈。步骤和预测可选填。'];
       if (seated.includes(null)) {
         const i = seated.indexOf(null);
         return i === 2
@@ -164,6 +165,7 @@ export default {
       if (!meter.stop) return ['电表已关闭。选择交流电压挡，观察指针。'];
       if (readings().meterV > AC_STOPS[meter.stop].range) return ['指针超过满刻度。改用更大的交流电压挡。'];
       if (meter.stop !== best()) return ['指针偏转太小。点较小且不会超量程的交流电压挡。'];
+      if (!settled) return ['等指针停稳，再读黑色内圈。'];
       return ['读黑色内圈，按所选量程换算成伏，再记下读数。'];
     }
     function guide(prefix = '') {
@@ -171,17 +173,18 @@ export default {
       aim = target || null;
       bar.say(prefix + msg);
       if (!book) return;
-      const [n1, n2] = trials[index] || trials[trials.length - 1] || [200, +book.first.value];
+      const { range, digits } = AC_STOPS[meter.stop];
       const primary = needPrimary();
       book.fields({
         planning: !trials.length,
         check: !!trials[index] && leads.every((l) => l.side !== null) && !on && !checked,
-        reading: near && on && sampled && meter.stop === best() && matchesPlan(),
+        reading: near && on && sampled && settled && meter.stop === best() && matchesPlan(),
         primary,
         finished: bar.finished,
-        range: near && ctx.camera.aspect < 1 ? AC_STOPS[meter.stop].range : 0,
+        range: near && range,
+        digits,
       });
-      book.sketch(n1, n2, !!trials[index] && primary);
+      if (trials.length) book.diagram(leads, pair(0), pair(2), !on && trials[index]);
     }
     function warn(text, target) {
       aim = target || null;
@@ -249,7 +252,7 @@ export default {
     function assemble(i) {
       const obj = parts[i],
         enabled = () => !near && !returning && seated[i] === null;
-      let move;
+      let move, plannedAtPickup;
       return {
         obj: partsPick[i],
         anchor: obj,
@@ -258,15 +261,16 @@ export default {
         enabled,
         hint: hint(enabled, i === 2 ? '拖动：合上铁轭' : '拖动：套上线圈'),
         onStart() {
+          plannedAtPickup = trials.length > 0;
           move = carried(obj, seat(i, i === 2 ? 0 : i, true), i === 2 ? 0.09 : 0.05);
         },
         onDrag(p) {
-          if (!trials.length && i !== 2) plan(+book.first.value);
           if (i === 2 && seated.slice(0, 2).includes(null)) return warn('先把两只线圈套到柱上，再合上铁轭。');
           move(p);
         },
         onEnd(moved) {
           if (!moved || obj.position.equals(homes[i])) return;
+          if (!plannedAtPickup) return settle(obj, homes[i], () => guide());
           const leg = [0, 1].find(
             (k) =>
               (i === 2 || !seated.slice(0, 2).includes(k)) && obj.position.distanceTo(seat(i, k, true)) < 0.018,
@@ -355,10 +359,10 @@ export default {
     }
     function toggle() {
       if (on) {
-        on = checked = sampled = false;
+        on = checked = sampled = settled = false;
         stable = 0;
         if (index === trials.length) bar.done('primary');
-        guide('电源已断开。');
+        guide(index === 3 && !needPrimary() && pair(0)?.n === 200 ? '两轮共用原、副各 200 匝的记录。' : '电源已断开。');
         return;
       }
       if (!trials.length || seated[2] === null) return guide('电源保持断开。');
@@ -370,45 +374,39 @@ export default {
     }
     function range(i) {
       if (on && !sampled && i !== 3) return warn('先在最大量程看清偏转，再换挡。');
+      if (i !== meter.stop) settled = false;
       meter.setStop(i);
       if (!on && near && checked && i === 3) leave();
       else guide();
     }
     function submit(value) {
-      if (!on || !near || !sampled || meter.stop !== best() || !matchesPlan()) return guide();
-      const v = readings().meterV,
-        full = AC_STOPS[meter.stop].range,
-        div = full / 50;
+      if (!on || !near || !sampled || !settled || meter.stop !== best() || !matchesPlan()) return guide();
+      const { range: full, digits } = AC_STOPS[meter.stop];
+      const div = full / 50;
+      const v = Number(readings().meterV.toFixed(digits));
       if (!Number.isFinite(value)) return warn('先填入读到的电压，单位是伏。');
-      if (Math.abs(meter.display - meter.fraction) > 0.005) return warn('指针还在动，等它停稳再读。');
-      if (Math.abs(value - v) > div * 0.51) {
+      const record = value.toFixed(digits);
+      if (Math.abs(Number(record) - v) > div / 2 + 1e-9) {
         if (full !== 10 && Math.abs(value - (v * 10) / full) < 0.15)
           return warn('内圈刻度读对了。用刻度数乘以 ' + full + ' / 10，换算成伏。');
         return warn('读数偏' + (value > v ? '大' : '小') + '。看针尖经过的黑色刻线，每小格是 ' + div + ' V。');
       }
       if (needPrimary()) {
-        primaryRead = { key: pair(0).key, value };
+        primaryRead = { key: pair(0).key, value: record };
         leave();
-        guide('原电压约 ' + value + ' V，已记下。');
+        guide('原电压约 ' + record + ' V，已记下。');
         return;
       }
       const [n1, n2] = trials[index];
-      book.add(n1, primaryRead.value, n2, value);
+      book.add(n1, primaryRead.value, n2, record);
       index++;
       if (index === 3) bar.done('secondary');
       leave();
-      if (index === trials.length) return guide('副匝数相同，原匝数越多，副电压越低。');
-      const next = trials[index];
-      const feedback = index === 3 ? '三组表明，副匝数越多，副电压越高。' : '本组副电压约 ' + value + ' V。';
-      // 接线仍是刚测完的一组，先断电才能进行下一次改接。
-      warn(
-        feedback +
-          '断电，' +
-          (next[0] === n1
-            ? '只把副线圈改接 ' + next[1] + ' 匝。'
-            : '副线圈取 200 匝，原线圈改接 ' + next[0] + ' 匝。'),
-        rig.power,
-      );
+      if (index === trials.length) return guide('原电压约 3 V、副线圈固定 200 匝时，原匝数越多，副电压越低。');
+      const feedback = index === 3
+        ? '原电压约 3 V、原线圈固定 200 匝时，副匝数越多，副电压越高。'
+        : '本组副电压约 ' + record + ' V。';
+      guide(feedback);
     }
     const powerEnabled = () => !near && !bar.finished;
     const faceEnabled = () => !near && checked && matchesPlan();
@@ -477,7 +475,7 @@ export default {
     };
     function reset() {
       if (near) ctx.back();
-      near = checked = sampled = on = false;
+      near = checked = sampled = settled = on = false;
       index = stable = 0;
       trials = [];
       primaryRead = returning = null;
@@ -506,6 +504,7 @@ export default {
           r.obj.position.lerpVectors(r.from, r.to, Math.min(1, t * 4));
           r.obj.position.y = THREE.MathUtils.lerp(r.from.y, r.to.y, Math.max(0, (t - 0.25) / 0.75));
         } else r.obj.position.lerpVectors(r.from, r.to, t * (2 - t));
+        if (t === 1) r.obj.position.copy(r.to);
         r.draw?.();
         if (t === 1) {
           returning = null;
@@ -517,13 +516,11 @@ export default {
       rig.powerLabels.forEach((label, i) => (label.visible = i === Number(on)));
       meter.fraction = meter.stop ? readings().meterV / AC_STOPS[meter.stop].range : 0;
       meter.update(dt);
-      if (
-        on &&
-        !sampled &&
-        meter.stop === 3 &&
-        Math.abs(meter.display - meter.fraction) < 0.006 &&
-        (stable += dt) > 0.35
-      ) {
+      if (on && meter.stop && !settled && Math.abs(meter.display - meter.fraction) < 0.001) {
+        settled = true;
+        guide();
+      }
+      if (on && !sampled && meter.stop === 3 && settled && (stable += dt) > 0.35) {
         sampled = true;
         guide();
       }
@@ -586,6 +583,11 @@ export default {
     function connect(i, side, n) {
       drag('接到 ' + n + ' 匝柱', plugs[i], () => rig.tap(side, n));
     }
+    drag('确认前试放线圈', partsPick[0], seat(0, 0, true));
+    action('确认方案仍可填写', () =>
+      check(!trials.length && !book.planner.hidden && seated[0] === null && parts[0].position.equals(homes[0]),
+        '试拖跳过了方案确认'),
+    );
     action('记下实验方案', () => book.planner.querySelector('button').click());
     drag('试放在柱外', partsPick[0], point(-0.19, 0.06, 0.01));
     action('检查归位', () => check(parts[0].position.equals(homes[0]), '线圈未归位'));
@@ -601,11 +603,11 @@ export default {
     connect(3, 1, 100);
     readTrial(false, 1.48, 1, 5.9);
     connect(3, 1, 200);
-    readTrial(false, 2.95, 2);
+    readTrial(false, 3.0, 2);
     connect(3, 1, 400);
     readTrial(false, 5.9, 2);
     for (const [n, v, stop] of [
-      [100, 5.9, 2],
+      [100, 6.0, 2],
       [400, 1.48, 1],
     ]) {
       connect(1, 0, n);
@@ -629,6 +631,13 @@ export default {
       toggles: ['steps'],
       mount(panel) {
         ui = panel;
+        const quote = panel.el.querySelector('.answer blockquote');
+        if (quote) {
+          const formula = document.createElement('div');
+          formula.className = 'formula';
+          formula.textContent = 'U₁/U₂ = n₁/n₂';
+          quote.append(formula);
+        }
         const source = panel.el.querySelector('.answer .src');
         source.style.minHeight = '60px';
         source.style.paddingRight = '80px';

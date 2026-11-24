@@ -78,16 +78,27 @@ export default {
     rib.position.set(0.004, 0.0041, 0);
     tool.ratchet.add(rib);
 
-    let gap, ratchetTurns, inserted, zeroed, slipped, locked, near, returning, ui;
+    let gap, ratchetTurns, inserted, zeroed, slipped, coarseContact, locked, near, returning, ui;
     let savedGap, savedTurns, formula = '';
     const minimum = () => inserted ? DIAMETER : 0;
     const openEnough = () => gap >= DIAMETER + 0.12;
-    const checkedZero = '测面合拢时，两条零线对齐。这把尺没有零误差。';
+    const checkedZero = '两测面合拢时，确认微分筒左缘正对固定刻度的 0 刻线。';
+    const backOff = '大旋钮已把螺杆顶到电阻丝。向下拖大旋钮退开一点，再用微调旋钮轻夹。';
     const openWire = '向下拖大旋钮，张开测面，给电阻丝留出空隙。';
     const feedWire = '测面已张开。沿木座向前拖电阻丝，把它送到两测面之间。';
     const fineTurn = '向上拖最右端的微调旋钮，听到“喀喀”声就停。';
     const approach = '电阻丝已放好。向上拖大旋钮，使螺杆靠近电阻丝，再换微调旋钮。';
     const readScales = '先读微分筒左缘露出的固定刻度，再沿横线估读可动刻度，填入笔记本。';
+    // 两条引线的端点分别钉在固定零刻线和微分筒左缘的表面。
+    function zeroLabel(text, y, radius) {
+      const tag = ctx.tag('').loc(group, SCALE_ZERO, AXIS_Y + y, Math.sqrt(radius * radius - y * y)).show(false);
+      const label = h('span', { style: 'display:flex;align-items:center;position:absolute;right:0;transform:translateY(-50%);font-size:15px' },
+        h('span', { style: 'padding:4px 7px;background:#fffdf4;color:#263b44;border-radius:3px' }, text),
+        h('span', { style: 'width:28px;border-top:2px solid #795735;transform:rotate(-12deg);transform-origin:right center' }));
+      tag.el.append(label);
+      return tag;
+    }
+    const zeroLabels = [zeroLabel('固定刻度 B 的 0 刻线', -0.00134, 0.0044), zeroLabel('微分筒 E 的左缘', 0.0026, 0.00455)];
     const bar = lessonBar({ ...ctx, group, back: leave, steps: [
       { id: 'zero', title: '合拢查零', todo: '向上拖微调旋钮，轻合两测面，检查零线是否对齐。', target },
       { id: 'place', title: '放入电阻丝', todo: openWire, target },
@@ -110,16 +121,18 @@ export default {
       if (locked && !slipped) return tool.screw;
       if (!zeroed) return tool.ratchet;
       if (!inserted) return openEnough() ? wire : tool.grip;
+      if (coarseContact) return tool.grip;
       if (slipped) return tool.scale;
       return gap - DIAMETER > 0.18 ? tool.grip : tool.ratchet;
     }
     function guide() {
-      if (near === 'zero') return bar.say(checkedZero + ' 回到全景后张开测面。');
+      if (near === 'zero') return bar.say(checkedZero);
       if (near === 'read') return bar.say(formula || readScales);
       if (formula) return bar.say(formula);
       if (locked && !slipped) return bar.say('螺杆已锁住。点锁紧柄松开，再转旋钮。');
       if (!zeroed) return bar.say(null);
       if (!inserted) return bar.say(openEnough() ? feedWire : openWire);
+      if (coarseContact) return bar.say(backOff);
       if (slipped) return bar.say('棘轮已打滑，测面轻轻夹住了电阻丝。点刻度近看读数。');
       bar.say(gap - DIAMETER > 0.18 ? approach : fineTurn);
     }
@@ -127,6 +140,7 @@ export default {
     function leave() {
       if (near) ctx.back();
       near = null;
+      zeroLabels.forEach(label => label.show(false));
       form.hidden = true;
       bar.near(false);
       guide();
@@ -135,6 +149,7 @@ export default {
       enter();
       if (!zeroed || !slipped) return guide();
       near = inserted ? 'read' : 'zero';
+      zeroLabels.forEach(label => label.show(near === 'zero'));
       if (ui.el.classList.contains('folded')) ui.fold(false);
       form.hidden = near !== 'read' || !!formula;
       bar.near(true);
@@ -166,12 +181,14 @@ export default {
       let tooth;
       return { obj, plane: 'xz', offset: AXIS_Y, enabled: () => !near && !returning,
         hint: () => hint(fine ? '上下拖：转微调旋钮' : '上下拖：转大旋钮'),
-        onStart() { enter(); savedGap = gap; savedTurns = ratchetTurns; },
+        onStart() { enter(); savedGap = gap; savedTurns = ratchetTurns; tooth = undefined; },
         onDrag(p, from) {
           if (!from || locked) return;
           const turns = (p.z - from.z) / (2 * Math.PI * radius);
           const next = turnSpindle(savedGap, turns, minimum(), fine);
-          if (next.gap !== gap) {
+          if (inserted && next.gap === DIAMETER && !fine && turns < 0) coarseContact = true;
+          if (next.gap > DIAMETER) coarseContact = false;
+          if (next.gap !== gap || coarseContact) {
             if (slipped) {
               mainField.input.value = drumField.input.value = '';
               if (!bar.finished) bar.undo('measure');
@@ -183,11 +200,11 @@ export default {
           ratchetTurns = savedTurns + (fine ? turns : (gap - savedGap) / SCREW_PITCH);
           tool.update(gap, ratchetTurns);
           // 越过棘齿才响，手停下来时微调旋钮也停。
-          if (next.slipped && (!slipped || tooth !== Math.floor(ratchetTurns * 8))) {
+          if (next.slipped && tooth !== Math.floor(ratchetTurns * 8)) {
             tooth = Math.floor(ratchetTurns * 8);
             sfx.clink({ freq: 1750, gain: 0.045 });
           }
-          if (next.slipped && !slipped) {
+          if (next.slipped && !slipped && !coarseContact) {
             slipped = true;
             if (inserted) bar.done('measure');
           }
@@ -254,7 +271,7 @@ export default {
       if (near) leave();
       gap = 0.20;
       ratchetTurns = gap / SCREW_PITCH;
-      inserted = zeroed = slipped = locked = false;
+      inserted = zeroed = slipped = coarseContact = locked = false;
       near = returning = null;
       formula = mainField.input.value = drumField.input.value = '';
       form.hidden = true;
@@ -292,6 +309,14 @@ export default {
       rollStep('继续张开', tool.grip, 0.044),
       { name: '放入电阻丝', drag: wirePick, to: vec(WIRE_X, AXIS_Y, 0) },
       rollStep('大旋钮靠近', tool.grip, -0.032),
+      rollStep('大旋钮顶到电阻丝', tool.grip, -0.025),
+      rollStep('原位补转微调', finePick, -0.012),
+      { name: '粗调顶住后仍须退开', run() {
+        inspect();
+        if (gap !== DIAMETER || near || bar.current !== 'measure' || document.querySelector('.lb-txt').textContent !== backOff)
+          throw Error('粗调接触后补转微调应留在轻夹步骤，并提示退开');
+      } },
+      rollStep('大旋钮退开一点', tool.grip, 0.012),
       rollStep('微调至棘轮打滑', finePick, -0.025),
       { name: '点刻度读数', tap: tool.scale },
       entry('漏读半毫米', '0', '12.5', () => !bar.finished && document.querySelector('.lb-txt').textContent.includes('可动刻度读对了')),

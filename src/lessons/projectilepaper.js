@@ -27,9 +27,9 @@ export default {
     options: ['每段相等', '每段增加', '每段减少'], answer: 0,
   },
   conclusion: {
-    page: 20, rect: [217.0, 306.81, 531.02, 351.91],
-    quote: '通过前面的讨论我们已经知道，做平抛运动的物体在 x 方向的分运动是匀速直线运动……',
-    why: '同处静止释放，钢球每次离槽的速度相同。在同一条轨迹上，相等时间内的水平位移近似相等。',
+    page: 20, rect: [217.0, 306.81, 531.02, 413.0],
+    quote: '通过前面的讨论我们已经知道，做平抛运动的物体在 x 方向的分运动是匀速直线运动，vx＝v0。根据做匀速直线运动物体的位移与时间的关系可知，这个物体的水平分位移与时间的关系是 x＝v0t （1）',
+    why: '同处静止释放，钢球每次离槽的速度相同。按课本的平抛运动模型，相等时间内的水平位移相等。',
     src: '人教版物理必修第二册 · 第 16 页',
   },
   create(ctx) {
@@ -67,6 +67,10 @@ export default {
     const form = h('form', { hidden: true, onsubmit(e) { e.preventDefault(); read(); } },
       h('label', {}, '水平位置 x ', field, ' cm '), h('button', { class: 'go', type: 'submit' }, '记录'));
     const work = note('');
+    const actions = buttons([
+      { text: '保留印迹，重描重测', ghost: true, onClick: remeasure },
+      { text: '全部重来', ghost: true, onClick: reset },
+    ]);
     function guide(text, target) {
       aim = target || null;
       bar.say(text);
@@ -76,7 +80,8 @@ export default {
       rig.setReader(reader, traced && !bar.finished);
       pencil.visible = !!canDraw();
       form.hidden = !(view && traced && !bar.finished);
-      if (bar.finished) return guide('三段水平位移近似相等，钢球在水平方向做匀速直线运动。掀开结论对照课本。');
+      actions.btns[0].hidden = !bar.finished;
+      if (bar.finished) return guide('比较表中三段 Δx，掀开结论对照课本。');
       if (!origin) return guide(steps[0][2], ball);
       if (shot) return guide('看钢球从水平槽口飞出，落到倾斜挡板上。');
       if (!bar.has('print')) {
@@ -166,18 +171,23 @@ export default {
     }
     function checkLine() {
       const dots = valid().sort((a, b) => a.drop - b.drop);
-      if (!dots.every(m => trace.some(p => Math.hypot(p.x - m.x, p.drop - m.drop) < 0.005)) ||
-          levels.some(d => tracedX(trace, d) === null)) {
-        status('线还没有连全，从线尾接着描。从 O 起笔可以重画。'); return;
-      }
       // 以实际落点检查笔迹，也检查相邻点之间的偏离。
       const path = [{ x: 0, drop: 0 }, ...dots];
-      if (trace.some((q, i) => {
+      const off = trace.find((q, i) => {
         const x = tracedX(path, q.drop);
         return (i && (q.x < trace[i - 1].x - 0.002 || q.drop < trace[i - 1].drop - 0.002)) ||
           (x !== null && Math.abs(q.x - x) > 0.016) || q.drop > last(dots).drop + 0.007;
-      })) {
-        status('这条线折返或偏离了印迹，从 O 重新描。'); return;
+      });
+      if (off) {
+        status('落差约 ' + cm(off.drop) + ' cm 处的线折返或偏离了印迹。从 O 重新描。'); return;
+      }
+      const missed = dots.find(m => !trace.some(p => Math.hypot(p.x - m.x, p.drop - m.drop) < 0.005));
+      if (missed) {
+        status('描线还没经过落差约 ' + cm(missed.drop) + ' cm 处的黑点。' +
+          (last(trace).drop > missed.drop ? '从 O 重新描。' : '从线尾接着描。')); return;
+      }
+      if (levels.some(d => tracedX(trace, d) === null)) {
+        status('线还没有连全，从线尾接着描。从 O 起笔可以重画。'); return;
       }
       // 按学生实际笔迹的弧长取样，再用样条柔化折角。读数和画线使用同一条曲线。
       const knots = [vec(trace[0].x, trace[0].drop, 0)];
@@ -212,16 +222,18 @@ export default {
       status('这段用时 0.05 s，钢球向前移动了约 ' + delta + ' cm。');
       if (readings.length === 3) {
         const segments = readings.map((p, j) => p.x - (j ? readings[j - 1].x : 0));
-        if (Math.max(...segments) - Math.min(...segments) > 0.005) {
-          status('三段位移的差别较大。保留落点，从 O 重描后再量一次。');
-          readings.length = trace.length = 0; traced = false; reader = 0; rows.clear(); work.textContent = '';
-          trace.push({ x: 0, drop: 0 }); penAt(trace[0]); bar.undo('curve');
-        } else {
-          bar.done('equal');
-          status('每隔 0.05 s，水平位移分别约为 ' + segments.map(x => cm(x)).join('、') + ' cm，在描线和读尺误差内相等。');
-        }
+        bar.done('equal');
+        status('每段用时 0.05 s，最长与最短的水平位移相差 ' + cm(Math.max(...segments) - Math.min(...segments)) +
+          ' cm。若要重测，可复查描线、横尺高度和交点读数。');
       }
       refresh();
+    }
+    function remeasure() {
+      readings.length = 0; trace.length = 0;
+      trace.push({ x: 0, drop: 0 }); penAt(trace[0]);
+      traced = false; reader = 0; rows.clear(); work.textContent = field.value = '';
+      bar.undo('curve', 'equal'); ui.relock({ full: false });
+      status('印迹已保留，从 O 沿黑点重新描线。'); near();
     }
     const handleDrag = {
       obj: tab, anchor: rig.handle, keepOffset: true, plane: 'xy', offset: 0.0065,
@@ -364,9 +376,12 @@ export default {
       mount(panel) {
         ui = panel; bar.attach({ need() {}, unlock() { ui.unlock(); ui.need(''); } });
         work.style.cssText = 'font-size:15px;color:#385e61';
-        ui.controls.append(form); ui.data.append(rows.el, work, buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el);
+        ui.controls.append(form); ui.data.append(rows.el, work, actions.el);
         ui.notes.append(note('落差从 O 向下量。按自由落体模型取 g = 9.8 m/s²，t = 0.05、0.10、0.15 s 时，落差之比为 1∶4∶9。'));
         const src = ui.el.querySelector('.answer .src');
+        const quote = ui.el.querySelector('.answer blockquote');
+        if (quote) quote.replaceChildren(...quote.textContent.split(/(vx|v0)/).map(part =>
+          part === 'vx' || part === 'v0' ? h('span', {}, 'v', h('sub', {}, part[1])) : part));
         src.style.cssText = 'padding-right:80px;min-height:48px';
         status('斜槽末端水平，挡板向背板一侧倾斜。'); refresh();
       },

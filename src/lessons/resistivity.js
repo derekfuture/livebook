@@ -1,10 +1,10 @@
 // 必修第三册图 11.3-7。尺寸、图线和计算均来自本轮在同一根丝上的读数。
 import * as THREE from 'three';
 import { Bench, nets } from './kit/bench.js';
+import { resistivityQA } from './kit/resistivityQA.js';
 import { resistivityBench } from './kit/resistivityBench.js';
 import { wireLengthStation } from './kit/wireLength.js';
 import { wireDiameterStation } from './kit/wireDiameter.js';
-import { readMeterTick } from './kit/meterReading.js';
 import { hitAny } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { table, chart, note, h, buttons } from './kit/ui.js';
@@ -64,30 +64,50 @@ export default {
     const enter = () => {
       if (ui && document.body.classList.contains('predicting')) ui.go(1);
     };
-    const nearCtx = {
-      look: (...args) => {
-        bar.near(true);
-        ctx.look(...args);
+    let onReading = null;
+    const readingLabel = h('span');
+    const readingInput = h('input', { type: 'number', step: 'any', inputmode: 'decimal',
+      style: 'width:6em;padding:4px 6px;border:1px solid #8a8270;background:#fffdf6;font-size:16px' });
+    const readingForm = h('form', {
+      hidden: true,
+      onsubmit(e) {
+        e.preventDefault();
+        onReading?.(readingInput.valueAsNumber);
       },
-      back: () => {
+    }, h('label', {}, readingLabel, ' ', readingInput), h('button', { class: 'go', type: 'submit' }, '提交读数'));
+    const nearCtx = {
+      look(target, dir, dist) {
+        bar.near(true);
+        ctx.look(target, dir, dist, leave);
+      },
+      ask(label, submit) {
+        enter();
+        if (ui.el.classList.contains('folded')) ui.fold(false);
+        readingLabel.textContent = label;
+        onReading = submit;
+        readingInput.value = '';
+        readingForm.hidden = false;
+        readingInput.focus();
+      },
+      back() {
+        onReading = null;
+        readingForm.hidden = true;
+        readingInput.blur();
         bar.near(false);
         ctx.back();
       },
-      enter,
+      enter, say,
+      finish() { dimensionsDone(); guide(); },
     };
+    const switchLever = sw.group.children.at(-1);
     const bench = new Bench(circuit, group, { onChange: changed, locked: fixed, unscrew: false }),
       wiring = bench.pointer();
     const length = wireLengthStation(group, circuit, {
       ...nearCtx,
-      say(s) {
-        if (lengths.length >= 2) guide();
-        else say(s, length.grip);
-      },
       record(a, b) {
         lengths.push(b - a);
         lengthLog.el.hidden = false;
         lengthLog.add([String(a), String(b), String(b - a)]);
-        dimensionsDone();
         say(
           '本次有效长度 ' +
             (b - a) +
@@ -101,15 +121,10 @@ export default {
     });
     const diameter = wireDiameterStation(group, sample, {
       ...nearCtx,
-      say(s, obj) {
-        if (diameters.length >= 3 && diameter.parked && !diameter.near) guide();
-        else say(s, obj);
-      },
       record(x, d) {
         diameters.push(d);
         diameterLog.el.hidden = false;
         diameterLog.add([String(Math.round((x - sample.terminals.a[0]) * 1000)), d.toFixed(3)]);
-        dimensionsDone();
         say(
           '距左接线点 ' +
             Math.round((x - sample.terminals.a[0]) * 1000) +
@@ -121,8 +136,8 @@ export default {
       },
     });
     function dimensionsDone() {
-      if (lengths.length >= 2 || diameters.length >= 3) bar.done('first');
-      if (lengths.length >= 2 && diameters.length >= 3) bar.done('both');
+      if ((lengths.length >= 2 && length.stowed) || (diameters.length >= 3 && diameter.parked)) bar.done('first');
+      if (lengths.length >= 2 && diameters.length >= 3 && length.stowed && diameter.parked) bar.done('both');
     }
     function phase() {
       if (length.near || !length.stowed) return 'length';
@@ -175,9 +190,9 @@ export default {
       if (ammeter.over || voltmeter.over || ammeter.reverse || voltmeter.reverse)
         return say('表针超量程或反偏。先断电检查。', sw.group);
       if (bar.has('points')) return say('已记下四组不同读数。断开开关，到笔记本读图。', sw.group);
-      if (ammeter.value < 0.015) return say('沿滑杆向右移动滑片，增大金属丝两端电压。', divider.slider);
+      if (lowReading()) return say('指针偏转不足一小格。把滑片向右移，等两块表都看得清再读。', divider.slider);
       say(
-        current === null ? '点电流表近看，读指针所指的刻线。' : '保持滑片不动，点电压表读同一组电压。',
+        current === null ? '点电流表近看，估读指针的位置。' : '保持滑片不动，点电压表读同一组电压。',
         current === null ? ammeter.group : voltmeter.group,
       );
     }
@@ -190,21 +205,21 @@ export default {
     function leave() {
       if (meter) {
         meter = null;
-        bar.near(false);
-        ctx.back();
+        nearCtx.back();
         guideElectrical();
         return;
       }
       if (length.near) length.leave();
-      if (diameter.near) diameter.exit();
-      guide();
+      else if (diameter.near) diameter.leave();
+    }
+    function lowReading() {
+      return [ammeter, voltmeter].some(part => part.value < part.range / 30);
     }
     function meterTap(ray) {
-      const targets = meter ? [meter] : [ammeter, voltmeter];
-      for (const part of targets) {
-        const hit = ray.intersectObject(part.dial, false)[0];
-        if (!hit) continue;
-        if (!sw.closed || !bar.has('circuit') || topology().missing || topology().extra || ammeter.value < 0.015) {
+      for (const part of [ammeter, voltmeter]) {
+        if (!ray.intersectObject(part.dial, false).length) continue;
+        const { missing, extra } = topology();
+        if (!sw.closed || !bar.has('circuit') || missing || extra || lowReading() || ammeter.over || voltmeter.over) {
           guideElectrical();
           return true;
         }
@@ -212,54 +227,57 @@ export default {
           say('先读电流表，让两个读数来自同一滑片位置。', ammeter.group);
           return true;
         }
-        if (!meter) {
-          meter = part;
-          const p = group.worldToLocal(part.group.face.getWorldPosition(new THREE.Vector3()));
-          nearCtx.look(p.toArray(), [0, 0.01, 1], 0.13, leave);
-          say(part === ammeter ? '电流表每小格 0.02 A。点指针所指刻线。' : '电压表每小格 0.1 V。点指针所指刻线。');
-          return true;
-        }
-        const { value, error } = readMeterTick(part, hit);
-        if (error) {
-          say(error);
-          return true;
-        }
-        leave();
-        if (part === ammeter) {
-          current = value;
-          guideElectrical();
-          return true;
-        }
-        const i = current;
-        current = null;
-        if (points.some((p) => p[0] === i)) {
-          say('这个电流已经记过。移动滑片再测。', divider.slider);
-          return true;
-        }
-        points.push([i, value]);
-        viLog.add([i.toFixed(2), value.toFixed(1)]);
-        viLog.el.hidden = plot.el.hidden = false;
-        const currents = points.map((p) => p[0]);
-        if (points.length >= 4 && Math.max(...currents) - Math.min(...currents) >= 0.18) {
-          bar.done('points');
-          bar.undo('rho');
-          report.hidden = false;
-          const R = slope();
-          line.splice(0, line.length, [0, 0], [0.6, R * 0.6]);
-        }
-        plot.draw();
-        say(
-          '已读 ' +
-            i.toFixed(2) +
-            ' A、' +
-            value.toFixed(1) +
-            ' V。' +
-            (bar.has('points') ? '断开开关，展开笔记本读图。' : '移动滑片，换一组相隔较远的读数。'),
-          bar.has('points') ? sw.group : divider.slider,
-        );
+        meter = part;
+        const p = group.worldToLocal(part.dial.getWorldPosition(new THREE.Vector3()));
+        nearCtx.look(p.toArray(), [0, 0.01, 1], 0.13);
+        const isCurrent = part === ammeter;
+        say(isCurrent ? '电流表每小格 0.02 A，估读到 0.001 A。' : '电压表每小格 0.1 V，估读到 0.01 V。');
+        nearCtx.ask(isCurrent ? '电流 I / A' : '电压 U / V', value => {
+          const digits = isCurrent ? 3 : 2;
+          if (!Number.isFinite(value) || Number(value.toFixed(digits)) !== value ||
+              Math.abs(value - part.value) > 0.25 * part.range / 30) {
+            return say('先按所接量程读刻度，再估计指针在相邻刻线之间的位置。');
+          }
+          leave();
+          recordMeter(part, value);
+        });
         return true;
       }
-      return !!meter;
+      return false;
+    }
+    function recordMeter(part, value) {
+      if (part === ammeter) {
+        current = value;
+        guideElectrical();
+        return;
+      }
+      const i = current;
+      current = null;
+      if (points.some((p) => p[0] === i)) {
+        say('这个电流已经记过。移动滑片再测。', divider.slider);
+        return;
+      }
+      points.push([i, value]);
+      viLog.add([i.toFixed(3), value.toFixed(2)]);
+      viLog.el.hidden = plot.el.hidden = false;
+      const currents = points.map((p) => p[0]);
+      if (points.length >= 4 && Math.max(...currents) - Math.min(...currents) >= 0.18) {
+        bar.done('points');
+        bar.undo('rho');
+        report.hidden = false;
+        const R = slope();
+        line.splice(0, line.length, [0, 0], [0.6, R * 0.6]);
+      }
+      plot.draw();
+      say(
+        '已读 ' +
+          i.toFixed(3) +
+          ' A、' +
+          value.toFixed(2) +
+          ' V。' +
+          (bar.has('points') ? '断开开关，展开笔记本读图。' : '移动滑片，换一组相隔较远的读数。'),
+        bar.has('points') ? sw.group : divider.slider,
+      );
     }
     const slope = () => points.reduce((s, [i, u]) => s + i * u, 0) / points.reduce((s, [i]) => s + i * i, 0);
     function accept() {
@@ -274,10 +292,10 @@ export default {
       say('根据本组读数，R ≈ ' + R.toFixed(2) + ' Ω，ρ ≈ ' + rho.toFixed(2) + ' × 10⁻⁶ Ω·m。');
     }
     function reset() {
+      leave();
       chosen = null;
       length.reset();
       diameter.reset();
-      if (meter) leave();
       for (const arr of [lengths, diameters, points, line]) arr.length = 0;
       sw.closed = false;
       circuit.clearWires();
@@ -300,7 +318,8 @@ export default {
       hovered = null;
     const electric = {
       down(ray, e) {
-        if (!meter && wiring.down(ray, e)) {
+        if (meter) return true;
+        if (wiring.down(ray, e)) {
           enter();
           if (sw.closed && (bench.drag?.from || bench.drag?.wire)) {
             bench.drag = null;
@@ -310,11 +329,11 @@ export default {
         }
         return meterTap(ray);
       },
-      move(ray) {
-        return !!meter || wiring.move(ray);
+      move(ray, e) {
+        return !!meter || wiring.move(ray, e);
       },
-      up() {
-        return wiring.up();
+      up(ray, e) {
+        return wiring.up(ray, e);
       },
     };
     const instruments = { length: length.pointer, diameter: diameter.pointer, electrical: electric };
@@ -328,37 +347,56 @@ export default {
       const stage = phase();
       if (stage === 'electrical' || length.near || diameter.near || !length.stowed || !diameter.parked)
         return instruments[stage];
+      if (lengths.length >= 2 || diameters.length >= 3) return instruments[stage];
       const name = targets.get(hitAny(ray, objects));
       if (select && name) chosen = name;
       return instruments[name || stage];
     }
+    const pointer = {
+      items() {
+        if (onReading) return [];
+        const stage = phase();
+        if (stage === 'electrical') return [
+          ...bench.posts.map(p => ({ obj: p.pick })), { obj: switchLever.children[1] },
+          { obj: divider.slider.children[0] }, { obj: ammeter.dial }, { obj: voltmeter.dial },
+        ];
+        const options = !length.stowed || !diameter.parked || lengths.length >= 2 || diameters.length >= 3
+          ? [instruments[stage]] : [length.pointer, diameter.pointer];
+        return options.flatMap(p => p.items()).filter(d => d.enabled?.() !== false);
+      },
+      down(ray, e) {
+        if (onReading) return true;
+        active = pointerFor(ray, true);
+        return active?.down(ray, e) || false;
+      },
+      move(ray, e) {
+        if (onReading) return true;
+        if (active) return active.move(ray, e);
+        const next = pointerFor(ray);
+        if (hovered && next !== hovered) hovered.move(ray, e);
+        hovered = next;
+        return next?.move(ray, e) || false;
+      },
+      up(ray, e) {
+        const last = active;
+        active = null;
+        return last?.up(ray, e);
+      },
+    };
     return {
       group,
       size: { w: 0.83, d: 0.58, h: 0.1 },
       view: { azim: 0, elev: 48, lookY: 0.28, margin: 1.04 },
       toggles: ['steps'],
-      pointer: {
-        items: () => [...length.pointer.items(), ...diameter.pointer.items()],
-        down(ray, e) {
-          active = pointerFor(ray, true);
-          return active?.down(ray, e) || false;
-        },
-        move(ray) {
-          if (active) return active.move(ray);
-          const next = pointerFor(ray);
-          if (hovered && next !== hovered) hovered.move(ray);
-          hovered = next;
-          return next?.move(ray) || false;
-        },
-        up() {
-          const last = active;
-          active = null;
-          return last?.up();
-        },
-      },
+      pointer, reset,
+      debug: { bar, qa: resistivityQA({ group, camera: ctx.camera, pointer, length, diameter, bench,
+        switchLever, divider, ammeter, voltmeter, leads, readingForm, bar,
+        results: () => ({ inputs, report, points }), panel: () => ui.el,
+      }) },
       mount(panel) {
         ui = panel;
         bar.attach(ui);
+        ui.controls.append(readingForm);
         lengthLog = table(['左端 / mm', '右端 / mm', '有效长度 / mm']);
         diameterLog = table(['距左柱 / mm', '实测直径 / mm']);
         viLog = table(['I / A', 'U / V']);
@@ -390,6 +428,8 @@ export default {
         guide();
       },
       update(dt) {
+        length.update(dt);
+        diameter.update(dt);
         circuit.update(dt);
         bench.update(dt);
         bar.update(dt);

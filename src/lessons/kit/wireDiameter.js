@@ -21,19 +21,26 @@ export function wireDiameterStation(group, sample, { look, back, say, record, fi
   base.add(frame);
   const fine = tool.ratchet.children[0];
   const sites = [];
+  const changeover = diameter + 0.12;
+  const approach = '向右拖大旋钮，让测微螺杆靠近金属丝。';
+  const useFine = '螺杆已接近金属丝。换小微调钮向右拖，听到棘轮声就松手。';
+  const backOff = '大旋钮已把螺杆顶到金属丝。向左退开一点，再用微调钮轻轻夹紧。';
+  let coarseContact = false;
   let gap, turns, zeroed, onWire, slipped, view, origin, returning, startGap, startTurns, locked;
   const x = () => base.position.x + AXIS_Y;
   const fresh = () => sites.every(previous => Math.abs(x() - previous) > 0.045);
   function guide(prefix = '') {
     let text, target;
     if (locked) { text = '螺杆已锁住。点锁紧钮松开，才能调节测面。'; target = tool.screw; }
+    else if (coarseContact) { text = backOff; target = tool.grip; }
     else if (!zeroed) { text = '向右拖小微调钮，空合两测面，检查零线。'; target = fine; }
     else if ((!onWire || !fresh()) && gap < diameter + 0.06) {
       text = '向左拖大旋钮，张开测面，给金属丝留出空隙。'; target = tool.grip;
     } else if (!onWire || !fresh() || sites.length === 3) {
-      text = sites.length === 3 ? '把尺架拖回台前，准备接电表。' : '拖住绿色尺架，把两测面放到' + (sites.length ? '另一处' : '两柱之间的') + '金属丝上。';
+      text = sites.length === 3 ? '把尺架拖回台前，收好测微器。' : '拖住绿色尺架，把两测面放到' + (sites.length ? '另一处' : '两柱之间的') + '金属丝上。';
       target = frame;
-    } else { text = '向右拖小微调钮，听到棘轮打滑就松手，轻轻夹住金属丝。'; target = fine; }
+    } else if (gap > changeover) { text = approach; target = tool.grip; }
+    else { text = useFine; target = fine; }
     say(prefix + text, target === frame ? tool.frame : target);
   }
   function read() {
@@ -54,19 +61,27 @@ export function wireDiameterStation(group, sample, { look, back, say, record, fi
       if (!zeroed) { zeroed = true; guide('两条零线对齐，可以测量。'); }
       else {
         sites.push(x());
-        const result = record(x(), value, sites.length);
-        guide(result);
+        record(x(), value, sites.length);
       }
     });
   }
   function roller(obj, isFine) {
     return { obj, plane: 'xz', offset: height, enabled: () => !view && !returning,
-      hint: isFine ? '右拖：轻合测面' : '左拖：张开测面',
+      hint: isFine ? '右拖：轻合测面' : '左右拖：转大旋钮',
       onStart() { enter(); startGap = gap; startTurns = turns; },
       onDrag(p, from) {
         if (!from || locked) return;
         const delta = (from.x - p.x) / (2 * Math.PI * (isFine ? 0.004 : 0.0067));
+        if (coarseContact && isFine) return;
+        if (onWire && isFine && startGap > changeover && delta < 0) {
+          say(approach, tool.grip);
+          return;
+        }
         const result = turnSpindle(startGap, delta, onWire ? diameter : 0, isFine);
+        if (onWire && !isFine) {
+          coarseContact = result.gap <= diameter;
+          if (delta < 0 && result.gap <= changeover) say(coarseContact ? backOff : useFine, coarseContact ? tool.grip : fine);
+        }
         if (result.slipped && !slipped) sfx.clink({ freq: 1750, gain: 0.055 });
         gap = result.gap;
         slipped = result.slipped;
@@ -111,6 +126,7 @@ export function wireDiameterStation(group, sample, { look, back, say, record, fi
   ] });
   function reset() {
     gap = 0.4; turns = gap / SCREW_PITCH;
+    coarseContact = false;
     view = zeroed = onWire = slipped = locked = false;
     returning = null;
     sites.length = 0;
@@ -120,6 +136,9 @@ export function wireDiameterStation(group, sample, { look, back, say, record, fi
   }
   reset();
   return { pointer, base, frame, grip: tool.grip, fine, home, contactZ, guide, reset, diameter,
+    get opening() { return gap; },
+    get near() { return view; },
+    get parked() { return !returning && base.position.equals(home); },
     leave() { view = false; back(); guide(); },
     update(dt) {
       if (!returning) return;

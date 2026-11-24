@@ -108,7 +108,7 @@ export function momentumBench() {
   group.add(thread);
   // 水平细线圈绕住两个滑块，遮光片和两端的光电门仍然露出。
   const ends = [-0.112, 0.14],
-    z = 0.039;
+    z = 0.022; // 线收紧时贴在两块滑块的斜面上。
   const loop = [
     point(ends[0], 0, -z),
     point(ends[1], 0, -z),
@@ -118,7 +118,7 @@ export function momentumBench() {
   ];
   for (let i = 1; i < loop.length; i++) {
     const delta = loop[i].clone().sub(loop[i - 1]);
-    const side = new THREE.Mesh(new THREE.CylinderGeometry(0.0014, 0.0014, delta.length(), 8), paint(0x704b37));
+    const side = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0018, delta.length(), 8), paint(0x663f2a));
     side.quaternion.setFromUnitVectors(point(0, 1, 0), delta.clone().normalize());
     side.position.copy(loop[i - 1]).lerp(loop[i], 0.5);
     thread.add(side);

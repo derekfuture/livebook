@@ -4,11 +4,38 @@ import { observeCapacitor, SOURCE_VOLTS } from './kit/capacitor.js';
 import { draggable, clamp } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { buttons, chart, h, note, table } from './kit/ui.js';
+import { drawSchematic } from './kit/circuit.js';
 import { qaFlow } from './kit/chemlesson.js';
 
 const chargeTask = '把黑柄拨到 1 给电容器充电，看指针偏向哪边，等电压表示数稳定。';
 const dischargeTask = '电压稳定了，电流表指针已回到零线附近。拨到 2，通过电阻放电。';
 const complete = '放电时指针反向偏转，又回到零线附近；电压也降到了零。可以掀开课本原文了。';
+
+const wireTasks = [
+  '开关保持中位。把开关引出的线头拖到电流表的红柱。',
+  '把电容器正极引出的线头拖到电流表的黑柱，使电流表串入回路。',
+  '把数字电压表的红线头拖到电容器的正极。',
+  '把数字电压表的黑线头拖到电容器的负极，使电压表并联在两极之间。',
+];
+const colors = ['#69665e', '#ad4d30', '#226e83'];
+
+function wiringDiagram() {
+  const canvas = h('canvas', { width: 340, height: 135, role: 'img', 'aria-label': '图 10.4-1　电容器的充、放电电路',
+    style: 'width:100%;height:auto' });
+  const g = canvas.getContext('2d');
+  g.fillStyle = '#fbf8f1'; g.fillRect(0, 0, 340, 135);
+  drawSchematic(g, {
+    wires: [[[38, 110], [38, 20], [114, 20]], [[87, 110], [87, 43], [114, 43]],
+      [[113, 31], [292, 31], [292, 110], [38, 110]], [[233, 31], [233, 63]], [[233, 72], [233, 110]],
+      [[221, 63], [245, 63]], [[221, 72], [245, 72]]],
+    parts: [{ type: 'battery', x: 38, y: 67, rot: 90 }, { type: 'ammeter', x: 180, y: 31 },
+      { type: 'voltmeter', x: 292, y: 70, rot: 90 }, { type: 'resistor', x: 155, y: 110, label: 'R', ly: -12 },
+      ...[[140, 31], [87, 110], [233, 31], [233, 110]].map(([x, y]) => ({ type: 'node', x, y }))],
+  });
+  g.fillStyle = '#1d2433'; g.font = '14px sans-serif';
+  g.fillText('1', 106, 16); g.fillText('2', 106, 59); g.fillText('S', 134, 23);
+  return canvas;
+}
 
 export default {
   id: 'capacitor',
@@ -38,17 +65,22 @@ export default {
     let ui, graph, records, plates, form, input, reading, near = false;
     let angle = 0, contact = 0, voltage = 0, current = 0, elapsed = 0, startV = 0;
     let held = false, origin = 0, releaseSlot = null, returning = null, trace = null;
-    const charge = [], discharge = [];
+    const segments = [];
+    let clock = 0, resumeNotes, diagram, movingLead = null, retract = null;
+    const nextLead = () => rig.leads.findIndex(lead => !lead.connected);
     const atAngle = q => rig.neutral.clone().setX(pivot.x + radius * Math.sin(q)).setZ(pivot.z - radius * Math.cos(q));
     const slotAngle = slot => slot === 1 ? -throwAngle : slot === 2 ? throwAngle : 0;
     const stable = () => contact === 0 || Math.abs(voltage - (contact === 1 ? SOURCE_VOLTS : 0)) < 0.005;
     const target = () => near || held || (contact && !stable()) ? null : rig.handle;
     const bar = lessonBar({ ...ctx, group, back: leave, steps: [
+      { id: 'wire', title: '按图接线', todo: wireTasks[0],
+        target: () => movingLead || retract ? null : rig.leads[nextLead()]?.tip },
       { id: 'charge', title: '接 1 充电', todo: chargeTask, target },
       { id: 'discharge', title: '接 2 放电', todo: dischargeTask, target },
     ] });
 
     function guide() {
+      if (!bar.has('wire')) { bar.say(wireTasks[nextLead()]); return; }
       if (near) {
         bar.say('左边看电流表的零线和指针，右边读两极板间的电压。回到全景可再拨开关。');
         return;
@@ -78,13 +110,15 @@ export default {
     }
     function connect(next) {
       if (next === contact) return;
+      if (trace) trace.points.push([clock, current * 1000]);
       contact = next; elapsed = 0; startV = voltage;
       current = observeCapacitor(startV, contact, 0).current;
-      trace = null;
-      if (contact && !stable()) {
-        trace = contact === 1 ? charge : discharge;
-        trace.length = 0;
-        trace.push([0, current * 1000]);
+      if (trace || current !== 0) {
+        if (next === 1 && startV >= 0.005) {
+          resumeNotes.append(h('div', {}, `${clock.toFixed(1)} s 续充，起始电压 ${startV.toFixed(2)} V。`));
+        }
+        trace = { slot: next, points: [[clock, current * 1000]], color: colors[next], dash: next === 0, width: 5 };
+        segments.push(trace);
         graph.draw();
       }
       rig.draw(voltage, current);
@@ -93,6 +127,7 @@ export default {
     function setAngle(q) {
       angle = q;
       rig.setAngle(q);
+      connect(q <= -throwAngle + 0.045 ? 1 : q >= throwAngle - 0.045 ? 2 : 0);
     }
     function inspect() {
       if (near) return;
@@ -126,16 +161,43 @@ export default {
         record(shown.toFixed(2));
       }
     }
-    const desk = draggable(group, [{
+    // 拖动平面贴着台面。越靠近接线柱，线头沿同一视线抬到柱顶。
+    function onPlane(point, y) {
+      const eye = group.worldToLocal(ctx.camera.getWorldPosition(new ctx.THREE.Vector3()));
+      return eye.lerp(point, (y - eye.y) / (point.y - eye.y));
+    }
+    const wireDrags = rig.leads.map(lead => ({
+      obj: lead.tip, plane: 'xz', offset: lead.home.y, keepOffset: true,
+      enabled: () => !lead.connected && !retract && !near,
+      hint: '拖线头到接线柱',
+      onStart() { movingLead = lead; },
+      onDrag(p) {
+        const distance = p.distanceTo(onPlane(lead.socket, lead.home.y));
+        const lift = clamp(1 - distance / 0.025, 0, 1);
+        lead.place(onPlane(p, lead.home.y + lift * (lead.socket.y - lead.home.y)));
+      },
+      onEnd(moved) {
+        movingLead = null;
+        if (!moved) return;
+        if (lead.tip.position.distanceTo(lead.socket) > 0.011) {
+          retract = { lead, from: lead.tip.position.clone(), t: 0 };
+          bar.say('线头没接好，对照图再试一次。');
+          return;
+        }
+        lead.connected = true;
+        lead.place(lead.socket); lead.tip.visible = false;
+        if (nextLead() < 0) { bar.done('wire'); diagram.hidden = true; }
+        guide();
+      },
+    }));
+    const desk = draggable(group, [...wireDrags, {
       obj: rig.grip, anchor: rig.grip, keepOffset: true, plane: 'xz', offset: rig.neutral.y,
-      hint: '左右拨：切换触点', enabled: () => !near && !returning,
+      hint: '左右拨：切换触点', enabled: () => bar.has('wire') && !near && !returning,
       onStart() { held = true; origin = contact; releaseSlot = origin; },
       onDrag(p) {
         const raw = Math.atan2(p.x - pivot.x, pivot.z - p.z);
         setAngle(clamp(raw, -throwAngle, throwAngle));
-        releaseSlot = [0, 1, 2].find(slot => atAngle(slotAngle(slot)).distanceTo(p) <= 0.014);
-        const touching = Math.abs(angle) >= throwAngle - 0.045;
-        connect(touching && releaseSlot != null ? releaseSlot : 0);
+        releaseSlot = contact || (Math.abs(angle) < 0.16 ? 0 : null);
       },
       onEnd(moved) {
         held = false;
@@ -145,11 +207,11 @@ export default {
           returning = { from: angle, slot, t: 0 };
           bar.say('刀片没停在触点或中位，松手后回到原位。');
         } else {
-          setAngle(slotAngle(slot)); connect(slot); guide();
+          setAngle(slotAngle(slot)); guide();
         }
       },
     }], { taps: [rig.dial, rig.screen].map(obj => ({
-      obj, enabled: () => !near, hint: '点一下：近看两只表', onTap: inspect,
+      obj, enabled: () => bar.has('wire') && !near, hint: '点一下：近看两只表', onTap: inspect,
     })) });
     const tip = ctx.tag('', 'pill');
     tip.show(false);
@@ -182,14 +244,26 @@ export default {
       if (near) leave();
       returning = trace = null; held = false;
       elapsed = startV = current = contact = voltage = 0;
-      charge.length = discharge.length = 0;
+      clock = 0; segments.length = 0; graph.x.max = 16;
+      resumeNotes.replaceChildren();
+      retract = movingLead = null;
+      for (const lead of rig.leads) {
+        lead.connected = false; lead.tip.visible = true; lead.place(lead.home);
+      }
+      diagram.hidden = false;
       records.clear(); records.el.hidden = true;
       setAngle(0); rig.draw(0, 0); drawPlates(); graph.draw(); hideTip(); clearReading(); readForm();
-      bar.undo('charge', 'discharge'); ui.relock(); ctx.reframe(); guide();
+      bar.undo('wire', 'charge', 'discharge'); ui.relock(); ctx.reframe(); guide();
     }
     const qa = qaFlow(desk, [
-      { name: '先接 2，两表仍指零', drag: rig.grip, to: atAngle(throwAngle) },
-      { name: '接 1 观察充电', drag: rig.grip, to: atAngle(-throwAngle), wait: 1 },
+      { name: '接错柱后线头归位', drag: rig.leads[0].tip, to: () => onPlane(rig.leads[1].socket, rig.leads[0].home.y) },
+      { name: '核对断开的接线', run() {
+        if (nextLead() !== 0 || !rig.leads[0].tip.position.equals(rig.leads[0].home) || desk.items().find(d => d.obj === rig.grip).enabled())
+          throw Error('未接好两表就允许合闸，或线头未归位');
+      } },
+      ...rig.leads.map((lead, i) => ({ name: wireTasks[i], drag: lead.tip, to: () => onPlane(lead.socket, lead.home.y) })),
+      { name: '先接 2，两表仍指零', drag: rig.grip, to: atAngle(throwAngle), scale: 1 },
+      { name: '接 1 观察充电', drag: rig.grip, to: atAngle(-throwAngle).add(new ctx.THREE.Vector3(-0.018, 0, 0)), wait: 1, scale: 1 },
       { name: '中途断开，观察电压保持', drag: rig.grip, to: atAngle(0) },
       { name: '近看电表', tap: rig.screen },
       { name: '核对断开时的读数', run() {
@@ -203,7 +277,10 @@ export default {
       { name: '重新接 1，等电压稳定', drag: rig.grip, to: atAngle(-throwAngle), wait: 20 },
       { name: '直接从 1 拨到 2，观察反向电流', drag: rig.grip, to: atAngle(throwAngle), wait: 20 },
       { name: '核对两条曲线和结论', run() {
-        if (!bar.finished || !charge.length || !discharge.length || charge[0][1] <= 0 || discharge[0][1] >= 0 || !stable())
+        const charges = segments.filter(s => s.slot === 1), open = segments.find(s => !s.slot);
+        if (!bar.finished || charges.length < 2 || charges[0].points[0][1] !== 6 ||
+            !open || open.points.at(-1)[0] <= open.points[0][0] || open.points.some(p => p[1] !== 0) ||
+            !resumeNotes.childElementCount || trace.points[0][1] >= -5.99 || !stable())
           throw Error('记录与两表不符');
         ui.go(2); ui.el.querySelector('.flap-front').click();
       } },
@@ -223,9 +300,9 @@ export default {
           return used;
         },
         move(ray, e) {
-          if (!held && (near || ui?.step !== 1)) { hideTip(); return false; }
+          if (!movingLead && !held && (near || ui?.step !== 1)) { hideTip(); return false; }
           const used = desk.move(ray, e), item = desk.hovered();
-          if (!held && item) {
+          if (!movingLead && !held && item) {
             const p = group.worldToLocal(item.obj.getWorldPosition(new ctx.THREE.Vector3()));
             tip.loc(group, p.x, p.y + 0.023, p.z).text(item.hint).show(true);
           } else hideTip();
@@ -239,21 +316,23 @@ export default {
         ui.status('极板上的电荷和导线上的电流箭头均为示意。');
         plates = h('canvas', { width: 300, height: 55, role: 'img', 'aria-label': '两极板所带的等量异种电荷', style: 'width:100%;height:auto;display:block' });
         drawPlates();
-        ui.controls.append(plates);
+        diagram = wiringDiagram();
+        ui.controls.append(diagram, plates);
         input = h('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', style: 'width:5em;margin:0 .5em;padding:.2em .4em;font:inherit' });
         form = h('form', { class: 'ctl', hidden: true, onsubmit: checkReading },
           h('label', {}, '电压表读数（V） ', input), h('button', { type: 'submit', class: 'go ghost', style: 'width:auto;margin:0;padding:.2em .7em' }, '核对'));
         reading = h('p', { class: 'note', 'aria-live': 'polite' }); form.append(reading);
         ui.controls.append(form);
         graph = chart({
-          x: { label: 't / s', min: 0, max: 16, ticks: [0, 4, 8, 12, 16] },
+          x: { label: 't / s', min: 0, max: 16 },
           y: { label: 'I / mA', min: -6.5, max: 6.5, ticks: [-6, -3, 0, 3, 6] },
-          series: [{ points: charge, color: '#ad4d30', width: 5 }, { points: discharge, color: '#226e83', width: 5 }],
-          legend: '<b style="color:#ad4d30">接 1 充电</b>　<b style="color:#226e83">接 2 放电</b>　各从接通时计时。',
+          series: segments,
+          legend: '<b style="color:#ad4d30">接 1 充电</b>　<b style="color:#226e83">接 2 放电</b>　断开（虚线）',
         });
+        resumeNotes = h('div', { class: 'note' });
         records = table(['开关位置', '电压变化', '自读电压 / V']);
         records.el.hidden = true;
-        ui.data.append(graph.el, records.el, buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el);
+        ui.data.append(graph.el, resumeNotes, records.el, buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el);
         ui.notes.append(note('模型取电源 6 V、电阻 1 kΩ、电容 2200 μF，忽略漏电。电流流入电容器正极板时取正。'));
         const source = ui.el.querySelector('.answer .src');
         source.style.paddingRight = '84px'; source.style.minHeight = '48px';
@@ -261,22 +340,30 @@ export default {
       },
       update(dt) {
         const scale = bar.update(dt);
+        if (retract) {
+          const { lead, from } = retract;
+          retract.t = Math.min(1, retract.t + dt / 0.4);
+          lead.place(from.clone().lerp(lead.home, retract.t));
+          if (retract.t === 1) { lead.place(lead.home); retract = null; guide(); }
+        }
         if (returning) {
           returning.t = Math.min(1, returning.t + dt / 0.40);
           setAngle(slotAngle(returning.slot) + (returning.from - slotAngle(returning.slot)) * (1 - returning.t) ** 2);
-          if (returning.t === 1) { connect(returning.slot); returning = null; guide(); }
+          if (returning.t === 1) { returning = null; guide(); }
         }
-        if (!contact) return;
+        if (!trace) return;
+        clock += dt * scale;
         const wasStable = stable();
         elapsed += dt * scale;
         const state = observeCapacitor(startV, contact, elapsed);
         voltage = state.voltage; current = state.current;
         rig.draw(voltage, current); drawPlates();
-        if (trace) {
-          const t = Math.min(elapsed, 16), last = trace[trace.length - 1][0];
-          if (t - last >= 0.16 || (t === 16 && last < t)) {
-            trace.push([t, observeCapacitor(startV, contact, t).current * 1000]); graph.draw();
-          }
+        const points = trace.points;
+        if ((!bar.finished || !stable()) && clock - points.at(-1)[0] >= 0.16) {
+          if (contact === 0 && points.length > 1) points.pop();
+          points.push([clock, current * 1000]);
+          graph.x.max = Math.max(graph.x.max, Math.ceil(clock / 8) * 8);
+          graph.draw();
         }
         if (!wasStable && stable()) {
           record();

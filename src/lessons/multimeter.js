@@ -23,7 +23,7 @@ export default {
   conclusion: {
     page: 76, rect: [216.5, 655.02, 531.56, 718.13],
     quote: '使用前应该调整指针定位螺丝，使指针指到零刻度。使用时，应先将选择开关旋转到与被测物理量对应的位置上并选择合适的量程。',
-    why: '直流电压挡并联在灯泡两端，直流电流挡串入断开处。电阻挡靠表内电源供电，应测脱离电源的元件；每次换倍率要先短接表笔调零。欧姆刻度右端为零，读数还要乘倍率。',
+    why: '直流电压挡并联在灯泡两端，直流电流挡串入断开处。电阻挡由表内电池供电。若元件接在电路中，先断开外电源，再拆开元件一端，使它与其他支路隔离。每次换倍率要先短接表笔调零。欧姆刻度右端为零，读数还要乘倍率。',
     src: '课本第 72 页 · 第十一章 第5节 实验：练习使用多用电表',
   },
   create(ctx) {
@@ -129,7 +129,24 @@ export default {
       h('label', { style: 'display:block' }, resultLabel, value),
       h('button', { type: 'submit', class: 'go', style: 'margin-top:6px' }, '记下读数'));
     const status = h('p', { class: 'status', style: 'font-variant-numeric:tabular-nums' });
+    const bypass = h('figure', { hidden: true, style: 'margin:0 0 8px' },
+      h('figcaption', {}, '若合闸，电流怎样分配？（示意）'),
+      h('div', { html: `<svg viewBox="0 0 264 90" style="display:block;width:100%;max-width:290px" role="img" aria-label="少部分电流通过灯泡，大部分通过低内阻的电流表，超过量程。">
+        <g fill="none" stroke="#536068" stroke-width="2">
+          <path d="M6 43h24m0 0V22h202v21h24 M30 43v28h202V43"/>
+          <circle cx="30" cy="43" r="2" fill="#536068"/><circle cx="232" cy="43" r="2" fill="#536068"/>
+          <circle cx="130" cy="22" r="11" fill="#fffaf0"/><path d="m122 14 16 16m-16 0 16-16"/>
+          <circle cx="130" cy="71" r="14" fill="#fffaf0"/>
+        </g>
+        <path d="m83 18 9 4-9 4z" fill="#536068"/>
+        <path d="M43 67h38v-5l15 9-15 9v-5H43z" fill="#a44e37"/>
+        <g text-anchor="middle" font-family="sans-serif" font-size="15">
+          <text x="130" y="76" fill="#38494e">A</text>
+          <text x="183" y="17" fill="#38494e">灯泡</text><text x="183" y="65" fill="#93432f">超量程</text>
+        </g></svg>` }));
     const unit = () => ({ volt: 'V', amp: 'mA', ohm: 'Ω' }[stop().mode]);
+    const dcPlaces = () => ({ '2.5 V': 2, '10 V': 1, '50 mA': 1, '500 mA': 0 }[stop().label]);
+    const dcGuide = () => '内圈每小格 0.2，估读到 0.1。按量程换算，四舍五入到 ' + 10 ** -dcPlaces() + ' ' + unit() + '。';
     const active = () => !pair.returning && !plugReturn;
     const atDesk = () => !near && active() && !bar.finished;
     // 只在玻璃窗上近看；调零、选挡时保留整表，读数时正对两条完整刻度弧。
@@ -155,8 +172,9 @@ export default {
       bar.near(false);
       guide();
     }
-    function guide(feedback = '') {
+    function guide(feedback = '', showBypass = false) {
       const mode = bar.current;
+      bypass.hidden = !showBypass;
       const set = (text, obj) => {
         const offscreen = near && obj && ![meter.selector, meter.zero, meter.trim, meter.group].includes(obj);
         const knob = [meter.zero, meter.trim, meter.selector].includes(obj);
@@ -171,6 +189,7 @@ export default {
         rawLabel.textContent = mode === 'ohm' ? '外圈刻度' : '内圈刻度';
         resultLabel.textContent = '测量值（' + unit() + '）';
       }
+      if (showBypass && mode === 'volt') return set('先转回直流电压挡，再给灯泡通电。', meter.selector);
       if (!mode) return set('表笔已归位，选择开关已回到 OFF。可以掀开结论了。');
       if (mode === 'zero') return near
         ? set('左右微调定位螺丝，使指针对准内圈左端的 0。', meter.zero)
@@ -198,12 +217,16 @@ export default {
         if (sw.closed && !bothOn(pin, lampLeft)) return set('断口还没接好，先断开开关。', sw.group);
         if (stop().mode !== 'amp') return set('导线已拆开。电流大小未知，先选较大的直流电流量程。', meter.selector);
         if (sw.closed && meter.fraction < 0) return set('指针向左反偏。先断电，再交换两支表笔。', sw.group);
-        if (bothOn(pin, lampLeft) && !sw.closed) {
-          if (overload) return set('已断电，换较大的电流量程再合闸。', meter.selector);
-          return set('电流表已串在断口，合上开关观察指针。', sw.group);
+        if (!sw.closed && black.target === pin) {
+          if (red.target === lampLeft) return set('两笔接反了。先把黑笔放回黑圈，腾出棕色插头。', black.handle);
+          return set('把黑笔从棕色插头移到灯泡左柱。', black.handle);
         }
         if (red.target !== pin) return set('红笔尖接棕色插头，让电流从红笔流入表内。', red.handle);
         if (black.target !== lampLeft) return set('黑笔尖接灯泡空出的左柱，接通电流的去路。', black.handle);
+        if (!sw.closed) {
+          if (overload) return set('已断电，换较大的电流量程再合闸。', meter.selector);
+          return set('电流表已串在断口，合上开关观察指针。', sw.group);
+        }
         if (meter.fraction > 1) return set('指针已超过满刻度。断开开关，换较大量程。', sw.group);
       } else {
         if (sw.closed) return set('断开开关，把表笔从灯泡电路移开。', sw.group);
@@ -222,7 +245,7 @@ export default {
       }
       if (show && feedback) return set('');
       if (readable()) return show
-        ? set(mode === 'ohm' ? '读外圈红色刻度，乘所选倍率，填入阻值。' : '读内圈黑色刻度，按所选量程换算后填入测量值。')
+        ? set(mode === 'ohm' ? '读外圈红色刻度，乘所选倍率，填入阻值。' : dcGuide())
         : set('指针已偏转。点表盘近看，读出' + ({ volt: '灯泡两端的电压', amp: '通过灯泡的电流', ohm: '定值电阻的阻值' }[mode]) + '。', meter.group);
     }
     function choose(index) {
@@ -251,16 +274,23 @@ export default {
         return guide('刻度读' + (a > expected ? '大' : '小') + '了。' + (ohm ? '外圈从右向左增大，刻线疏密不均。' : '内圈从左向右增大，每小格是 0.2。'));
       }
       const factor = ohm ? stop().multiplier : stop().range * (mode === 'amp' ? 1000 : 1) / 10;
-      if (b < 0 || Math.abs(b - a * factor) > (mode === 'volt' ? 0.00501 : mode === 'amp' ? 0.50001 : 0.00001))
+      if (!ohm && !Number.isInteger(a * 10)) return guide(dcGuide());
+      // 用十分之一格的整数换算，避免 1.475 一类的中点因浮点误差向下舍入。
+      const digits = ohm ? 0 : dcPlaces();
+      const rounded = ohm ? a * factor : Math.round((a * 10) * factor * 10 ** digits / 10) / 10 ** digits;
+      if (!ohm && b !== Number(b.toFixed(digits))) return guide(dcGuide());
+      if (ohm ? Math.abs(b - rounded) > 0.00001 : b !== rounded)
         return guide(ohm ? '刻度读对了，阻值还要乘选择开关所指的倍率。' : '刻度读对了。内圈的 10 对应满量程，用刻度数除以 10 再乘量程。');
-      rows.add([stop().label, String(a), '≈ ' + b + ' ' + unit()]);
-      const calc = ohm ? a + ' × ' + stop().multiplier : a + ' ÷ 10 × ' + stop().label;
-      const result = ({ volt: '灯泡两端的电压', amp: '通过灯泡的电流', ohm: '电阻的阻值' }[mode]) + '约为 ' + b + ' ' + unit() + '。';
+      const scaleReading = ohm ? String(a) : a.toFixed(1);
+      const measurement = ohm ? String(b) : rounded.toFixed(digits);
+      rows.add([stop().label, scaleReading, '≈ ' + measurement + ' ' + unit()]);
+      const calc = ohm ? a + ' × ' + stop().multiplier : scaleReading + ' ÷ 10 × ' + stop().label;
+      const result = ({ volt: '灯泡两端的电压', amp: '通过灯泡的电流', ohm: '电阻的阻值' }[mode]) + '约为 ' + measurement + ' ' + unit() + '。';
       rows.el.hidden = false;
       bar.done(mode);
       leave();
       guide(result);
-      work.textContent = calc + (Math.abs(a * factor - b) < 0.000001 ? ' = ' : ' ≈ ') + b + ' ' + unit();
+      work.textContent = calc + (Math.abs(a * factor - b) < 0.000001 ? ' = ' : ' ≈ ') + measurement + ' ' + unit();
     }
     const work = h('p', { class: 'note' });
     const canAdjust = isZero => active() && (near !== 'scale') && (isZero ? bar.current === 'zero' : ['cal', 'ohm'].includes(bar.current));
@@ -319,6 +349,9 @@ export default {
     switchPick.userData.pick = true;
     sw.group.add(switchPick);
     function toggle() {
+      if (!sw.closed && stop().mode === 'amp' && plugged && bothOn(lampLeft, lampRight)) {
+        return guide('电流表内阻小，若合闸，大部分电流会流过电流表。', true);
+      }
       if (!sw.closed && stop().mode === 'amp' && (onCircuit(red) || onCircuit(black)) && (plugged || !bothOn(pin, lampLeft)))
         return guide('电流挡还没有串在断口，保持断电。');
       sw.toggle();
@@ -470,7 +503,7 @@ export default {
         bar.attach({ need: () => ui.need(''), unlock: () => ui.unlock() });
         const src = ui.el.querySelector('.answer .src');
         src.style.paddingRight = '78px'; src.style.minHeight = '54px';
-        ui.controls.append(status, form);
+        ui.controls.append(status, bypass, form);
         ui.data.append(rows.el, work, h('button', { class: 'go ghost', onclick: reset }, '全部重来'));
         reset();
       },
@@ -490,9 +523,19 @@ export default {
       debug: { bar, qa: [
         zoom, turn(true, -0.0128), pressSwitch, select(4),
         carry(0, () => point(0, 0, 0), '放偏后归位'), carry(0, lampLeft, '红笔接高电势端'), carry(1, lampRight, '黑笔接低电势端'),
-        zoom, write('错读直流刻度', 4, 1, 'volt'), write('量程换算错误', 5.9, 5.9, 'volt'), write('记下电压', 5.9, 1.48, 'amp'),
-        pressSwitch, home(0), home(1), { name: '拆开灯泡一端', drag: grip, to: () => loose.clone().setY(0.025) },
-        select(7), carry(0, pin, '红笔接插头'), carry(1, lampLeft, '黑笔接断口'), pressSwitch, zoom, write('记下电流', 2.4, 120, 'cal'),
+        zoom, write('错读直流刻度', 4, 1, 'volt'), write('量程换算错误', 5.9, 5.9, 'volt'),
+        write('内圈估读位数过多', 5.92, 1.48, 'volt'), write('电压位数过多', 5.9, 1.47001, 'volt'),
+        write('换算中点应进位', 5.9, 1.47, 'volt'), write('记下电压', 5.9, 1.48, 'amp'),
+        pressSwitch, select(7), pressSwitch,
+        { name: '并联电流挡拒绝合闸并显示分流示意', run() {
+          if (sw.closed || bypass.hidden) throw Error('缺少断电保护或分流反馈');
+        } },
+        home(0), home(1), { name: '拆开灯泡一端', drag: grip, to: () => loose.clone().setY(0.025) },
+        carry(0, lampLeft, '红笔误接灯泡'), carry(1, pin, '黑笔误接插头'), pressSwitch, pressSwitch,
+        { name: '反接断电后指向黑笔', run() {
+          if (sw.closed || aim !== black.handle || !bypass.hidden) throw Error('未引导腾出插头');
+        } },
+        home(1), carry(0, pin, '红笔接插头'), carry(1, lampLeft, '黑笔移到断口'), pressSwitch, zoom, write('记下电流', 2.4, 120, 'cal'),
         pressSwitch, home(0), home(1), select(2), short(), turn(false, 0.011),
         carry(0, 'R.a', '红笔接电阻'), carry(1, 'R.b', '试测偏转太小'), select(3),
         home(0), home(1), short(), turn(false, -0.019), carry(0, 'R.a', '红笔重接电阻'), carry(1, 'R.b', '针尖落在中间区域'),

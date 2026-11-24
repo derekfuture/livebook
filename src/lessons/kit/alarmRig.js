@@ -105,20 +105,31 @@ export function alarmRig() {
   lamp.position.set(0.154, 0.021, 0.022);
   group.add(lamp);
   const rbody = block(group, 0.023, 0.007, 0.007, 0.157, 0.011, -0.002, 0xbda77e);
+  const resistorLead = (side) => {
+    const tip = rbody.position.clone();
+    tip.x += side * 0.021;
+    wire(group, [rbody.position, tip], 0x838783, 0.0009);
+    return tip;
+  };
+  const supplyLead = resistorLead(1);
+  const ledLead = resistorLead(-1);
   for (const shift of [-0.006, -0.002, 0.003])
     block(group, 0.0018, 0.0074, 0.0074, rbody.position.x + shift, 0.011, -0.002, shift < 0 ? 0xb9783b : 0x875b48);
   label('R  330 Ω', 0.188, -0.003, 0.043);
-  wire(group, [switched, [0.188, 0.006, -0.026], [0.182, 0.007, -0.004], [0.171, 0.011, -0.002]], 0x9e5b49);
+  wire(group, [switched, [0.192, 0.006, -0.026], [0.186, 0.011, -0.002], supplyLead], 0x9e5b49);
   wire(
     group,
     [
-      [0.145, 0.011, -0.002],
-      [0.137, 0.008, 0.009],
+      ledLead,
+      [0.131, 0.011, -0.002],
+      [0.135, 0.008, 0.012],
       [0.15, 0.015, 0.022],
     ],
     0x967052,
   );
   block(group, 0.017, 0.007, 0.015, 0.154, 0.006, 0.022, 0x555b55);
+  wire(group, [[0.15, 0.015, 0.022], [0.151, 0.019, 0.022]], 0x838783, 0.0009);
+  wire(group, [[0.159, 0.013, 0.022], [0.157, 0.019, 0.022]], 0x838783, 0.0009);
   label('LED', 0.193, 0.023, 0.029);
   const buzzer = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.012, 40), paint(0x424a4e));
   buzzer.position.set(0.17, 0.008, 0.076);
@@ -218,7 +229,9 @@ export function alarmRig() {
             middle,
             end,
           ]
-        : [l.anchor, middle, end];
+        : i === 1
+          ? [l.anchor, vec(-0.018, 0.034, -0.009), vec(-0.021, 0.009, 0.018), vec(-0.019, 0.005, 0.049), end]
+          : [l.anchor, middle, end];
     l.wire.geometry.dispose();
     l.wire.geometry = wireGeometry(points);
   }

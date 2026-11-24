@@ -1,4 +1,4 @@
-// 图 10.4-1 固定接线。双掷开关只有刀片落在触点上才导通。
+// 图 10.4-1 的器材和接线。双掷开关只有刀片落在触点上才导通。
 import * as THREE from 'three';
 import { paint, inked } from '../../live/ink.js';
 import { canvasTex } from './props.js';
@@ -39,7 +39,7 @@ export function capacitorRig() {
     const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
     const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 32, 0.0014, 7, false), paint(color));
     group.add(tube);
-    return curve;
+    return tube;
   }
   const source = battery('E', { cells: 4, emf: 1.5 });
   source.group.rotation.y = Math.PI / 2;
@@ -118,7 +118,8 @@ export function capacitorRig() {
     group.worldToLocal(part.group.localToWorld(new THREE.Vector3(...part.terminals[name]))).toArray();
   const paths = [];
   // sign 是从导线起点到终点的方向；电压表理想，不在它的支路画电流。
-  function arrowOn(curve, fraction, chargeSign, dischargeSign) {
+  function arrowOn(tube, fraction, chargeSign, dischargeSign) {
+    const curve = tube.geometry.parameters.path;
     const head = new THREE.Mesh(new THREE.ConeGeometry(0.0044, 0.013, 12), new THREE.MeshBasicMaterial());
     head.position.copy(curve.getPointAt(fraction));
     head.position.y += 0.008;
@@ -132,13 +133,47 @@ export function capacitorRig() {
     [[-0.126, 0.009, 0.12], [-0.066, 0.008, 0.108]]), 0.48, -1, 0);
   arrowOn(wire(at(throws[1]), terminal(resistor, 'a'), 0x536260,
     [[-0.002, 0.014, -0.130], [-0.008, 0.007, 0.036]]), 0.72, 0, 1);
-  arrowOn(wire(at(hinge), postTop(mPos), 0x9d6443,
-    [[-0.042, 0.018, -0.037], [0.022, 0.021, -0.026]]), 0.51, 1, -1);
-  arrowOn(wire(postTop(mNeg), at(positive), 0xa65a40), 0.50, 1, -1);
+  // 四条表线各有一端已接好。线头移动时，导线弯曲，固定端留在接线柱上。
+  const leads = [];
+  function meterLead(a, b, color, via, rest, signs) {
+    const tube = wire(a, b, color, via);
+    if (signs) arrowOn(tube, 0.5, ...signs);
+    const route = tube.geometry.parameters.path.points.map(p => p.clone());
+    const socket = route[route.length - 1];
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.0048, 0.0036, 0.007, 16), paint(color));
+    group.add(tip);
+    const home = new THREE.Vector3(...rest);
+    const shift = new THREE.Vector3();
+    const lead = {
+      tip, home, socket, connected: false,
+      place(p) {
+        tip.position.copy(p);
+        shift.subVectors(p, socket);
+        const points = route.map((v, i) => {
+          const weight = (i / (route.length - 1)) ** 2;
+          const point = v.clone().addScaledVector(shift, weight);
+          point.y = Math.max(0.005, point.y);
+          return point;
+        });
+        if (!lead.connected) {
+          const end = points[points.length - 1];
+          end.addScaledVector(points[points.length - 2].clone().sub(end).normalize(), 0.004);
+        }
+        const curve = new THREE.CatmullRomCurve3(points);
+        tube.geometry.dispose();
+        tube.geometry = new THREE.TubeGeometry(curve, 32, 0.0014, 7, false);
+      },
+    };
+    lead.place(home);
+    leads.push(lead);
+  }
+  meterLead(at(hinge), postTop(mPos), 0x9d6443,
+    [[-0.042, 0.018, -0.037], [0.022, 0.021, -0.026]], [0.016, 0.005, -0.012], [1, -1]);
+  meterLead(postTop(positive), postTop(mNeg), 0xa65a40, [], [0.086, 0.005, -0.006], [-1, 1]);
   arrowOn(wire(at(negative), terminal(resistor, 'b'), 0x56615d,
     [[0.16, 0.014, 0.077], [0.13, 0.009, 0.112], [0.045, 0.012, 0.111]]), 0.57, 1, -1);
-  wire(at(positive), at(vPos), 0xbb5039, [[0.146, 0.020, 0.008]]);
-  wire(at(negative), at(vNeg), 0x414b4b, [[0.20, 0.012, 0.024]]);
+  meterLead(postTop(vPos), postTop(positive), 0xbb5039, [[0.175, 0.026, -0.043], [0.146, 0.020, 0.008]], [0.147, 0.005, 0.004]);
+  meterLead(postTop(vNeg), postTop(negative), 0x414b4b, [[0.232, 0.026, -0.043], [0.20, 0.012, 0.024]], [0.196, 0.005, 0.048]);
   function nameplate(parent, label, w, x, z, y = 0.001) {
     plate(parent, w, 0.012, x, y, z, canvasTex(Math.round(w / 0.012 * 128), 128, (c, W, H) => {
       c.fillStyle = '#f6efdc'; c.fillRect(0, 0, W, H);
@@ -162,7 +197,7 @@ export function capacitorRig() {
   const up = new THREE.Vector3(0, 1, 0);
   let arrowMode;
   return {
-    group, handle, grip, dial, screen, pivot, neutral, radius,
+    group, handle, grip, dial, screen, pivot, neutral, radius, leads,
     setAngle: selector.setAngle, throwAngle: selector.throwAngle,
     draw(voltage, current) {
       needle.rotation.y = -angleFor(current * 1000);

@@ -14,8 +14,9 @@ const fixed = [
 const links = [
   ['E.+', 'A.0.6', '断开开关，从电池红柱拖线到电流表的 0.6 A 柱，把电流表串入负载支路。'],
   ['V.3', 'E.+', '电流表已串入。把电压表的 3 V 柱接到电池正极。'],
-  ['V.-', 'S.b', '从电压表黑柱拖到开关右柱，使电压表跨在负载两端。'],
+  ['V.-', 'S.b', '把电压表黑柱接到开关右柱。这样，电压表就并在电流表和滑动变阻器组成的串联支路两端。'],
 ];
+const readingTolerance = meter => meter.range / 30 * 0.55;
 function bestLine(points) {
   const n = points.length;
   const meanI = points.reduce((s, p) => s + p[0], 0) / n,
@@ -44,7 +45,7 @@ export default {
     const group = new THREE.Group();
     const c = new Circuit({ showCurrent: false });
     group.add(c.group);
-    c.add(battery('E', { cells: 1, emf: 1.48, r: 1.8 }), [-0.14, -0.075]);
+    const cell = c.add(battery('E', { cells: 1, emf: 1.48, r: 1.8 }), [-0.14, -0.075]);
     const sw = c.add(switchPart('S'), [-0.14, 0.065]);
     const load = c.add(rheostatPart('R', { Rmax: 20, pos: 0.38 }), [0.026, 0.103]);
     const A = c.add(meterPart('A', { type: 'A' }), [0.125, -0.065]);
@@ -188,11 +189,11 @@ export default {
     }
     function submitReading() {
       if (!near || !ready()) return;
-      const m = near, unit = m === A ? ' A' : ' V', step = m.range / 30;
+      const m = near, unit = m === A ? ' A' : ' V', tolerance = readingTolerance(m);
       const value = readField.valueAsNumber;
       if (!Number.isFinite(value)) return say('先把指针所指的数填进读数框。');
-      if (value < 0 || value > m.range || Math.abs(value - m.value) > step * 0.55) {
-        const wrongRange = Math.abs(value / 5 - m.value) < step * 0.55;
+      if (value < 0 || value > m.range || Math.abs(value - m.value) > tolerance) {
+        const wrongRange = Math.abs(value / 5 - m.value) < tolerance;
         return say(wrongRange ? '读到外圈了。接线柱选的是小量程，沿同一指针读内圈。' :
           meterName(m) + '读数偏' + (value < m.value ? '小' : '大') + '。内圈每小格 ' + (m === A ? '0.02 A' : '0.1 V') + '，看指针落在哪两格之间。');
       }
@@ -212,14 +213,23 @@ export default {
       records.add([String(points.length), i.toFixed(3), u.toFixed(2)]);
       records.el.hidden = plot.el.hidden = false;
       const span = Math.max(...points.map(p => p[0])) - Math.min(...points.map(p => p[0]));
-      const trend = !last ? '第一组读数已落在图上。共取至少四组，让各点分开。' : u === last[1] ? '两次路端电压读数相同。' :
-        '与上一组相比，电流' + (i > last[0] ? '增大' : '减小') + '，路端电压' + (u > last[1] ? '升高' : '降低') + '。';
+      let trend = '第一组读数已落在图上。共取至少四组，让各点分开。';
+      let remeasure = false;
+      if (last) {
+        const di = i - last[0], du = u - last[1];
+        // 两次估读的偏差可方向相反。用记录精度比较，避免浮点减法把边界判作明显变化。
+        remeasure = Math.abs(+di.toFixed(3)) <= 2 * readingTolerance(A) ||
+          Math.abs(+du.toFixed(2)) <= 2 * readingTolerance(V) || di * du >= 0;
+        trend = remeasure ? '这两次的录入读数可能受估读影响。拉开电流间距再测一组。' :
+          '这两次的录入读数中，较大的电流对应较低的电压。';
+      }
       if (points.length >= 4 && span >= 0.15) {
         bar.done('measure');
         line = null; fitted.length = 0;
         estimates.hidden = true; fit.hidden = false; eField.value = rField.value = '';
-        say(trend + '各点已拉开，断开开关后作图。', knob);
-      } else say(trend + '向左拖滑片减小电阻，再测一组。' + (points.length >= 4 ? '让最大和最小电流至少相差 0.15 A。' : ''), grip);
+        say(trend + '已记够四组，可断开开关，看各组点的整体趋势。', knob);
+      } else say(trend + (remeasure ? '' : '向左拖滑片减小电阻，再测一组。') +
+        (points.length >= 4 ? '让最大和最小电流至少相差 0.15 A。' : ''), grip);
       drawPlot();
     }
     const farI = () => Math.floor(Math.max(...points.map(p => p[0])) * 20) / 20;
@@ -262,8 +272,9 @@ export default {
       if (!Number.isFinite(r) || Math.abs(r - line.r) > 0.16)
         return say('电动势读对了。取下降的电压差，除以正的电流增量，内阻应为正值。');
       const i = farI(), u = line.e - i * line.r;
-      result.textContent = '纵截距　E ≈ ' + line.e.toFixed(2) + ' V\n内阻　r = |ΔU/ΔI|\n≈ (' +
-        line.e.toFixed(2) + ' − ' + u.toFixed(2) + ') V / ' + i.toFixed(2) + ' A ≈ ' + line.r.toFixed(1) + ' Ω';
+      result.textContent = '本轮读数的拟合直线随电流增大而下降。\n纵截距　E ≈ ' + line.e.toFixed(2) + ' V\n内阻　r = |ΔU/ΔI|\n≈ (' +
+        line.e.toFixed(2) + ' − ' + u.toFixed(2) + ') V / ' + i.toFixed(2) + ' A ≈ ' + line.r.toFixed(1) + ' Ω\n' +
+        `模拟依据课本第 90 页的 U = E − Ir。本课设定 E = ${cell.E} V，r = ${cell.r} Ω，滑动变阻器的最大阻值为 ${load.Rmax} Ω。`;
       result.hidden = false;
       estimates.hidden = true;
       bar.done('graph');
@@ -396,7 +407,7 @@ export default {
         document.body.append(tip);
         result.hidden = records.el.hidden = plot.el.hidden = true;
         ui.controls.append(readForm, diagramBox);
-        ui.data.append(plot.el, graphActions, records.el);
+        ui.data.append(note('模拟测量'), plot.el, graphActions, records.el);
         ui.notes.append(button('全部重做', reset));
         changed(c);
       },

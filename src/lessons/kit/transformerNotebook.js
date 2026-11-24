@@ -1,87 +1,86 @@
 // 图 3.3-2 的实验草图。原线圈接交流电源，电压表每次只跨接一个绕组。
 import { h, buttons, table, chart } from './ui.js';
+import { TAP_TURNS } from './transformer.js';
 
 export function transformerNotebook(panel, { plan, confirm, submit, reset }) {
   const diagram = h('canvas', {
     width: 320,
-    height: 98,
+    height: 124,
     style: 'width:100%;height:auto',
     'aria-label': '实验电路图',
   });
-  function sketch(n1, n2, primary) {
+  const note = { class: 'note', style: 'color:#514a3f;font-size:14px' };
+  const caption = h('div', note);
+  const goal = h('div', note);
+  function sketch(leads, source, probes) {
     const g = diagram.getContext('2d');
-    g.clearRect(0, 0, 320, 98);
+    const left = leads[0].side ?? leads[1].side ?? 0;
+    const coilX = (side) => side === left ? 130 : 190;
+    const tapY = (turns) => 99 - 18 * turns / 100;
+    g.clearRect(0, 0, 320, 124);
     g.lineWidth = 1.7;
     g.strokeStyle = '#3b464a';
     g.fillStyle = '#30474c';
+    g.textAlign = 'center';
     function line(points) {
       g.beginPath();
       points.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
       g.stroke();
     }
-    function symbol(x, text) {
+    for (const side of [left, 1 - left]) {
+      const x = coilX(side), dir = side === left ? 1 : -1;
+      const turns = side === left ? source?.n : probes?.side === side ? probes.n : null;
+      const role = source ? (side === left ? '原线圈' : '副线圈') : '线圈';
+      g.font = '14px sans-serif';
+      g.fillText(role + (turns ? ' ' + turns + ' 匝' : ''), side === left ? 85 : 235, 12);
       g.beginPath();
-      g.arc(x, 51, 10, 0, Math.PI * 2);
+      g.moveTo(x, 27);
+      for (let y = 27; y < 99; y += 9) g.bezierCurveTo(x + 12 * dir, y, x + 12 * dir, y + 9, x, y + 9);
       g.stroke();
-      g.font = 'bold 15px sans-serif';
-      g.fillText(text, x, 56);
+      g.font = '11px sans-serif';
+      for (const n of TAP_TURNS) {
+        const y = tapY(n);
+        line([[x, y], [x - 10 * dir, y]]);
+        g.fillText(String(n), x - 16 * dir, y - 3);
+      }
     }
-    g.textAlign = 'center';
-    g.font = '14px sans-serif';
-    g.fillText('原线圈 ' + n1 + ' 匝', 92, 16);
-    g.fillText('副线圈 ' + n2 + ' 匝', 222, 16);
-    line([
-      [35, 41],
-      [35, 28],
-      [143, 28],
-      [143, 31],
-    ]);
-    line([
-      [143, 71],
-      [143, 76],
-      [35, 76],
-      [35, 61],
-    ]);
-    for (const [x, dir] of [
-      [143, 1],
-      [169, -1],
-    ]) {
+    for (const x of [156, 164]) line([[x, 25], [x, 101]]);
+    function device(pair, symbol, outer) {
+      const pins = pair.filter((l) => l.side != null).sort((a, b) => b.turns - a.turns);
+      const side = outer ? left : pins[0]?.side ?? 1 - left;
+      const x = side === left ? (outer ? 26 : 70) : 267;
+      const split = pins.length === 2 && pins[0].side !== pins[1].side;
+      const y = pins.length === 2 && !split ? (tapY(pins[0].turns) + tapY(pins[1].turns)) / 2 : 64;
+      pins.forEach((l, i) => {
+        const end = coilX(l.side);
+        const pin = tapY(l.turns);
+        if (l.side === side) {
+          const sign = pin < y ? -1 : 1;
+          line([[x, y + sign * 8], [x, pin], [end, pin]]);
+        } else {
+          const route = outer ? 119 : 110, bend = end + (l.side === left ? -34 : 34);
+          const sign = tapY(pins[1 - i].turns) < y ? 1 : -1;
+          const bypass = x + (side === left ? -12 : 12);
+          line([[x, y + sign * 8], [bypass, y + sign * 8], [bypass, route], [bend, route], [bend, pin], [end, pin]]);
+        }
+      });
       g.beginPath();
-      g.moveTo(x, 31);
-      for (let y = 31; y < 71; y += 10) g.bezierCurveTo(x + 10 * dir, y, x + 10 * dir, y + 10, x, y + 10);
+      g.arc(x, y, 8, 0, Math.PI * 2);
       g.stroke();
+      g.font = 'bold 13px sans-serif';
+      g.fillText(symbol, x, y + 4);
+      if (outer) {
+        g.font = '13px sans-serif';
+        g.fillText('3 V ~', x, 114);
+      }
     }
-    line([
-      [154, 26],
-      [154, 77],
-    ]);
-    line([
-      [158, 26],
-      [158, 77],
-    ]);
-    line([
-      [169, 31],
-      [169, 28],
-      [246, 28],
-    ]);
-    line([
-      [169, 71],
-      [169, 76],
-      [246, 76],
-    ]);
-    const x = primary ? 98 : 246;
-    line([
-      [x, 28],
-      [x, 41],
-    ]);
-    line([
-      [x, 61],
-      [x, 76],
-    ]);
-    symbol(35, '∿');
-    symbol(x, 'V');
-    g.font = '13px sans-serif';
-    g.fillText('3 V ~', 35, 94);
+    device(leads.slice(0, 2), '∿', true);
+    device(leads.slice(2), 'V', false);
+  }
+  function preview(n) {
+    const leads = [0, 200, 0, n].map((turns, i) => ({ side: i < 2 ? 0 : 1, turns }));
+    sketch(leads, { n: 200 }, { side: 1, n });
+    caption.textContent = '方案电路图';
   }
   const first = h(
     'select',
@@ -106,12 +105,12 @@ export function transformerNotebook(panel, { plan, confirm, submit, reset }) {
   const planner = h(
     'div',
     {},
-    h('p', { class: 'note' }, '先固定原线圈匝数，再固定副线圈匝数。每轮只改一个量。'),
+    h('p', note, '两轮都保持原电压约 3 V。第一轮固定原线圈 200 匝，改变副线圈匝数。第二轮固定副线圈 200 匝，改变原线圈匝数。'),
     h('p', {}, h('label', {}, '我的测量步骤 ', method)),
     h('p', {}, h('label', {}, '首组副线圈 ', first), '　', h('label', {}, '预计 ', estimate, ' V')),
     buttons([{ text: '记下方案', onClick: () => plan(+first.value) }]).el,
   );
-  first.onchange = () => sketch(200, +first.value, false);
+  first.onchange = () => preview(+first.value);
   const review = buttons([{ text: '接线已核对', onClick: confirm }]);
   const value = h('input', {
     type: 'number',
@@ -121,6 +120,7 @@ export function transformerNotebook(panel, { plan, confirm, submit, reset }) {
     'aria-label': '电压读数',
   });
   const label = h('span');
+  const meterNote = h('p', note);
   const form = h(
     'form',
     {
@@ -147,7 +147,7 @@ export function transformerNotebook(panel, { plan, confirm, submit, reset }) {
     series: [{ points: dots, dots: true, line: false, color: '#28656f' }],
   });
   const forecast = h('p', { class: 'note' });
-  panel.controls.append(diagram, planner, forecast, review.el, form, h('div', {}, safety));
+  panel.controls.append(caption, diagram, goal, planner, forecast, review.el, meterNote, form, h('div', {}, safety));
   panel.data.append(record.el, result, graph.el, relation);
   panel.notes.append(buttons([{ text: '全部重做', onClick: reset }]).el);
   function clear() {
@@ -158,7 +158,8 @@ export function transformerNotebook(panel, { plan, confirm, submit, reset }) {
     dots.length = 0;
     record.clear();
     graph.el.hidden = true;
-    sketch(200, 100, false);
+    goal.hidden = true;
+    preview(100);
   }
   clear();
   return {
@@ -169,7 +170,12 @@ export function transformerNotebook(panel, { plan, confirm, submit, reset }) {
     planner,
     result,
     record,
-    sketch,
+    diagram(leads, source, probes, target) {
+      caption.textContent = '当前接线';
+      goal.hidden = !target;
+      if (target) goal.textContent = '本组目标：原 ' + target[0] + ' 匝，副 ' + target[1] + ' 匝。';
+      sketch(leads, source, probes);
+    },
     clear,
     planned(n) {
       forecast.textContent = [
@@ -179,12 +185,15 @@ export function transformerNotebook(panel, { plan, confirm, submit, reset }) {
         .filter(Boolean)
         .join('　');
     },
-    fields({ planning, check, reading, primary, finished, range }) {
+    fields({ planning, check, reading, primary, finished, range, digits }) {
       relation.hidden = !finished;
       planner.hidden = !planning;
       review.el.hidden = !check;
       form.hidden = !reading;
-      label.textContent = (primary ? '原线圈读数' : '副线圈读数') + (range ? '（' + range + ' V 挡）' : '');
+      meterNote.hidden = !range;
+      if (range) meterNote.textContent = '模拟交流有效值 · ' + range + ' V 挡。黑色内圈示数 × ' +
+        range / 10 + ' 即为电压（V），每小格 ' + range / 50 + ' V，估读到 ' + 10 ** -digits + ' V。';
+      label.textContent = primary ? '原线圈读数' : '副线圈读数';
       if (!reading) value.value = '';
     },
     add(n1, u1, n2, u2) {

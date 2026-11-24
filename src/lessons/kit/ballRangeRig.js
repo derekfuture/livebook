@@ -12,8 +12,16 @@ export const PAN_X = 0.19,
   FLAT = 0.03,
   LENGTH = 0.14;
 export const RELEASE_X = [0.204, 0.246];
-export function trackHeight(x) {
-  return 0.075 * (Math.max(0, x - LIP - FLAT) / LENGTH) ** 2;
+export const BOB_Z = 0.026, TRIAL_SLOPE = 0.34;
+const GRIP_D = 0.028, LEVEL_Y = CY - R - 0.004;
+// 槽口位置固定，调节末段的内端。固定夹以后的轨道和释放点保持原高度。
+function tiltOffset(x, slope) {
+  const d = Math.max(0, x - LIP);
+  const t = Math.min(1, Math.max(0, (d - FLAT) / 0.03));
+  return -slope * d * (1 - t * t * (3 - 2 * t));
+}
+export function trackHeight(x, slope = 0) {
+  return 0.075 * (Math.max(0, x - LIP - FLAT) / LENGTH) ** 2 + tiltOffset(x, slope);
 }
 const LEFT = LIP - 0.41,
   WIDTH = 0.44,
@@ -48,12 +56,46 @@ export function ballRangeRig() {
   geo.setIndex(indices);
   geo.computeVertexNormals();
   group.add(new THREE.Mesh(geo, paint(0x989994, { side: THREE.DoubleSide })));
-  for (const z of [-0.012, 0.012])
-    tube(
+  const sides = [-0.012, 0.012].map(z => tube(
       pts.map((p) => new THREE.Vector3(p.x, p.y + 0.001, z)),
       0.0016,
       0x848d8c,
-    );
+    ));
+  const grip = block(group, 0.014, 0.008, 0.012, LIP + GRIP_D, LEVEL_Y, 0.015, 0xa97846);
+  // 横线固定在支架侧面，对准调节柄的中线时，末段水平。
+  block(group, 0.047, 0.001, 0.002, LIP + 0.026, LEVEL_Y, 0.022, 0x504c43);
+  block(grip, 0.012, 0.001, 0.0005, 0, 0, 0.0062, 0xf8e5bd);
+  const sections = [geo, ...sides.map(m => m.geometry)].map(g => ({
+    g, base: g.attributes.position.array.slice(),
+  }));
+  function setSlope(slope) {
+    grip.position.y = LEVEL_Y - GRIP_D * slope;
+    for (const { g, base } of sections) {
+      const pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) pos.setY(i, base[i * 3 + 1] + tiltOffset(base[i * 3], slope));
+      pos.needsUpdate = true;
+      g.computeVertexNormals();
+      g.computeBoundingSphere();
+      g.computeBoundingBox();
+    }
+  }
+  const slopeAtGrip = y => Math.max(0, Math.min(TRIAL_SLOPE, (LEVEL_Y - y) / GRIP_D));
+  const trace = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({
+    color: 0x73665a, dashSize: 0.004, gapSize: 0.003,
+  }));
+  trace.visible = false;
+  group.add(trace);
+  function trialPath(physics) {
+    trace.visible = !!physics;
+    if (!physics) return;
+    const points = Array.from({ length: 81 }, (_, j) => {
+      const { x, drop } = physics.position(0, physics.airTime * j / 80);
+      return new THREE.Vector3(LIP - x, CY - drop, 0);
+    });
+    trace.geometry.setFromPoints(points);
+    trace.computeLineDistances();
+    trace.geometry.computeBoundingSphere();
+  }
   // 侧面的字牌指着球心所在的横截面，轨道上没有挡住滚动的凸块。
   RELEASE_X.forEach((x, i) => {
     const y = CY + trackHeight(x) - R;
@@ -61,12 +103,11 @@ export function ballRangeRig() {
     tag.position.set(x, y - 0.008, 0.014);
     group.add(tag);
   });
-  const bobZ = 0.026;
   block(group, 0.004, 0.003, 0.036, LIP, CY - R - 0.002, 0.011, 0x676a65);
-  tube([new THREE.Vector3(LIP, CY - R, bobZ), new THREE.Vector3(LIP, PAPER_Y + 0.017, bobZ)], 0.00048, 0x74624c);
+  tube([new THREE.Vector3(LIP, CY - R, BOB_Z), new THREE.Vector3(LIP, PAPER_Y + 0.017, BOB_Z)], 0.00048, 0x74624c);
   const bob = new THREE.Mesh(new THREE.ConeGeometry(0.0035, 0.012, 20), paint(0xa07a4a));
   bob.rotation.z = Math.PI;
-  bob.position.set(LIP, PAPER_Y + 0.01, bobZ);
+  bob.position.set(LIP, PAPER_Y + 0.01, BOB_Z);
   group.add(bob);
   block(group, WIDTH, 0.0075, DEPTH + 0.029, LEFT + WIDTH / 2, PAPER_Y - 0.004, 0.0145, 0x96826b);
   block(group, 0.086, 0.008, 0.032, 0.117, 0.004, 0.111, 0xb49c75);
@@ -132,7 +173,7 @@ export function ballRangeRig() {
     c.fillText(g + ' g', 210, 91);
     display.needsUpdate = true;
   }
-  function ink(origin, marks) {
+  function ink(origin, marks, findingOrigin) {
     const c = tex.canvas.getContext('2d'),
       px = (x) => (x - LEFT) * 6000,
       py = (z) => (z + DEPTH / 2) * 6000;
@@ -148,10 +189,28 @@ export function ballRangeRig() {
     };
     c.font = 'bold 52px sans-serif';
     c.textAlign = 'center';
+    if (findingOrigin || origin) {
+      c.strokeStyle = '#81694c';
+      c.lineWidth = 4;
+      c.beginPath();
+      c.arc(px(LIP), py(BOB_Z), 22, 0, 2 * Math.PI);
+      c.stroke();
+    }
     if (origin) {
+      c.strokeStyle = '#ac9d86';
+      c.lineWidth = 3;
+      c.setLineDash([22, 15]);
+      c.beginPath();
+      c.moveTo(px(LIP), py(0));
+      c.lineTo(px(LEFT + 0.006), py(0));
+      c.stroke();
+      c.setLineDash([]);
       line(px(LIP), -0.012, 0.034, '#81694c');
       c.fillStyle = '#645642';
-      c.fillText('O', px(LIP), py(-0.015));
+      c.beginPath();
+      c.arc(px(LIP), py(0), 9, 0, 2 * Math.PI);
+      c.fill();
+      c.fillText('O', px(LIP + 0.005), py(-0.004));
     }
     for (const m of marks) {
       const x = px(LIP - m.range);
@@ -164,5 +223,5 @@ export function ballRangeRig() {
     }
     tex.needsUpdate = true;
   }
-  return { group, paper, scale, balls, screen, bob, zero, weigh, ink };
+  return { group, paper, scale, balls, screen, bob, zero, weigh, ink, grip, setSlope, slopeAtGrip, levelY: LEVEL_Y, trialPath };
 }

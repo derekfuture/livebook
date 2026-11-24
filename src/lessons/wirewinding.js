@@ -14,6 +14,7 @@ const free = new THREE.Vector3(0.001, clip.y, -0.026);
 const rulerHome = new THREE.Vector3(-0.002, AXIS - 0.0009, 0.041);
 const circumference = 2 * Math.PI * GRIP_R;
 const mm = (v) => v.toFixed(1);
+const readingTolerance = 0.15; // 两端各自允许的估读偏差，单位 mm。
 const loose = (edges) => edges.widestGap > 0.001;
 
 export default {
@@ -30,7 +31,7 @@ export default {
   conclusion: {
     page: 70, rect: [210.51, 227.87, 525.75, 334.2],
     quote: '用分度值为1 mm的刻度尺直接测量电阻丝的直径d，产生的误差太大。为了解决这个问题，我们可以采用累积的方法，即取一段新的电阻丝，在圆柱形物体上紧密缠绕（图11.3-8），用分度值为1 mm的刻度尺测出总宽度，再除以圈数，这样便可以提高电阻丝直径的测量精度了。',
-    why: '把一根直径累积成多圈的总宽度，尺上同样大小的读数误差分摊到每圈。若圈间留缝，总宽还包含这些缝隙，所得直径偏大。',
+    why: '紧密绕的圈数越多，同样的读数误差分摊到每圈就越小。圈间留缝会增大总宽，但很小的差别可能被读数误差盖住。',
     src: '课本第 66 页 · 第十一章 第3节 实验：导体电阻率的测量',
   },
   create(ctx) {
@@ -44,13 +45,16 @@ export default {
     const edges = () => windingEdges(parts);
     const ready = () => (edges()?.count || 0) >= 2;
     const render = () => rig.render(parts, attached, gap, tip);
-    const rewindText = '圈间有缝，总宽把空隙也算进去了，算出的丝径偏大。向后滚木柄退丝，向左推紧导丝环再绕。';
+    const rewindText = '缝隙增大了总宽，小缝隙可能读不出来。向后滚木柄，退掉松绕的线圈。';
+    const tightenText = '向左推紧导丝环，再向前滚木柄，多绕几圈。';
+    const looseWireRemains = () => parts.some(p => p.pitch > WIRE_MM);
     const windText = '向前滚右端木柄，让几圈丝紧贴成一层，把一个丝径累积成能读的总宽。';
     const dockText = '把尺的刻度边拖到线圈前沿，贴近后从正上方读两端。';
     const countText = '沿紧贴尺边的那一排从左数到右，每根丝只数一次。';
     const target = () => {
       if (returning || near || ui?.step !== 1 || bar.finished) return null;
       if (!attached) return end;
+      if (needsRewind && !looseWireRemains() && gap) return guide;
       return ready() && !needsRewind ? rig.rulerGrip : knob;
     };
     const ring = inviteRing(group, { ground: 0.001 });
@@ -85,6 +89,7 @@ export default {
     function leave() {
       ctx.back();
       near = false;
+      rig.markRow(null);
       bar.near(false);
       form.hidden = true;
       if (docked && !bar.finished) bar.say('点尺面凑近，继续这次测量。');
@@ -101,16 +106,20 @@ export default {
       if (!docked || !ready() || bar.finished) return;
       const e = edges();
       near = true;
+      rig.markRow(e);
       bar.near(true);
       ui.fold(false);
       const width = (e.right - e.left) / 1000;
       ctx.look([START + (e.left + e.right) / 2000, AXIS, alignZ - 0.006],
         [0, 1, 0.005], Math.max(0.056, (width + 0.018) * 1.55), leave);
-      bar.say(readings.length === 2 ? countText : '读' + (readings.length ? '右' : '左') + '侧最外缘所对的刻度，每小格 1 mm，再估读一位。');
+      bar.say(readings.length === 2 ? countText : readText(readings.length === 1));
       updateForm();
     }
     function edgeReading(side) {
       return (START - scale.position.x + SPAN / 2) * 1000 + edges()[side];
+    }
+    function readText(right) {
+      return '沿尺边找到两枚蓝色三角之间的完整线圈，读' + (right ? '右' : '左') + '外缘。每小格 1 mm，再估读一位。';
     }
     function submit() {
       if (!near || !docked || !ready() || bar.finished) return;
@@ -120,7 +129,7 @@ export default {
         const diff = value - edgeReading(right ? 'right' : 'left');
         if (!Number.isFinite(value) || Math.abs(value * 10 - Math.round(value * 10)) > 1e-6)
           return bar.say('用毫米记数，估读到 0.1 mm。');
-        if (Math.abs(diff) > 0.15) return bar.say((right ? '右' : '左') + '端读数偏' + (diff > 0 ? '大' : '小') + '。沿尺边找最外缘，先数整格，再估不足一格的部分。');
+        if (Math.abs(diff) > readingTolerance) return bar.say((right ? '右' : '左') + '端读数偏' + (diff > 0 ? '大' : '小') + '。' + readText(right));
         readings.push(value);
         if (right) {
           bar.done('read');
@@ -128,7 +137,7 @@ export default {
           bar.say('两端都读好了。' + countText);
         } else {
           working.textContent = '左端 ' + mm(value) + ' mm';
-          bar.say('左端记好了。用同一把尺读右侧最外缘。');
+          bar.say(readText(true));
         }
         updateForm();
         return;
@@ -138,8 +147,11 @@ export default {
       if (value !== e.count) return bar.say((value > e.count ? '多数了。' : '少数了。') + '只数尺边这一排的丝，别数空隙或伸出的丝头。');
       const width = readings[1] - readings[0];
       const isLoose = loose(e), diameter = (width / value).toFixed(2);
-      records.add([readings.map(mm).join(' → '), String(value), diameter, isLoose ? '有缝' : '紧绕']);
+      // 两端的估读偏差叠加后，每圈仍可能相差至少一个估读位（0.1 mm）。
+      const coarse = 2 * readingTolerance >= value / 10;
+      records.add([readings.map(mm).join(' → '), String(value), diameter + (coarse ? '（粗测）' : ''), isLoose ? '有缝' : '紧绕']);
       working.textContent = widthFormula() + '\n' + (isLoose ? '含空隙的商' : '丝径') + ' = ' + mm(width) + ' mm ÷ ' + value + ' ≈ ' + diameter + ' mm';
+      if (coarse) working.textContent += '\n圈数少，只能粗测。可以多绕几圈再测。';
       leave();
       if (isLoose) {
         readings.length = 0;
@@ -148,7 +160,7 @@ export default {
         bar.say(rewindText);
       } else {
         bar.done('count');
-        bar.say('每圈紧挨着下一圈，总宽除以圈数就是一根丝的直径。可以掀开课本原文了。');
+        bar.say(coarse ? '已记下粗测结果。可以掀开课本原文，也可以点“全部重来”，多绕几圈再测。' : '用紧密线圈的总宽除以圈数，得到丝径的估测值。可以掀开课本原文了。');
       }
     }
     function widthFormula() {
@@ -160,6 +172,16 @@ export default {
         working.textContent = '';
         bar.undo('read');
       }
+    }
+    function afterRewind() {
+      if (!needsRewind) return false;
+      if (looseWireRemains()) bar.say(rewindText);
+      else if (gap) bar.say(tightenText);
+      else {
+        needsRewind = false;
+        return false;
+      }
+      return true;
     }
     function begin() { if (ui.step !== 1) ui.go(1); }
     const canWind = () => attached && !near && !returning && !bar.finished;
@@ -208,10 +230,8 @@ export default {
           const turns = woundTurns(parts), rest = Math.round(turns) - turns;
           if (Math.abs(rest) < 0.20) advanceWinding(parts, rest, WIRE_MM + gap);
           render();
-          if (needsRewind && (!woundTurns(parts) || (edges() && !loose(edges())))) needsRewind = false;
-          if (needsRewind) {
-            bar.say(rewindText);
-          } else if (!ready()) {
+          if (afterRewind()) return;
+          if (!ready()) {
             bar.undo('wind');
             bar.say(turns < 1.8 ? windText : '末圈还差一段。慢慢滚木柄，让浅色线回到朝上的位置。');
           } else {
@@ -231,7 +251,14 @@ export default {
           render();
         },
         onEnd(moved) {
-          if (moved) bar.say(gap ? '导丝环向右移了，再绕时圈间会留下空隙。' : '导丝环已靠紧，再绕的圈会彼此相贴。');
+          if (!moved) return;
+          const repairing = needsRewind;
+          if (afterRewind()) return;
+          if (repairing && ready()) {
+            bar.done('wind');
+            bar.say('尺已贴近线圈，点尺面读数。');
+          } else if (repairing) bar.say(windText);
+          else bar.say(gap ? '导丝环向右移了，再绕时圈间会留下空隙。' : '导丝环已靠紧，再绕的圈会彼此相贴。');
         },
       },
       {

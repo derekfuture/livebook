@@ -12,9 +12,9 @@ export const LEGS = [-0.11, 0.002],
   BASE_H = 0.018;
 export const AC_STOPS = [
   { label: 'OFF', mode: 'off' },
-  { label: '2.5 V ~', mode: 'volt', range: 2.5 },
-  { label: '10 V ~', mode: 'volt', range: 10 },
-  { label: '50 V ~', mode: 'volt', range: 50 },
+  { label: '2.5 V ~', mode: 'volt', range: 2.5, digits: 2 },
+  { label: '10 V ~', mode: 'volt', range: 10, digits: 1 },
+  { label: '50 V ~', mode: 'volt', range: 50, digits: 1 },
 ];
 function block(parent, x, y, z, w, h, d, c) {
   const obj = inked(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), paint(c)), { width: 0.65 });

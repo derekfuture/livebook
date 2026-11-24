@@ -10,7 +10,8 @@ export const ZERO_Y = 0.027,
   DIAL_FRONT = 0.008;
 export const CAP_HOME = new THREE.Vector3(0.037, 0.010, 0);
 export const SEAT = new THREE.Vector3(0, ZERO_Y - 0.005, 0);
-export const dialAngle = (kPa) => (kPa / 300 - 0.5) * Math.PI * 1.32;
+const dialMax = 400;
+export const dialAngle = (kPa) => (kPa / dialMax - 0.5) * Math.PI * 1.32;
 function cylinder(parent, x, y, z, r, h, color) {
   const obj = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 40), paint(color));
   obj.position.set(x, y, z);
@@ -33,7 +34,7 @@ function dialTexture() {
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.font = '56px sans-serif';
-    for (let k = 0; k <= 300; k += 5) {
+    for (let k = 0; k <= dialMax; k += 5) {
       const a = dialAngle(k),
         s = Math.sin(a),
         v = -Math.cos(a);
@@ -70,7 +71,6 @@ export function gasColumnRig() {
   group.add(glass);
   cylinder(group, 0, ZERO_Y - 0.001, 0, 0.0062, 0.002, 0x9eada6);
   cylinder(group, 0, ZERO_Y - 0.004, 0, 0.0022, 0.006, 0xb0a594);
-  // 共用一组刻线。横截面积 1 cm²，每 1 mm 柱长对应 0.1 cm³。
   const rulerTex = canvasTex(600, 1400, (g, w, h) => {
     g.fillStyle = '#f0e4c8';
     g.fillRect(0, 0, w, h);
@@ -79,18 +79,14 @@ export function gasColumnRig() {
     g.textBaseline = 'middle';
     const yAt = mm => h * (1 - (mm + 2) / 59);
     g.font = 'bold 62px sans-serif';
-    g.fillText('mm', 271, yAt(54));
-    g.fillText('cm³', 475, yAt(54));
+    g.fillText('mm', 300, yAt(54));
     for (let mm = 0; mm <= 50; mm++) {
       const y = yAt(mm);
       const major = mm % 10 === 0;
       g.fillRect(0, y - 2, major ? 153 : mm % 5 === 0 ? 109 : 62, major ? 6 : 4);
       if (major) {
         g.font = '74px sans-serif';
-        g.fillText(String(mm), 270, y);
-        g.fillStyle = '#205f64';
-        g.fillText(String(mm / 10), 475, y);
-        g.fillStyle = '#293e43';
+        g.fillText(String(mm), 300, y);
       }
     }
   });
@@ -156,7 +152,7 @@ export function gasColumnRig() {
   cap.add(pick);
   function set(length, pressure) {
     holder.position.y = ZERO_Y + length;
-    pointer.rotation.z = -dialAngle(Math.min(300, pressure / 1000));
+    pointer.rotation.z = -dialAngle(pressure / 1000);
   }
   return { group, holder, piston, grip, gauge, face, ruler, cap, capPick: pick, set };
 }

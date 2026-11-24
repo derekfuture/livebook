@@ -10,8 +10,12 @@ const UP = 0.101, TOP_STOP = 0.125, DOWN = 0.009;
 const outside = COIL_HEIGHT + 0.012, inside = COIL_HEIGHT - 0.01;
 const conditions = ['N 极插入', 'S 极插入', 'N 极抽出', 'S 极抽出'];
 const currents = ['顺时针', '逆时针'], fields = ['向下', '向上'];
-const shortStroke = '这次没有完成插入或抽出。让磁极越过线圈口再松手。';
-const blocked = '磁体还在线圈里，不能翻转。先把它抽出线圈口。';
+const guideIn = '再向下拖，让滑块白线到下标记。';
+const guideOut = '再向上拖，让滑块白线到上标记。';
+const returning = '还没到标记，磁体正在退回。';
+const retry = '这次没看清偏向。等表针回零，再重做这一项。';
+const blocked = '先向上抽出，让滑块白线到上标记，再横拖换极。';
+const visibleDeflection = 0.10;
 const calibration = '按图中接线，表针右偏对应俯视逆时针电流，左偏对应顺时针电流。';
 
 // 留下运动时的偏向；这里和课本插图一样，只示意方向，不表示电流大小。
@@ -45,13 +49,13 @@ export default {
     src: '课本第 26 页 · 第二章 第1节 楞次定律',
   },
   create(ctx) {
-    const rig = lenzRig(), root = new THREE.Group();
+    const rig = lenzRig(inside, outside), root = new THREE.Group();
     root.add(rig.group);
     let ui, bottom, rotation, north, inCoil, flux, current, needle, lastTime, hand, settling;
-    let records, sheet;
+    let records, sheet, observation;
     const body = h('tbody');
     const feedback = h('p', { class: 'status', 'aria-live': 'polite' });
-    function say(text) { feedback.textContent = text; }
+    function say(text) { if (feedback.textContent !== text) feedback.textContent = text; }
     function fillDirection(row, kind, sign, select) {
       const record = records[row];
       if (!record || !select.value) return;
@@ -120,7 +124,7 @@ export default {
       settling = { kind, from: kind === 'slide' ? bottom : rotation, to, time: performance.now() };
     }
     function reset() {
-      hand = settling = null;
+      hand = settling = observation = null;
       bottom = UP; rotation = 0; north = true; inCoil = false;
       flux = fluxLinkage(UP, true); current = needle = 0; lastTime = performance.now();
       draw();
@@ -146,6 +150,7 @@ export default {
         if (!hand.kind) {
           if (Math.max(Math.abs(dx), Math.abs(dy)) < 0.0015) return;
           hand.kind = Math.abs(dx) > 1.35 * Math.abs(dy) ? 'flip' : 'slide';
+          observation = null;
           say('');
         }
         if (hand.kind === 'flip') {
@@ -154,14 +159,23 @@ export default {
           sample(performance.now());
           return;
         }
-        bottom = clamp(hand.bottom + dy, DOWN, TOP_STOP);
-        const previousFlux = flux;
+        const next = clamp(hand.bottom + dy, DOWN, TOP_STOP);
+        if (next === bottom) return;
+        const descending = next < bottom;
+        if (observation && descending !== observation.entering) {
+          observation = null;
+          say(retry);
+        }
+        bottom = next;
         sample(performance.now());
         // 线圈口两侧各留一点余量；手在口沿抖动不会反复记行。
         if ((!inCoil && bottom <= inside) || (inCoil && bottom >= outside)) {
           inCoil = !inCoil;
           hand.crossed = true;
-          remember(inCoil, Math.sign(previousFlux - flux));
+          observation = { entering: inCoil, sign: inCoil === north ? 1 : -1 };
+          say('');
+        } else if (bottom > inside && bottom < outside) {
+          say(inCoil ? guideOut : guideIn);
         }
       },
       onEnd() {
@@ -172,9 +186,11 @@ export default {
           if (turn) north = !north;
           say(turn ? (north ? 'N' : 'S') + ' 极现在朝下，可以再次插入线圈。' : '磁体已转回原位。横拖到另一极朝下再松手，就能换极。');
         }
-        if (hand.kind === 'slide' && !hand.crossed && Math.abs(bottom - hand.bottom) > 0.0001) {
-          settle('slide', hand.bottom);
-          say(shortStroke);
+        if (hand.kind === 'slide' && Math.abs(bottom - hand.bottom) > 0.0001 &&
+            (!hand.crossed || (bottom > inside && bottom < outside))) {
+          observation = null;
+          settle('slide', hand.crossed ? (inCoil ? inside : outside) : hand.bottom);
+          say(returning);
         }
         hand = null;
       },
@@ -196,7 +212,7 @@ export default {
       size: { w: 0.33, d: 0.15, h: 0.22 }, view: { elev: 20, azim: 3, frameMargin: 1.10 },
       mount(panel) {
         ui = panel;
-        ui.status('比较四种情况下的感应电流方向。上下拖磁体，让磁极越过线圈口；抽出后横拖，可以换极。');
+        ui.status('比较四种情况下的感应电流方向。每次先等表针回零，再拖磁体。插入时让滑块白线到下标记，抽出时到上标记。抽出后横拖换极。');
         const headings = ['磁极运动', '表针示意', '原磁场', '俯视电流', '感应磁场'];
         sheet = h('table', { class: 'data', 'aria-label': '四种情况的实验记录', style: 'width:100%;table-layout:fixed;text-align:center' },
           h('thead', {}, h('tr', {}, headings.map(s => h('th', { style: 'padding:4px 1px' }, s)))), body);
@@ -214,20 +230,37 @@ export default {
           const t = Math.min(1, (now - settling.time) / 380);
           const value = settling.from + (settling.to - settling.from) * t * t * (3 - 2 * t);
           if (settling.kind === 'flip') rotation = value;
-          else bottom = value;
+          else {
+            bottom = value;
+            if (t === 1) say(inCoil ? guideOut : guideIn);
+          }
           if (t === 1) settling = null;
         }
         sample(now);
+        // 只用即将画到屏幕上的针位记行，不把两帧之间算出的电流当作读数。
+        if (observation) {
+          if (needle * observation.sign >= visibleDeflection) {
+            remember(observation.entering, Math.sign(needle));
+            observation = null;
+          } else if (!hand || hand.kind !== 'slide') {
+            say(retry);
+            observation = null;
+          }
+        }
       },
       dispose() { pointer.dispose(); },
       debug: {
         get state() { return { bottom, north, inCoil, needle, records }; },
         qa: qaFlow(pointer, [
-          move('在线圈口上方松手', UP - 0.02),
+          move('刚进入线圈口就松手', COIL_HEIGHT - 0.005),
           { name: '短拖归位且没有记录', run() {
-            check(bottom === UP && !records.some(Boolean) && feedback.textContent === shortStroke, '短拖未归位或被误记');
+            check(bottom === UP && !records.some(Boolean) && feedback.textContent === guideIn, '短拖未归位或被误记');
           } },
           move('N 极插入', DOWN),
+          move('刚抽出线圈口就松手', COIL_HEIGHT + 0.005),
+          { name: '抽出未到标记，回位后保留插入记录', run() {
+            check(inCoil && records[0]?.sign === 1 && !records[2] && feedback.textContent === guideOut, '短拖抽出被误记');
+          } },
           move('在线圈中尝试翻转', DOWN, 0.065),
           { name: '线圈挡住翻转', run() { check(north && feedback.textContent === blocked, '磁体在线圈中翻转'); } },
           move('N 极抽出', UP),

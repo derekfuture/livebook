@@ -12,7 +12,7 @@ function wire(points, radius, color) {
   return new THREE.Mesh(new THREE.TubeGeometry(curve, points.length * 10, radius, 10, false), paint(color));
 }
 
-export function lenzRig() {
+export function lenzRig(inside, outside) {
   const group = new THREE.Group();
   const base = inked(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.008, 0.105), paint(0x786857)));
   base.position.set(COIL_X, 0.004, 0);
@@ -61,14 +61,29 @@ export function lenzRig() {
   );
 
   const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0023, 0.0023, 0.178, 20), paint(0x899599));
-  rod.position.set(COIL_X, 0.097, -0.038);
+  const railX = COIL_X - 0.034;
+  rod.position.set(railX, 0.097, -0.038);
+  const scaleTop = COIL_BOTTOM + outside + MAGNET_LENGTH / 2 + 0.007;
+  const scale = new THREE.Mesh(new THREE.BoxGeometry(0.012, scaleTop - 0.008, 0.002), paint(0xc5bfad));
+  scale.position.set(railX - 0.013, (scaleTop + 0.008) / 2, -0.033);
+  group.add(scale);
+  // 两条标记与滑块白线的正面在同一平面，从斜上方也能准确对齐。
+  for (const height of [inside, outside]) {
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.0016, 0.0005), paint(0x394954));
+    tick.position.set(scale.position.x, COIL_BOTTOM + height + MAGNET_LENGTH / 2, -0.0318);
+    group.add(tick);
+  }
   const slider = new THREE.Group();
-  slider.position.set(COIL_X, 0, -0.038);
+  slider.position.set(railX, 0, -0.038);
   const sleeve = inked(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.012), paint(0x65727a)));
+  const index = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.0015, 0.0005), paint(0xfff4d7));
+  index.position.z = 0.0062;
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(COIL_X - railX, 0.003, 0.004), paint(0x879799));
+  arm.position.x = (COIL_X - railX) / 2;
   const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.034, 16), paint(0x879799));
   axle.rotation.x = Math.PI / 2;
-  axle.position.z = 0.017;
-  slider.add(sleeve, axle);
+  axle.position.set(COIL_X - railX, 0, 0.017);
+  slider.add(sleeve, index, arm, axle);
   const carrier = new THREE.Group(), labels = [];
   for (const [end, mark, color] of [[-1, 'N', 0xd9483b], [1, 'S', 0x2f6fd0]]) {
     const half = inked(new THREE.Mesh(new THREE.BoxGeometry(0.021, MAGNET_LENGTH / 2, 0.016), paint(color)));
