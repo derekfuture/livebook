@@ -15,6 +15,7 @@
 // 史实：元代朱世杰《算学启蒙》（1299）总括·明乘除段：“同名相乘为正，异名相乘为负。”（据国家图书馆藏本第一册《总括》第六叶）
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -55,7 +56,7 @@ export default {
     src: '课本 · 2.2.1 有理数的乘法（两个“思考”和有理数乘法法则在第 38–39 页）',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     let ui = null, dead = false;
     const T0 = performance.now(), now = () => (performance.now() - T0) / 1000;
@@ -186,7 +187,7 @@ export default {
       const knob = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.26, 14).rotateX(Math.PI / 2), lit({ color: 0xe9d9b8, roughness: 0.35 }))); knob.position.set(0.5, 0, 0.2); crank.add(knob); }
     cam.updateMatrixWorld(true); group.updateMatrixWorld(true);
     const hubP = group.worldToLocal(crank.getWorldPosition(new THREE.Vector3()));          // 摇把的轴心（台面坐标）
-    const crankPick = new THREE.Mesh(new THREE.SphereGeometry(1.75, 16, 12), basic({ visible: false })); crankPick.position.copy(hubP).add(V3(0.15, 0.45, 0)); crankPick.userData.pick = true; crankPick.userData.noFrame = true; group.add(crankPick);
+    const crankPick = new THREE.Mesh(new THREE.BoxGeometry(3.8, 4.6, 3.2), basic({ visible: false })); crankPick.position.set(cam.position.x, TOP + 2.25, ZCAM); crankPick.userData.pick = true; crankPick.userData.noFrame = true; group.add(crankPick);
 
     // ================= 车：一辆老式小轿车（象牙白车身、枣红车顶、镀铬保险杠） =================
     const makeCar = (mats) => { const g = new THREE.Group(), wheels = [];
@@ -236,9 +237,9 @@ export default {
     const head = (color, order = 14, ground = false) => { const m = quiet(new THREE.Mesh(headGeo, basic({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); m.renderOrder = order; m.visible = false; if (ground) { m.rotation.x = -Math.PI / 2; } group.add(m); return m; };
     // 数轴：近处路边一条白线，每米一个刻度、每 3 米写数，东头一个箭头（向东为正）
     const XL = 10.3;
-    const axis = gline(WHITE, 0.15, { glow: 0.48, shadow: 0.3, order: 8 }); axis.set([V3(-XL, LY, ZE), V3(XL - 0.25, LY, ZE)]);
-    { const hd = head(WHITE, 12, true); hd.position.set(XL + 0.2, LY + 0.002, ZE); hd.scale.set(0.68, 0.50, 1); hd.visible = true; }
-    const tickGeo = (() => { const pos = [], uv = []; for (let x = -10; x <= 10; x++) { const big = x % 3 === 0, hw = big ? 0.052 : 0.032, z0 = ZE, z1 = ZE + (big ? 0.54 : 0.31); pos.push(x - hw, LY, z0, x + hw, LY, z0, x - hw, LY, z1, x - hw, LY, z1, x + hw, LY, z0, x + hw, LY, z1); uv.push(0, 0.5, 1, 0.5, 0, 0.5, 0, 0.5, 1, 0.5, 1, 0.5); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); return g; })();
+    const axis = gline(WHITE, 0.09, { glow: 0.32, shadow: 0.3, order: 8 }); axis.set([V3(-XL, LY, ZE), V3(XL - 0.25, LY, ZE)]);
+    { const hd = head(WHITE, 12, true); hd.position.set(XL + 0.2, LY + 0.002, ZE); hd.scale.set(0.5, 0.36, 1); hd.visible = true; }
+    const tickGeo = (() => { const pos = [], uv = []; for (let x = -10; x <= 10; x++) { const big = x % 3 === 0, hw = big ? 0.035 : 0.022, z0 = ZE, z1 = ZE + (big ? 0.42 : 0.24); pos.push(x - hw, LY, z0, x + hw, LY, z0, x - hw, LY, z1, x - hw, LY, z1, x + hw, LY, z0, x + hw, LY, z1); uv.push(0, 0.5, 1, 0.5, 0, 0.5, 0, 0.5, 1, 0.5, 1, 0.5); } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); return g; })();
     { const t = quiet(new THREE.Mesh(tickGeo, basic({ color: WHITE, map: crispTex, transparent: true, opacity: 0.95, depthWrite: false }))); t.renderOrder = 9; group.add(t); }
     // 摄影机正对着的那条线：横穿公路的细虚线，从摄影机前一直到数轴上的 0
     const zeroLine = gline(WHITE, 0.035, { glow: 0, shadow: 0.15, dash: 0.28, order: 7, op: 0.55 }); zeroLine.set([V3(0, LY, -ROAD + 0.05), V3(0, LY, ZE)]);
@@ -250,7 +251,7 @@ export default {
         for (const q of parts) { g.font = q.f; g.shadowColor = 'rgba(8,14,20,0.85)'; g.shadowBlur = px * 0.22; g.lineWidth = px * 0.16; g.strokeStyle = 'rgba(10,16,24,0.6)'; g.strokeText(q.s, x, h / 2 + 2); g.shadowBlur = 0; g.fillStyle = q.c; g.fillText(q.s, x, h / 2 + 2); x += q.w; } }); };
     const label = (hgt, order = 30) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false, depthWrite: false }))); sp.renderOrder = order; sp.userData.h = hgt; sp.userData.k = ''; sp.visible = false; group.add(sp); return sp; };
     const setRich = (sp, segs, p) => { if (!segs) { sp.visible = false; return; } const key = JSON.stringify(segs); if (sp.userData.k !== key) { sp.userData.k = key; const t = richTex(segs); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; sp.userData.w = (sp.userData.h * t.image.width) / t.image.height; sp.scale.set(sp.userData.w, sp.userData.h, 1); } sp.position.copy(p); sp.visible = true; };
-    for (let x = -9; x <= 9; x += 3) setRich(label(1.04, 20), [[NUM(x), '#ffffff']], V3(x, LY + 0.05, ZE + 1.15));
+    for (let x = -9; x <= 9; x += 3) setRich(label(0.9, 20), [[NUM(x), 'rgba(255,255,255,0.97)']], V3(x, LY + 0.05, ZE + 1.0));
     const EQ = label(1.05, 32);          // 车上方的式子
     const dotTex = (col) => tex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, col); gr.addColorStop(0.38, col.replace('1)', '0.5)')); gr.addColorStop(1, col.replace('1)', '0)')); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
     const goldDot = dotTex('rgba(255,200,61,1)'), blueDot = dotTex('rgba(88,196,221,1)');
@@ -479,15 +480,19 @@ export default {
     function velUp() { if (S.held === 'vel') S.held = ''; }
     function setV(v) { const fromX = S.vAnim ? S.vAnim.x : carX(); S.v = v; if (v !== 0) S.face = v > 0 ? 1 : -1; S.vAnim = { t0: now(), fromX, toX: v * S.t, fromZ: S.zCar, toZ: laneOf(v, S.zCar), x: fromX }; record(v, 3); layout(); }
     const drags = [
-      { obj: crankPick, plane: 'xy', offset: hubP.z, hint: () => (S.step === 'fam' ? '转摇把：七辆车一起放' : '转摇把：顺时针往前放，逆时针往回放'), enabled: () => ['s1', 's3', 'fam'].includes(S.step) || S.done, onStart: (p) => crankDown(p), onDrag: (p) => crankMove(p), onEnd: () => crankUp() },
-      { obj: velPick, plane: 'xz', offset: LY, hint: () => '拖着左右挪：速度变大、变小', enabled: () => S.step === 's2', onStart: () => velDown(), onDrag: (p) => velMove(p), onEnd: () => velUp() },
+      { obj: crankPick, cueTarget: cam, cueText: () => S.step === 'fam' ? '转摇把往前放' : '逆时针转摇把，往回放', plane: 'xy', offset: hubP.z, hint: () => (S.step === 'fam' ? '转摇把：七辆车一起放' : '转摇把：顺时针往前放，逆时针往回放'), enabled: () => ['s1', 's3', 'fam'].includes(S.step) || S.done, onStart: (p) => crankDown(p), onDrag: (p) => crankMove(p), onEnd: () => crankUp() },
+      { obj: velPick, cueTarget: velKnob, plane: 'xz', offset: LY, hint: () => '拖着左右挪：速度变大、变小', enabled: () => S.step === 's2', onStart: () => velDown(), onDrag: (p) => velMove(p), onEnd: () => velUp() },
     ];
     const tip0 = tag?.('', 'pill'), tip = tip0 && { loc(o, x, y, z) { if (y <= -9) tip0.show(false); else { tip0.show(true); tip0.loc(o, x, y, z); } return tip; }, text(h) { tip0.text(h); return tip; } };          // 这一课以米为单位：kit 把提示“藏”到 y = −9 还在画面里，改成真的藏起来
     const dragApi = draggable(group, drags, { onClick: () => false, tip });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('往西开的车，2 秒前在哪儿？', '位置 = 速度 × 时间：(−3) × (−2) = ？'); prompt('先从会算的开始：往回放，车在哪儿？（转一转摄影机的摇把）'); }
-    function reset() { runId++; S = fresh(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } ghosts.forEach((gh) => { gh.on = false; gh.op = 0; gh.fadeTo = 0; gh.delay = 0; }); cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
+      if (S.step === 's2') return velPick;
+      if (S.step === 's1' || S.step === 's3' || (S.step === 'fam' && !S.met)) return crankPick;
+    });
+    function reset() { cue.reset(); runId++; S = fresh(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } ghosts.forEach((gh) => { gh.on = false; gh.op = 0; gh.fadeTo = 0; gh.delay = 0; }); cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -498,13 +503,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: 25.2, d: 17.4, h: 4.5 },
       view: { elev: 34, azim: 0, lookY: 0.25, frameMargin: 0.92 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'ff-board' + (S.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.fb-row'); if (!S.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) { opening(); axis.draw([V3(-XL, LY, ZE), V3(XL - 0.25, LY, ZE)], 0.9, 0.4); } else if (S.ask) ui.status?.(S.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t;
         // 胶片自己走：停手后落到整秒；思考（1）讲完快进回 3 秒
@@ -538,13 +543,12 @@ export default {
         // 重拍：一圈短光线往外迸
         for (let i = flashes.length - 1; i >= 0; i--) { const F = flashes[i], k = clamp((t - F.t0) / 0.55, 0, 1), e = easeOut(k); F.rays.forEach((L, j) => { const th = (j / F.rays.length) * Math.PI * 2 + 0.2, ra = lerp(F.r0, F.r1, e), rb = lerp(F.r0, F.r1, Math.min(1, e * 0.55 + 0.1)); L.set([V3(F.p.x + Math.cos(th) * rb, F.p.y + Math.sin(th) * rb + 0.25, F.p.z + 0.05), V3(F.p.x + Math.cos(th) * ra, F.p.y + Math.sin(th) * ra + 0.25, F.p.z + 0.05)]); L.fade(1 - k); });
           if (k >= 1) { for (const L of F.rays) { L.hide(); for (const m of [L.core, L.glow, L.shade]) if (m) { group.remove(m); m.geometry.dispose(); m.material.dispose(); } lineMeshes.splice(lineMeshes.indexOf(L), 1); } flashes.splice(i, 1); } }
-        // 该动手的地方轻轻一呼一吸：蓝点（速度）
-        velKnob.scale.setScalar(0.7 * (1 + (S.step === 's2' && !S.held ? 0.18 * Math.sin(t * 3.4) ** 2 : 0)));
         carDot.scale.setScalar(0.62 * (1 + 0.5 * Math.max(0, 1 - (t - (S.punchAt || -9)) / 0.9)));
         // 卡住很久才给提示（不拦着人）
         if (!S.held && !S.done && S.hint < 1 && t - S.stepAt > 15 && t - S.moved > 4) {
           const H1 = { s1: ['车开到摄影机以前，在哪儿？', '转一转摄影机侧面的摇把：逆时针是往回放'], s2: ['速度变成 0、再变成负的，车往哪边开？', '拖蓝点往摄影机那边挪'], s3: ['车头朝西，倒着放时它往哪边退？', '逆时针转摇把，往回放'], fam: ['什么时候所有车的位置坐标都是 0？', '转摇把往前放'] }[S.step];
           if (H1) { S.hint = 1; caption(...H1); } }
+        cue.update(S.step);
       },
       debug: {
         get S() { return S; }, rows, pose, cap: () => S.cap, hub: () => [hubP.x, hubP.y, hubP.z], at: { LY, ZA, ZE },

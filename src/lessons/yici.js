@@ -11,6 +11,7 @@
 //   一下子：十二道光从直线上每个时辰的点平射到铜尺上，嵌出子丑寅卯……亥十二条等距的刻线（答开头的问题）。
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -56,7 +57,7 @@ export default {
     src: '课本 · 23.2 一次函数的图象和性质（第 118–122 页）；铜壶滴漏为中国国家博物馆藏品',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     let ui = null, dead = false;
     const T0 = performance.now(), now = () => (performance.now() - T0) / 1000;
@@ -160,11 +161,13 @@ export default {
       rtex.needsUpdate = true; }
     drawRuler(0);
     // 浮箭：一根木箭，顶上一片铜指针指着铜尺
-    const arrowG = new THREE.Group(); group.add(arrowG);
-    { const rod = solid(new THREE.Mesh(new THREE.CylinderGeometry(M(0.009), M(0.009), M(0.75), 10), lit({ color: 0xc89c62, roughness: 0.6 }))); rod.position.y = -M(0.375); arrowG.add(rod);
-      const tab = solid(new THREE.Mesh(new THREE.BoxGeometry(M(0.062), M(0.009), M(0.006)), brass)); tab.position.set(M(0.031), 0, 0); arrowG.add(tab);
-      const tip = solid(new THREE.Mesh(new THREE.ConeGeometry(M(0.009), M(0.022), 4), brass)); tip.rotation.z = -Math.PI / 2; tip.position.set(M(0.07), 0, 0); arrowG.add(tip);
-      const knob = solid(new THREE.Mesh(new THREE.SphereGeometry(M(0.013), 12, 10), lit({ color: 0xc89c62, roughness: 0.6 }))); knob.position.y = M(0.008); arrowG.add(knob); }
+    const arrowG = new THREE.Group(), arrowBody = new THREE.Group(); group.add(arrowG); arrowG.add(arrowBody);
+    const arrowBrass = brass.clone();
+    const knob = solid(new THREE.Mesh(new THREE.SphereGeometry(M(0.013), 12, 10), lit({ color: 0xc89c62, roughness: 0.6 })));
+    { const rod = solid(new THREE.Mesh(new THREE.CylinderGeometry(M(0.009), M(0.009), M(0.75), 10), lit({ color: 0xc89c62, roughness: 0.6 }))); rod.position.y = -M(0.375); arrowBody.add(rod);
+      const tab = solid(new THREE.Mesh(new THREE.BoxGeometry(M(0.062), M(0.009), M(0.006)), arrowBrass)); tab.position.set(M(0.031), 0, 0); arrowBody.add(tab);
+      const tip = solid(new THREE.Mesh(new THREE.ConeGeometry(M(0.009), M(0.022), 4), arrowBrass)); tip.rotation.z = -Math.PI / 2; tip.position.set(M(0.07), 0, 0); arrowBody.add(tip);
+      knob.position.y = M(0.008); arrowBody.add(knob); }
     arrowG.position.set(M(-0.058), wy(0), M(0.0135));
     // 水滴、水纹
     const threadMat = new THREE.MeshStandardMaterial({ color: 0xf2faff, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.6, emissive: 0xcfe9f5, emissiveIntensity: 0.18, envMap: envTex, depthWrite: false });
@@ -203,15 +206,13 @@ export default {
     const partial = (pts, k) => { if (k >= 1) return pts; let tot = 0; for (let i = 1; i < pts.length; i++) tot += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); let want = tot * k; const out = [pts[0]]; for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); if (want >= l) { out.push(pts[i]); want -= l; } else { const t = l ? want / l : 0; out.push([lerp(pts[i - 1][0], pts[i][0], t), lerp(pts[i - 1][1], pts[i][1], t)]); break; } } return out; };
     // 箭头（以米计算，横竖比例不一样也不歪）
     const headGeo = new THREE.BufferGeometry(); headGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, -1, 0.5, 0, -1, -0.5, 0], 3));
-    const arrow = (color, w = 0.009, headLength = 0.026) => { const L = gline(color, w, { glow: 0.5, shadow: 0.2, map: MW, order: 12 }); const hd = quiet(new THREE.Mesh(headGeo, basic({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); hd.renderOrder = 15; hd.visible = false; group.add(hd);
-      L.to = (p, q) => { const a = g2m(...p), b = g2m(...q), d = Math.hypot(b[0] - a[0], b[1] - a[1]); if (d < 0.012) { L.hide(); hd.visible = false; return; } const u = [(b[0] - a[0]) / d, (b[1] - a[1]) / d], hl = Math.min(headLength, d * 0.45); L.set([a, [b[0] - u[0] * hl * 0.8, b[1] - u[1] * hl * 0.8]]); hd.position.set(M(b[0]), M(b[1]), Z + 0.0004); hd.rotation.z = Math.atan2(u[1], u[0]); hd.scale.setScalar(M(hl)); hd.visible = true; };
+    const arrow = (color, w = 0.009) => { const L = gline(color, w, { glow: 0.5, shadow: 0.2, map: MW, order: 12 }); const hd = quiet(new THREE.Mesh(headGeo, basic({ color, transparent: true, depthWrite: false, side: THREE.DoubleSide }))); hd.renderOrder = 15; hd.visible = false; group.add(hd);
+      L.to = (p, q) => { const a = g2m(...p), b = g2m(...q), d = Math.hypot(b[0] - a[0], b[1] - a[1]); if (d < 0.012) { L.hide(); hd.visible = false; return; } const u = [(b[0] - a[0]) / d, (b[1] - a[1]) / d], hl = Math.min(0.026, d * 0.45); L.set([a, [b[0] - u[0] * hl * 0.8, b[1] - u[1] * hl * 0.8]]); hd.position.set(M(b[0]), M(b[1]), Z + 0.0004); hd.rotation.z = Math.atan2(u[1], u[0]); hd.scale.setScalar(M(hl)); hd.visible = true; };
       L.off = () => { L.hide(); hd.visible = false; }; return L; };
     // 坐标格：淡白的格线、亮一点的坐标轴（y 轴就画在铜尺正中）
-    for (let x = 1; x <= 12; x++) gline(0xe8f2ff, 0.007, { glow: 0, shadow: 0, op: 0.46, order: 6 }).set([[x, YA], [x, YB]]);
-    for (let y = -10; y <= YB; y += 10) if (y) gline(0xe8f2ff, 0.007, { glow: 0, shadow: 0, op: 0.46, order: 6 }).set([[XA, y], [XB, y]]);
-    for (let x = 1; x <= 12; x++) gline(WHITE, 0.009, { glow: 0, shadow: 0 }).set([[x, -1.6], [x, 1.6]]);
-    for (let y = 10; y <= 60; y += 10) gline(WHITE, 0.009, { glow: 0, shadow: 0 }).set([[-0.21, y], [0.21, y]]);
-    const axX = arrow(WHITE, 0.018, 0.042), axY = arrow(WHITE, 0.018, 0.042);
+    for (let x = 1; x <= 12; x++) gline(0xe8f2ff, 0.005, { glow: 0, shadow: 0.08, op: 0.3, order: 6 }).set([[x, YA], [x, YB]]);
+    for (let y = -10; y <= YB; y += 10) if (y) gline(0xe8f2ff, 0.005, { glow: 0, shadow: 0.08, op: 0.3, order: 6 }).set([[XA, y], [XB, y]]);
+    const axX = arrow(WHITE, 0.01), axY = arrow(WHITE, 0.01); axX.fade(0.92); axY.fade(0.92);
     axX.to([XA, 0], [XB + 0.35, 0]); axY.to([0, YA], [0, YB + 6]);
 
     // 字：斜体衬线（像课本、像 LaTeX），白字或者概念的颜色，底下垫一圈暗光
@@ -222,12 +223,12 @@ export default {
         for (const q of parts) { g.font = q.f; g.shadowColor = 'rgba(8,16,24,0.85)'; g.shadowBlur = px * 0.22; g.lineWidth = px * 0.16; g.strokeStyle = 'rgba(10,20,30,0.55)'; g.strokeText(q.s, x, h / 2 + 2); g.shadowBlur = 0; g.fillStyle = q.c; g.fillText(q.s, x, h / 2 + 2); x += q.w; } }); };
     const label = (hgt, order = 30) => { const sp = quiet(new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthTest: false }))); sp.renderOrder = order; sp.userData.h = hgt; sp.userData.k = ''; sp.visible = false; group.add(sp); return sp; };
     const setRich = (sp, segs, p, anchor = 0.5) => { if (!segs) { sp.visible = false; return; } const key = JSON.stringify(segs); if (sp.userData.k !== key) { sp.userData.k = key; const t = richTex(segs); sp.material.map?.dispose?.(); sp.material.map = t; sp.material.needsUpdate = true; const hh = sp.userData.h; sp.userData.w = (hh * t.image.width) / t.image.height; sp.scale.set(sp.userData.w, hh, 1); } sp.position.set(wx(p[0]) + sp.userData.w * (0.5 - anchor), wy(p[1]), Z + 0.002); sp.visible = true; };
-    const TICK = CSS.w;
-    for (let x = 1; x <= 12; x++) setRich(label(M(0.075), 20), [[String(x), TICK, false]], [x, -5.6]);
-    const yTicks = []; for (let y = 10; y <= 60; y += 10) { const sp = label(M(0.075), 20); setRich(sp, [[String(y), TICK, false]], [-0.85, y], 1); yTicks.push(sp); }
-    setRich(label(M(0.078), 20), [['x', CSS.w], ['/时辰', 'rgba(255,255,255,0.82)', false]], [XB + 0.1, -5.8], 0.15);
-    setRich(label(M(0.078), 20), [['y', CSS.w], ['/cm', 'rgba(255,255,255,0.82)', false]], [0.45, YB + 6], 0);
-    setRich(label(M(0.075), 20), [['O', 'rgba(255,255,255,0.9)']], [-0.82, -5.2], 1);
+    const TICK = 'rgba(255,255,255,0.86)';
+    for (let x = 1; x <= 12; x++) setRich(label(M(0.064), 20), [[String(x), TICK, false]], [x, -5.6]);
+    const yTicks = []; for (let y = 10; y <= 60; y += 10) { const sp = label(M(0.064), 20); setRich(sp, [[String(y), TICK, false]], [-0.85, y], 1); yTicks.push(sp); }
+    setRich(label(M(0.07), 20), [['x', CSS.w], ['/时辰', 'rgba(255,255,255,0.82)', false]], [XB + 0.1, -5.8], 0.15);
+    setRich(label(M(0.07), 20), [['y', CSS.w], ['/cm', 'rgba(255,255,255,0.82)', false]], [0.45, YB + 6], 0);
+    setRich(label(M(0.064), 20), [['O', 'rgba(255,255,255,0.9)']], [-0.82, -5.2], 1);
     // 发光的点
     const dotTex = (col) => tex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.16, 'rgba(255,255,255,1)'); gr.addColorStop(0.24, col); gr.addColorStop(0.36, col.replace('1)', '0.55)')); gr.addColorStop(1, col.replace('1)', '0)')); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
     const ringTex = (col) => tex(128, 128, (g) => { g.strokeStyle = 'rgba(10,16,24,0.55)'; g.lineWidth = 16; g.beginPath(); g.arc(64, 64, 40, 0, 6.3); g.stroke(); g.strokeStyle = col; g.lineWidth = 9; g.beginPath(); g.arc(64, 64, 40, 0, 6.3); g.stroke(); });
@@ -475,16 +476,36 @@ export default {
     function kUp() { if (S_.held !== 'k') return; S_.held = ''; if (S_.step === 'k' && S_.kNeg && S_.k !== 0) kDone(); }
     const pick = (r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), basic({ visible: false })); m.userData.pick = true; m.userData.noFrame = true; group.add(m); return m; };
     const tPick = pick(M(0.05)), bPick = pick(M(0.036)), kPick = pick(M(0.036));
+    // Grab anywhere on the exposed shaft or brass pointer. The graph's zero-hour
+    // handle remains available too. Measure the change from the grab height.
+    const arrowPick = new THREE.Group(), stemPick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), basic({ visible: false }));
+    const headPick = new THREE.Mesh(new THREE.BoxGeometry(M(0.10), M(0.032), M(0.035)), stemPick.material);
+    headPick.position.x = M(0.031);
+    headPick.userData.pick = stemPick.userData.pick = true;
+    arrowPick.userData.noFrame = true;
+    arrowPick.add(stemPick, headPick); arrowG.add(arrowPick);
+    let grabB = 0;
     const drags = [
-      { obj: tPick, plane: 'xy', offset: Z, hint: () => (canT() ? '拖着时间走' : ''), enabled: canT, onStart: () => tDown(), onDrag: (p) => tMove(toG(p)), onEnd: () => tUp() },
+      { obj: arrowPick, cueTarget: [arrowBody, bDot], cueStrength: 0.11, cueAlternate: bPick, plane: 'xy', offset: arrowG.position.z, enabled: canB,
+        hint: () => canB() ? '把子时的浮箭往上拖' : '',
+        cueText: () => S_.step === 'fit' ? '上下拖：子时壶里先有多少水' : '把子时的浮箭往上拖',
+        onStart: p => { if (p && bDown()) grabB = S_.b - toG(p)[1]; },
+        onDrag: p => bMove([0, toG(p)[1] + grabB]), onEnd: bUp },
+      { obj: tPick, cueTarget: tDot, plane: 'xy', offset: Z, hint: () => (canT() ? '拖着时间走' : ''), enabled: canT, onStart: () => tDown(), onDrag: (p) => tMove(toG(p)), onEnd: () => tUp() },
       { obj: bPick, plane: 'xy', offset: Z, hint: () => (canB() ? '上下拖：子时壶里先有多少水' : ''), enabled: canB, onStart: () => bDown(), onDrag: (p) => bMove(toG(p)), onEnd: () => bUp() },
-      { obj: kPick, plane: 'xy', offset: Z, hint: () => (canK() ? '上下拖蓝点，改变每个时辰的水位变化量' : ''), enabled: canK, onStart: () => kDown(), onDrag: (p) => kMove(toG(p)), onEnd: () => kUp() },
+      { obj: kPick, cueTarget: kDot, plane: 'xy', offset: Z, hint: () => (canK() ? '上下拖蓝点，改变每个时辰的水位变化量' : ''), enabled: canK, onStart: () => kDown(), onDrag: (p) => kMove(toG(p)), onEnd: () => kUp() },
     ];
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('用这件文物做一个匀速模型', '假设卯时读数是 19 cm，申时是 44 cm'); prompt('拖着时间走，浮箭每个时辰升多少？'); }
-    function reset() { runId++; S_ = fresh(); trailKey = null; for (const L of trails) { L.hide(); L.born = -9; } for (const L of rays) L.hide(); main.hide(); drawRuler(0); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
+      if (S_.step === 'run') return tPick;
+      if (S_.step === 'b') return arrowPick;
+      if (S_.step === 'k') return kPick;
+      if (S_.step === 'fit') return S_.k === KF ? arrowPick : kPick;
+    });
+    function reset() { cue.reset(); runId++; S_ = fresh(); trailKey = null; for (const L of trails) { L.hide(); L.born = -9; } for (const L of rays) L.hide(); main.hide(); drawRuler(0); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -496,13 +517,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: M(2.8), d: M(1.6), h: M(2.56) },
       view: { elev: 11, azim: 0, lookY: 0.45, frameMargin: 1.0 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'yc-board' + (S_.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.yb-row'); if (!S_.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S_.ask) ui.status?.(S_.ask);
         requestAnimationFrame(() => aim?.(DIRV)); setTimeout(() => { if (!dead) aim?.(DIRV); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t; uT.value = t;
         flowTex.offset.x -= dt * 0.02; flowTex.offset.y += dt * 0.012;
@@ -528,16 +549,16 @@ export default {
           if (k >= 1) { for (const L of F.rays) { L.hide(); for (const m of [L.core, L.glow, L.shade]) if (m) { group.remove(m); m.geometry.dispose(); m.material.dispose(); } lineMeshes.splice(lineMeshes.indexOf(L), 1); } flashes.splice(i, 1); } }
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
-        // 该动手的那一点：轻轻一呼一吸
-        { const br = 1 + 0.2 * Math.sin(t * 3.4) ** 2, s = S_.step;
-          tDot.scale.setScalar(M(0.05) * (s === 'run' && !S_.held ? br : 1)); tRing.scale.setScalar(M(0.06) * (s === 'run' && !S_.held ? br : 1));
-          bDot.scale.setScalar(M(0.056) * (s === 'b' && !S_.held ? br : 1)); kDot.scale.setScalar(M(0.056) * (s === 'k' && !S_.held ? br : 1)); }
         tPick.position.set(wx(S_.t), wy(0), Z); bPick.position.set(wx(0), wy(S_.b), Z); kPick.position.copy(kDot.position); kPick.position.z = Z;
+        const exposed = Math.min(M(0.75), Math.max(0, arrowG.position.y - M(LID)));
+        stemPick.scale.set(M(0.035), exposed, M(0.035)); stemPick.position.y = -exposed / 2;
+        arrowPick.visible = canB();
         bPick.visible = canB(); kPick.visible = canK();
         // 卡住很久才给提示（不拦着人）
         if (!S_.held && !S_.done && S_.hint < 1 && t - S_.stepAt > 15 && t - S_.moved > 4) {
           const H1 = { run: ['时间往右拖：每过一个时辰，浮箭升多少？', '拖过 4 个时辰看看'], b: ['子时的浮箭是青色的点', '往上拖：壶里先多些水，直线跟着怎么动？'], k: ['k 变成负数会怎样？', '把蓝点往下拖过青点那一层：水往外放'], fit: ['两点之间：横着差几个时辰？竖着差几厘米？', '先让直线一样斜，再上下挪'] }[S_.step];
           if (H1) { S_.hint = 1; caption(...H1); } }
+        cue.update(S_.step);
       },
       debug: {
         get S() { return S_; }, rows, pose, cap: () => S_.cap,

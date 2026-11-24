@@ -12,6 +12,7 @@
 //   回到喷水池：最高点拖到 (1.6, 3)，落点拖到 3.6（a = −¾），水管长到和水柱接上：1.08 m（重拍 4），一圈水柱一起喷起来。
 import * as THREE from 'three';
 import { clamp, lerp, easeOut } from './kit/sheet.js';
+import { mathActionCue } from './kit/mathActionCue.js';
 import { draggable } from './kit/interact.js';
 import { sfx, audio } from './kit/audio.js';
 
@@ -48,7 +49,7 @@ export default {
     src: '课本 · 26.2.2 二次函数 y=a(x−h)²+k 的图象和性质（喷水池的问题是这一节的例题）',
   },
 
-  create({ aim, tag }) {
+  create({ aim, tag, camera }) {
     const root = new THREE.Group(), group = new THREE.Group(); root.add(group);
     let ui = null, dead = false;
     const T0 = performance.now(), now = () => (performance.now() - T0) / 1000;
@@ -577,15 +578,20 @@ export default {
     const pick = (r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r * S, 12, 10), basic({ visible: false })); m.userData.pick = true; m.userData.noFrame = true; group.add(m); return m; };
     const vPick = pick(0.42), pPick = pick(0.36), lPick = pick(0.4);
     const drags = [
-      { obj: vPick, plane: 'xy', offset: Z, hint: () => (S_.step === 'k' ? '按住往上提' : S_.step === 'h' ? '按住往右拖' : '拖着水柱的最高点'), enabled: () => ['k', 'h', 'gen', 'app'].includes(S_.step), onStart: (p) => vDown(toM(p)), onDrag: (p) => vMove(toM(p)), onEnd: () => vUp() },
-      { obj: pPick, plane: 'xy', offset: Z, hint: () => (S_.fx.drop ? '拖着水滴沿水柱走' : '拖着点 P 沿弧走'), enabled: () => S_.fx.look || S_.fx.drop, onStart: () => pDown(), onDrag: (p) => pMove(toM(p)), onEnd: () => pUp() },
-      { obj: lPick, plane: 'xy', offset: Z, hint: () => '拖着落点左右挪', enabled: () => S_.step === 'appA', onStart: () => lDown(), onDrag: (p) => lMove(toM(p)), onEnd: () => lUp() },
+      { obj: vPick, cueTarget: VD, plane: 'xy', offset: Z, hint: () => (S_.step === 'k' ? '按住往上提' : S_.step === 'h' ? '按住往右拖' : '拖着水柱的最高点'), enabled: () => ['k', 'h', 'gen', 'app'].includes(S_.step), onStart: (p) => vDown(toM(p)), onDrag: (p) => vMove(toM(p)), onEnd: () => vUp() },
+      { obj: pPick, cueTarget: PD, plane: 'xy', offset: Z, hint: () => (S_.fx.drop ? '拖着水滴沿水柱走' : '拖着点 P 沿弧走'), enabled: () => S_.fx.look || S_.fx.drop, onStart: () => pDown(), onDrag: (p) => pMove(toM(p)), onEnd: () => pUp() },
+      { obj: lPick, cueTarget: LD, plane: 'xy', offset: Z, hint: () => '拖着落点左右挪', enabled: () => S_.step === 'appA', onStart: () => lDown(), onDrag: (p) => lMove(toM(p)), onEnd: () => lUp() },
     ];
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('水管要多长？', '水柱最高处离池中心 1.6 m、高 3 m，落在离池中心 3.6 m 处'); prompt('先把水柱往上提：抛物线 y = −' + FR(1, 2) + 'x² 会怎么变？'); }
-    function reset() { runId++; S_ = fresh(); trailAt = null; for (const L of trails) { L.hide(); L.born = -9; } for (const L of [target, landMark, axis, before]) L.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
+      if (['k', 'h', 'gen', 'app'].includes(S_.step)) return vPick;
+      if (S_.step === 'why' || S_.step === 'max') return pPick;
+      if (S_.step === 'appA') return lPick;
+    });
+    function reset() { cue.reset(); runId++; S_ = fresh(); trailAt = null; for (const L of trails) { L.hide(); L.born = -9; } for (const L of [target, landMark, axis, before]) L.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };
     addEventListener('keydown', onKey);
 
@@ -596,13 +602,13 @@ export default {
       group: root, card: false, place: 'spread', scale: 0.95,
       size: { w: 2 * (R + RIM + 0.9) * S, d: 2 * (R + RIM + 0.6) * S, h: (SKY - BASE) * S },
       view: { elev: 21, azim: 0, lookY: 0.45, frameMargin: 1.0 },
-      pointer,
+      pointer: cue.pointer,
       mount(u) { ui = u; boardEl = document.createElement('div'); boardEl.className = 'th-board' + (S_.done ? ' review' : ''); u.controls?.append(boardEl);
         boardEl.addEventListener('click', (e) => { const r = e.target.closest?.('.tb-row'); if (!S_.done || !r?.dataset.k) return; for (const o of rows) o.classList?.remove('sel', 'fresh'); r.classList.add('sel'); sfx.clink({ freq: 1200, gain: 0.03 }); pose(r.dataset.k); });
         for (const r of rows) { boardEl.append(r); r.classList.add('in'); }
         ui.go?.(1); if (!cap.key) opening(); else if (S_.ask) ui.status?.(S_.ask);
         requestAnimationFrame(() => aim?.(DIR)); setTimeout(() => { if (!dead) aim?.(DIR); }, 700); },
-      dispose() { dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
+      dispose() { cue.dispose(); dead = true; runId++; removeEventListener('keydown', onKey); css.remove(); },
       update() {
         const t = now(), dt = Math.min(0.05, t - last); last = t;
         flowTex.offset.x -= dt * 0.02; flowTex.offset.y += dt * 0.012;
@@ -631,13 +637,12 @@ export default {
         for (let i = splashes.length - 1; i >= 0; i--) { const m = splashes[i], age = t - m.userData.born; if (age > 1.1) { group.remove(m); m.geometry.dispose(); m.material.dispose(); splashes.splice(i, 1); continue; } m.scale.setScalar((0.05 + age * 0.35) * S); m.material.opacity = 0.6 * (1 - age / 1.1); }
         // 此刻那一句：淡进淡出
         if (cap.out < 1e9) { const k = clamp(1 - (t - cap.out) / 0.35, 0, 1); capMesh.material.opacity = k; if (k <= 0) { cap.out = 1e9; const nx = cap.next; cap.next = null; nx?.(); } } else capMesh.material.opacity = clamp((t - cap.born) / 0.5, 0, 1);
-        // 该动手的地方：顶点 / P / 落点轻轻一呼一吸
-        { const b = 0.0135 * (1 + 0.18 * Math.sin(t * 3.4) ** 2); VD.scale.setScalar(['k', 'h', 'gen', 'app'].includes(S_.step) && !S_.held ? b : 0.0135); }
         vPick.position.set(wx(S_.h), wy(S_.k), Z); pPick.position.set(wx(S_.px), wy(fy(S_.a, S_.h, S_.k, S_.px)), Z); const lx2 = landX(); lPick.position.set(wx(lx2 ?? 0), wy(0), Z); lPick.visible = S_.step === 'appA'; pPick.visible = !!(S_.fx.look || S_.fx.drop);          // 用不上的拾取球收起来，不挡别的
         // 卡住很久才给提示（不拦着人）
         if (!S_.held && !S_.done && S_.hint < 1 && t - S_.stepAt > 15 && t - S_.moved > 4) {
           const H1 = { k: ['按住水柱的最高点往上提', '提高 1 米以上，松手'], h: ['按住最高点往右拖', '挪 1 米以上，松手'], why: ['看点 P 和原来那条：哪儿一样高？', '那支横着的箭头有多长？'], gen: ['往上、往下、往左、往右都拖一拖', '后面留下的那一族抛物线，形状变了吗？'], max: ['把水滴拖过最高点', '从左边拖到右边'], app: ['最高点拖到金色圆圈 (1.6, 3)', ''], appA: ['红点是水落下的地方', '拖到 3.6 那道红线上'] }[S_.step];
           if (H1) { S_.hint = 1; caption(...H1); } }
+        cue.update(S_.step);
       },
       debug: {
         get S() { return S_; }, rows, pose, cap: () => S_.cap,
