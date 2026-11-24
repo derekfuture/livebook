@@ -6,9 +6,9 @@ import { AREA } from './gasColumn.js';
 
 export const ZERO_Y = 0.027,
   DIAL_R = 0.022,
-  STEM = 0.062,
+  STEM = 0.070,
   DIAL_FRONT = 0.008;
-export const CAP_HOME = new THREE.Vector3(0.041, 0.01, 0.021);
+export const CAP_HOME = new THREE.Vector3(0.037, 0.010, 0);
 export const SEAT = new THREE.Vector3(0, ZERO_Y - 0.005, 0);
 export const dialAngle = (kPa) => (kPa / 300 - 0.5) * Math.PI * 1.32;
 function cylinder(parent, x, y, z, r, h, color) {
@@ -55,7 +55,7 @@ export function gasColumnRig() {
     holder = new THREE.Group();
   group.add(holder);
   block(group, 0, 0.003, 0, 0.101, 0.006, 0.056, 0x595c58);
-  cylinder(group, -0.037, 0.077, -0.009, 0.0025, 0.144, 0x848d8b);
+  cylinder(group, -0.037, 0.054, -0.009, 0.0025, 0.096, 0x848d8b);
   block(group, -0.022, 0.077, -0.008, 0.037, 0.008, 0.01, 0x996343);
   const clamp = new THREE.Mesh(new THREE.TorusGeometry(0.0072, 0.002, 10, 40), paint(0xaa7852));
   clamp.rotation.x = Math.PI / 2;
@@ -70,27 +70,37 @@ export function gasColumnRig() {
   group.add(glass);
   cylinder(group, 0, ZERO_Y - 0.001, 0, 0.0062, 0.002, 0x9eada6);
   cylinder(group, 0, ZERO_Y - 0.004, 0, 0.0022, 0.006, 0xb0a594);
-  const rulerTex = canvasTex(256, 1280, (g, w, h) => {
-    g.fillStyle = '#ecdfbf';
+  // 共用一组刻线。横截面积 1 cm²，每 1 mm 柱长对应 0.1 cm³。
+  const rulerTex = canvasTex(600, 1400, (g, w, h) => {
+    g.fillStyle = '#f0e4c8';
     g.fillRect(0, 0, w, h);
-    g.fillStyle = '#334245';
-    g.textAlign = 'right';
+    g.fillStyle = '#293e43';
+    g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = '70px sans-serif';
+    const yAt = mm => h * (1 - (mm + 2) / 59);
+    g.font = 'bold 62px sans-serif';
+    g.fillText('mm', 271, yAt(54));
+    g.fillText('cm³', 475, yAt(54));
     for (let mm = 0; mm <= 50; mm++) {
-      const y = h * (1 - (mm + 2) / 54),
-        major = mm % 10 === 0;
-      g.fillRect(0, y - 2, major ? 97 : mm % 5 === 0 ? 67 : 37, 4);
-      if (major) g.fillText(String(mm), w - 14, y);
+      const y = yAt(mm);
+      const major = mm % 10 === 0;
+      g.fillRect(0, y - 2, major ? 153 : mm % 5 === 0 ? 109 : 62, major ? 6 : 4);
+      if (major) {
+        g.font = '74px sans-serif';
+        g.fillText(String(mm), 270, y);
+        g.fillStyle = '#205f64';
+        g.fillText(String(mm / 10), 475, y);
+        g.fillStyle = '#293e43';
+      }
     }
   });
-  const ruler = new THREE.Mesh(new THREE.PlaneGeometry(0.013, 0.054), new THREE.MeshBasicMaterial({ map: rulerTex }));
-  ruler.position.set(0.015, ZERO_Y + 0.025, 0.00055);
+  const ruler = new THREE.Mesh(new THREE.PlaneGeometry(0.024, 0.059), new THREE.MeshBasicMaterial({ map: rulerTex }));
+  ruler.position.set(0.019, ZERO_Y + 0.0275, 0.00585);
   group.add(ruler);
-  block(group, 0.015, ZERO_Y + 0.025, -0.001, 0.013, 0.054, 0.0022, 0x817968);
+  block(group, 0.019, ZERO_Y + 0.0275, 0.0046, 0.024, 0.059, 0.0022, 0x817968);
   // 尺背的小支脚与立架相连。
   block(group, -0.01, ZERO_Y + 0.049, -0.008, 0.06, 0.002, 0.003, 0x795c45);
-  block(group, 0.015, ZERO_Y + 0.049, -0.005, 0.006, 0.003, 0.009, 0x795c45);
+  block(group, 0.015, ZERO_Y + 0.049, -0.002, 0.006, 0.003, 0.012, 0x795c45);
   // 固定在筒口的摩擦定位套持续支撑柱塞，松手读数时保持位置。
   const collar = new THREE.Mesh(new THREE.TorusGeometry(0.0033, 0.0013, 8, 32), paint(0x686358));
   collar.rotation.x = Math.PI / 2;
@@ -98,8 +108,10 @@ export function gasColumnRig() {
   group.add(collar);
   block(group, -0.005, ZERO_Y + 0.05, 0, 0.006, 0.002, 0.003, 0x78674f);
   const piston = cylinder(holder, 0, 0.0013, 0, innerRadius, 0.0026, 0x8d754f);
-  cylinder(holder, 0, 0.021, 0, 0.0024, 0.04, 0xa6aaa1);
-  cylinder(holder, 0, 0.041, 0, 0.0045, 0.004, 0x955b41);
+  cylinder(holder, 0, 0.025, 0, 0.0024, 0.05, 0xa6aaa1);
+  const grip = cylinder(holder, 0, 0.045, 0, 0.009, 0.006, 0xab6547);
+  // 红边与柱塞底面齐平；贴近尺面平视时与刻线在同一高度。
+  cylinder(holder, 0, 0.00025, 0, innerRadius + 0.00004, 0.0005, 0x983d2a);
   const gauge = new THREE.Group();
   gauge.position.y = STEM;
   holder.add(gauge);
@@ -137,7 +149,7 @@ export function gasColumnRig() {
   cap.add(sleeve);
   cylinder(cap, 0, -0.0034, 0, 0.0033, 0.0008, 0x874839);
   const pick = new THREE.Mesh(
-    new THREE.BoxGeometry(0.012, 0.01, 0.012),
+    new THREE.BoxGeometry(0.012, 0.009, 0.012),
     new THREE.MeshBasicMaterial({ visible: false }),
   );
   pick.userData.pick = true;
@@ -146,5 +158,5 @@ export function gasColumnRig() {
     holder.position.y = ZERO_Y + length;
     pointer.rotation.z = -dialAngle(Math.min(300, pressure / 1000));
   }
-  return { group, holder, piston, gauge, face, pointer, ruler, cap, set };
+  return { group, holder, piston, grip, gauge, face, ruler, cap, capPick: pick, set };
 }
