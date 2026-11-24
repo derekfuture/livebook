@@ -515,8 +515,8 @@ export default {
     function imgUp() { if (S.held === 'A' || S.held === 'B') S.held = ''; }
     const drags = [
       { obj: pickA, cueTarget: imgA, plane: 'xy', offset: ZM, hint: () => '上下拖：两边同时乘一个数', enabled: () => MUL.includes(S.step) && S.showImg, onStart: (p) => imgDown('A', p), onDrag: (p) => imgMove(p), onEnd: () => imgUp() },
-      { obj: pickB, plane: 'xy', offset: ZM, hint: () => '上下拖：两边同时乘一个数', enabled: () => MUL.includes(S.step) && S.showImg, onStart: (p) => imgDown('B', p), onDrag: (p) => imgMove(p), onEnd: () => imgUp() },
-      { obj: waterPick, cuePulse: gain => mirror.material.uniforms.color.value.setScalar(gain), plane: 'xy', offset: ZM, hint: () => '按住水面，上下拖', enabled: () => S.step === 'add', onStart: (p) => waterDown(p), onDrag: (p) => waterMove(p), onEnd: () => waterUp() },
+      { obj: pickB, cueTarget: imgB, plane: 'xy', offset: ZM, hint: () => '上下拖：两边同时乘一个数', enabled: () => MUL.includes(S.step) && S.showImg, onStart: (p) => imgDown('B', p), onDrag: (p) => imgMove(p), onEnd: () => imgUp() },
+      { obj: waterPick, cueTarget: mirror, plane: 'xy', offset: ZM, hint: () => '按住水面，上下拖', enabled: () => S.step === 'add', onStart: (p) => waterDown(p), onDrag: (p) => waterMove(p), onEnd: () => waterUp() },
     ];
     const dragApi = draggable(group, drags, { onClick: () => false });
     let heard = false;

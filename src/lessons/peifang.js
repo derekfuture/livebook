@@ -151,7 +151,7 @@ export default {
       sq: stroke(GOLD, 0.0016, Y), p: stroke(BLUE, 0.0016, Y + 0.0002), q: stroke(BLUE, 0.0016, Y + 0.0002),
       gap: stroke(TEAL, 0.0013, Y + 0.0004, { dash: 0.004 }), patch: stroke(TEAL, 0.0016, Y + 0.0006 + TH),
       outer: stroke(WHITE, 0.0012, Y + 0.0008, { dash: 0.005, glow: 0.4 }), big: stroke(WHITE, 0.0022, Y + 0.001, { glow: 0.7 }),
-      cut: stroke(WHITE, 0.0015, Y + 0.0012, { glow: 0.8 }), side: stroke(GOLD, 0.0024, Y + 0.0014, { glow: 0.8 }), sideX: stroke(GOLD, 0.0024, Y + 0.0016), side5: stroke(TEAL, 0.0024, Y + 0.0016),
+      cut: stroke(0xd9d9d9, 0.0015, Y + 0.0012, { glow: 0.8 }), side: stroke(GOLD, 0.0024, Y + 0.0014, { glow: 0.8 }), sideX: stroke(GOLD, 0.0024, Y + 0.0016), side5: stroke(TEAL, 0.0024, Y + 0.0016),
     };
     // 闪一下：从那一点迸出一圈短短的光线
     const flashes = [];
@@ -371,7 +371,7 @@ export default {
     const uvp = (p) => [p.x, -p.z];
     let grabOff = [0, 0];
     const drags = [
-      { obj: cutPick, cueTarget: K.cut.parts.slice(1), plane: 'xz', offset: G + 0.002, hint: () => '拖刀口：切下一段拼到上面', enabled: () => S.beat === 'cut', onStart: () => { S.held = 'cut'; }, onDrag: (p) => cutMove(uvp(p)[0]), onEnd: () => { S.held = ''; cutUp(); } },
+      { obj: cutPick, cueTarget: K.cut.parts[2], cueStrength: 0.14, plane: 'xz', offset: G + 0.002, hint: () => '拖刀口：切下一段拼到上面', enabled: () => S.beat === 'cut', onStart: () => { S.held = 'cut'; }, onDrag: (p) => cutMove(uvp(p)[0]), onEnd: () => { S.held = ''; cutUp(); } },
       { obj: patchPick, cueTarget: RUG.patch, plane: 'xz', offset: G + 0.002, hint: () => '拖进缺角', enabled: () => S.beat === 'patch', onStart: (p) => { S.held = 'patch'; grabOff = sub(S.patch, uvp(p)); }, onDrag: (p) => { if (S.beat !== 'patch') return; S.patch = add(uvp(p), grabOff); layout(); }, onEnd: () => { S.held = ''; patchUp(); } },
       { obj: bPick, cueTarget: bHandle.userData.ring, cueGrow: true, plane: 'xz', offset: G + 0.002, hint: () => '拖这个角，改一次项系数', enabled: () => S.beat === 'gen' || (S.done && S.filled), onStart: () => { S.held = 'b'; }, onDrag: (p) => bMove(uvp(p)[0]), onEnd: () => { S.held = ''; } },
     ];

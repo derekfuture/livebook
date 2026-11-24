@@ -459,7 +459,7 @@ export default {
     const drags = [
       { obj: reedPick, cueTarget: reed, plane: 'xy', offset: 0, hint: () => '按住芦苇，往岸边拉', enabled: () => S.beat === 'pond' && !S.banked, onStart: () => { S.held = 'reed'; }, onDrag: (p) => reedMove(p), onEnd: () => reedUp() },
       { obj: pkA, cueTarget: ST.A, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'A'; }, onDrag: (p) => stakeMove('A', p), onEnd: () => { S.held = ''; } },
-      { obj: pkB, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'B'; }, onDrag: (p) => stakeMove('B', p), onEnd: () => { S.held = ''; } },
+      { obj: pkB, cueTarget: ST.B, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'B'; }, onDrag: (p) => stakeMove('B', p), onEnd: () => { S.held = ''; } },
       { obj: PC.t1, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[0], onStart: () => rotDown(0), onDrag: (p) => rotMove(0, p), onEnd: () => rotUp(0) },
       { obj: PC.t2, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[1], onStart: () => rotDown(1), onDrag: (p) => rotMove(1, p), onEnd: () => rotUp(1) },
     ];

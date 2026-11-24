@@ -431,7 +431,7 @@ export default {
     const mPick = new THREE.Mesh(new THREE.SphereGeometry(4.4, 12, 8), basic({ visible: false })); mPick.position.set(0.8, 0.8, 1.2); mPick.userData.pick = true; mPick.userData.noFrame = true; gF.add(mPick);
     // 拖动用活页本身的坐标（不缩放的 root）：kit 把提示收起来时放到 y = −9（米），在 cm 的组里会落在画面里
     const RU = (v, ax) => world.position[ax] + v * K, cm = (p) => p && new THREE.Vector3((p.x - world.position.x) / K, (p.y - world.position.y) / K, (p.z - world.position.z) / K);
-    const skinDrag = (f) => ({ obj: skinPick[f], cueTarget: skin[f], cuePulse: gain => stoneFace[f].color.setScalar(S.k[f] === 0 ? gain : 1), plane: f === 'R' ? 'xz' : 'yz', offset: f === 'R' ? RU(H / 2, 'y') : RU(W / 2, 'x'), hint: () => (!skinOK(f) ? '' : S.k[f] > 0.5 ? '按住，合上' : f === 'R' ? '按住，往外翻开' : '按住，往上翻开'), enabled: () => skinOK(f) && S.held !== 'ant', onStart: (p) => skinDown(f, cm(p)), onDrag: (p) => skinMove(f, cm(p)), onEnd: () => skinUp(f) });
+    const skinDrag = (f) => ({ obj: skinPick[f], cueTarget: skin[f], cuePulse: strength => stoneFace[f].emissive.setScalar(S.k[f] === 0 ? strength : 0), plane: f === 'R' ? 'xz' : 'yz', offset: f === 'R' ? RU(H / 2, 'y') : RU(W / 2, 'x'), hint: () => (!skinOK(f) ? '' : S.k[f] > 0.5 ? '按住，合上' : f === 'R' ? '按住，往外翻开' : '按住，往上翻开'), enabled: () => skinOK(f) && S.held !== 'ant', onStart: (p) => skinDown(f, cm(p)), onDrag: (p) => skinMove(f, cm(p)), onEnd: () => skinUp(f) });
     const drags = [
       { obj: antPick, cueTarget: antBody, plane: 'xz', offset: 0, hint: () => (antOK() ? '按住蚂蚁，在石凳上拖着走' : ''), enabled: () => antOK(), onStart: () => antDown(), onDrag: () => {}, onEnd: () => antUp() },
       skinDrag('R'), skinDrag('T'),

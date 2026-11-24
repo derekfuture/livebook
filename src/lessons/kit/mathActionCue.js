@@ -1,19 +1,38 @@
 import { Box3, Vector3 } from 'three';
 import './mathActionCue.css';
 
-// The pick area can be much bigger than the prop. Only change the visible
-// material(s) named by the lesson. A sprite handle also grows around its centre.
+// Add light on the existing surface, after its texture and lighting have been
+// evaluated. The per-channel square root keeps the lift perceptually similar
+// on dark wood, brass and paper, while retaining their texture and hue.
+const emissions = new WeakMap();
+function surfaceEmission(material) {
+  if (emissions.has(material)) return emissions.get(material);
+  const strength = { value: 0 };
+  const compile = material.onBeforeCompile, key = material.customProgramCacheKey();
+  material.onBeforeCompile = function (shader, renderer) {
+    compile.call(this, shader, renderer);
+    shader.uniforms.cueEmission = strength;
+    shader.fragmentShader = 'uniform float cueEmission;\n' + shader.fragmentShader.replace(
+      '#include <tonemapping_fragment>',
+      `vec3 lift = cueEmission * vec3(1.015, 1.0, 0.985);
+       gl_FragColor.rgb += lift * (2.0 * sqrt(max(gl_FragColor.rgb, vec3(0.0))) + lift);
+       #include <tonemapping_fragment>`,
+    );
+  };
+  material.customProgramCacheKey = () => key + '-math-emission';
+  material.needsUpdate = true;
+  emissions.set(material, strength);
+  return strength;
+}
+
 function highlight(item) {
-  const colors = new Map(), sizes = new Map();
+  const lights = new Set(), sizes = new Map();
   const target = item.cueTarget || item.obj;
   const parts = Array.isArray(target) ? target : [target];
   function collect(part) {
     if (!part.material) return;
     for (const material of Array.isArray(part.material) ? part.material : [part.material]) {
-      if (!material.visible) continue;
-      for (const color of [material.color, material.emissive]) {
-        if (color && !colors.has(color)) colors.set(color, { base: color.clone(), last: color.clone() });
-      }
+      if (material.visible) lights.add(surfaceEmission(material));
     }
   }
   for (const part of parts) {
@@ -23,19 +42,15 @@ function highlight(item) {
   }
   // Point handles stay slightly larger throughout the cue. Only brightness oscillates.
   for (const [part, scale] of sizes) part.scale.copy(scale).multiplyScalar(1.4);
-  function brighten(gain) {
-    for (const [color, { base, last }] of colors) {
-      // The lesson may recolour a piece between frames.
-      if (!color.equals(last)) base.copy(color);
-      color.copy(base).multiplyScalar(gain);
-      last.copy(color);
-    }
-    item.cuePulse?.(gain);
+  function brighten(amount) {
+    const strength = amount * (item.cueStrength ?? 0.09);
+    for (const light of lights) light.value = strength;
+    item.cuePulse?.(strength);
   }
   return {
     brighten,
     restore() {
-      brighten(1);
+      brighten(0);
       for (const [part, scale] of sizes) part.scale.copy(scale);
     },
   };
@@ -136,9 +151,9 @@ export function mathActionCue(camera, pointer, dragApi, select) {
           lit = focus;
           started = time;
         }
-        const phase = (time - started) * (2 * Math.PI / 1800);
+        const phase = (time - started) * (2 * Math.PI / 1600);
         const breath = reduced.matches ? 0.5 : (1 - Math.cos(phase)) / 2;
-        pulse.brighten(hovered ? 1.22 : 1 + 0.2 * breath);
+        pulse.brighten(hovered ? 1 : breath);
       } else if (lit) stopLight();
 
       if (!hovered && time - idleSince < 8000) { hideLabel(); return; }
