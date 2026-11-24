@@ -431,7 +431,7 @@ export default {
     const RU = (v, ax) => world.position[ax] + v * K, cm = (p) => p && new THREE.Vector3((p.x - world.position.x) / K, (p.y - world.position.y) / K, (p.z - world.position.z) / K);
     const skinDrag = (f) => ({ obj: skinPick[f], cueTarget: skin[f], cuePulse: amount => { skinCue[f] = amount; }, plane: f === 'R' ? 'xz' : 'yz', offset: f === 'R' ? RU(H / 2, 'y') : RU(W / 2, 'x'), hint: () => (!skinOK(f) ? '' : S.k[f] > 0.5 ? '按住，合上' : f === 'R' ? '按住，往外翻开' : '按住，往上翻开'), enabled: () => skinOK(f) && S.held !== 'ant', onStart: (p) => skinDown(f, cm(p)), onDrag: (p) => skinMove(f, cm(p)), onEnd: () => skinUp(f) });
     const drags = [
-      { obj: antPick, cueTarget: ant, plane: 'xz', offset: 0, hint: () => (antOK() ? '按住蚂蚁，在石凳上拖着走' : ''), enabled: () => antOK(), onStart: () => antDown(), onDrag: () => {}, onEnd: () => antUp() },
+      { obj: antPick, cueTarget: antBody, cueGrow: antBody, cueGlow: { anchor: ant, size: 15 }, plane: 'xz', offset: 0, hint: () => (antOK() ? '按住蚂蚁，在石凳上拖着走' : ''), enabled: () => antOK(), onStart: () => antDown(), onDrag: () => {}, onEnd: () => antUp() },
       skinDrag('R'), skinDrag('T'),
       { obj: mPick, cueTarget: DM, plane: 'xy', offset: RU(OUT + LIFT, 'z'), hint: () => (threadOK() ? `从 M 拉一条线段到 ${S.name[openN()[0]] || 'N'}` : ''), enabled: () => threadOK(), onStart: (p) => threadDown(cm(p)), onDrag: (p) => threadMove(cm(p)), onEnd: () => threadUp() },
     ];
@@ -491,7 +491,7 @@ export default {
           if (fade <= 0) { S.swingAt = -9; for (const m of [swing, arc, over]) { m.set(null); m.fade(1); } } }
         // 翻开的面与正面连成一张淡蓝的展开图。
         for (const f of 'FRT') { const k = f === 'F' ? Math.max(S.k.R, S.k.T) : S.k[f], on = smooth(0, 0.15, k) * (f === 'F' ? 0.24 : 0.4);
-          skin[f].material.opacity = S.closed ? 0 : Math.max(on, (skinCue[f] || 0) * 0.34); grid[f].material.opacity = S.closed ? 0 : smooth(0.6, 1, k) * 0.28; edgeL[f].fade(S.closed ? 0 : smooth(0, 0.15, k)); }
+          skin[f].material.opacity = S.closed ? 0 : Math.max(on, (skinCue[f] || 0) * 0.72); grid[f].material.opacity = S.closed ? 0 : smooth(0.6, 1, k) * 0.28; edgeL[f].fade(S.closed ? 0 : smooth(0, 0.15, k)); }
         for (const f of 'RT') triFill[f].material.opacity = lerp(triFill[f].material.opacity, tri1(f) ? 0.24 : 0, Math.min(1, dt * 5));
         if (S.ghostOn) { const k = S.closed ? clamp(1 - (t - S.wowAt) / 1.4, 0, 1) : 1; for (const g of 'RT') ghost[g].fade(0.5 * k * (g === 'T' ? 0.7 : 1)); if (S.closed && k <= 0) { S.ghostOn = false; ghost.R.set(null); ghost.T.set(null); } }
         // 合上以后：最短的那条一直亮着，长的那条淡下去

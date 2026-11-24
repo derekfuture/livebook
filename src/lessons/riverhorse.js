@@ -442,7 +442,7 @@ export default {
     const uv = (p) => [p.x, -p.z];
     const foldDrag = (obj, cueTarget) => ({ obj, cueTarget, plane: 'xz', offset: G + 0.002, hint: () => '按住，往河对岸翻过去', enabled: () => S.beat === 'fold' && !S.flipped, onStart: (p) => foldDown(uv(p)), onDrag: (p) => foldMove(uv(p)), onEnd: () => foldUp() });
     const drags = [
-      { obj: horsePick, cueTarget: horse, plane: 'xz', offset: G + 0.004, hint: () => '拖着马沿河边走', onStart: (p) => horseDown(uv(p)), onDrag: (p) => horseMove(uv(p)), onEnd: () => horseUp() },
+      { obj: horsePick, cueTarget: horse, cueGlow: { anchor: horse, offset: [0, HS * 0.65, 0], size: HS * 4.5 }, plane: 'xz', offset: G + 0.004, hint: () => '拖着马沿河边走', onStart: (p) => horseDown(uv(p)), onDrag: (p) => horseMove(uv(p)), onEnd: () => horseUp() },
       foldDrag(penPick, realPen.g), foldDrag(paper),
     ];
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });

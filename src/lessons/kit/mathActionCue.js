@@ -1,35 +1,47 @@
-import { Box3, Vector3 } from 'three';
+import { AdditiveBlending, Box3, Sprite, SpriteMaterial, Vector3 } from 'three';
+import { glowTexture } from './props.js';
 import './mathActionCue.css';
 
 // The pick area can be much bigger than the prop. Only change the visible
 // material(s) named by the lesson. A sprite handle also grows around its centre.
 function highlight(item) {
-  const colors = new Map(), sizes = new Map();
+  const materials = new Map(), sizes = new Map();
   const target = item.cueTarget || item.obj;
   const parts = Array.isArray(target) ? target : [target];
   function collect(part) {
     if (!part.material) return;
     for (const material of Array.isArray(part.material) ? part.material : [part.material]) {
-      if (!material.visible || !material.color || colors.has(material.color)) continue;
-      const color = material.color;
-      colors.set(color, { base: color.clone(), last: color.clone() });
+      if (!material.visible || !material.color || materials.has(material)) continue;
+      materials.set(material, {
+        base: material.color.clone(), last: material.color.clone(), emission: material.emissive?.clone(),
+      });
     }
   }
   for (const part of parts) {
     if (part.isGroup) part.traverse(collect);
     else collect(part);
-    if (part.isSprite || item.cueGrow) sizes.set(part, part.scale.clone());
+    if (part.isSprite && item.cueGrow !== false) sizes.set(part, part.scale.clone());
   }
+  if (item.cueGrow) sizes.set(item.cueGrow, item.cueGrow.scale.clone());
   return amount => {
-    for (const [color, { base, last }] of colors) {
+    for (const [material, { base, last, emission }] of materials) {
+      const color = material.color;
       // Some lessons recolour a piece when it moves to its next position.
       if (!color.equals(last)) base.copy(color);
-      const gain = 1 + 0.75 * amount;
-      color.setRGB(base.r * gain + 0.26 * amount, base.g * gain + 0.20 * amount, base.b * gain + 0.13 * amount);
+      const emits = emission && material.emissiveIntensity > 0;
+      const tint = amount * (emits ? 0.25 : 1);
+      const gain = 1 + 0.9 * amount;
+      color.setRGB(base.r * gain + 1.7 * tint, base.g * gain + 0.62 * tint, base.b * gain + 0.1 * tint);
+      if (emission) {
+        // Keep dark details (reels, legs, lens) distinct within the lit prop.
+        const reflectance = material.map ? 0.38 : 0.2 + 0.8 * Math.min(1, base.g);
+        const light = reflectance * amount;
+        material.emissive.setRGB(emission.r + 1.9 * light, emission.g + 0.62 * light, emission.b + 0.08 * light);
+      }
       last.copy(color);
     }
     for (const [part, scale] of sizes) {
-      part.scale.copy(scale).multiplyScalar(1 + (part.isSprite ? 0.42 : 0.18) * amount);
+      part.scale.copy(scale).multiplyScalar(amount ? 2.65 + 0.35 * amount : 1);
     }
     item.cuePulse?.(amount);
   };
@@ -42,10 +54,16 @@ export function mathActionCue(camera, pointer, dragApi, select) {
   label.hidden = true;
   document.body.append(label);
   const bounds = new Box3(), point = new Vector3();
+  const halo = new Sprite(new SpriteMaterial({
+    map: glowTexture(), color: 0xffb64e, transparent: true, depthWrite: false, blending: AdditiveBlending,
+  }));
+  halo.userData.noFrame = true;
+  halo.raycast = () => {};
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let current, pulse, pressed = false, quietUntil = 0, lastFrame = -Infinity;
 
   function clear() {
+    halo.removeFromParent();
     pulse?.(0);
     pulse = null;
     current = null;
@@ -66,7 +84,8 @@ export function mathActionCue(camera, pointer, dragApi, select) {
       move(ray, e) {
         const result = pointer.move(ray, e);
         const hovered = dragApi.hovered()?.obj;
-        if (pressed || (hovered && hovered === select())) pause();
+        const selected = items.get(select());
+        if (pressed || (hovered && (selected?.obj === hovered || selected?.cueAlternate === hovered))) pause();
         return result;
       },
       up(ray, e) {
@@ -87,9 +106,19 @@ export function mathActionCue(camera, pointer, dragApi, select) {
         clear();
         current = item;
         pulse = highlight(item);
+        if (item.cueGlow) {
+          halo.material.depthTest = !item.cueGlow.onSurface;
+          halo.position.fromArray(item.cueGlow.offset || [0, 0, 0]);
+          item.cueGlow.anchor.add(halo);
+        }
       } else if (time - lastFrame < 32) return;
       lastFrame = time;
-      pulse(reduced.matches ? 0.8 : 0.82 + 0.18 * Math.sin(time * 0.0028));
+      const amount = reduced.matches ? 0.8 : 0.78 + 0.22 * Math.sin(time * 0.003);
+      pulse(amount);
+      if (item.cueGlow) {
+        halo.scale.setScalar(item.cueGlow.size * (0.78 + 0.22 * amount));
+        halo.material.opacity = 0.48 + 0.48 * amount;
+      }
 
       // Project the existing pick bounds to place the text above the handle.
       // Three caches geometry bounds, so this does not sample mesh vertices.
@@ -114,6 +143,6 @@ export function mathActionCue(camera, pointer, dragApi, select) {
       label.style.top = Math.max(label.offsetHeight + 8, (1 - point.y) * innerHeight / 2 - 8) + 'px';
     },
     reset() { clear(); pressed = false; quietUntil = 0; },
-    dispose() { clear(); label.remove(); document.body.classList.remove('math-guiding'); },
+    dispose() { clear(); halo.material.dispose(); label.remove(); document.body.classList.remove('math-guiding'); },
   };
 }

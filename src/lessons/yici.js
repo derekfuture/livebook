@@ -162,10 +162,11 @@ export default {
     drawRuler(0);
     // 浮箭：一根木箭，顶上一片铜指针指着铜尺
     const arrowG = new THREE.Group(), arrowBody = new THREE.Group(); group.add(arrowG); arrowG.add(arrowBody);
+    const knob = solid(new THREE.Mesh(new THREE.SphereGeometry(M(0.013), 12, 10), lit({ color: 0xc89c62, roughness: 0.6 })));
     { const rod = solid(new THREE.Mesh(new THREE.CylinderGeometry(M(0.009), M(0.009), M(0.75), 10), lit({ color: 0xc89c62, roughness: 0.6 }))); rod.position.y = -M(0.375); arrowBody.add(rod);
       const tab = solid(new THREE.Mesh(new THREE.BoxGeometry(M(0.062), M(0.009), M(0.006)), brass)); tab.position.set(M(0.031), 0, 0); arrowBody.add(tab);
       const tip = solid(new THREE.Mesh(new THREE.ConeGeometry(M(0.009), M(0.022), 4), brass)); tip.rotation.z = -Math.PI / 2; tip.position.set(M(0.07), 0, 0); arrowBody.add(tip);
-      const knob = solid(new THREE.Mesh(new THREE.SphereGeometry(M(0.013), 12, 10), lit({ color: 0xc89c62, roughness: 0.6 }))); knob.position.y = M(0.008); arrowBody.add(knob); }
+      knob.position.y = M(0.008); arrowBody.add(knob); }
     arrowG.position.set(M(-0.058), wy(0), M(0.0135));
     // 水滴、水纹
     const threadMat = new THREE.MeshStandardMaterial({ color: 0xf2faff, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.6, emissive: 0xcfe9f5, emissiveIntensity: 0.18, envMap: envTex, depthWrite: false });
@@ -484,7 +485,7 @@ export default {
     arrowPick.add(stemPick, headPick); arrowG.add(arrowPick);
     let grabB = 0;
     const drags = [
-      { obj: arrowPick, cueTarget: arrowBody, cueGrow: true, plane: 'xy', offset: arrowG.position.z, enabled: canB,
+      { obj: arrowPick, cueTarget: [arrowBody, bDot], cueGrow: knob, cueGlow: { anchor: arrowG, size: M(0.55) }, cueAlternate: bPick, plane: 'xy', offset: arrowG.position.z, enabled: canB,
         hint: () => canB() ? '把子时的浮箭往上拖' : '',
         cueText: () => S_.step === 'fit' ? '上下拖：子时壶里先有多少水' : '把子时的浮箭往上拖',
         onStart: p => { if (p && bDown()) grabB = S_.b - toG(p)[1]; },

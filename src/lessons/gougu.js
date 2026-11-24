@@ -457,7 +457,7 @@ export default {
       const step = () => { if (dead) return; const k = clamp((now() - t0) / 0.35, 0, 1); S.rot[i] = lerp(from, to, easeOut(k)); layout(); if (k < 1) requestAnimationFrame(step); else if (to === 1 && !S.placed[i]) placed(i); }; step(); }
     const tapSide = (k) => ({ obj: SP[k], cueTarget: TR[k].core, hint: () => '点一下：在这条边上长出正方形', enabled: () => S.beat === 'gougu' && S.grow[k] <= 0, onTap: () => growSq(k) });
     const drags = [
-      { obj: reedPick, cueTarget: reed, plane: 'xy', offset: 0, hint: () => '按住芦苇，往岸边拉', enabled: () => S.beat === 'pond' && !S.banked, onStart: () => { S.held = 'reed'; }, onDrag: (p) => reedMove(p), onEnd: () => reedUp() },
+      { obj: reedPick, cueTarget: reed, cueGlow: { anchor: reed, offset: [0, REED - 0.6, 0], size: 5.6 }, plane: 'xy', offset: 0, hint: () => '按住芦苇，往岸边拉', enabled: () => S.beat === 'pond' && !S.banked, onStart: () => { S.held = 'reed'; }, onDrag: (p) => reedMove(p), onEnd: () => reedUp() },
       { obj: pkA, cueTarget: ST.A, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'A'; }, onDrag: (p) => stakeMove('A', p), onEnd: () => { S.held = ''; } },
       { obj: pkB, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'B'; }, onDrag: (p) => stakeMove('B', p), onEnd: () => { S.held = ''; } },
       { obj: PC.t1, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[0], onStart: () => rotDown(0), onDrag: (p) => rotMove(0, p), onEnd: () => rotUp(0) },

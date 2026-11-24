@@ -465,7 +465,7 @@ export default {
     const effPick2 = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), basic({ visible: false })); effPick2.userData.pick = true; effPick2.userData.noFrame = true; world.add(effPick2);
     const toL = (p) => p;
     const effDrag = (obj, cueTarget) => ({ obj, cueTarget, plane: 'xy', offset: ZP, hint: () => (S.step === 'final' ? '往外拖：力会变小' : '按住，沿撬棍左右拖'), enabled: () => S.step !== 'wow' && S.step !== 'backing', onStart: (p) => effDown(toL(p)), onDrag: (p) => effMove(toL(p)), onEnd: () => effUp() });
-    const drags = [effDrag(effPick, [effArrow.core, effArrow.head, effDot]), effDrag(effPick2, LB.effX),
+    const drags = [effDrag(effPick, [effArrow.core, effArrow.head, effDot]), { ...effDrag(effPick2, LB.effX), cueGrow: false },
       { obj: rockPick, cueTarget: rock, plane: 'xy', offset: ZP, hint: () => '按住石头，沿撬棍挪', enabled: () => S.xy && ['rock', 'neg', 'end'].includes(S.step), onStart: (p) => rockDown(p), onDrag: (p) => rockMove(p), onEnd: () => rockUp() }];
     const dragApi = draggable(world, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
