@@ -1,110 +1,119 @@
-import { Matrix4, Vector3 } from 'three';
+import { Box3, Vector3 } from 'three';
 import './mathActionCue.css';
 
-// Project the silhouette, including thin or rotated pieces, in the current camera.
-// A small handle gets a finger-sized ring; a larger prop keeps its own proportions.
-function outline(object, camera, width, height) {
-  const points = [], p = new Vector3(), matrix = new Matrix4();
-  object.updateWorldMatrix(true, true);
-  object.traverseVisible(mesh => {
-    const pos = mesh.geometry?.attributes.position;
-    if (!pos || mesh.isSprite) return;
-    matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse).multiply(mesh.matrixWorld);
-    const { index, drawRange } = mesh.geometry;
-    const end = Math.min(index?.count ?? pos.count, drawRange.start + drawRange.count);
-    const stride = Math.max(1, Math.floor((end - drawRange.start) / 180));
-    for (let i = drawRange.start; i < end; i += stride) {
-      p.fromBufferAttribute(pos, index ? index.getX(i) : i).applyMatrix4(matrix);
-      if (p.z >= -1 && p.z <= 1) points.push([(1 + p.x) * width / 2, (1 - p.y) * height / 2]);
+// The pick area can be much bigger than the prop. Only change the visible
+// material(s) named by the lesson. A sprite handle also grows around its centre.
+function highlight(item) {
+  const colors = new Map(), sizes = new Map();
+  const target = item.cueTarget || item.obj;
+  const parts = Array.isArray(target) ? target : [target];
+  function collect(part) {
+    if (!part.material) return;
+    for (const material of Array.isArray(part.material) ? part.material : [part.material]) {
+      if (!material.visible || !material.color || colors.has(material.color)) continue;
+      const color = material.color;
+      colors.set(color, { base: color.clone(), last: color.clone() });
     }
-  });
-  if (!points.length) return null;
-  points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const left = points[0][0], right = points.at(-1)[0];
-  let top = Infinity, bottom = -Infinity;
-  for (const [, y] of points) { top = Math.min(top, y); bottom = Math.max(bottom, y); }
-  const x = (left + right) / 2, y = (top + bottom) / 2;
-  if (Math.max(right - left, bottom - top) < 38) {
-    const r = Math.max(18, Math.max(right - left, bottom - top) / 2 + 3);
-    return { x, top: y - r, path: `M ${x - r} ${y} a ${r} ${r} 0 1 0 ${2 * r} 0 a ${r} ${r} 0 1 0 ${-2 * r} 0` };
   }
-  function halfHull(sequence) {
-    const hull = [];
-    for (const c of sequence) {
-      while (hull.length > 1) {
-        const a = hull.at(-2), b = hull.at(-1);
-        if ((b[0] - a[0]) * (c[1] - a[1]) > (b[1] - a[1]) * (c[0] - a[0])) break;
-        hull.pop();
-      }
-      hull.push(c);
+  for (const part of parts) {
+    if (part.isGroup) part.traverse(collect);
+    else collect(part);
+    if (part.isSprite || item.cueGrow) sizes.set(part, part.scale.clone());
+  }
+  return amount => {
+    for (const [color, { base, last }] of colors) {
+      // Some lessons recolour a piece when it moves to its next position.
+      if (!color.equals(last)) base.copy(color);
+      const gain = 1 + 0.75 * amount;
+      color.setRGB(base.r * gain + 0.26 * amount, base.g * gain + 0.20 * amount, base.b * gain + 0.13 * amount);
+      last.copy(color);
     }
-    hull.pop();
-    return hull;
-  }
-  const hull = [...halfHull(points), ...halfHull(points.reverse())];
-  return { x, top, path: 'M' + hull.map(p => p.map(n => n.toFixed(1)).join(' ')).join('L') + 'Z' };
+    for (const [part, scale] of sizes) {
+      part.scale.copy(scale).multiplyScalar(1 + (part.isSprite ? 0.42 : 0.18) * amount);
+    }
+    item.cuePulse?.(amount);
+  };
 }
 
-// Only the published math lessons opt in. The lesson chooses one actionable item
-// by its actual phase, even when other items can still be freely explored.
-export function mathActionCue(camera, pointer, dragApi, phase, select) {
+export function mathActionCue(camera, pointer, dragApi, select) {
   const items = new Map(dragApi.items().map(item => [item.obj, item]));
-  const layer = document.createElement('div');
-  layer.className = 'math-action-cue';
-  layer.innerHTML = '<svg aria-hidden="true"><path class="shadow"/><path class="light"/><path class="core"/></svg><span></span>';
-  const label = layer.querySelector('span'), paths = layer.querySelectorAll('path');
-  document.body.append(layer);
-  let target, step, lastProjection = -Infinity, quietUntil = 0, pressed = false;
-  function hideBriefly() {
-    quietUntil = performance.now() + 3000;
-    layer.hidden = true;
+  const label = document.createElement('div');
+  label.className = 'math-action-cue';
+  label.hidden = true;
+  document.body.append(label);
+  const bounds = new Box3(), point = new Vector3();
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  let current, pulse, pressed = false, quietUntil = 0, lastFrame = -Infinity;
+
+  function clear() {
+    pulse?.(0);
+    pulse = null;
+    current = null;
+    label.hidden = true;
   }
-  layer.hidden = true;
+  function pause() {
+    quietUntil = performance.now() + 3000;
+    clear();
+  }
   return {
     pointer: {
       ...pointer,
       down(ray, e) {
         pressed = pointer.down(ray, e);
-        if (pressed) hideBriefly();
+        if (pressed) pause();
         return pressed;
       },
       move(ray, e) {
         const result = pointer.move(ray, e);
-        if (pressed || (target && dragApi.hovered()?.obj === target)) hideBriefly();
+        const hovered = dragApi.hovered()?.obj;
+        if (pressed || (hovered && hovered === select())) pause();
         return result;
       },
       up(ray, e) {
-        if (pressed) hideBriefly();
+        if (pressed) pause();
         pressed = false;
         return pointer.up(ray, e);
       },
     },
     update() {
-      const nextStep = phase(), next = select(), time = performance.now();
-      if (next !== target || nextStep !== step) {
-        target = next; step = nextStep; quietUntil = 0; lastProjection = -Infinity;
-      }
-      const item = items.get(target);
+      const item = items.get(select()), time = performance.now();
       const guiding = !!item && item.enabled?.() !== false && item.obj.visible;
       document.body.classList.toggle('math-guiding', guiding);
-      if (!guiding || time < quietUntil) { layer.hidden = true; return; }
-      if (!layer.hidden && time - lastProjection < 32) return;
-      lastProjection = time;
-      const shape = outline(item.cueShape || item.obj, camera, innerWidth, innerHeight);
-      if (!shape) { layer.hidden = true; return; }
-      layer.hidden = false;
-      layer.style.setProperty('--cue-color', item.cueColor || '#ffcc64');
-      if (paths[0].getAttribute('d') !== shape.path) {
-        for (const path of paths) path.setAttribute('d', shape.path);
+      if (!guiding || pressed || time < quietUntil) {
+        if (current) clear();
+        return;
       }
+      if (item !== current) {
+        clear();
+        current = item;
+        pulse = highlight(item);
+      } else if (time - lastFrame < 32) return;
+      lastFrame = time;
+      pulse(reduced.matches ? 0.8 : 0.82 + 0.18 * Math.sin(time * 0.0028));
+
+      // Project the existing pick bounds to place the text above the handle.
+      // Three caches geometry bounds, so this does not sample mesh vertices.
+      item.obj.updateWorldMatrix(true, false);
+      bounds.setFromObject(item.obj);
+      if (bounds.isEmpty()) { label.hidden = true; return; }
+      bounds.getCenter(point);
+      point.y = bounds.max.y;
+      point.project(camera);
+      if (point.z < -1 || point.z > 1) { label.hidden = true; return; }
       const hint = item.cueText || item.hint;
       const message = typeof hint === 'function' ? hint() : hint;
       if (label.textContent !== message) label.textContent = message;
+      label.hidden = false;
       const half = label.offsetWidth / 2 + 8;
-      label.style.left = Math.max(half, Math.min(innerWidth - half, shape.x)) + 'px';
-      label.style.top = Math.max(label.offsetHeight + 8, shape.top - 8) + 'px';
+      let x = (1 + point.x) * innerWidth / 2;
+      if (item.cueTarget?.isSprite) {
+        // Leave the point and its axis markings clear.
+        x += x + 2 * half < innerWidth ? half + 4 : -half - 4;
+      }
+      label.style.left = Math.max(half, Math.min(innerWidth - half, x)) + 'px';
+      label.style.top = Math.max(label.offsetHeight + 8, (1 - point.y) * innerHeight / 2 - 8) + 'px';
     },
-    reset() { target = null; quietUntil = 0; pressed = false; layer.hidden = true; },
-    dispose() { layer.remove(); document.body.classList.remove('math-guiding'); },
+    reset() { clear(); pressed = false; quietUntil = 0; },
+    dispose() { clear(); label.remove(); document.body.classList.remove('math-guiding'); },
   };
 }

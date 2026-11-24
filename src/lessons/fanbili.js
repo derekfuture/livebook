@@ -189,7 +189,7 @@ export default {
       const hs = quiet(new THREE.Mesh(headGeo, basic({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }))); hs.renderOrder = 13; hs.visible = false; world.add(hs);
       L.to = (a, b, hl = 0.2) => { const d = Math.hypot(b[0] - a[0], b[1] - a[1]); if (d < 0.05) { L.hide(); hd.visible = hs.visible = false; return; } const u = [(b[0] - a[0]) / d, (b[1] - a[1]) / d], h = Math.min(hl, d * 0.5); L.set([a, [b[0] - u[0] * h * 0.7, b[1] - u[1] * h * 0.7]]);
         for (const [m, k, z] of [[hd, 1, ZP + 0.004], [hs, 1.35, ZP - 0.003]]) { m.position.set(b[0] + u[0] * h * 0.1 * (k - 1), b[1] + u[1] * h * 0.1 * (k - 1), z); m.rotation.z = Math.atan2(u[1], u[0]); m.scale.setScalar(h * k); m.visible = true; } };
-      L.off = () => { L.hide(); hd.visible = hs.visible = false; }; L.headFade = (k) => { hd.material.opacity = k; hs.material.opacity = 0.3 * k; }; return L; };
+      L.head = hd; L.off = () => { L.hide(); hd.visible = hs.visible = false; }; L.headFade = (k) => { hd.material.opacity = k; hs.material.opacity = 0.3 * k; }; return L; };
     // 面：半透明的矩形（面积）
     const unitQuad = new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0);
     // cells：里面描出一格一格（一格 0.5 m × 200 N），数得出是 6 格
@@ -226,13 +226,12 @@ export default {
     const grid = [];
     for (let x = -XR; x <= XR + 1e-6; x += 0.5) if (Math.abs(x) > 1e-6) grid.push([[x, Y(FB)], [x, Y(FT)]]);
     for (let F = FB; F <= FT; F += 200) if (F) grid.push([[-XR, Y(F)], [XR, Y(F)]]);
-    for (const seg of grid) { const L = gline(0xeaf4ff, 0.022, { glow: 0, shadow: 0, op: 0.43, order: 5, z: ZP - 0.01 }); L.set(seg); }
-    const axX = arrow(WHITE, 0.046), axY = arrow(WHITE, 0.046); axX.to([-XR - 0.1, YB], [XR + 0.32, YB], 0.27); axY.to([0, Y(FB) - 0.08], [0, Y(FT) + 0.34], 0.27);
-    for (let x = -3; x <= 3; x++) if (x) gline(WHITE, 0.028, { glow: 0, shadow: 0 }).set([[x, YB - 0.07], [x, YB + 0.07]]);
-    for (const force of [-800, -400, 400, 800]) gline(WHITE, 0.028, { glow: 0, shadow: 0 }).set([[-0.08, Y(force)], [0.08, Y(force)]]);
-    for (let x = -3; x <= 3; x++) if (x) setRich(label(0.20, 21), [[String(x).replace('-', '−'), CSS.w, false]], [x, YB - 0.21]);
-    const ticksY = [-800, -400, 400, 800].map((F) => { const sp = label(0.20, 21); setRich(sp, [[String(F).replace('-', '−'), CSS.w, false]], [-0.13, Y(F)], 1); return { sp, F }; });          // 1200 写在石头那支力的旁边
-    const axNameX = label(0.23, 21), axNameY = label(0.23, 21), labO = label(0.20, 21);
+    for (const seg of grid) { const L = gline(0xeaf4ff, 0.014, { glow: 0, shadow: 0.08, op: 0.26, order: 5, z: ZP - 0.01 }); L.set(seg); }
+    const axX = arrow(WHITE, 0.026), axY = arrow(WHITE, 0.026); axX.to([-XR - 0.1, YB], [XR + 0.32, YB], 0.2); axY.to([0, Y(FB) - 0.08], [0, Y(FT) + 0.34], 0.2);
+    for (const L of [axX, axY]) { L.op = 0.92; L.fade(1); L.headFade(0.92); }
+    for (let x = -3; x <= 3; x++) if (x) setRich(label(0.15, 21), [[String(x).replace('-', '−'), CSS.w2, false]], [x, YB - 0.2]);
+    const ticksY = [-800, -400, 400, 800].map((F) => { const sp = label(0.15, 21); setRich(sp, [[String(F).replace('-', '−'), CSS.w2, false]], [-0.1, Y(F)], 1); return { sp, F }; });          // 1200 写在石头那支力的旁边
+    const axNameX = label(0.2, 21), axNameY = label(0.2, 21), labO = label(0.17, 21);
     setRich(labO, [['O', CSS.w2]], [-0.16, YB - 0.2]);
 
     // ---- 这一课的数学对象 ----
@@ -465,17 +464,17 @@ export default {
     const effPick = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.3), basic({ visible: false })); effPick.userData.pick = true; effPick.userData.noFrame = true; world.add(effPick);
     const effPick2 = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), basic({ visible: false })); effPick2.userData.pick = true; effPick2.userData.noFrame = true; world.add(effPick2);
     const toL = (p) => p;
-    const effDrag = (obj) => ({ obj, plane: 'xy', offset: ZP, hint: () => (S.step === 'final' ? '往外拖：力会变小' : '按住，沿撬棍左右拖'), enabled: () => S.step !== 'wow' && S.step !== 'backing', onStart: (p) => effDown(toL(p)), onDrag: (p) => effMove(toL(p)), onEnd: () => effUp() });
-    const drags = [effDrag(effPick), effDrag(effPick2),
-      { obj: rockPick, plane: 'xy', offset: ZP, hint: () => '按住石头，沿撬棍挪', enabled: () => S.xy && ['rock', 'neg', 'end'].includes(S.step), onStart: (p) => rockDown(p), onDrag: (p) => rockMove(p), onEnd: () => rockUp() }];
+    const effDrag = (obj, cueTarget) => ({ obj, cueTarget, plane: 'xy', offset: ZP, hint: () => (S.step === 'final' ? '往外拖：力会变小' : '按住，沿撬棍左右拖'), enabled: () => S.step !== 'wow' && S.step !== 'backing', onStart: (p) => effDown(toL(p)), onDrag: (p) => effMove(toL(p)), onEnd: () => effUp() });
+    const drags = [effDrag(effPick, [effArrow.core, effArrow.head, effDot]), effDrag(effPick2, LB.effX),
+      { obj: rockPick, cueTarget: rock, plane: 'xy', offset: ZP, hint: () => '按住石头，沿撬棍挪', enabled: () => S.xy && ['rock', 'neg', 'end'].includes(S.step), onStart: (p) => rockDown(p), onDrag: (p) => rockMove(p), onEnd: () => rockUp() }];
     const dragApi = draggable(world, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('动力臂 1.5 m 时，至少要多大的力？', '阻力 1200 N，阻力臂 0.5 m：撬动这块石头，手握在哪儿、要多大的力？'); prompt('按住金色的力，沿撬棍挪一挪：握在不同的地方，要多大的力？'); }
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.step, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (S.step === 'rock' && !S.jumpOn) return rockPick;
       if (S.step === 'mono' && now() - S.stepAt < 2.4) return;
-      if (['rect', 'more', 'cross', 'mono', 'neg', 'final'].includes(S.step)) return effPick;
+      if (['rect', 'more', 'cross', 'mono', 'neg', 'final'].includes(S.step)) return S.x === 0 ? effPick2 : effPick;
     });
     function reset() { cue.reset(); runId++; S = fresh(); made.length = 0; for (const R of fan) R.born = -9; tempR.born = -9; setRect(tempR, 0, 0, '', false); branch.a.hide(); branch.b.hide(); rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } cap.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }
     const onKey = (e) => { if ((e.key === 'r' || e.key === 'R') && !e.metaKey && !e.ctrlKey && !e.target?.closest?.('input,textarea')) reset(); };

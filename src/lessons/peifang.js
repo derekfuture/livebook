@@ -371,16 +371,16 @@ export default {
     const uvp = (p) => [p.x, -p.z];
     let grabOff = [0, 0];
     const drags = [
-      { obj: cutPick, plane: 'xz', offset: G + 0.002, hint: () => '拖刀口：切下一段拼到上面', enabled: () => S.beat === 'cut', onStart: () => { S.held = 'cut'; }, onDrag: (p) => cutMove(uvp(p)[0]), onEnd: () => { S.held = ''; cutUp(); } },
-      { obj: patchPick, plane: 'xz', offset: G + 0.002, hint: () => '拖进缺角', enabled: () => S.beat === 'patch', onStart: (p) => { S.held = 'patch'; grabOff = sub(S.patch, uvp(p)); }, onDrag: (p) => { if (S.beat !== 'patch') return; S.patch = add(uvp(p), grabOff); layout(); }, onEnd: () => { S.held = ''; patchUp(); } },
-      { obj: bPick, plane: 'xz', offset: G + 0.002, hint: () => '拖这个角，改一次项系数', enabled: () => S.beat === 'gen' || (S.done && S.filled), onStart: () => { S.held = 'b'; }, onDrag: (p) => bMove(uvp(p)[0]), onEnd: () => { S.held = ''; } },
+      { obj: cutPick, cueTarget: K.cut.parts[2], plane: 'xz', offset: G + 0.002, hint: () => '拖刀口：切下一段拼到上面', enabled: () => S.beat === 'cut', onStart: () => { S.held = 'cut'; }, onDrag: (p) => cutMove(uvp(p)[0]), onEnd: () => { S.held = ''; cutUp(); } },
+      { obj: patchPick, cueTarget: RUG.patch, plane: 'xz', offset: G + 0.002, hint: () => '拖进缺角', enabled: () => S.beat === 'patch', onStart: (p) => { S.held = 'patch'; grabOff = sub(S.patch, uvp(p)); }, onDrag: (p) => { if (S.beat !== 'patch') return; S.patch = add(uvp(p), grabOff); layout(); }, onEnd: () => { S.held = ''; patchUp(); } },
+      { obj: bPick, cueTarget: bHandle, plane: 'xz', offset: G + 0.002, hint: () => '拖这个角，改一次项系数', enabled: () => S.beat === 'gen' || (S.done && S.filled), onStart: () => { S.held = 'b'; }, onDrag: (p) => bMove(uvp(p)[0]), onEnd: () => { S.held = ''; } },
     ];
-    const taps = [{ obj: bigPick, hint: '开方：这个正方形的边长是多少？', enabled: () => S.beat === 'root', onTap: () => rootIt() }];
+    const taps = [{ obj: bigPick, cueTarget: Object.values(RUG), hint: '开方：这个正方形的边长是多少？', enabled: () => S.beat === 'root', onTap: () => rootIt() }];
     const dragApi = draggable(group, drags, { onClick: () => false, taps, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { say('一个数的平方加上它的 10 倍等于 39', '花拉子米的古题（9 世纪上半叶，现代转述）：用边长表示这个数，边长是多少？'); prompt('x² + 10x 能拼成一个正方形吗？'); }
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       return { cut: cutPick, patch: patchPick, root: bigPick, gen: bPick }[S.beat];
     });
     function reset() { cue.reset(); runId++; S = fresh(); anims.length = 0; rows.length = 0; lastH = ''; if (boardEl) { boardEl.innerHTML = ''; boardEl.classList.remove('review'); } for (const k of ['side', 'sideX', 'side5', 'big']) K[k].set(null); cap.key = ''; eq.key = ''; ui?.relock?.(); ui?.go?.(1); opening(); layout(); }

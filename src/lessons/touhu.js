@@ -578,15 +578,15 @@ export default {
     const pick = (r) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r * S, 12, 10), basic({ visible: false })); m.userData.pick = true; m.userData.noFrame = true; group.add(m); return m; };
     const vPick = pick(0.42), pPick = pick(0.36), lPick = pick(0.4);
     const drags = [
-      { obj: vPick, plane: 'xy', offset: Z, hint: () => (S_.step === 'k' ? '按住往上提' : S_.step === 'h' ? '按住往右拖' : '拖着水柱的最高点'), enabled: () => ['k', 'h', 'gen', 'app'].includes(S_.step), onStart: (p) => vDown(toM(p)), onDrag: (p) => vMove(toM(p)), onEnd: () => vUp() },
-      { obj: pPick, cueColor: CSS.b, plane: 'xy', offset: Z, hint: () => (S_.fx.drop ? '拖着水滴沿水柱走' : '拖着点 P 沿弧走'), enabled: () => S_.fx.look || S_.fx.drop, onStart: () => pDown(), onDrag: (p) => pMove(toM(p)), onEnd: () => pUp() },
-      { obj: lPick, cueColor: CSS.r, plane: 'xy', offset: Z, hint: () => '拖着落点左右挪', enabled: () => S_.step === 'appA', onStart: () => lDown(), onDrag: (p) => lMove(toM(p)), onEnd: () => lUp() },
+      { obj: vPick, cueTarget: VD, plane: 'xy', offset: Z, hint: () => (S_.step === 'k' ? '按住往上提' : S_.step === 'h' ? '按住往右拖' : '拖着水柱的最高点'), enabled: () => ['k', 'h', 'gen', 'app'].includes(S_.step), onStart: (p) => vDown(toM(p)), onDrag: (p) => vMove(toM(p)), onEnd: () => vUp() },
+      { obj: pPick, cueTarget: PD, plane: 'xy', offset: Z, hint: () => (S_.fx.drop ? '拖着水滴沿水柱走' : '拖着点 P 沿弧走'), enabled: () => S_.fx.look || S_.fx.drop, onStart: () => pDown(), onDrag: (p) => pMove(toM(p)), onEnd: () => pUp() },
+      { obj: lPick, cueTarget: LD, plane: 'xy', offset: Z, hint: () => '拖着落点左右挪', enabled: () => S_.step === 'appA', onStart: () => lDown(), onDrag: (p) => lMove(toM(p)), onEnd: () => lUp() },
     ];
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('水管要多长？', '水柱最高处离池中心 1.6 m、高 3 m，落在离池中心 3.6 m 处'); prompt('先把水柱往上提：抛物线 y = −' + FR(1, 2) + 'x² 会怎么变？'); }
-    const cue = mathActionCue(camera, pointer, dragApi, () => S_.step, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (['k', 'h', 'gen', 'app'].includes(S_.step)) return vPick;
       if (S_.step === 'why' || S_.step === 'max') return pPick;
       if (S_.step === 'appA') return lPick;

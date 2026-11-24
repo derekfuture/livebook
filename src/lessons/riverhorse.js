@@ -440,17 +440,17 @@ export default {
     }
 
     const uv = (p) => [p.x, -p.z];
-    const foldDrag = (obj) => ({ obj, plane: 'xz', offset: G + 0.002, hint: () => '按住，往河对岸翻过去', enabled: () => S.beat === 'fold' && !S.flipped, onStart: (p) => foldDown(uv(p)), onDrag: (p) => foldMove(uv(p)), onEnd: () => foldUp() });
+    const foldDrag = (obj, cueTarget) => ({ obj, cueTarget, plane: 'xz', offset: G + 0.002, hint: () => '按住，往河对岸翻过去', enabled: () => S.beat === 'fold' && !S.flipped, onStart: (p) => foldDown(uv(p)), onDrag: (p) => foldMove(uv(p)), onEnd: () => foldUp() });
     const drags = [
-      { obj: horsePick, cueShape: horse, plane: 'xz', offset: G + 0.004, hint: () => '拖着马沿河边走', onStart: (p) => horseDown(uv(p)), onDrag: (p) => horseMove(uv(p)), onEnd: () => horseUp() },
-      foldDrag(penPick), foldDrag(paper),
+      { obj: horsePick, cueTarget: horse, plane: 'xz', offset: G + 0.004, hint: () => '拖着马沿河边走', onStart: (p) => horseDown(uv(p)), onDrag: (p) => horseMove(uv(p)), onEnd: () => horseUp() },
+      foldDrag(penPick, realPen.g), foldDrag(paper),
     ];
     const dragApi = draggable(group, drags, { onClick: () => false, tip: tag?.('', 'pill') });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('到河边哪里饮马，走的路最短？', '牧民从蒙古包 A 出发，到河边饮马，再去羊圈 B'); prompt('到河边哪里饮马，走的路最短？'); }
     // 清场重来（换一批学生，或者想重新讲一遍）——键盘 R
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (S.beat === 'fold') return penPick;
       if ((S.beat === 'walk' && !S.found) || (S.beat === 'proof' && !S.lay && !S.proofDone)
           || ['equal', 'straight', 'light'].includes(S.beat)) return horsePick;

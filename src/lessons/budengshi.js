@@ -145,7 +145,7 @@ export default {
           float fr = 0.6 + 0.4 * pow(1.0 - clamp(V.y, 0.0, 1.0), 2.0);
           vec3 sky = mix(uSky, uDeep, 0.12 + 0.06 * sin(vP.y * 90.0 + vP.x * 40.0));
           vec3 refl = mix(sky, r.rgb * (1.0 + uLift), clamp(r.a, 0.0, 1.0));
-          gl_FragColor = vec4(mix(uDeep, refl, fr), 1.0);
+          gl_FragColor = vec4(mix(uDeep, refl, fr) * color, 1.0);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }`,
@@ -250,12 +250,12 @@ export default {
 
     // 数轴：一根竖着的数轴，0 在水面上，跟着水面一起升降
     const nlG = new THREE.Group(); mathG.add(nlG);
-    const axis = gline(nlG, WHITE, 0.0026, { glow: 0.46, shade: 0.32, op: 1 });
+    const axis = gline(nlG, WHITE, 0.0016, { glow: 0.35, shade: 0.32, op: 0.95 });
     const axisPts = [[XL, -NL * U], [XL, (NL + 0.6) * U]]; axis.set(axisPts);
-    const arrowHead = (() => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.0077, 0, -0.0044, 0, 0, 0.0044, 0, 0], 3)); const m = quiet(new THREE.Mesh(g, basic({ color: WHITE, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }))); m.position.set(XL, (NL + 0.6) * U, ZM + 0.002); m.renderOrder = 45; nlG.add(m); return m; })();
+    const arrowHead = (() => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0.0058, 0, -0.0031, 0, 0, 0.0031, 0, 0], 3)); const m = quiet(new THREE.Mesh(g, basic({ color: WHITE, transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide }))); m.position.set(XL, (NL + 0.6) * U, ZM + 0.002); m.renderOrder = 45; nlG.add(m); return m; })();
     const ticks = [];
-    for (let k = -12; k <= 12; k++) { const L = gline(nlG, WHITE, k % 2 ? 0.0011 : 0.0016, { glow: 0, shade: 0.28, op: k ? 0.96 : 1 }); const hw = k === 0 ? 0.0074 : k % 2 ? 0.0028 : 0.0044; L.set([[XL - hw, k * U], [XL + hw, k * U]]); ticks.push(L);
-      if (k % 2 === 0) { const sp = label(0.014, 50); nlG.add(sp); setRich(sp, [[String(k).replace('-', '−'), '#ffffff', false]], XL - 0.0096, k * U, 1); } }
+    for (let k = -12; k <= 12; k++) { const L = gline(nlG, WHITE, k % 2 ? 0.0008 : 0.0011, { glow: 0, shade: 0.28, op: k ? 0.88 : 1 }); const hw = k === 0 ? 0.0062 : k % 2 ? 0.0022 : 0.0035; L.set([[XL - hw, k * U], [XL + hw, k * U]]); ticks.push(L);
+      if (k % 2 === 0) { const sp = label(0.0118, 50); nlG.add(sp); setRich(sp, [[String(k).replace('-', '−'), k < 0 ? 'rgba(255,255,255,0.84)' : 'rgba(255,255,255,0.92)', false]], XL - 0.0088, k * U, 1); } }
     // 两座山的高度：山尖上的点、水平的虚线、数轴上的空心圈
     const tipA = sprite(DG, 0.0125), tipB = sprite(DB, 0.0125), tipA2 = sprite(DG, 0.0105), tipB2 = sprite(DB, 0.0105);
     const levA2 = gline(mathG, WHITE, 0.0008, { glow: 0, shade: 0.2, dash: 0.003, op: 0.7, order: 30 }), levB2 = gline(mathG, WHITE, 0.0008, { glow: 0, shade: 0.2, dash: 0.003, op: 0.7, order: 30 });
@@ -514,9 +514,9 @@ export default {
     }
     function imgUp() { if (S.held === 'A' || S.held === 'B') S.held = ''; }
     const drags = [
-      { obj: pickA, plane: 'xy', offset: ZM, hint: () => '上下拖：两边同时乘一个数', enabled: () => MUL.includes(S.step) && S.showImg, onStart: (p) => imgDown('A', p), onDrag: (p) => imgMove(p), onEnd: () => imgUp() },
+      { obj: pickA, cueTarget: imgA, plane: 'xy', offset: ZM, hint: () => '上下拖：两边同时乘一个数', enabled: () => MUL.includes(S.step) && S.showImg, onStart: (p) => imgDown('A', p), onDrag: (p) => imgMove(p), onEnd: () => imgUp() },
       { obj: pickB, plane: 'xy', offset: ZM, hint: () => '上下拖：两边同时乘一个数', enabled: () => MUL.includes(S.step) && S.showImg, onStart: (p) => imgDown('B', p), onDrag: (p) => imgMove(p), onEnd: () => imgUp() },
-      { obj: waterPick, plane: 'xy', offset: ZM, hint: () => '按住水面，上下拖', enabled: () => S.step === 'add', onStart: (p) => waterDown(p), onDrag: (p) => waterMove(p), onEnd: () => waterUp() },
+      { obj: waterPick, cuePulse: amount => mirror.material.uniforms.color.value.setScalar(1 + 0.45 * amount), plane: 'xy', offset: ZM, hint: () => '按住水面，上下拖', enabled: () => S.step === 'add', onStart: (p) => waterDown(p), onDrag: (p) => waterMove(p), onEnd: () => waterUp() },
     ];
     const dragApi = draggable(group, drags, { onClick: () => false });
     let heard = false;
@@ -525,7 +525,7 @@ export default {
       move: (r, e) => { const out = dragApi.move(r, e), it = dragApi.hovered?.(), c = canvasEl(); if (c) { const h = it && it.enabled?.() !== false ? (typeof it.hint === 'function' ? it.hint() : it.hint) : ''; if (h) c.dataset.tip = h; else delete c.dataset.tip; } return out; },
       up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('已知 a > b，−2a 与 −2b 谁大？', 'a、b：两座山的山尖相对原水面的坐标'); prompt(OPEN_ASK, '先看加减：水涨水落，两个山尖的坐标怎样变？'); }
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.step, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (S.step === 'add') return waterPick;
       if (['pos', 'zero', 'neg1', 'neg2', 'div'].includes(S.step)) return pickA;
     });

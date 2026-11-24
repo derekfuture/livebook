@@ -125,8 +125,7 @@ export default {
       reed.add(stem, plume);
       for (const [y, a, l] of [[11.6, 0.6, 1.6], [12.2, -0.7, 1.3], [12.6, 0.4, 1.1], [7, -0.5, 2], [4, 0.6, 2]]) { const lf = solid(new THREE.Mesh(new THREE.PlaneGeometry(0.16, l).translate(0, l / 2, 0), lit({ color: 0x7f9450, side: THREE.DoubleSide }))); lf.position.y = y; lf.rotation.z = a; lf.rotation.y = 0.3; reed.add(lf); } }
     // 绳三角形的木桩
-    const stakeMat = lit({ color: 0x8a6440, roughness: 0.8 });
-    const stake = () => { const g = new THREE.Group(), s = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 0.9, 8), stakeMat)); s.position.y = 0.45; const cap = solid(new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), stakeMat)); cap.position.y = 0.9; g.add(s, cap); g.visible = false; world.add(g); return g; };
+    const stake = () => { const stakeMat = lit({ color: 0x8a6440, roughness: 0.8 }); const g = new THREE.Group(), s = solid(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 0.9, 8), stakeMat)); s.position.y = 0.45; const cap = solid(new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), stakeMat)); cap.position.y = 0.9; g.add(s, cap); g.visible = false; world.add(g); return g; };
     const ST = { P: stake(), A: stake(), B: stake() };
 
     // ================= 数学：发着光的线和面（亮芯 + 同色的光晕 + 底下一圈暗影，浅色地面上也压得住） =================
@@ -143,7 +142,7 @@ export default {
     const stroke = (color, w, { glow = 0.42, shadow = 0.32, dash = 0, order = 12, n = NT } = {}) => {
       const mk = (map, col, op, ord) => { const m = quiet(new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: col, map, transparent: true, opacity: op, depthWrite: false, side: THREE.DoubleSide }))); m.renderOrder = ord; m.visible = false; world.add(m); return m; };
       const sh = shadow ? mk(glowTex, 0x0d1014, shadow, order - 2) : null, gl = glow ? mk(glowTex, color, glow, order - 1) : null, co = mk(coreTex, color, 1, order);
-      const o = { pts: null, k: 1, drawing: null,
+      const o = { core: co, pts: null, k: 1, drawing: null,
         set(pts, force) { if (this.drawing && !force) { this.drawing.pts = pts; return; } this.pts = pts; if (!pts || pts.length < 2) { for (const m of [co, gl, sh]) if (m) m.visible = false; return; }
           co.geometry.dispose(); co.geometry = ribbon(pts, n, w / 2, dash); co.visible = true;
           if (gl) { gl.geometry.dispose(); gl.geometry = ribbon(pts, n, w * 2.6); gl.visible = true; }
@@ -456,23 +455,23 @@ export default {
     }
     function rotUp(i) { if (S.held !== 't' + i) return; S.held = ''; const from = S.rot[i], to = from > 0.55 ? 1 : 0, t0 = now();
       const step = () => { if (dead) return; const k = clamp((now() - t0) / 0.35, 0, 1); S.rot[i] = lerp(from, to, easeOut(k)); layout(); if (k < 1) requestAnimationFrame(step); else if (to === 1 && !S.placed[i]) placed(i); }; step(); }
-    const tapSide = (k) => ({ obj: SP[k], hint: () => '点一下：在这条边上长出正方形', enabled: () => S.beat === 'gougu' && S.grow[k] <= 0, onTap: () => growSq(k) });
+    const tapSide = (k) => ({ obj: SP[k], cueTarget: TR[k].core, hint: () => '点一下：在这条边上长出正方形', enabled: () => S.beat === 'gougu' && S.grow[k] <= 0, onTap: () => growSq(k) });
     const drags = [
-      { obj: reedPick, plane: 'xy', offset: 0, hint: () => '按住芦苇，往岸边拉', enabled: () => S.beat === 'pond' && !S.banked, onStart: () => { S.held = 'reed'; }, onDrag: (p) => reedMove(p), onEnd: () => reedUp() },
-      { obj: pkA, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'A'; }, onDrag: (p) => stakeMove('A', p), onEnd: () => { S.held = ''; } },
+      { obj: reedPick, cueTarget: reed, plane: 'xy', offset: 0, hint: () => '按住芦苇，往岸边拉', enabled: () => S.beat === 'pond' && !S.banked, onStart: () => { S.held = 'reed'; }, onDrag: (p) => reedMove(p), onEnd: () => reedUp() },
+      { obj: pkA, cueTarget: ST.A, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'A'; }, onDrag: (p) => stakeMove('A', p), onEnd: () => { S.held = ''; } },
       { obj: pkB, plane: 'xz', offset: TOP, hint: () => '拖动木桩', enabled: () => (S.beat === 'vary' || (S.beat === 'proof' && S.mergeAt < 0)), onStart: () => { S.held = 'B'; }, onDrag: (p) => stakeMove('B', p), onEnd: () => { S.held = ''; } },
-      { obj: PC.t1, cueColor: '#fc8076', plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[0], onStart: () => rotDown(0), onDrag: (p) => rotMove(0, p), onEnd: () => rotUp(0) },
-      { obj: PC.t2, cueColor: '#fc8076', plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[1], onStart: () => rotDown(1), onDrag: (p) => rotMove(1, p), onEnd: () => rotUp(1) },
+      { obj: PC.t1, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[0], onStart: () => rotDown(0), onDrag: (p) => rotMove(0, p), onEnd: () => rotUp(0) },
+      { obj: PC.t2, plane: 'xz', offset: TOP, hint: () => '按住，转上去', enabled: () => S.cut && !S.placed[1], onStart: () => rotDown(1), onDrag: (p) => rotMove(1, p), onEnd: () => rotUp(1) },
     ];
-    const taps = [...pondPicks.map(({ obj, side }) => ({ obj, cueText: '点一下水池三角形的任意一条边', hint: () => `这条边长 ${side} 尺`, enabled: () => S.beat === 'apply' && !S.applied, onTap: () => apply(side) })), tapSide('a'), tapSide('b'), tapSide('c'),
+    const taps = [...pondPicks.map(({ obj, side }, i) => ({ obj, cueTarget: [PT.gou, PT.gu, PT.xian][i].core, cueText: '点一下水池三角形的任意一条边', hint: () => `这条边长 ${side} 尺`, enabled: () => S.beat === 'apply' && !S.applied, onTap: () => apply(side) })), tapSide('a'), tapSide('b'), tapSide('c'),
       { obj: SQ.a.f, hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() },
-      { obj: SQ.b.f, cueColor: '#83d89b', hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() }];
+      { obj: SQ.b.f, hint: () => '点一下：拼在一起', enabled: () => S.beat === 'proof' && S.mergeAt < 0, onTap: () => mergeSquares() }];
     const tip0 = tag?.('', 'pill'), tip = tip0 && { loc(o, x, y, z) { tip0.show(y > -1); tip0.loc(o, x, y, z); return tip; }, text(s) { tip0.text(s); return tip; } };          // 藏签的位置（y = −9）在这么小的 world 里还在画面上：挪到那里就直接藏起来
     const dragApi = draggable(world, drags, { taps, onClick: () => false, tip });
     let heard = false;
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } return dragApi.down(r, e); }, move: (r, e) => dragApi.move(r, e), up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { say('池宽 1 丈，1 丈 = 10 尺', '池中央的芦苇高出水面 1 尺，拉到岸边中点，顶端刚好碰到水面'); prompt('把芦苇拉到岸边中点，水有多深？芦苇有多长？'); }
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (S.beat === 'pond' && !S.banked) return reedPick;
       if (S.beat === 'gougu') return Object.entries(SP).find(([k]) => S.growAt[k] < 0)?.[1];
       if (S.beat === 'vary' && S.pairs.length < 3) return pkA;

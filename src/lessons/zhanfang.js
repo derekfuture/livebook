@@ -533,31 +533,31 @@ export default {
     const stripPick = pick(new THREE.BoxGeometry(ARC, 0.3, H2), 0, 0.15, R + H2 / 2), wrapPick = pick(new THREE.CylinderGeometry(L + 0.2, L + 0.2, 0.3, 48), CS[0], 0.15, CS[1]);
     const ok = (b) => () => S.beat === b && !S.anim && !S.done;
     const drags = [
-      { obj: wallPick, plane: 'xz', offset: 0.9, hint: () => '按住围墙的毛毡，往旁边拉开', enabled: ok('wall'),
+      { obj: wallPick, cueTarget: wallOut, plane: 'xz', offset: 0.9, hint: () => '按住围墙的毛毡，往旁边拉开', enabled: ok('wall'),
         onStart: (p) => { S.held = 'wall'; S.x0 = p.x; S.k0 = S.wk; S.f.dims = false; sfx.whoosh({ dur: 0.5, freq: 700, gain: 0.04 }); },
         onDrag: (p) => { if (S.held !== 'wall') return; S.wk = clamp(S.k0 + Math.abs(p.x - S.x0) / 3.0, 0, 1); S.moved = now(); },
         onEnd: () => { if (S.held !== 'wall') return; S.held = '';
           if (S.wk > 0.35) anim('wk', 1, 0.2 + 0.5 * (1 - S.wk), () => { sfx.whoosh({ dur: 0.8, freq: 420, gain: 0.05 }); anim('wt', 1, 0.95, wallDone, (k) => k); });
           else anim('wk', 0, 0.35); } },
-      { obj: roofPick, plane: 'xz', offset: HT, hint: () => '按住屋顶的毛毡，揭下来放到草地上', enabled: ok('lift'),
+      { obj: roofPick, cueTarget: roofOut, plane: 'xz', offset: HT, hint: () => '按住屋顶的毛毡，揭下来放到草地上', enabled: ok('lift'),
         onStart: (p) => { S.held = 'lift'; S.off = [S.fp[0] - p.x, S.fp[2] - p.z]; S.free = [S.fp[0], S.fp[2]]; S.up = 0; anim('up', 1, 0.5); sfx.whoosh({ dur: 0.4, freq: 900, gain: 0.04 }); },
         onDrag: (p) => { if (S.held !== 'lift') return; S.free = [clamp(p.x + S.off[0], -5.4, 5.6), clamp(p.z + S.off[1], -3.8, 2.6)]; S.moved = now(); },
         onEnd: () => { if (S.held !== 'lift') return; S.held = ''; drop('up');
           if (Math.hypot(S.free[0], S.free[1]) < 1.2) animFp(ROOF, 0.45);          // 没拿开：放回屋顶
           else animFp([CS[0], HUP, CS[1]], 0.55, () => animFp(GRASS, 0.55, lifted)); } },          // 拿开了：飘到右边空地上，落下
-      { obj: cutPick, cueShape: LN.prev.parts[0].m, cueText: '从顶点往下拖，沿这条母线剪开', plane: 'xy', offset: CS[1], hint: () => (S.hov == null ? '' : '从顶点往下拖，沿这条母线剪开'), enabled: ok('cut'),
+      { obj: cutPick, cueTarget: LN.prev.parts.at(-1).m, cueText: '从顶点往下拖，沿这条母线剪开', plane: 'xy', offset: CS[1], hint: () => (S.hov == null ? '' : '从顶点往下拖，沿这条母线剪开'), enabled: ok('cut'),
         onStart: (p) => { if (S.hov == null) return; S.held = 'cut'; S.phiC = S.hov; S.cut = 0.03; sfx.whoosh({ dur: 0.25, freq: 2400, gain: 0.025 }); },
         onDrag: (p) => { if (S.held !== 'cut') return; S.cut = clamp(Math.max(S.cut, (H1 + 0.03 - p.y) / H1), 0, 1); S.moved = now(); if (S.cut >= 0.97) cutDone(); },
         onEnd: () => { if (S.held !== 'cut') return; S.held = ''; if (S.cut > 0.5) anim('cut', 1, 0.15, cutDone); else anim('cut', 0, 0.3); } },
-      { obj: openPick, plane: 'xz', offset: 0.05, hint: () => '按住毛毡往外拉，把它铺平', enabled: ok('open'),
+      { obj: openPick, cueTarget: roofOut, plane: 'xz', offset: 0.05, hint: () => '按住毛毡往外拉，把它铺平', enabled: ok('open'),
         onStart: (p) => { S.held = 'open'; S.t0 = S.ft; S.grab = [p.x, p.z]; sfx.whoosh({ dur: 0.5, freq: 600, gain: 0.04 }); },
         onDrag: (p) => { if (S.held !== 'open') return; S.ft = clamp(S.t0 + Math.hypot(p.x - S.grab[0], p.z - S.grab[1]) / 2.2, 0, 1); S.moved = now(); },
         onEnd: () => { if (S.held !== 'open') return; S.held = ''; if (S.ft > 0.4) anim('ft', 1, 0.2 + 0.55 * (1 - S.ft), flattened, (k) => 1 - (1 - k) * (1 - k)); else anim('ft', 0, 0.45); } },
-      { obj: fanPick, cueShape: LN.eB.parts[0].m, plane: 'xz', offset: 0.05, hint: () => '按住缺口旁边的半径，转过去把它补满', enabled: ok('patch'),
+      { obj: fanPick, cueTarget: LN.eB.parts.at(-1).m, plane: 'xz', offset: 0.05, hint: () => '按住缺口旁边的半径，转过去把它补满', enabled: ok('patch'),
         onStart: (p) => { S.held = 'patch'; sfx.whoosh({ dur: 0.4, freq: 800, gain: 0.03 }); },
         onDrag: (p) => { if (S.held !== 'patch') return; const d = wrap2(Math.atan2(p.x - CS[0], p.z - CS[1]) - (S.phiC + TH)); S.pq = d > GAP + (2 * Math.PI - GAP) / 2 ? 0 : clamp(d / GAP, 0, 1); S.moved = now(); },
         onEnd: () => { if (S.held !== 'patch') return; S.held = ''; if (S.pq > 0.72) anim('pq', 1, 0.3, patched); else anim('pq', 0, 0.35); } },
-      ...[wrapPick, stripPick].map((obj) => ({ obj, plane: 'xz', offset: 0.05, hint: () => '把毛毡围回毡房上', enabled: ok('wrap'),
+      ...[wrapPick, stripPick].map((obj) => ({ obj, cueTarget: obj === stripPick ? wallOut : roofOut, plane: 'xz', offset: 0.05, hint: () => '把毛毡围回毡房上', enabled: ok('wrap'),
         onStart: (p) => { S.held = 'wrap'; S.grab = [p.x, p.z]; S.wq = 0; },
         onDrag: (p) => { if (S.held !== 'wrap') return; S.wq = Math.hypot(p.x - S.grab[0], p.z - S.grab[1]); S.moved = now(); },
         onEnd: () => { if (S.held !== 'wrap') return; S.held = ''; if (S.wq > 0.5) wrapAll(); } })),
@@ -568,7 +568,7 @@ export default {
     const hover = (r) => { if (S.beat !== 'cut' || S.held) return; const h = r.intersectObject(cutPick, false)[0]; if (!h) { S.hov = null; return; } const lp = world.worldToLocal(h.point.clone()); S.hov = Math.atan2(lp.x - CS[0], lp.z - CS[1]); };
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } hover(r); return dragApi.down(r, e); }, move: (r, e) => { hover(r); return dragApi.move(r, e); }, up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     // 清场重来（换一批学生，或者想重新讲一遍）——键盘 R
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (S.anim) return;
       return { wall: wallPick, lift: roofPick, cut: cutPick, open: openPick, patch: fanPick, wrap: stripPick }[S.beat];
     });

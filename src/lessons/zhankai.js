@@ -485,8 +485,9 @@ export default {
     }
     const boxPick = new THREE.Mesh(new THREE.BoxGeometry(S0 * 1.1, S0 * 1.1, S0 * 1.1), basic({ visible: false })); boxPick.userData.pick = true; boxPick.userData.noFrame = true; group.add(boxPick);
     const live = () => !S.done || !!S.pose;
-    const taps = [{ obj: boxPick, hint: () => (S.f > 0.5 && live() ? (S.beat === 'open' ? '点一下：把盒子打开' : '点一下：打开') : ''), enabled: () => S.f > 0.5 && live(), onTap: () => tap() }];
-    const drags = HF.map((f, i) => ({ obj: f, plane: 'xz', offset: MY + T,
+    const surfaces = f => [f.userData.inside, f.userData.outside];
+    const taps = [{ obj: boxPick, cueTarget: HF.flatMap(surfaces), hint: () => (S.f > 0.5 && live() ? (S.beat === 'open' ? '点一下：把盒子打开' : '点一下：打开') : ''), enabled: () => S.f > 0.5 && live(), onTap: () => tap() }];
+    const drags = HF.map((f, i) => ({ obj: f, cueTarget: surfaces(f), plane: 'xz', offset: MY + T,
       hint: () => (S.f > 0.5 || !live() ? '' : canMove() && free(i) ? '拖动：挪到别的边上 · 点一下：折起来' : '点一下：折起来'),
       enabled: () => S.f <= 0.5 && live(),
       onStart: (p) => moveStart(i, p), onDrag: (p) => moveDrag(i, p), onEnd: (moved) => moveEnd(i, moved), onTap: () => tap() }));
@@ -508,7 +509,7 @@ export default {
     }
 
     function opening() { caption('纸板要裁成什么形状？能裁出几种？', '要做一只正方体的粉笔盒，先得把硬纸板裁好'); prompt('粉笔盒铺平是什么样子？点一下盒子'); }
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (S.anim || S.done || S.beat === 'wow' || S.dreamOpen) return;
       if (S.f > 0.5) return boxPick;
       if (S.beat === 'dream') return HF[4];

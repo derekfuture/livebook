@@ -141,7 +141,7 @@ export default {
     const G = { F: gF, R: gR, T: gT };
     const P = (f, u, v, w = 0) => { const a = AX[f]; return new THREE.Vector3(a.o[0] + a.u[0] * u + a.v[0] * v + a.n[0] * w, a.o[1] + a.u[1] * u + a.v[1] * v + a.n[1] * w, a.o[2] + a.u[2] * u + a.v[2] * v + a.n[2] * w); };          // 合上时面上一点
     const netP = (f, u, v, w = 0) => { G[f].updateMatrix(); return new THREE.Vector3(u, v, w).applyMatrix4(G[f].matrix); };          // 现在（可能翻开着）面上一点
-    const skin = {}, grid = {};
+    const skin = {}, grid = {}, skinCue = {};
     for (const f of 'FRT') {
       skin[f] = quiet(new THREE.Mesh(new THREE.PlaneGeometry(FW[f], FH[f]).translate(FW[f] / 2, FH[f] / 2, OUT), lit({ color: 0xc8ecf8, emissive: 0xc8ecf8, emissiveIntensity: 0.5, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, roughness: 0.9 }))); skin[f].renderOrder = 6; G[f].add(skin[f]);
       const gp = []; for (let x = 10; x < FW[f] - 0.1; x += 10) gp.push(x, 0, OUT + 0.05, x, FH[f], OUT + 0.05); for (let y = 10; y < FH[f] - 0.1; y += 10) gp.push(0, y, OUT + 0.05, FW[f], y, OUT + 0.05);
@@ -429,18 +429,18 @@ export default {
     const mPick = new THREE.Mesh(new THREE.SphereGeometry(4.4, 12, 8), basic({ visible: false })); mPick.position.set(0.8, 0.8, 1.2); mPick.userData.pick = true; mPick.userData.noFrame = true; gF.add(mPick);
     // 拖动用活页本身的坐标（不缩放的 root）：kit 把提示收起来时放到 y = −9（米），在 cm 的组里会落在画面里
     const RU = (v, ax) => world.position[ax] + v * K, cm = (p) => p && new THREE.Vector3((p.x - world.position.x) / K, (p.y - world.position.y) / K, (p.z - world.position.z) / K);
-    const skinDrag = (f) => ({ obj: skinPick[f], plane: f === 'R' ? 'xz' : 'yz', offset: f === 'R' ? RU(H / 2, 'y') : RU(W / 2, 'x'), hint: () => (!skinOK(f) ? '' : S.k[f] > 0.5 ? '按住，合上' : f === 'R' ? '按住，往外翻开' : '按住，往上翻开'), enabled: () => skinOK(f) && S.held !== 'ant', onStart: (p) => skinDown(f, cm(p)), onDrag: (p) => skinMove(f, cm(p)), onEnd: () => skinUp(f) });
+    const skinDrag = (f) => ({ obj: skinPick[f], cueTarget: skin[f], cuePulse: amount => { skinCue[f] = amount; }, plane: f === 'R' ? 'xz' : 'yz', offset: f === 'R' ? RU(H / 2, 'y') : RU(W / 2, 'x'), hint: () => (!skinOK(f) ? '' : S.k[f] > 0.5 ? '按住，合上' : f === 'R' ? '按住，往外翻开' : '按住，往上翻开'), enabled: () => skinOK(f) && S.held !== 'ant', onStart: (p) => skinDown(f, cm(p)), onDrag: (p) => skinMove(f, cm(p)), onEnd: () => skinUp(f) });
     const drags = [
-      { obj: antPick, plane: 'xz', offset: 0, hint: () => (antOK() ? '按住蚂蚁，在石凳上拖着走' : ''), enabled: () => antOK(), onStart: () => antDown(), onDrag: () => {}, onEnd: () => antUp() },
+      { obj: antPick, cueTarget: ant, plane: 'xz', offset: 0, hint: () => (antOK() ? '按住蚂蚁，在石凳上拖着走' : ''), enabled: () => antOK(), onStart: () => antDown(), onDrag: () => {}, onEnd: () => antUp() },
       skinDrag('R'), skinDrag('T'),
-      { obj: mPick, plane: 'xy', offset: RU(OUT + LIFT, 'z'), hint: () => (threadOK() ? `从 M 拉一条线段到 ${S.name[openN()[0]] || 'N'}` : ''), enabled: () => threadOK(), onStart: (p) => threadDown(cm(p)), onDrag: (p) => threadMove(cm(p)), onEnd: () => threadUp() },
+      { obj: mPick, cueTarget: DM, plane: 'xy', offset: RU(OUT + LIFT, 'z'), hint: () => (threadOK() ? `从 M 拉一条线段到 ${S.name[openN()[0]] || 'N'}` : ''), enabled: () => threadOK(), onStart: (p) => threadDown(cm(p)), onDrag: (p) => threadMove(cm(p)), onEnd: () => threadUp() },
     ];
     const tipTag = tag?.('', 'pill'), hideTip = () => tipTag?.loc?.(root, 0, -9, 0);
     const dragApi = draggable(root, drags, { onClick: () => false, tip: tipTag });
     let heard = false, touchAt = -9;          // 最后一次动手的时间：卡住多久才给提示，按这个算（开场蚂蚁自己在转，不算）
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); } touchAt = now(); return dragApi.down(r, e); }, move: (r, e) => { if (S.held) touchAt = now(); if (S.held === 'ant') { antMove(r); return true; } return dragApi.move(r, e); }, up: (r, e) => dragApi.up(r, e), items: dragApi.items };
     function opening() { caption('蚂蚁从 M 爬到 N，最快要多久？', '公园里的长方体石凳；蚂蚁每秒爬 3 cm，只能在石凳的表面上爬'); prompt('替蚂蚁找一条路：按住蚂蚁，沿石凳表面拖到 N'); }
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (S.beat === 'try' && !S.arrived) return antPick;
       if (['line', 'line2'].includes(S.beat) && openN().length) return mPick;
       if (S.beat === 'unfold' || S.beat === 'other') {
@@ -491,7 +491,7 @@ export default {
           if (fade <= 0) { S.swingAt = -9; for (const m of [swing, arc, over]) { m.set(null); m.fade(1); } } }
         // 翻开的面与正面连成一张淡蓝的展开图。
         for (const f of 'FRT') { const k = f === 'F' ? Math.max(S.k.R, S.k.T) : S.k[f], on = smooth(0, 0.15, k) * (f === 'F' ? 0.24 : 0.4);
-          skin[f].material.opacity = S.closed ? 0 : on; grid[f].material.opacity = S.closed ? 0 : smooth(0.6, 1, k) * 0.28; edgeL[f].fade(S.closed ? 0 : smooth(0, 0.15, k)); }
+          skin[f].material.opacity = S.closed ? 0 : Math.max(on, (skinCue[f] || 0) * 0.34); grid[f].material.opacity = S.closed ? 0 : smooth(0.6, 1, k) * 0.28; edgeL[f].fade(S.closed ? 0 : smooth(0, 0.15, k)); }
         for (const f of 'RT') triFill[f].material.opacity = lerp(triFill[f].material.opacity, tri1(f) ? 0.24 : 0, Math.min(1, dt * 5));
         if (S.ghostOn) { const k = S.closed ? clamp(1 - (t - S.wowAt) / 1.4, 0, 1) : 1; for (const g of 'RT') ghost[g].fade(0.5 * k * (g === 'T' ? 0.7 : 1)); if (S.closed && k <= 0) { S.ghostOn = false; ghost.R.set(null); ghost.T.set(null); } }
         // 合上以后：最短的那条一直亮着，长的那条淡下去

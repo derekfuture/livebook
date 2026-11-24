@@ -985,11 +985,11 @@ export default {
     const canSea = () => S.mode === 'chart' && S.call === 'sea';
     const canBuoy = () => S.mode === 'chart' && S.call === 'buoy';
     const drags = [
-      { obj: K.cut, cueShape: F.ship, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canCut() ? '按住拖出来：剪下这个角' : ''), enabled: () => canCut(), onStart: () => cutDown(), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() },
+      { obj: K.cut, cueTarget: F.ship, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canCut() ? '按住拖出来：剪下这个角' : ''), enabled: () => canCut(), onStart: () => cutDown(), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() },
       ...chips.map((c, i) => ({ obj: c, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canBase(i) ? '拖进圆心的角里' : ''), enabled: () => canBase(i), onStart: () => chipDown(i), onDrag: (p) => chipMove(uv(p)), onEnd: () => chipUp() })),
-      { obj: K.probe, plane: 'xz', offset: 0.003 + INK_Y, hint: () => (canProbe() ? '拖着这根光转' : ''), enabled: () => canProbe(), onStart: () => probeDown(), onDrag: (p) => probeMove(uv(p)), onEnd: () => probeUp() },
+      { obj: K.probe, cueTarget: L.probe, plane: 'xz', offset: 0.003 + INK_Y, hint: () => (canProbe() ? '拖着这根光转' : ''), enabled: () => canProbe(), onStart: () => probeDown(), onDrag: (p) => probeMove(uv(p)), onEnd: () => probeUp() },
       ...[0, 1].flatMap((i) => [pa[i], po[i]].map((obj) => ({ obj, plane: 'xz', offset: 0.006 + INK_Y, hint: () => (canPair(i) ? '点一下：用情况（1）' : canTake(i) ? '拖开' : ''), enabled: () => canPair(i) || canTake(i), onStart: (p) => takeDown(i, uv(p)), onDrag: (p) => takeMove(uv(p)), onEnd: () => takeUp(), onTap: () => pairTap(i) }))),          // 角片本身：窄的那块在船上难点，圆心那块宽一倍
-      { obj: K.ship, cueShape: boat, plane: 'xz', offset: 0.004, keepOffset: false, hint: () => (canShip() ? '拖着小船开；点一下站到船头' : ''), enabled: () => canShip(), onStart: () => { userTouched++; steering = true; }, onEnd: () => { steering = false; }, onDrag: (p) => {
+      { obj: K.ship, cueTarget: boat, plane: 'xz', offset: 0.004, keepOffset: false, hint: () => (canShip() ? '拖着小船开；点一下站到船头' : ''), enabled: () => canShip(), onStart: () => { userTouched++; steering = true; }, onEnd: () => { steering = false; }, onDrag: (p) => {
         const q = uv(p);
         if (S.beat === 'vary' && Math.abs(q[0]) > C0[0] && Math.abs(q[1] - B0[1]) < 0.00025) q[1] = B0[1];
         moveShip(q);
@@ -1009,7 +1009,7 @@ export default {
       src.connect(lp).connect(g2).connect(a.destination); src.start(); lfo.start(); g2.gain.setTargetAtTime(0.018, a.currentTime, 3); seaSound = { src, lfo }; } catch { /* 没有声音也不要紧 */ } };
     const pointer = { down: (r, e) => { if (!heard) { heard = true; audio(); startSea(); } return deckPointer.down(r, e) || dragApi.down(r, e); }, move: (r, e) => deckPointer.move(r, e) || dragApi.move(r, e), up: (r, e) => deckPointer.up(r, e) || dragApi.up(r, e), items: dragApi.items };
 
-    const cue = mathActionCue(camera, pointer, dragApi, () => S.beat + '/' + S.call, () => {
+    const cue = mathActionCue(camera, pointer, dragApi, () => {
       if (S.mode === 'deck') return chartRoll.visible ? rollMesh : null;
       if (S.call === 'ship') return K.ship;
       if (S.call === 'sea') return sea;
