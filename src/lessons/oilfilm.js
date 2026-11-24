@@ -17,6 +17,7 @@ import {
   OIL_FRACTION,
   GRID,
   DROP_ML,
+  MODEL_THICKNESS_NM,
   pureOilPerDrop,
   filmOutline,
   polygonArea,
@@ -34,7 +35,7 @@ export default {
   title: '用油膜法估测油酸分子的大小',
   stampText: '估测',
   predict: {
-    q: '一个油酸分子小到看不见。一滴稀释液摊成单层油膜，哪段长度可以用来估测分子直径？',
+    q: '一滴稀释液中的油酸在水面上充分铺展，形成单分子油膜。哪段长度可以用来估测油酸分子的直径？',
     options: ['油膜的厚度', '油膜最宽处的长度', '滴下前液滴的直径'],
     answer: 0,
   },
@@ -44,7 +45,7 @@ export default {
       { page: 11, rect: [63.76, 658.45, 381.1, 702.49] },
     ],
     quote: '尽管油酸分子有着复杂的结构和形状，分子间也存在着间隙，但在估测其大小时，可以把它简化为球形处理，并认为它们紧密排布（图1.2-1）。测出油膜的厚度d，它就相当于分子的直径。……这里可以粗略地认为，油膜的厚度d 等于1 滴油酸酒精溶液中纯油酸的体积V与它在水面上摊开的面积S之比。',
-    why: '油酸亲水的一端朝向水，另一端朝外。把充分铺展的油酸近似为紧密排列的一层分子，所得厚度是分子尺度的估计。滴数、读数和轮廓的半格取舍都会影响结果。',
+    why: `酒精溶于水并很快挥发，水面上留下油酸，分子的亲水端朝向水。把油酸分子看作紧密排列的一层小球，就能用膜厚估测分子直径。本模拟用 ${MODEL_THICKNESS_NM.toFixed(1)} nm 的示意膜厚生成油膜轮廓。你的估测值取决于记录的纯油酸体积和描线数出的面积。`,
     src: '课本第 7 页 · 第一章 第2节 实验：用油膜法估测油酸分子的大小',
   },
   create(ctx) {
@@ -62,11 +63,11 @@ export default {
     let ml, startMl, count, pure, area, residue, liquid, grabMl;
     let film, origin, spread, spoiled, covered, trace, traced, erasing, shakeAt;
     const marks = new Set(), drops = [];
-    let rippleTime = 0;
+    let queuedCupDrops = 0, rippleTime = 0;
     const stock = () => Math.abs(syringe.position.x - STOCK_X) < 0.013 && Math.abs(syringe.position.z) < 0.013;
     const cup = () => Math.abs(syringe.position.x - CUP_X) < 0.014 && Math.abs(syringe.position.z) < 0.014;
     const overWater = () => Math.max(Math.abs(syringe.position.x - PAN_X), Math.abs(syringe.position.z)) < PAN_W / 2 - 0.004;
-    const inFlight = () => drops.length > 0;
+    const dispensing = () => queuedCupDrops > 0 || drops.length > 0;
     const full = () => ml >= CAPACITY - 0.00001;
     const bar = lessonBar({ ...ctx, group, back: leave, steps: steps.map(([id, title]) => ({ id, title, todo: title, target: () => aim })) });
     const say = (text, obj = null) => { aim = obj; bar.say(text); };
@@ -106,7 +107,7 @@ export default {
       guide();
     }
     function guide() {
-      if (bar.finished) return say('这一层油膜只有一个分子厚。你算出的膜厚，就是分子直径的估计值。');
+      if (bar.finished) return say('把油酸分子看作紧密排列的单层小球，你算出的膜厚就是分子直径的估计值。');
       if (spoiled) return say(spoiled);
       if (!bar.has('drop')) {
         if (startMl === null) {
@@ -118,7 +119,8 @@ export default {
           return say('平视黑色胶塞下沿，每小格 0.01 mL。把读数记在笔记本上。');
         }
         if (fieldKind === 'pure') return say('一滴里只有一小部分是油酸。按配液比例换算，填入纯油酸体积。');
-        if (ml > 0.00001 || inFlight()) return say('缓缓下推活塞到底，每落一滴数一次，数清这一管共有几滴。', ml > 0.00001 ? thumb : null);
+        if (ml > 0.00001) return say('缓缓下推活塞，每落一滴数一次。看清一滴落杯再推，直到滴完整管。', thumb);
+        if (dispensing()) return say('继续看针尖和烧杯。每落一滴数一次，直到最后一滴落杯。');
         field('drops');
         return say('整管溶液已滴完。记下你数的滴数，就能求一滴溶液的平均体积。');
       }
@@ -130,7 +132,7 @@ export default {
         if (!overWater()) return say('把夹头拖到浅盘中央，让一滴溶液有足够的水面铺开。', rig.clamp);
         return say('轻推活塞，第一滴离开针尖就松手。观察水面的粉粒。', thumb);
       }
-      if (spread < 1) return say('油酸正在摊开，把粉粒推向四周。等边界稳定下来。');
+      if (spread < 1) return say('酒精溶于水并很快挥发，留下的油酸在水面摊开，把粉粒推向四周。等边界稳定下来。');
       if (!covered) {
         if (!cup()) return say('无粉区就是油膜。把针管移回数滴烧杯，给玻璃板腾出位置。', rig.clamp);
         return say('边界已稳定。把右侧方格玻璃板拖到盘沿上，对齐四边。', plate);
@@ -148,7 +150,7 @@ export default {
       if (view) leave();
       drops.forEach(d => { d.mesh.visible = false; });
       drops.length = 0;
-      ml = count = residue = liquid = rippleTime = 0;
+      ml = count = residue = liquid = queuedCupDrops = rippleTime = 0;
       startMl = pure = null;
       rig.position(STOCK_X, 0.047, 0);
       rig.volume(0);
@@ -225,7 +227,7 @@ export default {
         case 'size': {
           const nm = molecularSizeNm(pure, area);
           if (Math.abs(v - nm) > 0.05 || v <= 0) return say('先统一单位。1 μL = 10⁻⁹ m³，1 cm² = 10⁻⁴ m²，1 m = 10⁹ nm。');
-          entry('膜厚 d = V/S　' + (pure * 1000).toFixed(3) + ' × 10⁻⁹ ÷ (' + area + ' × 10⁻⁴) m ≈ ' + v + ' nm');
+          entry('本轮模拟估测　膜厚 d = V/S　' + (pure * 1000).toFixed(3) + ' × 10⁻⁹ ÷ (' + area + ' × 10⁻⁴) m ≈ ' + v + ' nm');
           field(null);
           bar.done('size');
           return guide();
@@ -273,7 +275,8 @@ export default {
         residue += ml - next;
         while (residue + 1e-9 >= DROP_ML) {
           residue = Math.max(0, residue - DROP_ML);
-          release(cup() ? 'cup' : 'pan');
+          if (cup()) queuedCupDrops++;
+          else release('pan');
         }
       } else residue = Math.max(0, residue - (next - ml));
       ml = next;
@@ -326,7 +329,7 @@ export default {
     };
     const carriage = {
       obj: rig.clamp, plane: 'xz', get offset() { return (slideY == null ? syringe.position.y : slideY) + rig.clamp.position.y; },
-      enabled: () => !ret && !spoiled && !covered && !inFlight() && !view && (pure || (startMl === null && full())),
+      enabled: () => !ret && !spoiled && !covered && !dispensing() && !view && (pure || (startMl === null && full())),
       hint: '拖夹头：移动针管',
       onStart() { moving = syringe.position.clone(); slideY = moving.y; },
       onDrag(p, start) {
@@ -500,6 +503,7 @@ export default {
           if (ret.obj === syringe) rig.position(pos.x, pos.y, pos.z);
           if (ret.t === 1) ret = null;
         }
+        rippleTime = Math.max(0, rippleTime - dt);
         for (let i = drops.length - 1; i >= 0; i--) {
           const d = drops[i];
           d.t += dt;
@@ -509,7 +513,10 @@ export default {
             land(d);
           }
         }
-        rippleTime = Math.max(0, rippleTime - dt);
+        if (queuedCupDrops > 0 && !drops.length && rippleTime === 0) {
+          queuedCupDrops--;
+          release('cup');
+        }
         ripple.visible = rippleTime > 0;
         ripple.scale.setScalar(0.3 + 1.7 * (1 - rippleTime / 0.35));
         ripple.material.opacity = rippleTime / 0.35;
