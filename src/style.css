@@ -314,12 +314,12 @@ body.stand-ui #hud-top .hud-actions { opacity: .5; }
 .board.lying .board-ear { opacity: 0; }
 
 /* ---------- 左侧悬浮的纸卡（?ui=float，默认） ---------- */
-#panel.board { background:
+#panel.board, .turn-b .turn-sheet { background:
     radial-gradient(120% 80% at 30% 0%, rgba(255,255,255,.55), transparent 60%),
     repeating-linear-gradient(0deg, rgba(120,100,60,.025) 0 1px, transparent 1px 3px), #f8f2e3;
   color: #2a2f3d; border-radius: 3px; overflow: visible;
-  box-shadow: 0 18px 40px rgba(20,12,4,.45), 0 2px 6px rgba(20,12,4,.25), inset 0 0 0 1px rgba(120,100,60,.18), inset 0 0 40px rgba(160,130,80,.12);
-  transform: rotate(-0.6deg); transition: transform .5s cubic-bezier(.3,.8,.2,1); animation: paperin .6s cubic-bezier(.2,.8,.2,1); }
+  box-shadow: 0 18px 40px rgba(20,12,4,.45), 0 2px 6px rgba(20,12,4,.25), inset 0 0 0 1px rgba(120,100,60,.18), inset 0 0 40px rgba(160,130,80,.12); }
+#panel.board { transform: rotate(-0.6deg); transition: transform .5s cubic-bezier(.3,.8,.2,1); animation: paperin .6s cubic-bezier(.2,.8,.2,1); }
 @keyframes paperin { from { transform: translateX(-60px) rotate(-3deg); opacity: 0; } }
 #panel.board .p-body { overflow: auto; }
 #panel.board .p-head { margin: 0 18px; padding: 18px 0 8px 22px; border-bottom: 1.5px solid rgba(42,47,61,.75); position: relative; }
@@ -1289,13 +1289,40 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
 }
 .tip-slip { max-width: min(400px, calc(100vw - 96px)); }
 
-/* 竖屏的提示跟着活页走；转屏时由浏览器立即切换。 */
-.turn-hint { display: none; }
-@media (orientation: portrait) {
-  .phone .turn-hint { display: block; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 45; width: min(310px, 88vw); padding: 22px 16px 14px; text-align: center; color: var(--ink); background: var(--paper); border-top: 3px solid var(--pep); border-radius: 5px; box-shadow: 0 6px 32px #241a0e55; }
-  .turn-hint p { margin: 0 0 12px; font: 600 17px/1.5 var(--song); }
-  .turn-hint button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 4px; background: var(--pep); color: white; }
-  .turn-hint .turn-dismiss { background: transparent; color: var(--ink2); }
+/* 转屏纸幕随本张活页开合，转向时直接跟随可见视口。 */
+.turn-hint {
+  position: fixed; inset: 0; z-index: 65; display: grid; place-items: center;
+  padding: 16px; overflow: auto; text-align: center; font-family: var(--song); color: var(--ink);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .28s ease, visibility 0s .28s;
+}
+.phone:not(.phone-scaled) .turn-hint { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.phone:not(.phone-scaled) body:has(.turn-hint) .imp-tip { visibility: hidden; }
+@starting-style { .phone:not(.phone-scaled) .turn-hint { opacity: 0; } }
+.turn-a { background: rgba(255,253,248,.89); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.turn-b { background: rgba(35,41,58,.17); }
+.turn-sheet { width: min(100%, 300px); padding: 28px 24px 18px; }
+.turn-b .turn-sheet { width: min(100%, 268px); }
+.turn-drawing { width: 144px; margin: 0 auto 15px; color: var(--ink); }
+.turn-b .turn-drawing { width: 88px; margin-bottom: 9px; }
+.turn-drawing svg { width: 100%; display: block; }
+.turn-hint h2 { margin: 0; font: 700 26px/1.4 var(--song); letter-spacing: .06em; }
+.turn-b h2 { font-size: 21px; padding-bottom: 9px; border-bottom: 1.5px solid rgba(42,47,61,.75); }
+.turn-hint p { margin: 7px 0 14px; color: var(--ink2); font: 16px/1.5 var(--song); }
+.turn-b p { font-size: 15px; margin-bottom: 8px; }
+.turn-actions { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.turn-actions button { min-height: 44px; }
+.turn-actions .go { width: auto; margin: 0; min-width: 72px; }
+.turn-actions .turn-dismiss { position: static; padding: 0 7px; color: var(--ink2); font-size: 15px; }
+.turn-device { transform: rotate(-90deg); }
+.turn-column { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .phone:not(.phone-scaled) .turn-device { animation: turn-phone 5.6s cubic-bezier(.6,0,.2,1) infinite; }
+  .phone:not(.phone-scaled) .turn-column { animation: turn-column 5.6s ease-in-out infinite; }
+  .phone:not(.phone-scaled) .turn-spread { animation: turn-spread 5.6s ease-in-out infinite; }
+  @keyframes turn-phone { 0%, 18%, 86%, 100% { transform: rotate(0deg); } 35%, 62% { transform: rotate(-90deg); } }
+  @keyframes turn-column { 0%, 21%, 83%, 100% { opacity: 1; } 34%, 64% { opacity: 0; } }
+  @keyframes turn-spread { 0%, 21%, 83%, 100% { opacity: 0; } 34%, 64% { opacity: 1; } }
 }
 
 /* 横屏手机按电脑布局排版，给纸卡上的小字和常用操作留够空间。 */
