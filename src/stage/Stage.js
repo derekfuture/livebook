@@ -10,7 +10,7 @@ export class Stage {
   constructor(canvas) {
     this.canvas = canvas;
     const renderer = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true }));
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.__lbPhoneDpr || devicePixelRatio, 2) * (window.__lbPhoneScale || 1));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.localClippingEnabled = true;      // 烧瓶倒过来时，瓶里的水用一个水平的裁切面画出水面
     renderer.shadowMap.enabled = true;
@@ -190,6 +190,13 @@ export class Stage {
 
   resize() {
     const w = innerWidth, h = innerHeight;
+    if (window.__lbPhoneScale) {
+      const ratio = Math.min(window.__lbPhoneDpr, 2) * window.__lbPhoneScale;
+      if (ratio !== this.renderer.getPixelRatio()) {
+        this.renderer.setPixelRatio(ratio);
+        this.post?.composer.setPixelRatio(ratio);
+      }
+    }
     this.renderer.setSize(w, h, false);
     this.css?.setSize(w, h);
     this.post?.setSize(w, h);

@@ -1,3 +1,5 @@
+import { TouchRaycaster } from './TouchRaycaster.js';
+import { landscapeHint } from '../ui/landscapeHint.js';
 import { lessonCommunity } from '../ui/community.js';
 import { rememberRuntimeError } from '../ui/runtimeErrors.js';
 import * as THREE from 'three';
@@ -41,10 +43,10 @@ function holeTexture() {
 }
 
 export class LiveLayer {
-  constructor({ stage, book, textures, hotspots, panel, content, onChange }) {
-    Object.assign(this, { stage, book, textures, hotspots, panel, content, onChange });
+  constructor({ stage, book, textures, hotspots, panel, content, onChange, bookView }) {
+    Object.assign(this, { stage, book, textures, hotspots, panel, content, onChange, bookView });
     this.active = null;
-    this.raycaster = new THREE.Raycaster();
+    this.raycaster = window.__lbPhoneScale ? new TouchRaycaster() : new THREE.Raycaster();
     this.raycaster.params.Line = { threshold: 0.01 };
     stage.updaters.add((dt, t) => this.update(dt, t));
   }
@@ -111,6 +113,7 @@ export class LiveLayer {
         const tgt = scaler.localToWorld(new THREE.Vector3(...localTarget));
         const q = new THREE.Quaternion(); scaler.getWorldQuaternion(q);
         this._prevShot ||= {
+          width: innerWidth, height: innerHeight,
           target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist, minEl: stage.rig.minEl,
           yaw: stage.user.yaw, pitch: stage.user.pitch, zoom: stage.user.zoom, pan: stage.user.pan.clone(),
         };
@@ -226,7 +229,7 @@ export class LiveLayer {
       look = new THREE.Vector3(book.W * 0.55, 0.08, book.H * 0.22);
       dist = stage.fitDistance(book.W * 1.6, book.H * 1.25, v.margin ?? 1.0);
     }
-    this.bookShot = { target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist };
+    this.bookShot = { width: innerWidth, height: innerHeight, target: stage.rig.target.clone(), dir: stage.rig.dir.clone(), dist: stage.rig.dist };
     const holdShot = WD?.mode === 'globe';          // 整颗地球落下去：镜头等地球落好（release）再转到活页的取景
     if (!holdShot) stage.shot({ target: look, dir, dist });
     this._pendingShot = holdShot ? { target: look, dir, dist } : null;
@@ -248,7 +251,7 @@ export class LiveLayer {
             stage.cameraOffsetX = folded || innerWidth <= 760 ? 0 : Math.min(380, innerWidth * 0.4) / 2 + 8;
             stage.cameraOffsetY = panelOffsetY(folded, v.portraitBottomInset);
           }
-          if (inst.panel === 'folded') requestAnimationFrame(() => this.reframe());          // 面板先收着的活页（数学）：纸原来占满整个画面，面板一展开要重新取景，不然纸的一边就出画了
+          if (inst.panel === 'folded' || window.__lbPhoneScale < 1) requestAnimationFrame(() => this.reframe());          // 面板先收着的活页（数学）：纸原来占满整个画面，面板一展开要重新取景，不然纸的一边就出画了
         } });
     }
     ctx.ui = api;
@@ -279,6 +282,7 @@ export class LiveLayer {
 
     this.hotspots.enabled = false;
     document.body.classList.add('lesson-on'); document.getElementById('c').dataset.tip = '';
+    this.turnHint = landscapeHint();
     const community = lessonCommunity({capture:()=>this.stage.snapshot(Math.min(innerWidth,1280),Math.round(Math.min(innerWidth,1280)*innerHeight/innerWidth)), lesson:spot.lesson, title:def.title, where: `${this.content.full || this.content.title || ''} · 第 ${pageNum} 页 · ${def.fig || ''}`});
     document.getElementById('viewctl')?.append(community);
     toggles.push(community);
@@ -323,7 +327,20 @@ export class LiveLayer {
     for (const p of W) { const a = p.dot(right), b = p.dot(up), c = p.dot(d); r0 = Math.min(r0, a); r1 = Math.max(r1, a); u0 = Math.min(u0, b); u1 = Math.max(u1, b); f0 = Math.min(f0, c); f1 = Math.max(f1, c); }
     const center = right.clone().multiplyScalar((r0 + r1) / 2).add(up.clone().multiplyScalar((u0 + u1) / 2)).add(d.clone().multiplyScalar((f0 + f1) / 2));          // 画面上居中：按投影后的左右、上下范围取中点
     const vfov = THREE.MathUtils.degToRad(stage.camera.fov), hfov = 2 * Math.atan(Math.tan(vfov / 2) * stage.camera.aspect);
-    const uW = 1 - Math.abs(stage.cameraOffsetX * 2) / Math.max(1, innerWidth), uH = 1 - Math.abs(stage.cameraOffsetY * 2) / Math.max(1, innerHeight);
+    let uW = 1 - Math.abs(stage.cameraOffsetX * 2) / Math.max(1, innerWidth);
+    let uH = 1 - Math.abs(stage.cameraOffsetY * 2) / Math.max(1, innerHeight);
+    if (window.__lbPhoneScale < 1 && innerWidth > 760) {
+      // 给左边纸卡、右边工具和底部步骤留出取景空间。预测结束步骤才出现，提前留好。
+      const panel = this.panel.el;
+      const left = panel.classList.contains('folded') ? 46 : panel.offsetLeft + panel.offsetWidth;
+      const right = innerWidth - document.getElementById('viewctl').getBoundingClientRect().left + 8;
+      const bottom = document.querySelector('.lbar') ? 94 : 12;
+      const top = 60;
+      stage.cameraOffsetX = (left - right) / 2;
+      stage.cameraOffsetY = (bottom - top) / 2;
+      uW = 1 - (left + right) / innerWidth;
+      uH = 1 - (top + bottom) / innerHeight;
+    }
     const tH = Math.tan((hfov * uW) / 2), tV = Math.tan((vfov * uH) / 2);
     const margin = (v.frameMargin ?? 1.1) * 1.06;          // 真实顶点取景比包围盒紧，留一点给模型上方的字
     let D = 0;
@@ -332,12 +349,14 @@ export class LiveLayer {
   }
 
   reframe() {
-    if (!this.active || this._prevShot || !this._reframe) return;
+    if (!this.active || this.active.closing) return;
+    if (!window.__lbPhoneScale && (this._prevShot || !this._reframe)) return;
+    if (window.__lbPhoneScale && (this.active.nb || this.active.board)) return;
     // 面板的位置跟着屏幕宽窄变（宽屏在左侧，窄屏在下半屏）：先按现在的屏幕重算给面板让出的位置
     const wide = innerWidth > 760, folded = this.panel.el?.classList.contains('folded');
     this.stage.cameraOffsetX = wide && !folded ? Math.min(380, innerWidth * 0.4) / 2 + 8 : 0;
     this.stage.cameraOffsetY = panelOffsetY(folded, this.active.inst.view?.portraitBottomInset);
-    this._reframe();
+    if (!this._prevShot) this._reframe?.();
   }
 
   close({ quick = false, world = null } = {}) {
@@ -347,6 +366,7 @@ export class LiveLayer {
     if (world) A.world = { ...(A.world || {}), ...world };          // 地球主探索：收回地球上那一点（pin）、换回地球（globe，一下子收掉）、沉回课本的图里（figure）
     const wm = A.world?.mode;
     A.t = wm === 'pin' ? Math.min(A.t, PIN_T) : wm === 'globe' ? 0.0001 : Math.min(A.t, quick ? 0.5 : 1.5);          // quick：马上要打开另一张活页，收得快一点
+    this.turnHint?.remove();
     this.panel.close();
     A.nb?.dispose(); A.nb = null;
     if (A.board) { A.board.closing = true; }
@@ -355,7 +375,10 @@ export class LiveLayer {
     this._lookExit = null;     // 旧实验的“回到原机位”回调不能留给下一个实验
     this.stage.cameraOffsetX = 0;
     this.stage.cameraOffsetY = 0;
-    if (this.bookShot && !A.world) this.stage.shot(this.bookShot);          // 地球主探索：镜头由 World 接着安排
+    if (this.bookShot && !A.world) {
+      if (window.__lbPhoneScale && (this.bookShot.width !== innerWidth || this.bookShot.height !== innerHeight)) this.bookView();
+      else this.stage.shot(this.bookShot);
+    }
     document.body.classList.remove('lesson-on');
   }
 
@@ -491,7 +514,8 @@ export class LiveLayer {
   }
 
   // ---- 指针交给实验处理 ----
-  _ray(ndc) {
+  _ray(ndc, event) {
+    this.raycaster.setTouch?.(event);
     this.raycaster.setFromCamera(ndc, this.stage.camera);
     return this.raycaster;
   }
@@ -501,7 +525,7 @@ export class LiveLayer {
     const A = this.active;
     if (A && !A.closing && A.nb && A.nb.pointerDown(this._ray(ndc))) return true;
     if (!A || A.closing) return false;
-    if (A.inst.pointer?.down && A.inst.pointer.down(this._ray(ndc), e)) return true;
+    if (A.inst.pointer?.down && A.inst.pointer.down(this._ray(ndc, e), e)) return true;
     return false;
   }
 
@@ -531,7 +555,8 @@ export class LiveLayer {
     tagFocus(null);
     const shot = this._prevShot;
     if (!shot) return;
-    this.stage.shot(shot);
+    if (window.__lbPhoneScale && this._reframe && (innerWidth !== shot.width || innerHeight !== shot.height)) this._reframe();
+    else this.stage.shot(shot);
     const view = this.stage.user;
     view.yaw = shot.yaw; view.pitch = shot.pitch; view.zoom = shot.zoom;
     view.pan.copy(shot.pan);
@@ -549,7 +574,7 @@ export class LiveLayer {
   pointerMove(ndc, e) {
     const A = this.active;
     if (!A || A.closing || !A.inst.pointer?.move) { this._hoverTip(null); return false; }
-    const r = !!A.inst.pointer.move(this._ray(ndc), e);
+    const r = !!A.inst.pointer.move(this._ray(ndc, e), e);
     if (A.def?.flow === 'explore') this._hoverTip(e);
     return r;
   }
@@ -569,7 +594,7 @@ export class LiveLayer {
   pointerUp(ndc, e) {
     const A = this.active;
     if (!A || A.closing || !A.inst.pointer?.up) return false;
-    return !!A.inst.pointer.up(this._ray(ndc), e);
+    return !!A.inst.pointer.up(this._ray(ndc, e), e);
   }
 }
 

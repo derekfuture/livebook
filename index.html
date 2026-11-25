@@ -3,6 +3,45 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <script>
+    // 在舞台初始化前确定布局。屏幕短边用于识别手机，可见高度扣除地址栏。
+    (function () {
+      if (Math.min(screen.width, screen.height) >= 600 || !matchMedia('(pointer: coarse)').matches) return;
+      var meta = document.querySelector('meta[name=viewport]'), original = meta.content;
+      var root = document.documentElement;
+      var key = 'livebook.phonescale', query = new URLSearchParams(location.search), override = Number(query.get('phonescale'));
+      try {
+        if (query.get('phonescale') === 'auto') localStorage.removeItem(key);
+        else if (override >= 0.3 && override <= 1) localStorage.setItem(key, String(override));
+        else override = Number(localStorage.getItem(key));
+      } catch (e) { /* 禁用存储时，本次网址仍然有效 */ }
+      // WebKit 会把 viewport 的缩放算进 devicePixelRatio，先记下原始的值。
+      window.__lbPhoneDpr = window.devicePixelRatio;
+      root.classList.add('phone');
+      function fit() {
+        var scale = 1, content = original;
+        // 有固定宽度的旧 viewport 在转屏中途仍可能报告旧方向。
+        var orientation = screen.orientation;
+        var landscape = screen.width > screen.height || (orientation && orientation.type
+          ? orientation.type.indexOf('landscape') === 0 : Math.abs(window.orientation) === 90);
+        if (landscape) {
+          var view = window.visualViewport;
+          var height = view ? Math.round(view.height * view.scale) : Math.min(screen.width, screen.height);
+          scale = override >= 0.3 && override <= 1 ? override : Math.min(1, Math.max(0.3, height / 640));
+          var width = Math.max(screen.width, screen.height);
+          content = 'width=' + Math.round(width / scale) + ', initial-scale=' + scale + ', minimum-scale=' + scale + ', maximum-scale=' + scale + ', user-scalable=no, viewport-fit=cover';
+        }
+        window.__lbPhoneScale = scale;
+        root.classList.toggle('phone-scaled', scale < 1);
+        if (meta.content !== content) meta.content = content;
+      }
+      fit();
+      if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', fit);
+      window.addEventListener('orientationchange', fit);
+      window.addEventListener('resize', fit);
+      if (window.visualViewport) visualViewport.addEventListener('resize', fit);
+    })();
+  </script>
   <title>活页课本</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M3 7q6-2 13 2v18q-7-4-13-2z%22 fill=%22%23f4ead8%22/%3E%3Cpath d=%22M29 7q-6-2-13 2v18q7-4 13-2z%22 fill=%22%23ff6a3d%22/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/src/style.css" />

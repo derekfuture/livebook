@@ -59,7 +59,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   if (handoff) book.group.visible = false;
   const hotspots = new Hotspots(stage, book, content.spots);
   const panel = new Panel($('#panel'));
-  const live = new LiveLayer({ stage, book, textures, hotspots, panel, content, onChange: (open) => {
+  const live = new LiveLayer({ bookView: () => bookShot(), stage, book, textures, hotspots, panel, content, onChange: (open) => {
     updateUI();
     if (open) firstLesson(stage);          // 第一次打开活页：怎么转、放大、复位（纸条贴在右下角的视角按钮旁）
     const a = live.active;
