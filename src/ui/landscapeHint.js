@@ -45,9 +45,10 @@ export function landscapeHint() {
   if (!viewport.phone) return null;
   const title = h('h2', {}, '把手机横过来');
   const message = h('p', {}, '活页和电脑上一样操作');
+  const note = h('small', { class: 'turn-note' }, '需开启手机的自动旋转');
   const actions = h('div', { class: 'turn-actions board' });
   const sheet = h('div', { class: 'turn-sheet' },
-    h('div', { class: 'turn-drawing', html: miniature }), title, message, actions);
+    h('div', { class: 'turn-drawing', html: miniature }), title, message, note, actions);
   const hint = h('aside', { class: 'turn-hint turn-' + variant, 'aria-label': '横屏提示' }, sheet);
   if (/Android/i.test(navigator.userAgent) && document.fullscreenEnabled && screen.orientation?.lock) {
     actions.append(h('button', { type: 'button', class: 'go', onclick: async () => {

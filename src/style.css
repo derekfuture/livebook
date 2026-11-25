@@ -1309,6 +1309,7 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
 .turn-hint h2 { margin: 0; font: 700 26px/1.4 var(--song); letter-spacing: .06em; }
 .turn-b h2 { font-size: 21px; padding-bottom: 9px; border-bottom: 1.5px solid rgba(42,47,61,.75); }
 .turn-hint p { margin: 7px 0 14px; color: var(--ink2); font: 16px/1.5 var(--song); }
+.turn-hint .turn-note { display: block; margin: -10px 0 14px; color: var(--ink2); opacity: .72; font: 13px/1.4 var(--song); }
 .turn-b p { font-size: 15px; margin-bottom: 8px; }
 .turn-actions { display: flex; align-items: center; justify-content: center; gap: 18px; }
 .turn-actions button { min-height: 44px; }
