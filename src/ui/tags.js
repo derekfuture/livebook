@@ -1,3 +1,4 @@
+import { viewport } from './viewport.js';
 import * as THREE from 'three';
 
 // 钉在 3D 位置上的 HTML 小标签（字比贴图清楚，也方便用课本字体）。
@@ -31,7 +32,7 @@ let focus = null;
 export function tagFocus(target, depth) { focus = target ? { target: target.clone(), depth } : null; }
 
 export function updateTags(camera) {
-  const w = innerWidth, h = innerHeight;
+  const w = viewport.width / viewport.scale, h = viewport.height / viewport.scale;
   const fd = focus && camera.position.distanceTo(focus.target) + focus.depth;
   const crowd = [], pinned = [];
   for (const t of tags) {
@@ -46,7 +47,7 @@ export function updateTags(camera) {
     const x = ((v.x + 1) / 2) * w, y = ((1 - v.y) / 2) * h;
     // 卡片：在物体旁边固定的几十像素处（t.px = [dx, dy]），不随镜头远近飘远
     // 卡片被关掉（纯净操作）：鼠标停到那件东西附近时，它的卡片才浮出来
-    if (t.el.classList.contains('cond') && hideCards() && Math.hypot(x - mouse.x, y - mouse.y) > 70) { t.el.style.opacity = '0'; t.el.style.pointerEvents = 'none'; t._p = null; continue; }
+    if (t.el.classList.contains('cond') && hideCards() && Math.hypot(x - mouse.x / viewport.scale, y - mouse.y / viewport.scale) > 70) { t.el.style.opacity = '0'; t.el.style.pointerEvents = 'none'; t._p = null; continue; }
     if (t.el.classList.contains('cond')) { const [dx, dy] = t.px || [0, 0]; crowd.push({ t, x: x + dx, y: y + dy, w: t.el.offsetWidth + 8, h: t.el.offsetHeight + 6 }); continue; }
     t.el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`;
     if (t.el.classList.contains('mw-go')) pinned.push({ x, y, w: t.el.offsetWidth + 8, h: t.el.offsetHeight + 6 });
@@ -58,7 +59,7 @@ export function updateTags(camera) {
 // pinned：钉在原地的按钮（“钻进…看”）：卡片整张让开，不压住它们
 function layoutCards(crowd, w, h, pinned = []) {
   const panel = document.getElementById('panel');
-  const left = (panel && !panel.hidden && !panel.classList.contains('folded') && w > 760 ? panel.getBoundingClientRect().right : 0) + 10;
+  const left = (panel && !panel.hidden && !panel.classList.contains('folded') && w > 760 ? panel.getBoundingClientRect().right / viewport.scale : 0) + 10;
   const right = w - 64, top = 58, bottom = h - 92;            // 右边留给视角按钮，下边留给步骤栏
   for (let it = 0; it < 8; it++) {
     for (let i = 0; i < crowd.length; i++) for (let j = i + 1; j < crowd.length; j++) {

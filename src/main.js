@@ -1,4 +1,5 @@
 import './polyfills.js';          // 先补上老浏览器缺的几个小函数（要在别的模块之前）
+import { viewport } from './ui/viewport.js';
 import * as THREE from 'three';
 import { Stage } from './stage/Stage.js';
 import { PageTextures } from './book/PageTextures.js';
@@ -253,12 +254,12 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   const canvas = $('#c');
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  const setNdc = (e) => ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-  let press = null;
+  const setNdc = (e) => ndc.set((e.clientX / viewport.width) * 2 - 1, -(e.clientY / viewport.height) * 2 + 1);
+  let press = null, lastPointerType;
 
   const pagePixelWidth = () => {
     const a = new THREE.Vector3(0, 0, 0).project(stage.camera), b = new THREE.Vector3(book.W, 0, 0).project(stage.camera);
-    return Math.max(80, Math.abs(b.x - a.x) * innerWidth / 2);
+    return Math.max(80, Math.abs(b.x - a.x) * viewport.width / 2);
   };
 
   // 视角：左键拖空白处 = 旋转；右键拖 / Shift+拖 / 双指拖 = 平移；滚轮 / 捏合 = 缩放；双击空白 = 复位
@@ -292,19 +293,31 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
 
   canvas.addEventListener('pointerdown', (e) => {
     setNdc(e);
+    lastPointerType = e.pointerType;
     canvas.setPointerCapture(e.pointerId);
     touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch) return;
     if (touches.size === 2) {                       // 两根手指：捏合缩放 + 平移，取消正在进行的其他操作
       if (press?.dragging) book.endDrag(false);
-      if (press?.live) live.pointerUp(ndc, e);
+      if (press?.world && live.isOpen) world.drag = null;
+      if (press?.live) {
+        const first = touches.values().next().value;
+        const cancel = { type: 'pointercancel', pointerType: 'touch', clientX: first.x, clientY: first.y };
+        setNdc(cancel);
+        live.pointerUp(ndc, cancel);
+      }
       const [p1, p2] = [...touches.values()];
-      pinch = { d: Math.hypot(p1.x - p2.x, p1.y - p2.y), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2 };
+      pinch = { lesson: live.isOpen && e.pointerType === 'touch', angle: Math.atan2(p2.y - p1.y, p2.x - p1.x), d: Math.hypot(p1.x - p2.x, p1.y - p2.y), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2 };
       press = null; stage._interacting = true;
       return;
     }
-    if (e.button === 2 || e.shiftKey) { press = camPress(e, 'pan'); return; }
+    if ((e.button === 2 || e.shiftKey) && !(live.isOpen && e.pointerType === 'touch')) { press = camPress(e, 'pan'); return; }
     if (world) { ray.setFromCamera(ndc, stage.camera); if (world.pointerDown(ray, e)) { press = { world: true }; return; } }          // 地球主探索：拖地球、点旗、点角上的地球回去
-    if (live.isOpen) { press = live.pointerDown(ndc, e) ? { live: true } : camPress(e, 'orbit'); return; }
+    if (live.isOpen) {
+      if (live.pointerDown(ndc, e)) press = { live: true };
+      else press = e.pointerType === 'touch' ? null : camPress(e, 'orbit');
+      return;
+    }
     if (book.busy) return;
     ray.setFromCamera(ndc, stage.camera);
     const spot = hotspots.pick(ray);
@@ -322,14 +335,21 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   canvas.addEventListener('pointermove', (e) => {
     setNdc(e);
     if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pinch && touches.size === 2) {
+    if (pinch) {
+      if (touches.size !== 2) return;
       const [p1, p2] = [...touches.values()];
       const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-      zoomView(pinch.d / Math.max(1, d), new THREE.Vector2((mx / innerWidth) * 2 - 1, -(my / innerHeight) * 2 + 1));
+      zoomView(pinch.d / Math.max(1, d), new THREE.Vector2((mx / viewport.width) * 2 - 1, -(my / viewport.height) * 2 + 1));
+      if (pinch.lesson) {
+        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x), delta = angle - pinch.angle;
+        stage.user.yaw += Math.atan2(Math.sin(delta), Math.cos(delta));
+        pinch.angle = angle;
+      }
       panView(mx - pinch.mx, my - pinch.my);
       Object.assign(pinch, { d, mx, my });
       return;
     }
+    if (live.isOpen && e.pointerType === 'touch' && !press) return;
     if (press?.cam) {
       const dx = e.clientX - press.lx, dy = e.clientY - press.ly;
       if (press.cam === 'pagePan' && !press.moved) {
@@ -342,7 +362,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       return;
     }
     if (press?.world) { ray.setFromCamera(ndc, stage.camera); world.pointerMove(ray, e); return; }
-    if (world && !press) { ray.setFromCamera(ndc, stage.camera); if (world.pointerMove(ray, e)) { hotspots.setHover(null); return; } }
+    if (world && !press && !(live.isOpen && e.pointerType === 'touch')) { ray.setFromCamera(ndc, stage.camera); if (world.pointerMove(ray, e)) { hotspots.setHover(null); return; } }
     if (live.isOpen) { live.pointerMove(ndc, e); return; }
     if (press && press.dir) {
       const dx = e.clientX - press.x, dy = e.clientY - press.y;
@@ -371,7 +391,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   const release = (e) => {
     setNdc(e);
     touches.delete(e.pointerId);
-    if (pinch) { if (touches.size < 2) { pinch = null; stage._interacting = false; } press = null; return; }
+    if (pinch) { if (touches.size < (pinch.lesson ? 1 : 2)) { pinch = null; stage._interacting = false; } press = null; return; }
     const p = press; press = null;
     if (p?.world) { world.pointerUp(); return; }
     if (p?.cam) {
@@ -382,7 +402,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       updateViewCtl();
       if (p.cam !== 'pagePan' || p.moved || e.type !== 'pointerup') return;
     }
-    if (live.isOpen) { live.pointerUp(ndc, e); return; }
+    if (live.isOpen) { if (p?.live || e.pointerType !== 'touch') live.pointerUp(ndc, e); return; }
     if (!p) return;
     if (p.spot) { hideHint(); world ? world.enter(p.spot.lesson) : live.open(p.spot); return; }
     if (p.dragging) {
@@ -400,10 +420,13 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const k = e.ctrlKey ? 0.012 : 0.0016;       // 触控板捏合时 ctrlKey 为真，步子要大一些
-    zoomView(Math.exp(e.deltaY * k), new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
+    zoomView(Math.exp(e.deltaY * k), new THREE.Vector2((e.clientX / viewport.width) * 2 - 1, -(e.clientY / viewport.height) * 2 + 1));
     updateViewCtl();
   }, { passive: false });
-  canvas.addEventListener('dblclick', () => { stage.resetView(); updateViewCtl(); });
+  canvas.addEventListener('dblclick', () => {
+    if (live.isOpen && lastPointerType === 'touch') return;
+    stage.resetView(); updateViewCtl();
+  });
 
   // 右下角的视角按钮
   const viewctl = h('div', { id: 'viewctl' },

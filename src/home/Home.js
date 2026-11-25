@@ -1,3 +1,4 @@
+import { viewport } from '../ui/viewport.js';
 // 首页：一张书桌。每一科在书桌靠里那一头：一摞这一科的课本，旁边放着这一科的一件东西，前面立着一张桌签——
 //   物理：一块三棱镜，一束白光从后面照进去，另一边在桌上散开成一道彩虹（按折射定律算的：红光偏折最少、紫光最多）；
 //   化学：一只锥形瓶，瓶里是蓝色的硫酸铜溶液；
@@ -75,15 +76,19 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   // 摆放：一前一后错开着往两边排，两头朝中间转一点；超过 6 科就分成前后两排（每排还是一前一后）
   const N = subjects.length, two = N > 6, front = two ? Math.ceil(N / 2) : N;
   const sparseDesk = OFFLINE && N < 3;
-  const tall = innerWidth / innerHeight < 0.75 && N <= 4;          // 手机竖着拿：几科从近到远排成一列（左右稍微错开），镜头抬高往下看，每一科都大、好点
+  const tallDesk = () => viewport.width / viewport.height < 0.75 && N <= 4;
+  let tall = tallDesk();          // 手机竖着拿：几科从近到远排成一列（左右稍微错开），镜头抬高往下看，每一科都大、好点
   const deskSlot = (i, n, row = 0) => {
     if (tall) return { x: ((i % 2) - 0.5) * 0.18, z: ROW_Z + 0.75 - i * 1.05, yaw: 0 };
     const k = i - (n - 1) / 2;
     return { x: k * GAPX, z: ROW_Z - row * 1.4 - (i % 2) * STAGGER, yaw: -k * 0.08 };
   };
-  subjects.forEach((s, i) => {
+  const positionSubject = (s, i) => {
     const r = i < front ? 0 : 1;
     Object.assign(s, sparseDesk && N === 1 ? { x: 0, z: ROW_Z, yaw: 0 } : deskSlot(r ? i - front : i, r ? N - front : front, r));
+  };
+  subjects.forEach((s, i) => {
+    positionSubject(s, i);
     s.leaves = s.books.reduce((m, b) => m + Object.keys(getBook(b.id).lessons).length, 0);
     s.hot = 0;
   });
@@ -144,19 +149,19 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const c = new THREE.Vector3(u.stack.x - px, 0, u.stack.z - pz).applyAxisAngle(Y, a);
     return { ...toW(s, px + c.x, u.stack.y, pz + c.z, u.stack.yaw + a), sc: 1 };
   };
-  const fanZ = tall ? FAN_Z + 0.9 : FAN_Z;          // 手机竖排时最近的那一摞往前挪了，摊开的这一排也往前挪，那几摞才在画面外（不然桌签从标题栏底下露出来）
+  const fanZ = () => tall ? FAN_Z + 0.9 : FAN_Z;          // 手机竖排时最近的那一摞往前挪了，摊开的这一排也往前挪，那几摞才在画面外（不然桌签从标题栏底下露出来）
   // 摊开：一个学段一排（初中在后，高中往前），一排最多 6 本、手机竖着拿 3 本，多了接着往前排
-  const fanRows = (s) => { const per = innerWidth / innerHeight < 0.75 ? 3 : 6, rows = []; for (const bs of s.levels) for (let i = 0; i < bs.length; i += per) rows.push(bs.slice(i, i + per)); return rows; };
+  const fanRows = (s) => { const per = viewport.width / viewport.height < 0.75 ? 3 : 6, rows = []; for (const bs of s.levels) for (let i = 0; i < bs.length; i += per) rows.push(bs.slice(i, i + per)); return rows; };
   const fanX = (s, rows) => Math.min(s.x * 0.6, -0.06 - (Math.max(...rows.map((r) => r.length)) * s.sp - 0.14) / 2);          // 摊在书桌中间偏左：拿一本落到书桌中间（x > 0 那一半）时不会碰到别的书
   const fanPose = (g) => {
     const u = g.userData, s = u.s, rows = fanRows(s), r = rows.findIndex((x) => x.includes(u.b)), k = rows[r].indexOf(u.b) - (rows[r].length - 1) / 2;
-    return { p: new THREE.Vector3(fanX(s, rows) + k * s.sp, u.T / 2 + 0.001, fanZ + r * FAN_ROW + Math.abs(k) * 0.04), yaw: -k * 0.035, sc: 1 };
+    return { p: new THREE.Vector3(fanX(s, rows) + k * s.sp, u.T / 2 + 0.001, fanZ() + r * FAN_ROW + Math.abs(k) * 0.04), yaw: -k * 0.035, sc: 1 };
   };
   const deskPose = (g) => { const u = g.userData; return { p: new THREE.Vector3((u.W * u.sv) / 2, (u.T * u.sv) / 2, 0), yaw: 0, sc: u.sv }; };
   // 地球仪的球在屏幕上的圆（圆心 cx、cy，半径 r，像素）：沿镜头的射线往里 D 远，球放到正好那么大——去地理世界的终点、从那边回来的起点
   const ballAt = (C, B, D = 2.4) => {
-    const cam = stage.camera; ndc.set((C.cx / innerWidth) * 2 - 1, -(C.cy / innerHeight) * 2 + 1); ray.setFromCamera(ndc, cam);
-    const Rw = D * Math.sin(Math.atan((C.r / (innerHeight / 2)) * Math.tan((cam.fov * D2R) / 2)));
+    const cam = stage.camera; ndc.set((C.cx / viewport.width) * 2 - 1, -(C.cy / viewport.height) * 2 + 1); ray.setFromCamera(ndc, cam);
+    const Rw = D * Math.sin(Math.atan((C.r / (viewport.height / 2)) * Math.tan((cam.fov * D2R) / 2)));
     return { p: ray.ray.origin.clone().addScaledVector(ray.ray.direction, D), sc: Rw / B.R };
   };
   // 地理世界一打开时地球哪一面朝着镜头：那本书第一面插在具体地方的旗的经度（同 GeoWorld 的算法）；没有就用别的地理书的，再没有就 105°E
@@ -164,7 +169,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     const firstPlace = (bid) => { for (const sp of getBook(bid).spots) { const a = ANCHORS[sp.lesson]; if (a?.kind === 'place') return a.pins[0].lon; } return null; };
     return firstPlace(focus) ?? books.filter((b) => b.subject === '地理').map((b) => firstPlace(b.id)).find((x) => x != null) ?? 105;
   };
-  const fanCenter = (s) => { const rows = fanRows(s); return new THREE.Vector3(fanX(s, rows), 0, fanZ - 0.05 + ((rows.length - 1) * FAN_ROW) / 2); };          // 摊开的那几本正中（窗光挪过去照它）
+  const fanCenter = (s) => { const rows = fanRows(s); return new THREE.Vector3(fanX(s, rows), 0, fanZ() - 0.05 + ((rows.length - 1) * FAN_ROW) / 2); };          // 摊开的那几本正中（窗光挪过去照它）
   // 在两个位置之间：摊开时先平着往外抽（错开了再落到桌上，几本书不会互相穿过去），收回时先抬到各自的高度再收拢
   const lerpPose = (A, B, k, kind) => {
     const e = ease(k), yk = kind === 'tofan' ? smooth(0.62, 1, k) : kind === 'tostack' ? smooth(0, 0.38, k) : e;
@@ -203,13 +208,19 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
   // ---- 机位：把要看的东西（几个点）放进屏幕上空出来的那块（上面是标题和搜索框，右边是便签，下面是按钮），尽量大 ----
   let open = null, leaving = null, hoverS = null, hoverB = null;
   const frame = (pts, el, { bottom = 76, minDist = 0, center = false } = {}) => {          // 下面只剩左下角一行小字：给桌上的几科多留点地方
-    const ph = innerWidth <= 760, top = ui.querySelector('.home-top')?.getBoundingClientRect();
-    const rect = { l: ph ? 8 : 56, r: innerWidth - (ph ? 8 : 56), t: ph && top ? top.bottom + 14 : 150, b: innerHeight - bottom };          // 手机：左右几乎贴边、从标题栏下面开始，桌上的几摞书尽量大、好点
+    const ph = viewport.width <= 760, top = ui.querySelector('.home-top')?.getBoundingClientRect();
+    const rect = { l: ph ? 8 : 56, r: viewport.width - (ph ? 8 : 56), t: ph && top ? top.bottom + 14 : 150, b: viewport.height - bottom };          // 手机：左右几乎贴边、从标题栏下面开始，桌上的几摞书尽量大、好点
+    if (viewport.landscape) {
+      rect.l = top.left + 28 * viewport.scale;
+      rect.r = top.right - 28 * viewport.scale;
+      rect.t = top.bottom + 10 * viewport.scale;
+      rect.b = viewport.height - bottom * viewport.scale;
+    }
     const nb = ui.querySelector('.home-notes')?.getBoundingClientRect();          // 便签在右边一列（宽屏）或下面一行（4:3）：让开
-    if (nb && nb.height > 0) { if (nb.left > innerWidth * 0.5) rect.r = nb.left - 36; else rect.b = Math.min(rect.b, nb.top - 24); }
-    const cam = new THREE.PerspectiveCamera(stage.camera.fov, innerWidth / innerHeight, 0.02, 60);
+    if (nb && nb.height > 0) { if (nb.left > viewport.width * 0.5) rect.r = nb.left - 36 * viewport.scale; else rect.b = Math.min(rect.b, nb.top - 24); }
+    const cam = new THREE.PerspectiveCamera(stage.camera.fov, viewport.width / viewport.height, 0.02, 60);
     const dir = new THREE.Vector3(0, Math.sin(el), Math.cos(el)), target = pts.reduce((a, p) => a.add(p), new THREE.Vector3()).divideScalar(pts.length);
-    const L = (rect.l / innerWidth) * 2 - 1, R = (rect.r / innerWidth) * 2 - 1, T = 1 - (rect.t / innerHeight) * 2, B = 1 - (rect.b / innerHeight) * 2;
+    const L = (rect.l / viewport.width) * 2 - 1, R = (rect.r / viewport.width) * 2 - 1, T = 1 - (rect.t / viewport.height) * 2, B = 1 - (rect.b / viewport.height) * 2;
     const cx = center ? 0 : (L + R) / 2;
     const right = new THREE.Vector3(), up = new THREE.Vector3(), v = new THREE.Vector3();
     let dist = Math.max(6, minDist);
@@ -333,7 +344,7 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
 
   // ---- 指针 ----
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-  const aim = (e) => { ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, stage.camera); };
+  const aim = (e) => { ndc.set((e.clientX / viewport.width) * 2 - 1, -(e.clientY / viewport.height) * 2 + 1); ray.setFromCamera(ndc, stage.camera); };
   const owners = new Map();
   for (const subject of subjects) {
     for (const part of [subject.card, subject.thing?.userData.body || subject.thing]) part?.traverse(mesh => { if (mesh.isMesh) owners.set(mesh, subject); });
@@ -397,7 +408,18 @@ export async function bootHome(stage, { enterBook = null, enterWorld = null } = 
     landing = { T, ball, p: start.p.clone(), sc: start.sc, q: ball.quaternion.clone(), t: -0.36 };          // 先等盖着的截图淡出（0.34 秒）
     window.__dropSnap?.();
   } else { homeShot(true); window.__dropSnap?.(); }
-  stage.onResize = () => { if (!leaving) (open ? fanShot(open, true) : homeShot(true)); };
+  stage.onResize = () => {
+    if (leaving) return;
+    if (viewport.phone && tall !== tallDesk()) {
+      tall = tallDesk();
+      subjects.forEach((s, i) => {
+        positionSubject(s, i);
+        s.root.position.set(s.x, 0, s.z);
+        s.root.rotation.y = s.yaw;
+      });
+    }
+    if (open) fanShot(open, true); else homeShot(true);
+  };
 
   // ---- 每帧 ----
   const tick = (dt) => {
