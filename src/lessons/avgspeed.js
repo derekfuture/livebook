@@ -98,7 +98,10 @@ export default {
     drawWatch(0, false);
     tag('停表（点它）', 'pill').loc(group, 0.02, 0.0, 0.11);
 
-    const S = { plate: 'end', start: 0, s: 0, v: 0, t: 0, moving: false, timing: false, watch: 0, data: {}, hit: false, rows: [] };
+    const S = { plate: 'end', start: 0, s: 0, v: 0, t: 0, moving: false, timing: false, watch: 0, data: {}, hit: false, rows: [], n: 0, last: '' };
+    // 停表旁的小卡片：这一次（第几次）测得的路程、时间、平均速度；不采用的写明原因
+    const card = tag('', 'pill');
+    const showCard = () => card.loc(group, 0.02, 0.16, 0.085).text(S.last).show(!!S.last && !S.moving && !S.timing);
     let G = null;
     const plateS = () => (S.plate === 'end' ? LEN : LEN / 2);
     const layout = () => {
@@ -116,7 +119,11 @@ export default {
     const stopWatch = () => {
       if (!S.timing) { if (!S.moving) { S.watch = 0; S.s = S.start; layout(); status('停表清零了，小车放回原处。'); } return; }
       S.timing = false;
-      if (!S.hit) { status(`小车还没到金属片你就按了停表（${S.watch.toFixed(1)} s），这次不算。等它停下，点停表清零再来。`); return; }
+      if (!S.hit) {
+        S.n++; S.last = `第 ${S.n} 次：不采用（车还没到金属片就按了停表）`;
+        G?.tb.add([`第 ${S.n} 次 · 不采用：车还没到金属片就按了停表`, '—', S.watch.toFixed(1), '—']);
+        status(`小车还没到金属片你就按了停表（${S.watch.toFixed(1)} s），这次<b>不采用</b>：测到的不是走完这段路程的时间。等它停下，点停表清零再来。`); return;
+      }
       const late = S.watch - S.hitT;
       G?.record({ s: plateS() - S.start, t: +S.watch.toFixed(1), late });
     };
@@ -163,8 +170,11 @@ export default {
                   out.set('v', v, 2);
                   // 停表按晚了很多：照样记下（这是真实的数据），但标出来，后面不能拿它证明规律
                   const bad = late > BAD_LATE;
-                  tb.add([name + (bad ? `（停表晚了约 ${late.toFixed(1)} s）` : ''), s.toFixed(2), t.toFixed(1), v.toFixed(2)]);
-                  const warn = bad ? `<br>这次你听到“啪”以后约 ${late.toFixed(1)} s 才按停表，<b>时间偏大很多，这组数据不准</b>——最好重测一次。` : '';
+                  S.n++;
+                  tb.add([`第 ${S.n} 次 · ${name}` + (bad ? `（不采用：停表晚按了约 ${late.toFixed(1)} s，时间偏大）` : ''), s.toFixed(2), t.toFixed(1), bad ? '—' : v.toFixed(2)]);
+                  S.last = bad ? `第 ${S.n} 次 ${name}：不采用（停表晚按约 ${late.toFixed(1)} s）` : `第 ${S.n} 次 ${name}　s ${s.toFixed(2)} m　t ${t.toFixed(1)} s　v ${v.toFixed(2)} m/s`;
+                  if (bad) { ui.status(`第 ${S.n} 次：你听到“啪”以后约 ${late.toFixed(1)} s 才按停表，测到的时间比小车实际用的时间长很多，<b>这组数据不采用</b>。重测一次${name}，听到撞击声马上按停表。`); return; }
+                  const warn = '';
                   if (S.start > 0) {
                     const v3 = S.data.v3;
                     G.goal.done('mid');
@@ -209,7 +219,7 @@ export default {
         }
         if (S.timing) S.watch += dt;
         if (S.timing && S.watch > 12) { S.timing = false; status('停表走了好久——听到撞击声要及时按停表。点停表清零再来。'); }
-        layout();
+        layout(); showCard();
       },
     };
   },
