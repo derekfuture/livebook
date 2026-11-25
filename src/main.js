@@ -265,6 +265,30 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   const touches = new Map();
   let pinch = null;
   const camPress = (e, mode) => { stage._interacting = true; return { cam: mode, lx: e.clientX, ly: e.clientY, moved: 0 }; };
+  const zoomedBook = () => !live.isOpen && (!world || world.state === 'book' || world.state === 'off') && stage.user.zoom < 1 - 1e-6;
+  const clampBookPan = () => {
+    const { pan, zoom } = stage.user, target = stage.rig.target;
+    // 把沿屏幕平面的位移投回书面，防止上下拖动时镜头离开书面高度。
+    const normal = new THREE.Vector3().setFromMatrixColumn(stage.camera.matrixWorld, 2);
+    if (normal.y > 0) pan.addScaledVector(normal, -pan.y / normal.y);
+    pan.y = 0;
+    const cropped = Math.max(0, 1 - zoom);
+    const left = book.current === 0 ? 0 : -book.W;
+    const right = book.current === book.leafCount ? 0 : book.W;
+    pan.x = THREE.MathUtils.clamp(pan.x, (left - target.x) * cropped, (right - target.x) * cropped);
+    pan.z = THREE.MathUtils.clamp(pan.z, (-book.H / 2 - target.z) * cropped, (book.H / 2 - target.z) * cropped);
+  };
+  const zoomView = (factor, anchor) => {
+    const wasZoomed = zoomedBook();
+    stage.zoomBy(factor, anchor);
+    const isZoomed = zoomedBook();
+    if (wasZoomed || isZoomed) clampBookPan();
+    if (isZoomed !== wasZoomed) canvas.style.cursor = isZoomed ? 'grab' : '';
+  };
+  const panView = (dx, dy) => {
+    stage.panBy(dx, dy);
+    if (zoomedBook()) clampBookPan();
+  };
 
   canvas.addEventListener('pointerdown', (e) => {
     setNdc(e);
@@ -284,6 +308,10 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     if (book.busy) return;
     ray.setFromCamera(ndc, stage.camera);
     const spot = hotspots.pick(ray);
+    if (zoomedBook()) {
+      press = { ...camPress(e, 'pagePan'), spot };
+      return;
+    }
     if (spot) { press = { spot, x: e.clientX, y: e.clientY }; return; }
     const hits = ray.intersectObjects([book.rightTop.front, book.leftTop.back, book.stackR, book.stackL], false);
     if (!hits.length) { press = camPress(e, 'orbit'); return; }
@@ -297,15 +325,19 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     if (pinch && touches.size === 2) {
       const [p1, p2] = [...touches.values()];
       const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-      stage.zoomBy(pinch.d / Math.max(1, d), new THREE.Vector2((mx / innerWidth) * 2 - 1, -(my / innerHeight) * 2 + 1));
-      stage.panBy(mx - pinch.mx, my - pinch.my);
+      zoomView(pinch.d / Math.max(1, d), new THREE.Vector2((mx / innerWidth) * 2 - 1, -(my / innerHeight) * 2 + 1));
+      panView(mx - pinch.mx, my - pinch.my);
       Object.assign(pinch, { d, mx, my });
       return;
     }
     if (press?.cam) {
       const dx = e.clientX - press.lx, dy = e.clientY - press.ly;
+      if (press.cam === 'pagePan' && !press.moved) {
+        if (Math.hypot(dx, dy) < 6) return;
+        hideHint();
+      }
       press.lx = e.clientX; press.ly = e.clientY; press.moved += Math.abs(dx) + Math.abs(dy);
-      if (press.cam === 'orbit') stage.orbit(dx, dy); else stage.panBy(dx, dy);
+      if (press.cam === 'orbit') stage.orbit(dx, dy); else panView(dx, dy);
       canvas.style.cursor = 'grabbing';
       return;
     }
@@ -332,7 +364,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       ray.setFromCamera(ndc, stage.camera);
       const spot = hotspots.pick(ray);
       hotspots.setHover(spot);
-      canvas.style.cursor = spot ? 'pointer' : 'grab';
+      canvas.style.cursor = spot && !zoomedBook() ? 'pointer' : 'grab';
     }
   });
 
@@ -344,11 +376,11 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     if (p?.world) { world.pointerUp(); return; }
     if (p?.cam) {
       stage._interacting = false;
-      canvas.style.cursor = '';
+      canvas.style.cursor = zoomedBook() ? 'grab' : '';
       // 凑近观察时，点空白处返回；拖动空白处仍然可以绕着器材看。
       if (e.type === 'pointerup' && p.cam === 'orbit' && p.moved < 5 && live.isOpen) live.exitLook();
       updateViewCtl();
-      return;
+      if (p.cam !== 'pagePan' || p.moved || e.type !== 'pointerup') return;
     }
     if (live.isOpen) { live.pointerUp(ndc, e); return; }
     if (!p) return;
@@ -368,15 +400,15 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     const k = e.ctrlKey ? 0.012 : 0.0016;       // 触控板捏合时 ctrlKey 为真，步子要大一些
-    stage.zoomBy(Math.exp(e.deltaY * k), new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
+    zoomView(Math.exp(e.deltaY * k), new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
     updateViewCtl();
   }, { passive: false });
   canvas.addEventListener('dblclick', () => { stage.resetView(); updateViewCtl(); });
 
   // 右下角的视角按钮
   const viewctl = h('div', { id: 'viewctl' },
-    h('button', { class: 'zoom-in', title: '放大（滚轮 / 双指捏合）', onclick: () => { stage.zoomBy(0.8); updateViewCtl(); } }, '＋'),
-    h('button', { class: 'zoom-out', title: '缩小', onclick: () => { stage.zoomBy(1.25); updateViewCtl(); } }, '－'),
+    h('button', { class: 'zoom-in', title: '放大（滚轮 / 双指捏合）', onclick: () => { zoomView(0.8); updateViewCtl(); } }, '＋'),
+    h('button', { class: 'zoom-out', title: '缩小', onclick: () => { zoomView(1.25); updateViewCtl(); } }, '－'),
     h('button', { class: 'reset', title: '复位视角（双击空白处）', onclick: () => { stage.resetView(); updateViewCtl(); } }, '⟲'),
     helpButton());          // “?”：怎么用（一张操作说明卡）
   document.body.append(viewctl);
