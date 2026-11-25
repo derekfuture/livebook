@@ -307,7 +307,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
         live.pointerUp(ndc, cancel);
       }
       const [p1, p2] = [...touches.values()];
-      pinch = { lesson: live.isOpen && e.pointerType === 'touch', angle: Math.atan2(p2.y - p1.y, p2.x - p1.x), d: Math.hypot(p1.x - p2.x, p1.y - p2.y), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2 };
+      pinch = { lesson: live.isOpen && e.pointerType === 'touch', d: Math.hypot(p1.x - p2.x, p1.y - p2.y), mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2 };
       press = null; stage._interacting = true;
       return;
     }
@@ -315,7 +315,7 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
     if (world) { ray.setFromCamera(ndc, stage.camera); if (world.pointerDown(ray, e)) { press = { world: true }; return; } }          // 地球主探索：拖地球、点旗、点角上的地球回去
     if (live.isOpen) {
       if (live.pointerDown(ndc, e)) press = { live: true };
-      else press = e.pointerType === 'touch' ? null : camPress(e, 'orbit');
+      else press = camPress(e, 'orbit');
       return;
     }
     if (book.busy) return;
@@ -340,11 +340,6 @@ async function bootBook(id, { stage = null, handoff = null } = {}) {
       const [p1, p2] = [...touches.values()];
       const d = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
       zoomView(pinch.d / Math.max(1, d), new THREE.Vector2((mx / viewport.width) * 2 - 1, -(my / viewport.height) * 2 + 1));
-      if (pinch.lesson) {
-        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x), delta = angle - pinch.angle;
-        stage.user.yaw += Math.atan2(Math.sin(delta), Math.cos(delta));
-        pinch.angle = angle;
-      }
       panView(mx - pinch.mx, my - pinch.my);
       Object.assign(pinch, { d, mx, my });
       return;
