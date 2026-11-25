@@ -65,8 +65,11 @@ export default {
       lamp.position.set(x + 0.06, 0.014, 0.07);
       const cord = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(x + 0.075, 0.106, 0), new THREE.Vector3(x + 0.1, 0.06, 0.03), new THREE.Vector3(x + 0.07, 0.008, 0.07)]), 20, 0.0012, 5, false), paint(0x2b2f3a));
       group.add(plug, lamp, cord);
+      // 开关的点击范围放大到一个指头大（手机上原来只有十几个像素，点不准）
+      const plugPick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.035, 0.045), new THREE.MeshBasicMaterial({ visible: false }));
+      plugPick.position.set(x + 0.06, 0.016, 0.07); plugPick.userData.pick = true; group.add(plugPick);
       tag(`${L.name} 200 g`, 'pill').loc(group, x, 0.005, 0.05);
-      return { L, bk, th, coilMat, plug, lamp, glow, shimmer, T: T0, on: false, t: 0, done: null, x, bubbles: 0, pts: [] };
+      return { L, bk, th, coilMat, plug, plugPick, lamp, glow, shimmer, T: T0, on: false, t: 0, done: null, x, bubbles: 0, pts: [] };
     });
     const S = { rows: [], seen: new Set() };
     let W = null;
@@ -80,7 +83,7 @@ export default {
     };
     let askStop = () => {};
     const pointer = draggable(group, [], { tip: tag('', 'pill'), taps: [
-      ...cups.map((c) => ({ obj: c.plug, hint: () => (c.on ? '点一下：断电（停止计时）' : '点一下：给加热器通电'), onTap: () => toggle(c) })),
+      ...cups.map((c) => ({ obj: c.plugPick, hint: () => (c.on ? '点一下：断电（停止计时）' : '点一下：给加热器通电'), onTap: () => toggle(c) })),
       ...cups.map((c) => ({ obj: c.th, hint: '点一下：凑近看温度计', onTap: () => look([c.x - 0.006, 0.012 + c.th.yOf(c.T), 0.005], [0, 0.1, 1], 0.12, () => back()) })),
     ] });
 
