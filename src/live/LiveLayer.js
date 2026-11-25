@@ -162,7 +162,8 @@ export class LiveLayer {
     stage.cameraOffsetX = world || stand ? 0 : wide ? panelOffsetX() : 0;
     stage.cameraOffsetY = world || stand ? 0 : panelOffsetY(false, v.portraitBottomInset);
     let look = pageCenter.clone().add(new THREE.Vector3(0, (size.h * s) * (v.lookY ?? 0.42), (v.lookZ ?? 0) * s));
-    let dist = stage.fitDistance(size.w * s, Math.max(size.h * s, size.d * s * 0.6), v.margin ?? 1.2);
+    const lessonDistance = () => stage.fitDistance(size.w * s, Math.max(size.h * s, size.d * s * 0.6), v.margin ?? 1.2);
+    let dist = lessonDistance();
     let board = null;
     if (stand) {
       // 立板：立在对页上，朝着镜头；镜头往对页那边挪一点，让实验和立板都在画面里
@@ -295,20 +296,40 @@ export class LiveLayer {
     this.opening = false;
     this._prewarm();
     // 实验搭好以后，按器材实际占的范围重新取景（实验里写的 size 只是估计，常常不准：器材出画或者太小）
+    const stepBar = viewport.phone ? document.querySelector('.lbar') : null;
     this._reframe = null;
     if (WD?.inplace && WD.reframe) {          // 就地（板块：地球就是书后上方那颗）：镜头由 World 安排
       const A = this.active;
       this._reframe = () => { if (this.active === A && !A.closing && !A.hold) { this._prevShot = null; this._lookExit = null; tagFocus(null); WD.reframe(A); } };
-    } else if (!world && !stand && v.auto !== false) {
+    } else if (!world && !stand && (v.auto !== false || stepBar)) {
       const A = this.active;
-      this._reframe = () => { if (this.active === A && !A.closing && !A.hold) { this._prevShot = null; this._lookExit = null; tagFocus(null); this._autoFrame(A, frameDir || dir, v); } };
+      let usedLandscapeFrame = false;
+      this._reframe = () => {
+        if (this.active !== A || A.closing || A.hold) return;
+        // 手工机位只在手机横屏时接管。转回竖屏时还原一次，随后沿用实验自己的机位。
+        if (v.auto === false && !viewport.landscape && !usedLandscapeFrame) return;
+        this._prevShot = null; this._lookExit = null; tagFocus(null);
+        usedLandscapeFrame = viewport.landscape;
+        if (v.auto === false && !viewport.landscape) stage.shot({ target: look, dir, dist: lessonDistance() });
+        else this._autoFrame(A, frameDir || dir, v);
+      };
       requestAnimationFrame(() => requestAnimationFrame(() => this._reframe?.()));
+      if (stepBar) {
+        // 预测结束或文字折行时才知道步骤栏实际占了多少。近看、演示和手调视角留给学生。
+        A.barObserver = new ResizeObserver(() => {
+          if (viewport.landscape && this.active === A && !A.closing && !A.hold && !this._prevShot &&
+              stepBar.classList.contains('do') && stepBar.offsetHeight) {
+            this._autoFrame(A, frameDir || dir, v, true);
+          }
+        });
+        A.barObserver.observe(stepBar);
+      }
     }
     this.onChange?.(true);
   }
 
   /** 让实验器材（不含标签）刚好完整地落在画面的可用区域里：按针孔相机严格计算所需距离 */
-  _autoFrame(A, dir, v) {
+  _autoFrame(A, dir, v, keepView = false) {
     const stage = this.stage, m = new THREE.Matrix4(), vtx = new THREE.Vector3(), pts = [];
     A.scaler.updateMatrixWorld(true);
     const inv = A.scaler.matrixWorld.clone().invert();
@@ -337,18 +358,21 @@ export class LiveLayer {
       const left = (panel.offsetLeft + (panel.classList.contains('folded') ? 30 : panel.offsetWidth)) * viewport.scale;
       const right = viewport.width - document.getElementById('viewctl').getBoundingClientRect().left + 8;
       const bar = document.querySelector('.lbar');
-      const bottom = bar ? (94 + parseFloat(getComputedStyle(bar).bottom)) * viewport.scale : 12 * viewport.scale;
+      const rect = bar?.getBoundingClientRect();
+      // 用视口坐标直接量，已经包含 CSS zoom、换行和安全区。栏还没显示时预留两行。
+      const bottom = rect?.height ? viewport.height - rect.top + 8
+        : bar ? (94 + parseFloat(getComputedStyle(bar).bottom)) * viewport.scale : 12 * viewport.scale;
       const top = 60 * viewport.scale;
       stage.cameraOffsetX = (left - right) / 2;
       stage.cameraOffsetY = (bottom - top) / 2;
       uW = 1 - (left + right) / viewport.width;
-      uH = 1 - (top + bottom) / viewport.height;
+      uH = Math.max(1, viewport.height - top - bottom) / viewport.height;
     }
     const tH = Math.tan((hfov * uW) / 2), tV = Math.tan((vfov * uH) / 2);
     const margin = (v.frameMargin ?? 1.1) * 1.06;          // 真实顶点取景比包围盒紧，留一点给模型上方的字
     let D = 0;
     for (const p of W) { const c = p.clone().sub(center), depth = c.dot(d); D = Math.max(D, depth + (Math.abs(c.dot(right)) * margin) / tH, depth + (Math.abs(c.dot(up)) * margin) / tV); }
-    stage.shot({ target: center, dir: d, dist: D });
+    stage.shot({ target: center, dir: d, dist: D, keepView });
   }
 
   reframe() {
@@ -366,6 +390,7 @@ export class LiveLayer {
     const A = this.active;
     if (!A || A.closing) return;
     A.closing = true; tagFocus(null);
+    A.barObserver?.disconnect();
     if (world) A.world = { ...(A.world || {}), ...world };          // 地球主探索：收回地球上那一点（pin）、换回地球（globe，一下子收掉）、沉回课本的图里（figure）
     const wm = A.world?.mode;
     A.t = wm === 'pin' ? Math.min(A.t, PIN_T) : wm === 'globe' ? 0.0001 : Math.min(A.t, quick ? 0.5 : 1.5);          // quick：马上要打开另一张活页，收得快一点
