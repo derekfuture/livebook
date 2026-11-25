@@ -160,7 +160,8 @@ async function check(browser, id) {
     if (/[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*\([^)]*\)\s*;/.test(c) && /;/.test(c)) R.problems.push(`第 ${i + 1} 行：注释里像有代码，是不是把代码吞进注释了？ …${c.trim().slice(0, 60)}`);
   });
   const book = bookOf(id); if (!book) { R.problems.push('books.json 里没有这一课（PLAN.md 行 + bbox-overrides.json，再跑 tools/gen_content.py）'); return R; }
-  const p = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const SIZE = (args.find((a) => a.startsWith('--size=')) || '--size=1440x900').slice(7).split('x').map(Number);          // --size=394x689：手机、矮屏
+  const p = await browser.newPage({ viewport: { width: SIZE[0], height: SIZE[1] }, ...(SIZE[0] < 600 && { isMobile: true, hasTouch: true, deviceScaleFactor: 2 }) });
   // 关掉 Vite 的热更新连接：别人（并行的子任务）改了文件，不会把这个测试页面刷掉
   await p.addInitScript(() => { window.WebSocket = class { constructor() { this.readyState = 0; } addEventListener() {} removeEventListener() {} send() {} close() {} }; });
   const errs = [];
