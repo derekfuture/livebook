@@ -145,6 +145,17 @@ push_main() {
   git push origin HEAD:main
   [[ $(git ls-remote --exit-code origin refs/heads/main | cut -f1) == "$rev" ]] || die '远端 main 与本次提交不符'
 }
+# 发布后把主目录（仓库的第一个工作目录）快进到刚发布的 main，免得它落后。
+# 主目录不在 main 上、或有未提交的改动挡着时只提示，不动它；这一步不影响发布结果。
+sync_home() {
+  local home
+  home=$(git worktree list --porcelain | awk '/^worktree /{print substr($0, 10); exit}')
+  [[ -n $home && $home != "$root" ]] || return 0
+  if [[ $(git -C "$home" branch --show-current) != main ]]; then echo "主目录不在 main 上，没有同步：$home"; return 0; fi
+  if git -C "$home" merge --ff-only --quiet origin/main 2>/dev/null; then echo "主目录已同步到 $(git -C "$home" rev-parse --short HEAD)"
+  else echo "主目录没能自动同步（可能有未提交的改动），请在 $home 运行 git pull --ff-only"; fi
+  return 0
+}
 wait_online() {
   local entry deadline remaining delay
   entry=$(python3 -c 'import re; print(re.search(r"<script\b[^>]*type=\"module\"[^>]*src=\"([^\"]+)\"", open("dist/index.html").read())[1])')
@@ -192,3 +203,4 @@ step 推送并确认远端 push_main
 step 部署 wrangler pages deploy "$root/dist" --project-name livebook --branch main --commit-hash "$rev" --commit-dirty=false
 step 等待线上入口 wait_online
 step 线上验站 node tools/verify-site.mjs "$site" ${changed[@]+"${changed[@]}"}
+step 同步主目录 sync_home
