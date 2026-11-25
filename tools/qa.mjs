@@ -1,4 +1,4 @@
-import { existsSync } from 'fs';
+import { requireTool } from './qa-deps.mjs';
 // 一键质检：node tools/qa.mjs <实验 id> [更多 id…] [--shots] [--flow]   （开发服务器要先开着：npm run dev，端口 5188）
 //
 // 每一课检查：
@@ -16,12 +16,9 @@ import { existsSync } from 'fs';
 //      并检查底部步骤栏“当前这一步要动的东西”拿得到
 // 多个 id 时并行跑（默认 4 个一起）。
 import { execFileSync } from 'child_process';
-import { createRequire } from 'module';
 import fs from 'fs';
 import path from 'path';
-// playwright-core 装在 ~/.cache/livebook-tools（/tmp 会被系统定期清掉）；找不到再用 /tmp/lbshot
-const PW_BASE = [`${process.env.HOME}/.cache/livebook-tools/package.json`, '/tmp/lbshot/package.json'].find((p) => existsSync(p.replace('package.json', 'node_modules/playwright-core/package.json'))) || '/tmp/lbshot/package.json';
-const { chromium } = createRequire(PW_BASE)('playwright-core');   // 和 tools/browse.mjs 一样，借 /tmp/lbshot 里装好的
+const { chromium } = requireTool('playwright-core');
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2);
@@ -31,7 +28,6 @@ const SHOTS = args.includes('--shots'), FLOW = args.includes('--flow'), DEMO = a
 const PAR = +(args.find((a) => a.startsWith('--par='))?.slice(6) || 4);
 const books = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/content/books.json'), 'utf8'));
 const bookOf = (id) => Object.entries(books).find(([, b]) => b.lessons[id])?.[0];
-const exe = process.env.HOME + '/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
 fs.mkdirSync('/tmp/lbqa', { recursive: true });
 
 // ---------- 在页面里跑的检查 ----------
@@ -309,7 +305,7 @@ async function check(browser, id) {
   return R;
 }
 
-const browser = await chromium.launch({ executablePath: exe, headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
+const browser = await chromium.launch({ executablePath: chromium.executablePath(), headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
 const queue = [...ids], results = [];
 await Promise.all(Array.from({ length: Math.min(PAR, queue.length) }, async () => { while (queue.length) { const id = queue.shift(); results.push(await check(browser, id).catch((e) => ({ id, problems: ['质检脚本出错：' + String(e.message).split('\n')[0]] }))); } }));
 await browser.close();

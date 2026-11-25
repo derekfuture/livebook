@@ -2,32 +2,34 @@
 // 双击打开的网页（file://）不能加载模块文件、不能从文件夹读数据，所以：vite build --mode offline 把代码打成一个文件，
 // 书的目录、封面、pdf.js 的字库和解码器打包进代码（tools/offline_data.mjs），最后连同样式一起塞进一个 HTML。
 // 用法：node tools/build_offline.mjs → dist-offline/<科目>/活页课本.html 和 public/offline-<科目>.{html,zip}
-import { execSync } from 'child_process';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { visibleBooks, subjectOf } from './release-books.mjs';
 import fs from 'fs';
 import zlib from 'zlib';
-import { FEATURES } from '../src/features.js';
 import { OFFLINE_README } from '../src/home/offlineReadme.js';
 import { OFFLINE_SUBJECTS, offlineFolder, offlinePath, offlineZipName } from '../src/home/offlineSubjects.js';
 
-const books = JSON.parse(fs.readFileSync('src/content/books.json', 'utf8'));
+const run = promisify(execFile);
+const deflate = promisify(zlib.deflateRaw);
 const MiB = 1024 * 1024;
 const format = (bytes) => `${(bytes / MiB).toFixed(2)} MiB`;
 
-for (const subject of OFFLINE_SUBJECTS) {
-  const ids = Object.keys(books).filter((id) => books[id].title.split(' ')[0] === subject.label && !FEATURES.hiddenBooks?.includes(id));
+async function buildSubject(subject) {
+  const ids = visibleBooks.filter(book => subjectOf(book) === subject.label).map(book => book.id);
   const dir = `dist-offline/${subject.slug}`;
   if (!ids.length) {
     for (const ext of ['html', 'zip']) fs.rmSync(`public${offlinePath(subject, ext)}`, { force: true });
     fs.rmSync(dir, { recursive: true, force: true });
-    continue;
+    return;
   }
-  execSync(`npx vite build --mode offline --outDir ${dir} --logLevel warn`, {
-    stdio: 'inherit', env: { ...process.env, NODE_OPTIONS: '', LB_OFFLINE_BOOKS: ids.join(',') },
+  await run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--configLoader', 'native', '--mode', 'offline', '--outDir', dir, '--logLevel', 'warn'], {
+    env: { ...process.env, NODE_OPTIONS: '', LB_OFFLINE_BOOKS: ids.join(',') },
   });
   const html = Buffer.from(inlineHtml(dir), 'utf8');
   checkSize(subject, 'HTML', html.length);
   const folder = offlineFolder(subject);
-  const zip = zipFiles([
+  const zip = await zipFiles([
     { name: `${folder}/活页课本.html`, data: html },
     { name: `${folder}/打开说明.txt`, data: Buffer.from(OFFLINE_README, 'utf8') },
   ]);
@@ -40,6 +42,10 @@ for (const subject of OFFLINE_SUBJECTS) {
   fs.copyFileSync(`${dir}/活页课本.html`, `public${offlinePath(subject, 'html')}`);
   fs.copyFileSync(`${dir}/${offlineZipName(subject)}`, `public${offlinePath(subject, 'zip')}`);
 }
+// 等四科都收尾再退出，失败后重试时不会撞上上一轮的写入。
+const results = await Promise.allSettled(OFFLINE_SUBJECTS.map(buildSubject));
+const errors = results.filter(r => r.status === 'rejected').map(r => r.reason);
+if (errors.length) throw new AggregateError(errors, '离线版构建失败');
 for (const extension of ['html', 'zip']) fs.rmSync(`public/offline.${extension}`, { force: true });
 
 function inlineHtml(dir) {
@@ -57,12 +63,12 @@ function checkSize(subject, type, bytes) {
   if (bytes > 25 * MiB) throw new Error(`${subject.label}离线版 ${type}（${format(bytes)}）超过网站单个文件 25 MiB 的上限`);
 }
 
-function zipFiles(files) {
+async function zipFiles(files) {
   const d = new Date(), time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
   const parts = [], dirs = [];
   let offset = 0;
   for (const f of files) {
-    const name = Buffer.from(f.name, 'utf8'), crc = zlib.crc32(f.data), body = zlib.deflateRawSync(f.data, { level: 9 });
+    const name = Buffer.from(f.name, 'utf8'), crc = zlib.crc32(f.data), body = await deflate(f.data, { level: 9 });
     const h = Buffer.alloc(30);          // 本地文件头：版本 2.0、UTF-8 文件名、deflate
     h.writeUInt32LE(0x04034b50, 0); h.writeUInt16LE(20, 4); h.writeUInt16LE(0x0800, 6); h.writeUInt16LE(8, 8); h.writeUInt16LE(time, 10); h.writeUInt16LE(date, 12);
     h.writeUInt32LE(crc, 14); h.writeUInt32LE(body.length, 18); h.writeUInt32LE(f.data.length, 22); h.writeUInt16LE(name.length, 26);
