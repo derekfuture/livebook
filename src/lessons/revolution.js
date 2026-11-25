@@ -40,7 +40,7 @@ const CITIES = [
   { name: '海口', lat: 20.0, lon: 110.3 },
 ];
 const TILT_Q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), AXIS);
-const SNAP = 4;                                            // 松手时离标好的位置不到几度，就放到那个位置上
+const SNAP = 20;                                           // 松手时，标记前后 20° 都算到站
 
 // ---------------- 天文 ----------------
 const lightDir = (ang) => new THREE.Vector3(-Math.cos(ang * D2R), 0, Math.sin(ang * D2R));        // 从地球仪指向灯（水平）
@@ -231,7 +231,7 @@ export default {
     let cityK = 2, keptCity = null;                                 // 北京；演示时先记下学生选的城市
     const city = () => CITIES[cityK];
     const posOf = (ang) => new THREE.Vector3(RORB * Math.cos(ang * D2R), 0, -RORB * Math.sin(ang * D2R));
-    const atPos = (ang) => ORDER.find((k) => Math.abs((((ang - POS[k]) % 360) + 540) % 360 - 180) < 0.6) || null;
+    const atPos = (ang, tolerance = 0.6) => ORDER.find((k) => Math.abs((((ang - POS[k]) % 360) + 540) % 360 - 180) <= tolerance) || null;
     const noonSpin = (ang) => {               // 这个城市正对光源（当地正午）时，泡沫球绕地轴转过的角度
       const Lt = lightDir(ang).applyQuaternion(TILT_Q.clone().invert());
       return Math.atan2(-Lt.z, Lt.x) - city().lon * D2R;
@@ -258,15 +258,19 @@ export default {
       const r = reading(POS[k]), c = city();
       log([loop ? 'A<br><small>转了一圈</small>' : k, `直射 <b>${latTxt(r.dec)}</b><br>${c.name}：白天约 <b>${hm(r.hrs)}</b>（${Math.round(r.frac * 100)}%），正午太阳高度 <b>${fix1(r.alt)}°</b>`]);
     };
+    const stops = ['B', 'C', 'D', 'A'];
+    const nextStop = () => stops.find((k) => k === 'A' ? !S.back : !S.seen[k]);
     const arrive = (k) => {
       if (!S.on) return;
-      const key = `${k}|${cityK}`, loop = k === 'A' && !!S.seen.D && !S.back;          // 转了一圈又回到 A
+      const next = nextStop();
+      const key = `${k}|${cityK}`, loop = k === 'A' && next === 'A';
       if (S.seen[key] && !loop) return;
       S.seen[key] = true; S.seen[k] = true; if (loop) S.back = true;
       record(k, loop);
       const r = reading(POS[k]), c = city();
       const more = r.frac > 0.505 ? '亮着的部分<b>超过一半</b>——白天比黑夜长' : r.frac < 0.495 ? '亮着的部分<b>不到一半</b>——白天比黑夜短' : '亮着的部分<b>正好一半</b>——白天、黑夜一样长';
-      status(`${k} 处：直射点在 <b>${latTxt(r.dec)}</b>；${c.name}那条纬线${more}，正午太阳高度 ${fix1(r.alt)}°。`);
+      const skipped = !S.demo && k !== 'A' && stops.indexOf(k) > stops.indexOf(next);
+      status(`${k} 处：直射点在 <b>${latTxt(r.dec)}</b>；${c.name}那条纬线${more}，正午太阳高度 ${fix1(r.alt)}°。${skipped ? `请补上 ${next} 站。` : ''}`);
       if (k === 'B') done('b');
       if (k === 'C') done('c');
       if (k === 'D') done('d');
@@ -288,8 +292,10 @@ export default {
       },
       drop() {
         S.held = false;
-        const k = ORDER.find((kk) => Math.abs((((S.angT - POS[kk]) % 360) + 540) % 360 - 180) < SNAP);
+        const k = atPos(S.angT, SNAP);
         if (k) { let a = POS[k]; while (a - S.angT > 180) a -= 360; while (a - S.angT < -180) a += 360; S.angT = a; }
+        const next = nextStop();
+        if (S.on && !S.demo && next && (!k || (S.seen[k] && k !== next))) status(`再往 ${next} 移一点。`);
       },
       setCity(i) {
         cityK = i; placeCity();
