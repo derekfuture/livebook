@@ -217,6 +217,8 @@ export default {
             if (g.firstStroke && g.stroke >= .005) {
               g.reversed = true;
               if (S.acid && !mixed()) S.mixedAt = S.clock;
+              // 摇匀在手里就算数（反馈 2026-11-25：提起来摇了多次，松手的地方不在架上那一点，就一直提示“摇匀”）
+              if (!S.acid && S.water === i && !S.stirred) { S.stirred = true; say(NAMES[i]+'管中的原液和蒸馏水已摇匀。'); guide(); }
             }
             g.lastX = p.x;
           }
@@ -257,10 +259,7 @@ export default {
             S.tubes[i].bath = zone.bath; S.age = 0;
             if (zone.bath >= 0) say(NAMES[i]+'管已浸入'+bathName(zone.bath)+'。');
           } else say('提起试管越过杯口，等管底浸入水中再松手。');
-        } else if (zone && g.reversed) {
-          if (S.acid) say('两管已同步振荡。观察哪管先变浑浊。');
-          else if (S.water === i) { S.stirred = true; say(NAMES[i]+'管中的原液和蒸馏水已摇匀。'); }
-        }
+        } else if (g.reversed && S.acid) say('两管已同步振荡。观察哪管先变浑浊。');          // 松手在哪儿都算：试管会放回架上
       } else {
         if (zone) { S.pour = { i, k: zone.tube, t: 0 }; return; }
         say(WARN);
