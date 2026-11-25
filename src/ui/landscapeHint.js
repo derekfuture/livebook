@@ -43,9 +43,9 @@ const miniature = `<svg viewBox="-72 -72 144 144" aria-hidden="true" fill="none"
 
 export function landscapeHint() {
   if (!viewport.phone) return null;
-  const title = h('h2', {}, '把手机横过来');
-  const message = h('p', {}, '活页和电脑上一样操作');
-  const note = h('small', { class: 'turn-note' }, '需开启手机的自动旋转');
+  const title = h('h2', {}, '请横屏使用');
+  const message = h('p', {}, '横屏后，操作和电脑端一致');
+  const note = h('small', { class: 'turn-note' }, '如未旋转，请开启手机的自动旋转');
   const actions = h('div', { class: 'turn-actions board' });
   const sheet = h('div', { class: 'turn-sheet' },
     h('div', { class: 'turn-drawing', html: miniature }), title, message, note, actions);
@@ -60,9 +60,9 @@ export function landscapeHint() {
         if (entered && document.fullscreenElement) await document.exitFullscreen().catch(() => {});
         message.textContent = '请手动把手机横过来';
       }
-    } }, '横屏'));
+    } }, '切换横屏'));
   }
-  actions.append(h('button', { type: 'button', class: 'p-close turn-dismiss', onclick: () => hint.remove() }, '先竖着看'));
+  actions.append(h('button', { type: 'button', class: 'p-close turn-dismiss', onclick: () => hint.remove() }, '继续竖屏'));
   document.body.append(hint);
   return hint;
 }
