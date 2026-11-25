@@ -314,7 +314,7 @@ body.stand-ui #hud-top .hud-actions { opacity: .5; }
 .board.lying .board-ear { opacity: 0; }
 
 /* ---------- 左侧悬浮的纸卡（?ui=float，默认） ---------- */
-#panel.board, .turn-b .turn-sheet { background:
+#panel.board, .turn-sheet { background:
     radial-gradient(120% 80% at 30% 0%, rgba(255,255,255,.55), transparent 60%),
     repeating-linear-gradient(0deg, rgba(120,100,60,.025) 0 1px, transparent 1px 3px), #f8f2e3;
   color: #2a2f3d; border-radius: 3px; overflow: visible;
@@ -1289,28 +1289,22 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
 }
 .tip-slip { max-width: min(400px, calc(100vw - 96px)); }
 
-/* 转屏纸幕随本张活页开合，转向时直接跟随可见视口。 */
+/* 转屏纸卡随本张活页开合，转向时直接跟随可见视口。 */
 .turn-hint {
   position: fixed; inset: 0; z-index: 65; display: grid; place-items: center;
-  padding: 16px; overflow: auto; text-align: center; font-family: var(--song); color: var(--ink);
+  padding: 16px; overflow: auto; text-align: center; font-family: var(--song); color: var(--ink); background: rgba(35,41,58,.17);
   opacity: 0; visibility: hidden; pointer-events: none;
   transition: opacity .28s ease, visibility 0s .28s;
 }
 .phone:not(.phone-scaled) .turn-hint { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
 .phone:not(.phone-scaled) body:has(.turn-hint) .imp-tip { visibility: hidden; }
 @starting-style { .phone:not(.phone-scaled) .turn-hint { opacity: 0; } }
-.turn-a { background: rgba(255,253,248,.89); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
-.turn-b { background: rgba(35,41,58,.17); }
-.turn-sheet { width: min(100%, 300px); padding: 28px 24px 18px; }
-.turn-b .turn-sheet { width: min(100%, 268px); }
-.turn-drawing { width: 144px; margin: 0 auto 15px; color: var(--ink); }
-.turn-b .turn-drawing { width: 88px; margin-bottom: 9px; }
+.turn-sheet { width: min(100%, 268px); padding: 28px 24px 18px; }
+.turn-drawing { width: 88px; margin: 0 auto 9px; color: var(--ink); }
 .turn-drawing svg { width: 100%; display: block; }
-.turn-hint h2 { margin: 0; font: 700 26px/1.4 var(--song); letter-spacing: .06em; }
-.turn-b h2 { font-size: 21px; padding-bottom: 9px; border-bottom: 1.5px solid rgba(42,47,61,.75); }
-.turn-hint p { margin: 7px 0 14px; color: var(--ink2); font: 16px/1.5 var(--song); }
+.turn-hint h2 { margin: 0; font: 700 21px/1.4 var(--song); letter-spacing: .06em; padding-bottom: 9px; border-bottom: 1.5px solid rgba(42,47,61,.75); }
+.turn-hint p { margin: 7px 0 8px; color: var(--ink2); font: 15px/1.5 var(--song); }
 .turn-hint .turn-note { display: block; margin: -10px 0 14px; color: var(--ink2); opacity: .72; font: 13px/1.4 var(--song); }
-.turn-b p { font-size: 15px; margin-bottom: 8px; }
 .turn-actions { display: flex; align-items: center; justify-content: center; gap: 18px; }
 .turn-actions button { min-height: 44px; }
 .turn-actions .go { width: auto; margin: 0; min-width: 72px; }

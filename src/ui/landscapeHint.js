@@ -1,20 +1,6 @@
 import { h } from './Panel.js';
 import { viewport } from './viewport.js';
 
-function hintVariant() {
-  const key = 'livebook.turnhint';
-  const setting = new URLSearchParams(location.search).get('turnhint');
-  const explicit = setting === 'a' || setting === 'b';
-  try {
-    if (explicit) localStorage.setItem(key, setting);
-    else return localStorage.getItem(key) === 'b' ? 'b' : 'a';
-  } catch { /* 私密浏览仍可用网址切换。 */ }
-  return explicit ? setting : 'a';
-}
-
-// 从书桌进书时网址会变化，在入口处记住选择。
-const variant = viewport.phone ? hintVariant() : 'a';
-
 // 两个方向共用同一张学案和同一只烧杯。预先反转横版内容，手机转过去时文字就正了。
 const miniature = `<svg viewBox="-72 -72 144 144" aria-hidden="true" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
   <defs>
@@ -49,7 +35,7 @@ export function landscapeHint() {
   const actions = h('div', { class: 'turn-actions board' });
   const sheet = h('div', { class: 'turn-sheet' },
     h('div', { class: 'turn-drawing', html: miniature }), title, message, note, actions);
-  const hint = h('aside', { class: 'turn-hint turn-' + variant, 'aria-label': '横屏提示' }, sheet);
+  const hint = h('aside', { class: 'turn-hint', 'aria-label': '横屏提示' }, sheet);
   if (/Android/i.test(navigator.userAgent) && document.fullscreenEnabled && screen.orientation?.lock) {
     actions.append(h('button', { type: 'button', class: 'go', onclick: async () => {
       const entered = !document.fullscreenElement;
