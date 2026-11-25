@@ -25,7 +25,8 @@ export function websitePublic(builtAt) {
           fs.copyFileSync(src, dest);
         }
       }
-      checkCovers(dir);
+      // 各学科工作目录不一定有别科的封面，自测打包不能因此失败；发布时 tools/deploy.sh 会在打包前后各查一次，缺了就停。
+      try { checkCovers(dir); } catch (e) { console.warn(`提醒（只影响发布）：${e.message}`); }
       const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: config.root, encoding: 'utf8' }).trim();
       fs.writeFileSync(path.join(dir, 'release.json'), JSON.stringify({ commit, builtAt }) + '\n');
     },
