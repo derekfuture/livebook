@@ -101,7 +101,7 @@ export default {
 
     // 一杯冷水
     const cup = beaker({ r: 0.028, h: 0.07, level: 0.055, color: 0x7fc4ea });
-    const CUP_HOME = new THREE.Vector3(0.27, 0, 0.02);
+    const CUP_HOME = new THREE.Vector3(0.15, 0, 0.08);          // 靠近烧瓶：小屏上不被右边的按钮（反馈、帮助）挡住
     cup.position.copy(CUP_HOME);
     group.add(cup);
 
