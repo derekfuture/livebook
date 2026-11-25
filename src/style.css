@@ -1334,7 +1334,6 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
 .phone-scaled #panel .p-tuck { min-width: 40px; left: -14px; }
 .phone-scaled #viewctl button { min-width: 46px; min-height: 46px; }
 .phone-scaled #viewctl :is(.zoom-in, .zoom-out) { display: none; }
-.phone-scaled body.lesson-on:not(.predicting):not(.hide-steps):has(.lbar) #panel { bottom: calc(92px + var(--safe-b)); }
 .phone-scaled .lbar button { font-size: 17px; }
 
 /* 画布铺到可见区域的边沿，界面在安全区内排版。触点和投影仍是未缩放的 CSS 像素。 */
@@ -1348,11 +1347,26 @@ html.phone { touch-action: pan-x pan-y; overflow: hidden; }
 .phone { --safe-l: calc(env(safe-area-inset-left, 0px) / var(--ui-scale)); --safe-r: calc(env(safe-area-inset-right, 0px) / var(--ui-scale)); --safe-b: calc(env(safe-area-inset-bottom, 0px) / var(--ui-scale)); }
 .phone-scaled :is(#hud-top, #hud-pager, #viewctl, #drawer, #panel, #home, #copy, #hint, .lbar, .tag3d) { zoom: var(--ui-scale); }
 .phone #hud-top { padding-left: max(12px, var(--safe-l)); padding-right: max(12px, var(--safe-r)); }
-.phone-scaled #panel { left: max(16px, var(--safe-l)); right: auto; top: 64px; bottom: max(18px, var(--safe-b)); width: min(380px, calc(var(--phone-width) * .4 / var(--ui-scale))); height: auto; }
+.phone-scaled {
+  --panel-left: max(16px, var(--safe-l));
+  --panel-width: min(380px, calc(var(--phone-width) * .4 / var(--ui-scale)));
+}
+.phone-scaled #panel { left: var(--panel-left); right: auto; top: 64px; bottom: max(18px, var(--safe-b)); width: var(--panel-width); height: auto; }
 .phone-scaled #panel.board.folded { transform: translateX(calc(-100% + 30px)); }
 .phone-scaled #panel.board.folded .p-spine { left: auto; right: 0; top: 0; bottom: 0; width: 30px; height: auto; writing-mode: vertical-rl; }
 .phone-scaled body #viewctl, .phone-scaled body.lesson-on #viewctl { right: max(10px, var(--safe-r)); bottom: max(12px, var(--safe-b)); }
-.phone-scaled .lbar, .phone-scaled body:has(#panel.folded) .lbar { width: auto; transform: none; gap: 10px; font-size: 20px; left: max(12px, var(--safe-l)); right: calc(106px + var(--safe-r)); bottom: max(8px, var(--safe-b)); }
+/* 在面板右侧居中，两边对称留出右下角工具的宽度。收起时改用整个安全区。 */
+.phone-scaled body.lesson-on .lbar, .phone-scaled body.lesson-on:has(#panel.folded) .lbar {
+  --area-left: calc(var(--panel-left) + var(--panel-width));
+  --tool-space: 106px;
+  left: var(--area-left); right: var(--safe-r); bottom: max(8px, var(--safe-b));
+  width: min(820px, calc(var(--phone-width) / var(--ui-scale) - var(--area-left) - var(--safe-r) - 2 * var(--tool-space)));
+  margin-inline: auto; transform: none; font-size: 20px; flex-wrap: wrap; gap: 4px 10px;
+}
+.phone-scaled body.lesson-on:has(#panel.folded) .lbar { --area-left: var(--safe-l); }
+.phone-scaled .lbar .lb-main { flex: 1 1 12em; overflow-wrap: anywhere; }
+/* 每排最多四个步号，让长说明也有足够的换行宽度。 */
+.phone-scaled .lbar.do .lb-steps { max-width: 88px; flex-wrap: wrap; }
 .phone-scaled #home { left: var(--safe-l); right: var(--safe-r); bottom: var(--safe-b); }
 .phone-scaled .home-top { display: flex; flex-direction: row; align-items: flex-start; gap: 24px; padding: 22px 28px 0; }
 .phone-scaled .home-find { display: flex; width: auto; }
