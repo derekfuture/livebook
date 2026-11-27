@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { paint, inked, polyline } from '../../live/ink.js';
 import { woodBlock, textPlate, canvasTex } from './props.js';
 import { BULB_RADIUS, GUN } from './electronBeam.js';
-export const CENTER = 0.21;
+const CENTER = 0.21;
 export function electronBeamRig() {
   const group = new THREE.Group();
   function box(w, h, d, x, y, z, color, parent = group) {
@@ -54,6 +54,12 @@ export function electronBeamRig() {
     }),
   );
   tube.add(glass);
+  // 暗色背面给发光径迹提供对比；正面仍透明，枪口和弧线不被遮挡。
+  const shade = new THREE.Mesh(glass.geometry, new THREE.MeshBasicMaterial({
+    color: 0x182e37, side: THREE.BackSide, transparent: true, opacity: 0.80, depthWrite: false,
+  }));
+  shade.renderOrder = -2;
+  tube.add(shade);
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.058, 32), glass.material);
   neck.position.y = -0.102;
   tube.add(neck);
@@ -67,42 +73,35 @@ export function electronBeamRig() {
   const cathode = cylinder(0.003, 0.006, 0.022, 0, 0, 0xdda257, gun);
   cathode.rotation.z = Math.PI / 2;
   box(0.024, 0.008, 0.009, 0.012, -0.009, 0, 0x727a7f, gun);
-  cylinder(0.003, 0.055, 0.009, -0.0925, 0, 0x727a7f, tube);
-  const turn = new THREE.Group();
-  turn.position.y = 0.108;
-  cylinder(0.021, 0.012, 0, 0.108, 0, 0x53636a);
-  group.add(turn);
-  const handle = cylinder(0.008, 0.055, 0.0275, 0, 0, 0x9a744b, turn);
-  handle.rotation.z = Math.PI / 2;
-  const handleEnd = cylinder(0.012, 0.016, 0.06, 0, 0, 0x87603d, turn);
-  handleEnd.rotation.z = Math.PI / 2;
-  const panel = box(0.4, 0.069, 0.055, 0, 0.054, 0.135, 0x61757b);
-  const displayTex = canvasTex(1536, 256, () => {}),
-    display = new THREE.Mesh(new THREE.PlaneGeometry(0.374, 0.038), new THREE.MeshBasicMaterial({ map: displayTex }));
-  display.position.set(0, 0.067, 0.163);
+  // 支架接在枪尾后方，与正面圆轨道错开。
+  const top = new THREE.Vector3(0.02, GUN[1] - 0.008, -0.008), foot = new THREE.Vector3(0, -0.091, 0);
+  const axis = top.clone().sub(foot);
+  const stem = cylinder(0.0028, axis.length(), 0, 0, 0, 0x6b7c80, tube);
+  stem.position.copy(foot).lerp(top, 0.5);
+  stem.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.normalize());
+  box(0.008, 0.007, 0.014, 0.02, -0.004, -0.005, 0x6b7c80, gun);
+  const lip = cylinder(0.0063, 0.001, 0, 0, 0, 0x71878a, gun);
+  lip.rotation.z = Math.PI / 2;
+  lip.material = new THREE.MeshBasicMaterial();
+  box(0.435, 0.086, 0.05, 0, 0.061, 0.135, 0x425556);
+  const displayTex = canvasTex(1600, 200, () => {});
+  const display = new THREE.Mesh(new THREE.PlaneGeometry(0.423, 0.042), new THREE.MeshBasicMaterial({ map: displayTex }));
+  display.position.set(0, 0.079, 0.161);
   group.add(display);
   function knob(x) {
-    const g = new THREE.Group();
-    g.position.set(x, 0.027, 0.174);
-    group.add(g);
-    const disk = cylinder(0.014, 0.012, 0, 0, 0, 0x33464f, g);
+    const disk = cylinder(0.017, 0.016, x, 0.039, 0.17, 0x22383d);
+    // 转轴朝向观察者。指线与盘面一同旋转。
     disk.rotation.x = Math.PI / 2;
-    const tick = box(0.002, 0.012, 0.001, 0, 0.006, 0.0065, 0xece5cb, g);
-    return { group: g, tick };
+    box(0.0025, 0.002, 0.013, 0, 0.0082, -0.008, 0xffeac1, disk);
+    return disk;
   }
-  const voltage = knob(-0.095),
-    current = knob(0.055);
-  const power = box(0.019, 0.016, 0.008, -0.172, 0.028, 0.168, 0xa7593a);
-  power.material = power.material.clone();
-  const polarity = box(0.019, 0.016, 0.008, 0.172, 0.028, 0.168, 0x40505c);
-  for (const [x, t] of [
-    [-0.172, '电源'],
-    [0.172, '换向'],
-  ]) {
-    const p = textPlate(t, { w: 0.027, h: 0.01, font: 'bold 125px sans-serif', bg: '#efe6d1' });
-    p.position.set(x, 0.045, 0.164);
-    group.add(p);
-  }
+  const voltage = knob(-0.097), current = knob(0), turn = knob(0.097);
+  const power = box(0.030, 0.023, 0.014, -0.178, 0.039, 0.17, 0x33464a);
+  const polarity = box(0.030, 0.023, 0.014, 0.178, 0.039, 0.17, 0x45616a);
+  const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.005, 24), new THREE.MeshBasicMaterial());
+  lamp.position.z = 0.0075;
+  power.add(lamp);
+  const lever = box(0.008, 0.017, 0.005, 0, 0, 0.008, 0xefdfb6, polarity);
   for (const z of [-0.075, 0.075])
     for (const dx of [-0.004, 0.004]) {
       group.add(
@@ -138,14 +137,17 @@ export function electronBeamRig() {
     0.008,
   );
   group.add(fieldArrow);
-  const fieldLabel = textPlate('B', { w: 0.018, h: 0.018, font: 'bold 340px sans-serif' });
-  fieldLabel.position.set(0.107, CENTER + 0.048, 0);
-  group.add(fieldLabel);
+  const fieldLabels = ['⊗ 磁场向里（示意）', '⊙ 磁场向外（示意）'].map(text => {
+    const plate = textPlate(text, { w: 0.115, h: 0.021, font: 'bold 53px sans-serif', bg: '#fff5df', color: '#214859' });
+    plate.position.set(0, CENTER + 0.112, 0.04);
+    group.add(plate);
+    return plate;
+  });
   const beamGroup = new THREE.Group();
   beamGroup.position.y = CENTER;
   group.add(beamGroup);
-  const inner = new THREE.MeshBasicMaterial({ color: 0xffe6ac }),
-    outer = new THREE.MeshBasicMaterial({ color: 0xffa143, transparent: true, opacity: 0.18, depthWrite: false });
+  const inner = new THREE.MeshBasicMaterial({ color: 0xaaffdf }),
+    outer = new THREE.MeshBasicMaterial({ color: 0x4effc6, transparent: true, opacity: 0.31, depthWrite: false });
   let beamMeshes = [];
   function beam(trace, on) {
     for (const o of beamMeshes) {
@@ -163,40 +165,50 @@ export function electronBeamRig() {
       }
     }
     for (const [r, mat] of [
-      [0.0015, outer],
-      [0.00055, inner],
+      [0.0024, outer],
+      [0.00105, inner],
     ]) {
       const mesh = new THREE.Mesh(
         new THREE.TubeGeometry(new Path(), Math.min(2200, points.length - 1), r, 6, false),
         mat,
       );
+      mesh.renderOrder = 2;
       beamGroup.add(mesh);
       beamMeshes.push(mesh);
     }
   }
   function show({ volts, amps, angle, on, field, polarity: direction }) {
     tube.rotation.y = (angle * Math.PI) / 180;
-    turn.rotation.y = tube.rotation.y;
-    voltage.group.rotation.z = (0.75 - (volts / 300) * 1.5) * Math.PI;
-    current.group.rotation.z = (0.75 - (amps / 4) * 1.5) * Math.PI;
-    polarity.rotation.z = direction > 0 ? -0.3 : 0.3;
-    power.material.color.setHex(on ? 0xa55631 : 0x5e5551);
-    fieldArrow.visible = fieldLabel.visible = on && amps > 0;
+    for (const [dial, fraction] of [[voltage, volts / 300], [current, amps / 4], [turn, angle / 90]]) {
+      dial.rotation.y = (fraction * 1.5 - 0.75) * Math.PI;
+    }
+    lever.rotation.z = direction > 0 ? -0.48 : 0.48;
+    power.rotation.x = on ? -0.14 : 0.14;
+    lamp.material.color.setHex(on ? 0x80ffb5 : 0x3b4748);
+    lip.material.color.setHex(on && volts ? 0x8dfbd7 : 0x889c99);
+    fieldArrow.visible = field !== 0;
+    fieldLabels[0].visible = field < 0;
+    fieldLabels[1].visible = field > 0;
     fieldArrow.setDirection(new THREE.Vector3(0, 0, field < 0 ? -1 : 1));
     fieldArrow.position.z = field < 0 ? 0.045 : -0.045;
     const c = displayTex.canvas,
       g = c.getContext('2d');
-    g.fillStyle = '#efe9d6';
+    g.fillStyle = '#f1ead5';
     g.fillRect(0, 0, c.width, c.height);
-    g.fillStyle = '#34434a';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = 'bold 69px sans-serif';
-    g.fillText('加速电压 ' + volts + ' V', 415, 75);
-    g.fillText('线圈电流 ' + (on ? amps : 0).toFixed(2) + ' A', 1050, 75);
-    g.font = '46px sans-serif';
-    g.fillText('上下拖旋钮', 415, 173);
-    g.fillText('B ' + (Math.abs(field) * 1000).toFixed(2) + ' mT', 1050, 173);
+    const label = (x, title, value) => {
+      const px = (x / 0.423 + 0.5) * c.width;
+      g.fillStyle = '#53625d'; g.font = 'bold 55px sans-serif';
+      g.fillText(title, px, 53);
+      g.fillStyle = '#19383d'; g.font = 'bold 68px sans-serif';
+      g.fillText(value, px, 140);
+    };
+    label(power.position.x, '电源', on ? '开' : '关');
+    label(voltage.position.x, '加速电压', (on ? volts : 0) + ' V');
+    label(current.position.x, '励磁电流', (on ? amps : 0).toFixed(2) + ' A');
+    label(turn.position.x, '枪口转角', angle + '°');
+    label(polarity.position.x, '换向档', direction < 0 ? '向里' : '向外');
     displayTex.needsUpdate = true;
   }
   return {
@@ -204,8 +216,7 @@ export function electronBeamRig() {
     tube,
     glass,
     turn,
-    voltage: voltage.group,
-    current: current.group,
+    voltage, current,
     power,
     polarity,
     beam,
