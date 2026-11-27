@@ -471,9 +471,26 @@ export default {
           trail = contact() ? null : [pipe.position.clone()];
         },
         onDrag(p) {
-          if (trail) movePipe(p.clone().setY(Y));
+          if (!trail) return;
+          const to = p.clone().setY(Y);
+          // 吸到外爪之间时，从爪尖前方绕进去（手只要拖到附近，不用自己找路）
+          const o = center('outer');
+          if (zeroed && gap >= OUT + 0.3 && place !== 'outer' && Math.hypot(to.x - o.x, to.z - o.z) < 0.035) {
+            const front = Math.max(...blades.filter((b) => !b.inside).flatMap((b) => b.outline.map(([, z]) => z))) / 1000 + OUT / 2000 + 0.002;
+            movePipe(new THREE.Vector3(pipe.position.x, Y, Math.max(pipe.position.z, front)));
+            movePipe(new THREE.Vector3(o.x, Y, Math.max(pipe.position.z, front)));
+            movePipe(o);
+            return;
+          }
+          movePipe(to);
         },
         onEnd: releasePipe,
+        // 落点：照初中——热区大，靠近就自动吸过去对准，松手放稳（公共组件 kit/dropzone.js，不画圈、不加高亮）
+        dropzones: [
+          { name: '外测量爪之间', position: () => center('outer'), radius: 0.035, enabled: () => zeroed && gap >= OUT + 0.3 && place !== 'outer' },
+          { name: '小爪上', position: () => center('inner'), radius: 0.02, enabled: () => measured.has('outer') && gap <= IN - 0.3 && place !== 'inner' },
+          { name: '木座', position: () => center('home'), radius: 0.03, enabled: () => place !== 'home' },
+        ],
       },
     ];
     const desk = draggable(group, drags, {
@@ -613,7 +630,7 @@ export default {
       } });
     return {
       group: root, reset,
-      debug: { bar, qa: steps },
+      debug: { bar, qa: steps, get state() { return { place, gap, zeroed, pipe: pipe.position.toArray().map((v) => +v.toFixed(4)), outer: center('outer').toArray().map((v) => +v.toFixed(4)), home: center('home').toArray().map((v) => +v.toFixed(4)) }; } },
       pointer,
       toggles: ['steps'],
       size: { w: 0.20, d: 0.136, h: 0.035 },
@@ -636,6 +653,7 @@ export default {
       },
       update(dt) {
         bar.update(dt);
+        desk.update(dt);
         if (returning) {
           returning.t = Math.min(1, returning.t + dt / 0.35);
           pipe.position.copy(returning.path.getPoint(returning.t));
