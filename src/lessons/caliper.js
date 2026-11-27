@@ -438,6 +438,8 @@ export default {
       trail = null;
       if (message) bar.say(message); else guide();
     }
+    // 落点热区半径（米）：圆管直径约 2.2 cm，热区比它大一点就够，太大会一拿起就吸过去
+    const SNAP = { outer: 0.015, inner: 0.01, home: 0.015 };
     const drags = [
       ...[thumb, vernier, movingJaw].map(obj => ({
         obj, anchor: slider, plane: 'xz', offset: FACE, keepOffset: true,
@@ -475,7 +477,7 @@ export default {
           const to = p.clone().setY(Y);
           // 吸到外爪之间时，从爪尖前方绕进去（手只要拖到附近，不用自己找路）
           const o = center('outer');
-          if (zeroed && gap >= OUT + 0.3 && place !== 'outer' && Math.hypot(to.x - o.x, to.z - o.z) < 0.035) {
+          if (zeroed && gap >= OUT + 0.3 && place !== 'outer' && Math.hypot(to.x - o.x, to.z - o.z) < SNAP.outer) {
             const front = Math.max(...blades.filter((b) => !b.inside).flatMap((b) => b.outline.map(([, z]) => z))) / 1000 + OUT / 2000 + 0.002;
             movePipe(new THREE.Vector3(pipe.position.x, Y, Math.max(pipe.position.z, front)));
             movePipe(new THREE.Vector3(o.x, Y, Math.max(pipe.position.z, front)));
@@ -487,9 +489,9 @@ export default {
         onEnd: releasePipe,
         // 落点：照初中——热区大，靠近就自动吸过去对准，松手放稳（公共组件 kit/dropzone.js，不画圈、不加高亮）
         dropzones: [
-          { name: '外测量爪之间', position: () => center('outer'), radius: 0.035, enabled: () => zeroed && gap >= OUT + 0.3 && place !== 'outer' },
-          { name: '小爪上', position: () => center('inner'), radius: 0.02, enabled: () => measured.has('outer') && gap <= IN - 0.3 && place !== 'inner' },
-          { name: '木座', position: () => center('home'), radius: 0.03, enabled: () => place !== 'home' },
+          { name: '外测量爪之间', position: () => center('outer'), radius: SNAP.outer, enabled: () => zeroed && gap >= OUT + 0.3 && place !== 'outer' },
+          { name: '小爪上', position: () => center('inner'), radius: SNAP.inner, enabled: () => measured.has('outer') && gap <= IN - 0.3 && place !== 'inner' },
+          { name: '木座', position: () => center('home'), radius: SNAP.home, enabled: () => place !== 'home' },
         ],
       },
     ];
