@@ -185,11 +185,10 @@ export default {
         ret[k] = false;
         goal[k].copy(TIP(k).applyEuler(rotG[k]).negate().add(p));
       },
-      /** 放回桌上（检验做完了；铁丝换一根新火柴） */
+      /** 放回桌上 */
       home(k) {
         ret[k] = true; goal[k].copy(HOME[k]); rotG[k].copy(homeRot(k));          // 先从瓶里提出来，再拿回桌上（step 里滑过去）
         if (k === 0) stick.setState('none');
-        if (k === 4 && !S.matchLit) { S.match = 0; wire.head.visible = true; }
       },
       release(k) {
         const tp = tipGoal(k), j = jarAtP(tp);
@@ -198,8 +197,7 @@ export default {
         const jm = k === 1 ? JARS.findIndex((J) => Math.hypot(tp.x - J.x, tp.z - J.z) < JR * 0.72 && tp.y >= JH - 0.004 && tp.y < JH + 0.035) : -1;
         if (jm >= 0) return A.intoJar(k, jm);
         if (flameAt(tp)) return;                         // 留在火焰上继续烧
-        ret[k] = true; goal[k].copy(HOME[k]); rotG[k].copy(homeRot(k));
-        if (k === 0) stick.setState('none');
+        A.home(k);
       },
       intoJar(k, j) {
         const J = S.jars[j];
@@ -419,6 +417,11 @@ export default {
               else if (J) { status(`火柴烧完了，可铁丝只是红热——瓶里的氧气被火柴用掉了不少（降到约 ${Math.round(J.x * 100)}%）。要等火柴<b>快燃尽</b>时再插进去。“全部重来”换几瓶新的氧气再试。`); row('fe-early', '火柴还旺时就插进氧气', '火柴把瓶里的氧气用掉了不少，铁丝只红热'); }
               else status('火柴在外面烧完了。把铁丝放回桌上，换一根新火柴再点。');
             }
+          }
+          // 手动或自动归位都在桌上换火柴，包括放回后才燃尽的那一根。
+          if (S.match >= 1 && !J && S.hold !== k && wire.position.distanceTo(HOME[k]) < 0.0005) {
+            S.match = 0;
+            if (!S.res[3].o2) status('铁丝已换上新火柴，可以拖到酒精灯上再点。');
           }
           wire.flame.setOn(S.matchLit); wire.flame.setSize(1 - S.match * 0.7); wire.flame.update(t);
           wire.head.visible = S.match < 0.5;

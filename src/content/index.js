@@ -1,10 +1,13 @@
 // 书架：三本书的“会动的图”清单由 tools/gen_content.py 从 PLAN.md 生成；实验代码在 src/lessons/<id>.js，按需加载。
 import books from './books.json';
 import OFF from 'virtual:offline';
+import { FEATURES } from '../features.js';
 
 const modules = import.meta.glob('../lessons/*.js');
 
-export const BOOK_IDS = Object.keys(books);
+const showDrafts = new URLSearchParams(location.search).has('draft');
+export const BOOK_IDS = OFF?.bookIds ?? Object.keys(books).filter((id) =>
+  (import.meta.env.DEV || !FEATURES.hiddenBooks?.includes(id)) && (!books[id].draft || showDrafts));
 
 // 离线版（U 盘上双击打开）：书的目录、封面这些都打包在 HTML 里（tools/offline_data.mjs）；网站上 OFF 是 null，照常从网址取
 export const OFFLINE = !!OFF;
@@ -19,7 +22,7 @@ export const fileUrl = (p) => OFF?.files[p] ?? p;
 const fullTitle = (b) => `${b.publisher || '人教版'} ${b.title}`;
 
 export function getBook(id) {
-  const b = books[id] || books['wuli-8x'];
+  const b = books[id] || books['wuli-8x'] || books[Object.keys(books)[0]];
   const lessons = {};
   for (const [lid, meta] of Object.entries(b.lessons)) {
     const load = modules[`../lessons/${lid}.js`];
@@ -33,6 +36,7 @@ export const SUBJECTS = {
   物理: { color: '#2f7bb5', side: 0x3f7cb0 },
   化学: { color: '#6a58b0', side: 0x5d58a6 },
   地理: { color: '#2f8f7a', side: 0x3f8c78 },
+  数学: { color: '#1f93b8', side: 0x2f97bb },
 };
 const OTHER = { color: '#7a6a4a', side: 0x8a7a5a };
 export const subjectOf = (title) => title.split(' ')[0];
@@ -69,6 +73,9 @@ const bookPaths = new Map([
   ['dili-bx2', '/geography/pep/compulsory-2'],
   ['dili-xb1', '/geography/pep/selective-compulsory-1'],
   ['dili-xb2', '/geography/pep/selective-compulsory-2'],
+  ['shuxue-7s', '/math/pep/grade-7-vol-1'],
+  ['shuxue-8s', '/math/pep/grade-8-vol-1'],
+  ['shuxue-8x', '/math/pep/grade-8-vol-2'],
 ]);
 
 export const bookHref = (id) => OFFLINE ? `?book=${id}` : bookPaths.get(id) ?? `/?book=${id}`;          // 还没定路径的书：照旧用 ?book=
@@ -78,7 +85,7 @@ export function currentBookId() {
   const path = location.pathname.replace(/\/$/, '');
   const legacy = new URLSearchParams(location.search);
   for (const [id, bookPath] of bookPaths) {
-    if (!OFFLINE && path === bookPath) return id;
+    if (!OFFLINE && path === bookPath) return BOOK_IDS.includes(id) ? id : null;          // 线上没放的书：回书桌
   }
   const id = legacy.get('book');
   if (!OFFLINE && bookPaths.has(id)) {
@@ -86,5 +93,5 @@ export function currentBookId() {
     const query = legacy.toString();
     history.replaceState(history.state, '', bookHref(id) + (query ? '?' + query : '') + location.hash);
   }
-  return id;
+  return id && BOOK_IDS.includes(id) ? id : null;
 }

@@ -5,7 +5,7 @@ import { existsSync } from 'fs';
 //   node tools/smoke.mjs --changed       只测上次通过以后改过的课：课文件改了测那一课；kit / live / ui 里的文件改了，测所有用到它的课
 //   --par=6                              同时开几个页面（默认 6）
 // 截图在 /tmp/lb/smoke/<id>.png。
-// 测离线版：LB_URL=file:///…/dist-offline/活页课本.html node tools/smoke.mjs
+// 测离线版：LB_URL=file:///…/dist-offline/physics/活页课本.html node tools/smoke.mjs ruler ohm
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';

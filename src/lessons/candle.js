@@ -23,6 +23,7 @@ const WB = new THREE.Vector3(-0.1, 0, 0.03), KNIFE = new THREE.Vector3(-0.07, 0.
 const STICK_HOME = new THREE.Vector3(0.05, 0.003, 0.085), MATCH_HOME = new THREE.Vector3(0.09, 0.006, 0.06);
 const B_HOME = [new THREE.Vector3(0.12, 0, -0.02), new THREE.Vector3(0.17, 0, -0.02)];
 const NSEG = 14, SLEN = 0.04;
+const SMOKE_LIFE = 2, SMOKE_WINDOW = 10;
 
 export default {
   id: 'candle',
@@ -78,6 +79,14 @@ export default {
     const stickPick = new THREE.Mesh(new THREE.BoxGeometry(SLEN + 0.01, 0.012, 0.012), new THREE.MeshBasicMaterial({ visible: false })); stickPick.userData.pick = true; stick.add(stickPick);
     stick.position.copy(STICK_HOME);
     const match = splint({ len: 0.06 }); group.add(match);
+    // 拿住杆的后段，燃烧端朝左上方，接触判定跟随可见的火柴头。
+    const heldAngle = -Math.PI * 0.63;
+    const alongMatch = new THREE.Vector3(-Math.sin(heldAngle), Math.cos(heldAngle), 0);
+    const gripOffset = alongMatch.clone().multiplyScalar(match.len * 0.72);
+    const headOffset = alongMatch.clone().multiplyScalar(match.tip.position.y);
+    const matchGripAt = (head) => head.clone().sub(headOffset).add(gripOffset);
+    const wickAt = new THREE.Vector3(C.x, CH + 0.003, C.z);
+    const matchHead = new THREE.Vector3();
     const matchPick = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.065, 0.014), new THREE.MeshBasicMaterial({ visible: false })); matchPick.position.y = 0.03; matchPick.userData.pick = true; match.add(matchPick);
     match.position.copy(MATCH_HOME); match.rotation.z = -Math.PI / 2;
     // ================= 两个烧杯：干燥的、润湿了澄清石灰水的 =================
@@ -103,9 +112,19 @@ export default {
       knifeDrop() { S.knifeCarry = null; },
       waxDrag(p) { if (!p) return; S.waxCarry = p.clone(); },
       waxDrop() { const p = S.waxCarry; S.waxCarry = null; if (!p) return; if (Math.hypot(p.x - WB.x, p.z - WB.z) < 0.024) { S.waxAt = 'water'; sfx.clink({ freq: 1200, gain: 0.02 }); done('wax'); log(['(1) 观察石蜡，切一块放进水里', '白色固体；用小刀能切下（质软）；<b>浮在水面上</b>', '石蜡密度比水小']); status('石蜡<b>浮在水面上</b>：石蜡的密度比水小。接着点燃蜡烛。'); } },
+      lightWick() {
+        S.lit = true; done('light'); sfx.whoosh?.({ freq: 500, gain: 0.06, dur: 0.3 }); status('点燃了蜡烛。看火焰：分成三层。把<b>火柴梗</b>平放进火焰里，约 1 秒后取出。');
+      },
       candleTap() {
-        if (!S.lit && !S.out) { S.lit = true; done('light'); sfx.whoosh?.({ freq: 500, gain: 0.06, dur: 0.3 }); status('点燃了蜡烛。看火焰：分成三层。把<b>火柴梗</b>平放进火焰里，约 1 秒后取出。'); return; }
-        if (S.lit) { if (!S.demo && !bar.has('cover')) return status('先做完火柴梗、两个烧杯的观察，再熄灭蜡烛。'); S.lit = false; S.out = true; S.smokeT = 10; done("blow"); status('熄灭蜡烛：烛芯上冒出一缕<b>白烟</b>。快！把<b>燃着的火柴</b>凑到白烟上。'); }
+        if (!S.lit && !S.out) return A.lightWick();
+        if (!S.lit) return;
+        if (!S.demo && !bar.has('cover')) return status('先做完火柴梗、两个烧杯的观察，再熄灭蜡烛。');
+        S.lit = false;
+        S.out = true;
+        S.smokeT = SMOKE_WINDOW;
+        done('blow');
+        if (!S.demo && bar.current === 'relight') bar.say(null);
+        status('熄灭蜡烛：烛芯上冒出一缕<b>白烟</b>。快！把<b>燃着的火柴</b>凑到白烟上。');
       },
       stickDrag(p) { if (!p) return; S.stickCarry = p.clone(); },
       stickDrop() {
@@ -123,22 +142,22 @@ export default {
       { obj: waxPick, plane: 'xz', offset: 0.05, hint: '这块石蜡：放进那杯水里', onStart: (p) => A.waxDrag(p), onDrag: (p) => A.waxDrag(p), onEnd: () => A.waxDrop() },
       { obj: stickPick, plane: 'xy', offset: 0, hint: '火柴梗：平放进火焰里，约 1 秒后取出', onStart: (p) => A.stickDrag(p), onDrag: (p) => A.stickDrag(p), onEnd: () => A.stickDrop() },
       ...[0, 1].map((k) => ({ obj: bks[k].pick, plane: 'xy', offset: 0, hint: k ? '润湿了澄清石灰水的烧杯：倒扣着罩在火焰上方' : '干燥的烧杯：倒扣着罩在火焰上方', onStart: (p) => A.bDrag(k, p), onDrag: (p) => A.bDrag(k, p), onEnd: () => A.bDrop(k) })),
-      { obj: matchPick, plane: 'xy', offset: 0, hint: '燃着的火柴：凑到刚熄灭时冒出的白烟上', onStart: (p) => A.matchDrag(p), onDrag: (p) => A.matchDrag(p), onEnd: () => A.matchDrop() },
+      { obj: matchPick, plane: 'xy', offset: 0, hint: () => S.smokeT > 0 ? '把火柴头凑到白烟上' : '握住火柴杆，把火柴头凑到烛芯上', onStart: (p) => A.matchDrag(p), onDrag: (p) => A.matchDrag(p), onEnd: () => A.matchDrop() },
     ], { taps: [{ obj: candlePick, hint: () => (S.lit ? '点一下：熄灭蜡烛' : S.out ? '' : '点一下：点燃蜡烛'), onTap: () => A.candleTap() }], tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const inFlame = () => new THREE.Vector3(C.x, FY, 0);
     const over = () => new THREE.Vector3(C.x, FY + 0.04, 0);
-    const toSmoke = () => new THREE.Vector3(C.x + 0.004, CH + 0.03, 0);
+    const toSmoke = () => matchGripAt(new THREE.Vector3(C.x + 0.004, CH + 0.03, C.z));
 
     const bar = lessonBar({
       look, back, group,
       steps: [
         { id: 'wax', title: '(1) 观察石蜡', todo: '把<b>小刀</b>拖到蜡烛上切下一小块石蜡，再把石蜡放进<b>那杯水</b>里。', target: () => (S.cut ? (S.waxCarry ? null : wax) : S.knifeCarry ? null : knife) },
-        { id: 'light', title: '(2) 点燃蜡烛', todo: '点一下<b>蜡烛</b>，点燃它。', target: () => candle },
+        { id: 'light', title: '(2) 点燃蜡烛', todo: '拿起<b>火柴</b>，把燃着的一端凑到<b>烛芯</b>上。', target: () => S.matchCarry ? null : match },
         { id: 'layers', title: '看火焰分层', todo: '把<b>火柴梗</b>平放进火焰里，约 1 秒后取出，看哪一部分最黑。', target: () => (S.stickCarry ? null : stick) },
         { id: 'cover', title: '罩两个烧杯', todo: '先罩<b>干燥的烧杯</b>，再罩<b>润湿了澄清石灰水的烧杯</b>，看烧杯里的现象。', target: () => (S.bCarry[0] || S.bCarry[1] ? null : S.mist < 0.4 ? bks[0] : bks[1]) },
         { id: 'blow', title: '(3) 熄灭蜡烛', todo: '点一下<b>蜡烛</b>熄灭它，看烛芯上冒出的白烟。', target: () => candle },
-        { id: 'relight', title: '点燃白烟', todo: '趁白烟还在，把<b>燃着的火柴</b>凑到白烟上。', target: () => (S.matchCarry ? null : match) },
+        { id: 'relight', title: '点燃白烟', todo: '趁白烟还在，把<b>燃着的火柴</b>凑到白烟上。', target: () => (S.lit ? candle : S.matchCarry ? null : match) },
         { id: 'why', title: '想一想', todo: '在左边作答。' },
       ],
       reels: {
@@ -149,7 +168,7 @@ export default {
             { cap: '(1) 用小刀切下一小块石蜡放进水里：石蜡软，浮在水面上（密度比水小）。', dur: 7, cam: [[-0.05, 0.05, 0.03], [0.04, 0.35, 1], 0.3],
               during: act.seq(act.path(knifePick, [null, new THREE.Vector3(KNIFE.x, CH - 0.01, KNIFE.z), new THREE.Vector3(C.x, CH - 0.01, C.z), new THREE.Vector3(KNIFE.x, CH - 0.01, KNIFE.z), KNIFE.clone()], { t0: 0.03, t1: 0.4, release: 0.42 }), act.drag(waxPick, () => new THREE.Vector3(WB.x, 0.05, WB.z), { t0: 0.5, t1: 0.8, release: 0.82 })) },
             { cap: '(2) 点燃蜡烛，火焰分三层。火柴梗平放进火焰约 1 秒取出：外焰那部分最黑——外焰温度最高。', dur: 8, cam: [[C.x, FY, 0], [0.04, 0.15, 1], 0.18],
-              during: act.seq(act.tap(candlePick, 0.05), act.drag(stickPick, inFlame, { t0: 0.2, t1: 0.35, release: 0.6 })) },
+              during: act.seq(act.drag(matchPick, () => matchGripAt(wickAt), { t0: 0.01, t1: 0.1, release: 0.18 }), act.drag(stickPick, inFlame, { t0: 0.2, t1: 0.35, release: 0.6 })) },
             { cap: '罩上干燥的烧杯：内壁出现水雾；罩上润湿了澄清石灰水的烧杯：石灰水变浑浊——蜡烛燃烧生成了水和二氧化碳。', dur: 10, speed: 1.5, cam: [[C.x, FY + 0.03, 0], [0.04, 0.15, 1], 0.24],
               during: act.seq(act.drag(bks[0].pick, over, { t0: 0.03, t1: 0.15, release: 0.45 }), act.drag(bks[1].pick, over, { t0: 0.5, t1: 0.62, release: 0.95 })) },
             { cap: '(3) 熄灭蜡烛，冒出白烟。用燃着的火柴去点白烟：蜡烛重新燃烧了。演示完了，下面换你自己做。', dur: 7, cam: [[C.x, CH + 0.02, 0], [0.04, 0.15, 1], 0.2],
@@ -196,16 +215,43 @@ export default {
         if (!k && !S.bCarry[0]) S.mist = Math.max(0, S.mist - h * 0.005);
       });
       // 熄灭后的白烟；火柴凑上去点燃
-      if (S.smokeT > 0) S.smokeT -= h;
-      smoke.update(h, { rate: S.smokeT > 0 ? 14 : 0, origin: S.smokeT > 0 ? new THREE.Vector3(C.x, CH + 0.004, 0) : null, spread: 0.002, up: 0.02, size: 0.005, life: 2 });
+      if (S.smokeT > 0) {
+        S.smokeT = Math.max(0, S.smokeT - h);
+        if (!S.demo && S.smokeT === 0) {
+          const retry = '白烟散了。把<b>火柴移到烛芯</b>，重新点着蜡烛后再熄灭一次。';
+          if (bar.current === 'relight') bar.say(retry);
+          status(retry);
+        }
+      }
+      // 先停止冒烟，留出时间让剩余颗粒散去，再结束点白烟的时机。
+      const emitting = S.smokeT > SMOKE_LIFE * 1.2;
+      smoke.update(h, { rate: emitting ? 14 : 0, origin: emitting ? new THREE.Vector3(C.x, CH + 0.004, 0) : null, spread: 0.002, up: 0.02, size: 0.005, life: SMOKE_LIFE });
       match.setState(S.matchCarry || S.out ? 'flame' : 'none', 0.8); match.update(t);
       if (S.matchCarry) {
-        match.position.lerp(S.matchCarry, 0.45); match.rotation.z += (-0.3 - match.rotation.z) * 0.3;
-        const tip = match.position.clone();
-        if (S.out && !S.relit && S.smokeT > 0 && Math.abs(tip.x - C.x) < 0.01 && tip.y > CH + 0.008 && tip.y < CH + 0.06) {
-          S.relit = true; S.lit = true; S.out = false; S.smokeT = 0; done('relight'); sfx.whoosh?.({ freq: 600, gain: 0.07, dur: 0.3 });
-          log(['(3) 熄灭蜡烛，用燃着的火柴去点白烟', '火焰顺着白烟<b>跳下去</b>，蜡烛重新燃烧', '白烟是石蜡固体小颗粒，<b>能燃烧</b>']);
-          status('火焰顺着白烟“跳”了下去，蜡烛<b>重新燃烧</b>了：白烟是石蜡蒸气凝成的石蜡固体小颗粒，能燃烧。'); W?.t1.open();
+        match.rotation.z = heldAngle;
+        match.position.copy(S.matchCarry).sub(gripOffset);
+        const tip = matchHead.copy(match.position).add(headOffset);
+        const atSmoke = S.smokeT > 0 && Math.abs(tip.x - C.x) < 0.01 && tip.y >= CH + 0.011 && tip.y < CH + 0.06;
+        const atWick = tip.distanceTo(wickAt) < 0.008;
+        if (!S.lit && !S.out && atWick) A.lightWick();
+        else if (S.out && (atSmoke || atWick)) {
+          S.lit = true;
+          S.out = false;
+          S.smokeT = 0;
+          sfx.whoosh?.({ freq: 600, gain: 0.07, dur: 0.3 });
+          if (atSmoke) {
+            if (!S.relit) {
+              S.relit = true;
+              done('relight');
+              log(['(3) 熄灭蜡烛，用燃着的火柴去点白烟', '火焰顺着白烟<b>跳下去</b>，蜡烛重新燃烧', '白烟是石蜡固体小颗粒，<b>能燃烧</b>']);
+              W?.t1.open();
+            }
+            status('火焰顺着白烟“跳”了下去，蜡烛<b>重新燃烧</b>了：白烟是石蜡蒸气凝成的石蜡固体小颗粒，能燃烧。');
+          } else {
+            const retry = '烛芯点着了。<b>再熄灭蜡烛</b>，趁白烟还在，把火柴凑到白烟上。';
+            if (!S.demo && bar.current === 'relight') bar.say(retry);
+            status(retry);
+          }
         }
       } else { match.position.lerp(MATCH_HOME, 0.2); match.rotation.z += (-Math.PI / 2 - match.rotation.z) * 0.2; }
       cards.c.text(`<div class="cc"><div class="cc-t"><span class="cc-name">蜡烛</span>${S.lit ? '<span class="cc-res burn">燃烧</span>' : S.smokeT > 0 ? '<span class="cc-res">白烟</span>' : ''}</div></div>`).loc(group, C.x, CH, 0).show(S.lit || S.smokeT > 0);

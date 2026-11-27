@@ -1,0 +1,150 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>圆周角：站在船头（样子图）</title>
+<style>html,body{margin:0;height:100%;background:#0d1626;overflow:hidden}canvas{display:block}
+#chart{position:fixed;right:28px;top:28px;width:250px;height:190px;background:#efe6cf;border-radius:3px;box-shadow:0 8px 22px rgba(0,0,0,.45);transform:rotate(1.2deg)}
+#gauge{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);font:600 30px "Times New Roman","Songti SC",serif;color:#ffe7a3;text-shadow:0 0 12px rgba(255,200,90,.8);letter-spacing:1px}
+#gauge small{display:block;text-align:center;font:15px "Kaiti SC","STKaiti",serif;color:#f3e6c4;letter-spacing:0;text-shadow:none;opacity:.85}
+#q{position:fixed;left:30px;top:30px;max-width:330px;font:18px/1.55 "Kaiti SC","STKaiti",serif;color:#f1e7cf;text-shadow:0 1px 6px rgba(0,0,0,.6)}</style></head>
+<body><div id="q">海图上说：这片海底有暗礁。<br>夜里看不见礁石，只看得见岸上的两盏灯。<br><b>怎么知道船离礁石还有多远？</b></div>
+<canvas id="chart" width="500" height="380"></canvas>
+<div id="gauge"></div>
+<script type="module">
+// 样子图：给作者看“代入感”——站在船头往前看。黄昏的海、远处两座灯塔、水里露出的礁石；
+// 两盏灯照到船上的两道光，中间夹的角就是船上看两座灯塔的角（圆周角）。右上角是海图（从天上看）。
+import * as THREE from 'three';
+const Q = new URLSearchParams(location.search), VIEW = Q.get('v') || 'deck';
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true; document.body.prepend(renderer.domElement);
+const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x1a2740, 2.2, 5.5);
+const cam = new THREE.PerspectiveCamera(VIEW === 'deck' ? 46 : 34, innerWidth / innerHeight, 0.01, 50);
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+// 几何：两座灯塔 B、C，浅滩边那道弧所在的圆（圆心 O），船 A
+const B = V(-0.55, 0, -1.25), C = V(0.55, 0, -1.25), O = V(0, 0, -0.62), R = Math.hypot(0.55, 0.63);
+const shipA = VIEW === 'deck' ? V(0.12, 0, O.z + Math.sqrt(R * R - 0.12 * 0.12) + 0.0) : V(0.18, 0, O.z + Math.sqrt(R * R - 0.18 * 0.18));
+// 天：一张画好的天幕（纸），上深蓝下暖橙，几颗星
+const sky = new THREE.Mesh(new THREE.PlaneGeometry(14, 5), new THREE.MeshBasicMaterial({ fog: false, map: tex(1024, 512, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#0e1a33'); gr.addColorStop(0.45, '#26385e'); gr.addColorStop(0.72, '#7b5c6e'); gr.addColorStop(0.86, '#e2956a'); gr.addColorStop(1, '#f2c48d');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 140; i++) { const x = Math.random() * w, y = Math.random() * h * 0.45, r = Math.random() * 1.4 + 0.3; g.fillStyle = `rgba(255,248,230,${0.3 + Math.random() * 0.6})`; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }
+  g.globalAlpha = 0.18; for (let i = 0; i < 9000; i++) { g.fillStyle = Math.random() < 0.5 ? '#fff' : '#000'; g.fillRect(Math.random() * w, Math.random() * h, 1, 1); }
+}) }));
+sky.position.set(0, 1.5, -4.2); scene.add(sky);
+// 远山：几层剪纸
+const hills = [[-4.0, '#2b3550', 0.62, 3], [-3.4, '#3a4462', 0.5, 5], [-2.7, '#4b4f6a', 0.36, 7]];
+for (const [z, col, hgt, seed] of hills) {
+  const sh = new THREE.Shape(); sh.moveTo(-7, -0.2);
+  for (let i = 0; i <= 80; i++) { const x = -7 + (i / 80) * 14; sh.lineTo(x, hgt * (0.55 + 0.3 * Math.sin(x * 1.3 + seed) + 0.15 * Math.sin(x * 3.7 + seed * 2))); }
+  sh.lineTo(7, -0.2); sh.closePath();
+  const m = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshLambertMaterial({ color: col })); m.position.z = z; scene.add(m);
+}
+// 海：深蓝绿，带浪的凹凸；灯光在水面上会有反光
+const waveTex = tex(1024, 1024, (g, w, h) => { g.fillStyle = '#808080'; g.fillRect(0, 0, w, h); for (let i = 0; i < 1600; i++) { const x = Math.random() * w, y = Math.random() * h, l = 20 + Math.random() * 60; const gr = g.createLinearGradient(x, y, x + l, y); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, `rgba(255,255,255,${0.25 + Math.random() * 0.35})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.strokeStyle = gr; g.lineWidth = 2 + Math.random() * 3; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + l / 2, y - 4, x + l, y); g.stroke(); } });
+waveTex.wrapS = waveTex.wrapT = THREE.RepeatWrapping; waveTex.repeat.set(10, 10); waveTex.colorSpace = THREE.NoColorSpace;
+const sea = new THREE.Mesh(new THREE.PlaneGeometry(14, 14).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x1d3c52, roughness: 0.22, metalness: 0.15, bumpMap: waveTex, bumpScale: 0.6 }));
+sea.receiveShadow = true; scene.add(sea);
+// 浅滩：圆里面那片水颜色淡一些，几块礁石露出水面
+const shoalGeo = new THREE.CircleGeometry(R, 96).rotateX(-Math.PI / 2);
+const shoal = new THREE.Mesh(shoalGeo, new THREE.MeshStandardMaterial({ color: 0x3f7a78, roughness: 0.3, transparent: true, opacity: 0.45, depthWrite: false })); shoal.position.set(O.x, 0.001, O.z); scene.add(shoal);
+const rockMat = new THREE.MeshStandardMaterial({ color: 0x2c2f33, roughness: 0.9, flatShading: true });
+for (const [x, z, s] of [[-0.18, -0.5, 0.05], [0.22, -0.78, 0.04], [-0.35, -0.85, 0.035], [0.05, -0.32, 0.03], [0.32, -0.42, 0.045], [-0.05, -0.95, 0.04], [-0.4, -0.35, 0.03]]) {
+  const r = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rockMat); r.position.set(x, s * 0.25, z); r.rotation.set(Math.random(), Math.random(), Math.random()); r.scale.y = 0.55; r.castShadow = true; scene.add(r);
+  const foam = new THREE.Mesh(new THREE.RingGeometry(s * 0.9, s * 1.35, 24).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xcfe3e8, transparent: true, opacity: 0.35, depthWrite: false })); foam.position.set(x, 0.002, z); scene.add(foam);
+}
+// 岸：一道纸做的海岸，两座灯塔站在上面
+const shore = new THREE.Mesh(new THREE.BoxGeometry(8, 0.05, 0.6), new THREE.MeshLambertMaterial({ color: 0x8c8473 })); shore.position.set(0, 0.02, -1.58); scene.add(shore);
+const stripe = tex(64, 256, (g) => { for (let i = 0; i < 7; i++) { g.fillStyle = i % 2 ? '#efe8da' : '#b8433b'; g.fillRect(0, (i * 256) / 7, 64, 256 / 7 + 1); } });
+const lights = [];
+for (const P of [B, C]) {
+  const g = new THREE.Group(); g.position.copy(P);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.04, 24), new THREE.MeshLambertMaterial({ color: 0x77705f })); base.position.y = 0.02;
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.3, 24), new THREE.MeshLambertMaterial({ map: stripe })); tower.position.y = 0.19;
+  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.04, 16), new THREE.MeshStandardMaterial({ color: 0xfff1c0, emissive: 0xffc25a, emissiveIntensity: 3 })); lamp.position.y = 0.36;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(0.034, 0.04, 20), new THREE.MeshLambertMaterial({ color: 0x8e2f29 })); roof.position.y = 0.4;
+  const pl = new THREE.PointLight(0xffc56a, 1.6, 3.5, 1.6); pl.position.y = 0.36;
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(128, 128, (c) => { const r = c.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,225,150,1)'); r.addColorStop(0.25, 'rgba(255,200,110,0.5)'); r.addColorStop(1, 'rgba(255,180,90,0)'); c.fillStyle = r; c.fillRect(0, 0, 128, 128); }), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  halo.scale.set(0.32, 0.32, 1); halo.position.y = 0.36;
+  g.add(base, tower, lamp, roof, pl, halo); scene.add(g); lights.push(g);
+}
+// 两道光照到船上：贴着水面的光带（就是两条视线），中间夹的角
+const glow = tex(64, 256, (g) => { const gr = g.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, 'rgba(255,220,140,0)'); gr.addColorStop(0.5, 'rgba(255,220,140,0.95)'); gr.addColorStop(1, 'rgba(255,220,140,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 256); });
+const band = (P, Q2, w) => { const d = Q2.clone().sub(P), l = d.length(); const m = new THREE.Mesh(new THREE.PlaneGeometry(w, l).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: glow, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.85, fog: false })); m.position.copy(P.clone().add(Q2).multiplyScalar(0.5)).setY(0.003); m.rotation.y = Math.atan2(-d.x, -d.z); scene.add(m); };
+band(B, shipA, 0.045); band(C, shipA, 0.045);
+// 船：船头和一盏马灯（站在船头往前看）；从后面看时是整条折纸船
+const paper = new THREE.MeshLambertMaterial({ color: 0xf3eee2, side: THREE.DoubleSide });
+const boat = new THREE.Group(); boat.position.copy(shipA);
+{ const L = 0.11, Wd = 0.05, H = 0.035, geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([0, H, -L, 0, H, L * 0.8, -Wd, 0.0, -L * 0.35, Wd, 0.0, -L * 0.35, -Wd, 0.0, L * 0.6, Wd, 0.0, L * 0.6], 3));
+  geo.setIndex([0, 2, 3, 2, 4, 5, 2, 5, 3, 0, 4, 2, 0, 3, 5, 0, 5, 1, 0, 1, 4]); geo.computeVertexNormals();
+  const hull = new THREE.Mesh(geo, paper); hull.castShadow = true; boat.add(hull);
+  const lantern = new THREE.PointLight(0xffd690, 0.6, 0.6); lantern.position.set(0, 0.07, -0.06); boat.add(lantern); }
+const toA = shipA.clone().sub(O); boat.rotation.y = Math.atan2(toA.x, toA.z) + Math.PI / 2;
+scene.add(boat);
+scene.add(new THREE.HemisphereLight(0x8fa6d6, 0x1b2233, 0.55));
+const moon = new THREE.DirectionalLight(0xbfcdf0, 0.6); moon.position.set(-2, 3, 1); scene.add(moon);
+const dusk = new THREE.DirectionalLight(0xffb27a, 0.5); dusk.position.set(1, 0.6, -4); scene.add(dusk);
+// 镜头：站在船头（略高于水面）看两座灯塔；或者从船后面低低地看
+if (VIEW === 'deck') { cam.position.copy(shipA).add(V(0, 0.075, 0.05)); cam.lookAt(V(0, 0.12, -1.25)); }
+else if (VIEW === 'beauty') { cam.position.set(0.05, 1.55, 1.05); cam.lookAt(V(0, 0, -0.62)); cam.fov = 40; cam.updateProjectionMatrix(); scene.fog = null; }
+else { cam.position.copy(shipA).add(V(0.32, 0.22, 0.62)); cam.lookAt(V(-0.02, 0.06, -0.75)); }
+if (VIEW === 'beauty') {
+  // 海面上每一点“从这里看两座灯塔是多少度”：每 10° 一条等角线（金色），它们全是穿过两座灯塔的圆
+  const th0 = Math.atan2(0.55, 0.63) * 2 / 2;          // 危险角（弧度）＝圆心角的一半
+  const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { B: { value: new THREE.Vector2(B.x, B.z) }, C: { value: new THREE.Vector2(C.x, C.z) }, th0: { value: th0 * 57.29578 } },
+    vertexShader: 'varying vec2 w; void main(){ vec4 p = modelMatrix * vec4(position,1.); w = p.xz; gl_Position = projectionMatrix * viewMatrix * p; }',
+    fragmentShader: `uniform vec2 B; uniform vec2 C; uniform float th0; varying vec2 w;
+      void main(){
+        if (w.y < B.y + 0.02) discard;
+        vec2 a = normalize(B - w), b = normalize(C - w);
+        float d = degrees(acos(clamp(dot(a, b), -1., 1.)));
+        float fw = fwidth(d);
+        float f = abs(fract(d / 10. + .5) - .5) * 10.;
+        float line = 1. - smoothstep(0., fw * 1.3, f);
+        float danger = 1. - smoothstep(0., fw * 2.2, abs(d - th0));
+        float right = 1. - smoothstep(0., fw * 2.2, abs(d - 90.));
+        vec3 col = vec3(1., .78, .42) * line * .55 + vec3(1., .86, .55) * danger * 1.2 + vec3(.75, .9, 1.) * right * 1.0;
+        float shade = smoothstep(10., 120., d) * .10;
+        gl_FragColor = vec4(col + vec3(.9, .55, .3) * shade, 1.);
+      }` });
+  const ov = new THREE.Mesh(new THREE.PlaneGeometry(8, 8).rotateX(-Math.PI / 2), mat); ov.position.y = 0.004; scene.add(ov);
+  // 危险角那一圈：一盏盏河灯（只放在海里的那段弧上）
+  const halo = tex(128, 128, (c) => { const r = c.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,230,160,1)'); r.addColorStop(0.3, 'rgba(255,190,100,.55)'); r.addColorStop(1, 'rgba(255,170,80,0)'); c.fillStyle = r; c.fillRect(0, 0, 128, 128); });
+  for (let k = 0; k < 40; k++) {
+    const t = (k / 40) * Math.PI * 2, x = O.x + R * Math.cos(t), z = O.z + R * Math.sin(t);
+    if (z < B.z + 0.04) continue;
+    const lamp = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.024, 10), new THREE.MeshStandardMaterial({ color: 0xffd28a, emissive: 0xff9a3a, emissiveIntensity: 2.2 })); lamp.position.set(x, 0.012, z); scene.add(lamp);
+    const h = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); h.scale.set(0.13, 0.13, 1); h.position.set(x, 0.03, z); scene.add(h);
+  }
+  // 浮标在圆心
+  const buoy = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.05, 16), new THREE.MeshStandardMaterial({ color: 0xc9473e, emissive: 0x551a14 })); buoy.position.set(O.x, 0.025, O.z); scene.add(buoy);
+  // 几条等角线标上度数
+  const lab = (txt, x, z, col) => { const t = tex(256, 96, (g, w, h) => { g.font = '600 56px "Times New Roman","Songti SC",serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 8; g.strokeStyle = 'rgba(10,20,35,.75)'; g.strokeText(txt, w / 2, h / 2); g.fillStyle = col; g.fillText(txt, w / 2, h / 2); }); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false })); sp.scale.set(0.24, 0.09, 1); sp.position.set(x, 0.03, z); scene.add(sp); };
+  const onAng = (deg) => { const th = (deg * Math.PI) / 180, r = 0.55 / Math.sin(th), oz = -1.25 + 0.55 / Math.tan(th); return [0, oz + r]; };
+  for (const [d, col] of [[20, '#ffd99a'], [30, '#ffd99a'], [60, '#ffd99a'], [90, '#cfe6ff']]) { const [x, z] = onAng(d); lab(`${d}°`, x + 0.06, z + 0.02, col); }
+  lab(`危险角 ${(th0 * 57.29578).toFixed(0)}°`, O.x - R - 0.17, O.z + 0.05, '#ffe7a3');
+  document.getElementById('gauge').style.display = 'none';
+  document.getElementById('chart').style.display = 'none'; document.getElementById('q').style.display = 'none';
+}
+// 船上看两座灯塔的角
+const ang = (P) => Math.atan2(P.x - shipA.x, -(P.z - shipA.z));
+const deg = Math.abs(ang(C) - ang(B)) * 180 / Math.PI;
+if (VIEW !== 'beauty') document.getElementById('gauge').innerHTML = `两盏灯之间：${deg.toFixed(0)}°<small>海图上的危险角：${(Math.atan2(0.55, 0.63) * 180 / Math.PI).toFixed(0)}°</small>`;
+// 海图：从天上看
+{
+  const g = document.getElementById('chart').getContext('2d'), W2 = 500, H2 = 380, k = 210, ox = W2 / 2, oz = 95;
+  const P2 = (p) => [ox + p.x * k, oz + (p.z + 1.25) * k];
+  g.fillStyle = '#efe6cf'; g.fillRect(0, 0, W2, H2);
+  g.fillStyle = '#cdd9d6'; g.fillRect(0, 100, W2, H2);
+  g.fillStyle = '#d9cfb3'; g.fillRect(0, 0, W2, 92);
+  g.strokeStyle = 'rgba(60,70,90,.8)'; g.setLineDash([8, 6]); g.lineWidth = 2; g.beginPath(); g.arc(...P2(O), R * k, 0, 7); g.stroke(); g.setLineDash([]);
+  g.fillStyle = 'rgba(40,50,60,.6)'; for (const [x, z] of [[-0.18, -0.5], [0.22, -0.78], [-0.35, -0.85], [0.05, -0.32], [0.32, -0.42], [-0.05, -0.95], [-0.4, -0.35]]) { const [u, v] = P2(V(x, 0, z)); g.beginPath(); g.arc(u, v, 5, 0, 7); g.fill(); }
+  g.strokeStyle = '#d99a2b'; g.lineWidth = 3; for (const P of [B, C]) { g.beginPath(); g.moveTo(...P2(P)); g.lineTo(...P2(shipA)); g.stroke(); }
+  for (const P of [B, C]) { const [u, v] = P2(P); g.fillStyle = '#b8433b'; g.beginPath(); g.arc(u, v, 8, 0, 7); g.fill(); }
+  const [u, v] = P2(shipA); g.fillStyle = '#fff'; g.strokeStyle = '#333'; g.beginPath(); g.moveTo(u, v - 10); g.lineTo(u + 8, v + 8); g.lineTo(u - 8, v + 8); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = '#3a3226'; g.font = '22px "Kaiti SC","STKaiti",serif'; g.fillText('海图', 16, 30); g.font = '17px "Kaiti SC","STKaiti",serif'; g.fillText('虚线：浅滩的边', 16, H2 - 16);
+}
+renderer.render(scene, cam); window.__done = true;
+</script></body></html>

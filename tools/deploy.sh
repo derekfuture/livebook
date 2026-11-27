@@ -6,13 +6,14 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 export NO_PROXY="localhost,127.0.0.1,::1" no_proxy="localhost,127.0.0.1,::1"
-# 离线版（U 盘上双击打开的那个 HTML）：开关在 src/features.js。开着就先做离线版，放到 public/offline.html（网站上“下载离线版”用）；关着线上不放
+# 离线版（U 盘上双击打开的那个 HTML）：开关在 src/features.js。开着就先按科目做离线版，放到 public/offline-<科目>.{html,zip}；关着线上不放
 cd "$ROOT"
 OFFLINE=$(node --input-type=module -e "const { FEATURES } = await import('./src/features.js'); process.stdout.write(FEATURES.offline ? '1' : '0')")
 rm -rf dist
 if [ "$OFFLINE" = 1 ]; then node tools/build_offline.mjs; fi
 npm run build
-if [ "$OFFLINE" != 1 ]; then rm -f dist/offline.html dist/offline.zip; fi          # public/ 里可能留着本地做的那份
+rm -f dist/offline.{html,zip}
+if [ "$OFFLINE" != 1 ]; then rm -f dist/offline-*.{html,zip}; fi          # public/ 里可能留着本地做的包
 # 线上不放课本书页，只留封面；用户自己导入课本 PDF（见 src/book/PageSource.js）
 "$ROOT/tools/strip_pages.sh" "$ROOT/dist"
 if [ "${1:-}" = "--preview" ]; then exec npx vite preview --host 127.0.0.1 --port 5195 --strictPort; fi

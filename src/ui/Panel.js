@@ -66,6 +66,7 @@ export class Panel {
     this._onFold = onFold;
     this._onStep = onStep;
     this.prediction = null;
+    this.observation = undefined;
     this.unlocked = false;
     if (def.index) {          // 目录类的页（地球目录）：只有标题、一句介绍、一块控件区；没有“动手→对照课本原文”的步骤，也不盖章
       this.explore = true; this.statusEl = h('p', { class: 'status' }); this.controlsEl = h('div'); this.dataEl = h('div'); this.nowEl = h('div', { class: 'now' }, this.statusEl);
@@ -174,12 +175,20 @@ export class Panel {
       unlock: () => this.unlock(),
       relock: (o) => this.relock(o),
       prediction: () => this.prediction,
+      observePrediction: (text) => {
+        if (this.observation === text) return;
+        this.observation = text;
+        if (this.flap.classList.contains('open')) {
+          this._predictionComparison();
+          this.flap.style.minHeight = `${this.answerEl.offsetHeight}px`;
+        }
+      },
       // 给自己排步骤的实验用：当前提示（status + 题目）所在的块、面板本身、翻到第几步
       now: this.nowEl,
       el: this.el,
       go: (i) => this.go(i),
       get step() { return self.step; },          // 现在翻在第几页（0 = 预测 / 问题）
-      fold: (on) => this.fold(on),
+      fold: (on) => this.fold(on),          // 收起 / 展开面板（数学的活页：纸面要大，面板先收成一条书脊，做完再展开）
     };
   }
 
@@ -270,19 +279,29 @@ export class Panel {
 
   _openFlap() {
     if (!this.unlocked || this.flap.classList.contains('open')) return;
+    this._predictionComparison();
+    this.flap.classList.add('open');
+    this.flap.style.minHeight = `${this.answerEl.offsetHeight}px`;
+    this._sealT = setTimeout(() => { this.sealEl.classList.add('on'); stamps.give(this.def.id); this.tabs[2].classList.add('done'); }, 950);
+  }
+
+  _predictionComparison() {
     const v = this.verdictEl;
     // 预测模式：这次没猜就回看上次的预测（以前做过的直接掀结论时）；探索模式没有 predict，不读旧的预测记录
     const p = this.explore ? null : this.def.predict;
-    const last = p ? localStorage.getItem(`livebook.pick.${this.def.id}`) : null;
+    const last = p && this.observation === undefined ? localStorage.getItem(`livebook.pick.${this.def.id}`) : null;
     const mine = p ? this.prediction ?? (last != null && p.options[+last] != null ? +last : null) : null;
     const who = this.prediction == null ? '上次你的预测' : '你的预测';
     // 猜是可选的，不判对错：只把猜的和实际的并排放（QUALITY 二.5）
     if (this.explore) { v.className = 'verdict'; v.textContent = this._guessSay(); }          // 探索模式：先猜了就把猜的和实际的并排放；没猜不说“这次没有先预测”
+    else if (this.observation !== undefined) {
+      const entry = (title, text) => h('span', {}, h('b', {}, title), h('span', {}, text));
+      v.className = 'verdict comparison';
+      v.replaceChildren(entry('你的预测', mine == null ? '这次没有先预测。' : p.options[mine]),
+        entry('实验里看到的', this.observation || '本轮尚未完成比较。'));
+    }
     else if (mine == null) { v.className = 'verdict'; v.textContent = '这次没有先预测。对照实验看看课本的结论。'; }
     else { v.className = 'verdict'; v.textContent = `${who}：“${p.options[mine]}”　　实验里看到的：“${p.options[p.answer]}”`; }
-    this.flap.classList.add('open');
-    this.flap.style.minHeight = `${this.answerEl.offsetHeight}px`;
-    this._sealT = setTimeout(() => { this.sealEl.classList.add('on'); stamps.give(this.def.id); this.tabs[2].classList.add('done'); }, 950);
   }
 
   /** 探索模式里先猜的那一下：猜对了没有（没猜就空着） */

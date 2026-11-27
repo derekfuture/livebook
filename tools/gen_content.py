@@ -18,10 +18,11 @@ EXTRA_SPOTS = [
 ]
 TITLES = {"wuli-8s": "物理 八年级上册", "wuli-8x": "物理 八年级下册", "wuli-9": "物理 九年级全一册", "huaxue-9s": "化学 九年级上册", "huaxue-9x": "化学 九年级下册", "dili-7s": "地理 七年级上册", "dili-8s": "地理 八年级上册", "dili-8x": "地理 八年级下册", "dili-xb1": "地理 选择性必修1", "dili-bx1": "地理 必修第一册", "dili-bx2": "地理 必修第二册", "dili-xb2": "地理 选择性必修2",
           "wuli-hs1": "物理 必修第一册", "wuli-hs2": "物理 必修第二册", "wuli-hs3": "物理 必修第三册", "wuli-hsx1": "物理 选择性必修第一册", "wuli-hsx2": "物理 选择性必修第二册", "wuli-hsx3": "物理 选择性必修第三册",
-          "huaxue-hs1": "化学 必修第一册", "huaxue-hs2": "化学 必修第二册", "huaxue-hsx1": "化学 选择性必修1", "huaxue-hsx2": "化学 选择性必修2", "huaxue-hsx3": "化学 选择性必修3"}
+          "huaxue-hs1": "化学 必修第一册", "huaxue-hs2": "化学 必修第二册", "huaxue-hsx1": "化学 选择性必修1", "huaxue-hsx2": "化学 选择性必修2", "huaxue-hsx3": "化学 选择性必修3",
+          "shuxue-7s": "数学 七年级上册", "shuxue-8s": "数学 八年级上册", "shuxue-8x": "数学 八年级下册", "shuxue-9s": "数学 九年级上册", "shuxue-7x": "数学 七年级下册"}
 
 
-FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究|实验)"
+FIG_RE = r"(图[\d.\-]+|图\d+|实验活动\d+|实验\d+-\d+|探究|实验|思考)"
 
 
 def short_fig(fig):
@@ -36,7 +37,7 @@ def main():
         if r["id"] not in BOX:
             print("缺图框：", r["id"]); continue
         fig = r["fig"]
-        title = re.sub(r"^(图[\d.\-/]+\s*)+", "", fig).strip() if fig.startswith("图") else re.sub(r"^(实验活动\d+|实验\d+-\d+|探究|实验)\s*", "", fig).strip()
+        title = re.sub(r"^(图[\d.\-/]+\s*)+", "", fig).strip() if fig.startswith("图") else re.sub(r"^(实验活动\d+|实验\d+-\d+|探究|实验|思考)\s*", "", fig).strip()
         title = title or r["sec"]
         title = title.replace("问题：", "")
         sec = re.sub(r"^[\d.]+\s*", "", r["sec"])

@@ -1,0 +1,11 @@
+.math-action-cue {
+  position: fixed; z-index: 4; pointer-events: none;
+  transform: translate(-50%, -100%); width: max-content; max-width: min(34em, 90vw); text-align: center;
+  color: #fff8e3; font: 500 clamp(13px, 1.05vw, 16px)/1.4 var(--song);
+  text-shadow: 0 1px 2px #332719, 0 0 3px #332719, 0 0 5px #332719;
+  opacity: 0; transition: opacity 240ms ease;
+}
+.math-action-cue[aria-hidden="false"] { opacity: 1; }
+.math-action-cue.idle { font-size: clamp(12px, .95vw, 14px); }
+.math-action-cue[aria-hidden="false"].idle { opacity: .82; }
+body.math-guiding :is(.hover-tip, .tag3d.pill) { visibility: hidden; }

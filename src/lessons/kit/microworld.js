@@ -29,6 +29,17 @@ const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 const pairOf = (cat, an) => { const z = ZION[cat], a = ZION[an], g = gcd(z, a); return [a / g, z / g]; };
 // 分子：原子 [元素, x, y, z]、键 [i, j, 几重键]、化学式、标签颜色（全息里用深色字）
 const MOL = {
+  'SCN-': { atoms: [['N', -1.35, 0, 0], ['C', -0.17, 0, 0], ['S', 1.45, 0, 0]], bonds: [[0, 1, 1], [1, 2, 1]], label: 'SCN⁻', ink: '#43536e' },
+  // 实验 2-1 用课本的简式示意 Fe–N 配位。三条 SCN 沿圆面展开，便于看清结合与分开。
+  'Fe(SCN)3': {
+    atoms: [['Fe', 0, 0, 0], ...[0.32 + Math.PI / 6, 0.32 + 5 * Math.PI / 6, 0.32 + 3 * Math.PI / 2].flatMap((a) => [
+      ['N', 1.98 * Math.cos(a), 0, 1.98 * Math.sin(a)],
+      ['C', 3.16 * Math.cos(a), 0, 3.16 * Math.sin(a)],
+      ['S', 4.78 * Math.cos(a), 0, 4.78 * Math.sin(a)],
+    ])],
+    bonds: [[0, 1, 1], [1, 2, 1], [2, 3, 1], [0, 4, 1], [4, 5, 1], [5, 6, 1], [0, 7, 1], [7, 8, 1], [8, 9, 1]],
+    label: 'Fe(SCN)₃', labelY: -1.25, ink: '#74213d',
+  },
   Hg: { atoms: [['Hg', 0, 0, 0]], bonds: [], label: 'Hg', ink: '#657080' },
   HgO: { atoms: [['Hg', 0, 0, 0], ['O', 0, 1.5, 0]], bonds: [[0, 1, 1]], labelY: 2.5, label: 'HgO', ink: '#b84933' },
   CO2: { atoms: [['C', 0, 0, 0], ['O', -1.16, 0, 0], ['O', 1.16, 0, 0]], bonds: [[0, 1, 2], [0, 2, 2]], label: 'CO₂', ink: '#23293a' },
@@ -111,8 +122,22 @@ MOL.H2SO4 = { atoms: [['S', 0, 0, 0], ['O', 0.82, 0.82, 0.82], ['O', -0.82, -0.8
 // 一氧化氮、二氧化氮（NO₂ 溶于水，no2water）：N–O 1.15 Å；NO₂ 是弯的，N–O 1.20 Å、O–N–O 约 134°（两根键其实一样长，画成一双一单）
 MOL.NO = { atoms: [['N', -0.575, 0, 0], ['O', 0.575, 0, 0]], bonds: [[0, 1, 2]], label: 'NO', ink: '#4a5262' };
 MOL.NO2 = { atoms: [['N', 0, 0.23, 0], ['O', -1.105, -0.239, 0], ['O', 1.105, -0.239, 0]], bonds: [[0, 1, 2], [0, 2, 1]], label: 'NO₂', ink: '#a5491f' };
+// 四氧化二氮：平面结构示意，两个 NO₂ 片段以 N–N 单键相连。
+MOL.N2O4 = {
+  atoms: [['N', -0.89, 0, 0], ['O', -1.359, 0, -1.105], ['O', -1.359, 0, 1.105],
+    ['N', 0.89, 0, 0], ['O', 1.359, 0, 1.105], ['O', 1.359, 0, -1.105]],
+  bonds: [[0, 1, 2], [0, 2, 1], [3, 4, 2], [3, 5, 1], [0, 3, 1]], label: 'N₂O₄', ink: '#43536e',
+};
 // 固体 CuSO₄ 里的 Cu²⁺（浓硫酸与铜，cuh2so4）：和溶液里的 Cu²⁺ 一模一样（颜色、大小、光晕），只是头上贴着 SO₄²⁻，化学式标在下面
 MOL['Cu2+s'] = { ...MOL['Cu2+'], labelY: -1.2 };
+MOL.C2H5OH = {
+  atoms: [['C', -0.79, 0, 0], ['C', 0.74, 0, 0], ['O', 1.22, 1.32, 0], ['H', -1.16, 1.02, 0], ['H', -1.16, -0.51, 0.89], ['H', -1.16, -0.51, -0.89], ['H', 1.10, -0.51, -0.89], ['H', 1.10, -0.51, 0.89], ['H', 2.18, 1.32, 0]],
+  bonds: [[0, 1, 1], [1, 2, 1], [0, 3, 1], [0, 4, 1], [0, 5, 1], [1, 6, 1], [1, 7, 1], [2, 8, 1]], label: 'CH₃CH₂OH', labelY: 2.3, ink: '#42566d',
+};
+MOL.CH3CHO = {
+  atoms: [['C', -0.79, 0, 0], ['C', 0.71, 0, 0], ['O', 1.32, 1.05, 0], ['H', -1.16, 1.02, 0], ['H', -1.16, -0.51, 0.89], ['H', -1.16, -0.51, -0.89], ['H', 1.26, -0.95, 0]],
+  bonds: [[0, 1, 1], [1, 2, 2], [0, 3, 1], [0, 4, 1], [0, 5, 1], [1, 6, 1]], label: 'CH₃CHO', labelY: 2.25, ink: '#42566d',
+};
 const BOX = { x: 7.5, z: 3.6, top: 9 };          // 底座在 y = 0；液体 0~film；上面是气体
 
 const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
@@ -187,6 +212,7 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
   const fibTex = new THREE.CanvasTexture(fib); fibTex.wrapS = fibTex.wrapT = THREE.RepeatWrapping;
   const paperMat = new THREE.MeshStandardMaterial({ color: 0x8b5fb0, map: fibTex, roughness: 0.9, emissive: 0x8b5fb0, emissiveIntensity: 0.18 });
   const HR = 6.8;                     // 全息底座的半径（Å）：分子只在这个圆里活动
+  const showBase = !HOLO || scene.holoBase !== false;
   if (HOLO) { paperMat.transparent = true; paperMat.opacity = 0.38; paperMat.emissiveIntensity = 0.5; paperMat.depthWrite = false; }
   const paper = new THREE.Mesh(HOLO ? new THREE.CylinderGeometry(HR, HR, 0.5, 64) : new THREE.BoxGeometry(BOX.x * 2 + 6, 1.4, BOX.z * 2 + 6), paperMat); paper.position.y = HOLO ? -0.4 : -0.7; W0.add(paper);
   const waterMat = new THREE.MeshStandardMaterial({ color: 0x5cc2f0, transparent: true, opacity: 0.13, roughness: 0.15, depthWrite: false, emissive: 0x1d5f80, emissiveIntensity: 0.3 });
@@ -435,10 +461,11 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
     }
     flashLight.intensity *= Math.pow(0.02, dt);
     // 底座的颜色、液体层厚度
-    paper.visible = view.paper != null;
+    paper.visible = showBase && view.paper != null;
     if (view.paper != null) { paperMat.color.set(view.paper); paperMat.emissive.set(view.paper); }
     waterMat.color.set(view.liquid); surfMat.color.set(view.liquid).lerp(new THREE.Color(0xffffff), 0.6);
-    water.scale.y += (Math.max(0.02, film) - water.scale.y) * Math.min(1, dt * 3); water.position.y = water.scale.y / 2; surf.position.y = water.scale.y + 0.01; surf.visible = water.scale.y > 0.1;
+    water.scale.y += (Math.max(0.02, film) - water.scale.y) * Math.min(1, dt * 3); water.position.y = water.scale.y / 2; surf.position.y = water.scale.y + 0.01; surf.visible = showBase && water.scale.y > 0.1;
+    water.visible = showBase;
     dust.rotation.y += dt * 0.01;
     // 化学式、说明
     const T = scene.text(ctx, st);
@@ -512,6 +539,7 @@ export function microWorld({ mode = 'holo', place = null, scene = litmusScene() 
         const P = place(), k = ease(openK), lift = 3.2 * k;
         W0.position.copy(P.pos).addScaledVector(new THREE.Vector3(0, 1, 0), P.scale * lift);
         W0.scale.setScalar(P.scale * (0.15 + 0.85 * k));
+        column.visible = baseRing.visible = showBase;
         column.scale.set(1, lift + 0.8, 1); column.position.y = -0.8 - (lift + 0.8) / 2; column.material.opacity = k;
         baseRing.material.opacity = 0.85 * k;
         const C = P.cam; C.updateMatrixWorld();

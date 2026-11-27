@@ -4,8 +4,17 @@
   Cache-Control: public, max-age=0, must-revalidate
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
-/offline.zip
-  Content-Disposition: attachment; filename="livebook-offline.zip"; filename*=UTF-8''%E6%B4%BB%E9%A1%B5%E8%AF%BE%E6%9C%AC%EF%BC%88%E7%A6%BB%E7%BA%BF%E7%89%88%EF%BC%89.zip
+/offline-physics.zip
+  Content-Disposition: attachment; filename="livebook-offline-physics.zip"; filename*=UTF-8''%E6%B4%BB%E9%A1%B5%E8%AF%BE%E6%9C%AC%EF%BC%88%E7%89%A9%E7%90%86%E7%A6%BB%E7%BA%BF%E7%89%88%EF%BC%89.zip
+  Cache-Control: public, max-age=0, must-revalidate
+/offline-chemistry.zip
+  Content-Disposition: attachment; filename="livebook-offline-chemistry.zip"; filename*=UTF-8''%E6%B4%BB%E9%A1%B5%E8%AF%BE%E6%9C%AC%EF%BC%88%E5%8C%96%E5%AD%A6%E7%A6%BB%E7%BA%BF%E7%89%88%EF%BC%89.zip
+  Cache-Control: public, max-age=0, must-revalidate
+/offline-geography.zip
+  Content-Disposition: attachment; filename="livebook-offline-geography.zip"; filename*=UTF-8''%E6%B4%BB%E9%A1%B5%E8%AF%BE%E6%9C%AC%EF%BC%88%E5%9C%B0%E7%90%86%E7%A6%BB%E7%BA%BF%E7%89%88%EF%BC%89.zip
+  Cache-Control: public, max-age=0, must-revalidate
+/offline-math.zip
+  Content-Disposition: attachment; filename="livebook-offline-math.zip"; filename*=UTF-8''%E6%B4%BB%E9%A1%B5%E8%AF%BE%E6%9C%AC%EF%BC%88%E6%95%B0%E5%AD%A6%E7%A6%BB%E7%BA%BF%E7%89%88%EF%BC%89.zip
   Cache-Control: public, max-age=0, must-revalidate
 /books/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800

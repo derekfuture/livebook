@@ -1,0 +1,75 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>两边和一个角：把角叠起来</title>
+<style>html,body{margin:0;height:100%;background:#c49a6c}canvas{display:block}</style></head>
+<body><script type="module">
+// 草图：八上“两边和其中一边的对角”。AB、AC 长度不变，∠B 一层层变大，叠起来。
+// 每一层：以 A 为圆心、AC 为半径的圆和 B 出发的射线交在几点，就有几个三角形。交点连起来是一道拱，拱顶相切（∠C＝90°）。
+import * as THREE from 'three';
+const W = innerWidth, H = innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setSize(W, H); renderer.setPixelRatio(2);
+renderer.shadowMap.enabled = true; renderer.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#c99d6e');
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.01, 10);
+cam.position.set(0.66, 0.5, 1.02); cam.lookAt(0.08, 0.15, -0.05);
+scene.add(new THREE.HemisphereLight(0xfff8ee, 0xa58a68, 1.6));
+const sun = new THREE.DirectionalLight(0xfff2de, 1.6); sun.position.set(-0.6, 1.4, 0.8); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -0.6, right: 0.6, top: 0.6, bottom: -0.6, near: 0.1, far: 3 }); scene.add(sun);
+
+const CYAN = 0x1b8fc2, MAG = 0xd12a74, GOLD = 0xd99a1e, INK = 0x2b3245, PENCIL = 0x8a8f9c;
+const c = 0.3, r = 0.22, bT = Math.asin(r / c);                  // AB、AC；相切时的 ∠B
+const B0 = new THREE.Vector3(-0.15, 0, 0.02);                    // B 在每一层的位置（x、z）
+const b0 = (14 * Math.PI) / 180, b1 = (68 * Math.PI) / 180, HT = 0.34;
+const yOf = (b) => 0.006 + ((b - b0) / (b1 - b0)) * HT;          // ∠B 越大，层越高
+
+// 桌面上的活页纸（底层）
+const desk = new THREE.Mesh(new THREE.PlaneGeometry(4, 4).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xc99d6e })); desk.position.y = -0.002; desk.receiveShadow = true; scene.add(desk);
+const paper = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.002, 0.42), new THREE.MeshLambertMaterial({ color: 0xf4eedd })); paper.position.set(0.06, -0.001, -0.08); paper.receiveShadow = true; scene.add(paper);
+
+const tube = (pts, rad, color, op = 1) => { const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), Math.max(8, pts.length * 6), rad, 8, false), new THREE.MeshStandardMaterial({ color, roughness: 0.5, transparent: op < 1, opacity: op })); m.castShadow = true; scene.add(m); return m; };
+const seg = (p, q, rad, color, op = 1) => tube([p, p.clone().lerp(q, 0.5), q], rad, color, op);
+const dot = (p, rad, color) => { const m = new THREE.Mesh(new THREE.SphereGeometry(rad, 20, 14), new THREE.MeshStandardMaterial({ color, roughness: 0.35 })); m.position.copy(p); m.castShadow = true; scene.add(m); return m; };
+const label = (txt, p, h, color = '#2b3245') => {
+  const cv = document.createElement('canvas'), g = cv.getContext('2d'), px = 64; g.font = `600 ${px}px "Kaiti SC","STKaiti",serif`;
+  const w = g.measureText(txt).width + 24; cv.width = w; cv.height = px * 1.4; g.font = `600 ${px}px "Kaiti SC","STKaiti",serif`;
+  g.fillStyle = 'rgba(253,250,241,0.88)'; g.fillRect(0, 0, w, cv.height); g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(txt, 12, cv.height / 2);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false })); s.scale.set((h * w) / cv.height, h, 1); s.position.copy(p); s.renderOrder = 9; scene.add(s); return s;
+};
+
+// 一层：一张薄纸（硫酸纸），上面画 B 出发的射线、A、半径 AC 的圆弧、交出来的三角形
+const layer = (b, strong = false) => {
+  const y = yOf(b), A = new THREE.Vector3(B0.x + c * Math.cos(b), y, B0.z - c * Math.sin(b)), B = new THREE.Vector3(B0.x, y, B0.z);
+  const sheet = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.36).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xfbf7ec, transparent: true, opacity: strong ? 0.2 : 0.075, depthWrite: false, side: THREE.DoubleSide, roughness: 0.9 }));
+  sheet.position.set(0.1, y - 0.0005, -0.1); sheet.renderOrder = 1; scene.add(sheet);
+  seg(B, new THREE.Vector3(B0.x + 0.53, y, B0.z), 0.0005, PENCIL, strong ? 0.8 : 0.35);          // 射线
+  seg(B, A, strong ? 0.0011 : 0.0006, strong ? INK : PENCIL, strong ? 0.9 : 0.5);                // AB
+  const disc = r * r - (c * Math.sin(b)) ** 2;
+  // 圆弧（虚线点）
+  if (strong) for (let k = 0; k < 64; k += 2) { const a0 = (k / 64) * Math.PI * 2, a1 = ((k + 1) / 64) * Math.PI * 2; seg(new THREE.Vector3(A.x + r * Math.cos(a0), y, A.z + r * Math.sin(a0)), new THREE.Vector3(A.x + r * Math.cos(a1), y, A.z + r * Math.sin(a1)), 0.00035, PENCIL, 0.5); }
+  const pts = [];
+  if (disc >= 0) for (const s of [-1, 1]) { const x = B0.x + c * Math.cos(b) + s * Math.sqrt(disc); if (x > B0.x) pts.push(new THREE.Vector3(x, y, B0.z)); }
+  pts.forEach((P, i) => { const col = disc < 1e-6 ? GOLD : i ? MAG : CYAN; seg(A, P, strong ? 0.0016 : 0.0008, col, strong ? 0.95 : 0.55); seg(B, P, strong ? 0.0016 : 0.0008, col, strong ? 0.95 : 0.55);
+    if (strong) { const g = new THREE.BufferGeometry().setFromPoints([A, B, P]); const f = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })); f.position.y = 0.0004; f.renderOrder = 2; scene.add(f); } });
+  dot(A, 0.0032, INK);
+  return { y, A, pts };
+};
+const bs = []; for (let b = b0; b < b1 + 1e-6; b += (4 * Math.PI) / 180) bs.push(b);
+bs.push(bT); bs.sort((p, q) => p - q);
+bs.forEach((b) => layer(b, Math.abs(b - bT) < 1e-6 || Math.abs(b - (30 * Math.PI) / 180) < 0.02));
+
+// 拱：每一层的交点连起来——左边一支青、右边一支品红，在相切的那一层合成一点
+const arm = (s) => { const pts = []; for (let i = 0; i <= 80; i++) { const b = b0 + (bT - b0) * (i / 80), d = Math.sqrt(Math.max(0, r * r - (c * Math.sin(b)) ** 2)); pts.push(new THREE.Vector3(B0.x + c * Math.cos(b) + s * d, yOf(b), B0.z)); } return pts; };
+tube(arm(-1), 0.0028, CYAN); tube(arm(1), 0.0028, MAG);
+const apex = new THREE.Vector3(B0.x + c * Math.cos(bT), yOf(bT), B0.z); dot(apex, 0.0062, GOLD);
+// A 一层层走出来的那条线（铅笔）
+{ const pts = []; for (let i = 0; i <= 60; i++) { const b = b0 + (b1 - b0) * (i / 60); pts.push(new THREE.Vector3(B0.x + c * Math.cos(b), yOf(b), B0.z - c * Math.sin(b))); } tube(pts, 0.0011, PENCIL, 0.8); }
+// B 处立一根竖线：往上 ∠B 变大
+seg(new THREE.Vector3(B0.x, 0, B0.z), new THREE.Vector3(B0.x, yOf(b1) + 0.03, B0.z), 0.0012, INK);
+label('∠B 越来越大 ↑', new THREE.Vector3(B0.x - 0.07, yOf(b1) + 0.035, B0.z), 0.026);
+label('两个三角形', new THREE.Vector3(B0.x + c + 0.13, yOf(b0) + 0.04, B0.z + 0.02), 0.026, '#9e1b57');
+label('课本上画的，就是这里的一层', new THREE.Vector3(B0.x + 0.05, yOf((30 * Math.PI) / 180) + 0.012, B0.z + 0.07), 0.022, '#2b3245');
+label('只剩一个：∠C＝90°', new THREE.Vector3(apex.x + 0.16, apex.y + 0.012, apex.z), 0.026, '#9a6a10');
+label('一个也没有', new THREE.Vector3(B0.x + c * Math.cos(b1) + 0.12, yOf(b1) - 0.01, B0.z - 0.02), 0.026, '#5d6378');
+renderer.render(scene, cam);
+window.__done = true;
+</script></body></html>

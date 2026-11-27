@@ -1,0 +1,95 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>乘负数怎么演：三个候选（静帧草图）</title>
+<style>html,body{margin:0;height:100%;background:#c99d6e;overflow:hidden}canvas{display:block}</style></head>
+<body><script type="module">
+// 三个候选，只为让作者挑“乘负数”在数轴上怎么演。都只用一根数轴：横跨两页，0 在书脊上，右页是正数，左页是负数。
+// 都只画最要紧的一步：6 ＞ 2，两个都乘 −1，变成 −6、−2。一张静帧里用一串淡珠子画出走过的路。
+//   ?f=A 跳到对面：每个数沿一道半圆跳过 0，落到离 0 一样远的另一边（七上：相反数在数轴上关于原点对称）
+//   ?f=B 翻页：右半根数轴是活页的一页，钉在书脊上，像翻书一样翻到左边
+//   ?f=C 照镜子：书脊上立一块玻璃（八上物理“平面镜成像”那块），6、2 的像正好落在 −6、−2
+import * as THREE from 'three';
+const F = new URLSearchParams(location.search).get('f') || 'A';
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#c99d6e');
+const cam = new THREE.PerspectiveCamera(26, innerWidth / innerHeight, 0.01, 10);
+const CAM = { A: [[0, 0.46, 0.9], [0, 0.06, 0.02]], B: [[0, 0.46, 0.9], [0, 0.06, 0.02]], C: [[0.34, 0.4, 0.78], [-0.02, 0.04, 0.02]] }[F];
+cam.position.set(...CAM[0]); cam.lookAt(...CAM[1]);
+scene.add(new THREE.HemisphereLight(0xfff8ee, 0xa58a68, 1.5));
+const sun = new THREE.DirectionalLight(0xfff2de, 1.5); sun.position.set(-0.3, 1.6, 0.6); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -0.5, right: 0.5, top: 0.5, bottom: -0.5, near: 0.1, far: 3 }); sun.shadow.bias = -0.0004; scene.add(sun);
+const C = { cyan: '#1b8fc2', mag: '#d12a74', ink: '#262c3c' };
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+const NUMF = '"Times New Roman","Songti SC",serif';
+const num = (v) => (v < 0 ? `−${-v}` : `${v}`);
+
+// 书
+const PW = 0.3, s = PW / 521.55, PH = 736.95 * s, GAP = 0.004;
+const desk = new THREE.Mesh(new THREE.PlaneGeometry(4, 4).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xc99d6e })); desk.position.y = -0.026; desk.receiveShadow = true; scene.add(desk);
+const loader = new THREE.TextureLoader(); let loaded = 0;
+for (const [i, side] of [[130, -1], [131, 1]]) {
+  const t = loader.load(`/books/shuxue-7x/hi/${i}.png`, () => { loaded++; if (loaded === 2) requestAnimationFrame(() => { renderer.render(scene, cam); window.__done = true; }); }); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const pg = new THREE.Mesh(new THREE.PlaneGeometry(PW, PH).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ map: t })); pg.position.set(side * (PW / 2 + GAP), 0, 0); pg.receiveShadow = true; scene.add(pg);
+  const block = new THREE.Mesh(new THREE.BoxGeometry(PW + 0.002, 0.024, PH + 0.002), new THREE.MeshLambertMaterial({ color: 0xf1ead8 })); block.position.set(side * (PW / 2 + GAP), -0.0125, 0); block.castShadow = block.receiveShadow = true; scene.add(block);
+}
+
+// 一根数轴：横跨两页，0 在书脊上，−11 到 11
+const U = 0.025, Z0 = 0.07, LEN = 0.58, YB = 0.0022, R0 = 0.0085;
+const axisTex = (from, to, w) => canvasTex(w, 320, (g, W, H) => {
+  g.fillStyle = '#fbf6e8'; g.fillRect(0, 0, W, H);
+  const px = (n) => ((n - from) / (to - from)) * W, base = 64;
+  g.strokeStyle = C.ink; g.fillStyle = C.ink; g.lineWidth = 6; g.beginPath(); g.moveTo(0, base); g.lineTo(W, base); g.stroke();
+  g.font = `600 150px ${NUMF}`; g.textAlign = 'center';
+  for (let n = Math.ceil(from); n <= to; n++) { const x = px(n); g.beginPath(); g.moveTo(x, base); g.lineTo(x, base + 56); g.stroke(); if (n % 2 === 0 || Math.abs(n) <= 6) { g.save(); g.translate(x, 280); g.scale(1, 1.3); g.fillText(num(n), 0, 0); g.restore(); } }
+});
+const side = new THREE.MeshLambertMaterial({ color: 0xe6dcc2 });
+const stripAt = (x0, x1, op = 1) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.0012, 0.036), [side, side, new THREE.MeshLambertMaterial({ map: axisTex(x0 / U, x1 / U, Math.round(((x1 - x0) / LEN) * 6400)), transparent: op < 1, opacity: op }), side, side, side]); m.position.set((x0 + x1) / 2, 0.0008, Z0 + 0.012); m.castShadow = m.receiveShadow = op >= 1; scene.add(m); return m; };
+const ball = (color, r, op = 1) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 18), new THREE.MeshStandardMaterial({ color, roughness: 0.3, transparent: op < 1, opacity: op, depthWrite: op >= 1 })); m.castShadow = op >= 1; scene.add(m); return m; };
+const label = (txt, color, h = 0.024, bg = false) => { const f = `700 120px ${NUMF}`, g0 = document.createElement('canvas').getContext('2d'); g0.font = f; const w = Math.ceil(g0.measureText(txt).width) + 60;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, map: canvasTex(w, 170, (g) => { if (bg) { g.fillStyle = 'rgba(253,250,241,0.95)'; g.fillRect(0, 0, w, 170); } g.font = f; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = 16; g.strokeStyle = 'rgba(251,247,236,0.96)'; if (!bg) g.strokeText(txt, w / 2, 90); g.fillStyle = color; g.fillText(txt, w / 2, 90); }) }));
+  sp.scale.set((h * w) / 170, h, 1); sp.renderOrder = 9; scene.add(sp); return sp; };
+const tube = (pts, color, r = 0.0011, op = 0.85) => { const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 80, r, 8), new THREE.MeshStandardMaterial({ color, roughness: 0.5, transparent: true, opacity: op })); scene.add(m); return m; };
+const P = [[6, C.mag], [2, C.cyan]];
+const rel = (txt, x) => label(txt, C.ink, 0.026, true).position.set(x, 0.006, Z0 + 0.075);
+
+if (F === 'A' || F === 'C') stripAt(-LEN / 2, LEN / 2);
+if (F === 'A') {
+  // 跳到对面：每颗珠子在竖直面里沿半圆跳过 0，拱顶在 0 的正上方，落到离 0 一样远的另一边
+  for (const [v, col] of P) {
+    const r = v * U, y0 = YB + R0, arc = []; for (let i = 0; i <= 48; i++) { const th = (Math.PI * i) / 48; arc.push(V(r * Math.cos(th), y0 + r * Math.sin(th), Z0)); }
+    tube(arc, col, 0.0009, 0.7);
+    for (const k of [0.2, 0.4, 0.6, 0.8]) { const th = k * Math.PI, g = ball(col, R0, 0.18 + 0.3 * k); g.position.set(r * Math.cos(th), y0 + r * Math.sin(th), Z0); }
+    const a = ball(col, R0, 0.3); a.position.set(r, y0, Z0); const b = ball(col, R0); b.position.set(-r, y0, Z0);
+  }
+}
+if (F === 'B') {
+  // 翻页：左半根钉在左页上不动；右半根是活页的一页，钉在书脊上，正翻到一半多（120°），珠子跟着走出两道拱
+  stripAt(-LEN / 2, 0);
+  const leafTex = axisTex(0, LEN / 2 / U, 3200);
+  const leaf = (th, op) => { const g = new THREE.Group(); const m = new THREE.Mesh(new THREE.BoxGeometry(LEN / 2, 0.0012, 0.036), new THREE.MeshLambertMaterial({ map: leafTex, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: op > 0.6 })); m.position.set(LEN / 4, 0, 0.012); g.add(m); g.position.set(0, 0.0014, Z0); g.rotation.z = th; scene.add(g); return g; };
+  leaf(0, 0.22); leaf(Math.PI * 0.33, 0.14); const now = leaf(Math.PI * 0.66, 0.78);
+  for (const [v, col] of P) {
+    const r = v * U, y0 = YB + R0, arc = []; for (let i = 0; i <= 48; i++) { const th = (Math.PI * i) / 48; arc.push(V(r * Math.cos(th), y0 + r * Math.sin(th), Z0)); }
+    tube(arc, col, 0.0009, 0.55);
+    const th = Math.PI * 0.66, b = ball(col, R0); b.position.set(r * Math.cos(th), y0 + r * Math.sin(th), Z0);
+    const a = ball(col, R0, 0.3); a.position.set(r, y0, Z0); const c = ball(col, R0, 0.3); c.position.set(-r, y0, Z0);
+  }
+}
+if (F === 'C') {
+  // 照镜子：书脊上立一块大玻璃；隔着玻璃看，6、2 的像正好落在 −6、−2
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(0.003, 0.11, 0.3), new THREE.MeshStandardMaterial({ color: 0xd6ecf7, transparent: true, opacity: 0.22, roughness: 0.03, metalness: 0.15, depthWrite: false }));
+  glass.position.set(0, 0.0014 + 0.055, Z0 - 0.06); scene.add(glass);
+  const frame = new THREE.LineSegments(new THREE.EdgesGeometry(glass.geometry), new THREE.LineBasicMaterial({ color: 0x9cc0d2 })); frame.position.copy(glass.position); scene.add(frame);
+  for (const [v, col] of P) {
+    const r = v * U, y0 = YB + R0, a = ball(col, R0); a.position.set(r, y0, Z0); const b = ball(col, R0, 0.4); b.position.set(-r, y0, Z0);
+    const dz = v === 6 ? 0.016 : -0.016; tube([V(r, y0, Z0 + dz), V(0, y0, Z0 + dz)], col, 0.0007, 0.6); tube([V(0, y0, Z0 + dz), V(-r, y0, Z0 + dz)], col, 0.0007, 0.3);
+  }
+}
+// 前后两种大小关系，写在下面
+rel('6 ＞ 2', 4 * U); rel('−6 ＜ −2', -4 * U);
+for (const [v, col] of P) { label(num(v), col).position.set(v * U, YB + 0.036, Z0); label(num(-v), col).position.set(-v * U, YB + 0.036, Z0); }
+renderer.render(scene, cam);
+</script></body></html>
