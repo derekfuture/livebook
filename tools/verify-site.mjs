@@ -6,7 +6,7 @@ import { requireTool } from './qa-deps.mjs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { FEATURES } from '../src/features.js';
-import { books, visibleBooks, lessonsOf, root, subjectOf } from './release-books.mjs';
+import { books, visibleBooks, lessonsOf, hiddenLessons, root, subjectOf } from './release-books.mjs';
 
 const [base, ...changed] = process.argv.slice(2);
 const url = new URL(base);
@@ -90,8 +90,17 @@ try {
     await visit(book, lessonsOf(book)[0]);
     await page.waitForFunction(() => window.__home?.items.length && !window.__lb);
   }
+  // 没上线的单张活页：书照常打开，这一张打不开
+  const hiddenLesson = visibleBooks.flatMap(b => Object.keys(b.lessons).filter(id => hiddenLessons.has(id)).map(id => [b, id]))[0];
+  if (hiddenLesson) {
+    const [book, id] = hiddenLesson;
+    await visit(book, id);
+    await page.waitForFunction(bid => window.__lb?.live.content.id === bid, book.id);
+    await page.waitForTimeout(1500);
+    assert.equal(await page.evaluate(() => window.__lb.live.active?.spot.lesson ?? null), null, `${id} 没上线，不该打开`);
+  }
   assert.deepEqual(errors, []);
-  console.log(`${ids.length} 册可打开，${hidden.length} 册隐藏，${sample.size} 课占位页通过`);
+  console.log(`${ids.length} 册可打开，${hidden.length} 册隐藏，${hiddenLessons.size} 张活页隐藏，${sample.size} 课占位页通过`);
 } finally {
   await browser.close();
 }
