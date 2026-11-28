@@ -8,7 +8,8 @@ export const root = fileURLToPath(new URL('../', import.meta.url));
 export const books = Object.values(JSON.parse(fs.readFileSync(path.join(root, 'src/content/books.json'))));
 export const visibleBooks = books.filter(b => !b.draft && !FEATURES.hiddenBooks?.includes(b.id));
 export const subjectOf = book => book.title.split(' ')[0];
-export const lessonsOf = book => Object.keys(book.lessons).filter(id => fs.existsSync(path.join(root, 'src/lessons', id + '.js')));
+export const hiddenLessons = new Set(FEATURES.hiddenLessons ?? []);          // 没上线的单张活页：发布的测试和验站都跳过
+export const lessonsOf = book => Object.keys(book.lessons).filter(id => !hiddenLessons.has(id) && fs.existsSync(path.join(root, 'src/lessons', id + '.js')));
 export const coverSizes = ['hi', 'lo', 'mid'];
 
 export function checkCovers(dir) {

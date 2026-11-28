@@ -559,9 +559,12 @@ export class LiveLayer {
     if (e.pointerType === 'touch') {
       this.touchRay.start(ndc, e, this.stage.camera, pointer.items?.());
       hit = !!pointer.down(this.touchRay, e);
-    } else hit = !!pointer.down(this._ray(ndc), e);
+    } else {
+      hit = !!pointer.down(this._ray(ndc), e);
+    }
     // 还停在预测页就直接动手了：翻到实验页（步骤栏、观察记录在那里）。所有活页一样；化学的 wrapPointer 也这样做，重复调用没关系
-    if (hit) { const P = this.panel; if (P && !P.explore && P.step === 0 && P.tabs?.length > 1) P.go(1); }
+    const P = this.panel;
+    if (hit && P && !P.explore && P.step === 0 && P.tabs?.length > 1) P.go(1);
     return hit;
   }
 

@@ -1,5 +1,5 @@
 import { dependenciesOf } from './changed-lessons.mjs';
-import { visibleBooks } from './release-books.mjs';
+import { visibleBooks, hiddenLessons } from './release-books.mjs';
 import { requireTool } from './qa-deps.mjs';
 // 冒烟测试：每一课能不能打开、有没有报错。开发服务器要先开着（npm run dev，端口 5188）。
 //   node tools/smoke.mjs                 全部已实现的实验
@@ -39,7 +39,7 @@ if (args.includes('--changed')) {
 const published = args.includes('--published');
 const selectedBooks = published ? visibleBooks : Object.values(books);
 const jobs = [];
-for (const b of selectedBooks) for (const id of Object.keys(b.lessons)) if (have.has(id) && (!want.length || want.includes(id))) jobs.push([b.id, id]);
+for (const b of selectedBooks) for (const id of Object.keys(b.lessons)) if (have.has(id) && !(published && hiddenLessons.has(id)) && (!want.length || want.includes(id))) jobs.push([b.id, id]);
 const browser = await chromium.launch({ executablePath: chromium.executablePath(), headless: true, args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 const t0 = Date.now(), results = [];
 const queue = [...jobs];
