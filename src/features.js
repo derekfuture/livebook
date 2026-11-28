@@ -13,5 +13,7 @@ export const FEATURES = {
     'coupledpendulums', 'ropewave', 'longitudinalwave', 'wavereflection', 'waverefraction', 'ripplediffraction', 'ropesuperposition', 'waveinterference',
     'totalreflection', 'polarization', 'amperedirection', 'selfinductionon', 'lcoscillation', 'photoresistor', 'thermistor', 'capillarity',
     'surfacetension', 'brownianmotion',
+    // 返工过、但发布前流程测试没过的（2026-11-28），物理会话修好就删掉
+    'handtape', 'tickertape', 'mutualinduction', 'momentum', 'lorentzbeam', 'lenzcoil',
   ],
 };
