@@ -10,6 +10,7 @@ const conditions = new Map([
   ['close', '闭合瞬间'], ['open', '断开瞬间'],
   ['steady', '闭合·保持不动'], ['fast', '闭合·快移滑片'],
 ]);
+const conclusionQuote = '以上实验及其他事实表明：当穿过闭合导体回路的磁通量发生变化时，闭合导体回路中就产生感应电流。这就是产生感应电流的条件。';
 const scaleLimit = 0.7;
 const limitText = '到示意刻度上限';
 const retrySlide = '沿同一段向一个方向匀速拖动，再比较快慢。';
@@ -69,7 +70,7 @@ export default {
   },
   conclusion: {
     page: 120, rect: [216.49, 182.07, 531.55, 245.23],
-    quote: '以上实验及其他事实表明：当穿过闭合导体回路的磁通量发生变化时，闭合导体回路中就产生感应电流。这就是产生感应电流的条件。',
+    quote: conclusionQuote,
     src: '课本第 116 页 · 第十三章 第3节 电磁感应现象及应用',
   },
   create(ctx) {
@@ -248,25 +249,29 @@ export default {
         { name: '上端', position: coilPoint(RAISED_BOTTOM), radius: 0.019, enabled: () => hand?.from === INSERTED_BOTTOM },
       ],
     };
+    function beginSlide(now) {
+      enter();
+      hand = { kind: 'slide', moved: false, start: now };
+    }
+    function moveSlider(p, now) {
+      if (!hand) return;
+      const r = 100 * clamp((p.x - rig.rheostat.group.position.x) / rig.rheostat.L + 0.5, 0, 1);
+      if (Math.abs(r - model.resistance) < 0.01) return;
+      if (!hand.moved) {
+        start('slide');
+        hand.moved = true;
+        capture.pressedAt = hand.start;
+        capture.points = [{ r: model.resistance, t: now }];
+      }
+      capture.points.push({ r, t: now });
+      model.setResistance(r);
+      rig.rheostat.setPos(r / 100);
+    }
     const slider = {
       obj: rig.sliderPick, anchor: rig.sliderPick, plane: 'xz', offset: 0.038, keepOffset: true, enabled: () => !near && !returning,
       hint: () => hint('左右拖：快慢移动滑片'),
-      onStart() { enter(); hand = { kind: 'slide', moved: false, start: performance.now() }; },
-      onDrag(p) {
-        if (!hand) return;
-        const r = 100 * clamp((p.x - rig.rheostat.group.position.x) / rig.rheostat.L + 0.5, 0, 1);
-        if (Math.abs(r - model.resistance) < 0.01) return;
-        const now = performance.now();
-        if (!hand.moved) {
-          start('slide');
-          hand.moved = true;
-          capture.pressedAt = hand.start;
-          capture.points = [{ r: model.resistance, t: now }];
-        }
-        capture.points.push({ r, t: now });
-        model.setResistance(r);
-        rig.rheostat.setPos(r / 100);
-      },
+      onStart() { beginSlide(performance.now()); },
+      onDrag(p) { moveSlider(p, performance.now()); },
       onEnd() { hand = null; steadySince = model.time; },
     };
     function leave() { near = false; ctx.back(); draw(); }
@@ -309,10 +314,62 @@ export default {
       if (ui) { ui.observePrediction(''); ui.relock(); ui.fold(false); ctx.reframe(); }
     }
     reset();
-    const dragCoil = (name, y) => ({ name, drag: coil.obj, to: coilPoint(y), wait: 1.8 });
-    const dragSlider = (name, fraction) => ({ name, drag: slider.obj, wait: 1.8,
-      to: new THREE.Vector3(rig.rheostat.group.position.x + (fraction - 0.5) * rig.rheostat.L, 0.038, rig.rheostat.group.position.z) });
+    function update(dt) {
+      desk.update(dt);
+      if (returning) {
+        returning.elapsed += dt;
+        const t = Math.min(1, returning.elapsed / 0.38);
+        lift(t === 1 ? returning.to : returning.from + (returning.to - returning.from) * t * t * (3 - 2 * t));
+        if (t === 1) { returning = null; steadySince = model.time; }
+      }
+      model.advance(dt);
+      draw();
+      if (capture) {
+        sample(dt);
+        if (!hand && capture.age >= 0.16 && Math.abs(angle()) < visibleAngle && Math.abs(model.observe().meterSpeed) < 0.000004) {
+          finish();
+          steadySince = model.time;
+        }
+      } else if (!hand && !returning && model.closed && !steadyRecorded && model.time - steadySince > 0.6 && Math.abs(angle()) < visibleAngle) {
+        steadyRecorded = true;
+        const lastAction = records[records.length - 1];
+        const lastKind = lastAction && Math.abs(lastAction.peak) >= visibleAngle ? lastAction.kind : '';
+        remember('steady', '闭合·保持不动' + (bottom === RAISED_BOTTOM ? '（A 在外）' : ''), '不变', 0, true, null, bottom === INSERTED_BOTTOM ? 'steady' : null);
+        if (records.some(r => r.kind === 'close' && r.label === '闭合瞬间') && bottom === INSERTED_BOTTOM)
+          ui.observePrediction('刚合闸时表针偏转，保持不动后回到零位。');
+        if (lastKind === 'close' && feedback.textContent !== miss && feedback.textContent !== overlap) say('合闸时表针偏了一下。开关仍闭合，磁感线条数稳定下来，表针回到了零位。');
+      }
+      const next = guide();
+      if (instruction.textContent !== next) instruction.textContent = next;
+    }
     const check = (ok, message) => { if (!ok) throw new Error(message); };
+    const gesture = step => qaFlow(desk, [{ ...step, wait: 0 }])[0];
+    const dragCoil = (name, y) => gesture({ name, drag: coil.obj, to: coilPoint(y) });
+    const tapSwitch = name => gesture({ name, tap: rig.switchPick });
+    const sliderPoint = fraction => new THREE.Vector3(
+      rig.rheostat.group.position.x + (fraction - 0.5) * rig.rheostat.L, 0.038, rig.rheostat.group.position.z);
+    function dragSlider(name, fraction) {
+      const step = gesture({ name, drag: slider.obj, to: sliderPoint(fraction) });
+      // 脚本输入一段带时间戳的匀速轨迹，逐帧采样表针。真鼠标仍由 qa.mjs 拖动。
+      step.run = () => {
+        const from = model.resistance / 100, start = performance.now();
+        beginSlide(start);
+        for (let frame = 1; frame <= 12; frame++) {
+          moveSlider(sliderPoint(from + (fraction - from) * frame / 12), start + frame * 1000 / 60);
+          update(1 / 60);
+        }
+        slider.onEnd();
+      };
+      return step;
+    }
+    function afterMotion(name, verify) {
+      return { name, wait: 0, run() {
+        const settled = () => !returning && !hand && !capture && (!model.closed || steadyRecorded);
+        for (let frame = 0; frame < 600 && !settled(); frame++) update(1 / 60);
+        check(settled(), '器材未归位或表针观察未结束');
+        verify?.();
+      } };
+    }
     return {
       group: root, pointer: desk, reset, toggles: [],
       size: { w: 0.59, d: 0.42, h: 0.23 }, view: { elev: 30, azim: -3, frameMargin: 1.04 },
@@ -330,64 +387,46 @@ export default {
         ui.el.querySelector('.answer').style.paddingBottom = '68px';
         ui.observePrediction('');
       },
-      update(dt) {
-        desk.update(dt);
-        if (returning) {
-          returning.elapsed += dt;
-          const t = Math.min(1, returning.elapsed / 0.38);
-          lift(t === 1 ? returning.to : returning.from + (returning.to - returning.from) * t * t * (3 - 2 * t));
-          if (t === 1) { returning = null; steadySince = model.time; }
-        }
-        model.advance(dt);
-        draw();
-        if (capture) {
-          sample(dt);
-          if (!hand && capture.age >= 0.16 && Math.abs(angle()) < visibleAngle && Math.abs(model.observe().meterSpeed) < 0.000004) {
-            finish();
-            steadySince = model.time;
-          }
-        } else if (!hand && !returning && model.closed && !steadyRecorded && model.time - steadySince > 0.6 && Math.abs(angle()) < visibleAngle) {
-          steadyRecorded = true;
-          const lastAction = records[records.length - 1];
-          const lastKind = lastAction && Math.abs(lastAction.peak) >= visibleAngle ? lastAction.kind : '';
-          remember('steady', '闭合·保持不动' + (bottom === RAISED_BOTTOM ? '（A 在外）' : ''), '不变', 0, true, null, bottom === INSERTED_BOTTOM ? 'steady' : null);
-          if (records.some(r => r.kind === 'close' && r.label === '闭合瞬间') && bottom === INSERTED_BOTTOM)
-            ui.observePrediction('刚合闸时表针偏转，保持不动后回到零位。');
-          if (lastKind === 'close' && feedback.textContent !== miss && feedback.textContent !== overlap) say('合闸时表针偏了一下。开关仍闭合，磁感线条数稳定下来，表针回到了零位。');
-        }
-        const next = guide();
-        if (instruction.textContent !== next) instruction.textContent = next;
-      },
+      update,
       dispose() { clearTimeout(historyCheck); canvas.removeEventListener('pointerleave', hideTip); desk.dispose(); rig.dispose(); },
       debug: {
         get state() { return { bottom, closed: model.closed, resistance: model.resistance, fraction: flux(), angle: angle(), records, near }; },
-        qa: qaFlow(desk, [
+        qa: [
           dragCoil('横柄只拖到中途', 0.061),
-          { name: '核对未到位的回程', run() { check(bottom === INSERTED_BOTTOM && !records.length && feedback.textContent === miss, '短拖未归位或误记'); } },
+          afterMotion('核对未到位的回程', () => { check(bottom === INSERTED_BOTTOM && !records.length && feedback.textContent === miss, '短拖未归位或误记'); }),
           dragSlider('断开时拖滑片', 0.36),
-          { name: '断路没有感应电流', run() { check(records.some(r => r.kind === 'slide' && r.change === '不变' && Math.abs(r.peak) < visibleAngle), '断路滑片记录不符'); } },
-          { name: '闭合并等表针回零', tap: rig.switchPick, wait: 2.4 },
-          { name: '核对合闸和稳态', run() {
+          afterMotion('断路没有感应电流', () => { check(records.some(r => r.kind === 'slide' && r.change === '不变' && Math.abs(r.peak) < visibleAngle), '断路滑片记录不符'); }),
+          tapSwitch('闭合并等表针回零'),
+          afterMotion('核对合闸和稳态', () => {
             check(records.some(r => r.kind === 'close' && r.peak < -visibleAngle && r.change === '增多'), '合闸偏转有误');
             check(records.some(r => r.kind === 'steady') && !unlocked && ui.el.querySelector('.flap.locked') && flux() > 0, '稳恒磁通对照缺失');
-          } },
-          { name: '断开并观察瞬间', tap: rig.switchPick, wait: 1.8 },
-          { name: '断开后仍缺快移记录', run() { check(observed.has('open') && !unlocked, '快移前提前解锁'); } },
-          { name: '重新闭合并等表针回零', tap: rig.switchPick, wait: 2.4 },
+          }),
+          tapSwitch('断开并观察瞬间'),
+          afterMotion('断开后仍缺快移记录', () => { check(observed.has('open') && !unlocked, '快移前提前解锁'); }),
+          tapSwitch('重新闭合开关'),
+          afterMotion('等重新合闸的表针回零'),
           dragSlider('合闸时向右拖滑片', 0.82),
-          { name: '核对四项均已观察', run() { check(unlocked && observed.size === 4, '课本四项未完成'); } },
+          afterMotion('核对四项均已观察', () => { check(unlocked && observed.size === 4, '课本四项未完成'); }),
           dragSlider('合闸时向左拖滑片', 0.20),
+          afterMotion('等滑片左移的表针回零'),
           dragCoil('从 B 中拔出 A', RAISED_BOTTOM),
+          afterMotion('拔出 A 后等表针回零'),
           dragCoil('把 A 插回 B', INSERTED_BOTTOM),
-          { name: '断开开关', tap: rig.switchPick, wait: 1.8 },
-          { name: '核对三种条件的变化方向', run() {
+          afterMotion('插回 A 后等表针回零'),
+          tapSwitch('断开开关'),
+          afterMotion('核对三种条件的变化方向', () => {
             for (const [kind, sign] of [['slide', 1], ['slide', -1], ['coil', 1], ['coil', -1], ['open', 1]])
               check(records.some(r => r.kind === kind && sign * r.peak > visibleAngle && r.change === (sign > 0 ? '减少' : '增多')), kind + ' 偏向与磁通变化不符');
             check(!model.closed && bottom === INSERTED_BOTTOM && Math.abs(flux()) < 0.0001, '断电后磁通不为零');
+          }),
+          { name: '对照课本原文', run() {
+            ui.go(2);
+            ui.el.querySelector('.flap-front').click();
+            const answer = ui.el.querySelector('.flap.open .answer');
+            check(answer?.querySelector('.page-crop') || answer?.querySelector('blockquote')?.textContent === conclusionQuote, '原文没有掀开');
           } },
-          { name: '对照课本原文', run() { ui.go(2); ui.el.querySelector('.flap-front').click(); check(ui.el.querySelector('.flap.open .page-crop'), '原文没有掀开'); } },
           { name: '全部重来', run() { reset(); check(ui.step === 0 && !records.length && !model.closed && bottom === INSERTED_BOTTOM && !unlocked, '没有回到初始状态'); } },
-        ]),
+        ],
       },
     };
   },

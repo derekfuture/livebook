@@ -16,6 +16,7 @@ const returning = '还没到标记，磁体正在退回。';
 const retry = '这次没看清偏向。等表针回零，再重做这一项。';
 const blocked = '先向上抽出，让滑块白线到上标记，再横拖换极。';
 const visibleDeflection = 0.10;
+const conclusionQuote = '感应电流具有这样的方向，即感应电流的磁场总要阻碍引起感应电流的磁通量的变化。';
 const calibration = '按图中接线，表针右偏对应俯视逆时针电流，左偏对应顺时针电流。';
 
 // 留下运动时的偏向；这里和课本插图一样，只示意方向，不表示电流大小。
@@ -44,7 +45,7 @@ export default {
   },
   conclusion: {
     page: 30, rect: [216.66, 298.9, 537.63, 385.06],
-    quote: '感应电流具有这样的方向，即感应电流的磁场总要阻碍引起感应电流的磁通量的变化。',
+    quote: conclusionQuote,
     why: '磁通量增加时，感应电流产生的磁场与原磁场方向相反；磁通量减小时，两者方向相同。同一磁极插入和抽出时，俯视线圈的电流方向相反。',
     src: '课本第 26 页 · 第二章 第1节 楞次定律',
   },
@@ -52,7 +53,8 @@ export default {
     const rig = lenzRig(inside, outside), root = new THREE.Group();
     root.add(rig.group);
     let ui, bottom, rotation, north, inCoil, flux, current, needle, lastTime, hand, settling;
-    let records, sheet, observation;
+    let records, sheet, observation, pendingNeedle;
+    let motionAge, motionNeedle;
     const body = h('tbody');
     const feedback = h('p', { class: 'status', 'aria-live': 'polite' });
     function say(text) { if (feedback.textContent !== text) feedback.textContent = text; }
@@ -108,25 +110,53 @@ export default {
       rig.pose(bottom, rotation);
       rig.pivot.rotation.z = -needle * 0.7;
     }
-    // 拖动事件也推进仪表，快速越过线圈口时不丢失两帧之间的磁通变化。
-    function sample(now) {
-      const dt = Math.max(0.001, (now - lastTime) / 1000);
+    function elapsed() {
+      const now = performance.now(), dt = (now - lastTime) / 1000;
+      lastTime = now;
+      return dt;
+    }
+    function sample(dt) {
+      motionAge += dt;
       const linked = fluxLinkage(bottom, true) * Math.cos(rotation);
-      current = inductionStep(flux, linked, dt, true, current).current;
-      const target = clamp(current / 0.00009, -1, 1);
-      // 表针受惯性和阻尼影响，磁体停住后逐渐回零。
-      const response = Math.abs(target) > Math.abs(needle) ? 0.055 : 0.17;
-      needle += (target - needle) * -Math.expm1(-dt / response);
-      lastTime = now; flux = linked;
-      draw();
+      if (linked === flux) {
+        // 静止帧只显示回零过程，不切短下一段位移对应的时间。
+        needle = motionNeedle * Math.exp(-motionAge / 0.17);
+        return;
+      }
+      // 先积分电流对表针的作用，再限制机械偏角。同一时间戳按 1 ms 的短脉冲处理。
+      const span = Math.max(0.001, motionAge);
+      current = inductionStep(flux, linked, span, true, current).current;
+      const target = current / 0.00009;
+      const response = Math.abs(target) > Math.abs(motionNeedle) ? 0.055 : 0.17;
+      needle = clamp(motionNeedle + (target - motionNeedle) * -Math.expm1(-span / response), -1, 1);
+      flux = linked;
+      motionNeedle = needle;
+      motionAge = 0;
     }
     function settle(kind, to) {
-      settling = { kind, from: kind === 'slide' ? bottom : rotation, to, time: performance.now() };
+      settling = { kind, from: kind === 'slide' ? bottom : rotation, to, age: 0 };
+    }
+    function advance(dt) {
+      if (settling) {
+        settling.age += dt;
+        const t = Math.min(1, settling.age / 0.38);
+        const value = t === 1 ? settling.to : settling.from + (settling.to - settling.from) * t * t * (3 - 2 * t);
+        if (settling.kind === 'flip') rotation = value;
+        else {
+          bottom = value;
+          if (t === 1) say(inCoil ? guideOut : guideIn);
+        }
+        if (t === 1) settling = null;
+      }
+      sample(dt);
+      needle = pendingNeedle ?? needle;
+      pendingNeedle = null;
+      draw();
     }
     function reset() {
-      hand = settling = observation = null;
+      hand = settling = observation = pendingNeedle = null;
       bottom = UP; rotation = 0; north = true; inCoil = false;
-      flux = fluxLinkage(UP, true); current = needle = 0; lastTime = performance.now();
+      flux = fluxLinkage(UP, true); current = needle = motionNeedle = motionAge = 0; lastTime = performance.now();
       draw();
       records = conditions.map(() => null);
       body.textContent = '';
@@ -142,6 +172,10 @@ export default {
       hint: () => ui?.step === 1 ? '拖磁体：上下移或横拖翻转' : '',
       onStart() {
         if (ui.step !== 1) ui.go(1);
+        sample(elapsed());
+        current = inductionStep(flux, flux, motionAge, true, current).current;
+        motionNeedle = needle;
+        motionAge = 0;
         hand = { bottom, rotation, kind: '', crossed: false };
       },
       onDrag(p, start) {
@@ -156,7 +190,8 @@ export default {
         if (hand.kind === 'flip') {
           if (bottom < outside) { say(blocked); return; }
           rotation = hand.rotation + Math.PI * clamp(dx / 0.064, -1, 1);
-          sample(performance.now());
+          sample(elapsed());
+          draw();
           return;
         }
         const next = clamp(hand.bottom + dy, DOWN, TOP_STOP);
@@ -167,7 +202,8 @@ export default {
           say(retry);
         }
         bottom = next;
-        sample(performance.now());
+        sample(elapsed());
+        draw();
         // 线圈口两侧各留一点余量；手在口沿抖动不会反复记行。
         if ((!inCoil && bottom <= inside) || (inCoil && bottom >= outside)) {
           inCoil = !inCoil;
@@ -176,6 +212,12 @@ export default {
           say('');
         } else if (bottom > inside && bottom < outside) {
           say(inCoil ? guideOut : guideIn);
+        }
+        if (observation && needle * observation.sign >= visibleDeflection) {
+          // 在拖动事件中锁存实测针位。即使下一帧前已经松手，记录图和表盘仍能显示这次偏转。
+          pendingNeedle = needle;
+          remember(observation.entering, Math.sign(needle));
+          observation = null;
         }
       },
       onEnd() {
@@ -192,6 +234,10 @@ export default {
           settle('slide', hand.crossed ? (inCoil ? inside : outside) : hand.bottom);
           say(returning);
         }
+        if (observation) {
+          observation = null;
+          say(retry);
+        }
         hand = null;
       },
     };
@@ -199,8 +245,16 @@ export default {
     reset();
 
     const target = (height, x = COIL_X) => new THREE.Vector3(x, COIL_BOTTOM + height + MAGNET_LENGTH / 2, 0);
-    const move = (name, height, dx = 0) => ({ name, drag: rig.pick, to: target(height, COIL_X + dx), wait: 0.5 });
+    const move = (name, height, dx = 0) => ({ name, drag: rig.pick, to: target(height, COIL_X + dx), wait: 0 });
     const check = (ok, message) => { if (!ok) throw new Error(message); };
+    function afterMove(name, verify) {
+      return { name, wait: 0, run() {
+        const ready = () => !hand && !settling && pendingNeedle === null && Math.abs(needle) < 0.02;
+        for (let frame = 0; frame < 300 && !ready(); frame++) advance(1 / 60);
+        check(ready(), name + '：器材未归位或表针未回零');
+        verify?.();
+      } };
+    }
     function qaSelect(row, value) {
       const select = body.children[row].querySelector('select');
       check(select, '记录格没有可填选项');
@@ -224,54 +278,35 @@ export default {
         for (const select of ui.el.querySelectorAll('.prev-record select')) select.replaceWith('—');
         ui.el.querySelector('.answer').style.paddingBottom = '72px';
       },
-      update() {
-        const now = performance.now();
-        if (settling) {
-          const t = Math.min(1, (now - settling.time) / 380);
-          const value = settling.from + (settling.to - settling.from) * t * t * (3 - 2 * t);
-          if (settling.kind === 'flip') rotation = value;
-          else {
-            bottom = value;
-            if (t === 1) say(inCoil ? guideOut : guideIn);
-          }
-          if (t === 1) settling = null;
-        }
-        sample(now);
-        // 只用即将画到屏幕上的针位记行，不把两帧之间算出的电流当作读数。
-        if (observation) {
-          if (needle * observation.sign >= visibleDeflection) {
-            remember(observation.entering, Math.sign(needle));
-            observation = null;
-          } else if (!hand || hand.kind !== 'slide') {
-            say(retry);
-            observation = null;
-          }
-        }
-      },
+      update() { advance(elapsed()); },
       dispose() { pointer.dispose(); },
       debug: {
         get state() { return { bottom, north, inCoil, needle, records }; },
         qa: qaFlow(pointer, [
           move('刚进入线圈口就松手', COIL_HEIGHT - 0.005),
-          { name: '短拖归位且没有记录', run() {
+          afterMove('短拖归位且没有记录', () => {
             check(bottom === UP && !records.some(Boolean) && feedback.textContent === guideIn, '短拖未归位或被误记');
-          } },
+          }),
           move('N 极插入', DOWN),
+          afterMove('核对 N 极插入', () => check(inCoil && records[0]?.sign === 1, 'N 极插入未记录右偏')),
           move('刚抽出线圈口就松手', COIL_HEIGHT + 0.005),
-          { name: '抽出未到标记，回位后保留插入记录', run() {
-            check(inCoil && records[0]?.sign === 1 && !records[2] && feedback.textContent === guideOut, '短拖抽出被误记');
-          } },
+          afterMove('抽出未到标记，回位后保留插入记录', () => {
+            check(inCoil && Math.abs(bottom - DOWN) < 0.001 && records[0]?.sign === 1 && !records[2] && feedback.textContent === guideOut, '短拖抽出被误记');
+          }),
           move('在线圈中尝试翻转', DOWN, 0.065),
           { name: '线圈挡住翻转', run() { check(north && feedback.textContent === blocked, '磁体在线圈中翻转'); } },
           move('N 极抽出', UP),
+          afterMove('核对 N 极抽出', () => check(!inCoil && records[2]?.sign === -1, 'N 极抽出未记录左偏')),
           move('翻转磁体', UP, 0.065),
+          afterMove('核对翻转到位', () => check(!north, 'S 极未转到下方')),
           move('S 极插入', DOWN),
+          afterMove('核对 S 极插入', () => check(inCoil && records[1]?.sign === -1, 'S 极插入未记录左偏')),
           move('S 极抽出', UP),
-          { name: '核对四种方向和静止回零', run() {
+          afterMove('核对四种方向和静止回零', () => {
             check(!north && !inCoil && Math.abs(needle) < 0.02, '磁体位置或回零异常');
             check(records.every((r, i) => r?.sign === [1, -1, -1, 1][i]), '记录与四次偏转不符');
             check(!ui.el.querySelector('.flap.locked'), '四次观察后结论未解锁');
-          } },
+          }),
           { name: '把 N 极插入的电流方向填反', run() {
             qaSelect(0, '顺时针');
             check(!records[0].current && feedback.textContent.includes('针尖在零线右侧'), '未指出误读的偏向');
@@ -286,7 +321,8 @@ export default {
           { name: '对照课本结论', run() {
             ui.go(2);
             ui.el.querySelector('.flap-front').click();
-            check(ui.el.querySelector('.flap.open .page-crop'), '未掀开课本原文');
+            const answer = ui.el.querySelector('.flap.open .answer');
+            check(answer?.querySelector('.page-crop') || answer?.querySelector('blockquote')?.textContent === conclusionQuote, '未掀开课本原文');
           } },
           { name: '全部重做', run() {
             reset();

@@ -792,8 +792,13 @@ export default {
           );
       }
     }
-    const move = (name, obj, to, wait) => ({ name, drag: obj, to, wait });
-    const tap = (name, obj) => ({ name, tap: obj });
+    const gesture = (step) => qaFlow(pointer, [step])[0];
+    const move = (name, obj, to) => gesture({ name, drag: obj, to });
+    const tap = (name, obj) => gesture({ name, tap: obj });
+    function advanceUntil(ready, failure) {
+      for (let frame = 0; frame < 1800 && !ready(); frame++) update(1 / 60);
+      if (!ready()) throw Error(failure);
+    }
     const submit = (f) => f.querySelector('button').click();
     function massStep(i) {
       return [
@@ -823,7 +828,13 @@ export default {
       };
     }
     function qaMeasure(gates, first) {
-      const steps = [];
+      const steps = [{
+        name: '等待两道门完成计时',
+        run() {
+          if (!run) throw Error('滑块尚未开始运动');
+          advanceUntil(measured, '过门计时未完成');
+        },
+      }];
       gates.forEach((gate, i) => {
         steps.push(tap('看' + gateName(gate), timers[gate].screen));
         if (first && i === 0) steps.push(recordStep(i, true));
@@ -851,15 +862,25 @@ export default {
       return steps;
     }
     const park = (i, x) => move('把' + names[i] + '停在标记处', cartPicks[i], atRail(x));
-    const push = () => move('向右轻推甲', cartPicks[0], atRail(-0.385), 18);
+    const push = () => move('向右轻推甲', cartPicks[0], atRail(-0.385));
+    const levelTarget = () => local(rig.screwPick).add(point(0, tilt / tiltGain, 0));
     const qa = [
       move('砝码放偏', rig.weightPick, point(0.33, 0.08, 0.08)),
       move('给乙加砝码', rig.weightPick, () => weightDest(1)),
       ...massStep(0),
       ...massStep(1),
       tap('接通气源', rig.powerPick),
-      { name: '调平导轨', drag: rig.screwPick, to: () => local(rig.screwPick).add(point(0, tilt / tiltGain, 0)) },
+      {
+        ...move('调平导轨', rig.screwPick, levelTarget),
+        run() {
+          // 调平轮按相对位移转动，脚本拖动也要传入按下时的位置。
+          const start = local(rig.screwPick);
+          screw.onStart();
+          screw.onDrag(levelTarget(), start);
+        },
+      },
       park(1, 0),
+      { name: '确认乙松手后停稳', run: () => advanceUntil(() => bar.has('level'), '乙松手后导轨未通过调平检验') },
       park(0, homeX[0]),
       push(),
       ...qaMeasure([0, 1, 0], true),
@@ -876,11 +897,12 @@ export default {
       move('放入轻弹簧', rig.coilPick, springSeat),
       move('压到标记后提前松手', cartPicks[0], atRail(springX[0] + squeeze)),
       { name: '核对回弹', run() {
+        advanceUntil(() => !returning, '松开后滑块未归位');
         if (tied || Math.abs(carts[0].position.x - springX[0]) > 1e-6 || Math.abs(rig.coil.scale.x - 1) > 1e-6)
           throw Error('未套线时松手应回弹到原长');
       } },
       move('压住甲并套紧细线', cartPicks[0], point(springX[0] + 0.12, TRACK_Y, 0.16)),
-      { ...tap('烧断细线', rig.threadPick), wait: 10 },
+      tap('烧断细线', rig.threadPick),
       ...qaMeasure([0, 1], false),
       {
         name: '掀开结论',
@@ -945,7 +967,7 @@ export default {
         bar.dispose();
         rig.dispose();
       },
-      debug: { bar, qa: qaFlow(pointer, qa) },
+      debug: { bar, qa },
     };
   },
 };

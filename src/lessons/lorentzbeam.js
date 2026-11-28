@@ -6,6 +6,8 @@ import { draggable, clamp } from './kit/interact.js';
 import { qaFlow } from './kit/chemlesson.js';
 import { h, table } from './kit/ui.js';
 
+const conclusionQuote = '在前面的实验中，不加磁场时，电子束的径迹是一条直线（图1.3-3）。加磁场后电子束的径迹是一个圆（图1.3-4）。当电子束出射速度不变，磁感应强度变大时，这个圆的半径变小；当磁感应强度不变，电子束出射速度变大时，这个圆的半径变大。';
+
 export default {
   id: 'lorentzbeam',
   fig: '图1.3-2',
@@ -19,7 +21,7 @@ export default {
   },
   conclusion: {
     page: 19, rect: [63.59, 56.36, 378.51, 161.47],
-    quote: '在前面的实验中，不加磁场时，电子束的径迹是一条直线（图1.3-3）。加磁场后电子束的径迹是一个圆（图1.3-4）。当电子束出射速度不变，磁感应强度变大时，这个圆的半径变小；当磁感应强度不变，电子束出射速度变大时，这个圆的半径变大。',
+    quote: conclusionQuote,
     why: '垂直入射时，电子在匀强磁场中做圆周运动。保持速度，磁场越强半径越小；保持磁场，电子越快半径越大。斜着射入时，沿磁场的运动与垂直磁场的圆周运动合成螺旋；平行入射不受磁力。玻璃泡中发光的是稀薄气体显示的径迹，不能把可见光带当成一颗缓慢移动的电子。',
     src: '课本第 15 页 · 第一章 第3节 带电粒子在匀强磁场中的运动',
   },
@@ -212,7 +214,13 @@ export default {
           test('零电压时束消失且磁场仍在', () => !orbit && field() < 0 && feedback.textContent.includes('电压为零')),
           tap('断开电源', rig.power),
           test('断电消磁且已存下观察记录', () => !orbit && !field() && records.rows.length >= 6),
-          test('掀开课本裁图', () => { ui.go(2); ui.el.querySelector('.flap-front').click(); return ui.el.querySelector('.flap.open .page-crop') && ui.el.querySelector('.verdict').textContent.includes('向左射出的电子束向上弯'); }),
+          test('掀开并核对课本原文', () => {
+            ui.go(2);
+            ui.el.querySelector('.flap-front').click();
+            const answer = ui.el.querySelector('.flap.open .answer');
+            const hasOriginal = answer?.querySelector('.page-crop') || answer?.querySelector('blockquote')?.textContent === conclusionQuote;
+            return hasOriginal && answer.querySelector('.verdict')?.textContent.includes('向左射出的电子束向上弯');
+          }),
           test('全部重来还原预测页', () => { reset(); return ui.step === 0 && !orbit && !previous && !unlocked && !state.amps && state.angle === 0 && !records.rows.length; }),
         ],
       },

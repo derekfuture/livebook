@@ -515,11 +515,17 @@ export default {
       }
     }
     function qaRead(wrong) {
+      if (!canRead() || form.hidden) throw Error('尚未选好纸带和计时起点');
       field.value = (expected() + (wrong ? 5 : 0)).toFixed(1);
       form.querySelector('button').click();
     }
     const sw = (name) => ({ name, tap: rig.switchPick });
-    const drive = () => ({ name: '释放小车', tap: cartPick, wait: 5 });
+    function qaStop(endState) {
+      // 质检按正常帧推进小车，直到停车；用本次行程时长限制帧数。
+      const maxFrames = Math.ceil(run.end * 60) + 1;
+      for (let frame = 0; state === 'running' && frame < maxFrames; frame++) update(1 / 60);
+      if (state !== endState) throw Error('小车状态为 ' + state + '，预期为 ' + endState);
+    }
     const rewind = () => ({
       name: '拖回小车换带',
       drag: cartPick,
@@ -529,20 +535,34 @@ export default {
       const i = sheet().run.marks.findIndex((_, j) => eligible(sheet().run, j)) + 1;
       return i;
     };
-    const qa = qaFlow(pointer, [
+    function hangMass(i) {
+      const drag = massDrags[i - 1];
+      const [step] = qaFlow(pointer, [{ name: '加挂槽码', drag: drag.obj, to: seat }]);
+      step.run = () => {
+        if (!drag.enabled()) throw Error('当前不能加挂槽码');
+        drag.onStart(discs[i].home);
+        drag.onDrag(seat());
+        drag.onEnd(true);
+        if (load !== i) throw Error('槽码没有套住挂钩');
+      };
+      return step;
+    }
+    const qa = [
       { ...rewind(), name: '把小车拖到计时器旁' },
-      { name: '忘记通电', tap: cartPick, wait: 5 },
+      { name: '忘记通电', tap: cartPick, wait: 0 },
       {
         name: '核对空白纸带',
         run() {
-          if (state !== 'bad' || run.marks.length) throw Error('空白纸带有误');
+          qaStop('bad');
+          if (run.marks.length) throw Error('空白纸带有误');
         },
       },
       rewind(),
       ...masses.flatMap((_, i) => [
-        ...(i ? [{ name: '加挂槽码', drag: discs[i].mesh, to: seat }, rewind()] : []),
+        ...(i ? [hangMass(i), rewind()] : []),
         sw('接通电源'),
-        drive(),
+        { name: '释放小车', tap: cartPick, wait: 0 },
+        { name: '等待小车停稳', run: () => qaStop('stopped') },
         sw('断电保存纸带'),
       ]),
       { name: '近看第一条纸带', tap: tape.mesh },
@@ -583,7 +603,7 @@ export default {
           ui.el.querySelector('.flap-front').click();
         },
       },
-    ]);
+    ].map((step) => (step.mouse ? step : qaFlow(pointer, [step])[0]));
     // 质检鼠标落在真实墨点上，沿用学生的纸带射线拾取。
     for (const q of qa.filter((q) => q.name === '选择计时起点')) {
       const spot = new THREE.Mesh(new THREE.PlaneGeometry(0.001, 0.001));

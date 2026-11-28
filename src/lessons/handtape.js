@@ -613,6 +613,28 @@ export default {
     }
     reset();
     const dragTo = (name, to) => ({ name, drag: hit, to });
+    const qaStep = (spec) => {
+      const [step] = qaFlow(pointer, [spec]);
+      return spec.run ? { ...step, run: spec.run } : step;
+    };
+    function pullUntilMarked() {
+      if (!powered || phase !== 'mark' || returning) throw Error('纸带还未准备好通电拉动');
+      gripDrag.onStart();
+      const from = grip.position.clone(), began = now();
+      function move() {
+        if (!held || !powered || phase !== 'mark') return;
+        // 以 0.2 m/s 拉带，让计时器按真实经过的时间打点。
+        gripDrag.onDrag(point(from.x - 0.2 * (now() - began), SLOT_Y, 0));
+        if (comparison(trace.marks) || atPullLimit()) gripDrag.onEnd(true);
+        else requestAnimationFrame(move);
+      }
+      move();
+    }
+    function layTarget() {
+      // onDrag 接收抓取平面上的坐标；沿视线把尺旁的落点投回该平面。
+      const eye = group.worldToLocal(ctx.camera.getWorldPosition(new THREE.Vector3()));
+      return eye.clone().lerp(ruled, (SLOT_Y - eye.y) / (ruled.y - eye.y));
+    }
     const input = (name, getValue) => ({
       name,
       run() {
@@ -673,15 +695,18 @@ export default {
       },
       debug: {
         bar,
-        qa: qaFlow(pointer, [
+        qa: [
           { name: '固定底座', tap: bolt },
           dragTo('穿好纸带', threaded),
           dragTo('断电拉带', point(threaded.x - 0.038, SLOT_Y, 0)),
           { name: '接通电源', tap: switchPick },
-          dragTo('水平拉带', point(threaded.x - LIMIT, SLOT_Y, 0)),
+          { ...dragTo('水平拉带', point(threaded.x - LIMIT, SLOT_Y, 0)), run: pullUntilMarked },
+          { name: '确认点迹', run() {
+            if (!segment) throw Error('水平拉带后没有六个可分辨的连续打点');
+          } },
           { name: '关闭电源', tap: switchPick },
           dragTo('抽出纸带', extracted),
-          dragTo('平放尺旁', ruled),
+          dragTo('平放尺旁', layTarget),
           { name: '选段近看', tap: paper },
           {
             name: '设计表头',
@@ -705,7 +730,7 @@ export default {
               ui.el.querySelector('.flap-front').click();
             },
           },
-        ]),
+        ].map(qaStep),
       },
     };
   },
