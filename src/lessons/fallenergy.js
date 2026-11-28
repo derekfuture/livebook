@@ -1,547 +1,321 @@
-// 人教版必修二图 8.5-2。测量依据是该次释放留下的纸带，读数不取自运动模型的速度。
 import * as THREE from 'three';
-import { fallingRig } from './kit/ticker/fallRig.js';
+import { fallingRig, X, HEAD, BASE, LEAD, TRAVEL, L, WIDTH, ZERO, LANE, RULER_Z } from './kit/ticker/fallRig.js';
 import { fallingTape, energyPoints, GRAVITY } from './kit/ticker/fall.js';
 import { PERIOD } from './kit/ticker/motion.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { draggable, clamp } from './kit/interact.js';
-import { buttons, note, table, h } from './kit/ui.js';
+import { qaFlow } from './kit/chemlesson.js';
+import { note, table, h } from './kit/ui.js';
 
-const X = 0.13,
-  HEAD = 0.365,
-  LEAD = 0.047,
-  TRAVEL = 0.255,
-  MASS = 0.2,
-  RESISTANCE = 0.1,
-  L = 0.355,
-  WIDTH = 0.027;
-const BASE = HEAD - LEAD,
-  ZERO = -0.16,
-  LANE = 0.116,
-  RULER_Z = LANE + WIDTH / 2 + 0.016;
+const MASS = 0.2, RESISTANCE = 0.1;
+// 同一把 1 mm 刻度尺的六次估读共用这个允许偏差（mm）。
+const READ_ERROR_MM = 0.35;
+const resistanceNote = '模型中的阻力对重物做负功。';
+const conservationNote = '忽略阻力时，重物与地球组成的系统可看作机械能守恒。';
+const steps = [['drop', '打出下落纸带'], ['select', '选起点和终点'], ['height', '量下降高度'], ['speed', '测速并比较能量']];
+const labels = ['A', 'B', 'A 前一点', 'A 后一点', 'B 前一点', 'B 后一点'];
+const fmt = value => Number(value.toFixed(1));
+
 export default {
-  id: 'fallenergy',
-  fig: '图8.5-2',
-  title: '验证下落物体的机械能变化',
-  stampText: '测量',
+  id: 'fallenergy', fig: '图8.5-2', title: '验证机械能守恒定律', stampText: '测量',
   predict: {
-    q: '重物拉着纸带下落，计时器和空气带来阻力。重力势能的减少量和动能的增加量，通常哪一个略大？',
-    options: ['势能减少量', '两者必定完全相等', '动能增加量'],
-    answer: 0,
-    hint: '从纸带上独立测出高度差和两个速度。',
+    q: '重物从 A 落到 B，减少的重力势能都变成了动能吗？',
+    options: ['几乎都变成了动能', '只有一小部分变成了动能', '动能没有增加'], answer: 0,
+    hint: '用同一条纸带，比较这段下落中减少的重力势能和增加的动能。',
   },
   conclusion: {
     page: 99, rect: [63.77, 170.17, 378.83, 254.29],
     quote: '机械能守恒定律告诉我们，在只有重力或弹力做功的系统内，动能与势能相互转化时总的机械能保持不变。',
-    why: '比较同一重物在 A、B 两处的能量变化。下落高度差从纸带直接量，两个瞬时速度用相邻前后两点的平均速度估计。纸带摩擦和空气阻力做负功，机械能会减少；毫米读尺也会影响两项实测值的差。',
+    why: resistanceNote + conservationNote,
     src: '课本第 95 页 · 第八章 第5节 实验：验证机械能守恒定律',
   },
   create(ctx) {
-    const { group, head, jaw, weight, tape, tex, ink, ruler, pencil, vertical, flat } = fallingRig();
+    const { group, head, showPower, switchPick, jaw, weight, tape, tex, ink, ruler, vertical, flat } = fallingRig({ powerSwitch: true, onPage: true });
+    const root = new THREE.Group(); root.add(group);
+    head.group.attach(switchPick);
+    const vec = (x, y, z) => new THREE.Vector3(x, y, z);
+    const top = vec(X, BASE, 0), rest = vec(X, BASE - TRAVEL, 0);
+    const hanging = rest.clone().add(vec(0, L / 2, 0)), laid = vec(ZERO - LEAD + L / 2, 0.004, LANE);
+    const extracted = vec(X, HEAD + 0.056 + L / 2, 0);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(vec(0, LANE, extracted.y - laid.y).normalize(), extracted);
+    const slot = new THREE.Mesh(new THREE.PlaneGeometry(L + 0.006, WIDTH + 0.006), new THREE.MeshBasicMaterial({ color: 0xd7c8a9 }));
+    slot.rotation.x = -Math.PI / 2; slot.position.copy(laid).y = 0.0005; group.add(slot);
+    function pick(parent, width, height, depth, x = 0, y = 0) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), new THREE.MeshBasicMaterial({ visible: false }));
+      mesh.position.set(x, y, 0); mesh.userData.pick = true; parent.add(mesh); return mesh;
+    }
+    const clip = pick(jaw, 0.055, 0.029, 0.024, 0.019);
+    const lowerJaw = new THREE.Group();
+    lowerJaw.position.set(-0.015, -0.004, 0.006);
+    weight.add(lowerJaw);
+    const lever = new THREE.Mesh(new THREE.BoxGeometry(0.031, 0.012, 0.006), jaw.children[0].material);
+    lever.position.x = 0.015;
+    lowerJaw.add(lever);
+    const latch = pick(lowerJaw, 0.04, 0.022, 0.016, 0.015);
+    const tip = new THREE.Mesh(new THREE.BoxGeometry(0.015, WIDTH, 0.0003), new THREE.MeshBasicMaterial({ color: 0xfff8e5 }));
+    tip.position.x = L / 2 - 0.0075;
+    tape.add(tip);
+    const grip = pick(weight, 0.05, 0.042, 0.048, 0, -0.028);
+    const middle = pick(tape, 0.14, WIDTH * 1.25, 0.005);
+    const dots = [], taps = [];
+    function addDotPick() {
+      const k = dots.length, obj = pick(tape, 1, WIDTH, 0.002);
+      obj.visible = false;
+      dots.push(obj);
+      taps.push({ obj, enabled: () => close && last === null && k < run.marks.length,
+        hint: () => first === null ? '点一下：选起点 A' : k === first ? '点一下：重选起点' : '点一下：选终点 B', onTap: () => choose(k) });
+      return obj;
+    }
+    // 正常供电时需要的拾取盒。中途反复通电可能打出更多点，铺带时按需补齐。
+    for (let i = 0; i <= Math.ceil(Math.sqrt(2 * TRAVEL / (GRAVITY - RESISTANCE / MASS)) / PERIOD); i++) addDotPick();
+    const scale = ruler.material[2].map, canvas = scale.image, pen = canvas.getContext('2d');
+    ruler.scale.x = 0.28 / ruler.geometry.parameters.width; ruler.position.x = ZERO + 0.13;
+    pen.fillStyle = '#f4eddb'; pen.fillRect(0, 0, canvas.width, canvas.height);
+    pen.fillStyle = '#293744'; pen.font = '600 56px sans-serif'; pen.textAlign = 'center';
+    for (let mm = 0; mm <= 260; mm++) {
+      const x = (10 + mm) / 280 * canvas.width;
+      pen.fillRect(x - 1.1, 0, 2.2, canvas.height * (mm % 10 === 0 ? 0.41 : mm % 5 === 0 ? 0.3 : 0.18));
+      if (mm % 10 === 0) pen.fillText(String(mm), x, canvas.height * 0.65);
+    }
+    pen.fillText('mm', canvas.width * 0.965, canvas.height * 0.93); scale.needsUpdate = true;
+    let ui, target, phase, run, released, powerAt, powered = false, stationary = false, poweredAtRelease = false, close = false;
+    let first = null, last = null, reads = [], ray, grabOffset, returning, result = '';
     const now = () => performance.now() / 1000;
-    let run,
-      released = 0,
-      powerAt = 0,
-      on = false,
-      phase = 'ready',
-      transfer = 0,
-      from,
-      restStamp = false,
-      near = false,
-      a = null,
-      b = null,
-      spans = [],
-      pair = [],
-      ui,
-      rows,
-      summary,
-      report,
-      fields;
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'drop', title: '打出下落纸带', todo: '接通计时器，再松开纸带。', target },
-        { id: 'dist', title: '量高度差和速度', todo: '沿尺测 A、B 及相邻两点的距离。', target },
-        { id: 'energy', title: '比较能量变化', todo: '用自己的读数求势能减少量和动能增加量。', target },
-      ],
-    });
-    function target() {
-      if (near) return null;
-      if (phase === 'ready') return on ? jaw : head.group;
-      if (phase === 'landed') return on ? head.group : tape;
-      if (phase === 'bench') return enough() ? tape : weight;
-      return null;
+    const index = () => [first, last, first - 1, first + 1, last - 1, last + 1][reads.length];
+    const expected = () => run.marks[index()].x * 1000;
+    const validPair = (left, right) => right >= left + 3 && run.marks[right].x - run.marks[left].x >= 0.04;
+    const enough = () => { const centers = energyPoints(run.marks); return centers.length > 1 && validPair(centers[0], centers[centers.length - 1]); };
+    function gapBefore(k) {
+      const mark = run.marks[k];
+      if (k > 0) return mark.segment !== run.marks[k - 1].segment;
+      return stationary && (!poweredAtRelease || mark.segment > 1) && mark.x > 0;
     }
-    const px = (x) => ((LEAD + x) / L) * tex.canvas.width;
-    function nextEnds() {
-      if (b === null || spans.length >= 3) return null;
-      return [
-        [a, b],
-        [a - 1, a + 1],
-        [b - 1, b + 1],
-      ][spans.length];
-    }
+    const bar = lessonBar({ ...ctx, group, back: leave, steps: steps.map(([id, title]) => ({ id, title, todo: title, target: () => target })) });
+    const guide = (message, object = null) => { target = object; bar.say(message); };
+    const input = h('input', { type: 'number', inputmode: 'decimal', step: '0.1', required: true, style: 'width:6em;margin:0 6px;padding:5px' });
+    const caption = h('span'), submit = h('button', { class: 'go', type: 'submit', style: 'width:auto;margin:0' }, '记下');
+    const form = h('form', { hidden: true, onsubmit(event) { event.preventDefault(); read(input.valueAsNumber); } }, h('label', {}, caption, input), submit);
+    const rows = table(['纸带区间', '两端位置 / mm', '距离 / mm']);
+    const calculations = h('div', { class: 'energy-math' });
+    const comparison = h('div', { class: 'energy-compare', hidden: true });
+    const repeat = h('button', { class: 'go ghost', onclick: reselect }, '在这条纸带上另选两点');
     function draw() {
-      const { width: w, height: h } = tex.canvas;
-      ink.fillStyle = '#fff0d2';
-      ink.fillRect(0, 0, w, h);
-      ink.fillStyle = '#d0be99';
-      ink.fillRect(0, 0, w, 2);
-      ink.fillRect(0, h - 2, w, 2);
-      const ends = nextEnds();
-      if (ends) {
-        const [i, j] = ends;
-        ink.fillStyle = '#dfd3b1';
-        ink.fillRect(px(run.marks[i].x), h * 0.32, px(run.marks[j].x) - px(run.marks[i].x), h * 0.37);
-      }
-      if (restStamp) {
-        ink.fillStyle = '#393b39';
-        ink.beginPath();
-        ink.arc(px(0), h * 0.51, 6.5, 0, Math.PI * 2);
-        ink.fill();
-      }
-      for (const mark of run?.marks || []) {
-        ink.fillStyle = '#393b39';
-        ink.beginPath();
-        ink.arc(px(mark.x), h * 0.51, 6.5, 0, Math.PI * 2);
-        ink.fill();
-      }
-      for (const [idx, name, color] of [
-        [a, 'A', '#27636c'],
-        [b, 'B', '#9e5033'],
-      ]) {
-        if (idx === null) continue;
-        const x = px(run.marks[idx].x);
-        ink.fillStyle = color;
-        ink.fillRect(x - 1, 70, 3, 60);
-        ink.font = 'bold 49px sans-serif';
-        ink.textAlign = 'center';
-        ink.fillText(name, x, 62);
-      }
-      for (const [i, j] of [
-        [a, b],
-        [a - 1, a + 1],
-        [b - 1, b + 1],
-      ].slice(0, spans.length)) {
-        ink.fillStyle = '#94856c';
-        for (const index of [i, j]) ink.fillRect(px(run.marks[index].x) - 1, 141, 2, 29);
-      }
-      if (ends)
-        ends.forEach((i, k) => {
-          const x = px(run.marks[i].x);
-          ink.fillStyle = k ? '#a15338' : '#27636c';
-          ink.fillRect(x - 2, 135, 4, 53);
-        });
+      const { width, height } = tex.canvas;
+      const px = pos => (LEAD + pos) / L * width;
+      ink.fillStyle = '#fff8e5'; ink.fillRect(0, 0, width, height);
+      function dot(pos) { ink.fillStyle = '#302c27'; ink.beginPath(); ink.arc(px(pos), height / 2, 6, 0, 2 * Math.PI); ink.fill(); }
+      run.marks.forEach((mark, k) => {
+        if (phase !== 'bench' || !gapBefore(k)) return;
+        const left = px(k ? run.marks[k - 1].x : 0), right = px(mark.x);
+        ink.save();
+        ink.beginPath(); ink.rect(left, 0, right - left, height); ink.clip();
+        ink.fillStyle = '#efdec3'; ink.fillRect(left, 0, right - left, height);
+        ink.strokeStyle = '#c8ab81'; ink.lineWidth = 3;
+        for (let x = left - height; x < right; x += 30) {
+          ink.beginPath(); ink.moveTo(x, height); ink.lineTo(x + height, 0); ink.stroke();
+        }
+        ink.restore();
+      });
+      if (stationary) dot(0);
+      const selected = [first, last];
+      const active = last !== null && reads.length < 6 ? index() : null;
+      run.marks.forEach((mark, k) => {
+        const loc = px(mark.x);
+        const label = k === active ? labels[reads.length] : selected.includes(k) ? labels[selected.indexOf(k)] : '';
+        if (label) {
+          ink.fillStyle = k === active ? '#953e2c' : '#21646a';
+          ink.fillRect(loc - 1.6, height * 0.52, 3.2, height * 0.48);
+          ink.font = 'bold 64px sans-serif'; ink.textAlign = 'center';
+          if (k === active || active === null || Math.abs(mark.x - run.marks[active].x) > 0.0065) ink.fillText(selected.includes(k) ? labels[selected.indexOf(k)] : '▼', loc, height * 0.38);
+        }
+        dot(mark.x);
+      });
       tex.needsUpdate = true;
     }
-    function setup() {
+    function next() {
+      if (phase === 'ready') return powered ? guide('绿灯亮了。松开上端夹子，让重物从静止下落。', jaw) : guide('先点开关，绿灯亮后再松夹子，纸带才会记下下落过程。', head.group);
+      if (phase === 'fall') return guide(powered ? '重物拉着纸带下落，每隔 0.02 s 留一个点。' : '重物在下落，计时器没有打点。');
+      if (phase === 'landed') return powered ? guide('重物已落到垫上。立即断电，再取纸带。', head.group) : guide('点开重物上的夹子，松开纸带下端。', lowerJaw);
+      if (phase === 'unclipped') return guide('捏住计时器上方露出的带头，向上拉，直到纸带下端穿出限位孔。', tip);
+      if (phase === 'extracted') return guide('纸带已抽出。捏住中段，把纸带铺到尺边的浅色槽里。', tape);
+      if (!enough()) return guide((run.marks.length || stationary ? '选不出相距足够远的 A、B。两点测速各需连续三点。' : '这是一条空白纸带，不能用来测速。') + '向上提回重物换新带，先通电再松手。', weight);
+      if (reads.length === 6) return guide(result);
+      if (!close) return guide('点纸带凑近看，用这条带上的点量高度、测速。', tape);
+      if (first === null && run.marks.some((_, k) => gapBefore(k))) return guide('斜线处打点中断。只在同一连续段内比较点距。先选较早的一组连续三点，点中间的点作 A。');
+      if (first === null) return guide('等时打出的点越隔越远，重物越落越快。先选较早的点作 A，前后都要留一个点。');
+      if (last === null) return guide('A 已标出。在右边较远处选 B，B 和它前后两个点必须连续打出。');
+      guide('读“' + labels[reads.length] + '”指线正对的毫米刻度，估读到 0.1 mm。');
+    }
+    function fresh() {
+      phase = 'ready'; stationary = poweredAtRelease = false; lowerJaw.rotation.y = 0; first = last = null; reads = []; result = '';
       run = fallingTape(MASS, RESISTANCE, TRAVEL);
-      phase = 'ready';
-      on = false;
-      near = false;
-      a = b = null;
-      spans = [];
-      pair = [];
-      weight.position.set(X, BASE, 0);
-      tape.position.set(X, BASE + L / 2, 0);
-      tape.quaternion.copy(vertical);
-      restStamp = false;
-      jaw.rotation.y = 0;
-      draw();
+      weight.position.copy(top); tape.position.copy(top).y += L / 2; tape.quaternion.copy(vertical); jaw.rotation.y = 0;
+      dots.forEach(dot => { dot.visible = false; }); draw(); next();
     }
-    function enter() {
-      if (document.body.classList.contains('predicting')) ui?.go(1);
+    function power() {
+      const time = now(); powered = !powered;
+      if (powered) { powerAt = time; if (phase === 'ready') { stationary = true; draw(); } }
+      if (phase === 'fall') run.power(powered, time - released);
+      showPower(powered); next();
     }
-    function switchPower() {
-      enter();
-      if (phase === 'lay' || (phase === 'landed' && !on)) return;
-      const t = now();
-      on = !on;
-      if (on) {
-        powerAt = t;
-        if (phase === 'ready') {
-          restStamp = true;
-          draw();
-        }
-      }
-      if (phase === 'fall') run.power(on, t - released);
-      guide();
-    }
-    function release() {
-      if (phase !== 'ready') return;
-      enter();
-      released = now();
-      if (on) run.power(true, powerAt - released);
-      phase = 'fall';
-      jaw.rotation.y = -0.65;
-      guide();
-    }
-    function take() {
-      if (phase === 'landed') {
-        if (on) {
-          bar.say('先关计时器，再解开重物上的纸带夹。');
-          return;
-        }
-        transfer = 0;
-        from = tape.position.clone();
-        phase = 'lay';
-        bar.say('解开纸带夹，把刚才打出的这条纸带放到尺旁。');
-        return;
-      }
-      if (phase === 'bench' && !near) {
-        inspect();
-        return;
-      }
-    }
-    function enough() {
-      const ids = energyPoints(run.marks);
-      return ids.length >= 2 && ids.at(-1) - ids[0] >= 3 && run.marks[ids.at(-1)].x - run.marks[ids[0]].x >= 0.04;
-    }
-    function guide() {
-      if (phase === 'ready')
-        bar.say(on ? '计时器已通电。点上端的夹子松手，观察重物下落。' : '先点计时器通电，再松开上端的纸带夹。');
-      else if (phase === 'fall') bar.say(on ? '注意重物下落时点距怎样变。' : '重物仍在下落，计时器没有打点。');
-      else if (phase === 'landed')
-        bar.say(on ? '重物已落在垫上。关计时器，再取纸带。' : '点纸带，把它从重物的夹子上取下。');
-      else if (phase === 'bench' && !near)
-        bar.say(
-          !enough()
-            ? '可测的连续点不够。向上拖重物回到计时器下方，换新带再试。'
-            : spans.length === 3
-              ? '展开笔记本，用 A、B 两处的读数比较能量变化。'
-              : '点台前的纸带近看，在同一条带上选 A、B。',
-        );
-      else if (near) {
-        if (a === null) bar.say('点纸带上较早的一个点作为 A，两侧都要有相邻点。');
-        else if (b === null) bar.say('再点后方较远的点作 B；点 A 可以重选起点。');
-        else if (spans.length < 3) {
-          const task = ['量 A 到 B 的高度差', '量 A 前后两个相邻点的距离', '量 B 前后两个相邻点的距离'][spans.length];
-          bar.say(
-            task +
-              '：' +
-              (pair.length
-                ? '已读 ' + pair[0] + ' mm，沿同一把尺读右端。'
-                : '从纸带标出的左端读到右端，可依次点尺或沿尺拖。'),
-          );
-        } else bar.say('已量到高度差和两个速度。回全景，展开笔记本比较能量。');
-      }
+    function drop() {
+      released = now(); poweredAtRelease = powered; if (powered) run.power(true, powerAt - released);
+      phase = 'fall'; jaw.rotation.y = -0.85; next();
     }
     function inspect() {
-      if (!enough()) {
-        guide();
-        return;
-      }
-      near = true;
-      bar.near(true);
-      const last = run.marks.at(-1).x;
-      ctx.look(
-        [ZERO + last / 2, 0.004, (LANE + RULER_Z) / 2],
-        [0, 1, 0.08],
-        Math.max(0.22, (last + 0.03) * 1.48),
-        leave,
-      );
-      guide();
+      close = true; bar.near(true);
+      const reading = last !== null;
+      form.hidden = !reading; input.value = '';
+      if (reading) caption.textContent = labels[reads.length] + ' 的位置 / mm';
+      const end = run.marks[run.marks.length - 1].x;
+      const center = reading ? clamp(expected() / 1000, 0.028, 0.236) : end / 2;
+      ctx.look([ZERO + center, 0.004, (LANE + RULER_Z) / 2], [0, 1, 0.01], reading ? 0.17 : (end + 0.044) * 1.72, leave);
+      next();
     }
-    function leave() {
-      near = false;
-      ctx.back();
-      bar.near(false);
-      guide();
+    function leave() { close = false; form.hidden = true; bar.near(false); ctx.back(); next(); }
+    function choose(k) {
+      const centers = energyPoints(run.marks);
+      if (!centers.includes(k)) return guide('这个点的前后没有两个清楚、连续的间隔。换一个内侧的点。');
+      if (first === null) {
+        if (!centers.some(other => validPair(k, other))) return guide('这个起点太靠后，留给 B 的距离太短。向左选。');
+        first = k;
+      } else if (k === first) first = null;
+      else if (k < first) return guide('B 是较晚的位置，要在 A 的右边。');
+      else if (!validPair(first, k)) return guide('A、B 太近，尺上同样的误差占比会更大。向右选远一点，或点 A 重选。');
+      else { last = k; bar.done('select'); }
+      draw(); inspect();
+      if (last !== null) guide('A、B 间距就是下降高度。先读 A，再读 B；每小格 1 mm，估读到 0.1 mm。');
     }
-    function choose(ray) {
-      if (!near) {
-        take();
-        return;
-      }
-      if (b !== null) return;
-      const hit = ray.intersectObject(tape, false)[0];
-      if (!hit) return;
-      const x = group.worldToLocal(hit.point.clone()).x - ZERO;
-      const ids = energyPoints(run.marks),
-        idx = run.marks.reduce((best, m, i) => (Math.abs(m.x - x) < Math.abs(run.marks[best].x - x) ? i : best), 0);
-      if (!ids.includes(idx) || Math.abs(run.marks[idx].x - x) > 0.008) {
-        bar.say('选有点迹的位置，并给它前后各留一个连续的打点间隔。');
-        return;
-      }
-      if (idx === a) {
-        a = null;
-        draw();
-        guide();
-        return;
-      }
-      if (a === null) {
-        if (!ids.some((i) => i >= idx + 3 && run.marks[i].x - run.marks[idx].x >= 0.04)) {
-          bar.say('这个点太靠后，选一个较早的 A，给 B 留出距离。');
-          return;
-        }
-        a = idx;
-      } else if (idx < a + 3 || run.marks[idx].x - run.marks[a].x < 0.04) {
-        bar.say('B 要在 A 后方，间距至少 4 cm，让毫米读尺误差所占比例小些。');
-        return;
-      } else b = idx;
-      draw();
-      guide();
-    }
-    function read(x) {
-      const ends = nextEnds();
-      if (!ends) return false;
-      const mm = Math.round((x - ZERO) * 1000),
-        idx = ends[pair.length],
-        want = run.marks[idx].x * 1000;
-      if (Math.abs(mm - want) > 1.5) {
-        bar.say('再看所标' + (pair.length ? '右' : '左') + '端正下方的毫米刻线。');
-        return false;
-      }
-      pair.push(mm);
-      if (pair.length === 2) {
-        const distance = pair[1] - pair[0];
-        spans.push(distance);
+    function read(value) {
+      if (!close || last === null || reads.length >= 6 || !Number.isFinite(value)) return;
+      const diff = value - expected();
+      if (Math.abs(diff) > READ_ERROR_MM) { guide('读数偏' + (diff > 0 ? '大' : '小') + '。从红线左侧的整十刻线数起，每小格 1 mm。'); input.select(); return; }
+      reads.push(fmt(value)); draw();
+      const count = reads.length, distance = fmt(reads[count - 1] - reads[count - 2]);
+      if (count % 2 === 0) {
         rows.el.hidden = false;
-        rows.add([
-          ['A 到 B', 'A 点前后', 'B 点前后'][spans.length - 1],
-          pair[0] + ' → ' + pair[1],
-          String(distance),
-          spans.length === 1 ? '—' : (distance / 1000 / (2 * PERIOD)).toFixed(3),
-        ]);
-        pair = [];
-        draw();
-        if (spans.length === 3) {
-          bar.done('dist');
-          report.hidden = false;
-          bar.say('B 点速度约 ' + (distance / 1000 / (2 * PERIOD)).toFixed(3) + ' m/s。回全景，展开笔记本比较能量。');
-        } else if (spans.length === 1) bar.say('A 到 B 下降 ' + distance + ' mm。接着沿尺量 A 前后两个点之间的距离。');
-        else
-          bar.say('A 点速度约 ' + (distance / 1000 / (2 * PERIOD)).toFixed(3) + ' m/s。再量 B 前后两个点之间的距离。');
-        return true;
+        rows.add([['A 到 B', 'A 点前后', 'B 点前后'][count / 2 - 1], reads[count - 2] + ' → ' + reads[count - 1], String(distance)]);
       }
-      guide();
-      return true;
-    }
-    function check() {
-      if (spans.length !== 3) return;
-      const u = (MASS * GRAVITY * spans[0]) / 1000,
-        v1 = spans[1] / 1000 / (2 * PERIOD),
-        v2 = spans[2] / 1000 / (2 * PERIOD),
-        k = (MASS * (v2 * v2 - v1 * v1)) / 2;
-      const [guessedU, guessedK] = fields.map((f) => f.valueAsNumber);
-      if (!Number.isFinite(guessedU) || Math.abs(guessedU - u) > 0.006) {
-        bar.say('用 m g Δh 求势能减少量，先把毫米换成米。');
+      if (count === 2) { bar.done('height'); calculations.append(note(`Δh = (${reads[1]} − ${reads[0]}) mm = ${distance} mm`)); }
+      if (count === 4 || count === 6) calculations.append(note(`v${count === 4 ? 'A' : 'B'} ≈ ${distance} × 10⁻³ m ÷ 0.04 s ≈ ${(distance / 40).toFixed(3)} m/s`));
+      if (count < 6) {
+        inspect();
+        if (count === 2) guide(`重物下降了 ${distance} mm。读 A 前、后各一点，用这 0.04 s 的平均速度估计 A 点速度。`);
+        else if (count === 4) guide(`A 点速度约为 ${(distance / 40).toFixed(3)} m/s。用同一方法读 B 前、后各一点。`);
+        else guide(`记下了 ${reads[count - 1]} mm。再读“${labels[count]}”的红线。`);
         return;
       }
-      if (!Number.isFinite(guessedK) || Math.abs(guessedK - k) > 0.006) {
-        bar.say('分别算 B 和 A 的动能，再用 B 减 A。重物在 A 处已经有速度。');
-        return;
+      const height = (reads[1] - reads[0]) / 1000, slow = (reads[3] - reads[2]) / 40, fast = distance / 40;
+      const potential = MASS * GRAVITY * height, kinetic = MASS / 2 * (fast ** 2 - slow ** 2);
+      const largest = Math.max(potential, kinetic);
+      comparison.hidden = false;
+      for (const [name, value, formula] of [
+        ['重力势能减少', potential, `mgΔh = 0.200 × 9.8 × ${+height.toFixed(4)}`],
+        ['动能增加', kinetic, `½m(vB² − vA²) ≈ 0.100 × (${fast.toFixed(3)}² − ${slow.toFixed(3)}²)`],
+      ]) {
+        comparison.append(h('div', {}, h('span', {}, name), h('b', {}, `≈ ${value.toFixed(3)} J`)),
+          h('i', { style: `width:${100 * value / largest}%` }), h('small', {}, formula));
       }
-      if (!bar.has('energy')) {
-        summary.el.hidden = false;
-        summary.add([
-          String(summary.rows.length + 1),
-          String(spans[0]),
-          v1.toFixed(3),
-          v2.toFixed(3),
-          u.toFixed(3),
-          k.toFixed(3),
-        ]);
-      }
-      bar.done('energy');
-      bar.say(
-        '你的读数：势能减少 ' +
-          u.toFixed(3) +
-          ' J，动能增加 ' +
-          k.toFixed(3) +
-          ' J。' +
-          (u >= k ? '势能多减少 ' : '动能多增加 ') +
-          Math.abs(Number(u.toFixed(3)) - Number(k.toFixed(3))).toFixed(3) +
-          ' J。',
-      );
+      // 两端位置各有一次估读误差。用势能减少的下界和动能增加的上界比较。
+      const spanError = 2 * READ_ERROR_MM;
+      const dv = spanError / (2 * PERIOD * 1000);
+      const minPotential = potential - MASS * GRAVITY * spanError / 1000;
+      const maxKinetic = MASS / 2 * ((fast + dv) ** 2 - Math.max(0, slow - dv) ** 2);
+      result = (minPotential > maxKinetic
+        ? '这次测得重力势能的减少量略大于动能的增加量。'
+        : '两项变化在本次读数精度内接近，分辨不出差值。') + resistanceNote;
+      ui.el.querySelector('.answer .why').textContent = result + conservationNote;
+      bar.done('speed'); leave(); repeat.hidden = false;
+      if (innerWidth <= 760) comparison.scrollIntoView({ block: 'center' });
     }
-    function anotherPair() {
-      if (phase !== 'bench' || !enough()) return;
-      a = b = null;
-      spans = [];
-      pair = [];
-      rows.clear();
-      rows.el.hidden = report.hidden = true;
-      fields.forEach((f) => (f.value = ''));
-      bar.undo('dist', 'energy');
-      draw();
-      ui.fold(true);
-      inspect();
+    function clearSheet() { if (ui) ui.el.querySelector('.answer .why').textContent = resistanceNote + conservationNote; rows.clear(); rows.el.hidden = repeat.hidden = comparison.hidden = true; calculations.replaceChildren(); comparison.replaceChildren(); input.value = ''; }
+    function reselect() { first = last = null; reads = []; result = ''; clearSheet(); bar.undo('select', 'height', 'speed'); draw(); inspect(); }
+    function reset() { returning = ray = grabOffset = null; powered = close = false; form.hidden = true; showPower(false); bar.near(false); ctx.back(); clearSheet(); bar.undo(...steps.map(step => step[0])); fresh(); ui?.relock(); ui?.fold(false); }
+    function layAt(pos) {
+      tape.position.copy(pos);
+      const fraction = clamp((pos.y - laid.y) / (extracted.y - laid.y), 0, 1);
+      tape.rotation.set(-Math.PI / 2 * (1 - fraction), 0, Math.asin(fraction), 'ZXY');
     }
-    function restart() {
-      ctx.back();
-      bar.near(false);
-      setup();
-      pencil.visible = false;
-      rows.clear();
-      summary.clear();
-      summary.el.hidden = true;
-      rows.el.hidden = report.hidden = true;
-      fields.forEach((f) => (f.value = ''));
-      bar.undo('drop', 'dist', 'energy');
-      guide();
+    function hitPlane() {
+      const hit = ray?.ray.intersectPlane(plane.clone().applyMatrix4(group.matrixWorld), new THREE.Vector3());
+      return hit && group.worldToLocal(hit);
     }
-    let startX = null,
-      lastX = 0,
-      anchored = false;
-    function preview(x) {
-      lastX = x;
-      pencil.visible = true;
-      pencil.position.x = x;
-      bar.say('尺上 ' + Math.round((x - ZERO) * 1000) + ' mm。沿尺微调，松手记下读数。');
-    }
-    const pointer = draggable(
-      group,
-      [
-        {
-          obj: ruler,
-          plane: 'xz',
-          offset: 0.0035,
-          enabled: () => near && b !== null && spans.length < 3,
-          hint: '沿两端的点读尺',
-          onStart(p) {
-            if (!p) return;
-            startX = p.x;
-            anchored = false;
-            preview(p.x);
-          },
-          onDrag(p) {
-            const ends = nextEnds();
-            if (
-              startX !== null &&
-              !anchored &&
-              !pair.length &&
-              ends &&
-              Math.abs(p.x - startX) > 0.002 &&
-              Math.abs((startX - ZERO) * 1000 - run.marks[ends[0]].x * 1000) <= 1.5
-            ) {
-              anchored = read(startX);
-            }
-            preview(p.x);
-          },
-          onEnd() {
-            if (startX !== null) read(lastX);
-            startX = null;
-            pencil.visible = false;
-          },
-        },
-        {
-          obj: weight,
-          plane: 'xy',
-          offset: 0,
-          keepOffset: true,
-          enabled: () => !near && ['ready', 'landed', 'bench'].includes(phase),
-          hint: () => (phase === 'bench' ? '向上拖回计时器下方，重新装带' : '释放重物或解开纸带'),
-          onDrag(p) {
-            if (phase === 'bench') weight.position.y = clamp(p.y, BASE - TRAVEL, BASE);
-          },
-          onEnd(moved) {
-            if (!moved || phase !== 'bench') return;
-            if (weight.position.y >= BASE - 0.03) restart();
-            else {
-              weight.position.y = BASE - TRAVEL;
-              bar.say('要重新放落，把重物拖回计时器正下方再松手。');
-            }
-          },
-          onTap() {
-            if (phase === 'ready') release();
-            else if (phase === 'landed') take();
-            else bar.say('向上拖回计时器下方可重新装带。只换测量点时，保留台面上的纸带。');
-          },
-        },
-      ],
-      {
-        highlight: true,
-        taps: [
-          {
-            obj: head.group,
-            enabled: () => !near && (phase === 'ready' || phase === 'fall' || (phase === 'landed' && on)),
-            hint: '计时器电源',
-            onTap: switchPower,
-          },
-          { obj: jaw, enabled: () => phase === 'ready', hint: '松开上端纸带夹', onTap: release },
-          {
-            obj: tape,
-            enabled: () => phase === 'landed' || phase === 'bench',
-            hint: '取带、近看或选点',
-            onTap: choose,
-          },
-        ],
-      },
+    function recover(obj, dest, msg) { returning = { obj, from: obj.position.clone(), dest, time: 0 }; guide(msg); }
+    const available = () => !returning && !close;
+    const pointer = draggable(group, [
+      { obj: tip, anchor: tape, keepOffset: true, plane: 'xy', enabled: () => available() && phase === 'unclipped',
+        hint: '向上拉：抽出纸带', onDrag(pos) { tape.position.y = clamp(pos.y, hanging.y, extracted.y); },
+        onEnd(moved) {
+          if (!moved) return;
+          if (tape.position.y < extracted.y - 0.003) return recover(tape, hanging, '纸带还在孔里。捏住带头，再向上拉。');
+          phase = 'extracted'; next();
+        } },
+      { obj: middle, anchor: tape, keepOffset: true, plane: 'xy', enabled: () => available() && phase === 'extracted',
+        hint: '拖中段：铺到尺边', onStart() { const pos = hitPlane(); grabOffset = pos && tape.position.clone().sub(pos); },
+        onDrag(pos) { const hit = hitPlane(), dest = hit && grabOffset ? hit.add(grabOffset) : pos.clone();
+          dest.y = clamp(dest.y, laid.y, extracted.y); dest.z = LANE * (extracted.y - dest.y) / (extracted.y - laid.y); layAt(dest); },
+        onEnd(moved) { if (!moved) return;
+          if (tape.position.distanceTo(laid) > 0.032) return recover(tape, extracted, '纸带没放进槽。捏住中段，对准浅色槽中央再松手。');
+          layAt(laid); tape.quaternion.copy(flat); phase = 'bench'; draw();
+          if (enough()) { bar.done('drop'); run.marks.forEach((mark, k, marks) => {
+            const box = dots[k] || addDotPick(); box.position.x = LEAD + mark.x - L / 2;
+            box.scale.x = Math.min(0.019, k ? mark.x - marks[k - 1].x : 0.019, k + 1 < marks.length ? marks[k + 1].x - mark.x : 0.019) * 0.98; box.visible = true;
+          }); }
+          next(); } },
+      { obj: grip, anchor: weight, keepOffset: true, plane: 'xy', enabled: () => available() && phase === 'bench' && !enough(),
+        hint: '向上拖：提回重物换带', onDrag(pos) { weight.position.y = clamp(pos.y, rest.y, BASE); }, onEnd(moved) { if (!moved) return;
+          if (weight.position.y < BASE - 0.022) return recover(weight, rest, '重物还没提到计时器下方。提到原来的高度再松手。'); fresh(); } },
+    ], { tip: ctx.tag('', 'pill'), taps });
+    taps.push(
+      { obj: switchPick, enabled: () => available() && (phase === 'ready' || phase === 'fall' || powered), hint: () => powered ? '点一下：断开电源' : '点一下：接通电源', onTap: power },
+      { obj: latch, enabled: () => available() && phase === 'landed' && !powered, hint: '点夹子：松开纸带', onTap() { lowerJaw.rotation.y = -1.15; phase = 'unclipped'; next(); } },
+      { obj: clip, enabled: () => available() && phase === 'ready', hint: '点夹子：释放重物', onTap: drop },
+      { obj: tape, enabled: () => available() && phase === 'bench' && enough() && reads.length < 6, hint: '点纸带：凑近看点迹', onTap: inspect },
     );
-    setup();
+    const stepBar = document.querySelector('.lbar');
+    const layout = h('style', {}, `
+      .energy-sheet .energy-math p {margin:5px 0;color:#394247;font-size:14px}
+      .energy-sheet .energy-compare {margin:12px 0;font-size:14px;font-variant-numeric:tabular-nums}
+      .energy-compare div {display:flex;justify-content:space-between}
+      .energy-compare i {display:block;height:5px;background:#28666b;margin:4px 0}
+      .energy-compare i:nth-of-type(2) {background:#a15338}
+      .energy-compare small {display:block;color:#514c43;margin-bottom:9px;font-size:13px}
+      #panel.energy-sheet .answer .src {padding-right:78px;min-height:45px}
+      @media(max-width:760px){body:not(.predicting):not(.hide-steps) #panel.energy-sheet{height:calc(52vh - var(--energy-bar,76px));bottom:calc(8px + var(--energy-bar,76px))}body.lesson-on .lbar[data-energy]{bottom:6px}}`);
+    const observer = new ResizeObserver(() => ui.el.style.setProperty('--energy-bar', stepBar.offsetHeight + 8 + 'px'));
+    clearSheet(); fresh();
+    const readTest = (k, wrong = false) => ({ name: wrong ? '读错毫米刻度' : '记录' + labels[k], run() {
+      if (!close || reads.length !== k || last === null) throw Error('读尺状态不符');
+      input.value = String(fmt(expected()) + (wrong ? 10 : 0)); submit.click();
+      if (reads.length !== (wrong ? k : k + 1)) throw Error('记录条数不符');
+    } });
+    const lay = { name: '放平纸带', drag: middle, to: laid }, release = { name: '释放重物', tap: clip }, toggle = { name: '切换电源', tap: switchPick };
+    const removeTape = [{ name: '松开重物夹', tap: latch }, { name: '向上抽出纸带', drag: tip, to: extracted }, lay];
     return {
-      group,
-      pointer,
-      toggles: ['steps'],
-      size: { w: 0.65, d: 0.4, h: 0.71 },
-      view: { elev: 14, azim: -9, lookY: 0.45, margin: 1.04 },
+      group: root, reset, toggles: ['steps'], size: { w: 0.57, d: 0.38, h: 0.71 }, view: { elev: 16, azim: 4, get frameMargin() { return innerWidth <= 760 ? 1.25 : 1.20; } },
+      pointer: { items: () => pointer.items().filter(item => item.enabled()), down(cast, event) { if (ui?.step === 2) return false; ray = cast; const held = pointer.down(cast, event); if (held && ui?.step === 0) ui.go(1); return held; },
+        move(cast, event) { ray = cast; return ui?.step === 1 && pointer.move(cast, event); }, up(cast, event) { ray = null; return pointer.up(cast, event); } },
       mount(panel) {
-        ui = panel;
-        bar.attach(ui);
-        rows = table(['区间', '两端读数 / mm', '距离 / mm', '中点速度 / (m/s)']);
-        summary = table(['组', '下降 / mm', 'vA / (m/s)', 'vB / (m/s)', '势能减少 / J', '动能增加 / J']);
-        summary.el.hidden = rows.el.hidden = true;
-        fields = ['势能减少量 / J', '动能增加量 / J'].map((s) =>
-          h('input', { type: 'number', step: '.001', 'aria-label': s, style: 'width:5em' }),
-        );
-        report = h(
-          'div',
-          { hidden: true },
-          note(
-            '重物 0.200 kg，取 g = 9.8 m/s²。高度差来自 A 到 B；A、B 的速度均用前后两点的距离除以 0.04 s。结果用焦耳表示，可保留两位或三位小数。',
-          ),
-          ...fields.map((f, i) => h('label', {}, ['势能减少 / J ', ' 动能增加 / J '][i], f)),
-          buttons([{ text: '比较两项变化', onClick: check }]).el,
-        );
-        ui.data.append(rows.el, report, summary.el);
-        ui.notes.append(
-          note('计时器 50 Hz。下落时纸带受到小的阻力，比较应使用同一次释放留下的记录。'),
-          buttons([
-            { text: '在原纸带另选两点', onClick: anotherPair },
-            { text: '换新带重做', onClick: restart },
-          ]).el,
-        );
-        guide();
+        ui = panel; ui.el.classList.add('energy-sheet'); stepBar.dataset.energy = ''; ui.el.append(layout); observer.observe(stepBar);
+        bar.attach({ need: () => ui.need(''), unlock() { ui.unlock(); ui.need(''); } }); ui.controls.append(form);
+        ui.data.append(note('重物 0.200 kg　·　计时器 50 Hz'), rows.el, calculations, comparison, repeat);
+        ui.notes.append(note('上端夹子代替手捏纸带。让纸带竖直穿过限位孔，选体积小、质量大的重物，可减小阻力的影响。模型取 g = 9.8 m/s²，总阻力取 0.10 N。比较等式两边时质量可以约去。'), h('button', { class: 'go ghost', onclick: reset }, '全部重来')); next();
       },
       update(dt) {
-        bar.update(dt);
-        head.update(on, on ? now() - powerAt : 0);
-        if (phase === 'fall') {
-          const t = now() - released,
-            n = run.marks.length;
-          run.advance(t);
-          const x = run.position(t);
-          weight.position.y = BASE - x;
-          tape.position.y = BASE + L / 2 - x;
-          if (n !== run.marks.length) draw();
-          if (t >= run.end) {
-            phase = 'landed';
-            guide();
-          }
-        } else if (phase === 'lay') {
-          transfer += dt;
-          const u = clamp(transfer / 0.7, 0, 1),
-            s = u * u * (3 - 2 * u);
-          tape.position.copy(from).lerp(new THREE.Vector3(ZERO - LEAD + L / 2, 0.004, LANE), s);
-          tape.position.z += 0.055 * Math.sin(Math.PI * u);
-          tape.position.y += 0.055 * Math.sin(Math.PI * u);
-          tape.quaternion.copy(vertical).slerp(flat, s);
-          if (u === 1) {
-            phase = 'bench';
-            if (enough()) bar.done('drop');
-            draw();
-            guide();
-          }
-        }
+        bar.update(dt); const time = now(); head.update(powered, powered ? time - powerAt : 0);
+        if (returning) { const ret = returning; ret.time += dt; const ratio = Math.min(1, ret.time / 0.4), pos = ret.from.clone().lerp(ret.dest, ratio * (2 - ratio));
+          if (ret.obj === tape && phase === 'extracted') layAt(pos); else ret.obj.position.copy(pos); if (ratio === 1) returning = null; }
+        if (phase !== 'fall') return;
+        const elapsed = time - released, count = run.marks.length; run.advance(elapsed);
+        weight.position.y = BASE - run.position(elapsed); tape.position.y = weight.position.y + L / 2;
+        if (count !== run.marks.length) draw(); if (elapsed >= run.end) { phase = 'landed'; next(); }
       },
-      dispose() {
-        pointer.dispose();
-        bar.dispose();
-        tex.dispose();
-      },
+      debug: { bar, qa: qaFlow(pointer, [release, ...removeTape, { name: '核对空白带', run() { if (phase !== 'bench' || run.marks.length || bar.has('drop')) throw Error('空白带异常'); } },
+        { name: '提回重物', drag: grip, to: top }, toggle, release, toggle, ...removeTape, { name: '近看纸带', tap: tape },
+        { name: '选 A', tap: dots[3] }, { name: '尝试相邻的 B', tap: dots[4] }, { name: '选 B', tap: dots[8] }, readTest(0, true), ...labels.map((_, k) => readTest(k)),
+        { name: '掀开原文', run() { if (!bar.finished || rows.rows.length !== 3) throw Error('测量记录不全'); ui.el.querySelectorAll('.p-step')[1].querySelector(':scope > button.go').click(); ui.el.querySelector('.flap-front').click(); if (!ui.el.querySelector('.flap.open')) throw Error('结论没有掀开'); } },
+      ]) },
+      dispose() { observer.disconnect(); layout.remove(); ui?.el.classList.remove('energy-sheet'); ui?.el.style.removeProperty('--energy-bar'); pointer.dispose(); bar.dispose(); tex.dispose(); },
     };
   },
 };

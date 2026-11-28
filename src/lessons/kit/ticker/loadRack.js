@@ -52,7 +52,7 @@ export function loadRack(rig, loads, enabled, mount) {
       offset: 0.06,
       keepOffset: true,
       enabled: () => enabled() && item.load !== selected,
-      hint: () => '把 ' + item.load * 1000 + ' g 槽码拖到滑轮下方',
+      hint: () => item.load * 1000 + ' g 槽码：拖到挂钩上',
       onStart() {
         dragging = item;
       },

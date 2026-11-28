@@ -132,7 +132,8 @@ export function chart({ x, y, series = [], height = 170, fit = false, legend, pr
     draw() {
       const g = canvas.getContext('2d'), W = canvas.width / SC, H = canvas.height / SC;
       const L = 74, R = 22, T = 26, B = 56;
-      g.setTransform(SC, 0, 0, SC, 0, 0);
+      g.save();
+      g.scale(SC, SC);
       g.clearRect(0, 0, W, H);
       let { min: x0, max: x1 } = api.x, { min: y0, max: y1 } = api.y;
       if (fit) {
@@ -140,18 +141,45 @@ export function chart({ x, y, series = [], height = 170, fit = false, legend, pr
       }
       const X = (v) => L + ((v - x0) / (x1 - x0 || 1)) * (W - L - R);
       const Y = (v) => H - B - ((v - y0) / (y1 - y0 || 1)) * (H - T - B);
-      // 网格（像课本的坐标纸）
-      g.strokeStyle = '#e4ecf6'; g.lineWidth = 1;
-      for (let i = 0; i <= 20; i++) { const xx = L + (i / 20) * (W - L - R); g.beginPath(); g.moveTo(xx, T); g.lineTo(xx, H - B); g.stroke(); }
-      for (let i = 0; i <= 10; i++) { const yy = T + (i / 10) * (H - T - B); g.beginPath(); g.moveTo(L, yy); g.lineTo(W - R, yy); g.stroke(); }
+      function stroke(xa, ya, xb, yb) {
+        g.beginPath(); g.moveTo(xa, ya); g.lineTo(xb, yb); g.stroke();
+      }
+      function drawScale(axis, min, max, horizontal) {
+        const step = niceStep((max - min) / (horizontal ? 6 : 4));
+        const values = axis.ticks ?? [];
+        if (!axis.ticks) {
+          for (let i = Math.ceil(min / step); i <= Math.floor(max / step + 1e-9); i++) values.push(i * step);
+        }
+        if (!values.length) return;
+        const grid = (v) => horizontal ? stroke(X(v), T, X(v), H - B) : stroke(L, Y(v), W - R, Y(v));
+        const first = values[0], last = values[values.length - 1];
+        const bounds = [first - (values[1] - first || step), ...values, last + (last - values[values.length - 2] || step)];
+        g.strokeStyle = '#e4ecf6'; g.lineWidth = 1;
+        for (let i = 1; i < bounds.length; i++) {
+          for (let j = 1; j < 5; j++) {
+            const v = bounds[i - 1] + (bounds[i] - bounds[i - 1]) * j / 5;
+            if (v >= min && v <= max) grid(v);
+          }
+        }
+        g.font = '22px PingFang SC, sans-serif'; g.fillStyle = '#4b5263';
+        g.textAlign = horizontal ? 'center' : 'right';
+        for (const v of values) {
+          g.strokeStyle = '#c8d5e3'; g.lineWidth = 1.5;
+          grid(v);
+          g.strokeStyle = '#5d6577'; g.lineWidth = 2;
+          if (horizontal) {
+            stroke(X(v), H - B, X(v), H - B + 6);
+            g.fillText(fmtTick(v), X(v), H - B + 26);
+          } else {
+            stroke(L - 6, Y(v), L, Y(v));
+            g.fillText(fmtTick(v), L - 10, Y(v) + 7);
+          }
+        }
+      }
+      drawScale(api.x, x0, x1, true);
+      drawScale(api.y, y0, y1, false);
       g.strokeStyle = '#5d6577'; g.lineWidth = 2.5;
       g.beginPath(); g.moveTo(L, T - 10); g.lineTo(L, H - B); g.lineTo(W - R + 8, H - B); g.stroke();
-      g.fillStyle = '#4b5263'; g.font = '22px PingFang SC, sans-serif';
-      const ticks = (a, b, n) => { const out = []; const st = niceStep((b - a) / n); for (let v = Math.ceil(a / st) * st; v <= b + 1e-9; v += st) out.push(+v.toFixed(6)); return out; };
-      g.textAlign = 'center';
-      for (const v of api.x.ticks || ticks(x0, x1, 6)) g.fillText(fmtTick(v), X(v), H - B + 26);
-      g.textAlign = 'right';
-      for (const v of api.y.ticks || ticks(y0, y1, 4)) g.fillText(fmtTick(v), L - 8, Y(v) + 7);
       g.textAlign = 'left'; g.font = 'italic 22px "Times New Roman", serif';
       g.fillText(api.y.label || '', L + 8, T - 4);    // 纵轴名写在轴的右边，不和最上面的刻度数字挤在一起
       g.textAlign = 'right';
@@ -171,6 +199,7 @@ export function chart({ x, y, series = [], height = 170, fit = false, legend, pr
         if (s.dots) for (const [px, py] of s.points) { g.beginPath(); g.arc(X(px), Y(py), 6, 0, Math.PI * 2); g.fill(); }
       }
       api.extra?.(g, X, Y);
+      g.restore();
     },
   };
   api.draw();

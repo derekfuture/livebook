@@ -2,10 +2,11 @@
 import { tractionRun } from './traction.js';
 import { advance } from './motion.js';
 
-export function pairedRun(settings) {
+export function pairedRun(settings, travel) {
   const carts = settings.map(({ lift, cartIndex, hangerIndex }) =>
     tractionRun({ mode: 'force', lift, cartIndex, hangerIndex }),
   );
+  if (travel != null) for (const cart of carts) cart.end = Math.sqrt(2 * travel / cart.a);
   return { carts, elapsed: 0, end: Math.min(...carts.map((cart) => cart.end)), state: 'held' };
 }
 

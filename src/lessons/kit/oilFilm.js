@@ -1,8 +1,8 @@
 // 配制好的油酸酒精溶液：取 1.00 mL 纯油酸，加酒精至总体积 500 mL。
 export const OIL_FRACTION = 1 / 500;
 export const GRID = 0.01; // 玻璃板每格边长 1 cm。
-export const DROP_ML = 0.018;
-const monolayerHeight = 2.0e-9; // 本模型形成的紧密单层厚度，实验读数仍来自学生描线和数格。
+export const DROP_ML = 0.020;
+export const MODEL_THICKNESS_NM = 2.0; // 生成油膜轮廓用的示意膜厚。
 export function pureOilPerDrop(startMl, endMl, count, fraction = OIL_FRACTION) {
   if (!(startMl > endMl && endMl >= 0 && count > 0 && Number.isInteger(count) && fraction > 0 && fraction <= 1))
     return null;
@@ -29,7 +29,7 @@ export function filmOutline(x, z, pureMl, phase = 0) {
       1 + 0.13 * Math.cos(3 * theta + phase) + 0.075 * Math.sin(5 * theta - 0.4) + 0.028 * Math.cos(8 * theta);
     points.push({ x: 1.09 * radius * Math.cos(theta), z: 0.93 * radius * Math.sin(theta) });
   }
-  const scale = Math.sqrt((pureMl * 1e-6) / (monolayerHeight * polygonArea(points)));
+  const scale = Math.sqrt((pureMl * 1e-6) / (MODEL_THICKNESS_NM * 1e-9 * polygonArea(points)));
   return points.map((p) => ({ x: x + p.x * scale, z: z + p.z * scale }));
 }
 function clip(points, axis, edge, sign) {

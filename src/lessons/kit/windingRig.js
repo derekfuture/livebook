@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { paint } from '../../live/ink.js';
 import { block } from './electronicsBench.js';
-import { rulerMesh } from './props.js';
-import { alongWire, WIRE_MM } from './wireWinding.js';
+import { canvasTex } from './props.js';
+import { alongWire, woundTurns, WIRE_MM } from './wireWinding.js';
 
 export const RADIUS = 0.007,
   AXIS = 0.019,
@@ -11,6 +11,7 @@ export const RADIUS = 0.007,
   RULE_W = 0.014;
 const wireRadius = WIRE_MM / 2000,
   coilRadius = RADIUS + wireRadius;
+export const GRIP_R = 0.0045;
 export const CLIP = [START, AXIS + coilRadius, 0];
 
 function axle(parent, radius, length, x, y, z, color) {
@@ -45,27 +46,67 @@ export function windingRig() {
   group.add(rotor);
   const wood = 0xb69463;
   axle(rotor, RADIUS, 0.09, 0, 0, 0, wood);
-  const knob = axle(rotor, 0.01, 0.012, 0.056, 0, 0, 0x90704f);
-  block(rotor, 0.011, 0.0005, 0.0016, 0.056, 0.01, 0, 0xf1d9a4);
-  block(rotor, 0.0022, 0.0005, 0.002, START, RADIUS, 0, 0x514a40);
+  const knob = axle(rotor, GRIP_R, 0.014, 0.056, 0, 0, 0x90704f);
+  block(rotor, 0.011, 0.0005, 0.0016, 0.056, GRIP_R, 0, 0xf1d9a4);
+  block(rotor, 0.0022, 0.0005, 0.002, START - 0.0011, RADIUS, 0, 0x514a40);
   for (const x of [-0.045, 0.045]) {
     block(group, 0.008, 0.003, 0.022, x, 0.0015, 0, wood);
     block(group, 0.005, AXIS, 0.008, x, AXIS / 2, 0, wood);
     axle(group, 0.003, 0.012, x, AXIS, 0, 0x7b7e79);
   }
-  const scale = rulerMesh({
-    length: (SPAN * 4096) / 4080,
-    width: RULE_W,
-    thick: 0.0018,
-    divisions: 100,
-    every: 10,
-    labelEvery: 10,
+  // 留白包住首末数字，长刻线上的数字直接标毫米。
+  const ruleLength = SPAN + 0.008;
+  const texture = canvasTex(4096, 530, (g, w, h) => {
+    g.fillStyle = '#f6efdf';
+    g.fillRect(0, 0, w, h);
+    g.fillStyle = g.strokeStyle = '#26323c';
+    g.font = 'bold 118px sans-serif';
+    g.textAlign = 'center';
+    for (let mm = 0; mm <= 100; mm++) {
+      const x = (0.004 + mm / 1000) * w / ruleLength;
+      const major = mm % 10 === 0;
+      g.lineWidth = major ? 6 : 3;
+      g.beginPath();
+      g.moveTo(x, 0);
+      g.lineTo(x, h * (major ? 0.44 : mm % 5 === 0 ? 0.32 : 0.21));
+      g.stroke();
+      if (major) g.fillText(String(mm), x, h * 0.75);
+    }
+    g.textAlign = 'left';
+    g.font = '72px sans-serif';
+    g.fillText('mm', 215, h * 0.94);
   });
+  const face = new THREE.MeshBasicMaterial({ map: texture });
+  const edge = paint(0xcfc5ac);
+  const scale = new THREE.Mesh(new THREE.BoxGeometry(ruleLength, 0.0018, RULE_W), [edge, edge, face, edge, edge, edge]);
+  // 两脚托起尺身，使刻度面和圆柱最前方的测量母线等高。
+  const legH = AXIS - 0.0018;
+  for (const x of [-0.044, 0.044]) {
+    block(scale, 0.004, legH, 0.005, x, -(legH + 0.0018) / 2, 0.003, 0xab906e);
+  }
+  const rulerGrip = block(scale, 0.006, 0.0018, 0.003, 0.025, 0, RULE_W / 2 + 0.0015, 0xb7a380);
   group.add(scale);
+  // 两个相向的三角只指认贴尺的这一排，与丝的外缘留出空白供学生估读。
+  const markShape = new THREE.BufferGeometry();
+  markShape.setAttribute('position', new THREE.Float32BufferAttribute([
+    0, 0, 0, -0.00085, 0, -0.00036, -0.00085, 0, 0.00036,
+  ], 3));
+  const markInk = new THREE.MeshBasicMaterial({ color: 0x275990, side: THREE.DoubleSide });
+  const leftMark = new THREE.Mesh(markShape, markInk);
+  const rightMark = leftMark.clone();
+  rightMark.rotation.y = Math.PI;
+  group.add(leftMark, rightMark);
+  function markRow(edges) {
+    leftMark.visible = rightMark.visible = !!edges;
+    if (!edges) return;
+    leftMark.position.set(START + edges.left / 1000 - 0.00055, AXIS + wireRadius, coilRadius);
+    rightMark.position.set(START + edges.right / 1000 + 0.00055, AXIS + wireRadius, coilRadius);
+  }
+  markRow(null);
   const guide = new THREE.Group();
   group.add(guide);
   block(guide, 0.006, 0.003, 0.008, 0, -0.003, 0, 0x94734b);
-  block(group, 0.068, 0.003, 0.006, 0, 0.0015, -0.016, 0xb39870);
+  block(group, 0.084, 0.003, 0.006, 0.008, 0.0015, -0.016, 0xb39870);
   block(guide, 0.0035, AXIS + coilRadius - 0.006, 0.0035, 0, -(AXIS + coilRadius) / 2, 0, 0x90918a);
   const eye = new THREE.Mesh(new THREE.TorusGeometry(0.0015, 0.00035, 10, 26), paint(0x626e6c));
   guide.add(eye);
@@ -124,10 +165,10 @@ export function windingRig() {
     mesh.geometry = tube(points, wireRadius, segments);
   }
   function render(parts, attached, gap, free) {
-    const turns = parts.at(-1)?.end || 0;
+    const turns = woundTurns(parts);
     rotor.rotation.x = 2 * Math.PI * turns;
     const x = START + alongWire(parts, turns) / 1000;
-    guide.position.set(x + gap / 1000, AXIS + coilRadius, -0.016);
+    guide.position.set(x + 0.006 * gap, AXIS + coilRadius, -0.016);
     coil.visible = turns > 0.0001;
     if (coil.visible) {
       const steps = Math.max(4, Math.ceil(turns * 32)),
@@ -161,5 +202,7 @@ export function windingRig() {
       32,
     );
   }
-  return { group, knob, rotor, scale, guide, end, render };
+  return { group, knob, scale, rulerGrip, guide, end, render, markRow,
+    dispose() { texture.dispose(); markShape.dispose(); markInk.dispose(); },
+  };
 }

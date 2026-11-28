@@ -6,6 +6,8 @@ export const GENERATOR = {
   area: 0.0064,
   coilResistance: 60,
   seriesResistance: 180,
+  meterResistance: 180,
+  meterRange: 0.025,
   diodeResistance: 10,
   redDrop: 1.8,
   yellowDrop: 2.0,
@@ -23,14 +25,28 @@ export function generatorState(theta, omega, connected, parameters = GENERATOR) 
     emf = -gradient * omega;
   const polarity = p.polarity === -1 ? -1 : 1,
     loadEmf = emf * polarity;
-  const drop = loadEmf >= 0 ? p.redDrop : p.yellowDrop;
-  const resistance = p.coilResistance + p.seriesResistance + p.diodeResistance;
-  const current = connected ? (Math.sign(emf) * Math.max(0, Math.abs(emf) - drop)) / resistance : 0;
-  const redCurrent = Math.max(0, current * polarity),
-    yellowCurrent = Math.max(0, -current * polarity);
+  const series = p.coilResistance + p.seriesResistance;
+  let redCurrent = 0, yellowCurrent = 0;
+  if (connected) {
+    if (p.parallelForward) {
+      // 两支路共用限流电阻，先求仅红灯导通时的端电压，再判断黄灯能否导通。
+      redCurrent = Math.max(0, (loadEmf - p.redDrop) / (series + p.diodeResistance));
+      if (loadEmf - series * redCurrent > p.yellowDrop) {
+        const voltage = (p.diodeResistance * loadEmf + series * (p.redDrop + p.yellowDrop)) /
+          (p.diodeResistance + 2 * series);
+        redCurrent = (voltage - p.redDrop) / p.diodeResistance;
+        yellowCurrent = (voltage - p.yellowDrop) / p.diodeResistance;
+      }
+    } else {
+      redCurrent = Math.max(0, (loadEmf - p.redDrop) / (series + p.diodeResistance));
+      yellowCurrent = Math.max(0, (-loadEmf - p.yellowDrop) / (series + p.diodeResistance));
+    }
+  }
+  const current = polarity * (redCurrent + (p.parallelForward ? yellowCurrent : -yellowCurrent));
   const coilPower = current * current * p.coilResistance;
   const resistorPower = current * current * p.seriesResistance;
-  const ledPower = Math.abs(current) * drop + current * current * p.diodeResistance;
+  const ledPower = redCurrent * p.redDrop + yellowCurrent * p.yellowDrop +
+    (redCurrent ** 2 + yellowCurrent ** 2) * p.diodeResistance;
   return {
     linkage,
     gradient,

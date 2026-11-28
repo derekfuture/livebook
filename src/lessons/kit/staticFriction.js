@@ -5,33 +5,55 @@ export const STATIC_MU = 0.6,
 const G = 9.8;
 
 export function frictionTrial(mass = 0.5) {
-  return { mass, x: 0, v: 0, handle: 0, tension: 0, friction: 0, peak: 0, slipped: false };
+  return { mass, x: 0, v: 0, handle: 0, tension: 0, friction: 0, peak: 0, slipped: false,
+    onsetTime: 0, onsetForce: 0, slidingPeakTime: 0, slidingPeak: 0 };
 }
 
-export function pullTo(s, target, dt) {
+export function pullTo(s, target, dt, startTime = 0) {
   if (!(dt > 0)) return;
-  const start = s.handle,
-    steps = Math.ceil(dt * 480),
-    h = dt / steps;
-  const normal = s.mass * G,
-    limit = STATIC_MU * normal,
-    kinetic = SLIDING_MU * normal;
+  const start = s.handle, speed = (target - start) / dt;
+  const steps = Math.ceil(dt * 480), h = dt / steps;
+  const normal = s.mass * G, limit = STATIC_MU * normal, kinetic = SLIDING_MU * normal;
   for (let i = 1; i <= steps; i++) {
-    s.handle = start + ((target - start) * i) / steps;
-    s.tension = SPRING_K * Math.max(0, s.handle - s.x);
-    s.peak = Math.max(s.peak, s.tension);
-    if (s.v === 0 && s.tension <= limit) {
-      s.friction = -s.tension;
-      continue;
+    const end = start + (target - start) * i / steps;
+    const endTime = startTime + i * h;
+    let slideTime = h;
+    if (s.v === 0) {
+      const staticForce = SPRING_K * Math.max(0, end - s.x);
+      if (staticForce <= limit) {
+        s.handle = end; s.tension = staticForce; s.friction = -staticForce;
+        s.peak = Math.max(s.peak, staticForce);
+        continue;
+      }
+      // 到达阈值以前木块不动，只有这一步剩下的时间参与滑动积分。
+      if (s.tension <= limit && speed > 0) {
+        s.handle = s.x + limit / SPRING_K;
+        slideTime = Math.min(h, Math.max(0, (end - s.handle) / speed));
+      }
+      if (!s.slipped) {
+        s.slipped = true; s.onsetTime = endTime - slideTime; s.onsetForce = limit;
+        s.slidingPeakTime = s.onsetTime; s.slidingPeak = limit;
+      }
     }
-    s.slipped = true;
-    s.friction = -kinetic;
-    const a = (s.tension - kinetic) / s.mass;
-    // 单向拉力。若在这一小步内停住，静摩擦接手；不能让动摩擦把木块向后推出去。
-    const t = a < 0 ? Math.min(h, -s.v / a) : h;
-    s.x += s.v * t + 0.5 * a * t * t;
-    s.v = Math.max(0, s.v + a * t);
+    const extension = s.handle - s.x;
+    const a = (SPRING_K * Math.max(0, extension) - kinetic) / s.mass;
+    const moving = a < 0 ? Math.min(slideTime, -s.v / a) : slideTime;
+    // 拉环与木块等速时，弹簧伸长可能在小步内部达到峰值。
+    if (a > 0 && speed > s.v) {
+      const at = (speed - s.v) / a;
+      if (at < moving) {
+        const force = SPRING_K * (extension + (speed - s.v) * at - 0.5 * a * at * at);
+        if (force > s.slidingPeak) {
+          s.slidingPeak = force; s.slidingPeakTime = endTime - slideTime + at;
+        }
+      }
+    }
+    s.x += s.v * moving + 0.5 * a * moving * moving;
+    s.v = Math.max(0, s.v + a * moving);
+    s.handle = end;
+    s.tension = SPRING_K * Math.max(0, end - s.x);
+    s.friction = s.v === 0 && s.tension <= limit ? -s.tension : -kinetic;
+    if (s.tension > s.slidingPeak) { s.slidingPeak = s.tension; s.slidingPeakTime = endTime; }
+    s.peak = Math.max(s.peak, s.slidingPeak);
   }
-  s.tension = SPRING_K * Math.max(0, s.handle - s.x);
-  if (s.v === 0 && s.tension <= limit) s.friction = -s.tension;
 }

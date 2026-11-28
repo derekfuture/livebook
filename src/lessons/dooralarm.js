@@ -1,11 +1,12 @@
 // 选择性必修二图 5.3-2。门扇带动磁体，干簧管控制继电器，实际接线决定灯和报警器的工作状态。
 import * as THREE from 'three';
-import { alarmRig, HINGE, DOOR_Z, MOUNT_Y, MOUNT_X, MOUNT_Z } from './kit/alarmRig.js';
+import { alarmRig, alarmNotebook, HINGE, DOOR_Z, MOUNT_Z } from './kit/alarmRig.js';
 import { alarmState, axialField, stepAlarm } from './kit/reedAlarm.js';
 import { Tone, sfx } from './kit/audio.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { draggable, clamp } from './kit/interact.js';
-import { buttons, note, table } from './kit/ui.js';
+import { buttons, h, table } from './kit/ui.js';
+import { qaFlow } from './kit/chemlesson.js';
 const expected = ['K', 'neg', 'a', 'b'];
 const reedAxis = new THREE.Vector3(1, 0, 0);
 export default {
@@ -14,354 +15,462 @@ export default {
   title: '门窗防盗报警装置',
   stampText: '制作',
   predict: {
-    q: '门关好后，磁体使干簧管吸合。若要开门时才报警，蜂鸣器应接在哪个继电器触点？',
-    options: ['释放时闭合的常闭触点 b', '吸合时闭合的常开触点 a'],
+    q: '怎样让门关好时绿灯亮、门一开就报警？先猜猜，开门时干簧管里的两片金属会怎样？',
+    options: ['两片分开，干簧管断开', '两片吸合，干簧管接通'],
     answer: 0,
-    hint: '开门时，磁体远离干簧管。',
+    hint: '磁体装在门上，干簧管装在门框上。',
   },
   conclusion: {
-    page: 108, rect: [216.49, 321.32, 531.5, 491.22],
-    quote: '闭合电路开关S，系统处于防盗状态。当门窗紧闭时，磁体M 靠近干簧管SA，干簧管两个簧片被磁化相吸而接通继电器线圈K，使继电器工作。继电器的动触点c与常开触点a 接通，发光二极管LED 发光，显示电路处于正常工作状态。当门窗开启时，磁体离开干簧管，干簧管失磁断开，继电器被断电。继电器的动触点c 与常闭触点b 接通，蜂鸣器H 发声报警。干簧管在电路中起传感器和控制开关的作用，继电器则相当于一个自动的双向开关。',
+    page: 108,
+    rect: [216.49, 321.32, 531.5, 491.22],
+    quote:
+      '闭合电路开关S，系统处于防盗状态。当门窗紧闭时，磁体M 靠近干簧管SA，干簧管两个簧片被磁化相吸而接通继电器线圈K，使继电器工作。继电器的动触点c与常开触点a 接通，发光二极管LED 发光，显示电路处于正常工作状态。当门窗开启时，磁体离开干簧管，干簧管失磁断开，继电器被断电。继电器的动触点c 与常闭触点b 接通，蜂鸣器H 发声报警。干簧管在电路中起传感器和控制开关的作用，继电器则相当于一个自动的双向开关。',
     why: '门关闭时干簧管接通，继电器吸合，c 与 a 接通，绿灯亮。开门时簧片释放，继电器断电，c 接回 b，蜂鸣器响。',
     src: '课本第 104 页 · 第五章 第3节 利用传感器制作简单的自动控制装置',
   },
   create(ctx) {
-    const look = ctx.look;
-    ctx = { ...ctx, look: (at, ...args) => look([at[0], at[1] + 0.0066, at[2]], ...args) };
-    const rig = alarmRig(),
-      { group, door, magnet, reed, S, wires } = rig;
+    const rig = alarmRig();
+    const { group, magnet, magnetPick, door, handle, S, switchPick, wires, tips } = rig;
+    const root = new THREE.Group();
+    group.position.y = 0.006;
+    root.add(group);
+    const vec = (x, y, z) => new THREE.Vector3(x, y, z);
+    const seat = () => rig.mountingPoint().clone();
+    const magnetPlane = DOOR_Z + MOUNT_Z;
+    const canvas = h('canvas', { width: 310, height: 90, style: 'width:100%;display:block' });
+    const diagram = alarmNotebook(canvas);
+    const rows = table(['门上磁体', '干簧管', '触点', '绿灯', '蜂鸣器']);
+    const returns = new Map();
     let ui,
-      rows,
-      view,
       aim,
-      state,
-      nearSeen,
-      tested,
-      mounted,
-      angle,
-      dragged,
-      tone,
-      sounding = false,
-      completed,
-      magnetStart,
-      doorStart,
-      doorGrab;
-    let falling = false,
-      dropSpeed = 0;
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'reed', title: '检验干簧管', todo: '把磁体靠近干簧管再移开，观察簧片接合、分开。', target: () => aim },
-        { id: 'mount', title: '安装门磁', todo: '把磁体装到门上沿与干簧管相对的卡座。', target: () => aim },
-        { id: 'circuit', title: '接报警电路', todo: '在断电时连接控制线和两条输出支路。', target: () => aim },
-        { id: 'door', title: '开关门检验', todo: '关门、开门再关门，检查灯光和报警声。', target: () => aim },
-      ],
-    });
-    const say = (text, obj) => {
-      aim = obj;
-      bar.say(text);
-    };
-    function leave() {
+      state = alarmState(),
+      nearSeen = false,
+      mounted = false,
+      angle = 0;
+    let reversedSeen = false,
+      cancelled = false;
+    let heldMagnet = false,
+      grabAngle = 0,
+      initialAngle = 0,
+      boardView = false;
+    let tone,
+      sounding = false;
+    const steps = [
+      ['reed', '检验干簧管', '把磁体移到门框玻璃管下，再移开，检验簧片能否吸合、分开。'],
+      ['mount', '安装磁体', '簧片能随磁体分开。把磁体放进玻璃管正下方的门扇卡座。'],
+      ['circuit', '按图接线', '其余元件已检查正常，固定导线已接好。按图接四根线，棕线接 K，黑线接负极，绿线接 a，黄线接 b。'],
+      ['door', '开关门检验', '拉开门再关好，检验能否自动报警和解除报警。'],
+    ];
+    function back() {
       ctx.back();
-      view = null;
+      boardView = false;
       bar.near(false);
       guide();
     }
-    function close(v) {
-      view = v;
-      bar.near(true);
-      if (v === 'reed') ctx.look([reed.position.x, reed.position.y, reed.position.z], [0.12, 0.18, 1], 0.065, leave);
-      else if (v === 'board')
-        ctx.look([0.07, 0.022, 0.035], [0.12, 1, 0.3], ctx.camera.aspect < 1 ? 0.39 : 0.65, leave);
-      else
-        ctx.look([HINGE + 0.062, 0.083, DOOR_Z + 0.017], [0.24, 0.18, 1], ctx.camera.aspect < 1 ? 0.36 : 0.48, leave);
-      guide();
+    const bar = lessonBar({
+      ...ctx,
+      group,
+      back,
+      steps: steps.map(([id, title, todo]) => ({
+        id,
+        title,
+        todo,
+        target: () => (ui?.step === 1 ? aim : null),
+      })),
+    });
+    const wired = () => wires.every((w, i) => w.to === expected[i]);
+    function say(message, target) {
+      bar.say(message);
+      aim = target;
     }
-    function guide() {
-      if (bar.finished) return say('已观察关门、开门和重新关门。打开笔记本，对照继电器触点与两条支路。');
-      if (S.closed && (!tested || !mounted)) return say('先断开刀开关，在断电状态检验和安装门磁。', S.group);
-      if (!tested) {
-        if (nearSeen) return say('簧片已吸合。把磁体向旁边移开，看两片金属重新分开。', magnet);
-        if (view === 'reed') return say('管内两片金属现在分开。回全景，把台前的磁体移到玻璃管旁。');
-        return say('把台前的小磁体拖到门框上方玻璃管旁。点干簧管可以近看金属簧片。', magnet);
-      }
-      if (!mounted) return say('把同一块磁体拖到门扇上沿、玻璃管正下方的卡座，松手固定。', rig.mount);
+    const instructions = [
+      '把棕线接 K，让干簧管控制线圈。',
+      '把动触点 c 的黑线接到电源负极。',
+      '参照接线图，把绿灯的绿线接到一个触点。',
+      '把蜂鸣器的黄线接到另一个触点。',
+    ];
+    function guide(prefix = '') {
+      if (!mounted && S.closed) return say('开关已闭合。先断开电源，再检验或安装门磁。', S.group);
+      if (bar.current === 'reed')
+        return say(nearSeen && state.reed ? '两片簧片吸合了。拖开磁体，看簧片能否分开。' : steps[0][2], magnet);
+      if (!mounted) return say(steps[1][2], magnet);
       if (!S.closed) {
+        if (reversedSeen && wires[2].to === 'b' && wires[3].to === 'a')
+          return say('电源已断开。先把绿线插头拖回绿圈，腾出 b。', wires[2].plug);
+        if (reversedSeen && wires[2].to === null && wires[3].to === 'a')
+          return say('b 已空出。把蜂鸣器的黄线从 a 移到 b。', wires[3].plug);
+        if (wires.every((w) => w.to === null)) return say(steps[2][2], wires[0].plug);
         const i = wires.findIndex((w) => w.to === null);
-        if (i >= 0)
+        if (i >= 0) return say(prefix + instructions[i], wires[i].plug);
+        return say(prefix + '合上开关 S，检验两条支路。', S.group);
+      }
+      if (!wired()) {
+        if (wires.some((w) => w.to === null)) return say('电路还没接全。断开 S，补接空着的线。', S.group);
+        reversedSeen = true;
+        if (state.contact)
           return say(
-            [
-              '把干簧管引出的棕色插头接到 K，控制继电器线圈。',
-              '把动触点 c 的黑线接到负极。',
-              '把 LED 的绿线接到常开触点 a。',
-              '把蜂鸣器的黄线接到常闭触点 b。',
-            ][i],
-            wires[i].plug,
+            (state.buzzing ? '蜂鸣器响，绿灯灭。' : '绿灯亮，蜂鸣器停。') + '两条支路接反了，断开 S 后对调绿线和黄线。',
+            S.group,
           );
-        return say('合上刀开关，观察现在亮的是灯还是蜂鸣器在响。', S.group);
+        return;
       }
-      if (wires.some((w, i) => w.to !== expected[i])) {
-        return say(
-          '检查实际现象：绿灯' +
-            (state.ledCurrent ? '亮' : '灭') +
-            '，蜂鸣器' +
-            (state.buzzing ? '响' : '停') +
-            '。断电后沿线检查，LED 应接 a，蜂鸣器应接 b。',
-          S.group,
-        );
-      }
-      if (completed === 0) return say('合上门，让门上的磁体正对门框干簧管，观察绿灯。', rig.handle);
-      if (completed === 1) return say('门已关好，绿灯亮。抓住把手把门拉开，观察触点和蜂鸣器。', rig.handle);
-      say('门已打开，绿灯灭，警报响。把门关回门框，检查警报能否解除。', rig.handle);
+      if (boardView) return back();
+      const result = state.ledCurrent ? 'c 接 a，绿灯亮，蜂鸣器停。' : state.buzzing ? 'c 接 b，绿灯灭，蜂鸣器响。' : '';
+      if (bar.finished) return say(result + '可以掀开课本结论。');
+      if (!rows.rows.length) return say(result + '把门推向门框，让磁体靠近干簧管。', handle);
+      if (rows.rows.length === 1) return say(result + '拉开把手，观察磁体离开后哪条支路接通。', handle);
+      say(result + '把门推回去，观察警报何时解除。', handle);
+    }
+    function returnTo(obj, destination, update) {
+      returns.set(obj, { start: obj.position.clone(), destination: destination.clone(), t: 0, update });
     }
     function reset() {
-      if (view) leave();
-      if (sounding) {
-        tone.on(false);
-        sounding = false;
-      }
-      nearSeen = tested = mounted = falling = false;
-      dropSpeed = 0;
-      angle = completed = 0;
-      state = alarmState();
+      if (boardView) back();
+      returns.clear();
+      reversedSeen = false;
+      nearSeen = heldMagnet = mounted = false;
+      angle = door.rotation.y = 0;
       group.add(magnet);
-      magnet.rotation.set(0, 0, 0);
       magnet.position.copy(rig.homeMagnet);
-      door.rotation.y = 0;
       S.closed = false;
-      rig.draw(state);
-      wires.forEach((w, i) => {
+      S.update(1);
+      if (sounding) tone.on(false);
+      sounding = false;
+      state = alarmState();
+      for (const [i, w] of wires.entries()) {
         w.to = null;
         w.plug.position.copy(w.home);
         rig.route(i);
-      });
-      rows?.clear();
-      bar.undo('reed', 'mount', 'circuit', 'door');
+      }
+      rows.clear();
+      rows.el.hidden = true;
+      diagram(false, state, false, false);
+      rig.draw(state);
+      bar.undo(...steps.map((step) => step[0]));
+      ui?.relock();
       guide();
     }
-    function wireItem(i) {
-      const w = wires[i];
-      let moved;
+    const hint = (value) => () => (ui?.step === 1 ? value : '');
+    function invalidateCircuit() {
+      if (!bar.has('circuit')) return;
+      rows.clear();
+      rows.el.hidden = true;
+      bar.undo('circuit', 'door');
+      ui.relock({ full: false });
+    }
+    const plugs = wires.map((w, i) => {
+      let origin, previous, moved;
       return {
         obj: w.plug,
         plane: 'xz',
-        offset: 0.008,
+        offset: 0.011,
         keepOffset: true,
-        hint: '拖动接线插头',
-        enabled: () => view !== 'reed' && view !== 'door' && !bar.finished,
+        enabled: () => mounted && !returns.has(w.plug),
+        hint: hint('拖插头：接线或拔线'),
         onStart() {
+          origin = w.plug.position.clone();
+          previous = w.to;
           moved = false;
         },
-        onDrag(p) {
-          if (S.closed) return say('先断开刀开关，再改接线。', S.group);
+        onDrag(p, start) {
+          if (S.closed) return say('电源还通着，先断开 S 再改线。', S.group);
+          if (!moved && p.distanceTo(start) < 0.0003 && p.distanceTo(origin) < 0.0003) return;
           moved = true;
           w.to = null;
-          w.plug.position.set(clamp(p.x, -0.08, 0.23), 0.011, clamp(p.z, -0.06, 0.12));
+          w.plug.position.set(clamp(p.x, -0.09, 0.22), 0.011, clamp(p.z, -0.06, 0.12));
           rig.route(i);
         },
         onEnd() {
           if (!moved) return;
-          let nearest = null,
-            dist = 0.017;
-          for (const [id, pt] of Object.entries(rig.tips)) {
-            const d = Math.hypot(w.plug.position.x - pt.x, w.plug.position.z - pt.z);
-            if (d < dist) {
-              nearest = id;
-              dist = d;
-            }
+          if (cancelled) {
+            w.to = previous;
+            returnTo(w.plug, origin, () => rig.route(i));
+            guide();
+            return;
           }
-          if (nearest && wires.some((other) => other !== w && other.to === nearest)) {
-            w.plug.position.copy(w.home);
+          const id = Object.keys(tips).find(
+            (key) => Math.hypot(w.plug.position.x - tips[key].x, w.plug.position.z - tips[key].z) < 0.012,
+          );
+          const allowed = i < 2 ? id === expected[i] : id === 'a' || id === 'b';
+          const occupied = id && wires.some((other) => other !== w && other.to === id);
+          if (id && allowed && !occupied) {
+            w.to = id;
+            w.plug.position.copy(tips[id]).y += 0.005;
             rig.route(i);
-            return say(nearest + ' 柱已插有另一根线。先拔出那根线放在台面，再接入这根。');
+            if (previous !== id) invalidateCircuit();
+            guide('已接' + (id === 'neg' ? '负极' : id) + '。');
+          } else if (!id && previous && w.plug.position.distanceTo(w.home) < 0.019) {
+            returnTo(w.plug, w.home, () => rig.route(i));
+            invalidateCircuit();
+            guide('插头已拔下。');
+          } else {
+            w.to = previous;
+            returnTo(w.plug, origin, () => rig.route(i));
+            say(
+              occupied
+                ? '接线柱已占用。先把原来的插头拖回同色圆圈。'
+                : id
+                  ? '这根线接错了柱，已退回。按图找它要接的柱。'
+                  : '插头没接好，已退回。对准接线柱再松手。',
+              w.plug,
+            );
           }
-          if (nearest && (i < 2 ? nearest === expected[i] : nearest === 'a' || nearest === 'b')) {
-            w.to = nearest;
-            w.plug.position.copy(rig.tips[nearest]);
-            w.plug.position.y += 0.002;
-          } else w.plug.position.y = 0.004;
-          rig.route(i);
-          guide();
         },
       };
-    }
-    const manip = draggable(
+    });
+    const pointer = draggable(
       group,
       [
         {
-          obj: magnet,
+          obj: magnetPick,
+          anchor: magnet,
+          keepOffset: true,
           plane: 'xy',
-          offset: DOOR_Z + MOUNT_Z,
-          enabled: () => !mounted && !S.closed,
-          hint: '拖磁体靠近或远离玻璃管',
+          offset: magnetPlane,
+          enabled: () => !mounted && !S.closed && !returns.has(magnet),
+          hint: hint('拖磁体：靠近或移开'),
           onStart() {
-            dragged = falling = false;
-            magnetStart = magnet.position.clone();
+            heldMagnet = true;
           },
-          onDrag(p, start) {
-            if (!start) return;
-            if (!dragged && p.distanceTo(start) < 0.002) return;
-            dragged = true;
-            const approach = clamp(p.distanceTo(start) / 0.04, 0, 1);
-            magnet.position.set(
-              clamp(p.x, HINGE - 0.035, HINGE + 0.15),
-              clamp(p.y, 0.005, 0.18),
-              THREE.MathUtils.lerp(magnetStart.z, DOOR_Z + MOUNT_Z + 0.003, approach),
-            );
+          onDrag(p) {
+            magnet.position.set(clamp(p.x, HINGE - 0.02, -0.055), clamp(p.y, 0.0035, 0.177), magnetPlane);
+            update(0);
           },
-          onEnd() {
-            if (!dragged) return;
-            if (tested && magnet.position.distanceTo(rig.mountingPoint()) < 0.016) {
-              door.add(magnet);
-              magnet.position.set(MOUNT_X, MOUNT_Y - 0.009, MOUNT_Z);
-              mounted = true;
-              bar.done('mount');
-              if (view) leave();
+          onEnd(moved) {
+            heldMagnet = false;
+            if (!moved) return;
+            if (cancelled) {
+              returnTo(magnet, rig.homeMagnet);
               guide();
-            } else {
-              falling = true;
-              dropSpeed = 0;
+              return;
             }
-            guide();
-          },
-          onTap() {
-            if (!view) close('door');
+            if (magnet.position.distanceTo(seat()) < 0.01) {
+              magnet.position.copy(seat());
+              if (bar.has('reed')) {
+                door.attach(magnet);
+                mounted = true;
+                bar.done('mount');
+                guide();
+              }
+            } else {
+              returnTo(magnet, rig.homeMagnet);
+              if (!bar.has('reed')) say('磁体还没对准。把它拖到门框玻璃管正下方。', magnet);
+              else if (bar.current === 'mount' && magnet.position.y > 0.115)
+                say('磁体没落进卡座。对准玻璃管正下方再松手。', magnet);
+            }
           },
         },
         {
-          obj: door,
+          obj: handle,
           plane: 'xz',
           offset: 0.076,
-          enabled: () => mounted && view !== 'reed' && view !== 'board',
-          hint: '抓住把手，拉开或推回门扇',
+          enabled: () => mounted && !boardView,
+          hint: hint('拖把手：开门或关门'),
           onStart(p) {
-            doorStart = angle;
-            doorGrab = p ? Math.atan2(p.z - DOOR_Z, p.x - HINGE) : 0;
+            initialAngle = angle;
+            grabAngle = Math.atan2(p.z - DOOR_Z, p.x - HINGE);
           },
           onDrag(p) {
-            const a = Math.atan2(p.z - DOOR_Z, p.x - HINGE);
-            angle = clamp(doorStart + a - doorGrab, 0, 1.35);
+            angle = clamp(initialAngle + Math.atan2(p.z - DOOR_Z, p.x - HINGE) - grabAngle, 0, 1.35);
             door.rotation.y = -angle;
           },
-          onTap() {
-            if (!view) close('door');
-          },
         },
-        ...wires.map((_, i) => wireItem(i)),
+        ...plugs,
       ],
       {
-        highlight: true,
+        tip: ctx.tag('', 'pill'),
         taps: [
-          { obj: reed, hint: '近看玻璃管内的簧片', onTap: () => (view === 'reed' ? leave() : close('reed')) },
           {
-            obj: rig.relay.group,
-            hint: '近看继电器和接线柱',
-            onTap: () => (view === 'board' ? leave() : close('board')),
-          },
-          {
-            obj: S.group,
-            hint: '开合刀开关',
+            obj: switchPick,
+            hint: () => (ui?.step === 1 ? (S.closed ? '点一下：断开电源' : '点一下：接通电源') : ''),
             onTap() {
               S.toggle();
-              if (S.closed && wires.every((w, i) => w.to === expected[i]) && mounted) bar.done('circuit');
               guide();
+            },
+          },
+          {
+            obj: rig.relay.group,
+            enabled: () => mounted && !S.closed,
+            hint: hint('点一下：近看接线'),
+            onTap() {
+              if (boardView) return back();
+              boardView = true;
+              ctx.look([0.073, 0.025, 0.004], [0.04, 1, 0.65], ctx.camera.aspect < 1 ? 0.54 : 0.48, back);
+              bar.near(true);
             },
           },
         ],
       },
     );
+    function update(dt) {
+      bar.update(dt);
+      S.update(dt);
+      for (const [obj, r] of returns) {
+        r.t = Math.min(1, r.t + dt / 0.4);
+        obj.position.lerpVectors(r.start, r.destination, r.t * (2 - r.t));
+        r.update?.();
+        if (r.t === 1) {
+          obj.position.copy(r.destination);
+          returns.delete(obj);
+        }
+      }
+      const { position, axis } = rig.fieldGeometry();
+      const previous = state;
+      state = stepAlarm(state, dt, {
+        field: axialField(position, axis, rig.reed.position, reedAxis),
+        power: S.closed,
+        coilWire: wires[0].to === 'K',
+        commonWire: wires[1].to === 'neg',
+        ledWire: wires[2].to,
+        buzzerWire: wires[3].to,
+      });
+      diagram(mounted, state, wired(), S.closed);
+      rig.draw(state);
+      const audible = state.buzzing && !sfx.muted;
+      if (audible !== sounding) {
+        if (audible && !tone) tone = new Tone({ type: 'square', freq: 1220, gain: 0.027 });
+        tone?.on(audible);
+        sounding = audible;
+      }
+      if (!bar.has('reed')) {
+        if (state.reed && !previous.reed) {
+          nearSeen = true;
+          guide();
+        }
+        if (heldMagnet && nearSeen && !state.reed && previous.reed) {
+          bar.done('reed');
+          guide();
+        }
+      }
+      if (!mounted || !S.closed) return;
+      if (!wired()) {
+        if (
+          state.contact &&
+          (previous.contact !== state.contact ||
+            previous.buzzing !== state.buzzing ||
+            previous.ledCurrent !== state.ledCurrent)
+        )
+          guide();
+        return;
+      }
+      if (!bar.has('circuit')) {
+        bar.done('circuit');
+        guide();
+      }
+      const near = state.reed && state.ledCurrent > 0;
+      const far = !state.reed && state.buzzing;
+      if (!bar.finished && (rows.rows.length === 1 ? far : near)) {
+        rows.add([
+          near ? '靠近' : '离开',
+          state.reed ? '接通' : '断开',
+          'c–' + state.contact,
+          state.ledCurrent ? '亮' : '灭',
+          state.buzzing ? '响' : '停',
+        ]);
+        rows.el.hidden = false;
+        if (rows.rows.length === 3) bar.done('door');
+        guide();
+      } else if (state.buzzing !== previous.buzzing || state.ledCurrent !== previous.ledCurrent) {
+        guide();
+      }
+    }
     reset();
-    const benchGroup = new group.constructor();
-    benchGroup.add(group);
-    group.position.y = 0.0066;
+    const connect = (i, id) => ({ name: '接线 ' + i + ' → ' + id, drag: wires[i].plug, to: tips[id] });
+    const power = { name: '开合电源', tap: switchPick };
+    const check = (name, test) => ({
+      name,
+      run() {
+        if (!test()) throw Error(name);
+      },
+    });
+    const handleAt = (a) =>
+      vec(HINGE + 0.095 * Math.cos(a) - 0.012 * Math.sin(a), 0.076, DOOR_Z + 0.095 * Math.sin(a) + 0.012 * Math.cos(a));
+    function doorStep(name, angle) {
+      const action = qaFlow(pointer, [{ name, drag: handle, to: () => handleAt(angle) }])[0];
+      action.run = () => {
+        const item = pointer.items().find((entry) => entry.obj === handle);
+        item.onStart(group.worldToLocal(handle.getWorldPosition(vec(0, 0, 0))));
+        item.onDrag(handleAt(angle));
+      };
+      return action;
+    }
     return {
-      group: benchGroup,
-      size: { w: 0.52, d: 0.3, h: 0.18 },
-      view: { azim: 8, elev: 28, margin: 1.04 },
+      group: root,
+      size: { w: 0.5, d: 0.255, h: 0.17 },
+      card: false,
+      view: { azim: 9, elev: 32, frameMargin: 1.02 },
       toggles: ['steps'],
+      reset,
       pointer: {
-        ...manip,
+        ...pointer,
+        items: () => pointer.items().filter((it) => it.enabled?.() !== false),
         down(ray, e) {
-          if (document.body.classList.contains('predicting')) ui?.go(1);
-          return manip.down(ray, e);
+          if (ui?.step === 2) return false;
+          const hit = pointer.down(ray, e);
+          if (hit && ui?.step === 0) ui.go(1);
+          return hit;
+        },
+        move(ray, e) {
+          return ui?.step === 1 && pointer.move(ray, e);
+        },
+        up(ray, e) {
+          cancelled = e?.type === 'pointercancel';
+          const handled = pointer.up(ray, e);
+          cancelled = false;
+          return handled;
         },
       },
       mount(panel) {
         ui = panel;
-        bar.attach(panel);
-        rows = table(['门', '干簧管', '继电器', '绿灯', '蜂鸣器']);
-        panel.data.append(rows.el);
-        panel.notes.append(
-          note(
-            '6 V 电池。控制和负载的正极供电线已接好。补接干簧管到线圈 K、公共动触点 c 到负极，以及 LED 和蜂鸣器到继电器触点。触点 a 为常开，b 为常闭。',
-          ),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
+        bar.attach({ need: () => ui.need(''), unlock: () => ui.unlock() });
+        ui.controls.append(canvas);
+        ui.data.append(rows.el);
+        ui.controls.append(buttons([{ text: '全部重来', ghost: true, onClick: reset }]).el);
+        const source = ui.el.querySelector('.answer .src');
+        if (source) {
+          source.style.paddingRight = '76px';
+          source.style.minHeight = '48px';
+        }
         guide();
       },
-      update(dt) {
-        bar.update(dt);
-        S.update(dt);
-        if (falling) {
-          const floor =
-            Math.abs(magnet.position.z - DOOR_Z) < 0.045 &&
-            magnet.position.x > HINGE - 0.021 &&
-            magnet.position.x < HINGE + 0.131
-              ? 0.012
-              : 0.003;
-          dropSpeed += 9.8 * dt;
-          magnet.position.y = Math.max(floor, magnet.position.y - dropSpeed * dt);
-          if (magnet.position.y === floor) falling = false;
-        }
-        const { position, axis } = rig.fieldGeometry();
-        const previousContact = state.contact;
-        state = stepAlarm(state, dt, {
-          field: axialField(position, axis, reed.position, reedAxis),
-          power: S.closed,
-          coilWire: wires[0].to === 'K',
-          commonWire: wires[1].to === 'neg',
-          ledWire: wires[2].to,
-          buzzerWire: wires[3].to,
-        });
-        rig.draw(state);
-        if (state.contact !== previousContact && S.closed && wires.some((w, i) => w.to !== expected[i])) guide();
-        const sound = state.buzzing && !sfx.muted;
-        if (sound !== sounding) {
-          if (sound && !tone) tone = new Tone({ type: 'square', freq: 1220, gain: 0.027 });
-          tone?.on(sound);
-          sounding = sound;
-        }
-        if (!tested) {
-          if (state.reed && !nearSeen) {
-            nearSeen = true;
-            guide();
-          }
-          if (nearSeen && !state.reed) {
-            tested = true;
-            bar.done('reed');
-            guide();
-          }
-        }
-        if (!rows || !bar.has('circuit') || bar.finished || !wires.every((w, i) => w.to === expected[i])) return;
-        const shut = angle < 0.035 && state.reed && state.ledCurrent > 0 && !state.buzzing;
-        const open = angle > 0.22 && !state.reed && state.buzzing;
-        if (completed === 1 ? !open : !shut) return;
-        rows.add([
-          shut ? '关闭' : '打开',
-          state.reed ? '接通' : '断开',
-          'c–' + state.contact,
-          state.ledCurrent > 0 ? '亮' : '灭',
-          state.buzzing ? '响' : '停',
-        ]);
-        completed++;
-        if (completed === 3) bar.done('door');
-        guide();
+      update,
+      debug: {
+        bar,
+        qa: [
+          { name: '靠近干簧管', drag: magnetPick, to: seat },
+          check('靠近后簧片应吸合', () => nearSeen && state.reed && !bar.has('reed')),
+          { name: '移开磁体', drag: magnetPick, to: rig.homeMagnet },
+          { name: '偏离卡座松手', drag: magnetPick, to: () => seat().add(vec(0.027, 0, 0)) },
+          check('未装准应退回', () => bar.has('reed') && !mounted && magnet.position.equals(rig.homeMagnet)),
+          { name: '把磁体固定在门上', drag: magnetPick, to: seat },
+          connect(0, 'K'),
+          connect(1, 'neg'),
+          connect(2, 'b'),
+          connect(3, 'a'),
+          power,
+          check('接反时关门报警', () => state.buzzing && !state.ledCurrent && !bar.has('circuit')),
+          power,
+          { name: '拔下绿线', drag: wires[2].plug, to: wires[2].home },
+          connect(3, 'b'),
+          connect(2, 'a'),
+          power,
+          check('正确接线关门亮灯', () => rows.rows.length === 1 && state.ledCurrent && !state.buzzing),
+          doorStep('把门拉开一道缝触发报警', 0.21),
+          check('门微开时应记下报警', () => rows.rows.length === 2 && state.buzzing && !state.ledCurrent),
+          doorStep('推回到磁体靠近时解除报警', 0.1),
+          check('关门开门再关门', () => bar.finished && rows.rows.length === 3 && state.ledCurrent && !state.buzzing),
+          {
+            name: '掀开课本原文',
+            run() {
+              ui.go(2);
+              ui.el.querySelector('.flap-front').click();
+            },
+          },
+        ].map((step) => (step.mouse ? step : qaFlow(pointer, [step])[0])),
       },
       dispose() {
         tone?.stop();
-        manip.dispose();
+        pointer.dispose();
         bar.dispose();
       },
     };

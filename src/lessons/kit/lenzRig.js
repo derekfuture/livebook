@@ -1,116 +1,109 @@
+// 图 2.1-1 的闭合回路。绕组下端接黑柱，上端接红柱。
 import * as THREE from 'three';
 import { paint, inked } from '../../live/ink.js';
-import { barMagnet } from './magnet.js';
 import { textPlate } from './props.js';
 import { galvanometer } from './galvanometer.js';
 import { COIL_RADIUS, COIL_HEIGHT, COIL_TURNS, MAGNET_LENGTH } from './inductionCoil.js';
 
-export const COIL_X = -0.075,
-  COIL_BOTTOM = 0.009;
-const base = 0x7e6855;
+export const COIL_X = -0.081, COIL_BOTTOM = 0.009;
 
-function tube(points, radius, color) {
-  const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(...p)));
-  return new THREE.Mesh(new THREE.TubeGeometry(curve, points.length * 5, radius, 7, false), paint(color));
+function wire(points, radius, color) {
+  const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p)));
+  return new THREE.Mesh(new THREE.TubeGeometry(curve, points.length * 10, radius, 10, false), paint(color));
 }
-export function lenzRig() {
+
+export function lenzRig(inside, outside) {
   const group = new THREE.Group();
-  const board = inked(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.008, 0.105), paint(base)));
-  board.position.set(COIL_X, 0.004, 0);
-  group.add(board);
+  const base = inked(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.008, 0.105), paint(0x786857)));
+  base.position.set(COIL_X, 0.004, 0);
+  group.add(base);
   const former = new THREE.Mesh(
-    new THREE.CylinderGeometry(COIL_RADIUS - 0.00013, COIL_RADIUS - 0.00013, COIL_HEIGHT, 56, 1, true),
-    paint(0xa85e38),
+    new THREE.CylinderGeometry(COIL_RADIUS - 0.0012, COIL_RADIUS - 0.0012, COIL_HEIGHT, 64, 1, true),
+    paint(0x845f44, { side: THREE.DoubleSide }),
   );
   former.position.set(COIL_X, COIL_BOTTOM + COIL_HEIGHT / 2, 0);
   group.add(former);
-  const inside = new THREE.Mesh(
-    new THREE.CylinderGeometry(COIL_RADIUS - 0.004, COIL_RADIUS - 0.004, COIL_HEIGHT, 56, 1, true),
-    paint(0x735c47, { side: THREE.BackSide }),
-  );
-  inside.position.copy(former.position);
-  group.add(inside);
-  const rim = new THREE.Mesh(new THREE.RingGeometry(COIL_RADIUS - 0.004, COIL_RADIUS - 0.001, 56), paint(0xcdb595));
-  rim.rotation.x = -Math.PI / 2;
-  rim.position.set(COIL_X, COIL_BOTTOM + COIL_HEIGHT, 0);
-  group.add(rim);
-  // 下端到上端绕向俯视逆时针，匝数和磁通计算一致。
-  const segments = COIL_TURNS * 24;
-  const coords = [];
-  for (let k = 0; k <= segments; k++) {
-    const f = k / (segments),
-      a = f * COIL_TURNS * 2 * Math.PI;
-    coords.push(
-      new THREE.Vector3(COIL_X + COIL_RADIUS * Math.cos(a), COIL_BOTTOM + f * COIL_HEIGHT, -COIL_RADIUS * Math.sin(a)),
-    );
+  for (const height of [COIL_BOTTOM, COIL_BOTTOM + COIL_HEIGHT]) {
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(COIL_RADIUS - 0.0005, 0.0016, 10, 64), paint(0xc89c65));
+    lip.rotation.x = Math.PI / 2;
+    lip.position.set(COIL_X, height, 0);
+    group.add(lip);
   }
-  const winding = new THREE.Mesh(
-    new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coords), segments, 0.00013, 5, false),
-    paint(0xa85b35),
-  );
-  group.add(winding);
+  // 五层密绕共 160 匝，外层自下而上；从上方看，正电流逆时针。
+  const turns = COIL_TURNS / 5, segments = turns * 48;
+  const path = [];
+  for (let k = 0; k <= segments; k++) {
+    const f = k / segments, a = f * turns * 2 * Math.PI;
+    path.push(new THREE.Vector3(COIL_X + COIL_RADIUS * Math.cos(a),
+      COIL_BOTTOM + f * COIL_HEIGHT, -COIL_RADIUS * Math.sin(a)));
+  }
+  group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(path), segments, 0.00066, 8, false), paint(0xb46a40)));
+
   const { group: meter, pivot, posts } = galvanometer();
-  meter.position.set(0.092, 0, -0.003);
+  meter.scale.setScalar(1.65);
+  meter.position.set(0.068, 0, -0.003);
+  pivot.children[0].scale.x = 2.6;
   group.add(meter);
   for (const [i, symbol] of ['−', '+'].entries()) {
-    const plate = textPlate(symbol, { w: 0.008, h: 0.008, bg: '#eadcbd' });
-    plate.position.set(posts[i].position.x, 0.014, 0.0156);
+    const plate = textPlate(symbol, { w: 0.010, h: 0.010, color: '#fffaf0', font: 'bold 405px sans-serif' });
+    plate.position.set(posts[i].position.x, 0.015, 0.0158);
     meter.add(plate);
   }
-  const plus = [meter.position.x + posts[1].position.x, 0.009, meter.position.z + posts[1].position.z];
-  const minus = [meter.position.x + posts[0].position.x, 0.009, meter.position.z + posts[0].position.z];
-  const coilEnd = COIL_X + COIL_RADIUS;
-  const route = [
-    [coilEnd, COIL_BOTTOM + COIL_HEIGHT, 0],
-    [-0.032, 0.037, -0.022],
-    [-0.017, 0.012, -0.038],
-    [0.04, 0.004, -0.05],
-    [0.125, 0.005, -0.045],
-    [0.137, 0.004, 0.021],
-  ];
-  const loose = [0.128, 0.002, 0.061];
-  const positiveWire = tube([...route, loose], 0.0015, 0xb24d43);
-  const blackWire = tube(
-    [[coilEnd, COIL_BOTTOM, 0], [-0.035, 0.012, 0.012], [0.012, 0.002, 0.037], [0.055, 0.002, 0.028], minus],
-    0.0015,
-    0x373b40,
+  const post = i => posts[i].position.clone().add(new THREE.Vector3(0, 0.003, 0))
+    .multiplyScalar(meter.scale.x).add(meter.position).toArray();
+  const endX = COIL_X + COIL_RADIUS;
+  group.add(
+    wire([[endX, COIL_BOTTOM + COIL_HEIGHT, 0], [-0.043, 0.048, -0.018], [-0.021, 0.018, -0.044],
+      [0.011, 0.004, -0.059], [0.109, 0.003, -0.051], [0.141, 0.004, -0.019],
+      [0.141, 0.004, 0.040], [0.119, 0.007, 0.051], post(1)], 0.0015, 0xb84c40),
+    wire([[endX, COIL_BOTTOM, 0], [-0.035, 0.011, 0.016], [-0.018, 0.004, 0.033],
+      [0.002, 0.003, 0.049], [0.025, 0.006, 0.047], post(0)], 0.0015, 0x343a40),
   );
-  group.add(positiveWire, blackWire);
-  const plug = new THREE.Mesh(new THREE.CylinderGeometry(0.0036, 0.0036, 0.01, 18), paint(0x973e37));
-  group.add(plug);
-  function connect(closed, position = loose) {
-    const end = closed ? plus : position;
-    const curve = new THREE.CatmullRomCurve3([...route, end].map((p) => new THREE.Vector3(...p)));
-    positiveWire.geometry.dispose();
-    positiveWire.geometry = new THREE.TubeGeometry(curve, 36, 0.0015, 7, false);
-    plug.position.fromArray(end);
-    plug.position.y += 0.003;
+
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0023, 0.0023, 0.178, 20), paint(0x899599));
+  const railX = COIL_X - 0.034;
+  rod.position.set(railX, 0.097, -0.038);
+  const scaleTop = COIL_BOTTOM + outside + MAGNET_LENGTH / 2 + 0.007;
+  const scale = new THREE.Mesh(new THREE.BoxGeometry(0.012, scaleTop - 0.008, 0.002), paint(0xc5bfad));
+  scale.position.set(railX - 0.013, (scaleTop + 0.008) / 2, -0.033);
+  group.add(scale);
+  // 两条标记与滑块白线的正面在同一平面，从斜上方也能准确对齐。
+  for (const height of [inside, outside]) {
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.0016, 0.0005), paint(0x394954));
+    tick.position.set(scale.position.x, COIL_BOTTOM + height + MAGNET_LENGTH / 2, -0.0318);
+    group.add(tick);
   }
-  // 手动滑架保持磁体与线圈同轴；滑块横轴允许磁体在完全抽出后翻转。
-  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 0.21, 20), paint(0x8b9699));
-  rod.position.set(COIL_X, 0.107, -0.043);
-  group.add(rod);
   const slider = new THREE.Group();
-  slider.position.set(COIL_X, 0, -0.043);
-  const collar = inked(new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.012, 0.013), paint(0x65727a)));
-  const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 0.043, 16), paint(0x879799));
+  slider.position.set(railX, 0, -0.038);
+  const sleeve = inked(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.012), paint(0x65727a)));
+  const index = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.0015, 0.0005), paint(0xfff4d7));
+  index.position.z = 0.0062;
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(COIL_X - railX, 0.003, 0.004), paint(0x879799));
+  arm.position.x = (COIL_X - railX) / 2;
+  const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.002, 0.034, 16), paint(0x879799));
   axle.rotation.x = Math.PI / 2;
-  axle.position.z = 0.0215;
-  slider.add(collar, axle);
-  group.add(slider);
-  const carrier = new THREE.Group(),
-    magnet = barMagnet({ L: MAGNET_LENGTH, w: 0.018, h: 0.014 });
-  // 磁极字样朝向学生；转过半周即交换朝下的磁极。
-  magnet.rotation.x = Math.PI / 2;
-  magnet.position.z = -0.007;
-  carrier.add(magnet);
-  group.add(carrier);
+  axle.position.set(COIL_X - railX, 0, 0.017);
+  slider.add(sleeve, index, arm, axle);
+  const carrier = new THREE.Group(), labels = [];
+  for (const [end, mark, color] of [[-1, 'N', 0xd9483b], [1, 'S', 0x2f6fd0]]) {
+    const half = inked(new THREE.Mesh(new THREE.BoxGeometry(0.021, MAGNET_LENGTH / 2, 0.016), paint(color)));
+    half.position.y = end * MAGNET_LENGTH / 4;
+    carrier.add(half);
+    const label = textPlate(mark, { w: 0.016, h: 0.016, color: '#fff', font: 'bold 455px sans-serif' });
+    label.position.set(0, half.position.y, 0.0081);
+    carrier.add(label);
+    labels.push(label);
+  }
+  const pick = new THREE.Mesh(new THREE.BoxGeometry(0.031, MAGNET_LENGTH, 0.021),
+    new THREE.MeshBasicMaterial({ visible: false }));
+  pick.userData.pick = true;
+  carrier.add(pick);
+  group.add(carrier, slider, rod);
   function pose(bottom, rotation) {
     carrier.position.set(COIL_X, COIL_BOTTOM + bottom + MAGNET_LENGTH / 2, 0);
     slider.position.y = carrier.position.y;
     carrier.rotation.z = rotation;
+    for (const label of labels) label.rotation.z = -rotation;
   }
-  connect(false);
-  pose(0.115, -Math.PI / 2);
-  return { group, carrier, meter, pivot, posts, plug, plus, loose, connect, pose };
+  return { group, carrier, pick, pivot, pose };
 }

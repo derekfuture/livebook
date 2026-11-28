@@ -1,4 +1,5 @@
 // 图 5.3-5 甲：R1 与光敏电阻中点接 NPN 基极，330 Ω 与 LED 接在集电极支路。
+export const VISIBLE_CURRENT = 0.0001;
 export const DAYLIGHT_LUX = 520,
   STRAY_LUX = 4;
 export const SENSOR_Y = 0.021,

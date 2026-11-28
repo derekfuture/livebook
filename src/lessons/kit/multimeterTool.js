@@ -17,7 +17,7 @@ const OHM_RADIUS = 498,
 const angleFor = (f) => (2 * f - 1) * ARC;
 const coord = ([x, y]) => [(x - W / 2) * UNIT, TOP, (y - H / 2) * UNIT];
 const selectorAngle = (i, count) => -Math.PI * 0.66 + (i * TURN) / count;
-function artwork(g, stops, ac) {
+function artwork(g, stops, ac, largeSelector) {
   g.fillStyle = '#dacaa9';
   g.fillRect(0, 0, W, H);
   g.fillStyle = '#343f43';
@@ -69,11 +69,20 @@ function artwork(g, stops, ac) {
   text('机械调零', 600, 804, 24);
   for (const [i, s] of stops.entries()) {
     const a = selectorAngle(i, stops.length);
+    const radius = largeSelector ? 315 : 215;
+    if (largeSelector) {
+      g.strokeStyle = s.mode === 'ohm' ? '#814737' : '#253438';
+      g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(selectorAt[0] + 155 * Math.sin(a), selectorAt[1] - 155 * Math.cos(a));
+      g.lineTo(selectorAt[0] + 195 * Math.sin(a), selectorAt[1] - 195 * Math.cos(a));
+      g.stroke();
+    }
     text(
       s.label,
-      selectorAt[0] + 215 * Math.sin(a),
-      selectorAt[1] - 215 * Math.cos(a),
-      30,
+      selectorAt[0] + radius * Math.sin(a),
+      selectorAt[1] - radius * Math.cos(a),
+      largeSelector ? 39 : 30,
       s.mode === 'ohm' ? '#814737' : '#253438',
     );
   }
@@ -81,12 +90,12 @@ function artwork(g, stops, ac) {
   text('−', 876, 1585, 40);
   text('+', 1080, 1585, 40);
 }
-export function multimeterTool({ stops = METER_STOPS, ac = false } = {}) {
+export function multimeterTool({ stops = METER_STOPS, ac = false, largeSelector = false } = {}) {
   const group = new THREE.Group();
   const body = inked(new THREE.Mesh(new THREE.BoxGeometry(W * UNIT, TOP, H * UNIT), paint(0x344446)), { width: 0.8 });
   body.position.y = TOP / 2;
   group.add(body);
-  const tex = canvasTex(W, H, (g) => artwork(g, stops, ac));
+  const tex = canvasTex(W, H, (g) => artwork(g, stops, ac, largeSelector));
   const face = new THREE.Mesh(new THREE.PlaneGeometry(W * UNIT, H * UNIT), new THREE.MeshBasicMaterial({ map: tex }));
   face.rotation.x = -Math.PI / 2;
   face.position.y = TOP + 0.0001;

@@ -1006,7 +1006,8 @@ body.geo-cover #hud-top, body.geo-cover .geo-toc, body.geo-cover .geo-toc-spine,
 #viewctl .feedback-entry { display:flex; font:14px var(--sans); width:auto; min-width:76px; height:38px; padding:0 10px; border-radius:9px; cursor:pointer; transition:transform .16s, box-shadow .16s; }
 #viewctl .feedback-entry:hover { transform:translateY(-2px); box-shadow:0 4px 10px #49341f30; }
 #viewctl .feedback-entry:active { transform:translateY(1px); }
-#viewctl { align-items:flex-end; }
+#viewctl { align-items:flex-end; pointer-events:none; }
+body:not(.shelf-leave) #viewctl button { pointer-events:auto; }
 @media(prefers-reduced-motion:reduce) {
   .home-community .feedback-entry, .home-community .github-entry, #viewctl .feedback-entry { transition:none; }
 }
@@ -1269,6 +1270,8 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
 /* 手机上打开活页：面板占下半屏，右下角的视角按钮（⟲ ? 反馈）挪到面板上面，不然被面板挡住、点不到；＋ － 用双指捏合代替 */
 @media (max-width: 760px) {
   body.lesson-on #viewctl { bottom: calc(52vh + 18px); }
+  #viewctl.actionreaction { flex-direction:row; align-items:center; }
+  #viewctl.actionreaction .lesson-community { margin:0; padding:0; border:0; }
   /* 反馈按钮较宽，整列按钮左边的空白处仍应能直接操作实验。 */
   body.lesson-on:not(.shelf-leave) #viewctl { pointer-events: none; }
   body.lesson-on:not(.shelf-leave) #viewctl button { pointer-events: auto; }

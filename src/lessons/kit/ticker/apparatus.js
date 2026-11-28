@@ -3,22 +3,37 @@ import { paint, inked, polyline } from '../../../live/ink.js';
 import { canvasTex } from '../props.js';
 import { stampMass } from './loadRack.js';
 import { PERIOD, TRAVEL } from './motion.js';
-import { tickerHead } from './head.js';
+import { tickerHead, powerControls } from './head.js';
 
-const TOP = 0.42,
-  START = 0.14,
+const START = 0.14,
   PX = -0.3,
-  R = 0.024,
-  LINE = TOP + 0.027;
+  R = 0.024;
 const TIMER = 0.33,
-  EDGE = 0.44,
-  PAPER_Y = TOP + 0.044;
+  EDGE = 0.44;
+// low 把木板架在两块矮木块上。牛顿小车用右端楔块调高低。
+// tickertape 另传 levelTravel（米），木板保持水平，按可用落差设置挡块和纸带余量。
+export const LOW_TOP = 0.2;
+export const LOW_PIVOT = -0.265;
+export const WEDGE = { len: 0.12, rise: 0.045 };
+export function boardWedge(depth = 0.072) {
+  const shape = new THREE.Shape([new THREE.Vector2(0, 0), new THREE.Vector2(WEDGE.len, 0), new THREE.Vector2(WEDGE.len, WEDGE.rise)]);
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+  geometry.translate(0, 0, -depth / 2);
+  const wedge = new THREE.Mesh(geometry, paint(0xc98f4e));
+  inked(wedge, { width: 0.9 });
+  return wedge;
+}
+const _a = new THREE.Vector3();
 const metal = 0x53616b,
   wood = 0xc39a63,
   teal = 0x366a70,
   gold = 0xb78a40;
 
-export function apparatus({ adjustable = false } = {}) {
+export function apparatus({ adjustable = false, low = false, powerSwitch = false, levelTravel = null } = {}) {
+  if (low) adjustable = true;
+  const TOP = low ? LOW_TOP : 0.42,
+    LINE = TOP + 0.027,
+    PAPER_Y = TOP + 0.044;
   const group = new THREE.Group();
   function box(parent, size, at, color, outline = false) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(...size), paint(color));
@@ -46,10 +61,15 @@ export function apparatus({ adjustable = false } = {}) {
   const board = box(group, [0.72, 0.018, 0.115], [0.08, TOP - 0.009, 0], wood, true);
   const stand = new THREE.Group();
   group.add(stand);
-  for (const x of [-0.235, 0.398]) {
-    for (const z of [-0.042, 0.042]) box(stand, [0.02, TOP - 0.018, 0.02], [x, (TOP - 0.018) / 2, z], 0xbba785);
-    box(stand, [0.028, 0.017, 0.104], [x, 0.045, 0], wood);
-  }
+  if (low) {
+    // 左木块的左棱是木板的转轴；右木块够长，楔形垫块在它上面推进拉出。木块比木板窄，让开板下的侧条和支架。
+    box(stand, [0.045, TOP - 0.018, 0.07], [LOW_PIVOT + 0.0225, (TOP - 0.018) / 2, 0], 0xb48c5a, true);
+    box(stand, [levelTravel == null ? 0.2 : 0.05, TOP - 0.018, 0.072], [levelTravel == null ? 0.46 : 0.395, (TOP - 0.018) / 2, 0], 0xb48c5a, true);
+  } else
+    for (const x of [-0.235, 0.398]) {
+      for (const z of [-0.042, 0.042]) box(stand, [0.02, TOP - 0.018, 0.02], [x, (TOP - 0.018) / 2, z], 0xbba785);
+      box(stand, [0.028, 0.017, 0.104], [x, 0.045, 0], wood);
+    }
   box(group, [0.66, 0.027, 0.012], [0.08, TOP - 0.03, -0.043], 0xaa895f);
   const scaleTex = canvasTex(2048, 128, (c, w, h) => {
     c.fillStyle = '#e6ca98';
@@ -92,8 +112,18 @@ export function apparatus({ adjustable = false } = {}) {
   box(cart, [0.012, 0.005, 0.018], [0.055, 0.044, 0], metal);
   const pan = new THREE.Group();
   group.add(pan);
-  cyl(pan, 0.019, 0.005, [0, -0.037, 0], gold);
-  cyl(pan, 0.0015, 0.037, [0, -0.0185, 0], metal);
+  if (low) {
+    // 挂钩：上端的钩子挂在绳上，槽码套在细杆上、落在底托上。原点在钩子处。
+    const hook = new THREE.Mesh(new THREE.TorusGeometry(0.0045, 0.0011, 8, 20, Math.PI * 1.5), paint(metal));
+    hook.position.y = -0.004;
+    hook.rotation.z = Math.PI / 2;
+    pan.add(hook);
+    cyl(pan, 0.0016, 0.05, [0, -0.033, 0], metal);
+    cyl(pan, 0.017, 0.003, [0, -0.0595, 0], metal);
+  } else {
+    cyl(pan, 0.019, 0.005, [0, -0.037, 0], gold);
+    cyl(pan, 0.0015, 0.037, [0, -0.0185, 0], metal);
+  }
   const cordMat = paint(0x393936);
   const cord = (vertical) => {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, 1, 8), cordMat);
@@ -133,6 +163,16 @@ export function apparatus({ adjustable = false } = {}) {
   adaptor.add(plate);
   for (const off of [-0.013, 0.013])
     cyl(adaptor, 0.004, 0.004, [0.347 + off, TOP + 0.044, -0.078], off < 0 ? 0xb14130 : metal);
+  // 电源开关和指示灯（powerSwitch：学生自己点开关接通、断开电源的课才有）。开关是翘板：通电时上半边按下去、红色露出来；
+  // 指示灯通电时亮绿色。都在电源正面，朝着镜头，全景里看得出现在通没通电。
+  let showPower = () => {}, switchPick = null;
+  if (powerSwitch) {
+    // 装在打点计时器正面（朝着镜头的那一面；电源盒在计时器后面，从全景里看不到）
+    const FZ = 0.0362, Y = TOP + 0.02;
+    showPower = powerControls(timer, { y: Y, z: FZ, rockerX: 0.016, lampX: -0.018 });
+    switchPick = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.045, 0.03), new THREE.MeshBasicMaterial({ visible: false }));
+    switchPick.position.set(0, Y, FZ); switchPick.userData.pick = true; timer.add(switchPick);
+  }
   box(group, [0.13, 0.014, 0.08], [0.349, TOP - 0.007, -0.09], wood);
   for (const x of [0.31, 0.38]) box(group, [0.012, 0.01, 0.085], [x, TOP - 0.019, -0.08], metal);
   for (const off of [-0.013, 0.013])
@@ -178,16 +218,26 @@ export function apparatus({ adjustable = false } = {}) {
   const marker = new THREE.Object3D();
   marker.rotation.x = -Math.PI / 2;
   const base = adjustable ? new THREE.Group() : group;
-  let support, ballast;
+  let support, ballast, wedge, wedgeTex;
   const markings = [];
   if (adjustable) {
     base.add(stand, group);
     // 挡块接触车头两侧，中央留出牵引绳通道。
     for (const z of [-0.022, 0.022])
-      box(group, [0.009, 0.034, 0.014], [START - TRAVEL - 0.052 - 0.0045, TOP + 0.017, z], metal);
-    support = box(base, [0.052, 1, 0.11], [0.398, TOP - 0.018, 0], wood);
-    ballast = [0.23, 0.32].map((x) => {
-      const weight = box(base, [0.068, 0.009, 0.043], [x, 0.0045, 0.12], gold, true);
+      box(group, [0.009, 0.034, 0.014], [START - (levelTravel ?? TRAVEL) - 0.052 - 0.0045, TOP + 0.017, z], metal);
+    if (low && levelTravel == null) {
+      // 楔形垫块：薄端朝左。往左推进去，木板右端落在更厚的地方，就垫得更高。
+      wedge = boardWedge();
+      wedge.position.set(EDGE, TOP - 0.018, 0);
+      base.add(wedge);
+      wedgeTex = canvasTex(256, 80, () => {});
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.0156), new THREE.MeshBasicMaterial({ map: wedgeTex, transparent: true }));
+      face.position.set(0.091, 0.0093, 0.0362);
+      wedge.add(face);
+    } else if (!low) support = box(base, [0.052, 1, 0.11], [0.398, TOP - 0.018, 0], wood);
+    const homes = low ? [0, 1, 2, 3].map((i) => [0.5, (3 - i) * 0.009 + 0.0045, 0.21]) : [0.23, 0.32].map((x) => [x, 0.0045, 0.12]);
+    ballast = (levelTravel == null ? homes : []).map((at) => {
+      const weight = box(base, [0.068, 0.009, 0.043], at, gold, true);
       markings.push(stampMass(weight, 250, 0.052, 0.026, 0.0045));
       weight.userData.home = weight.position.clone();
       return weight;
@@ -197,7 +247,7 @@ export function apparatus({ adjustable = false } = {}) {
     const angle = run.angle || 0;
     if (adjustable) {
       // 绕左支脚转木板。支架保持竖直，垫块填满右端抬高的间隙。
-      const pivotX = -0.235,
+      const pivotX = low ? LOW_PIVOT : -0.235,
         pivotY = TOP - 0.018;
       group.rotation.z = angle;
       group.position.set(
@@ -205,39 +255,56 @@ export function apparatus({ adjustable = false } = {}) {
         pivotY * (1 - Math.cos(angle)) - pivotX * Math.sin(angle),
         0,
       );
-      const height = (0.398 - pivotX) * Math.tan(angle);
-      support.visible = height > 0;
-      support.scale.y = height;
-      support.position.y = pivotY + height / 2;
+      if (support) {
+        const height = (0.398 - pivotX) * Math.tan(angle);
+        support.visible = height > 0;
+        support.scale.y = height;
+        support.position.y = pivotY + height / 2;
+      }
       ballast.forEach((w, i) => {
         const loaded = i < run.ballast;
         const parent = loaded ? cart : base;
         if (w.parent !== parent) parent.add(w);
+        if (w.userData.held) return;
         if (loaded) w.position.set(0, 0.052 + i * 0.009, 0);
         else w.position.copy(w.userData.home);
         w.quaternion.identity();
       });
-      horizontal.visible = wrappedCord.visible = run.load > 0;
+      horizontal.visible = wrappedCord.visible = low || run.load > 0;
     }
     const travel = (run.startOffset || 0) + run.x;
     const x = START - travel,
       drop = adjustable && !run.load ? 0.381 : TRAVEL + (adjustable ? 0.046 : 0.04) - travel;
     cart.position.set(x, TOP, 0);
     pan.position.set(PX - R, drop, 0);
+    let hang = LINE - R - drop;
     if (adjustable) {
       // 槽码及下垂绳段在世界坐标系中铅直。
-      const v = LINE - R - drop;
       const anchorX = PX - R * Math.cos(angle),
         anchorY = LINE - R + R * Math.sin(angle);
-      pan.position.set(anchorX - v * Math.sin(angle), anchorY - v * Math.cos(angle), 0);
+      if (low) {
+        // run.hookY：挂钩在台面坐标里的高度（由课里按绳长算好）
+        group.updateMatrix();
+        hang = Math.max(0.004, _a.set(anchorX, anchorY, 0).applyMatrix4(group.matrix).y - run.hookY);
+      }
+      pan.position.set(anchorX - hang * Math.sin(angle), anchorY - hang * Math.cos(angle), 0);
       pan.rotation.z = vertical.rotation.z = -angle;
     }
-    wheel.rotation.z = travel / R;
+    wheel.rotation.z = (low ? run.wheel || 0 : travel) / R;
     tires.forEach((w) => (w.rotation.y = travel / 0.011));
     const h = x - 0.052 - PX;
     horizontal.position.set(PX + h / 2, LINE, 0);
+    horizontal.rotation.z = Math.PI / 2;
     horizontal.scale.y = h;
-    const v = LINE - R - drop;
+    if (low && !run.tied) {
+      // 没系上小车：绳头从滑轮顶上搭下来，松松地落在木板上。
+      const dx = 0.085,
+        dy = TOP + 0.0012 - LINE;
+      horizontal.position.set(PX + dx / 2, LINE + dy / 2, 0);
+      horizontal.rotation.z = Math.atan2(dy, dx) + Math.PI / 2;
+      horizontal.scale.y = Math.hypot(dx, dy);
+    }
+    const v = low ? hang : LINE - R - drop;
     vertical.position.set(PX - R, drop + v / 2, 0);
     if (adjustable)
       vertical.position.set(pan.position.x + (v / 2) * Math.sin(angle), pan.position.y + (v / 2) * Math.cos(angle), 0);
@@ -245,7 +312,7 @@ export function apparatus({ adjustable = false } = {}) {
     const from = x + 0.055;
     strip.position.set((from + EDGE) / 2, PAPER_Y, 0);
     strip.scale.x = EDGE - from;
-    const remain = TRAVEL + 0.024 - travel;
+    const remain = levelTravel != null ? levelTravel + 0.025 - travel : low ? 0.03 : TRAVEL + 0.024 - travel;
     tail.position.set(EDGE, PAPER_Y - remain / 2, 0);
     tail.scale.x = remain;
     dots.count = run.marks.length;
@@ -255,20 +322,37 @@ export function apparatus({ adjustable = false } = {}) {
       dots.setMatrixAt(i, marker.matrix);
     });
     dots.instanceMatrix.needsUpdate = true;
-    head.update(run.recording, run.t);
+    head.update(run.powered ?? run.recording, run.t);
+    showPower(!!(run.powered ?? run.recording));
   }
   return {
     group: base,
     board,
     ballast,
     support,
+    wedge,
+    top: TOP,
+    // 垫块正面写的字（只在 low 时有）
+    wedgeText(text) {
+      const g = wedgeTex.canvas.getContext('2d');
+      g.clearRect(0, 0, 256, 80);
+      g.fillStyle = 'rgba(250,238,214,.92)';
+      g.fillRect(0, 0, 256, 80);
+      g.fillStyle = '#3d2c1c';
+      g.font = 'bold 54px sans-serif';
+      g.textAlign = 'center';
+      g.fillText(text, 128, 60);
+      wedgeTex.needsUpdate = true;
+    },
     cart,
     pan,
     timer,
+    switchPick,
     strip,
     draw,
     dispose() {
       for (const texture of markings) texture.dispose();
+      wedgeTex?.dispose();
     },
     stripLayout(run) {
       const firstX = TIMER - run.x + (run.marks[0]?.x || 0);

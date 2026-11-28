@@ -1,22 +1,46 @@
-// 选择性必修二图 2.1-1，四次实际磁通变化分别留下观察记录。
-import { lenzRig, COIL_X } from './kit/lenzRig.js';
-import { fluxLinkage, inductionStep } from './kit/inductionCoil.js';
+// 选择性必修二，第 24–26 页，图 2.1-1。
+import * as THREE from 'three';
+import { lenzRig, COIL_X, COIL_BOTTOM } from './kit/lenzRig.js';
+import { fluxLinkage, inductionStep, MAGNET_LENGTH, COIL_HEIGHT } from './kit/inductionCoil.js';
 import { clamp, draggable } from './kit/interact.js';
-import { lessonBar } from './kit/lessonbar.js';
-import { buttons, h, note, table } from './kit/ui.js';
+import { qaFlow } from './kit/chemlesson.js';
+import { buttons, h } from './kit/ui.js';
 
-const UP = 0.115,
-  DOWN = 0.009;
+const UP = 0.101, TOP_STOP = 0.125, DOWN = 0.009;
+const outside = COIL_HEIGHT + 0.012, inside = COIL_HEIGHT - 0.01;
+const conditions = ['N 极插入', 'S 极插入', 'N 极抽出', 'S 极抽出'];
+const currents = ['顺时针', '逆时针'], fields = ['向下', '向上'];
+const guideIn = '再向下拖，让滑块白线到下标记。';
+const guideOut = '再向上拖，让滑块白线到上标记。';
+const returning = '还没到标记，磁体正在退回。';
+const retry = '这次没看清偏向。等表针回零，再重做这一项。';
+const blocked = '先向上抽出，让滑块白线到上标记，再横拖换极。';
+const visibleDeflection = 0.10;
+const calibration = '按图中接线，表针右偏对应俯视逆时针电流，左偏对应顺时针电流。';
+
+// 留下运动时的偏向；这里和课本插图一样，只示意方向，不表示电流大小。
+function dialSketch(sign) {
+  const canvas = h('canvas', { width: 48, height: 29, role: 'img',
+    'aria-label': sign > 0 ? '运动时表针右偏' : '运动时表针左偏', style: 'display:block;margin:auto;width:43px' });
+  const c = canvas.getContext('2d');
+  c.strokeStyle = '#756e60';
+  c.beginPath(); c.arc(24, 27, 23, -2.38, -0.76); c.stroke();
+  c.beginPath(); c.moveTo(24, 3); c.lineTo(24, 8); c.stroke();
+  c.strokeStyle = '#ad392b'; c.lineWidth = 2.5;
+  c.beginPath(); c.moveTo(24, 26); c.lineTo(24 + sign * 13, 9); c.stroke();
+  return h('img', { src: canvas.toDataURL(), alt: canvas.getAttribute('aria-label'),
+    style: 'display:block;margin:auto;width:43px' });
+}
+
 export default {
   id: 'lenzcoil',
   fig: '图2.1-1',
   title: '探究影响感应电流方向的因素',
   stampText: '探究',
   predict: {
-    q: '把 N 极向下插入线圈后保持不动，电流计的指针会怎样？',
-    options: ['偏转后回到零位', '一直向右偏', '一直向左偏'],
+    q: '感应电流的方向与哪些因素有关？把 N 极和 S 极分别插入同一个闭合线圈，表针会怎样偏转？',
+    options: ['两次偏向相反', '两次偏向相同', '只有一次会偏转'],
     answer: 0,
-    hint: '比较移动和静止时线圈中的磁通量。',
   },
   conclusion: {
     page: 30, rect: [216.66, 298.9, 537.63, 385.06],
@@ -25,311 +49,251 @@ export default {
     src: '课本第 26 页 · 第二章 第1节 楞次定律',
   },
   create(ctx) {
-    const rig = lenzRig(),
-      { group, carrier, pivot, plug } = rig;
-    let bottom,
-      rotation,
-      north,
-      closed,
-      flux,
-      current,
-      needle,
-      pending,
-      aim,
-      ui,
-      rows,
-      question,
-      currentChoices,
-      fieldChoices,
-      lawForm;
-    let startHeight,
-      gesture,
-      peak,
-      strokeSign,
-      near = false,
-      flip = null;
-    const seen = new Set();
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'open', title: '试开路', todo: '先在线圈开路时移动磁体，再接上红导线。', target: () => aim },
-        { id: 'n', title: '观察 N 极', todo: '观察 N 极插入和抽出时的电流方向。', target: () => aim },
-        { id: 's', title: '观察 S 极', todo: '翻转磁体，再做插入和抽出。', target: () => aim },
-        { id: 'law', title: '比较磁场', todo: '根据四组证据比较两个磁场的方向。', target: () => aim },
-      ],
-    });
-    let openStroke = false;
-    const say = (text, item) => {
-      aim = item;
-      bar.say(text);
-    };
-    function leave() {
-      ctx.back();
-      near = false;
-      bar.near(false);
-      guide();
-    }
-    function guide() {
-      if (bar.finished) return say('四种情况已记录。翻看笔记本，对照插入和抽出时两个磁场的方向。');
-      if (!openStroke && closed) return say('拔下红插头，再移动磁体，观察开路时表针会怎样。', plug);
-      if (!openStroke) return say('红线还在桌上。上下拖磁体穿过线圈口，同时看电流计是否偏转。', carrier);
-      if (!closed) return say('把桌上的红插头拖到电流计红接线柱，闭合回路。', plug);
-      if (pending)
-        return say(
-          pending.pole + ' 极' + pending.motion + '时的偏转已观察。展开笔记本，按表针方向判断俯视线圈的电流。',
-        );
-      if (seen.size === 4) return say('比较四行记录，在笔记本判断感应电流的磁场起什么作用。');
-      const pole = north ? 'N' : 'S';
-      if (seen.has(pole + '插入') && seen.has(pole + '抽出')) {
-        if (bottom < 0.093) return say('先向上拖，把磁体完全抽出线圈。', carrier);
-        return say('按住磁体一端横向拖，让它绕滑架横轴翻转。', carrier);
+    const rig = lenzRig(inside, outside), root = new THREE.Group();
+    root.add(rig.group);
+    let ui, bottom, rotation, north, inCoil, flux, current, needle, lastTime, hand, settling;
+    let records, sheet, observation;
+    const body = h('tbody');
+    const feedback = h('p', { class: 'status', 'aria-live': 'polite' });
+    function say(text) { if (feedback.textContent !== text) feedback.textContent = text; }
+    function fillDirection(row, kind, sign, select) {
+      const record = records[row];
+      if (!record || !select.value) return;
+      const positive = sign > 0, field = kind === 'field';
+      const expected = (field ? fields : currents)[Number(positive)];
+      if (select.value !== expected) {
+        select.value = '';
+        say(field ? '右手四指沿' + record.current + '方向弯曲，拇指' + expected + '，这就是线圈内的磁场方向。'
+          : '针尖在零线' + (positive ? '右' : '左') + '侧。按图中接线，俯视电流应为' + expected + '。');
+        return;
       }
-      if (bottom < 0.052) return say('向上抽出磁体，同时观察表针偏向哪边；停住再看。', carrier);
-      return say('向下拖磁体，插入线圈，同时观察表针偏向哪边；停住再看。', carrier);
+      record[kind] = expected;
+      renderRow(row);
+      if (field) {
+        say(row < 2 ? '插入时磁通量增大，感应电流的磁场与原磁场反向。'
+          : '抽出时磁通量减小，感应电流的磁场与原磁场同向。');
+      } else {
+        say('从线圈上方看，电流沿' + expected + '方向。用右手判断它产生的磁场。');
+      }
+    }
+    function directionCell(i, kind, options, label) {
+      const r = records[i];
+      if (!r || (kind === 'field' && !r.current)) return '—';
+      if (r[kind]) return r[kind];
+      const select = h('select', { 'aria-label': conditions[i] + '的' + label,
+        style: 'font:inherit;color:#244d71;background:#fffaf0;border:1px solid #b6b4a7;border-radius:4px;max-width:100%',
+        onchange: () => fillDirection(i, kind, r.sign, select) },
+        h('option', { value: '' }, '填写'), options.map(s => h('option', { value: s }, s)));
+      return select;
+    }
+    function renderRow(i) {
+      const r = records[i], tr = body.children[i];
+      tr.textContent = '';
+      const values = [conditions[i], r ? dialSketch(r.sign) : '—',
+        r ? fields[i % 2] : '—', directionCell(i, 'current', currents, '俯视电流方向'),
+        directionCell(i, 'field', fields, '感应磁场方向')];
+      tr.append(...values.map(value => h('td', { style: 'height:34px;padding:2px 1px' }, value)));
+    }
+    function remember(entering, sign) {
+      const i = (north ? 0 : 1) + (entering ? 0 : 2);
+      if (!records[i]) {
+        if (!records.some(Boolean)) ui.data.prepend(sheet);
+        records[i] = { sign };
+        renderRow(i);
+        if (records.every(Boolean)) { ui.unlock(); ui.need(''); }
+      }
+      say(conditions[i] + '时表针' + (sign > 0 ? '右偏' : '左偏') + '，穿过线圈的磁通量' + (entering ? '增大。' : '减小。'));
+    }
+    function draw() {
+      rig.pose(bottom, rotation);
+      rig.pivot.rotation.z = -needle * 0.7;
+    }
+    // 拖动事件也推进仪表，快速越过线圈口时不丢失两帧之间的磁通变化。
+    function sample(now) {
+      const dt = Math.max(0.001, (now - lastTime) / 1000);
+      const linked = fluxLinkage(bottom, true) * Math.cos(rotation);
+      current = inductionStep(flux, linked, dt, true, current).current;
+      const target = clamp(current / 0.00009, -1, 1);
+      // 表针受惯性和阻尼影响，磁体停住后逐渐回零。
+      const response = Math.abs(target) > Math.abs(needle) ? 0.055 : 0.17;
+      needle += (target - needle) * -Math.expm1(-dt / response);
+      lastTime = now; flux = linked;
+      draw();
+    }
+    function settle(kind, to) {
+      settling = { kind, from: kind === 'slide' ? bottom : rotation, to, time: performance.now() };
     }
     function reset() {
-      if (near) leave();
-      bottom = UP;
-      north = true;
-      rotation = -Math.PI / 2;
-      closed = false;
-      openStroke = false;
-      pending = null;
-      flip = null;
-      gesture = null;
-      needle = current = peak = 0;
-      flux = fluxLinkage(bottom, north);
-      pivot.rotation.z = 0;
-      rig.pose(bottom, rotation);
-      rig.connect(false);
-      seen.clear();
-      rows?.clear();
-      if (question) question.hidden = true;
-      if (lawForm) lawForm.hidden = true;
-      bar.undo('open', 'n', 's', 'law');
-      guide();
+      hand = settling = observation = null;
+      bottom = UP; rotation = 0; north = true; inCoil = false;
+      flux = fluxLinkage(UP, true); current = needle = 0; lastTime = performance.now();
+      draw();
+      records = conditions.map(() => null);
+      body.textContent = '';
+      conditions.forEach((_, i) => { body.append(h('tr')); renderRow(i); });
+      if (sheet) ui.data.before(sheet);
+      say('');
+      ui?.relock();
+      if (ui) { ui.fold(false); ctx.reframe(); }
     }
-    function observe() {
-      if (!gesture || gesture === 'flip') return;
-      if (Math.abs(bottom - startHeight) < 0.026) return guide();
-      if (!closed) {
-        openStroke = true;
-        guide();
-        return;
-      }
-      if (peak < 0.028) {
-        say('指针偏转太小。让磁极靠近线圈口，连贯地插入或抽出。', carrier);
-        return;
-      }
-      const pole = north ? 'N' : 'S',
-        motion = bottom < startHeight ? '插入' : '抽出';
-      if (seen.has(pole + motion)) {
-        guide();
-        return;
-      }
-      const sign = (north ? 1 : -1) * (motion === '插入' ? 1 : -1);
-      if (strokeSign !== sign) {
-        say('刚才中途改变了方向，沿一个方向拖一次再记录。', carrier);
-        return;
-      }
-      pending = { pole, motion, sign };
-      currentChoices.hidden = false;
-      fieldChoices.hidden = true;
-      question.hidden = false;
-      question.querySelector('b').textContent = pole + ' 极' + motion + '。俯视线圈，电流是哪个方向？';
-      guide();
-    }
-    function readCurrent(sign) {
-      if (!pending) return;
-      if (pending.sign !== sign) return say('红柱进电流时指针右偏。沿红线追到线圈上端，再看绕线方向。');
-      pending.read = true;
-      currentChoices.hidden = true;
-      fieldChoices.hidden = false;
-      question.querySelector('b').textContent =
-        (sign > 0 ? '俯视逆时针' : '俯视顺时针') + '。用右手判断感应电流的磁场方向。';
-      say('四指沿绕线的电流方向弯曲，看拇指指向哪一端。');
-    }
-    function readField(sign) {
-      if (!pending?.read) return;
-      if (pending.sign !== sign) return say('从线圈上方向下看，四指沿电流弯曲，拇指指向线圈内部的磁场方向。');
-      const { pole, motion } = pending;
-      rows.add([
-        pole,
-        motion,
-        pole === 'N' ? '向下' : '向上',
-        sign > 0 ? '右' : '左',
-        sign > 0 ? '逆时针' : '顺时针',
-        sign > 0 ? '向上' : '向下',
-      ]);
-      seen.add(pole + motion);
-      pending = null;
-      question.hidden = true;
-      if (seen.has(pole + '插入') && seen.has(pole + '抽出')) bar.done(pole.toLowerCase());
-      if (seen.size === 4) lawForm.hidden = false;
-      guide();
-    }
-    const manip = draggable(
-      group,
-      [
-        {
-          obj: carrier,
-          plane: 'xy',
-          offset: 0,
-          enabled: () => !flip && !bar.finished,
-          hint: '上下拖磁体；完全抽出后可横拖翻转',
-          onStart() {
-            startHeight = bottom;
-            gesture = null;
-            peak = 0;
-            strokeSign = 0;
-          },
-          onDrag(p, start) {
-            if (!start || flip) return;
-            const dx = p.x - start.x,
-              dy = p.y - start.y;
-            if (!gesture) {
-              if (Math.max(Math.abs(dx), Math.abs(dy)) < 0.002) return;
-              gesture = Math.abs(dx) > Math.abs(dy) ? 'flip' : 'slide';
-            }
-            if (gesture === 'flip') {
-              if (bottom < 0.093) {
-                say('磁体还在线圈附近。先完全抽出，再翻转。', carrier);
-                return;
-              }
-              if (Math.abs(dx) >= 0.025) {
-                flip = { from: rotation, to: rotation + (dx > 0 ? Math.PI : -Math.PI), t: 0 };
-                gesture = 'turning';
-              }
-              return;
-            }
-            if (gesture === 'turning') return;
-            bottom = clamp(startHeight + dy, DOWN, UP);
-            rig.pose(bottom, rotation);
-          },
-          onEnd() {
-            if (gesture === 'slide') observe();
-            gesture = null;
-          },
-        },
-        {
-          obj: plug,
-          plane: 'xz',
-          offset: 0.01,
-          keepOffset: true,
-          hint: () => (closed ? '拖下红插头使回路断开' : '将红插头拖到红接线柱'),
-          onDrag(p) {
-            closed = false;
-            current = 0;
-            rig.connect(false, [clamp(p.x, 0.052, 0.15), 0.007, clamp(p.z, 0.01, 0.078)]);
-          },
-          onEnd(moved) {
-            if (!moved) return guide();
-            const connect = Math.hypot(plug.position.x - rig.plus[0], plug.position.z - rig.plus[2]) < 0.015;
-            closed = connect;
-            current = 0;
-            rig.connect(closed, [plug.position.x, 0.002, plug.position.z]);
-            if (closed && openStroke) bar.done('open');
-            guide();
-          },
-        },
-      ],
-      {
-        highlight: true,
-        taps: [
-          {
-            obj: rig.meter,
-            hint: '近看磁体和表针',
-            onTap() {
-              if (near) return leave();
-              near = true;
-              bar.near(true);
-              ctx.look([0.004, 0.076, 0], [0.06, 0.27, 1], 0.47, leave);
-              guide();
-            },
-          },
-        ],
+    const drag = {
+      obj: rig.pick, plane: 'xy', keepOffset: true, anchor: rig.carrier,
+      enabled: () => !settling,
+      hint: () => ui?.step === 1 ? '拖磁体：上下移或横拖翻转' : '',
+      onStart() {
+        if (ui.step !== 1) ui.go(1);
+        hand = { bottom, rotation, kind: '', crossed: false };
       },
-    );
+      onDrag(p, start) {
+        if (!hand || !start) return;
+        const dx = p.x - COIL_X, dy = p.y - (COIL_BOTTOM + hand.bottom + MAGNET_LENGTH / 2);
+        if (!hand.kind) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) < 0.0015) return;
+          hand.kind = Math.abs(dx) > 1.35 * Math.abs(dy) ? 'flip' : 'slide';
+          observation = null;
+          say('');
+        }
+        if (hand.kind === 'flip') {
+          if (bottom < outside) { say(blocked); return; }
+          rotation = hand.rotation + Math.PI * clamp(dx / 0.064, -1, 1);
+          sample(performance.now());
+          return;
+        }
+        const next = clamp(hand.bottom + dy, DOWN, TOP_STOP);
+        if (next === bottom) return;
+        const descending = next < bottom;
+        if (observation && descending !== observation.entering) {
+          observation = null;
+          say(retry);
+        }
+        bottom = next;
+        sample(performance.now());
+        // 线圈口两侧各留一点余量；手在口沿抖动不会反复记行。
+        if ((!inCoil && bottom <= inside) || (inCoil && bottom >= outside)) {
+          inCoil = !inCoil;
+          hand.crossed = true;
+          observation = { entering: inCoil, sign: inCoil === north ? 1 : -1 };
+          say('');
+        } else if (bottom > inside && bottom < outside) {
+          say(inCoil ? guideOut : guideIn);
+        }
+      },
+      onEnd() {
+        if (!hand) return;
+        if (hand.kind === 'flip' && bottom >= outside) {
+          const turn = Math.round((rotation - hand.rotation) / Math.PI);
+          settle('flip', hand.rotation + turn * Math.PI);
+          if (turn) north = !north;
+          say(turn ? (north ? 'N' : 'S') + ' 极现在朝下，可以再次插入线圈。' : '磁体已转回原位。横拖到另一极朝下再松手，就能换极。');
+        }
+        if (hand.kind === 'slide' && Math.abs(bottom - hand.bottom) > 0.0001 &&
+            (!hand.crossed || (bottom > inside && bottom < outside))) {
+          observation = null;
+          settle('slide', hand.crossed ? (inCoil ? inside : outside) : hand.bottom);
+          say(returning);
+        }
+        hand = null;
+      },
+    };
+    const pointer = draggable(rig.group, [drag], { tip: ctx.tag('', 'pill') });
     reset();
+
+    const target = (height, x = COIL_X) => new THREE.Vector3(x, COIL_BOTTOM + height + MAGNET_LENGTH / 2, 0);
+    const move = (name, height, dx = 0) => ({ name, drag: rig.pick, to: target(height, COIL_X + dx), wait: 0.5 });
+    const check = (ok, message) => { if (!ok) throw new Error(message); };
+    function qaSelect(row, value) {
+      const select = body.children[row].querySelector('select');
+      check(select, '记录格没有可填选项');
+      select.value = value;
+      select.dispatchEvent(new Event('change'));
+    }
     return {
-      group,
-      size: { w: 0.34, d: 0.19, h: 0.24 },
-      view: { azim: 3, elev: 24, margin: 1.1 },
-      toggles: ['steps'],
-      pointer: manip,
+      group: root, pointer, reset,
+      size: { w: 0.33, d: 0.15, h: 0.22 }, view: { elev: 20, azim: 3, frameMargin: 1.10 },
       mount(panel) {
         ui = panel;
-        bar.attach(ui);
-        rows = table(['下端', '运动', '原磁场', '表针', '俯视电流', '感应磁场']);
-        currentChoices = buttons([
-          { text: '逆时针', onClick: () => readCurrent(1) },
-          { text: '顺时针', onClick: () => readCurrent(-1) },
-        ]).el;
-        fieldChoices = buttons([
-          { text: '向上', onClick: () => readField(1) },
-          { text: '向下', onClick: () => readField(-1) },
-        ]).el;
-        question = h('div', {}, h('b', {}), currentChoices, fieldChoices);
-        lawForm = h(
-          'div',
-          {},
-          note('结合四次记录，感应电流的磁场总是怎样？'),
-          buttons([
-            { text: '与原磁场反向', onClick: () => say('再看抽出两行，此时两个磁场同向。') },
-            {
-              text: '阻碍原磁通量的变化',
-              onClick: () => {
-                if (seen.size === 4) {
-                  bar.done('law');
-                  lawForm.hidden = true;
-                  guide();
-                }
-              },
-            },
-          ]).el,
-        );
-        lawForm.hidden = question.hidden = true;
-        panel.data.append(rows.el, question, lawForm);
-        panel.notes.append(
-          note(
-            '这只零中表从红柱进电流时指针右偏。红线连线圈上端；从下端沿绕组走向上端，俯视为逆时针。可点表身近看，或旋转视角查看绕线。',
-          ),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
-        guide();
+        ui.status('比较四种情况下的感应电流方向。每次先等表针回零，再拖磁体。插入时让滑块白线到下标记，抽出时到上标记。抽出后横拖换极。');
+        const headings = ['磁极运动', '表针示意', '原磁场', '俯视电流', '感应磁场'];
+        sheet = h('table', { class: 'data', 'aria-label': '四种情况的实验记录', style: 'width:100%;table-layout:fixed;text-align:center' },
+          h('thead', {}, h('tr', {}, headings.map(s => h('th', { style: 'padding:4px 1px' }, s)))), body);
+        ui.controls.append(feedback);
+        // 空白表只供预览；有观察后再放进会随关页保存的数据区。
+        ui.data.before(sheet);
+        ui.data.after(h('p', { class: 'note' }, calibration),
+          buttons([{ text: '全部重做', ghost: true, onClick: reset }]).el);
+        for (const select of ui.el.querySelectorAll('.prev-record select')) select.replaceWith('—');
+        ui.el.querySelector('.answer').style.paddingBottom = '72px';
       },
-      update(dt) {
-        bar.update(dt);
-        if (dt <= 0) return;
-        if (flip) {
-          flip.t = Math.min(1, flip.t + dt / 0.42);
-          const t = flip.t * flip.t * (3 - 2 * flip.t);
-          rotation = flip.from + (flip.to - flip.from) * t;
-          rig.pose(bottom, rotation);
-          if (flip.t === 1) {
-            north = !north;
-            flip = null;
-            guide();
+      update() {
+        const now = performance.now();
+        if (settling) {
+          const t = Math.min(1, (now - settling.time) / 380);
+          const value = settling.from + (settling.to - settling.from) * t * t * (3 - 2 * t);
+          if (settling.kind === 'flip') rotation = value;
+          else {
+            bottom = value;
+            if (t === 1) say(inCoil ? guideOut : guideIn);
+          }
+          if (t === 1) settling = null;
+        }
+        sample(now);
+        // 只用即将画到屏幕上的针位记行，不把两帧之间算出的电流当作读数。
+        if (observation) {
+          if (needle * observation.sign >= visibleDeflection) {
+            remember(observation.entering, Math.sign(needle));
+            observation = null;
+          } else if (!hand || hand.kind !== 'slide') {
+            say(retry);
+            observation = null;
           }
         }
-        // 翻转只在远端进行，轴向磁矩分量连续反号。
-        const linked = fluxLinkage(bottom, true) * -Math.sin(rotation);
-        const state = inductionStep(flux, linked, dt, closed, current);
-        flux = linked;
-        current = state.current;
-        const target = clamp(current / 0.00024, -1, 1);
-        needle += (target - needle) * -Math.expm1(-dt / 0.085);
-        pivot.rotation.z = -needle * 0.7;
-        if (gesture === 'slide' && Math.abs(needle) > peak) {
-          peak = Math.abs(needle);
-          strokeSign = Math.sign(needle);
-        }
       },
-      dispose() {
-        manip.dispose();
-        bar.dispose();
+      dispose() { pointer.dispose(); },
+      debug: {
+        get state() { return { bottom, north, inCoil, needle, records }; },
+        qa: qaFlow(pointer, [
+          move('刚进入线圈口就松手', COIL_HEIGHT - 0.005),
+          { name: '短拖归位且没有记录', run() {
+            check(bottom === UP && !records.some(Boolean) && feedback.textContent === guideIn, '短拖未归位或被误记');
+          } },
+          move('N 极插入', DOWN),
+          move('刚抽出线圈口就松手', COIL_HEIGHT + 0.005),
+          { name: '抽出未到标记，回位后保留插入记录', run() {
+            check(inCoil && records[0]?.sign === 1 && !records[2] && feedback.textContent === guideOut, '短拖抽出被误记');
+          } },
+          move('在线圈中尝试翻转', DOWN, 0.065),
+          { name: '线圈挡住翻转', run() { check(north && feedback.textContent === blocked, '磁体在线圈中翻转'); } },
+          move('N 极抽出', UP),
+          move('翻转磁体', UP, 0.065),
+          move('S 极插入', DOWN),
+          move('S 极抽出', UP),
+          { name: '核对四种方向和静止回零', run() {
+            check(!north && !inCoil && Math.abs(needle) < 0.02, '磁体位置或回零异常');
+            check(records.every((r, i) => r?.sign === [1, -1, -1, 1][i]), '记录与四次偏转不符');
+            check(!ui.el.querySelector('.flap.locked'), '四次观察后结论未解锁');
+          } },
+          { name: '把 N 极插入的电流方向填反', run() {
+            qaSelect(0, '顺时针');
+            check(!records[0].current && feedback.textContent.includes('针尖在零线右侧'), '未指出误读的偏向');
+          } },
+          { name: '按四次观察填写电流与磁场', run() {
+            for (const [i, positive] of [1, 0, 0, 1].entries()) {
+              qaSelect(i, currents[positive]);
+              qaSelect(i, fields[positive]);
+              check(records[i].field === fields[positive], '未记下磁场方向');
+            }
+          } },
+          { name: '对照课本结论', run() {
+            ui.go(2);
+            ui.el.querySelector('.flap-front').click();
+            check(ui.el.querySelector('.flap.open .page-crop'), '未掀开课本原文');
+          } },
+          { name: '全部重做', run() {
+            reset();
+            check(north && bottom === UP && !records.some(Boolean) && ui.step === 0, '初始条件没有恢复');
+            check(ui.el.querySelector('.flap.locked') && !ui.data.querySelector('tr'), '重做后仍有本轮记录');
+          } },
+        ]),
       },
     };
   },

@@ -11,9 +11,9 @@ export function handTrace(startTime, startX) {
     const last = Math.floor((t - startTime) / PERIOD + 1e-8);
     if (x === previousX && last >= next) {
       // 停着时所有脉冲都落在同一点，只保留这一串的首尾及原始时标。
-      if (marks.at(-1).x !== x) marks.push({ tick: next, x });
-      if (last > marks.at(-1).tick) {
-        if (marks.length > 1 && marks.at(-2).x === x) marks.pop();
+      if (marks[marks.length - 1].x !== x) marks.push({ tick: next, x });
+      if (last > marks[marks.length - 1].tick) {
+        if (marks.length > 1 && marks[marks.length - 2].x === x) marks.pop();
         marks.push({ tick: last, x });
       }
       next = last + 1;

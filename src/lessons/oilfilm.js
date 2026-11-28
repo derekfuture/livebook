@@ -9,6 +9,7 @@ import {
   WATER_Y,
   PLATE_Y,
   BAG_HOME,
+  CAPACITY,
   STROKE,
   SYRINGE_ZERO,
 } from './kit/oilFilmRig.js';
@@ -16,6 +17,7 @@ import {
   OIL_FRACTION,
   GRID,
   DROP_ML,
+  MODEL_THICKNESS_NM,
   pureOilPerDrop,
   filmOutline,
   polygonArea,
@@ -24,7 +26,8 @@ import {
 } from './kit/oilFilm.js';
 import { clamp, draggable } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { buttons, h, table, note } from './kit/ui.js';
+import { qaFlow } from './kit/chemlesson.js';
+import { h, note } from './kit/ui.js';
 
 export default {
   id: 'oilfilm',
@@ -32,10 +35,9 @@ export default {
   title: '用油膜法估测油酸分子的大小',
   stampText: '估测',
   predict: {
-    q: '要用油膜面积估测分子大小，估算公式 d = V/S 中的 V 应取哪个体积？',
-    options: ['一滴溶液中纯油酸的体积', '整滴油酸酒精溶液的体积', '浅盘里水的体积'],
+    q: '一滴稀释液中的油酸在水面上充分铺展，形成单分子油膜。哪段长度可以用来估测油酸分子的直径？',
+    options: ['油膜的厚度', '油膜最宽处的长度', '滴下前液滴的直径'],
     answer: 0,
-    hint: '溶液铺开后，酒精溶入水中并挥发。',
   },
   conclusion: {
     crops: [
@@ -43,552 +45,492 @@ export default {
       { page: 11, rect: [63.76, 658.45, 381.1, 702.49] },
     ],
     quote: '尽管油酸分子有着复杂的结构和形状，分子间也存在着间隙，但在估测其大小时，可以把它简化为球形处理，并认为它们紧密排布（图1.2-1）。测出油膜的厚度d，它就相当于分子的直径。……这里可以粗略地认为，油膜的厚度d 等于1 滴油酸酒精溶液中纯油酸的体积V与它在水面上摊开的面积S之比。',
-    why: '油酸亲水的一端朝向水，另一端朝外。把充分铺展的油酸近似为紧密排列的一层分子，所得厚度是分子尺度的估计。滴数、读数和轮廓的半格取舍都会影响结果。',
+    why: `酒精溶于水并很快挥发，水面上留下油酸，分子的亲水端朝向水。把油酸分子看作紧密排列的一层小球，就能用膜厚估测分子直径。本模拟用 ${MODEL_THICKNESS_NM.toFixed(1)} nm 的示意膜厚生成油膜轮廓。你的估测值取决于记录的纯油酸体积和描线数出的面积。`,
     src: '课本第 7 页 · 第一章 第2节 实验：用油膜法估测油酸分子的大小',
   },
   create(ctx) {
-    const rig = oilFilmRig(),
-      { group, syringe, plunger, scale, bag, plate } = rig;
-    let ui, rows, calForm, answerForm, dropInput, pureInput, areaInput, sizeInput, calLabel, calibrationRecord, erasing, view, aim;
-    let ml,
-      target,
-      grabbing,
-      grabMl,
-      residue,
-      count,
-      collected,
-      startMl,
-      endMl,
-      pure,
-      film,
-      spread,
-      origin,
-      dirty,
-      covered,
-      trace,
-      traced,
-      markers,
-      shakeAt,
-      plateStart,
-      moveStart;
-    const falling = [];
-    const stock = () => Math.abs(syringe.position.x - STOCK_X) < 0.016 && Math.abs(syringe.position.z) < 0.017;
+    const rig = oilFilmRig();
+    const { group, syringe, thumb, scale, bag, plate } = rig;
+    const point = (x, y, z) => new THREE.Vector3(x, y, z);
+    const local = (obj) => group.worldToLocal(obj.getWorldPosition(new THREE.Vector3()));
+    group.position.x = -0.076;
+    const steps = [
+      ['drop', '测一滴的体积'], ['powder', '撒爽身粉'], ['spread', '滴一滴溶液'],
+      ['trace', '描油膜轮廓'], ['area', '数方格'], ['size', '估算直径'],
+    ];
+    let ui, aim, view, fieldKind, ret, moving;
+    let slideY;
+    let ml, startMl, count, pure, area, residue, liquid, grabMl;
+    let film, origin, spread, spoiled, covered, trace, traced, erasing, shakeAt;
+    const marks = new Set(), drops = [];
+    let queuedCupDrops = 0, rippleTime = 0;
+    const stock = () => Math.abs(syringe.position.x - STOCK_X) < 0.013 && Math.abs(syringe.position.z) < 0.013;
     const cup = () => Math.abs(syringe.position.x - CUP_X) < 0.014 && Math.abs(syringe.position.z) < 0.014;
-    const pan = () => Math.abs(syringe.position.x - PAN_X) < PAN_W / 2 && Math.abs(syringe.position.z) < PAN_W / 2;
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        {
-          id: 'drop',
-          title: '标定单滴',
-          todo: '从溶液杯取液，读同一支注射器的刻度，在烧杯上方数滴。',
-          target: () => aim,
-        },
-        { id: 'spread', title: '得到单层油膜', todo: '撒粉后向水面滴一滴，让油酸充分铺展。', target: () => aim },
-        { id: 'trace', title: '描膜轮廓', todo: '把方格玻璃板盖在浅盘上，沿粉粒的边界描出轮廓。', target: () => aim },
-        {
-          id: 'size',
-          title: '按格估测',
-          todo: '数自己轮廓内的方格，用纯油酸体积和面积估算分子大小。',
-          target: () => aim,
-        },
-      ],
-    });
-    const say = (s, obj) => {
-      aim = obj;
-      bar.say(s);
-    };
+    const overWater = () => Math.max(Math.abs(syringe.position.x - PAN_X), Math.abs(syringe.position.z)) < PAN_W / 2 - 0.004;
+    const dispensing = () => queuedCupDrops > 0 || drops.length > 0;
+    const full = () => ml >= CAPACITY - 0.00001;
+    const bar = lessonBar({ ...ctx, group, back: leave, steps: steps.map(([id, title]) => ({ id, title, todo: title, target: () => aim })) });
+    const say = (text, obj = null) => { aim = obj; bar.say(text); };
+    const label = h('label', { for: 'oil-measure' });
+    const input = h('input', { id: 'oil-measure', type: 'number', step: 'any', inputmode: 'decimal',
+      style: 'font:inherit;width:5.2em;padding:4px 7px;border:1px solid #a99c82;border-radius:3px;background:#fffcf4' });
+    const submit = h('button', { type: 'submit', class: 'go', style: 'width:auto;margin:0;padding:5px 12px' }, '记录');
+    const form = h('form', { hidden: true, onsubmit(e) { e.preventDefault(); record(); } },
+      label, h('div', { style: 'display:flex;gap:8px;margin:6px 0 14px' }, input, submit));
+    const captions = { volume: '溶液体积 / mL', drops: '落入烧杯的滴数', pure: '每滴含纯油酸 / μL', area: '轮廓内的方格数', size: '分子直径 / nm' };
+    const work = h('div');
+    const resetTray = h('button', { class: 'go ghost', hidden: true, onclick: newTray }, '换一盘清水');
+    const retry = h('button', { class: 'go ghost', hidden: true, onclick: restartDrops }, '重新数滴');
+    function field(kind) {
+      if (kind !== fieldKind) input.value = '';
+      fieldKind = kind;
+      form.hidden = !kind;
+      label.textContent = captions[kind] || '';
+    }
     function leave() {
       ctx.back();
       view = null;
       bar.near(false);
       guide();
     }
-    function near(v) {
-      view = v;
+    function near(which) {
+      view = which;
+      const wide = ctx.camera.aspect >= 1;
+      if (which === 'drip') {
+        ctx.look([group.position.x + PAN_X, 0.079, 0], [0.12, 0.65, 1], wide ? 0.64 : 0.47, leave);
+      } else if (which === 'syringe') {
+        const { x, y, z } = syringe.position;
+        const distance = wide ? 0.43 : startMl === null ? 0.19 : 0.41;
+        ctx.look([group.position.x + x + 0.008, y + (wide ? 0.054 : 0.045), z], [0, 0.03, 1], distance, leave);
+      } else ctx.look([group.position.x + PAN_X, PLATE_Y, 0], [0, 1, 0.001], wide ? 0.60 : 0.62, leave);
       bar.near(true);
-      if (v === 'syringe')
-        ctx.look(
-          [syringe.position.x, syringe.position.y + 0.046, syringe.position.z],
-          [0, 0.07, 1],
-          ctx.camera.aspect >= 1 ? 0.43 : 0.25,
-          leave,
-        );
-      else ctx.look([PAN_X, PLATE_Y, 0], [0, 1, 0.02], ctx.camera.aspect >= 1 ? 0.8 : 0.43, leave);
       guide();
     }
     function guide() {
-      if (bar.finished) return say('已记录单滴纯油酸体积、方格面积和估测的分子尺度。');
+      if (bar.finished) return say('把油酸分子看作紧密排列的单层小球，你算出的膜厚就是分子直径的估计值。');
+      if (spoiled) return say(spoiled);
       if (!bar.has('drop')) {
         if (startMl === null) {
-          if (ml < 0.24)
-            return say(
-              stock()
-                ? '针尖浸在配好的溶液中。按住活塞顶端向上拉，吸取至少 0.24 mL；点针管可近看。'
-                : '把针管夹头移回标有浓度的溶液杯，再拉活塞取液。',
-              stock() ? plunger : syringe,
-            );
-          if (!cup()) return say('把针管夹头移到数滴烧杯上方。仍用这支注射器，先读活塞下端的起始刻度。', syringe);
-          return say(view === 'syringe' ? '点与活塞下沿齐平的刻线，读出起始体积。' : '点针管近看，读起始刻度。', scale);
+          if (!view || !cup()) field(null);
+          if (!full()) return say('先测一滴里有多少纯油酸。向上拉活塞到头，吸满一管稀释液。', thumb);
+          if (!cup()) return say('已吸满。拖棕色夹头到数滴烧杯上方，准备测这一管的体积。', rig.clamp);
+          if (!view) return say('点针管刻度，凑近读出这管溶液的体积。', scale);
+          field('volume');
+          return say('平视黑色胶塞下沿，每小格 0.01 mL。把读数记在笔记本上。');
         }
-        if (endMl === null)
-          return say(
-            count < 10
-              ? '在烧杯上方按住活塞慢慢向下推，一滴脱落数一次。至少数 10 滴，松手即停。'
-              : '已经有足够的滴数。松开活塞，点下沿对应的终止刻度。',
-            count < 10 ? plunger : scale,
-          );
-        return say('展开笔记本，填自己数的滴数，并用两次刻度差和瓶上浓度算每滴纯油酸的体积。');
+        if (fieldKind === 'pure') return say('一滴里只有一小部分是油酸。按配液比例换算，填入纯油酸体积。');
+        if (ml > 0.00001) return say('缓缓下推活塞，每落一滴数一次。看清一滴落杯再推，直到滴完整管。', thumb);
+        if (dispensing()) return say('继续看针尖和烧杯。每落一滴数一次，直到最后一滴落杯。');
+        field('drops');
+        return say('整管溶液已滴完。记下你数的滴数，就能求一滴溶液的平均体积。');
       }
-      if (dirty) return say('这盘的油膜不能用于单滴测量。展开笔记本换清水，保留单滴标定。');
-      if (!rig.powdered) return say('抓住台前粉袋，在浅盘水面前后、左右扫过，让粉粒分布在四周。', bag);
+      if (!bar.has('powder')) return say('一滴的纯油酸体积已知。拖粉袋扫过水面四周，撒匀后才容易看清油膜边界。', bag);
       if (!film) {
-        if (ml + residue < DROP_ML) return say('剩余溶液不足一滴，把针尖移回溶液杯，向上拉活塞补液。', plunger);
-        if (!pan()) return say('拖同一支针管的夹头到浅盘中部，远离盘边。', syringe);
-        return say('缓推活塞，看到一滴脱离立即松手。观察粉粒怎样移向油膜边缘。', plunger);
+        if (ml + residue < DROP_ML - 0.00001) return stock()
+          ? say('针尖已浸入稀释液。向上拉活塞，吸取足够滴一滴的溶液。', thumb)
+          : say('水面已撒匀。把同一支针管移回稀释液杯，再拉活塞取液。', rig.clamp);
+        if (!overWater()) return say('把夹头拖到浅盘中央，让一滴溶液有足够的水面铺开。', rig.clamp);
+        return say('轻推活塞，第一滴离开针尖就松手。观察水面的粉粒。', thumb);
       }
-      if (spread < 1) return say('等油膜边缘停止扩展，再盖玻璃板。');
-      if (!covered && !cup())
-        return say((view === 'syringe' ? '回全景，' : '') + '把针管夹头移回数滴烧杯上方，给方格板腾出位置。', syringe);
-      if (!covered) return say('把后架上的方格玻璃板拖到浅盘上，盖住水面。', plate);
-      if (!traced)
-        return say(
-          view === 'plate'
-            ? '按住玻璃板，沿清亮油膜与粉粒交界处绕一圈，回到起点。'
-            : '点浅盘上的玻璃板俯视，沿油膜边界描线。',
-          view === 'plate' ? null : plate,
-        );
-      return say('在自己的线内数 1 cm 方格。可逐排划过已数格子作记号，再展开笔记本填格数和大小。');
+      if (spread < 1) return say('酒精溶于水并很快挥发，留下的油酸在水面摊开，把粉粒推向四周。等边界稳定下来。');
+      if (!covered) {
+        if (!cup()) return say('无粉区就是油膜。把针管移回数滴烧杯，给玻璃板腾出位置。', rig.clamp);
+        return say('边界已稳定。把右侧方格玻璃板拖到盘沿上，对齐四边。', plate);
+      }
+      if (!traced) return view === 'plate'
+        ? say('按住粉粒内缘描一圈，回到起点，把油膜的形状留在玻璃板上。')
+        : say('玻璃板已盖好。点它俯视，找出无粉区的边界。', plate);
+      if (!bar.has('area')) return say('沿描线逐排数，可划过格子作记号。不足半格舍去，多于半格算一格。', view ? null : plate);
+      say('用纯油酸的体积 V 除以面积 S，算出这层膜有多厚。用 nm 记录。');
     }
-    function clearCal() {
-      startMl = endMl = pure = null;
-      count = 0;
-      if (calForm) {
-        calForm.hidden = true;
-        dropInput.value = pureInput.value = '';
-        calibrationRecord.hidden = true;
-      }
+    function entry(text) {
+      work.append(h('p', { style: 'margin:6px 0;font-size:15px;line-height:1.55;color:#344d53' }, text));
+    }
+    function restartDrops() {
+      if (view) leave();
+      drops.forEach(d => { d.mesh.visible = false; });
+      drops.length = 0;
+      ml = count = residue = liquid = queuedCupDrops = rippleTime = 0;
+      startMl = pure = null;
+      rig.position(STOCK_X, 0.047, 0);
+      rig.volume(0);
+      rig.cup.setLevel(0);
+      retry.hidden = true;
+      rig.hanging.visible = ripple.visible = false;
+      work.replaceChildren();
+      field(null);
+      guide();
     }
     function newTray() {
       if (view) leave();
-      film = origin = null;
-      spread = 0;
-      dirty = covered = traced = false;
-      trace = [];
-      markers = new Set();
-
-      rig.resetTray();
-      bag.position.copy(BAG_HOME);
-      bar.undo('spread', 'trace', 'size');
-      if (answerForm) {
-        answerForm.hidden = true;
-        areaInput.value = sizeInput.value = '';
+      for (let i = drops.length - 1; i >= 0; i--) {
+        if (drops[i].site === 'pan') { drops[i].mesh.visible = false; drops.splice(i, 1); }
       }
+      ret = moving = slideY = null;
+      film = origin = spoiled = null;
+      spread = 0;
+      covered = traced = false;
+      area = null;
+      trace = [];
+      marks.clear();
+      rig.resetTray();
+      resetTray.hidden = true;
+      bar.undo('powder', 'spread', 'trace', 'area', 'size');
+      field(null);
       guide();
     }
     function reset() {
-      falling.forEach((d) => (d.mesh.visible = false));
-      falling.length = 0;
-      ml = target = residue = collected = 0;
-      grabbing = false;
-      clearCal();
       bar.undo('drop');
-      rig.position(STOCK_X, 0.035, 0);
-      rig.volume(ml);
-      rig.cup.setLevel(0);
-      rig.hanging.visible = false;
-      rows?.clear();
       newTray();
+      restartDrops();
+      ui?.relock();
+      guide();
     }
-    function release() {
-      let mesh = rig.drops.children.find((m) => !m.visible);
+    function record() {
+      const v = input.valueAsNumber;
+      if (!Number.isFinite(v)) return say('先填入这一项的数值，再记录。');
+      switch (fieldKind) {
+        case 'volume':
+          if (Math.abs(v - ml) > 0.00001) return say('再看胶塞靠针尖的一边。从零刻度起，每小格是 0.01 mL。');
+          startMl = v;
+          entry('一管溶液　' + v.toFixed(2) + ' mL');
+          field(null);
+          if (view && ctx.camera.aspect < 1) near('syringe');
+          return guide();
+        case 'drops':
+          if (v !== count) { retry.hidden = false; return say('滴数和实际落入杯中的次数不符。可以改填，也可以重新吸一管数。'); }
+          retry.hidden = true;
+          entry('一滴溶液　' + startMl.toFixed(2) + ' ÷ ' + count + ' = ' + (startMl / count).toFixed(3) + ' mL');
+          field('pure');
+          return guide();
+        case 'pure': {
+          const expected = pureOilPerDrop(startMl, 0, count) * 1000;
+          if (Math.abs(v - expected) > 0.0005) return say('用一滴溶液的体积乘 1/500，再把 mL 换为 μL。1 mL = 1 000 μL。');
+          pure = v / 1000;
+          entry('纯油酸 V　' + (startMl / count).toFixed(3) + ' × 1/500 × 1 000 ≈ ' + v + ' μL');
+          field(null);
+          bar.done('drop');
+          if (view) leave();
+          return guide();
+        }
+        case 'area': {
+          const expected = countFilmSquares(trace);
+          if (!Number.isInteger(v)) return say('边格取舍以后，每个留下的格子都算一格。请填整数。');
+          if (Math.abs(v - expected) > 2)
+            return say(v > expected ? '数多了。检查描线经过的边格，不足半格要舍去。' : '数少了。检查描线经过的边格，多于半格要算一格。');
+          area = v;
+          entry('油膜面积 S　' + v + ' × 1 cm² = ' + v + ' cm²');
+          bar.done('area');
+          field('size');
+          return guide();
+        }
+        case 'size': {
+          const nm = molecularSizeNm(pure, area);
+          if (Math.abs(v - nm) > 0.05 || v <= 0) return say('先统一单位。1 μL = 10⁻⁹ m³，1 cm² = 10⁻⁴ m²，1 m = 10⁹ nm。');
+          entry('本轮模拟估测　膜厚 d = V/S　' + (pure * 1000).toFixed(3) + ' × 10⁻⁹ ÷ (' + area + ' × 10⁻⁴) m ≈ ' + v + ' nm');
+          field(null);
+          bar.done('size');
+          return guide();
+        }
+      }
+    }
+    const ripple = new THREE.Mesh(new THREE.RingGeometry(0.006, 0.007, 32),
+      new THREE.MeshBasicMaterial({ color: 0x54827d, transparent: true, depthWrite: false }));
+    ripple.rotation.x = -Math.PI / 2;
+    group.add(ripple);
+    function release(site) {
+      let mesh = rig.drops.children.find(m => !m.visible);
       if (!mesh) {
-        mesh = new THREE.Mesh(
-          new THREE.SphereGeometry(0.00162, 16, 12),
-          new THREE.MeshBasicMaterial({ color: 0xc6d0bf }),
-        );
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(0.0020, 16, 12), new THREE.MeshBasicMaterial({ color: 0x619891 }));
         rig.drops.add(mesh);
       }
       mesh.visible = true;
       mesh.position.copy(syringe.position);
-      mesh.position.y -= 0.0016;
-      falling.push({ mesh, t: 0, from: mesh.position.y, site: cup() ? 'cup' : 'pan' });
+      drops.push({ mesh, site, from: mesh.position.y, t: 0 });
     }
     function land(d) {
       d.mesh.visible = false;
       if (d.site === 'cup') {
-        collected += DROP_ML;
-        rig.cup.setLevel(0.004 + (collected * 1e-6) / (Math.PI * rig.cup.inner ** 2));
-        if (startMl !== null && endMl === null && !bar.has('drop')) count++;
-        guide();
-        return;
+        count++;
+        liquid += DROP_ML;
+        rig.cup.setLevel(0.004 + liquid * 1e-6 / (Math.PI * rig.cup.inner ** 2));
+        rippleTime = 0.35;
+        ripple.position.set(CUP_X, rig.cup.level + 0.002, 0);
+      } else {
+        const x = d.mesh.position.x - PAN_X, z = d.mesh.position.z;
+        const extra = !!film;
+        if (!origin) origin = { x, z };
+        film = filmOutline(origin.x, origin.z, DROP_ML * OIL_FRACTION * (extra ? 2 : 1), origin.x * 10);
+        spread = 0;
+        if (extra) spoiled = '又落了一滴，油膜已混在一起。换一盘清水再测一滴。';
+        else if (!rig.powdered) spoiled = '粉没有撒匀，油膜的边界看不全。换一盘清水，先把粉撒匀。';
+        else if (film.some(p => Math.max(Math.abs(p.x), Math.abs(p.z)) >= PAN_W / 2))
+          spoiled = '油膜碰到盘边，不能充分摊开。换一盘清水，下一滴放在中央。';
+        if (spoiled) resetTray.hidden = false;
       }
-      const x = d.mesh.position.x - PAN_X,
-        z = d.mesh.position.z;
-      if (film || !rig.powdered) dirty = true;
-      origin = { x: origin ? (origin.x + x) / 2 : x, z: origin ? (origin.z + z) / 2 : z };
-      film = filmOutline(origin.x, origin.z, DROP_ML * OIL_FRACTION * (dirty ? 2 : 1), origin.x * 10);
-      if (film.some((p) => Math.abs(p.x) >= PAN_W / 2 || Math.abs(p.z) >= PAN_W / 2)) dirty = true;
-      spread = 0;
       guide();
     }
-    function readScale(ray) {
-      if (view !== 'syringe') {
-        near('syringe');
-        return;
-      }
-      if (!cup() || bar.has('drop')) return guide();
-      const hit = ray.intersectObject(scale, false)[0];
-      if (!hit) return;
-      const n = Math.round(((syringe.worldToLocal(hit.point.clone()).y - SYRINGE_ZERO) / STROKE) * 100) / 100;
-      if (Math.abs(n - ml) > 0.012) return say('点活塞密封圈下端正对的刻度，每小格为 0.01 mL。', scale);
-      if (startMl === null) {
-        if (ml < 0.24) return guide();
-        startMl = n;
-        count = 0;
-        guide();
-        return;
-      }
-      if (count < 10 || falling.length) return say('等液滴确实落入杯中。至少数 10 滴，再读终止刻度。', plunger);
-      endMl = n;
-      calLabel.textContent =
-        '同一支注射器从 ' +
-        startMl.toFixed(2) +
-        ' mL 读到 ' +
-        endMl.toFixed(2) +
-        ' mL。瓶上写着取 1.00 mL 油酸加酒精至总体积 500 mL。';
-      calForm.hidden = false;
-      guide();
+    function moveVolume(next) {
+      if (next < ml) {
+        residue += ml - next;
+        while (residue + 1e-9 >= DROP_ML) {
+          residue = Math.max(0, residue - DROP_ML);
+          if (cup()) queuedCupDrops++;
+          else release('pan');
+        }
+      } else residue = Math.max(0, residue - (next - ml));
+      ml = next;
+      rig.volume(ml);
+      rig.hanging.visible = residue > 0.0003;
+      rig.hanging.scale.setScalar(Math.cbrt(residue / DROP_ML));
+      rig.hanging.position.y = -0.0017 * rig.hanging.scale.x;
     }
-    function confirmCal() {
-      if (endMl === null) return;
-      if (dropInput.valueAsNumber !== count)
-        return say('总滴数与落入烧杯的次数不符。可重新计数，从当前液面起再做一次。');
-      const val = pureOilPerDrop(startMl, endMl, count);
-      if (!val || !Number.isFinite(pureInput.valueAsNumber) || Math.abs(pureInput.valueAsNumber - val * 1000) > 0.002)
-        return say('刻度差先除以滴数，再乘 1/500。1 mL 是 1000 μL。');
-      pure = pureInput.valueAsNumber / 1000;
-      calibrationRecord.textContent =
-        startMl.toFixed(2) +
-        ' → ' +
-        endMl.toFixed(2) +
-        ' mL，共 ' +
-        count +
-        ' 滴。每滴含纯油酸 ' +
-        pureInput.value +
-        ' μL。';
-      calibrationRecord.hidden = false;
-      bar.done('drop');
-      calForm.hidden = true;
-      if (view) leave();
-      guide();
-    }
-    function confirmSize() {
-      if (!traced) return;
-      const n = areaInput.valueAsNumber,
-        expected = countFilmSquares(trace);
-      if (!Number.isInteger(n) || n < 1 || Math.abs(n - expected) > Math.max(2, 0.025 * expected))
-        return say('沿描线逐排核对。整格计入，边缘超过半格的计一格；格子边长 1 cm。');
-      const nm = molecularSizeNm(pure, n);
-      if (!Number.isFinite(sizeInput.valueAsNumber) || Math.abs(sizeInput.valueAsNumber - nm) > 0.035)
-        return say('用纯油酸体积除以面积，统一单位。1 μL = 10⁻⁹ m³，1 cm² = 10⁻⁴ m²。');
-
-      rows.add([String(count), pureInput.value, String(n), sizeInput.value]);
-      bar.done('size');
-      answerForm.hidden = true;
-      guide();
-    }
-    function finishTrace() {
-      if (trace.length < 12 || Math.hypot(trace[0].x - trace.at(-1).x, trace[0].z - trace.at(-1).z) > 0.012)
-        return say('可接着上次的线继续描，最后回到起点。');
-      const bins = new Set();
-      let offEdge = 0;
-      const miss = trace.some((p) => {
-        bins.add(
-          Math.floor(
-            (((Math.atan2(p.z - origin.z, p.x - origin.x) + Math.PI * 2) % (Math.PI * 2)) * 24) / (Math.PI * 2),
-          ),
-        );
-        const error = Math.min(...film.map((q) => Math.hypot(q.x - p.x, q.z - p.z)));
-        if (error > 0.008) offEdge++;
-        return error > 0.016;
-      });
-      if (
-        miss ||
-        offEdge > trace.length * 0.1 ||
-        bins.size < 18 ||
-        Math.abs(polygonArea(trace) / polygonArea(film) - 1) > 0.14
-      ) {
-        trace = [];
-        rig.grid();
-        return say('这条线没有贴着油膜绕满一圈。沿粉粒内缘重新描。');
-      }
-      trace.push({ ...trace[0] });
-      rig.grid(trace);
-      traced = true;
-      bar.done('trace');
-      answerForm.hidden = false;
-      guide();
-    }
-    function markPoint(p) {
-      const x = p.x - PAN_X,
-        z = p.z;
+    function mark(p) {
+      const x = p.x - PAN_X, z = p.z;
+      const last = trace[trace.length - 1];
       if (traced) {
-        const id = Math.floor(x / GRID) + '/' + Math.floor(z / GRID);
-        if (erasing) markers.delete(id);
-        else markers.add(id);
-        rig.grid(trace, markers);
-      } else if (!trace.length || Math.hypot(trace.at(-1).x - x, trace.at(-1).z - z) > 0.001) {
+        const key = Math.floor(x / GRID) + '/' + Math.floor(z / GRID);
+        if (erasing) marks.delete(key); else marks.add(key);
+        rig.grid(trace, marks);
+      } else if (!last || Math.hypot(last.x - x, last.z - z) > 0.0008) {
         trace.push({ x, z });
         rig.grid(trace);
       }
     }
-    const manip = draggable(
-      group,
-      [
-        {
-          obj: rig.thumb,
-          plane: 'xy',
-          offset: 0,
-          enabled: () => !covered && !bar.finished,
-          hint: '拉活塞取液，缓推活塞滴液',
-          onStart() {
-            grabMl = ml;
-            target = ml;
-            grabbing = true;
-          },
-          onDrag(p, start) {
-            if (!start) return;
-            const next = clamp(grabMl + (p.y - start.y) / STROKE, 0, 1);
-            if (next > ml && !stock()) return say('先把针尖浸入溶液，再向上拉。');
-            if (next < ml) {
-              if (!cup() && !pan()) return say('先把针尖移到烧杯或浅盘上方。');
-              if (cup() && !bar.has('drop') && startMl === null) return say('先读起始刻度，再缓推活塞。', scale);
-              if (pan() && (!rig.powdered || !bar.has('drop'))) return guide();
-              if (endMl !== null && !bar.has('drop')) return say('先在笔记本记录这次滴数，或重新计数。');
-            }
-            target = next;
-          },
-          onEnd(moved) {
-            grabbing = false;
-            target = ml;
-            if (moved) guide();
-          },
-          onTap() {
-            if (view !== 'syringe') near('syringe');
-          },
-        },
-        {
-          obj: rig.clamp,
-          plane: 'xz',
-          offset: 0.1,
-          enabled: () => view !== 'plate' && !covered && !bar.finished,
-          hint: '移动夹头和同一支注射器',
-          onStart() {
-            moveStart = syringe.position.clone();
-          },
-          onDrag(p, start) {
-            if (!start) return;
-            if (startMl !== null && !bar.has('drop') && endMl === null)
-              return say('这轮计数还在进行。先在烧杯上方读终止刻度。');
-            const d = Math.hypot(p.x - start.x, p.z - start.z),
-              slide = clamp((d - 0.009) / 0.017, 0, 1);
-            rig.position(
-              THREE.MathUtils.lerp(moveStart.x, clamp(p.x, STOCK_X - 0.01, PAN_X + 0.102), slide),
-              THREE.MathUtils.lerp(moveStart.y, 0.078, Math.min(1, d / 0.009)),
-              THREE.MathUtils.lerp(moveStart.z, clamp(p.z, -0.077, 0.087), slide),
-            );
-          },
-          onEnd(moved) {
-            if (!moved) return;
-            if (stock()) rig.position(STOCK_X, 0.035, 0);
-            else if (cup()) rig.position(CUP_X, 0.052, 0);
-            else rig.position(syringe.position.x, 0.054, syringe.position.z);
-            if (view === 'syringe') near('syringe');
-            else guide();
-          },
-          onTap() {
-            if (view !== 'syringe') near('syringe');
-          },
-        },
-        {
-          obj: bag,
-          plane: 'xz',
-          offset: WATER_Y + 0.023,
-          enabled: () => bar.has('drop') && !film && !covered,
-          hint: '抓住粉袋在水面来回轻拍',
-          onStart() {
-            shakeAt = null;
-          },
-          onDrag(p) {
-            bag.position.set(p.x, WATER_Y + 0.023, p.z);
-            if (!shakeAt || p.distanceTo(shakeAt) > 0.008) {
-              rig.sprinkle(p.x - PAN_X, p.z);
-              shakeAt = p.clone();
-            }
-          },
-          onEnd(moved) {
-            bag.position.copy(BAG_HOME);
-            if (moved && !rig.powdered)
-              say('水面四周已有 ' + rig.coverage + '/4 处撒上粉，向还裸露的位置再扫一下。', bag);
-            else guide();
-          },
-        },
-        {
-          obj: plate,
-          plane: 'xz',
-          offset: PLATE_Y,
-          enabled: () => !!film && !dirty && !bar.finished,
-          hint: () => (covered ? '沿边描线或给数过的格子作记号' : '将玻璃板放到浅盘上'),
-          onStart(p) {
-            plateStart = plate.position.clone();
-            if (covered && view === 'plate' && p) {
-              const pt = { x: p.x - PAN_X, z: p.z };
-              erasing = traced && markers.has(Math.floor(pt.x / GRID) + '/' + Math.floor(pt.z / GRID));
-              if (!traced && trace.length && Math.hypot(pt.x - trace.at(-1).x, pt.z - trace.at(-1).z) > 0.014)
-                trace = [];
-              markPoint(p);
-            }
-          },
-          onDrag(p, start) {
-            if (!start) return;
-            if (covered) {
-              if (view === 'plate') markPoint(p);
-              return;
-            }
-            if (spread < 1 || !cup()) return guide();
-            const shift = p.z - start.z,
-              u = clamp(shift / 0.15, 0, 1);
-            plate.position.lerpVectors(plateStart, new THREE.Vector3(PAN_X, PLATE_Y, 0), u);
-            plate.rotation.x = -0.06 - (Math.PI / 2 - 0.06) * u;
-          },
-          onEnd(moved) {
-            if (covered) {
-              if (moved && view === 'plate' && !traced) finishTrace();
-              return;
-            }
-            if (!moved) return;
-            if (plate.position.z > -0.049 && spread === 1) {
-              plate.position.set(PAN_X, PLATE_Y, 0);
-              plate.rotation.x = -Math.PI / 2;
-              covered = true;
-              guide();
-            } else {
-              plate.position.copy(rig.plateHome);
-              plate.rotation.x = -0.06;
-              guide();
-            }
-          },
-          onTap() {
-            if (covered && view !== 'plate') near('plate');
-          },
-        },
-      ],
-      { highlight: true, taps: [{ obj: scale, hint: '读注射器刻度', onTap: readScale }] },
-    );
+    function finishTrace() {
+      const first = trace[0], last = trace[trace.length - 1];
+      if (trace.length < 12 || Math.hypot(first.x - last.x, first.z - last.z) > 0.009)
+        return say('描线还没合上。从线尾接着描，回到起点。');
+      const off = trace.filter(p => film.every(q => Math.hypot(q.x - p.x, q.z - p.z) > 0.007));
+      if (off.length > trace.length * 0.1 || Math.abs(polygonArea(trace) / polygonArea(film) - 1) > 0.12) {
+        trace = []; rig.grid();
+        return say('这圈线偏离了粉粒内缘。沿无粉区的边界重新描一圈。');
+      }
+      trace.push(first);
+      traced = true;
+      rig.grid(trace);
+      field('area');
+      bar.done('trace');
+      guide();
+    }
+    const current = (s) => s === bar.current;
+    function returnTo(obj, home) { ret = { obj, from: obj.position.clone(), home: home.clone(), t: 0 }; }
+    const piston = {
+      obj: thumb, plane: 'xy', get offset() { return syringe.position.z; },
+      enabled: () => !ret && !spoiled && !covered && !fieldKind && (stock() || (cup() && startMl !== null && !pure) || (pure && overWater())),
+      hint: () => stock() ? '上拉：吸取稀释液' : '下推：滴出溶液',
+      onStart() { grabMl = ml; },
+      onDrag(p, start) {
+        if (!start || spoiled) return;
+        const volume = clamp(grabMl + (p.y - start.y) * CAPACITY / STROKE, 0, CAPACITY);
+        moveVolume(stock() ? Math.max(ml, volume) : Math.min(ml, volume));
+      },
+      onEnd() { guide(); },
+    };
+    const carriage = {
+      obj: rig.clamp, plane: 'xz', get offset() { return (slideY == null ? syringe.position.y : slideY) + rig.clamp.position.y; },
+      enabled: () => !ret && !spoiled && !covered && !dispensing() && !view && (pure || (startMl === null && full())),
+      hint: '拖夹头：移动针管',
+      onStart() { moving = syringe.position.clone(); slideY = moving.y; },
+      onDrag(p, start) {
+        if (!start) return;
+        const x = moving.x + p.x - start.x, z = moving.z + p.z - start.z;
+        const lift = Math.min(1, Math.hypot(x - moving.x, z - moving.z) / 0.008);
+        rig.position(clamp(x, STOCK_X - 0.012, PAN_X + PAN_W / 2), moving.y + (0.065 - moving.y) * lift, clamp(z, -0.12, 0.12));
+      },
+      onEnd(moved) {
+        slideY = null;
+        if (!moved) return;
+        if (stock()) rig.position(STOCK_X, 0.047, 0);
+        else if (cup()) rig.position(CUP_X, 0.054, 0);
+        else if (!pure || !overWater()) { returnTo(syringe, moving); return say('针尖没有对准容器，夹头已退回。对准杯口或水面再松手。', rig.clamp); }
+        if (overWater() && !film && rig.powdered) near('drip');
+        else guide();
+      },
+    };
+    const powderBag = {
+      obj: bag, plane: 'xz', offset: WATER_Y + 0.023, keepOffset: true,
+      enabled: () => !ret && bar.has('drop') && !film && !view && !covered,
+      hint: '拖粉袋：在水面撒粉',
+      onStart() { shakeAt = null; },
+      onDrag(p) {
+        bag.position.set(p.x, WATER_Y + 0.023, p.z);
+        if (!shakeAt || p.distanceTo(shakeAt) > 0.012) { rig.sprinkle(p.x - PAN_X, p.z); shakeAt = p.clone(); }
+      },
+      onEnd(moved) {
+        if (!moved) return;
+        returnTo(bag, BAG_HOME);
+        if (rig.powdered) { bar.done('powder'); guide(); }
+        else say('还有水面没撒到。让粉袋扫过裸露的地方。', bag);
+      },
+    };
+    const glass = {
+      obj: plate, plane: 'xz', offset: PLATE_Y,
+      enabled: () => !ret && !spoiled && bar.has('spread') && cup() && !bar.finished && (!covered || !view || !bar.has('area')),
+      hint: () => !covered ? '拖玻璃板：盖住浅盘' : !view ? '点一下：俯视方格' : traced ? '点或划：标记或擦除' : '沿边拖：描油膜轮廓',
+      onStart(p) {
+        moving = plate.position.clone();
+        if (covered && view === 'plate' && p) {
+          erasing = marks.has(Math.floor((p.x - PAN_X) / GRID) + '/' + Math.floor(p.z / GRID));
+          const last = trace[trace.length - 1];
+          if (!traced && last && Math.hypot(p.x - PAN_X - last.x, p.z - last.z) > 0.014) trace = [];
+          mark(p);
+        }
+      },
+      onDrag(p, start) {
+        if (!start) return;
+        if (!covered) plate.position.copy(moving).add(p.clone().sub(start));
+        else if (view === 'plate') mark(p);
+      },
+      onEnd(moved) {
+        if (!moved) return;
+        if (covered) { if (view === 'plate' && !traced) finishTrace(); return; }
+        if (Math.hypot(plate.position.x - PAN_X, plate.position.z) > 0.023) {
+          returnTo(plate, rig.plateHome);
+          return say('板边没有搭稳。把玻璃板的四边对准盘沿再松手。', plate);
+        }
+        plate.position.set(PAN_X, PLATE_Y, 0);
+        covered = true;
+        guide();
+      },
+      onTap() { if (covered && !view) near('plate'); },
+    };
+    const manip = draggable(group, [piston, carriage, powderBag, glass], {
+      taps: [{ obj: scale, enabled: () => !view && cup() && (startMl === null || (current('drop') && !fieldKind)),
+        hint: '点一下：近看刻度', onTap: () => near('syringe') }],
+    });
+    const tip = ctx.tag('', 'pill');
+    const hideTip = () => tip.loc(group, 0, -9, 0);
+    const canvas = document.getElementById('c');
+    canvas.addEventListener('pointerleave', hideTip);
     reset();
+    const atThumb = (v) => point(syringe.position.x, syringe.position.y + SYRINGE_ZERO + STROKE * v / CAPACITY + thumb.position.y, syringe.position.z);
+    const atClamp = (x, z = 0) => point(x + rig.clamp.position.x, syringe.position.y + rig.clamp.position.y, z + rig.clamp.position.z);
+    const push = (name, volume) => ({ name, drag: thumb, to: () => atThumb(volume) });
+    const slide = (name, x, z = 0) => ({ name, drag: rig.clamp, to: () => atClamp(x, z) });
+    const write = (name, kind, value) => ({ name, run() {
+      if (form.hidden || fieldKind !== kind) throw Error('读数栏未到 ' + kind);
+      input.value = String(typeof value === 'function' ? value() : value);
+      submit.click();
+    } });
+    const qa = qaFlow(manip, [
+      push('吸满一管', CAPACITY + 0.01), slide('移到烧杯', CUP_X), { name: '近看刻度', tap: scale },
+      write('误读胶塞', 'volume', 0.15), write('记录溶液体积', 'volume', CAPACITY),
+      { ...push('慢推活塞数滴', -0.01), wait: 6 },
+      write('核对漏数', 'drops', 9), write('记录滴数', 'drops', 10), write('折算纯油酸体积', 'pure', 0.04),
+      { name: '扫过水面前部', drag: bag, to: point(PAN_X + 0.080, WATER_Y + 0.023, 0.065) },
+      { name: '扫过左后角', drag: bag, to: point(PAN_X - 0.074, WATER_Y + 0.023, -0.082) },
+      { name: '扫过水面后部', drag: bag, to: point(PAN_X + 0.080, WATER_Y + 0.023, -0.078) },
+      slide('移回稀释液', STOCK_X), push('再次取液', CAPACITY + 0.01), slide('靠近盘心', PAN_X),
+      push('滴入一滴', CAPACITY - DROP_ML * 1.35), slide('收回针管', CUP_X),
+      { name: '盖方格板', drag: plate, to: point(PAN_X, PLATE_Y, 0) }, { name: '俯视油膜', tap: plate },
+      { name: '沿粉边合拢描线', run() {
+        if (!covered || view !== 'plate' || !film) throw Error('没有可描的油膜');
+        const path = film.map(p => point(PAN_X + p.x, PLATE_Y, p.z));
+        glass.onStart(path[0]);
+        for (const p of path) glass.onDrag(p, path[0]);
+        glass.onDrag(path[0], path[0]); glass.onEnd(true);
+      } },
+      write('边格取舍错误', 'area', 250), write('记录方格面积', 'area', () => countFilmSquares(trace)),
+      write('直径单位算错', 'size', 0.002), write('用本轮数据估直径', 'size', () => molecularSizeNm(pure, area).toFixed(2)),
+      { name: '掀开原文', run() {
+        if (!bar.finished || work.children.length !== 5) throw Error('测量记录不完整');
+        ui.go(2); ui.el.querySelector('.flap-front').click();
+      } },
+    ]);
+    // 没有真实鼠标的质检也从器材原位起拖。
+    for (const step of qa) if (step.mouse?.kind === 'drag') {
+      step.run = () => {
+        const item = manip.items().find(i => i.obj === step.mouse.obj);
+        const start = local(item.obj);
+        const end = step.mouse.to();
+        item.onStart(start);
+        for (let k = 1; k <= 16; k++) item.onDrag(start.clone().lerp(end, k / 16), start);
+        item.onEnd(true);
+      };
+    }
     return {
-      group,
-      size: { w: 0.57, h: 0.26, d: 0.37 },
-      view: { elev: 30, azim: 10, margin: 1.04 },
-      toggles: ['steps'],
+      group: new THREE.Group().add(group), size: { w: 0.78, h: 0.23, d: 0.34 },
+      view: { elev: 39, azim: 8, frameMargin: 0.99 }, toggles: ['steps'], reset,
       pointer: {
-        ...manip,
+        items: () => manip.items().filter(i => i.enabled()),
         down(ray, e) {
-          if (document.body.classList.contains('predicting')) ui?.go(1);
-          return manip.down(ray, e);
+          hideTip();
+          if (ui?.step === 2) return false;
+          const held = manip.down(ray, e);
+          if (held && ui?.step === 0) ui.go(1);
+          return held;
         },
+        move(ray, e) {
+          if (ui?.step !== 1) { hideTip(); return false; }
+          const dragging = manip.move(ray, e), item = manip.hovered();
+          if (dragging || !item) hideTip();
+          else {
+            const hit = ray.intersectObject(item.obj, true)[0];
+            if (hit) {
+              const p = group.worldToLocal(hit.point.clone());
+              tip.loc(group, p.x, p.y + 0.013, p.z).text(typeof item.hint === 'function' ? item.hint() : item.hint);
+            }
+          }
+          return dragging;
+        },
+        up(ray, e) { hideTip(); return manip.up(ray, e); },
       },
       mount(panel) {
         ui = panel;
-        bar.attach(panel);
-        rows = table(['标定滴数', '单滴纯油酸 / μL', '面积 / cm²', '尺度 / nm']);
-        const num = (name) => h('input', { type: 'number', step: 'any', 'aria-label': name, style: 'width:6em' });
-        dropInput = num('落入烧杯的滴数');
-        pureInput = num('单滴纯油酸（μL）');
-        areaInput = num('方格数');
-        sizeInput = num('分子尺度（nm）');
-        calLabel = note('');
-        calForm = h(
-          'div',
-          {},
-          calLabel,
-          h('label', {}, '滴数 ', dropInput),
-          h('label', {}, '单滴纯油酸 / μL ', pureInput),
-          buttons([{ text: '记录标定', onClick: confirmCal }]).el,
-        );
-        answerForm = h(
-          'div',
-          {},
-          note('用标定所得的单滴纯油酸体积，除以自己数出的轮廓面积。'),
-          h('label', {}, '方格数 ', areaInput),
-          h('label', {}, '尺度 / nm ', sizeInput),
-          buttons([{ text: '记录估测', onClick: confirmSize }]).el,
-        );
-        calForm.hidden = answerForm.hidden = true;
-        calibrationRecord = note('');
-        calibrationRecord.hidden = true;
-        panel.data.append(rows.el, calibrationRecord, calForm, answerForm);
-        panel.notes.append(
-          note('每小格边长 1 cm。用同一针头缓慢滴液，标定时至少数 10 滴；可留更多滴数以减小读尺和挂滴造成的误差。'),
-          note('示意：油膜面积按单层厚度约 2 nm（油酸分子长度的量级）算出来，铺开的快慢也是示意；数出的大小用来练习估测方法，不是真实测量。'),
-          buttons([
-            {
-              text: '重新标定滴数',
-              onClick() {
-                if (!bar.has('drop')) {
-                  clearCal();
-                  guide();
-                }
-              },
-            },
-            { text: '换清水重新撒粉', onClick: newTray },
-            { text: '全部重做', onClick: reset },
-          ]).el,
-        );
+        document.querySelector('.lbar').dataset.oilfilm = '';
+        panel.el.append(h('style', {}, `@media (max-width:760px) {
+          .lbar[data-oilfilm] { flex-wrap:wrap; gap:3px 6px; padding:5px 8px }
+          .lbar[data-oilfilm] .lb-main { flex:0 0 calc(100% - 32px) }
+          .lbar[data-oilfilm] .lb-steps { margin-left:26px; max-width:none; flex-wrap:nowrap }
+          .lbar[data-oilfilm] .lb-snd { margin-left:auto }
+        }`));
+        bar.attach({ need: () => ui.need(''), unlock() { ui.unlock(); ui.need(''); } });
+        const source = ui.el.querySelector('.answer .src');
+        source.style.minHeight = '58px';
+        source.style.paddingRight = '82px';
+        panel.controls.append(form, retry, resetTray);
+        panel.data.append(note('配液：取 1 mL 油酸，加酒精至总体积 500 mL。'), work);
+        panel.notes.append(note('液滴、粉粒和油膜展开过程为示意。玻璃板每小格边长 1 cm。'),
+          h('button', { class: 'go ghost', onclick: reset }, '全部重来'));
         guide();
       },
       update(dt) {
-        bar.update(dt);
-        if (grabbing && target !== ml) {
-          const change = clamp(target - ml, -0.065 * dt, 0.45 * dt);
-          ml = clamp(ml + change, 0, 1);
-          rig.volume(ml);
-          if (change < 0) {
-            residue -= change;
-            while (residue >= DROP_ML) {
-              residue -= DROP_ML;
-              release();
-            }
-          } else residue = Math.max(0, residue - change);
+        dt *= bar.update(dt);
+        if (ret) {
+          ret.t = Math.min(1, ret.t + dt / 0.40);
+          const pos = ret.obj.position.lerpVectors(ret.from, ret.home, ret.t * (2 - ret.t));
+          if (ret.obj === syringe) rig.position(pos.x, pos.y, pos.z);
+          if (ret.t === 1) ret = null;
         }
-        rig.hanging.visible = residue > 0.0005;
-        rig.hanging.scale.setScalar(Math.cbrt(residue / DROP_ML));
-        rig.hanging.position.y = -0.0015 * rig.hanging.scale.x;
-        for (let i = falling.length - 1; i >= 0; i--) {
-          const d = falling[i];
+        rippleTime = Math.max(0, rippleTime - dt);
+        for (let i = drops.length - 1; i >= 0; i--) {
+          const d = drops[i];
           d.t += dt;
-          d.mesh.position.y = d.from - 4.9 * d.t ** 2;
+          d.mesh.position.y = d.from - 0.85 * d.t ** 2;
           if (d.mesh.position.y <= (d.site === 'cup' ? Math.max(0.004, rig.cup.level) : WATER_Y)) {
+            drops.splice(i, 1);
             land(d);
-            falling.splice(i, 1);
           }
         }
+        if (queuedCupDrops > 0 && !drops.length && rippleTime === 0) {
+          queuedCupDrops--;
+          release('cup');
+        }
+        ripple.visible = rippleTime > 0;
+        ripple.scale.setScalar(0.3 + 1.7 * (1 - rippleTime / 0.35));
+        ripple.material.opacity = rippleTime / 0.35;
         if (film && spread < 1) {
-          spread = Math.min(1, spread + dt / 1.8);
+          spread = Math.min(1, spread + dt / 1.4);
           rig.water(film, origin, 1 - (1 - spread) ** 2);
           if (spread === 1) {
-            if (!dirty) bar.done('spread');
-            guide();
+            if (!spoiled) bar.done('spread');
+            if (view === 'drip') leave(); else guide();
           }
         }
       },
-      dispose() {
-        manip.dispose();
-        bar.dispose();
-      },
+      dispose() { canvas.removeEventListener('pointerleave', hideTip); manip.dispose(); bar.dispose(); },
+      debug: { bar, qa },
     };
   },
 };

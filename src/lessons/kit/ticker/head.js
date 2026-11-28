@@ -4,6 +4,38 @@ import { PERIOD } from './motion.js';
 
 // 纸带从两条导轨之间穿过。坐标原点在底座下表面的中心。
 export const SLOT_Y = 0.044;
+
+// 打点计时器的电源开关（翘板）和指示灯，贴在 parent 里的一个面上：parent 的 x 朝右、y 朝上、z 朝镜头，z 是面的位置。
+// 通电：翘板上半边（红）按进去、指示灯亮绿色。s：开关的缩放（面不够大时缩小，样子不变）。返回 show(on)。
+export function powerControls(parent, { y, z, rockerX, lampX, s = 1 }) {
+  const sw = new THREE.Group();
+  sw.position.set(rockerX, y, z);
+  sw.scale.setScalar(s);
+  parent.add(sw);
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.02, 0.004), paint(0x23292e));          // 开关的黑框
+  frame.position.z = 0.001;
+  sw.add(frame);
+  const rocker = new THREE.Group();
+  rocker.position.z = 0.004;
+  sw.add(rocker);
+  for (const [dy, color] of [[0.004, 0xc9402e], [-0.004, 0xe8e2d2]]) {          // 上半边（红，开）、下半边（白，关）
+    const half = inked(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.008, 0.006), paint(color)), { width: 0.85 });
+    half.position.y = dy;
+    rocker.add(half);
+  }
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 20, 12), new THREE.MeshBasicMaterial({ color: 0x3a4a3c }));
+  lamp.position.set(lampX, y, z + 0.003);
+  parent.add(lamp);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.005, 0.0012, 8, 24), paint(0x23292e));
+  ring.position.copy(lamp.position);
+  parent.add(ring);
+  const show = (on) => {
+    rocker.rotation.x = on ? 0.5 : -0.5;          // 通电：上半边（红）按进去、朝上翻；断开：下半边（白）按进去
+    lamp.material.color.setHex(on ? 0x3fe07a : 0x3a4a3c);
+  };
+  show(false);
+  return show;
+}
 export function tickerHead() {
   const group = new THREE.Group(),
     metal = 0x53616b;
@@ -34,6 +66,7 @@ export function tickerHead() {
     update(on, t) {
       light.material.color.setHex(on ? 0xe5653d : 0x5b4138);
       striker.position.y = SLOT_Y + 0.006 + (on ? 0.0015 * Math.sin((t / PERIOD) * 2 * Math.PI) : 0);
+      light.scale.setScalar(on ? 1.6 : 1);          // 通电时指示灯亮、大一点，远看也看得出
     },
   };
 }

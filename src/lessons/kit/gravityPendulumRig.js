@@ -28,22 +28,37 @@ export function gravityPendulumRig() {
     parent.add(o);
     return o;
   }
-  block(group, 0.41, 0.024, 0.3, 0.135, 0.305, 0, 0xbda276);
-  for (const x of [-0.045, 0.315])
-    for (const z of [-0.116, 0.116]) block(group, 0.023, 0.294, 0.023, x, 0.147, z, 0xb49a72);
+  block(group, 0.32, 0.024, 0.25, 0.185, 0.305, 0, 0xbda276);
+  for (const x of [0.045, 0.325])
+    for (const z of [-0.10, 0.10]) block(group, 0.023, 0.294, 0.023, x, 0.147, z, 0xb49a72);
   block(group, 0.15, 0.024, 0.105, 0.19, 0.329, 0, 0x586866);
   cyl(group, 0.009, 0.666, 0.19, 0.674, 0, 0x939f9d);
-  const arm = cyl(group, 0.006, 0.38, 0.01, 0.978, SUSPEND.z, 0x939f9d);
+  const arm = cyl(group, 0.006, 0.38, 0.01, 0.995, SUSPEND.z - 0.015, 0x939f9d);
   arm.rotation.z = Math.PI / 2;
-  block(group, 0.034, 0.026, 0.059, 0.19, 0.978, 0.013, 0x5c6968);
-  const clamp = block(group, 0.037, 0.027, 0.027, SUSPEND.x, 0.9735, SUSPEND.z, 0x697b79);
-  const spool = cyl(group, 0.014, 0.017, SUSPEND.x + 0.025, 0.975, SUSPEND.z, 0xa4855e);
-  spool.rotation.x = Math.PI / 2;
+  block(group, 0.034, 0.026, 0.059, 0.19, 0.995, 0.013, 0x5c6968);
+  // 左钳口固定，右钳口绕上方的销轴张开；闭合时两片下沿正是读尺的悬点。
+  block(group, 0.018, 0.041, 0.027, SUSPEND.x - 0.010, SUSPEND.y + 0.0205, SUSPEND.z, 0x697b79);
+  const jaw = new THREE.Group();
+  jaw.position.set(SUSPEND.x + 0.011, SUSPEND.y + 0.041, SUSPEND.z);
+  group.add(jaw);
+  block(jaw, 0.018, 0.041, 0.027, -0.001, -0.0205, 0, 0x526662);
+  const pin = cyl(group, 0.006, 0.034, jaw.position.x, jaw.position.y, SUSPEND.z, 0xab8552);
+  pin.rotation.x = Math.PI / 2;
+  function openClamp(open) { jaw.rotation.z = open ? Math.PI / 3 : 0; }
+  // 夹子外留一段自由线端。把这一端向下抽，另一端的摆线等量缩短。
+  const tailX = SUSPEND.x + 0.055, cordTop = jaw.position.y + 0.010;
+  const bridgeX = (SUSPEND.x + tailX) / 2;
+  block(group, tailX - SUSPEND.x - 0.003, 0.010, 0.027, bridgeX, cordTop - 0.0065, SUSPEND.z, 0x697b79);
+  cyl(group, 0.0013, cordTop - SUSPEND.y, SUSPEND.x, (cordTop + SUSPEND.y) / 2, SUSPEND.z, 0x594e40);
+  const bridge = cyl(group, 0.0015, tailX - SUSPEND.x, bridgeX, cordTop, SUSPEND.z, 0x594e40);
+  bridge.rotation.z = Math.PI / 2;
+  const tail = cyl(group, 0.0015, 1, tailX, 0, SUSPEND.z, 0x594e40);
+  const grip = cyl(group, 0.010, 0.028, tailX, 0, SUSPEND.z, 0x9d683c);
   const pivot = new THREE.Group();
   pivot.position.set(SUSPEND.x, SUSPEND.y, SUSPEND.z);
   group.add(pivot);
   const cord = cyl(pivot, 0.0013, 1, 0, 0, 0, 0x594e40);
-  const ball = inked(new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 32, 24), paint(0xb69c63)), { width: 0.65 });
+  const ball = inked(new THREE.Mesh(new THREE.SphereGeometry(RADIUS, 32, 24), new THREE.MeshStandardMaterial({ color: 0xb29559, metalness: 0.25, roughness: 0.36 })), { width: 0.65 });
   pivot.add(ball);
   const knot = new THREE.Mesh(new THREE.SphereGeometry(0.0038, 12, 8), paint(0x634d34));
   pivot.add(knot);
@@ -67,60 +82,79 @@ export function gravityPendulumRig() {
       c.fillStyle = '#303b3c';
       c.textAlign = 'right';
       c.textBaseline = 'middle';
-      c.font = 'bold 35px sans-serif';
+      c.font = 'bold 32px sans-serif';
       for (let mm = 0; mm <= 900; mm++) {
         const y = (mm * h) / 900,
           len = mm % 10 === 0 ? 0.32 : mm % 5 === 0 ? 0.22 : 0.12;
         c.fillRect(w * (1 - len), Math.max(0, y - 1), w * len, 2);
-        if (mm > 0 && mm % 20 === 0 && mm < 900) c.fillText(String(mm / 10), w * 0.59, y);
+        if (mm > 0 && mm % 10 === 0 && mm < 900) c.fillText(String(mm / 10), w * 0.59, y);
       }
-      c.fillText('cm', w * 0.59, 42);
+      c.textAlign = 'left'; c.font = '24px sans-serif'; c.fillText('cm', 6, 31);
     }),
   );
-  // 摆球后方的细指针给出平衡位置；支架可随球心高度调整。
+  // 图 2.5-3 的直角边。贴近摆球正面，与球心等高的一边一直延伸到毫米刻线。
+  const triangle = new THREE.Shape();
+  triangle.moveTo(0, 0); triangle.lineTo(0.086, 0); triangle.lineTo(0, -0.032); triangle.closePath();
+  const straightedge = new THREE.Mesh(new THREE.ShapeGeometry(triangle), new THREE.MeshBasicMaterial({
+    color: 0x85b6b4, transparent: true, opacity: 0.33, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  straightedge.position.set(SUSPEND.x - 0.046, 0, SUSPEND.z + RADIUS + 0.001);
+  const edge = new THREE.LineSegments(new THREE.EdgesGeometry(straightedge.geometry),
+    new THREE.LineBasicMaterial({ color: 0x526e6c }));
+  straightedge.add(edge);
+  straightedge.visible = false;
+  group.add(straightedge);
+  // 指针从球的下方对准平衡位置，与摆球在同一竖直平面，避免斜视时产生视差。
   block(group, 0.05, 0.012, 0.04, SUSPEND.x + 0.073, 0.006, -0.046, 0x687875);
   cyl(group, 0.003, 0.59, SUSPEND.x + 0.073, 0.3, -0.046, 0x879592);
   const guide = block(group, 0.073, 0.002, 0.003, SUSPEND.x + 0.0365, 0.18, -0.046, 0x8e7163);
+  const bracket = block(group, 0.003, 0.003, 0.071, SUSPEND.x, 0.18, -0.0105, 0x8e7163);
+  const midline = block(group, 0.0025, 0.025, 0.0025, SUSPEND.x, 0.18, SUSPEND.z, 0x8b4033);
   const watch = new THREE.Group();
   group.add(watch);
-  watch.position.set(0.015, 0.333, 0.071);
-  watch.rotation.x = 0.5;
-  block(group, 0.095, 0.014, 0.055, 0.015, 0.324, 0.068, 0x59665f);
-  block(watch, 0.112, 0.043, 0.062, 0, 0.0215, 0, 0x536761);
-  const watchTex = canvasTex(640, 230, () => {});
-  const screen = plate(watch, 0.082, 0.029, 0, 0.0434, -0.003, watchTex);
-  screen.rotation.x = -Math.PI / 2;
-  const key = block(watch, 0.026, 0.009, 0.016, 0, 0.045, 0.021, 0xa66c43);
+  watch.position.set(0.091, 0.317, 0.074);
+  block(watch, 0.119, 0.012, 0.065, 0, 0.006, 0, 0x53645e);
+  const caseFace = block(watch, 0.13, 0.078, 0.036, 0, 0.048, 0, 0x405752);
+  const watchTex = canvasTex(640, 320, () => {});
+  const screen = plate(watch, 0.111, 0.059, 0, 0.049, 0.0184, watchTex);
+  const key = block(watch, 0.045, 0.010, 0.022, 0.031, 0.092, 0.001, 0x976539);
+  caseFace.attach(screen); caseFace.attach(key);
+  const restY = key.position.y;
   let digits;
-  function display(seconds) {
+  function display(seconds, status) {
     const val = seconds.toFixed(2);
-    if (val === digits) return;
-    digits = val;
+    if (val + status === digits) return;
+    digits = val + status;
     const c = watchTex.canvas.getContext('2d');
-    c.fillStyle = '#ccdabd';
-    c.fillRect(0, 0, 640, 230);
-    c.fillStyle = '#283d34';
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.font = 'bold 120px monospace';
-    c.fillText(val + ' s', 320, 120);
+    c.fillStyle = '#dbe2c9'; c.fillRect(0, 0, 640, 320);
+    c.fillStyle = '#273e37'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = 'bold 108px monospace'; c.fillText(val + ' s', 320, 201);
+    c.font = '54px sans-serif'; c.fillText(status, 320, 70);
+    key.position.y = status === '计时中' ? restY - 0.004 : restY;
     watchTex.needsUpdate = true;
   }
   function pose(length, angle) {
+    const slack = 0.92 - length;
+    tail.scale.y = slack;
+    tail.position.y = cordTop - slack / 2;
+    grip.position.y = cordTop - slack;
     pivot.rotation.z = angle;
     cord.scale.y = length - RADIUS;
     cord.position.y = -(length - RADIUS) / 2;
     ball.position.y = -length;
     knot.position.y = -length - RADIUS;
-    guide.position.y = SUSPEND.y - length;
+    straightedge.position.y = SUSPEND.y - length;
+    midline.position.y = SUSPEND.y - length - RADIUS - 0.021;
+    bracket.position.y = guide.position.y = midline.position.y - 0.0125;
   }
   return {
     group,
-    ruler,
+    ruler, straightedge,
     scale,
     ball,
-    spool,
-    clamp,
+    grip,
+    caseFace,
+    openClamp,
     key,
     watch,
     screen,

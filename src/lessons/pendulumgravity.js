@@ -1,589 +1,377 @@
-// 选择性必修一图 2.5-1。读尺、释放、起停计时均由学生操作；振动积分与停表共用实验时钟。
-import { gravityPendulumRig, SUSPEND, RULER_SPAN, RADIUS } from './kit/gravityPendulumRig.js';
-import { advancePendulum, pendulumEstimate, timingMark, pendulumSeries } from './kit/gravityPendulum.js';
+// 选择性必修第一册，第 51–53 页。用图 2.5-3 的直接读尺法量到球心。
+import { gravityPendulumRig, SUSPEND, RADIUS } from './kit/gravityPendulumRig.js';
+import { GRAVITY, advancePendulum, pendulumEstimate, timingMark } from './kit/gravityPendulum.js';
 import { lessonBar } from './kit/lessonbar.js';
 import { draggable, clamp } from './kit/interact.js';
-import { note, table, buttons, chart, h } from './kit/ui.js';
+import { qaFlow } from './kit/chemlesson.js';
+import { table, chart, h } from './kit/ui.js';
 
-const DEG = Math.PI / 180,
-  MIN_OSCILLATIONS = 20;
+const DEG = Math.PI / 180;
+const HOME = SUSPEND.x - 0.14, ALIGNED = SUSPEND.x - RADIUS - 0.028;
+const stages = [['length', '量摆长'], ['time', '测多次全振动'], ['repeat', '复测取平均']];
+const first = '把竖尺向右拖到摆线旁，量悬点到球心的距离。';
+const cm = n => (n * 100).toFixed(1);
+
 export default {
-  id: 'pendulumgravity',
-  fig: '图2.5-1',
-  title: '用单摆测量重力加速度',
-  stampText: '测量',
+  id: 'pendulumgravity', fig: '图2.5-1', title: '用单摆测量重力加速度', stampText: '测量',
   predict: {
-    q: '从摆球向右经过中线开始计时，哪一次才完成了一次全振动？',
-    options: ['下一次向右过中线', '下一次向左过中线', '到达右端最高点'],
-    answer: 0,
-    hint: '一次全振动后，摆球回到相同位置，运动方向也相同。',
+    q: '用单摆测这里的重力加速度，要量哪两个量？',
+    options: ['摆线的长度和周期', '悬点到球心的距离和周期', '摆球的质量和周期'], answer: 1,
   },
   conclusion: {
     page: 55, rect: [64.0, 359.0, 381.0, 440.0],
-    quote: '当摆角较小时，单摆做简谐运动，根据其周期公式可得 g＝4π²l/T²',
-    why: '摆长是悬点到球心的距离。用总时间 t 除以全振动次数 N 得到周期 T，再由 g = 4π²l/T² 计算。起停时对准同一位置、同一运动方向，多周期计时能减小反应时间在结果中的占比。改变摆长取得多组记录，T²–l图近似为过原点的直线，斜率k=4π²/g；T与l本身不成正比。',
+    quote: '当摆角较小时，单摆做简谐运动，根据其周期公式可得',
+    formula: 'g = 4π²l / T²',
+    why: '摆线长加上球半径就是摆长。把多次全振动的总时间除以次数，起停时的反应误差就分摊到多个周期里。',
     src: '课本第 51 页 · 第二章 第5节 实验：用单摆测量重力加速度',
   },
   create(ctx) {
-    const rig = gravityPendulumRig(),
-      { group } = rig;
-    let ui,
-      log,
-      report,
-      clockRows,
-      aim,
-      near = null,
-      length,
-      angle,
-      omega,
-      amplitude,
-      running,
-      measured,
-      upper,
-      elapsed,
-      started,
-      stopped,
-      pending,
-      turns,
-      heldAngle,
-      catching,
-      initialLen,
-      grabX,
-      clickedY,
-      lastFrame;
-    let watchView = false;
-    const samples = [];
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'length', title: '量摆长', todo: '沿尺分别读取悬点和球心的位置。', target: () => aim },
-        { id: 'time', title: '多周期计时', todo: '从静止释放，计至少 20 次全振动。', target: () => aim },
-        {
-          id: 'repeat',
-          title: '多摆长复测',
-          todo: '测至少四种摆长，总跨度至少20cm；每种都重新量长和计时。',
-          target: () => aim,
-        },
-        { id: 'g', title: '分析周期与摆长', todo: '用原数据计算周期和g，再比较T–l、T²–l图。', target: () => aim },
-      ],
-    });
-    const say = (msg, obj = null) => {
-      aim = near || watchView ? null : obj;
-      bar.say(msg);
-    };
-    const enter = () => {
-      if (ui && document.body.classList.contains('predicting')) ui.go(1);
-    };
-    const aligned = () => Math.abs(rig.ruler.position.x + 0.024 - (SUSPEND.x - RADIUS - 0.003)) < 0.01;
-    const enough = () => samples.length >= 4 && pendulumSeries(samples).sufficient;
-    const repeatedLength = () => measured !== null && samples.some((s) => Math.abs(measured - s.l) < 0.049);
+    const rig = gravityPendulumRig(), { group, scale, ball, grip, caseFace } = rig;
+    const point = (x, y, z) => new ctx.THREE.Vector3(x, y, z);
+    const local = obj => group.worldToLocal(obj.getWorldPosition(point(0, 0, 0)));
+    const samples = [], points = [];
+    let ui, target, view, aligned, returning, length, measured, readings;
+    let angle, omega, amplitude, running, elapsed, turns, start, pending, stopped;
+    let catching, grabAngle, grabLength, grabX, lastFrame;
+    const bar = lessonBar({ ...ctx, group, back: leave, steps: stages.map(([id, title]) =>
+      ({ id, title, todo: id === 'length' ? first : title, target: () => ui?.step === 1 ? target : null })) });
+    const stepBar = document.querySelector('.lbar');
+    let shortOverview = false, holding = false, layoutPending = false, adjusting = false;
+    const say = (message, obj = null) => { target = obj; bar.say(message); };
+    const labels = ['悬点刻度 / cm', '球顶刻度 / cm', '球心刻度 / cm'];
+    const heights = () => [SUSPEND.y, SUSPEND.y - length + RADIUS, SUSPEND.y - length];
+    const scaleValue = () => (rig.ruler.position.y - heights()[readings.length]) * 100;
+    const field = (label, step) => h('input', { type: 'number', step, inputmode: step === '1' ? 'numeric' : 'decimal',
+      'aria-label': label, style: 'width:5.5em;font:inherit;padding:4px 6px' });
+    const rulerInput = field(labels[0], '0.1'), count = field('全振动次数 N', '1'), time = field('停表读数 t / s', '0.01');
+    const rulerLabel = h('span'), rulerLine = h('label', {}, rulerLabel, '　', rulerInput);
+    function form(rows, caption, submit) {
+      return h('form', { hidden: true, novalidate: true, onsubmit(e) { e.preventDefault(); submit(); } },
+        rows.map(label => h('div', { class: 'read-row' }, label)), h('button', { class: 'go', type: 'submit' }, caption));
+    }
+    const rulerForm = form([rulerLine], '记下刻度', readLength);
+    const timerForm = form([h('label', {}, '全振动次数 N　', count), h('label', {}, '停表读数 t / s　', time)], '记录这组', record);
+    const log = table(['l / m', 'N / 次', 't / s', 'T / s', 'g / (m/s²)']);
+    const work = h('p', { class: 'note' }), average = h('p', { class: 'note' });
+    const graph = chart({ preserveAspect: true,
+      x: { label: 'l / m', min: 0, max: 0.9 }, y: { label: 'T² / s²', min: 0, max: 4 },
+      series: [{ points, dots: true, line: false, color: '#28656f' }] });
+    const comparison = h('div', { class: 'sum-ctx', hidden: true });
+    const data = h('div', {}, log.el, graph.el, average, comparison);
+    const resetButton = h('button', { class: 'go ghost', onclick: reset }, '全部重来');
+
     function guide() {
-      if (bar.finished) return say('已用多组原数据比较周期与摆长，并估算重力加速度。');
-      if (near)
-        return say(
-          near === 'top'
-            ? '点与线的悬点齐平的毫米刻线。尺上数字是厘米。'
-            : '点与球心齐平的毫米刻线，留意球的上下边缘。',
-        );
-      if (pending) return say('停表读数 ' + pending.t.toFixed(2) + ' s。展开笔记本，填写自己数的全振动次数。');
-      if (enough()) return say('摆长范围已有充分记录。在原笔记本计算周期和g，再用两幅图比较关系。');
-      if (started)
-        return say(
-          '起表方向为' + (started.dir > 0 ? '向右' : '向左') + '。数满至少 20 次全振动，在同向过中线时再按停表。',
-          rig.key,
-        );
-      if (samples.length > 0 && repeatedLength())
-        return say(
-          running
-            ? '先抓住摆球带回中线，停稳后改变摆长。'
-            : '上下拖动线轴，选与已有记录相差至少5cm的摆长；总跨度需达20cm。',
-          running ? rig.ball : rig.spool,
-        );
-      if (running)
-        return say(
-          measured === null
-            ? '先把球带回中线停住，测摆长。'
-            : watchView
-              ? '看球心经过中线时的方向，按停表开始，记作第 0 次。'
-              : '点停表近看，让球心和表盘同时留在视野中。',
-          measured === null ? rig.ball : watchView ? rig.key : rig.watch,
-        );
-      if (measured === null) {
-        if (!aligned()) return say('把竖尺横向拖到悬线旁，让毫米刻线靠近悬点和球心。', rig.ruler);
-        return say(
-          upper === null ? '点悬点旁的尺，近看它与哪条刻线齐平。' : '上端已读。点球心旁的同一把尺，再读球心的位置。',
-          rig.scale,
-        );
+      if (bar.finished) return say('三组都已记录。用各组 g 的平均值表示这次测量的结果。');
+      if (view === 'ruler') {
+        const prompts = ['平视细线离开夹子的地方，读悬点刻度。每小格是 1 mm。',
+          '悬点已记下。读球的上边缘，先量出摆线有多长。',
+          '沿三角尺的上边读球心刻度。球顶到球心的距离就是半径。'];
+        return say(prompts[readings.length]);
       }
-      say('向左或向右拉开摆球一点，松手释放。用小摆角测量。', rig.ball);
+      if (pending) return say('表停了。把自己数的全振动次数和表上的秒数记下来。');
+      if (start) return say('起表时球向' + (start.dir > 0 ? '右' : '左') + '过中线。每次同向回来数一次，数满 20 次或更多再按表。', caseFace);
+      if (running) return say('球心经过红色中线时按表，记作第 0 次，同时记住运动方向。', caseFace);
+      if (measured !== null) return say('向旁边轻拉摆球，松手让它小角度摆动。', ball);
+      if (!aligned) return say(first, scale);
+      say('点竖尺凑近读数。摆长的起点在夹子下方的悬点。', scale);
     }
-    function leave() {
-      if (near || watchView) ctx.back();
-      watchView = false;
-      near = null;
+    function closeView() {
+      if (view || shortOverview) ctx.back();
+      shortOverview = false;
+      rig.straightedge.visible = false;
+      view = null;
+      rulerForm.hidden = true;
       bar.near(false);
-      guide();
+      fitLayout();
     }
-    function look() {
-      if (running || pending || enough()) {
-        guide();
-        return;
-      }
-      if (!aligned()) {
-        guide();
-        return;
-      }
-      const target = upper === null ? SUSPEND.y : SUSPEND.y - length;
-      if (Math.abs(clickedY - target) > 0.065) {
-        guide();
-        return;
-      }
-      near = upper === null ? 'top' : 'bob';
+    function leave() { closeView(); guide(); }
+    function readView() {
+      view = 'ruler';
+      const k = readings.length;
+      rig.straightedge.visible = k === 2;
+      const y = heights()[k];
+      rulerLabel.textContent = labels[k]; rulerInput.setAttribute('aria-label', labels[k]); rulerInput.value = '';
+      rulerForm.hidden = false;
+      if (ui?.el.classList.contains('folded')) ui.fold(false);
+      ctx.look([(ALIGNED + SUSPEND.x) / 2, y, 0], [0, 0, 1], 0.34, leave);
+      bar.near(true); guide();
+    }
+    function frameWatch() {
+      const y = SUSPEND.y - length;
+      ctx.look([-0.038, (y + 0.37) / 2, 0.035], [0, 0.015, 1], Math.max(amplitude > 5 * DEG ? 0.93 : 0.75, Math.abs(y - 0.37) * 2.8 + 0.29), leave);
+    }
+    function watchView() {
+      view = 'watch';
       bar.near(true);
-      ctx.look(
-        [(rig.ruler.position.x - 0.024 + SUSPEND.x + RADIUS) / 2, target, rig.ruler.position.z],
-        [0, 0, 1],
-        0.17,
-        leave,
-      );
-      guide();
+      fitLayout();
     }
-    function read(ray) {
-      const hit = ray.intersectObject(rig.scale)[0];
-      if (!hit) return;
-      const n = Math.round((1 - hit.uv.y) * RULER_SPAN * 1000);
-      const y = near === 'top' ? SUSPEND.y : SUSPEND.y - length;
-      if (Math.abs(n - (rig.ruler.position.y - y) * 1000) > 1)
-        return say(
-          near === 'top'
-            ? '从细线离开夹子的悬点水平看过去，再点尺刻。'
-            : '从球心向尺水平看过去。读到球顶会少一个半径。',
-        );
-      if (near === 'top') {
-        upper = n;
-        leave();
+    // 矮横屏按顶栏和步骤栏之间的实际空位取景。计时只框住摆球的运动范围、中线和停表。
+    function fitLayout() {
+      if (!ui || view === 'ruler' || !document.body.classList.contains('lesson-on')) return;
+      if (holding) { layoutPending = true; return; }
+      layoutPending = false;
+      const bounds = stepBar.getBoundingClientRect();
+      if (innerWidth <= 760 || innerHeight > 600 || !bounds.height) {
+        if (view === 'watch') frameWatch();
+        else if (shortOverview) ctx.back();
+        shortOverview = false;
         return;
       }
-      measured = (n - upper) / 1000;
-      bar.done('length');
-      leave();
-      say('两端相差 ' + (n - upper) + ' mm。轻拉摆球，从静止松手。', rig.ball);
+      const watch = view === 'watch', y = SUSPEND.y - length;
+      const low = watch ? Math.min(y - RADIUS - 0.04, rig.watch.position.y) : -0.02;
+      const high = watch ? Math.max(y + length * (1 - Math.cos(amplitude)) + RADIUS, rig.watch.position.y + 0.10) : 1.03;
+      const top = (document.querySelector('#btn-import')?.getBoundingClientRect().bottom || 48) + 8;
+      const bottom = bounds.top - 8;
+      const swing = length * Math.sin(amplitude) + RADIUS;
+      const left = watch ? SUSPEND.x - swing : -0.40;
+      const right = watch ? Math.max(rig.watch.position.x + 0.07, SUSPEND.x + swing) : 0.40;
+      const pxPerMeter = Math.min(Math.max(40, bottom - top) / (high - low), Math.max(80, bounds.width - 64) / (right - left));
+      const centerY = (high + low) / 2 - (innerHeight - top - bottom) / (2 * pxPerMeter);
+      const center = point((left + right) / 2, centerY, 0.035);
+      const dist = innerHeight / (2 * Math.tan(ctx.camera.fov * DEG / 2) * pxPerMeter) + 0.07;
+      const dir = watch ? point(0, 0, 1) : point(-0.12, 0.18, 1).normalize();
+      ctx.lookFrom(center.clone().addScaledVector(dir, dist).toArray(), center.toArray(), leave);
+      shortOverview = !watch;
     }
-    function stopReading() {
-      if (!running || measured === null || !amplitude) {
-        guide();
-        return;
+    const layoutObserver = new ResizeObserver(fitLayout);
+    function readLength() {
+      if (view !== 'ruler') return;
+      const value = rulerInput.valueAsNumber, correct = scaleValue(), k = readings.length;
+      if (!Number.isFinite(value)) return say('先把看到的厘米数写下来。');
+      if (Math.abs(value - correct) > 0.055) {
+        if (k === 2 && Math.abs(value - readings[1]) < 0.07) return say('这是球顶的刻度，还差一个半径。沿球最宽处水平读尺。');
+        return say(['从细线离开夹子的下沿平视尺面。', '从细线接触球顶的地方平视尺面。', '从球最宽的地方平视尺面。'][k] + '每 10 小格是 1 cm。');
       }
-      const { dir, atCenter, ordinal } = timingMark(angle, omega, amplitude, turns);
-      if (!started) {
-        if (!atCenter) return say('球尚未经过中线。等它经过平衡位置时按停表，记住运动方向。', rig.key);
-        started = { t: elapsed, dir, ordinal };
-        stopped = 0;
-        rig.display(0);
-        guide();
-        return;
-      }
-      stopped = elapsed - started.t;
-      const n = ordinal - started.ordinal,
-        same = dir === started.dir;
-      started = null;
-      rig.display(stopped);
-      if (!same || !atCenter)
-        return say(
-          '停表读到 ' + stopped.toFixed(2) + ' s，但起停没有对准同方向的中线。下次同向过中线时重新起表。',
-          rig.key,
-        );
-      if (n < MIN_OSCILLATIONS)
-        return say(
-          '停表读到 ' + stopped.toFixed(2) + ' s，只经过 ' + n + ' 次全振动。再起表，数满至少 20 次。',
-          rig.key,
-        );
-      if (amplitude > 5.5 * DEG) return say('这组摆角偏大。把球带回中线，再小幅拉开重测。', rig.ball);
-      pending = { t: stopped, n, l: measured };
-      guide();
+      readings.push(value);
+      work.textContent = '悬点 ' + readings[0].toFixed(1) + ' cm' + (k > 0 ? '，球顶 ' + readings[1].toFixed(1) + ' cm' : '') + '。';
+      if (k < 2) { readView(); return; }
+      const cord = readings[1] - readings[0], radius = value - readings[1];
+      measured = (value - readings[0]) / 100;
+      work.textContent = '摆线长 ' + cord.toFixed(1) + ' cm，球半径 ' + radius.toFixed(1) + ' cm。摆长 l = ' + cm(measured) + ' cm。';
+      bar.done('length'); closeView();
+      say('量到球心才是完整的摆长。轻拉摆球，松手让它小角度摆动。', ball);
     }
-    function saveCount() {
-      if (!pending) return;
-      const n = clockRows.valueAsNumber;
-      if (n !== pending.n) {
-        say('本轮次数与同向过中线的记录不符。左右各经过一次才算一次全振动；可重新计时。');
-        return;
-      }
-      const sample = { ...pending, t: +pending.t.toFixed(2), accepted: false };
-      pending = null;
-      samples.push(sample);
-      log.el.hidden = false;
-      log.add([sample.l.toFixed(3), String(n), sample.t.toFixed(2)]);
-      bar.done('time');
-      if (enough()) bar.done('repeat');
-      clockRows.value = '';
-      countForm.hidden = true;
-      if (enough()) {
-        buildReport();
-        guide();
-      } else say('已记' + samples.length + '组。抓球回中线停住，再调线轴；需至少四种摆长、总跨度20cm。', rig.ball);
-    }
-    let countForm;
-    function buildReport() {
-      report.replaceChildren();
-      const values = samples.map(() => []);
-      const plots = h('div', { hidden: true });
-      let plotted = null;
-      const invalidate = () => {
-        plotted = null;
-        plots.hidden = true;
-        bar.undo('g');
-      };
-      report.append(note('用原表的t/N计算周期T（保留三位小数），再算每组g并取平均。核对后，在同一笔记本画两幅图。'));
-      for (const [i, s] of samples.entries()) {
-        const labels = ['第 ' + (i + 1) + ' 组周期 / s', '第 ' + (i + 1) + ' 组 g / (m/s²)'];
-        for (const label of labels) {
-          const el = h('input', { type: 'number', step: 'any', 'aria-label': label, style: 'width:6em' });
-          el.addEventListener('input', invalidate);
-          values[i].push(el);
-          report.append(h('div', { class: 'read-row' }, h('label', {}, label + ' ', el)));
-        }
-      }
-      const avg = h('input', { type: 'number', step: 'any', 'aria-label': '平均 g / (m/s²)', style: 'width:6em' });
-      avg.addEventListener('input', invalidate);
-      report.append(
-        h('div', { class: 'read-row' }, h('label', {}, '平均 g / (m/s²) ', avg)),
-        buttons([
-          {
-            text: '核对并画图',
-            onClick() {
-              let sum = 0;
-              for (const [i, s] of samples.entries()) {
-                const [t, g] = values[i].map((el) => el.valueAsNumber),
-                  expected = pendulumEstimate(s.l, s.t, s.n);
-                if (!Number.isFinite(t) || Math.abs(t - expected.period) > 0.00051)
-                  return say('第' + (i + 1) + '组先用总时间除以全振动次数，周期保留三位小数。');
-                if (!Number.isFinite(g) || Math.abs(g - (4 * Math.PI ** 2 * s.l) / t ** 2) > 0.1)
-                  return say('第' + (i + 1) + '组请用米和秒，计算4π²l/T²。');
-                sum += g;
-              }
-              if (!Number.isFinite(avg.valueAsNumber) || Math.abs(avg.valueAsNumber - sum / samples.length) > 0.025)
-                return say('取你计算的各组g的算术平均值。');
-              // 图上的T采用学生刚核对的值；继续改输入会撤回图和完成状态。
-              plotted = pendulumSeries(samples.map((s, i) => ({ ...s, t: values[i][0].valueAsNumber * s.n })));
-              bar.undo('g');
-              plots.replaceChildren();
-              plots.hidden = false;
-              const squares = table(['摆长 l / m', '周期 T / s', 'T² / s²']);
-              for (const r of plotted.rows) squares.add([r.l.toFixed(3), r.period.toFixed(3), r.squared.toFixed(4)]);
-              plots.append(
-                squares.el,
-                note(
-                  'T²由上面核对的T平方得到。圆点保留实测差别；棕色虚线是自由截距的直线拟合，不强迫过原点。点图可放大。',
-                ),
-              );
-              for (const [key, fit, label, max] of [
-                ['period', plotted.periodFit, 'T / s', 2.2],
-                ['squared', plotted.squaredFit, 'T² / s²', 4],
-              ]) {
-                const end = 0.9,
-                  line = [
-                    [0, fit.intercept],
-                    [end, fit.intercept + fit.slope * end],
-                  ];
-                const graph = chart({
-                  preserveAspect: true,
-                  x: { label: 'l / m', min: 0, max: end },
-                  y: {
-                    label,
-                    min: Math.min(0, fit.intercept * 1.2),
-                    max: Math.max(max, ...line.map((p) => p[1] * 1.08)),
-                  },
-                  series: [
-                    { color: '#a17e51', points: line, line: true, dash: true },
-                    { points: plotted.rows.map((r) => [r.l, r[key]]), line: false, dots: true },
-                  ],
-                  legend:
-                    label +
-                    '：拟合截距 ' +
-                    fit.intercept.toFixed(3) +
-                    '，斜率 ' +
-                    fit.slope.toFixed(3) +
-                    (key === 'period' ? ' s/m' : ' s²/m'),
-                });
-                plots.append(graph.el);
-              }
-              const choice = h(
-                'select',
-                { 'aria-label': '周期与摆长的关系' },
-                h('option', { value: '' }, '选择图像支持的关系'),
-                h('option', { value: 't' }, 'T与l近似成正比'),
-                h('option', { value: 'square' }, 'T²与l近似成正比'),
-                h('option', { value: 'inverse' }, 'T²与l近似成反比'),
-              );
-              const slopeG = h('input', {
-                type: 'number',
-                step: 'any',
-                'aria-label': '由斜率估算 g / (m/s²)',
-                style: 'width:6em',
-              });
-              for (const el of [choice, slopeG]) el.addEventListener('input', () => bar.undo('g'));
-              plots.append(
-                note(
-                  '比较两条拟合线的截距和点的分布，不能只看“像直线”就判断正比。由T²–l斜率k计算g=4π²/k；有限范围的测量只支持近似关系。',
-                ),
-                h('div', { class: 'read-row' }, h('label', {}, '周期与摆长的关系 ', choice)),
-                h('div', { class: 'read-row' }, h('label', {}, '由斜率估算 g / (m/s²) ', slopeG)),
-                buttons([
-                  {
-                    text: '核对图像分析',
-                    onClick() {
-                      if (choice.value !== 'square')
-                        return say('看哪一幅图更接近过原点的直线；T–l局部接近直线不等于T与l成正比。');
-                      if (
-                        !Number.isFinite(slopeG.valueAsNumber) ||
-                        plotted.slopeGravity === null ||
-                        Math.abs(slopeG.valueAsNumber - plotted.slopeGravity) > 0.1
-                      )
-                        return say('使用T²–l的斜率k，单位s²/m，计算4π²/k。');
-                      bar.done('g');
-                      say(
-                        '各组平均g=' +
-                          avg.valueAsNumber.toFixed(2) +
-                          '，斜率估算g=' +
-                          slopeG.valueAsNumber.toFixed(2) +
-                          ' m/s²。保留两种估算的差别。',
-                      );
-                    },
-                  },
-                ]).el,
-              );
-              say('原记录已画在两幅图中。比较截距和点的分布，再用T²–l斜率估算g。');
-            },
-          },
-        ]).el,
-        plots,
-      );
-    }
-    const manip = draggable(
-      group,
-      [
-        {
-          obj: rig.ruler,
-          plane: 'xy',
-          offset: -0.036,
-          enabled: () => !running && !pending,
-          hint: '把尺横向靠近悬线，点刻度近看',
-          onStart() {
-            enter();
-            grabX = rig.ruler.position.x;
-          },
-          onDrag(p, from) {
-            if (!from) return;
-            rig.ruler.position.x = clamp(grabX + p.x - from.x, SUSPEND.x - 0.13, SUSPEND.x - RADIUS - 0.026);
-            upper = measured = null;
-          },
-          onEnd(moved) {
-            if (moved) guide();
-          },
-          onTap: look,
-        },
-        {
-          obj: rig.spool,
-          plane: 'xy',
-          offset: SUSPEND.z,
-          enabled: () => !pending,
-          hint: '停稳后上下拖线轴改变摆长',
-          onStart() {
-            enter();
-            initialLen = length;
-          },
-          onDrag(p, from) {
-            if (!from || running) return;
-            length = clamp(initialLen - (p.y - from.y), 0.46, 0.83);
-            rig.spool.rotation.y = (length - 0.64) * 18;
-            upper = measured = null;
-            rig.pose(length, 0);
-          },
-          onEnd() {
-            if (running) say('先用手把球带回中线停住，再改摆长。', rig.ball);
-            else guide();
-          },
-        },
-        {
-          obj: rig.ball,
-          plane: 'xy',
-          offset: SUSPEND.z,
-          enabled: () => !pending,
-          hint: '拉开摆球再松手，或带回中线停住',
-          onStart() {
-            enter();
-            catching = running;
-            heldAngle = angle;
-            running = false;
-            started = null;
-            omega = 0;
-          },
-          onDrag(p, from) {
-            if (!from) return;
-            angle = Math.asin(clamp(Math.sin(heldAngle) + (p.x - from.x) / length, -0.5, 0.5));
-            if (catching && Math.abs(length * Math.sin(angle)) < 0.012) {
-              angle = 0;
-              say('球心已回到中线，松手停住。');
-            }
-            rig.pose(length, angle);
-          },
-          onEnd() {
-            amplitude = Math.abs(angle);
-            running = amplitude > 0.35 * DEG;
-            if (!running) {
-              angle = 0;
-              rig.pose(length, angle);
-            }
-            omega = 0;
-            turns = { 1: 0, '-1': 0 };
-            guide();
-            if (amplitude > 5.5 * DEG)
-              say(
-                '摆角约 ' + Math.round(amplitude / DEG) + '°。观察后可把球带回中线，改用不超过约 5° 的小摆角测量。',
-                rig.ball,
-              );
-          },
-        },
-      ],
-      {
-        highlight: true,
-        taps: [
-          {
-            obj: rig.watch,
-            hint: '按停表开始或停止计时',
-            onTap() {
-              enter();
-              if (pending) {
-                guide();
-                return;
-              }
-              if (enough() || (samples.length > 0 && repeatedLength())) {
-                say('先换一种未测过的摆长，重新用尺量长，再计时。', rig.spool);
-                return;
-              }
-              if (running && measured !== null && !watchView && !started) {
-                watchView = true;
-                bar.near(true);
-                ctx.look(
-                  [-0.082, (SUSPEND.y - length + 0.35) / 2, 0.04],
-                  [0, 0.36, 1],
-                  Math.max(0.72, (Math.abs(SUSPEND.y - length - 0.35) + 0.2) * 2.6, (0.42 * innerWidth) / innerHeight),
-                  leave,
-                );
-                guide();
-                return;
-              }
-              stopReading();
-              if (pending) {
-                countForm.hidden = false;
-              }
-            },
-          },
-        ],
-      },
-    );
-    function reset() {
-      if (near || watchView) leave();
-      samples.length = 0;
-      length = 0.64;
-      angle = omega = amplitude = elapsed = stopped = 0;
-      started = pending = upper = measured = null;
-      running = false;
-      turns = { 1: 0, '-1': 0 };
-      lastFrame = null;
-      rig.ruler.position.set(SUSPEND.x - 0.11, SUSPEND.y + 0.035, -0.036);
-      rig.spool.rotation.y = 0;
+    function tick(dt) {
+      if (!running) return;
+      const state = advancePendulum(angle, omega, length, dt);
+      angle = state.angle; omega = state.omega; elapsed += dt;
+      for (const cross of state.crossings) turns[cross.direction]++;
       rig.pose(length, angle);
-      rig.display(0);
-      if (log) {
-        log.clear();
-        log.el.hidden = true;
-        report.replaceChildren();
-        clockRows.value = '';
-        countForm.hidden = true;
+      if (start) rig.display(elapsed - start.t, '计时中');
+    }
+    function press() {
+      if (!running || bar.finished) return;
+      if (view !== 'watch') { watchView(); guide(); return; }
+      if (pending) { pending = null; timerForm.hidden = true; }
+      const mark = timingMark(angle, omega, amplitude, turns);
+      if (!start) {
+        if (!mark.atCenter) return say('球心还没到红色中线。经过中线时再起表。', caseFace);
+        start = { ...mark, t: elapsed }; rig.display(0, '计时中'); guide(); return;
       }
-      bar.undo('length', 'time', 'repeat', 'g');
-      guide();
+      stopped = Number((elapsed - start.t).toFixed(2));
+      const n = mark.ordinal - start.ordinal, same = mark.dir === start.dir;
+      start = null; rig.display(stopped, '已停表');
+      if (!same || !mark.atCenter) return say('起停的位置或方向不同，这一段没有数齐全振动。同向过中线时重新计时。', caseFace);
+      if (n < 20) return say('只计了 ' + n + ' 次。再起表，数满 20 次，让起停误差分摊到更多周期。', caseFace);
+      if (amplitude > 5 * DEG) return say('摆角偏大，小角度公式不够准。把球带回中线，小幅拉开再测。', ball);
+      pending = { n, t: stopped };
+      count.value = time.value = ''; timerForm.hidden = false;
+      if (ui.el.classList.contains('folded')) ui.fold(false); guide();
+    }
+    function record() {
+      if (!pending) return;
+      const n = count.valueAsNumber, t = time.valueAsNumber;
+      if (n !== pending.n) return say('次数和同向过中线的次数对不上。起表算 0，向对面再回来才算 1。可再按表重测。', caseFace);
+      if (t !== pending.t) return say('核对停住的表盘，连同小数点后两位一起读。');
+      const row = { l: measured, n, t, ...pendulumEstimate(measured, t, n) };
+      samples.push(row); points.push([row.l, row.period ** 2]); graph.draw();
+      log.add([row.l.toFixed(3), String(n), t.toFixed(2), row.period.toFixed(3), row.gravity.toFixed(2)]);
+      work.textContent = 'T = ' + t.toFixed(2) + ' ÷ ' + n + ' ≈ ' + row.period.toFixed(3) + ' s；g = 4π² × ' +
+        row.l.toFixed(3) + ' / T² ≈ ' + row.gravity.toFixed(2) + ' m/s²。';
+      graph.el.hidden = false; pending = null; timerForm.hidden = true; closeView(); bar.done('time');
+      if (samples.length === 3) {
+        const mean = samples.reduce((sum, s) => sum + s.gravity, 0) / samples.length;
+        average.textContent = '平均 g = (' + samples.map(s => s.gravity.toFixed(2)).join(' + ') + ') / 3 ≈ ' + mean.toFixed(2) + ' m/s²。';
+        comparison.replaceChildren(
+          h('div', {}, '模拟设定 g = ' + GRAVITY + ' m/s²，与本轮平均值相差约 ' + Math.abs(mean - GRAVITY).toFixed(2) + ' m/s²。'),
+          h('div', {}, '想一想，摆长读数和起停表的时机会怎样影响算出的 g？'),
+          h('div', {}, '选做：查一查当地的重力加速度，和你的测量结果比较。'));
+        comparison.hidden = false;
+        bar.done('repeat'); guide();
+        comparison.scrollIntoView({ block: 'nearest' });
+      } else say('第 ' + samples.length + ' 组已上图。测三组取平均。可再按表，或把球带回中线、拖线端换摆长。', ball);
+    }
+    const ready = () => !bar.finished && !returning && !adjusting;
+    const hint = text => () => ui?.step === 1 ? text : '';
+    const tip = ctx.tag('', 'pill').show(false);
+    tip.el.style.transition = 'none';
+    const canvas = document.getElementById('c');
+    const hideTip = () => tip.show(false);
+    canvas.addEventListener('pointerleave', hideTip);
+    const pointer = draggable(group, [
+      { obj: scale, plane: 'xy', offset: -0.012, enabled: () => ready() && !view && !running && measured === null,
+        hint: () => ui?.step !== 1 ? '' : aligned ? '点一下：凑近读尺' : '向右拖：把尺靠近摆线',
+        onStart() { grabX = rig.ruler.position.x; },
+        onDrag(p, from) { if (from && !aligned) rig.ruler.position.x = clamp(grabX + p.x - from.x, HOME - 0.09, ALIGNED); },
+        onEnd(moved) {
+          if (aligned || !moved) return;
+          if (rig.ruler.position.x < ALIGNED - 0.006) {
+            returning = { x: rig.ruler.position.x, t: 0 }; say('尺离摆线还远。把尺拖到球旁再松手。', scale);
+          } else { aligned = true; rig.ruler.position.x = ALIGNED; readView(); }
+        },
+        onTap() { if (aligned) readView(); else guide(); } },
+      { obj: ball, plane: 'xy', offset: SUSPEND.z, enabled: () => ready() && measured !== null && !pending && view !== 'ruler',
+        hint: () => ui?.step !== 1 ? '' : running ? '拖回中线：停住摆球' : '左右拖：拉开摆球',
+        onStart() { catching = running; grabAngle = angle; running = false; omega = 0; start = null; rig.display(0, '待计时'); },
+        onDrag(p, from) {
+          if (!from) return;
+          const x = clamp(length * Math.sin(grabAngle) + p.x - from.x, -0.16, 0.16);
+          angle = catching && Math.abs(x) < 0.011 ? 0 : Math.asin(x / length);
+          rig.pose(length, angle);
+        },
+        onEnd() {
+          amplitude = Math.abs(angle); running = amplitude > 0.35 * DEG; turns = { 1: 0, '-1': 0 }; elapsed = 0;
+          if (!running) {
+            angle = 0; rig.pose(length, angle); closeView();
+            return say('球已停稳。可上下拖线端换摆长，也可轻拉摆球再测。', grip);
+          }
+          watchView(); guide();
+          if (amplitude > 5 * DEG) say('摆角约 ' + Math.round(amplitude / DEG) + '°，小角度公式会有偏差。拖回中线，轻拉到 5° 以内。', ball);
+        } },
+      { obj: grip, plane: 'xy', offset: SUSPEND.z, enabled: () => ready() && !running && !view && !pending,
+        hint: hint('按住松夹，上下拖线'),
+        onStart() { grabLength = length; adjusting = true; rig.openClamp(true); say('铁夹已松开。上下拖线端调摆长，松手夹紧。'); },
+        onDrag(p, from) { if (from) { length = clamp(grabLength + p.y - from.y, 0.46, 0.83); rig.pose(length, 0); } },
+        onEnd() {
+          adjusting = false; rig.openClamp(false);
+          if (Math.abs(length - grabLength) < 1e-6) { guide(); return; }
+          readings = []; measured = null; work.textContent = ''; rig.display(0, '待计时');
+          if (aligned) { readView(); say('铁夹已夹紧。重新读悬点刻度，量出这一组的摆长。'); } else guide();
+        } },
+    ], { tip, taps: [{ obj: caseFace, enabled: () => ready() && running && view !== 'ruler',
+      hint: () => ui?.step !== 1 ? '' : !view ? '点一下：近看停表' : start ? '点一下：停表' : '点一下：起表', onTap: press }] });
+
+    function reset() {
+      adjusting = false; rig.openClamp(false); holding = layoutPending = false;
+      qaClock = false; closeView(); aligned = running = false; returning = start = pending = measured = null;
+      readings = []; samples.length = points.length = 0; length = 0.64;
+      angle = omega = amplitude = elapsed = stopped = 0; turns = { 1: 0, '-1': 0 }; lastFrame = null;
+      rig.ruler.position.set(HOME, SUSPEND.y + 0.035, -0.012);
+      rig.pose(length, 0); rig.display(0, '待计时');
+      work.textContent = average.textContent = ''; count.value = time.value = rulerInput.value = '';
+      log.clear(); graph.draw(); graph.el.hidden = timerForm.hidden = comparison.hidden = true;
+      bar.undo(...stages.map(s => s[0])); ui?.relock(); ui?.fold(false); guide();
+    }
+    // 质检把实验时钟停在穿越中线的那一帧，鼠标仍需按真实的表键。
+    // 从起表到停表逐帧积分，与课堂里使用同一套过线计数和停表逻辑。
+    let qaClock = false;
+    function crossing(dir, n = 0) {
+      return { name: '等球同向过线 ' + n + ' 次', run() {
+        if (!running) throw Error('摆球未释放');
+        qaClock = true;
+        const threshold = start ? start.ordinal + n : turns[dir] + 1;
+        for (let i = 0; i < 9000; i++) {
+          const before = turns[dir];
+          tick(1 / 120);
+          if (turns[dir] > before && turns[dir] >= threshold) return;
+        }
+        throw Error('未观察到预期过线');
+      } };
+    }
+    function qaRead(k, wrong = false) {
+      return { name: (wrong ? '误读' : '记录') + labels[k], run() {
+        if (view !== 'ruler' || readings.length !== k) throw Error('读尺位置不符');
+        rulerInput.value = String(wrong ? readings[1] : Number(scaleValue().toFixed(1)));
+        rulerForm.querySelector('button').click();
+        if (wrong && (readings.length !== k || !document.querySelector('.lb-txt').textContent.includes('半径'))) throw Error('球顶误读未被指出');
+      } };
+    }
+    function trial(i) {
+      return [
+        qaRead(0), qaRead(1), ...(i === 0 ? [qaRead(2, true)] : []), qaRead(2),
+        { name: '轻拉后松手', drag: ball, to: () => point(SUSPEND.x + 0.036, SUSPEND.y - length, SUSPEND.z) },
+        crossing(1), { name: '同向过线起表', tap: caseFace },
+        ...(i === 0 ? [crossing(1, 1), { name: '只计一次便停表', tap: caseFace }, crossing(1), { name: '重新起表', tap: caseFace }] : []),
+        crossing(1, 20), { name: '数齐后停表', tap: caseFace },
+        ...(i === 0 ? [{ name: '抄错停表小数', run() {
+          if (!pending) throw Error('未停表'); count.value = '20'; time.value = String(pending.t + 1);
+          timerForm.querySelector('button').click(); if (samples.length || !pending) throw Error('误读进了记录');
+        } }] : []),
+        { name: '记入第 ' + (i + 1) + ' 组', run() {
+          if (pending?.n !== 20) throw Error('计数不符');
+          count.value = '20'; time.value = pending.t.toFixed(2); timerForm.querySelector('button').click();
+          if (samples.length !== i + 1 || points.length !== i + 1) throw Error('记录没有上图');
+        } },
+      ];
+    }
+    const qa = qaFlow(pointer, [
+      { name: '竖尺未靠近便松手', drag: scale, to: () => local(scale).add(point(0.022, 0, 0)) },
+      { name: '把竖尺靠在摆线旁', drag: scale, to: () => local(scale).setX(ALIGNED) },
+      ...trial(0),
+      ...[0.50, 0.77].flatMap((len, i) => [
+        { name: '把摆球带回中线', drag: ball, to: () => point(SUSPEND.x, SUSPEND.y - length, SUSPEND.z) },
+        { name: '拖线端调整摆长', drag: grip, to: () => local(grip).add(point(0, len - length, 0)) },
+        ...trial(i + 1),
+      ]),
+      { name: '掀开课本结论', run() {
+        if (!bar.finished || samples.length !== 3 || !average.textContent.includes('m/s²')) throw Error('三组测量未完成');
+        qaClock = false; ui.go(2); ui.el.querySelector('.flap-front').click();
+      } },
+    ]);
+    for (const step of qa) {
+      if (step.mouse?.kind !== 'drag') continue;
+      step.run = () => {
+        const item = pointer.items().find(d => d.obj === step.mouse.obj);
+        const from = local(item.obj), to = step.mouse.to();
+        item.onStart(from); item.onDrag(to, from); item.onEnd(true);
+      };
     }
     reset();
     return {
-      group,
-      size: { w: 0.86, d: 0.45, h: 1.02 },
-      view: { elev: 11, azim: -8, lookY: 0.5, margin: 1.06 },
-      toggles: ['steps'],
+      group: new ctx.THREE.Group().add(group), size: { w: 0.84, d: 0.43, h: 1.02 },
+      view: { elev: 10, azim: -7, lookY: 0.50, margin: 1.13 }, toggles: ['steps'],
+      reset,
       pointer: {
-        items: manip.items,
-        down(ray, e) {
-          if (near) {
-            read(ray);
-            return true;
-          }
-          const hit = ray.intersectObject(rig.scale)[0];
-          if (hit) clickedY = group.worldToLocal(hit.point.clone()).y;
-          else clickedY = Infinity;
-          return manip.down(ray, e);
+        items: () => pointer.items().filter(d => d.enabled()),
+        down(ray, event) {
+          const handled = pointer.down(ray, event);
+          if (handled) { holding = true; if (ui?.step === 0) ui.go(1); }
+          return handled;
         },
-        move(ray) {
-          return !!near || manip.move(ray);
-        },
-        up() {
-          return manip.up();
+        move(ray, event) { tip.show(ui?.step === 1); return ui?.step === 1 && pointer.move(ray, event); },
+        up(ray, event) {
+          holding = false;
+          const handled = pointer.up(ray, event);
+          if (layoutPending) fitLayout();
+          return handled;
         },
       },
       mount(panel) {
         ui = panel;
-        bar.attach(ui);
-        log = table(['实测摆长 / m', '全振动次数', '总时间 / s']);
-        log.el.hidden = true;
-        clockRows = h('input', { type: 'number', step: '1', 'aria-label': '全振动次数', style: 'width:6em' });
-        countForm = h(
-          'div',
-          {},
-          h('label', {}, '全振动次数 ', clockRows),
-          buttons([
-            { text: '记录本轮', onClick: saveCount },
-            {
-              text: '重新计时',
-              onClick() {
-                pending = null;
-                started = null;
-                countForm.hidden = true;
-                guide();
-              },
-            },
-          ]).el,
-        );
-        countForm.hidden = true;
-        report = h('div', {});
-        ui.data.append(countForm, log.el, report);
-        ui.notes.append(
-          note('尺上数字为厘米，小格为毫米。停表按下时开始，再按停止。数同一方向的过中线，每次全振动计一次。'),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
+        layoutObserver.observe(stepBar); layoutObserver.observe(canvas);
+        bar.attach({ need: () => ui.need(''), unlock() { ui.unlock(); ui.need(''); } });
+        if (ui.el.querySelector('.page-crop')) ui.el.querySelector('.answer .formula').hidden = true;
+        const source = ui.el.querySelector('.answer .src');
+        source.style.paddingRight = '82px'; source.style.minHeight = '48px';
+        ui.status('模拟实验 · 细线不易伸长，小球密实。');
+        ui.controls.append(rulerForm, timerForm);
+        ui.data.append(work, data);
+        ui.notes.append(resetButton);
         guide();
       },
       update(dt) {
         bar.update(dt);
-        const now = performance.now(),
-          step = lastFrame === null ? 0 : Math.min(0.25, (now - lastFrame) / 1000);
+        if (returning) {
+          returning.t = Math.min(1, returning.t + dt / 0.38);
+          rig.ruler.position.x = HOME + (returning.x - HOME) * (1 - returning.t) ** 2;
+          if (returning.t === 1) returning = null;
+        }
+        const now = performance.now();
+        if (!qaClock && lastFrame !== null) tick(Math.min(0.25, (now - lastFrame) / 1000));
         lastFrame = now;
-        if (!running) return;
-        const s = advancePendulum(angle, omega, length, step);
-        angle = s.angle;
-        omega = s.omega;
-        elapsed += step;
-        for (const e of s.crossings) turns[e.direction]++;
-        rig.pose(length, angle);
-        if (started) rig.display(elapsed - started.t);
       },
-      dispose() {
-        manip.dispose();
-        rig.dispose();
-        bar.dispose();
-      },
+      debug: { bar, qa },
+      dispose() { layoutObserver.disconnect(); canvas.removeEventListener('pointerleave', hideTip); pointer.dispose(); rig.dispose(); bar.dispose(); },
     };
   },
 };

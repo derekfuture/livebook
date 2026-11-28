@@ -1031,3 +1031,13 @@
 用户确认“先保留研究稿，不列为完成；其余6项交付”。据此本轮交付六项：四导体串联电压比、安培力大小因素、蹲起支持力、毛细现象、单缝衍射、薄膜干涉。导热代码、数值测试和文献留档；不注册教材入口、不计完成数。新查原始论文确有特定云母解理片约1.08的热轮廓轴比，已据此修正研究参数，但不借此越过用户选择将其列入交付。中优先级与原课扩展继续留待后续。
 
 详见[本轮交付清单](audit/senior-high-priority-delivery.md)。当前分支本地提交，无主分支合并或生产发布；地理工作区未操作。
+
+## 按 DESIGN-物理.md 返工的顺序（2026-11-20）
+
+先做课标规定的学生必做实验，再做其余的课。“改条件看结果”类、演示和观察类，排在必做实验后面，按“课本体现不出来、我们能做出优势”的程度再排。
+
+1. **样板（已改）**：newtoncart、actionreaction、hookelaw、caliper、doubleslit
+2. **必修一必做**：tickertape、handtape、fallacceleration、forceaddition；和必做实验相邻的 pairedcarts、staticfriction 也在这一批
+3. **必修二、三必做**：projectile、projectilepaper、centripetal、fallenergy、capacitor、micrometer、wirewinding、resistivity、multimeter、batteryemf
+4. **选择性必修必做**：momentum、ballrange、pendulumgravity、glasspins、lenzcoil、transformer、lightswitch、dooralarm、oilfilm、gasisotherm
+5. **其余约 35 课**：按价值排，必做做完再定

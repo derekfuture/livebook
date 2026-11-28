@@ -26,6 +26,7 @@ export function getBook(id) {
   const lessons = {};
   for (const [lid, meta] of Object.entries(b.lessons)) {
     const load = modules[`../lessons/${lid}.js`];
+    if (!import.meta.env.DEV && !showDrafts && FEATURES.hiddenLessons?.includes(lid)) continue;          // 还没准备好上线的单张活页（features.js）
     if (load) lessons[lid] = { ...meta, load };          // 还没写的实验先不挂出来
   }
   return { ...b, full: fullTitle(b), lessons, spots: b.spots.filter((s) => lessons[s.lesson]), planned: Object.keys(b.lessons).length };

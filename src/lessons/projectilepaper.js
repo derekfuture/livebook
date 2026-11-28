@@ -1,497 +1,402 @@
-// 必修二图5.3-3：挡板决定哪一个位置被印到背板上，等时水平位移取自学生的描线。
-import {
-  projectilePaperRig,
-  EXIT_X,
-  EXIT_Y,
-  RAMP_LENGTH,
-  BALL_R,
-  PAPER_LEFT,
-  PAPER_TOP,
-  PAPER_W,
-  PAPER_H,
-  PAPER_Z,
-  rampY,
-} from './kit/projectilePaperRig.js';
+// 必修第二册第 12 页，图 5.3-3。长度用 m，纸上原点是水平槽口处的球心。
+import * as THREE from 'three';
+import { projectilePaperRig, EXIT_X, EXIT_Y, RAMP_LENGTH, BALL_R, PAPER_Z, PAPER_H, PAPER_W, PAPER_LEFT, PAPER_TOP, rampY } from './kit/projectilePaperRig.js';
 import { printAtDrop, rollingExitSpeed, tracedX, TIME_STEP, fallDistance } from './kit/projectileTrack.js';
 import { draggable, clamp } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
+import { qaFlow } from './kit/chemlesson.js';
 import { buttons, table, note, h } from './kit/ui.js';
 
-const levels = [1, 2, 3].map((n) => fallDistance(n * TIME_STEP));
+const levels = [1, 2, 3].map(n => fallDistance(n * TIME_STEP));
+const bottom = 0.203;
+const ballZ = PAPER_Z + BALL_R + 0.00035;
+const vec = (x, y, z) => new THREE.Vector3(x, y, z);
+const cm = (m, places = 1) => (m * 100).toFixed(places);
+const last = a => a[a.length - 1];
+const steps = [
+  ['origin', '定原点、铺纸', '点槽口处的球心，标出量水平位移和落差的共同起点。'],
+  ['print', '改变高度取点', '把钢球拖到斜槽高处，松手让它从静止滚下。'],
+  ['curve', '沿印迹描轨迹', '向上拉木柄，揭开复写纸，看看白纸上留下了哪些点。'],
+  ['equal', '比较等时位移', '对准三个等间隔时刻的落差，分别读出水平位置。'],
+];
+
 export default {
-  id: 'projectilepaper',
-  fig: '图5.3-3',
-  title: '用落点探究平抛的水平分运动',
-  stampText: '探究',
+  id: 'projectilepaper', fig: '图5.3-3', title: '用落点探究平抛的水平分运动', stampText: '探究',
   predict: {
-    q: '钢球每次从斜槽的同一处静止释放。在相等的下落时间里，水平位移怎样变化？',
-    options: ['每段相等', '每段增加', '每段减少'],
-    answer: 0,
-    hint: '竖直方向自由下落，能由落差找到等时间隔。',
+    q: '钢球离开水平槽口后，每过相同的一段时间，向前移动的距离会怎样变化？',
+    options: ['每段相等', '每段增加', '每段减少'], answer: 0,
   },
   conclusion: {
-    page: 20, rect: [217.0, 306.81, 531.02, 351.91],
-    quote: '通过前面的讨论我们已经知道，做平抛运动的物体在 x 方向的分运动是匀速直线运动……',
-    why: '从同一位置静止释放，使各次离槽水平速度相同。由自由落体的落差找出等时刻，在实测轨迹上读出三个水平位置，以相邻读数之差比较分段位移。',
-    src: '课本第 16 页 · 第五章 第4节 抛体运动的规律',
+    page: 20, rect: [217.0, 306.81, 531.02, 413.0],
+    quote: '通过前面的讨论我们已经知道，做平抛运动的物体在 x 方向的分运动是匀速直线运动，vx＝v0。根据做匀速直线运动物体的位移与时间的关系可知，这个物体的水平分位移与时间的关系是 x＝v0t （1）',
+    why: '同处静止释放，钢球每次离槽的速度相同。按课本的平抛运动模型，相等时间内的水平位移相等。',
+    src: '人教版物理必修第二册 · 第 16 页',
   },
   create(ctx) {
-    const rig = projectilePaperRig(),
-      { group, ball, paper, handle, baffle, ruleBar } = rig;
-    let ui,
-      rows,
-      finishForm,
-      view,
-      aim,
-      origin,
-      carbon,
-      drop,
-      release,
-      marks,
-      trace,
-      traced,
-      readings,
-      reader,
-      shot,
-      draggingBall,
-      traceActive;
-    let grab, grabX;
-    const bar = lessonBar({
-      ...ctx,
-      group,
-      back: leave,
-      steps: [
-        { id: 'origin', title: '定原点', todo: '在背板上标出槽口球心的位置，再铺好复写纸。', target: () => aim },
-        { id: 'print', title: '留下落点', todo: '调节挡板，每次从同一位置放球，印出多个位置。', target: () => aim },
-        { id: 'curve', title: '描轨迹', todo: '收起复写纸，沿白纸上的实际印迹描出轨迹。', target: () => aim },
-        { id: 'equal', title: '比较等时位移', todo: '用落差找到等时刻，读水平位移并比较。', target: () => aim },
-      ],
-    });
-    const say = (s, obj) => {
-      aim = obj;
-      bar.say(s);
-    };
-    const valid = () => marks.filter((m) => m.valid);
-    function heights() {
-      const sorted = valid().map((m) => m.drop).sort((a, b) => a - b);
-      const distinct = [];
-      for (const d of sorted) {
-        if (!distinct.length || d - distinct.at(-1) >= 0.004) distinct.push(d);
-      }
-      return distinct;
+    const rig = projectilePaperRig();
+    const { group, ball, paper, tab, knob, pencil, grip, ruleBar } = rig;
+    const root = new THREE.Group().add(group);
+    let ui, aim, origin, release, drop, carbon, reader, shot, view, traced, returning;
+    let ballHome, carbonHome, penDown, writing;
+    const marks = [], trace = [], readings = [];
+    const valid = () => marks.filter(m => m.valid);
+    function sortedDrops() {
+      const ds = [];
+      for (const d of valid().map(m => m.drop).sort((a, b) => a - b))
+        if (!ds.length || d - last(ds) > 0.003) ds.push(d);
+      return ds;
     }
-    const parked = () => drop >= 0.207;
-    function enough() {
-      const drops = heights();
-      return (
-        drops.length >= 5 &&
-        drops[0] <= 0.021 &&
-        drops.at(-1) >= levels[2] &&
-        drops.every((v, i) => i === 0 || v - drops[i - 1] <= 0.058)
-      );
+    function nextDrop() {
+      const ds = sortedDrops();
+      if (!ds.length) return drop;
+      if (ds[0] > 0.018) return levels[0];
+      if (last(ds) < levels[2] + 0.001) return 0.116;
+      const bounds = [0, ...ds];
+      let index = 1;
+      for (let i = 2; i < bounds.length; i++)
+        if (bounds[i] - bounds[i - 1] > bounds[index] - bounds[index - 1]) index = i;
+      if (ds.length >= 5 && bounds[index] - bounds[index - 1] <= 0.045) return null;
+      return (bounds[index] + bounds[index - 1]) / 2;
     }
-    function render() {
+    const parked = () => drop >= bottom - 0.002;
+    const canDraw = () => bar.has('print') && carbon === 0 && parked() && view && !traced;
+    const bar = lessonBar({ ...ctx, group, back: leave, steps: steps.map(([id, title, todo]) => ({ id, title, todo, target: () => aim })) });
+    const rows = table(['t / s', '理论 y / cm', 'x / cm', '本段 Δx / cm']);
+    const status = s => ui?.status(s);
+    const field = h('input', { type: 'text', inputmode: 'decimal', autocomplete: 'off', 'aria-label': '水平位置（cm）', style: 'width:5em;font:inherit' });
+    const form = h('form', { hidden: true, onsubmit(e) { e.preventDefault(); read(); } },
+      h('label', {}, '水平位置 x ', field, ' cm '), h('button', { class: 'go', type: 'submit' }, '记录'));
+    const work = note('');
+    const actions = buttons([
+      { text: '保留印迹，重描重测', ghost: true, onClick: remeasure },
+      { text: '全部重来', ghost: true, onClick: reset },
+    ]);
+    function guide(text, target) {
+      aim = target || null;
+      bar.say(text);
+    }
+    function refresh() {
       rig.ink(origin, marks, trace, readings);
-      rig.setReader(reader, traced);
+      rig.setReader(reader, traced && !bar.finished);
+      pencil.visible = !!canDraw();
+      form.hidden = !(view && traced && !bar.finished);
+      actions.btns[0].hidden = !bar.finished;
+      if (bar.finished) return guide('比较表中三段 Δx，掀开结论对照课本。');
+      if (!origin) return guide(steps[0][2], ball);
+      if (shot) return guide('看钢球从水平槽口飞出，落到倾斜挡板上。');
+      if (!bar.has('print')) {
+        if (carbon !== 1) return guide('向下拉右边的木柄，把复写纸盖到白纸底边，碰撞才能留下印迹。', tab);
+        if (release === null) return guide(steps[1][2], ball);
+        if (valid().some(m => Math.abs(m.drop - drop) < 0.003))
+          return guide('上下拖右侧圆钮，把挡板移到 O 下约 ' + cm(nextDrop()) + ' cm，再从原标记放球。', knob);
+        return guide('把钢球拖回斜槽上的铜色标记，松手时每次的起点要相同。', ball);
+      }
+      if (carbon !== 0) return guide(steps[2][2], tab);
+      if (!parked()) return guide('把右侧圆钮降到底，让挡板和钢球离开要描的那段纸面。', knob);
+      if (!view) return guide('点白纸，正对纸面看清印迹和刻度。', paper);
+      if (!traced) return guide('从 O 沿黑点向右下描平滑曲线。' + (marks.some(m => !m.valid) ? '跳过带 × 的点。' : ''), grip);
+      const i = readings.length;
+      const aligned = Math.abs(reader - levels[i]) <= 0.0009;
+      return aligned ? guide('横尺上边已对准落差，读曲线与尺边交点的水平刻度，记到 0.1 cm。')
+        : guide('从 O 下落 ' + ((i + 1) * TIME_STEP).toFixed(2) + ' s，理论落差约 ' + cm(levels[i], 2) + ' cm。将横尺上边移到这个高度。', ruleBar);
     }
     function leave() {
-      ctx.back();
-      view = null;
-      bar.near(false);
-      guide();
+      view = false; ctx.back(); bar.near(false); refresh();
     }
     function near() {
-      view = 'paper';
-      bar.near(true);
-      ctx.look([EXIT_X + 0.065, EXIT_Y - 0.069, PAPER_Z], [0, 0, 1], ctx.camera.aspect >= 1 ? 0.6 : 0.42, leave);
-      guide();
+      view = true; bar.near(true);
+      // 正对纸面读尺时，以整套装置居中，给左侧高槽和下方底座留出空间。
+      // 竖屏右侧有工具按钮，下方有步骤栏，可用画面的中心略偏左上。
+      if (ctx.camera.aspect < 1) ctx.look([0.004, 0.102, PAPER_Z], [0, 0, 1], 0.71, leave);
+      else ctx.look([-0.018, 0.14, PAPER_Z], [0, 0, 1], 0.68, leave);
+      refresh();
     }
-    function guide() {
-      if (bar.finished) return say('三个等时间隔的水平位移已记录。笔记本里保留了你的落点和比较结果。');
-      if (!origin)
-        return say(
-          view ? '点白纸上与槽口钢球中心重合的位置，定为 O。' : '点白纸近看。钢球还在槽口，在球心对应处标出坐标原点。',
-          view ? null : paper,
-        );
-      if (shot) return say('观察钢球离槽、碰挡板和压纸的位置。');
-      if (!traced) {
-        if (enough() && carbon > 0.05)
-          return say('把复写纸下夹条右侧的木柄向上推，露出白纸上的印迹。', handle);
-        if (enough() && !parked()) return say('把挡板沿支架降到底，给白纸上的印迹腾出描线位置。', baffle);
-        if (enough())
-          return say(
-            view ? '从 O 起笔，沿印迹向右下描一条平滑轨迹。' : '点白纸近看，从 O 起笔沿印迹描线。',
-            view ? null : paper,
-          );
-        if (carbon < 0.98) return say('把蓝黑色复写纸的下夹条拖到底，盖在已标好原点的白纸上。', handle);
-        if (release === null) return say('把钢球沿斜槽拖到较高处，松手让它自己滚下。', ball);
-        if (valid().some((m) => Math.abs(m.drop - drop) < 0.004)) {
-          const ys = heights();
-          const bounds = [0, ...ys, Math.max(levels[2] + 0.004, ys.at(-1))];
-          let widest = 1;
-          for (let i = 2; i < bounds.length; i++)
-            if (bounds[i] - bounds[i - 1] > bounds[widest] - bounds[widest - 1]) widest = i;
-          const target = ys[0] > 0.021 ? 0.015 : ys.at(-1) < levels[2]
-            ? levels[2] + 0.005 : (bounds[widest] + bounds[widest - 1]) / 2;
-          const hint = '沿右侧尺把挡板移到 O 下约 ' + (target * 100).toFixed(1) + ' cm';
-          return say('已留下 ' + ys.length + ' 个不同高度的点。' + hint + '，再把球拖回原释放标记。', baffle);
-        }
-        return say('把球拖回槽上的赭色标记再松手，保持相同的释放高度。', ball);
-      }
-      if (readings.length === 3) return say('展开笔记本，比较三段 0.05 s 内的水平位移。');
-      const t = (readings.length + 1) * TIME_STEP,
-        y = levels[readings.length];
-      return say(
-        (view ? '' : '点白纸近看。') +
-          't = ' +
-          t.toFixed(2) +
-          ' s 时落差约 ' +
-          (y * 100).toFixed(2) +
-          ' cm。拖横尺到这个落差，在描线与尺边相交处读水平刻度。',
-        view ? ruleBar : paper,
-      );
+    function markOrigin() {
+      origin = true; status('O 在钢球刚离槽时的球心，向右量 x，向下量 y。'); refresh();
     }
     function launch(x) {
       const height = rampY(x) - EXIT_Y;
-      if (height >= 0.01 && release === null) {
+      if (release === null && carbon === 1) {
         release = x;
-        rig.releaseMark.position.set(x, rampY(x) - BALL_R - 0.002, PAPER_Z + BALL_R);
+        rig.releaseMark.position.set(x, rampY(x) - BALL_R - 0.0015, ballZ);
         rig.releaseMark.visible = true;
       }
       const points = [{ x, y: rampY(x), t: 0 }];
-      for (let i = 1; i <= 80; i++) {
-        const u = x + ((EXIT_X - x) * i) / 80,
-          y = rampY(u),
-          prev = points[i - 1];
-        const v0 = rollingExitSpeed(Math.max(0, rampY(x) - prev.y)),
-          v1 = rollingExitSpeed(Math.max(0, rampY(x) - y));
-        points.push({ x: u, y, t: prev.t + (2 * Math.hypot(u - prev.x, y - prev.y)) / (v0 + v1) });
+      for (let i = 1; i <= 64; i++) {
+        const u = x + (EXIT_X - x) * i / 64, y = rampY(u), prev = last(points);
+        const speeds = rollingExitSpeed(rampY(x) - prev.y) + rollingExitSpeed(rampY(x) - y);
+        points.push({ x: u, y, t: prev.t + 2 * Math.hypot(u - prev.x, y - prev.y) / speeds });
       }
-      const m = printAtDrop(height, drop);
-      shot = { points, height, m, t: 0, printed: false, valid: release !== null && Math.abs(x - release) <= 0.0025 };
-      guide();
+      shot = { points, t: 0, speed: rollingExitSpeed(height), hit: printAtDrop(height, drop),
+        valid: release !== null && Math.abs(release - x) < 0.0025, printed: false };
+      refresh();
     }
-    function drawStroke(p) {
+    function print(s) {
+      s.printed = true;
+      if (carbon !== 1) return status('钢球碰到了挡板，这次没有留下新的印迹。');
+      marks.push({ ...s.hit, valid: s.valid });
+      rig.press(marks);
+      if (!s.valid) status('这一次的释放高度变了，离槽速度也变了。纸上用 × 标出这次的印迹。');
+      else {
+        const count = sortedDrops().length;
+        status('钢球挤压复写纸，已在 ' + count + ' 个不同高度留下同一释放位置的印迹。');
+        if (nextDrop() === null) bar.done('print');
+      }
+      rig.ink(origin, marks, trace, readings);
+    }
+    function updateShot(dt) {
+      const s = shot;
+      s.t += dt;
+      const fly = s.t - last(s.points).t;
+      if (fly < 0) {
+        const i = s.points.findIndex(p => p.t >= s.t), a = s.points[Math.max(0, i - 1)], b = s.points[i];
+        const f = (s.t - a.t) / (b.t - a.t || 1);
+        rig.placeBall(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f);
+      } else if (fly < s.hit.t) rig.placeBall(EXIT_X + s.speed * fly, EXIT_Y - fallDistance(fly));
+      else {
+        if (!s.printed) print(s);
+        const t = Math.min(fly - s.hit.t, 0.08);
+        rig.placeBall(Math.min(PAPER_LEFT + PAPER_W - 0.02, EXIT_X + s.hit.x + s.speed * t * (1 - t / 0.16)), EXIT_Y - drop);
+        if (fly - s.hit.t >= 0.32) { shot = null; refresh(); }
+      }
+    }
+    const penAt = p => pencil.position.set(EXIT_X + p.x, EXIT_Y - p.drop, PAPER_Z + 0.0005);
+    function draw(p) {
       const q = { x: p.x - EXIT_X, drop: EXIT_Y - p.y };
-      if (q.x < -0.006 || q.drop < -0.006) return;
-      const last = trace.at(-1);
-      if (!last || Math.hypot(last.x - q.x, last.drop - q.drop) > 0.0015) {
-        trace.push(q);
-        render();
+      if (q.x < -0.003 || q.drop < -0.003 || p.x > PAPER_LEFT + PAPER_W || p.y < PAPER_TOP - PAPER_H) return;
+      const prev = last(trace);
+      if (!prev || Math.hypot(q.x - prev.x, q.drop - prev.drop) > 0.0005) {
+        trace.push(q); penAt(q); rig.ink(origin, marks, trace, readings);
       }
     }
-    function checkTrace() {
-      const ms = valid();
-      if (trace.length < 7 || Math.hypot(trace[0].x, trace[0].drop) > 0.008)
-        return say('从 O 开始描。抬手后可以接着线尾继续。');
-      if (!ms.every((m) => trace.some((q) => Math.hypot(q.x - m.x, q.drop - m.drop) < 0.009)))
-        return say('还有印迹没有连到；可沿线尾继续，或从 O 重新描。');
-      if (!levels.every((d) => tracedX(trace, d) !== null)) return say('将轨迹描到最下方的实测点。');
-      // 检查笔迹没有折返或绕离同一组印迹。
-      const order = [{ x: 0, drop: 0 }, ...ms.sort((a, b) => a.drop - b.drop)];
-      if (
-        trace.some(
-          (q, i) =>
-            i &&
-            (q.drop < trace[i - 1].drop - 0.003 ||
-              q.x < trace[i - 1].x - 0.003 ||
-              (tracedX(order, q.drop) !== null && Math.abs(q.x - tracedX(order, q.drop)) > 0.018)),
-        )
-      )
-        return say('轨迹有折返或明显偏离落点。从 O 重新连线。');
-      traced = true;
-      bar.done('curve');
-      render();
-      guide();
+    function checkLine() {
+      const dots = valid().sort((a, b) => a.drop - b.drop);
+      // 以实际落点检查笔迹，也检查相邻点之间的偏离。
+      const path = [{ x: 0, drop: 0 }, ...dots];
+      const off = trace.find((q, i) => {
+        const x = tracedX(path, q.drop);
+        return (i && (q.x < trace[i - 1].x - 0.002 || q.drop < trace[i - 1].drop - 0.002)) ||
+          (x !== null && Math.abs(q.x - x) > 0.016) || q.drop > last(dots).drop + 0.007;
+      });
+      if (off) {
+        status('落差约 ' + cm(off.drop) + ' cm 处的线折返或偏离了印迹。从 O 重新描。'); return;
+      }
+      const missed = dots.find(m => !trace.some(p => Math.hypot(p.x - m.x, p.drop - m.drop) < 0.005));
+      if (missed) {
+        status('描线还没经过落差约 ' + cm(missed.drop) + ' cm 处的黑点。' +
+          (last(trace).drop > missed.drop ? '从 O 重新描。' : '从线尾接着描。')); return;
+      }
+      if (levels.some(d => tracedX(trace, d) === null)) {
+        status('线还没有连全，从线尾接着描。从 O 起笔可以重画。'); return;
+      }
+      // 按学生实际笔迹的弧长取样，再用样条柔化折角。读数和画线使用同一条曲线。
+      const knots = [vec(trace[0].x, trace[0].drop, 0)];
+      let travel = 0;
+      for (let i = 1; i < trace.length; i++) {
+        travel += Math.hypot(trace[i].x - trace[i - 1].x, trace[i].drop - trace[i - 1].drop);
+        if (travel >= 0.006 || i === trace.length - 1) {
+          knots.push(vec(trace[i].x, trace[i].drop, 0));
+          travel = 0;
+        }
+      }
+      const curve = new THREE.CatmullRomCurve3(knots);
+      const smooth = curve.getPoints(knots.length * 5).map(v => ({ x: v.x, drop: v.y }));
+      trace.splice(0, trace.length, ...smooth);
+      traced = true; bar.done('curve');
+      status('黑点连成了钢球的轨迹。竖直方向是自由落体，用 y = gt²/2 找出等间隔时刻的位置。');
+      refresh();
     }
-    function paperTap(p) {
-      if (!view) {
-        near();
-        return;
-      }
-      if (!origin) {
-        if (Math.hypot(p.x - EXIT_X, p.y - EXIT_Y) > 0.008) return say('原点应取槽口处的球心。');
-        origin = true;
-        render();
-        leave();
-        return;
-      }
-      if (!traced || readings.length >= 3) return guide();
-      const d = levels[readings.length],
-        x = p.x - EXIT_X,
-        cross = tracedX(trace, reader);
-      if (Math.abs(reader - d) > 0.0016) return say('横尺还没有对准这一时刻的落差。', ruleBar);
-      if (cross === null || Math.abs(x - cross) > 0.0028 || Math.abs(EXIT_Y - p.y - reader) > 0.003)
-        return say('沿横尺找与自己的轨迹相交处，再读水平刻度。');
-      const mm = Math.round(x * 1000),
-        previous = readings.at(-1)?.x || 0;
-      readings.push({ x: mm / 1000, drop: reader });
-      rows.add([
-        (TIME_STEP * readings.length).toFixed(2),
-        (reader * 100).toFixed(2),
-        (mm / 10).toFixed(1),
-        ((mm / 1000 - previous) * 100).toFixed(1),
-      ]);
+    function read() {
+      if (form.hidden) return;
+      const i = readings.length, d = levels[i];
+      if (Math.abs(reader - d) > 0.0009) return status('横尺的高度还不对，先看左边的落差刻度。');
+      const raw = field.value.trim(), val = Number(raw), x = tracedX(trace, reader);
+      if (!/^\d+(\.\d)?$/.test(raw)) return status('用厘米填写水平位置，读到一位小数。');
+      if (x === null) return status('尺边还没有与描线相交。');
+      if (Math.abs(val - x * 100) > 0.11) return status('水平读数偏' + (val > x * 100 ? '大' : '小') + '，从横尺的 0 看向曲线交点，每小格是 0.1 cm。');
+      const prev = i ? last(readings).x : 0, r = { x: val / 100, drop: reader };
+      readings.push(r); field.value = '';
+      const delta = cm(r.x - prev);
+      rows.add([((i + 1) * TIME_STEP).toFixed(2), cm(d, 2), val.toFixed(1), delta]);
+      work.textContent = 'Δx = ' + val.toFixed(1) + ' − ' + cm(prev) + ' = ' + delta + ' cm';
+      status('这段用时 0.05 s，钢球向前移动了约 ' + delta + ' cm。');
       if (readings.length === 3) {
-        finishForm.hidden = false;
-        leave();
+        const segments = readings.map((p, j) => p.x - (j ? readings[j - 1].x : 0));
+        bar.done('equal');
+        status('每段用时 0.05 s，最长与最短的水平位移相差 ' + cm(Math.max(...segments) - Math.min(...segments)) +
+          ' cm。若要重测，可复查描线、横尺高度和交点读数。');
       }
-      render();
-      guide();
+      refresh();
     }
-    let penDown;
-    const manip = draggable(
-      group,
-      [
-        {
-          obj: handle,
-          plane: 'xy',
-          offset: PAPER_Z + 0.002,
-          enabled: () => origin && !shot && !traced,
-          hint: '上下移动复写纸的下夹条',
-          onStart() {
-            grab = carbon;
-          },
-          onDrag(p, start) {
-            if (!start) return;
-            carbon = clamp(grab + (start.y - p.y) / PAPER_H, 0, 1);
-            rig.setCarbon(carbon);
-          },
-          onEnd() {
-            if (carbon > 0.96) {
-              carbon = 1;
-              bar.done('origin');
-            } else if (carbon < 0.06) carbon = 0;
-            rig.setCarbon(carbon);
-            guide();
-          },
-        },
-        {
-          obj: baffle,
-          plane: 'xy',
-          offset: 0.034,
-          enabled: () => origin && !shot && !traced,
-          hint: '上下拖动挡板，改变取点高度',
-          onStart() {
-            grab = drop;
-          },
-          onDrag(p, start) {
-            if (!start) return;
-            drop = clamp(grab + start.y - p.y, 0.009, EXIT_Y - PAPER_TOP + PAPER_H - BALL_R);
-            if (marks.length && ball.position.x > EXIT_X) rig.placeBall(ball.position.x, EXIT_Y - drop);
-            rig.setDrop(drop);
-          },
-          onEnd: guide,
-        },
-        {
-          obj: ball,
-          plane: 'xy',
-          offset: PAPER_Z + BALL_R,
-          enabled: () => origin && carbon > 0.98 && !shot && !traced,
-          hint: '将钢球拖回斜槽，从同一标记松手',
-          onStart() {
-            draggingBall = false;
-            grabX = ball.position.x;
-          },
-          onDrag(p) {
-            draggingBall = true;
-            grabX = p.x;
-            if (p.x <= EXIT_X) {
-              grabX = clamp(p.x, EXIT_X - RAMP_LENGTH, EXIT_X);
-              rig.placeBall(grabX, rampY(grabX));
-            } else rig.placeBall(p.x, clamp(p.y, PAPER_TOP - PAPER_H + BALL_R, EXIT_Y + 0.06));
-          },
-          onEnd() {
-            if (!draggingBall) return;
-            if (grabX >= EXIT_X) {
-              rig.placeBall(EXIT_X, EXIT_Y);
-              return guide();
-            }
-            launch(grabX);
-          },
-        },
-        {
-          obj: rig.ruler,
-          plane: 'xy',
-          offset: PAPER_Z + 0.001,
-          enabled: () => traced && readings.length < 3,
-          hint: '拖横尺到所需落差',
-          onStart() {
-            grab = reader;
-          },
-          onDrag(p, start) {
-            if (start) {
-              reader = clamp(grab + start.y - p.y, 0, 0.189);
-              rig.setReader(reader, true);
-            }
-          },
-          onEnd: guide,
-        },
-        {
-          obj: ruleBar,
-          plane: 'xy',
-          offset: PAPER_Z + 0.001,
-          enabled: () => traced && readings.length < 3,
-          hint: '上下拖横尺；点它与轨迹的交点读数',
-          onStart(p) {
-            grab = reader;
-            penDown = p?.clone();
-          },
-          onDrag(p, start) {
-            if (start) {
-              reader = clamp(grab + start.y - p.y, 0, 0.189);
-              rig.setReader(reader, true);
-            }
-          },
-          onEnd(moved) {
-            if (moved) guide();
-          },
-          onTap() {
-            if (penDown) paperTap(penDown);
-          },
-        },
-        {
-          obj: paper,
-          plane: 'xy',
-          offset: PAPER_Z,
-          enabled: () => !shot && carbon < 0.06 && !bar.finished,
-          hint: '近看或在白纸上作图',
-          onStart(p) {
-            penDown = p?.clone();
-            traceActive = !!(view && origin && enough() && parked() && !traced && p);
-            if (traceActive) {
-              if (!trace.length || Math.hypot(p.x - EXIT_X - trace.at(-1).x, EXIT_Y - p.y - trace.at(-1).drop) > 0.012)
-                trace = [];
-              drawStroke(p);
-            }
-          },
-          onDrag(p) {
-            if (traceActive) drawStroke(p);
-          },
-          onEnd(moved) {
-            if (traceActive && moved) checkTrace();
-            traceActive = false;
-          },
-          onTap() {
-            if (penDown) paperTap(penDown);
-          },
-        },
-      ],
-      { highlight: true },
-    );
+    function remeasure() {
+      readings.length = 0; trace.length = 0;
+      trace.push({ x: 0, drop: 0 }); penAt(trace[0]);
+      traced = false; reader = 0; rows.clear(); work.textContent = field.value = '';
+      bar.undo('curve', 'equal'); ui.relock({ full: false });
+      status('印迹已保留，从 O 沿黑点重新描线。'); near();
+    }
+    const handleDrag = {
+      obj: tab, anchor: rig.handle, keepOffset: true, plane: 'xy', offset: 0.0065,
+      enabled: () => origin && !shot && !traced && !returning && !(bar.has('print') && carbon === 0),
+      hint: () => carbon >= 0.5 ? '向上拖：揭开复写纸' : '向下拖：铺好复写纸',
+      onStart() { carbonHome = carbon; },
+      onDrag(p) { carbon = clamp((PAPER_TOP - p.y) / PAPER_H, 0, 1); rig.setCarbon(carbon); },
+      onEnd(moved) {
+        if (!moved) return;
+        if (carbon > 0.965 || carbon < 0.035) {
+          carbon = carbon > 0.5 ? 1 : 0; rig.setCarbon(carbon);
+          if (carbon === 1) bar.done('origin');
+          status(carbon ? '白纸已被复写纸盖住，钢球碰到挡板时就能留下印迹。' : '复写纸已揭开，白纸上留下了 ' + marks.length + ' 个印迹。');
+        } else { returning = { sheet: true, from: carbon, to: carbonHome, t: 0 }; status('夹条没有到纸边，复写纸回到原位。'); }
+        refresh();
+      },
+    };
+    const ballDrag = {
+      obj: ball, keepOffset: true, plane: 'xy', offset: ballZ,
+      enabled: () => !shot && !returning && !bar.has('print'),
+      hint: () => origin ? '拖到槽上：松手放球' : '点球心：标出原点',
+      onStart() { ballHome = ball.position.clone(); },
+      onTap() { if (!origin) markOrigin(); },
+      onDrag(p) {
+        if (!origin) return;
+        const x = clamp(p.x, EXIT_X - RAMP_LENGTH, PAPER_LEFT + PAPER_W - BALL_R);
+        // 只在球靠近槽面时贴合，悬在斜槽上方松手会归位。
+        const y = x <= EXIT_X && Math.abs(p.y - rampY(x)) < 0.012 ? rampY(x) : clamp(p.y, 0.015, EXIT_Y + 0.085);
+        rig.placeBall(x, y);
+      },
+      onEnd(moved) {
+        if (!moved || !origin) return;
+        const { x, y } = ball.position;
+        if (x >= EXIT_X || Math.abs(y - rampY(x)) > 0.001 || rampY(x) - EXIT_Y < 0.009) {
+          returning = { from: ball.position.clone(), to: ballHome, t: 0 };
+          status('钢球没有放在斜槽高处，会回到原位。'); return;
+        }
+        const start = release !== null && Math.abs(x - release) < 0.0025 ? release : x;
+        launch(start);
+      },
+    };
+    const knobDrag = {
+      obj: knob, keepOffset: true, plane: 'xy', offset: 0.045,
+      enabled: () => origin && !shot && !returning && !traced && !(bar.has('print') && parked()),
+      hint: '上下拖：调挡板高度',
+      onDrag(p) {
+        // 挡板最下方留作收纳位，描线时能让出最深的实测点。
+        drop = clamp(EXIT_Y - p.y, 0.008, bar.has('print') ? bottom : bottom - 0.02);
+        rig.setDrop(drop);
+        if (ball.position.x > EXIT_X) rig.placeBall(ball.position.x, EXIT_Y - drop);
+      }, onEnd(moved) { if (moved) refresh(); },
+    };
+    const ruleDrag = {
+      obj: ruleBar, keepOffset: true, plane: 'xy', offset: PAPER_Z + 0.0018,
+      enabled: () => view && traced && !bar.finished, hint: '上下拖：对准落差',
+      onDrag(p) { reader = clamp(EXIT_Y - p.y - ruleBar.geometry.parameters.height / 2, 0, bottom - 0.014); rig.setReader(reader, true); },
+      onEnd(moved) {
+        if (!moved) return;
+        const target = levels[readings.length];
+        if (Math.abs(reader - target) <= 0.0009) reader = target;
+        refresh();
+      },
+    };
+    const penDrag = {
+      obj: grip, anchor: pencil, keepOffset: true, plane: 'xy', offset: PAPER_Z + 0.0005,
+      enabled: canDraw, hint: '拖笔：沿印迹描线',
+      onDrag: draw, onEnd(moved) { if (moved) checkLine(); },
+    };
+    const paperDrag = {
+      obj: paper, plane: 'xy', offset: PAPER_Z,
+      enabled: () => !shot && !returning && carbon === 0 && (!origin || (bar.has('print') && parked() && (!view || !traced))),
+      hint: () => !origin ? '点球心：标出原点' : view ? '按住拖：沿印迹描线' : '点一下：正对纸面',
+      onStart(p) {
+        penDown = p; writing = false;
+        if (!p || !canDraw()) return;
+        const nearOrigin = Math.hypot(p.x - EXIT_X, p.y - EXIT_Y) <= 0.006;
+        if (nearOrigin) { trace.length = 0; trace.push({ x: 0, drop: 0 }); penAt(trace[0]); }
+        const end = last(trace);
+        writing = !!end && Math.hypot(p.x - EXIT_X - end.x, EXIT_Y - p.y - end.drop) < 0.008;
+      },
+      onDrag(p) { if (writing) draw(p); },
+      onEnd(moved) { if (writing && moved) checkLine(); else if (canDraw() && moved) status('从 O 或线尾落笔，才能把这些点连成同一条轨迹。'); writing = false; },
+      onTap() {
+        if (!origin) {
+          if (penDown && Math.hypot(penDown.x - EXIT_X, penDown.y - EXIT_Y) < BALL_R) markOrigin();
+          else status('这里没有钢球离槽时的球心，原点还没标上。');
+        } else if (!view) near();
+      },
+    };
+    const tip = ctx.tag('', 'pill');
+    const manip = draggable(group, [handleDrag, knobDrag, ballDrag, ruleDrag, penDrag, paperDrag], { tip });
+    const hideTip = () => tip.loc(group, 0, -9, 0);
+    const canvas = document.getElementById('c');
+    canvas.addEventListener('pointerleave', hideTip);
     function reset() {
-      if (view) leave();
-      origin = traced = draggingBall = false;
-      carbon = 0;
-      drop = 0.045;
-      release = shot = null;
-      reader = 0.006;
-      marks = [];
-      trace = [];
-      readings = [];
-      rig.releaseMark.visible = false;
-      rig.placeBall(EXIT_X, EXIT_Y);
-      rig.setDrop(drop);
-      rig.setCarbon(0);
-      render();
-      rows?.clear();
-      if (finishForm) finishForm.hidden = true;
-      bar.undo('origin', 'print', 'curve', 'equal');
-      guide();
+      if (view) ctx.back();
+      view = origin = traced = writing = false; shot = release = returning = null;
+      drop = 0.014; carbon = reader = 0; marks.length = readings.length = trace.length = 0;
+      trace.push({ x: 0, drop: 0 });
+      rig.releaseMark.visible = false; rig.press([]); rig.placeBall(EXIT_X, EXIT_Y);
+      rig.setDrop(drop); rig.setCarbon(0); penAt(trace[0]);
+      rows.clear(); work.textContent = field.value = ''; bar.near(false);
+      bar.undo(...steps.map(s => s[0])); ui?.relock(); hideTip(); refresh();
+      status('斜槽末端水平，挡板向背板一侧倾斜。');
     }
     reset();
+    const location = (obj) => group.worldToLocal(obj.getWorldPosition(new THREE.Vector3()));
+    const startX = EXIT_X - 0.12;
+    const put = x => vec(x, rampY(x), ballZ);
+    const tray = d => ({ name: '调挡板到 ' + cm(d), drag: knob, to: () => location(knob).setY(EXIT_Y - d) });
+    const roll = (x = startX) => ({ name: x === startX ? '同处放球' : '换位置试放', drag: ball, to: put(x), wait: 4 });
+    const sheet = cover => ({ name: cover ? '铺好复写纸' : '揭纸看印迹', drag: tab, to: () => rig.handle.position.clone().setY(PAPER_TOP - (cover ? PAPER_H : 0)) });
+    const drawTo = (name, point) => ({ name, drag: grip, to: () => { const p = point(); return vec(EXIT_X + p.x, EXIT_Y - p.drop, pencil.position.z); } });
+    const submit = wrong => ({ name: wrong ? '误读水平位置' : '记录水平位置', run() {
+      field.value = wrong ? '20.0' : cm(tracedX(trace, reader)); form.querySelector('button').click();
+    } });
+    const qa = [
+      { name: '点在球心以外', tap: paper }, { name: '标定球心原点', tap: ball }, sheet(true), roll(),
+      tray(0.033), roll(startX + 0.025), roll(), tray(0.052), roll(), tray(0.082), roll(), tray(0.116), roll(),
+      sheet(false), tray(bottom), { name: '正对印迹', tap: paper },
+      drawTo('从原点水平起笔', () => ({ x: valid()[0].x / 2, drop: valid()[0].drop / 4 })),
+      ...[0, 1, 2, 3, 4].map(i => drawTo('沿第 ' + (i + 1) + ' 个黑点描线', () => valid()[i])),
+      ...levels.flatMap((d, i) => [{ name: '对准第 ' + (i + 1) + ' 个落差', drag: ruleBar, to: () => ruleBar.position.clone().setY(EXIT_Y - d - ruleBar.geometry.parameters.height / 2) },
+        ...(i === 0 ? [submit(true)] : []), submit(false)]),
+      { name: '掀开原文', run() {
+        if (!bar.finished || readings.length !== 3) throw Error('三段水平位移没有记录齐');
+        ui.go(2); ui.el.querySelector('.flap-front').click();
+      } },
+    ];
     return {
-      group,
-      size: { w: 0.43, h: 0.31, d: 0.115 },
-      view: { azim: 8, elev: 15, margin: 1.09, lookY: 0.47 },
-      toggles: ['steps'],
+      group: root, size: { w: 0.43, h: 0.31, d: 0.115 }, view: { azim: 4, elev: 17, frameMargin: 1.08 },
+      toggles: ['steps'], reset, debug: { bar, qa: qaFlow(manip, qa) },
       pointer: {
-        ...manip,
-        down(ray, e) {
-          if (document.body.classList.contains('predicting')) ui?.go(1);
-          return manip.down(ray, e);
-        },
+        items: () => manip.items().filter(d => d.enabled()),
+        down(ray, event) { if (ui?.step === 2) return false; const held = manip.down(ray, event); if (held && ui?.step === 0) ui.go(1); return held; },
+        move(ray, event) { return ui?.step === 1 && manip.move(ray, event); },
+        up: manip.up,
       },
+      predicting: hideTip,
       mount(panel) {
-        ui = panel;
-        bar.attach(panel);
-        rows = table(['t / s', '落差 / cm', 'x / cm', '本段 Δx / cm']);
-        const answer = (equal) => {
-          if (readings.length !== 3) return;
-          if (!equal) return say('请比较最后一列：第一段从 O 算起，后两段要把相邻两次水平读数相减。');
-          const dx = readings.map((r, i) => r.x - (readings[i - 1]?.x || 0));
-          if (Math.max(...dx) - Math.min(...dx) > 0.009) {
-            readings = [];
-            traced = false;
-            trace = [];
-            bar.undo('curve');
-            rows.clear();
-            finishForm.hidden = true;
-            render();
-            return say('三段差别偏大。请保留这张白纸，从 O 沿印迹重新描线，再对准尺边读数。');
-          }
-          bar.done('equal');
-          finishForm.hidden = true;
-          guide();
-        };
-        finishForm = h(
-          'div',
-          {},
-          note('比较三个相等时间内的 Δx。在读数误差内，水平运动符合哪一种？'),
-          buttons([
-            { text: '匀速', onClick: () => answer(true) },
-            { text: '匀加速', onClick: () => answer(false) },
-          ]).el,
-        );
-        finishForm.hidden = true;
-        panel.data.append(rows.el, finishForm);
-        panel.notes.append(
-          note(
-            '球心离开水平槽口处为 O。水平挡板的截面朝复写纸倾斜，球与挡板首次接触的位置在纸上留下印迹。用竖直方向 y = gt²/2 选等时刻，g 取 9.8 m/s²。',
-          ),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
-        guide();
+        ui = panel; bar.attach({ need() {}, unlock() { ui.unlock(); ui.need(''); } });
+        work.style.cssText = 'font-size:15px;color:#385e61';
+        ui.controls.append(form); ui.data.append(rows.el, work, actions.el);
+        ui.notes.append(note('落差从 O 向下量。按自由落体模型取 g = 9.8 m/s²，t = 0.05、0.10、0.15 s 时，落差之比为 1∶4∶9。'));
+        const src = ui.el.querySelector('.answer .src');
+        const quote = ui.el.querySelector('.answer blockquote');
+        if (quote) quote.replaceChildren(...quote.textContent.split(/(vx|v0)/).map(part =>
+          part === 'vx' || part === 'v0' ? h('span', {}, 'v', h('sub', {}, part[1])) : part));
+        src.style.cssText = 'padding-right:80px;min-height:48px';
+        status('斜槽末端水平，挡板向背板一侧倾斜。'); refresh();
       },
       update(dt) {
-        bar.update(dt);
-        if (!shot) return;
-        const s = shot;
-        s.t += dt;
-        const last = s.points.at(-1),
-          fly = s.t - last.t;
-        if (fly < 0) {
-          const end = s.points.findIndex((q) => q.t >= s.t);
-          const a = s.points[Math.max(0, end - 1)],
-            b = s.points[end];
-          const f = b.t === a.t ? 0 : (s.t - a.t) / (b.t - a.t);
-          rig.placeBall(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f);
-          return;
-        }
-        if (fly < s.m.t) {
-          rig.placeBall(EXIT_X + rollingExitSpeed(s.height) * fly, EXIT_Y - fallDistance(fly));
-          return;
-        }
-        if (!s.printed) {
-          s.printed = true;
-          marks.push({ ...s.m, valid: s.valid });
-          render();
-          if (enough()) bar.done('print');
-        }
-        const drift = Math.min(fly - s.m.t, 0.22),
-          travel = rollingExitSpeed(s.height) * drift * (1 - drift / 0.44);
-        rig.placeBall(Math.min(PAPER_LEFT + PAPER_W - 0.02, EXIT_X + s.m.x + travel), EXIT_Y - s.m.drop);
-        if (drift >= 0.22) {
-          shot = null;
-          if (release === null) say('已留下一个低速试放点。把球沿斜槽再推高一些，让后面的印迹容易分开。', ball);
-          else if (!s.valid) say('这次从不同位置释放，印迹保留作对照。拖回原标记，再测这一高度。', ball);
-          else guide();
+        const scale = bar.update(dt);
+        if (shot) updateShot(dt * scale);
+        if (returning) {
+          const r = returning; r.t = Math.min(1, r.t + dt / 0.38);
+          const f = 1 - (1 - r.t) ** 2;
+          if (r.sheet) { carbon = r.from + (r.to - r.from) * f; rig.setCarbon(carbon); }
+          else ball.position.lerpVectors(r.from, r.to, f);
+          if (r.t === 1) { returning = null; refresh(); }
         }
       },
-      dispose() {
-        manip.dispose();
-        bar.dispose();
-      },
+      dispose() { canvas.removeEventListener('pointerleave', hideTip); manip.dispose(); bar.dispose(); },
     };
   },
 };

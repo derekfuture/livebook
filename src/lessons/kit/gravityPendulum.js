@@ -1,5 +1,5 @@
 // 摆长从悬点量到球心。动力学保留 sinθ，只有学生最后估算 g 时才用小角度公式。
-const GRAVITY = 9.8;
+export const GRAVITY = 9.8;
 export function advancePendulum(angle, omega, length, dt) {
   const crossings = [];
   const count = Math.max(1, Math.ceil(dt * 120)),
@@ -63,10 +63,10 @@ export function pendulumSeries(samples) {
   const periodFit = fit('period'),
     squaredFit = fit('squared');
   const lengths = rows.map((r) => r.l).sort((a, b) => a - b),
-    span = lengths.at(-1) - lengths[0];
+    span = lengths[lengths.length - 1] - lengths[0];
   // 四种摆长和至少20cm跨度是本活页的取样要求，不是教材规定的固定数值。
   const distinct = lengths.reduce((list, l) => {
-    if (!list.length || l - list.at(-1) >= 0.049) list.push(l);
+    if (!list.length || l - list[list.length - 1] >= 0.049) list.push(l);
     return list;
   }, []);
   return {

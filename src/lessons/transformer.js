@@ -2,18 +2,15 @@
 import * as THREE from 'three';
 import { transformerRig, AC_STOPS, LEGS, CORE_Z, LEG_TOP, BASE_H } from './kit/transformerRig.js';
 import { transformerReadings, TAP_TURNS } from './kit/transformer.js';
-import { draggable, clamp } from './kit/interact.js';
+import { draggable } from './kit/interact.js';
 import { lessonBar } from './kit/lessonbar.js';
-import { table, buttons, note, h } from './kit/ui.js';
 
-const trials = [
-  [200, 100],
-  [200, 200],
-  [200, 400],
-  [100, 200],
-  [400, 200],
-];
+import { transformerNotebook } from './kit/transformerNotebook.js';
+import { qaFlow } from './kit/chemlesson.js';
+
 const mid = (LEGS[0] + LEGS[1]) / 2;
+const point = (x, y, z) => new THREE.Vector3(x, y, z);
+const titles = { plan: '定方案', core: '装铁芯', secondary: '固定原匝数', primary: '固定副匝数' };
 export default {
   id: 'transformer',
   fig: '图3.3-2',
@@ -23,450 +20,634 @@ export default {
     q: '原线圈接同一低压交流电源，原线圈匝数不变，把副线圈的有效匝数增加一倍，副线圈的电压会怎样？',
     options: ['约为原来的两倍', '约为原来的一半', '保持不变'],
     answer: 0,
-    hint: '两个绕组绕在同一闭合铁芯上。',
+    hint: '变压器原、副线圈两端的电压与线圈匝数之间有什么关系？',
   },
   conclusion: {
-    page: 64, rect: [217.04, 329.12, 531.48, 421.9],
-    quote: '实验和理论分析都表明，理想变压器原、副线圈的电压之比，等于原、副线圈的匝数之比……',
+    page: 64,
+    rect: [217.04, 329.12, 531.48, 421.9],
+    quote: '实验和理论分析都表明，理想变压器原、副线圈的电压之比，等于原、副线圈的匝数之比，即',
     why: '共同的交变磁通在各匝中产生感应电动势。匝数越多，感应电动势越大。实际读数受绕组电阻、漏磁和电表负载影响。',
     src: '课本第 60 页 · 第三章 第3节 变压器',
   },
   create(ctx) {
     const rig = transformerRig(),
       { group, coils, yoke, meter, leads } = rig;
-    let ui, rows, comparison, view, aim, on, yoked, seated, tween, primaryRead, sampled, wellTime;
-    const recorded = new Map();
+    const parts = [...coils.map((c) => c.group), yoke];
+    const homes = [...rig.homes, rig.homeYoke];
+    const seated = [null, null, null];
+    const seat = (i, leg, lifted = false) =>
+      point(
+        i === 2 ? mid : LEGS[leg],
+        i === 2 || lifted ? LEG_TOP + (lifted && i !== 2 ? 0.003 : 0) : BASE_H,
+        CORE_Z,
+      );
+    let ui, book, aim, ray, returning, cancel, primaryRead;
+    let trials = [],
+      index = 0,
+      on = false,
+      checked = false,
+      sampled = false,
+      near = false,
+      settled = false,
+      stable = 0;
     const bar = lessonBar({
       ...ctx,
       group,
       back: leave,
-      steps: [
-        { id: 'core', title: '装铁芯', todo: '把两个绕组套在铁芯的两柱上，合上铁轭。', target: () => aim },
-        {
-          id: 'voltage',
-          title: '读两端电压',
-          todo: '把低压交流电源接到原线圈，用电表分别读原、副线圈。',
-          target: () => aim,
-        },
-        {
-          id: 'secondary',
-          title: '改副线圈匝数',
-          todo: '保持原线圈 200 匝，改变副线圈接入的匝数。',
-          target: () => aim,
-        },
-        { id: 'primary', title: '改原线圈匝数', todo: '保持副线圈 200 匝，改变原线圈接入的匝数。', target: () => aim },
-      ],
+      steps: Object.keys(titles).map((id) => ({
+        id,
+        title: titles[id],
+        todo: titles[id],
+        target: () => aim,
+      })),
     });
-    const say = (msg, item) => {
-      aim = item;
-      bar.say(msg);
-    };
-    function leave() {
-      ctx.back();
-      view = null;
-      bar.near(false);
-      guide();
+    function pick(parent, w, h, d, x, y, z) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ visible: false }));
+      mesh.userData.pick = true;
+      mesh.position.set(x, y, z);
+      parent.add(mesh);
+      return mesh;
     }
-    function close(viewName) {
-      view = viewName;
-      bar.near(true);
-      if (view === 'meter') ctx.look([0.155, 0.021, -0.012], [0, 1, 0.06], ctx.camera.aspect >= 1 ? 0.41 : 0.24, leave);
-      else ctx.look([mid, 0.055, 0], [0.12, 1, 0.28], ctx.camera.aspect < 1 ? 0.52 : 0.7, leave);
-      guide();
-    }
+    const partsPick = parts.map((o, i) =>
+      i === 2 ? pick(o, 0.15, 0.021, 0.03, 0, 0.01, 0) : pick(o, 0.068, 0.061, 0.095, 0, 0.03, 0.014),
+    );
+    const plugs = leads.map((l, i) =>
+      i < 2
+        ? pick(l.obj, 0.014, 0.019, 0.016, 0, 0.009, 0)
+        : l.obj.children[0].children.find((o) => o.userData.pick),
+    );
+    const dial = AC_STOPS.map((s, i) => {
+      const a = -Math.PI * 0.66 + (i * Math.PI) / 2;
+      return pick(meter.group, 0.018, 0.002, 0.012, 0.0315 * Math.sin(a), 0.019, 0.0365 - 0.0315 * Math.cos(a));
+    });
     function pair(i) {
-      const [a, b] = leads.slice(i, i + 2);
+      const a = leads[i],
+        b = leads[i + 1];
       if (a.side === null || a.side !== b.side || a.turns === b.turns) return null;
       const lo = Math.min(a.turns, b.turns),
         hi = Math.max(a.turns, b.turns);
-      return { side: a.side, n: hi - lo, lo, hi, key: a.side + '/' + lo + '/' + hi };
+      return { side: a.side, lo, hi, n: hi - lo, key: [a.side, lo, hi].join('/') };
     }
-    const goal = () => trials.find(([a, b]) => !recorded.has(a + '/' + b));
-    const other = (i) => 1 - i;
-    const optimal = (v) => AC_STOPS.findIndex((s) => s.range >= v);
     function readings() {
-      const source = pair(0),
-        probes = pair(2);
-      const same = source && probes && source.side === probes.side;
+      const p = pair(0),
+        v = pair(2),
+        same = p && v && p.side === v.side;
       return transformerReadings({
-        primary: source?.n || 0,
-        secondary: probes?.n || 0,
+        primary: p?.n || 0,
+        secondary: v?.n || 0,
         energized: on,
-        coreClosed: yoked,
-        meterSide: probes && meter.stop ? (same ? 'primary' : 'secondary') : null,
+        coreClosed: seated[2] !== null,
+        meterSide: v && meter.stop ? (same ? 'primary' : 'secondary') : null,
         range: AC_STOPS[meter.stop].range || 50,
-        meterTurns: probes?.n || 0,
-        overlapTurns: same ? Math.max(0, Math.min(source.hi, probes.hi) - Math.max(source.lo, probes.lo)) : 0,
+        meterTurns: v?.n || 0,
+        overlapTurns: same ? Math.max(0, Math.min(p.hi, v.hi) - Math.max(p.lo, v.lo)) : 0,
       });
     }
-    const sampleKey = () => pair(0)?.key + '|' + pair(2)?.key;
-    function guide() {
-      if (bar.finished)
-        return say(
-          '已比较两组数据。原线圈匝数相同时，副电压随副线圈匝数增加；副匝数相同时，增加原匝数会使副电压降低。',
-        );
-      if (!goal())
-        return say(
-          on ? '两组数据已齐。点开关断电，再展开笔记本比较电压比。' : '展开笔记本，从实测电压和匝数判断两者的关系。',
-          on ? rig.power : null,
-        );
-      if (tween) return;
-      const loose = seated.findIndex((i) => i === null);
-      if (loose !== -1)
-        return say(
-          '把台前的绕组提到' + (loose ? '另一' : '一') + '根空铁芯柱上，松手让它沿柱落下。',
-          coils[loose].group,
-        );
-      if (!yoked) return say('把后方的横铁轭拖到两柱顶端，闭合铁芯。', yoke);
-      const [n1, n2] = goal(),
-        source = pair(0),
-        probe = pair(2);
-      if (!source || source.n !== n1) {
-        if (on) return say('下一组固定副线圈 ' + n2 + ' 匝。断电，把原线圈改接 ' + n1 + ' 匝。', rig.power);
-        const side = source?.side ?? leads[0].side ?? 0;
-        return say(
-          '电源线接同一绕组的 0 和 ' + n1 + ' 匝柱。本组保持副线圈 ' + n2 + ' 匝。',
-          leads[leads[1].side === side ? 0 : 1].obj,
-        );
-      }
-      const needPrimary = primaryRead?.key !== source.key;
-      if (!probe || (needPrimary ? probe.key !== source.key : probe.side === source.side || probe.n !== n2)) {
-        if (on)
-          return say(
-            '断电后移表笔。' + (needPrimary ? '先测原线圈电压。' : '保留已读的原线圈电压，改测副线圈。'),
-            rig.power,
-          );
-        const side = needPrimary ? source.side : other(source.side);
-        return say(
-          needPrimary
-            ? '两支表笔分别接到电源所接的两柱，测原线圈。'
-            : '原线圈已读 ' + primaryRead.v.toFixed(2) + ' V。把表笔移到另一绕组的 0 和 ' + n2 + ' 匝柱。',
-          leads[leads[3].side === side ? 2 : 3].obj,
-        );
-      }
-      if (sampled !== sampleKey()) {
-        if (meter.stop !== 3) return say('先把表面选择开关转到 50 V ~ 大量程。可以点表盘近看。', meter.selector);
-        if (!on) return say('接线已就绪。点 3 V 交流电源开关，观察大量程上的偏转。', rig.power);
-        return say('观察大量程的表针，等指针稳定。', meter.face);
-      }
-      if (!on) return say('接通交流电源，观察刻度。', rig.power);
-      const best = optimal(readings().meterV);
-      if (meter.stop !== best) return say('按大量程的试测，转到 ' + AC_STOPS[best].label + ' 挡再读。', meter.selector);
-      return say(view === 'meter' ? '沿指针点内圈的电压刻线。' : '点电表近看，沿指针点内圈的电压刻线。', meter.face);
+    const needPrimary = () => !primaryRead || primaryRead.key !== pair(0)?.key;
+    const best = () => AC_STOPS.findIndex((s) => s.range >= readings().meterV);
+    function matchesPlan() {
+      const src = pair(0),
+        v = pair(2),
+        trial = trials[index];
+      return !!(
+        trial &&
+        src &&
+        v &&
+        src.n === trial[0] &&
+        (needPrimary() ? src.key === v.key : v.side !== src.side && v.n === trial[1])
+      );
     }
-    function finishPlacement(i, leg) {
-      if (i === 2) yoked = leg !== null;
-      else seated[i] = leg;
-      if (yoked && seated.every((n) => n !== null)) bar.done('core');
+    function nextLead(start, side, n) {
+      const a = leads[start],
+        b = leads[start + 1];
+      const correct = (l) => l.side === side && (l.turns === 0 || l.turns === n);
+      return leads[start + (correct(a) && (!correct(b) || a.turns === b.turns) ? 1 : 0)].obj;
+    }
+    function guidance() {
+      if (!trials.length) return ['选首组副线圈匝数，点“记下方案”后装线圈。步骤和预测可选填。'];
+      if (seated.includes(null)) {
+        const i = seated.indexOf(null);
+        return i === 2
+          ? ['把横铁轭拖到两柱顶端，让铁芯闭合。', parts[i]]
+          : ['把线圈的方孔对准空铁芯柱顶，再松手套下。', parts[i]];
+      }
+      if (index === trials.length)
+        return on
+          ? ['五组已记全。断开低压交流电源，再对照课本。', rig.power]
+          : ['五组读数中，电压比都接近匝数比。掀开结论，对照理想变压器的关系式。'];
+      const [n1, n2] = trials[index],
+        src = pair(0),
+        probe = pair(2);
+      if (on && !matchesPlan()) return ['先断电，再按下一次测量的接法移线。', rig.power];
+      if (!src || src.n !== n1) {
+        const side = leads[0].side ?? leads[1].side ?? 0;
+        return ['把两根电源线接到同一线圈的 0 和 ' + n1 + ' 匝柱。', nextLead(0, side, n1)];
+      }
+      const primary = needPrimary(),
+        side = primary ? src.side : 1 - src.side,
+        n = primary ? n1 : n2;
+      const wired = primary ? probe?.key === src.key : probe?.side === side && probe.n === n;
+      if (!wired)
+        return [
+          primary ? '把两支表笔并接在电源所接的两柱，测原电压。' : '把表笔接到副线圈的 0 和 ' + n2 + ' 匝柱。',
+          nextLead(2, side, n),
+        ];
+      if (!checked) return ['对照电路图，逐根核对电源线和表笔，再确认。'];
+      if (!on && meter.stop !== 3)
+        return [
+          near ? '点 50 V ~ 挡，先用最大量程试测。' : '点表面近看，选最大交流电压挡试测。',
+          near ? meter.selector : meter.face,
+        ];
+      if (!on && near) return ['已选最大量程。回到全景，接通电源。'];
+      if (!on) return ['核对完毕。接通 3 V 交流电源，看指针偏转。', rig.power];
+      if (!sampled) return ['先看最大量程上的偏转，等指针稳定。', near ? null : meter.face];
+      if (!near) return ['点表面近看，根据试测偏转选择合适量程。', meter.face];
+      if (!meter.stop) return ['电表已关闭。选择交流电压挡，观察指针。'];
+      if (readings().meterV > AC_STOPS[meter.stop].range) return ['指针超过满刻度。改用更大的交流电压挡。'];
+      if (meter.stop !== best()) return ['指针偏转太小。点较小且不会超量程的交流电压挡。'];
+      if (!settled) return ['等指针停稳，再读黑色内圈。'];
+      return ['读黑色内圈，按所选量程换算成伏，再记下读数。'];
+    }
+    function guide(prefix = '') {
+      const [msg, target] = guidance();
+      aim = target || null;
+      bar.say(prefix + msg);
+      if (!book) return;
+      const { range, digits } = AC_STOPS[meter.stop];
+      const primary = needPrimary();
+      book.fields({
+        planning: !trials.length,
+        check: !!trials[index] && leads.every((l) => l.side !== null) && !on && !checked,
+        reading: near && on && sampled && settled && meter.stop === best() && matchesPlan(),
+        primary,
+        finished: bar.finished,
+        range: near && range,
+        digits,
+      });
+      if (trials.length) book.diagram(leads, pair(0), pair(2), !on && trials[index]);
+    }
+    function warn(text, target) {
+      aim = target || null;
+      bar.say(text);
+    }
+    function leave() {
+      if (near) ctx.back();
+      near = false;
+      bar.near(false);
       guide();
     }
-    function animate(i, destination, leg) {
-      const obj = i === 2 ? yoke : coils[i].group;
-      tween = { obj, start: obj.position.clone(), destination, i, leg, t: 0 };
+    function inspect() {
+      if (near) return;
+      near = true;
+      bar.near(true);
+      ui.fold(false);
+      const portrait = ctx.camera.aspect < 1;
+      ctx.look([0.155, 0.019, portrait ? -0.008 : -0.023], [0, 1, 0.015], 0.34, leave);
+      guide();
     }
-    function assembly(i) {
-      const obj = i === 2 ? yoke : coils[i].group,
-        home = i === 2 ? rig.homeYoke : rig.homes[i];
-      let original, moving, blocked;
+    function inspectScale() {
+      if (near && on && sampled && meter.stop === best() && ctx.camera.aspect < 1)
+        ctx.look([0.155, 0.019, -0.067], [0, 1, 0.015], 0.17, leave);
+    }
+    function plan(first) {
+      if (trials.length) return;
+      trials = [first, ...[100, 200, 400].filter((n) => n !== first)]
+        .map((n) => [200, n])
+        .concat([
+          [100, 200],
+          [400, 200],
+        ]);
+      book.planned(first);
+      bar.done('plan');
+      guide('先保持原线圈 200 匝。');
+    }
+    const hint = (enabled, text) => () => (ui?.step === 1 && enabled() ? text : '');
+    // 拖动平面经过起点和柱顶（或接线柱）。抓住器材的哪一点，就一直从那一点跟手。
+    function carried(obj, target, clearance = 0) {
+      const origin = obj.position.clone(),
+        dy = target.y - origin.y,
+        dz = target.z + clearance - origin.z;
+      const slope = Math.abs(dz) > 0.004 ? dy / dz : 0;
+      const plane = new THREE.Plane()
+        .setFromNormalAndCoplanarPoint(point(0, 1, -slope).normalize(), origin)
+        .applyMatrix4(group.matrixWorld);
+      function hit(surface) {
+        const p = ray?.ray.intersectPlane(surface, new THREE.Vector3());
+        return p && group.worldToLocal(p);
+      }
+      const start = hit(plane);
+      const offset = start && origin.clone().sub(start);
+      // 靠近铁芯前先提过柱顶，之后在柱顶上方平移，方孔边缘不会扫过铁柱。
+      const top = new THREE.Plane(point(0, 1, 0), -(target.y - (offset?.y || 0))).applyMatrix4(group.matrixWorld);
+      return (fallback) => {
+        let p = hit(plane);
+        if (clearance && p && offset && p.y + offset.y > target.y) p = hit(top);
+        obj.position.copy(p && offset ? p.add(offset) : fallback);
+        obj.position.clamp(point(-0.32, 0, -0.155), point(0.24, 0.18, 0.22));
+      };
+    }
+    function settle(obj, to, done, draw, lower = false) {
+      returning = { obj, from: obj.position.clone(), to, time: 0, done, draw, lower };
+    }
+    function assemble(i) {
+      const obj = parts[i],
+        enabled = () => !near && !returning && seated[i] === null;
+      let move, plannedAtPickup;
       return {
-        obj,
+        obj: partsPick[i],
+        anchor: obj,
+        keepOffset: true,
         plane: 'xz',
-        offset: BASE_H + 0.018,
-        enabled: () => view !== 'meter' && !tween && !bar.finished,
-        hint: i === 2 ? '拖动横铁轭' : '将线圈套到铁芯柱上，点一下近看',
+        enabled,
+        hint: hint(enabled, i === 2 ? '拖动：合上铁轭' : '拖动：套上线圈'),
         onStart() {
-          original = obj.position.clone();
-          moving = blocked = false;
+          plannedAtPickup = trials.length > 0;
+          move = carried(obj, seat(i, i === 2 ? 0 : i, true), i === 2 ? 0.09 : 0.05);
         },
-        onDrag(p, start) {
-          if (!start) return;
-          if (on || (i !== 2 && yoked) || (i === 2 && seated.includes(null))) {
-            blocked = true;
-            return say(on ? '先断开电源。' : i === 2 ? '先套上两个绕组。' : '先提走铁轭，才能取下线圈。');
-          }
-          if (i < 2 && leads.some((l) => l.side === i)) {
-            blocked = true;
-            return say('先拔下这个线圈上的接线，再取下绕组。');
-          }
-          moving = true;
-          const d = Math.hypot(p.x - start.x, p.z - start.z);
-          const lift = Math.min(1, d / 0.018);
-          obj.position.y = THREE.MathUtils.lerp(original.y, LEG_TOP + 0.012, lift);
-          const slide = clamp((d - 0.018) / 0.035, 0, 1);
-          obj.position.x = THREE.MathUtils.lerp(original.x, p.x, slide);
-          obj.position.z = THREE.MathUtils.lerp(original.z, p.z, slide);
+        onDrag(p) {
+          if (i === 2 && seated.slice(0, 2).includes(null)) return warn('先把两只线圈套到柱上，再合上铁轭。');
+          move(p);
         },
         onEnd(moved) {
-          if (!moved || !moving || blocked) return;
-          if (i === 2) {
-            const fits = Math.abs(obj.position.x - mid) < 0.043 && Math.abs(obj.position.z - CORE_Z) < 0.04;
-            animate(i, fits ? new THREE.Vector3(mid, LEG_TOP, CORE_Z) : home.clone(), fits ? 0 : null);
-          } else {
-            const leg = LEGS.findIndex(
-              (x, k) => Math.hypot(obj.position.x - x, obj.position.z - CORE_Z) < 0.047 && seated[other(i)] !== k,
-            );
-            animate(i, leg < 0 ? home.clone() : new THREE.Vector3(LEGS[leg], BASE_H, CORE_Z), leg < 0 ? null : leg);
-          }
-        },
-        onTap() {
-          if (!view) close('core');
-          else guide();
+          if (!moved || obj.position.equals(homes[i])) return;
+          if (!plannedAtPickup) return settle(obj, homes[i], () => guide());
+          const leg = [0, 1].find(
+            (k) =>
+              (i === 2 || !seated.slice(0, 2).includes(k)) && obj.position.distanceTo(seat(i, k, true)) < 0.018,
+          );
+          const fits = !cancel && leg !== undefined;
+          settle(
+            obj,
+            fits ? seat(i, leg) : homes[i],
+            () => {
+              if (fits) seated[i] = leg;
+              if (seated[2] !== null) bar.done('core');
+              guide(fits ? (i === 2 ? '铁芯已闭合。' : '线圈已套稳。') : '没有对准柱顶，器材已放回。');
+            },
+            null,
+            fits && i !== 2,
+          );
         },
       };
     }
-    function nearest(p) {
-      let hit = null,
-        distance = 0.02;
-      for (let side = 0; side < 2; side++)
-        for (const turns of TAP_TURNS) {
-          const point = rig.tap(side, turns),
-            d = Math.hypot(point.x - p.x, point.z - p.z);
-          if (d < distance) {
-            distance = d;
-            hit = { side, turns, point };
-          }
-        }
-      return hit;
-    }
     function wire(i) {
-      const l = leads[i];
-      let moved;
+      const l = leads[i],
+        enabled = () => seated[2] !== null && !near && !returning && index < trials.length;
+      let move, from;
       return {
-        obj: l.obj,
+        obj: plugs[i],
+        anchor: l.obj,
+        keepOffset: true,
         plane: 'xz',
-        offset: 0.04,
-        enabled: () => yoked && view !== 'meter' && !bar.finished,
-        hint: i < 2 ? '拖动交流电源插头' : '拖动绝缘表笔到抽头',
+        enabled,
+        hint: hint(enabled, i < 2 ? '拖动：改接电源线' : '拖动：改接表笔'),
         onStart() {
-          moved = false;
+          from = l.obj.position.clone();
+          move = carried(l.obj, rig.tap(0, 0));
         },
         onDrag(p) {
-          if (on) {
-            return say('先断开电源，再改接线。', rig.power);
-          }
-          moved = true;
-          l.side = l.turns = null;
-          l.obj.position.set(clamp(p.x, -0.31, 0.23), 0.073, clamp(p.z, -0.14, 0.16));
+          if (on) return warn('通电时不能碰接线柱。先断电，再改接。', rig.power);
+          move(p);
           rig.drawLead(i);
         },
-        onEnd() {
-          if (!moved) return;
-          const hit = nearest(l.obj.position);
-          if (hit) {
-            l.side = hit.side;
-            l.turns = hit.turns;
-            l.obj.position.copy(hit.point);
-            // 表笔尖接触柱的前沿，让插头和绝缘柄各有空间。
-            if (i >= 2) {
-              l.obj.position.z += 0.0035;
-              l.obj.position.y -= 0.002;
+        onEnd(moved) {
+          if (!moved || on || l.obj.position.equals(from)) return;
+          let hit,
+            distance = 0.016;
+          for (let side = 0; side < 2; side++)
+            for (const turns of TAP_TURNS) {
+              const pos = rig.tap(side, turns),
+                d = pos.distanceTo(l.obj.position);
+              if (d < distance) {
+                distance = d;
+                hit = { side, turns, pos };
+              }
             }
-          } else l.obj.position.y = 0.002;
+          if (!hit || cancel)
+            return settle(
+              l.obj,
+              from,
+              () => guide('没有碰到接线柱，已放回原处。'),
+              () => rig.drawLead(i),
+            );
+          const mate = leads[i ^ 1];
+          if (mate.side === hit.side && mate.turns === hit.turns)
+            return settle(
+              l.obj,
+              from,
+              () =>
+                guide(i < 2 ? '两根电源线不能接同一柱，会造成短路。' : '两支表笔在同一柱，测不到线圈两端的电压。'),
+              () => rig.drawLead(i),
+            );
+          const old = pair(0)?.key;
+          l.side = hit.side;
+          l.turns = hit.turns;
+          l.obj.position.copy(hit.pos);
+          if (i >= 2) l.obj.position.z += 0.004;
+          if (old !== pair(0)?.key) primaryRead = null;
+          checked = sampled = false;
+          stable = 0;
           rig.drawLead(i);
-          wellTime = 0;
           guide();
         },
       };
     }
+    function confirm() {
+      if (!matchesPlan()) return guide('接线与本次测量不符。');
+      checked = true;
+      guide('接线符合方案。');
+    }
     function toggle() {
       if (on) {
-        on = false;
-        guide();
+        on = checked = sampled = settled = false;
+        stable = 0;
+        if (index === trials.length) bar.done('primary');
+        guide(index === 3 && !needPrimary() && pair(0)?.n === 200 ? '两轮共用原、副各 200 匝的记录。' : '电源已断开。');
         return;
       }
-      if (!yoked) return say('先装好绕组并合上铁轭。', yoke);
-      if (!pair(0)) return say('电源两根线应接在同一个绕组的不同抽头上。');
-      if (!meter.stop) return say('先把多用电表拨到交流电压挡。', meter.selector);
+      if (!trials.length || seated[2] === null) return guide('电源保持断开。');
+      if (!checked) return guide('尚未核对接线，电源保持断开。');
+      if (meter.stop !== 3) return guide('先选最大量程，保护电表。');
       on = true;
-      wellTime = 0;
-
-      guide();
+      stable = 0;
+      guide('指示灯亮了。');
     }
-    function setRange(n) {
-      if (n === meter.stop) return;
-      meter.setStop(n);
-      if (n === 0) wellTime = 0;
-      guide();
+    function range(i) {
+      if (on && !sampled && i !== 3) return warn('先在最大量程看清偏转，再换挡。');
+      if (i !== meter.stop) settled = false;
+      meter.setStop(i);
+      if (!on && near && checked && i === 3) leave();
+      else guide();
     }
-    function read(ray) {
-      if (bar.finished || !goal()) return guide();
-      const hit = ray.intersectObject(meter.face, false)[0];
-      if (!hit) return;
-      const pos = meter.group.worldToLocal(hit.point.clone());
-      if (Math.hypot(pos.x - meter.selector.position.x, pos.z - meter.selector.position.z) < 0.033) {
-        setRange(meter.pickStop(pos));
+    function submit(value) {
+      if (!on || !near || !sampled || !settled || meter.stop !== best() || !matchesPlan()) return guide();
+      const { range: full, digits } = AC_STOPS[meter.stop];
+      const div = full / 50;
+      const v = Number(readings().meterV.toFixed(digits));
+      if (!Number.isFinite(value)) return warn('先填入读到的电压，单位是伏。');
+      const record = value.toFixed(digits);
+      if (Math.abs(Number(record) - v) > div / 2 + 1e-9) {
+        if (full !== 10 && Math.abs(value - (v * 10) / full) < 0.15)
+          return warn('内圈刻度读对了。用刻度数乘以 ' + full + ' / 10，换算成伏。');
+        return warn('读数偏' + (value > v ? '大' : '小') + '。看针尖经过的黑色刻线，每小格是 ' + div + ' V。');
+      }
+      if (needPrimary()) {
+        primaryRead = { key: pair(0).key, value: record };
+        leave();
+        guide('原电压约 ' + record + ' V，已记下。');
         return;
       }
-      const s = meter.pickScale(pos);
-      if (!s) return;
-      if (s.scale !== 'ac') return say('读内圈 V ~ 刻度；外圈用于测电阻。');
-      if (!on || !pair(2) || sampled !== sampleKey()) return guide();
-      const v = readings().meterV;
-      if (meter.stop !== optimal(v)) return guide();
-      if (Math.abs(s.fraction - meter.display) > 0.016 || Math.abs(meter.display - meter.fraction) > 0.009)
-        return say('等表针稳定，从针尖沿内圈读刻度。');
-      const measured = Math.round(s.fraction * AC_STOPS[meter.stop].range * 100) / 100;
-      const src = pair(0),
-        probe = pair(2);
-      if (src.key === probe.key) {
-        primaryRead = { key: src.key, v: measured };
-        leave();
-        return say('原线圈读到 ' + measured.toFixed(2) + ' V。断电后移表笔，到副线圈读数。', rig.power);
-      }
-      if (probe.side === src.side || primaryRead?.key !== src.key) return guide();
-      const key = src.n + '/' + probe.n;
-      if (recorded.has(key)) return say('这对匝数已记录。断电后换到下一组抽头。', rig.power);
-      recorded.set(key, measured);
-      rows.add([
-        src.n,
-        primaryRead.v.toFixed(2),
-        probe.n,
-        measured.toFixed(2),
-        (probe.n / src.n).toFixed(2),
-        (measured / primaryRead.v).toFixed(2),
-      ]);
-      bar.done('voltage');
-      if (trials.slice(0, 3).every(([a, b]) => recorded.has(a + '/' + b))) bar.done('secondary');
-      const next = goal();
-      if (!next) comparison.hidden = false;
+      const [n1, n2] = trials[index];
+      book.add(n1, primaryRead.value, n2, record);
+      index++;
+      if (index === 3) bar.done('secondary');
       leave();
-      if (next) {
-        const progress = trials.filter(([a, b]) => recorded.has(a + '/' + b)).length;
-        const change =
-          next[0] === src.n
-            ? '保持原线圈 ' + src.n + ' 匝，断电，把副线圈表笔改接 ' + next[1] + ' 匝。'
-            : '断电，原线圈改接 ' + next[0] + ' 匝，副线圈测 ' + next[1] + ' 匝。';
-        say('副电压 ' + measured.toFixed(2) + ' V，已记 ' + progress + '/5 组。' + change, rig.power);
-      }
+      if (index === trials.length) return guide('原电压约 3 V、副线圈固定 200 匝时，原匝数越多，副电压越低。');
+      const feedback = index === 3
+        ? '原电压约 3 V、原线圈固定 200 匝时，副匝数越多，副电压越高。'
+        : '本组副电压约 ' + record + ' V。';
+      guide(feedback);
     }
+    const powerEnabled = () => !near && !bar.finished;
+    const faceEnabled = () => !near && checked && matchesPlan();
+    const selectorEnabled = () => near;
+    const tip = ctx.tag('', 'pill');
+    const hideTip = () => tip.loc(group, 0, -9, 0);
+    const canvas = document.getElementById('c');
+    canvas.addEventListener('pointerleave', hideTip);
     const manip = draggable(
       group,
       [
-        ...coils.map((_, i) => assembly(i)),
-        assembly(2),
+        ...parts.map((_, i) => assemble(i)),
         ...leads.map((_, i) => wire(i)),
         {
           obj: meter.selector,
           plane: 'xz',
-          offset: meter.selector.position.y,
-          hint: '转动交流电压量程开关',
+          offset: 0.022,
+          enabled: selectorEnabled,
+          hint: hint(selectorEnabled, '转动：选择量程'),
           onDrag(p) {
-            setRange(meter.pickStop(meter.group.worldToLocal(group.localToWorld(p.clone()))));
+            range(meter.pickStop(meter.group.worldToLocal(group.localToWorld(p.clone()))));
           },
-          onTap() {
-            if (view !== 'meter') close('meter');
-          },
+          onEnd: inspectScale,
         },
       ],
       {
-        highlight: true,
+        tip,
         taps: [
-          { obj: rig.power, hint: '接通或断开低压交流电源', onTap: toggle },
           {
-            obj: meter.face,
-            hint: '近看表盘和量程',
-            onTap(ray) {
-              if (view === 'meter') read(ray);
-              else close('meter');
-            },
+            obj: rig.power,
+            enabled: powerEnabled,
+            hint: () => (ui?.step === 1 && powerEnabled() ? (on ? '点一下：断开电源' : '点一下：接通电源') : ''),
+            onTap: toggle,
           },
+          { obj: meter.face, enabled: faceEnabled, hint: hint(faceEnabled, '点一下：凑近读表'), onTap: inspect },
+          ...dial.map((obj, i) => ({
+            obj,
+            enabled: selectorEnabled,
+            hint: hint(selectorEnabled, '点一下：选择量程'),
+            onTap() {
+              range(i);
+              inspectScale();
+            },
+          })),
         ],
       },
     );
+    const pointer = {
+      ...manip,
+      down(r, e) {
+        ray = r;
+        return manip.down(r, e);
+      },
+      move(r, e) {
+        ray = r;
+        return manip.move(r, e);
+      },
+      up(r, e) {
+        ray = r;
+        cancel = e?.type === 'pointercancel';
+        const consumed = manip.up(r, e);
+        ray = null;
+        cancel = false;
+        return consumed;
+      },
+    };
     function reset() {
-      if (view) leave();
-      on = yoked = false;
-      seated = [null, null];
-      primaryRead = tween = sampled = null;
-      wellTime = 0;
-      recorded.clear();
-      rows?.clear();
-      if (comparison) comparison.hidden = true;
-      coils.forEach((c, i) => c.group.position.copy(rig.homes[i]));
-      yoke.position.copy(rig.homeYoke);
+      if (near) ctx.back();
+      near = checked = sampled = settled = on = false;
+      index = stable = 0;
+      trials = [];
+      primaryRead = returning = null;
+      seated.fill(null);
+      parts.forEach((o, i) => o.position.copy(homes[i]));
       leads.forEach((l, i) => {
-        l.obj.position.copy(l.home);
         l.side = l.turns = null;
+        l.obj.position.copy(l.home);
         rig.drawLead(i);
       });
       meter.setStop(0);
       meter.fraction = meter.display = 0;
-      bar.undo('core', 'voltage', 'secondary', 'primary');
+      meter.update(1);
+      bar.near(false);
+      bar.undo(...Object.keys(titles));
+      book?.clear();
+      ui?.relock();
       guide();
     }
+    function update(dt) {
+      bar.update(dt);
+      if (returning) {
+        const r = returning,
+          t = Math.min(1, (r.time += dt) / 0.36);
+        if (r.lower) {
+          r.obj.position.lerpVectors(r.from, r.to, Math.min(1, t * 4));
+          r.obj.position.y = THREE.MathUtils.lerp(r.from.y, r.to.y, Math.max(0, (t - 0.25) / 0.75));
+        } else r.obj.position.lerpVectors(r.from, r.to, t * (2 - t));
+        if (t === 1) r.obj.position.copy(r.to);
+        r.draw?.();
+        if (t === 1) {
+          returning = null;
+          r.done();
+        }
+      }
+      rig.power.rotation.x = on ? -0.32 : 0.18;
+      rig.indicator.material.color.setHex(on ? 0x72fa7a : 0x384749);
+      rig.powerLabels.forEach((label, i) => (label.visible = i === Number(on)));
+      meter.fraction = meter.stop ? readings().meterV / AC_STOPS[meter.stop].range : 0;
+      meter.update(dt);
+      if (on && meter.stop && !settled && Math.abs(meter.display - meter.fraction) < 0.001) {
+        settled = true;
+        guide();
+      }
+      if (on && !sampled && meter.stop === 3 && settled && (stable += dt) > 0.35) {
+        sampled = true;
+        guide();
+      }
+    }
     reset();
+    const qa = [];
+    function action(name, run) {
+      qa.push({ name, run });
+    }
+    function tap(name, obj, wait) {
+      qa.push({ name, tap: obj, wait });
+    }
+    function drag(name, obj, to) {
+      qa.push({ name, drag: obj, to });
+    }
+    function check(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+    function readTrial(primary, value, stop, wrong) {
+      action('独立复核', () => {
+        check(!book.review.el.hidden, '未能复核接线');
+        book.review.btns[0].click();
+      });
+      tap('看量程', meter.face);
+      tap('选最大交流挡', dial[3]);
+      tap('接通低压电源', rig.power, 2.4);
+      if (primary && wrong) {
+        drag('通电时试移表笔', plugs[2], () => rig.tap(1, 0));
+        action('带电接线保持原位', () => check(on && pair(0).key === pair(2).key, '带电时接线被改变'));
+      }
+      tap('近看试测偏转', meter.face);
+      if (primary && wrong) {
+        tap('试选过小量程', dial[1]);
+        action('核对超量程', () => check(meter.fraction > 1 && book.form.hidden, '超量程仍可记录'));
+      }
+      tap('选合适量程', dial[stop]);
+      function enter(n) {
+        check(!book.form.hidden, '未出现读数栏');
+        book.value.value = n;
+        book.form.querySelector('button').click();
+      }
+      if (wrong)
+        action('试一次错读', () => {
+          enter(wrong);
+          check(near && !book.form.hidden, '错读被记录');
+        });
+      action(primary ? '记下原电压' : '记下副电压', () => {
+        enter(value);
+        check(!near, '有效读数未被记录');
+      });
+      if (primary && wrong)
+        action('原读数不能重复记为副电压', () => {
+          check(
+            !matchesPlan() && !faceEnabled() && book.form.hidden && book.record.rows.length === 0,
+            '表笔未移却可以记录副电压',
+          );
+        });
+      tap('断开电源', rig.power);
+    }
+    function connect(i, side, n) {
+      drag('接到 ' + n + ' 匝柱', plugs[i], () => rig.tap(side, n));
+    }
+    drag('确认前试放线圈', partsPick[0], seat(0, 0, true));
+    action('确认方案仍可填写', () =>
+      check(!trials.length && !book.planner.hidden && seated[0] === null && parts[0].position.equals(homes[0]),
+        '试拖跳过了方案确认'),
+    );
+    action('记下实验方案', () => book.planner.querySelector('button').click());
+    drag('试放在柱外', partsPick[0], point(-0.19, 0.06, 0.01));
+    action('检查归位', () => check(parts[0].position.equals(homes[0]), '线圈未归位'));
+    parts.forEach((o, i) => drag('装' + (i === 2 ? '铁轭' : '线圈'), partsPick[i], seat(i, i === 2 ? 0 : i, true)));
+    connect(0, 0, 0);
+    connect(1, 0, 200);
+    connect(2, 0, 0);
+    connect(3, 0, 200);
+    tap('未经核对试合闸', rig.power);
+    action('核对安全联锁', () => check(!on && !checked, '未经检查就通电'));
+    readTrial(true, 3, 2, 8);
+    connect(2, 1, 0);
+    connect(3, 1, 100);
+    readTrial(false, 1.48, 1, 5.9);
+    connect(3, 1, 200);
+    readTrial(false, 3.0, 2);
+    connect(3, 1, 400);
+    readTrial(false, 5.9, 2);
+    for (const [n, v, stop] of [
+      [100, 6.0, 2],
+      [400, 1.48, 1],
+    ]) {
+      connect(1, 0, n);
+      connect(2, 0, 0);
+      connect(3, 0, n);
+      readTrial(true, 3, 2);
+      connect(2, 1, 0);
+      connect(3, 1, 200);
+      readTrial(false, v, stop);
+    }
+    action('检查五组记录', () =>
+      check(!on && bar.finished && book.record.rows.length === 5, '五组数据或断电收尾不完整'),
+    );
     return {
-      group,
-      size: { w: 0.65, h: 0.145, d: 0.38 },
-      view: { azim: 6, elev: 40, margin: 1.05 },
+      group: new THREE.Group().add(group),
+      pointer,
+      reset,
+      update,
+      size: { w: 0.62, d: 0.38, h: 0.15 },
+      view: { azim: 0, elev: 48, frameMargin: 1.01 },
       toggles: ['steps'],
-      pointer: {
-        ...manip,
-        down(ray, e) {
-          if (document.body.classList.contains('predicting')) ui?.go(1);
-          return manip.down(ray, e);
-        },
-      },
       mount(panel) {
         ui = panel;
-        bar.attach(panel);
-        rows = table(['N₁', 'U₁ / V', 'N₂', 'U₂ / V', 'N₂/N₁', 'U₂/U₁']);
-        const conclude = (correct) => {
-          if (goal()) return;
-          if (on) return say('先点电源开关断电，再比较两组数据。', rig.power);
-          if (!correct) return say('对照 200 匝接 400 匝和 400 匝接 200 匝两行：哪一组副电压较大？');
-          bar.done('primary');
-          comparison.hidden = true;
-          guide();
-        };
-        comparison = h(
-          'div',
-          {},
-          note('对照记录，副电压与原电压之比接近哪个匝数比？'),
-          buttons([
-            { text: '副匝数 / 原匝数', onClick: () => conclude(true) },
-            { text: '原匝数 / 副匝数', onClick: () => conclude(false) },
-          ]).el,
-        );
-        comparison.hidden = true;
-        panel.data.append(rows.el, comparison);
-        panel.notes.append(
-          note(
-            '两绕组均有 0、100、200、400 匝抽头，接入两抽头之间的匝数取差。3 V、50 Hz 正弦交流电源。电压挡读内圈 0–10，满度为所选量程。',
-          ),
-          buttons([{ text: '全部重做', onClick: reset }]).el,
-        );
+        const quote = panel.el.querySelector('.answer blockquote');
+        if (quote) {
+          const formula = document.createElement('div');
+          formula.className = 'formula';
+          formula.textContent = 'U₁/U₂ = n₁/n₂';
+          quote.append(formula);
+        }
+        const source = panel.el.querySelector('.answer .src');
+        source.style.minHeight = '60px';
+        source.style.paddingRight = '80px';
+        book = transformerNotebook(panel, { plan, confirm, submit, reset });
+        bar.attach({ ...panel, need: () => {} });
         guide();
       },
-      update(dt) {
-        bar.update(dt);
-        if (tween) {
-          const t = tween;
-          t.t = Math.min(1, t.t + dt / 0.3);
-          // 在柱顶上方对正方孔，再沿柱落下。
-          const across = Math.min(1, t.t * 2);
-          const down = Math.max(0, t.t * 2 - 1);
-          t.obj.position.lerpVectors(t.start, t.destination, across);
-          t.obj.position.y = THREE.MathUtils.lerp(t.start.y, t.destination.y, down);
-          if (t.t === 1) {
-            tween = null;
-            finishPlacement(t.i, t.leg);
-          }
-        }
-        rig.power.rotation.x = on ? -0.24 : 0;
-        rig.indicator.material.color.setHex(on ? 0x70bc74 : 0x394d42);
-        const value = readings().meterV;
-        meter.fraction = meter.stop ? value / AC_STOPS[meter.stop].range : 0;
-        meter.update(dt);
-        if (on && pair(2) && meter.stop === 3 && sampled !== sampleKey()) {
-          wellTime += dt;
-          if (wellTime >= 0.6 && Math.abs(meter.display - meter.fraction) < 0.01) {
-            sampled = sampleKey();
-            guide();
-          }
-        }
-      },
+      debug: { bar, qa: qaFlow(pointer, qa) },
       dispose() {
+        canvas.removeEventListener('pointerleave', hideTip);
         manip.dispose();
         bar.dispose();
         meter.dispose();

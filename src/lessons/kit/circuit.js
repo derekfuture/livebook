@@ -44,7 +44,8 @@ function solveLinear(A, b) {
 export const splitId = (id) => { const k = id.indexOf('.'); return [id.slice(0, k), id.slice(k + 1)]; };
 
 export class Circuit {
-  constructor() {
+  constructor({ showCurrent = true } = {}) {
+    this.showCurrent = showCurrent;
     this.group = new THREE.Group();
     this.parts = new Map();
     this.wires = [];
@@ -214,8 +215,9 @@ export class Circuit {
         return pts.map((v) => this.group.worldToLocal(p.group.localToWorld(v)));
       };
       const ap = exit(w.a, a, b), bp = exit(w.b, b, a);
-      mid.copy(ap.at(-1)).lerp(bp.at(-1), 0.5);
-      mid.y = Math.max(ap.at(-1).y, bp.at(-1).y) + lift;
+      const endA = ap[ap.length - 1], endB = bp[bp.length - 1];
+      mid.copy(endA).lerp(endB, 0.5);
+      mid.y = Math.max(endA.y, endB.y) + lift;
       if (w.via) mid.add(new THREE.Vector3(...w.via));
       const points = w.points ? [a, ...w.points.map((p) => new THREE.Vector3(...p)), b] : [a, ...ap, mid, ...bp.reverse(), b];
       const curve = new THREE.CatmullRomCurve3(points, false, 'centripetal');
@@ -230,6 +232,7 @@ export class Circuit {
       this._wireTubes.push(tube);
     }
     // 电流点
+    if (!this.showCurrent) return;
     const MAX = 600;
     if (!this.dots) {
       this.dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.0013, 6, 4), new THREE.MeshBasicMaterial({ color: 0xfff2a8 }), MAX);
@@ -244,7 +247,7 @@ export class Circuit {
     if (this._dirty) this._buildWires();
     this._t += dt;
     for (const p of this.parts.values()) p.update?.(dt, this._t);
-    if (!this.curves?.length || !this.branches) return;
+    if (!this.showCurrent || !this.curves?.length || !this.branches) return;
     const I = this.wireCurrents || [];
     const m = new THREE.Matrix4();
     let k = 0;
