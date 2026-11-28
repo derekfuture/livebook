@@ -5,6 +5,7 @@ import os from 'os';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { normalizePath } from 'vite';
+import { FEATURES } from '../src/features.js';
 
 const ID = 'virtual:offline', RID = '\0' + ID;
 const booksPath = normalizePath(path.resolve('src/content/books.json'));
@@ -33,7 +34,7 @@ export function offlineData(on, bookIds) {
       if (!ids || id !== contentPath) return null;
       const glob = "import.meta.glob('../lessons/*.js')";
       if (!code.includes(glob)) throw new Error('找不到需要按册筛选的活页 glob');
-      const lessons = new Set(Object.values(selected).flatMap((book) => Object.keys(book.lessons)));
+      const lessons = new Set(Object.values(selected).flatMap((book) => Object.keys(book.lessons)).filter((id) => !FEATURES.hiddenLessons?.includes(id)));          // 没上线的单张活页不打进离线包
       const patterns = fs.readdirSync('src/lessons').filter((file) => file.endsWith('.js') && lessons.has(file.slice(0, -3)))
         .map((file) => `../lessons/${file}`);
       return code.replace(glob, patterns.length ? `import.meta.glob(${JSON.stringify(patterns)})` : '{}');
