@@ -314,12 +314,12 @@ body.stand-ui #hud-top .hud-actions { opacity: .5; }
 .board.lying .board-ear { opacity: 0; }
 
 /* ---------- 左侧悬浮的纸卡（?ui=float，默认） ---------- */
-#panel.board { background:
+#panel.board, .turn-sheet { background:
     radial-gradient(120% 80% at 30% 0%, rgba(255,255,255,.55), transparent 60%),
     repeating-linear-gradient(0deg, rgba(120,100,60,.025) 0 1px, transparent 1px 3px), #f8f2e3;
   color: #2a2f3d; border-radius: 3px; overflow: visible;
-  box-shadow: 0 18px 40px rgba(20,12,4,.45), 0 2px 6px rgba(20,12,4,.25), inset 0 0 0 1px rgba(120,100,60,.18), inset 0 0 40px rgba(160,130,80,.12);
-  transform: rotate(-0.6deg); transition: transform .5s cubic-bezier(.3,.8,.2,1); animation: paperin .6s cubic-bezier(.2,.8,.2,1); }
+  box-shadow: 0 18px 40px rgba(20,12,4,.45), 0 2px 6px rgba(20,12,4,.25), inset 0 0 0 1px rgba(120,100,60,.18), inset 0 0 40px rgba(160,130,80,.12); }
+#panel.board { transform: rotate(-0.6deg); transition: transform .5s cubic-bezier(.3,.8,.2,1); animation: paperin .6s cubic-bezier(.2,.8,.2,1); }
 @keyframes paperin { from { transform: translateX(-60px) rotate(-3deg); opacity: 0; } }
 #panel.board .p-body { overflow: auto; }
 #panel.board .p-head { margin: 0 18px; padding: 18px 0 8px 22px; border-bottom: 1.5px solid rgba(42,47,61,.75); position: relative; }
@@ -1179,7 +1179,7 @@ body.geo-in-go :is(.geo-lens-hint, .geo-credit) { --in: 1.15s; }
   .geo-credit { left: 12px !important; right: 12px !important; bottom: 6px !important; font-size: 9px !important; line-height: 1.3 !important; text-align: center; }
 }
 
-/* 手机：书里的顶栏放一行（字小一点、不折行）；导入课本 PDF 在手机上用不上，先藏起来 */
+/* 手机：书里的顶栏放一行（字小一点、不折行）；手机的导入按钮与提示另在下方适配 */
 @media (max-width: 760px) {
   #hud-top { padding-left: 12px; padding-right: 10px; gap: 8px; }
   .brand b { font-size: 15px; letter-spacing: .06em; white-space: nowrap; }
@@ -1291,3 +1291,96 @@ body.mood .home-overview { color: #f1e6cc; text-shadow: 0 1px 8px rgba(0,0,0,.4)
   #viewctl .zoom-in, #viewctl .zoom-out { display: none; }
 }
 .tip-slip { max-width: min(400px, calc(100vw - 96px)); }
+
+/* 转屏纸卡随本张活页开合，转向时直接跟随可见视口。 */
+.turn-hint {
+  position: fixed; inset: 0; z-index: 65; display: grid; place-items: center;
+  padding: 16px; overflow: auto; text-align: center; font-family: var(--song); color: var(--ink); background: rgba(35,41,58,.17);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .28s ease, visibility 0s .28s;
+}
+.phone:not(.phone-scaled) .turn-hint { opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.phone:not(.phone-scaled) body:has(.turn-hint) .imp-tip { visibility: hidden; }
+@starting-style { .phone:not(.phone-scaled) .turn-hint { opacity: 0; } }
+.turn-sheet { width: min(100%, 268px); padding: 28px 24px 18px; }
+.turn-drawing { width: 88px; margin: 0 auto 9px; color: var(--ink); }
+.turn-drawing svg { width: 100%; display: block; }
+.turn-hint h2 { margin: 0; font: 700 21px/1.4 var(--song); letter-spacing: .06em; padding-bottom: 9px; border-bottom: 1.5px solid rgba(42,47,61,.75); }
+.turn-hint p { margin: 7px 0 8px; color: var(--ink2); font: 15px/1.5 var(--song); }
+.turn-hint .turn-note { display: block; margin: -10px 0 14px; color: var(--ink2); opacity: .72; font: 13px/1.4 var(--song); }
+.turn-actions { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.turn-actions button { min-height: 44px; }
+.turn-actions .go { width: auto; margin: 0; min-width: 72px; }
+.turn-actions .turn-dismiss { position: static; padding: 0 7px; color: var(--ink2); font-size: 15px; }
+.turn-device { transform: rotate(-90deg); }
+.turn-column { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .phone:not(.phone-scaled) .turn-device { animation: turn-phone 5.6s cubic-bezier(.6,0,.2,1) infinite; }
+  .phone:not(.phone-scaled) .turn-column { animation: turn-column 5.6s ease-in-out infinite; }
+  .phone:not(.phone-scaled) .turn-spread { animation: turn-spread 5.6s ease-in-out infinite; }
+  @keyframes turn-phone { 0%, 18%, 86%, 100% { transform: rotate(0deg); } 35%, 62% { transform: rotate(-90deg); } }
+  @keyframes turn-column { 0%, 21%, 83%, 100% { opacity: 1; } 34%, 64% { opacity: 0; } }
+  @keyframes turn-spread { 0%, 21%, 83%, 100% { opacity: 0; } 34%, 64% { opacity: 1; } }
+}
+
+/* 横屏手机按电脑布局排版，给纸卡上的小字和常用操作留够空间。 */
+.phone-scaled { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.phone-scaled #panel :is(.q, .note, .status, .how-to, .ctl-label, .readout span, .opt, .go, .seg button) { font-size: 19px; }
+.phone-scaled #panel .readout b { font-size: 24px; }
+.phone-scaled #panel :is(button, summary), .phone-scaled .lbar button, .phone-scaled .chip { min-height: 46px; }
+.phone-scaled #panel .p-tuck { min-width: 40px; left: -14px; }
+.phone-scaled #viewctl button { min-width: 46px; min-height: 46px; }
+.phone-scaled #viewctl :is(.zoom-in, .zoom-out) { display: none; }
+.phone-scaled .lbar button { font-size: 17px; }
+
+/* 画布铺到可见区域的边沿，界面在安全区内排版。触点和投影仍是未缩放的 CSS 像素。 */
+html.phone { touch-action: pan-x pan-y; overflow: hidden; }
+.phone body { position: fixed; inset: 0 auto auto 0; width: var(--phone-width); height: var(--phone-height); contain: strict; overflow: clip; }
+.phone #btn-import { display: inline-block; }
+.phone .hud-actions { position: relative; }
+.phone .hud-actions .imp-tip { position: absolute; top: calc(100% + 10px); right: 0; width: min(330px, calc(var(--phone-width) / var(--ui-scale) - 24px)); max-height: calc(var(--phone-height) / var(--ui-scale) - 90px); overflow-y: auto; white-space: normal; }
+.phone #hud-top:has(.imp-tip:not([hidden])) { z-index: 60; }
+.phone .hud-actions .imp-tip.blink:not([hidden]) { display: block; }
+.phone { --safe-l: calc(env(safe-area-inset-left, 0px) / var(--ui-scale)); --safe-r: calc(env(safe-area-inset-right, 0px) / var(--ui-scale)); --safe-b: calc(env(safe-area-inset-bottom, 0px) / var(--ui-scale)); }
+.phone-scaled :is(#hud-top, #hud-pager, #viewctl, #drawer, #panel, #home, #copy, #hint, .lbar, .tag3d) { zoom: var(--ui-scale); }
+.phone #hud-top { padding-left: max(12px, var(--safe-l)); padding-right: max(12px, var(--safe-r)); }
+.phone-scaled {
+  --panel-left: max(16px, var(--safe-l));
+  --panel-width: min(380px, calc(var(--phone-width) * .4 / var(--ui-scale)));
+}
+.phone-scaled #panel { left: var(--panel-left); right: auto; top: 64px; bottom: max(18px, var(--safe-b)); width: var(--panel-width); height: auto; }
+.phone-scaled #panel.board.folded { transform: translateX(calc(-100% + 30px)); }
+.phone-scaled #panel.board.folded .p-spine { left: auto; right: 0; top: 0; bottom: 0; width: 30px; height: auto; writing-mode: vertical-rl; }
+.phone-scaled body #viewctl, .phone-scaled body.lesson-on #viewctl { right: max(10px, var(--safe-r)); bottom: max(12px, var(--safe-b)); }
+/* 在面板右侧居中，两边对称留出右下角工具的宽度。收起时改用整个安全区。 */
+.phone-scaled body.lesson-on .lbar, .phone-scaled body.lesson-on:has(#panel.folded) .lbar {
+  --area-left: calc(var(--panel-left) + var(--panel-width));
+  --tool-space: 106px;
+  left: var(--area-left); right: var(--safe-r); bottom: max(8px, var(--safe-b));
+  width: min(820px, calc(var(--phone-width) / var(--ui-scale) - var(--area-left) - var(--safe-r) - 2 * var(--tool-space)));
+  margin-inline: auto; transform: none; font-size: 20px; flex-wrap: wrap; gap: 4px 10px;
+}
+.phone-scaled body.lesson-on:has(#panel.folded) .lbar { --area-left: var(--safe-l); }
+.phone-scaled .lbar .lb-main { flex: 1 1 12em; overflow-wrap: anywhere; }
+/* 每排最多四个步号，让长说明也有足够的换行宽度。 */
+.phone-scaled .lbar.do .lb-steps { max-width: 88px; flex-wrap: wrap; }
+.phone-scaled #home { left: var(--safe-l); right: var(--safe-r); bottom: var(--safe-b); }
+.phone-scaled .home-top { display: flex; flex-direction: row; align-items: flex-start; gap: 24px; padding: 22px 28px 0; }
+.phone-scaled .home-find { display: flex; width: auto; }
+.phone-scaled .home-search { width: min(440px, calc(46vw / var(--ui-scale))); }
+.phone-scaled .home-notes { left: auto; right: 32px; top: 128px; bottom: auto; width: 262px; flex-direction: column; gap: 22px; }
+.phone-scaled .home-brand { display: block; }
+.phone-scaled .home-brand b { font-size: 30px; }
+.phone-scaled .home-brand span { font-size: 20px; margin-top: 10px; }
+.phone-scaled .home-notes .note-card { flex: none; padding: 14px 16px; }
+.phone-scaled .home-notes .note-card b { font-size: 18px; }
+.phone .home-search input { font-size: 16px; }
+
+.phone-scaled .chip { font-size: 18px; padding-inline: 14px; }
+.phone-scaled .hud-actions .imp-tip {
+  zoom: calc(1 / var(--ui-scale));
+  width: min(310px, calc(var(--phone-width) - 24px));
+  max-height: calc(var(--phone-height) - 60px - env(safe-area-inset-bottom));
+}
+.phone-scaled #drawer { right: max(16px, var(--safe-r)); bottom: max(16px, var(--safe-b)); }
+.phone-scaled #hud-pager { bottom: max(18px, var(--safe-b)); }

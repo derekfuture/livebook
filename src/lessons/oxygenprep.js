@@ -97,6 +97,8 @@ export default {
     const tube = testTube({ r: 0.0085, len: 0.15 });
     const tubeHold = new THREE.Group(); tubeHold.add(tube); group.add(tubeHold);
     const clampJaw = tubeClamp(0.0095); clampJaw.position.y = 0.1; tube.add(clampJaw);      // 夹在试管中上部（离管底 10 cm）
+    const clampPick = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
+    clampPick.position.z = 0.012; clampPick.userData.pick = true; clampJaw.add(clampPick);
     const tubePick = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.11, 10), new THREE.MeshBasicMaterial({ visible: false }));     // 不盖住管口（橡胶塞在那儿）
     tubePick.position.y = 0.055; tubePick.userData.pick = true; tube.add(tubePick);
     const plug = stopper({ r1: 0.0082, r2: 0.0102, h: 0.018 });
@@ -146,18 +148,31 @@ export default {
     const tags = { tip: tag('', 'pill'), j0: tag('', 'pill'), j1: tag('', 'pill'), tube: tag('', 'pill'), warn: tag('', 'pill warn') };
 
     // ---------------- 状态 ----------------
-    const fresh = () => ({
+    const replaceLabel = '换一支空试管';
+    const fixLabel = '夹紧试管';
+    const loadAgain = '把药匙拖到新试管口装药，再放棉花、塞紧橡胶塞。';
+    const fixHint = '点试管上的铁夹，夹紧后再加热。';
+    const breakMessage = {
+      suck: '水倒吸进热试管，试管骤冷炸裂了。点裂管换一支空试管。下次先移出导管，再熄灯。',
+      tilt: '管口朝上，冷凝水倒流到热的管底，试管炸裂了。点裂管换一支空试管。下次让管口略向下倾斜。',
+    };
+    const tubeAction = tag('', 'pill view', () => { if (S.broken) A.replaceTube(); else A.fasten(); }).show(false);
+    const freshTube = () => ({
       plug: 'in', powder: 0, left: 0, cotton: false, tilt: 'down', end: 'water',
       lit: false, lampX: -0.262, travel: 0, preheated: false, uneven: false, hold: false, holdT: 0,
-      Tg: T0, Tp: T0, Tglass: T0, air: V_TUBE, o2: 0, suck: 0, broken: '', purple: 0,
+      Tg: T0, Tp: T0, Tglass: T0, air: V_TUBE, o2: 0, suck: 0, broken: '', loose: false,
+      flow: 0, bubAcc: 0, x: 0.21, steady: 0, firstBubbleT: null, upT: 0,
+      stoppedRight: null, removedFirst: false, sealBubbles: 0, sealWait: false, plugK: 0,
+    });
+    const fresh = () => ({
+      ...freshTube(), purple: 0,
       jars: [0, 1].map(() => ({ where: 'table', water: 1, air: 0, o2: 0, startX: null, tested: '', cracked: false })),
-      seal: '', sealBubbles: 0, sealColumn: false, flow: 0, bubAcc: 0, x: 0.21, steady: 0, firstBubbleT: null,
-      stoppedRight: null, removedFirst: false, seen: new Set(), test: null, view: false, t: 0, heatT: 0, demo: false, firstX: null, steadyX: null,
-      plugK: 0, spoonHeld: false, stickCarry: null,      // 画面：塞子拔出了多少（0 塞着 → 1 在桌上）；药匙、木条在不在手里
+      seal: '', seen: new Set(), test: null, view: false, t: 0, heatT: 0, demo: false, firstX: null, steadyX: null,
+      spoonHeld: false, stickCarry: null,
     });
     let S = fresh();
     let W = null;
-    const status = (m) => { if (!S.demo) W?.status(m); };
+    const status = (m) => { if (!S.demo) W?.status(S.broken ? breakMessage[S.broken] : m); };
     const done = (id) => { if (!S.demo) bar.done(id); };          // 演示里的操作不算学生的步骤
     const warn = (m) => { S.warnMsg = m; S.warnT = 3.5; };
     // 气体记录：每一步发生了什么、那时冒出 / 收集的气体里氧气约占多少（模型估计）——正确、错误的路径都有这份证据
@@ -260,19 +275,45 @@ export default {
       tube.cotton.visible = S.cotton;
       if (!S.cottonDrag) cotton.visible = !S.cotton;
       tube.crack.visible = !!S.broken;
-      tags.tube.loc(group, -0.2, 0.175, 0).text(S.broken ? '试管炸裂了' : S.plug === 'out' ? '已拔出橡胶塞' : '');
+      clampJaw.scale.z = S.loose ? 1.5 : 1;
+      clampPick.visible = S.loose && S.plug === 'in';
+      tubeAction.loc(group, S.broken ? -0.24 : CLAMP.x, 0.178, 0)
+        .text(S.broken ? replaceLabel : fixLabel).show(!!S.broken || clampPick.visible);
+      tags.tube.loc(group, -0.2, 0.175, 0).text(!S.broken && !S.loose && S.plug === 'out' ? '已拔出橡胶塞' : '');
     };
 
     // ---------------- 动作（器材和面板共用） ----------------
     const heating = () => S.lit && Math.abs(S.lampX - powderPos().x) < 0.03 && !S.broken;
     const A = {
+      breakTube(reason) {
+        S.broken = reason; S.lit = false; S.hold = false; S.warnT = 0;
+        far();
+        if (!S.demo) bar.say(breakMessage[reason]);
+        status(breakMessage[reason]);
+      },
+      replaceTube() {
+        if (!S.broken || S.demo) return;
+        far();
+        Object.assign(S, freshTube(), { plug: 'out', plugK: 1, loose: true });
+        for (const mark of ['load', 'first', 'steady', 'suckwarn', 'saved']) S.seen.delete(mark);
+        W?.tilt.set(0); W?.end.set(0);
+        bar.undo('load', 'heat', 'wait', 'stop');
+        bar.say(loadAgain);
+        status(loadAgain);
+      },
+      fasten() {
+        if (!S.loose || S.plug !== 'in' || S.broken) return;
+        S.loose = false;
+        status('铁夹已夹紧试管。');
+      },
       plug() {
-        if (S.broken) return status('试管已经炸裂了。点“再做一次”。');
+        if (S.broken) return status(breakMessage[S.broken]);
         if (S.plug === 'in') {
           if (S.lit || S.Tg > 40) return status('正在加热，<b>不能拔塞子</b>。');
           S.plug = 'out'; return status(S.powder ? '拔出了橡胶塞。' : '拔出了橡胶塞。用<b>药匙</b>取一些高锰酸钾送进试管（把药匙拖到试管口），再在试管口放<b>一团棉花</b>。');
         }
         S.plug = 'in';
+        if (S.loose) { bar.say(fixHint); return status(fixHint); }
         if (S.powder && S.cotton) status('塞紧了橡胶塞。接下来：把一个<b>盛满水的集气瓶</b>拖进水槽，倒立在水里。');
         else if (S.powder) status('塞上了——试管口还<b>没放棉花</b>。');
         else status('塞紧了橡胶塞。');
@@ -286,6 +327,7 @@ export default {
         status('装入了少量高锰酸钾（约 2 g，紫黑色粉末）。再把<b>棉花</b>拖到试管口。');
       },
       cotton() {
+        if (S.broken) return status(breakMessage[S.broken]);
         if (S.plug === 'in') return status('先拔出橡胶塞。');
         if (!S.powder) return status('先装高锰酸钾，再在试管口放棉花。');
         S.cotton = true; status('试管口放了一团棉花。点一下<b>橡胶塞</b>把它塞紧。');
@@ -297,6 +339,7 @@ export default {
       },
       light() {
         if (S.broken) return;
+        if (S.loose) return status(S.plug === 'out' ? loadAgain : fixHint);
         S.lit = !S.lit;
         if (S.lit) {
           if (!S.powder) { status('试管里还没有药品。'); }
@@ -405,10 +448,12 @@ export default {
     // ---------------- 指针 ----------------
     const nearMouth = (p) => p.distanceTo(mouthPos()) < 0.035;
     const drag = draggable(group, [
-      { obj: tubePick, plane: 'xy', offset: 0, hint: () => (S.lit ? '' : S.seal ? '上下拖：改变试管口的朝向' : '按住：用手握住试管'),
+      { obj: tubePick, plane: 'xy', offset: 0, hint: () => (S.broken ? replaceLabel : S.lit ? '' : S.seal ? '上下拖：改变试管口的朝向' : '按住：用手握住试管'),
+        onTap: () => { if (S.broken) A.replaceTube(); },
         onStart: (p) => { S.tubeDrag = p ? p.y : null; S.tubeMoved = false; A.hold(true); },
         onDrag: (p) => { if (S.tubeDrag == null || S.lit) return; const dy = p.y - S.tubeDrag; if (Math.abs(dy) > 0.02 && !S.tubeMoved) { S.tubeMoved = true; A.hold(false); A.tilt(dy > 0 ? 'up' : 'down'); } },
         onEnd: () => { A.hold(false); } },
+      { obj: clampPick, enabled: () => clampPick.visible, hint: () => clampPick.visible ? fixLabel : '', onTap: () => A.fasten() },
       { obj: plugPick, plane: 'xy', offset: 0, hint: () => (S.plug === 'in' ? '点一下：拔出橡胶塞' : '点一下：塞上橡胶塞'), onTap: () => A.plug(), onStart: () => {}, onDrag: () => {}, onEnd: () => {} },
       { obj: spoonPick, plane: 'xy', offset: 0, hint: '拖到试管口：装入高锰酸钾',          // 在试管所在的竖直面里拖：对准管口不受透视影响
         enabled: () => !S.powder, onStart: () => { S.spoonHeld = true; }, onDrag: (p) => { spoon.position.set(p.x - 0.004, Math.max(0.004, p.y), p.z); },      // 学生拖时 p.z = 0；演示里从桌上一路移过来
@@ -466,7 +511,7 @@ export default {
       steps: [
         { id: 'seal', title: '检查气密性', todo: '导管口已经浸在水里。<b>按住试管</b>（相当于用手握住），看导管口；再松开手，看导管里。', target: () => (S.seal === 'ok' ? null : tube) },
         { id: 'load', title: '装药品', todo: '点<b>橡胶塞</b>拔出来，把<b>药匙</b>拖到试管口装入少量高锰酸钾，再把<b>棉花</b>拖到管口，最后塞紧橡胶塞。',
-          target: () => (S.powder && S.cotton && S.plug === 'in' ? null : S.plug === 'in' ? plug : !S.powder ? spoon : !S.cotton ? cotton : plug) },
+          target: () => (S.loose && S.plug === 'in' ? clampJaw : S.powder && S.cotton && S.plug === 'in' ? null : S.plug === 'in' ? plug : !S.powder ? spoon : !S.cotton ? cotton : plug) },
         { id: 'jar', title: '集气瓶装满水', todo: '把一个盛满水的<b>集气瓶</b>拖进水槽，倒立在水里。', target: () => (S.jars.some((J) => J.where === 'trough') ? null : jars[0]) },
         { id: 'heat', title: '预热、加热', todo: '点燃<b>酒精灯</b>。先按住它左右来回拖，<b>预热</b>试管；再停在<b>药品下方</b>加热。', target: () => (S.lit ? null : lamp) },
         { id: 'wait', title: '等气泡均匀', todo: '刚开始的气泡断断续续——先别收集。等导管口的气泡<b>连续、均匀</b>。' },
@@ -474,7 +519,7 @@ export default {
         { id: 'stop', title: '停止加热', todo: '先把<b>导管</b>移出水面，再点<b>酒精灯</b>熄灭它。', target: () => (S.end !== 'air' ? endPiece : S.lit ? lamp : null) },
         { id: 'test', title: '检验', todo: '把<b>带火星的木条</b>伸进集好的集气瓶。（也可以试试<b>细铁丝</b>：点燃系在铁丝下端的火柴，待火柴<b>快燃尽</b>时，插入瓶中<b>预留少量水</b>的集气瓶。）', target: () => (S.test ? null : stick) },
         { id: 'why', title: '想一想', todo: '为什么刚开始有气泡放出时，不宜立即收集？在左边作答。' },
-      ],
+      ].map((step) => ({ ...step, target: () => S.broken ? tube : step.target?.() })),
       reels: {
         demo: {
           seal: '演示', label: '老师演示',
@@ -518,6 +563,19 @@ export default {
       items: drag.items,
     };
 
+    // 换管前后走相同的装药和预热操作。
+    const qaLoad = [
+      { name: '药匙装高锰酸钾', drag: spoonPick, to: () => mouthPos().add(V(0.004, 0, 0)) },
+      { name: '放棉花', drag: cottonPick, to: () => mouthPos() },
+      { name: '塞紧', tap: plugPick },
+    ];
+    const qaHeat = [
+      { name: '点燃酒精灯', tap: lampPick },
+      { name: '预热', run: () => { const d = drag.items().find((x) => x.obj === lampPick); d.onStart(V(0, 0, 0)); for (const x of [0.04, -0.03, 0.04, -0.03, 0.04, -0.03]) d.onDrag(V(x, 0, 0)); d.onEnd(); } },
+      { name: '对准药品', run: () => { const d = drag.items().find((x) => x.obj === lampPick); d.onStart(V(S.lampX, 0, 0)); d.onDrag(V(powderPos().x, 0, 0)); d.onEnd(); }, wait: 10 },
+    ];
+    let beforeReplacement;
+
     // ---------------- 每帧 ----------------
     const tmp = new THREE.Vector3();
     const spawnBubble = (from, vol) => bubs.spawn({ p: from.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.002, 0, (Math.random() - 0.5) * 0.003)), v: new THREE.Vector3(0, 0.02, 0), size: 0.0017 + Math.random() * 0.0008 + Math.min(0.0012, vol * 0.002), life: 3, vol });
@@ -536,7 +594,7 @@ export default {
       if (under && !S.preheated && S.Tp > 120 && !S.uneven) { S.uneven = true; warn('没有预热就对准一处加热：试管受热不均，容易炸裂'); }
       // 高锰酸钾分解
       let made = 0;
-      if (S.left > 0 && S.Tp > 200) {
+      if (!S.broken && S.left > 0 && S.Tp > 200) {
         const k = 0.055 * (S.Tp - 200) / 140;
         const dm = Math.min(S.left, S.left * k * h + 0.004 * h);
         S.left -= dm; made = dm * PER_G;          // 每克高锰酸钾最多放出 PER_G 毫升氧气
@@ -591,11 +649,11 @@ export default {
       }
       // 倒吸：水沿导管进到热试管里，试管炸裂
       endWater.visible = S.suck > 0.02; endWater.scale.y = Math.min(0.075, S.suck * 0.09);      // 导管内径约 2 mm：0.1 mL 水大约是 3 cm 长的水柱（画面上略缩短）
-      if (S.suck > 3.0 && !S.broken && S.Tglass > 70) { S.broken = 'suck'; S.lit = false; warn('水倒吸进了热的试管，试管骤然冷却，炸裂了'); status('<b>水倒吸进热试管，试管炸裂了。</b>所以停止加热时，要<b>先把导管移出水面，再熄灭酒精灯</b>。点“再做一次”。'); }
+      if (S.suck > 3.0 && !S.broken && S.Tglass > 70) A.breakTube('suck');
       if (S.stoppedRight === false && S.suck > 0.3 && !S.seen.has('suckwarn')) { S.seen.add('suckwarn'); status('导管里的水在<b>往回吸</b>！赶快把导管口<b>拖出水面</b>。'); }
       if (S.stoppedRight === false && S.end === 'air' && !S.broken && S.suck < 0.05 && !S.seen.has('saved')) { S.seen.add('saved'); done('stop'); status('及时把导管拖出了水面，没有倒吸进试管。记住正确的顺序：<b>先撤导管，再熄灯</b>。'); }
       // 管口朝上加热：冷凝水倒流到试管底
-      if (S.tilt === 'up' && S.Tp > 130 && !S.broken) { S.upT = (S.upT || 0) + h; if (S.upT > 2.5) { S.broken = 'tilt'; S.lit = false; warn('冷凝水倒流到热的试管底部，试管炸裂了'); status('试管口朝上，管口的<b>冷凝水倒流到热的试管底部</b>，试管炸裂了。所以试管口要<b>略向下倾斜</b>。点“再做一次”。'); } }
+      if (S.tilt === 'up' && S.Tp > 130 && !S.broken) { S.upT = (S.upT || 0) + h; if (S.upT > 2.5) A.breakTube('tilt'); }
       // 没放棉花：粉末进入导管，水槽里的水变红
       if (!S.cotton && made > 0 && S.end !== 'air') { S.purple = Math.min(1, S.purple + h * 0.05); if (Math.random() < h * 8) purple.spawn({ p: endPiece.position.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 0.01, 0.004, (Math.random() - 0.5) * 0.01), size: 0.0009, life: 2 }); if (S.purple > 0.15 && !S.seen.has('purple')) { S.seen.add('purple'); status('水槽里的水<b>变成了紫红色</b>：没放棉花，加热时高锰酸钾粉末顺着导管进到了水里。'); } }
       if (S.purple > 0) tr.setColor(new THREE.Color(CHEM.water).lerp(new THREE.Color(0xa13a8e), S.purple * 0.8).getHex(), 0.32 + S.purple * 0.2);
@@ -721,7 +779,7 @@ export default {
         ui.controls.append(qBox, next, view.el, more, thresholds);
         ui.data.append(logT.el);
         const dt = ui.data.previousElementSibling; if (dt?.classList.contains('bar-title')) dt.textContent = '气体记录';
-        W = { qBox, next, log: logT, asked: false, ask, status: (m) => ui.status(m) };
+        W = { qBox, next, tilt, end, log: logT, asked: false, ask, status: (m) => ui.status(m) };
         bar.attach(ui);
         ui.status('可以先看<b>老师演示</b>，也可以直接动手：先检查装置的气密性。');
       },
@@ -733,7 +791,7 @@ export default {
         stick.update(t); wire.flame.update(t);
         bar.near(S.near);
         if (!W || S.demo) return;
-        if (S.powder && S.cotton && S.plug === 'in' && !S.seen.has('load')) { S.seen.add('load'); done('load'); }
+        if (!S.loose && S.powder && S.cotton && S.plug === 'in' && !S.seen.has('load')) { S.seen.add('load'); done('load'); }
       },
       dispose() { bar.dispose(); bubs.dispose(); purple.dispose(); drip.dispose(); },
       debug: { get S() { return S; }, A, bar, jars, tube, endPiece, mouthPos, powderPos,
@@ -742,16 +800,32 @@ export default {
         qa: qaFlow(drag, [
           { name: '握住试管', hold: tubePick, wait: 2 }, { name: '松手', release: tubePick, wait: 2.5 },
           { name: '拔塞子', tap: plugPick },
-          { name: '药匙装高锰酸钾', drag: spoonPick, to: () => mouthPos().add(V(0.004, 0, 0)) },
-          { name: '放棉花', drag: cottonPick, to: () => mouthPos() },
-          { name: '塞紧', tap: plugPick },
+          ...qaLoad,
           { name: '集气瓶放进水槽', drag: jars[0].pick, to: V(0.13, 0.11, 0), wait: 2 },
-          { name: '点燃酒精灯', tap: lampPick },
-          { name: '预热', run: () => { const d = drag.items().find((x) => x.obj === lampPick); d.onStart(V(0, 0, 0)); for (const x of [0.04, -0.03, 0.04, -0.03, 0.04, -0.03]) d.onDrag(V(x, 0, 0)); d.onEnd(); } },
-          { name: '对准药品', run: () => { const d = drag.items().find((x) => x.obj === lampPick); d.onStart(V(S.lampX, 0, 0)); d.onDrag(V(powderPos().x, 0, 0)); d.onEnd(); }, wait: 10 },
+          ...qaHeat,
           { name: '导管伸进集气瓶', drag: endPick, to: () => tipFor('jar0'), wait: 40 },
           { name: '导管移回水槽', drag: endPick, to: () => TIP.water.clone() },
           { name: '取出集气瓶', tap: jars[0].pick, wait: 2 },
+          { name: '导管留在水中熄灯，观察倒吸炸裂', tap: lampPick, wait: 32 },
+          { name: '核对炸裂与已收集的氧气', run: () => {
+            if (S.broken !== 'suck' || !tube.crack.visible || S.jars[0].where !== 'table' || S.jars[0].water > 0.04) throw new Error('应已倒吸炸裂，并取出一瓶氧气');
+            beforeReplacement = JSON.stringify([S.jars, W.log.rows, S.seal, S.firstX, S.steadyX]);
+          } },
+          { name: '点裂管换空试管', tap: tubePick },
+          { name: '核对新管、原瓶和记录', run: () => {
+            if (S.broken || tube.crack.visible || S.powder || S.cotton || S.lit || S.plug !== 'out' || !S.loose || bar.current !== 'load') throw new Error('换管后应从空试管重新装药');
+            if (beforeReplacement !== JSON.stringify([S.jars, W.log.rows, S.seal, S.firstX, S.steadyX])) throw new Error('换管改变了原有集气瓶或观察记录');
+          } },
+          ...qaLoad,
+          { name: '夹紧新试管', tap: clampPick },
+          { name: '第二个集气瓶放进水槽', drag: jars[1].pick, to: V(0.13, 0.11, 0), wait: 2 },
+          ...qaHeat,
+          { name: '用新试管收集第二瓶', drag: endPick, to: () => tipFor('jar1'), wait: 40 },
+          { name: '导管移回水槽', drag: endPick, to: () => TIP.water.clone() },
+          { name: '取出第二个集气瓶', tap: jars[1].pick, wait: 2 },
+          { name: '核对第二瓶', run: () => {
+            if (S.jars[1].where !== 'table' || S.jars[1].water > 0.04) throw new Error('新试管应已制得第二瓶气体');
+          } },
           { name: '导管移出水面', drag: endPick, to: () => TIP.air.clone() },
           { name: '熄灭酒精灯', tap: lampPick },
           { name: '木条伸进集气瓶', drag: stickPick, to: () => V(HOME[0].x, 0.1, HOME[0].z), wait: 5 },

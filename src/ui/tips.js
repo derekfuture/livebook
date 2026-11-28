@@ -13,6 +13,7 @@ export const seen = (k) => { if (forced) return false; try { return localStorage
 export const markSeen = (k) => { try { localStorage.setItem(KEY(k), '1'); } catch { /* 隐私模式：下次再说 */ } };
 export const touchFirst = () => matchMedia('(pointer: coarse)').matches;
 const small = () => innerWidth <= 760;
+const lessonTouchTip = '单指拖空白处转视角，按住器材就能拿。双指平移，捏合缩放。';
 
 /** 一张小纸条，贴在 el 的左边、指着它。ms 后、点一下、或 until() 成立时收起；收起时记下 key（以后不再出现） */
 export function slip(html, el, { ms = 8000, key = null, until = null } = {}) {
@@ -35,16 +36,18 @@ export function slip(html, el, { ms = 8000, key = null, until = null } = {}) {
 
 /** 第一次打开活页：怎么转、放大、复位（手机上先说电脑上使用更佳） */
 export function firstLesson(stage) {
-  if (!tipsOn() || seen('view')) return;
+  const touch = touchFirst();
+  const key = touch ? 'view-touch-v2' : 'view';
+  if (!tipsOn() || seen(key)) return;
   setTimeout(() => {
     const anchor = [...document.querySelectorAll('#viewctl button')].find((b) => b.offsetParent);          // 看得见的第一个（手机上没有 ＋ －）
     if (!anchor || !document.body.classList.contains('lesson-on')) return;          // 已经关了
-    const html = touchFirst() && small()
-      ? '<b>电脑上使用更佳</b>（活页按电脑和投影设计）<br>手机上：一根手指拖空白处转一转，两根手指捏合放大，点 ⟲ 复位'
-      : touchFirst()
-        ? '一根手指拖空白处<b>转一转</b> · 两根手指<b>捏合放大</b> · 点 ⟲ <b>复位</b>'
-        : '拖空白处<b>转一转</b> · 滚轮<b>放大缩小</b> · 双击空白处<b>复位</b>';
-    slip(html, anchor, { ms: 9000, key: 'view', until: () => stage.viewChanged });
+    if (touch && seen(key)) return;
+    const html = touch
+      ? lessonTouchTip
+      : '拖空白处<b>转一转</b> · 滚轮<b>放大缩小</b> · 双击空白处<b>复位</b>';
+    slip(html, anchor, { ms: 9000, key: touch ? null : key, until: () => stage.viewChanged });
+    if (touch) markSeen(key);          // 纸条出现就记下，马上换课或刷新也只看一次。
   }, 1400);
 }
 
@@ -87,7 +90,7 @@ function helpCard(close) {
     : null;
   return h('div', { class: 'help-card', role: 'dialog', 'aria-label': '怎么用' },
     h('div', { class: 'hc-head' }, h('b', {}, '怎么用'), phone ? h('small', {}, '电脑上使用更佳') : null, h('button', { class: 'hc-x', 'aria-label': '关上', onclick: close }, '×')),
-    row('看', touch ? '一根手指拖空白处转一转；两根手指捏合放大、拖动平移；点 ⟲ 复位' : '拖空白处转一转；右键拖（或按住 Shift 拖）平移；滚轮放大缩小；双击空白处复位'),
+    row('看', touch && document.body.classList.contains('lesson-on') ? lessonTouchTip + '点 ⟲ 复位。' : touch ? '一根手指拖空白处转一转；两根手指捏合放大、拖动平移；点 ⟲ 复位' : '拖空白处转一转；右键拖（或按住 Shift 拖）平移；滚轮放大缩小；双击空白处复位'),
     row('翻书', touch ? '点书页，或拖着书页翻；“目录”里按章节找' : '点书页或拖书页；键盘 ← → 或翻页笔也能翻；T 打开目录'),
     row('活页', touch ? '点书上发光的图翻开；点面板上的“放回书里”合上（地理是“回到地球”）' : '点书上发光的图翻开；Esc（或面板上的“放回书里”）合上；老师演示时，空格暂停'),
     !phone ? row('放映', fs ? '投影上课时可以全屏（也可以按 F11）' : '投影上课时可以全屏：按 F11') : null,

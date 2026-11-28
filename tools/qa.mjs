@@ -1,4 +1,4 @@
-import { existsSync } from 'fs';
+import { requireTool } from './qa-deps.mjs';
 // 一键质检：node tools/qa.mjs <实验 id> [更多 id…] [--shots] [--flow]   （开发服务器要先开着：npm run dev，端口 5188）
 //
 // 每一课检查：
@@ -16,12 +16,9 @@ import { existsSync } from 'fs';
 //      并检查底部步骤栏“当前这一步要动的东西”拿得到
 // 多个 id 时并行跑（默认 4 个一起）。
 import { execFileSync } from 'child_process';
-import { createRequire } from 'module';
 import fs from 'fs';
 import path from 'path';
-// playwright-core 装在 ~/.cache/livebook-tools（/tmp 会被系统定期清掉）；找不到再用 /tmp/lbshot
-const PW_BASE = [`${process.env.HOME}/.cache/livebook-tools/package.json`, '/tmp/lbshot/package.json'].find((p) => existsSync(p.replace('package.json', 'node_modules/playwright-core/package.json'))) || '/tmp/lbshot/package.json';
-const { chromium } = createRequire(PW_BASE)('playwright-core');   // 和 tools/browse.mjs 一样，借 /tmp/lbshot 里装好的
+const { chromium } = requireTool('playwright-core');
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2);
@@ -31,7 +28,6 @@ const SHOTS = args.includes('--shots'), FLOW = args.includes('--flow'), DEMO = a
 const PAR = +(args.find((a) => a.startsWith('--par='))?.slice(6) || 4);
 const books = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/content/books.json'), 'utf8'));
 const bookOf = (id) => Object.entries(books).find(([, b]) => b.lessons[id])?.[0];
-const exe = process.env.HOME + '/Library/Caches/ms-playwright/chromium-1248/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
 fs.mkdirSync('/tmp/lbqa', { recursive: true });
 
 // ---------- 在页面里跑的检查 ----------
@@ -160,7 +156,8 @@ async function check(browser, id) {
     if (/[A-Za-z_$][\w$]*\.[A-Za-z_$][\w$]*\([^)]*\)\s*;/.test(c) && /;/.test(c)) R.problems.push(`第 ${i + 1} 行：注释里像有代码，是不是把代码吞进注释了？ …${c.trim().slice(0, 60)}`);
   });
   const book = bookOf(id); if (!book) { R.problems.push('books.json 里没有这一课（PLAN.md 行 + bbox-overrides.json，再跑 tools/gen_content.py）'); return R; }
-  const p = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const SIZE = (args.find((a) => a.startsWith('--size=')) || '--size=1440x900').slice(7).split('x').map(Number);          // --size=394x689：手机、矮屏
+  const p = await browser.newPage({ viewport: { width: SIZE[0], height: SIZE[1] }, ...(SIZE[0] < 600 && { isMobile: true, hasTouch: true, deviceScaleFactor: 2 }) });
   // 关掉 Vite 的热更新连接：别人（并行的子任务）改了文件，不会把这个测试页面刷掉
   await p.addInitScript(() => { window.WebSocket = class { constructor() { this.readyState = 0; } addEventListener() {} removeEventListener() {} send() {} close() {} }; });
   const errs = [];
@@ -308,7 +305,7 @@ async function check(browser, id) {
   return R;
 }
 
-const browser = await chromium.launch({ executablePath: exe, headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
+const browser = await chromium.launch({ executablePath: chromium.executablePath(), headless: true, args: ['--use-angle=metal', '--enable-gpu'] });
 const queue = [...ids], results = [];
 await Promise.all(Array.from({ length: Math.min(PAR, queue.length) }, async () => { while (queue.length) { const id = queue.shift(); results.push(await check(browser, id).catch((e) => ({ id, problems: ['质检脚本出错：' + String(e.message).split('\n')[0]] }))); } }));
 await browser.close();

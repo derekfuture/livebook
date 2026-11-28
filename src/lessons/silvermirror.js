@@ -401,7 +401,7 @@ export default {
           .tag3d.silver-name { padding:2px 5px; border-radius:2px; background:#fffdf2ed; color:#32434a; font:500 13px/1.15 var(--sans); text-shadow:none }
           body.predicting .tag3d.silver-name { visibility:visible!important }
           @media (min-width:761px) and (max-width:1000px) and (max-height:540px) {
-            #panel[data-silvermirror] { width:36vw }
+            html:not(.phone-scaled) #panel[data-silvermirror] { width:36vw }
             .lbar { left:calc(36vw + 26px); right:42px; bottom:5px; width:auto; transform:none }
           }
           @media (max-width:760px), (max-width:1000px) and (max-height:540px) {

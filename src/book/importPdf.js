@@ -1,5 +1,6 @@
 // 导入课本 PDF。没导入时，右上角“导入课本”下面冒出一个小提示框（先闪几下）：可以导入，也可以点“不用了”，以后就不再出现。
 // 文件只存在这台电脑的浏览器里（IndexedDB），不上传；导入以后书页、插图、结论原文都用这份课本。
+import { viewport } from '../ui/viewport.js';
 import { rememberImportError, clearImportError } from '../ui/feedbackDiagnostics.js';
 import { PdfSource } from './PageSource.js';
 import { putPdf, removePdf } from './pdfStore.js';
@@ -24,8 +25,13 @@ export function mountImport({ content, manifest, source }) {
 
   // 按钮下面的小提示框
   const tip = el('div', { className: 'imp-tip', hidden: true });
-  document.body.append(tip);
-  const place = () => { const r = btn.getBoundingClientRect(); tip.style.top = `${r.bottom + 10}px`; tip.style.right = `${Math.max(12, innerWidth - r.right)}px`; };
+  (viewport.phone ? actions : document.body).append(tip);
+  const place = () => {
+    if (viewport.phone) return; // 手机的提示贴在按钮组下面，跟着顶栏转屏。
+    const r = btn.getBoundingClientRect();
+    tip.style.top = `${r.bottom + 10}px`;
+    tip.style.right = `${Math.max(12, innerWidth - r.right)}px`;
+  };
   addEventListener('resize', () => { if (!tip.hidden) place(); });
   const hide = () => { tip.hidden = true; tip.classList.remove('blink'); };
   const acts = (...bs) => el('div', { className: 'imp-acts' }, bs.map(([t, fn, ghost]) => el('button', { className: 'imp-btn' + (ghost ? ' ghost' : ''), textContent: t, onclick: fn })));
@@ -77,5 +83,9 @@ export function mountImport({ content, manifest, source }) {
   addEventListener('dragover', (e) => { if ([...(e.dataTransfer?.items || [])].some((x) => x.kind === 'file')) e.preventDefault(); });
   addEventListener('drop', (e) => { const f = [...(e.dataTransfer?.files || [])][0]; if (!f) return; e.preventDefault(); doImport(f); });
   // 没导入、也没有本地书页（线上）：进书以后冒出来、闪几下；点过“不用了”就不再自动出现
-  if (source.kind === 'placeholder' && !localStorage.getItem(QUIET)) setTimeout(() => { if (tip.hidden && !document.body.classList.contains('lesson-on')) offer(true); }, 1200);
+  if (source.kind === 'placeholder' && !localStorage.getItem(QUIET)) {
+    setTimeout(() => {
+      if (tip.hidden && !localStorage.getItem(QUIET) && (viewport.phone || !document.body.classList.contains('lesson-on'))) offer(true);
+    }, 1200);
+  }
 }

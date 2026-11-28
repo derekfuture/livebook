@@ -1,3 +1,4 @@
+import { viewport } from '../ui/viewport.js';
 import * as THREE from 'three';
 import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import { InkPost } from './InkPost.js';
@@ -61,7 +62,7 @@ export class Stage {
     this.cameraOffsetY = 0;   // 正数 = 画面中心上移（手机上面板在下半屏）
     addEventListener('pointermove', (e) => {
       if (e.pointerType === 'touch') return;          // 手指拖的时候不算（手机上的视差跟着手机的倾斜走，见 enableTilt）
-      this.rig.pointer.set((e.clientX / innerWidth) * 2 - 1, (e.clientY / innerHeight) * 2 - 1);
+      this.rig.pointer.set((e.clientX / viewport.width) * 2 - 1, (e.clientY / viewport.height) * 2 - 1);
     });
 
     this.updaters = new Set();
@@ -69,7 +70,7 @@ export class Stage {
     this.timer = new THREE.Timer();
     this.timer.connect?.(document);
     this.resize();
-    addEventListener('resize', () => this.resize());
+    addEventListener(viewport.phone ? 'phoneviewportresize' : 'resize', () => this.resize());
   }
 
   /** 手机上的视差：手机一歪，画面跟着轻轻转一点，像隔着一块玻璃看桌上的东西（电脑上是跟着鼠标）。首页书桌和地理世界开。
@@ -156,7 +157,7 @@ export class Stage {
     const u = this.user, d = this.rig.cur.dist * u.cur.zoom;
     const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
-    const k = (d * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) * 2) / innerHeight;
+    const k = (d * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2) * 2) / viewport.height;
     u.pan.addScaledVector(right, -dx * k).addScaledVector(up, dy * k);
     if (u.pan.length() > 3) u.pan.setLength(3);
   }
@@ -181,15 +182,15 @@ export class Stage {
   fitDistance(w, d, margin = 1.08) {
     const vfov = THREE.MathUtils.degToRad(this.camera.fov);
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * this.camera.aspect);
-    const usableW = 1 - Math.abs(this.cameraOffsetX * 2) / Math.max(1, innerWidth);
-    const usableH = 1 - Math.abs(this.cameraOffsetY * 2) / Math.max(1, innerHeight);
+    const usableW = 1 - Math.abs(this.cameraOffsetX * 2) / Math.max(1, viewport.width);
+    const usableH = 1 - Math.abs(this.cameraOffsetY * 2) / Math.max(1, viewport.height);
     const byW = (w * margin) / 2 / Math.tan((hfov * usableW) / 2);
     const byD = (d * margin) / 2 / Math.tan((vfov * usableH) / 2);
     return Math.max(byW, byD);
   }
 
   resize() {
-    const w = innerWidth, h = innerHeight;
+    const w = viewport.width, h = viewport.height;
     this.renderer.setSize(w, h, false);
     this.css?.setSize(w, h);
     this.post?.setSize(w, h);
@@ -205,7 +206,7 @@ export class Stage {
   }
 
   /** 把现在的画面截成一张 JPEG（data URL）：换页面时先拿它盖着，新页面画好了再揭开，就不会白一下 */
-  snapshot(w = innerWidth, h = innerHeight) {
+  snapshot(w = viewport.width, h = viewport.height) {
     if (this.post) this.post.render(0); else this.renderer.render(this.scene, this.camera);       // 截图要和渲染在同一段脚本里（WebGL 画完的缓冲区下一帧就清了）
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     c.getContext('2d').drawImage(this.renderer.domElement, 0, 0, w, h);
@@ -243,7 +244,7 @@ export class Stage {
       this.camera.lookAt(target);
       // 面板占了屏幕一侧（或手机上的下半屏）时，用视口偏移把画面中心挪到空出来的那块
       const off = this._offset(dt);
-      if (Math.abs(off.x) > 0.5 || Math.abs(off.y) > 0.5) this.camera.setViewOffset(innerWidth, innerHeight, -off.x, off.y, innerWidth, innerHeight);
+      if (Math.abs(off.x) > 0.5 || Math.abs(off.y) > 0.5) this.camera.setViewOffset(viewport.width, viewport.height, -off.x, off.y, viewport.width, viewport.height);
       else if (this.camera.view?.enabled) this.camera.clearViewOffset();
 
       for (const fn of this.updaters) { try { fn(dt, this.timer.getElapsed()); } catch (err) { rememberRuntimeError(err, 'frame'); } }          // 一个更新出错，别的照常（活页照样收回、书照样翻）

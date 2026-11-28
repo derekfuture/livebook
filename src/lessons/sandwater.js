@@ -98,8 +98,19 @@ export default {
       }
       const lab = textPlate(k === 'water' ? '烧杯 A · 水' : '烧杯 B · 沙', { w: 0.04, h: 0.01, color: '#23293a', bg: 'rgba(253,251,245,0.92)', font: 'bold 70px "Songti SC", serif' }); lab.position.set(0, 0.012, BR + 0.0015); b.add(lab);
       const pick = new THREE.Mesh(new THREE.CylinderGeometry(BR + 0.004, BR + 0.004, BH, 12), new THREE.MeshBasicMaterial({ visible: false })); pick.position.y = BH / 2; pick.userData.pick = true; b.add(pick);
-      // 杯口的温度计夹（图 4.16）
-      const clip = inked(new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.016, 0.006), paint(0xc8cdd4)), { width: 0.5 }); clip.position.set(BR - 0.006, BH - 0.002, 0); clip.visible = false; b.add(clip);
+      // 图 4.16：夹脚跨在杯沿两侧，夹臂伸到杯心，温度计从圆孔穿过。
+      const clip = new THREE.Group(), metal = paint(0x9da5b0);
+      clip.position.y = BH + 0.001; clip.rotation.y = 0.54; clip.visible = false; b.add(clip);
+      const arm = new THREE.Shape();
+      arm.moveTo(-0.008, -0.007); arm.lineTo(BR + 0.005, -0.007);
+      arm.lineTo(BR + 0.005, 0.007); arm.lineTo(-0.008, 0.007); arm.closePath();
+      const hole = new THREE.Path(); hole.absarc(0, 0, 0.0046, 0, 2 * Math.PI, true); arm.holes.push(hole);
+      const plate = inked(new THREE.Mesh(new THREE.ExtrudeGeometry(arm, { depth: 0.002, bevelEnabled: false }), metal), { width: 0.5 });
+      plate.rotation.x = -Math.PI / 2; clip.add(plate);
+      for (const x of [BR - 0.0025, BR + 0.003]) {
+        const jaw = inked(new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.014, 0.01), metal), { width: 0.5 });
+        jaw.position.set(x, -0.007, 0); clip.add(jaw);
+      }
       cups[k] = Object.assign(b, { k, pick, clip });
     }
     // ================= 电子秤 =================
@@ -158,6 +169,13 @@ export default {
     const inSun = () => S.trayAt === 'sun';
     const cupWorld = (k) => (S.at[k] === 'scale' ? SCALE_TOP.clone() : S.at[k] === 'carry' ? S.carryP.clone() : tray.position.clone().add(SLOT[k]).setY(0.005));
     const thOf = (k) => S.thIn.indexOf(k);
+    const surfaceY = (k) => LV(k, S.m[k]) + (k === 'sand' ? cups.sand.sand.position.y : 0);
+    // 未称满也能试插。沙层较浅时给玻璃泡的下半部和杯底留出 1.2 厘米。
+    const probeDepth = () => S.thIn.includes('sand') ? Math.min(DEPTH, surfaceY('sand') - 0.012) : DEPTH;
+    const targetCup = (p) => ['water', 'sand'].find((k) => {
+      const c = cupWorld(k);
+      return S.at[k] === 'tray' && !S.thIn.includes(k) && S.m[k] > 150 && Math.hypot(p.x - c.x, p.z - c.z) < 0.05 && p.y > BH - 0.02;
+    });
 
     const A = {
       cupDrag(k, p) { if (!p || S.lapse) return; S.carry = k; S.at[k] = 'carry'; S.carryP = p.clone().setY(Math.max(0.005, p.y)); },
@@ -178,9 +196,9 @@ export default {
       thDrag(i, p) { if (!p || S.lapse) return; S.thCarry[i] = p.clone(); S.thIn[i] = null; },
       thDrop(i) {
         const p = S.thCarry[i]; S.thCarry[i] = null; if (!p) return;
-        const k = ['water', 'sand'].find((kk) => S.at[kk] === 'tray' && !S.thIn.includes(kk) && S.m[kk] > 150 && Math.hypot(p.x - cupWorld(kk).x, p.z - cupWorld(kk).z) < 0.05 && p.y > BH - 0.02);
+        const k = targetCup(p);
         S.thIn[i] = k || null;
-        if (k) { sfx.clink?.({ freq: 1600, gain: 0.02 }); status(`温度计插进了${k === 'water' ? '水' : '沙'}里，用夹子夹在杯口：玻璃泡在${k === 'water' ? '水' : '沙'}面下 2.2 厘米。`); }
+        if (k) { sfx.clink?.({ freq: 1600, gain: 0.02 }); status(`杯口的夹子固定住了温度计，玻璃泡位于杯子中央，在${k === 'water' ? '水' : '沙'}面下 ${(probeDepth() * 100).toFixed(1)} 厘米。`); }
       },
       trayDrag(p) { if (!p || S.lapse) return; S.trayCarry = p.clone(); },
       trayDrop() {
@@ -205,7 +223,7 @@ export default {
     ], { taps: [{ obj: clockPick, hint: () => (inSun() ? '点一下：过 2 小时' : '点一下：放置一段时间'), onTap: () => A.clockTap() }], tip: tag('', 'pill') });
     const act = demoActs(drag, group);
     const above = (k) => () => SCALE_TOP.clone().add(new THREE.Vector3(0.012, BH + 0.03, 0));
-    const intoCup = (k) => () => { const c = cupWorld(k); return new THREE.Vector3(c.x - 0.002, BH + 0.01, c.z); };
+    const intoCup = (k) => () => cupWorld(k).add(new THREE.Vector3(0, BH + 0.07, 0)); // 握住管身中段，先把玻璃泡送到杯心正上方
 
     const bar = lessonBar({
       look, back, group,
@@ -298,14 +316,28 @@ export default {
       tray.position.lerp(trayTo, S.trayCarry ? 0.5 : 0.25);
       for (const k of ['water', 'sand']) {
         const b = cups[k], want = cupWorld(k);
+        const previousY = b.position.y;
         b.position.lerp(want, S.at[k] === 'carry' ? 0.5 : 0.3);
         const lv = LV(k, S.m[k]); if (k === 'water') b.setLevel(lv); else { b.sand.visible = lv > 0.001; b.sand.scale.y = Math.max(0.001, lv); }
-        b.clip.visible = S.thIn.includes(k);
+        const i = thOf(k);
+        if (i >= 0) ths[i].position.y += b.position.y - previousY;
+        b.clip.visible = i >= 0 && ths[i].position.y + 0.01 < b.position.y + BH;
       }
       ths.forEach((t, i) => {
         const k = S.thIn[i];
-        if (S.thCarry[i]) { t.position.lerp(S.thCarry[i].clone().add(new THREE.Vector3(0, -0.06, 0)), 0.45); t.rotation.z += (0 - t.rotation.z) * 0.3; }
-        else if (k) { const c = cups[k].position, lv = LV(k, S.m[k]); t.position.lerp(new THREE.Vector3(c.x + BR - 0.009, c.y + lv - DEPTH - 0.0095, c.z), 0.35); t.rotation.z += (0 - t.rotation.z) * 0.3; }
+        if (S.thCarry[i]) {
+          const p = S.thCarry[i], cup = targetCup(p), to = p.clone(); to.y -= 0.06;
+          if (cup) {
+            const c = cups[cup].position;
+            to.set(c.x, Math.max(to.y, c.y + BH + 0.012), c.z);
+          }
+          t.position.lerp(to, 0.45); t.rotation.z *= 0.7;
+        }
+        else if (k) {
+          const c = cups[k].position;
+          t.position.x = c.x; t.position.z = c.z; t.rotation.z = 0;
+          t.position.y += (c.y + surfaceY(k) - probeDepth() - t.position.y) * 0.35;
+        }
         else { t.position.lerp(TH_HOME[i], 0.2); t.rotation.z += (Math.PI / 2 - t.rotation.z) * 0.2; }
         t.setTemp(k ? S.T[k] : inSun() ? AIR_SUN : ROOM);
       });

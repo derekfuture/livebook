@@ -94,6 +94,14 @@ export default {
     const ghost = new RayView({ width: 1.2, glow: 0 });
     ghost.core.material.opacity = 0.25;
     group.add(rays.group, ghost.group);
+    // 箭头沿可见光路贴在纸面内，避开 O 点的角度弧和外圈刻度。
+    const arrowHead = () => polyline([
+      new THREE.Vector3(-0.003, -0.006, 0),
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0.003, -0.006, 0),
+    ], { width: 2.4, color: 0xd42622 });
+    const incidentHead = arrowHead(), reflectedHead = arrowHead();
+    group.add(incidentHead, reflectedHead);
     const tI = tag('', 'mag'), tR = tag('', 'mag');
     const arcI = new THREE.Group(), arcR = new THREE.Group();
     group.add(arcI, arcR);
@@ -121,6 +129,12 @@ export default {
       (outOnPaper ? vis : faint).push({ pts: [{ x: 0, y: 0 }, outEnd], color: 0xff2a2a });
       rays.set(vis, toW);
       ghost.set(faint, toW);
+      incidentHead.position.copy(toW(start.x * 0.65, start.y * 0.65));
+      incidentHead.rotation.z = Math.atan2(start.x, -start.y);
+      incidentHead.visible = incOnPaper;
+      reflectedHead.position.copy(toW(outEnd.x * 0.65, outEnd.y * 0.65));
+      reflectedHead.rotation.z = Math.atan2(-outEnd.x, outEnd.y);
+      reflectedHead.visible = outOnPaper;
       // 角度弧
       for (const [grp, side] of [[arcI, inSide], [arcR, -inSide]]) {
         grp.clear();

@@ -134,12 +134,12 @@ export default {
       }
       @media(min-width:761px) and (max-width:1050px) and (max-height:550px){
         .lbar[data-elim-bar] {left:12px;bottom:7px;width:380px;transform:none}
-        body.lesson-on:not(.predicting) [data-elim-panel]:not(.folded) {bottom:76px}
+        html:not(.phone-scaled) body.lesson-on:not(.predicting) [data-elim-panel]:not(.folded) {bottom:76px}
         .mw[data-ethanolelim] .mw-hud {left:18px!important;width:320px!important;transform:none;top:78px!important;bottom:auto}
       }
       @media(max-width:760px){
-        #panel[data-elim-panel]:not(.folded) {height:43vh}
-        body:not(:has(#panel.folded)) .lbar[data-elim-bar] {bottom:calc(43vh + 12px)}
+        html:not(.phone-scaled) #panel[data-elim-panel]:not(.folded) {height:43vh}
+        html:not(.phone-scaled) body:not(:has(#panel.folded)) .lbar[data-elim-bar] {bottom:calc(43vh + 12px)}
         .tag3d.elim-name {padding:1px 2px}
         .tag3d.elim-name span {display:block}
         .tag3d.elim-flask-name {margin-left:-57px;margin-top:-12px}
